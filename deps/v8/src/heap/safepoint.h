@@ -95,12 +95,8 @@ class IsolateSafepoint final {
   void LeaveLocalSafepointScope();
 
   // Methods for entering/leaving global safepoint scopes.
-  void TryInitiateGlobalSafepointScope(Isolate* initiator,
-                                       PerClientSafepointData* client_data);
   void InitiateGlobalSafepointScope(Isolate* initiator,
                                     PerClientSafepointData* client_data);
-  void InitiateGlobalSafepointScopeRaw(Isolate* initiator,
-                                       PerClientSafepointData* client_data);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
   // Blocks until all running threads reached a safepoint.

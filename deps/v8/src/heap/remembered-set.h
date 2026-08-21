@@ -59,8 +59,8 @@ class RememberedSetOperations {
       uintptr_t start_offset = chunk->Offset(start);
       uintptr_t end_offset = chunk->OffsetMaybeOutOfRange(end);
       DCHECK_LE(start_offset, end_offset);
-      slot_set->RemoveRange(static_cast<int>(start_offset),
-                            static_cast<int>(end_offset),
+      slot_set->RemoveRange(static_cast<size_t>(start_offset),
+                            static_cast<size_t>(end_offset),
                             page->BucketsInSlotSet(), mode);
     }
   }

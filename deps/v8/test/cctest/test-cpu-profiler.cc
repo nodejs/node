@@ -1017,7 +1017,7 @@ class TestApiCallbacks {
   }
 
   static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
-                     const v8::PropertyCallbackInfo<void>& info) {
+                     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->CollectSample(info.GetIsolate());
   }
@@ -1403,10 +1403,12 @@ static void TickLines(bool optimize) {
 
   unsigned int line_count = func_node->GetHitLineCount();
   CHECK_EQ(2u, line_count);  // Expect two hit source lines - #1 and #5.
-  base::ScopedVector<v8::CpuProfileNode::LineTick> entries(line_count);
+  auto entries =
+      base::OwnedVector<v8::CpuProfileNode::LineTick>::NewForOverwrite(
+          line_count);
   CHECK(func_node->GetLineTicks(&entries[0], line_count));
   int value = 0;
-  for (int i = 0; i < entries.length(); i++)
+  for (size_t i = 0; i < entries.size(); i++)
     if (entries[i].line == hit_line && entries[i].column == hit_col) {
       value = entries[i].hit_count;
       break;
@@ -2820,10 +2822,12 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
+#ifdef DEBUG
   if (i::v8_flags.turboshaft_verify_load_store_taggedness) {
     // TODO(dmercadier): investigate why this test doesn't work with this flag.
     return;
   }
+#endif
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -4937,11 +4941,11 @@ TEST(CpuProfileJSONSerialization) {
   cpu_profiler->Dispose();
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  base::ScopedVector<char> json(stream.size());
-  stream.WriteTo(json);
+  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
-  OneByteResource* json_res = new OneByteResource(json);
+  OneByteResource* json_res = new OneByteResource(json.as_vector());
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
   v8::Local<v8::Context> context = v8::Context::New(env.isolate());
@@ -4976,6 +4980,62 @@ TEST(CpuProfileJSONSerialization) {
             .ToLocalChecked()
             .As<v8::Number>()
             ->Value() > 0);
+}
+
+TEST(CpuProfileJSONSerializationWithEscapedStrings) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+
+  // Script URL contains JSON-special characters: double-quote and backslash.
+  const char* origin_url = "test/\"quoted\"/\\path.js";
+  v8::Local<v8::Script> script = CompileWithOrigin(
+      "%NeverOptimizeFunction(foo);\n"
+      "function foo() {\n"
+      "  var n = 0;\n"
+      "  for (var i = 0; i < 1e5; i++) n += i;\n"
+      "  return n;\n"
+      "}\n",
+      origin_url, false);
+  CHECK(!script.IsEmpty());
+  script->Run(env.local()).ToLocalChecked();
+
+  v8::Local<v8::Function> foo = GetFunction(env.local(), "foo");
+
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile = helper.Run(foo, nullptr, 0, 1000);
+
+  // Walk the profile tree to confirm a node with the special URL exists.
+  bool found_special_url = false;
+  std::vector<const v8::CpuProfileNode*> stack;
+  stack.push_back(profile->GetTopDownRoot());
+  while (!stack.empty()) {
+    const v8::CpuProfileNode* node = stack.back();
+    stack.pop_back();
+    if (strcmp(node->GetScriptResourceNameStr(), origin_url) == 0) {
+      found_special_url = true;
+      break;
+    }
+    for (int i = 0; i < node->GetChildrenCount(); i++) {
+      stack.push_back(node->GetChild(i));
+    }
+  }
+  CHECK(found_special_url);
+
+  // If the escaping is broken, json parse will fail
+  TestJSONStream stream;
+  profile->Serialize(&stream, v8::CpuProfile::kJSON);
+  profile->Delete();
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(1, stream.eos_signaled());
+  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
+
+  OneByteResource* json_res = new OneByteResource(json.as_vector());
+  v8::Local<v8::String> json_string =
+      v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
+  v8::Local<v8::Context> context = v8::Context::New(env.isolate());
+  v8::JSON::Parse(context, json_string).ToLocalChecked();
 }
 
 }  // namespace test_cpu_profiler

@@ -20,6 +20,7 @@
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags-impl.h"
@@ -96,15 +97,39 @@ void Flag::set_string_value(const char* new_value, bool owns_new_value,
   }
 }
 
-bool Flag::ShouldCheckFlagContradictions() {
-  if (v8_flags.allow_overwriting_for_next_flag) {
-    // Setting the flag manually to false before calling Reset() avoids this
-    // becoming re-entrant.
-    v8_flags.allow_overwriting_for_next_flag = false;
-    FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
-    return false;
+FlagProcessingMode FlagList::GetFlagProcessingMode() {
+  // The default processing mode is "ignore-contradictions" (mostly for
+  // historical reasons). However, certain testing tools like d8 and
+  // inspector-test explicitly set it to "abort-on-error".
+  if (v8_flags.flag_processing_mode != nullptr) {
+    if (strcmp(v8_flags.flag_processing_mode, "exit-on-error") == 0) {
+      return FlagProcessingMode::kExitOnError;
+    } else if (strcmp(v8_flags.flag_processing_mode, "abort-on-error") == 0) {
+      // Legacy behavior: --fuzzing disables flag contradiction checking in the
+      // default configuration.
+      // TODO(500181840): avoid the need for this workaround by having fuzzers
+      // (that pass random flags) explicitly set the flag processing mode.
+      if (v8_flags.fuzzing) {
+        return FlagProcessingMode::kIgnoreContradictions;
+      } else {
+        return FlagProcessingMode::kAbortOnError;
+      }
+    } else if (strcmp(v8_flags.flag_processing_mode, "ignore-contradictions") ==
+               0) {
+      return FlagProcessingMode::kIgnoreContradictions;
+    } else {
+      base::FatalNoSecurityImpact(
+          "Invalid value for --flag-processing-mode: %s\n",
+          v8_flags.flag_processing_mode);
+    }
   }
-  return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
+
+  return FlagProcessingMode::kIgnoreContradictions;
+}
+
+bool Flag::ShouldCheckFlagContradictions() {
+  return FlagList::GetFlagProcessingMode() !=
+         FlagProcessingMode::kIgnoreContradictions;
 }
 
 namespace {
@@ -116,16 +141,15 @@ struct FlagError : public std::ostringstream {
       "tools/testrunner/local/variants.py.";
   // MSVC complains about non-returning destructor; disable that.
   MSVC_SUPPRESS_WARNING(4722)
-  ~FlagError() {
+  [[noreturn]] ~FlagError() {
     base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
     base::OS::PrintError("%s\n", kHint);
-    // TODO(457654443): consider merging exit_on_contradictory_flags and
-    // abort_on_contradictory_flags into a single, more generic flag specifying
-    // how to handle flag processing errors.
-    if (v8_flags.exit_on_contradictory_flags) {
+    base::PrintStackTraceIfAvailable();
+
+    FlagProcessingMode mode = FlagList::GetFlagProcessingMode();
+    if (mode == FlagProcessingMode::kExitOnError) {
       base::OS::ExitProcess(-1);
     } else {
-      DCHECK(v8_flags.abort_on_contradictory_flags);
       base::OS::Abort();
     }
   }
@@ -305,13 +329,8 @@ constexpr size_t kNumFlags = arraysize(flags);
 
 base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
-#if V8_CC_MSVC && defined(_DEBUG)
-std::array<int, kNumFlags> GetSortedFlagIndices() {
-  const char* kFlagNames[] = {
-#else
 consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
   constexpr const char* kFlagNames[] = {
-#endif
 #define FLAG_MODE_APPLY_NAME(nam) #nam,
 #define FLAG_ALIAS(ftype, ctype, alias, nam) #alias,
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
@@ -343,11 +362,7 @@ struct FlagNameGreater {
 class FlagMapByName {
  public:
   FlagMapByName() {
-#if V8_CC_MSVC && defined(_DEBUG)
-    const std::array<int, kNumFlags> sorted_indices =
-#else
     constexpr std::array<int, kNumFlags> sorted_indices =
-#endif
         GetSortedFlagIndices();
     for (size_t i = 0; i < kNumFlags; ++i) {
       flags_[i] = &flags[sorted_indices[i]];
@@ -846,7 +861,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
   }
 
   // Allocate argument array.
-  base::ScopedVector<char*> argv(argc);
+  auto argv = base::OwnedVector<char*>::NewForOverwrite(argc);
 
   // Split the flags string into arguments.
   argc = 1;  // be compatible with SetFlagsFromCommandLine()
@@ -1094,6 +1109,12 @@ class ImplicationProcessor {
       }
     }
     if (is_conclusion_value_change) {
+      if constexpr (std::is_same_v<T, const char*>) {
+        if (conclusion_flag->owns_ptr_) {
+          DeleteArray(conclusion_value->value());
+          conclusion_flag->owns_ptr_ = false;
+        }
+      }
       *conclusion_value = value;
       // Any implications by the conclusion flag are now invalid. Reset the
       // flags previously implied by the conclusion flag. If they were also
@@ -1162,7 +1183,8 @@ class ImplicationProcessor {
     if (ComputeFlagListHash() == cycle_start_hash_) {
       DCHECK(!cycle_.str().empty());
       // {cycle_} starts with a newline.
-      FATAL("Cycle in flag implications:%s", cycle_.str().c_str());
+      base::FatalNoSecurityImpact("Cycle in flag implications:%s",
+                                  cycle_.str().c_str());
     }
     // We must have found a cycle within another {kMaxNumIterations}.
     DCHECK_GE(2 * kMaxNumIterations, num_iterations_);
@@ -1222,6 +1244,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
       CONTRADICTION(jitless, turbolev_future),
+      CONTRADICTION(jitless, turbolev_inline_js_wasm_wrappers),
       CONTRADICTION(jitless, turboshaft_wasm_in_js_inlining),
       CONTRADICTION(jitless, verify_turboshaft),
       CONTRADICTION(lite_mode, maglev_as_top_tier),
@@ -1246,6 +1269,12 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(turboshaft, stress_concurrent_inlining),
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
       CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
+
+      // This stress enables additional CHECKs that are classified as non-issues
+      // by the sandbox fuzzer crash filters, and hence may result in masking
+      // real issues from the fuzzer.
+      CONTRADICTION(stress_lazy_source_positions, sandbox_fuzzing),
+      CONTRADICTION(stress_lazy_source_positions, sandbox_testing),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset
@@ -1275,6 +1304,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+      // Not useful for differential fuzzing: https://crbug.com/496356383
+      RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc),
+
       // https://crbug.com/369974230
       RESET_WHEN_FUZZING(expose_async_hooks),
 
@@ -1301,9 +1333,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     if (!flag1 || !flag2) continue;
     if (flag1->IsDefault() || flag2->IsDefault()) continue;
 
-    // Ensure we never reset the fuzzing flags.
+    // Ensure we never reset the fuzzing or POC verification flags.
     CHECK(!flag1->PointsTo(&v8_flags.fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.correctness_fuzzer_suppressions));
+    CHECK(!flag1->PointsTo(&v8_flags.sandbox_fuzzing));
+    CHECK(!flag1->PointsTo(&v8_flags.sandbox_testing));
+    CHECK(!flag1->PointsTo(&v8_flags.run_as_security_poc));
+    CHECK(!flag1->PointsTo(&v8_flags.run_as_sandbox_security_poc));
 
     std::cerr << "Warning: resetting flag --" << flag1->name()
               << " due to conflicting flags" << std::endl;

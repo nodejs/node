@@ -298,7 +298,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvAtomicLoadDecompressTaggedSigned:
     case kRiscvAtomicLoadDecompressTagged:
     case kRiscvAtomicStoreCompressTagged:
-    case kRiscvLoadDecompressProtected:
+    case kRiscvLoadDecompressTrapping:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
 #endif
@@ -312,12 +312,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvLoadHalf:
     case kRiscvRvvLd:
     case kRiscvPeek:
-    case kRiscvUld:
-    case kRiscvULoadDouble:
-    case kRiscvUlh:
-    case kRiscvUlhu:
-    case kRiscvUlw:
-    case kRiscvULoadFloat:
     case kRiscvS128LoadSplat:
     case kRiscvS128Load64ExtendU:
     case kRiscvS128Load64ExtendS:
@@ -326,7 +320,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvSd:
-    case kRiscvUsd:
     case kRiscvWord64AtomicStoreWord64:
     case kRiscvWord64AtomicAddUint64:
     case kRiscvWord64AtomicSubUint64:
@@ -358,10 +351,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSw:
     case kRiscvStoreFloat:
     case kRiscvStoreHalf:
-    case kRiscvUStoreDouble:
-    case kRiscvUsh:
-    case kRiscvUsw:
-    case kRiscvUStoreFloat:
     case kRiscvSync:
     case kRiscvS128StoreLane:
       return kHasSideEffect;
@@ -698,38 +687,6 @@ int AdjustBaseAndOffsetLatency() {
 
 int AlignedMemoryLatency() { return AdjustBaseAndOffsetLatency() + 1; }
 
-int UlhuLatency() {
-  return AdjustBaseAndOffsetLatency() + 2 * AlignedMemoryLatency() + 2;
-}
-
-int UlwLatency() {
-  // Estimated max.
-  return AdjustBaseAndOffsetLatency() + 3;
-}
-
-int UlwuLatency() { return UlwLatency() + 1; }
-
-int UldLatency() {
-  // Estimated max.
-  return AdjustBaseAndOffsetLatency() + 3;
-}
-
-int ULoadFloatLatency() { return UlwLatency() + Latency::MOVT_FREG; }
-
-int ULoadDoubleLatency() { return UldLatency() + Latency::MOVT_DREG; }
-
-int UshLatency() {
-  // Estimated max.
-  return AdjustBaseAndOffsetLatency() + 2 + 2 * AlignedMemoryLatency();
-}
-
-int UswLatency() { return AdjustBaseAndOffsetLatency() + 2; }
-
-int UsdLatency() { return AdjustBaseAndOffsetLatency() + 2; }
-
-int UStoreFloatLatency() { return Latency::MOVF_FREG + UswLatency(); }
-
-int UStoreDoubleLatency() { return Latency::MOVF_HIGH_DREG + UsdLatency(); }
 
 int LoadFloatLatency() {
   return AdjustBaseAndOffsetLatency() + Latency::LOAD_FLOAT;
@@ -1397,7 +1354,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return AlignedMemoryLatency();
     case kRiscvLoadHalf:
     case kRiscvLoadFloat:
-      return ULoadFloatLatency();
+      return LoadFloatLatency();
     case kRiscvLoadDouble:
       return LoadDoubleLatency();
     case kRiscvStoreHalf:
@@ -1405,29 +1362,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return StoreFloatLatency();
     case kRiscvStoreDouble:
       return StoreDoubleLatency();
-    case kRiscvUlhu:
-    case kRiscvUlh:
-      return UlhuLatency();
-#if V8_TARGET_ARCH_RISCV64
-    case kRiscvUld:
-      return UldLatency();
-    case kRiscvUsd:
-      return UsdLatency();
-#endif
-    case kRiscvUlw:
-      return UlwLatency();
-    case kRiscvULoadFloat:
-      return ULoadFloatLatency();
-    case kRiscvULoadDouble:
-      return ULoadDoubleLatency();
-    case kRiscvUsh:
-      return UshLatency();
-    case kRiscvUsw:
-      return UswLatency();
-    case kRiscvUStoreFloat:
-      return UStoreFloatLatency();
-    case kRiscvUStoreDouble:
-      return UStoreDoubleLatency();
     case kRiscvPeek: {
       int latency = 0;
       if (instr->OutputAt(0)->IsFPRegister()) {
@@ -1496,7 +1430,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvAssertEqual:
       return AssertLatency();
 #ifdef V8_TARGET_ARCH_RISCV64
-    case kRiscvLoadDecompressProtected:
+    case kRiscvLoadDecompressTrapping:
       return 11;
 #endif
     default:

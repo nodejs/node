@@ -555,8 +555,23 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   addl(reg, other);
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  if (dst == src) {
+    AddInt32(dst, amount);
+  } else {
+    leal(dst, Operand(src, amount));
+  }
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   andl(reg, Immediate(mask));
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  if (dst != src) {
+    Move(dst, src);
+  }
+  AndInt32(dst, mask);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -581,6 +596,13 @@ inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
 
 inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   leaq(dst, location);
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  if (dst != src) {
+    Move(dst, src);
+  }
+  orq(dst, Immediate(kWeakHeapObjectTag));
 }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
@@ -1146,6 +1168,45 @@ void MaglevAssembler::JumpIfNotNan(DoubleRegister value, Label* target,
                                    Label::Distance distance) {
   Ucomisd(value, value);
   JumpIf(NegateCondition(ConditionForNaN()), target, distance);
+}
+
+void MaglevAssembler::SubInt32(Register dst, Register src) { subl(dst, src); }
+
+void MaglevAssembler::SubInt32(Register dst, Register src1, Register src2) {
+  if (dst == src1) {
+    SubInt32(dst, src2);
+  } else if (dst == src2) {
+    negl(dst);
+    addl(dst, src1);
+  } else {
+    Move(dst, src1);
+    SubInt32(dst, src2);
+  }
+}
+
+void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  shrl(dst, Immediate(value));
+}
+
+void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                          int32_t value) {
+  if (dst != src) {
+    Move(dst, src);
+  }
+  ShiftRightLogical32(dst, value);
+}
+
+void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src, int width,
+                                         int shift) {
+  if (dst != src) {
+    Move(dst, src);
+  }
+  if (shift != 0) {
+    shrl(dst, Immediate(shift));
+  }
+  if (shift + width < 32) {
+    andl(dst, Immediate((1 << width) - 1));
+  }
 }
 
 void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,

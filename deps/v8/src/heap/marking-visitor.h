@@ -153,6 +153,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override;
+  void VisitJSDispatchTableEntry(Tagged<InstructionStream> host,
+                                 JSDispatchHandle handle) override;
 
   V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,
                                        ProtectedPointerSlot slot) final {

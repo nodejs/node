@@ -24,7 +24,7 @@ class Memory64Runner : public WasmRunner<ReturnType, ParamTypes...> {
   }
 
   uint8_t* AddMemory(uint32_t size, size_t max_size,
-                     SharedFlag shared = SharedFlag::kNotShared) {
+                     SharedFlag shared = SharedFlag::kNo) {
     return this->builder().AddMemory(size, shared, AddressType::kI64, max_size);
   }
 };

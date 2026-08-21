@@ -368,7 +368,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
         << "We only maintain golden data for little endian 64 bit systems with "
            "128 bit intristics.";
   }
-#elif defined(__SSE4_2__) && defined(__AES__)
+#elif (defined(__SSE4_2__) && defined(__AES__))
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
       0xd6bdb2c9ba5e55f2, 0xffd3e23d4115a8ae, 0x2c3218ef486127de,
       0x554fa7f3a262b886, 0x06304cbf82e312d3, 0x490b3fb5af80622c,
@@ -402,6 +402,41 @@ TEST(LowLevelHashTest, VerifyGolden) {
       0x77553f42fb0bfbf7, 0x26b95e89f0077110, 0x76ce68ebe01191ba,
       0x724110fb509e4376, 0xebe74b016b5cfb88, 0x3b0fe11dcf175fc9,
       0x20b737b9c0490538, 0x0db21c429b45fd17,
+  };
+#elif (defined(ABSL_INTERNAL_HAVE_ARM_NEON) && defined(__ARM_FEATURE_CRYPTO))
+  constexpr uint64_t kGolden[kNumGoldenOutputs] = {
+      0xe3de56d839559570, 0x77afbb8906ccf19a, 0xe66e02ad8e92c12f,
+      0x36cc6f2fe751bc64, 0xf4d28aea3ed69ade, 0xf246fd6a4ca33ab3,
+      0xcae9edaf829a6575, 0x11fa7c88bf4cc73a, 0x98c47bfbae3d8c02,
+      0x27545ea34451a56f, 0x14b4c1a27d26d2b2, 0x7613ca9857e7cbe0,
+      0x02efc8f12e71bb88, 0x9c1a83672eee7d5b, 0x2b89aa9cfde6d9b3,
+      0xabeb2cf68ab463dc, 0xfb3db51d62d71d28, 0x3177cc3e0927e344,
+      0xb5798fc1d348beb6, 0x212c471510859095, 0x191df651c270548d,
+      0x1b15d6b8e8cc3105, 0xdc51a9e369fbab13, 0xb674fd0372fab5aa,
+      0x048aec21666fc8d5, 0x8b15383bc4a7e244, 0xf8945c253a43469f,
+      0x513f31e6bf240064, 0xc37c6225063c266f, 0x2a6747f8952ec44c,
+      0xa7a0f11d3607f268, 0x9b58d5c889166fb3, 0xb75ca76a67212a39,
+      0x9a71a476bf4933f3, 0x3f049a71b475edf7, 0x7a49c8907a278e5e,
+      0xf9a78757d9355ac9, 0xbe1bd9d70ee46398, 0x600e24a76a359a39,
+      0x235905ade793a5f0, 0x940c36e0df8ec13a, 0x9300c551cb93a286,
+      0x5e265b90e4828aba, 0x42dee1626c647735, 0x8cd32910c1f17a8c,
+      0x642f44f3f8290fb0, 0xb73ee167c5f8655e, 0x9d05deadb2a47fe4,
+      0x03b359dff5351708, 0x19a6427c0ee9c907, 0x0692dc026847e0d9,
+      0xe4023ba608b25f1e, 0xf438ad7eea71dfc1, 0x205120c9355d4ac8,
+      0xd4cf2cb1f412c846, 0x82d7d98b87ecf53a, 0x2cc779469cc3d690,
+      0xf93545883141ce8e, 0x0f794c869b82a28a, 0x014e9fccfe7f7d9e,
+      0xb6953652e49e4e0a, 0x68035eabb056e9b6, 0xf1b3a6847e610274,
+      0x59dc584137c0cb55, 0xafb36238ad797ec6, 0xb9f331777a030104,
+      0x2899a97f98140d3b, 0x0ae342d8d4f80ad0, 0xcfb25544c873fbd1,
+      0xcb2498ca84b01a4c, 0x1a50e4a0d8db8406, 0x0afbf05b7c8c146e,
+      0x1b45ee2ee670d71b, 0xef9204d9fcc31075, 0x2a5750d2ef558495,
+      0x8e151888d0ce024e, 0x26882404dd58bcc9, 0x6c830f947bf2195f,
+      0x2ff0c1fa64bf8cfb, 0x8f108f869e11d224, 0x7ce757787a04fd76,
+      0xee55da944ebbbd85, 0x43563645bb00dcd0, 0x643848bf73336681,
+      0x050f54d0478ffd52, 0xc5c1bff1bc3c008c, 0x48fd0f2729c9402d,
+      0x7685b990e3e264af, 0x940dccac3264ed16, 0x688f94ee88c9ba90,
+      0xca112c7825f3944b, 0x584cb5ddba130be2, 0xb7ced01f7140dff6,
+      0xc10dcbb4e77168e6, 0xb5ea4360351ebaef,
   };
 #else
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {

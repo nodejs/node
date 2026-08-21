@@ -114,67 +114,34 @@ void NormalPageMemoryPool::Add(PageMemoryRegion* pmr) {
     AsanUnpoisonScope unpoison_for_memset(base, size);
     std::memset(base, 0, size);
   }
-  pool_.emplace_back(PooledPageMemoryRegion(pmr));
+  pool_.push_back(pmr);
 }
 
 PageMemoryRegion* NormalPageMemoryPool::Take() {
   if (pool_.empty()) return nullptr;
-  PooledPageMemoryRegion entry = pool_.back();
-  DCHECK_NOT_NULL(entry.region);
+  PageMemoryRegion* pmr = pool_.back();
+  DCHECK_NOT_NULL(pmr);
   pool_.pop_back();
-  void* base = entry.region->region().base();
-  const size_t size = entry.region->region().size();
+  void* base = pmr->region().base();
+  const size_t size = pmr->region().size();
   ASAN_UNPOISON_MEMORY_REGION(base, size);
 
-  if (entry.is_decommitted) {
-    // Also need to make the pages accessible.
-    CHECK(entry.region->allocator().RecommitPages(
-        base, size, v8::PageAllocator::kReadWrite));
-    bool ok = entry.region->allocator().SetPermissions(
-        base, size, v8::PageAllocator::kReadWrite);
-    if (!ok) {
-#if V8_OS_POSIX
-      // Changing permissions can return ENOMEM in several cases, including
-      // (since there is PROT_WRITE) when it would exceed the RLIMIT_DATA
-      // resource limit, at least on Linux. Check errno in this case, and
-      // declare that this is an OOM in this case.
-      if (errno == ENOMEM) {
-        GetGlobalOOMHandler()("Cannot change page permissions");
-      }
-#endif
-      CHECK(false);
-    }
-  }
 #if DEBUG
   CheckMemoryIsZero(base, size);
 #endif
-  return entry.region;
+  return pmr;
 }
 
 size_t NormalPageMemoryPool::PooledMemory() const {
   size_t total_size = 0;
-  for (auto& entry : pool_) {
-    if (entry.is_decommitted || entry.is_discarded) {
-      continue;
-    }
-    total_size += entry.region->region().size();
+  for (auto* pmr : pool_) {
+    total_size += pmr->region().size();
   }
   return total_size;
 }
 
-void NormalPageMemoryPool::ReleasePooledPages(PageAllocator& page_allocator) {
-  for (auto& entry : pool_) {
-    DCHECK_NOT_NULL(entry.region);
-    void* base = entry.region->region().base();
-    size_t size = entry.region->region().size();
-    // Unpoison the memory before giving back to the OS.
-    ASAN_UNPOISON_MEMORY_REGION(base, size);
-    if (entry.is_decommitted) {
-      continue;
-    }
-    CHECK(page_allocator.DecommitPages(base, size));
-    entry.is_decommitted = true;
-  }
+std::vector<PageMemoryRegion*> NormalPageMemoryPool::TakeAll() {
+  return std::move(pool_);
 }
 
 PageBackend::PageBackend(PageAllocator& normal_page_allocator,
@@ -239,7 +206,13 @@ void PageBackend::FreeLargePageMemory(Address writeable_base) {
 }
 
 void PageBackend::ReleasePooledPages() {
-  page_pool_.ReleasePooledPages(normal_page_allocator_);
+  v8::base::MutexGuard guard(&mutex_);
+  auto pooled_regions = page_pool_.TakeAll();
+  for (auto* region : pooled_regions) {
+    auto erased_count = normal_page_memory_regions_.erase(region);
+    USE(erased_count);
+    DCHECK_EQ(1u, erased_count);
+  }
 }
 
 }  // namespace internal

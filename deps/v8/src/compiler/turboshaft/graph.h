@@ -525,6 +525,11 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 #endif
   }
 
+#ifdef BUILTIN_BLOCK_POSITION
+  void set_pgo_execution_count(uint64_t count) { pgo_execution_count_ = count; }
+  uint64_t pgo_execution_count() const { return pgo_execution_count_; }
+#endif
+
  private:
   // AddPredecessor should never be called directly except from Assembler's
   // AddPredecessor and SplitEdge methods, which takes care of maintaining
@@ -558,6 +563,9 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   size_t graph_generation_ = 0;
   // True if this is a loop header of a loop with a peeled iteration.
   bool has_peeled_iteration_ = false;
+#endif
+#ifdef BUILTIN_BLOCK_POSITION
+  uint64_t pgo_execution_count_ = 0;
 #endif
 
   friend class Graph;
@@ -785,6 +793,11 @@ class Graph {
     new (result) Block(kind);
 #ifdef DEBUG
     result->graph_generation_ = generation_;
+#endif
+#ifdef BUILTIN_BLOCK_POSITION
+    if (origin) {
+      result->set_pgo_execution_count(origin->pgo_execution_count());
+    }
 #endif
     result->SetOrigin(origin);
     return result;
@@ -1145,6 +1158,11 @@ class Graph {
   }
 #endif
 
+#ifdef BUILTIN_BLOCK_POSITION
+  bool has_profile() const { return has_profile_; }
+  void set_has_profile() { has_profile_ = true; }
+#endif
+
  private:
   bool InputsValid(const Operation& op) const {
     for (OpIndex i : op.inputs()) {
@@ -1238,6 +1256,10 @@ class Graph {
   size_t generation_ = 1;
 #endif  // DEBUG
 
+#ifdef BUILTIN_BLOCK_POSITION
+  bool has_profile_ = false;
+#endif
+
   // Phase specific data.
   // For some reducers/phases, we use the graph to pass data around. These data
   // should always be invalidated at the end of the graph copy.
@@ -1297,9 +1319,15 @@ V8_INLINE bool Block::HasPhis(const Graph& graph) const {
 struct PrintAsBlockHeader {
   const Block& block;
   BlockIndex block_id;
+#ifdef BUILTIN_BLOCK_POSITION
+  bool has_profile;
 
+  explicit PrintAsBlockHeader(const Block& block, bool has_profile = false)
+      : block(block), block_id(block.index()), has_profile(has_profile) {}
+#else
   explicit PrintAsBlockHeader(const Block& block)
       : block(block), block_id(block.index()) {}
+#endif
   PrintAsBlockHeader(const Block& block, BlockIndex block_id)
       : block(block), block_id(block_id) {}
 };

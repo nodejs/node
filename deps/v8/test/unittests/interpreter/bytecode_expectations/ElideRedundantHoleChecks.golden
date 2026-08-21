@@ -813,13 +813,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 67
+bytecode array length: 65
 bytecodes: [
   /*   24 S> */ B(LdaImmutableCurrentContextSlot), C8(3),
   /*   44 E> */ B(ThrowReferenceErrorIfHole), U8(0:"x"),
                 B(TestEqualStrict), R(arg0), EmbeddedFeedback(),
                 B(Mov), R(arg0), R(0),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(42),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(16),

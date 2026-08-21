@@ -744,10 +744,15 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(
                           : StatsEnum::OBJECT_DICTIONARY_ELEMENTS_TYPE);
   } else if (IsJSArray(object)) {
     if (elements != ReadOnlyRoots(heap_).empty_fixed_array()) {
-      size_t element_size =
-          (elements->Size() - FixedArrayBase::kHeaderSize) / elements->length();
-      uint32_t length = Object::NumberValue(Cast<JSArray>(object)->length());
-      size_t over_allocated = (elements->length() - length) * element_size;
+      const uint32_t elements_object_size = elements->SafeSize().value();
+      const uint32_t elements_len = elements->ulength().value();
+      DCHECK_GE(elements_object_size, FixedArrayBase::kHeaderSize);
+      const size_t element_size =
+          (elements_object_size - FixedArrayBase::kHeaderSize) / elements_len;
+      const uint32_t length =
+          Object::NumberValue(Cast<JSArray>(object)->length());
+      DCHECK_GE(elements_len, length);
+      const size_t over_allocated = (elements_len - length) * element_size;
       RecordVirtualObjectStats(object, elements, StatsEnum::ARRAY_ELEMENTS_TYPE,
                                elements->Size(), over_allocated);
     }
@@ -879,12 +884,10 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
       } else if (InstanceTypeChecker::IsMap(instance_type)) {
         RecordVirtualMapDetails(Cast<Map>(obj));
-      } else if (Tagged<BytecodeArray> bytecode_array;
-                 TryCast(obj, &bytecode_array)) {
-        RecordVirtualBytecodeArrayDetails(bytecode_array);
-      } else if (Tagged<InstructionStream> instruction_stream;
-                 TryCast(obj, &instruction_stream)) {
-        RecordVirtualCodeDetails(instruction_stream);
+      } else if (Is<BytecodeArray>(obj)) {
+        RecordVirtualBytecodeArrayDetails(TrustedCast<BytecodeArray>(obj));
+      } else if (Is<InstructionStream>(obj)) {
+        RecordVirtualCodeDetails(TrustedCast<InstructionStream>(obj));
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             Cast<FunctionTemplateInfo>(obj));
@@ -1082,7 +1085,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(
     // them manually. The on-heap String object is recorded independently in
     // the normal pass.
     Tagged<ExternalString> string = Cast<ExternalString>(raw_source);
-    Address resource = string->resource_as_address();
+    Address resource = string->resource_as_address(isolate());
     size_t off_heap_size = string->ExternalPayloadSize();
     RecordExternalResourceStats(
         resource,
@@ -1104,7 +1107,7 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
     Tagged<ExternalString> string) {
   // Track the external string resource size in a separate category.
 
-  Address resource = string->resource_as_address();
+  Address resource = string->resource_as_address(isolate());
   size_t off_heap_size = string->ExternalPayloadSize();
   RecordExternalResourceStats(
       resource,
@@ -1137,7 +1140,8 @@ void ObjectStatsCollectorImpl::
   if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
   if (IsFixedArrayExact(object, cage_base())) {
     Tagged<FixedArray> array = Cast<FixedArray>(object);
-    for (int i = 0; i < array->length(); i++) {
+    const uint32_t array_len = array->ulength().value();
+    for (uint32_t i = 0; i < array_len; i++) {
       Tagged<Object> entry = array->get(i);
       if (!IsHeapObject(entry)) continue;
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
@@ -1153,7 +1157,8 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
   Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
-  for (int i = 0; i < constant_pool->length(); i++) {
+  const uint32_t constant_pool_len = constant_pool->ulength().value();
+  for (uint32_t i = 0; i < constant_pool_len; i++) {
     Tagged<Object> entry = constant_pool->get(i);
     if (IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
@@ -1202,7 +1207,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     RecordSimpleVirtualObjectStats(istream, code->deoptimization_data(),
                                    StatsEnum::DEOPTIMIZATION_DATA_TYPE);
     Tagged<DeoptimizationData> input_data = code->deoptimization_data();
-    if (input_data->length() > 0) {
+    if (input_data->ulength().value() > 0) {
       RecordSimpleVirtualObjectStats(code->deoptimization_data(),
                                      input_data->LiteralArray(),
                                      StatsEnum::OPTIMIZED_CODE_LITERALS_TYPE);

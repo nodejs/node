@@ -868,24 +868,24 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports = LoadObjectField<FixedArray>(
-        module, SourceTextModule::kRegularExportsOffset);
+        module, offsetof(SourceTextModule, regular_exports_));
     // The actual array index is (cell_index - 1).
     TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     TNode<Cell> cell =
         CAST(LoadFixedArrayElement(regular_exports, export_index));
-    SetAccumulator(LoadObjectField(cell, Cell::kValueOffset));
+    SetAccumulator(LoadObjectField(cell, offsetof(Cell, maybe_value_)));
     Goto(&end);
   }
 
   BIND(&if_import);
   {
     TNode<FixedArray> regular_imports = LoadObjectField<FixedArray>(
-        module, SourceTextModule::kRegularImportsOffset);
+        module, offsetof(SourceTextModule, regular_imports_));
     // The actual array index is (-cell_index - 1).
     TNode<IntPtrT> import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
     TNode<Cell> cell =
         CAST(LoadFixedArrayElement(regular_imports, import_index));
-    SetAccumulator(LoadObjectField(cell, Cell::kValueOffset));
+    SetAccumulator(LoadObjectField(cell, offsetof(Cell, maybe_value_)));
     Goto(&end);
   }
 
@@ -913,12 +913,12 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports = LoadObjectField<FixedArray>(
-        module, SourceTextModule::kRegularExportsOffset);
+        module, offsetof(SourceTextModule, regular_exports_));
     // The actual array index is (cell_index - 1).
     TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     TNode<HeapObject> cell =
         CAST(LoadFixedArrayElement(regular_exports, export_index));
-    StoreObjectField(cell, Cell::kValueOffset, value);
+    StoreObjectField(cell, offsetof(Cell, maybe_value_), value);
     Goto(&end);
   }
 
@@ -1840,35 +1840,35 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
   }
 };
 
-// TestEqual <src> <feedback_value>
+// TestEqual <src> <feedback_index>
 //
 // Test if the value in the <src> register equals the accumulator.
 IGNITION_HANDLER(TestEqual, InterpreterCompareOpAssembler) {
   CompareOpWithEmbeddedFeedback(Operation::kEqual);
 }
 
-// TestEqualStrict <src> <feedback_value>
+// TestEqualStrict <src> <feedback_index>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 IGNITION_HANDLER(TestEqualStrict, InterpreterCompareOpAssembler) {
   CompareOpWithEmbeddedFeedback(Operation::kStrictEqual);
 }
 
-// TestLessThan <src> <feedback_value>
+// TestLessThan <src> <feedback_index>
 //
 // Test if the value in the <src> register is less than the accumulator.
 IGNITION_HANDLER(TestLessThan, InterpreterCompareOpAssembler) {
   CompareOpWithEmbeddedFeedback(Operation::kLessThan);
 }
 
-// TestGreaterThan <src> <feedback_value>
+// TestGreaterThan <src> <feedback_index>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 IGNITION_HANDLER(TestGreaterThan, InterpreterCompareOpAssembler) {
   CompareOpWithEmbeddedFeedback(Operation::kGreaterThan);
 }
 
-// TestLessThanOrEqual <src> <feedback_value>
+// TestLessThanOrEqual <src> <feedback_index>
 //
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
@@ -1876,7 +1876,7 @@ IGNITION_HANDLER(TestLessThanOrEqual, InterpreterCompareOpAssembler) {
   CompareOpWithEmbeddedFeedback(Operation::kLessThanOrEqual);
 }
 
-// TestGreaterThanOrEqual <src> <feedback_value>
+// TestGreaterThanOrEqual <src> <feedback_index>
 //
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
@@ -2414,7 +2414,8 @@ IGNITION_HANDLER(JumpIfForInDoneConstant, InterpreterAssembler) {
 // Jump by the number of bytes represented by the immediate operand |imm|. Also
 // performs a loop nesting check, a stack check, and potentially triggers OSR.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
+  TNode<IntPtrT> relative_jump =
+      ChangeInt32ToIntPtr(Signed(BytecodeOperandUImm(0)));
 
   ClobberAccumulator(UndefinedConstant());
 
@@ -2714,6 +2715,41 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   TNode<JSObject> result =
       constructor_assembler.CreateEmptyObjectLiteral(context);
   SetAccumulator(result);
+  Dispatch();
+}
+
+// GetPrivateField <context> <slot_index> <depth> <object> <slot>
+IGNITION_HANDLER(GetPrivateField, InterpreterAssembler) {
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandContextSlot(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> symbol_context = GetContextAtDepth(context, depth);
+  TNode<Object> symbol = LoadContextElementNoCell(symbol_context, slot_index);
+  TNode<Object> object = LoadRegisterAtOperandIndex(3);
+  TNode<TaggedIndex> feedback_slot = BytecodeOperandFeedbackSlotTaggedIndex(4);
+  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+
+  TNode<Object> result = CallBuiltin(Builtin::kKeyedLoadIC, context, object,
+                                     symbol, feedback_slot, feedback_vector);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// SetPrivateField <context> <slot_index> <depth> <object> <value> <slot>
+IGNITION_HANDLER(SetPrivateField, InterpreterAssembler) {
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandContextSlot(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> symbol_context = GetContextAtDepth(context, depth);
+  TNode<Object> symbol = LoadContextElementNoCell(symbol_context, slot_index);
+  TNode<Object> object = LoadRegisterAtOperandIndex(3);
+  TNode<TaggedIndex> feedback_slot = BytecodeOperandFeedbackSlotTaggedIndex(4);
+  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+
+  TNode<Object> result =
+      CallBuiltin(Builtin::kKeyedStoreIC, context, object, symbol,
+                  GetAccumulator(), feedback_slot, feedback_vector);
+  ClobberAccumulator(result);
   Dispatch();
 }
 
@@ -3036,7 +3072,6 @@ IGNITION_HANDLER(Abort, InterpreterAssembler) {
 //
 // Return the value in the accumulator.
 IGNITION_HANDLER(Return, InterpreterAssembler) {
-  UpdateInterruptBudgetOnReturn();
   TNode<Object> accumulator = GetAccumulator();
   Return(accumulator);
 }
@@ -3263,7 +3298,7 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
 
 // ForInNext <receiver> <index> <cache_info_pair>
 //
-// Returns the next enumerable property in the the accumulator.
+// Returns the next enumerable property in the accumulator.
 IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   TNode<JSAnyNotSmi> receiver = CAST(LoadRegisterAtOperandIndex(0));
   TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(1));
@@ -3380,20 +3415,20 @@ IGNITION_HANDLER(Illegal, InterpreterAssembler) { AbortWithSandboxViolation(); }
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
   TNode<FixedArray> array = CAST(LoadObjectField(
-      generator, JSGeneratorObject::kParametersAndRegistersOffset));
+      generator, offsetof(JSGeneratorObject, parameters_and_registers_)));
   TNode<Context> context = GetContext();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
   TNode<Smi> suspend_id = BytecodeOperandUImmSmi(3);
 
   ExportParametersAndRegisterFile(array, registers);
-  StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
-  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+  StoreObjectField(generator, offsetof(JSGeneratorObject, context_), context);
+  StoreObjectField(generator, offsetof(JSGeneratorObject, continuation_),
                    suspend_id);
 
   // Store the bytecode offset in the [input_or_debug_pos] field, to be used by
   // the inspector.
   TNode<Smi> offset = SmiTag(BytecodeOffset());
-  StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
+  StoreObjectField(generator, offsetof(JSGeneratorObject, input_or_debug_pos_),
                    offset);
 
   Return(GetAccumulator());
@@ -3414,14 +3449,14 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
 
   TNode<JSGeneratorObject> generator = CAST(maybe_generator);
 
-  TNode<Smi> state =
-      CAST(LoadObjectField(generator, JSGeneratorObject::kContinuationOffset));
+  TNode<Smi> state = CAST(
+      LoadObjectField(generator, offsetof(JSGeneratorObject, continuation_)));
   TNode<Smi> new_state = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
-  StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+  StoreObjectField(generator, offsetof(JSGeneratorObject, continuation_),
                    new_state);
 
   TNode<Context> context =
-      CAST(LoadObjectField(generator, JSGeneratorObject::kContextOffset));
+      CAST(LoadObjectField(generator, offsetof(JSGeneratorObject, context_)));
   SetContext(context);
 
   TNode<UintPtrT> table_start = BytecodeOperandConstantPoolIndex(1);
@@ -3455,13 +3490,13 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
 
   ImportRegisterFile(
-      CAST(LoadObjectField(generator,
-                           JSGeneratorObject::kParametersAndRegistersOffset)),
+      CAST(LoadObjectField(
+          generator, offsetof(JSGeneratorObject, parameters_and_registers_))),
       registers);
 
   // Return the generator's input_or_debug_pos in the accumulator.
-  SetAccumulator(
-      LoadObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset));
+  SetAccumulator(LoadObjectField(
+      generator, offsetof(JSGeneratorObject, input_or_debug_pos_)));
 
   Dispatch();
 }

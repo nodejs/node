@@ -9,6 +9,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 namespace {
 
@@ -23,9 +24,9 @@ std::ostream& PrintAsciiOrHex(std::ostream& os, base::uc16 c) {
 
 }  // namespace
 
-std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
+std::ostream& operator<<(std::ostream& os, const Instruction& inst) {
   switch (inst.opcode) {
-    case RegExpInstruction::CONSUME_RANGE: {
+    case Instruction::CONSUME_RANGE: {
       os << "CONSUME_RANGE [";
       PrintAsciiOrHex(os, inst.payload.consume_range.min);
       os << ", ";
@@ -33,79 +34,79 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
       os << "]";
       break;
     }
-    case RegExpInstruction::RANGE_COUNT: {
+    case Instruction::RANGE_COUNT: {
       os << "RANGE_COUNT " << inst.payload.num_ranges;
       break;
     }
-    case RegExpInstruction::ASSERTION:
+    case Instruction::ASSERTION:
       os << "ASSERTION ";
       switch (inst.payload.assertion_type) {
-        case RegExpAssertion::Type::START_OF_INPUT:
+        case Assertion::Type::START_OF_INPUT:
           os << "START_OF_INPUT";
           break;
-        case RegExpAssertion::Type::END_OF_INPUT:
+        case Assertion::Type::END_OF_INPUT:
           os << "END_OF_INPUT";
           break;
-        case RegExpAssertion::Type::START_OF_LINE:
+        case Assertion::Type::START_OF_LINE:
           os << "START_OF_LINE";
           break;
-        case RegExpAssertion::Type::END_OF_LINE:
+        case Assertion::Type::END_OF_LINE:
           os << "END_OF_LINE";
           break;
-        case RegExpAssertion::Type::BOUNDARY:
+        case Assertion::Type::BOUNDARY:
           os << "BOUNDARY";
           break;
-        case RegExpAssertion::Type::NON_BOUNDARY:
+        case Assertion::Type::NON_BOUNDARY:
           os << "NON_BOUNDARY";
           break;
       }
       break;
-    case RegExpInstruction::FORK:
+    case Instruction::FORK:
       os << "FORK " << inst.payload.pc;
       break;
-    case RegExpInstruction::JMP:
+    case Instruction::JMP:
       os << "JMP " << inst.payload.pc;
       break;
-    case RegExpInstruction::ACCEPT:
+    case Instruction::ACCEPT:
       os << "ACCEPT";
       break;
-    case RegExpInstruction::SET_REGISTER_TO_CP:
+    case Instruction::SET_REGISTER_TO_CP:
       os << "SET_REGISTER_TO_CP " << inst.payload.register_index;
       break;
-    case RegExpInstruction::CLEAR_REGISTER:
+    case Instruction::CLEAR_REGISTER:
       os << "CLEAR_REGISTER " << inst.payload.register_index;
       break;
-    case RegExpInstruction::SET_QUANTIFIER_TO_CLOCK:
+    case Instruction::SET_QUANTIFIER_TO_CLOCK:
       os << "SET_QUANTIFIER_TO_CLOCK " << inst.payload.quantifier_id;
       break;
-    case RegExpInstruction::FILTER_QUANTIFIER:
+    case Instruction::FILTER_QUANTIFIER:
       os << "FILTER_QUANTIFIER " << inst.payload.quantifier_id;
       break;
-    case RegExpInstruction::FILTER_GROUP:
+    case Instruction::FILTER_GROUP:
       os << "FILTER_GROUP " << inst.payload.group_id;
       break;
-    case RegExpInstruction::FILTER_LOOKAROUND:
+    case Instruction::FILTER_LOOKAROUND:
       os << "FILTER_LOOKAROUND " << inst.payload.lookaround_id;
       break;
-    case RegExpInstruction::FILTER_CHILD:
+    case Instruction::FILTER_CHILD:
       os << "FILTER_CHILD " << inst.payload.pc;
       break;
-    case RegExpInstruction::BEGIN_LOOP:
+    case Instruction::BEGIN_LOOP:
       os << "BEGIN_LOOP";
       break;
-    case RegExpInstruction::END_LOOP:
+    case Instruction::END_LOOP:
       os << "END_LOOP";
       break;
-    case RegExpInstruction::START_LOOKAROUND:
+    case Instruction::START_LOOKAROUND:
       os << "START_LOOKAROUND " << inst.payload.lookaround;
       break;
-    case RegExpInstruction::END_LOOKAROUND:
+    case Instruction::END_LOOKAROUND:
       os << "END_LOOKAROUND";
       break;
-    case RegExpInstruction::WRITE_LOOKAROUND_TABLE:
+    case Instruction::WRITE_LOOKAROUND_TABLE:
       os << "WRITE_LOOKAROUND_TABLE " << inst.payload.lookaround_id;
       break;
-    case RegExpInstruction::READ_LOOKAROUND_TABLE:
+    case Instruction::READ_LOOKAROUND_TABLE:
       os << "READ_LOOKAROUND_TABLE " << inst.payload.lookaround;
       break;
   }
@@ -129,12 +130,12 @@ int DigitsRequiredBelow(int n) {
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os,
-                         base::Vector<const RegExpInstruction> insts) {
+                         base::Vector<const Instruction> insts) {
   int inst_num = insts.length();
   int line_digit_num = DigitsRequiredBelow(inst_num);
 
   for (int i = 0; i != inst_num; ++i) {
-    const RegExpInstruction& inst = insts[i];
+    const Instruction& inst = insts[i];
     os << std::setfill('0') << std::setw(line_digit_num) << i << ": " << inst
        << std::endl;
   }
@@ -142,12 +143,13 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         const RegExpInstruction::LookaroundPayload& payload) {
+                         const Instruction::LookaroundPayload& payload) {
   return os << payload.index() << " ("
-            << (payload.type() == RegExpLookaround::Type::LOOKAHEAD ? "ahead"
-                                                                    : "behind")
+            << (payload.type() == Lookaround::Type::LOOKAHEAD ? "ahead"
+                                                              : "behind")
             << ", " << (payload.is_positive() ? "positive" : "negative") << ")";
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

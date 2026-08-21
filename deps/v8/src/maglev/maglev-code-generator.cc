@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-code-generator.h"
 
 #include <algorithm>
+#include <fstream>
 
 #include "absl/container/flat_hash_map.h"
 #include "src/base/hashmap.h"
@@ -23,6 +24,7 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/frame-translation-builder.h"
+#include "src/diagnostics/gdb-jit.h"
 #include "src/execution/frame-constants.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
@@ -825,7 +827,26 @@ class MaglevCodeGeneratingNodeProcessor {
          << PrintNode(node);
       __ RecordComment(ss.str());
     }
-    if (collect_source_positions_) {
+    if (v8_flags.gdbjit_full && v8_flags.maglev_gdbjit) {
+      int line_number = graph_labeller()->GetNodeLineNumber(node);
+      if (line_number != -1) {
+        Isolate* isolate = masm_->code_gen_state()
+                               ->compilation_info()
+                               ->broker()
+                               ->local_isolate()
+                               ->GetMainThreadIsolateUnsafe();
+        std::string func_name =
+            masm_->code_gen_state()->compilation_info()->function_name();
+        std::string filename = GetMaglevGraphFilename(
+            func_name,
+            masm_->code_gen_state()->compilation_info()->optimization_id());
+        int file_id =
+            isolate->LookupOrAddExternallyCompiledFilename(filename.c_str());
+        SourcePosition pos = SourcePosition::External(line_number, file_id);
+        code_gen_state()->source_position_table_builder()->AddPosition(
+            masm_->pc_offset(), pos, true);
+      }
+    } else if (collect_source_positions_) {
       // TODO(leszeks): Consider collecting source position in a more memory
       // friendly way, if we don't need the whole graph labeller.
       const auto& provenance = graph_labeller()->GetNodeProvenance(node);
@@ -1186,12 +1207,17 @@ class MaglevFrameTranslationBuilder {
       LocalIsolate* local_isolate, MaglevAssembler* masm,
       FrameTranslationBuilder* translation_array_builder,
       IdentityMap<int, base::DefaultAllocationPolicy>* protected_deopt_literals,
-      IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals)
+      IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals,
+      ZoneVector<IndirectHandle<TrustedObject>>*
+          protected_deopt_literals_vector,
+      ZoneVector<IndirectHandle<Object>>* deopt_literals_vector)
       : local_isolate_(local_isolate),
         masm_(masm),
         translation_array_builder_(translation_array_builder),
         protected_deopt_literals_(protected_deopt_literals),
         deopt_literals_(deopt_literals),
+        protected_deopt_literals_vector_(protected_deopt_literals_vector),
+        deopt_literals_vector_(deopt_literals_vector),
         object_ids_(10) {}
 
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
@@ -1581,7 +1607,15 @@ class MaglevFrameTranslationBuilder {
     if (object_type == vobj::ObjectType::kConsString) {
       translation_array_builder_->StringConcat();
     } else {
-      translation_array_builder_->BeginCapturedObject(object->slot_count());
+      int fields = object->slot_count();
+#if TAGGED_SIZE_8_BYTES
+      // To keep the deoptimization data in sync with TF (which represents
+      // length and padding in a single Uint64), we skip the padding.
+      if (object_type == vobj::ObjectType::kFixedArray) {
+        fields--;
+      }
+#endif  // TAGGED_SIZE_8_BYTES
+      translation_array_builder_->BeginCapturedObject(fields);
     }
     auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
       BuildNestedValue(node, input_location, virtual_objects);
@@ -1684,7 +1718,14 @@ class MaglevFrameTranslationBuilder {
         protected_deopt_literals_->FindOrInsert(obj);
     if (!res.already_exists) {
       DCHECK_EQ(0, *res.entry);
-      *res.entry = protected_deopt_literals_->size() - 1;
+      IndirectHandle<TrustedObject> canonical =
+          masm_->code_gen_state()
+              ->compilation_info()
+              ->broker()
+              ->CanonicalPersistentHandle(obj);
+      protected_deopt_literals_vector_->push_back(canonical);
+      *res.entry =
+          static_cast<int>(protected_deopt_literals_vector_->size() - 1);
     }
     return *res.entry;
   }
@@ -1693,13 +1734,25 @@ class MaglevFrameTranslationBuilder {
     IdentityMapFindResult<int> res = deopt_literals_->FindOrInsert(obj);
     if (!res.already_exists) {
       DCHECK_EQ(0, *res.entry);
-      *res.entry = deopt_literals_->size() - 1;
+      IndirectHandle<Object> canonical = masm_->code_gen_state()
+                                             ->compilation_info()
+                                             ->broker()
+                                             ->CanonicalPersistentHandle(obj);
+      deopt_literals_vector_->push_back(canonical);
+      *res.entry = static_cast<int>(deopt_literals_vector_->size() - 1);
     }
     return *res.entry;
   }
 
   int GetDeoptLiteral(compiler::HeapObjectRef ref) {
-    return GetDeoptLiteral(*ref.object());
+    IdentityMapFindResult<int> res =
+        deopt_literals_->FindOrInsert(*ref.object());
+    if (!res.already_exists) {
+      DCHECK_EQ(0, *res.entry);
+      deopt_literals_vector_->push_back(ref.object());
+      *res.entry = static_cast<int>(deopt_literals_vector_->size() - 1);
+    }
+    return *res.entry;
   }
 
   LocalIsolate* local_isolate_;
@@ -1707,6 +1760,8 @@ class MaglevFrameTranslationBuilder {
   FrameTranslationBuilder* translation_array_builder_;
   IdentityMap<int, base::DefaultAllocationPolicy>* protected_deopt_literals_;
   IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_;
+  ZoneVector<IndirectHandle<TrustedObject>>* protected_deopt_literals_vector_;
+  ZoneVector<IndirectHandle<Object>>* deopt_literals_vector_;
 
   static const int kNotDuplicated = -1;
   std::vector<intptr_t> object_ids_;
@@ -1729,6 +1784,8 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       graph_(graph),
       protected_deopt_literals_(isolate->heap()->heap()),
       deopt_literals_(isolate->heap()->heap()),
+      protected_deopt_literals_vector_(compilation_info->zone()),
+      deopt_literals_vector_(compilation_info->zone()),
       retained_maps_(isolate->heap()),
       is_context_specialized_(
           compilation_info->specialize_to_function_context()),
@@ -1808,17 +1865,19 @@ bool MaglevCodeGenerator::EmitCode() {
 void MaglevCodeGenerator::RecordInlinedFunctions() {
   // The inlined functions should be the first literals.
   DCHECK_EQ(0u, deopt_literals_.size());
+  DCHECK_EQ(0u, deopt_literals_vector_.size());
   for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
        graph_->inlined_functions()) {
     IdentityMapFindResult<int> res =
         deopt_literals_.FindOrInsert(inlined.shared_info);
     if (!res.already_exists) {
       DCHECK_EQ(0, *res.entry);
-      *res.entry = deopt_literals_.size() - 1;
+      deopt_literals_vector_.push_back(inlined.shared_info);
+      *res.entry = static_cast<int>(deopt_literals_vector_.size() - 1);
     }
     inlined.RegisterInlinedFunctionId(*res.entry);
   }
-  inlined_function_count_ = static_cast<int>(deopt_literals_.size());
+  inlined_function_count_ = static_cast<int>(deopt_literals_vector_.size());
 }
 
 void MaglevCodeGenerator::EmitDeferredCode() {
@@ -1843,7 +1902,8 @@ bool MaglevCodeGenerator::EmitDeopts() {
 
   MaglevFrameTranslationBuilder translation_builder(
       local_isolate_, &masm_, &frame_translation_builder_,
-      &protected_deopt_literals_, &deopt_literals_);
+      &protected_deopt_literals_, &deopt_literals_,
+      &protected_deopt_literals_vector_, &deopt_literals_vector_);
 
   // Deoptimization exits must be as small as possible, since their count grows
   // with function size. These labels are an optimization which extracts the
@@ -1997,7 +2057,15 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
     builder.set_is_context_specialized();
   }
 
-  return builder.TryBuild();
+  MaybeHandle<Code> maybe_code = builder.TryBuild();
+  Handle<Code> code;
+  if (maybe_code.ToHandle(&code)) {
+    Isolate* isolate = local_isolate->GetMainThreadIsolateUnsafe();
+    LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
+                                code->instruction_start(), *source_positions,
+                                JitCodeEvent::JIT_CODE));
+  }
+  return maybe_code;
 }
 
 GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
@@ -2049,7 +2117,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetFrameTranslation(*translations);
     raw_data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
     raw_data->SetOptimizationId(
-        Smi::FromInt(local_isolate->NextOptimizationId()));
+        Smi::FromInt(code_gen_state_.compilation_info()->optimization_id()));
 
     DCHECK_NE(deopt_exit_start_offset_, -1);
     raw_data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
@@ -2058,14 +2126,14 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetWrappedSharedFunctionInfo(*sfi_wrapper);
   }
 
-  int inlined_functions_size =
-      static_cast<int>(graph_->inlined_functions().size());
+  uint32_t inlined_functions_size =
+      static_cast<uint32_t>(graph_->inlined_functions().size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       local_isolate->factory()->NewProtectedFixedArray(
-          protected_deopt_literals_.size());
+          static_cast<uint32_t>(protected_deopt_literals_vector_.size()));
   DirectHandle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
-          deopt_literals_.size());
+          static_cast<uint32_t>(deopt_literals_vector_.size()));
   DirectHandle<TrustedPodArray<InliningPosition>> inlining_positions =
       TrustedPodArray<InliningPosition>::New(local_isolate,
                                              inlined_functions_size);
@@ -2074,25 +2142,17 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   Tagged<ProtectedDeoptimizationLiteralArray> raw_protected_literals =
       *protected_literals;
-  {
-    IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
-        &protected_deopt_literals_);
-    for (auto it = iterate.begin(); it != iterate.end(); ++it) {
-      raw_protected_literals->set(*it.entry(),
-                                  TrustedCast<TrustedObject>(it.key()));
-    }
+  for (size_t i = 0; i < protected_deopt_literals_vector_.size(); ++i) {
+    raw_protected_literals->set(static_cast<int>(i),
+                                *protected_deopt_literals_vector_[i]);
   }
 
   Tagged<DeoptimizationLiteralArray> raw_literals = *literals;
-  {
-    IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
-        &deopt_literals_);
-    for (auto it = iterate.begin(); it != iterate.end(); ++it) {
-      raw_literals->set(*it.entry(), it.key());
-    }
+  for (size_t i = 0; i < deopt_literals_vector_.size(); ++i) {
+    raw_literals->set(static_cast<int>(i), *deopt_literals_vector_[i]);
   }
 
-  for (int i = 0; i < inlined_functions_size; i++) {
+  for (uint32_t i = 0; i < inlined_functions_size; i++) {
     auto inlined_function_info = graph_->inlined_functions()[i];
     inlining_positions->set(i, inlined_function_info.position);
   }
@@ -2145,6 +2205,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   return data;
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal

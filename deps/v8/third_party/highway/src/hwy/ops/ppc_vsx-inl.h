@@ -459,12 +459,17 @@ HWY_INLINE V TernaryLogic(V a, V b, V c) {
 }
 
 }  // namespace detail
-#endif  // HWY_PPC_HAVE_10
 
 // ------------------------------ Xor3
+
+#ifdef HWY_NATIVE_XOR3
+#undef HWY_NATIVE_XOR3
+#else
+#define HWY_NATIVE_XOR3
+#endif
+
 template <typename T, size_t N>
 HWY_API Vec128<T, N> Xor3(Vec128<T, N> x1, Vec128<T, N> x2, Vec128<T, N> x3) {
-#if HWY_PPC_HAVE_10
 #if defined(__OPTIMIZE__)
   if (static_cast<int>(detail::IsConstantRawAltivecVect(x1.raw)) +
           static_cast<int>(detail::IsConstantRawAltivecVect(x2.raw)) +
@@ -476,10 +481,33 @@ HWY_API Vec128<T, N> Xor3(Vec128<T, N> x1, Vec128<T, N> x2, Vec128<T, N> x3) {
   {
     return detail::TernaryLogic<0x69>(x1, x2, x3);
   }
-#else
-  return Xor(x1, Xor(x2, x3));
-#endif
 }
+
+// ------------------------------ XorAndNot
+
+#ifdef HWY_NATIVE_BCAX
+#undef HWY_NATIVE_BCAX
+#else
+#define HWY_NATIVE_BCAX
+#endif
+
+template <typename T, size_t N>
+HWY_API Vec128<T, N> XorAndNot(Vec128<T, N> x, Vec128<T, N> a1,
+                               Vec128<T, N> a2) {
+#if defined(__OPTIMIZE__)
+  if (static_cast<int>(detail::IsConstantRawAltivecVect(x.raw)) +
+          static_cast<int>(detail::IsConstantRawAltivecVect(a1.raw)) +
+          static_cast<int>(detail::IsConstantRawAltivecVect(a2.raw)) >=
+      2) {
+    return Xor(x, AndNot(a1, a2));
+  } else  // NOLINT
+#endif
+  {
+    return detail::TernaryLogic<0x4B>(x, a1, a2);
+  }
+}
+
+#endif  // HWY_PPC_HAVE_10
 
 // ------------------------------ Or3
 template <typename T, size_t N>
@@ -558,6 +586,19 @@ HWY_API Vec128<T, N> operator|(Vec128<T, N> a, Vec128<T, N> b) {
 template <typename T, size_t N>
 HWY_API Vec128<T, N> operator^(Vec128<T, N> a, Vec128<T, N> b) {
   return Xor(a, b);
+}
+
+// ------------------------------ PopulationCount
+
+#ifdef HWY_NATIVE_POPCNT
+#undef HWY_NATIVE_POPCNT
+#else
+#define HWY_NATIVE_POPCNT
+#endif
+
+template <typename T, size_t N, HWY_IF_UNSIGNED(T)>
+HWY_API Vec128<T, N> PopulationCount(Vec128<T, N> v) {
+  return Vec128<T, N>{vec_popcnt(v.raw)};
 }
 
 // ================================================== SIGN
@@ -3372,6 +3413,17 @@ HWY_API V InterleaveOddBlocks(D, V a, V /*b*/) {
   return a;
 }
 
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveLowerBlocks(D, V a, V /*b*/) {
+  return a;
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveUpperBlocks(D, V a, V /*b*/) {
+  return a;
+}
+
 // ------------------------------ MulFixedPoint15 (OddEven)
 
 #if HWY_S390X_HAVE_Z14
@@ -3552,21 +3604,9 @@ HWY_API VFromD<D32> ReorderWidenMulAccumulate(D32 /*d32*/, V16 a, V16 b,
 }
 
 // ------------------------------ RearrangeToOddPlusEven
-template <size_t N>
-HWY_API Vec128<int32_t, N> RearrangeToOddPlusEven(Vec128<int32_t, N> sum0,
-                                                  Vec128<int32_t, N> /*sum1*/) {
+template <class VW, HWY_IF_NOT_FLOAT_V(VW)>
+HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW) {
   return sum0;  // invariant already holds
-}
-
-template <size_t N>
-HWY_API Vec128<uint32_t, N> RearrangeToOddPlusEven(
-    Vec128<uint32_t, N> sum0, Vec128<uint32_t, N> /*sum1*/) {
-  return sum0;  // invariant already holds
-}
-
-template <class VW>
-HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW sum1) {
-  return Add(sum0, sum1);
 }
 
 // ------------------------------ SatWidenMulPairwiseAccumulate
@@ -5369,9 +5409,21 @@ HWY_INLINE uint64_t ExtractSignBits(Vec128<uint8_t, N> sign_bits,
   // vec_vbpermq: unsigned or signed, so cast to avoid a warning.
   using VU64 = detail::Raw128<uint64_t>::type;
 #if HWY_S390X_HAVE_Z14
+
+#if HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2100
+  // GCC 15 and Clang 20 have added the vec_bperm intrinsic
+
+  // Need to use vec_bperm instead of vec_bperm_u128 with GCC 15 and later to
+  // avoid compiler warning
+  using VU128 = __vector unsigned __int128;
+  const Vec128<uint64_t> extracted{reinterpret_cast<VU64>(
+      vec_bperm(reinterpret_cast<VU128>(sign_bits.raw), bit_shuffle))};
+#else   // !(HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2100)
   const Vec128<uint64_t> extracted{
       reinterpret_cast<VU64>(vec_bperm_u128(sign_bits.raw, bit_shuffle))};
-#else
+#endif  // HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2100
+
+#else  // !HWY_S390X_HAVE_Z14
   const Vec128<uint64_t> extracted{
       reinterpret_cast<VU64>(vec_vbpermq(sign_bits.raw, bit_shuffle))};
 #endif
@@ -6380,8 +6432,13 @@ HWY_INLINE V Per128BitBlkRevLanesOnBe(V v) {
 template <class V>
 HWY_INLINE V I128Subtract(V a, V b) {
 #if HWY_S390X_HAVE_Z14
-#if HWY_COMPILER_CLANG
+#if HWY_COMPILER_CLANG || HWY_COMPILER_GCC_ACTUAL >= 1500
   // Workaround for bug in vec_sub_u128 in Clang vecintrin.h
+
+  // The vec_sub_u128 intrinsic is also now deprecated in GCC 15 and later.
+  // The built-in U128x1 vector subtraction operator should be used instead of
+  // vec_sub_u128 with GCC 15 and later to avoid compiler warnings.
+
   typedef __uint128_t VU128 __attribute__((__vector_size__(16)));
   const V diff_i128{reinterpret_cast<typename detail::Raw128<TFromV<V>>::type>(
       reinterpret_cast<VU128>(a.raw) - reinterpret_cast<VU128>(b.raw))};
@@ -6909,8 +6966,18 @@ template <class T, HWY_IF_NOT_FLOAT_NOR_SPECIAL(T),
 HWY_INLINE Vec128<T> SumOfU32OrU64LanesAsU128(Vec128<T> v) {
   const DFromV<decltype(v)> d;
   const RebindToUnsigned<decltype(d)> du;
+#if HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2100
+  // GCC 15 and Clang 20 have new vec_sum intrinsics that replaced the
+  // vec_sum_u128 intrinsic
+
+  // vec_sum needs to be used instead of vec_sum_u128 with GCC 15 or later to
+  // avoid compiler warnings
+  return Vec128<T>{reinterpret_cast<typename detail::Raw128<T>::type>(
+      vec_sum(BitCast(du, v).raw, Zero(du).raw))};
+#else
   return BitCast(
       d, Vec128<uint8_t>{vec_sum_u128(BitCast(du, v).raw, Zero(du).raw)});
+#endif
 }
 #endif
 
@@ -7153,8 +7220,21 @@ HWY_API V BitShuffle(V v, VI idx) {
 #endif
 
 #if HWY_S390X_HAVE_Z14
+
+#if HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2100
+  // GCC 15 and Clang 20 have added the vec_bperm intrinsic
+
+  // Need to use vec_bperm instead of vec_bperm_u128 with GCC 15 and later to
+  // avoid compiler warning
+  using RawVU128 = __vector unsigned __int128;
+
+  const VFromD<decltype(d_full_u64)> bit_shuf_result{reinterpret_cast<RawVU64>(
+      vec_bperm(reinterpret_cast<RawVU128>(v.raw), bit_idx.raw))};
+#else
   const VFromD<decltype(d_full_u64)> bit_shuf_result{reinterpret_cast<RawVU64>(
       vec_bperm_u128(BitCast(du8, v).raw, bit_idx.raw))};
+#endif  // !(HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2100)
+
 #elif defined(__SIZEOF_INT128__)
   using RawVU128 = __vector unsigned __int128;
   const VFromD<decltype(d_full_u64)> bit_shuf_result{reinterpret_cast<RawVU64>(

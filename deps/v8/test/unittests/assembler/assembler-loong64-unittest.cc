@@ -3503,28 +3503,75 @@ TEST_F(AssemblerLoong64Test, FTINTRNE) {
   };
   Test test;
 
-  const int kTableLength = 9;
+  const int kTableLength = 27;
 
   // clang-format off
   double inputs_d[kTableLength] = {
-      3.1, 3.6, 3.5, -3.1, -3.6, -3.5,
+      0.5, -0.5, 3.1, 3.6, 3.5, -3.1, -3.6, -3.5,
+      8388609.0, 8388609.5,
+      8388610.0, 8388610.5,
+      -8388609.0, -8388609.5,
+      -8388610.0, -8388610.5,
       2147483648.0,
+      4503599627370497.0, 4503599627370497.5,
+      4503599627370498.0, 4503599627370498.5,
+      -4503599627370497.0, -4503599627370497.5,
+      -4503599627370498.0, -4503599627370498.5,
       std::numeric_limits<double>::quiet_NaN(),
       std::numeric_limits<double>::infinity()
   };
   float inputs_s[kTableLength] = {
-      3.1, 3.6, 3.5, -3.1, -3.6, -3.5,
+      0.5, -0.5, 3.1, 3.6, 3.5, -3.1, -3.6, -3.5,
+      8388609.0, 8388609.5,
+      8388610.0, 8388610.5,
+      -8388609.0, -8388609.5,
+      -8388610.0, -8388610.5,
       2147483648.0,
-      std::numeric_limits<double>::quiet_NaN(),
-      std::numeric_limits<double>::infinity()
+      4503599627370497.0, 4503599627370497.5,
+      4503599627370498.0, 4503599627370498.5,
+      -4503599627370497.0, -4503599627370497.5,
+      -4503599627370498.0, -4503599627370498.5,
+      std::numeric_limits<float>::quiet_NaN(),
+      std::numeric_limits<float>::infinity()
   };
   double outputs_w[kTableLength] = {
-      3.0, 4.0, 4.0, -3.0, -4.0, -4.0,
-      kFPUInvalidResult, 0,
+      0.0, 0.0, 3.0, 4.0, 4.0, -3.0, -4.0, -4.0,
+      8388609.0, 8388610.0,
+      8388610.0, 8388610.0,
+      -8388609.0, -8388610.0,
+      -8388610.0, -8388610.0,
+      kFPUInvalidResult,
+      kFPUInvalidResult, kFPUInvalidResult,
+      kFPUInvalidResult, kFPUInvalidResult,
+      kFPUInvalidResultNegative, kFPUInvalidResultNegative,
+      kFPUInvalidResultNegative, kFPUInvalidResultNegative,
+      0,
       kFPUInvalidResult};
-  double outputs_l[kTableLength] = {
-      3.0, 4.0, 4.0, -3.0, -4.0, -4.0,
-      2147483648.0, 0,
+  double outputs_l_d[kTableLength] = {
+      0.0, 0.0, 3.0, 4.0, 4.0, -3.0, -4.0, -4.0,
+      8388609.0, 8388610.0,
+      8388610.0, 8388610.0,
+      -8388609.0, -8388610.0,
+      -8388610.0, -8388610.0,
+      2147483648.0,
+      4503599627370497.0, 4503599627370498.0,
+      4503599627370498.0, 4503599627370498.0,
+      -4503599627370497.0, -4503599627370498.0,
+      -4503599627370498.0, -4503599627370498.0,
+      0,
+      static_cast<double>(kFPU64InvalidResult)};
+  double outputs_l_s[kTableLength] = {
+      0.0, 0.0, 3.0, 4.0, 4.0, -3.0, -4.0, -4.0,
+      8388609.0, 8388610.0,
+      8388610.0, 8388610.0,
+      -8388609.0, -8388610.0,
+      -8388610.0, -8388610.0,
+      2147483648.0,
+      4503599627370496.0, 4503599627370496.0,
+      4503599627370496.0, 4503599627370496.0,
+      -4503599627370496.0, -4503599627370496.0,
+      -4503599627370496.0, -4503599627370496.0,
+      0,
       static_cast<double>(kFPU64InvalidResult)};
   // clang-format on
 
@@ -3551,8 +3598,8 @@ TEST_F(AssemblerLoong64Test, FTINTRNE) {
     f.Call(&test, 0, 0, 0, 0);
     CHECK_EQ(test.c, outputs_w[i]);
     CHECK_EQ(test.d, outputs_w[i]);
-    CHECK_EQ(test.e, outputs_l[i]);
-    CHECK_EQ(test.f, outputs_l[i]);
+    CHECK_EQ(test.e, outputs_l_d[i]);
+    CHECK_EQ(test.f, outputs_l_s[i]);
   }
 }
 

@@ -233,6 +233,9 @@ class MaglevPhiRepresentationSelector {
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(CheckMaglevType* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
                                    Phi* phi, int input_index,
                                    const ProcessingState* state);
@@ -245,11 +248,19 @@ class MaglevPhiRepresentationSelector {
   ProcessResult UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
                                    int input_index,
                                    const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(ToBoolean* node, Phi* phi, int input_index,
+                                   const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(ToBooleanLogicalNot* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
 
   void EnsurePhiInputsTagged(Phi* phi);
 
+  template <typename NodeT>
+  ProcessResult UpdateNodePhiInputForToBoolean(NodeT* node, Phi* phi,
+                                               int input_index, bool flip);
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.
@@ -298,8 +309,6 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
-  bool is_turbolev() const { return graph_->compilation_info()->is_turbolev(); }
-
   Graph* graph_;
 
   MaglevReducer<MaglevPhiRepresentationSelector> reducer_;
@@ -312,6 +321,8 @@ class MaglevPhiRepresentationSelector {
   ZoneVector<Snapshot> predecessors_;
 
   absl::flat_hash_map<BasicBlock::Id, Snapshot> snapshots_;
+
+  bool enable_truncated_int32_phis_;
 
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;

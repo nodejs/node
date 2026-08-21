@@ -11,7 +11,9 @@ extern class RegExpMatchInfo extends HeapObject {
     return this.objects[i * 2 + 1];
   }
 
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   number_of_capture_registers: Smi;
   last_subject: String;
   last_input: Object;

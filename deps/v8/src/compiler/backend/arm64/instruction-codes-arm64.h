@@ -97,12 +97,10 @@ namespace compiler {
   V(Arm64S128LowUnzipRight)             \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
-  V(Arm64S64x2Reverse)                  \
   V(Arm64S32x4Shuffle)                  \
-  V(Arm64S8x16Concat)                   \
   V(Arm64I8x16Swizzle)                  \
   V(Arm64I8x16Shuffle)                  \
-  V(Arm64S32x4Reverse)                  \
+  V(Arm64S128Extract)                   \
   V(Arm64S128MoveLane)                  \
   V(Arm64S128MoveReg)                   \
   V(Arm64V128AnyTrue)                   \
@@ -181,6 +179,7 @@ namespace compiler {
   V(Arm64Saddlp)                        \
   V(Arm64Bcax)                          \
   V(Arm64Eor3)                          \
+  V(Arm64Xar)                           \
   V(Arm64Uadalp)                        \
   V(Arm64Uaddlp)                        \
   V(Arm64Umlal)                         \
@@ -275,6 +274,7 @@ namespace compiler {
   V(Arm64Sbfx32)                                     \
   V(Arm64Ubfx)                                       \
   V(Arm64Ubfx32)                                     \
+  V(Arm64Ubfiz)                                      \
   V(Arm64Ubfiz32)                                    \
   V(Arm64Sbfiz)                                      \
   V(Arm64Bfi)                                        \
@@ -302,6 +302,8 @@ namespace compiler {
   V(Arm64Float16RoundUp)                             \
   V(Arm64Float16RoundTruncate)                       \
   V(Arm64Float16RoundTiesEven)                       \
+  V(Arm64Float32Move)                                \
+  V(Arm64Float32MoveU32)                             \
   V(Arm64Float32Cmp)                                 \
   V(Arm64Float32Add)                                 \
   V(Arm64Float32Sub)                                 \
@@ -361,6 +363,7 @@ namespace compiler {
   V(Arm64Float64ExtractHighWord32)                   \
   V(Arm64Float64InsertLowWord32)                     \
   V(Arm64Float64InsertHighWord32)                    \
+  V(Arm64Float64Move)                                \
   V(Arm64Float64MoveU64)                             \
   V(Arm64U64MoveFloat64)                             \
   V(Arm64LdarDecompressTaggedSigned)                 \

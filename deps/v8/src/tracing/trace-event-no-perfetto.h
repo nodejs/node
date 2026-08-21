@@ -29,8 +29,6 @@ void Ignore(Args&&... args) {}
 #define TRACE_EVENT(category, name, ...) INTERNAL_TRACE_IGNORE(category, name)
 #define TRACE_EVENT_INSTANT(category, name, ...) \
   INTERNAL_TRACE_IGNORE(category, name)
-#define TRACE_EVENT_CATEGORY_ENABLED(category) \
-  INTERNAL_TRACE_IGNORE(category, name)
 #define TRACE_COUNTER(category, name, ...) INTERNAL_TRACE_IGNORE(category, name)
 
 // Stub implementation for
@@ -845,6 +843,12 @@ struct Flow {
       TRACE_EVENT_FLAG_NONE)
 
 // Macro to efficiently determine if a given category group is enabled.
+#define TRACE_EVENT_CATEGORY_ENABLED(category)                        \
+  ({                                                                  \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category);                 \
+    INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE(); \
+  })
+
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
   do {                                                                      \
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                 \

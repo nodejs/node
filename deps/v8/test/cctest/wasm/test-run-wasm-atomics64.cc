@@ -608,7 +608,7 @@ WASM_EXEC_TEST(I64AtomicCompareExchange32UFail) {
 }
 
 WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
-  // Use {Load} instead of {ProtectedLoad}.
+  // Use {Load} instead of {TrappingLoad}.
   FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
@@ -621,7 +621,7 @@ WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
 }
 
 void RunNoEffectTest(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
-  // Use {Load} instead of {ProtectedLoad}.
+  // Use {Load} instead of {TrappingLoad}.
   FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
@@ -642,7 +642,7 @@ WASM_EXEC_TEST(AtomicExchangeNoConsideredEffectful) {
 }
 
 WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
-  // Use {Load} instead of {ProtectedLoad}.
+  // Use {Load} instead of {TrappingLoad}.
   FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));

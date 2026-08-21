@@ -106,7 +106,6 @@
 #include "absl/base/port.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/has_absl_stringify.h"
-#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/stringify_sink.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/resize_and_overwrite.h"

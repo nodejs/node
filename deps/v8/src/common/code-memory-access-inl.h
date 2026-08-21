@@ -10,7 +10,6 @@
 
 #include "src/flags/flags.h"
 #include "src/objects/instruction-stream.h"
-#include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"

@@ -1,0 +1,5 @@
+{
+  "name": "builder",
+  "description": "Specializes in building V8.",
+  "config_path": "config.yaml"
+}

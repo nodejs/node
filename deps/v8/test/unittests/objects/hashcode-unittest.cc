@@ -50,11 +50,13 @@ class HashcodeTest : public TestWithContext {
     }
   }
 
-  int GetPropertyDictionaryLength(DirectHandle<JSObject> obj) {
+  uint32_t GetPropertyDictionaryLength(DirectHandle<JSObject> obj) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      return obj->property_dictionary_swiss()->Capacity();
+      int capacity = obj->property_dictionary_swiss()->Capacity();
+      CHECK_GE(capacity, 0);
+      return static_cast<uint32_t>(capacity);
     } else {
-      return obj->property_dictionary()->length();
+      return obj->property_dictionary()->length().value();
     }
   }
 
@@ -140,9 +142,9 @@ TEST_F(HashcodeTest, TransitionFastWithInObjectToFastWithPropertyArray) {
   int hash = AddToSetAndGetHash(obj, true);
   CHECK_EQ(Smi::FromInt(hash), obj->raw_properties_or_hash());
 
-  int length = obj->property_array()->length();
+  uint32_t length = obj->property_array()->length().value();
   RunJS("x.e = 5;");
-  CHECK(obj->property_array()->length() > length);
+  CHECK_GT(obj->property_array()->length().value(), length);
   CheckFastObject(obj, hash);
 }
 
@@ -158,9 +160,9 @@ TEST_F(HashcodeTest, TransitionFastWithPropertyArray) {
   int hash = AddToSetAndGetHash(obj, true);
   CHECK_EQ(hash, obj->property_array()->Hash());
 
-  int length = obj->property_array()->length();
+  uint32_t length = obj->property_array()->length().value();
   RunJS("x.f = 2; x.g = 5; x.h = 2");
-  CHECK(obj->property_array()->length() > length);
+  CHECK_GT(obj->property_array()->length().value(), length);
   CheckFastObject(obj, hash);
 }
 
@@ -194,7 +196,7 @@ TEST_F(HashcodeTest, TransitionSlowToSlow) {
   int hash = AddToSetAndGetHash(obj, false);
   CHECK_EQ(hash, GetPropertyDictionaryHash(obj));
 
-  int length = GetPropertyDictionaryLength(obj);
+  uint32_t length = GetPropertyDictionaryLength(obj);
   RunJS("for(var i = 0; i < 10; i++) { x['f'+i] = i };");
   CHECK(GetPropertyDictionaryLength(obj) > length);
   CheckDictionaryObject(obj, hash);

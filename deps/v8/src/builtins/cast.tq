@@ -75,6 +75,11 @@ macro IsHeapNumber(o: HeapObject): bool {
 }
 
 @export
+macro IsJSModuleNamespace(o: Object): bool {
+  return Is<JSModuleNamespace>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }
@@ -130,9 +135,6 @@ extern macro TaggedToDirectString(Object): DirectString
 extern macro HeapObjectToCallable(HeapObject): Callable
     labels CastError;
 extern macro HeapObjectToConstructor(HeapObject): Constructor
-    labels CastError;
-extern macro HeapObjectToJSFunctionWithPrototypeSlot(HeapObject):
-    JSFunctionWithPrototypeSlot
     labels CastError;
 
 macro Cast<A : type extends WeakHeapObject>(o: A|Object):
@@ -465,11 +467,6 @@ Cast<DirectString>(o: String): DirectString
 Cast<Constructor>(o: HeapObject): Constructor
     labels CastError {
   return HeapObjectToConstructor(o) otherwise CastError;
-}
-
-Cast<JSFunctionWithPrototypeSlot>(o: HeapObject): JSFunctionWithPrototypeSlot
-    labels CastError {
-  return HeapObjectToJSFunctionWithPrototypeSlot(o) otherwise CastError;
 }
 
 Cast<BigInt>(o: HeapObject): BigInt labels CastError {

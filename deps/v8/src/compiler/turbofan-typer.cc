@@ -254,8 +254,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Word32PairShl)
       DECLARE_IMPOSSIBLE_CASE(Word32PairShr)
       DECLARE_IMPOSSIBLE_CASE(Word32PairSar)
-      DECLARE_IMPOSSIBLE_CASE(ProtectedLoad)
-      DECLARE_IMPOSSIBLE_CASE(ProtectedStore)
+      DECLARE_IMPOSSIBLE_CASE(TrappingLoad)
+      DECLARE_IMPOSSIBLE_CASE(TrappingStore)
       DECLARE_IMPOSSIBLE_CASE(LoadTrapOnNull)
       DECLARE_IMPOSSIBLE_CASE(StoreTrapOnNull)
       DECLARE_IMPOSSIBLE_CASE(MemoryBarrier)
@@ -869,7 +869,8 @@ Type Typer::Visitor::TypeParameter(Node* node) {
   } else if (index == start.ContextParameterIndex()) {
     return Type::OtherInternal();
   }
-  return Type::NonInternal();
+  // Maglev parameter elision can insert kOptimizedOut holes.
+  return Type::Union(Type::NonInternal(), Type::Hole(), typer_->zone());
 }
 
 Type Typer::Visitor::TypeOsrValue(Node* node) {
@@ -2236,6 +2237,10 @@ Type Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
+Type Typer::Visitor::TypeJSAsyncFunctionAwait(Node* node) {
+  return Type::OtherObject();
+}
+
 Type Typer::Visitor::TypeJSAsyncFunctionEnter(Node* node) {
   return Type::OtherObject();
 }
@@ -2463,6 +2468,8 @@ Type Typer::Visitor::TypeCheckInternalizedString(Node* node) {
 }
 
 Type Typer::Visitor::TypeCheckMaps(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeCheckHomomorphic(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeCompareMaps(Node* node) { return Type::Boolean(); }
 

@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Magic sentinel values for JSGeneratorObject.continuation.
+const kGeneratorExecuting:
+    constexpr int31 generates 'JSGeneratorObject::kGeneratorExecuting';
+const kGeneratorClosed:
+    constexpr int31 generates 'JSGeneratorObject::kGeneratorClosed';
+
+@cppObjectLayoutDefinition
 extern class JSGeneratorObject extends JSObject {
   function: JSFunction;
   context: Context;
@@ -25,6 +32,7 @@ extern class JSGeneratorObject extends JSObject {
   parameters_and_registers: FixedArray;
 }
 
+@cppObjectLayoutDefinition
 extern class JSAsyncFunctionObject extends JSGeneratorObject {
   promise: JSPromise;
   // Resolve/reject closures for await, reused across all await expressions.
@@ -33,6 +41,7 @@ extern class JSAsyncFunctionObject extends JSGeneratorObject {
   await_reject_closure: JSFunction|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.
@@ -41,6 +50,7 @@ extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   is_awaiting: Smi;
 }
 
+@cppObjectLayoutDefinition
 extern class AsyncGeneratorRequest extends Struct {
   next: AsyncGeneratorRequest|Undefined;
   resume_mode: Smi;

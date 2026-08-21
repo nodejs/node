@@ -40,6 +40,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/simplified-optimization-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
@@ -68,8 +69,9 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT = Assembler<ExplicitTruncationReducer,
-                               SimplifiedOptimizationReducer, VariableReducer>;
+  using AssemblerT =
+      Assembler<ExplicitTruncationReducer, SimplifiedOptimizationReducer,
+                VariableReducer, ValueNumberingReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
@@ -251,16 +253,23 @@ std::optional<BailoutReason> GraphBuilder::Run() {
                        predecessors[j]->rpo_number();
               });
 
+    // Skip loop back-edge predecessors: their final_frame_state hasn't been
+    // computed yet at header-visit time.
     OpIndex dominating_frame_state = OpIndex::Invalid();
-    if (!predecessors.empty()) {
-      dominating_frame_state =
-          block_mapping[predecessors[0]->rpo_number()].final_frame_state;
-      for (size_t i = 1; i < predecessors.size(); ++i) {
-        if (block_mapping[predecessors[i]->rpo_number()].final_frame_state !=
-            dominating_frame_state) {
-          dominating_frame_state = OpIndex::Invalid();
-          break;
-        }
+    bool first_fs = true;
+    for (BasicBlock* pred : predecessors) {
+      if (pred->rpo_number() >= block->rpo_number()) {
+        // Skipping loop backedge.
+        DCHECK(block->IsLoopHeader());
+        continue;
+      }
+      OpIndex pred_fs = block_mapping[pred->rpo_number()].final_frame_state;
+      if (first_fs) {
+        dominating_frame_state = pred_fs;
+        first_fs = false;
+      } else if (pred_fs != dominating_frame_state) {
+        dominating_frame_state = OpIndex::Invalid();
+        break;
       }
     }
 
@@ -1056,6 +1065,10 @@ OpIndex GraphBuilder::Process(
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedSignedToInt32, Int32, Smi)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedSignedToInt64, Int64, Smi)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToBit, Bit, Boolean)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeSmiOrHoleToFloat64, Float64,
+                                       SmiOrHole)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeNumberOrHoleToFloat64, Float64,
+                                       NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToInt32, Int32,
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToUint32, Uint32,
@@ -1064,10 +1077,9 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToFloat64, Float64,
                                        NumberOrOddball)
-      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeNumberOrHoleToFloat64, Float64,
-                                       NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
                                        NumberOrOddball)
+
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
                                        HoleyFloat64, NumberOrOddball)
@@ -1083,12 +1095,14 @@ OpIndex GraphBuilder::Process(
             k##input_assumptions);
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballToWord32, Int32,
                                         NumberOrOddball)
-      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballOrHoleToWord32,
-                                        Int32, NumberOrOddballOrHole)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateBigIntToWord64, Int64, BigInt)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToBit, Bit, Object)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedPointerToBit, Bit,
                                         HeapObject)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateSmiOrHoleToWord32, Int32,
+                                        SmiOrHole)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballOrHoleToWord32,
+                                        Int32, NumberOrOddballOrHole)
 #undef TRUNCATE_OBJECT_TO_PRIMITIVE_CASE
 
     case IrOpcode::kCheckedTruncateTaggedToWord32:
@@ -1166,6 +1180,22 @@ OpIndex GraphBuilder::Process(
                               ChangeOrDeoptOp::Kind::kFloat64ToInt64,
                               params.mode(), params.feedback());
     }
+    case IrOpcode::kCheckedFloat64ToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kFloat64ToUint64,
+                              params.mode(), params.feedback());
+    }
+    case IrOpcode::kCheckedInt32ToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckParameters& params = CheckParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kInt32ToUint64,
+                              CheckForMinusZeroMode::kDontCheckForMinusZero,
+                              params.feedback());
+    }
 
     case IrOpcode::kCheckedTaggedToInt32: {
       DCHECK(dominating_frame_state.valid());
@@ -1198,6 +1228,16 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), dominating_frame_state,
           ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber,
           ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt64,
+          params.mode(), params.feedback());
+    }
+    case IrOpcode::kCheckedTaggedToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ConvertJSPrimitiveToUntaggedOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber,
+          ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kUint64,
           params.mode(), params.feedback());
     }
 
@@ -1304,11 +1344,11 @@ OpIndex GraphBuilder::Process(
       return __ Load(Map(base), Map(index), kind, loaded_rep, offset,
                      element_size_log2);
     }
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kTrappingLoad: {
       MemoryRepresentation loaded_rep =
           MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
       return __ Load(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                     LoadOp::Kind::Protected(), loaded_rep);
+                     LoadOp::Kind::Trapping(), loaded_rep);
     }
 
     case IrOpcode::kStore:
@@ -1363,11 +1403,11 @@ OpIndex GraphBuilder::Process(
                initializing_transitioning);
       return OpIndex::Invalid();
     }
-    case IrOpcode::kProtectedStore:
-      // We don't mark ProtectedStores as initialzing even when inside regions,
+    case IrOpcode::kTrappingStore:
+      // We don't mark TrappingStores as initializing even when inside regions,
       // since we don't store-store eliminate them because they have a raw base.
       __ Store(Map(node->InputAt(0)), Map(node->InputAt(1)),
-               Map(node->InputAt(2)), StoreOp::Kind::Protected(),
+               Map(node->InputAt(2)), StoreOp::Kind::Trapping(),
                MemoryRepresentation::FromMachineRepresentation(
                    OpParameter<MachineRepresentation>(node->op())),
                WriteBarrierKind::kNoWriteBarrier);
@@ -1417,13 +1457,17 @@ OpIndex GraphBuilder::Process(
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsAnyWasmFunctionCall() &&
-          v8_flags.turboshaft_wasm_in_js_inlining) {
+          v8_flags.turboshaft_wasm_in_js_inlining && js_wasm_calls_sidetable) {
         // A JS-to-Wasm call where the wrapper got inlined in TurboFan but the
         // actual Wasm body inlining was either not possible or is going to
         // happen later in Turboshaft. See https://crbug.com/353475584.
         // Make sure that for each not-yet-body-inlined call node, there is an
         // entry in the sidetable.
-        DCHECK_NOT_NULL(js_wasm_calls_sidetable);
+        // In some cctests, we build a Wasm call manually (i.e., it was not
+        // created by JS-to-Wasm wrapper inlining in Turbofan) and are thus
+        // missing the `js_wasm_calls_sidetable`. Handle that gracefully.
+        // TODO(dlehmann): Remove all this once we decide to only keep the
+        // Turbolev-based Wasm-in-JS body inlining.
         auto it = js_wasm_calls_sidetable->find(node->id());
         CHECK_NE(it, js_wasm_calls_sidetable->end());
         wasm_call_parameters = it->second;
@@ -1783,26 +1827,26 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kCheckedAdditiveSafeIntegerAdd: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      auto shifted_lhs =
-          __ Word64ShiftLeft(Map(node->InputAt(0)), kAdditiveSafeIntegerShift);
-      auto shifted_rhs =
-          __ Word64ShiftLeft(Map(node->InputAt(1)), kAdditiveSafeIntegerShift);
+      auto shifted_lhs = __ Word64ShiftLeft(Map(node->InputAt(0)),
+                                            kAdditiveSafeIntegerFeedbackShift);
+      auto shifted_rhs = __ Word64ShiftLeft(Map(node->InputAt(1)),
+                                            kAdditiveSafeIntegerFeedbackShift);
       auto shifted_result = __ Word64SignedAddDeoptOnOverflow(
           shifted_lhs, shifted_rhs, dominating_frame_state, FeedbackSource{});
       return __ Word64ShiftRightArithmetic(shifted_result,
-                                           kAdditiveSafeIntegerShift);
+                                           kAdditiveSafeIntegerFeedbackShift);
     }
     case IrOpcode::kCheckedAdditiveSafeIntegerSub: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      auto shifted_lhs =
-          __ Word64ShiftLeft(Map(node->InputAt(0)), kAdditiveSafeIntegerShift);
-      auto shifted_rhs =
-          __ Word64ShiftLeft(Map(node->InputAt(1)), kAdditiveSafeIntegerShift);
+      auto shifted_lhs = __ Word64ShiftLeft(Map(node->InputAt(0)),
+                                            kAdditiveSafeIntegerFeedbackShift);
+      auto shifted_rhs = __ Word64ShiftLeft(Map(node->InputAt(1)),
+                                            kAdditiveSafeIntegerFeedbackShift);
       auto shifted_result = __ Word64SignedSubDeoptOnOverflow(
           shifted_lhs, shifted_rhs, dominating_frame_state, FeedbackSource{});
       return __ Word64ShiftRightArithmetic(shifted_result,
-                                           kAdditiveSafeIntegerShift);
+                                           kAdditiveSafeIntegerFeedbackShift);
     }
     case IrOpcode::kCheckedInt64Add:
       DCHECK(Is64());
@@ -2057,6 +2101,15 @@ OpIndex GraphBuilder::Process(
       const auto& p = CheckMapsParametersOf(node->op());
       __ CheckMaps(Map(node->InputAt(0)), dominating_frame_state, {}, p.maps(),
                    p.flags(), p.feedback());
+      return OpIndex{};
+    }
+
+    case IrOpcode::kCheckHomomorphic: {
+      DCHECK(dominating_frame_state.valid());
+      const auto& p = CheckHomomorphicParametersOf(node->op());
+      __ CheckHomomorphic(Map(node->InputAt(0)), dominating_frame_state,
+                          p.name(), p.homomorphic_array(), p.handler_value(),
+                          p.check_heap_object(), p.feedback());
       return OpIndex{};
     }
 
@@ -2498,8 +2551,8 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtectedByTrapHandler:
-          kind = LoadOp::Kind::RawAligned().Atomic().Protected();
+        case MemoryAccessKind::kTrapping:
+          kind = LoadOp::Kind::RawAligned().Atomic().Trapping();
           break;
       }
       RegisterRepresentation result_rep =
@@ -2541,14 +2594,14 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtectedByTrapHandler:
-          kind = StoreOp::Kind::RawAligned().Atomic().Protected();
+        case MemoryAccessKind::kTrapping:
+          kind = StoreOp::Kind::RawAligned().Atomic().Trapping();
           break;
       }
       __ Store(
           base, offset, value, kind,
           MemoryRepresentation::FromMachineRepresentation(p.representation()),
-          p.write_barrier_kind(), 0, 0, true);
+          p.write_barrier_kind(), p.order(), 0, 0, true);
       return OpIndex::Invalid();
     }
 

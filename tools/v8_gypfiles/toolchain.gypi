@@ -158,31 +158,12 @@
       ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
+          'CAN_USE_ARMV7_INSTRUCTIONS',
+          'CAN_USE_VFP3_INSTRUCTIONS',
+          'CAN_USE_VFP32DREGS',
+          'CAN_USE_NEON',
         ],
         'conditions': [
-          [ 'arm_version==7 or arm_version=="default"', {
-            'defines': [
-              'CAN_USE_ARMV7_INSTRUCTIONS',
-            ],
-          }],
-          [ 'arm_fpu=="vfpv3-d16" or arm_fpu=="default"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-            ],
-          }],
-          [ 'arm_fpu=="vfpv3"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-              'CAN_USE_VFP32DREGS',
-            ],
-          }],
-          [ 'arm_fpu=="neon"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-              'CAN_USE_VFP32DREGS',
-              'CAN_USE_NEON',
-            ],
-          }],
           [ 'arm_test_noprobe=="on"', {
             'defines': [
               'ARM_TEST_NO_FEATURE_PROBE',

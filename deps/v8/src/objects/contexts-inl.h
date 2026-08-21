@@ -11,7 +11,6 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/casting.h"
-#include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -20,7 +19,6 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,11 +28,11 @@ namespace internal {
 
 #include "torque-generated/src/objects/contexts-tq-inl.inc"
 
-int ScriptContextTable::length(AcquireLoadTag) const {
-  return length_.Acquire_Load().value();
+SafeHeapObjectSize ScriptContextTable::length(AcquireLoadTag) const {
+  return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_));
 }
-void ScriptContextTable::set_length(int value, ReleaseStoreTag) {
-  length_.Release_Store(this, Smi::FromInt(value));
+void ScriptContextTable::set_length(uint32_t value, ReleaseStoreTag) {
+  base::AsAtomic32::Release_Store(&length_, value);
 }
 
 Tagged<NameToIndexHashTable> ScriptContextTable::names_to_context_index()
@@ -46,19 +44,28 @@ void ScriptContextTable::set_names_to_context_index(
   names_to_context_index_.store(this, value, mode);
 }
 
-Tagged<Context> ScriptContextTable::get(int i) const {
-  DCHECK_LT(i, length(kAcquireLoad));
+Tagged<Context> ScriptContextTable::get(uint32_t i) const {
+  DCHECK_LT(i, length(kAcquireLoad).value());
   return Super::get(i);
 }
 
-Tagged<Context> ScriptContextTable::get(int i, AcquireLoadTag tag) const {
-  DCHECK_LT(i, length(tag));
+Tagged<Context> ScriptContextTable::get(uint32_t i, AcquireLoadTag tag) const {
+  DCHECK_LT(i, length(tag).value());
   return Super::get(i, tag);
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
+int Context::AllocatedSize() const { return SizeFor(length(kRelaxedLoad)); }
 
-RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
+int Context::length() const { return length_.load().value(); }
+void Context::set_length(int value) {
+  length_.store_no_write_barrier(Smi::FromInt(value));
+}
+int Context::length(RelaxedLoadTag) const {
+  return length_.Relaxed_Load().value();
+}
+void Context::set_length(int value, RelaxedStoreTag) {
+  length_.Relaxed_Store_no_write_barrier(Smi::FromInt(value));
+}
 
 bool Context::IsElementTheHole(int index) {
   return IsTheHole(get(index, kRelaxedLoad));
@@ -87,18 +94,16 @@ void Context::SetNoCell(int index, Tagged<Object> value,
   SetNoCell(index, value, kRelaxedStore, mode);
 }
 
-template <typename MemoryTag>
-Tagged<Object> Context::get(int index, MemoryTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index, tag);
-}
-
-Tagged<Object> Context::get(PtrComprCageBase cage_base, int index,
-                            RelaxedLoadTag) const {
+Tagged<Object> Context::get(int index, RelaxedLoadTag) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
-  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
-                                           OffsetOfElementAt(index));
+  return elements()[index].Relaxed_Load();
+}
+
+Tagged<Object> Context::get(int index, AcquireLoadTag) const {
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(length(kRelaxedLoad)));
+  return elements()[index].Acquire_Load();
 }
 
 void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode) {
@@ -109,25 +114,14 @@ void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode,
                   RelaxedStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
-  const int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
-}
-
-Tagged<Object> Context::get(PtrComprCageBase cage_base, int index,
-                            AcquireLoadTag) const {
-  DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(length(kRelaxedLoad)));
-  return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
+  elements()[index].Relaxed_Store(this, value, mode);
 }
 
 void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode,
                   ReleaseStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
-  const int offset = OffsetOfElementAt(index);
-  RELEASE_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  elements()[index].Release_Store(this, value, mode);
 }
 
 void NativeContext::set(int index, Tagged<Object> value, WriteBarrierMode mode,
@@ -135,7 +129,12 @@ void NativeContext::set(int index, Tagged<Object> value, WriteBarrierMode mode,
   Context::set(index, value, mode, tag);
 }
 
-ACCESSORS(Context, scope_info, Tagged<ScopeInfo>, kScopeInfoOffset)
+Tagged<ScopeInfo> Context::scope_info() const {
+  return Cast<ScopeInfo>(elements()[SCOPE_INFO_INDEX].load());
+}
+void Context::set_scope_info(Tagged<ScopeInfo> value, WriteBarrierMode mode) {
+  elements()[SCOPE_INFO_INDEX].store(this, value, mode);
+}
 
 Tagged<Object> Context::unchecked_previous() const {
   return get(PREVIOUS_INDEX, kRelaxedLoad);
@@ -226,19 +225,19 @@ bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
   void Context::set_##name(Tagged<UNPAREN(type)> value) {          \
-    DCHECK(IsNativeContext(*this));                                \
+    DCHECK(IsNativeContext(this));                                 \
     set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore);        \
   }                                                                \
   bool Context::is_##name(Tagged<UNPAREN(type)> value) const {     \
-    DCHECK(IsNativeContext(*this));                                \
+    DCHECK(IsNativeContext(this));                                 \
     return Cast<UNPAREN(type)>(get(index, kRelaxedLoad)) == value; \
   }                                                                \
   Tagged<UNPAREN(type)> Context::name() const {                    \
-    DCHECK(IsNativeContext(*this));                                \
+    DCHECK(IsNativeContext(this));                                 \
     return Cast<UNPAREN(type)>(get(index, kRelaxedLoad));          \
   }                                                                \
   Tagged<UNPAREN(type)> Context::name(AcquireLoadTag tag) const {  \
-    DCHECK(IsNativeContext(*this));                                \
+    DCHECK(IsNativeContext(this));                                 \
     return Cast<UNPAREN(type)>(get(index, tag));                   \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
@@ -300,8 +299,8 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 #undef CHECK_FOLLOWS4
 
 Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
-  DCHECK(IsNativeContext(*this));
-  if (!IsFastElementsKind(kind)) return Map();
+  DCHECK(IsNativeContext(this));
+  if (!IsFastElementsKind(kind)) return {};
   DisallowGarbageCollection no_gc;
   Tagged<Object> const initial_js_array_map =
       get(Context::ArrayMapIndex(kind), kRelaxedLoad);
@@ -367,8 +366,6 @@ Tagged<Map> NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;
 }
-
-OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
 
 inline std::ostream& operator<<(std::ostream& os, ContextCell::State state) {
   switch (state) {

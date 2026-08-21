@@ -1485,7 +1485,7 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
   // matter.
   //
   // To handle the bad case properly, we first kill the maps using all
-  // transitions. We kill the the fields later when all the transitions are
+  // transitions. We kill the fields later when all the transitions are
   // already reflected in the map information.
 
   for (const TransitionElementsKindInfo& t : element_transitions_) {

@@ -227,7 +227,8 @@ void LogMessage::LogMessageData::InitializeEncodingAndFormat() {
   EncodeVarint(EventTag::kSeverity,
                ProtoSeverity(entry.log_severity(), entry.verbosity()),
                &encoded_remaining());
-  EncodeVarint(EventTag::kThreadId, entry.tid(), &encoded_remaining());
+  EncodeVarint(EventTag::kThreadId, static_cast<uint64_t>(entry.tid()),
+               &encoded_remaining());
 }
 
 void LogMessage::LogMessageData::FinalizeEncodingAndFormat() {

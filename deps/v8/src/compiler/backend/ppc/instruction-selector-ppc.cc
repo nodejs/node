@@ -348,7 +348,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   VisitLoadCommon(this, node, mode, opcode);
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -520,7 +520,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitStoreCommon(this, node, store_view(node).stored_rep(), std::nullopt);
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1104,9 +1104,9 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& sub = this->Get(node).template Cast<WordBinopOp>();
   if (this->MatchIntegralZero(sub.left())) {
-    Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
+    Emit(kPPC_Neg32, g.DefineAsRegister(node), g.UseRegister(sub.right()));
   } else {
-    VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate);
+    VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate);
   }
 }
 
@@ -1114,9 +1114,9 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& sub = this->Get(node).template Cast<WordBinopOp>();
   if (this->MatchIntegralZero(sub.left())) {
-    Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
+    Emit(kPPC_Neg64, g.DefineAsRegister(node), g.UseRegister(sub.right()));
   } else {
-    VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate);
+    VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate);
   }
 }
 
@@ -1125,49 +1125,25 @@ namespace {
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont);
+
 void EmitInt32MulWithOverflow(InstructionSelector* selector, OpIndex node,
                               FlagsContinuation* cont) {
   PPCOperandGenerator g(selector);
-  const OverflowCheckedBinopOp& op =
-      selector->Get(node).Cast<OverflowCheckedBinopOp>();
-  OpIndex lhs = op.input(0);
-  OpIndex rhs = op.input(1);
-  InstructionOperand result_operand = g.DefineAsRegister(node);
-  InstructionOperand high32_operand = g.TempRegister();
-  InstructionOperand temp_operand = g.TempRegister();
-  {
-    InstructionOperand outputs[] = {result_operand, high32_operand};
-    InstructionOperand inputs[] = {g.UseRegister(lhs), g.UseRegister(rhs)};
-    selector->Emit(kPPC_Mul32WithHigh32, 2, outputs, 2, inputs);
-  }
-  {
-    InstructionOperand shift_31 = g.UseImmediate(31);
-    InstructionOperand outputs[] = {temp_operand};
-    InstructionOperand inputs[] = {result_operand, shift_31};
-    selector->Emit(kPPC_ShiftRightAlg32, 1, outputs, 2, inputs);
-  }
-
-  VisitCompare(selector, kPPC_Cmp32, high32_operand, temp_operand, cont);
+  const Operation& op = selector->Get(node);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand inputs[] = {g.UseRegister(op.input(0)),
+                                 g.UseRegister(op.input(1))};
+  selector->EmitWithContinuation(kPPC_Mul32, 1, outputs, 2, inputs, cont);
 }
 
 void EmitInt64MulWithOverflow(InstructionSelector* selector, OpIndex node,
                               FlagsContinuation* cont) {
   PPCOperandGenerator g(selector);
-  const OverflowCheckedBinopOp& op =
-      selector->Cast<OverflowCheckedBinopOp>(node);
-  OpIndex lhs = op.input(0);
-  OpIndex rhs = op.input(1);
-  InstructionOperand result = g.DefineAsRegister(node);
-  InstructionOperand left = g.UseRegister(lhs);
-  InstructionOperand high = g.TempRegister();
-  InstructionOperand result_sign = g.TempRegister();
-  InstructionOperand right = g.UseRegister(rhs);
-  selector->Emit(kPPC_Mul64, result, left, right);
-  selector->Emit(kPPC_MulHighS64, high, left, right);
-  selector->Emit(kPPC_ShiftRightAlg64, result_sign, result,
-                 g.TempImmediate(63));
-  // Test whether {high} is a sign-extension of {result}.
-  selector->EmitWithContinuation(kPPC_Cmp64, high, result_sign, cont);
+  const Operation& op = selector->Get(node);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand inputs[] = {g.UseRegister(op.input(0)),
+                                 g.UseRegister(op.input(1))};
+  selector->EmitWithContinuation(kPPC_Mul64, 1, outputs, 2, inputs, cont);
 }
 
 }  // namespace
@@ -1186,6 +1162,12 @@ void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   Emit(kPPC_MulHigh32, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }
+
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   PPCOperandGenerator g(this);
@@ -1571,21 +1553,28 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
+    return VisitBinop(this, node, kPPC_Add32, kInt16Imm, &cont);
   }
     FlagsContinuation cont;
-    VisitBinop(this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
+    VisitBinop(this, node, kPPC_Add32, kInt16Imm, &cont);
 }
 
 void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
+  PPCOperandGenerator g(this);
+  const Operation& op = Get(node);
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate,
-                      &cont);
+    if (MatchIntegralZero(op.input(0))) {
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionOperand inputs[] = {g.UseRegister(op.input(1))};
+      EmitWithContinuation(kPPC_Neg32, 1, outputs, 1, inputs, &cont);
+      return;
+    }
+    return VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate, &cont);
   }
     FlagsContinuation cont;
-    VisitBinop(this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate, &cont);
+    VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate, &cont);
 }
 
 void InstructionSelector::VisitInt64AddWithOverflow(OpIndex node) {
@@ -1599,19 +1588,27 @@ void InstructionSelector::VisitInt64AddWithOverflow(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt64SubWithOverflow(OpIndex node) {
+  PPCOperandGenerator g(this);
+  const Operation& op = Get(node);
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
+    if (MatchIntegralZero(op.input(0))) {
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionOperand inputs[] = {g.UseRegister(op.input(1))};
+      EmitWithContinuation(kPPC_Neg64, 1, outputs, 1, inputs, &cont);
+      return;
+    }
+    return VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate, &cont);
   }
     FlagsContinuation cont;
-    VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
+    VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate, &cont);
 }
 
 void InstructionSelector::VisitInt64MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf.value());
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     return EmitInt64MulWithOverflow(this, node, &cont);
   }
     FlagsContinuation cont;
@@ -1765,20 +1762,28 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           switch (binop->kind) {
             case OverflowCheckedBinopOp::Kind::kSignedAdd:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop(this, node,
-                                is64 ? kPPC_Add64 : kPPC_AddWithOverflow32,
+              return VisitBinop(this, node, is64 ? kPPC_Add64 : kPPC_Add32,
                                 kInt16Imm, cont);
-            case OverflowCheckedBinopOp::Kind::kSignedSub:
+            case OverflowCheckedBinopOp::Kind::kSignedSub: {
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop(this, node,
-                                is64 ? kPPC_Sub : kPPC_SubWithOverflow32,
+              PPCOperandGenerator g(this);
+              const Operation& op = Get(node);
+              if (MatchIntegralZero(op.input(0))) {
+                InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+                InstructionOperand inputs[] = {g.UseRegister(op.input(1))};
+                EmitWithContinuation(is64 ? kPPC_Neg64 : kPPC_Neg32, 1, outputs,
+                                     1, inputs, cont);
+                return;
+              }
+              return VisitBinop(this, node, is64 ? kPPC_Sub64 : kPPC_Sub32,
                                 kInt16Imm_Negate, cont);
+            }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               if (is64) {
-                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
                 return EmitInt64MulWithOverflow(this, node, cont);
               } else {
-                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
                 return EmitInt32MulWithOverflow(this, node, cont);
               }
           }
@@ -1826,7 +1831,7 @@ void InstructionSelector::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
       InstructionOperand index_operand = value_operand;
       if (sw.min_value()) {
       index_operand = g.TempRegister();
-      Emit(kPPC_Sub, index_operand, value_operand,
+      Emit(kPPC_Sub64, index_operand, value_operand,
            g.TempImmediate(sw.min_value()));
       }
       // Zero extend, because we use it as 64-bit index into the jump table.
@@ -1899,7 +1904,7 @@ void InstructionSelector::VisitUint64LessThanOrEqual(OpIndex node) {
 void InstructionSelector::VisitInt32MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf.value());
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     return EmitInt32MulWithOverflow(this, node, &cont);
   }
   FlagsContinuation cont;
@@ -2479,12 +2484,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
     Emit(kPPC_##T##Splat | LaneSizeField::encode(LaneSize),     \
          g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
-SIMD_VISIT_SPLAT(F64x2, F, 64)
-SIMD_VISIT_SPLAT(F32x4, F, 32)
-SIMD_VISIT_SPLAT(I64x2, I, 64)
-SIMD_VISIT_SPLAT(I32x4, I, 32)
-SIMD_VISIT_SPLAT(I16x8, I, 16)
-SIMD_VISIT_SPLAT(I8x16, I, 8)
+SIMD_VISIT_SPLAT(F64x2, F, LaneSize::kL64)
+SIMD_VISIT_SPLAT(F32x4, F, LaneSize::kL32)
+SIMD_VISIT_SPLAT(I64x2, I, LaneSize::kL64)
+SIMD_VISIT_SPLAT(I32x4, I, LaneSize::kL32)
+SIMD_VISIT_SPLAT(I16x8, I, LaneSize::kL16)
+SIMD_VISIT_SPLAT(I8x16, I, LaneSize::kL8)
 #undef SIMD_VISIT_SPLAT
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                   \
@@ -2497,14 +2502,14 @@ SIMD_VISIT_SPLAT(I8x16, I, 8)
          g.DefineAsRegister(node), g.UseRegister(op.input(0)),             \
          g.UseImmediate(lane));                                            \
   }
-SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
-SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
-SIMD_VISIT_EXTRACT_LANE(I64x2, I, , 64)
-SIMD_VISIT_EXTRACT_LANE(I32x4, I, , 32)
-SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, 16)
-SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, 16)
-SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
-SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
+SIMD_VISIT_EXTRACT_LANE(F64x2, F, , LaneSize::kL64)
+SIMD_VISIT_EXTRACT_LANE(F32x4, F, , LaneSize::kL32)
+SIMD_VISIT_EXTRACT_LANE(I64x2, I, , LaneSize::kL64)
+SIMD_VISIT_EXTRACT_LANE(I32x4, I, , LaneSize::kL32)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, LaneSize::kL8)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, LaneSize::kL8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 #define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                   \
@@ -2517,12 +2522,12 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
          g.DefineSameAsFirst(node), g.UseRegister(op.input(0)),      \
          g.UseImmediate(lane), g.UseRegister(op.input(1)));          \
   }
-SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
-SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
-SIMD_VISIT_REPLACE_LANE(I64x2, I, 64)
-SIMD_VISIT_REPLACE_LANE(I32x4, I, 32)
-SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
-SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
+SIMD_VISIT_REPLACE_LANE(F64x2, F, LaneSize::kL64)
+SIMD_VISIT_REPLACE_LANE(F32x4, F, LaneSize::kL32)
+SIMD_VISIT_REPLACE_LANE(I64x2, I, LaneSize::kL64)
+SIMD_VISIT_REPLACE_LANE(I32x4, I, LaneSize::kL32)
+SIMD_VISIT_REPLACE_LANE(I16x8, I, LaneSize::kL16)
+SIMD_VISIT_REPLACE_LANE(I8x16, I, LaneSize::kL8)
 #undef SIMD_VISIT_REPLACE_LANE
 
 #define SIMD_VISIT_BINOP(Opcode)                                              \

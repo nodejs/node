@@ -8,6 +8,7 @@
 #include "include/v8-isolate.h"
 #include "src/api/api-inl.h"
 #include "src/flags/flags.h"
+#include "src/objects/managed.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -44,7 +45,7 @@ class TestResolver : public CompilationResultResolver {
 
   void OnCompilationSucceeded(DirectHandle<WasmModuleObject> module) override {
     done_ = true;
-    native_module_ = module->shared_native_module();
+    native_module_ = module->native_module();
   }
 
   void OnCompilationFailed(DirectHandle<JSAny> error_reason) override {
@@ -59,8 +60,12 @@ class TestResolver : public CompilationResultResolver {
 
   bool failed() const { return failed_; }
 
-  const std::shared_ptr<NativeModule>& native_module() const {
-    return native_module_;
+  NativeModule* native_module() V8_LIFETIME_BOUND {
+    return native_module_.raw();
+  }
+
+  std::shared_ptr<NativeModule> shared_native_module() {
+    return native_module_.as_shared_ptr();
   }
 
   const std::string& error_message() const { return error_message_; }
@@ -70,7 +75,7 @@ class TestResolver : public CompilationResultResolver {
   bool done_ = false;
   bool failed_ = false;
   std::string error_message_;
-  std::shared_ptr<NativeModule> native_module_;
+  Managed<NativeModule>::Ptr native_module_;
 };
 
 CompilationResult CompileStreaming(v8_fuzzer::FuzzerSupport* support,
@@ -109,7 +114,7 @@ CompilationResult CompileStreaming(v8_fuzzer::FuzzerSupport* support,
     }
 
     result = CompilationResult::ForSuccess(resolver->native_module()->module());
-    weak_native_module = resolver->native_module();
+    weak_native_module = resolver->shared_native_module();
   }
   // Collect garbage until the native module is collected. This ensures that we
   // recompile the module for sync compilation instead of taking it from the

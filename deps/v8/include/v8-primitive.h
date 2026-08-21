@@ -446,13 +446,15 @@ class V8_EXPORT String : public Name {
    * Get the ExternalStringResource for an external string.  Returns
    * NULL if IsExternal() doesn't return true.
    */
+  // TODO(pthier): Change return type to const ExternalStringResource*.
   V8_INLINE ExternalStringResource* GetExternalStringResource() const;
 
   /**
    * Get the ExternalOneByteStringResource for an external one-byte string.
    * Returns NULL if IsExternalOneByte() doesn't return true.
    */
-  const ExternalOneByteStringResource* GetExternalOneByteStringResource() const;
+  V8_INLINE const ExternalOneByteStringResource*
+  GetExternalOneByteStringResource() const;
 
   V8_INLINE static String* Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
@@ -619,9 +621,11 @@ class V8_EXPORT String : public Name {
    * WARNING: This will unconditionally copy the contents of the JavaScript
    * string, and should be avoided in situations where performance is a concern.
    */
-  class V8_EXPORT Value {
+  class V8_DEPRECATE_SOON(
+      "Prefer using String::ValueView if you can, or string->Write to a "
+      "buffer if you cannot.") V8_EXPORT Value {
    public:
-    V8_DEPRECATE_SOON(
+    V8_DEPRECATED(
         "Prefer using String::ValueView if you can, or string->Write to a "
         "buffer if you cannot.")
     Value(Isolate* isolate, Local<v8::Value> obj);
@@ -689,10 +693,11 @@ class V8_EXPORT String : public Name {
   };
 
  private:
-  void VerifyExternalStringResourceBase(ExternalStringResourceBase* v,
+  void VerifyExternalStringResourceBase(const ExternalStringResourceBase* v,
                                         Encoding encoding) const;
-  void VerifyExternalStringResource(ExternalStringResource* val) const;
   ExternalStringResource* GetExternalStringResourceSlow() const;
+  const ExternalOneByteStringResource* GetExternalOneByteStringResourceSlow()
+      const;
   ExternalStringResourceBase* GetExternalStringResourceBaseSlow(
       String::Encoding* encoding_out) const;
 
@@ -881,7 +886,7 @@ class V8_EXPORT Uint32 : public Integer {
 };
 
 /**
- * A JavaScript BigInt value (https://tc39.github.io/proposal-bigint)
+ * A JavaScript BigInt value (https://tc39.es/proposal-bigint)
  */
 class V8_EXPORT BigInt : public Numeric {
  public:
@@ -963,7 +968,27 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
     result = GetExternalStringResourceSlow();
   }
 #ifdef V8_ENABLE_CHECKS
-  VerifyExternalStringResource(result);
+  VerifyExternalStringResourceBase(result, Encoding::TWO_BYTE_ENCODING);
+#endif
+  return result;
+}
+
+const String::ExternalOneByteStringResource*
+String::GetExternalOneByteStringResource() const {
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  const ExternalOneByteStringResource* result;
+  if (I::IsExternalOneByteString(I::GetInstanceType(obj))) {
+    Isolate* isolate = I::GetCurrentIsolateForSandbox();
+    A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
+        isolate, obj, I::kStringResourceOffset);
+    result = reinterpret_cast<String::ExternalOneByteStringResource*>(value);
+  } else {
+    result = GetExternalOneByteStringResourceSlow();
+  }
+#ifdef V8_ENABLE_CHECKS
+  VerifyExternalStringResourceBase(result, Encoding::ONE_BYTE_ENCODING);
 #endif
   return result;
 }
@@ -992,25 +1017,8 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
 
 String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
     String::Encoding* encoding_out) const {
-  using A = internal::Address;
-  using I = internal::Internals;
-  A obj = internal::ValueHelper::ValueAsAddress(this);
-  int type = I::GetInstanceType(obj) & I::kStringRepresentationAndEncodingMask;
-  *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
-  ExternalStringResourceBase* resource;
-  if (type == I::kExternalOneByteRepresentationTag ||
-      type == I::kExternalTwoByteRepresentationTag) {
-    Isolate* isolate = I::GetCurrentIsolateForSandbox();
-    A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
-        isolate, obj, I::kStringResourceOffset);
-    resource = reinterpret_cast<ExternalStringResourceBase*>(value);
-  } else {
-    resource = GetExternalStringResourceBaseSlow(encoding_out);
-  }
-#ifdef V8_ENABLE_CHECKS
-  VerifyExternalStringResourceBase(resource, *encoding_out);
-#endif
-  return resource;
+  Isolate* isolate = internal::Internals::GetCurrentIsolateForSandbox();
+  return GetExternalStringResourceBase(isolate, encoding_out);
 }
 
 // --- Statics ---

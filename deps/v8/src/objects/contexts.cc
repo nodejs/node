@@ -28,9 +28,8 @@ namespace v8::internal {
 
 // static
 Handle<ScriptContextTable> ScriptContextTable::New(Isolate* isolate,
-                                                   int capacity,
+                                                   uint32_t capacity,
                                                    AllocationType allocation) {
-  DCHECK_GE(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
 
   auto names = NameToIndexHashTable::New(isolate, 16);
@@ -80,15 +79,14 @@ Handle<ScriptContextTable> ScriptContextTable::Add(
     DirectHandle<Context> script_context, bool ignore_duplicates) {
   DCHECK(script_context->IsScriptContext());
 
-  int old_length = table->length(kAcquireLoad);
-  int new_length = old_length + 1;
-  DCHECK_LE(0, old_length);
+  const uint32_t old_length = table->length(kAcquireLoad).value();
+  const uint32_t new_length = old_length + 1;
 
   Handle<ScriptContextTable> result = table;
-  int old_capacity = table->capacity();
+  const uint32_t old_capacity = table->capacity().value();
   DCHECK_LE(old_length, old_capacity);
   if (old_length == old_capacity) {
-    int new_capacity = NewCapacityForIndex(old_length, old_capacity);
+    const uint32_t new_capacity = NewCapacityForIndex(old_length, old_capacity);
     auto new_table = New(isolate, new_capacity);
     new_table->set_length(old_length, kReleaseStore);
     new_table->set_names_to_context_index(table->names_to_context_index());
@@ -120,10 +118,11 @@ void Context::Initialize(Isolate* isolate) {
 bool ScriptContextTable::Lookup(DirectHandle<String> name,
                                 VariableLookupResult* result) {
   DisallowGarbageCollection no_gc;
-  int index = names_to_context_index()->Lookup(*name);
-  if (index == -1) return false;
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, length(kAcquireLoad));
+  int int_index = names_to_context_index()->Lookup(*name);
+  if (int_index == -1) return false;
+  DCHECK_LE(0, int_index);
+  uint32_t index = static_cast<uint32_t>(int_index);
+  DCHECK_LT(index, length(kAcquireLoad).value());
   Tagged<Context> context = get(index);
   DCHECK(context->IsScriptContext());
   int slot_index = context->scope_info()->ContextSlotIndex(*name, result);
@@ -134,7 +133,7 @@ bool ScriptContextTable::Lookup(DirectHandle<String> name,
 }
 
 bool Context::is_declaration_context() const {
-  if (IsFunctionContext() || IsNativeContext(*this) || IsScriptContext() ||
+  if (IsFunctionContext() || IsNativeContext(this) || IsScriptContext() ||
       IsModuleContext()) {
     return true;
   }
@@ -164,17 +163,17 @@ Tagged<Context> Context::closure_context() const {
 }
 
 Tagged<JSObject> Context::extension_object() const {
-  DCHECK(IsNativeContext(*this) || IsFunctionContext() || IsBlockContext() ||
+  DCHECK(IsNativeContext(this) || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   Tagged<HeapObject> object = extension();
-  if (IsUndefined(object)) return JSObject();
+  if (IsUndefined(object)) return {};
   DCHECK(IsJSContextExtensionObject(object) ||
-         (IsNativeContext(*this) && IsJSGlobalObject(object)));
+         (IsNativeContext(this) && IsJSGlobalObject(object)));
   return Cast<JSObject>(object);
 }
 
 Tagged<JSReceiver> Context::extension_receiver() const {
-  DCHECK(IsNativeContext(*this) || IsWithContext() || IsEvalContext() ||
+  DCHECK(IsNativeContext(this) || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? Cast<JSReceiver>(extension()) : extension_object();
 }
@@ -702,7 +701,7 @@ void Context::VerifyExtensionSlot(Tagged<HeapObject> extension) {
   } else if (IsDebugEvaluateContext() || IsWithContext()) {
     CHECK(IsJSReceiver(extension) ||
           (IsWithContext() && IsContexExtensionTestObject(extension)));
-  } else if (IsNativeContext(*this)) {
+  } else if (IsNativeContext(this)) {
     CHECK(IsJSGlobalObject(extension) ||
           IsContexExtensionTestObject(extension));
   } else if (IsScriptContext()) {
@@ -753,8 +752,6 @@ static_assert(NativeContext::kPreviousOffset ==
 static_assert(NativeContext::kExtensionOffset ==
               Context::OffsetOfElementAt(NativeContext::EXTENSION_INDEX));
 
-static_assert(NativeContext::kStartOfStrongFieldsOffset ==
-              Context::OffsetOfElementAt(-1));
 static_assert(NativeContext::kStartOfWeakFieldsOffset ==
               Context::OffsetOfElementAt(NativeContext::FIRST_WEAK_SLOT));
 static_assert(NativeContext::kMicrotaskQueueOffset ==

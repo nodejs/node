@@ -375,8 +375,8 @@ MaybeDirectHandle<Object> GetInstancePrototype(
   // TODO(cbruni): decide what to do here.
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, instance_prototype,
-      JSObject::GetProperty(isolate, parent_instance,
-                            isolate->factory()->prototype_string()));
+      JSReceiver::GetProperty(isolate, parent_instance,
+                              isolate->factory()->prototype_string()));
   return scope.CloseAndEscape(instance_prototype);
 }
 }  // namespace

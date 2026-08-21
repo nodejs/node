@@ -35,6 +35,14 @@ Decision DecideObjectIsSmi(Node* const input) {
   return Decision::kUnknown;
 }
 
+bool IsUint64Double(double value) {
+  // It is a bit ugly to use the constant `0x1.0p64` here, but there are no nice
+  // ways to express 2^64 in C++. UINT64_MAX + 1 would look good, but is
+  // incorrect because of rounding.
+  return value >= 0.0 && value < 0x1.0p64 && std::floor(value) == value &&
+         !IsMinusZero(value);
+}
+
 }  // namespace
 
 SimplifiedOperatorReducer::SimplifiedOperatorReducer(
@@ -168,11 +176,49 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckedInt32ToUint64: {
+      Int32Matcher m(node->InputAt(0));
+      if (m.HasResolvedValue() && m.ResolvedValue() >= 0) {
+        Node* value =
+            jsgraph()->Uint64Constant(static_cast<uint64_t>(m.ResolvedValue()));
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+      break;
+    }
+    case IrOpcode::kCheckedFloat64ToUint64: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasResolvedValue() && IsUint64Double(m.ScalarValue())) {
+        Node* value =
+            jsgraph()->Uint64Constant(static_cast<uint64_t>(m.ScalarValue()));
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+      break;
+    }
+    case IrOpcode::kCheckedTaggedToUint64: {
+      NumberMatcher m(node->InputAt(0));
+      if (m.HasResolvedValue() && IsUint64Double(m.ResolvedValue())) {
+        Node* value =
+            jsgraph()->Uint64Constant(static_cast<uint64_t>(m.ResolvedValue()));
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+      break;
+    }
     case IrOpcode::kCheckIf: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) {
         Node* const effect = NodeProperties::GetEffectInput(node);
         return Replace(effect);
+      }
+      break;
+    }
+    case IrOpcode::kCheckedTaggedSignedToInt32: {
+      if (node->InputAt(0)->opcode() ==
+          IrOpcode::kConvertTaggedHoleToUndefined) {
+        node->ReplaceInput(0, node->InputAt(0)->InputAt(0));
+        return Changed(node);
       }
       break;
     }

@@ -16,12 +16,12 @@
 #include "src/base/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8::internal::wasm {
 
 class NativeModule;
+class CompilationResultResolver;
 
 // This class is an interface for the StreamingDecoder to start the processing
 // of the incoming module bytes.
@@ -87,8 +87,6 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   virtual void OnBytesReceived(base::Vector<const uint8_t> bytes) = 0;
 
-  // The argument matches WasmStreaming::GetCachedModuleFn, but we avoid the
-  // include and just repeat the full type instead.
   virtual void Finish(const WasmStreaming::ModuleCachingCallback&) = 0;
 
   virtual void Abort() = 0;

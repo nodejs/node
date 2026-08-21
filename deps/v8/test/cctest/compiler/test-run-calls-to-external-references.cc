@@ -864,6 +864,12 @@ SIGNATURE_TEST(RunCallWithSignatureOnlyDouble20, SIGNATURE_ONLY_DOUBLE_20,
 
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 
+#undef CHECK_ARG_I
+#undef ReturnType
+#undef CHECK_RESULT
+#undef IF_SIMULATOR_ADD_SIGNATURE
+#undef SIGNATURE_TEST
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

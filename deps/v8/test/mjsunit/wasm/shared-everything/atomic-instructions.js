@@ -209,12 +209,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
       : wasmRefNullType(kWasmAnyRef);
-    let array32 =
-      builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
-    let array64 =
-      builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
-    let arrayRef =
-      builder.addArray(anyRefT, true, kNoSuperType, false, is_shared);
+    let array32 = builder.addArray(kWasmI32, {is_shared});
+    let array64 = builder.addArray(kWasmI64, {is_shared});
+    let arrayRef = builder.addArray(anyRefT, {is_shared});
     builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,
@@ -332,10 +329,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
       : wasmRefNullType(kWasmAnyRef);
-    let array8 =
-      builder.addArray(kWasmI8, true, kNoSuperType, false, is_shared);
-    let array16 =
-      builder.addArray(kWasmI16, true, kNoSuperType, false, is_shared);
+    let array8 = builder.addArray(kWasmI8, {is_shared});
+    let array16 = builder.addArray(kWasmI16, {is_shared});
     builder.addFunction("newArray8", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,
@@ -736,14 +731,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     let eqRefT = is_shared
       ? wasmRefNullType(kWasmEqRef).shared()
       : wasmRefNullType(kWasmEqRef);
-    let array32 =
-      builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
-    let array64 =
-      builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
-    let arrayRef =
-      builder.addArray(anyRefT, true, kNoSuperType, false, is_shared);
-    let arrayEqRef =
-      builder.addArray(eqRefT, true, kNoSuperType, false, is_shared);
+    let array32 = builder.addArray(kWasmI32, {is_shared});
+    let array64 = builder.addArray(kWasmI64, {is_shared});
+    let arrayRef = builder.addArray(anyRefT, {is_shared});
+    let arrayEqRef = builder.addArray(eqRefT, {is_shared});
     builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,

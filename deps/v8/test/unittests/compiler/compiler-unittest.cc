@@ -261,7 +261,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
-  base::ScopedVector<char> buffer(buffer_size);
+  auto buffer = base::OwnedVector<char>::NewForOverwrite(buffer_size);
   memset(buffer.begin(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 

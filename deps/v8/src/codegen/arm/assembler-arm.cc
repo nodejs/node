@@ -41,7 +41,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -214,7 +214,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatureSet command_line = CpuFeaturesFromCommandLine();
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
+#ifdef V8_USE_HOST_CPU_ARM_FEATURES
     supported_ |= command_line & CpuFeaturesFromCompiler();
+#endif
     return;
   }
 
@@ -5212,13 +5214,7 @@ void Assembler::GrowBuffer() {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
-  if (new_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
-  }
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
 
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);

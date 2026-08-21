@@ -8,7 +8,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/memory.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"
@@ -124,7 +124,6 @@ void Assembler::emit_optional_rex_8(Register reg, Operand op) {
   }
 }
 
-#ifdef V8_ENABLE_APX_F
 void Assembler::emit_rex2_prefix(Register reg, Register rm_reg, Rex2MapID m,
                                  Rex2W w) {
   emit(0xD5);
@@ -230,7 +229,6 @@ void Assembler::emit_legacy_extended_evex_byte3(Register dst,
   uint8_t v4 = (dst.code() < 16) ? 0x8 : 0;
   emit(nd | v4 | nf);
 }
-#endif  // V8_ENABLE_APX_F
 
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,

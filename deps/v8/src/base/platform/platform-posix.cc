@@ -401,7 +401,7 @@ void* OS::GetRandomMmapAddr() {
   // fulfilling our placement request.
   raw_addr &= uint64_t{0x3FFFFFFFF000};
 #elif V8_TARGET_ARCH_ARM64
-#if defined(V8_TARGET_OS_LINUX) || defined(V8_TARGET_OS_ANDROID)
+#if defined(V8_OS_LINUX) || defined(V8_OS_ANDROID)
   // On Linux, the default virtual address space is limited to 39 bits when
   // using 4KB pages, see arch/arm64/Kconfig. We truncate to 38 bits.
   raw_addr &= uint64_t{0x3FFFFFF000};
@@ -510,7 +510,7 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 
   if (aligned_base != base && handle.has_value()) {
     // We have to remap because the base of mapping must correspond to the base
-    // of the the underlying file.
+    // of the underlying file.
     uint8_t* new_base = reinterpret_cast<uint8_t*>(base::Allocate(
         aligned_base, size, access, page_type, handle, true /* fixed */));
     if (new_base != aligned_base) {
@@ -942,7 +942,7 @@ int OS::GetCurrentThreadIdInternal() {
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #elif V8_OS_ZOS
-  return gettid();
+  return __tcbtid();
 #else
   return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif
@@ -1499,6 +1499,15 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
+
+// static
+void Stack::SaveStackLimit() { UNREACHABLE(); }
+
+// static
+Stack::StackSlot Stack::GetStackLimit() { UNREACHABLE(); }
+
+// static
+void Stack::SetCurrentThreadStackBounds(uintptr_t, uintptr_t) { UNREACHABLE(); }
 
 // static
 Stack::StackSlot Stack::GetCurrentStackPosition() {

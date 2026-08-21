@@ -215,7 +215,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Extract stack trace from the exception.
   DirectHandle<FixedArray> stack_trace_object =
       isolate->GetSimpleStackTrace(Cast<JSReceiver>(exception));
-  CHECK_NE(0, stack_trace_object->length());
+  CHECK_NE(0u, stack_trace_object->length().value());
   DirectHandle<CallSiteInfo> stack_frame(
       Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);
 

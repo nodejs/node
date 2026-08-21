@@ -103,7 +103,7 @@ class SlotAccessorForHeapObject {
         TrustedCast<ExposedTrustedObject>(value);
 
     InstanceType instance_type = value->map()->instance_type();
-    bool shared = HeapLayout::InAnySharedSpace(value);
+    SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(value));
     IndirectPointerTag tag =
         IndirectPointerTagFromInstanceType(instance_type, shared);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
@@ -452,25 +452,23 @@ uint32_t ComputeRawHashField(IsolateT* isolate, Tagged<String> string) {
 }  // namespace
 
 StringTableInsertionKey::StringTableInsertionKey(
-    Isolate* isolate, DirectHandle<String> string,
+    Isolate* isolate, DirectHandle<InternalizedString> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(IsInternalizedString(*string));
 }
 
 StringTableInsertionKey::StringTableInsertionKey(
-    LocalIsolate* isolate, DirectHandle<String> string,
+    LocalIsolate* isolate, DirectHandle<InternalizedString> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(IsInternalizedString(*string));
 }
 
 template <typename IsolateT>
@@ -575,8 +573,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
                                 EmptyBackingStoreBuffer());
     } else {
       auto bs = backing_store(store_index);
-      SharedFlag shared =
-          bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
+      SharedFlag shared = SharedFlag(bs && bs->is_shared());
       DCHECK_IMPLIES(bs,
                      buffer->is_resizable_by_js() == bs->is_resizable_by_js());
       ResizableFlag resizable = bs && bs->is_resizable_by_js()
@@ -629,12 +626,12 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         // TODO(leszeks): This handle patching is ugly, consider adding an
         // explicit internalized string bytecode. Also, the new thin string
         // should be dead, try immediately freeing it.
-        DirectHandle<String> string = Cast<String>(obj);
+        DirectHandle<InternalizedString> string = Cast<InternalizedString>(obj);
 
         StringTableInsertionKey key(
             isolate(), string,
             DeserializingUserCodeOption::kIsDeserializingUserCode);
-        Tagged<String> result =
+        Tagged<InternalizedString> result =
             *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {
@@ -902,8 +899,10 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
-  const int size_in_bytes = Map::kSize;
-  const int size_in_tagged = size_in_bytes / kTaggedSize;
+  const int size_in_tagged = source_.GetUint30();
+  const int size_in_bytes = size_in_tagged * kTaggedSize;
+  const InstanceType instance_type =
+      static_cast<InstanceType>(source_.GetUint30());
 
   Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
@@ -920,7 +919,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   }
 
   // Set the instance-type manually, to allow backrefs to read it.
-  UncheckedCast<Map>(*obj)->set_instance_type(MAP_TYPE);
+  DCHECK(InstanceTypeChecker::IsMap(instance_type));
+  UncheckedCast<Map>(*obj)->set_instance_type(instance_type);
 
   ReadData(obj, 1, size_in_tagged);
   PostProcessNewObject(Cast<Map>(obj), obj, space);
@@ -1391,18 +1391,18 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadOffHeapBackingStore(
     uint8_t data, SlotAccessor slot_accessor) {
-  int byte_length = source_.GetUint32();
+  uint32_t byte_length = source_.GetUint32();
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sOffHeapBackingStore [%d]\n", depth_, "", byte_length);
+    PrintF("%*sOffHeapBackingStore [%u]\n", depth_, "", byte_length);
   }
 
   std::unique_ptr<BackingStore> backing_store;
   if (data == kOffHeapBackingStore) {
     backing_store = BackingStore::Allocate(main_thread_isolate(), byte_length,
-                                           SharedFlag::kNotShared,
+                                           SharedFlag::kNo,
                                            InitializedFlag::kUninitialized);
   } else {
-    int max_byte_length = source_.GetUint32();
+    uint32_t max_byte_length = source_.GetUint32();
     size_t page_size, initial_pages, max_pages;
     Maybe<bool> result =
         JSArrayBuffer::GetResizableBackingStorePageConfiguration(
@@ -1412,8 +1412,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
     USE(result);
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
         main_thread_isolate(), byte_length, max_byte_length, page_size,
-        initial_pages, max_pages, WasmMemoryFlag::kNotWasm,
-        SharedFlag::kNotShared);
+        initial_pages, max_pages, WasmMemoryFlag::kNotWasm, SharedFlag::kNo);
   }
   CHECK_NOT_NULL(backing_store);
   source_.CopyRaw(backing_store->buffer_start(), byte_length);

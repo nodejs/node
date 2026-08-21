@@ -15,6 +15,8 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {

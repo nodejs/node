@@ -9,6 +9,7 @@ bitfield struct SourceTextModuleFlags extends uint31 {
   async_evaluation_ordinal: uint32: 30 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class SourceTextModule extends Module {
   // The code representing this module, or an abstraction thereof.
   code: SharedFunctionInfo|JSFunction|JSGeneratorObject;
@@ -55,6 +56,7 @@ bitfield struct ModuleRequestFlags extends uint31 {
   position: uint32: 29 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class ModuleRequest extends Struct {
   specifier: String;
 
@@ -65,6 +67,7 @@ extern class ModuleRequest extends Struct {
   flags: SmiTagged<ModuleRequestFlags>;
 }
 
+@cppObjectLayoutDefinition
 extern class SourceTextModuleInfoEntry extends Struct {
   export_name: String|Undefined;
   local_name: String|Undefined;

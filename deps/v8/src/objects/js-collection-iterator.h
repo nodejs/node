@@ -16,16 +16,35 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-collection-iterator-tq.inc"
-
-class JSCollectionIterator
-    : public TorqueGeneratedJSCollectionIterator<JSCollectionIterator,
-                                                 JSObject> {
+V8_OBJECT class JSCollectionIterator : public JSObject {
  public:
-  void JSCollectionIteratorPrint(std::ostream& os, const char* name);
+  inline Tagged<Object> table() const;
+  inline void set_table(Tagged<Object> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  TQ_OBJECT_CONSTRUCTORS(JSCollectionIterator)
-};
+  inline Tagged<Object> index() const;
+  inline void set_index(Tagged<Object> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  void JSCollectionIteratorPrint(std::ostream& os, const char* name);
+  V8_EXPORT_PRIVATE void JSCollectionIteratorVerify(Isolate* isolate);
+
+  // Back-compat offset/size constants.
+  static const int kTableOffset;
+  static const int kIndexOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Object> table_;
+  TaggedMember<Object> index_;
+} V8_OBJECT_END;
+
+inline constexpr int JSCollectionIterator::kTableOffset =
+    offsetof(JSCollectionIterator, table_);
+inline constexpr int JSCollectionIterator::kIndexOffset =
+    offsetof(JSCollectionIterator, index_);
+inline constexpr int JSCollectionIterator::kHeaderSize =
+    sizeof(JSCollectionIterator);
 
 // OrderedHashTableIterator is an iterator that iterates over the keys and
 // values of an OrderedHashTable.
@@ -57,8 +76,6 @@ class OrderedHashTableIterator : public JSCollectionIterator {
   // Transitions the iterator to the non obsolete backing store. This is a NOP
   // if the [table] is not obsolete.
   void Transition();
-
-  OBJECT_CONSTRUCTORS(OrderedHashTableIterator, JSCollectionIterator);
 };
 
 }  // namespace internal

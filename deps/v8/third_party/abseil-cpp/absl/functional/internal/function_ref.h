@@ -47,8 +47,8 @@ struct PassByValue : std::false_type {};
 template <typename T>
 struct PassByValue<T, /*IsLValueReference=*/false>
     : std::integral_constant<bool,
-                             absl::is_trivially_copy_constructible<T>::value &&
-                                 absl::is_trivially_copy_assignable<
+                             std::is_trivially_copy_constructible<T>::value &&
+                                 std::is_trivially_copy_assignable<
                                      typename std::remove_cv<T>::type>::value &&
                                  std::is_trivially_destructible<T>::value &&
                                  sizeof(T) <= 2 * sizeof(void*)> {};

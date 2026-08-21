@@ -12,9 +12,9 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// ES #sec-symbol-objects
+// https://tc39.es/ecma262/#sec-symbol-objects
 
-// ES #sec-symbol-constructor
+// https://tc39.es/ecma262/#sec-symbol-constructor
 BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);
   if (!IsUndefined(*args.new_target(), isolate)) {  // [[Construct]]
@@ -33,7 +33,7 @@ BUILTIN(SymbolConstructor) {
   return *result;
 }
 
-// ES6 section 19.4.2.1 Symbol.for.
+// https://tc39.es/ecma262/#sec-symbol.for
 BUILTIN(SymbolFor) {
   HandleScope scope(isolate);
   Handle<Object> key_obj = args.atOrUndefined(isolate, 1);
@@ -43,7 +43,7 @@ BUILTIN(SymbolFor) {
   return *isolate->SymbolFor(RootIndex::kPublicSymbolTable, key, false);
 }
 
-// ES6 section 19.4.2.5 Symbol.keyFor.
+// https://tc39.es/ecma262/#sec-symbol.keyfor
 BUILTIN(SymbolKeyFor) {
   HandleScope scope(isolate);
   Handle<Object> obj = args.atOrUndefined(isolate, 1);

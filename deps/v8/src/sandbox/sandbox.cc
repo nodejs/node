@@ -7,7 +7,7 @@
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/sys-info.h"
@@ -20,12 +20,32 @@
 #include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
 
+#if V8_OS_LINUX
+#include <sys/mman.h>
+#endif
+
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
-bool Sandbox::first_four_gb_of_address_space_are_reserved_ = false;
+namespace {
+
+// Exclude a large virtual reservation from core dumps. Without this, the
+// kernel walks the multi-TB sandbox reservation when writing a coredump,
+// which can take minutes even though almost none of it is resident. See
+// core(5) on MADV_DONTDUMP. No-op on non-Linux platforms; other OSes either
+// already skip PROT_NONE mappings or don't expose an equivalent knob.
+void ExcludeReservationFromCoreDump(Address base, size_t size) {
+#if V8_OS_LINUX
+  // Best-effort: ignore failures (e.g. old kernels without MADV_DONTDUMP).
+  madvise(reinterpret_cast<void*>(base), size, MADV_DONTDUMP);
+#endif
+}
+
+}  // namespace
+
+bool Sandbox::smi_address_range_reserved_ = false;
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 thread_local Sandbox* Sandbox::current_ = nullptr;
@@ -73,6 +93,29 @@ static Address DetermineAddressSpaceLimit() {
   // results in `hardware_virtual_address_bits` being at least the minimum (36)
   // otherwise we will override it with the default value (48) incorrectly.
   hardware_virtual_address_bits = 37;
+#elif defined(V8_HOST_ARCH_RISCV64)
+  // RISC-V supports multiple virtual addressing modes (Sv39, Sv48, Sv57).
+  // Detect the active mode at runtime via /proc/cpuinfo to avoid assuming
+  // 48-bit VA on Sv39 hardware, where userspace only has 256GB.
+  // Uses V8_HOST_ARCH since /proc/cpuinfo reflects the host CPU.
+  {
+    base::CPU cpu;
+    switch (cpu.riscv_mmu()) {
+      case base::CPU::RV_MMU_MODE::kRiscvSV39:
+        hardware_virtual_address_bits = 39;
+        break;
+      case base::CPU::RV_MMU_MODE::kRiscvSV48:
+        hardware_virtual_address_bits = 48;
+        break;
+      case base::CPU::RV_MMU_MODE::kRiscvSV57:
+        hardware_virtual_address_bits = 57;
+        break;
+    }
+  }
+#elif defined(V8_TARGET_ARCH_LOONG64)
+  // Some hardwares like 2k3000 only have 40-bit virtual address space, 39 bits
+  // userspace and kernel each.
+  hardware_virtual_address_bits = 40;
 #endif
 
   // Assume virtual address space is split 50/50 between userspace and kernel.
@@ -169,6 +212,15 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
         "Failed to reserve the virtual address space for the V8 sandbox");
   }
 
+  if (v8_flags.sandbox_prohibit_insecure_mode) {
+    if (is_partially_reserved() || !smi_address_range_is_inaccessible()) {
+      V8::FatalProcessOutOfMemory(
+          nullptr,
+          "Failed to initialize sandbox in a secure mode which is required by "
+          "--sandbox_prohibit_insecure_mode.");
+    }
+  }
+
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
   if (trap_handler::RegisterV8Sandbox(base(), size())) {
     trap_handler_initialized_ = true;
@@ -195,20 +247,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   CHECK(vas->CanAllocateSubspaces());
 
   size_t reservation_size = size;
-  // As a temporary workaround for crbug.com/40070746 we use larger guard
-  // regions at the end of the sandbox.
-  // TODO(40070746): remove this workaround again once we have a proper fix.
   size_t true_reservation_size = size;
-#if defined(V8_TARGET_OS_ANDROID)
-  // On Android, we often won't have sufficient virtual address space available.
-  const size_t kAdditionalTrailingGuardRegionSize = 0;
-#else
-  // Worst-case, we currently need 8 (max element size) * 32GB (max ArrayBuffer
-  // size) + 4GB (additional offset for TypedArray access).
-  const size_t kTotalTrailingGuardRegionSize = 260ULL * GB;
-  const size_t kAdditionalTrailingGuardRegionSize =
-      kTotalTrailingGuardRegionSize - kSandboxGuardRegionSize;
-#endif
+
   if (use_guard_regions) {
     reservation_size += 2 * kSandboxGuardRegionSize;
     true_reservation_size =
@@ -243,6 +283,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
                             kSandboxMaxPermissions, sandbox_pkey);
   if (!address_space_) return false;
   address_space_->SetName(kSandboxAddressSpaceName);
+  ExcludeReservationFromCoreDump(address_space_->base(),
+                                 address_space_->size());
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
   SandboxTesting::RegisterSafeMemoryRegion(
       address_space_->base(), address_space_->size(),
@@ -270,14 +312,14 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   // Also try to reserve the first 4GB of the process' address space. This
   // mitigates Smi<->HeapObject confusion bugs in which we end up treating a
   // Smi value as a pointer.
-  if (!first_four_gb_of_address_space_are_reserved_) {
+  if (!smi_address_range_reserved_) {
     // Make the guard region extend a little past the first 4GB to also catch
     // accesses with an offset into a negative Smi (e.g. [0xfffffffe + offset]).
-    Address end = 4UL * GB + 1 * MB;
+    Address end = kSmiAddressRange + kSmiAddressRangePadding;
     size_t step = address_space_->allocation_granularity();
     for (Address start = 0; start <= 1 * MB; start += step) {
       if (vas->AllocateGuardRegion(start, end - start)) {
-        first_four_gb_of_address_space_are_reserved_ = true;
+        smi_address_range_reserved_ = true;
         break;
       }
     }
@@ -342,6 +384,7 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
   end_ = base_ + size_;
   reservation_size_ = size_to_reserve;
   initialized_ = true;
+  ExcludeReservationFromCoreDump(reservation_base_, reservation_size_);
   address_space_ = std::make_unique<base::EmulatedVirtualAddressSubspace>(
       vas, reservation_base_, reservation_size_, size_);
   sandbox_page_allocator_ =

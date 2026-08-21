@@ -5,30 +5,62 @@
 #include "src/trap-handler/trap-handler-simulator.h"
 
 #include <cstdint>
+#include <optional>
 
 #include "include/v8-initialization.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/utils/allocation.h"
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
 
-namespace v8 {
-namespace internal {
-namespace trap_handler {
+namespace v8::internal::trap_handler {
 
 constexpr uintptr_t kFakePc = 11;
 
-class SimulatorTrapHandlerTest : public TestWithIsolate {
+class SimulatorTrapHandlerTest : public TestWithPlatform {
  public:
-  ~SimulatorTrapHandlerTest() {
+  SimulatorTrapHandlerTest()
+      : array_buffer_allocator_(
+            v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
+    // Set up the trap handler before allocating an isolate. Isolate allocation
+    // registers the `WasmNull` unaccessible range with the trap handler *only*
+    // if the trap handler is enabled at this point.
+    constexpr bool kUseDefaultHandler = true;
+    CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
+
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator_;
+    isolate_ = v8::Isolate::New(create_params);
+    CHECK_NOT_NULL(isolate_);
+
+    isolate_scope_.emplace(isolate_);
+    handle_scope_.emplace(isolate_);
+  }
+
+  ~SimulatorTrapHandlerTest() override {
     if (inaccessible_memory_) {
       auto* page_allocator = GetArrayBufferPageAllocator();
-      CHECK(page_allocator->FreePages(inaccessible_memory_,
-                                      page_allocator->AllocatePageSize()));
+      size_t page_size = page_allocator->AllocatePageSize();
+      UnregisterCoveredMemory(reinterpret_cast<uintptr_t>(inaccessible_memory_),
+                              page_size);
+      CHECK(page_allocator->FreePages(inaccessible_memory_, page_size));
     }
+    handle_scope_.reset();
+    isolate_scope_.reset();
+    isolate_->Dispose();
+    delete array_buffer_allocator_;
+
+    // Clean up the trap handler.
+    RemoveTrapHandler();
+  }
+
+  v8::Isolate* isolate() const { return isolate_; }
+  i::Isolate* i_isolate() const {
+    return reinterpret_cast<i::Isolate*>(isolate_);
   }
 
   uintptr_t InaccessibleMemoryPtr() {
@@ -40,11 +72,17 @@ class SimulatorTrapHandlerTest : public TestWithIsolate {
               nullptr, /* size */ page_size, /* align */ page_size,
               PageAllocator::kNoAccess));
       CHECK_NOT_NULL(inaccessible_memory_);
+      RegisterCoveredMemory(reinterpret_cast<uintptr_t>(inaccessible_memory_),
+                            page_size);
     }
     return reinterpret_cast<uintptr_t>(inaccessible_memory_);
   }
 
  private:
+  v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+  v8::Isolate* isolate_;
+  std::optional<v8::Isolate::Scope> isolate_scope_;
+  std::optional<v8::HandleScope> handle_scope_;
   uint8_t* inaccessible_memory_ = nullptr;
 };
 
@@ -64,10 +102,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailInaccessible) {
 
 TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailWhileInWasm) {
   // Test that we still crash if the trap handler is set up, but the PC is not
-  // registered as a protected instruction.
-  constexpr bool kUseDefaultHandler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
-
+  // registered as a trapping instruction.
   EXPECT_DEATH_IF_SUPPORTED(ProbeMemory(InaccessibleMemoryPtr(), kFakePc), "");
 }
 
@@ -78,10 +113,7 @@ uintptr_t v8_landing_pad() {
 }  // namespace
 
 TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
-  constexpr bool kUseDefaultHandler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
-
-  ProtectedInstructionData fake_protected_instruction{kFakePc};
+  TrappingInstructionData fake_protected_instruction{kFakePc};
   int handler_data_index =
       RegisterHandlerData(0, 128, 1, &fake_protected_instruction);
 
@@ -89,7 +121,6 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
 
   // Reset everything.
   ReleaseHandlerData(handler_data_index);
-  RemoveTrapHandler();
 }
 
 class SimulatorTrapHandlerTestWithCodegen : public SimulatorTrapHandlerTest {
@@ -99,10 +130,7 @@ class SimulatorTrapHandlerTestWithCodegen : public SimulatorTrapHandlerTest {
     CodeDesc desc;
     masm_.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-    constexpr bool kUseDefaultHandler = true;
-    CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
-
-    ProtectedInstructionData protected_instruction{crash_offset_};
+    TrappingInstructionData protected_instruction{crash_offset_};
     int handler_data_index =
         RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                             desc.instr_size, 1, &protected_instruction);
@@ -111,19 +139,18 @@ class SimulatorTrapHandlerTestWithCodegen : public SimulatorTrapHandlerTest {
     GeneratedCode<void> code = GeneratedCode<void>::FromAddress(
         i_isolate(), reinterpret_cast<Address>(desc.buffer));
 
-    trap_handler::SetLandingPad(reinterpret_cast<uintptr_t>(buffer_->start()) +
-                                recovery_offset_);
+    SetLandingPad(reinterpret_cast<uintptr_t>(buffer_->start()) +
+                  recovery_offset_);
     code.Call();
 
     ReleaseHandlerData(handler_data_index);
-    RemoveTrapHandler();
-    trap_handler::SetLandingPad(0);
+    SetLandingPad(0);
 
     EXPECT_EQ(1u, GetRecoveredTrapCount());
   }
 
   std::unique_ptr<TestingAssemblerBuffer> buffer_{AllocateAssemblerBuffer()};
-  MacroAssembler masm_{isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm_{i_isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                        buffer_->CreateView()};
   uint32_t crash_offset_{0};
   uint32_t recovery_offset_{0};
@@ -188,6 +215,7 @@ TEST_F(SimulatorTrapHandlerTestWithCodegen, ProbeMemory_MultiStruct) {
   constexpr VRegister scratch = v1;
   // Generate an illegal memory access.
   __ li(addr, InaccessibleMemoryPtr());
+  __ VU.set(1, E16, m1);
   crash_offset_ = __ pc_offset();
   __ vl(scratch, addr, 0, VSew::E16);
   recovery_offset_ = __ pc_offset();
@@ -223,8 +251,6 @@ TEST_F(SimulatorTrapHandlerTestWithCodegen, ProbeMemory_LoadStorePair) {
 
 #undef __
 
-}  // namespace trap_handler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::trap_handler
 
 #endif  // V8_TRAP_HANDLER_VIA_SIMULATOR

@@ -5,11 +5,14 @@
 #include "src/heap/memory-chunk.h"
 
 #include "src/common/code-memory-access-inl.h"
-#include "src/heap/base-space.h"
-#include "src/heap/large-page.h"
-#include "src/heap/normal-page.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/execution/isolate.h"
+#include "src/heap/code-range.h"
+#include "src/heap/memory-chunk-inl.h"
+
+#if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 #include "src/heap/read-only-spaces.h"
-#include "src/heap/trusted-range.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -54,7 +57,7 @@ MemoryChunk::MemoryChunk(MainThreadFlags flags, BasePage* metadata)
   DCHECK_IMPLIES(metadata_pointer_table[metadata_index].metadata() != nullptr,
                  metadata_pointer_table[metadata_index].metadata() == metadata);
   metadata_pointer_table[metadata_index].SetMetadata(
-      metadata, metadata->heap()->isolate());
+      metadata, Isolate::FromHeap(metadata->heap()));
   metadata_index_ = metadata_index;
 #endif
 }

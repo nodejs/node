@@ -10,10 +10,7 @@ extern class BigIntBase extends PrimitiveHeapObject
 
 type BigInt extends BigIntBase;
 
-@cppObjectLayoutDefinition
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class MutableBigInt extends BigIntBase generates 'TNode<BigInt>';
+type MutableBigInt extends BigIntBase;
 
 Convert<BigInt, MutableBigInt>(i: MutableBigInt): BigInt {
   dcheck(bigint::IsCanonicalized(i));

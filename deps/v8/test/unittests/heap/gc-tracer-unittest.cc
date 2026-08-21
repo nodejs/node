@@ -139,6 +139,33 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput2,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+
+  const int time4 = 2000;
+  const size_t counter4 = 31000;
+  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time4),
+                   counter4);
+  // rate4 = 1 byte/ms, which is less than expected_throughput2 (~34),
+  // so we use decrease_decay = 1000ms.
+  // decay_exponent = -1000/1000 = -1.0
+  const double rate4 =
+      static_cast<double>(counter4 - counter3) / (time4 - time3);
+  // Decrease allocation throughput now to 1 byte/ms.
+  EXPECT_EQ(rate4, 1.0);
+  // Decrease decay is 1s, so exponent is -1s/1s = -1.0.
+  const size_t expected_throughput3 =
+      rate4 * (1.0 - exp2(-1.0)) + exp2(-1.0) * expected_throughput2;
+  EXPECT_LT(expected_throughput3, expected_throughput2);
+  EXPECT_GT(expected_throughput3, rate4);
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(
+      expected_throughput3,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
 }
 
 TEST_F(GCTracerTest, RegularScope) {

@@ -32,6 +32,9 @@
   'debug/debug-scopes': [PASS, HEAVY],
   'debug/debug-stepout-scope-part*': [PASS, HEAVY],
   'debug/ignition/debug-step-prefix-bytecodes': [PASS, HEAVY, ['mode == debug', SKIP]],
+
+  # Test is only useful with ASAN.
+  'regress/regress-483851884': [PASS, SLOW, ['not asan', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################

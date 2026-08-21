@@ -671,6 +671,67 @@ TEST_F(DisasmRiscvTest,  Previleged) {
 }
 */
 
+TEST_F(DisasmRiscvTest, RVZFA) {
+  SET_UP();
+
+  COMPARE(fli_s(ft0, 0), "f0100053       fli.s     ft0, -1.000e+00");
+  COMPARE(fli_s(ft1, 1),
+          "f01080d3       fli.s     ft1, 1.175e-38");  // 保持特殊值
+  COMPARE(fli_s(ft2, 2), "f0110153       fli.s     ft2, 1.526e-05");
+  COMPARE(fli_s(ft3, 3), "f01181d3       fli.s     ft3, 3.052e-05");
+  COMPARE(fli_s(ft4, 4), "f0120253       fli.s     ft4, 3.906e-03");
+  COMPARE(fli_s(ft5, 5), "f01282d3       fli.s     ft5, 7.812e-03");
+  COMPARE(fli_s(ft6, 6), "f0130353       fli.s     ft6, 6.250e-02");
+  COMPARE(fli_s(ft7, 7), "f01383d3       fli.s     ft7, 1.250e-01");
+  COMPARE(fli_s(fa0, 8), "f0140553       fli.s     fa0, 2.500e-01");
+  COMPARE(fli_s(fa1, 9), "f01485d3       fli.s     fa1, 3.125e-01");
+  COMPARE(fli_s(fa2, 10), "f0150653       fli.s     fa2, 3.750e-01");
+  COMPARE(fli_s(fa3, 11), "f01586d3       fli.s     fa3, 4.375e-01");
+  COMPARE(fli_s(fa4, 12), "f0160753       fli.s     fa4, 5.000e-01");
+  COMPARE(fli_s(fa5, 13), "f01687d3       fli.s     fa5, 6.250e-01");
+  COMPARE(fli_s(fa6, 14), "f0170853       fli.s     fa6, 7.500e-01");
+  COMPARE(fli_s(fa7, 15), "f01788d3       fli.s     fa7, 8.750e-01");
+  COMPARE(fli_s(fs0, 16), "f0180453       fli.s     fs0, 1.000e+00");
+  COMPARE(fli_s(fs1, 17), "f01884d3       fli.s     fs1, 1.250e+00");
+  COMPARE(fli_s(fs2, 18), "f0190953       fli.s     fs2, 1.500e+00");
+  COMPARE(fli_s(fs3, 19), "f01989d3       fli.s     fs3, 1.750e+00");
+  COMPARE(fli_s(fs4, 20), "f01a0a53       fli.s     fs4, 2.000e+00");
+  COMPARE(fli_s(fs5, 21), "f01a8ad3       fli.s     fs5, 2.500e+00");
+  COMPARE(fli_s(fs6, 22), "f01b0b53       fli.s     fs6, 3.000e+00");
+  COMPARE(fli_s(fs7, 23), "f01b8bd3       fli.s     fs7, 4.000e+00");
+
+  COMPARE(fli_s(fs8, 24), "f01c0c53       fli.s     fs8, 8.000e+00");
+  COMPARE(fli_s(fs9, 25), "f01c8cd3       fli.s     fs9, 1.600e+01");
+  COMPARE(fli_s(fs10, 26), "f01d0d53       fli.s     fs10, 1.280e+02");
+  COMPARE(fli_s(fs11, 27), "f01d8dd3       fli.s     fs11, 2.560e+02");
+
+  COMPARE(fli_s(ft8, 28), "f01e0e53       fli.s     ft8, 3.277e+04");
+  COMPARE(fli_s(ft9, 29), "f01e8ed3       fli.s     ft9, 6.554e+04");
+  COMPARE(fli_s(ft10, 30), "f01f0f53       fli.s     ft10, inf");
+  COMPARE(fli_s(ft11, 31), "f01f8fd3       fli.s     ft11, nan");
+
+  COMPARE(fminm_s(ft1, ft2, ft3), "283120d3       fminm.s   ft1, ft2, ft3");
+  COMPARE(fmaxm_s(ft4, ft5, ft6), "2862b253       fmaxm.s   ft4, ft5, ft6");
+
+  COMPARE(fround_s(ft7, fa0, RNE), "404503d3       fround.s [RNE] ft7, fa0");
+  COMPARE(froundnx_s(fa1, fa2, RTZ),
+          "405615d3       froundnx.s [RTZ] fa1, fa2");
+
+  COMPARE(fleq_s(a0, fa3, fa4), "a0e6c553       fleq.s    a0, fa3, fa4");
+  COMPARE(fltq_s(a1, fa5, fa6), "a107d5d3       fltq.s    a1, fa5, fa6");
+
+  COMPARE(fli_d(ft0, 16), "f2180053       fli.d     ft0, 1.000e+00");
+  COMPARE(fminm_d(fa0, ft1, ft2), "2a20a553       fminm.d   fa0, ft1, ft2");
+  COMPARE(fmaxm_d(fa1, ft3, ft4), "2a41b5d3       fmaxm.d   fa1, ft3, ft4");
+  COMPARE(fround_d(fa2, fa3, RMM), "4246c653       fround.d [RMM] fa2, fa3");
+  COMPARE(froundnx_d(fa4, fa5, RNE),
+          "42578753       froundnx.d [RNE] fa4, fa5");
+  COMPARE(fcvtmod_w_d(a2, fa6), "c2881653       fcvtmod.w.d [RTZ] a2, fa6");
+  COMPARE(fleq_d(a3, fa7, ft8), "a3c8c6d3       fleq.d    a3, fa7, ft8");
+
+  VERIFY_RUN();
+}
+
 TEST_F(DisasmRiscvTest, RVV) {
   if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
   SET_UP();

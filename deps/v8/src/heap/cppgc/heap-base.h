@@ -95,7 +95,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support, MarkingType marking_support,
-           SweepingType sweeping_support, GarbageCollector& garbage_collector);
+           SweepingType sweeping_support, GarbageCollector& garbage_collector,
+           std::optional<cppgc::StackStartMarker> stack_start_marker);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -178,6 +179,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   // These virtual methods are also present in class GarbageCollector.
   virtual void set_override_stack_state(EmbedderStackState state) = 0;
   virtual void clear_overridden_stack_state() = 0;
+
+  std::optional<cppgc::StackStartMarker> stack_start_marker();
 
   // Termination drops all roots (clears them out) and runs garbage collections
   // in a bounded fixed point loop  until no new objects are created in
@@ -330,6 +333,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const StackSupport stack_support_;
   EmbedderStackState stack_state_of_prev_gc_ =
       EmbedderStackState::kNoHeapPointers;
+
+  const std::optional<StackStartMarker> stack_start_marker_;
 
   bool in_atomic_pause_ = false;
 

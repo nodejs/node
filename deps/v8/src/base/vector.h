@@ -12,6 +12,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/base/algorithm.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
@@ -21,7 +22,7 @@ namespace v8 {
 namespace base {
 
 template <typename T>
-class Vector {
+class Vector final {
  public:
   using value_type = T;
   using iterator = T*;
@@ -29,7 +30,8 @@ class Vector {
 
   constexpr Vector() : start_(nullptr), length_(0) {}
 
-  constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
+  constexpr Vector(T* data V8_LIFETIME_BOUND, size_t length)
+      : start_(data), length_(length) {
     DCHECK(length == 0 || data != nullptr);
   }
 
@@ -111,15 +113,8 @@ class Vector {
     return std::make_reverse_iterator(begin());
   }
 
-  // Returns a clone of this vector with a new backing store.
-  Vector<T> Clone() const {
-    T* result = new T[length_];
-    for (size_t i = 0; i < length_; i++) result[i] = start_[i];
-    return Vector<T>(result, length_);
-  }
-
   void Truncate(size_t length) {
-    DCHECK(length <= length_);
+    DCHECK_LE(length, length_);
     length_ = length;
   }
 
@@ -186,17 +181,7 @@ V8_INLINE size_t hash_value(base::Vector<T> v) {
 }
 
 template <typename T>
-class V8_NODISCARD ScopedVector : public Vector<T> {
- public:
-  explicit ScopedVector(size_t length) : Vector<T>(new T[length], length) {}
-  ~ScopedVector() { delete[] this->begin(); }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
-};
-
-template <typename T>
-class OwnedVector {
+class OwnedVector final {
  public:
   OwnedVector() = default;
 
@@ -238,32 +223,32 @@ class OwnedVector {
   // Returns whether or not the vector is empty.
   constexpr bool empty() const { return length_ == 0; }
 
-  constexpr T* begin() const {
+  constexpr T* begin() const V8_LIFETIME_BOUND {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
     return data_.get();
   }
 
-  constexpr T* end() const { return begin() + length_; }
+  constexpr T* end() const V8_LIFETIME_BOUND { return begin() + length_; }
 
   // In addition to {begin}, do provide a {data()} accessor for API
   // compatibility with other sequential containers.
-  constexpr T* data() const { return begin(); }
+  constexpr T* data() const V8_LIFETIME_BOUND { return begin(); }
 
-  constexpr std::reverse_iterator<T*> rbegin() const {
+  constexpr std::reverse_iterator<T*> rbegin() const V8_LIFETIME_BOUND {
     return std::make_reverse_iterator(end());
   }
-  constexpr std::reverse_iterator<T*> rend() const {
+  constexpr std::reverse_iterator<T*> rend() const V8_LIFETIME_BOUND {
     return std::make_reverse_iterator(begin());
   }
 
   // Access individual vector elements - checks bounds in debug mode.
-  T& operator[](size_t index) const {
+  T& operator[](size_t index) const V8_LIFETIME_BOUND {
     DCHECK_LT(index, length_);
     return data_[index];
   }
 
   // Returns a {Vector<T>} view of the data in this vector.
-  Vector<T> as_vector() const { return {begin(), size()}; }
+  Vector<T> as_vector() const V8_LIFETIME_BOUND { return {begin(), size()}; }
 
   // Releases the backing data from this vector and transfers ownership to the
   // caller. This vector will be empty afterwards.
@@ -320,31 +305,34 @@ class OwnedVector {
 
 // Known length, constexpr.
 template <size_t N>
-constexpr Vector<const char> StaticCharVector(const char (&array)[N]) {
+constexpr Vector<const char> StaticCharVector(
+    const char (&array V8_LIFETIME_BOUND)[N]) {
   return {array, N - 1};
 }
 
 // Unknown length, not constexpr.
-inline Vector<const char> CStrVector(const char* data) {
+inline Vector<const char> CStrVector(const char* data V8_LIFETIME_BOUND) {
   return {data, strlen(data)};
 }
 
-inline Vector<const char> StrVector(std::string_view str) {
+inline Vector<const char> StrVector(std::string_view str V8_LIFETIME_BOUND) {
   return {str.data(), str.size()};
 }
 
 // OneByteVector is never constexpr because the data pointer is
 // {reinterpret_cast}ed.
-inline Vector<const uint8_t> OneByteVector(const char* data, size_t length) {
+inline Vector<const uint8_t> OneByteVector(const char* data V8_LIFETIME_BOUND,
+                                           size_t length) {
   return {reinterpret_cast<const uint8_t*>(data), length};
 }
 
-inline Vector<const uint8_t> OneByteVector(const char* data) {
+inline Vector<const uint8_t> OneByteVector(const char* data V8_LIFETIME_BOUND) {
   return OneByteVector(data, strlen(data));
 }
 
 template <size_t N>
-Vector<const uint8_t> StaticOneByteVector(const char (&array)[N]) {
+Vector<const uint8_t> StaticOneByteVector(
+    const char (&array V8_LIFETIME_BOUND)[N]) {
   return OneByteVector(array, N - 1);
 }
 
@@ -352,20 +340,20 @@ Vector<const uint8_t> StaticOneByteVector(const char (&array)[N]) {
 // with length 4 and null-termination.
 // If you want ['f', 'o', 'o'], use CStrVector("foo").
 template <typename T, size_t N>
-inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
+inline constexpr Vector<T> ArrayVector(T (&arr V8_LIFETIME_BOUND)[N]) {
   return {arr, N};
 }
 
 // Construct a Vector from a start pointer and a size.
 template <typename T>
-inline constexpr Vector<T> VectorOf(T* start, size_t size) {
+inline constexpr Vector<T> VectorOf(T* start V8_LIFETIME_BOUND, size_t size) {
   return {start, size};
 }
 
 // Construct a Vector from anything compatible with std::data and std::size (ie,
 // an array, or a container providing a {data()} and {size()} accessor).
 template <typename Container>
-inline constexpr auto VectorOf(Container&& c)
+inline constexpr auto VectorOf(Container&& c V8_LIFETIME_BOUND)
     -> decltype(VectorOf(std::data(c), std::size(c))) {
   return VectorOf(std::data(c), std::size(c));
 }
@@ -374,7 +362,8 @@ inline constexpr auto VectorOf(Container&& c)
 // used as long as the initializer list is live. Valid uses include direct use
 // in parameter lists: F(VectorOf({1, 2, 3}));
 template <typename T>
-inline constexpr Vector<const T> VectorOf(std::initializer_list<T> list) {
+inline constexpr Vector<const T> VectorOf(
+    std::initializer_list<T> list V8_LIFETIME_BOUND) {
   return VectorOf(list.begin(), list.size());
 }
 
@@ -394,18 +383,69 @@ inline auto OwnedCopyOf(const Container& c)
   return OwnedCopyOf(std::data(c), std::size(c));
 }
 
+// Container with a fixed storage for `kSize` elements.
 template <typename T, size_t kSize>
-class EmbeddedVector : public Vector<T> {
+class EmbeddedVector final {
  public:
-  EmbeddedVector() : Vector<T>(buffer_, kSize) {}
-  explicit EmbeddedVector(const T& initial_value) : Vector<T>(buffer_, kSize) {
+  constexpr EmbeddedVector() = default;
+  constexpr explicit EmbeddedVector(const T& initial_value) {
     std::fill_n(buffer_, kSize, initial_value);
   }
   EmbeddedVector(const EmbeddedVector&) = delete;
   EmbeddedVector& operator=(const EmbeddedVector&) = delete;
 
+  constexpr Vector<T> SubVector(size_t from, size_t to) V8_LIFETIME_BOUND {
+    DCHECK_LE(from, to);
+    DCHECK_LE(to, length_);
+    return Vector<T>(buffer_ + from, to - from);
+  }
+
+  constexpr Vector<T> SubVectorFrom(size_t from) V8_LIFETIME_BOUND {
+    return SubVector(from, length_);
+  }
+
+  constexpr size_t size() const { return length_; }
+
+  constexpr T& operator[](size_t index) V8_LIFETIME_BOUND {
+    DCHECK_LT(index, length_);
+    return buffer_[index];
+  }
+
+  constexpr const T& operator[](size_t index) const V8_LIFETIME_BOUND {
+    DCHECK_LT(index, length_);
+    return buffer_[index];
+  }
+
+  constexpr T* begin() V8_LIFETIME_BOUND { return buffer_; }
+  constexpr const T* begin() const V8_LIFETIME_BOUND { return buffer_; }
+
+  constexpr T* data() V8_LIFETIME_BOUND { return buffer_; }
+
+  constexpr T* end() V8_LIFETIME_BOUND { return buffer_ + length_; }
+  constexpr const T* end() const V8_LIFETIME_BOUND { return buffer_ + length_; }
+
+  constexpr void Truncate(size_t length) {
+    DCHECK_LE(length, length_);
+    length_ = length;
+  }
+
+  constexpr const Vector<T> operator+(size_t offset) V8_LIFETIME_BOUND {
+    return SubVectorFrom(offset);
+  }
+
+  constexpr operator Vector<T>() V8_LIFETIME_BOUND {
+    return Vector<T>(buffer_, length_);
+  }
+
+  template <typename U>
+    requires std::is_convertible_v<T*, const U*> && (sizeof(U) == sizeof(T))
+  constexpr operator Vector<const U>() const V8_LIFETIME_BOUND {
+    return Vector<const U>(buffer_, length_);
+  }
+
  private:
   T buffer_[kSize];
+  size_t length_ = kSize;
 };
 
 }  // namespace base

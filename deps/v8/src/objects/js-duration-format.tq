@@ -40,6 +40,7 @@ bitfield struct JSDurationFormatDisplayFlags extends uint31 {
   fractional_digits: int32: 4 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDurationFormat extends JSObject {
   style_flags: SmiTagged<JSDurationFormatStyleFlags>;
   display_flags: SmiTagged<JSDurationFormatDisplayFlags>;

@@ -58,6 +58,10 @@ namespace internal {
 
 class SafepointTableBuilder;
 
+namespace regexp {
+class RegExpMacroAssemblerPPC;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -755,6 +759,12 @@ class Assembler : public AssemblerBase {
       case nooverflow32:
         bc(b_offset, BF, encode_crbit(cr, CR_OV32), lk);
         break;
+      case overflow64:
+        bc(b_offset, BT, encode_crbit(cr, CR_OV), lk);
+        break;
+      case nooverflow64:
+        bc(b_offset, BF, encode_crbit(cr, CR_OV), lk);
+        break;
       default:
         UNIMPLEMENTED();
     }
@@ -802,6 +812,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow32:
         bclr(BF, encode_crbit(cr, CR_OV32), lk);
+        break;
+      case overflow64:
+        bclr(BT, encode_crbit(cr, CR_OV), lk);
+        break;
+      case nooverflow64:
+        bclr(BF, encode_crbit(cr, CR_OV), lk);
         break;
       default:
         UNIMPLEMENTED();
@@ -852,6 +868,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow32:
         isel(rt, rb, ra, encode_crbit(cr, CR_OV32));
+        break;
+      case overflow64:
+        isel(rt, ra, rb, encode_crbit(cr, CR_OV));
+        break;
+      case nooverflow64:
+        isel(rt, rb, ra, encode_crbit(cr, CR_OV));
         break;
       default:
         UNIMPLEMENTED();
@@ -1021,13 +1043,12 @@ class Assembler : public AssemblerBase {
 
   void subi(Register dst, Register src1, const Operand& src2);
 
+  void addpcis(Register dst, const Operand& val);
+
   void mov(Register dst, const Operand& src);
   void bitwise_mov(Register dst, intptr_t value);
   void bitwise_mov32(Register dst, int32_t value);
   void bitwise_add32(Register dst, Register src, int32_t value);
-
-  // Patch the offset to the return address after Call.
-  void patch_pc_address(Register dst, int pc_offset, int return_address_offset);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.
@@ -1419,9 +1440,6 @@ class Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
   // has been generated.
@@ -1563,7 +1581,7 @@ class Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerPPC;
+  friend class regexp::RegExpMacroAssemblerPPC;
   friend class RelocInfo;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;

@@ -16,6 +16,7 @@ bitfield struct ScriptFlags extends uint31 {
   deserialized: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class Script extends Struct {
   // [source]: the script source.
   source: String|Undefined;
@@ -47,6 +48,7 @@ extern class Script extends Struct {
   eval_from_shared_or_wrapped_arguments: SharedFunctionInfo|FixedArray|
       Undefined;
   eval_from_position: Smi|Foreign;  // Smi or Managed<wasm::NativeModule>
+  eval_from_scope_info: ScopeInfo|Undefined;
   infos: WeakFixedArray|WeakArrayList;
 
   // [compiled_lazy_function_positions]: ArrayList containing SMIs marking

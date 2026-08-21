@@ -84,7 +84,11 @@ TEST_F(TurboshaftInstructionSelectorTest, SelectWord32) {
   EXPECT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kFlags_select, s[0]->flags_mode());
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-  EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  if (UseApxCmovcc()) {
+    EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasRegisterPolicy());
+  } else {
+    EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  }
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, SelectWord64) {
@@ -98,7 +102,11 @@ TEST_F(TurboshaftInstructionSelectorTest, SelectWord64) {
   EXPECT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kFlags_select, s[0]->flags_mode());
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-  EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  if (UseApxCmovcc()) {
+    EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasRegisterPolicy());
+  } else {
+    EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  }
 }
 
 namespace {
@@ -2018,6 +2026,239 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadAndWord64ShiftRight32) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSigned) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kSigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSignedWithLoad) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> load = m.Load(MachineType::Int64(), p1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, load, Word64MulWideOp::Kind::kSigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulWide, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideUnsigned) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideUnsignedWithLoad) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> load = m.Load(MachineType::Uint64(), p1);
+  V<Word64Pair> mul =
+      m.Word64MulWide(p0, load, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulWide, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64MulWideSignedWithHighProjection) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kSigned);
+  OpIndex high = m.Projection(mul, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64MulWideUnsignedWithHighProjection) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex high = m.Projection(mul, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add128) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64> p3 = m.Parameter<Word64>(3);
+  V<Word64Pair> add = m.Add128(p0, p1, p2, p3);
+  OpIndex high = m.Projection(add, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+  ASSERT_EQ(4U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add128Aliasing) {
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                    MachineType::Uint64());
+    V<Word64> p0 = m.Parameter<Word64>(0);
+    V<Word64> p1 = m.Parameter<Word64>(1);
+    // a_high == a_low
+    V<Word64Pair> add = m.Add128(p0, p0, p1, p1);
+    OpIndex high = m.Projection(add, 1);
+    m.Return(high);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+    // Confirm that input 0 and input 2 are the same virtual register.
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(2)));
+    // Confirm that output 0 is tied to input 0.
+    EXPECT_TRUE(s.IsSameAsFirst(s[0]->OutputAt(0)));
+    // Confirm that output 1 is tied to input 2.
+    EXPECT_TRUE(s.IsSameAsInput(s[0]->OutputAt(1), 2));
+  }
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                    MachineType::Uint64());
+    V<Word64> p0 = m.Parameter<Word64>(0);
+    V<Word64> p1 = m.Parameter<Word64>(1);
+    // b_high == a_low. Since b_high is used after a_low is modified (via
+    // the tied output 0), it must be in a unique register.
+    V<Word64Pair> add = m.Add128(p0, p1, p1, p0);
+    OpIndex high = m.Projection(add, 1);
+    m.Return(high);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+    // b_high is Input 3.
+    EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(3))->IsUsedAtStart());
+  }
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                    MachineType::Uint64(), MachineType::Uint64());
+    V<Word64> a_low = m.Parameter<Word64>(0);
+    V<Word64> a_high = m.Parameter<Word64>(1);
+    V<Word64> b_low = m.Parameter<Word64>(2);
+    // b_high is a load from [a_low + 8]. The base register a_low must be
+    // unique because it aliases output 0 which is modified before the
+    // carry-addition uses b_high.
+    V<Word64> b_high = m.Load(MachineType::Uint64(), a_low, m.Int64Constant(8));
+    V<Word64Pair> add = m.Add128(a_low, a_high, b_low, b_high);
+    OpIndex high = m.Projection(add, 1);
+    m.Return(high);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+    // b_high memory operand components start at input 3.
+    EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(3))->IsUsedAtStart());
+    EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(4))->IsUsedAtStart());
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add128Immediate) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> add =
+      m.Add128(p0, p1, m.Int64Constant(42), m.Int64Constant(100));
+  OpIndex high = m.Projection(add, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+  ASSERT_EQ(4U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add128WithMemoryOperandHigh) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64> p3 = m.Parameter<Word64>(3);  // base address
+  V<Word64> load = m.Load(MachineType::Uint64(), p3);
+  V<Word64Pair> add = m.Add128(p0, p1, p2, load);
+  OpIndex high = m.Projection(add, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+  AddressingMode mode =
+      static_cast<AddressingMode>(MiscField::decode(s[0]->opcode()));
+  EXPECT_EQ(kMode_MR, mode);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add128WithBothMemoryOperands) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p2 = m.Parameter<Word64>(1);
+  V<Word64> p3 = m.Parameter<Word64>(2);  // base address
+  V<Word64> load_low =
+      m.LoadImmutable(MachineType::Uint64(), p3, m.Int64Constant(0));
+  V<Word64> load_high =
+      m.LoadImmutable(MachineType::Uint64(), p3, m.Int64Constant(8));
+  V<Word64Pair> add = m.Add128(p0, load_low, p2, load_high);
+  OpIndex high = m.Projection(add, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Movq, s[0]->arch_opcode());
+  EXPECT_EQ(kX64Add128, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_None, s[1]->addressing_mode());
+  AddressingMode mode =
+      static_cast<AddressingMode>(MiscField::decode(s[1]->opcode()));
+  EXPECT_EQ(kMode_MR1, mode);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 // -----------------------------------------------------------------------------
 // SIMD.
@@ -2445,7 +2686,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Int64());
   V<Simd128> const load = m.Simd128LoadTransform(
       m.Parameter(0), m.Int64Constant(2),
-      Simd128LoadTransformOp::LoadKind::RawAligned().Protected(),
+      Simd128LoadTransformOp::LoadKind::RawAligned().Trapping(),
       Simd128LoadTransformOp::TransformKind::k64Zero, 0);
   V<Simd128> const promote = m.F64x2PromoteLowF32x4(load);
   m.Return(promote);

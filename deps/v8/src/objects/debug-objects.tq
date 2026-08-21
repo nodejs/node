@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class BreakPoint extends Struct {
   id: Smi;
   condition: String;
 }
 
+@cppObjectLayoutDefinition
 extern class BreakPointInfo extends Struct {
   // The position in the source for the break position.
   source_position: Smi;
@@ -30,6 +32,7 @@ bitfield struct DebuggerHints extends uint31 {
   debugging_id: int32: 20 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
   // Bit field containing various information collected for debugging.
@@ -59,6 +62,7 @@ struct CoverageInfoSlot {
 
 // CoverageInfo's visitor is included in DATA_ONLY_VISITOR_ID_LIST, so it must
 // not contain any HeapObject fields.
+@cppObjectLayoutDefinition
 extern class CoverageInfo extends HeapObject {
   const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;
@@ -69,6 +73,7 @@ bitfield struct StackFrameInfoFlags extends uint31 {
   bytecode_offset_or_source_position: int32: 30 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class StackFrameInfo extends Struct {
   // In case this field holds a SharedFunctionInfo, the
   // |bytecode_offset_or_source_position| part of the
@@ -81,6 +86,7 @@ extern class StackFrameInfo extends Struct {
   flags: SmiTagged<StackFrameInfoFlags>;
 }
 
+@cppObjectLayoutDefinition
 extern class StackTraceInfo extends Struct {
   // Unique ID of this stack trace.
   id: Smi;
@@ -101,11 +107,12 @@ extern class StackTraceInfo extends Struct {
 //     property was not yet formatted.
 // (2) A valid JavaScript object and StackTraceInfo once
 //     error.stack was accessed.
+@cppObjectLayoutDefinition
 extern class ErrorStackData extends Struct {
-  // This holds either the FixedArray of CallSiteInfo instances or
-  // the formatted stack value (usually a string) that's returned
-  // from the error.stack property.
-  call_site_infos_or_formatted_stack: FixedArray|JSAny;
+  // This holds either the FixedArray of raw data for constructing the
+  // CallSiteInfo instances or the formatted stack value (usually a string)
+  // that's returned from the error.stack property.
+  raw_data_for_call_site_infos_or_formatted_stack: FixedArray|JSAny;
   // This holds the StackTraceInfo for inspector stack trace.
   stack_trace: StackTraceInfo;
 }

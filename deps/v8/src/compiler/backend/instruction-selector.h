@@ -520,6 +520,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       InstructionOperand* temps, FlagsContinuation* cont);
 
   void EmitIdentity(turboshaft::OpIndex node);
+  void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -541,8 +542,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // users, and fusing is unlikely to improve performance.
   bool CanCover(turboshaft::OpIndex user, turboshaft::OpIndex node) const;
 
-  bool CanCoverProtectedLoad(turboshaft::OpIndex user,
-                             turboshaft::OpIndex node) const;
+  bool CanCoverTrappingLoad(turboshaft::OpIndex user,
+                            turboshaft::OpIndex node) const;
+
+  // Checks that node is in the current schedule block.
+  bool InCurrentBlock(turboshaft::OpIndex node) const;
 
   // Used in pattern matching during code generation.
   // This function checks that {node} and {user} are in the same basic block,
@@ -641,18 +645,18 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   //     won't be able to use the 1st projection that will now be defined later.
   bool CanDoBranchIfOverflowFusion(turboshaft::OpIndex node);
 
-  // Records that this ProtectedLoad node can be deleted if not used, even
+  // Records that this TrappingLoad node can be deleted if not used, even
   // though it has a required_when_unused effect.
-  void SetProtectedLoadToRemove(turboshaft::OpIndex node) {
-    DCHECK(this->IsProtectedLoad(node));
-    protected_loads_to_remove_->Add(node.id());
+  void SetTrappingLoadToRemove(turboshaft::OpIndex node) {
+    DCHECK(this->IsTrappingLoad(node));
+    trapping_loads_to_remove_->Add(node.id());
   }
 
-  // Records that this node embeds a ProtectedLoad as operand, and so it is
-  // itself a "protected" instruction, for which we'll need to record the source
+  // Records that this node embeds a TrappingLoad as operand, and so it is
+  // itself a trapping instruction, for which we'll need to record the source
   // position.
-  void MarkAsProtected(turboshaft::OpIndex node) {
-    additional_protected_instructions_->Add(node.id());
+  void MarkAsTrappingInstruction(turboshaft::OpIndex node) {
+    additional_trapping_instructions_->Add(node.id());
   }
 
   void UpdateSourcePosition(Instruction* instruction, turboshaft::OpIndex node);
@@ -723,7 +727,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   bool IsLoadOrLoadImmutable(turboshaft::OpIndex node) const {
     return Get(node).opcode == turboshaft::Opcode::kLoad;
   }
-  bool IsProtectedLoad(turboshaft::OpIndex node) const;
+  bool IsTrappingLoad(turboshaft::OpIndex node) const;
 
   bool is_load(turboshaft::OpIndex node) const {
     const turboshaft::Operation& op = Get(node);
@@ -772,7 +776,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       DCHECK_NOT_NULL(load_);
       return load_->result_rep;
     }
-    bool is_protected(bool* traps_on_null) const {
+    bool is_trapping(bool* traps_on_null) const {
       if (kind().with_trap_handler) {
         if (load_) {
           *traps_on_null = load_->kind.trap_on_null;
@@ -900,14 +904,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->stored_rep;
     }
     std::optional<AtomicMemoryOrder> memory_order() const {
-      // TODO(nicohartmann@): Currently we don't support memory orders.
-      if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
-      return std::nullopt;
+      return op_->memory_order();
     }
     MemoryAccessKind access_kind() const {
-      return op_->kind.with_trap_handler
-                 ? MemoryAccessKind::kProtectedByTrapHandler
-                 : MemoryAccessKind::kNormal;
+      return op_->kind.with_trap_handler ? MemoryAccessKind::kTrapping
+                                         : MemoryAccessKind::kNormal;
     }
     bool is_atomic() const { return op_->kind.is_atomic; }
 
@@ -1195,7 +1196,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(Load)
   DECLARE_GENERATOR_T(StackPointerGreaterThan)
   DECLARE_GENERATOR_T(Store)
-  DECLARE_GENERATOR_T(ProtectedStore)
+  DECLARE_GENERATOR_T(TrappingStore)
   DECLARE_GENERATOR_T(BitcastTaggedToWord)
   DECLARE_GENERATOR_T(BitcastWordToTagged)
   DECLARE_GENERATOR_T(BitcastSmiToWord)
@@ -1326,7 +1327,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(LoadStackCheckOffset)
   DECLARE_GENERATOR_T(LoadFramePointer)
   DECLARE_GENERATOR_T(LoadParentFramePointer)
-  DECLARE_GENERATOR_T(ProtectedLoad)
+  DECLARE_GENERATOR_T(TrappingLoad)
   DECLARE_GENERATOR_T(Word32AtomicAdd)
   DECLARE_GENERATOR_T(Word32AtomicSub)
   DECLARE_GENERATOR_T(Word32AtomicAnd)
@@ -1375,7 +1376,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       turboshaft::OpIndex call, turboshaft::Block* exception_handler = {},
       base::Vector<turboshaft::EffectHandler> wasm_effect_handlers = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
+#if V8_ENABLE_WEBASSEMBLY
   void VisitTrapIf(turboshaft::OpIndex node);
+  void VisitWasmTrap(turboshaft::OpIndex node);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
   void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,
@@ -1390,6 +1394,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitUnreachable(turboshaft::OpIndex node);
   void VisitStaticAssert(turboshaft::OpIndex node);
   void VisitBitcastWord32PairToFloat64(turboshaft::OpIndex node);
+  void VisitWord64MulWide(turboshaft::OpIndex node, bool is_signed);
+  void VisitUint64Add128(turboshaft::OpIndex node);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
 
@@ -1513,6 +1519,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       const turboshaft::ComparisonOp& op) const;
 
   void MarkPairProjectionsAsWord32(turboshaft::OpIndex node);
+  void MarkPairProjectionsAsWord64(turboshaft::OpIndex node);
   bool IsSourcePositionUsed(turboshaft::OpIndex node);
   void VisitWord32AtomicBinaryOperation(turboshaft::OpIndex node,
                                         ArchOpcode int8_op, ArchOpcode uint8_op,
@@ -1609,8 +1616,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   // Turboshaft-adapter only.
   std::optional<turboshaft::UseMap> turboshaft_use_map_;
-  std::optional<BitVector> protected_loads_to_remove_;
-  std::optional<BitVector> additional_protected_instructions_;
+  std::optional<BitVector> trapping_loads_to_remove_;
+  std::optional<BitVector> additional_trapping_instructions_;
 
 #if V8_TARGET_ARCH_64_BIT
   size_t node_count_;

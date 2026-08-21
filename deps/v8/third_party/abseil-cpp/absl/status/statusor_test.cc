@@ -14,6 +14,7 @@
 
 #include "absl/status/statusor.h"
 
+#include <any>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -25,6 +26,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -35,8 +37,7 @@
 #include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/any.h"
-#include "absl/types/variant.h"
+#include "absl/types/source_location.h"
 #include "absl/utility/utility.h"
 
 namespace {
@@ -696,13 +697,13 @@ TEST(StatusOr, ExplicitConstruction) {
 TEST(StatusOr, ImplicitConstruction) {
   // Check implicit casting works.
   auto status_or =
-      absl::implicit_cast<absl::StatusOr<absl::variant<int, std::string>>>(10);
+      absl::implicit_cast<absl::StatusOr<std::variant<int, std::string>>>(10);
   EXPECT_THAT(status_or, IsOkAndHolds(VariantWith<int>(10)));
 }
 
 TEST(StatusOr, ImplicitConstructionFromInitliazerList) {
   // Note: dropping the explicit std::initializer_list<int> is not supported
-  // by absl::StatusOr or absl::optional.
+  // by absl::StatusOr or std::optional.
   auto status_or =
       absl::implicit_cast<absl::StatusOr<std::vector<int>>>({{10, 20, 30}});
   EXPECT_THAT(status_or, IsOkAndHolds(ElementsAre(10, 20, 30)));
@@ -796,49 +797,49 @@ TEST(StatusOr, CopyAndMoveAbility) {
 }
 
 TEST(StatusOr, StatusOrAnyCopyAndMoveConstructorTests) {
-  absl::StatusOr<absl::any> status_or = CopyDetector(10);
-  absl::StatusOr<absl::any> status_error = absl::InvalidArgumentError("foo");
+  absl::StatusOr<std::any> status_or = CopyDetector(10);
+  absl::StatusOr<std::any> status_error = absl::InvalidArgumentError("foo");
   EXPECT_THAT(
       status_or,
       IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, true, false))));
-  absl::StatusOr<absl::any> a = status_or;
+  absl::StatusOr<std::any> a = status_or;
   EXPECT_THAT(
       a, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
-  absl::StatusOr<absl::any> a_err = status_error;
+  absl::StatusOr<std::any> a_err = status_error;
   EXPECT_THAT(a_err, Not(IsOk()));
 
-  const absl::StatusOr<absl::any>& cref = status_or;
+  const absl::StatusOr<std::any>& cref = status_or;
   // No lint for no-change copy.
-  absl::StatusOr<absl::any> b = cref;  // NOLINT
+  absl::StatusOr<std::any> b = cref;  // NOLINT
   EXPECT_THAT(
       b, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
-  const absl::StatusOr<absl::any>& cref_err = status_error;
+  const absl::StatusOr<std::any>& cref_err = status_error;
   // No lint for no-change copy.
-  absl::StatusOr<absl::any> b_err = cref_err;  // NOLINT
+  absl::StatusOr<std::any> b_err = cref_err;  // NOLINT
   EXPECT_THAT(b_err, Not(IsOk()));
 
-  absl::StatusOr<absl::any> c = std::move(status_or);
+  absl::StatusOr<std::any> c = std::move(status_or);
   EXPECT_THAT(
       c, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, true, false))));
-  absl::StatusOr<absl::any> c_err = std::move(status_error);
+  absl::StatusOr<std::any> c_err = std::move(status_error);
   EXPECT_THAT(c_err, Not(IsOk()));
 }
 
 TEST(StatusOr, StatusOrAnyCopyAndMoveAssignment) {
-  absl::StatusOr<absl::any> status_or = CopyDetector(10);
-  absl::StatusOr<absl::any> status_error = absl::InvalidArgumentError("foo");
-  absl::StatusOr<absl::any> a;
+  absl::StatusOr<std::any> status_or = CopyDetector(10);
+  absl::StatusOr<std::any> status_error = absl::InvalidArgumentError("foo");
+  absl::StatusOr<std::any> a;
   a = status_or;
   EXPECT_THAT(
       a, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
   a = status_error;
   EXPECT_THAT(a, Not(IsOk()));
 
-  const absl::StatusOr<absl::any>& cref = status_or;
+  const absl::StatusOr<std::any>& cref = status_or;
   a = cref;
   EXPECT_THAT(
       a, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
-  const absl::StatusOr<absl::any>& cref_err = status_error;
+  const absl::StatusOr<std::any>& cref_err = status_error;
   a = cref_err;
   EXPECT_THAT(a, Not(IsOk()));
   a = std::move(status_or);
@@ -876,15 +877,15 @@ TEST(StatusOr, StatusOrCopyAndMoveTestsAssignment) {
 }
 
 TEST(StatusOr, AbslAnyAssignment) {
-  EXPECT_FALSE((std::is_assignable<absl::StatusOr<absl::any>,
+  EXPECT_FALSE((std::is_assignable<absl::StatusOr<std::any>,
                                    absl::StatusOr<int>>::value));
-  absl::StatusOr<absl::any> status_or;
+  absl::StatusOr<std::any> status_or;
   status_or = absl::InvalidArgumentError("foo");
   EXPECT_THAT(status_or, Not(IsOk()));
 }
 
 TEST(StatusOr, ImplicitAssignment) {
-  absl::StatusOr<absl::variant<int, std::string>> status_or;
+  absl::StatusOr<std::variant<int, std::string>> status_or;
   status_or = 10;
   EXPECT_THAT(status_or, IsOkAndHolds(VariantWith<int>(10)));
 }
@@ -1798,6 +1799,102 @@ TEST(StatusOr, ErrorPrinting) {
                   AllOf(StartsWith("["), EndsWith("]"))));
   EXPECT_THAT(stream.str(), error_matcher);
   EXPECT_THAT(absl::StrCat(print_me), error_matcher);
+}
+
+#ifdef ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE
+#define GET_SOURCE_LOCATION(offset) __builtin_LINE() - offset
+#else
+#define GET_SOURCE_LOCATION(offset) 1
+#endif
+
+template <typename T>
+void CheckSourceLocation(
+    const absl::StatusOr<T>& status_or, std::vector<int> lines = {},
+    absl::SourceLocation loc = absl::SourceLocation::current()) {
+  ASSERT_EQ(status_or.GetSourceLocations().size(), lines.size())
+      << "Size check failed at " << loc.line();
+  for (size_t i = 0; i < lines.size(); ++i) {
+    EXPECT_EQ(absl::string_view(status_or.GetSourceLocations()[i].file_name()),
+              absl::string_view(loc.file_name()))
+        << "File name check failed at " << loc.line();
+    EXPECT_EQ(status_or.GetSourceLocations()[i].line(), lines[i])
+        << "Line check failed at " << loc.line();
+  }
+}
+
+TEST(StatusOr, AddSourceLocation) {
+  constexpr int kMaxIter = 10;
+  {
+    // Status that ignores source location.
+    absl::StatusOr<int> status_ignores_source_location[] = {
+        123, absl::Status(absl::StatusCode::kInternal, "")};
+    for (absl::StatusOr<int>& s : status_ignores_source_location) {
+      for (int i = 0; i < kMaxIter; ++i) {
+        s.AddSourceLocation(absl::SourceLocation::current());
+        s.AddSourceLocation(absl::SourceLocation());
+      }
+      CheckSourceLocation(s);
+    }
+  }
+  {
+    // Default SourceLocation is not added.
+    absl::StatusOr<int> status = absl::Status(
+        absl::StatusCode::kInternal, "foo", absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    for (int i = 0; i < kMaxIter; ++i) {
+      status.AddSourceLocation(absl::SourceLocation());
+    }
+    CheckSourceLocation(status, {line});
+  }
+  {
+    // Default SourceLocation is not added.
+    absl::StatusOr<int> status = absl::Status(
+        absl::StatusCode::kInternal, "foo", absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    std::vector<int> lines = {line};
+    lines.reserve(1 + kMaxIter);
+    for (int i = 0; i < kMaxIter; ++i) {
+      status.AddSourceLocation(absl::SourceLocation::current());
+      lines.push_back(GET_SOURCE_LOCATION(1));
+    }
+    CheckSourceLocation(status, lines);
+  }
+}
+
+absl::StatusOr<int>&& IsRvalueStatus(absl::StatusOr<int>&& s) {
+  return std::move(s);
+}
+
+TEST(StatusOr, WithSourceLocationMove) {
+  absl::StatusOr<int> original = absl::Status(
+      absl::StatusCode::kInternal, "message", absl::SourceLocation::current());
+  int line = GET_SOURCE_LOCATION(1);
+
+  const absl::StatusOr<int> status_or = IsRvalueStatus(
+      std::move(original).WithSourceLocation(absl::SourceLocation::current()));
+  int line2 = GET_SOURCE_LOCATION(1);
+
+  CheckSourceLocation(status_or, {line, line2});
+  EXPECT_FALSE(status_or.ok());
+}
+
+TEST(StatusOr, WithSourceLocationReturn) {
+  absl::SourceLocation loc1 = absl::SourceLocation::current();
+  int line1 = GET_SOURCE_LOCATION(1);
+  absl::SourceLocation loc2 = absl::SourceLocation::current();
+  int line2 = GET_SOURCE_LOCATION(1);
+
+  const auto return_error = [&loc1]() -> absl::StatusOr<int> {
+    return absl::InvalidArgumentError("I am error", loc1);
+  };
+  const auto return_error_with_source_location =
+      [&return_error, &loc2]() -> absl::StatusOr<int> {
+    return return_error().WithSourceLocation(loc2);
+  };
+
+  absl::StatusOr<int> status_or = return_error_with_source_location();
+  CheckSourceLocation(status_or, {line1, line2});
+  EXPECT_FALSE(status_or.ok());
 }
 
 TEST(StatusOr, SupportsReferenceTypes) {

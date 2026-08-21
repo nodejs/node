@@ -53,6 +53,7 @@ transitioning builtin ToString(context: Context, o: JSAny): String {
 extern transitioning builtin ToString(Context, JSAny): String;
 // LINT.ThenChange(/src/builtins/builtins-string-tsa.cc)
 
+@supportsTSA
 transitioning builtin ToStringConvertSymbol(context: Context, o: JSAny):
     String {
   typeswitch (o) {
@@ -65,6 +66,7 @@ transitioning builtin ToStringConvertSymbol(context: Context, o: JSAny):
   }
 }
 
+@supportsTSA
 transitioning macro ToString_Inline(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
@@ -72,14 +74,16 @@ transitioning macro ToString_Inline(context: Context, o: JSAny): String {
 extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
     String;
 
-// ES6 #sec-string.prototype.tostring
+// https://tc39.es/ecma262/#sec-string.prototype.tostring
+@supportsTSA
 transitioning javascript builtin StringPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kString, 'String.prototype.toString');
 }
 
-// ES6 #sec-string.prototype.valueof
+// https://tc39.es/ecma262/#sec-string.prototype.valueof
+@supportsTSA
 transitioning javascript builtin StringPrototypeValueOf(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
@@ -120,6 +124,7 @@ transitioning builtin StringToList(implicit context: Context)(
   return array;
 }
 
+@supportsTSA
 transitioning macro GenerateStringAt(
     implicit context: Context)(receiver: JSAny, position: JSAny,
     methodName: constexpr string): never labels
@@ -152,7 +157,8 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
   }
 }
 
-// ES6 #sec-string.prototype.charat
+// https://tc39.es/ecma262/#sec-string.prototype.charat
+@supportsTSA
 transitioning javascript builtin StringPrototypeCharAt(
     js-implicit context: NativeContext, receiver: JSAny)(
     position: JSAny): JSAny {
@@ -167,7 +173,7 @@ transitioning javascript builtin StringPrototypeCharAt(
   }
 }
 
-// ES6 #sec-string.prototype.charcodeat
+// https://tc39.es/ecma262/#sec-string.prototype.charcodeat
 transitioning javascript builtin StringPrototypeCharCodeAt(
     js-implicit context: NativeContext, receiver: JSAny)(
     position: JSAny): JSAny {
@@ -182,7 +188,7 @@ transitioning javascript builtin StringPrototypeCharCodeAt(
   }
 }
 
-// ES6 #sec-string.prototype.codepointat
+// https://tc39.es/ecma262/#sec-string.prototype.codepointat
 transitioning javascript builtin StringPrototypeCodePointAt(
     js-implicit context: NativeContext, receiver: JSAny)(
     position: JSAny): JSAny {
@@ -201,7 +207,7 @@ transitioning javascript builtin StringPrototypeCodePointAt(
 }
 
 // ES6 String.prototype.concat(...args)
-// ES6 #sec-string.prototype.concat
+// https://tc39.es/ecma262/#sec-string.prototype.concat
 transitioning javascript builtin StringPrototypeConcat(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // Check that {receiver} is coercible to Object and convert it to a String.
@@ -219,8 +225,8 @@ transitioning javascript builtin StringPrototypeConcat(
 extern transitioning runtime SymbolDescriptiveString(
     implicit context: Context)(Symbol): String;
 
-// ES #sec-string-constructor
-// https://tc39.github.io/ecma262/#sec-string-constructor
+// https://tc39.es/ecma262/#sec-string-constructor
+// https://tc39.es/ecma262/#sec-string-constructor
 transitioning javascript builtin StringConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {

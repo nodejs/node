@@ -9,7 +9,6 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +17,7 @@ namespace internal {
 
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
-V8_OBJECT class DataHandler : public StructLayout {
+V8_OBJECT class DataHandler : public Struct {
  public:
   static constexpr int OffsetOf(int index);
   static constexpr int SizeFor(int count);
@@ -57,12 +56,13 @@ V8_OBJECT class DataHandler : public StructLayout {
 
   class BodyDescriptor;
 
- private:
-  friend class AccessorAssembler;
-
+ public:
   TaggedMember<UnionOf<Smi, Code>> smi_handler_;
   TaggedMember<UnionOf<Smi, Cell>> validity_cell_;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, data);
+
+ private:
+  friend class AccessorAssembler;
 } V8_OBJECT_END;
 
 }  // namespace internal

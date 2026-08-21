@@ -22,16 +22,9 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
 
-namespace v8::internal {
-class Counters;
-class TurbofanCompilationJob;
-}  // namespace v8::internal
-
 namespace v8::internal::wasm {
 
 class NativeModule;
-class WasmCode;
-class WasmEngine;
 struct WasmFunction;
 
 // Stores assumptions that a Wasm compilation job made while executing,
@@ -83,8 +76,9 @@ struct WasmCompilationResult {
   uint32_t tagged_parameter_slots = 0;
   base::OwnedVector<uint8_t> source_positions;
   base::OwnedVector<uint8_t> inlining_positions;
-  base::OwnedVector<uint8_t> protected_instructions_data;
+  base::OwnedVector<uint8_t> trapping_instructions_data;
   base::OwnedVector<uint8_t> deopt_data;
+  base::OwnedVector<uint8_t> effect_handlers;
   std::unique_ptr<AssumptionsJournal> assumptions;
   std::unique_ptr<LiftoffFrameDescriptionForDeopt> liftoff_frame_descriptions;
   int func_index = kAnonymousFuncIndex;
@@ -92,7 +86,6 @@ struct WasmCompilationResult {
   Kind kind = kFunction;
   ForDebugging for_debugging = kNotForDebugging;
   bool frame_has_feedback_slot = false;
-  base::OwnedVector<const WasmCode::EffectHandler> effect_handlers;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
@@ -126,10 +119,10 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
 static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
+// TODO(jkummerow): Most of this could move into the .cc file.
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
-  JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
-                                 bool receiver_is_first_param);
+  JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig);
   ~JSToWasmWrapperCompilationUnit();
 
   // Allow move construction and assignment, for putting units in a std::vector.
@@ -138,16 +131,12 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   JSToWasmWrapperCompilationUnit& operator=(JSToWasmWrapperCompilationUnit&&)
       V8_NOEXCEPT = default;
 
-  Isolate* isolate() const { return isolate_; }
-
   void Execute();
   DirectHandle<Code> Finalize();
 
-  const CanonicalSig* sig() const { return sig_; }
-
   // Run a compilation unit synchronously.
-  static DirectHandle<Code> CompileJSToWasmWrapper(
-      Isolate* isolate, const CanonicalSig* sig, bool receiver_is_first_param);
+  static DirectHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                                   const CanonicalSig* sig);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the
@@ -156,7 +145,6 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // is guaranteed to be alive when this unit executes.
   Isolate* isolate_;
   const CanonicalSig* sig_;
-  bool receiver_is_first_param_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 

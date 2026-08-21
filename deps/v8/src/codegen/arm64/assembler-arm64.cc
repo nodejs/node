@@ -31,7 +31,7 @@
 #include "src/codegen/arm64/assembler-arm64.h"
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -52,14 +52,11 @@ CpuFeatureSet SimulatorFeaturesFromCommandLine() {
     static_assert(std::is_same_v<unsigned, CpuFeatureSet::StorageType>);
     return CpuFeatureSet::FromIntegral((1u << NUMBER_OF_CPU_FEATURES) - 1);
   }
-  fprintf(
-      stderr,
-      "Error: unrecognised value for --sim-arm64-optional-features ('%s').\n",
+  base::FatalNoSecurityImpact(
+      "Error: unrecognised value for --sim-arm64-optional-features ('%s').\n"
+      "Supported values are:  none\n"
+      "                       all\n",
       v8_flags.sim_arm64_optional_features.value());
-  fprintf(stderr,
-          "Supported values are:  none\n"
-          "                       all\n");
-  FATAL("sim-arm64-optional-features");
 }
 #endif  // USE_SIMULATOR
 
@@ -88,6 +85,18 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_MOPS)
   features.Add(MOPS);
 #endif
+#if defined(__ARM_FEATURE_CSSC)
+  features.Add(CSSC);
+#endif
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+  features.Add(FP16);
+#endif
+#if defined(__ARM_FEATURE_SVE)
+  features.Add(SVE);
+#endif
+#if defined(__ARM_FEATURE_SVE2_BITPERM)
+  features.Add(SVEBITPERM);
+#endif
   return features;
 }
 
@@ -113,7 +122,9 @@ bool CpuFeatures::SupportsWasmSimd128() { return true; }
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
+#ifdef V8_USE_HOST_CPU_ARM_FEATURES
     supported_ |= CpuFeaturesFromCompiler();
+#endif
     supported_ |= CpuFeaturesFromTargetOS();
     return;
   }
@@ -154,6 +165,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_mops()) {
     runtime.Add(MOPS);
+  }
+  if (cpu.has_sve()) {
+    runtime.Add(SVE);
+  }
+  if (cpu.has_svebitperm()) {
+    runtime.Add(SVEBITPERM);
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -3543,6 +3560,14 @@ void Assembler::eor3(const VRegister& vd, const VRegister& vn,
   Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
 }
 
+void Assembler::xar(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm, unsigned imm) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is2D() && vn.Is2D() && vm.Is2D());
+  DCHECK_EQ(imm & 0x3F, imm);
+  Emit(NEON_XAR | Rd(vd) | Rn(vn) | Rm(vm) | imm << 10);
+}
+
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
   DCHECK((vd.Is1D() && vn.Is2D()));
   Emit(SFormat(vd) | NEON_ADDP_scalar | Rn(vn) | Rd(vd));
@@ -4383,6 +4408,13 @@ void Assembler::pmull2(const VRegister& vd, const VRegister& vn,
   Emit(VFormat(vn) | NEON_PMULL2 | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
+void Assembler::bext(const ZRegister& zd, const ZRegister& zn,
+                     const ZRegister& zm) {
+  DCHECK(IsEnabled(SVEBITPERM));
+  DCHECK(AreSameLaneSize(zd, zn, zm));
+  Emit(BEXT | SVESize(zd) | Rm(zm) | Rn(zn) | Rd(zd));
+}
+
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {
   bool offset_is_size_multiple =
       (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
@@ -4649,13 +4681,7 @@ bool Assembler::IsImmFP64(uint64_t bits) {
 void Assembler::GrowBuffer() {
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
-  if (new_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
-  }
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
 
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);

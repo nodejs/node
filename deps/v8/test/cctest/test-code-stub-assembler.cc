@@ -2058,7 +2058,7 @@ TEST(AllocationFoldingCSA) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
-  const int kNumArrays = 7;
+  const uint32_t kNumArrays = 7;
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeStubAssembler m(asm_tester.state());
 
@@ -2066,7 +2066,7 @@ TEST(AllocationFoldingCSA) {
     TNode<IntPtrT> length = m.SmiUntag(m.Parameter<Smi>(1));
     TNode<FixedArray> result = m.UncheckedCast<FixedArray>(m.AllocateFixedArray(
         PACKED_ELEMENTS, length, CodeStubAssembler::AllocationFlag::kNone));
-    for (int i = 1; i <= kNumArrays; ++i) {
+    for (uint32_t i = 1; i <= kNumArrays; ++i) {
       int array_length = i * kTaggedSize;
       TNode<ByteArray> array =
           m.AllocateByteArray(m.UintPtrConstant(array_length));
@@ -2078,24 +2078,24 @@ TEST(AllocationFoldingCSA) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   {
-    auto fixed_array_length = Handle<Smi>(Smi::FromInt(kNumArrays), isolate);
+    auto fixed_array_length = Handle<Smi>(Smi::FromUInt(kNumArrays), isolate);
     DirectHandle<FixedArray> result =
         Cast<FixedArray>(ft.Call(fixed_array_length).ToHandleChecked());
-    CHECK_EQ(result->length(), kNumArrays);
+    CHECK_EQ(result->length().value(), kNumArrays);
     if (V8_COMPRESS_POINTERS_8GB_BOOL) {
       CHECK(IsAligned(result->address(), kObjectAlignment8GbHeap));
     } else {
       CHECK(IsAligned(result->address(), kTaggedSize));
     }
     Tagged<ByteArray> prev_array;
-    for (int i = 1; i <= kNumArrays; ++i) {
+    for (uint32_t i = 1; i <= kNumArrays; ++i) {
       Tagged<ByteArray> current_array = Cast<ByteArray>(result->get(i - 1));
       if (V8_COMPRESS_POINTERS_8GB_BOOL) {
         CHECK(IsAligned(current_array.address(), kObjectAlignment8GbHeap));
       } else {
         CHECK(IsAligned(current_array.address(), kTaggedSize));
       }
-      CHECK_EQ(current_array->length(), i * kTaggedSize);
+      CHECK_EQ(current_array->length().value(), i * kTaggedSize);
       if (i != 1) {
         // TODO(v8:13070): Align prev_array.AllocatedSize() to the allocation
         // size.
@@ -3728,7 +3728,7 @@ TEST(CloneEmptyFixedArray) {
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(0, result->length());
+  CHECK_EQ(0u, result->length().value());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
 }
 
@@ -3746,7 +3746,7 @@ TEST(CloneFixedArray) {
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(5, result->length());
+  CHECK_EQ(5u, result->length().value());
   CHECK(IsTheHole(result->get(0), isolate));
   CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
   CHECK(IsTheHole(result->get(2), isolate));
@@ -3794,7 +3794,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_NE(*source, result);
-  CHECK_EQ(5, result->length());
+  CHECK_EQ(5u, result->length().value());
   CHECK(IsTheHole(result->get(0), isolate));
   CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
   CHECK(IsTheHole(result->get(2), isolate));
@@ -3826,7 +3826,7 @@ TEST(ExtractFixedArraySimple) {
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(2, result->length());
+  CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
@@ -3852,7 +3852,7 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(2, result->length());
+  CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
@@ -3878,7 +3878,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(2, result->length());
+  CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
@@ -3902,7 +3902,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   source->set(1, Smi::FromInt(1234));
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(2, result->length());
+  CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 }
@@ -3927,7 +3927,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
-  CHECK_EQ(2, result->length());
+  CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
 
@@ -3944,7 +3944,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
           .ToHandleChecked();
   Tagged<FixedDoubleArray> double_result =
       Cast<FixedDoubleArray>(*double_result_raw);
-  CHECK_EQ(2, double_result->length());
+  CHECK_EQ(2u, double_result->length().value());
   CHECK_EQ(double_result->get_scalar(0), 11);
   CHECK_EQ(double_result->get_scalar(1), 12);
 }

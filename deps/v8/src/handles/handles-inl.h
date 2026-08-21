@@ -175,6 +175,7 @@ V8_INLINE DirectHandle<T> direct_handle(T object, LocalHeap* local_heap) {
 }
 
 HandleScope::HandleScope(Isolate* isolate) {
+  DCHECK(LocalHeap::Current()->is_main_thread());
   HandleScopeData* data = isolate->handle_scope_data();
   isolate_ = isolate;
   prev_next_ = data->next;

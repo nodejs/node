@@ -273,7 +273,7 @@ struct V8_EXPORT_PRIVATE WhiteSpace {
 #endif  // !V8_INTL_SUPPORT
 
 // LineTerminator:       'JS_Line_Terminator' in point.properties
-// ES#sec-line-terminators lists exactly 4 code points:
+// https://tc39.es/ecma262/#sec-line-terminators lists exactly 4 code points:
 // LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
 V8_INLINE bool IsLineTerminator(uchar c) {
   return c == 0x000A || c == 0x000D || c == 0x2028 || c == 0x2029;

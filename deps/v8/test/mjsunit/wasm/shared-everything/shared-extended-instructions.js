@@ -81,9 +81,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function RefEqValid() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sharedArray = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+  let sharedArray = builder.addArray(kWasmI32, {shared: true});
   let sharedStruct = builder.addStruct(
-    [makeField(kWasmI32, true)], kNoSuperType, false, true);
+      {fields: [makeField(kWasmI32, true)], shared: true});
 
   let types = [
     [
@@ -133,7 +133,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function ArrayLenShared() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sharedArray = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+  let sharedArray = builder.addArray(kWasmI32, {shared: true});
   builder.addFunction("main",
     makeSig([kWasmI32], [kWasmI32]))
   .addBody([

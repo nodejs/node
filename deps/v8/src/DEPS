@@ -8,6 +8,7 @@ include_rules = [
   "+src/baseline/bytecode-offset-iterator.h",
   "-src/bigint",
   "+src/bigint/bigint.h",
+  "+src/bigint/bigint-inl.h",
   "-src/compiler",
   "+src/compiler/code-assembler.h",
   "+src/compiler/turbofan.h",

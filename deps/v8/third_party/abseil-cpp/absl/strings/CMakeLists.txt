@@ -86,6 +86,8 @@ absl_cc_library(
     absl::memory
     absl::nullability
     absl::raw_logging_internal
+    absl::source_location
+    absl::strings
     absl::throw_delegate
     absl::type_traits
   PUBLIC
@@ -114,6 +116,32 @@ absl_cc_library(
   DEPS
     absl::config
   PUBLIC
+)
+
+absl_cc_library(
+  NAME
+    stringify_stream
+  HDRS
+    "internal/stringify_stream.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::string_view
+    absl::config
+)
+
+absl_cc_test(
+  NAME
+    stringify_stream_test
+  SRCS
+    "internal/stringify_stream_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::string_view
+    absl::stringify_stream
+    absl::str_format
+    GTest::gmock_main
 )
 
 # Internal-only target, do not depend on directly.
@@ -231,7 +259,6 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::optional
     absl::strings
     GTest::gmock_main
 )
@@ -245,7 +272,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::has_ostream_operator
-    absl::optional
     GTest::gmock_main
 )
 
@@ -313,7 +339,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::type_traits
     GTest::gmock_main
 )
 
@@ -371,6 +396,7 @@ absl_cc_test(
     absl::dynamic_annotations
     absl::btree
     absl::flat_hash_map
+    absl::hash
     absl::node_hash_map
     GTest::gmock_main
 )
@@ -1138,7 +1164,6 @@ absl_cc_test(
     absl::hash_testing
     absl::no_destructor
     absl::log
-    absl::optional
     absl::random_random
     absl::str_format
     absl::strings

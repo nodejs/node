@@ -74,7 +74,7 @@ void DisassembleFunctionImpl(const WasmModule* module, int func_index,
   const wasm::WasmFunction& func = module->functions[func_index];
   AccountingAllocator allocator;
   Zone zone(&allocator, "Wasm disassembler");
-  bool shared = module->type(func.sig_index).is_shared;
+  SharedFlag shared = module->type(func.sig_index).is_shared;
   WasmDetectedFeatures detected;
   FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
                              func.sig, function_body.begin(),
@@ -810,14 +810,14 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   if (type.kind == TypeDefinition::kArray) {
     const ArrayType* atype = type.array_type;
     out_ << " (array";
-    if (type.is_shared) out_ << " shared";
+    if (type.is_shared == SharedFlag::kYes) out_ << " shared";
     out_ << " (field ";
     PrintMutableType(atype->mutability(), atype->element_type());
     num_closing_parens++;  // Closes "(field ...".
   } else if (type.kind == TypeDefinition::kStruct) {
     const StructType* stype = type.struct_type;
     out_ << " (struct";
-    if (type.is_shared) out_ << " shared";
+    if (type.is_shared == SharedFlag::kYes) out_ << " shared";
     bool break_lines = stype->field_count() > 2;
     for (uint32_t i = 0; i < stype->field_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
@@ -830,7 +830,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   } else if (type.kind == TypeDefinition::kFunction) {
     const FunctionSig* sig = type.function_sig;
     out_ << " (func";
-    if (type.is_shared) out_ << " shared";
+    if (type.is_shared == SharedFlag::kYes) out_ << " shared";
     bool break_lines = sig->parameter_count() + sig->return_count() > 2;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
@@ -1067,7 +1067,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       PrintInitExpression(elem.offset, kWasmI32);
     }
     out_ << " ";
-    if (elem.shared) out_ << "shared ";
+    if (elem.shared == SharedFlag::kYes) out_ << "shared ";
     names_->PrintValueType(out_, elem.type);
 
     WasmDetectedFeatures unused_detected_features;
@@ -1103,7 +1103,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (func->exported) PrintExportName(kExternalFunction, i);
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
-    bool shared = module_->type(func->sig_index).is_shared;
+    SharedFlag shared = module_->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
     FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,
@@ -1131,7 +1131,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       out_ << " ";
       names_->PrintDataSegmentName(out_, i, kIndicesAsComments);
     }
-    if (data.shared) out_ << " shared";
+    if (data.shared == SharedFlag::kYes) out_ << " shared";
     if (data.active) {
       ValueType type = module_->memories[data.memory_index].is_memory64()
                            ? kWasmI64
@@ -1181,7 +1181,7 @@ void ModuleDisassembler::PrintMutableType(bool mutability, ValueType type) {
 }
 
 void ModuleDisassembler::PrintTable(const WasmTable& table) {
-  if (table.shared) out_ << " shared";
+  if (table.shared == SharedFlag::kYes) out_ << " shared";
   out_ << " " << table.initial_size << " ";
   if (table.has_maximum_size) out_ << table.maximum_size << " ";
   names_->PrintValueType(out_, table.type);
@@ -1190,12 +1190,12 @@ void ModuleDisassembler::PrintTable(const WasmTable& table) {
 void ModuleDisassembler::PrintMemory(const WasmMemory& memory) {
   out_ << " " << memory.initial_pages;
   if (memory.has_maximum_pages) out_ << " " << memory.maximum_pages;
-  if (memory.is_shared) out_ << " shared";
+  if (memory.is_shared == SharedFlag::kYes) out_ << " shared";
 }
 
 void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {
   out_ << " ";
-  if (global.shared) out_ << "shared ";
+  if (global.shared == SharedFlag::kYes) out_ << "shared ";
   PrintMutableType(global.mutability, global.type);
 }
 
@@ -1224,8 +1224,9 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
       WasmDetectedFeatures detected;
-      FunctionBodyDisassembler d(&zone_, module_, 0, false, &detected, &sig,
-                                 start, end, ref.offset(), wire_bytes_, names_);
+      FunctionBodyDisassembler d(&zone_, module_, 0, SharedFlag::kNo, &detected,
+                                 &sig, start, end, ref.offset(), wire_bytes_,
+                                 names_);
       d.DecodeGlobalInitializer(out_);
       break;
   }

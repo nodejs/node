@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/objects/objects.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-value.h"
@@ -99,6 +100,10 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
   DirectHandle<Map> GetRtt(DirectHandle<WasmTrustedInstanceData> data,
                            ModuleTypeIndex index, const TypeDefinition& type,
                            const Value& descriptor);
+
+  void ArrayNewImpl(FullDecoder* decoder, const ArrayIndexImmediate& imm,
+                    const Value& length, const Value& initial_value,
+                    Value* result, WriteBarrierMode write_barrier);
 
   bool end_found_ = false;
   bool ends_with_struct_new_ = false;

@@ -64,7 +64,7 @@ struct UnionWithoutHelper<Union<OutputTs...>, TWithout, Head, Ts...> {
 template <typename... Ts>
 class Union final : public AllStatic {
  public:
-  static_assert((!is_union_v<Ts> && ...),
+  static_assert(((!is_union_v<Ts>) && ...),
                 "Cannot have a union of unions -- use the UnionOf<T...> helper "
                 "to flatten nested unions");
   static_assert(
@@ -85,6 +85,18 @@ struct FlattenUnionHelper;
 template <typename... OutputTs>
 struct FlattenUnionHelper<Union<OutputTs...>> {
   using type = Union<OutputTs...>;
+};
+
+// Other base case: Union of single type, just return the type.
+template <typename SingleOutputT>
+struct FlattenUnionHelper<Union<SingleOutputT>> {
+  using type = SingleOutputT;
+};
+
+// Final base case: Union of no type, error, return void.
+template <>
+struct FlattenUnionHelper<Union<>> {
+  using type = void;
 };
 
 // Recursive case: Non-union input, accumulate and continue.

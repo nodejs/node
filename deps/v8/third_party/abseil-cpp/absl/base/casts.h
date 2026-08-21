@@ -30,6 +30,12 @@
 #include <typeinfo>
 #include <utility>
 
+#ifdef __has_include
+#if __has_include(<version>)
+#include <version>  // For __cpp_lib_bit_cast.
+#endif
+#endif
+
 #if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
 #include <bit>  // For std::bit_cast.
 #endif  // defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
@@ -205,7 +211,7 @@ inline void ValidateDownCast(From* f ABSL_ATTRIBUTE_UNUSED) {
   // Assert only if RTTI is enabled and in debug mode or hardened asserts are
   // enabled.
 #ifdef ABSL_INTERNAL_HAS_RTTI
-#if !defined(NDEBUG) || (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2)
+#if !defined(NDEBUG) || (ABSL_OPTION_HARDENED == 1)
   // Suppress erroneous nonnull comparison warning on older GCC.
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push

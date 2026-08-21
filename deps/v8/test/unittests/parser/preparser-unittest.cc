@@ -706,8 +706,8 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      v8::base::ScopedVector<char> program(len + 1);
-      v8::base::SNPrintF(program, code, inner.params, inner.source);
+      auto program = v8::base::OwnedVector<char>::NewForOverwrite(len + 1);
+      v8::base::SNPrintF(program.as_vector(), code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
       i::ReusableUnoptimizedCompileState reusable_state(isolate);

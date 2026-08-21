@@ -10,12 +10,11 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
-// TODO(all): Remove the heap-inl.h include below.
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
-#include "src/objects/feedback-cell.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
@@ -93,8 +92,8 @@ HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,
 Handle<JSArray> Factory::NewJSArrayWithElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
     AllocationType allocation) {
-  return NewJSArrayWithElements(elements, elements_kind, elements->length(),
-                                allocation);
+  return NewJSArrayWithElements(elements, elements_kind,
+                                elements->ulength().value(), allocation);
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
@@ -119,7 +118,7 @@ template <ExternalPointerTag tag>
 Handle<Foreign> Factory::NewForeign(Address addr,
                                     AllocationType allocation_type) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Foreign) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *foreign_map();
   Tagged<Foreign> foreign = Cast<Foreign>(
       AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));

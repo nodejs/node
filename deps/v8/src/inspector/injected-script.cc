@@ -294,7 +294,7 @@ class InjectedScript::ProtocolPromiseHandler {
     m_isActive = true;
     // Hold strongly onto m_evaluationResult now to prevent `cleanup` from
     // running in case any code below triggers GC.
-    if (m_evaluationResult.IsWeak()) m_evaluationResult.ClearWeak();
+    if (m_evaluationResult.IsWeak()) m_evaluationResult.ClearWeak<void>();
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
@@ -1108,7 +1108,8 @@ InjectedScript::ContextScope::~ContextScope() = default;
 
 Response InjectedScript::ContextScope::findInjectedScript(
     V8InspectorSessionImpl* session) {
-  return session->findInjectedScript(m_executionContextId, m_injectedScript);
+  return session->findInjectedScript(m_executionContextId, m_injectedScript,
+                                     &m_inspectedContext);
 }
 
 InjectedScript::ObjectScope::ObjectScope(V8InspectorSessionImpl* session,
@@ -1123,7 +1124,8 @@ Response InjectedScript::ObjectScope::findInjectedScript(
   Response response = RemoteObjectId::parse(m_remoteObjectId, &remoteId);
   if (!response.IsSuccess()) return response;
   InjectedScript* injectedScript = nullptr;
-  response = session->findInjectedScript(remoteId.get(), injectedScript);
+  response = session->findInjectedScript(remoteId.get(), injectedScript,
+                                         &m_inspectedContext);
   if (!response.IsSuccess()) return response;
   m_objectGroupName = injectedScript->objectGroupName(*remoteId);
   response = injectedScript->findObject(*remoteId, &m_object);
@@ -1144,7 +1146,8 @@ Response InjectedScript::CallFrameScope::findInjectedScript(
   Response response = RemoteCallFrameId::parse(m_remoteCallFrameId, &remoteId);
   if (!response.IsSuccess()) return response;
   m_frameOrdinal = static_cast<size_t>(remoteId->frameOrdinal());
-  return session->findInjectedScript(remoteId.get(), m_injectedScript);
+  return session->findInjectedScript(remoteId.get(), m_injectedScript,
+                                     &m_inspectedContext);
 }
 
 String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
@@ -1172,7 +1175,7 @@ Response InjectedScript::bindRemoteObjectIfNeeded(
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
     V8InspectorImpl* inspector =
         static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-    InspectedContext* inspectedContext =
+    std::shared_ptr<InspectedContext> inspectedContext =
         inspector->getContext(InspectedContext::contextId(context));
     InjectedScript* injectedScript =
         inspectedContext ? inspectedContext->getInjectedScript(sessionId)

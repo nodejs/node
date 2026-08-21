@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
@@ -51,6 +52,34 @@ cc_library(
 )
 
 cc_library(
+    name = "source_location",
+    srcs = ["source_location.cc"],
+    hdrs = ["source_location.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:nullability",
+    ],
+)
+
+cc_test(
+    name = "source_location_test",
+    size = "small",
+    srcs = ["source_location_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":source_location",
+        "//absl/base:config",
+        "//absl/strings:string_view",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "span",
     srcs = [
         "internal/span.h",
@@ -64,6 +93,7 @@ cc_library(
         "//absl/algorithm",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/base:nullability",
         "//absl/base:throw_delegate",
         "//absl/hash:weakly_mixed_integer",
@@ -90,6 +120,63 @@ cc_test(
         "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "any_span",
+    srcs = ["internal/any_span.h"],
+    hdrs = [
+        "any_span.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:hardening",
+        "//absl/base:nullability",
+        "//absl/base:raw_logging_internal",
+        "//absl/base:throw_delegate",
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_test(
+    name = "any_span_test",
+    size = "small",
+    srcs = ["any_span_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":any_span",
+        ":span",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:exception_testing",
+        "//absl/base:raw_logging_internal",
+        "//absl/hash:hash_testing",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "any_span_benchmark",
+    testonly = True,
+    srcs = ["any_span_benchmark.cc"],
+    tags = ["benchmark"],
+    deps = [
+        ":any_span",
+        ":span",
+        "//absl/base:config",
+        "//absl/base:raw_logging_internal",
+        "//absl/flags:flag",
+        "//absl/strings",
+        "//absl/strings:string_view",
+        "@google_benchmark//:benchmark_main",
     ],
 )
 
@@ -160,6 +247,33 @@ cc_test(
     deps = [
         ":compare",
         "//absl/base",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "optional_ref",
+    hdrs = ["optional_ref.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:hardening",
+    ],
+)
+
+cc_test(
+    name = "optional_ref_test",
+    size = "small",
+    srcs = ["optional_ref_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":optional_ref",
+        "//absl/base:config",
+        "//absl/log",
+        "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

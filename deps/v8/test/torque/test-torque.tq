@@ -476,8 +476,8 @@ macro IncrementIfSmi<A: type>(x: A): A {
 
 type NumberOrFixedArray = Number|FixedArray;
 macro TypeswitchExample(implicit context: Context)(
-                           x: NumberOrFixedArray): int32 {
-  let result: int32 = 0;
+                           x: NumberOrFixedArray): uint32 {
+  let result: uint32 = 0;
   typeswitch (IncrementIfSmi(x)) {
     case (_x: FixedArray): {
       result = result + 1;
@@ -491,10 +491,10 @@ macro TypeswitchExample(implicit context: Context)(
 
   typeswitch (IncrementIfSmi(x)) {
     case (x: Smi): {
-      result = result + Convert<int32>(x);
+      result = result + Unsigned(Convert<int32>(x));
     }
     case (a: FixedArray): {
-      result = result + Convert<int32>(a.length);
+      result = result + a.length;
     }
     case (_x: HeapNumber): {
       result = result + 7;
@@ -760,28 +760,6 @@ macro TestStructConstructor(implicit context: Context)(): void {
   check(a.b.GetX() == 2);
 }
 
-class InternalClass extends HeapObject {
-  macro Flip(): void labels NotASmi {
-    const tmp = Cast<Smi>(this.b) otherwise NotASmi;
-    this.b = this.a;
-    this.a = tmp;
-  }
-  a: Smi;
-  b: Number;
-}
-
-macro NewInternalClass(x: Smi): InternalClass {
-  return new InternalClass{a: x, b: x + 1};
-}
-
-@export
-macro TestInternalClass(implicit context: Context)(): void {
-  const o = NewInternalClass(5);
-  o.Flip() otherwise unreachable;
-  check(o.a == 6);
-  check(o.b == 5);
-}
-
 struct StructWithConst {
   macro TestMethod1(): int32 {
     return this.b;
@@ -823,38 +801,23 @@ struct TestIterator {
 @export
 macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
   let i = TestIterator{count: 5};
-  return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
-}
-
-class SmiPair extends HeapObject {
-  macro GetA():&Smi {
-    return &this.a;
-  }
-  a: Smi;
-  b: Smi;
-}
-
-macro Swap<T: type>(a:&T, b:&T): void {
-  const tmp = *a;
-  *a = *b;
-  *b = tmp;
-}
-
-@export
-macro TestReferences(): void {
-  const array = new SmiPair{a: 7, b: 2};
-  const ref:&Smi = &array.a;
-  *ref = 3 + *ref;
-  -- *ref;
-  Swap(&array.b, array.GetA());
-  check(array.a == 2);
-  check(array.b == 9);
+  return new FixedArray{
+    map: kFixedArrayMap,
+    length: 5,
+    optional_padding: 0,
+    objects: ...i
+  };
 }
 
 @export
 macro TestSlices(): void {
   const it = TestIterator{count: 3};
-  const a = new FixedArray{map: kFixedArrayMap, length: 3, objects: ...it};
+  const a = new FixedArray{
+    map: kFixedArrayMap,
+    length: 3,
+    optional_padding: 0,
+    objects: ...it
+  };
   check(a.length == 3);
 
   const oneTwoThree = Convert<Smi>(123);
@@ -927,45 +890,10 @@ macro TestStaticAssert(): void {
   static_assert(!(Convert<intptr>(-5) <= Convert<intptr>(-6)));
 }
 
-class SmiBox extends HeapObject {
-  value: Smi;
-  unrelated: Smi;
-}
-
-builtin NewSmiBox(implicit context: Context)(value: Smi): SmiBox {
-  return new SmiBox{value, unrelated: 0};
-}
-
-@export
-macro TestLoadEliminationFixed(implicit context: Context)(): void {
-  const box = NewSmiBox(123);
-  const v1 = box.value;
-  box.unrelated = 999;
-  const v2 = (box.unrelated == 0) ? box.value : box.value;
-  static_assert(TaggedEqual(v1, v2));
-
-  box.value = 11;
-  const v3 = box.value;
-  const eleven: Smi = 11;
-  static_assert(TaggedEqual(v3, eleven));
-}
-
-@export
-macro TestLoadEliminationVariable(implicit context: Context)(): void {
-  const a = UnsafeCast<FixedArray>(kEmptyFixedArray);
-  const box = NewSmiBox(1);
-  const v1 = a.objects[box.value];
-  const u1 = a.objects[box.value + 2];
-  const v2 = a.objects[box.value];
-  const u2 = a.objects[box.value + 2];
-  static_assert(TaggedEqual(v1, v2));
-  static_assert(TaggedEqual(u1, u2));
-}
-
 @export
 macro TestRedundantArrayElementCheck(implicit context: Context)(): Smi {
   const a = kEmptyFixedArray;
-  for (let i: Smi = 0; i < a.length; i++) {
+  for (let i: uint32 = 0; i < a.length; i++) {
     if (a.objects[i] == TheHole) {
       if (a.objects[i] == TheHole) {
         return -1;
@@ -1027,29 +955,6 @@ macro TestGenericStruct2():
   const tupleTuple =
       TestTuple<TestTuple<intptr, Smi>>{fst: intptrAndSmi, snd: smiAndIntptr};
   return tupleTuple;
-}
-
-macro BranchAndWriteResult(x: Smi, box: SmiBox): bool {
-  if (x > 5 || x < 0) {
-    box.value = 1;
-    return true;
-  } else {
-    box.value = 2;
-    return false;
-  }
-}
-
-@export
-macro TestBranchOnBoolOptimization(implicit context: Context)(
-                                      input: Smi): void {
-  const box = NewSmiBox(1);
-  // If the two branches get combined into one, we should be able to determine
-  // the value of {box} statically.
-  if (BranchAndWriteResult(input, box)) {
-    static_assert(box.value == 1);
-  } else {
-    static_assert(box.value == 2);
-  }
 }
 
 bitfield struct TestBitFieldStruct extends uint8 {
@@ -1169,96 +1074,6 @@ macro TestBitFieldMultipleFlags(a: bool, b: int32, c: bool): void {
   simpleExpression = !f2.a & !f2.c;
   expectedReduction = (Signed(f2) & 0x180000) == Convert<int32>(0);
   static_assert(simpleExpression == expectedReduction);
-}
-
-@export
-class ExportedSubClass extends ExportedSubClassBase {
-  c_field: int32;
-  d_field: int32;
-  e_field: Smi;
-}
-
-@export
-class ExportedSubClassBase extends HeapObject {
-  a: HeapObject;
-  b: HeapObject;
-}
-
-@abstract
-class AbstractInternalClass extends HeapObject {}
-
-class AbstractInternalClassSubclass1 extends AbstractInternalClass {}
-
-class AbstractInternalClassSubclass2 extends AbstractInternalClass {}
-
-struct InternalClassStructElement {
-  a: Smi;
-  b: Smi;
-}
-
-class InternalClassWithStructElements extends HeapObject {
-  dummy1: int32;
-  dummy2: int32;
-  const count: Smi;
-  data: Smi;
-  object: Object;
-  entries[count]: Smi;
-  more_entries[count]: InternalClassStructElement;
-}
-
-
-@export
-macro TestFullyGeneratedClassFromCpp(): ExportedSubClass {
-  return new
-  ExportedSubClass{a: Null, b: Null, c_field: 7, d_field: 8, e_field: 9};
-}
-
-@export
-class ExportedSubClass2 extends ExportedSubClassBase {
-  x_field: int32;
-  y_field: int32;
-  z_field: Smi;
-}
-
-@export
-macro TestGeneratedCastOperators(implicit context: Context)(): void {
-  const a = new
-  ExportedSubClass{a: Null, b: Null, c_field: 3, d_field: 4, e_field: 5};
-  const b = new ExportedSubClassBase{a: Undefined, b: Null};
-  const c = new
-  ExportedSubClass2{a: Null, b: Null, x_field: 3, y_field: 4, z_field: 5};
-  const aO: Object = a;
-  const bO: Object = b;
-  const cO: Object = c;
-  dcheck(Is<ExportedSubClassBase>(aO));
-  dcheck(Is<ExportedSubClass>(aO));
-  dcheck(!Is<ExportedSubClass2>(aO));
-  dcheck(Is<ExportedSubClassBase>(bO));
-  dcheck(!Is<ExportedSubClass>(bO));
-  dcheck(Is<ExportedSubClassBase>(cO));
-  dcheck(!Is<ExportedSubClass>(cO));
-  dcheck(Is<ExportedSubClass2>(cO));
-
-  const jsf: JSFunction =
-      *NativeContextSlot(ContextSlot::REGEXP_FUNCTION_INDEX);
-  dcheck(!Is<JSSloppyArgumentsObject>(jsf));
-
-  const parameterValues = NewFixedArray(0, ConstantIterator(TheHole));
-  const elements = NewSloppyArgumentsElements(
-      0, context, parameterValues, ConstantIterator(TheHole));
-  const fastArgs = arguments::NewJSFastAliasedArgumentsObject(
-      elements, Convert<Smi>(0), jsf);
-  dcheck(Is<JSArgumentsObject>(fastArgs));
-}
-
-extern runtime InYoungGeneration(implicit context: Context)(
-                                 HeapObject): Boolean;
-
-@export
-macro TestNewPretenured(implicit context: Context)(): void {
-  const obj = new (Pretenured) ExportedSubClassBase{a: Undefined, b: Null};
-  dcheck(Is<ExportedSubClassBase>(obj));
-  dcheck(InYoungGeneration(obj) == False);
 }
 
 @export

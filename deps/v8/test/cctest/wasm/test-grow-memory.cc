@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
-
-#include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/manually-externalized-buffer.h"
 #include "test/common/wasm/flag-utils.h"
@@ -39,7 +39,7 @@ TEST(GrowMemDetaches) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     DirectHandle<WasmMemoryObject> memory_object =
-        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
+        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNo,
                               wasm::AddressType::kI32)
             .ToHandleChecked();
     DirectHandle<JSArrayBuffer> buffer =
@@ -57,7 +57,7 @@ TEST(Externalized_GrowMemMemSize) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     DirectHandle<WasmMemoryObject> memory_object =
-        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
+        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNo,
                               wasm::AddressType::kI32)
             .ToHandleChecked();
     ManuallyExternalizedBuffer external(

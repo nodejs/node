@@ -20,35 +20,37 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 #define __ masm_->
 
-RegExpCodeGenerator::RegExpCodeGenerator(
-    Isolate* isolate, RegExpMacroAssembler* masm,
-    DirectHandle<TrustedByteArray> bytecode)
+CodeGenerator::CodeGenerator(Isolate* isolate, RegExpMacroAssembler* masm,
+                             DirectHandle<TrustedByteArray> bytecode)
     : isolate_(isolate),
       zone_(isolate_->allocator(), ZONE_NAME),
       masm_(masm),
       bytecode_(bytecode),
       iter_(bytecode_),
-      labels_(zone_.AllocateArray<Label>(bytecode_->length())),
-      jump_targets_(bytecode_->length(), &zone_),
-      indirect_jump_targets_(bytecode_->length(), &zone_),
+      labels_(zone_.AllocateArray<Label>(bytecode_->ulength().value())),
+      jump_targets_(bytecode_->ulength().value(), &zone_),
+      indirect_jump_targets_(bytecode_->ulength().value(), &zone_),
       has_unsupported_bytecode_(false) {}
 
-RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
-    DirectHandle<String> source, RegExpFlags flags) {
+CodeGenerator::Result CodeGenerator::Assemble(DirectHandle<RegExpData> re_data,
+                                              Flags flags) {
   USE(isolate_);
   USE(masm_);
 
   // Bytecode analysis is currently unused. In future work it could form the
   // basis for compiler optimizations.
   if (V8_UNLIKELY(v8_flags.regexp_bytecode_analysis)) {
-    RegExpBytecodeAnalysis analysis(isolate_, &zone_, bytecode_);
+    BytecodeAnalysis analysis(isolate_, &zone_, bytecode_);
     analysis.Analyze();
     if (v8_flags.trace_regexp_bytecode_analysis) {
-      std::unique_ptr<char[]> pattern_cstring = source->ToCString();
-      RegExpBytecodeDisassemble(bytecode_->begin(), bytecode_->length(),
+      std::unique_ptr<char[]> pattern_cstring =
+          re_data->escaped_source()->ToCString();
+      RegExpBytecodeDisassemble(bytecode_->begin(),
+                                bytecode_->ulength().value(),
                                 pattern_cstring.get(), &analysis);
     }
   }
@@ -57,13 +59,13 @@ RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
   iter_.reset();
   VisitBytecodes();
   if (has_unsupported_bytecode_) return Result::UnsupportedBytecode();
-  DirectHandle<Code> code = CheckedCast<Code>(masm_->GetCode(source, flags));
+  DirectHandle<Code> code = CheckedCast<Code>(masm_->GetCode(re_data, flags));
   return Result{code};
 }
 
 template <typename Operands, typename Operands::Operand Operand>
-auto RegExpCodeGenerator::GetArgumentValue() {
-  constexpr RegExpBytecodeOperandType op_type = Operands::Type(Operand);
+auto CodeGenerator::GetArgumentValue() {
+  constexpr BytecodeOperandType op_type = Operands::Type(Operand);
   auto value = Operands::template Get<Operand>(bytecode_,
                                                iter_.current_offset(), &zone_);
 
@@ -77,7 +79,7 @@ auto RegExpCodeGenerator::GetArgumentValue() {
 }
 
 template <typename Operands>
-auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
+auto CodeGenerator::GetArgumentValuesAsTuple() {
   constexpr auto filtered_ops = Operands::GetOperandsTuple();
   return std::apply(
       [&](auto... ops) {
@@ -99,8 +101,7 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
 
 #define INIT(Name, ...)                                                      \
   VISIT_COMMENT(#Name);                                                      \
-  using Operands [[maybe_unused]] =                                          \
-      RegExpBytecodeOperands<RegExpBytecode::k##Name>;                       \
+  using Operands [[maybe_unused]] = BytecodeOperands<Bytecode::k##Name>;     \
   __VA_OPT__(auto argument_tuple = GetArgumentValuesAsTuple<Operands>();     \
              static_assert(std::tuple_size_v<decltype(argument_tuple)> ==    \
                                Operands::kCount,                             \
@@ -122,10 +123,10 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
 #define VISIT_METHODS_START() namespace OPEN_BLOCK
 #define VISIT_METHODS_END() CLOSE_BLOCK
 
-#define VISIT(Name, ...)                                     \
-  CLOSE_BLOCK                                                \
-  template <>                                                \
-  void RegExpCodeGenerator::Visit<RegExpBytecode::k##Name>() \
+#define VISIT(Name, ...)                         \
+  CLOSE_BLOCK                                    \
+  template <>                                    \
+  void CodeGenerator::Visit<Bytecode::k##Name>() \
       OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);
 
 // Basic Bytecodes
@@ -286,9 +287,11 @@ Handle<ByteArray> CreateBitTableByteArray(
       isolate->factory()->NewByteArray(RegExpMacroAssembler::kTableSize);
   const bool fill_nibble_table = !nibble_table.is_null();
   if (fill_nibble_table) {
-    DCHECK_EQ(nibble_table->length(),
-              RegExpMacroAssembler::kTableSize / kBitsPerByte);
-    std::memset(nibble_table->begin(), 0, nibble_table->length());
+    const uint32_t nibble_table_len = nibble_table->length().value();
+    DCHECK_EQ(
+        nibble_table_len,
+        static_cast<uint32_t>(RegExpMacroAssembler::kTableSize / kBitsPerByte));
+    std::memset(nibble_table->begin(), 0, nibble_table_len);
   }
   for (int i = 0; i < RegExpMacroAssembler::kTableSize / kBitsPerByte; i++) {
     uint8_t byte = table_data[i];
@@ -498,28 +501,28 @@ VISIT_METHODS_END()
 #undef INIT
 #undef VISIT_COMMENT
 
-template <RegExpBytecode bc>
-void RegExpCodeGenerator::Visit() {
+template <Bytecode bc>
+void CodeGenerator::Visit() {
   // TODO(437003349): Remove fallback. All bytecodes need to be implemented
   // from now on.
   if (v8_flags.trace_regexp_assembler) {
     std::cout << "RegExp Code Generator: Unsupported Bytecode "
-              << RegExpBytecodes::Name(bc) << std::endl;
+              << Bytecodes::Name(bc) << std::endl;
   }
   has_unsupported_bytecode_ = true;
   UNREACHABLE();
 }
 
-void RegExpCodeGenerator::PreVisitBytecodes() {
+void CodeGenerator::PreVisitBytecodes() {
   DisallowGarbageCollection no_gc;
-  iter_.ForEachBytecode([&]<RegExpBytecode bc>() {
-    using Operands = RegExpBytecodeOperands<bc>;
+  iter_.ForEachBytecode([&]<Bytecode bc>() {
+    using Operands = BytecodeOperands<bc>;
     auto ensure_label = [&]<auto operand>() {
       const uint8_t* pc = iter_.current_address();
       uint32_t offset = Operands::template Get<operand>(pc, no_gc);
       if (!jump_targets_.Contains(offset)) {
         jump_targets_.Add(offset);
-        if constexpr (bc == RegExpBytecode::kPushBacktrack) {
+        if constexpr (bc == Bytecode::kPushBacktrack) {
           DCHECK(!indirect_jump_targets_.Contains(offset));
           indirect_jump_targets_.Add(offset);
         }
@@ -527,12 +530,12 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
         new (label) Label();
       }
     };
-    Operands::template ForEachOperandOfType<
-        RegExpBytecodeOperandType::kJumpTarget>(ensure_label);
+    Operands::template ForEachOperandOfType<BytecodeOperandType::kJumpTarget>(
+        ensure_label);
   });
 }
 
-void RegExpCodeGenerator::VisitBytecodes() {
+void CodeGenerator::VisitBytecodes() {
   for (; !iter_.done() && !has_unsupported_bytecode_; iter_.advance()) {
     if (jump_targets_.Contains(iter_.current_offset())) {
       if (indirect_jump_targets_.Contains(iter_.current_offset())) {
@@ -541,21 +544,22 @@ void RegExpCodeGenerator::VisitBytecodes() {
         __ Bind(&labels_[iter_.current_offset()]);
       }
     }
-    RegExpBytecodes::DispatchOnBytecode(
-        iter_.current_bytecode(), [this]<RegExpBytecode bc>() { Visit<bc>(); });
+    Bytecodes::DispatchOnBytecode(iter_.current_bytecode(),
+                                  [this]<Bytecode bc>() { Visit<bc>(); });
   }
 }
 
-Label* RegExpCodeGenerator::GetLabel(uint32_t offset) const {
+Label* CodeGenerator::GetLabel(uint32_t offset) const {
   DCHECK(jump_targets_.Contains(offset));
   return &labels_[offset];
 }
 
-MacroAssembler* RegExpCodeGenerator::NativeMasm() {
+MacroAssembler* CodeGenerator::NativeMasm() {
   MacroAssembler* masm = masm_->masm();
   DCHECK_NOT_NULL(masm);
   return masm;
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

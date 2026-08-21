@@ -12,7 +12,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/utils/utils.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"
 

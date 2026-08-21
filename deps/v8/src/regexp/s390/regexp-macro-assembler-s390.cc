@@ -17,6 +17,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /*
  * This assembler uses the following register assignment convention
@@ -149,7 +150,7 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
   DCHECK_LE(0, reg);
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
-    if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(by)) {
+    if (is_int8(by)) {
       __ agsi(register_location(reg), Operand(by));
     } else {
       __ LoadU64(r2, register_location(reg), r0);
@@ -704,7 +705,7 @@ void RegExpMacroAssemblerS390::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   Label return_r2;
 
   // Finalize code - write the entry point code now we know how many
@@ -1120,8 +1121,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
-  PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 
@@ -1339,8 +1339,8 @@ int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
                                                    Address re_frame,
                                                    uintptr_t extra_space) {
-  Tagged<InstructionStream> re_code =
-      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
+  Tagged<InstructionStream> re_code = SbxCast<InstructionStream>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_code)));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<intptr_t>(re_frame, kStartIndexOffset),
@@ -1469,7 +1469,7 @@ void RegExpMacroAssemblerS390::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ mov(r2, Operand(l));
   __ LoadU64(r2, MemOperand(r2));
-  __ SubS64(r2, r2, Operand(RegExpStack::kStackLimitSlackSize));
+  __ SubS64(r2, r2, Operand(Stack::kStackLimitSlackSize));
   __ CmpU64(backtrack_stackpointer(), r2);
   __ bgt(&no_stack_overflow);
   __ DebugBreak();
@@ -1495,7 +1495,6 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   }
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
-
 
 void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
@@ -1537,6 +1536,7 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
 
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

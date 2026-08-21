@@ -40,6 +40,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "//absl:friends",
     ],
     deps = [
         "//absl/base:config",
@@ -77,6 +78,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "//absl:friends",
     ],
     deps = [
         "//absl/base:config",
@@ -106,8 +108,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        # TODO(b/304670045): remove after periodic_sampler moves to //spanner/common.
         "//absl:__subpackages__",
+        "//absl:friends",
     ],
     deps = [
         ":exponential_biased",
