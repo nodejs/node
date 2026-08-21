@@ -344,6 +344,24 @@ dns.lookup('', {
   }, err);
 }
 
+{
+  const invalidAddress = Buffer.from('127.0.0.1');
+  const err = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "address" argument must be of type string. ' +
+    'Received an instance of Buffer'
+  };
+
+  assert.throws(() => {
+    dnsPromises.lookupService(invalidAddress, 0);
+  }, err);
+
+  assert.throws(() => {
+    dns.lookupService(invalidAddress, 0, common.mustNotCall());
+  }, err);
+}
+
 [null, undefined, 65538, 'test', NaN, Infinity, Symbol(), 0n, true, false, '', () => {}, {}].forEach((port) => {
   const err = {
     code: 'ERR_SOCKET_BAD_PORT',
