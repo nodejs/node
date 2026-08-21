@@ -496,6 +496,15 @@ The following are **not** vulnerabilities in Node.js:
   restrictions of their parent process. Passing an empty or modified `execArgv`
   to a worker does not grant it additional permissions.
 
+#### QUIC and HTTP/3
+
+The experimental QUIC and HTTP/3 implementation in Node.js is a complex new
+protocol stack and API that is still under active development and should not be
+used for production workloads. Reports that only affect QUIC or HTTP/3 are not
+considered Node.js vulnerabilities at this time. It is expected that the QUIC
+and HTTP/3 implementation will continue to evolve, and security issues will be
+addressed as the implementation matures.
+
 #### Virtual File System (`node:vfs`)
 
 The experimental [Virtual File System](https://nodejs.org/api/vfs.html)
