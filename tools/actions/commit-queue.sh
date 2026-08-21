@@ -62,6 +62,7 @@ The pull request was removed from the Commit Queue and labeled https://github.co
 <summary>Full Commit Queue output</summary>
 
 $(escape_code_block_or_line "$raw_output")
+
 </details>
 
 [View workflow run]($cqurl)"
