@@ -2001,7 +2001,7 @@ has less than 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable[Symbol.for('Stream.toAsyncStreamable')]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 > Stability: 1 - Experimental

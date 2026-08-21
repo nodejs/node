@@ -2250,7 +2250,7 @@ added: v24.18.0
 <!-- YAML
 added: v24.18.0
 changes:
-  - version: REPLACEME
+  - version: v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64557
     description: Limit customization to 512 bytes.
 -->

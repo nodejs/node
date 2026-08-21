@@ -1729,7 +1729,7 @@ server.listen(bound); // Adopt as a server, or pass to new net.Socket() instead.
 <!-- YAML
 added: v24.19.0
 changes:
-  - version: REPLACEME
+  - version: v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64399
     description: The `path` option is supported.
 -->
@@ -1756,7 +1756,7 @@ changes:
 <!-- YAML
 added: v24.19.0
 changes:
-  - version: REPLACEME
+  - version: v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64399
     description: The bound path is returned for a pipe bind.
 -->
@@ -1771,7 +1771,7 @@ OS-assigned ephemeral port.
 ### `boundSocket.isPipe`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * {boolean}

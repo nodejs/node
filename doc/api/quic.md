@@ -518,7 +518,7 @@ a server once.
 ## `quic.listEndpoints([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `options` {object}
@@ -533,7 +533,7 @@ endpoints are returned.
 ## `quic.constants`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * {Object}
@@ -671,7 +671,7 @@ True if `endpoint.destroy()` has been called. Read only.
 ### `endpoint.listening`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean}
@@ -681,7 +681,7 @@ True if the endpoint is actively listening for incoming connections. Read only.
 ### `endpoint.maxConnectionsPerHost`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -694,7 +694,7 @@ The valid range is `0` to `65535`.
 ### `endpoint.maxConnectionsTotal`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -910,7 +910,7 @@ A `QuicSession` represents the local side of a QUIC connection.
 ### `session.applicationOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.ApplicationOptions}
@@ -950,7 +950,7 @@ promise will reject with an `ERR_QUIC_TRANSPORT_ERROR` or
 ### `session.opened`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Promise} for an {Object}
@@ -990,7 +990,7 @@ A promise that is fulfilled once the session is destroyed.
 ### `session.closing`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean}
@@ -1033,7 +1033,7 @@ True if `session.destroy()` has been called. Read only.
 ### `session.localTransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.TransportParams|null}
@@ -1055,7 +1055,7 @@ has been destroyed. Read only.
 ### `session.onapplication`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.OnApplicationCallback}
@@ -1065,7 +1065,7 @@ The callback to invoke when new application options, e.g. HTTP/3 settings arrive
 ### `session.onerror`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function|undefined}
@@ -1113,7 +1113,7 @@ The callback to invoke when the status of a datagram is updated. Read/write.
 ### `session.onearlyrejected`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function|undefined}
@@ -1170,7 +1170,7 @@ The callback to invoke when the TLS handshake is completed. Read/write.
 ### `session.onnewtoken`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.OnNewTokenCallback}
@@ -1182,7 +1182,7 @@ the same server to skip address validation. Read/write.
 ### `session.onorigin`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.OnOriginCallback}
@@ -1194,7 +1194,7 @@ Read/write.
 ### `session.ongoaway`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function}
@@ -1219,7 +1219,7 @@ This callback is only relevant for HTTP/3 sessions. Read/write.
 ### `session.onkeylog`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.OnKeylogCallback}
@@ -1235,7 +1235,7 @@ Can also be set via the `onkeylog` option in [`quic.connect()`][] or
 ### `session.onqlog`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.OnQlogCallback}
@@ -1350,7 +1350,7 @@ The local and remote socket addresses associated with the session. Read only.
 ### `session.remoteTransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.TransportParams|null|undefined}
@@ -1408,7 +1408,7 @@ what this endpoint advertises to the peer as its own maximum.
 ### `session.servername`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string|boolean|null}
@@ -1421,7 +1421,7 @@ had no SNI.
 ### `session.alpnProtocol`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string|null}
@@ -1434,7 +1434,7 @@ unlike `node:tls` where this is optional.
 ### `session.certificate`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {crypto.X509Certificate|undefined}
@@ -1447,7 +1447,7 @@ Returns `undefined` if the session is destroyed.
 ### `session.peerCertificate`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {crypto.X509Certificate|undefined}
@@ -1459,7 +1459,7 @@ destroyed.
 ### `session.ephemeralKeyInfo`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Object|undefined}
@@ -1471,7 +1471,7 @@ The ephemeral key information for the session, with properties such as
 ### `session.maxDatagramSize`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -1486,7 +1486,7 @@ will not be sent.
 ### `session.maxPendingDatagrams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -1728,7 +1728,7 @@ added: v23.8.0
 ## Class: `QuicError`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -1770,7 +1770,7 @@ the Node.js convention that `error.code` is a string.
 ### `new QuicError(message, options)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `message` {string} A human-readable description of the error.
@@ -1804,7 +1804,7 @@ console.log(custom.code);    // 'ERR_MY_QUIC_FAILURE'
 ### `error.errorCode`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {bigint}
@@ -1814,7 +1814,7 @@ The numeric QUIC error code carried by this error.
 ### `error.type`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string}
@@ -1847,7 +1847,7 @@ CONNECTION\_CLOSE with a non-zero error code).
 <!-- YAML
 added: v23.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.20.0
     pr-url: https://github.com/nodejs/node/pull/62876
     description: Added the `options` parameter accepting `code` and `reason`.
 -->
@@ -1926,7 +1926,7 @@ the implementation falls back to the negotiated application protocol's
 ### `stream.early`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean}
@@ -1953,7 +1953,7 @@ or is still pending. Read only.
 ### `stream.budget`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -1981,7 +1981,7 @@ pending. Read only.
 ### `stream.onerror`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function|undefined}
@@ -2027,7 +2027,7 @@ whole stream with [`stream.destroy()`][]. Read/write.
 ### `stream.onstopsending`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.OnStreamErrorCallback}
@@ -2042,7 +2042,7 @@ property carries the application error code from the wire frame. Read/write.
 ### `stream.headers`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Object|undefined}
@@ -2059,7 +2059,7 @@ arrays. The object has `__proto__: null`.
 ### `stream.onheaders`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function}
@@ -2074,7 +2074,7 @@ Read/write.
 ### `stream.ontrailers`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function}
@@ -2087,7 +2087,7 @@ session that does not support headers. Read/write.
 ### `stream.oninfo`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function}
@@ -2102,7 +2102,7 @@ Read/write.
 ### `stream.onwanttrailers`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Function}
@@ -2116,7 +2116,7 @@ Read/write.
 ### `stream.pendingTrailers`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Object|undefined}
@@ -2130,7 +2130,7 @@ Read/write.
 ### `stream.sendHeaders(headers[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `headers` {Object} Header object with string keys and string or
@@ -2148,7 +2148,7 @@ headers. Throws `ERR_INVALID_STATE` if the session does not support headers.
 ### `stream.sendInformationalHeaders(headers)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `headers` {Object} Header object. Must include `:status` with a 1xx
@@ -2161,7 +2161,7 @@ Sends informational (1xx) response headers. Server only. Throws
 ### `stream.sendTrailers(headers)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `headers` {Object} Trailing header object. Pseudo-headers must not be
@@ -2176,7 +2176,7 @@ does not support headers.
 ### `stream.priority`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Object|null}
@@ -2195,7 +2195,7 @@ reflects the peer's requested priority (e.g., from `PRIORITY_UPDATE` frames).
 ### `stream.setPriority([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `options` {Object}
@@ -2212,7 +2212,7 @@ has been destroyed.
 ### `stream[Symbol.asyncIterator]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Returns: {AsyncIterableIterator} yielding {Uint8Array\[]}
@@ -2245,7 +2245,7 @@ await Stream.pipeTo(stream, someWriter);
 ### `stream.writer`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Object}
@@ -2289,7 +2289,7 @@ themselves before passing the buffer.
 ### `stream.setBody(body)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `body` {string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView |
@@ -2360,7 +2360,7 @@ added: v23.8.0
 ### `streamStats.bytesAccumulated`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {bigint}
@@ -2422,7 +2422,7 @@ added: v23.8.0
 ### `streamStats.maxBytesAccumulated`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {bigint}
@@ -2478,7 +2478,7 @@ added: v23.8.0
 ### type: `ApplicationOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {Object}
@@ -2603,7 +2603,7 @@ need to specify.
 #### `endpointOptions.disableStatelessReset`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean}
@@ -2617,7 +2617,7 @@ at a different layer.
 #### `endpointOptions.idleTimeout`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -2884,7 +2884,7 @@ Default: `'h3'`
 #### `sessionOptions.application`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {quic.ApplicationOptions}
@@ -2941,7 +2941,7 @@ certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 #### `sessionOptions.certificateCompression`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string\[]} One or more of `'zlib'`, `'brotli'`, or `'zstd'`, in
@@ -2989,7 +2989,7 @@ The CRL to use for sessions.
 #### `sessionOptions.enableEarlyData`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean} **Default:** `true`
@@ -3119,7 +3119,7 @@ added: v23.8.0
 #### `sessionOptions.datagramDropPolicy`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string}
@@ -3165,7 +3165,7 @@ reached, the datagram is dropped and reported as `'abandoned'` via the
 #### `sessionOptions.drainingPeriodMultiplier`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {number}
@@ -3191,7 +3191,7 @@ to complete before timing out.
 #### `sessionOptions.initialRtt`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {bigint|number}
@@ -3208,7 +3208,7 @@ behavior.
 #### `sessionOptions.keepAlive`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {bigint|number}
@@ -3315,7 +3315,7 @@ True to enable TLS tracing output.
 #### `sessionOptions.token` (client only)
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {ArrayBufferView}
@@ -3348,7 +3348,7 @@ Specifies the maximum number of unacknowledged packets a session should allow.
 #### `sessionOptions.rejectUnauthorized`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean} **Default:** `true`
@@ -3362,7 +3362,7 @@ ignored.
 #### `sessionOptions.reuseEndpoint`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {boolean}
@@ -3425,7 +3425,7 @@ creating a session. The negotiated values can be observed via the
 #### `transportParams.initialSCID`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string}
@@ -3438,7 +3438,7 @@ available in the `session.localTransportParams` and
 #### `transportParams.originalDCID`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string}
@@ -3564,7 +3564,7 @@ a datagram that can be _sent_ is determined by the peer's
 #### `transportParams.retrySCID`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * Type: {string}
@@ -3730,7 +3730,7 @@ added: v23.8.0
 ### Callback: `OnNewTokenCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicSession}
@@ -3740,7 +3740,7 @@ added: REPLACEME
 ### Callback: `OnOriginCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicSession}
@@ -3749,7 +3749,7 @@ added: REPLACEME
 ### Callback: `OnKeylogCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicSession}
@@ -3764,7 +3764,7 @@ the secret value.
 ### Callback: `OnQlogCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicSession}
@@ -3797,7 +3797,7 @@ added: v23.8.0
 ### Callback: `OnHeadersCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicStream}
@@ -3811,7 +3811,7 @@ on the client.
 ### Callback: `OnTrailersCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicStream}
@@ -3822,7 +3822,7 @@ Called when trailing headers are received from the peer.
 ### Callback: `OnInfoCallback`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `this` {quic.QuicStream}
@@ -3834,7 +3834,7 @@ Called when informational (1xx) headers are received from the server
 ## HTTP/3 support
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 When the negotiated ALPN identifier is `'h3'` (or one of the `'h3-*'`
@@ -3989,7 +3989,7 @@ Server-side notes:
 ## Performance measurement
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 QUIC sessions, streams, and endpoints emit [`PerformanceEntry`][] objects
@@ -4079,7 +4079,7 @@ Published when an endpoint begins listening for incoming connections.
 ### Channel: `quic.endpoint.connect`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `endpoint` {quic.QuicEndpoint}
@@ -4243,7 +4243,7 @@ of the final statistics at the time of destruction.
 ### Channel: `quic.session.error`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `session` {quic.QuicSession}
@@ -4298,7 +4298,7 @@ Published when a path validation attempt completes.
 ### Channel: `quic.session.new.token`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `token` {Buffer} The NEW\_TOKEN token data.
@@ -4336,7 +4336,7 @@ server. The session is always destroyed immediately after.
 ### Channel: `quic.session.receive.origin`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `origins` {string\[]} The list of origins the server is authoritative for.
@@ -4366,7 +4366,7 @@ Published when the TLS handshake completes.
 ### Channel: `quic.session.goaway`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `session` {quic.QuicSession}
@@ -4380,7 +4380,7 @@ a stream boundary.
 ### Channel: `quic.session.early.rejected`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `session` {quic.QuicSession}
@@ -4392,7 +4392,7 @@ latency regressions when 0-RTT is expected to succeed.
 ### Channel: `quic.stream.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `stream` {quic.QuicStream}
@@ -4406,7 +4406,7 @@ of the final statistics at the time of destruction.
 ### Channel: `quic.stream.headers`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `stream` {quic.QuicStream}
@@ -4421,7 +4421,7 @@ server-side streams, this contains request pseudo-headers (`:method`,
 ### Channel: `quic.stream.trailers`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `stream` {quic.QuicStream}
@@ -4433,7 +4433,7 @@ Published when trailing headers are received on a stream.
 ### Channel: `quic.stream.info`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `stream` {quic.QuicStream}
@@ -4446,7 +4446,7 @@ Published when informational (1xx) headers are received on a stream
 ### Channel: `quic.stream.reset`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `stream` {quic.QuicStream}
@@ -4460,7 +4460,7 @@ for diagnosing application-level issues such as cancelled requests.
 ### Channel: `quic.stream.blocked`
 
 <!-- YAML
-added: REPLACEME
+added: v24.20.0
 -->
 
 * `stream` {quic.QuicStream}

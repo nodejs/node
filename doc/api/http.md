@@ -3011,7 +3011,7 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 <!-- YAML
 added: v24.16.0
 changes:
-  - version: REPLACEME
+  - version: v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64392
     description: The signal is no longer aborted after the message
                  completes normally.
