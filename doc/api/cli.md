@@ -2139,6 +2139,20 @@ changes:
 
 Disable the experimental [`node:sqlite`][] module.
 
+### `--no-experimental-web-worker`
+
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65323
+    description: This feature is now enabled by default.
+-->
+
+> Stability: 1.1 - Active Development
+
+Disable support for the Web Worker API.
+
 ### `--no-experimental-websocket`
 
 <!-- YAML
@@ -2160,20 +2174,6 @@ changes:
 > Stability: 1.2 - Release candidate.
 
 Disable [`Web Storage`][] support.
-
-### `--no-experimental-web-worker`
-
-<!-- YAML
-added: REPLACEME
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/65323
-    description: This feature is now enabled by default.
--->
-
-> Stability: 1.1 - Active Development
-
-Disable support for the Web Worker API.
 
 ### `--no-extra-info-on-fatal-exception`
 
