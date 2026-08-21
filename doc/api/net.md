@@ -259,11 +259,15 @@ The included ranges are:
 * `10.0.0.0/8` — RFC 1918 private IPv4
 * `172.16.0.0/12` — RFC 1918 private IPv4
 * `192.168.0.0/16` — RFC 1918 private IPv4
+* `0.0.0.0/8` — IPv4 "this" network / unspecified (common localhost alias)
 * `127.0.0.0/8` — IPv4 loopback
 * `::1/128` — IPv6 loopback
+* `::/128` — IPv6 unspecified
 * `169.254.0.0/16` — IPv4 link-local
 * `fe80::/10` — IPv6 link-local
 * `fc00::/7` — IPv6 unique local (ULA)
+* `100.64.0.0/10` — RFC 6598 shared address space (CGNAT)
+* `198.18.0.0/15` — RFC 2544 benchmarking methodology
 
 ```js
 const blockList = new net.BlockList();
