@@ -499,7 +499,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type,
     // TODO(tniessen) Support CCM decryption in FIPS mode
     if (kind_ == kDecipher && ncrypto::isFipsEnabled()) {
       THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
-          env(), "CCM encryption not supported in FIPS mode");
+          env(), "CCM decryption not supported in FIPS mode");
       return false;
     }
 
