@@ -751,7 +751,9 @@ added:
   - v21.3.0
   - v20.11.0
 changes:
-  - version: v26.7.0
+  - version:
+     - v26.7.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64742
     description: The `--disable-warning` flag is now stable.
 -->
@@ -1368,7 +1370,9 @@ Enable experimental support for the network inspection with Chrome DevTools.
 ### `--experimental-package-map=<path>`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -1393,7 +1397,9 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: v26.5.0
+  - version:
+     - v26.5.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64154
     description: Print the top-level awaits without evaluating the modules.
 -->
@@ -1452,6 +1458,7 @@ Enable experimental support for storage inspection
 <!-- YAML
 added:
  - v25.9.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -2361,7 +2368,9 @@ following permissions are restricted:
 ### `--permission-audit`
 
 <!-- YAML
-added: v25.8.0
+added:
+ - v25.8.0
+ - v24.20.0
 -->
 
 Enable audit mode for the permission model. When enabled, permission checks

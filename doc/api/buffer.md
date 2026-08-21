@@ -2109,7 +2109,9 @@ console.log(buf.fill('zz', 'hex'));
 <!-- YAML
 added: v5.3.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
   - version:
@@ -2177,7 +2179,9 @@ console.log(buf.includes('this', 4));
 <!-- YAML
 added: v1.5.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
   - version: v8.0.0
@@ -2360,7 +2364,9 @@ for (const key of buf.keys()) {
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
   - version: v8.0.0

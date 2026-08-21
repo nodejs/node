@@ -2202,7 +2202,9 @@ added:
   - v23.8.0
   - v22.15.0
 changes:
-  - version: v26.7.0
+  - version:
+     - v26.7.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64599
     description: The `dictionary` option can be a `TypedArray`, `DataView`, or
                  `ArrayBuffer`.

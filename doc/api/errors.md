@@ -2549,7 +2549,9 @@ package specifier mapping.
 ### `ERR_PACKAGE_MAP_EXTERNAL_FILE`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.20.0
 -->
 
 A module attempted to resolve a bare specifier using the [package map][], but
@@ -2569,7 +2571,9 @@ covers the importing file.
 ### `ERR_PACKAGE_MAP_INVALID`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.20.0
 -->
 
 The [package map][] configuration file is invalid. This can occur when:
@@ -2590,7 +2594,9 @@ Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file n
 ### `ERR_PACKAGE_MAP_KEY_NOT_FOUND`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.20.0
 -->
 
 A package's `dependencies` object in the [package map][] references a package
@@ -2757,7 +2763,9 @@ Opening a QUIC stream failed.
 ### `ERR_QUIC_STREAM_ABORTED`
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -2770,7 +2778,9 @@ or session with an explicit application or transport error code.
 ### `ERR_QUIC_STREAM_RESET`
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -2812,7 +2822,9 @@ A QUIC session failed because version negotiation is required.
 
 <!-- YAML
 changes:
-  - version: v26.5.0
+  - version:
+     - v26.5.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64260
     description: Added the `requireStack` and `topLevelAwaitLocations` properties.
 -->

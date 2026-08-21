@@ -2007,7 +2007,9 @@ has less than 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable[Symbol.for('Stream.toAsyncStreamable')]()`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental

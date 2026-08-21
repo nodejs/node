@@ -2273,7 +2273,9 @@ added:
  - v25.9.0
  - v24.18.0
 changes:
-  - version: v26.6.0
+  - version:
+     - v26.6.0
+     - v24.20.0
     pr-url: https://github.com/nodejs/node/pull/64557
     description: Limit customization to 512 bytes.
 -->
