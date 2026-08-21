@@ -121,7 +121,7 @@ tmpdir.refresh();
 
 // Test writeFileSync with UTF-8 encoding aliases
 {
-  const utf8Data = 'hello world! ä¸­æ–‡ â€” ðŸš€';
+  const utf8Data = 'hello world! 中文 — 🚀';
   for (const encoding of ['utf8', 'utf-8', 'UTF8', 'UTF-8']) {
     const file = tmpdir.resolve(`testWriteFileSyncEncoding_${encoding}.txt`);
     fs.writeFileSync(file, utf8Data, { encoding });
