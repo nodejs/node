@@ -2507,9 +2507,15 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
-    EVP_EncryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
+    if (EVP_EncryptInit_ex(
+            ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv) <= 0) {
+      return -1;
+    }
   } else {
-    EVP_DecryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
+    if (EVP_DecryptInit_ex(
+            ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv) <= 0) {
+      return -1;
+    }
   }
 
   return r;
