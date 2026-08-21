@@ -3158,20 +3158,6 @@ MaybeLocal<Value> StatementExecutionHelper::ColumnToValue(Environment* env,
   return js_val;
 }
 
-MaybeLocal<Name> StatementExecutionHelper::ColumnNameToName(Environment* env,
-                                                            sqlite3_stmt* stmt,
-                                                            const int column) {
-  const char* col_name = sqlite3_column_name(stmt, column);
-  if (col_name == nullptr) {
-    THROW_ERR_INVALID_STATE(env, "Cannot get name of column %d", column);
-    return MaybeLocal<Name>();
-  }
-
-  return String::NewFromUtf8(
-             env->isolate(), col_name, NewStringType::kInternalized)
-      .As<Name>();
-}
-
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
 
 Maybe<void> ExtractRowValues(Environment* env,
