@@ -610,6 +610,7 @@ typedef struct {
   int exit_signal;                                                            \
   HANDLE wait_handle;                                                         \
   HANDLE process_handle;                                                      \
+  HANDLE pty_handle;                                                          \
   volatile char exit_cb_pending;
 
 #define UV_FS_PRIVATE_FIELDS                                                  \
