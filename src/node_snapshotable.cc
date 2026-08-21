@@ -1571,6 +1571,7 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Local<String> filename = args[0].As<String>();
   Local<String> source = args[1].As<String>();
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   // TODO(joyeecheung): do we need all of these? Maybe we would want a less
@@ -1578,9 +1579,9 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   LocalVector<String> parameters(
       isolate,
       {
-          FIXED_ONE_BYTE_STRING(isolate, "require"),
-          FIXED_ONE_BYTE_STRING(isolate, "__filename"),
-          FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+          env->require_string(),
+          env->__filename_string(),
+          env->__dirname_string(),
       });
 
   ScriptOrigin script_origin(filename, 0, 0, true);
