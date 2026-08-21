@@ -1,0 +1,436 @@
+/* =========================================
+   CSS Reset & Variables (Includes 10 Themes)
+   ========================================= */
+:root {
+    /* DEFAULT THEME 1: Mint Breeze (Eco Green) */
+    --bg-base: #f4fcf7;
+    --bg-glow-1: hsla(145, 100%, 80%, 0.6);
+    --bg-glow-2: hsla(190, 100%, 85%, 0.6);
+
+    /* UI Variables */
+    --primary-color: #00d26a; 
+    --primary-hover: #00b35a;
+    --surface-color: #ffffff;
+    --text-main: #2d3436;
+    --text-muted: #636e72;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+    --radius-md: 8px;
+    --radius-lg: 16px;
+    --transition: all 0.3s ease;
+
+    /* Default Mouse Start Position (Center) */
+    --mouseX: 50%;
+    --mouseY: 50%;
+}
+
+/* --- THE 10 PROFESSIONAL BACKGROUND THEMES --- */
+/* Add one of these classes to your <body> tag to change the vibe! */
+
+/* 2. Ocean Depth (Calming & Trustworthy) */
+.theme-ocean { --bg-base: #f0f8ff; --bg-glow-1: hsla(195, 100%, 75%, 0.6); --bg-glow-2: hsla(220, 100%, 85%, 0.6); }
+
+/* 3. Morning Dew (Fresh & Energizing) */
+.theme-dew { --bg-base: #fcfff5; --bg-glow-1: hsla(75, 100%, 80%, 0.6); --bg-glow-2: hsla(180, 100%, 80%, 0.6); }
+
+/* 4. Lavender Cloud (Deeply Relaxing) */
+.theme-lavender { --bg-base: #faf5ff; --bg-glow-1: hsla(270, 100%, 85%, 0.6); --bg-glow-2: hsla(300, 100%, 85%, 0.6); }
+
+/* 5. Sunset Glow (Warm & Attracting) */
+.theme-sunset { --bg-base: #fffaf0; --bg-glow-1: hsla(30, 100%, 80%, 0.6); --bg-glow-2: hsla(345, 100%, 85%, 0.6); }
+
+/* 6. Arctic Aurora (Cool & Modern) */
+.theme-arctic { --bg-base: #f0ffff; --bg-glow-1: hsla(180, 100%, 75%, 0.6); --bg-glow-2: hsla(240, 100%, 85%, 0.6); }
+
+/* 7. Zen Bamboo (Earthy & Grounding) */
+.theme-zen { --bg-base: #f5f5dc; --bg-glow-1: hsla(120, 40%, 70%, 0.5); --bg-glow-2: hsla(60, 50%, 80%, 0.5); }
+
+/* 8. Clear Azure (Open & Honest) */
+.theme-azure { --bg-base: #f0f8ff; --bg-glow-1: hsla(210, 100%, 80%, 0.6); --bg-glow-2: hsla(200, 100%, 85%, 0.6); }
+
+/* 9. Rose Water (Soft & Welcoming) */
+.theme-rose { --bg-base: #fff5f5; --bg-glow-1: hsla(350, 100%, 85%, 0.6); --bg-glow-2: hsla(15, 100%, 85%, 0.6); }
+
+/* 10. Midnight Tech (Premium Dark Mode Vibe) */
+.theme-midnight { 
+    --bg-base: #0f172a; 
+    --bg-glow-1: hsla(145, 100%, 40%, 0.3); /* Glowing green */
+    --bg-glow-2: hsla(220, 100%, 50%, 0.2); 
+    --text-main: #f8fafc; 
+    --text-muted: #94a3b8;
+    --surface-color: rgba(30, 41, 59, 0.8);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--bg-base);
+    
+    /* The interactive spotlight that follows the mouse variables */
+    background-image: 
+        radial-gradient(circle 600px at var(--mouseX) var(--mouseY), var(--bg-glow-1), transparent 60%),
+        radial-gradient(circle 800px at calc(100% - var(--mouseX)) calc(100% - var(--mouseY)), var(--bg-glow-2), transparent 60%);
+    
+    background-attachment: fixed;
+    color: var(--text-main);
+    line-height: 1.6;
+    min-height: 100vh;
+    
+    /* Makes the movement completely smooth */
+    transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* =========================================
+   Navigation
+   ========================================= */
+.navbar {
+    background-color: rgba(255, 255, 255, 0.75); 
+    backdrop-filter: blur(12px); 
+    -webkit-backdrop-filter: blur(12px); 
+    
+    padding: 1rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); 
+    border-bottom: 1px solid rgba(0, 210, 106, 0.15); 
+    
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap; /* Allows navbar to adapt if it gets too crowded */
+}
+
+.nav-logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-logo span {
+    color: var(--primary-color);
+}
+
+.nav-links {
+    display: flex;
+    gap: 2.5rem; /* INCREASED: Creates a wider, cleaner gap between links */
+    align-items: center;
+    flex-wrap: wrap; /* Prevents links from squishing on medium screens */
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-main);
+    font-weight: 500;
+    padding: 8px 16px; 
+    border-radius: var(--radius-md); 
+    transition: var(--transition);
+}
+
+.nav-links a:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.04); 
+}
+
+.nav-links a.active {
+    color: var(--primary-color);
+    font-weight: 700;
+    background-color: rgba(0, 210, 106, 0.1); 
+}
+
+/* =========================================
+   Hero Section & Device Detection Area
+   ========================================= */
+.hero {
+    text-align: center;
+    padding: 4rem 5% 2rem;
+}
+
+.hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+}
+
+.hero p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+}
+
+/* Main Interaction Card */
+.detector-card {
+    background: var(--surface-color);
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+}
+
+.detect-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.detect-btn:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Loading Animation for JS later */
+.loader {
+    display: none;
+    border: 3px solid var(--bg-color);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =========================================
+   Results Section (Hidden by default)
+   ========================================= */
+.result-section {
+    display: none; /* Will be toggled by JS */
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.device-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-color);
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.device-details h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.device-details p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.price-tag {
+    text-align: right;
+}
+
+.price-tag span {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.price-tag h2 {
+    color: var(--primary-color);
+    font-size: 2rem;
+}
+
+/* Actions */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-donate, .btn-sell {
+    flex: 1;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 2px solid var(--primary-color);
+}
+
+.btn-donate {
+    background-color: transparent;
+    color: var(--primary-color);
+}
+
+.btn-donate:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-sell {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-sell:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+/* =========================================
+   Responsive Design (Mobile & Tablets)
+   ========================================= */
+@media (max-width: 768px) {
+    /* Fixes the Navigation on Mobile */
+    .navbar {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem 5%;
+    }
+
+    .nav-links {
+        gap: 1rem; /* Closer together on mobile so they fit */
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .nav-links a {
+        padding: 6px 10px;
+        font-size: 0.9rem;
+    }
+
+    /* Fixes the Hero Section on Mobile */
+    .detector-card {
+        padding: 1.5rem;
+        margin: 0 1rem;
+    }
+    
+    .device-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .price-tag {
+        text-align: center;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+}
+
+/* =========================================
+   Additional Styles for New Pages
+   ========================================= */
+.page-header {
+    text-align: center;
+    padding: 3rem 5%;
+    /* Update page-header background to be slightly transparent to show gradient */
+    background-color: rgba(255, 255, 255, 0.4); 
+    border-bottom: 1px solid var(--border-color);
+}
+.page-header h1 { color: var(--primary-color); font-size: 2.5rem; }
+.container { max-width: 1000px; margin: 0 auto; padding: 3rem 5%; }
+
+/* Grids for How It Works & Impact */
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; }
+.card { background: var(--surface-color); padding: 2rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); text-align: center; }
+.card h3 { color: var(--primary-color); margin: 1rem 0; }
+
+/* Contact Form & Location */
+.contact-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; }
+.form-group { margin-bottom: 1.5rem; text-align: left; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+.form-group input, .form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; }
+.location-box { background: var(--bg-color); padding: 2rem; border-radius: var(--radius-md); border-left: 4px solid var(--primary-color); }
+
+/* =========================================
+   PAGE PSYCHOLOGY BACKGROUNDS
+   (Updates the base variable so the mouse glow still works!)
+   ========================================= */
+body.page-how     { --bg-base: #F4F9FF; } /* Soft Ice Blue - Clarity */
+body.page-impact  { --bg-base: #F0FDF4; } /* Pale Mint - Sustainability */
+body.page-about   { --bg-base: #FDFBF7; } /* Warm Oatmeal - Humanity */
+body.page-faq     { --bg-base: #F8F8FC; } /* Light Lavender - Calm/Focused */
+body.page-contact { --bg-base: #FFF8F5; } /* Soft Peach - Action */
+/* =========================================
+   Popup Form Modal Styles
+   ========================================= */
+.modal-overlay {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-card {
+    background: var(--surface-color);
+    width: 90%;
+    max-width: 500px;
+    padding: 2.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    position: relative;
+    animation: modalPop 0.3s ease;
+    text-align: left;
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.close-btn {
+    position: absolute;
+    top: 1.2rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition);
+}
+
+.close-btn:hover {
+    color: var(--text-main);
+}

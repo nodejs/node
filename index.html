@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMobile | Sell & Donate Old Phones</title>
+    
+    <!-- Directly linking to style.css in the same folder -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dew">
+
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <a href="index.html" class="nav-logo">
+            ♻️ <span>EcoMobile</span>
+        </a>
+        <div class="nav-links">
+            <a href="how-it-works.html">How It Works</a>
+            <a href="impact.html">Impact</a>
+            <a href="about.html">About Us</a>
+            <a href="faq.html">FAQ</a>
+            <a href="contact.html">Contact</a>
+        </div>
+    </nav>
+
+    <!-- Main Hero Section -->
+    <section class="hero">
+        <h1>Save the Planet, Upgrade Your Tech</h1>
+        <p>We automatically detect your current device to give you the best market value. Sell it for cash or donate it to reduce e-waste and support a sustainable environment.</p>
+        
+        <!-- Main Interaction Card -->
+        <div class="detector-card">
+            
+            <!-- Detection Button -->
+            <button id="detectBtn" class="detect-btn">
+                <span id="btnText">Detect My Device</span>
+                <div id="loader" class="loader"></div>
+            </button>
+
+            <!-- Results Section (Hidden by default, revealed by JS) -->
+            <div id="resultSection" class="result-section">
+                
+                <div class="device-info">
+                    <div class="device-details">
+                        <h3 id="deviceName">Scanning...</h3>
+                        <p id="deviceYear">Estimated Year: --</p>
+                    </div>
+                    <div class="price-tag">
+                        <span>Estimated Value</span>
+                        <h2 id="devicePrice">₹0</h2>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="donateBtn" class="btn-donate">Donate & Recycle 🌍</button>
+                    <button id="sellBtn" class="btn-sell">Get Cash Now 💵</button>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+
+    <!-- =========================================
+       Popup Form Modal (Hidden by Default)
+       ========================================= -->
+    <div id="formModal" class="modal-overlay">
+        <div class="modal-card">
+            <button id="closeModal" class="close-btn">&times;</button>
+            <h2 id="modalTitle">Schedule Free Pickup</h2>
+            <p id="modalSubtitle" style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">Enter your details and our executive will pick up your device for free.</p>
+            
+            <form id="pickupForm">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="userName" placeholder="Enter your full name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="userPhone" placeholder="Enter your phone number" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Pickup Address (Mumbai)</label>
+                    <textarea id="userAddress" rows="3" placeholder="Enter your full street address, landmark, area (e.g., Kurla West)..." required></textarea>
+                </div>
+
+                <button type="submit" class="detect-btn">Confirm & Schedule Free Pickup</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Link to external JavaScript file -->
+    <script src="app.js"></script>
+</body>
+</html>

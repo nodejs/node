@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | EcoMobile</title>
+    
+    <!-- 1. FIXED: Removed "css/" so it links to style.css in the same folder -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<!-- 2. ADDED: The page-contact class for the psychological background color -->
+<body class="page-contact">
+    
+    <nav class="navbar">
+        <a href="index.html" class="nav-logo">♻️ <span>EcoMobile</span></a>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="how-it-works.html">How it Works</a>
+            <a href="about.html">About</a>
+            
+            <!-- 3. ADDED: The active class to highlight the Contact link -->
+            <a href="contact.html" class="active">Contact</a>
+        </div>
+    </nav>
+
+    <header class="page-header">
+        <h1>Get in Touch</h1>
+        <p>Have questions? We are here to help you recycle responsibly.</p>
+    </header>
+
+    <div class="container contact-wrapper">
+        <!-- Contact Form -->
+        <div class="card">
+            <h3>Send us a message</h3>
+            <form action="#" method="POST">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" placeholder="Your Name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" placeholder="Your Email" required>
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea rows="4" placeholder="How can we help?" required></textarea>
+                </div>
+                <button type="submit" class="detect-btn">Send Message</button>
+            </form>
+        </div>
+
+        <!-- Location Info -->
+        <div class="location-box">
+            <h3>📍 Drop-off Location</h3>
+            <p><br>Prefer to drop off your device instead of scheduling a free home pickup? You can bring it directly to our Mumbai collection center:</p>
+            <p><br><strong>Al Baarkaat School,<br>
+            Bhartiya Nagar, Kurla West,<br>
+            Mumbai 400070,<br>
+            Maharashtra, India</strong></p>
+            <br>
+            <p><strong>Hours:</strong> Mon - Sat, 10:00 AM - 6:00 PM</p>
+        </div>
+    </div>
+
+    <!-- 4. ADDED: Linked the JS file so the interactive background glow works -->
+    <script src="app.js"></script>
+</body>
+</html>
