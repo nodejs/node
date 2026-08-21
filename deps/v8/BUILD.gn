@@ -1307,6 +1307,9 @@ config("features") {
   if (v8_enable_temporal_support) {
     defines += [ "V8_TEMPORAL_SUPPORT" ]
   }
+  if (v8_enable_temporal_systemicu) {
+    defines += [ "V8_ENABLE_TEMPORAL_SYSTEMICU" ]
+  }
   if (v8_enable_local_handle_zapping) {
     defines += [ "ENABLE_LOCAL_HANDLE_ZAPPING" ]
   }
@@ -3110,6 +3113,7 @@ generated_file("v8_generate_features_json") {
     v8_enable_hugepage = v8_enable_hugepage
     v8_enable_i18n_support = v8_enable_i18n_support
     v8_enable_temporal_support = v8_enable_temporal_support
+    v8_enable_temporal_systemicu = v8_enable_temporal_systemicu
     v8_enable_javascript_promise_hooks = v8_enable_javascript_promise_hooks
     v8_enable_lite_mode = v8_enable_lite_mode
     v8_enable_map_packing = v8_enable_map_packing
