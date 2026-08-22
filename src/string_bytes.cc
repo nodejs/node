@@ -533,8 +533,10 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
         return Just<size_t>(simdutf::utf8_length_from_latin1(
             reinterpret_cast<const char*>(view.data8()), view.length()));
       }
-      return Just<size_t>(simdutf::utf8_length_from_utf16(
-          reinterpret_cast<const char16_t*>(view.data16()), view.length()));
+      return Just<size_t>(
+          simdutf::utf8_length_from_utf16_with_replacement(
+              reinterpret_cast<const char16_t*>(view.data16()), view.length())
+              .count);
 
     case UCS2:
       return Just(view.length() * sizeof(uint16_t));
