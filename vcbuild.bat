@@ -231,7 +231,7 @@ if defined package set stage_package=1
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
-set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\@node-core\doc-kit\bin\cli.mjs"
+set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\@doc-kit\cli\bin\cli.mjs"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
@@ -703,13 +703,15 @@ robocopy /e doc\api %config%\doc\api
 
 %doc_kit_exe% ^
   generate ^
-  -t legacy-html-all legacy-json-all api-links ^
-  -i doc/api/*.md ^
-  -i lib/*.js ^
+  --config-file "%~dp0tools\doc\web.doc-kit.config.mjs" ^
   -o %config%/doc/api/ ^
-  -c file://%~dp0\CHANGELOG.md ^
-  -v %NODE_VERSION% ^
-  --type-map "file://%~dp0doc\type-map.json"
+  -v %NODE_VERSION%
+
+%doc_kit_exe% ^
+  generate ^
+  --config-file "%~dp0tools\doc\api-links.doc-kit.config.mjs" ^
+  -o %config%/doc/api/ ^
+  -v %NODE_VERSION%
 
 :run
 @rem Run tests if requested.
