@@ -1307,6 +1307,9 @@ config("features") {
   if (v8_enable_temporal_support) {
     defines += [ "V8_TEMPORAL_SUPPORT" ]
   }
+  if (v8_enable_temporal_support && v8_use_icu_zoneinfo64) {
+    defines += [ "V8_USE_ICU_ZONEINFO64" ]
+  }
   if (v8_enable_local_handle_zapping) {
     defines += [ "ENABLE_LOCAL_HANDLE_ZAPPING" ]
   }
@@ -3561,19 +3564,22 @@ v8_header_set("v8_flags") {
 }
 
 if (v8_enable_temporal_support) {
-  # In cases where we aren't using ICU4C (e.g. v8_enable_i18n_support=false),
+  # When not using ICU4C for zoneinfo (either because i18n is disabled or
+  # because the embedder opted out via v8_use_icu_zoneinfo64=false),
   # we "bake" in a zoneinfo64.res binary for Temporal
-  action("make_temporal_zoneinfo_cpp") {
-    script = "tools/include-file-as-bytes.py"
-    inputs = [ get_label_info("//third_party/icu/", "dir") +
-               "/tzres/zoneinfo64.res" ]
-    outputs =
-        [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
-    args = [
-      rebase_path(inputs[0], root_build_dir),
-      rebase_path(outputs[0], root_build_dir),
-      "zoneinfo64_static_data",
-    ]
+  if (!v8_use_icu_zoneinfo64) {
+    action("make_temporal_zoneinfo_cpp") {
+      script = "tools/include-file-as-bytes.py"
+      inputs = [ get_label_info("//third_party/icu/", "dir") +
+                 "/tzres/zoneinfo64.res" ]
+      outputs =
+          [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
+      args = [
+        rebase_path(inputs[0], root_build_dir),
+        rebase_path(outputs[0], root_build_dir),
+        "zoneinfo64_static_data",
+      ]
+    }
   }
 }
 
@@ -6775,9 +6781,10 @@ v8_source_set("v8_base_without_compiler") {
     ]
   }
 
-  # In i18n mode, we can use ICU4C to load ICU4C's builtin zoneinfo64.res data
-  # In non-i18n mode, we need to copy that into the binary
-  if (v8_enable_temporal_support && !v8_enable_i18n_support) {
+  # In i18n mode with v8_use_icu_zoneinfo64, we load zoneinfo64 via ICU4C at
+  # runtime. Otherwise (no-i18n builds, or embedders using system ICU without
+  # private ICU headers) we bake the data into the binary.
+  if (v8_enable_temporal_support && !v8_use_icu_zoneinfo64) {
     sources +=
         [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
     deps += [ ":make_temporal_zoneinfo_cpp" ]
