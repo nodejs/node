@@ -319,3 +319,23 @@ test('ffi validates memory access arguments', () => {
     }
   }));
 });
+
+test('ffi memory helpers reject missing required arguments', () => {
+  const widths = ['Int8', 'Uint8', 'Int16', 'Uint16', 'Int32', 'Uint32',
+                  'Int64', 'Uint64', 'Float32', 'Float64'];
+
+  // Calling a helper with no arguments must report the missing pointer the
+  // same way an explicitly passed `undefined` does, instead of returning
+  // `undefined` as if the read or the write had succeeded.
+  for (const width of widths) {
+    for (const name of [`get${width}`, `set${width}`]) {
+      assert.throws(() => ffi[name](), /The pointer must be a bigint/);
+      assert.throws(() => ffi[name](undefined), /The pointer must be a bigint/);
+    }
+  }
+
+  assert.throws(() => ffi.toBuffer(1n), /The length must be a number/);
+  assert.throws(() => ffi.toBuffer(1n, undefined), /The length must be a number/);
+  assert.throws(() => ffi.toArrayBuffer(1n), /The length must be a number/);
+  assert.throws(() => ffi.toArrayBuffer(1n, undefined), /The length must be a number/);
+});
