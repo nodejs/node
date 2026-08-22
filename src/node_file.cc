@@ -4589,17 +4589,100 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static bool CopyUtimes(const std::filesystem::path& src,
-                       const std::filesystem::path& dest,
-                       Environment* env) {
+std::vector<std::string> normalizePathToArray(
+    const std::filesystem::path& path) {
+  std::vector<std::string> parts;
+  std::error_code error;
+  std::filesystem::path absPath = std::filesystem::absolute(path, error);
+  if (error) absPath = path;
+#ifdef _WIN32
+  auto wstr = absPath.wstring();
+  if (wstr.starts_with(L"\\\\?\\")) {
+    absPath = std::filesystem::path(wstr.substr(4));
+  }
+#endif
+  for (const auto& part : absPath) {
+    if (!part.empty()) parts.push_back(part.string());
+  }
+  return parts;
+}
+
+bool isInsideDir(const std::filesystem::path& src,
+                 const std::filesystem::path& dest) {
+  auto srcArr = normalizePathToArray(src);
+  auto destArr = normalizePathToArray(dest);
+  if (srcArr.size() > destArr.size()) return false;
+  return std::equal(srcArr.begin(), srcArr.end(), destArr.begin());
+}
+
+namespace {
+
+// An fs.cp error recorded on whatever thread performed the copy; Throw() /
+// ToException() turn it into the error the JavaScript caller sees.
+struct CpError {
+  enum Kind {
+    kNone,
+    kErrno,
+    kUv,
+    kEinval,
+    kSymlinkToSubdirectory,
+    kEexist,
+    kSocket,
+    kFifo,
+    kUnknown
+  };
+  Kind kind = kNone;
+  int code = 0;
+  const char* syscall = "cp";
+  std::string message;
+  std::string path;
+
+  static CpError Std(const std::error_code& error, const std::string& path) {
+    return {kErrno, error.value(), "cp", error.message(), path};
+  }
+  static CpError Uv(int code, const char* syscall, const std::string& path) {
+    return {kUv, code, syscall, {}, path};
+  }
+
+  Local<Value> ToException(Environment* env) const {
+    Isolate* isolate = env->isolate();
+    switch (kind) {
+      case kErrno:
+        return ErrnoException(
+            isolate, code, syscall, message.c_str(), path.c_str());
+      case kUv:
+        return UVException(isolate, code, syscall, nullptr, path.c_str());
+      case kEinval:
+        return ERR_FS_CP_EINVAL(isolate, "%s", message);
+      case kSymlinkToSubdirectory:
+        return ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY(isolate, "%s", message);
+      case kEexist:
+        return ERR_FS_CP_EEXIST(isolate, "%s", message);
+      // Sockets, FIFOs and unknown entries are reported to JS by kind and
+      // path (see CpDirJob), cpSync skips them; neither builds an error here.
+      case kSocket:
+      case kFifo:
+      case kUnknown:
+      case kNone:
+        break;
+    }
+    UNREACHABLE();
+  }
+
+  void Throw(Environment* env) const {
+    env->isolate()->ThrowException(ToException(env));
+  }
+};
+
+CpError CopyUtimes(const std::filesystem::path& src,
+                   const std::filesystem::path& dest) {
   uv_fs_t req;
   auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
   auto src_path_str = ConvertPathToUTF8(src);
   int result = uv_fs_stat(nullptr, &req, src_path_str.c_str(), nullptr);
   if (is_uv_error(result)) {
-    env->ThrowUVException(result, "stat", nullptr, src_path_str.c_str());
-    return false;
+    return CpError::Uv(result, "stat", src_path_str);
   }
 
   const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
@@ -4614,12 +4697,302 @@ static bool CopyUtimes(const std::filesystem::path& src,
                                  source_mtime,
                                  nullptr);
   if (is_uv_error(utime_result)) {
-    env->ThrowUVException(
-        utime_result, "utime", nullptr, dest_file_path_str.c_str());
-    return false;
+    return CpError::Uv(utime_result, "utime", dest_file_path_str);
   }
-  return true;
+  return {};
 }
+
+struct CpDirOptions {
+  bool force;
+  bool dereference;
+  bool error_on_exist;
+  bool verbatim_symlinks;
+  bool preserve_timestamps;
+  // Set for fs.cp(), which only takes this path for a destination that did
+  // not exist: nothing already present is ever opened for writing or
+  // followed. Directories are created with mkdir() and files with an
+  // exclusive uv_fs_copyfile(), so anything that appears in their place
+  // (a symbolic link included) is EEXIST; sockets, FIFOs and unknown
+  // entries are rejected as the JavaScript walk does; relative link targets
+  // are resolved lexically, as path.resolve() would. fs.cpSync() merges
+  // into existing directories, skips those entries and canonicalizes link
+  // targets.
+  bool fresh_destination;
+  // fs.copyFile() mode flags (COPYFILE_FICLONE etc.) for fresh_destination.
+  int copyfile_flags;
+};
+
+CpError CopyFileFresh(const std::filesystem::path& src,
+                      const std::filesystem::path& dest,
+                      int flags) {
+  uv_fs_t req;
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  auto src_str = ConvertPathToUTF8(src);
+  auto dest_str = ConvertPathToUTF8(dest);
+  int rc = uv_fs_copyfile(nullptr,
+                          &req,
+                          src_str.c_str(),
+                          dest_str.c_str(),
+                          flags | UV_FS_COPYFILE_EXCL,
+                          nullptr);
+  if (rc < 0) {
+    return CpError::Uv(rc, "copyfile", dest_str);
+  }
+  return {};
+}
+
+// mkdir() that does not follow or accept anything already at `path`.
+CpError MakeFreshDirectory(const std::filesystem::path& path) {
+  uv_fs_t req;
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  auto path_str = ConvertPathToUTF8(path);
+  int rc = uv_fs_mkdir(nullptr, &req, path_str.c_str(), 0777, nullptr);
+  if (rc < 0) {
+    return CpError::Uv(rc, "mkdir", path_str);
+  }
+  return {};
+}
+
+// The recursive directory copy behind fs.cpSync() and, on the thread pool,
+// fs.cp()/fsPromises.cp() when no filter function is involved. Runs on any
+// thread; touches no JS.
+CpError CopyDirRecursive(const std::filesystem::path& src_path,
+                         const std::filesystem::path& dest_path,
+                         const std::string& dest_display,
+                         const CpDirOptions& options) {
+  std::error_code error;
+  bool dest_existed = false;
+  if (options.fresh_destination) {
+    CpError made = MakeFreshDirectory(dest_path);
+    if (made.kind != CpError::kNone) return made;
+  } else {
+    dest_existed = std::filesystem::exists(dest_path, error);
+    std::filesystem::create_directories(dest_path, error);
+    if (error) {
+      return CpError::Std(error, dest_display);
+    }
+  }
+
+  auto file_copy_opts = std::filesystem::copy_options::recursive;
+  if (options.force) {
+    file_copy_opts |= std::filesystem::copy_options::overwrite_existing;
+  } else if (options.error_on_exist) {
+    file_copy_opts |= std::filesystem::copy_options::none;
+  } else {
+    file_copy_opts |= std::filesystem::copy_options::skip_existing;
+  }
+
+  std::function<CpError(std::filesystem::path, std::filesystem::path)>
+      copy_dir_contents;
+  copy_dir_contents = [&options, &copy_dir_contents, file_copy_opts](
+                          std::filesystem::path src,
+                          std::filesystem::path dest) -> CpError {
+    std::error_code error;
+    // Only the error_code overloads are used from here on: this runs on a
+    // thread pool thread and exceptions are disabled.
+    auto it = std::filesystem::directory_iterator(src, error);
+    if (error) {
+      return CpError::Std(error, ConvertPathToUTF8(src));
+    }
+    for (const auto end = std::filesystem::directory_iterator(); it != end;
+         it.increment(error)) {
+      if (error) {
+        return CpError::Std(error, ConvertPathToUTF8(src));
+      }
+      const auto& dir_entry = *it;
+      auto dest_file_path = dest / dir_entry.path().filename();
+      auto dest_str = ConvertPathToUTF8(dest);
+
+      if (dir_entry.is_symlink(error)) {
+        if (options.verbatim_symlinks) {
+          std::filesystem::copy_symlink(
+              dir_entry.path(), dest_file_path, error);
+          if (error) {
+            return CpError::Std(error, dest_str);
+          }
+        } else {
+          auto symlink_target =
+              std::filesystem::read_symlink(dir_entry.path().c_str(), error);
+          if (error) {
+            return CpError::Std(error, dest_str);
+          }
+
+          if (std::filesystem::exists(dest_file_path, error)) {
+            if (std::filesystem::is_symlink(dest_file_path, error)) {
+              auto current_dest_symlink_target =
+                  std::filesystem::read_symlink(dest_file_path.c_str(), error);
+              if (error) {
+                return CpError::Std(error, dest_str);
+              }
+
+              if (!options.dereference &&
+                  std::filesystem::is_directory(symlink_target, error) &&
+                  isInsideDir(symlink_target, current_dest_symlink_target)) {
+                return {CpError::kEinval,
+                        0,
+                        "cp",
+                        SPrintF("Cannot copy %s to a subdirectory of self %s",
+                                symlink_target,
+                                current_dest_symlink_target),
+                        {}};
+              }
+
+              // Prevent copy if src is a subdir of dest since unlinking
+              // dest in this case would result in removing src contents
+              // and therefore a broken symlink would be created.
+              if (std::filesystem::is_directory(dest_file_path, error) &&
+                  isInsideDir(current_dest_symlink_target, symlink_target)) {
+                return {CpError::kSymlinkToSubdirectory,
+                        0,
+                        "cp",
+                        SPrintF("cannot overwrite %s with %s",
+                                current_dest_symlink_target,
+                                symlink_target),
+                        {}};
+              }
+
+              // symlinks get overridden by cp even if force: false, this is
+              // being applied here for backward compatibility, but is it
+              // correct? or is it a bug?
+              std::filesystem::remove(dest_file_path, error);
+              if (error) {
+                return CpError::Std(error, dest_str);
+              }
+            } else if (std::filesystem::is_regular_file(dest_file_path,
+                                                        error)) {
+              if (!options.dereference ||
+                  (!options.force && options.error_on_exist)) {
+                return CpError::Std(
+                    std::make_error_code(std::errc::file_exists),
+                    ConvertPathToUTF8(dest_file_path));
+              }
+            }
+          }
+          std::filesystem::path symlink_target_absolute;
+          if (options.fresh_destination) {
+            // As path.resolve() does: lexical only, absolute targets verbatim.
+            symlink_target_absolute =
+                symlink_target.is_absolute()
+                    ? symlink_target
+                    : std::filesystem::absolute(src / symlink_target, error)
+                          .lexically_normal();
+          } else {
+            symlink_target_absolute = std::filesystem::weakly_canonical(
+                std::filesystem::absolute(src / symlink_target, error), error);
+          }
+          if (error) {
+            return CpError::Std(error, dest_str);
+          }
+#ifdef _WIN32
+          auto wstr = symlink_target_absolute.wstring();
+          if (wstr.starts_with(L"\\\\?\\")) {
+            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
+          }
+#endif
+          if (dir_entry.is_directory(error)) {
+            std::filesystem::create_directory_symlink(
+                symlink_target_absolute, dest_file_path, error);
+          } else {
+            std::filesystem::create_symlink(
+                symlink_target_absolute, dest_file_path, error);
+          }
+          if (error) {
+            return CpError::Std(error, dest_str);
+          }
+        }
+      } else if (dir_entry.is_directory(error)) {
+        auto entry_dir_path = src / dir_entry.path().filename();
+        bool created = true;
+        if (options.fresh_destination) {
+          CpError made = MakeFreshDirectory(dest_file_path);
+          if (made.kind != CpError::kNone) return made;
+        } else {
+          created = std::filesystem::create_directory(dest_file_path, error);
+          if (error) {
+            return CpError::Std(error, ConvertPathToUTF8(dest_file_path));
+          }
+        }
+        CpError inner = copy_dir_contents(entry_dir_path, dest_file_path);
+        if (inner.kind != CpError::kNone) {
+          return inner;
+        }
+        // A directory created by the copy gets the mode of its source once
+        // its contents are in (the source may be read-only).
+        if (created) {
+          std::filesystem::permissions(
+              dest_file_path, dir_entry.status(error).permissions(), error);
+          if (error) {
+            return CpError::Std(error, ConvertPathToUTF8(dest_file_path));
+          }
+        }
+        if (options.preserve_timestamps) {
+          CpError stamped = CopyUtimes(entry_dir_path, dest_file_path);
+          if (stamped.kind != CpError::kNone) return stamped;
+        }
+      } else if (dir_entry.is_regular_file(error)) {
+        bool copied = true;
+        if (options.fresh_destination) {
+          CpError fresh = CopyFileFresh(
+              dir_entry.path(), dest_file_path, options.copyfile_flags);
+          if (fresh.kind != CpError::kNone) return fresh;
+        } else {
+          copied = std::filesystem::copy_file(
+              dir_entry.path(), dest_file_path, file_copy_opts, error);
+        }
+        if (error) {
+          if (error == std::errc::file_exists) {
+            return {CpError::kEexist,
+                    0,
+                    "cp",
+                    SPrintF("[ERR_FS_CP_EEXIST]: Target already exists: "
+                            "cp returned EEXIST (%s already exists)",
+                            dest_file_path),
+                    {}};
+          }
+          return CpError::Std(error, dest_str);
+        }
+
+        if (options.preserve_timestamps) {
+          CpError utimes = CopyUtimes(dir_entry.path(), dest_file_path);
+          if (utimes.kind != CpError::kNone) {
+            return utimes;
+          }
+        }
+        // Both copies set the mode before writing the data, which clears
+        // setuid/setgid; put the source mode back once the data is in.
+        if (copied) {
+          std::filesystem::permissions(
+              dest_file_path, dir_entry.status(error).permissions(), error);
+          if (error) {
+            return CpError::Std(error, ConvertPathToUTF8(dest_file_path));
+          }
+        }
+      } else if (options.fresh_destination) {
+        CpError::Kind kind = dir_entry.is_socket(error) ? CpError::kSocket
+                             : dir_entry.is_fifo(error) ? CpError::kFifo
+                                                        : CpError::kUnknown;
+        return {kind, UV_EINVAL, "cp", {}, ConvertPathToUTF8(dest_file_path)};
+      }
+    }
+    return {};
+  };
+
+  CpError result = copy_dir_contents(src_path, dest_path);
+  if (result.kind != CpError::kNone) return result;
+  if (!dest_existed) {
+    std::filesystem::permissions(
+        dest_path,
+        std::filesystem::status(src_path, error).permissions(),
+        error);
+    if (error) {
+      return CpError::Std(error, dest_display);
+    }
+  }
+  if (options.preserve_timestamps) return CopyUtimes(src_path, dest_path);
+  return {};
+}
+
+}  // namespace
 
 static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -4671,32 +5044,11 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (preserve_timestamps) {
-    CopyUtimes(src_path, dest_path, env);
+    CpError error = CopyUtimes(src_path, dest_path);
+    if (error.kind != CpError::kNone) {
+      error.Throw(env);
+    }
   }
-}
-
-std::vector<std::string> normalizePathToArray(
-    const std::filesystem::path& path) {
-  std::vector<std::string> parts;
-  std::filesystem::path absPath = std::filesystem::absolute(path);
-#ifdef _WIN32
-  auto wstr = absPath.wstring();
-  if (wstr.starts_with(L"\\\\?\\")) {
-    absPath = std::filesystem::path(wstr.substr(4));
-  }
-#endif
-  for (const auto& part : absPath) {
-    if (!part.empty()) parts.push_back(part.string());
-  }
-  return parts;
-}
-
-bool isInsideDir(const std::filesystem::path& src,
-                 const std::filesystem::path& dest) {
-  auto srcArr = normalizePathToArray(src);
-  auto destArr = normalizePathToArray(dest);
-  if (srcArr.size() > destArr.size()) return false;
-  return std::equal(srcArr.begin(), srcArr.end(), destArr.begin());
 }
 
 static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
@@ -4723,181 +5075,118 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   auto src_path = src.ToPath();
   auto dest_path = dest.ToPath();
 
-  std::error_code error;
-  const bool dest_existed = std::filesystem::exists(dest_path, error);
-  std::filesystem::create_directories(dest_path, error);
-  if (error) {
-    return env->ThrowStdErrException(error, "cp", *dest);
-  }
-
-  auto file_copy_opts = std::filesystem::copy_options::recursive;
-  if (force) {
-    file_copy_opts |= std::filesystem::copy_options::overwrite_existing;
-  } else if (error_on_exist) {
-    file_copy_opts |= std::filesystem::copy_options::none;
-  } else {
-    file_copy_opts |= std::filesystem::copy_options::skip_existing;
-  }
-
-  std::function<bool(std::filesystem::path, std::filesystem::path)>
-      copy_dir_contents;
-  copy_dir_contents = [verbatim_symlinks,
-                       &copy_dir_contents,
-                       &env,
-                       file_copy_opts,
-                       preserve_timestamps,
-                       force,
-                       error_on_exist,
-                       dereference,
-                       &isolate](std::filesystem::path src,
-                                 std::filesystem::path dest) {
-    std::error_code error;
-    for (auto dir_entry : std::filesystem::directory_iterator(src)) {
-      auto dest_file_path = dest / dir_entry.path().filename();
-      auto dest_str = ConvertPathToUTF8(dest);
-
-      if (dir_entry.is_symlink()) {
-        if (verbatim_symlinks) {
-          std::filesystem::copy_symlink(
-              dir_entry.path(), dest_file_path, error);
-          if (error) {
-            env->ThrowStdErrException(error, "cp", dest_str.c_str());
-            return false;
-          }
-        } else {
-          auto symlink_target =
-              std::filesystem::read_symlink(dir_entry.path().c_str(), error);
-          if (error) {
-            env->ThrowStdErrException(error, "cp", dest_str.c_str());
-            return false;
-          }
-
-          if (std::filesystem::exists(dest_file_path)) {
-            if (std::filesystem::is_symlink((dest_file_path.c_str()))) {
-              auto current_dest_symlink_target =
-                  std::filesystem::read_symlink(dest_file_path.c_str(), error);
-              if (error) {
-                env->ThrowStdErrException(error, "cp", dest_str.c_str());
-                return false;
-              }
-
-              if (!dereference &&
-                  std::filesystem::is_directory(symlink_target) &&
-                  isInsideDir(symlink_target, current_dest_symlink_target)) {
-                static constexpr const char* message =
-                    "Cannot copy %s to a subdirectory of self %s";
-                THROW_ERR_FS_CP_EINVAL(
-                    env, message, symlink_target, current_dest_symlink_target);
-                return false;
-              }
-
-              // Prevent copy if src is a subdir of dest since unlinking
-              // dest in this case would result in removing src contents
-              // and therefore a broken symlink would be created.
-              if (std::filesystem::is_directory(dest_file_path) &&
-                  isInsideDir(current_dest_symlink_target, symlink_target)) {
-                static constexpr const char* message =
-                    "cannot overwrite %s with %s";
-                THROW_ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY(
-                    env, message, current_dest_symlink_target, symlink_target);
-                return false;
-              }
-
-              // symlinks get overridden by cp even if force: false, this is
-              // being applied here for backward compatibility, but is it
-              // correct? or is it a bug?
-              std::filesystem::remove(dest_file_path, error);
-              if (error) {
-                env->ThrowStdErrException(error, "cp", dest_str.c_str());
-                return false;
-              }
-            } else if (std::filesystem::is_regular_file(dest_file_path)) {
-              if (!dereference || (!force && error_on_exist)) {
-                auto dest_file_path_str = ConvertPathToUTF8(dest_file_path);
-                env->ThrowStdErrException(
-                    std::make_error_code(std::errc::file_exists),
-                    "cp",
-                    dest_file_path_str.c_str());
-                return false;
-              }
-            }
-          }
-          auto symlink_target_absolute = std::filesystem::weakly_canonical(
-              std::filesystem::absolute(src / symlink_target));
-#ifdef _WIN32
-          auto wstr = symlink_target_absolute.wstring();
-          if (wstr.starts_with(L"\\\\?\\")) {
-            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
-          }
-#endif
-          if (dir_entry.is_directory()) {
-            std::filesystem::create_directory_symlink(
-                symlink_target_absolute, dest_file_path, error);
-          } else {
-            std::filesystem::create_symlink(
-                symlink_target_absolute, dest_file_path, error);
-          }
-          if (error) {
-            env->ThrowStdErrException(error, "cp", dest_str.c_str());
-            return false;
-          }
-        }
-      } else if (dir_entry.is_directory()) {
-        auto entry_dir_path = src / dir_entry.path().filename();
-        const bool created =
-            std::filesystem::create_directory(dest_file_path, error);
-        if (error) {
-          env->ThrowStdErrException(
-              error, "cp", ConvertPathToUTF8(dest_file_path).c_str());
-          return false;
-        }
-        auto success = copy_dir_contents(entry_dir_path, dest_file_path);
-        if (!success) {
-          return false;
-        }
-        // A directory created by the copy gets the mode of its source once
-        // its contents are in (the source may be read-only).
-        if (created) {
-          std::filesystem::permissions(
-              dest_file_path, dir_entry.status().permissions(), error);
-          if (error) {
-            env->ThrowStdErrException(
-                error, "cp", ConvertPathToUTF8(dest_file_path).c_str());
-            return false;
-          }
-        }
-      } else if (dir_entry.is_regular_file()) {
-        std::filesystem::copy_file(
-            dir_entry.path(), dest_file_path, file_copy_opts, error);
-        if (error) {
-          if (error == std::errc::file_exists) {
-            THROW_ERR_FS_CP_EEXIST(isolate,
-                                   "[ERR_FS_CP_EEXIST]: Target already exists: "
-                                   "cp returned EEXIST (%s already exists)",
-                                   dest_file_path);
-            return false;
-          }
-          env->ThrowStdErrException(error, "cp", dest_str.c_str());
-          return false;
-        }
-
-        if (preserve_timestamps &&
-            !CopyUtimes(dir_entry.path(), dest_file_path, env)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  };
-
-  if (copy_dir_contents(src_path, dest_path) && !dest_existed) {
-    std::filesystem::permissions(
-        dest_path, std::filesystem::status(src_path).permissions(), error);
-    if (error) {
-      return env->ThrowStdErrException(error, "cp", *dest);
-    }
+  CpError error = CopyDirRecursive(src_path,
+                                   dest_path,
+                                   dest.ToString(),
+                                   {force,
+                                    dereference,
+                                    error_on_exist,
+                                    verbatim_symlinks,
+                                    preserve_timestamps,
+                                    false,
+                                    0});
+  if (error.kind != CpError::kNone) {
+    error.Throw(env);
   }
 }
+
+// JS: const job = new CpDirJob(src, dest, force, dereference, errorOnExist,
+//                              verbatimSymlinks, preserveTimestamps);
+//     job.ondone = (err) => {...}; job.run();
+// Runs CopyDirRecursive() on the thread pool for fs.cp()/fsPromises.cp().
+class CpDirJob final : public AsyncWrap, public ThreadPoolWork {
+ public:
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    Environment* env = Environment::GetCurrent(args);
+    CHECK_EQ(args.Length(), 8);
+    CHECK(args[7]->IsInt32());
+    BufferValue src(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*src);
+    ToNamespacedPath(env, &src);
+    BufferValue dest(env->isolate(), args[1]);
+    CHECK_NOT_NULL(*dest);
+    ToNamespacedPath(env, &dest);
+    new CpDirJob(env,
+                 args.This(),
+                 src.ToPath(),
+                 dest.ToPath(),
+                 dest.ToString(),
+                 {args[2]->IsTrue(),
+                  args[3]->IsTrue(),
+                  args[4]->IsTrue(),
+                  args[5]->IsTrue(),
+                  args[6]->IsTrue(),
+                  true,
+                  args[7].As<Int32>()->Value()});
+  }
+
+  static void Run(const FunctionCallbackInfo<Value>& args) {
+    CpDirJob* job;
+    ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
+    CHECK(!job->scheduled_);
+    job->scheduled_ = true;
+    job->ClearWeak();
+    job->ScheduleWork();
+  }
+
+  void DoThreadPoolWork() override {
+    error_ = CopyDirRecursive(src_, dest_, dest_display_, options_);
+  }
+
+  void AfterThreadPoolWork(int status) override {
+    Environment* env = AsyncWrap::env();
+    std::unique_ptr<CpDirJob> self(this);
+    CHECK(status == 0 || status == UV_ECANCELED);
+    if (status == UV_ECANCELED || !env->can_call_into_js()) return;
+    Isolate* isolate = env->isolate();
+    HandleScope handle_scope(isolate);
+    Context::Scope context_scope(env->context());
+    Local<Value> argv[] = {
+        Null(isolate), Undefined(isolate), Undefined(isolate)};
+    const char* special = error_.kind == CpError::kSocket    ? "socket"
+                          : error_.kind == CpError::kFifo    ? "fifo"
+                          : error_.kind == CpError::kUnknown ? "unknown"
+                                                             : nullptr;
+    if (special != nullptr) {
+      Local<Value> path;
+      if (!ToV8Value(env->context(), error_.path).ToLocal(&path)) return;
+      argv[1] = OneByteString(isolate, special);
+      argv[2] = path;
+    } else if (error_.kind != CpError::kNone) {
+      argv[0] = error_.ToException(env);
+    }
+    MakeCallback(env->ondone_string(), arraysize(argv), argv);
+  }
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(CpDirJob)
+  SET_SELF_SIZE(CpDirJob)
+
+ private:
+  CpDirJob(Environment* env,
+           Local<Object> object,
+           std::filesystem::path&& src,
+           std::filesystem::path&& dest,
+           std::string&& dest_display,
+           CpDirOptions options)
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_FSREQCALLBACK),
+        ThreadPoolWork(env, "fs.cp"),
+        src_(std::move(src)),
+        dest_(std::move(dest)),
+        dest_display_(std::move(dest_display)),
+        options_(options) {
+    MakeWeak();
+  }
+
+  const std::filesystem::path src_;
+  const std::filesystem::path dest_;
+  const std::string dest_display_;
+  const CpDirOptions options_;
+  CpError error_;
+  bool scheduled_ = false;
+};
 
 BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
     Environment* env, const std::string& file_path) {
@@ -5269,6 +5558,12 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "cpSyncOverrideFile", CpSyncOverrideFile);
   SetMethod(isolate, target, "cpSyncCopyDir", CpSyncCopyDir);
 
+  Local<FunctionTemplate> cpj = NewFunctionTemplate(isolate, CpDirJob::New);
+  cpj->InstanceTemplate()->SetInternalFieldCount(CpDirJob::kInternalFieldCount);
+  cpj->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+  SetProtoMethod(isolate, cpj, "run", CpDirJob::Run);
+  SetConstructorFunction(isolate, target, "CpDirJob", cpj);
+
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
   BindingData::CreatePerIsolateProperties(isolate_data, target);
 
@@ -5400,6 +5695,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CpSyncCheckPaths);
   registry->Register(CpSyncOverrideFile);
   registry->Register(CpSyncCopyDir);
+  registry->Register(CpDirJob::New);
+  registry->Register(CpDirJob::Run);
 
   registry->Register(Chmod);
   registry->Register(FChmod);
