@@ -55,6 +55,28 @@ const assert = require('assert');
 }
 
 {
+  // destroyOnReturn can preserve streams that do not auto-destroy.
+  const stream = new Readable({
+    objectMode: true,
+    autoDestroy: false,
+    read() {
+      this.push(1);
+      this.push(2);
+      this.push(null);
+    },
+  });
+
+  (async () => {
+    assert.deepStrictEqual(
+      await stream.toArray({ destroyOnReturn: false }),
+      [1, 2],
+    );
+    assert.strictEqual(stream.destroyed, false);
+    stream.destroy();
+  })().then(common.mustCall());
+}
+
+{
   // Support for AbortSignal
   const ac = new AbortController();
   let stream;
@@ -88,6 +110,12 @@ const assert = require('assert');
   assert.rejects(async () => {
     await Readable.from([1]).toArray({
       signal: true
+    });
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+
+  assert.rejects(async () => {
+    await Readable.from([1]).toArray({
+      destroyOnReturn: 'false'
     });
   }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
 }
