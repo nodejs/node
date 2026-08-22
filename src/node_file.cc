@@ -47,6 +47,7 @@
 #include <errno.h>
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
@@ -78,6 +79,7 @@ using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Nothing;
 using v8::Null;
 using v8::Number;
@@ -2423,24 +2425,172 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// Matches lib/internal/url.js isURL(): duck-type WHATWG URL objects vs
+// legacy url.parse() results (which have `auth` and `path` properties).
+static bool IsUrlLike(Environment* env, Local<Value> value) {
+  if (!value->IsObject() || value->IsUint8Array()) {
+    return false;
+  }
+
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> obj = value.As<Object>();
+
+  Local<Value> href;
+  if (!obj->Get(context, env->href_string()).ToLocal(&href)) {
+    return false;
+  }
+  if (!href->BooleanValue(isolate)) {
+    return false;
+  }
+
+  Local<Value> protocol;
+  if (!obj->Get(context, env->protocol_string()).ToLocal(&protocol)) {
+    return false;
+  }
+  if (!protocol->BooleanValue(isolate)) {
+    return false;
+  }
+
+  Local<Value> auth;
+  if (!obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "auth"))
+           .ToLocal(&auth)) {
+    return false;
+  }
+
+  Local<Value> path;
+  if (!obj->Get(context, env->path_string()).ToLocal(&path)) {
+    return false;
+  }
+
+  return auth->IsUndefined() && path->IsUndefined();
+}
+
+static bool ContainsNul(const BufferValue& path) {
+  return path.length() > 0 &&
+         std::memchr(path.out(), '\0', path.length()) != nullptr;
+}
+
+// C++ equivalent of getValidatedPath(value, propName), used by CopyFile for
+// the sync, callback, and promises paths. Accepts string, Uint8Array/Buffer,
+// or WHATWG URL, rejects embedded NUL bytes, and converts file: URLs to
+// paths. Returns an empty MaybeLocal and throws on failure.
+static MaybeLocal<Value> GetValidatedPath(Environment* env,
+                                          Local<Value> input,
+                                          const char* prop_name) {
+  Isolate* isolate = env->isolate();
+
+  if (input->IsString() || input->IsUint8Array()) {
+    return input;
+  }
+
+  if (IsUrlLike(env, input)) {
+    Local<Context> context = env->context();
+    Local<Value> href;
+    if (!input.As<Object>()->Get(context, env->href_string()).ToLocal(&href)) {
+      return MaybeLocal<Value>();
+    }
+
+    Utf8Value href_utf8(isolate, href);
+    auto parsed = ada::parse<ada::url_aggregator>(href_utf8.ToStringView());
+    if (!parsed) {
+      url::ThrowInvalidURL(env, href_utf8.ToStringView(), std::nullopt);
+      return MaybeLocal<Value>();
+    }
+
+    // Match lib/internal/url.js fileURLToPath(): non-file schemes throw
+    // ERR_INVALID_URL_SCHEME with the same message as JS (`file`, not `file:`).
+    if (parsed->type != ada::scheme::FILE) {
+      THROW_ERR_INVALID_URL_SCHEME(isolate, "The URL must be of scheme file");
+      return MaybeLocal<Value>();
+    }
+
+    std::optional<std::string> file_path = url::FileURLToPath(env, *parsed);
+    if (!file_path.has_value()) {
+      return MaybeLocal<Value>();
+    }
+
+    if (file_path->find('\0') != std::string::npos) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "The argument '%s' must be a string, Uint8Array, or URL "
+          "without null bytes. Received %s",
+          prop_name,
+          DetermineSpecificErrorType(env, input));
+      return MaybeLocal<Value>();
+    }
+
+    Local<String> path_string;
+    if (!String::NewFromUtf8(isolate,
+                             file_path->data(),
+                             NewStringType::kNormal,
+                             static_cast<int>(file_path->size()))
+             .ToLocal(&path_string)) {
+      return MaybeLocal<Value>();
+    }
+    return path_string;
+  }
+
+  if (isolate->HasPendingException()) {
+    return MaybeLocal<Value>();
+  }
+
+  THROW_ERR_INVALID_ARG_TYPE(
+      env,
+      "The \"%s\" argument must be of type string or an instance of "
+      "Buffer or URL. Received %s",
+      prop_name,
+      DetermineSpecificErrorType(env, input));
+  return MaybeLocal<Value>();
+}
+
+// Shared by the sync, callback, and promises copyFile paths. Path validation
+// (string / Uint8Array / file: URL, NUL checks) happens here so JS callers
+// can pass the original arguments through.
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);  // src, dest, flags
+  CHECK_GE(argc, 3);  // src, dest, flags[, req]
+
+  Local<Value> src_val;
+  if (!GetValidatedPath(env, args[0], "src").ToLocal(&src_val)) {
+    return;
+  }
+  Local<Value> dest_val;
+  if (!GetValidatedPath(env, args[1], "dest").ToLocal(&dest_val)) {
+    return;
+  }
+
+  BufferValue src(isolate, src_val);
+  CHECK_NOT_NULL(*src);
+  if (ContainsNul(src)) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "The argument 'src' must be a string, Uint8Array, or URL "
+        "without null bytes. Received %s",
+        DetermineSpecificErrorType(env, args[0]));
+    return;
+  }
+
+  BufferValue dest(isolate, dest_val);
+  CHECK_NOT_NULL(*dest);
+  if (ContainsNul(dest)) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "The argument 'dest' must be a string, Uint8Array, or URL "
+        "without null bytes. Received %s",
+        DetermineSpecificErrorType(env, args[1]));
+    return;
+  }
 
   int flags;
   if (!GetValidFileMode(env, args[2], UV_FS_COPYFILE).To(&flags)) {
     return;
   }
 
-  BufferValue src(isolate, args[0]);
-  CHECK_NOT_NULL(*src);
   ToNamespacedPath(env, &src);
-
-  BufferValue dest(isolate, args[1]);
-  CHECK_NOT_NULL(*dest);
   ToNamespacedPath(env, &dest);
 
   if (argc > 3) {  // copyFile(src, dest, flags, req)
