@@ -397,7 +397,7 @@ export default [
   // #region markdown config
   {
     files: ['**/*.md'],
-    ignores: ['CLAUDE.md', 'AGENTS.md'],
+    ignores: ['CLAUDE.md'],
     plugins: {
       markdown,
     },
