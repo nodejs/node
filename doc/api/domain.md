@@ -3,6 +3,10 @@
 <!-- YAML
 deprecated: v1.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65074
+    description: Loading the module now emits a runtime deprecation warning
+                 (`DEP0032`).
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15695
     description: Any `Promise`s created in VM contexts no longer have a
@@ -21,12 +25,11 @@ changes:
 
 <!-- source_link=lib/domain.js -->
 
-**This module is pending deprecation.** Once a replacement API has been
-finalized, this module will be fully deprecated. Most developers should
-**not** have cause to use this module. Users who absolutely must have
-the functionality that domains provide may rely on it for the time being
-but should expect to have to migrate to a different solution
-in the future.
+**This module is deprecated and should not be used.** Loading the module emits
+a runtime deprecation warning (`DEP0032`). Most developers should **not** have
+cause to use this module. Users who absolutely must have the functionality
+that domains provide may rely on it for the time being but should expect to
+have to migrate to a different solution in the future.
 
 Domains provide a way to handle multiple different IO operations as a
 single group. If any of the event emitters or callbacks registered to a
