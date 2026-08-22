@@ -396,15 +396,7 @@ std::optional<std::string> CryptoErrorList::pop_front() {
 
 // ============================================================================
 DataPointer DataPointer::Alloc(size_t len) {
-#ifdef OPENSSL_IS_BORINGSSL
-  // Boringssl does not implement OPENSSL_zalloc
-  auto ptr = OPENSSL_malloc(len);
-  if (ptr == nullptr) return {};
-  memset(ptr, 0, len);
-  return DataPointer(ptr, len);
-#else
   return DataPointer(OPENSSL_zalloc(len), len);
-#endif
 }
 
 DataPointer DataPointer::SecureAlloc(size_t len) {
@@ -427,18 +419,11 @@ DataPointer DataPointer::SecureAlloc(size_t len) {
 }
 
 size_t DataPointer::GetSecureHeapUsed() {
-#ifndef OPENSSL_IS_BORINGSSL
   return CRYPTO_secure_malloc_initialized() ? CRYPTO_secure_used() : 0;
-#else
-  // BoringSSL does not have the secure heap and therefore
-  // will always return 0.
-  return 0;
-#endif
 }
 
 DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(size_t amount,
                                                                  size_t min) {
-#ifndef OPENSSL_IS_BORINGSSL
   switch (CRYPTO_secure_malloc_init(amount, min)) {
     case 0:
       return InitSecureHeapResult::FAILED;
@@ -449,10 +434,6 @@ DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(size_t amount,
     default:
       return InitSecureHeapResult::FAILED;
   }
-#else
-  // BoringSSL does not actually support the secure heap
-  return InitSecureHeapResult::FAILED;
-#endif
 }
 
 DataPointer DataPointer::Copy(const Buffer<const void>& buffer) {
@@ -580,12 +561,7 @@ BignumPointer BignumPointer::New() {
 }
 
 BignumPointer BignumPointer::NewSecure() {
-#ifdef OPENSSL_IS_BORINGSSL
-  // Boringssl does not implement BN_secure_new.
-  return New();
-#else
   return BignumPointer(BN_secure_new());
-#endif
 }
 
 BignumPointer& BignumPointer::operator=(BignumPointer&& other) noexcept {
@@ -2276,14 +2252,11 @@ DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
   if (DH_check_pub_key(dh_.get(), pub_key.get(), &codes) != 1) {
     return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
   }
-#ifndef OPENSSL_IS_BORINGSSL
-  // Boringssl does not define DH_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
   if (codes & DH_CHECK_PUBKEY_TOO_SMALL) {
     return DHPointer::CheckPublicKeyResult::TOO_SMALL;
   } else if (codes & DH_CHECK_PUBKEY_TOO_LARGE) {
     return DHPointer::CheckPublicKeyResult::TOO_LARGE;
   }
-#endif
   if (codes != 0) {
     return DHPointer::CheckPublicKeyResult::INVALID;
   }
@@ -4288,59 +4261,6 @@ std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
   return std::nullopt;
 }
 
-const char* SSLPointer::getClientHelloAlpn() const {
-  if (ssl_ == nullptr) return {};
-#ifndef OPENSSL_IS_BORINGSSL
-  const unsigned char* buf;
-  size_t len;
-  size_t rem;
-
-  if (!SSL_client_hello_get0_ext(
-          get(),
-          TLSEXT_TYPE_application_layer_protocol_negotiation,
-          &buf,
-          &rem) ||
-      rem < 2) {
-    return {};
-  }
-
-  len = (buf[0] << 8) | buf[1];
-  if (len + 2 != rem) return {};
-  return reinterpret_cast<const char*>(buf + 3);
-#else
-  // Boringssl doesn't have a public API for this.
-  return {};
-#endif
-}
-
-const char* SSLPointer::getClientHelloServerName() const {
-  if (ssl_ == nullptr) return {};
-#ifndef OPENSSL_IS_BORINGSSL
-  const unsigned char* buf;
-  size_t len;
-  size_t rem;
-
-  if (!SSL_client_hello_get0_ext(get(), TLSEXT_TYPE_server_name, &buf, &rem) ||
-      rem <= 2) {
-    return {};
-  }
-
-  len = (*buf << 8) | *(buf + 1);
-  if (len + 2 != rem) return {};
-  rem = len;
-
-  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return {};
-  rem--;
-  if (rem <= 2) return {};
-  len = (*(buf + 3) << 8) | *(buf + 4);
-  if (len + 2 > rem) return {};
-  return reinterpret_cast<const char*>(buf + 5);
-#else
-  // Boringssl doesn't have a public API for this.
-  return {};
-#endif
-}
-
 std::optional<const std::string_view> SSLPointer::GetServerName(
     const SSL* ssl) {
   if (ssl == nullptr) return std::nullopt;
@@ -4386,6 +4306,13 @@ std::optional<std::string_view> SSLPointer::getNegotiatedGroup() const {
   const char* group = SSL_get0_group_name(get());
   if (group == nullptr) return std::nullopt;
   return group;
+#elif defined(OPENSSL_IS_BORINGSSL)
+  if (!ssl_) return std::nullopt;
+  const int nid = SSL_get_negotiated_group(get());
+  if (nid == NID_undef) return std::nullopt;
+  const char* group = OBJ_nid2sn(nid);
+  if (group == nullptr) return std::nullopt;
+  return group;
 #else
   return std::nullopt;
 #endif
@@ -4410,19 +4337,17 @@ std::optional<std::string_view> SSLPointer::getCipherVersion() const {
 }
 
 std::optional<int> SSLPointer::getSecurityLevel() {
-#ifndef OPENSSL_IS_BORINGSSL
   auto ctx = SSLCtxPointer::New();
   if (!ctx) return std::nullopt;
 
+#ifdef OPENSSL_IS_BORINGSSL
+  return SSL_CTX_get_security_level(ctx.get());
+#else
   auto ssl = SSLPointer::New(ctx);
   if (!ssl) return std::nullopt;
 
   return SSL_get_security_level(ssl);
-#else
-  // OPENSSL_TLS_SECURITY_LEVEL is not defined in BoringSSL
-  // so assume it is the default OPENSSL_TLS_SECURITY_LEVEL value.
-  return 1;
-#endif  // OPENSSL_IS_BORINGSSL
+#endif
 }
 
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}

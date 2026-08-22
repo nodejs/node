@@ -137,12 +137,9 @@ function testRenegotiationUnsupported() {
 }
 
 /**
- * OpenSSL exposes the negotiated ephemeral key type, name, and size for TLS
- * clients. With BoringSSL the same ECDHE TLS 1.2 handshake succeeds, but
- * getEphemeralKeyInfo() returns null on the server side and an object whose
- * fields are undefined on the client side.
+ * BoringSSL exposes the negotiated TLS group but not the ephemeral key size.
  */
-function testEphemeralKeyInfoUnsupported() {
+function testEphemeralKeyInfo() {
   const server = tls.createServer({
     key: fixtures.readKey('agent2-key.pem'),
     cert: fixtures.readKey('agent2-cert.pem'),
@@ -161,8 +158,8 @@ function testEphemeralKeyInfoUnsupported() {
       maxVersion: 'TLSv1.2',
     }, common.mustCall(() => {
       assert.deepStrictEqual(client.getEphemeralKeyInfo(), {
-        type: undefined,
-        name: undefined,
+        type: 'TLSGroup',
+        name: 'prime256v1',
         size: undefined,
       });
       server.close();
@@ -337,7 +334,7 @@ module.exports = {
   assertMultiKeyUnsupported,
   assertNoCipherMatch,
   assertOpenSSLSecurityLevelsUnsupported,
-  testEphemeralKeyInfoUnsupported,
+  testEphemeralKeyInfo,
   testLegacyProtocolUnsupported,
   testMultiPfxSelectionDifference,
   testPskTls13Unsupported,
