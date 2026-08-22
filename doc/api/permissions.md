@@ -258,6 +258,14 @@ does not exist, the wildcard will not be added, and access will be limited to
 yet, make sure to explicitly include the wildcard:
 `/my-path/folder-do-not-exist/*`.
 
+Some `node:fs` operations act on an already-open file descriptor rather than a
+path, so they cannot be tied to a `--allow-fs-read` or `--allow-fs-write` grant.
+When the permission model is enabled these operations are disabled and throw
+`ERR_ACCESS_DENIED`, regardless of how the descriptor was obtained. This applies
+both to the top-level `node:fs` functions and to the equivalent
+`FileHandle` methods, and currently includes `fsync`/`fdatasync`,
+`fchmod`, and `fchown` (and their synchronous variants).
+
 #### Configuration file support
 
 In addition to passing permission flags on the command line, they can also be
