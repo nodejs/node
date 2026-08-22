@@ -10,12 +10,62 @@ COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
+escape_code_block_or_line() {
+  case $1 in
+    *"
+"*|'') fence='```' sep='
+' ;;
+    *[![:space:]]*) fence='`' sep=' ' ;;
+    *) fence='`' sep='' ;;
+  esac
+  while case $1 in *"$fence"*) ;; *) false ;; esac; do
+    fence=$fence'`'
+  done
+  printf '%s%s%s%s%s\n' "$fence" "$sep" "$1" "$sep" "$fence"
+}
+
 commit_queue_failed() {
   pr=$1
+  reported_failure=${2:-}
 
   gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
-  body="<details><summary>Commit Queue failed</summary><pre>$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' output)</pre><a href='$cqurl'>$cqurl</a></details>"
+  last_output_line=$(awk 'NF { line = $0 } END { sub(/^[[:space:]]*/, "", line); print line }' output)
+  # shellcheck disable=SC2016
+  missing_policy_message='ℹ  Add `commit-queue-squash` label to land the PR as one commit, or `commit-queue-rebase` to land as separate commits.'
+  if [ "$last_output_line" = "$missing_policy_message" ]; then
+    failure_body='This pull request has multiple commits, but no landing policy was selected.
+
+Add https://github.com/nodejs/node/labels/commit-queue-squash to land it as one commit, or https://github.com/nodejs/node/labels/commit-queue-rebase to land the commits separately.'
+  else
+    if [ -z "$reported_failure" ]; then
+      reported_failure=$(grep -e '✘' -e '⚠' output | tail -n 10)
+    fi
+    if [ -z "$reported_failure" ]; then
+      reported_failure=$(tail -n 10 output)
+    fi
+    if [ -z "$reported_failure" ]; then
+      reported_failure='No failure reason was reported.'
+    fi
+    failure_body=$(escape_code_block_or_line "$reported_failure")
+  fi
+
+  raw_output=$(cat output)
+
+  body="### Commit Queue failed
+
+$failure_body
+
+The pull request was removed from the Commit Queue and labeled https://github.com/nodejs/node/labels/commit-queue-failed. After resolving the failure, remove that label and add https://github.com/nodejs/node/labels/commit-queue to retry.
+
+<details>
+<summary>Full Commit Queue output</summary>
+
+$(escape_code_block_or_line "$raw_output")
+
+</details>
+
+[View workflow run]($cqurl)"
   echo "$body"
 
   gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "$body"
@@ -63,7 +113,8 @@ for pr in "$@"; do
     commits="${start_sha}...${end_sha}"
 
     if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
-      commit_queue_failed "$pr"
+      commit_queue_failed "$pr" \
+        "Failed to push the landed commits to ${UPSTREAM}/${DEFAULT_BRANCH}."
       continue
     fi
   else
@@ -80,9 +131,10 @@ for pr in "$@"; do
         --arg head "${commit_head}" \
         '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' |\
       gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr}/merge" --input -\
-        --jq 'if .merged then .sha else halt_error end'
+        --jq 'if .merged then .sha else halt_error end' 2>> output
     )"; then
-      commit_queue_failed "$pr"
+      commit_queue_failed "$pr" \
+        'GitHub failed to squash and merge this pull request.'
       continue
     fi
   fi
