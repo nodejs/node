@@ -163,7 +163,6 @@ install_manifest.txt
 
 # === Rules for AI assistants ===
 CLAUDE.md
-AGENTS.md
 
 # === Global Rules ===
 # Keep last to avoid being excluded
