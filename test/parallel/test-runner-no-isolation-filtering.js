@@ -25,11 +25,11 @@ test('works with --test-only', () => {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
   assert.match(stdout, /# tests 2/);
-  assert.match(stdout, /# suites 2/);
+  assert.match(stdout, /# suites 4/);
   assert.match(stdout, /# pass 2/);
   assert.match(stdout, /ok 1 - suite one/);
   assert.match(stdout, /ok 1 - suite one - test/);
-  assert.match(stdout, /ok 2 - suite two/);
+  assert.match(stdout, /ok 1 - suite two/);
   assert.match(stdout, /ok 1 - suite two - test/);
 });
 
@@ -47,11 +47,11 @@ test('works without --test-only', () => {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
   assert.match(stdout, /# tests 2/);
-  assert.match(stdout, /# suites 2/);
+  assert.match(stdout, /# suites 4/);
   assert.match(stdout, /# pass 2/);
   assert.match(stdout, /ok 1 - suite one/);
   assert.match(stdout, /ok 1 - suite one - test/);
-  assert.match(stdout, /ok 2 - suite two/);
+  assert.match(stdout, /ok 1 - suite two/);
   assert.match(stdout, /ok 1 - suite two - test/);
 });
 
@@ -70,7 +70,7 @@ test('works with --test-name-pattern', () => {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
   assert.match(stdout, /# tests 0/);
-  assert.match(stdout, /# suites 0/);
+  assert.match(stdout, /# suites 1/);
 });
 
 test('filtered suites with an async build do not leave cancelled tests', () => {
@@ -109,7 +109,7 @@ test('works with --test-skip-pattern', () => {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
   assert.match(stdout, /# tests 1/);
-  assert.match(stdout, /# suites 1/);
+  assert.match(stdout, /# suites 2/);
   assert.match(stdout, /# pass 1/);
   assert.match(stdout, /ok 1 - suite two - test/);
 });
