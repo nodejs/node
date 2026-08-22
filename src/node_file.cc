@@ -4041,6 +4041,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
                        force,
                        error_on_exist,
                        dereference,
+                       dest_path,
                        &isolate](std::filesystem::path src,
                                  std::filesystem::path dest) {
     std::error_code error;
@@ -4064,6 +4065,15 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
             return false;
           }
 
+          auto symlink_target_absolute = std::filesystem::weakly_canonical(
+              std::filesystem::absolute(src / symlink_target));
+#ifdef _WIN32
+          auto wstr = symlink_target_absolute.wstring();
+          if (wstr.starts_with(L"\\\\?\\")) {
+            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
+          }
+#endif
+
           if (std::filesystem::exists(dest_file_path)) {
             if (std::filesystem::is_symlink((dest_file_path.c_str()))) {
               auto current_dest_symlink_target =
@@ -4073,9 +4083,29 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
                 return false;
               }
 
+              // A symlink that resolves to the same target as the destination
+              // symlink is not a self-copy, unless the target is the
+              // destination directory itself or one of its ancestors.
+              auto current_dest_symlink_target_absolute =
+                  std::filesystem::weakly_canonical(
+                      std::filesystem::absolute(dest_file_path.parent_path() /
+                                                current_dest_symlink_target));
+#ifdef _WIN32
+              auto wstr2 = current_dest_symlink_target_absolute.wstring();
+              if (wstr2.starts_with(L"\\\\?\\")) {
+                current_dest_symlink_target_absolute =
+                    std::filesystem::path(wstr2.substr(4));
+              }
+#endif
+              bool same_target =
+                  symlink_target_absolute ==
+                      current_dest_symlink_target_absolute &&
+                  !isInsideDir(symlink_target_absolute, dest_path);
+
               if (!dereference &&
                   std::filesystem::is_directory(symlink_target) &&
-                  isInsideDir(symlink_target, current_dest_symlink_target)) {
+                  isInsideDir(symlink_target, current_dest_symlink_target) &&
+                  !same_target) {
                 static constexpr const char* message =
                     "Cannot copy %s to a subdirectory of self %s";
                 THROW_ERR_FS_CP_EINVAL(
@@ -4087,7 +4117,8 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               // dest in this case would result in removing src contents
               // and therefore a broken symlink would be created.
               if (std::filesystem::is_directory(dest_file_path) &&
-                  isInsideDir(current_dest_symlink_target, symlink_target)) {
+                  isInsideDir(current_dest_symlink_target, symlink_target) &&
+                  !same_target) {
                 static constexpr const char* message =
                     "cannot overwrite %s with %s";
                 THROW_ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY(
@@ -4114,14 +4145,6 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               }
             }
           }
-          auto symlink_target_absolute = std::filesystem::weakly_canonical(
-              std::filesystem::absolute(src / symlink_target));
-#ifdef _WIN32
-          auto wstr = symlink_target_absolute.wstring();
-          if (wstr.starts_with(L"\\\\?\\")) {
-            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
-          }
-#endif
           if (dir_entry.is_directory()) {
             std::filesystem::create_directory_symlink(
                 symlink_target_absolute, dest_file_path, error);
