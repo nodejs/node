@@ -58,10 +58,18 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   ]);
 
   if (!isRequire) {
-    // No exports or main field
-    validSpecifiers.set('no_exports', { default: 'index' });
-    // Main field without extension
-    validSpecifiers.set('default_index', { default: 'main' });
+    // DEP0151 End-of-Life: ESM main resolution requires an explicit
+    // "exports" or "main" entry with the exact file extension.
+    const legacyMainErrors = new Map([
+      ['no_exports', 'Default "index" lookups'],
+      ['default_index', 'Automatic extension resolution'],
+    ]);
+    for (const [specifier, message] of legacyMainErrors) {
+      loadFixture(specifier).catch(mustCall((err) => {
+        assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+        assertIncludes(err.message, message);
+      }));
+    }
   }
 
   for (const [validSpecifier, expected] of validSpecifiers) {

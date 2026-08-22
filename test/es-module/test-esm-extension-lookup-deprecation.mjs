@@ -47,7 +47,7 @@ describe('ESM in main field', { concurrency: !process.env.TEST_PARALLEL }, () =>
     assert.strictEqual(code, 0);
   });
 
-  it('should emit warning when "main" and "exports" are missing', async () => {
+  it('should throw when "main" and "exports" are missing', async () => {
     const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
@@ -60,11 +60,12 @@ describe('ESM in main field', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval', 'import "pkg"',
     ], { cwd });
 
-    assert.match(stderr, /\[DEP0151\]/);
-    assert.match(stdout, /^Hello World!\r?\n$/);
-    assert.strictEqual(code, 0);
+    assert.match(stderr, /ERR_INVALID_PACKAGE_CONFIG/);
+    assert.match(stderr, /Default "index" lookups for the main are not supported for ES modules/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
   });
-  it('should emit warning when "main" is falsy', async () => {
+  it('should throw when "main" is falsy', async () => {
     const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
@@ -78,11 +79,12 @@ describe('ESM in main field', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval', 'import "pkg"',
     ], { cwd });
 
-    assert.match(stderr, /\[DEP0151\]/);
-    assert.match(stdout, /^Hello World!\r?\n$/);
-    assert.strictEqual(code, 0);
+    assert.match(stderr, /ERR_INVALID_PACKAGE_CONFIG/);
+    assert.match(stderr, /Default "index" lookups for the main are not supported for ES modules/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
   });
-  it('should emit warning when "main" is a relative path without extension', async () => {
+  it('should throw when "main" is a relative path without extension', async () => {
     const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
@@ -96,11 +98,12 @@ describe('ESM in main field', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval', 'import "pkg"',
     ], { cwd });
 
-    assert.match(stderr, /\[DEP0151\]/);
-    assert.match(stdout, /^Hello World!\r?\n$/);
-    assert.strictEqual(code, 0);
+    assert.match(stderr, /ERR_INVALID_PACKAGE_CONFIG/);
+    assert.match(stderr, /Automatic extension resolution of the "main" field is not supported/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
   });
-  it('should emit warning when "main" is an absolute path without extension', async () => {
+  it('should throw when "main" is an absolute path without extension', async () => {
     const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
@@ -114,7 +117,23 @@ describe('ESM in main field', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval', 'import "pkg"',
     ], { cwd });
 
-    assert.match(stderr, /\[DEP0151\]/);
+    assert.match(stderr, /ERR_INVALID_PACKAGE_CONFIG/);
+    assert.match(stderr, /Automatic extension resolution of the "main" field is not supported/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
+  });
+  it('should still resolve CommonJS packages via index lookup', async () => {
+    const cwd = tmpdir.resolve(Math.random().toString());
+    const pkgPath = path.join(cwd, './node_modules/pkg/');
+    await mkdir(pkgPath, { recursive: true });
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({}));
+    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+      '--input-type=module',
+      '--eval', 'import "pkg"',
+    ], { cwd });
+
+    assert.strictEqual(stderr, '');
     assert.match(stdout, /^Hello World!\r?\n$/);
     assert.strictEqual(code, 0);
   });

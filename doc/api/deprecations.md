@@ -3404,6 +3404,9 @@ to change the value will be removed in a future version of Node.js.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65289
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37206
     description: Runtime deprecation.
@@ -3415,13 +3418,13 @@ changes:
                  with `--pending-deprecation` support.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Previously, `index.js` and extension searching lookups would apply to
-`import 'pkg'` main entry point resolution, even when resolving ES modules.
+`index.js` and extension searching lookups no longer apply to
+`import 'pkg'` main entry point resolution when resolving ES modules.
 
-With this deprecation, all ES module main entry point resolutions require
-an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
+All ES module main entry point resolutions require an explicit
+[`"exports"` or `"main"` entry][] with the exact file extension.
 
 ### DEP0152: Extension PerformanceEntry properties
 
