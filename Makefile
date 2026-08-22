@@ -1288,7 +1288,7 @@ ifneq ($(SKIP_SHARED_DEPS), 1)
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
 endif
-	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
+	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
@@ -1480,7 +1480,7 @@ else
 LINT_MD_NEWER = -newer tools/.mdlintstamp
 endif
 
-LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md AGENTS.md,$(wildcard *.md))
+LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md,$(wildcard *.md))
 LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
