@@ -2346,6 +2346,19 @@ If \fBvalue\fR equals \fB'child'\fR, test reporter options will be overridden an
 output will be sent to stdout in the TAP format. If any other value is provided,
 Node.js makes no guarantees about the reporter format used or its stability.
 .
+.It Ev NODE_TEST_COVERAGE_EXCLUDE_NODE_MODULES Ar 1
+When the coverage filter requested by \fBNODE_TEST_COVERAGE_FILTER_DIR\fR is
+active, scripts located inside a node_modules directory are also omitted from
+the written coverage data.
+.
+.It Ev NODE_TEST_COVERAGE_FILTER_DIR Ar dir
+Set by the test runner, along with \fBNODE_V8_COVERAGE\fR, while it is collecting
+code coverage. If the directory that a process writes its code coverage data
+to matches \fBdir\fR exactly, coverage data for scripts that cannot appear in the
+test runner's coverage report, such as Node.js internals, is omitted from the
+written files. This environment variable is an implementation detail of the
+test runner and is not meant to be set manually.
+.
 .It Ev NODE_TLS_REJECT_UNAUTHORIZED Ar value
 If \fBvalue\fR equals \fB'0'\fR, certificate validation is disabled for TLS connections.
 This makes TLS, and HTTPS by extension, insecure. The use of this environment

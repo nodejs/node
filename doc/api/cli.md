@@ -4149,6 +4149,32 @@ If `value` equals `'child'`, test reporter options will be overridden and test
 output will be sent to stdout in the TAP format. If any other value is provided,
 Node.js makes no guarantees about the reporter format used or its stability.
 
+### `NODE_TEST_COVERAGE_EXCLUDE_NODE_MODULES=1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When the coverage filter requested by [`NODE_TEST_COVERAGE_FILTER_DIR`][] is
+active, scripts located inside a `node_modules` directory are also omitted
+from the written coverage data.
+
+### `NODE_TEST_COVERAGE_FILTER_DIR=dir`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Set by the test runner, along with [`NODE_V8_COVERAGE`][], while it is
+collecting code coverage. If the directory that a process writes its code
+coverage data to matches `dir` exactly, coverage data for scripts that cannot
+appear in the test runner's coverage report, such as Node.js internals, is
+omitted from the written files. Coverage written to any other directory is
+not affected.
+
+This environment variable is an implementation detail of the test runner and
+is not meant to be set manually.
+
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
 If `value` equals `'0'`, certificate validation is disabled for TLS connections.
@@ -4544,7 +4570,9 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
+[`NODE_TEST_COVERAGE_FILTER_DIR`]: #node_test_coverage_filter_dirdir
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
+[`NODE_V8_COVERAGE`]: #node_v8_coveragedir
 [`NO_COLOR`]: https://no-color.org
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
