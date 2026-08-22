@@ -18,30 +18,29 @@ const cert = fixtures.readKey('agent1-cert.pem');
 // Verify the negotiated protocol matches on both sides.
 
 const serverOpened = Promise.withResolvers();
-const clientOpened = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.opened.then(mustCall((info) => {
-    // The server should negotiate proto-b (client's choice from server's list)
-    assert.strictEqual(info.protocol, 'proto-b');
-    serverOpened.resolve();
-    serverSession.close();
-  }));
+async function checkSession(session) {
+  const info = await session.opened;
+  // The client should negotiate proto-b (the only protocol it requested)
+  assert.strictEqual(info.protocol, 'proto-b');
+}
+
+const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  await checkSession(serverSession);
+  serverOpened.resolve();
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
   alpn: ['proto-a', 'proto-b', 'proto-c'],
 });
 
-assert.ok(serverEndpoint.address !== undefined);
+assert.notStrictEqual(serverEndpoint.address, undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'proto-b',
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
-clientSession.opened.then(mustCall((info) => {
-  assert.strictEqual(info.protocol, 'proto-b');
-  clientOpened.resolve();
-}));
 
-await Promise.all([serverOpened.promise, clientOpened.promise]);
-clientSession.close();
+await Promise.all([serverOpened.promise, checkSession(clientSession)]);
+await clientSession.close();
+await serverEndpoint.close();

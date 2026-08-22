@@ -12,10 +12,6 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
-
 #include "math.h"
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -59,6 +55,24 @@ using v8::TryCatch;
 using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
+
+void MemoryRetainerTraits<crypto::ByteSource>::MemoryInfo(
+    MemoryTracker* tracker, const crypto::ByteSource& value) {
+  // Foreign ByteSources do not own the memory that they reference.
+  if (value.allocated_data_ != nullptr) {
+    tracker->TrackFieldWithSize("data", value.size_);
+  }
+}
+
+const char* MemoryRetainerTraits<crypto::ByteSource>::MemoryInfoName(
+    const crypto::ByteSource& value) {
+  return "ByteSource";
+}
+
+size_t MemoryRetainerTraits<crypto::ByteSource>::SelfSize(
+    const crypto::ByteSource& value) {
+  return sizeof(value);
+}
 
 namespace crypto {
 
@@ -505,7 +519,11 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const char* fs = nullptr;
+#else
   const char* fs = ERR_func_error_string(err);
+#endif
   const char* rs = ERR_reason_error_string(err);
 
   Isolate* isolate = env->isolate();

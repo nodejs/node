@@ -82,6 +82,18 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     }
 
+    // When collecting source positions for profiling, create a graph labeller
+    // so per-node provenance (including inlined positions) is recorded during
+    // graph building and a real source position table can be attached to the
+    // Code object.
+    // Upstream V8 folds this into the single graph-labeller condition; node's
+    // V8 creates the labeller in a differently-shaped block, so the condition
+    // is added separately here.
+    if (compilation_info->collect_source_positions() &&
+        !compilation_info->has_graph_labeller()) {
+      compilation_info->set_graph_labeller(new MaglevGraphLabeller());
+    }
+
     if (is_tracing_enabled &&
         (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
          v8_flags.print_maglev_graphs || v8_flags.trace_maglev_graph_building ||

@@ -21,8 +21,7 @@ using v8::Uint32;
 using v8::Value;
 
 Argon2Config::Argon2Config(Argon2Config&& other) noexcept
-    : mode{other.mode},
-      key{std::move(other.key)},
+    : key{std::move(other.key)},
       pass{std::move(other.pass)},
       salt{std::move(other.salt)},
       secret{std::move(other.secret)},
@@ -40,13 +39,13 @@ Argon2Config& Argon2Config::operator=(Argon2Config&& other) noexcept {
 }
 
 void Argon2Config::MemoryInfo(MemoryTracker* tracker) const {
-  if (key) tracker->TrackField("key", key);
-  if (IsCryptoJobAsync(mode)) {
-    if (!key) tracker->TrackFieldWithSize("pass", pass.size());
-    tracker->TrackFieldWithSize("salt", salt.size());
-    tracker->TrackFieldWithSize("secret", secret.size());
-    tracker->TrackFieldWithSize("ad", ad.size());
-  }
+  if (key)
+    tracker->TrackField("key", key);
+  else
+    tracker->TraitTrackInline(pass, "pass");
+  tracker->TraitTrackInline(salt, "salt");
+  tracker->TraitTrackInline(secret, "secret");
+  tracker->TraitTrackInline(ad, "ad");
 }
 
 MaybeLocal<Value> Argon2Traits::EncodeOutput(Environment* env,
@@ -61,8 +60,6 @@ Maybe<void> Argon2Traits::AdditionalConfig(
     unsigned int offset,
     Argon2Config* config) {
   Environment* env = Environment::GetCurrent(args);
-
-  config->mode = mode;
 
   CHECK(KeyObjectHandle::HasInstance(env, args[offset]) ||
         IsAnyBufferSource(args[offset]));  // pass

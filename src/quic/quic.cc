@@ -13,7 +13,7 @@
 #include "node_external_reference.h"
 
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
-#include <mutex>
+
 namespace node {
 
 using v8::Context;
@@ -25,7 +25,11 @@ using v8::Value;
 namespace quic {
 
 namespace {
-std::once_flag crypto_init_flag;
+uv_once_t crypto_init_flag = UV_ONCE_INIT;
+
+void InitNgtcp2CryptoOnce() {
+  ngtcp2_crypto_ossl_init();
+}
 }  // namespace
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
@@ -39,8 +43,8 @@ void CreatePerContextProperties(Local<Object> target,
                                 Local<Value> unused,
                                 Local<Context> context,
                                 void* priv) {
+  uv_once(&crypto_init_flag, InitNgtcp2CryptoOnce);
   Realm* realm = Realm::GetCurrent(context);
-  std::call_once(crypto_init_flag, ngtcp2_crypto_ossl_init);
   BindingData::InitPerContext(realm, target);
   Endpoint::InitPerContext(realm, target);
   Session::InitPerContext(realm, target);

@@ -19,7 +19,9 @@ using ncrypto::DataPointer;
 using ncrypto::Digest;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
 using ncrypto::RSAPointer;
+#endif
 using v8::ArrayBuffer;
 using v8::BackingStoreInitializationMode;
 using v8::FunctionCallbackInfo;
@@ -259,14 +261,12 @@ WebCryptoKeyExportStatus RSAKeyExportTraits::DoExport(
 }
 
 RSACipherConfig::RSACipherConfig(RSACipherConfig&& other) noexcept
-    : mode(other.mode),
-      label(std::move(other.label)),
+    : label(std::move(other.label)),
       padding(other.padding),
       digest(other.digest) {}
 
 void RSACipherConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (IsCryptoJobAsync(mode))
-    tracker->TrackFieldWithSize("label", label.size());
+  tracker->TraitTrackInline(label, "label");
 }
 
 Maybe<void> RSACipherTraits::AdditionalConfig(
@@ -277,7 +277,6 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
     RSACipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
   params->padding = RSA_PKCS1_OAEP_PADDING;
 
   CHECK(args[offset]->IsUint32());
@@ -355,6 +354,13 @@ bool ExportJWKRsaKey(Environment* env,
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt_key = rsa.getPrivateKey();
+    if (pub_key.d == nullptr || pvt_key.p == nullptr || pvt_key.q == nullptr ||
+        pvt_key.dp == nullptr || pvt_key.dq == nullptr ||
+        pvt_key.qi == nullptr) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to export RSA private key");
+      return false;
+    }
     if (SetEncodedValue(env, target, env->jwk_d_string(), pub_key.d)
             .IsNothing() ||
         SetEncodedValue(env, target, env->jwk_p_string(), pvt_key.p)
@@ -395,6 +401,9 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  ncrypto::Rsa rsa_view;
+#else
   RSAPointer rsa(RSA_new());
   if (!rsa) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create RSA pointer");
@@ -402,6 +411,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   }
 
   ncrypto::Rsa rsa_view(rsa.get());
+#endif
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
   ByteSource e = ByteSource::FromEncodedString(env, e_value.As<String>());
@@ -450,7 +460,11 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
     }
   }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  auto pkey = EVPKeyPointer::NewRSA(rsa_view);
+#else
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
+#endif
   if (!pkey) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Unable to create key pointer");
     return {};

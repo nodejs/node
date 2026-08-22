@@ -34,6 +34,7 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/quic.h>
 
+#include "ngtcp2_macro.h"
 #include "shared.h"
 
 #define PRINTF_DEBUG 0
@@ -55,7 +56,7 @@ ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ngtcp2_crypto_aead_init(&ctx->aead, (void *)wolfSSL_EVP_aes_128_gcm());
   ctx->md.native_handle = (void *)wolfSSL_EVP_sha256();
-  ctx->hp.native_handle = (void *)wolfSSL_EVP_aes_128_ctr();
+  ctx->hp.native_handle = (void *)wolfSSL_EVP_aes_128_ecb();
   ctx->max_encryption = 0;
   ctx->max_decryption_failure = 0;
   return ctx;
@@ -106,6 +107,21 @@ static int supported_aead(const WOLFSSL_EVP_CIPHER *aead) {
          wolfSSL_quic_aead_is_chacha20(aead) || wolfSSL_quic_aead_is_ccm(aead);
 }
 
+static const WOLFSSL_EVP_CIPHER *
+crypto_aead_get_hp(const WOLFSSL_EVP_CIPHER *aead) {
+  switch (wolfSSL_EVP_CIPHER_nid(aead)) {
+  case NID_aes_128_gcm:
+  case NID_aes_128_ccm:
+    return wolfSSL_EVP_aes_128_ecb();
+  case NID_aes_256_gcm:
+    return wolfSSL_EVP_aes_256_ecb();
+  case NID_chacha20_poly1305:
+    return wolfSSL_EVP_chacha20();
+  default:
+    return NULL;
+  }
+}
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
                                          void *tls_native_handle) {
   WOLFSSL *ssl = tls_native_handle;
@@ -121,7 +137,7 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
 
   ngtcp2_crypto_aead_init(&ctx->aead, (void *)aead);
   ctx->md.native_handle = (void *)wolfSSL_quic_get_md(ssl);
-  ctx->hp.native_handle = (void *)wolfSSL_quic_get_hp(ssl);
+  ctx->hp.native_handle = (void *)crypto_aead_get_hp(aead);
   ctx->max_encryption = crypto_aead_get_aead_max_encryption(aead);
   ctx->max_decryption_failure =
     crypto_aead_get_aead_max_decryption_failure(aead);
@@ -288,20 +304,33 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const ngtcp2_crypto_cipher_ctx *hp_ctx,
                           const uint8_t *sample) {
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  static const uint8_t PLAINTEXT[16] = {0};
   WOLFSSL_EVP_CIPHER_CTX *actx = hp_ctx->native_handle;
   int len;
 
   (void)hp;
 
-  if (wolfSSL_EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) !=
-        WOLFSSL_SUCCESS ||
-      wolfSSL_EVP_CipherUpdate(actx, dest, &len, PLAINTEXT,
-                               sizeof(PLAINTEXT) - 1) != WOLFSSL_SUCCESS ||
-      wolfSSL_EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len) !=
-        WOLFSSL_SUCCESS) {
-    DEBUG_MSG("WOLFSSL: hp_mask FAILED\n");
-    return -1;
+  switch (wolfSSL_EVP_CIPHER_CTX_nid(actx)) {
+  case NID_aes_128_ecb:
+  case NID_aes_256_ecb:
+    if (!wolfSSL_EVP_CipherUpdate(actx, dest, &len, sample,
+                                  NGTCP2_HP_SAMPLELEN)) {
+      return -1;
+    }
+
+    break;
+  case NID_chacha20:
+    if (wolfSSL_EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) !=
+          WOLFSSL_SUCCESS ||
+        wolfSSL_EVP_CipherUpdate(actx, dest, &len, PLAINTEXT,
+                                 sizeof(PLAINTEXT)) != WOLFSSL_SUCCESS ||
+        wolfSSL_EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT), &len) !=
+          WOLFSSL_SUCCESS) {
+      DEBUG_MSG("WOLFSSL: hp_mask FAILED\n");
+      return -1;
+    }
+
+    break;
   }
 
   return 0;
@@ -310,7 +339,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  WOLFSSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
+  WOLFSSL *ssl = ngtcp2_conn_get_tls_native_handle2(conn);
   WOLFSSL_ENCRYPTION_LEVEL level =
     ngtcp2_crypto_wolfssl_from_ngtcp2_encryption_level(encryption_level);
   int rv;
@@ -326,7 +355,7 @@ int ngtcp2_crypto_read_write_crypto_data(
     }
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
     rv = wolfSSL_quic_do_handshake(ssl);
     if (rv <= 0) {
       err = wolfSSL_get_error(ssl, rv);
@@ -437,6 +466,19 @@ int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
 
   DEBUG_MSG("WOLFSSL: get path challenge data\n");
   if (wolfSSL_RAND_bytes(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+
+int ngtcp2_crypto_get_path_challenge_data2_cb(ngtcp2_conn *conn,
+                                              ngtcp2_path_challenge_data *data,
+                                              void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  DEBUG_MSG("WOLFSSL: get path challenge data\n");
+  if (wolfSSL_RAND_bytes(data->data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;

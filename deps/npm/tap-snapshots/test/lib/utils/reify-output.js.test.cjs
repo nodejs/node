@@ -10,6 +10,11 @@ exports[`test/lib/utils/reify-output.js TAP added packages should be looked up w
 added 1 package in {TIME}
 `
 
+exports[`test/lib/utils/reify-output.js TAP added packages should be looked up within returned tree linked store package counted though absent from actualTree > must match snapshot 1`] = `
+
+added 1 package in {TIME}
+`
+
 exports[`test/lib/utils/reify-output.js TAP added packages should be looked up within returned tree missing added pkg in inventory > must match snapshot 1`] = `
 
 up to date in {TIME}

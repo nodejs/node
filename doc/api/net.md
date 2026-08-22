@@ -301,6 +301,11 @@ added: v0.1.90
 
 This class is used to create a TCP or [IPC][] server.
 
+A listening TCP `net.Server` can be transferred to a worker thread by listing it
+in the `transferList` of a [`worker_threads`][] `postMessage()` call. This moves
+the underlying listening socket to the receiving thread, where it resumes
+accepting connections. See [Transferring TCP handles to other threads][].
+
 ### `new net.Server([options][, connectionListener])`
 
 * `options` {Object} See
@@ -746,6 +751,39 @@ It can also be created by Node.js and passed to the user when a connection
 is received. For example, it is passed to the listeners of a
 [`'connection'`][] event emitted on a [`net.Server`][], so the user can use
 it to interact with the client.
+
+### Transferring TCP handles to other threads
+
+A connected TCP `net.Socket` can be moved to another thread by listing it in the
+`transferList` of a [`worker_threads`][] `postMessage()` call. After the
+transfer, the source socket is destroyed on the sending thread (further use
+fails with `ERR_STREAM_DESTROYED` rather than silently dropping data), and the
+socket continues to work on the receiving thread. This makes it possible to
+accept connections on one thread and distribute them across a pool of worker
+threads, for example to build a `node:cluster`-like model on top of worker
+threads.
+
+The socket must be a freshly accepted or created TCP connection: it must still
+be attached to a live handle, must not be connecting or destroyed, and must not
+have started reading or have buffered data. Otherwise `postMessage()` throws
+`ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. Only TCP sockets are supported.
+
+```cjs
+const net = require('node:net');
+const { Worker } = require('node:worker_threads');
+
+// worker.js receives `{ socket }` messages and handles each connection.
+const worker = new Worker('./worker.js');
+
+const server = net.createServer((socket) => {
+  // Hand the freshly accepted connection off to the worker thread.
+  worker.postMessage({ socket }, [socket]);
+});
+server.listen(8000);
+```
+
+A listening [`net.Server`][] can be transferred the same way, which moves the
+listening socket itself (and its pending accept queue) to the receiving thread.
 
 ### `new net.Socket([options])`
 
@@ -1356,6 +1394,17 @@ added: v0.5.10
 The numeric representation of the remote port. For example, `80` or `21`. Value may be `undefined` if
 the socket is destroyed (for example, if the client disconnected).
 
+### `socket.server`
+
+<!-- YAML
+added: v0.3.4
+-->
+
+* Type: {net.Server|null}
+
+Reference to the server that accepted the socket. This is `null` for sockets
+that were not accepted by a server.
+
 ### `socket.resetAndDestroy()`
 
 <!-- YAML
@@ -1627,10 +1676,11 @@ added: v0.5.0
 
 This property represents the state of the connection as a string.
 
-* If the stream is connecting `socket.readyState` is `opening`.
-* If the stream is readable and writable, it is `open`.
-* If the stream is readable and not writable, it is `readOnly`.
-* If the stream is not readable and writable, it is `writeOnly`.
+* If the socket is connecting, `socket.readyState` is `opening`.
+* If the socket is readable and writable, it is `open`.
+* If the socket is readable and not writable, it is `readOnly`.
+* If the socket is not readable and writable, it is `writeOnly`.
+* Otherwise, it is `closed`.
 
 ## Class: `net.BoundSocket`
 
@@ -1643,9 +1693,25 @@ to `listen()` or `new net.Socket()` later on. For `listen()` this enables
 synchronous port reservation, while for `new net.Socket()`, it allows control
 over the local egress port/IP, via `bind(2)` semantics.
 
+A `BoundSocket` binds either a TCP endpoint (`host` or `port`) or a
+Unix domain/named-pipe endpoint (`path`); the two are mutually exclusive. For a
+`path`, the file system entry is reserved in the constructor, so conflicts such
+as `EADDRINUSE` throw synchronously exactly as a TCP bind does. On Linux a
+leading `'\0'` in `path` selects the abstract namespace (no file system entry);
+an abstract path on any other platform throws [`ERR_INVALID_ARG_VALUE`][].
+
 Adoption transfers ownership of the socket; afterwards `address()` and `close()`
 throw [`ERR_SOCKET_HANDLE_ADOPTED`][]. A handle that is never adopted must be
-closed to avoid leaking the socket.
+closed to avoid leaking the socket. Closing a pipe `BoundSocket` removes its
+file system entry; abstract and TCP binds have none to remove.
+
+When a pipe `BoundSocket` bound to a source `path` is adopted as a client, that
+path is reported as the socket's `localAddress` once it connects.
+
+When an adopted `BoundSocket` connects to a numeric IP literal, `connect(2)` is
+issued synchronously, so [`socket.localAddress`][] is resolved once
+[`socket.connect()`][] returns. Connection failures are still reported via a
+deferred `'error'` event.
 
 ```mjs
 import net from 'node:net';
@@ -1662,6 +1728,10 @@ server.listen(bound); // Adopt as a server, or pass to new net.Socket() instead.
 
 <!-- YAML
 added: v24.19.0
+changes:
+  - version: v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64399
+    description: The `path` option is supported.
 -->
 
 * `options` {Object}
@@ -1676,18 +1746,40 @@ added: v24.19.0
   * `reusePort` {boolean} Sets `SO_REUSEPORT`, allowing multiple sockets to bind
     the same address and port for kernel-level load balancing. Support is
     platform-dependent. **Default:** `false`.
+  * `path` {string} Binds a Unix domain socket (or Windows named pipe) at the
+    given path instead of a TCP endpoint. A leading `'\0'` selects the Linux
+    abstract namespace. Mutually exclusive with `host`, `port`, `ipv6Only`, and
+    `reusePort`; combining them throws [`ERR_INVALID_ARG_VALUE`][].
 
 ### `boundSocket.address()`
 
 <!-- YAML
 added: v24.19.0
+changes:
+  - version: v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64399
+    description: The bound path is returned for a pipe bind.
 -->
 
-* Returns: {Object} An object with `address`, `family`, and `port` properties,
-  as [`server.address()`][] returns.
+* Returns: {Object|string} For a TCP bind, an object with `address`, `family`,
+  and `port` properties, as [`server.address()`][] returns. For a pipe bind, the
+  bound path string, as [`server.address()`][] returns for a pipe server.
 
 Returns the bound local address. When bound with `port: 0`, `port` is the
 OS-assigned ephemeral port.
+
+### `boundSocket.isPipe`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+* {boolean}
+
+`true` when the socket was bound with a `path` (a Unix domain socket or Windows
+named pipe), `false` for a TCP bind. The getter's presence on
+`net.BoundSocket.prototype` also serves as a capability probe for `path`
+support.
 
 ### `boundSocket.fd()`
 
@@ -1997,7 +2089,7 @@ Creates a new TCP or [IPC][] server.
 If `allowHalfOpen` is set to `true`, when the other end of the socket
 signals the end of transmission, the server will only send back the end of
 transmission when [`socket.end()`][] is explicitly called. For example, in the
-context of TCP, when a FIN packed is received, a FIN packed is sent
+context of TCP, when a FIN packet is received, a FIN packet is sent
 back only when [`socket.end()`][] is explicitly called. Until then the
 connection is half-closed (non-readable but still writable). See [`'end'`][]
 event and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
@@ -2184,6 +2276,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [Identifying paths for IPC connections]: #identifying-paths-for-ipc-connections
 [RFC 8305]: https://www.rfc-editor.org/rfc/rfc8305.txt
 [Readable Stream]: stream.md#class-streamreadable
+[Transferring TCP handles to other threads]: #transferring-tcp-handles-to-other-threads
 [`'close'`]: #event-close
 [`'connect'`]: #event-connect
 [`'connection'`]: #event-connection
@@ -2194,6 +2287,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`'listening'`]: #event-listening
 [`'timeout'`]: #event-timeout
 [`BoundSocket`]: #class-netboundsocket
+[`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`ERR_SOCKET_HANDLE_ADOPTED`]: errors.md#err_socket_handle_adopted
 [`EventEmitter`]: events.md#class-eventemitter
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
@@ -2231,6 +2325,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.connecting`]: #socketconnecting
 [`socket.destroy()`]: #socketdestroyerror
 [`socket.end()`]: #socketenddata-encoding-callback
+[`socket.localAddress`]: #socketlocaladdress
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
@@ -2240,6 +2335,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
+[`worker_threads`]: worker_threads.md
 [`writable.destroy()`]: stream.md#writabledestroyerror
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.end()`]: stream.md#writableendchunk-encoding-callback

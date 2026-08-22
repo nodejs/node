@@ -460,6 +460,15 @@ void ConstructSharedArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(sab);
 }
 
+// Marks a promise as handled and silent to prevent unhandled rejection
+// tracking from triggering.
+void MarkPromiseAsHandled(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsPromise());
+  Local<Promise> promise = args[0].As<Promise>();
+  promise->MarkAsHandled();
+  promise->MarkAsSilent();
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -478,6 +487,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
   registry->Register(ConstructSharedArrayBuffer);
+  registry->Register(MarkPromiseAsHandled);
 }
 
 void Initialize(Local<Object> target,
@@ -583,6 +593,7 @@ void Initialize(Local<Object> target,
             target,
             "constructSharedArrayBuffer",
             ConstructSharedArrayBuffer);
+  SetMethod(context, target, "markPromiseAsHandled", MarkPromiseAsHandled);
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");

@@ -23,9 +23,9 @@ constexpr int kMaxSupportedVersion = TLS1_3_VERSION;
 void GetRootCertificates(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
-X509_STORE* NewRootCertStore();
+X509_STORE* NewRootCertStore(Environment* env);
 
-X509_STORE* GetOrCreateRootCertStore();
+X509_STORE* GetOrCreateRootCertStore(Environment* env);
 
 ncrypto::BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
 
@@ -158,14 +158,22 @@ class SecureContext final : public BaseObject {
                                unsigned char* name,
                                unsigned char* iv,
                                EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                               EVP_MAC_CTX* hctx,
+#else
                                HMAC_CTX* hctx,
+#endif
                                int enc);
 
   static int TicketCompatibilityCallback(SSL* ssl,
                                          unsigned char* name,
                                          unsigned char* iv,
                                          EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                         EVP_MAC_CTX* hctx,
+#else
                                          HMAC_CTX* hctx,
+#endif
                                          int enc);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap);

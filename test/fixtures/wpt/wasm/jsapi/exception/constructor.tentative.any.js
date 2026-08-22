@@ -10,7 +10,7 @@ test(() => {
 }, "name");
 
 test(() => {
-  assert_function_length(WebAssembly.Exception, 1, "WebAssembly.Exception");
+  assert_function_length(WebAssembly.Exception, 2, "WebAssembly.Exception");
 }, "length");
 
 test(() => {

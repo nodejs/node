@@ -1186,7 +1186,7 @@ added:
  - v12.16.0
 -->
 
-* Type: {boolean} Whether the request is send through a reused socket.
+* Type: {boolean} Whether the request is sent through a reused socket.
 
 When sending request through a keep-alive enabled agent, the underlying socket
 might be reused. But if server closes connection at unfortunate time, client
@@ -3010,13 +3010,20 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 
 <!-- YAML
 added: v24.16.0
+changes:
+  - version: v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64392
+    description: The signal is no longer aborted after the message
+                 completes normally.
 -->
 
 * Type: {AbortSignal}
 
-An {AbortSignal} that is aborted when the underlying socket closes or the
-request is destroyed. The signal is created lazily on first access — no
-{AbortController} is allocated for requests that never use this property.
+An {AbortSignal} that is aborted when the message is destroyed before
+completion or when its underlying socket closes before request handling or
+response reading completes.
+The signal is created lazily on first access — no {AbortController} is allocated
+for requests that never use this property.
 
 This is useful for cancelling downstream asynchronous work such as database
 queries or `fetch` calls when a client disconnects mid-request.
@@ -4524,6 +4531,22 @@ support.
   `no_proxy` takes precedence.
 
 If the request is made to a Unix domain socket, the proxy settings will be ignored.
+
+### Proxy security considerations
+
+Built-in proxy support routes outbound requests through an HTTP(S) proxy, often
+because a firewall requires one to access external networks. It is not an
+anonymity or traffic-hiding feature and does not attempt to hide traffic from
+the proxy, the local network, network operators, or authorities that govern the
+deployment.
+
+Configure only proxies that are trusted and authorized for the deployment. A
+proxy can observe connection metadata; for plain HTTP requests, or when TLS is
+terminated or intercepted by the proxy, it can also observe request and response
+contents. Node.js does not support treating an untrusted proxy as a privacy
+boundary. Deployment operators are responsible for controlling proxy
+configuration and for meeting deployment-specific network policy and legal
+requirements.
 
 ### Proxy URL Format
 

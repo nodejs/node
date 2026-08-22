@@ -253,6 +253,14 @@ to use as a custom module loader.
 .It Fl -permission
 Enable the permission model.
 .
+.It Fl -experimental-package-map Ns = Ns Ar path
+Enable experimental package map resolution using the specified configuration file.
+.
+.It Fl -experimental-stream-iter
+Enable the experimental
+.Sy node:stream/iter
+module.
+.
 .It Fl -experimental-shadow-realm
 Use this flag to enable ShadowRealm support.
 .
@@ -427,10 +435,6 @@ Note: This flag utilizes
 .Fl -max-old-space-size ,
 which may be unreliable on 32-bit platforms due to integer overflow issues.
 .
-.It Fl -napi-modules
-This option is a no-op.
-It is kept for compatibility.
-.
 .It Fl -no-deprecation
 Silence deprecation warnings.
 .
@@ -463,6 +467,21 @@ Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is
 .
 .It Fl -pending-deprecation
 Emit pending deprecation warnings.
+.
+.It Fl -permission-audit
+Enable audit mode for the permission model. When enabled, permission checks
+are performed but access is \fBnot\fR denied — no \fBERR_ACCESS_DENIED\fR error is
+thrown. Instead, each permission violation is published through the
+\fBnode:diagnostics_channel\fR module, and execution continues normally.
+This flag does not require \fB--permission\fR to be specified. The
+\fB--allow-*\fR flags are not needed in audit mode, since no
+access is denied.
+Audit mode is useful for discovering what permissions your application
+requires before deploying with \fB--permission\fR. See the
+Permission Model documentation for the list of diagnostics channel names
+and the message format.
+If both \fB--permission\fR and \fB--permission-audit\fR are specified,
+\fB--permission\fR takes precedence and the Permission Model runs in enforce mode.
 .
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and caching modules other than the main module.

@@ -23,12 +23,14 @@ const check = {
   // The negotiated cipher suite
   cipher: 'TLS_AES_128_GCM_SHA256',
   cipherVersion: 'TLSv1.3',
+  // No session ticket provided, so early data was not attempted
+  earlyDataAttempted: false,
+  earlyDataAccepted: false,
 };
 
 // The opened promise should resolve when the handshake is complete.
 
 const serverOpened = Promise.withResolvers();
-const clientOpened = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.opened.then((info) => {
@@ -49,11 +51,12 @@ assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
 });
-clientSession.opened.then((info) => {
-  assert.partialDeepStrictEqual(info, check);
-  clientOpened.resolve();
-}).then(mustCall());
 
-await Promise.all([serverOpened.promise, clientOpened.promise]);
-clientSession.close();
+const info = await clientSession.opened;
+assert.partialDeepStrictEqual(info, check);
+
+await serverOpened.promise;
+await clientSession.close();
+await serverEndpoint.close();

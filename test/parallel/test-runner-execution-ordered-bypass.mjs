@@ -35,6 +35,10 @@ test('execution-ordered events bypass FileTest declaration-order buffer', async 
     }
   });
 
+  stream.on('test:log', (data) => {
+    events.push(`log:${data.message}`);
+  });
+
   // eslint-disable-next-line no-unused-vars
   for await (const _ of stream);
 
@@ -55,5 +59,13 @@ test('execution-ordered events bypass FileTest declaration-order buffer', async 
   assert.ok(
     failFast > completeSlow,
     `test:fail for fast-fail should arrive after test:complete for slow; events=${events.join(', ')}`,
+  );
+
+  // test:log is execution-ordered, so it must bypass the buffer too.
+  const logFast = events.indexOf('log:live');
+  assert.notStrictEqual(logFast, -1);
+  assert.ok(
+    logFast < completeSlow,
+    `test:log for fast-fail should arrive before slow's test:complete; events=${events.join(', ')}`,
   );
 });

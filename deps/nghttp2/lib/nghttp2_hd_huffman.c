@@ -126,7 +126,7 @@ nghttp2_ssize nghttp2_hd_huff_decode(nghttp2_hd_huff_decode_context *ctx,
       *buf->last++ = t.sym;
     }
 
-    t = huff_decode_table[t.fstate][c & 0xf];
+    t = huff_decode_table[t.fstate][c & 0xF];
     if (t.flags & NGHTTP2_HUFF_SYM) {
       *buf->last++ = t.sym;
     }

@@ -24,6 +24,7 @@
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_shared_openssl%': 'false',
+    'openssl_is_boringssl%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
@@ -41,7 +42,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.51',
+    'v8_embedder_string': '-node.53',
 
     ##### V8 defaults for Node.js #####
 

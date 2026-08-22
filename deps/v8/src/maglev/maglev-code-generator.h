@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_CODE_GENERATOR_H_
 
 #include "src/codegen/maglev-safepoint-table.h"
+#include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/frame-translation-builder.h"
 #include "src/maglev/maglev-assembler.h"
@@ -54,6 +55,7 @@ class MaglevCodeGenerator final {
   LocalIsolate* local_isolate_;
   MaglevSafepointTableBuilder safepoint_table_builder_;
   FrameTranslationBuilder frame_translation_builder_;
+  SourcePositionTableBuilder source_position_table_builder_;
   MaglevCodeGenState code_gen_state_;
   MaglevAssembler masm_;
   Graph* const graph_;

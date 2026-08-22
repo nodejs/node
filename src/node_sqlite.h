@@ -133,6 +133,7 @@ class DatabaseSyncLimits;
 class StatementSyncIterator;
 class StatementSync;
 class BackupJob;
+class Session;
 
 class StatementExecutionHelper {
  public:
@@ -243,7 +244,7 @@ class DatabaseSync : public BaseObject {
   bool ignore_next_sqlite_error_;
 
   std::set<BackupJob*> backups_;
-  std::set<sqlite3_session*> sessions_;
+  std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
   friend class DatabaseSyncLimits;
@@ -339,7 +340,7 @@ class Session : public BaseObject {
  public:
   Session(Environment* env,
           v8::Local<v8::Object> object,
-          BaseObjectWeakPtr<DatabaseSync> database,
+          BaseObjectPtr<DatabaseSync> database,
           sqlite3_session* session);
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
@@ -349,7 +350,7 @@ class Session : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
-                                       BaseObjectWeakPtr<DatabaseSync> database,
+                                       BaseObjectPtr<DatabaseSync> database,
                                        sqlite3_session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -359,7 +360,9 @@ class Session : public BaseObject {
  private:
   void Delete();
   sqlite3_session* session_;
-  BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+  BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
+
+  friend class DatabaseSync;
 };
 
 class SQLTagStore : public BaseObject {

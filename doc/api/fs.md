@@ -196,7 +196,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
@@ -376,6 +376,154 @@ added: v10.0.0
 -->
 
 * Type: {number} The numeric file descriptor managed by the {FileHandle} object.
+
+#### `filehandle.pull([...transforms][, options])`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+> Stability: 1 - Experimental
+
+* `...transforms` {Function|Object} Optional transforms to apply via
+  [`stream/iter pull()`][].
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `autoClose` {boolean} Close the file handle when the stream ends.
+    **Default:** `false`.
+  * `start` {number} Byte offset to begin reading from. When specified,
+    reads use explicit positioning (`pread` semantics). **Default:** current
+    file position.
+  * `limit` {number} Maximum number of bytes to read before ending the
+    iterator. Reads stop when `limit` bytes have been delivered or EOF is
+    reached, whichever comes first. **Default:** read until EOF.
+  * `chunkSize` {number} Size in bytes of the buffer allocated for each
+    read operation. **Default:** `131072` (128 KB).
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
+
+Return the file contents as an async iterable using the
+[`node:stream/iter`][] pull model. Reads are performed in `chunkSize`-byte
+chunks (default 128 KB). If transforms are provided, they are applied
+via [`stream/iter pull()`][].
+
+The file handle is locked while the iterable is being consumed and unlocked
+when iteration completes, an error occurs, or the consumer breaks.
+
+This function is only available when the `--experimental-stream-iter` flag is
+enabled.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { text } from 'node:stream/iter';
+import { compressGzip } from 'node:zlib/iter';
+
+const fh = await open('input.txt', 'r');
+
+// Read as text
+console.log(await text(fh.pull({ autoClose: true })));
+
+// Read 1 KB starting at byte 100
+const fh2 = await open('input.txt', 'r');
+console.log(await text(fh2.pull({ start: 100, limit: 1024, autoClose: true })));
+
+// Read with compression
+const fh3 = await open('input.txt', 'r');
+const compressed = fh3.pull(compressGzip(), { autoClose: true });
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { text } = require('node:stream/iter');
+const { compressGzip } = require('node:zlib/iter');
+
+async function run() {
+  const fh = await open('input.txt', 'r');
+
+  // Read as text
+  console.log(await text(fh.pull({ autoClose: true })));
+
+  // Read 1 KB starting at byte 100
+  const fh2 = await open('input.txt', 'r');
+  console.log(await text(fh2.pull({ start: 100, limit: 1024, autoClose: true })));
+
+  // Read with compression
+  const fh3 = await open('input.txt', 'r');
+  const compressed = fh3.pull(compressGzip(), { autoClose: true });
+}
+
+run().catch(console.error);
+```
+
+#### `filehandle.pullSync([...transforms][, options])`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+> Stability: 1 - Experimental
+
+* `...transforms` {Function|Object} Optional transforms to apply via
+  [`stream/iter pullSync()`][].
+* `options` {Object}
+  * `autoClose` {boolean} Close the file handle when the stream ends.
+    **Default:** `false`.
+  * `start` {number} Byte offset to begin reading from. When specified,
+    reads use explicit positioning. **Default:** current file position.
+  * `limit` {number} Maximum number of bytes to read before ending the
+    iterator. **Default:** read until EOF.
+  * `chunkSize` {number} Size in bytes of the buffer allocated for each
+    read operation. **Default:** `131072` (128 KB).
+* Returns: {Iterable} whose chunks return {Uint8Array\[]}
+
+Synchronous counterpart of [`filehandle.pull()`][]. Returns a sync iterable
+that reads the file using synchronous I/O on the main thread. Reads are
+performed in `chunkSize`-byte chunks (default 128 KB).
+
+The file handle is locked while the iterable is being consumed. Unlike the
+async `pull()`, this method does not support `AbortSignal` since all
+operations are synchronous.
+
+This function is only available when the `--experimental-stream-iter` flag is
+enabled.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { textSync, pipeToSync } from 'node:stream/iter';
+import { compressGzipSync, decompressGzipSync } from 'node:zlib/iter';
+
+const fh = await open('input.txt', 'r');
+
+// Read as text (sync)
+console.log(textSync(fh.pullSync({ autoClose: true })));
+
+// Sync compress pipeline: file -> gzip -> file
+const src = await open('input.txt', 'r');
+const dst = await open('output.gz', 'w');
+pipeToSync(src.pullSync(compressGzipSync(), { autoClose: true }), dst.writer({ autoClose: true }));
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { textSync, pipeToSync } = require('node:stream/iter');
+const { compressGzipSync, decompressGzipSync } = require('node:zlib/iter');
+
+async function run() {
+  const fh = await open('input.txt', 'r');
+
+  // Read as text (sync)
+  console.log(textSync(fh.pullSync({ autoClose: true })));
+
+  // Sync compress pipeline: file -> gzip -> file
+  const src = await open('input.txt', 'r');
+  const dst = await open('output.gz', 'w');
+  pipeToSync(
+    src.pullSync(compressGzipSync(), { autoClose: true }),
+    dst.writer({ autoClose: true }),
+  );
+}
+
+run().catch(console.error);
+```
 
 #### `filehandle.read(buffer, offset, length, position)`
 
@@ -855,7 +1003,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -905,6 +1053,121 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
+#### `filehandle.writer([options])`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {Object}
+  * `autoClose` {boolean} Close the file handle when the writer ends or
+    fails. **Default:** `false`.
+  * `start` {number} Byte offset to start writing at. When specified,
+    writes use explicit positioning. **Default:** current file position.
+  * `limit` {number} Maximum number of bytes the writer will accept.
+    Async writes (`write()`, `writev()`) that would exceed the limit reject
+    with `ERR_OUT_OF_RANGE`. Sync writes (`writeSync()`, `writevSync()`)
+    return `false`. **Default:** no limit.
+  * `chunkSize` {number} Maximum chunk size in bytes for synchronous write
+    operations. Writes larger than this threshold fall back to async I/O.
+    Set this to match the reader's `chunkSize` for optimal `pipeTo()`
+    performance. **Default:** `131072` (128 KB).
+* Returns: {Object}
+  * `write(chunk[, options])` {Function} Returns {Promise}.
+    Accepts `Uint8Array`, `Buffer`, or string (UTF-8 encoded).
+    * `chunk` {Buffer|TypedArray|DataView|string}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `writev(chunks[, options])` {Function} Returns {Promise}. Uses
+    scatter/gather I/O via a single `writev()` syscall. Accepts mixed
+    `Uint8Array`/string arrays.
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]|string\[]}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `writeSync(chunk)` {Function} Returns {boolean}. Attempts a synchronous
+    write. Returns `true` if the write succeeded, `false` if the caller
+    should fall back to async `write()`. Returns `false` when: the writer
+    is closed/errored, an async operation is in flight, the chunk exceeds
+    `chunkSize`, or the write would exceed `limit`.
+    * `chunk` {Buffer|TypedArray|DataView|string}
+  * `writevSync(chunks)` {Function} Returns {boolean}. Synchronous batch
+    write. Same fallback semantics as `writeSync()`.
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]|string\[]}
+  * `end([options])` {Function} Returns {Promise}, fulfills with the total
+    number of bytes written. Idempotent: returns `totalBytesWritten` if already
+    closed, returns the pending promise if already closing. Rejects if the writer
+    is in an errored state.
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, `end()`
+        rejects with `AbortError` and the writer remains open.
+  * `endSync()` {Function} Returns {number|number} total bytes written on
+    success, `-1` if the writer is errored or an async operation is in
+    flight. Idempotent when already closed.
+  * `fail(reason)` {Function} Puts the writer into a terminal error state.
+    Synchronous. If the writer is already closed or errored, this is a
+    no-op. If `autoClose` is true, closes the file handle synchronously.
+
+Return a [`node:stream/iter`][] writer backed by this file handle.
+
+The writer supports both `Symbol.asyncDispose` and `Symbol.dispose`:
+
+* `await using w = fh.writer()` — if the writer is still open (no `end()`
+  called), `asyncDispose` calls `fail()`. If `end()` is pending, it waits
+  for it to complete.
+* `using w = fh.writer()` — calls `fail()` unconditionally.
+
+The `writeSync()` and `writevSync()` methods enable the try-sync fast path
+used by [`stream/iter pipeTo()`][]. When the reader's chunk size matches the
+writer's `chunkSize`, all writes in a `pipeTo()` pipeline complete
+synchronously with zero promise overhead.
+
+This function is only available when the `--experimental-stream-iter` flag is
+enabled.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { from, pipeTo } from 'node:stream/iter';
+import { compressGzip } from 'node:zlib/iter';
+
+// Async pipeline
+const fh = await open('output.gz', 'w');
+await pipeTo(from('Hello!'), compressGzip(), fh.writer({ autoClose: true }));
+
+// Sync pipeline with limit
+const src = await open('input.txt', 'r');
+const dst = await open('output.txt', 'w');
+const w = dst.writer({ limit: 1024 * 1024 }); // Max 1 MB
+await pipeTo(src.pull({ autoClose: true }), w);
+await w.end();
+await dst.close();
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { from, pipeTo } = require('node:stream/iter');
+const { compressGzip } = require('node:zlib/iter');
+
+async function run() {
+  // Async pipeline
+  const fh = await open('output.gz', 'w');
+  await pipeTo(from('Hello!'), compressGzip(), fh.writer({ autoClose: true }));
+
+  // Sync pipeline with limit
+  const src = await open('input.txt', 'r');
+  const dst = await open('output.txt', 'w');
+  const w = dst.writer({ limit: 1024 * 1024 }); // Max 1 MB
+  await pipeTo(src.pull({ autoClose: true }), w);
+  await w.end();
+  await dst.close();
+}
+
+run().catch(console.error);
+```
+
 #### `filehandle[Symbol.asyncDispose]()`
 
 <!-- YAML
@@ -919,6 +1182,10 @@ changes:
 
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
+
+This method enables the filehandle to be used with [`await using`][], which
+will automatically close the file when the scope exits. For more information,
+see the [MDN documentation on `using` statements][`using`].
 
 ### `fsPromises.access(path[, mode])`
 
@@ -970,10 +1237,15 @@ changes:
     - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
+  - version:
+      - v15.14.0
+      - v14.18.0
+    pr-url: https://github.com/nodejs/node/pull/37490
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
-* `data` {string|Buffer}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -983,7 +1255,7 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a {Buffer}.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 
 If `options` is a string, then it specifies the `encoding`.
 
@@ -1393,10 +1665,11 @@ directory cannot be deleted, disposal will throw an error. The object has an
 async `remove()` method which will perform the same task.
 
 Both this function and the disposal function on the resulting object are
-async, so it should be used with `await` + `await using` as in
+async, so it should be used with `await` + [`await using`][] as in
 `await using dir = await fsPromises.mkdtempDisposable('prefix')`.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+See the [MDN documentation on `using` statements][`using`] for more information about
+explicit resource management.
 
 For detailed information, see the documentation of [`fsPromises.mkdtemp()`][].
 
@@ -1797,6 +2070,10 @@ Removes files and directories (modeled on the standard POSIX `rm` utility).
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/61178
+    description: Accepts a `throwIfNoEntry` option to specify whether
+                 an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -1992,7 +2269,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -2619,7 +2896,7 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
-    that resolves to `true` or `false` **Default:** `undefined`.
+    that fulfills with `true` or `false`. **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean|Promise} A value that is coercible to `boolean` or
@@ -4540,6 +4817,10 @@ completion callback.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/61178
+    description: Accepts a `throwIfNoEntry` option to specify whether
+                 an exception should be thrown if the entry does not exist.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -6125,12 +6406,13 @@ removed if it still exists. If the directory cannot be deleted, disposal will
 throw an error. The object has a `remove()` method which will perform the same
 task.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+See the [MDN documentation on `using` statements][`using`] for more information about
+explicit resource management.
 
 For detailed information, see the documentation of [`fs.mkdtemp()`][].
 
 There is no callback-based version of this API because it is designed for use
-with the `using` syntax.
+with the [`using`][] syntax.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
@@ -7005,6 +7287,10 @@ changes:
 Calls `dir.close()` if the directory handle is open, and returns a promise that
 fulfills when disposal is complete.
 
+This method enables the directory to be used with [`await using`][], which
+will automatically close the directory when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
+
 #### `dir[Symbol.dispose]()`
 
 <!-- YAML
@@ -7017,6 +7303,10 @@ changes:
 
 Calls `dir.closeSync()` if the directory handle is open, and returns
 `undefined`.
+
+This method enables the directory to be used with [`using`][], which
+will automatically close the directory when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
 
 ### Class: `fs.Dirent`
 
@@ -8129,6 +8419,10 @@ the `data` argument must be a {Buffer}.
 
 Calls `utf8Stream.destroy()`.
 
+This method enables the stream to be used with [`using`][], which
+will automatically destroy the stream when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
+
 ### Class: `fs.WriteStream`
 
 <!-- YAML
@@ -8945,9 +9239,11 @@ the file contents.
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
+[`await using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/await_using
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.createReadStream()`]: #filehandlecreatereadstreamoptions
 [`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions
+[`filehandle.pull()`]: #filehandlepulltransforms-options
 [`filehandle.writeFile()`]: #filehandlewritefiledata-options
 [`fs.access()`]: #fsaccesspath-mode-callback
 [`fs.accessSync()`]: #fsaccesssyncpath-mode
@@ -8998,7 +9294,12 @@ the file contents.
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`minimatch`]: https://github.com/isaacs/minimatch
+[`node:stream/iter`]: stream_iter.md
 [`statfs.bsize`]: #statfsbsize
+[`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer-options
+[`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
+[`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms
+[`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats

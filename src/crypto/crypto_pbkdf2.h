@@ -26,7 +26,6 @@ namespace crypto {
 // The iteration count should be as high as possible.
 
 struct PBKDF2Config final : public MemoryRetainer {
-  CryptoJobMode mode;
   KeyObjectData key;
   ByteSource pass;
   ByteSource salt;

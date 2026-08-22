@@ -18,27 +18,28 @@ const cert = fixtures.readKey('agent1-cert.pem');
 // Both server and client use the default ALPN (h3).
 
 const serverOpened = Promise.withResolvers();
-const clientOpened = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.opened.then(mustCall((info) => {
-    assert.strictEqual(info.protocol, 'h3');
-    serverOpened.resolve();
-    serverSession.close();
-  }));
+const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  const info = await serverSession.opened;
+  assert.strictEqual(info.protocol, 'h3');
+  serverOpened.resolve();
+  serverSession.close();
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
-assert.ok(serverEndpoint.address !== undefined);
+assert.notStrictEqual(serverEndpoint.address, undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
-clientSession.opened.then(mustCall((info) => {
-  assert.strictEqual(info.protocol, 'h3');
-  clientOpened.resolve();
-}));
 
-await Promise.all([serverOpened.promise, clientOpened.promise]);
-clientSession.close();
+async function checkClient() {
+  const info = await clientSession.opened;
+  assert.strictEqual(info.protocol, 'h3');
+}
+
+await Promise.all([serverOpened.promise, checkClient()]);
+await clientSession.close();
+await serverEndpoint.close();

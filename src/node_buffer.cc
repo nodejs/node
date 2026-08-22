@@ -974,6 +974,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   CHECK(args[3]->IsInt32());
   CHECK(args[4]->IsBoolean());
+  CHECK(args[5]->IsNumber());
 
   enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
 
@@ -983,6 +984,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   Local<String> needle = args[1].As<String>();
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[4]->IsTrue();
+  int64_t end_i64 = args[5].As<Integer>()->Value();
 
   const char* haystack = buffer.data();
   // Round down to the nearest multiple of 2 in case of UCS2.
@@ -992,14 +994,21 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   size_t needle_length;
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
 
+  // search_end is the exclusive upper bound of the search range.
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
+  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
+
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
                                      needle_length,
                                      is_forward);
 
   if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behavior.
-    args.GetReturnValue().Set(static_cast<double>(opt_offset));
+    // Match String#indexOf() and String#lastIndexOf() behavior,
+    // but clamp to search_end.
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
+    args.GetReturnValue().Set(static_cast<double>(clamped));
     return;
   }
 
@@ -1011,17 +1020,24 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(-1);
   }
   size_t offset = static_cast<size_t>(opt_offset);
+  // For backward search, clamp start to within the search range.
+  if (!is_forward && offset >= search_end) {
+    if (search_end == 0) return args.GetReturnValue().Set(-1);
+    offset = search_end - 1;
+  } else if (is_forward && offset >= search_end) {
+    return args.GetReturnValue().Set(-1);
+  }
   CHECK_LT(offset, haystack_length);
-  if ((is_forward && needle_length + offset > haystack_length) ||
-      needle_length > haystack_length) {
+  if ((is_forward && needle_length + offset > search_end) ||
+      needle_length > search_end) {
     return args.GetReturnValue().Set(-1);
   }
 
-  size_t result = haystack_length;
+  size_t result = search_end;
 
   if (enc == UCS2) {
     TwoByteValue needle_value(isolate, needle);
-    if (haystack_length < 2 || needle_value.length() < 1) {
+    if (search_end < 2 || needle_value.length() < 1) {
       return args.GetReturnValue().Set(-1);
     }
 
@@ -1035,14 +1051,14 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
         return args.GetReturnValue().Set(-1);
 
       result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                    haystack_length / 2,
+                                    search_end / 2,
                                     decoded_string,
                                     decoder.size() / 2,
                                     offset / 2,
                                     is_forward);
     } else {
       result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                    haystack_length / 2,
+                                    search_end / 2,
                                     needle_value.out(),
                                     needle_value.length(),
                                     offset / 2,
@@ -1057,7 +1073,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
     result = nbytes::SearchString(
         reinterpret_cast<const uint8_t*>(haystack),
-        haystack_length,
+        search_end,
         reinterpret_cast<const uint8_t*>(needle_value.out()),
         needle_length,
         offset,
@@ -1071,15 +1087,15 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                        enc);
 
     result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                                  haystack_length,
+                                  search_end,
                                   needle_data.out(),
                                   needle_length,
                                   offset,
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(
-      result == haystack_length ? -1 : static_cast<int>(result));
+  args.GetReturnValue().Set(result >= search_end ? -1
+                                                 : static_cast<int>(result));
 }
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -1087,6 +1103,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsNumber());
   CHECK(args[3]->IsInt32());
   CHECK(args[4]->IsBoolean());
+  CHECK(args[5]->IsNumber());
 
   enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
 
@@ -1097,11 +1114,17 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> needle_contents(args[1]);
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[4]->IsTrue();
+  int64_t end_i64 = args[5].As<Integer>()->Value();
 
   const char* haystack = haystack_contents.data();
   const size_t haystack_length = haystack_contents.length();
   const char* needle = needle_contents.data();
   const size_t needle_length = needle_contents.length();
+
+  // search_end is the exclusive upper bound of the search range.
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
+  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
@@ -1109,8 +1132,10 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behavior.
-    args.GetReturnValue().Set(static_cast<double>(opt_offset));
+    // Match String#indexOf() and String#lastIndexOf() behavior,
+    // but clamp to search_end.
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
+    args.GetReturnValue().Set(static_cast<double>(clamped));
     return;
   }
 
@@ -1122,20 +1147,27 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(-1);
   }
   size_t offset = static_cast<size_t>(opt_offset);
+  // For backward search, clamp start to within the search range.
+  if (!is_forward && offset >= search_end) {
+    if (search_end == 0) return args.GetReturnValue().Set(-1);
+    offset = search_end - 1;
+  } else if (is_forward && offset >= search_end) {
+    return args.GetReturnValue().Set(-1);
+  }
   CHECK_LT(offset, haystack_length);
-  if ((is_forward && needle_length + offset > haystack_length) ||
-      needle_length > haystack_length) {
+  if ((is_forward && needle_length + offset > search_end) ||
+      needle_length > search_end) {
     return args.GetReturnValue().Set(-1);
   }
 
-  size_t result = haystack_length;
+  size_t result = search_end;
 
   if (enc == UCS2) {
-    if (haystack_length < 2 || needle_length < 2) {
+    if (search_end < 2 || needle_length < 2) {
       return args.GetReturnValue().Set(-1);
     }
     result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                  haystack_length / 2,
+                                  search_end / 2,
                                   reinterpret_cast<const uint16_t*>(needle),
                                   needle_length / 2,
                                   offset / 2,
@@ -1143,20 +1175,21 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     result *= 2;
   } else {
     result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                                  haystack_length,
+                                  search_end,
                                   reinterpret_cast<const uint8_t*>(needle),
                                   needle_length,
                                   offset,
                                   is_forward);
   }
 
-  args.GetReturnValue().Set(
-      result == haystack_length ? -1 : static_cast<int>(result));
+  args.GetReturnValue().Set(result >= search_end ? -1
+                                                 : static_cast<int>(result));
 }
 
 int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
                           const uint32_t needle,
                           const int64_t offset_i64,
+                          const int64_t end_i64,
                           const bool is_forward) {
   ArrayBufferViewContents<uint8_t> buffer(buffer_obj);
   const uint8_t* buffer_data = buffer.data();
@@ -1166,13 +1199,18 @@ int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
     return -1;
   }
   size_t offset = static_cast<size_t>(opt_offset);
-  CHECK_LT(offset, buffer_length);
+  // search_end is the exclusive upper bound of the search range.
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(buffer_length)));
 
   const void* ptr;
   if (is_forward) {
-    ptr = memchr(buffer_data + offset, needle, buffer_length - offset);
+    if (offset >= search_end) return -1;
+    ptr = memchr(buffer_data + offset, needle, search_end - offset);
   } else {
-    ptr = nbytes::stringsearch::MemrchrFill(buffer_data, needle, offset + 1);
+    size_t backward_end = std::min(offset + 1, search_end);
+    if (backward_end == 0) return -1;
+    ptr = nbytes::stringsearch::MemrchrFill(buffer_data, needle, backward_end);
   }
   const uint8_t* ptr_uint8 = static_cast<const uint8_t*>(ptr);
   return ptr != nullptr ? static_cast<int32_t>(ptr_uint8 - buffer_data) : -1;
@@ -1182,6 +1220,7 @@ void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsUint32());
   CHECK(args[2]->IsNumber());
   CHECK(args[3]->IsBoolean());
+  CHECK(args[4]->IsNumber());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
 
@@ -1189,9 +1228,10 @@ void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   uint32_t needle = args[1].As<Uint32>()->Value();
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[3]->IsTrue();
+  int64_t end_i64 = args[4].As<Integer>()->Value();
 
   args.GetReturnValue().Set(
-      IndexOfNumberImpl(buffer_obj, needle, offset_i64, is_forward));
+      IndexOfNumberImpl(buffer_obj, needle, offset_i64, end_i64, is_forward));
 }
 
 int32_t FastIndexOfNumber(Local<Value>,
@@ -1199,10 +1239,11 @@ int32_t FastIndexOfNumber(Local<Value>,
                           uint32_t needle,
                           int64_t offset_i64,
                           bool is_forward,
+                          int64_t end_i64,
                           // NOLINTNEXTLINE(runtime/references)
                           FastApiCallbackOptions& options) {
   HandleScope scope(options.isolate);
-  return IndexOfNumberImpl(buffer_obj, needle, offset_i64, is_forward);
+  return IndexOfNumberImpl(buffer_obj, needle, offset_i64, end_i64, is_forward);
 }
 
 static CFunction fast_index_of_number(CFunction::Make(FastIndexOfNumber));
@@ -1526,6 +1567,10 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t source_offset = args[3].As<Uint32>()->Value();
   size_t bytes_to_copy = args[4].As<Uint32>()->Value();
 
+  // Assert the offsets are within bounds before the subtractions below, which
+  // would otherwise underflow and defeat the bytes_to_copy bounds checks.
+  CHECK_LE(destination_offset, destination_byte_length);
+  CHECK_LE(source_offset, source_byte_length);
   CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
   CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
 

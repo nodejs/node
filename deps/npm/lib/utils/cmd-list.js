@@ -31,6 +31,7 @@ const commands = [
   'init',
   'install',
   'install-ci-test',
+  'install-scripts',
   'install-test',
   'link',
   'll',

@@ -51,6 +51,8 @@ if (isMainThread)
 
 const noop = () => {};
 
+// Whether the executable is linked against the shared library i.e. libnode.
+const usesSharedLibrary = process.config.variables.node_shared;
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
@@ -906,14 +908,36 @@ function expectRequiredModule(mod, expectation, checkESModule = true) {
   assert.deepStrictEqual(clone, { ...expectation });
 }
 
-function expectRequiredTLAError(err) {
+// Extract the entries of the rendered "Require stack:" list (each shown as
+// "- <path>") from an error message or a process output string.
+function expectRequireStack(output, expected) {
+  const lines = output.replace(/\r/g, '').split('\n');
+  const start = lines.indexOf('Require stack:');
+  if (start === -1) {
+    assert.deepStrictEqual([], expected);
+    return;
+  }
+  const stack = [];
+  for (let i = start + 1; i < lines.length && lines[i].startsWith('- '); i++) {
+    stack.push(lines[i].slice(2));
+  }
+  assert.deepStrictEqual(stack, expected);
+}
+
+function expectRequiredTLAError(err, stack) {
   const message = /require\(\) cannot be used on an ESM graph with top-level await/;
   if (typeof err === 'string') {
     assert.match(err, /ERR_REQUIRE_ASYNC_MODULE/);
     assert.match(err, message);
+    if (stack) {
+      expectRequireStack(err, stack);
+    }
   } else {
     assert.strictEqual(err.code, 'ERR_REQUIRE_ASYNC_MODULE');
     assert.match(err.message, message);
+    if (stack) {
+      assert.deepStrictEqual(err.requireStack, stack);
+    }
   }
 }
 
@@ -921,6 +945,13 @@ function sleepSync(ms) {
   const sab = new SharedArrayBuffer(4);
   const i32 = new Int32Array(sab);
   Atomics.wait(i32, 0, 0, ms);
+}
+
+function resolveBuiltBinary(binary) {
+  if (isWindows) {
+    binary += '.exe';
+  }
+  return path.join(path.dirname(process.execPath), binary);
 }
 
 const common = {
@@ -962,11 +993,13 @@ const common = {
   mustSucceed,
   nodeProcessAborted,
   PIPE,
+  expectRequireStack,
   parseTestMetadata,
   platformTimeout,
   printSkipMessage,
   pwdCommand,
   requireNoPackageJSONAbove,
+  resolveBuiltBinary,
   runWithInvalidFD,
   skip,
   skipIf32Bits,
@@ -975,6 +1008,7 @@ const common = {
   skipIfSQLiteMissing,
   spawnPromisified,
   sleepSync,
+  usesSharedLibrary,
 
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */

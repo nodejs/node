@@ -41,54 +41,66 @@
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /* NGTCP2_STRM_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_STRM_FLAG_NONE 0x00u
+#define NGTCP2_STRM_FLAG_NONE 0x00U
 /* NGTCP2_STRM_FLAG_SHUT_RD indicates that further reception of stream
    data is not allowed. */
-#define NGTCP2_STRM_FLAG_SHUT_RD 0x01u
+#define NGTCP2_STRM_FLAG_SHUT_RD 0x01U
 /* NGTCP2_STRM_FLAG_SHUT_WR indicates that further transmission of
    stream data is not allowed. */
-#define NGTCP2_STRM_FLAG_SHUT_WR 0x02u
+#define NGTCP2_STRM_FLAG_SHUT_WR 0x02U
 #define NGTCP2_STRM_FLAG_SHUT_RDWR                                             \
   (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR)
 /* NGTCP2_STRM_FLAG_RESET_STREAM indicates that RESET_STREAM is sent
    from the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is
    also set. */
-#define NGTCP2_STRM_FLAG_RESET_STREAM 0x04u
+#define NGTCP2_STRM_FLAG_RESET_STREAM 0x04U
 /* NGTCP2_STRM_FLAG_RESET_STREAM_RECVED indicates that RESET_STREAM is
    received from the remote endpoint.  In this case,
    NGTCP2_STRM_FLAG_SHUT_RD is also set. */
-#define NGTCP2_STRM_FLAG_RESET_STREAM_RECVED 0x08u
+#define NGTCP2_STRM_FLAG_RESET_STREAM_RECVED 0x08U
 /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
    from the local endpoint. */
-#define NGTCP2_STRM_FLAG_STOP_SENDING 0x10u
+#define NGTCP2_STRM_FLAG_STOP_SENDING 0x10U
 /* NGTCP2_STRM_FLAG_RESET_STREAM_ACKED indicates that the outgoing
    RESET_STREAM is acknowledged by peer. */
-#define NGTCP2_STRM_FLAG_RESET_STREAM_ACKED 0x20u
+#define NGTCP2_STRM_FLAG_RESET_STREAM_ACKED 0x20U
 /* NGTCP2_STRM_FLAG_FIN_ACKED indicates that a STREAM with FIN bit set
    is acknowledged by a remote endpoint. */
-#define NGTCP2_STRM_FLAG_FIN_ACKED 0x40u
+#define NGTCP2_STRM_FLAG_FIN_ACKED 0x40U
 /* NGTCP2_STRM_FLAG_ANY_ACKED indicates that any portion of stream
    data, including 0 length segment, is acknowledged. */
-#define NGTCP2_STRM_FLAG_ANY_ACKED 0x80u
+#define NGTCP2_STRM_FLAG_ANY_ACKED 0x80U
 /* NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET indicates that app_error_code
    field is set.  This resolves the ambiguity that the initial
    app_error_code value 0 might be a proper application error code.
    In this case, without this flag, we are unable to distinguish
    assigned value from unassigned one.  */
-#define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100u
+#define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100U
 /* NGTCP2_STRM_FLAG_SEND_STOP_SENDING is set when STOP_SENDING frame
    should be sent. */
-#define NGTCP2_STRM_FLAG_SEND_STOP_SENDING 0x200u
+#define NGTCP2_STRM_FLAG_SEND_STOP_SENDING 0x200U
 /* NGTCP2_STRM_FLAG_SEND_RESET_STREAM is set when RESET_STREAM frame
    should be sent. */
-#define NGTCP2_STRM_FLAG_SEND_RESET_STREAM 0x400u
+#define NGTCP2_STRM_FLAG_SEND_RESET_STREAM 0x400U
 /* NGTCP2_STRM_FLAG_STOP_SENDING_RECVED indicates that STOP_SENDING is
    received from the remote endpoint.  In this case,
    NGTCP2_STRM_FLAG_SHUT_WR is also set. */
-#define NGTCP2_STRM_FLAG_STOP_SENDING_RECVED 0x800u
+#define NGTCP2_STRM_FLAG_STOP_SENDING_RECVED 0x800U
 /* NGTCP2_STRM_FLAG_ANY_SENT indicates that any STREAM frame,
    including empty one, has been sent. */
-#define NGTCP2_STRM_FLAG_ANY_SENT 0x1000u
+#define NGTCP2_STRM_FLAG_ANY_SENT 0x1000U
+/* NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING is set when
+   ngtcp2_strm_stop_buffering_reordered_data is called. */
+#define NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING 0x2000U
+/* NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET is set when
+   ngtcp2_strm.rx.app_error_code is set. */
+#define NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET 0x4000U
+/* NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET is set when
+   ngtcp2_strm.tx.reset_stream_app_error_code is set. */
+#define NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET 0x8000U
+/* NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set when
+   ngtcp2_strm.tx.stop_sending_app_error_code is set. */
+#define NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET 0x10000U
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -138,10 +150,18 @@ struct ngtcp2_strm {
            multiple STREAM frames in one lost packet. */
         int64_t last_lost_pkt_num;
         /* stop_sending_app_error_code is the application specific
-           error code that is sent along with STOP_SENDING. */
+           error code that is sent along with STOP_SENDING.  If this
+           field is set,
+           NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set.
+           This field is eventually passed to ngtcp2_stream_close2
+           callback as rx_app_error_code parameter. */
         uint64_t stop_sending_app_error_code;
         /* reset_stream_app_error_code is the application specific
-           error code that is sent along with RESET_STREAM. */
+           error code that is sent along with RESET_STREAM.  If this
+           field is set,
+           NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET is set.
+           This field is eventually passed to ngtcp2_stream_close2
+           callback as tx_app_error_code parameter. */
         uint64_t reset_stream_app_error_code;
       } tx;
 
@@ -166,19 +186,25 @@ struct ngtcp2_strm {
         uint64_t unsent_max_offset;
         /* window is the stream-level flow control window size. */
         uint64_t window;
+        /* app_error_code is the application error code that is
+           received in RESET_STREAM frame.  If this field is set,
+           NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET is set.  This field
+           is eventually passed to ngtcp2_stream_close2 callback as
+           rx_app_error_code parameter. */
+        uint64_t app_error_code;
       } rx;
 
       const ngtcp2_mem *mem;
       int64_t stream_id;
       void *stream_user_data;
-      /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
-      uint32_t flags;
       /* app_error_code is an error code the local endpoint sent in
          RESET_STREAM or STOP_SENDING, or received from a remote endpoint
          in RESET_STREAM or STOP_SENDING.  First application error code is
          chosen and when set, NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET flag is
          set in flags field. */
       uint64_t app_error_code;
+      /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
+      uint32_t flags;
     };
 
     ngtcp2_opl_entry oplent;
@@ -208,6 +234,10 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm);
 /*
  * ngtcp2_strm_recv_reordering handles reordered data.
  *
+ * If ngtcp2_strm_stop_buffering_reordered_data has been called, this
+ * function only records the range of the reordered data.  The actual
+ * data is not buffered.
+ *
  * It returns the number of bytes newly buffered if it succeeds, or
  * one of the following negative error codes:
  *
@@ -222,12 +252,6 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
  * are received in order.
  */
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
-
-/*
- * ngtcp2_strm_discard_reordered_data discards all buffered reordered
- * data.
- */
-void ngtcp2_strm_discard_reordered_data(ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be one of
@@ -357,5 +381,20 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
  */
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
+
+/*
+ * ngtcp2_strm_discard_ordered_data discards the ordered data starting
+ * at |rx_offset|.  It stops when it finds a gap, which means that a
+ * portion of the data has not been received yet.  It returns the size
+ * of the buffered bytes discarded.
+ */
+uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
+                                          uint64_t rx_offset);
+
+/*
+ * ngtcp2_strm_stop_buffering_reordered_data discards the buffered
+ * reordered data, and stops buffering data any further.
+ */
+void ngtcp2_strm_stop_buffering_reordered_data(ngtcp2_strm *strm);
 
 #endif /* !defined(NGTCP2_STRM_H) */

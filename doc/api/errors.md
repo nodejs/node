@@ -1482,7 +1482,7 @@ New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 
 ### `ERR_HTTP2_HEADERS_AFTER_RESPOND`
 
-An additional headers was specified after an HTTP/2 response was initiated.
+Additional headers were specified after an HTTP/2 response was initiated.
 
 <a id="ERR_HTTP2_HEADERS_SENT"></a>
 
@@ -2499,6 +2499,77 @@ A given value is out of the accepted range.
 The `package.json` [`"imports"`][] field does not define the given internal
 package specifier mapping.
 
+<a id="ERR_PACKAGE_MAP_EXTERNAL_FILE"></a>
+
+### `ERR_PACKAGE_MAP_EXTERNAL_FILE`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+A module attempted to resolve a bare specifier using the [package map][], but
+the importing file is not located within any package defined in the map.
+
+```console
+$ node --experimental-package-map=./package-map.json /tmp/script.js
+Error [ERR_PACKAGE_MAP_EXTERNAL_FILE]: Cannot resolve "dep-a" from "/tmp/script.js": file is not within any package defined in /path/to/package-map.json
+```
+
+To fix this error, ensure the importing file is inside one of the package
+directories listed in the package map, or add a new package entry whose `url`
+covers the importing file.
+
+<a id="ERR_PACKAGE_MAP_INVALID"></a>
+
+### `ERR_PACKAGE_MAP_INVALID`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+The [package map][] configuration file is invalid. This can occur when:
+
+* The file does not exist at the specified path.
+* The file contains invalid JSON.
+* The file is missing the required `packages` object.
+* A package entry is missing the required `url` field.
+* Two package entries have the same `url` value.
+
+```console
+$ node --experimental-package-map=./missing.json app.js
+Error [ERR_PACKAGE_MAP_INVALID]: Invalid package map at "./missing.json": file not found
+```
+
+<a id="ERR_PACKAGE_MAP_KEY_NOT_FOUND"></a>
+
+### `ERR_PACKAGE_MAP_KEY_NOT_FOUND`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+A package's `dependencies` object in the [package map][] references a package
+key that is not defined in the `packages` object.
+
+```json
+{
+  "packages": {
+    "app": {
+      "url": "./app",
+      "dependencies": {
+        "foo": "nonexistent"
+      }
+    }
+  }
+}
+```
+
+In this example, `"nonexistent"` is referenced as a dependency target but not
+defined in `packages`, which will throw this error.
+
+To fix this error, ensure all package keys referenced in `dependencies` values
+are defined in the `packages` object.
+
 <a id="ERR_PACKAGE_PATH_NOT_EXPORTED"></a>
 
 ### `ERR_PACKAGE_PATH_NOT_EXPORTED`
@@ -2636,6 +2707,32 @@ added:
 
 Opening a QUIC stream failed.
 
+<a id="ERR_QUIC_STREAM_ABORTED"></a>
+
+### `ERR_QUIC_STREAM_ABORTED`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+> Stability: 1 - Experimental
+
+The Node.js error code for a [`QuicError`][] thrown to abort a QUIC stream
+or session with an explicit application or transport error code.
+
+<a id="ERR_QUIC_STREAM_RESET"></a>
+
+### `ERR_QUIC_STREAM_RESET`
+
+<!-- YAML
+added: v24.20.0
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC stream was reset by the peer. The error includes the reset code
+provided by the peer.
+
 <a id="ERR_QUIC_TRANSPORT_ERROR"></a>
 
 ### `ERR_QUIC_TRANSPORT_ERROR`
@@ -2668,18 +2765,36 @@ A QUIC session failed because version negotiation is required.
 
 ### `ERR_REQUIRE_ASYNC_MODULE`
 
-When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+<!-- YAML
+changes:
+  - version: v24.20.0
+    pr-url: https://github.com/nodejs/node/pull/64260
+    description: Added the `requireStack` and `topLevelAwaitLocations` properties.
+-->
+
+When trying to `require()` an [ES Module][], the module turns out to be asynchronous.
 That is, it contains top-level await.
 
-To see where the top-level await is, use
-`--experimental-print-required-tla` (this would execute the modules
-before looking for the top-level awaits).
+When uncaught, the flag `--experimental-print-required-tla` prints
+the locations of the top-level awaits in the graph to stderr.
+
+This error has the following additional non-enumerable properties:
+
+* `requireStack` {string\[]} The chain of modules that led to the failing
+  `require()`, starting with the module that required the asynchronous module.
+* `topLevelAwaitLocations` {Object\[]} The locations of the top-level awaits in
+  the graph. Only populated when `--experimental-print-required-tla` is enabled.
+  Each entry has the following properties:
+  * `url` {string} The URL of the module containing the top-level await.
+  * `line` {number} The 1-based line number of the top-level await.
+  * `column` {number} The 1-based column number of the top-level await.
+  * `sourceLine` {string} The source line containing the top-level await.
 
 <a id="ERR_REQUIRE_CYCLE_MODULE"></a>
 
 ### `ERR_REQUIRE_CYCLE_MODULE`
 
-When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
+When trying to `require()` an [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
 participates in an immediate cycle.
 This is not allowed because ES Modules cannot be evaluated while they are
 already being evaluated.
@@ -2905,6 +3020,13 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
+
+<a id="ERR_STREAM_ITER_MISSING_FLAG"></a>
+
+### `ERR_STREAM_ITER_MISSING_FLAG`
+
+A stream/iter API was used without the `--experimental-stream-iter` CLI flag
+enabled.
 
 <a id="ERR_STREAM_NULL_VALUES"></a>
 
@@ -3259,7 +3381,7 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for files descendant of a `node_modules` directory.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
@@ -3399,6 +3521,14 @@ added: v18.1.0
 
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
+
+<a id="ERR_WORKER_HANDLE_NOT_TRANSFERABLE"></a>
+
+### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
+
+An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
+via a `worker_threads` `postMessage()` call while it was not in a transferable
+state, for example because it had already started reading or had buffered data.
 
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
@@ -4430,6 +4560,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
+[`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Writable`]: stream.md#class-streamwritable
@@ -4497,6 +4628,7 @@ An error occurred trying to allocate memory. This should never happen.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[package map]: packages.md#package-maps
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
 [special scheme]: https://url.spec.whatwg.org/#special-scheme

@@ -32,8 +32,12 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_fmt.h"
+
+#define NGTCP2_LOG_BUFLEN 1024
 
 typedef struct ngtcp2_log {
+  ngtcp2_log_write log_write;
   /* log_printf is a sink to write log.  NULL means no logging
      output. */
   ngtcp2_printf log_printf;
@@ -49,7 +53,8 @@ typedef struct ngtcp2_log {
      log_pritnf. */
   void *user_data;
   /* scid is SCID encoded as NULL-terminated hex string. */
-  uint8_t scid[NGTCP2_MAX_CIDLEN * 2 + 1];
+  char scid[NGTCP2_MAX_CIDLEN * 2 + 1];
+  char *buf;
 } ngtcp2_log;
 
 /**
@@ -96,8 +101,8 @@ typedef enum ngtcp2_log_event {
 } ngtcp2_log_event;
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
-                     ngtcp2_printf log_printf, ngtcp2_tstamp ts,
-                     void *user_data);
+                     ngtcp2_log_write log_write, ngtcp2_printf log_printf,
+                     char *buf, ngtcp2_tstamp ts, void *user_data);
 
 void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr);
@@ -107,7 +112,7 @@ void ngtcp2_log_tx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const uint32_t *sv, size_t nsv);
 
-void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr);
+void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset2 *sr);
 
 void ngtcp2_log_remote_tp(ngtcp2_log *log,
                           const ngtcp2_transport_params *params);
@@ -119,14 +124,57 @@ void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
 void ngtcp2_log_tx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
-void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
+uint64_t ngtcp2_log_timestamp(const ngtcp2_log *log);
 
-/**
- * @function
- *
- * `ngtcp2_log_info` writes info level log.
- */
-void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
-                     ...);
+static inline const char *ngtcp2_log_event_str(ngtcp2_log_event ev) {
+  switch (ev) {
+  case NGTCP2_LOG_EVENT_CON:
+    return "con";
+  case NGTCP2_LOG_EVENT_PKT:
+    return "pkt";
+  case NGTCP2_LOG_EVENT_FRM:
+    return "frm";
+  case NGTCP2_LOG_EVENT_LDC:
+    return "ldc";
+  case NGTCP2_LOG_EVENT_CRY:
+    return "cry";
+  case NGTCP2_LOG_EVENT_PTV:
+    return "ptv";
+  case NGTCP2_LOG_EVENT_CCA:
+    return "cca";
+  case NGTCP2_LOG_EVENT_NONE:
+  default:
+    return "non";
+  }
+}
+
+#define NGTCP2_LOG_HD(LOG, EV)                                                 \
+  "I", uintw(ngtcp2_log_timestamp(LOG), 8), " 0x", (LOG)->scid, " ",           \
+    ngtcp2_log_event_str(EV), " "
+
+#define ngtcp2_log_infof_raw(LOG, EV, ...)                                     \
+  do {                                                                         \
+    size_t log_nwrite;                                                         \
+                                                                               \
+    ngtcp2_fmt_format((LOG)->buf, &log_nwrite, NGTCP2_LOG_HD((LOG), (EV)),     \
+                      __VA_ARGS__);                                            \
+    if ((LOG)->log_write) {                                                    \
+      (LOG)->log_write((LOG)->user_data, (LOG)->buf, log_nwrite);              \
+    } else {                                                                   \
+      (LOG)->log_printf((LOG)->user_data, "%s", (LOG)->buf);                   \
+    }                                                                          \
+  } while (0)
+
+#define ngtcp2_log_infof(LOG, EV, ...)                                         \
+  do {                                                                         \
+    if ((!(LOG)->log_write && !(LOG)->log_printf) ||                           \
+        !((LOG)->events & (EV))) {                                             \
+      break;                                                                   \
+    }                                                                          \
+                                                                               \
+    ngtcp2_log_infof_raw((LOG), (EV), __VA_ARGS__);                            \
+  } while (0)
+
+#define ngtcp2_log_info(LOG, EV, ARG) ngtcp2_log_infof((LOG), (EV), (ARG))
 
 #endif /* !defined(NGTCP2_LOG_H) */

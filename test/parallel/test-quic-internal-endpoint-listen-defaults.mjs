@@ -1,5 +1,5 @@
 // Flags: --expose-internals --experimental-quic --no-warnings
-import { hasQuic, skip } from '../common/index.mjs';
+import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
@@ -12,17 +12,17 @@ if (!hasQuic) {
 // Import after the hasQuic check
 const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
-const { kState } = (await import('internal/quic/symbols')).default;
+const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 
 const endpoint = new QuicEndpoint();
-
-assert.ok(!endpoint[kState].isBound);
-assert.ok(!endpoint[kState].isReceiving);
-assert.ok(!endpoint[kState].isListening);
+const state = getQuicEndpointState(endpoint);
+assert.ok(!state.isBound);
+assert.ok(!state.isReceiving);
+assert.ok(!state.isListening);
 
 assert.strictEqual(endpoint.address, undefined);
 
@@ -32,24 +32,23 @@ await assert.rejects(listen(123, { sni, endpoint }), {
 // Buffer is not detached.
 assert.strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(() => {}, 123), {
+await assert.rejects(listen(mustNotCall(), 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-await listen(() => {}, { sni, endpoint });
+await listen(mustNotCall(), { sni, endpoint });
 // Buffer is not detached.
 assert.strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(() => {}, { sni, endpoint }), {
+await assert.rejects(listen(mustNotCall(), { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
-
 // Buffer is not detached.
 assert.strictEqual(cert.buffer.detached, false);
 
-assert.ok(endpoint[kState].isBound);
-assert.ok(endpoint[kState].isReceiving);
-assert.ok(endpoint[kState].isListening);
+assert.ok(state.isBound);
+assert.ok(state.isReceiving);
+assert.ok(state.isListening);
 
 const address = endpoint.address;
 assert.ok(address instanceof SocketAddress);
@@ -65,7 +64,7 @@ assert.strictEqual(endpoint.closed, endpoint.close());
 await endpoint.closed;
 assert.ok(endpoint.destroyed);
 
-await assert.rejects(listen(() => {}, { sni, endpoint }), {
+await assert.rejects(listen(mustNotCall(), { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.

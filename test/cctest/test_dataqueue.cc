@@ -495,25 +495,10 @@ TEST(DataQueue, NonIdempotentDataQueue) {
     CHECK(!waitingForPull);
     CHECK_EQ(status, node::bob::STATUS_CONTINUE);
 
-    // We can read the expected data from reader1. Because the entries are
-    // InMemoryEntry instances, reads will be fully synchronous here.
+    // The next read produces buffer2. When the first entry's reader returns
+    // EOS, the NonIdempotentDataQueueReader immediately pulls from the next
+    // entry (recursive Pull), so the transition is seamless.
     waitingForPull = true;
-
-    status = reader->Pull(
-        [&](int status, const DataQueue::Vec* vecs, size_t count, auto done) {
-          waitingForPull = false;
-          CHECK_EQ(status, node::bob::STATUS_CONTINUE);
-          CHECK_EQ(count, 0);
-        },
-        node::bob::OPTIONS_SYNC,
-        nullptr,
-        0,
-        node::bob::kMaxCountHint);
-
-    CHECK(!waitingForPull);
-    CHECK_EQ(status, node::bob::STATUS_CONTINUE);
-
-    // The next read produces buffer2, and should be the end.
     status = reader->Pull(
         [&](int status, const DataQueue::Vec* vecs, size_t count, auto done) {
           waitingForPull = false;
@@ -627,6 +612,9 @@ TEST(DataQueue, DataQueueEntry) {
   // All of the actual entries are in-memory entries so reads should be sync.
   CHECK(!pullIsPending);
   CHECK_EQ(status, node::bob::STATUS_CONTINUE);
+
+  // Cap the queue so the reader can reach EOS after draining all entries.
+  data_queue2->cap();
 
   // Read to completion...
   while (status != node::bob::STATUS_EOS) {

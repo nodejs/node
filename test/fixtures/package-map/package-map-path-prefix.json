@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "pkg": {
+      "url": "./pkg",
+      "dependencies": {}
+    },
+    "pkg-other": {
+      "url": "./pkg-other",
+      "dependencies": {"pkg": "pkg"}
+    }
+  }
+}

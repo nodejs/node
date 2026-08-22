@@ -24,6 +24,12 @@ const algorithms = [
         publicKeyUsages: ["verify"]
     },
     {
+        name: "Ed448",
+        generateKeyParams: { name: "Ed448" },
+        usages: ["sign", "verify"],
+        publicKeyUsages: ["verify"]
+    },
+    {
         name: "RSA-OAEP",
         generateKeyParams: {
             name: "RSA-OAEP",
@@ -59,6 +65,12 @@ const algorithms = [
     {
         name: "X25519",
         generateKeyParams: { name: "X25519" },
+        usages: ["deriveKey", "deriveBits"],
+        publicKeyUsages: []
+    },
+    {
+        name: "X448",
+        generateKeyParams: { name: "X448" },
         usages: ["deriveKey", "deriveBits"],
         publicKeyUsages: []
     },
