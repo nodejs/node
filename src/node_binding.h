@@ -65,6 +65,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(encoding_binding)                                                          \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
+  V(glob)                                                                      \
   V(http_parser)                                                               \
   V(locks)                                                                     \
   V(messaging)                                                                 \

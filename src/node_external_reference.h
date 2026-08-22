@@ -80,6 +80,7 @@ class ExternalReferenceRegistry {
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \
+  V(glob)                                                                      \
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
   V(http_parser)                                                               \
