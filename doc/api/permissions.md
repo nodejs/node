@@ -82,8 +82,8 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 To allow network access, use [`--allow-net`][] and for allowing native addons
 when using permission model, use the [`--allow-addons`][]
 flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
-[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
-`--experimental-ffi` flag and is only available in builds with FFI support.
+[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module is only available in
+builds with FFI support.
 
 To allow use of OpenSSL STORE loaders, for example to load a private key
 from a {URL} passed to [`crypto.createPrivateKey()`][], use the

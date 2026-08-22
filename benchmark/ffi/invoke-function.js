@@ -23,7 +23,7 @@ const bench = common.createBenchmark(main, {
   n: [1e7],
   symbol: ['call_int_callback', 'sum_8_i32'],
 }, {
-  flags: ['--experimental-ffi', '--no-warnings'],
+  flags: ['--no-warnings'],
 });
 
 ensureFixtureLibrary();
