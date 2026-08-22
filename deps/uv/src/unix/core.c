@@ -1090,7 +1090,23 @@ void uv__io_poll_check(uv_loop_t* loop, sigset_t* pset) {
 }
 
 int uv__fd_exists(uv_loop_t* loop, int fd) {
-  return (unsigned) fd < loop->nwatchers && loop->watchers[fd] != NULL;
+  if ((unsigned) fd < loop->nwatchers && loop->watchers[fd] != NULL)
+    return 1;
+
+  /* Also treat the loop's private fds as in-use. Their write ends are not
+   * registered in watchers[] but adopting them via uv_*_open() corrupts the
+   * loop and can abort later in uv__io_poll().
+   */
+  if (fd != -1 && loop->backend_fd == fd)
+    return 1;
+  if (fd != -1 &&
+      (loop->signal_pipefd[0] == fd || loop->signal_pipefd[1] == fd))
+    return 1;
+  if (fd != -1 &&
+      (loop->async_io_watcher.fd == fd || loop->async_wfd == fd))
+    return 1;
+
+  return 0;
 }
 
 

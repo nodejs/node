@@ -1331,6 +1331,13 @@ static void uv__epoll_ctl_flush(int epollfd,
     if (op != EPOLL_CTL_ADD)
       abort();
 
+    /* EEXIST: already watched — retry as MOD.
+     * EBADF/ENOENT/EPERM: fd was closed or is not epoll-able between
+     * uv__io_start() and here. Ignore rather than abort the process.
+     */
+    if (cqe->res == -EBADF || cqe->res == -ENOENT || cqe->res == -EPERM)
+      continue;
+
     if (cqe->res != -EEXIST)
       abort();
 
@@ -1423,12 +1430,35 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (!epoll_ctl(epollfd, op, fd, &e))
       continue;
 
+    /* fd may have been closed after uv__io_start() queued this update.
+     * That is a recoverable application mistake; do not abort the process.
+     */
+    if (errno == EBADF || errno == ENOENT || errno == EPERM) {
+      w->events = 0;
+      if ((unsigned) fd < loop->nwatchers && loop->watchers[fd] == w) {
+        loop->watchers[fd] = NULL;
+        assert(loop->nfds > 0);
+        loop->nfds--;
+      }
+      continue;
+    }
+
     assert(op == EPOLL_CTL_ADD);
     assert(errno == EEXIST);
 
     /* File descriptor that's been watched before, update event mask. */
-    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &e))
+    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &e)) {
+      if (errno == EBADF || errno == ENOENT || errno == EPERM) {
+        w->events = 0;
+        if ((unsigned) fd < loop->nwatchers && loop->watchers[fd] == w) {
+          loop->watchers[fd] = NULL;
+          assert(loop->nfds > 0);
+          loop->nfds--;
+        }
+        continue;
+      }
       abort();
+    }
   }
 
   inv.events = events;
