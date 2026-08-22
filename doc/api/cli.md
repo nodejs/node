@@ -2271,6 +2271,17 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
+### `--no-worker-snapshot`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Start worker threads by running the internal bootstrap from scratch instead of
+deserializing the bootstrapped context from the built-in startup snapshot.
+
 ### `--node-memory-debug`
 
 <!-- YAML
@@ -3941,6 +3952,7 @@ one is included in the list below.
 * `--no-strip-types`
 * `--no-warnings`
 * `--no-webstorage`
+* `--no-worker-snapshot`
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`

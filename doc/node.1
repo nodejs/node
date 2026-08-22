@@ -1142,6 +1142,10 @@ For more information, see the TypeScript type-stripping documentation.
 .It Fl -no-warnings
 Silence all process warnings (including deprecations).
 .
+.It Fl -no-worker-snapshot
+Start worker threads by running the internal bootstrap from scratch instead of
+deserializing the bootstrapped context from the built-in startup snapshot.
+.
 .It Fl -node-memory-debug
 Enable extra debug checks for memory leaks in Node.js internals. This is
 usually only useful for developers debugging Node.js itself.
@@ -2105,6 +2109,8 @@ one is included in the list below.
 \fB--no-warnings\fR
 .It
 \fB--no-webstorage\fR
+.It
+\fB--no-worker-snapshot\fR
 .It
 \fB--node-memory-debug\fR
 .It

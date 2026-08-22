@@ -310,6 +310,7 @@ class EnvironmentOptions : public Options {
 
 class PerIsolateOptions : public Options {
  public:
+  bool worker_snapshot = true;  // --[no-]worker-snapshot
   PerIsolateOptions() = default;
   PerIsolateOptions(PerIsolateOptions&&) = default;
 
