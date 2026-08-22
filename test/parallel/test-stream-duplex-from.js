@@ -418,3 +418,48 @@ function makeATestWritableStream(writeFunc) {
   }));
   r.destroy(expectedErr);
 }
+
+// Regression tests for https://github.com/nodejs/node/issues/55077
+// When `Duplex.from(asyncFn)` is used and the async function returns
+// without (fully) consuming its async-iterable parameter, the upstream
+// readable should still be destroyed by the pipeline so resources are
+// released.
+{
+  const r = Readable.from(['foo', 'bar', 'baz']);
+  pipeline(
+    r,
+    Duplex.from(async function(asyncGenerator) {
+      asyncGenerator.return();
+    }),
+    common.mustCall(() => {
+      assert.strictEqual(r.destroyed, true);
+    }),
+  );
+}
+
+{
+  const r = Readable.from(['foo', 'bar', 'baz']);
+  pipeline(
+    r,
+    Duplex.from(async function(asyncGenerator) {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of asyncGenerator) { break; }
+    }),
+    common.mustCall(() => {
+      assert.strictEqual(r.destroyed, true);
+    }),
+  );
+}
+
+{
+  const r = Readable.from(['foo', 'bar', 'baz']);
+  pipeline(
+    r,
+    Duplex.from(async function(asyncGenerator) {
+      // Resolve immediately without touching the generator at all.
+    }),
+    common.mustCall(() => {
+      assert.strictEqual(r.destroyed, true);
+    }),
+  );
+}
