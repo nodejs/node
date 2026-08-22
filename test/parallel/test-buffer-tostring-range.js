@@ -118,6 +118,23 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
   );
 }
 
+// ucs2 slices of odd byte length at an odd (2-byte unaligned) start offset.
+// The decoder keeps whole code units and drops the trailing odd byte, so an
+// odd-length slice reads the same as the even-length slice one byte shorter.
+// Regression for a one-byte out-of-bounds write in the unaligned copy path,
+// where the full odd byte length was copied into a buffer sized for
+// floor(len / 2) code units.
+for (const nchars of [1, 200, 256, 300, 1024]) {
+  const bytes = nchars * 2 + 1; // odd
+  const src = Buffer.alloc(bytes + 2);
+  for (let i = 0; i < src.length; i++) src[i] = (i * 7 + 1) & 0xff;
+  // start = 1 makes the read pointer 2-byte unaligned; end - start is odd.
+  const odd = src.toString('ucs2', 1, 1 + bytes);
+  const even = src.toString('ucs2', 1, 1 + bytes - 1);
+  assert.strictEqual(odd.length, nchars);
+  assert.strictEqual(odd, even);
+}
+
 // Try toString() with an object as an encoding
 assert.strictEqual(rangeBuffer.toString({ toString: function() {
   return 'ascii';
