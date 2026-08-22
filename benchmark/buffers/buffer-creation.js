@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
     'fast-allocUnsafe',
     'slow-allocUnsafe',
   ],
-  len: [10, 1024, 4096, 8192],
+  len: [10, 1024, 4096, 8192, 10 * 1024, 51 * 1024, 102 * 1024, 204 * 1024],
   n: [6e5],
 });
 
