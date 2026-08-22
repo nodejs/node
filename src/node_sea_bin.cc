@@ -20,6 +20,7 @@
 #include "util-inl.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -40,6 +41,7 @@
 
 namespace node {
 namespace sea {
+using node::ExitCode;
 
 // TODO(joyeecheung): use LIEF to locate it directly.
 std::string_view FindSingleExecutableBlob() {
@@ -57,6 +59,23 @@ std::string_view FindSingleExecutableBlob() {
     const char* blob = static_cast<const char*>(
         postject_find_resource("NODE_SEA_BLOB", &size, nullptr));
 #endif
+    // Fuse set with no (or empty) blob used to NULL-deref in BlobDeserializer.
+    // See https://github.com/nodejs/node/issues/63466.
+    if (blob == nullptr || size == 0) {
+      char exec_path_buf[2 * PATH_MAX];
+      size_t exec_path_len = sizeof(exec_path_buf);
+      const char* path = "this binary";
+      if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
+        path = exec_path_buf;
+      }
+      FPrintF(stderr,
+              "node: SEA fuse is set but no valid NODE_SEA_BLOB resource "
+              "was found in %s.\n"
+              "The host binary may be missing a PT_NOTE program header "
+              "(run `readelf -lW <binary> | grep NOTE` to check).\n",
+              path);
+      exit(static_cast<int>(ExitCode::kGenericUserError));
+    }
     return {blob, size};
   }();
   per_process::Debug(DebugCategory::SEA,
