@@ -1,0 +1,41 @@
+name: Webhook workflow
+
+on:
+  repository_dispatch:
+    types: [ci-complete]
+
+env:
+  NODE_VERSION: lts/*
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Setup @node-core/utils
+        run: |
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set owner "$GITHUB_REPOSITORY_OWNER"
+          ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
+      - name: Start the CI
+        run: |
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/ci-status.sh" \
+          | sh -s -- "${{ github.event.client_payload.id }}" "${{ github.event.client_payload.pr }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
