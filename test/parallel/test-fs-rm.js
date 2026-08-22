@@ -631,3 +631,30 @@ if (isGitPresent) {
     }
   }
 }
+
+{
+  // Test that rmSync can delete read-only files (and directories containing read-only files recursively)
+  const dirname = nextDirPath();
+  const filePath = path.join(dirname, 'readonly-file.txt');
+  const recursiveDir = path.join(dirname, 'subdir');
+  const recursiveFilePath = path.join(recursiveDir, 'readonly-nested.txt');
+
+  fs.mkdirSync(recursiveDir, { recursive: true });
+  fs.writeFileSync(filePath, 'hello');
+  fs.writeFileSync(recursiveFilePath, 'world');
+
+  // Make files read-only
+  fs.chmodSync(filePath, 0o444);
+  fs.chmodSync(recursiveFilePath, 0o444);
+
+  // rmSync without recursive option on a file
+  fs.rmSync(filePath);
+  assert.strictEqual(fs.existsSync(filePath), false);
+
+  // rmSync with recursive option on a directory containing a read-only file
+  fs.rmSync(recursiveDir, { recursive: true });
+  assert.strictEqual(fs.existsSync(recursiveDir), false);
+
+  // Clean up parent directory
+  fs.rmSync(dirname, { recursive: true, force: true });
+}
