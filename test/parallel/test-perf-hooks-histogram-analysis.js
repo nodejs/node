@@ -229,7 +229,24 @@ const { inspect } = require('util');
   const unsorted = h.percentilesAt([99, 50, 90]);
   assert.strictEqual(unsorted.get(50), h.percentile(50));
 
-  // Validation
+  // Validation: non-array input must throw the same error regardless of how
+  // the check is implemented internally.
+  for (const [value, received] of [
+    ['x', "type string ('x')"],
+    [123, 'type number (123)'],
+    [{}, 'an instance of Object'],
+    [null, 'null'],
+    [undefined, 'undefined'],
+    [1n, 'type bigint (1n)'],
+    [true, 'type boolean (true)'],
+  ]) {
+    assert.throws(() => h.percentilesAt(value), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "percentiles" argument must be an instance of Array. ' +
+               `Received ${received}`,
+    });
+  }
   assert.throws(() => h.percentilesAt('not array'),
                 { code: 'ERR_INVALID_ARG_TYPE' });
   assert.throws(() => h.percentilesAt([0]),
