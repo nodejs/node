@@ -10,7 +10,7 @@ const { Worker } = require('worker_threads');
 
 const workerPath = path.join(__dirname, '../common/wpt/worker.js');
 const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
-const execArgv = ['--experimental-web-worker'];
+const execArgv = [];
 const workerData = {
   testRelativePath: 'workers/error-after-result.any.js',
   wptRunner: path.join(__dirname, '../common/wpt.js'),

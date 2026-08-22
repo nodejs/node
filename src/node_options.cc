@@ -599,7 +599,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Web Worker API",
             BOOL_FIELD(experimental_web_worker),
             kAllowedInEnvvar,
-            false);
+            true);
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             BOOL_FIELD(experimental_websocket),
