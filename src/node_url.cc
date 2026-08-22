@@ -8,6 +8,7 @@
 #include "node_metadata.h"
 #include "node_process-inl.h"
 #include "path.h"
+#include "simdutf.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 #include "v8-local-handle.h"
@@ -32,6 +33,42 @@ using v8::ObjectTemplate;
 using v8::SnapshotCreator;
 using v8::String;
 using v8::Value;
+
+namespace {
+
+// Parse a V8 string as a URL. One-byte ASCII inputs are parsed in place
+// without allocating a UTF-8 copy. When `reuse_input` is non-null it is set
+// if the serialized href is identical to that ASCII input so the caller can
+// return the original V8 string. Omit it when the caller will not reuse the
+// input, to skip the O(n) href comparison. Non-ASCII inputs are never reused:
+// UTF-8 conversion may replace unpaired surrogates, so the original string
+// may not match href.
+ada::result<ada::url_aggregator> ParseUrlFromV8String(
+    Isolate* isolate,
+    Local<String> input,
+    const ada::url_aggregator* base_url,
+    bool* reuse_input = nullptr) {
+  {
+    String::ValueView view(isolate, input);
+    if (view.is_one_byte()) {
+      const char* data = reinterpret_cast<const char*>(view.data8());
+      const size_t length = static_cast<size_t>(view.length());
+      if (simdutf::validate_ascii(data, length)) [[likely]] {
+        const std::string_view input_view(data, length);
+        auto out = ada::parse<ada::url_aggregator>(input_view, base_url);
+        if (reuse_input != nullptr) {
+          *reuse_input = out.has_value() && out->get_href() == input_view;
+        }
+        return out;
+      }
+    }
+  }
+  if (reuse_input != nullptr) *reuse_input = false;
+  Utf8Value utf8(isolate, input);
+  return ada::parse<ada::url_aggregator>(utf8.ToStringView(), base_url);
+}
+
+}  // namespace
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("url_components_buffer", url_components_buffer_);
@@ -392,31 +429,48 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
   Isolate* isolate = realm->isolate();
-  std::optional<std::string> base_{};
+  Local<String> input_string = args[0].As<String>();
 
-  Utf8Value input(isolate, args[0]);
   ada::result<ada::url_aggregator> base;
   ada::url_aggregator* base_pointer = nullptr;
   if (args[1]->IsString()) {
-    base_ = Utf8Value(isolate, args[1]).ToString();
-    base = ada::parse<ada::url_aggregator>(*base_);
-    if (!base && raise_exception) {
-      return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
-    } else if (!base) {
+    base = ParseUrlFromV8String(isolate, args[1].As<String>(), nullptr);
+    if (!base) {
+      if (raise_exception) {
+        Utf8Value input(isolate, input_string);
+        Utf8Value base_utf8(isolate, args[1]);
+        return ThrowInvalidURL(
+            realm->env(), input.ToStringView(), base_utf8.ToString());
+      }
       return;
     }
     base_pointer = &base.value();
   }
-  auto out =
-      ada::parse<ada::url_aggregator>(input.ToStringView(), base_pointer);
 
-  if (!out && raise_exception) {
-    return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
-  } else if (!out) {
+  bool reuse_input = false;
+  auto out =
+      ParseUrlFromV8String(isolate, input_string, base_pointer, &reuse_input);
+  if (!out) {
+    if (raise_exception) {
+      Utf8Value input(isolate, input_string);
+      std::optional<std::string> base_error;
+      if (args[1]->IsString()) {
+        base_error = Utf8Value(isolate, args[1]).ToString();
+      }
+      return ThrowInvalidURL(
+          realm->env(), input.ToStringView(), std::move(base_error));
+    }
     return;
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
+
+  // Already-serialized ASCII URLs are the common case. Reuse the input
+  // string instead of allocating an identical V8 string from href.
+  if (reuse_input) {
+    args.GetReturnValue().Set(args[0]);
+    return;
+  }
 
   Local<Value> ret;
   if (ToV8Value(realm->context(), out->get_href(), isolate).ToLocal(&ret))
@@ -439,13 +493,13 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   enum url_update_action action = static_cast<enum url_update_action>(val);
-  Utf8Value input(isolate, args[0].As<String>());
   Utf8Value new_value(isolate, args[2].As<String>());
 
   std::string_view new_value_view = new_value.ToStringView();
   // A serialized URL is not always reparsable: the IDNA encoder can emit a
   // host label that the decoder rejects. Fail the update instead of crashing.
-  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
+  // Existing hrefs are typically already-serialized ASCII, so parse in place.
+  auto out = ParseUrlFromV8String(isolate, args[0].As<String>(), nullptr);
   if (!out) {
     return args.GetReturnValue().Set(false);
   }
