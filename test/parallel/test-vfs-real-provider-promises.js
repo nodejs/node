@@ -30,7 +30,11 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
                        { code: 'ENOENT' });
 
   // mkdir / readdir / rmdir
-  await myVfs.promises.mkdir('/d/sub', { recursive: true });
+  // Recursive mkdir reports the first created directory as a VFS path.
+  assert.strictEqual(await myVfs.promises.mkdir('/d/sub', { recursive: true }),
+                     '/d');
+  assert.strictEqual(await myVfs.promises.mkdir('/d/sub', { recursive: true }),
+                     undefined);
   const entries = await myVfs.promises.readdir('/d');
   assert.deepStrictEqual(entries.sort(), ['sub']);
   await myVfs.promises.rmdir('/d/sub');

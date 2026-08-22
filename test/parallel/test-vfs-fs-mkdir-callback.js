@@ -31,6 +31,20 @@ function mounted() {
   }));
 }
 
+// Recursive mkdir (cb) reports the first created dir below the mount point
+{
+  const { myVfs, mountPoint } = mounted();
+  fs.mkdir(path.join(mountPoint, 'src/cb-a/b/c'), { recursive: true },
+           common.mustSucceed((created) => {
+             assert.strictEqual(created, path.join(mountPoint, 'src/cb-a'));
+             assert.strictEqual(
+               fs.statSync(path.join(mountPoint, 'src/cb-a/b/c')).isDirectory(),
+               true,
+             );
+             myVfs.unmount();
+           }));
+}
+
 // rmdir (cb)
 {
   const { myVfs, mountPoint } = mounted();
