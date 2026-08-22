@@ -810,10 +810,11 @@ class BIOPointer final {
 
   static int Write(BIOPointer* bio, std::string_view message);
 
+  // Returns the number of bytes written, or a negative value on error.
   template <typename... Args>
-  static void Printf(BIOPointer* bio, const char* format, Args... args) {
-    if (bio == nullptr || !*bio) return;
-    BIO_printf(bio->get(), format, std::forward<Args...>(args...));
+  static int Printf(BIOPointer* bio, const char* format, Args... args) {
+    if (bio == nullptr || !*bio) return -1;
+    return BIO_printf(bio->get(), format, std::forward<Args>(args)...);
   }
 
  private:
