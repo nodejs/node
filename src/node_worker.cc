@@ -190,8 +190,6 @@ class WorkerThreadData {
       return;
     }
 
-    SetIsolateUpForNode(isolate);
-
     // Be sure it's called before Environment::InitializeDiagnostics()
     // so that this callback stays when the callback of
     // --heapsnapshot-near-heap-limit gets is popped.
