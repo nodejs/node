@@ -558,6 +558,8 @@ copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
 copy /Y ..\tools\msvs\install_tools\*.* %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy install_tools scripts && goto package_error
+copy /Y ..\tools\msvs\shims\*.* %TARGET_NAME%\ > nul
+if errorlevel 1 echo Cannot copy shims && goto package_error
 if defined dll (
   copy /Y libnode.dll %TARGET_NAME%\ > nul
   if errorlevel 1 echo Cannot copy libnode.dll && goto package_error

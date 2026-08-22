@@ -66,6 +66,7 @@
              Description="!(loc.NodeRuntime_Description)"
              AllowAbsent="no">
       <ComponentRef Id="NodeExecutable"/>
+      <ComponentRef Id="NodeBashShim"/>
       <ComponentRef Id="NodeRegistryEntries"/>
       <ComponentRef Id="NodeVarsScript"/>
       <ComponentRef Id="NodeStartMenu"/>
@@ -140,6 +141,10 @@
                        Name="Version"
                        Type="string"
                        Value="$(var.ProductVersion)"/>
+      </Component>
+
+      <Component Id="NodeBashShim">
+        <File Id="node" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\shims\node"/>
       </Component>
 
       <Component Id="NodeVarsScript">
