@@ -197,8 +197,7 @@ If version `unstable` was passed into the constructor it will return:
 { wasi_unstable: wasi.wasiImport }
 ```
 
-If version `preview1` was passed into the constructor or no version was
-specified it will return:
+If version `preview1` was passed into the constructor it will return:
 
 ```json
 { wasi_snapshot_preview1: wasi.wasiImport }
