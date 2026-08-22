@@ -1474,6 +1474,10 @@ changes:
     scheduled through `Promise`s and `async function`s) will be run immediately
     after a script has run through [`script.runInContext()`][].
     They are included in the `timeout` and `breakOnSigint` scopes in that case.
+  * `reuseGlobalProxy` {boolean} If `true`, `contextObject` must be the global
+    object of a context created using [`vm.constants.DONT_CONTEXTIFY`][]. The
+    existing context is detached and a new context is created using the same
+    global proxy. **Default:** `false`.
   * `importModuleDynamically`
     {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
     Used to specify the how the modules should be loaded when `import()` is
@@ -1541,6 +1545,9 @@ context.
 
 The provided `name` and `origin` of the context are made visible through the
 Inspector API.
+
+Setting `reuseGlobalProxy` preserves the identity of `contextObject` while
+replacing its context.
 
 ## `vm.isContext(object)`
 
