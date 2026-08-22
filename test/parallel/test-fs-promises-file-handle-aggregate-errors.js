@@ -67,7 +67,9 @@ async function checkAggregateError(op) {
   tmpdir.refresh();
   await checkAggregateError((filePath) => truncate(filePath));
   await checkAggregateError((filePath) => readFile(filePath));
-  await checkAggregateError((filePath) => writeFile(filePath, '123'));
+  // More than one write chunk (512 KiB), so that writeFile(path) goes through
+  // a FileHandle as well.
+  await checkAggregateError((filePath) => writeFile(filePath, '123'.repeat(200_000)));
   if (common.isMacOS) {
     await checkAggregateError((filePath) => lchmod(filePath, 0o777));
   }
