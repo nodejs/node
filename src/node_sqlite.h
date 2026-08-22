@@ -168,6 +168,7 @@ class StatementSyncIterator;
 class StatementSync;
 class BackupJob;
 class Session;
+class BlobHandle;
 
 inline void FinalizeStatement(sqlite3_stmt* stmt) {
   sqlite3_finalize(stmt);
@@ -241,6 +242,7 @@ class DatabaseSync : public BaseObject {
   static void AggregateFunction(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void OpenBlob(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableLoadExtension(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -264,6 +266,7 @@ class DatabaseSync : public BaseObject {
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
   void FinalizeBackups();
+  int CloseBlobs();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
@@ -335,9 +338,11 @@ class DatabaseSync : public BaseObject {
 
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
+  std::unordered_set<BlobHandle*> blobs_;
   std::unordered_set<StatementSync*> statements_;
   BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
 
+  friend class BlobHandle;
   friend class DatabaseSyncLimits;
   friend class Session;
   friend class SQLTagStore;
@@ -461,6 +466,50 @@ class Session : public BaseObject {
   std::unique_ptr<sqlite3_session, SessionDeleter> session_;
   BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
   bool is_generating_changeset_ = false;
+
+  friend class DatabaseSync;
+};
+
+class BlobHandle : public BaseObject {
+ public:
+  BlobHandle(Environment* env,
+             v8::Local<v8::Object> object,
+             BaseObjectPtr<DatabaseSync> database,
+             sqlite3_blob* blob);
+  ~BlobHandle() override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<BlobHandle> Create(Environment* env,
+                                          BaseObjectPtr<DatabaseSync> database,
+                                          sqlite3_blob* blob);
+  static void ByteLengthGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Transfer(const v8::FunctionCallbackInfo<v8::Value>& args,
+                       bool is_write);
+  static void Reopen(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BlobHandle)
+  SET_SELF_SIZE(BlobHandle)
+
+ private:
+  // Releases the underlying handle and stops tracking it on the database.
+  // sqlite3_blob_close() can report an error deferred from an earlier write,
+  // which is returned here so that the explicit close() path can throw while
+  // the implicit paths (garbage collection, database close) ignore it. The
+  // handle is released either way.
+  int Delete();
+  sqlite3_blob* blob_;
+  // sqlite3_blob_close() reports the underlying statement's last result code,
+  // which is not necessarily new: an operation that already threw leaves its
+  // error behind for the close to repeat. The last code seen is kept so that
+  // only a genuinely new failure -- a commit that did not go through -- is
+  // reported a second time.
+  int last_result_ = SQLITE_OK;
+  BaseObjectPtr<DatabaseSync> database_;  // The parent database.
 
   friend class DatabaseSync;
 };
