@@ -161,7 +161,7 @@ if (hasFIPS(3, 5)) {
     ],
     [
       'supports.tentative.https.any.js',
-      /(?:X25519|^deriveKey promise tests$)/,
+      /(?:X25519|^deriveKey promise tests|^supports validates the ECDH public key$)/,
     ],
     [
       'wrapKey_unwrapKey/wrapKey_unwrapKey.https.any.js',
