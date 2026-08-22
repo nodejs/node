@@ -4724,6 +4724,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   auto dest_path = dest.ToPath();
 
   std::error_code error;
+  const bool dest_existed = std::filesystem::exists(dest_path, error);
   std::filesystem::create_directories(dest_path, error);
   if (error) {
     return env->ThrowStdErrException(error, "cp", *dest);
@@ -4843,10 +4844,27 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
         }
       } else if (dir_entry.is_directory()) {
         auto entry_dir_path = src / dir_entry.path().filename();
-        std::filesystem::create_directory(dest_file_path);
+        const bool created =
+            std::filesystem::create_directory(dest_file_path, error);
+        if (error) {
+          env->ThrowStdErrException(
+              error, "cp", ConvertPathToUTF8(dest_file_path).c_str());
+          return false;
+        }
         auto success = copy_dir_contents(entry_dir_path, dest_file_path);
         if (!success) {
           return false;
+        }
+        // A directory created by the copy gets the mode of its source once
+        // its contents are in (the source may be read-only).
+        if (created) {
+          std::filesystem::permissions(
+              dest_file_path, dir_entry.status().permissions(), error);
+          if (error) {
+            env->ThrowStdErrException(
+                error, "cp", ConvertPathToUTF8(dest_file_path).c_str());
+            return false;
+          }
         }
       } else if (dir_entry.is_regular_file()) {
         std::filesystem::copy_file(
@@ -4872,7 +4890,13 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     return true;
   };
 
-  copy_dir_contents(src_path, dest_path);
+  if (copy_dir_contents(src_path, dest_path) && !dest_existed) {
+    std::filesystem::permissions(
+        dest_path, std::filesystem::status(src_path).permissions(), error);
+    if (error) {
+      return env->ThrowStdErrException(error, "cp", *dest);
+    }
+  }
 }
 
 BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
