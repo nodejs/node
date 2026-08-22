@@ -74,3 +74,27 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
 });
+
+// Test parse envs keep the order of keys as they appear in the input string
+{
+  const input = `
+PASSWORD="s1mpl3"
+DB_PASS=$PASSWORD
+  `.trim();
+
+  const parsed = util.parseEnv(input);
+  const keys = Object.keys(parsed);
+
+  assert.deepStrictEqual(keys, ['PASSWORD', 'DB_PASS']);
+}
+
+// Test that when a key appears multiple times, the last value is used,
+// but the order of keys is determined by the first occurrence
+{
+  const input = 'A=1\nB=2\nA=3';
+  const parsed = util.parseEnv(input);
+  const keys = Object.keys(parsed);
+
+  assert.deepStrictEqual(keys, ['A', 'B']);
+  assert.deepStrictEqual(parsed, { A: '3', B: '2', __proto__: null });
+}
