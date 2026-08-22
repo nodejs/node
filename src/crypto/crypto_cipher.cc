@@ -227,7 +227,7 @@ CipherBase::CipherBase(Environment* env, Local<Object> wrap, CipherKind kind)
       auth_tag_state_(kAuthTagUnknown),
       auth_tag_len_(kNoAuthTagLength),
       pending_auth_failed_(false),
-      has_siv_update_(false),
+      has_one_shot_update_(false),
       siv_aad_components_(0) {
   MakeWeak();
 }
@@ -311,7 +311,7 @@ void CipherBase::RegisterExternalReferences(
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 5);
+  CHECK_EQ(args.Length(), 7);
 
   CipherBase* cipher =
       new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
@@ -343,7 +343,19 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
     auth_tag_len = kNoAuthTagLength;
   }
 
-  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
+  CHECK(args[5]->IsString() || args[5]->IsUndefined());
+  CHECK(args[6]->IsString() || args[6]->IsUndefined());
+  const Utf8Value cts_mode(env->isolate(),
+                           args[5]->IsString() ? args[5] : Local<Value>());
+  const Utf8Value xts_standard(env->isolate(),
+                               args[6]->IsString() ? args[6] : Local<Value>());
+
+  cipher->InitIv(*cipher_type,
+                 key_buf,
+                 iv_buf,
+                 auth_tag_len,
+                 args[5]->IsString() ? *cts_mode : nullptr,
+                 args[6]->IsString() ? *xts_standard : nullptr);
 }
 
 void CipherBase::CommonInit(const char* cipher_type,
@@ -352,7 +364,9 @@ void CipherBase::CommonInit(const char* cipher_type,
                             int key_len,
                             const unsigned char* iv,
                             int iv_len,
-                            unsigned int auth_tag_len) {
+                            unsigned int auth_tag_len,
+                            const char* cts_mode,
+                            const char* xts_standard) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
   CHECK(!ctx_);
   ctx_ = CipherCtxPointer::New();
@@ -370,6 +384,18 @@ void CipherBase::CommonInit(const char* cipher_type,
     return ThrowCryptoError(env(),
                             mark_pop_error_on_return.peekError(),
                             "Failed to initialize cipher");
+  }
+
+  if (cts_mode != nullptr && !ctx_.setCtsMode(cts_mode)) {
+    ctx_.reset();
+    return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+        env(), "%s does not support the ctsMode option", cipher_type);
+  }
+
+  if (xts_standard != nullptr && !ctx_.setXtsStandard(xts_standard)) {
+    ctx_.reset();
+    return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+        env(), "%s does not support the xtsStandard option", cipher_type);
   }
 
   if (cipher.isSupportedAuthenticatedMode()) {
@@ -394,7 +420,9 @@ void CipherBase::CommonInit(const char* cipher_type,
 void CipherBase::InitIv(const char* cipher_type,
                         const ByteSource& key_buf,
                         const ArrayBufferOrViewContents<unsigned char>& iv_buf,
-                        unsigned int auth_tag_len) {
+                        unsigned int auth_tag_len,
+                        const char* cts_mode,
+                        const char* xts_standard) {
   HandleScope scope(env()->isolate());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -436,14 +464,15 @@ void CipherBase::InitIv(const char* cipher_type,
     return THROW_ERR_CRYPTO_INVALID_IV(env());
   }
 
-  CommonInit(
-      cipher_type,
-      cipher,
-      key_buf.data<unsigned char>(),
-      key_buf.size(),
-      iv_buf.data(),
-      iv_buf.size(),
-      auth_tag_len);
+  CommonInit(cipher_type,
+             cipher,
+             key_buf.data<unsigned char>(),
+             key_buf.size(),
+             iv_buf.data(),
+             iv_buf.size(),
+             auth_tag_len,
+             cts_mode,
+             xts_standard);
 }
 
 bool CipherBase::InitAuthenticated(const char* cipher_type,
@@ -563,7 +592,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   if ((cipher->ctx_.isSivMode() || cipher->ctx_.isGcmSivMode()) &&
-      cipher->has_siv_update_) {
+      cipher->has_one_shot_update_) {
     return args.GetReturnValue().Set(false);
   }
 
@@ -598,7 +627,7 @@ bool CipherBase::SetAAD(
   if (!ctx_ || !IsAuthenticatedMode())
     return false;
   const bool is_siv = ctx_.isSivMode();
-  if ((is_siv || ctx_.isGcmSivMode()) && has_siv_update_) return false;
+  if ((is_siv || ctx_.isGcmSivMode()) && has_one_shot_update_) return false;
   if (is_siv && siv_aad_components_ >= kMaxSivAADComponents) return false;
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -659,12 +688,18 @@ CipherBase::UpdateResult CipherBase::Update(
   if (!ctx_ || len > INT_MAX) return kErrorState;
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  if (ctx_.isCcmMode() && !CheckCCMMessageLength(len)) {
+  const bool is_ccm_mode = ctx_.isCcmMode();
+  const bool is_ccm_decipher = kind_ == kDecipher && is_ccm_mode;
+
+  if (is_ccm_mode && !CheckCCMMessageLength(len)) {
     return kErrorMessageSize;
   }
 
   const bool is_siv = ctx_.isSivMode() || ctx_.isGcmSivMode();
-  if (is_siv && has_siv_update_) {
+  const bool is_cts = ctx_.isCtsMode();
+  const bool is_wrap = ctx_.isWrapMode();
+  const bool is_one_shot = is_ccm_decipher || is_siv || is_cts || is_wrap;
+  if (is_one_shot && has_one_shot_update_) {
     return kErrorState;
   }
 
@@ -694,8 +729,8 @@ CipherBase::UpdateResult CipherBase::Update(
 
   bool r = ctx_.update(
       buffer, static_cast<unsigned char*>((*out)->Data()), &buf_len);
-  if (is_siv) {
-    has_siv_update_ = true;
+  if (is_ccm_decipher || is_siv || ((is_cts || is_wrap) && r)) {
+    has_one_shot_update_ = true;
   }
 
   // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
@@ -773,7 +808,9 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
 
 bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   if (!ctx_) return false;
-  if ((ctx_.isSivMode() || ctx_.isGcmSivMode()) && !has_siv_update_) {
+  const bool is_one_shot = ctx_.isSivMode() || ctx_.isGcmSivMode() ||
+                           ctx_.isCtsMode() || ctx_.isWrapMode();
+  if (is_one_shot && !has_one_shot_update_) {
     ctx_.reset();
     return false;
   }
@@ -796,7 +833,8 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   // EVP_CipherFinal_ex must not be called and will fail.
   bool ok;
   if (kind_ == kDecipher && ctx_.isCcmMode()) {
-    ok = !pending_auth_failed_;
+    ok = auth_tag_state_ == kAuthTagSetByUser && has_one_shot_update_ &&
+         !pending_auth_failed_;
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   } else {
     int out_len = (*out)->ByteLength();

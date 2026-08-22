@@ -452,7 +452,7 @@ class Cipher final {
   Cipher(const Cipher& other);
   Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
     fetched_cipher_.reset();
 #endif
     cipher_ = cipher;
@@ -476,6 +476,7 @@ class Cipher final {
   bool isWrapMode() const;
   bool isCtrMode() const;
   bool isCcmMode() const;
+  bool isCtsMode() const;
   bool isOcbMode() const;
   bool isSivMode() const;
   bool isGcmSivMode() const;
@@ -499,28 +500,24 @@ class Cipher final {
   // is able to do so.
   static void ForEach(CipherNameCallback callback);
 
-  // Utilities to get various ciphers by type. If the underlying
-  // implementation does not support the requested cipher, then
-  // the result will be an empty Cipher object whose bool operator
-  // will return false.
-
-  static const Cipher EMPTY;
-  static const Cipher AES_128_CBC;
-  static const Cipher AES_192_CBC;
-  static const Cipher AES_256_CBC;
-  static const Cipher AES_128_CTR;
-  static const Cipher AES_192_CTR;
-  static const Cipher AES_256_CTR;
-  static const Cipher AES_128_GCM;
-  static const Cipher AES_192_GCM;
-  static const Cipher AES_256_GCM;
-  static const Cipher AES_128_KW;
-  static const Cipher AES_192_KW;
-  static const Cipher AES_256_KW;
-  static const Cipher AES_128_OCB;
-  static const Cipher AES_192_OCB;
-  static const Cipher AES_256_OCB;
-  static const Cipher CHACHA20_POLY1305;
+  // Lazily resolves common ciphers. If the underlying implementation does not
+  // support the requested cipher, the returned Cipher will be empty.
+  static const Cipher& AES_128_CBC();
+  static const Cipher& AES_192_CBC();
+  static const Cipher& AES_256_CBC();
+  static const Cipher& AES_128_CTR();
+  static const Cipher& AES_192_CTR();
+  static const Cipher& AES_256_CTR();
+  static const Cipher& AES_128_GCM();
+  static const Cipher& AES_192_GCM();
+  static const Cipher& AES_256_GCM();
+  static const Cipher& AES_128_KW();
+  static const Cipher& AES_192_KW();
+  static const Cipher& AES_256_KW();
+  static const Cipher& AES_128_OCB();
+  static const Cipher& AES_192_OCB();
+  static const Cipher& AES_256_OCB();
+  static const Cipher& CHACHA20_POLY1305();
 
   struct CipherParams {
     int padding;
@@ -550,7 +547,7 @@ class Cipher final {
 
  private:
   const EVP_CIPHER* cipher_ = nullptr;
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
 #endif
@@ -940,7 +937,9 @@ class CipherCtxPointer final {
   bool setIvLength(size_t length);
   bool setAeadTag(const Buffer<const char>& tag);
   bool setAeadTagLength(size_t length);
+  bool setCtsMode(const char* mode);
   bool setPadding(bool padding);
+  bool setXtsStandard(const char* standard);
   bool init(const Cipher& cipher,
             bool encrypt,
             const unsigned char* key = nullptr,
@@ -953,6 +952,7 @@ class CipherCtxPointer final {
   bool isGcmMode() const;
   bool isOcbMode() const;
   bool isCcmMode() const;
+  bool isCtsMode() const;
   bool isWrapMode() const;
   bool isSivMode() const;
   bool isGcmSivMode() const;

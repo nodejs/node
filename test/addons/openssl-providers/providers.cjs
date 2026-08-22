@@ -20,7 +20,7 @@ const { getProviders } = require(`./build/${common.buildType}/binding`);
 // supported by the provider.
 const providers = {
   'default': {
-    ciphers: ['des3-wrap'],
+    ciphers: ['aes-128-cbc-cts', 'des3-wrap'],
     hashes: ['sha512-256'],
   },
   'legacy': {

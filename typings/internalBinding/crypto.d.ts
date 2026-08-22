@@ -806,6 +806,8 @@ export interface CryptoBinding {
     credential: InternalCryptoBinding.PreparedSecretKeyData,
     iv: InternalCryptoBinding.ByteSource | null,
     authTagLength?: number,
+    ctsMode?: 'CS1' | 'CS2' | 'CS3',
+    xtsStandard?: 'GB' | 'IEEE',
   ) => InternalCryptoBinding.CipherBaseHandle;
   DiffieHellman: new (
     sizeOrKey: number | InternalCryptoBinding.ByteSource,
