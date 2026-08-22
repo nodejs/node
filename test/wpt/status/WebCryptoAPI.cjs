@@ -65,7 +65,10 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
 
   skipSubtests(
     ['getPublicKey.tentative.https.any.js', /ml-(?:kem|dsa)/i],
-    ['supports-modern.tentative.https.any.js', /ml-(?:kem|dsa)/i]);
+    [
+      'supports-modern.tentative.https.any.js',
+      /(?:ml-(?:kem|dsa)|(?:en|de)capsulateKey)/i,
+    ]);
 }
 
 if (process.features.openssl_is_boringssl) {
@@ -161,7 +164,7 @@ if (hasFIPS(3, 5)) {
     ],
     [
       'supports.tentative.https.any.js',
-      /(?:X25519|^deriveKey promise tests$)/,
+      /(?:X25519|^deriveKey promise tests|^supports validates the ECDH public key$)/,
     ],
     [
       'wrapKey_unwrapKey/wrapKey_unwrapKey.https.any.js',
