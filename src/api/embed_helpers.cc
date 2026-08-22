@@ -131,6 +131,9 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     isolate = impl_->isolate = Isolate::Allocate(GetOrCreateIsolateGroup());
     platform->RegisterIsolate(isolate, loop);
 
+    if (snapshot_config != nullptr && snapshot_config->base_blob != nullptr) {
+      params.snapshot_blob = snapshot_config->base_blob;
+    }
     impl_->snapshot_creator.emplace(isolate, params);
     isolate->SetCaptureStackTraceForUncaughtExceptions(
         true,
