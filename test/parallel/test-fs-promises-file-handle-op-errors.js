@@ -56,7 +56,9 @@ async function checkOperationError(op) {
   tmpdir.refresh();
   await checkOperationError((filePath) => truncate(filePath));
   await checkOperationError((filePath) => readFile(filePath));
-  await checkOperationError((filePath) => writeFile(filePath, '123'));
+  // More than one write chunk (512 KiB), so that writeFile(path) goes through
+  // a FileHandle as well.
+  await checkOperationError((filePath) => writeFile(filePath, '123'.repeat(200_000)));
   if (common.isMacOS) {
     await checkOperationError((filePath) => lchmod(filePath, 0o777));
   }
