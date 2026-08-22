@@ -940,6 +940,23 @@ changes:
 
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
+[`tls.connect()`][] is preferred when creating a new TLS session on top of a
+new `net.Socket`. Constructing a `tls.TLSSocket` directly is useful when
+implementing protocols that can start insecurely (such as SMTP) and then
+upgrade an existing connection to TLS.
+
+> **Warning**: When constructing a `tls.TLSSocket` directly instead of using
+> [`tls.connect()`][], it is the caller's responsibility to:
+>
+> * manage the lifetime of the underlying socket, including connecting it;
+> * validate the peer certificate and identity before treating the connection
+>   as secure. See the [`'secure'`][] event.
+>
+> Unlike [`tls.connect()`][], direct construction does not emit
+> [`'secureConnect'`][], does not set [`tlsSocket.authorized`][] /
+> [`tlsSocket.authorizationError`][] after the handshake, and does not run
+> [`tls.checkServerIdentity()`][] automatically.
+
 ### Event: `'keylog'`
 
 <!-- YAML
@@ -986,10 +1003,35 @@ added: v0.11.4
 -->
 
 The `'secure'` event is emitted after the TLS handshake has successfully
-completed and a secure connection has been established.
+completed.
 
 This event is emitted on both client and server {tls.TLSSocket} instances,
 including sockets created using the `new tls.TLSSocket()` constructor.
+
+Handshake completion alone does not mean the peer was authenticated. When the
+socket was created with [`tls.connect()`][], Node.js performs certificate and
+identity checks and then emits [`'secureConnect'`][]. When using
+`new tls.TLSSocket()` directly, those checks are the caller's responsibility.
+Before using the connection, verify:
+
+1. The peer certificate is trusted, see [`tlsSocket.ssl.verifyError()`][].
+2. The peer certificate matches the expected host, see
+   [`tls.checkServerIdentity()`][] and [`tls.TLSSocket.getPeerCertificate()`][].
+
+If these checks are skipped, the connection should be considered insecure.
+
+```js
+const { checkServerIdentity } = require('node:tls');
+
+// `hostname` is the expected server name (for example, 'example.com').
+tlsSocket.on('secure', () => {
+  const err = tlsSocket.ssl.verifyError() ||
+    checkServerIdentity(hostname, tlsSocket.getPeerCertificate());
+  if (err) {
+    tlsSocket.destroy(err);
+  }
+});
+```
 
 ### Event: `'secureConnect'`
 
@@ -1008,7 +1050,8 @@ determine if the server certificate was signed by one of the specified CAs. If
 protocol.
 
 The `'secureConnect'` event is not emitted when a {tls.TLSSocket} is created
-using the `new tls.TLSSocket()` constructor.
+using the `new tls.TLSSocket()` constructor. In that case, listen for
+[`'secure'`][] and perform peer validation manually.
 
 ### Event: `'session'`
 
@@ -1090,6 +1133,10 @@ added: v0.11.4
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
 
+When a `tls.TLSSocket` is constructed directly with `new tls.TLSSocket()`,
+this property is not updated after the handshake. Use
+[`tlsSocket.ssl.verifyError()`][] instead. See the [`'secure'`][] event.
+
 ### `tlsSocket.authorized`
 
 <!-- YAML
@@ -1100,6 +1147,10 @@ added: v0.11.4
 
 This property is `true` if the peer certificate was signed by one of the CAs
 specified when creating the `tls.TLSSocket` instance, otherwise `false`.
+
+When a `tls.TLSSocket` is constructed directly with `new tls.TLSSocket()`,
+this property is not updated after the handshake (it remains `false`). Use
+[`tlsSocket.ssl.verifyError()`][] instead. See the [`'secure'`][] event.
 
 The peer certificate is only verified during a full TLS handshake. When a
 connection is established by resuming a previous session (see
@@ -1112,6 +1163,32 @@ all can resume a session and report `authorized` as `true`, while
 that authorize clients manually with `rejectUnauthorized: false` should
 therefore also check [`tls.TLSSocket.isSessionReused()`][] and that a peer
 certificate is present.
+
+### `tlsSocket.ssl`
+
+<!-- YAML
+added: v0.11.4
+-->
+
+* Type: {Object}
+
+The underlying OpenSSL `TLSWrap` handle for this socket.
+
+#### `tlsSocket.ssl.verifyError()`
+
+* Returns: {Error|null}
+
+Returns an {Error} object describing why certificate verification failed, or
+`null` if verification succeeded (OpenSSL `X509_V_OK`).
+
+This is the certificate-chain verification result from OpenSSL. It does **not**
+check that the certificate matches the expected host name; use
+[`tls.checkServerIdentity()`][] for that.
+
+When using [`tls.connect()`][], prefer [`tlsSocket.authorized`][] and
+[`tlsSocket.authorizationError`][], which are set after Node.js runs these
+checks. For sockets created with `new tls.TLSSocket()`, call `verifyError()`
+from a [`'secure'`][] listener before using the connection.
 
 ### `tlsSocket.disableRenegotiation()`
 
@@ -2628,12 +2705,16 @@ added: v0.11.3
 [`tls.TLSSocket.isSessionReused()`]: #tlssocketissessionreused
 [`tls.TLSSocket.servername`]: #tlssocketservername
 [`tls.TLSSocket`]: #class-tlstlssocket
+[`tls.checkServerIdentity()`]: #tlscheckserveridentityhostname-cert
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
 [`tls.getCACertificates()`]: #tlsgetcacertificatestype
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
+[`tlsSocket.authorizationError`]: #tlssocketauthorizationerror
+[`tlsSocket.authorized`]: #tlssocketauthorized
+[`tlsSocket.ssl.verifyError()`]: #tlssocketsslverifyerror
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #certificate-object
