@@ -119,3 +119,20 @@ if (ciphers.includes('aes-128-gcm-siv')) {
 } else {
   common.printSkipMessage('Skipping unsupported aes-128-gcm-siv test cases');
 }
+
+for (const [name, mode, keyLength, ivLength] of [
+  ['sm4-gcm', 'gcm', 16, 12],
+  ['sm4-ccm', 'ccm', 16, 12],
+  ['sm4-xts', 'xts', 32, 16],
+]) {
+  if (ciphers.includes(name)) {
+    const info = getCipherInfo(name);
+    assert.strictEqual(info.name, name);
+    assert.strictEqual(info.mode, mode);
+    assert.strictEqual(info.nid, undefined);
+    assert.strictEqual(info.keyLength, keyLength);
+    assert.strictEqual(info.ivLength, ivLength);
+  } else {
+    common.printSkipMessage(`Skipping unsupported ${name} test cases`);
+  }
+}

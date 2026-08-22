@@ -63,7 +63,7 @@ for (const test of TEST_CASES) {
     continue;
   }
 
-  const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
+  const isCCM = /^(?:aes-(?:128|192|256)|sm4)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
   const isSIV = /^aes-(128|192|256)-siv$/.test(test.algo);
 

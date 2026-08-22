@@ -117,6 +117,19 @@
 #define OPENSSL_WITH_AES_GCM_SIV 0
 #endif
 
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
+#define OPENSSL_WITH_SM4_PROVIDER_CIPHERS 1
+#else
+#define OPENSSL_WITH_SM4_PROVIDER_CIPHERS 0
+#endif
+
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV ||                        \
+    OPENSSL_WITH_SM4_PROVIDER_CIPHERS
+#define OPENSSL_WITH_FETCHED_CIPHERS 1
+#else
+#define OPENSSL_WITH_FETCHED_CIPHERS 0
+#endif
+
 #if defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_PREREQ(3, 2)
 #define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 1
 #else
@@ -452,7 +465,7 @@ class Cipher final {
   Cipher(const Cipher& other);
   Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
     fetched_cipher_.reset();
 #endif
     cipher_ = cipher;
@@ -550,7 +563,7 @@ class Cipher final {
 
  private:
   const EVP_CIPHER* cipher_ = nullptr;
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
 #endif

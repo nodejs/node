@@ -3567,6 +3567,9 @@ operations. The specific constants currently defined are described in
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: SM4-GCM, SM4-CCM, and SM4-XTS ciphers are now supported.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: REPLACEME
@@ -3651,6 +3654,9 @@ given IV will be.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: SM4-GCM, SM4-CCM, and SM4-XTS ciphers are now supported.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.

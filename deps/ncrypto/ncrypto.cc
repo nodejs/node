@@ -4481,13 +4481,13 @@ bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 
 // ============================================================================
 
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
 Cipher::Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher)
     : cipher_(cipher.get()), fetched_cipher_(std::move(cipher)) {}
 #endif
 
 Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   if (other.fetched_cipher_ != nullptr) {
     if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
       fetched_cipher_.reset(other.fetched_cipher_.get());
@@ -4500,7 +4500,7 @@ Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
 
 Cipher& Cipher::operator=(const Cipher& other) {
   if (this == &other) return *this;
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   if (other.fetched_cipher_ != nullptr) {
     if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
       fetched_cipher_.reset(other.fetched_cipher_.get());
@@ -4521,7 +4521,7 @@ const Cipher Cipher::FromName(const char* name) {
   const EVP_CIPHER* cipher = EVP_get_cipherbyname(name);
   if (cipher != nullptr) return Cipher(cipher);
 
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   MarkPopErrorOnReturn mark_pop_error_on_return;
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
       EVP_CIPHER_fetch(nullptr, name, nullptr));
@@ -4536,7 +4536,14 @@ const Cipher Cipher::FromName(const char* name) {
       mode == EVP_CIPH_GCM_SIV_MODE ||
 #endif
       false;
-  if (is_siv_mode) return Cipher(std::move(fetched));
+  const bool is_sm4_cipher =
+#if OPENSSL_WITH_SM4_PROVIDER_CIPHERS
+      EVP_CIPHER_is_a(fetched.get(), "SM4-GCM") ||
+      EVP_CIPHER_is_a(fetched.get(), "SM4-CCM") ||
+      EVP_CIPHER_is_a(fetched.get(), "SM4-XTS") ||
+#endif
+      false;
+  if (is_siv_mode || is_sm4_cipher) return Cipher(std::move(fetched));
 
   return Cipher();
 #else
@@ -4548,7 +4555,7 @@ const Cipher Cipher::FromNid(int nid) {
   const EVP_CIPHER* cipher = EVP_get_cipherbynid(nid);
   if (cipher != nullptr) return Cipher(cipher);
 
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   const char* name = OBJ_nid2sn(nid);
   if (name != nullptr) return FromName(name);
 #endif
@@ -4706,7 +4713,7 @@ const char* Cipher::getName() const {
     const char* name = OBJ_nid2sn(nid);
     if (name != nullptr) return name;
   }
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   return EVP_CIPHER_get0_name(cipher_);
 #else
   return {};
@@ -6320,6 +6327,14 @@ constexpr const char* kProviderOnlyAesGcmSivCiphers[] = {
 };
 #endif
 
+#if OPENSSL_WITH_SM4_PROVIDER_CIPHERS
+constexpr const char* kProviderOnlySm4Ciphers[] = {
+    "sm4-gcm",
+    "sm4-ccm",
+    "sm4-xts",
+};
+#endif
+
 #if OPENSSL_VERSION_MAJOR >= 3
 template <class TypeName,
           TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
@@ -6386,11 +6401,11 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
       array_push_back<EVP_CIPHER>,
 #endif
       &context);
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if OPENSSL_WITH_FETCHED_CIPHERS
   auto maybe_push_provider_only_cipher = [&](const char* name) {
-    EVP_CIPHER* cipher = EVP_CIPHER_fetch(nullptr, name, nullptr);
+    DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher(
+        EVP_CIPHER_fetch(nullptr, name, nullptr));
     if (cipher == nullptr) return;
-    EVP_CIPHER_free(cipher);
     context.cb(name);
   };
 #endif
@@ -6401,6 +6416,11 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
 #endif
 #if OPENSSL_WITH_AES_GCM_SIV
   for (const char* name : kProviderOnlyAesGcmSivCiphers) {
+    maybe_push_provider_only_cipher(name);
+  }
+#endif
+#if OPENSSL_WITH_SM4_PROVIDER_CIPHERS
+  for (const char* name : kProviderOnlySm4Ciphers) {
     maybe_push_provider_only_cipher(name);
   }
 #endif
