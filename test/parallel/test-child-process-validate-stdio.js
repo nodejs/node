@@ -3,6 +3,8 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { createPipe } = require('node:net');
+const { PassThrough } = require('stream');
 const getValidStdio = require('internal/child_process').getValidStdio;
 
 const expectedError = { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' };
@@ -41,6 +43,44 @@ assert.throws(() => getValidStdio(stdio2, true),
 {
   const stdio = [{ foo: 'bar' }];
   assert.throws(() => getValidStdio(stdio), expectedError);
+}
+
+// Pure JavaScript streams do not have an OS handle that can be passed to a
+// child process as stdio.
+{
+  const stdio = [new PassThrough()];
+  assert.throws(() => getValidStdio(stdio), expectedError);
+}
+
+// Parent-owned endpoint streams are normalized to their own stdio type because
+// they lend only the OS handle to the child.
+{
+  const { readable, writable } = createPipe();
+  const result = getValidStdio([readable, writable, 'ignore']);
+
+  assert.strictEqual(result.stdio[0].type, 'leased');
+  assert.strictEqual(result.stdio[0].stream, readable);
+  assert.strictEqual(result.stdio[0].handle, readable._handle);
+  assert.strictEqual(result.stdio[1].type, 'leased');
+  assert.strictEqual(result.stdio[1].stream, writable);
+  assert.strictEqual(result.stdio[1].handle, writable._handle);
+
+  readable.destroy();
+  writable.destroy();
+}
+
+// Parent-owned endpoint streams cannot be used with spawnSync() because the sync
+// process runner only owns stdio pipes it creates internally.
+{
+  const { readable, writable } = createPipe();
+
+  assert.throws(() => getValidStdio([readable, 'ignore', 'ignore'], true), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /parent-owned endpoint streams are only supported by spawn\(\)/,
+  });
+
+  readable.destroy();
+  writable.destroy();
 }
 
 const { isMainThread } = require('worker_threads');
