@@ -50,12 +50,10 @@ TEST_F(EnvironmentTest, ManagedBufferCache) {
 
   uv_buf_t buffer = (*env)->allocate_managed_buffer(kCacheSize);
   char* cached_data = buffer.base;
-  (*env)->recycle_managed_buffer(
-      (*env)->release_managed_buffer(buffer));
+  (*env)->recycle_managed_buffer((*env)->release_managed_buffer(buffer));
 
   buffer = (*env)->allocate_managed_buffer(kOtherSize);
-  (*env)->recycle_managed_buffer(
-      (*env)->release_managed_buffer(buffer));
+  (*env)->recycle_managed_buffer((*env)->release_managed_buffer(buffer));
 
   buffer = (*env)->allocate_managed_buffer(kCacheSize);
   EXPECT_EQ(buffer.base, cached_data);
