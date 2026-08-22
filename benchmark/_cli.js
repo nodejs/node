@@ -89,7 +89,8 @@ CLI.prototype.benchmarks = function() {
   const paths = [];
 
   if (this.items.includes('all')) {
-    this.items = Object.keys(benchmarks);
+    this.items = Object.keys(benchmarks)
+      .filter((b) => !(b in ['http', 'http2', 'https']));
   }
 
   for (const category of this.items) {
