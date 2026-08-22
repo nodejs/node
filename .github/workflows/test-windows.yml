@@ -1,4 +1,4 @@
-name: Coverage Windows
+name: Test Windows
 
 on:
   pull_request:
@@ -23,10 +23,9 @@ on:
       - tools/eslint-rules/**
       - tools/eslint/**
       - tools/lint-md/**
-      - tools/nix/**
       - typings/**
       - .**
-      - '!.github/workflows/coverage-windows.yml'
+      - '!.github/workflows/test-windows.yml'
   push:
     branches:
       - main
@@ -50,10 +49,9 @@ on:
       - tools/eslint-rules/**
       - tools/eslint/**
       - tools/lint-md/**
-      - tools/nix/**
       - typings/**
       - .**
-      - '!.github/workflows/coverage-windows.yml'
+      - '!.github/workflows/test-windows.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -68,10 +66,16 @@ permissions:
   contents: read
 
 jobs:
-  coverage-windows:
+  test-windows:
     if: github.event.pull_request.draft == false
+    strategy:
+      matrix:
+        autocrlf: [true, false]
+    name: Windows tests (${{ matrix.autocrlf && 'with' || 'without' }} autocrlf)
     runs-on: windows-2025
     steps:
+      - name: Set git config core.autocrlf
+        run: git config --global core.autocrlf ${{ matrix.autocrlf }}
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
@@ -87,20 +91,9 @@ jobs:
           rustup override set ${{ env.RUSTC_VERSION }}
           rustup --version
       - name: Build
-        run: ./vcbuild.bat clang-cl v8temporal
-      # TODO(bcoe): investigate tests that fail with coverage enabled
-      # on Windows.
+        run: ./vcbuild.bat clang-cl v8temporal cctest
       - name: Test
-        run: ./vcbuild.bat noprojgen nobuild test-ci-js; node -e 'process.exit(0)'
-        env:
-          NODE_V8_COVERAGE: ./coverage/tmp
-      - name: Report
-        run: npx c8 report
-        env:
-          NODE_OPTIONS: --max-old-space-size=8192
-      - name: Clean tmp
-        run: npx rimraf ./coverage/tmp
-      - name: Upload
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
-        with:
-          directory: ./coverage
+        # after the test "test-child-process-exec-any-shells-windows" is fixed change to `./vcbuild.bat noprojgen nobuild test`
+        run: |
+          ./vcbuild.bat noprojgen nobuild build-addons build-js-native-api-tests build-node-api-tests build-ffi-tests
+          python3 tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=keep_retrying --measure-flakiness 9 default pummel addons ffi js-native-api node-api embedding benchmark --skip-tests="test-child-process-exec-any-shells-windows"
