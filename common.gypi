@@ -313,7 +313,20 @@
             ],
           },],
           ['OS == "android"', {
-            'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
+            'variables': {
+              # android_ndk_path is only guaranteed when using the Android
+              # cross-build wrapper. node-gyp addon builds may consume this
+              # file without an NDK path, so only add the cpufeatures include
+              # when set.
+              'android_ndk_path%': '',
+            },
+            'conditions': [
+              ['android_ndk_path!=""', {
+                'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
+              }, {
+                'cflags': [ '-fPIC' ]
+              }]
+            ],
             'ldflags': [ '-fPIC' ]
           }],
           ['clang==1', {
