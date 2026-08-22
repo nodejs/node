@@ -85,6 +85,7 @@ namespace node {
   V(WORKERHEAPPROFILE)                                                         \
   V(WORKERHEAPSNAPSHOT)                                                        \
   V(WORKERHEAPSTATISTICS)                                                      \
+  V(WORKERMEMORYUSAGE)                                                         \
   V(WRITEWRAP)                                                                 \
   V(ZLIB)
 
