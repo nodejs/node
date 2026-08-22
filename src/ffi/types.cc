@@ -552,34 +552,33 @@ void WriteFFIReturnToBuffer(ffi_type* type,
 v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
   if (type_str == "void") {
     return Just(&ffi_type_void);
-  } else if (type_str == "i8" || type_str == "int8") {
-    return Just(&ffi_type_sint8);
-  } else if (type_str == "u8" || type_str == "uint8" || type_str == "bool") {
-    return Just(&ffi_type_uint8);
   } else if (type_str == "char") {
     return Just(CHAR_MIN < 0 ? &ffi_type_sint8 : &ffi_type_uint8);
-  } else if (type_str == "i16" || type_str == "int16") {
+  } else if (type_str == "int8" || type_str == "i8") {
+    return Just(&ffi_type_sint8);
+  } else if (type_str == "uint8" || type_str == "u8" || type_str == "bool") {
+    return Just(&ffi_type_uint8);
+  } else if (type_str == "int16" || type_str == "i16") {
     return Just(&ffi_type_sint16);
-  } else if (type_str == "u16" || type_str == "uint16") {
+  } else if (type_str == "uint16" || type_str == "u16") {
     return Just(&ffi_type_uint16);
-  } else if (type_str == "i32" || type_str == "int32") {
+  } else if (type_str == "int32" || type_str == "i32") {
     return Just(&ffi_type_sint32);
-  } else if (type_str == "u32" || type_str == "uint32") {
+  } else if (type_str == "uint32" || type_str == "u32") {
     return Just(&ffi_type_uint32);
-  } else if (type_str == "i64" || type_str == "int64") {
+  } else if (type_str == "int64" || type_str == "i64") {
     return Just(&ffi_type_sint64);
-  } else if (type_str == "u64" || type_str == "uint64") {
+  } else if (type_str == "uint64" || type_str == "u64") {
     return Just(&ffi_type_uint64);
-  } else if (type_str == "f32" || type_str == "float" ||
-             type_str == "float32") {
+  } else if (type_str == "float32" || type_str == "f32" ||
+             type_str == "float") {
     return Just(&ffi_type_float);
-  } else if (type_str == "f64" || type_str == "double" ||
-             type_str == "float64") {
+  } else if (type_str == "float64" || type_str == "f64" ||
+             type_str == "double") {
     return Just(&ffi_type_double);
-  } else if (type_str == "buffer" || type_str == "arraybuffer" ||
-             type_str == "string" || type_str == "str" ||
-             type_str == "pointer" || type_str == "ptr" ||
-             type_str == "function") {
+  } else if (type_str == "pointer" || type_str == "string" ||
+             type_str == "buffer" || type_str == "arraybuffer" ||
+             type_str == "function" || type_str == "ptr" || type_str == "str") {
     return Just(&ffi_type_pointer);
   } else {
     THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported FFI type: %s", type_str);
