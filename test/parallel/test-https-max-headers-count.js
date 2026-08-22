@@ -56,7 +56,7 @@ server.maxHeadersCount = max;
 
 server.listen(0, common.mustCall(() => {
   const clientMaxAndExpected = [ // for client
-    [20, 20],
+    [200, 104],
     [1200, 104],
     [0, N + 4], // Host and Connection
   ];
