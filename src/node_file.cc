@@ -65,6 +65,7 @@ namespace fs {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -3703,6 +3704,7 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
   SET_SELF_SIZE(ReadFileJob)
 
  private:
+  friend class WriteFileJob;
   static constexpr size_t kUnknownSizeChunk = 64 * 1024;
   static constexpr size_t kMaxReadChunk = 256 * 1024 * 1024;
 
@@ -3784,6 +3786,162 @@ class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
   int error_ = 0;
   int close_error_ = 0;
   int fd_ = -1;
+};
+
+// Writes a whole buffer to a file in ONE thread pool round trip -- open +
+// write (until everything is written) + close -- for fs.writeFile() and
+// fs.promises.writeFile() with a path, which otherwise pay one round trip per
+// step.
+//
+// JS: const job = new WriteFileJob(path, flags, mode, buffer);
+//     job.ondone = (err) => {...}; job.run(path);
+// `err` carries the syscall that failed ('open', 'write' or 'close'); the file
+// descriptor opened here is always closed.
+class WriteFileJob final : public AsyncWrap, public ThreadPoolWork {
+ public:
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    Environment* env = Environment::GetCurrent(args);
+    CHECK_GE(args.Length(), 4);
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    CHECK(args[1]->IsInt32());
+    CHECK(args[2]->IsInt32());
+    CHECK(args[3]->IsArrayBufferView());
+    new WriteFileJob(env,
+                     args.This(),
+                     path.ToString(),
+                     args[1].As<Int32>()->Value(),
+                     args[2].As<Int32>()->Value(),
+                     args[3].As<ArrayBufferView>());
+  }
+
+  // Returns undefined when the job was scheduled, or the ERR_ACCESS_DENIED
+  // error the asynchronous open() would have delivered (nothing is scheduled).
+  static void Run(const FunctionCallbackInfo<Value>& args) {
+    WriteFileJob* job;
+    ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
+    Environment* env = job->AsyncWrap::env();
+    CHECK(!job->scheduled_);
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    Local<Value> access_error;
+    if (ReadFileJob::OpenPermissionError(env, path, job->flags_)
+            .ToLocal(&access_error)) {
+      args.GetReturnValue().Set(access_error);
+      return;
+    }
+    job->scheduled_ = true;
+    job->ClearWeak();
+    FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, job)
+    job->ScheduleWork();
+  }
+
+  void DoThreadPoolWork() override {
+    uv_fs_t req;
+    int fd = uv_fs_open(nullptr, &req, path_.c_str(), flags_, mode_, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (fd < 0) return Fail("open", fd);
+
+    size_t written = 0;
+    while (written < length_) {
+      uv_buf_t buf = uv_buf_init(data_ + written,
+                                 static_cast<unsigned int>(std::min<size_t>(
+                                     length_ - written, kMaxWriteChunk)));
+      int r = uv_fs_write(nullptr, &req, fd, &buf, 1, -1, nullptr);
+      uv_fs_req_cleanup(&req);
+      if (r < 0) {
+        Fail("write", r);
+        break;
+      }
+      written += static_cast<size_t>(r);
+    }
+
+    int rc = uv_fs_close(nullptr, &req, fd, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (rc < 0 && error_ == 0) Fail("close", rc);
+  }
+
+  void AfterThreadPoolWork(int status) override {
+    Environment* env = AsyncWrap::env();
+    std::unique_ptr<WriteFileJob> self(this);
+    CHECK(status == 0 || status == UV_ECANCELED);
+    FS_ASYNC_TRACE_END0(UV_FS_WRITE, this)
+    if (status == UV_ECANCELED || !env->can_call_into_js()) return;
+    HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
+    Isolate* isolate = env->isolate();
+    Local<Value> argv[1] = {Null(isolate)};
+    if (error_ != 0) {
+      argv[0] = UVException(isolate,
+                            error_,
+                            syscall_,
+                            nullptr,
+                            syscall_ == kOpen ? path_.c_str() : nullptr);
+    }
+    MakeCallback(env->ondone_string(), arraysize(argv), argv);
+  }
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackField("buffer", buffer_);
+    if (copy_) tracker->TrackFieldWithSize("copy", length_);
+  }
+  SET_MEMORY_INFO_NAME(WriteFileJob)
+  SET_SELF_SIZE(WriteFileJob)
+
+ private:
+  static constexpr size_t kMaxWriteChunk = 256 * 1024 * 1024;
+  static constexpr const char* kOpen = "open";
+
+  WriteFileJob(Environment* env,
+               Local<Object> object,
+               std::string&& path,
+               int flags,
+               int mode,
+               Local<ArrayBufferView> view)
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_FSREQCALLBACK),
+        ThreadPoolWork(env, "fs.writefile"),
+        path_(std::move(path)),
+        flags_(flags),
+        mode_(mode) {
+    // Holding the backing store keeps the memory valid even if the buffer is
+    // detached or collected meanwhile; a resizable buffer can still have its
+    // pages decommitted by a shrink, so its contents are copied instead.
+    length_ = view->ByteLength();
+    backing_store_ = view->Buffer()->GetBackingStore();
+    if (backing_store_->IsResizableByUserJavaScript()) {
+      copy_.reset(new char[length_]);
+      memcpy(copy_.get(),
+             static_cast<char*>(backing_store_->Data()) + view->ByteOffset(),
+             length_);
+      data_ = copy_.get();
+      backing_store_.reset();
+    } else {
+      buffer_.Reset(env->isolate(), view);
+      data_ = static_cast<char*>(backing_store_->Data()) + view->ByteOffset();
+    }
+    MakeWeak();
+  }
+
+  void Fail(const char* syscall, int error) {
+    syscall_ = syscall;
+    error_ = error;
+  }
+
+  const std::string path_;
+  v8::Global<v8::ArrayBufferView> buffer_;
+  std::shared_ptr<v8::BackingStore> backing_store_;
+  std::unique_ptr<char[]> copy_;
+  char* data_ = nullptr;
+  size_t length_ = 0;
+  const int flags_;
+  const int mode_;
+  bool scheduled_ = false;
+  int error_ = 0;
+  const char* syscall_ = nullptr;
 };
 
 // Wrapper for readv(2).
@@ -5103,6 +5261,13 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethod(isolate, rfj, "run", ReadFileJob::Run);
   SetConstructorFunction(isolate, target, "ReadFileJob", rfj);
 
+  Local<FunctionTemplate> wfj = NewFunctionTemplate(isolate, WriteFileJob::New);
+  wfj->InstanceTemplate()->SetInternalFieldCount(
+      WriteFileJob::kInternalFieldCount);
+  wfj->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+  SetProtoMethod(isolate, wfj, "run", WriteFileJob::Run);
+  SetConstructorFunction(isolate, target, "WriteFileJob", wfj);
+
   // Create FunctionTemplate for FSReqCallback
   Local<FunctionTemplate> fst = NewFunctionTemplate(isolate, NewFSReqCallback);
   fst->InstanceTemplate()->SetInternalFieldCount(
@@ -5177,6 +5342,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Open);
   registry->Register(ReadFileJob::New);
   registry->Register(ReadFileJob::Run);
+  registry->Register(WriteFileJob::New);
+  registry->Register(WriteFileJob::Run);
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadFileUtf8);
