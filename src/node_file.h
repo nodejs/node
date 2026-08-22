@@ -3,8 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <array>
 #include <optional>
 #include "aliased_buffer.h"
+#include "node_diagnostics_channel.h"
 #include "node_messaging.h"
 #include "node_snapshotable.h"
 #include "stream_base.h"
@@ -56,6 +58,52 @@ enum class FsStatFsOffset {
 constexpr size_t kFsStatFsBufferLength =
     static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber);
 
+// Built-in diagnostics channel family for filesystem operations.
+// The channel names follow the tracing channel convention so that subscribers
+// can use `diagnostics_channel.tracingChannel('fs.operation')` to subscribe to
+// all events, or subscribe to individual channels by name.
+enum class FSOperationChannel {
+  kStart,
+  kEnd,
+  kAsyncStart,
+  kAsyncEnd,
+  kError,
+  kChannelCount,
+};
+
+static constexpr size_t kNumFSOperationChannels =
+    static_cast<size_t>(FSOperationChannel::kChannelCount);
+
+class FSReqBase;
+class BindingData;
+
+// The shared event payload for fs operation channels. Fields are set only when
+// applicable: `path`/`dest` for path-based operations, `fd` for operations that
+// operate on an existing file descriptor, and `result`/`error` on the matching
+// end/error channels, following the TracingChannel conventions.
+void PublishFSOperationEvent(BindingData* binding,
+                             Environment* env,
+                             FSOperationChannel channel,
+                             const char* operation,
+                             const char* api,
+                             const std::string& path,
+                             const std::string& dest,
+                             int fd,
+                             const char* value_key,
+                             v8::Local<v8::Value> value);
+
+// Publishes a completion event (asyncStart/asyncEnd/error) for an in-flight
+// async fs operation, deriving the event context from the request wrap.
+void PublishFSOpCompletionEvent(FSReqBase* req_wrap,
+                                FSOperationChannel channel,
+                                const char* value_key,
+                                v8::Local<v8::Value> value);
+
+// Returns true if the libuv fs request type operates on an existing file
+// descriptor (as opposed to taking a path), i.e. its `file` field holds the
+// input descriptor.
+bool OperationUsesFd(uv_fs_type fs_type);
+
 class BindingData : public SnapshotableObject {
  public:
   struct InternalFieldInfo : public node::InternalFieldInfoBase {
@@ -80,6 +128,11 @@ class BindingData : public SnapshotableObject {
 
   AliasedFloat64Array statfs_field_array;
   AliasedBigInt64Array statfs_field_bigint_array;
+
+  // Lazily cached built-in fs operation channels. Null until first used, and
+  // re-fetched after snapshot deserialization (fresh BindingData).
+  std::array<diagnostics_channel::Channel*, kNumFSOperationChannels>
+      fs_op_channels_{};
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>> file_handle_read_wrap_freelist;
 
@@ -164,6 +217,16 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   bool is_plain_open() const { return is_plain_open_; }
   bool with_file_types() const { return with_file_types_; }
 
+  // Whether this request was created for the promise-based fs API.
+  bool is_promise() const { return is_promise_; }
+  void set_is_promise(bool value) { is_promise_ = value; }
+  // Path and file descriptor captured at dispatch time, used to publish
+  // fs operation tracing events even after the uv request is cleaned up.
+  const std::string& op_path() const { return op_path_; }
+  void set_op_path(std::string value) { op_path_ = std::move(value); }
+  int fd() const { return fd_; }
+  void set_fd(int value) { fd_ = value; }
+
   void set_is_plain_open(bool value) { is_plain_open_ = value; }
   void set_with_file_types(bool value) { with_file_types_ = value; }
 
@@ -192,6 +255,9 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   bool use_bigint_ = false;
   bool is_plain_open_ = false;
   bool with_file_types_ = false;
+  bool is_promise_ = false;
+  std::string op_path_;
+  int fd_ = -1;
   const char* syscall_ = nullptr;
 
   BaseObjectPtr<BindingData> binding_data_;

@@ -1570,6 +1570,87 @@ passed to `console.warn()`.
 Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
+#### Filesystem
+
+> Stability: 1 - Experimental
+
+These channels are emitted for file system operations performed through
+`node:fs` and `node:fs/promises`. They form a [`TracingChannel`][] family named
+`fs.operation`, so subscribers can use
+[`diagnostics_channel.tracingChannel()`][] to subscribe to all events at once:
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const channel = diagnostics_channel.tracingChannel('fs.operation');
+channel.subscribe({
+  start: (event) => console.log('start', event),
+  end: (event) => console.log('end', event),
+  error: (event) => console.log('error', event),
+});
+```
+
+The events are published from the internal file system implementation, so they
+are observed for every public `fs` operation regardless of whether the
+function reference was captured before subscribing or whether the operation
+uses the callback, promise, or synchronous API.
+
+Each event carries an object with the following common fields:
+
+* `operation` {string} A stable operation name, such as `open`, `read`,
+  `write`, `stat`, `readdir`, or `realpath`.
+* `api` {string} The API that performed the operation: `'sync'`, `'callback'`,
+  or `'promise'`.
+* `path` {string|undefined} The path argument for path-based operations, or
+  the source path for operations with a destination.
+* `dest` {string|undefined} The destination argument for operations that
+  accept one, such as `rename`, `link`, `symlink`, or `copyFile`.
+* `fd` {number|undefined} The file descriptor for operations that operate on
+  an existing file descriptor, such as `read`, `write`, `fsync`, or `close`.
+
+Large read/write buffers are not copied into the event payload. The `start`
+and `asyncStart` events carry no `result` or `error`; the `end` and `asyncEnd`
+events carry the `result` of the operation, and the `error` event carries the
+`error`, following the [TracingChannel Channels][] conventions.
+
+Operations performed through streams (`fs.createReadStream` and
+`fs.createWriteStream`) and most `FileHandle` methods are not covered by this
+channel family, and may not emit the full set of events.
+
+##### Event: `'tracing:fs.operation:start'`
+
+Emitted synchronously when an operation begins, before the operation is
+submitted. For synchronous operations this is followed by `end` (or `error`);
+for asynchronous operations it is followed by `end` and then `asyncStart`/
+`asyncEnd` (or `error`).
+
+##### Event: `'tracing:fs.operation:end'`
+
+* `result` {any} The result of the operation.
+
+Emitted when the operation completes. For synchronous operations this carries
+the operation `result`; for asynchronous operations it is emitted when the
+operation is submitted and carries no `result` (the `result` is delivered on
+the `asyncEnd` event).
+
+##### Event: `'tracing:fs.operation:asyncStart'`
+
+Emitted when the asynchronous work for an operation begins (when the
+completion callback is invoked).
+
+##### Event: `'tracing:fs.operation:asyncEnd'`
+
+* `result` {any} The result of the operation.
+
+Emitted when the asynchronous work for an operation completes, carrying the
+operation `result`.
+
+##### Event: `'tracing:fs.operation:error'`
+
+* `error` {Error} The error that caused the operation to fail.
+
+Emitted when an operation fails.
+
 #### HTTP
 
 > Stability: 1 - Experimental
