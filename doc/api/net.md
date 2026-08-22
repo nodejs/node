@@ -438,12 +438,41 @@ added:
 added:
   - v23.4.0
   - v22.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Input is now parsed strictly. URL syntax and legacy IPv4
+                 formats such as octal, hexadecimal and shorthand notation
+                 are no longer accepted.
 -->
 
 * `input` {string} An input string containing an IP address and optional port,
   e.g. `123.1.2.3:1234` or `[1::1]:1234`.
 * Returns: {net.SocketAddress} Returns a `SocketAddress` if parsing was successful.
   Otherwise returns `undefined`.
+
+The entire input must match one of the following forms:
+
+```text
+socket-address      = ipv4-socket-address / ipv6-socket-address
+ipv4-socket-address = ipv4-address [ ":" port ]
+ipv6-socket-address = "[" ipv6-address [ "%" scope-id ] "]" [ ":" port ]
+
+ipv4-address        = octet 3( "." octet )
+octet               = 1*3DIGIT    ; no leading zeros; value <= 255
+ipv6-address        = RFC 4291 textual form: groups of 1*4HEXDIG (leading
+                      zeros allowed, case-insensitive), "::" compression, and
+                      an optional trailing embedded ipv4-address
+port                = 1*DIGIT     ; leading zeros allowed; value <= 65535
+scope-id            = 1*DIGIT     ; leading zeros allowed; value <= 4294967295
+```
+
+Anything else returns `undefined`, including URL components such as userinfo,
+paths, queries and fragments, surrounding whitespace, host names, non-ASCII
+digits, and the legacy IPv4 notations that permit octal (`0177.0.0.1`),
+hexadecimal (`0x7f.0.0.1`), integer (`2130706433`) and shorthand (`127.1`)
+addresses. An IPv6 zone id must be numeric; interface names such as
+`%eth0` are not accepted.
 
 ## Class: `net.Server`
 
