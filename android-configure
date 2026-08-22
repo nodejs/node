@@ -4,13 +4,11 @@
 # Note that the mix of single and double quotes is intentional,
 # as is the fact that the ] goes on a new line.
 _=[ 'exec' '/bin/sh' '-c' '''
-command -v python3.14 >/dev/null && exec python3.14 "$0" "$@"
-command -v python3.13 >/dev/null && exec python3.13 "$0" "$@"
-command -v python3.12 >/dev/null && exec python3.12 "$0" "$@"
-command -v python3.11 >/dev/null && exec python3.11 "$0" "$@"
-command -v python3.10 >/dev/null && exec python3.10 "$0" "$@"
-command -v python3 >/dev/null && exec python3 "$0" "$@"
-exec python "$0" "$@"
+for python in python3.14 python3.13 python3.12 python3.11 python3.10 python3 python; do
+  command -v "$python" >/dev/null 2>&1 && exec "$python" "$0" "$@"
+done
+echo "No Python interpreter found." >&2
+exit 1
 ''' "$0" "$@"
 ]
 del _

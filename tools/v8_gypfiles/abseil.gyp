@@ -15,6 +15,13 @@
         'xcode_settings': {
           'OTHER_LDFLAGS': ['-framework CoreFoundation'],
         },
+        'conditions': [
+          [ '_toolset=="host" and host_os=="mac" and OS=="android"', {
+            'libraries': [
+              '-framework CoreFoundation',
+            ],
+          }],
+        ],
       },
       'include_dirs': [
         '<(ABSEIL_ROOT)',
