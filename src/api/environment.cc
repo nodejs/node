@@ -1005,6 +1005,11 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
   thread_local builtins::BuiltinLoader builtin_loader;
+  thread_local bool seeded = false;
+  if (!seeded) {
+    builtin_loader.SeedFromProcessCodeCache();
+    seeded = true;
+  }
   // Primordials can always be just eagerly compiled.
   builtin_loader.SetEagerCompile();
 

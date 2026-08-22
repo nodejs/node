@@ -12,7 +12,6 @@
 #include "v8-value.h"
 
 namespace node {
-namespace builtins {
 
 using loader::HostDefinedOptions;
 using v8::Boolean;
@@ -43,6 +42,39 @@ using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+
+namespace builtins {
+
+namespace {
+struct ProcessCodeCache {
+  Mutex mutex;
+  std::vector<CodeCacheInfo> entries;
+  bool harvest = true;
+};
+ProcessCodeCache& GetProcessCodeCache() {
+  static ProcessCodeCache process_code_cache;
+  return process_code_cache;
+}
+}  // namespace
+
+void BuiltinLoader::SetProcessCodeCache(std::vector<CodeCacheInfo> entries) {
+  ProcessCodeCache& pcc = GetProcessCodeCache();
+  Mutex::ScopedLock lock(pcc.mutex);
+  pcc.entries = std::move(entries);
+}
+
+void BuiltinLoader::SetHarvestCodeCache(bool on) {
+  ProcessCodeCache& pcc = GetProcessCodeCache();
+  Mutex::ScopedLock lock(pcc.mutex);
+  pcc.harvest = on;
+}
+
+void BuiltinLoader::SeedFromProcessCodeCache() {
+  ProcessCodeCache& pcc = GetProcessCodeCache();
+  Mutex::ScopedLock lock(pcc.mutex);
+  harvest_code_cache_ = pcc.harvest;
+  if (!pcc.entries.empty()) RefreshCodeCache(pcc.entries);
+}
 
 BuiltinLoader::BuiltinLoader()
     : config_(GetConfig()), code_cache_(std::make_shared<BuiltinCodeCache>()) {
@@ -422,6 +454,7 @@ MaybeLocal<Data> BuiltinLoader::LookupAndCompile(
   }
 
   if (result == Result::kWithoutCache && optional_realm != nullptr &&
+      harvest_code_cache_ &&
       !optional_realm->env()->isolate_data()->is_building_snapshot()) {
     // We failed to accept this cache, maybe because it was rejected, maybe
     // because it wasn't present. Either way, we'll attempt to replace this
@@ -593,12 +626,13 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
 
 void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
   RwLock::ScopedLock lock(code_cache_->mutex);
-  code_cache_->map.reserve(in.size());
-  DCHECK(code_cache_->map.empty());
+  // May be called more than once, e.g. first with the code cache carried by
+  // the snapshot and then by an embedder with caches it built for additional
+  // (or the same) builtin ids against this isolate: merge, and let the entry
+  // supplied last win for an id present in both.
+  code_cache_->map.reserve(code_cache_->map.size() + in.size());
   for (auto const& [id, data] : in) {
-    auto result = code_cache_->map.emplace(id, data);
-    USE(result.second);
-    DCHECK(result.second);
+    code_cache_->map.insert_or_assign(id, data);
   }
   code_cache_->has_code_cache = true;
 }
@@ -918,6 +952,38 @@ void BuiltinLoader::RegisterExternalReferences(
 }
 
 }  // namespace builtins
+
+void SetBuiltinCodeCache(const std::vector<BuiltinCodeCacheEntry>& entries) {
+  std::vector<builtins::CodeCacheInfo> infos;
+  infos.reserve(entries.size());
+  for (const BuiltinCodeCacheEntry& e : entries) {
+    auto cached_data = std::make_shared<ScriptCompiler::CachedData>(
+        e.data,
+        static_cast<int>(e.length),
+        ScriptCompiler::CachedData::BufferNotOwned);
+    infos.push_back({e.id, builtins::BuiltinCodeCacheData(cached_data)});
+  }
+  builtins::BuiltinLoader::SetProcessCodeCache(std::move(infos));
+}
+
+std::vector<OwnedBuiltinCodeCacheEntry> GenerateBuiltinCodeCache(
+    Local<Context> context) {
+  std::vector<OwnedBuiltinCodeCacheEntry> out;
+  builtins::BuiltinLoader loader;
+  loader.SetEagerCompile();
+  std::vector<builtins::CodeCacheInfo> infos;
+  if (!loader.CompileAllBuiltinsAndCopyCodeCache(context, {}, &infos)) {
+    return out;
+  }
+  out.reserve(infos.size());
+  for (const builtins::CodeCacheInfo& info : infos) {
+    out.push_back({info.id,
+                   std::vector<uint8_t>(info.data.data,
+                                        info.data.data + info.data.length)});
+  }
+  return out;
+}
+
 }  // namespace node
 
 NODE_BINDING_PER_ISOLATE_INIT(
