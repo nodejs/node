@@ -2596,6 +2596,15 @@ assert.strictEqual(
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
+// Getter returning a function.
+// https://github.com/nodejs/node/issues/64838
+{
+  const obj = { get foo() { return function bar() {}; } };
+  assert.strictEqual(
+    inspect(obj, { getters: true }),
+    '{ foo: [Getter] [Function: bar] }');
+}
+
 // Property getter throwing an error.
 {
   const error = new Error('Oops');
@@ -3524,16 +3533,14 @@ assert.strictEqual(
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 
-  assert.match(
+  assert.strictEqual(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
-    new RegExp('^' + RegExp.escape(
-      '<ref *1> Foo [Map] {\n' +
-      '  [constructor]: [class Bar extends Foo] {\n' +
+    '<ref *2> Foo [Map] {\n' +
+      '  [constructor]: <ref *1> [class Bar extends Foo] {\n' +
       '    [length]: 0,\n' +
       "    [name]: 'Bar',\n" +
-      '    [prototype]: [Circular *1],\n' +
-      '    [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
+      '    [prototype]: [Circular *2],\n' +
+      '    [Symbol(Symbol.species)]: [Getter] [Circular *1]\n' +
       '  },\n' +
       "  [xyz]: [Getter: 'YES!'],\n" +
       '  [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
@@ -3543,7 +3550,6 @@ assert.strictEqual(
       '  [abc]: [Getter: true],\n' +
       '  [def]: [Getter/Setter: false]\n' +
       '}'
-    ) + '$', 's')
   );
 
   assert.strictEqual(
