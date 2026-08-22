@@ -81,19 +81,13 @@ const { listenerCount } = require('events');
     assert.throws(() => client.ping(), sessionError);
     assert.throws(() => client.settings({}), sessionError);
     assert.throws(() => client.goaway(), sessionError);
-
-    const pendingReq = client.request();
-    pendingReq.on('response', common.mustNotCall());
-    pendingReq.on('error', common.expectsError(sessionError));
-    pendingReq.on('close', common.mustCall());
-
-    client.on('close', common.mustCall(() => {
-      const postCloseReq = client.request();
-      postCloseReq.on('response', common.mustNotCall());
-      postCloseReq.on('error', common.expectsError(sessionError));
-      postCloseReq.on('close', common.mustCall());
-    }));
-
+    // request() now returns a stream that errors asynchronously when the
+    // session is destroyed, instead of throwing synchronously.
+    {
+      const reqAfterDestroy = client.request();
+      reqAfterDestroy.on('response', common.mustNotCall());
+      reqAfterDestroy.on('error', common.expectsError(sessionError));
+    }
     client.close();  // Should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
@@ -104,6 +98,11 @@ const { listenerCount } = require('events');
       assert.throws(() => client.ping(), sessionError);
       assert.throws(() => client.settings({}), sessionError);
       assert.throws(() => client.goaway(), sessionError);
+      {
+        const reqAfterDestroy = client.request();
+        reqAfterDestroy.on('response', common.mustNotCall());
+        reqAfterDestroy.on('error', common.expectsError(sessionError));
+      }
       client.close();  // Should be a non-op at this point
     }));
 
