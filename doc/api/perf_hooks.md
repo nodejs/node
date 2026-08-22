@@ -1625,9 +1625,47 @@ added:
     **Default:** `Number.MAX_SAFE_INTEGER`.
   * `figures` {number} The number of accuracy digits. Must be a number between
     `1` and `5`. **Default:** `3`.
+  * `halfLife` {number} The EWMA half-life in number of samples. When set to
+    a value greater than 0, the histogram tracks an exponentially weighted
+    moving average and standard deviation, accessible via
+    `histogram.ewmaMean` and `histogram.ewmaStddev`. After `halfLife`
+    recordings, a value's influence has decayed to 50%. **Default:** `0`
+    (disabled).
+  * `threshold` {number} An SLO threshold value. When set together with
+    `halfLife`, the histogram tracks a smoothed error rate for values
+    exceeding this threshold, accessible via `histogram.ewmaErrorRate` and
+    `histogram.burnRate()`. **Default:** `0` (disabled).
 * Returns: {RecordableHistogram}
 
 Returns a {RecordableHistogram}.
+
+## `perf_hooks.importHistogram(data)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {Uint8Array} A CBOR-encoded histogram previously produced by
+  [`histogram.export()`][].
+* Returns: {RecordableHistogram}
+
+Reconstructs a histogram from a CBOR-encoded `Uint8Array`. The returned
+histogram is a full {RecordableHistogram} with all bucket data, configuration,
+and EWMA state restored. New values can be recorded into it.
+
+```js
+const { createHistogram, importHistogram } = require('node:perf_hooks');
+
+const h = createHistogram();
+for (let i = 1; i <= 1000; i++) h.record(i);
+
+// Serialize and reconstruct
+const data = h.export();
+const h2 = importHistogram(data);
+
+console.log(h2.count);          // 1000
+console.log(h2.percentile(99)); // Same as h.percentile(99)
+```
 
 ## `perf_hooks.eventLoopUtilization([utilization1[, utilization2]])`
 
@@ -1844,6 +1882,37 @@ invoked.
 added: v11.10.0
 -->
 
+### `histogram.burnRate(sloTarget)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sloTarget` {number} The SLO target as a fraction between 0 and 1
+  (exclusive). For example, `0.999` for a 99.9% SLO.
+* Returns: {number}
+
+Returns the SLO burn rate: `ewmaErrorRate / (1 - sloTarget)`. A burn rate
+of 1 means the error budget will be exactly exhausted over the SLO window.
+A burn rate greater than 1 means it is being consumed faster than allowed.
+Requires the histogram to have been created with both `halfLife` and
+`threshold` options.
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+// Track latency with a 200ms SLO threshold, half-life of 100 samples
+const h = createHistogram({ halfLife: 100, threshold: 200_000_000 });
+
+// ... record latency values ...
+
+// Check burn rate against a 99.9% SLO
+const rate = h.burnRate(0.999);
+if (rate > 1) {
+  console.log(`SLO burn rate: ${rate.toFixed(2)}x — error budget depleting`);
+}
+```
+
 ### `histogram.count`
 
 <!-- YAML
@@ -1895,6 +1964,36 @@ value, representing the probability that a recorded value will be less
 than or equal to `value`. This is the inverse operation of
 `histogram.percentile()`.
 
+### `histogram.cliffsD(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} The histogram to compare against.
+* Returns: {number} A value between -1.0 and 1.0.
+
+Computes [Cliff's delta][], a non-parametric effect size measure. Returns
+the probability that a random value from this histogram exceeds a random
+value from `other`, minus the reverse probability. A value of 1 means every
+value in this histogram exceeds every value in `other`; -1 means the
+opposite; 0 means no tendency in either direction.
+
+### `histogram.cohensD(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} The histogram to compare against.
+* Returns: {number} The effect size.
+
+Computes [Cohen's d][] effect size, the standardized difference between the
+means of this histogram and `other`, using the pooled standard deviation.
+Positive values indicate this histogram has a higher mean. By convention,
+|d| < 0.2 is a small effect, 0.5 is medium, and 0.8 or greater is large.
+Both histograms must have at least 2 recorded values; otherwise returns 0.
+
 ### `histogram.countAt(value)`
 
 <!-- YAML
@@ -1930,6 +2029,80 @@ added:
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
+
+### `histogram.export()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Uint8Array}
+
+Serializes the histogram to a [CBOR][]-encoded (RFC 8949) `Uint8Array`
+suitable for transmission or persistent storage. The encoding uses a
+delta-encoded sparse representation of the bucket counts, so the output size
+scales with the number of distinct recorded values rather than the total
+bucket count.
+
+The output includes all histogram configuration, bucket data, and EWMA
+state (when enabled). It can be reconstructed into a new histogram using
+[`perf_hooks.importHistogram()`][].
+
+The CBOR payload is a map with integer keys:
+
+| Key | Type    | Field                                         |
+| --- | ------- | --------------------------------------------- |
+| 0   | uint    | Format version (currently 1)                  |
+| 1   | uint    | Lowest discernible value                      |
+| 2   | uint    | Highest trackable value                       |
+| 3   | uint    | Significant figures                           |
+| 4   | uint    | Total count                                   |
+| 5   | uint    | Min value                                     |
+| 6   | uint    | Max value                                     |
+| 7   | uint    | Normalizing index offset                      |
+| 8   | float64 | Conversion ratio                              |
+| 9   | uint    | Counts array length                           |
+| 10  | array   | Delta-encoded sparse counts `[delta, c, ...]` |
+| 11  | map     | EWMA state (omitted when disabled)            |
+
+Any standard CBOR decoder can parse the output.
+
+### `histogram.ewmaMean`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The exponentially weighted moving average of recorded values. Only active
+when the histogram was created with a `halfLife` option greater than 0.
+Returns `0` when EWMA is disabled or no values have been recorded.
+
+### `histogram.ewmaStddev`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The exponentially weighted moving standard deviation. Only active when the
+histogram was created with a `halfLife` option greater than 0. Returns `0`
+when EWMA is disabled or no values have been recorded.
+
+### `histogram.ewmaErrorRate`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The EWMA-smoothed probability of a recorded value exceeding the configured
+`threshold`. Only active when the histogram was created with both `halfLife`
+and `threshold` options. Returns `0` when not enabled or no values have been
+recorded.
 
 ### `histogram.ksTest(other)`
 
@@ -1983,6 +2156,24 @@ added: REPLACEME
 Returns the histogram data rebucketed into logarithmically-spaced
 intervals, where each bucket's width is multiplied by `base`.
 Useful for visualization and export.
+
+### `histogram.mannWhitneyTest(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} The histogram to compare against.
+* Returns: {Object}
+  * `uStatistic` {number} The Mann-Whitney U statistic.
+  * `zScore` {number} The z-score (normal approximation).
+  * `pValue` {number} Two-tailed p-value.
+
+Performs a [Mann-Whitney U test][] comparing whether this histogram tends to
+produce larger or smaller values than `other`. Unlike `welchTest()`, this is a
+non-parametric test that makes no assumptions about the shape of the
+distributions. Uses the normal approximation with tie correction for the
+p-value.
 
 ### `histogram.max`
 
@@ -2062,6 +2253,40 @@ added:
 
 Returns the value at the given percentile.
 
+### `histogram.percentileCI(percentile[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `percentile` {number} A percentile value in the range (0, 100].
+* `options` {Object}
+  * `confidence` {number} The confidence level for the interval, between
+    0 and 1 (exclusive). **Default:** `0.95`.
+* Returns: {Object}
+  * `value` {number} The point estimate (same as `histogram.percentile()`).
+  * `lower` {number} The lower bound of the confidence interval.
+  * `upper` {number} The upper bound of the confidence interval.
+
+Returns a confidence interval for the given percentile using the exact
+binomial method. With fewer samples, the interval will be wider, reflecting
+the greater uncertainty in the percentile estimate. Requires at least 2
+recorded values; with fewer than 2, `lower` and `upper` will equal `value`.
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const h = createHistogram();
+for (let i = 0; i < 1000; i++) {
+  h.record(Math.floor(Math.random() * 100));
+}
+
+const ci = h.percentileCI(99);
+console.log(ci.value);  // The p99 point estimate
+console.log(ci.lower);  // The lower bound (95% confidence)
+console.log(ci.upper);  // The upper bound (95% confidence)
+```
+
 ### `histogram.percentiles`
 
 <!-- YAML
@@ -2128,6 +2353,31 @@ added: v11.10.0
 * Type: {number}
 
 The standard deviation of the recorded event loop delays.
+
+### `histogram.welchTest(other[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} The histogram to compare against.
+* `options` {Object}
+  * `confidence` {number} Confidence level for the interval, between 0 and 1.
+    **Default:** `0.95`.
+* Returns: {Object}
+  * `tStatistic` {number} The Welch t-statistic.
+  * `degreesOfFreedom` {number} Welch-Satterthwaite degrees of freedom.
+  * `pValue` {number} Two-tailed p-value.
+  * `confidenceInterval` {Object}
+    * `lower` {number} Lower bound of the confidence interval on the
+      difference of means.
+    * `upper` {number} Upper bound.
+
+Performs [Welch's t-test][] comparing the means of this histogram and `other`.
+The p-value indicates the probability of observing a difference at least this
+extreme under the null hypothesis that the two distributions have the same
+mean. Both histograms must have at least 2 recorded values; otherwise the
+result has `pValue` 1 and `tStatistic` 0.
 
 ## Class: `ELDHistogram extends Histogram`
 
@@ -2290,6 +2540,32 @@ const violating = latency.ccdf(500_000_000);
 console.log(`${(violating * 100).toFixed(1)}% of requests violating SLO`);
 ```
 
+### SLO burn rate monitoring
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+// Track latency with EWMA (half-life 100 samples) and a 200ms SLO threshold
+const latency = createHistogram({
+  halfLife: 100,
+  threshold: 200_000_000,  // 200ms in nanoseconds
+});
+
+// Record request latencies...
+
+// Smoothed error rate: probability of exceeding the threshold
+console.log(`Error rate: ${(latency.ewmaErrorRate * 100).toFixed(2)}%`);
+
+// Burn rate against a 99.9% SLO
+// >1 means the error budget is depleting faster than allowed
+const rate = latency.burnRate(0.999);
+console.log(`Burn rate: ${rate.toFixed(2)}x`);
+
+// EWMA mean and stddev track the smoothed latency
+console.log(`EWMA latency: ${latency.ewmaMean.toFixed(0)}ns`);
+console.log(`EWMA stddev:  ${latency.ewmaStddev.toFixed(0)}ns`);
+```
+
 ### Regression detection with KS test
 
 ```js
@@ -2339,6 +2615,46 @@ newSnapshot.add(total);
 newSnapshot.subtract(snapshot);
 // newSnapshot now contains only the values recorded since the last snapshot
 console.log('Recent p99:', newSnapshot.percentile(99));
+```
+
+### Benchmark comparison with Welch's t-test
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const baseline = createHistogram();
+const candidate = createHistogram();
+
+// Record operation rates from the old and new builds...
+
+const result = baseline.welchTest(candidate);
+const improvement = ((candidate.mean - baseline.mean) / baseline.mean * 100);
+
+console.log(`Improvement: ${improvement.toFixed(2)}%`);
+console.log(`p-value: ${result.pValue.toFixed(6)}`);
+console.log(`95% CI: [${result.confidenceInterval.lower.toFixed(2)}, ` +
+            `${result.confidenceInterval.upper.toFixed(2)}]`);
+
+if (result.pValue < 0.05) {
+  const d = baseline.cohensD(candidate);
+  console.log(`Statistically significant (Cohen's d = ${d.toFixed(4)})`);
+}
+```
+
+### Effect size with Cliff's delta
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const before = createHistogram();
+const after = createHistogram();
+
+// Record latencies before and after a change...
+
+const delta = before.cliffsD(after);
+// A delta > 0: before tends to produce larger values (improvement)
+// A delta < 0: after tends to produce larger values (regression)
+console.log(`Cliff's delta: ${delta.toFixed(4)}`);
 ```
 
 ## Examples
@@ -2595,17 +2911,24 @@ dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md
+[CBOR]: https://www.rfc-editor.org/rfc/rfc8949
+[Cliff's delta]: https://en.wikipedia.org/wiki/Effect_size#Cliff's_delta
+[Cohen's d]: https://en.wikipedia.org/wiki/Effect_size#Cohen's_d
 [Fetch Response Body Info]: https://fetch.spec.whatwg.org/#response-body-info
 [Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
+[Mann-Whitney U test]: https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
 [Resource Timing]: https://www.w3.org/TR/resource-timing-2/
 [User Timing]: https://www.w3.org/TR/user-timing/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
+[Welch's t-test]: https://en.wikipedia.org/wiki/Welch%27s_t-test
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
+[`histogram.export()`]: #histogramexport
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
+[`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
 [`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
 [`process.hrtime()`]: process.md#processhrtimetime
