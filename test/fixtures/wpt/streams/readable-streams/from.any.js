@@ -18,11 +18,6 @@ const iterableFactories = [
     return ['a', 'b'][Symbol.iterator]();
   }],
 
-  ['a string', () => {
-    // This iterates over the code points of the string.
-    return 'ab';
-  }],
-
   ['a Set', () => {
     return new Set(['a', 'b']);
   }],
@@ -144,6 +139,7 @@ const badIterables = [
   ['Object.create(null)', Object.create(null)],
   ['a function', () => 42],
   ['a symbol', Symbol()],
+  ['a string', 'ab'],
   ['an object with a non-callable @@iterator method', {
     [Symbol.iterator]: 42
   }],
