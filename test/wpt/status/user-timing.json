@@ -2,10 +2,13 @@
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"
   },
-  "invoke_with_timing_attributes.worker.js": {
-    "skip": "importScripts not supported"
-  },
   "performance-measure-invalid.worker.js": {
-    "skip": "importScripts not supported"
+    "fail": {
+      "note": "convert-a-name-to-a-timestamp requires a Window global",
+      "expected": [
+        "When converting 'navigationStart' to a timestamp, the global object has to be a Window object.",
+        "When converting 'navigationStart' to a timestamp and a mark named 'navigationStart' exists, the global object has to be a Window object."
+      ]
+    }
   }
 }

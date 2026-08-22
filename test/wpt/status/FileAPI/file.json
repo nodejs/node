@@ -1,17 +1,22 @@
 {
   "Worker-read-file-constructor.worker.js": {
-    "skip": true
+    "fail": {
+      "note": "FileReader is not implemented",
+      "expected": [
+        "FileReader in Worker"
+      ]
+    }
   },
   "send-file-formdata-punctuation.any.js": {
-    "skip": true
+    "skip": "Needs fetch() and a WPT server"
   },
   "send-file-formdata-utf-8.any.js": {
-    "skip": true
+    "skip": "Needs fetch() and a WPT server"
   },
   "send-file-formdata.any.js": {
-    "skip": true
+    "skip": "Needs fetch() and a WPT server"
   },
   "send-file-formdata-controls.any.js": {
-    "skip": true
+    "skip": "Needs fetch() and a WPT server"
   }
 }

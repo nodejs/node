@@ -1,14 +1,82 @@
 {
   "urlpattern-generate.tentative.any.js": {
-    "skip": "generate function is not yet included in the URLPattern spec"
-  },
-  "resources/urlpattern-compare-tests.tentative.js": {
-    "skip": "compareComponent function is not yet included in the URLPattern spec"
+    "fail": {
+      "note": "generate function is not yet included in the URLPattern spec",
+      "expected": [
+        "Pattern: {\"pathname\":\"/foo\"} Component: pathname Groups: {}",
+        "Pattern: {\"pathname\":\"/:foo\"} Component: pathname Groups: {\"foo\":\"bar\"}",
+        "Pattern: {\"pathname\":\"/:foo\"} Component: pathname Groups: {\"foo\":\"🍅\"}",
+        "Pattern: {\"hostname\":\"{:foo}.example.com\"} Component: hostname Groups: {\"foo\":\"🍅\"}",
+        "Pattern: {\"pathname\":\"/foo/:bar\"} Component: pathname Groups: {\"bar\":\"baz\"}",
+        "Pattern: {\"pathname\":\"/foo:bar\"} Component: pathname Groups: {\"bar\":\"baz\"}",
+        "Pattern: {\"pathname\":\"/:foo/:bar\"} Component: pathname Groups: {\"foo\":\"baz\",\"bar\":\"qux\"}",
+        "Pattern: \"https://example.com/:foo\" Component: pathname Groups: {\"foo\":\" \"}",
+        "Pattern: \"original-scheme://example.com/:foo\" Component: pathname Groups: {\"foo\":\" \"}"
+      ]
+    }
   },
   "urlpattern-compare.tentative.any.js": {
-    "skip": "compareComponent function is not yet included in the URLPattern spec"
+    "fail": {
+      "note": "compareComponent function is not yet included in the URLPattern spec",
+      "expected": [
+        "Component: pathname Left: {\"pathname\":\"/foo/a\"} Right: {\"pathname\":\"/foo/b\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/b\"} Right: {\"pathname\":\"/foo/bar\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/bar\"} Right: {\"pathname\":\"/foo/:bar\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/\"} Right: {\"pathname\":\"/foo/:bar\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/:bar\"} Right: {\"pathname\":\"/foo/*\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}\"} Right: {\"pathname\":\"/foo/(bar)\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}\"} Right: {\"pathname\":\"/foo/{bar}+\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}+\"} Right: {\"pathname\":\"/foo/{bar}?\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}?\"} Right: {\"pathname\":\"/foo/{bar}*\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/(123)\"} Right: {\"pathname\":\"/foo/(12)\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/:b\"} Right: {\"pathname\":\"/foo/:a\"}",
+        "Component: pathname Left: {\"pathname\":\"*/foo\"} Right: {\"pathname\":\"*\"}",
+        "Component: port Left: {\"port\":\"9\"} Right: {\"port\":\"100\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"foo/{:bar}?/baz\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"foo{/:bar}?/baz\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"fo{o/:bar}?/baz\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"foo{/:bar/}?baz\"}",
+        "Component: pathname Left: \"https://a.example.com/b?a\" Right: \"https://b.example.com/a?b\"",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}/baz\"} Right: {\"pathname\":\"/foo/bar/baz\"}",
+        "Component: protocol Left: {\"protocol\":\"a\"} Right: {\"protocol\":\"b\"}",
+        "Component: username Left: {\"username\":\"a\"} Right: {\"username\":\"b\"}",
+        "Component: password Left: {\"password\":\"a\"} Right: {\"password\":\"b\"}",
+        "Component: hostname Left: {\"hostname\":\"a\"} Right: {\"hostname\":\"b\"}",
+        "Component: search Left: {\"search\":\"a\"} Right: {\"search\":\"b\"}",
+        "Component: hash Left: {\"hash\":\"a\"} Right: {\"hash\":\"b\"}"
+      ]
+    }
   },
   "urlpattern-compare.tentative.https.any.js": {
-    "skip": "compareComponent function is not yet included in the URLPattern spec"
+    "fail": {
+      "note": "compareComponent function is not yet included in the URLPattern spec",
+      "expected": [
+        "Component: pathname Left: {\"pathname\":\"/foo/a\"} Right: {\"pathname\":\"/foo/b\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/b\"} Right: {\"pathname\":\"/foo/bar\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/bar\"} Right: {\"pathname\":\"/foo/:bar\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/\"} Right: {\"pathname\":\"/foo/:bar\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/:bar\"} Right: {\"pathname\":\"/foo/*\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}\"} Right: {\"pathname\":\"/foo/(bar)\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}\"} Right: {\"pathname\":\"/foo/{bar}+\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}+\"} Right: {\"pathname\":\"/foo/{bar}?\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}?\"} Right: {\"pathname\":\"/foo/{bar}*\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/(123)\"} Right: {\"pathname\":\"/foo/(12)\"}",
+        "Component: pathname Left: {\"pathname\":\"/foo/:b\"} Right: {\"pathname\":\"/foo/:a\"}",
+        "Component: pathname Left: {\"pathname\":\"*/foo\"} Right: {\"pathname\":\"*\"}",
+        "Component: port Left: {\"port\":\"9\"} Right: {\"port\":\"100\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"foo/{:bar}?/baz\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"foo{/:bar}?/baz\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"fo{o/:bar}?/baz\"}",
+        "Component: pathname Left: {\"pathname\":\"foo/:bar?/baz\"} Right: {\"pathname\":\"foo{/:bar/}?baz\"}",
+        "Component: pathname Left: \"https://a.example.com/b?a\" Right: \"https://b.example.com/a?b\"",
+        "Component: pathname Left: {\"pathname\":\"/foo/{bar}/baz\"} Right: {\"pathname\":\"/foo/bar/baz\"}",
+        "Component: protocol Left: {\"protocol\":\"a\"} Right: {\"protocol\":\"b\"}",
+        "Component: username Left: {\"username\":\"a\"} Right: {\"username\":\"b\"}",
+        "Component: password Left: {\"password\":\"a\"} Right: {\"password\":\"b\"}",
+        "Component: hostname Left: {\"hostname\":\"a\"} Right: {\"hostname\":\"b\"}",
+        "Component: search Left: {\"search\":\"a\"} Right: {\"search\":\"b\"}",
+        "Component: hash Left: {\"hash\":\"a\"} Right: {\"hash\":\"b\"}"
+      ]
+    }
   }
 }

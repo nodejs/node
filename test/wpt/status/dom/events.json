@@ -12,8 +12,13 @@
   "EventListener-addEventListener.sub.window.js": {
     "skip": "document is not defined"
   },
-  "EventTarget-removeEventListener.any.js": {
-    "skip": "globalThis.removeEventListener is not a function"
+  "EventTarget-removeEventListener.any.html": {
+    "fail": {
+      "note": "globalThis does not have a removeEventListener function",
+      "expected": [
+        "removing a null event listener should succeed"
+      ]
+    }
   },
   "event-global-extra.window.js": {
     "skip": "document is not defined"

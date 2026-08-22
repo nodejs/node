@@ -32,6 +32,11 @@ module.exports = {
   },
 
   'window-worker-timeOrigin.window.js': {
-    skip: 'depends on URL.createObjectURL(blob)',
+    fail: {
+      note: 'A worker shares the timeOrigin of the thread that spawned it',
+      expected: [
+        'timeOrigin and now() should be correctly ordered between window and worker',
+      ],
+    },
   },
 };

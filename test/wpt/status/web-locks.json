@@ -33,7 +33,12 @@
     }
   },
   "non-secure-context.any.js": {
-    "skip": "navigator.locks is only present in secure contexts"
+    "fail": {
+      "note": "isSecureContext is not defined and navigator.locks is always exposed",
+      "expected": [
+        "API presence in non-secure contexts"
+      ]
+    }
   },
   "query.https.any.js": {
     "fail": {
@@ -45,7 +50,12 @@
     }
   },
   "secure-context.https.any.js": {
-    "skip": "Different secure context behavior in Node.js"
+    "fail": {
+      "note": "isSecureContext is not defined",
+      "expected": [
+        "API presence in secure contexts"
+      ]
+    }
   },
   "storage-buckets.tentative.https.any.js": {
     "skip": "Node.js does not implement Storage Buckets API"

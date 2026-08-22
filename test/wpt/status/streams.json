@@ -1,7 +1,4 @@
 {
-  "idlharness-shadowrealm.window.js": {
-    "skip": "ShadowRealm support is not enabled"
-  },
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
@@ -18,7 +15,16 @@
     }
   },
   "readable-streams/owning-type-video-frame.any.js": {
-    "skip": "Browser-specific test"
+    "fail": {
+      "note": "Readable streams with type owning are not yet supported",
+      "expected": [
+        "ReadableStream of type owning should close serialized chunks",
+        "ReadableStream of type owning should transfer JS chunks with transferred values",
+        "ReadableStream of type owning should error when trying to enqueue not serializable values",
+        "ReadableStream of type owning should clone serializable objects when teeing",
+        "ReadableStream of type owning should clone JS Objects with serializables when teeing"
+      ]
+    }
   },
   "readable-streams/owning-type.any.js": {
     "fail": {
