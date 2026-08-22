@@ -911,6 +911,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65242
+    description: The `maxObjectProperties` option is supported now.
   - version:
     - v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59710
@@ -1023,6 +1026,14 @@ changes:
     {TypedArray}, {Map}, {WeakMap}, and {WeakSet} elements to include when formatting.
     Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
+  * `maxObjectProperties` {integer} Specifies the maximum number of named
+    properties per inspected value. Own string and symbol properties are
+    included before user-defined prototype properties. Content governed by
+    `maxArrayLength` and built-in metadata entries such as `[byteLength]`,
+    `[buffer]`, and `[BYTES_PER_ELEMENT]` do not count. The limit is applied
+    before `sorted`.
+    Set to `null` or `Infinity` to show all properties. Set to `0` or negative
+    to show no properties. **Default:** `Infinity`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
     include when formatting. Set to `null` or `Infinity` to show all elements.
     Set to `0` or negative to show no characters. **Default:** `10000`.

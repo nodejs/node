@@ -17,6 +17,9 @@ child.on('exit', common.mustCall(() => {
     results,
     [
       '[ 42, 23 ]',
+      '{ first: 1, second: 2 }',
+      '1',
+      '{ first: 1, ... 1 more property }',
       '1',
       '[ 42, ... 1 more item ]',
       '',
@@ -25,6 +28,9 @@ child.on('exit', common.mustCall(() => {
 }));
 
 child.stdin.write('[ 42, 23 ]\n');
+child.stdin.write('({ first: 1, second: 2 })\n');
+child.stdin.write('util.inspect.replDefaults.maxObjectProperties = 1\n');
+child.stdin.write('({ first: 1, second: 2 })\n');
 child.stdin.write('util.inspect.replDefaults.maxArrayLength = 1\n');
 child.stdin.write('[ 42, 23 ]\n');
 child.stdin.end();

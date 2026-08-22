@@ -12,9 +12,17 @@ const { inspect } = require('util');
   assert.strictEqual(
     inspect(m.namespace),
     '[Module: null prototype] { a: <uninitialized>, b: undefined }');
+  assert.strictEqual(
+    inspect(m.namespace, { maxObjectProperties: 1 }),
+    '[Module: null prototype] { a: <uninitialized>, ... 1 more property }'
+  );
   await m.evaluate();
   assert.strictEqual(
     inspect(m.namespace),
     '[Module: null prototype] { a: 1, b: 2 }'
+  );
+  assert.strictEqual(
+    inspect(m.namespace, { maxObjectProperties: 0 }),
+    '[Module: null prototype] { ... 2 more properties }'
   );
 })().then(common.mustCall());
