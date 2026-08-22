@@ -1332,7 +1332,8 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists.
+already exists. If an error occurs, the promise is rejected with an {Error}
+object whose `code` is one of [Common System Errors][].
 
 Symbolic links are followed. If `src` is a symbolic link, the target file is
 copied. If `dest` is a symbolic link, the target file is overwritten unless
@@ -2852,9 +2853,11 @@ changes:
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. No arguments other than a possible exception are given to the
-callback function. Node.js makes no guarantees about the atomicity of the copy
-operation. If an error occurs after the destination file has been opened for
-writing, Node.js will attempt to remove the destination.
+callback function. If an error occurs, the `err` argument will be an {Error}
+object whose `code` is one of [Common System Errors][]. Node.js makes no
+guarantees about the atomicity of the copy operation. If an error occurs after
+the destination file has been opened for writing, Node.js will attempt to remove
+the destination.
 
 Symbolic links are followed. If `src` is a symbolic link, the target file is
 copied. If `dest` is a symbolic link, the target file is overwritten unless
@@ -6025,9 +6028,11 @@ changes:
 * `mode` {integer} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists. Returns `undefined`. Node.js makes no guarantees about the
-atomicity of the copy operation. If an error occurs after the destination file
-has been opened for writing, Node.js will attempt to remove the destination.
+already exists. Returns `undefined`. If an error occurs, an {Error} object whose
+`code` is one of [Common System Errors][] will be thrown. Node.js makes no
+guarantees about the atomicity of the copy operation. If an error occurs after
+the destination file has been opened for writing, Node.js will attempt to remove
+the destination.
 
 Symbolic links are followed. If `src` is a symbolic link, the target file is
 copied. If `dest` is a symbolic link, the target file is overwritten unless
