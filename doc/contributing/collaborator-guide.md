@@ -541,12 +541,18 @@ example, due to removal of an End-of-Life deprecated API).
 
 <a id="deprecation-cycle"></a>
 A _deprecation cycle_ is a major release during which an API has been in one of
-the three Deprecation levels. Documentation-Only Deprecations can land in a
-minor release. They can not change to a Runtime Deprecation until the next major
-release.
+the three Deprecation levels. A deprecation can be added to a release line at
+any point while that release line is Current, but not once it has entered the
+Active LTS or Maintenance phases. A deprecation added while a major release is
+Current counts as a deprecation cycle for that release: the API can change to
+the next deprecation level in the following major release. Documentation-Only
+Deprecations can land in a minor release. They can not change to a Runtime
+Deprecation until the next major release.
 
 No deprecated APIs can change to End-of-Life without going through a Runtime
-Deprecation cycle. There is no rule that deprecated code must progress to End-of-Life.
+Deprecation cycle. An API that received a Runtime Deprecation while a major
+release was Current can be removed (End-of-Life) in the following major
+release. There is no rule that deprecated code must progress to End-of-Life.
 Documentation-Only and Runtime Deprecations can remain in place for an unlimited
 duration.
 
