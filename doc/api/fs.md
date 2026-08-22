@@ -1426,6 +1426,9 @@ changes:
      - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/issues/59202
+    description: Add support for the `encoding` option.
   - version:
       - v24.1.0
       - v22.17.0
@@ -1449,6 +1452,13 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `encoding` {string} The character encoding to use for the yielded paths.
+    If set to `'buffer'`, paths are yielded as {Buffer} objects (and, when
+    `withFileTypes` is `true`, the `name` and `parentPath` of each yielded
+    {fs.Dirent} are {Buffer}s). This is useful when matching file names that
+    contain byte sequences which are not valid UTF-8, since otherwise such
+    bytes are silently replaced when decoded into a string. **Default:**
+    `'utf8'`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3616,6 +3626,9 @@ changes:
      - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/issues/59202
+    description: Add support for the `encoding` option.
   - version:
       - v24.1.0
       - v22.17.0
@@ -3640,6 +3653,13 @@ changes:
 
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `encoding` {string} The character encoding to use for the returned paths.
+    If set to `'buffer'`, paths are returned as {Buffer} objects (and, when
+    `withFileTypes` is `true`, the `name` and `parentPath` of each returned
+    {fs.Dirent} are {Buffer}s). This is useful when matching file names that
+    contain byte sequences which are not valid UTF-8, since otherwise such
+    bytes are silently replaced when decoded into a string. **Default:**
+    `'utf8'`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -6254,6 +6274,9 @@ changes:
      - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/issues/59202
+    description: Add support for the `encoding` option.
   - version:
       - v24.1.0
       - v22.17.0
@@ -6277,6 +6300,13 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `encoding` {string} The character encoding to use for the returned paths.
+    If set to `'buffer'`, paths are returned as {Buffer} objects (and, when
+    `withFileTypes` is `true`, the `name` and `parentPath` of each returned
+    {fs.Dirent} are {Buffer}s). This is useful when matching file names that
+    contain byte sequences which are not valid UTF-8, since otherwise such
+    bytes are silently replaced when decoded into a string. **Default:**
+    `'utf8'`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -6284,7 +6314,8 @@ changes:
     followed while expanding `**` patterns. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-* Returns: {string\[]} paths of files that match the pattern.
+* Returns: {string\[]|Buffer\[]|Dirent\[]} paths (or Dirents, when
+  `withFileTypes` is `true`) of files that match the pattern.
 
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
