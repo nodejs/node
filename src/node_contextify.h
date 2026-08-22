@@ -96,7 +96,8 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
       v8::Isolate* isolate,
       v8::Local<v8::ObjectTemplate> object_template,
       const SnapshotData* snapshot_data,
-      v8::MicrotaskQueue* queue);
+      v8::MicrotaskQueue* queue,
+      v8::Local<v8::Object> global_object = {});
   static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                          v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
@@ -134,7 +135,8 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
  private:
   static ContextifyContext* New(Environment* env,
                                 v8::Local<v8::Object> sandbox_obj,
-                                ContextOptions* options);
+                                ContextOptions* options,
+                                v8::Local<v8::Object> global_object = {});
   // Initialize a context created from CreateV8Context()
   static ContextifyContext* New(v8::Local<v8::Context> ctx,
                                 Environment* env,

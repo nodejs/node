@@ -141,10 +141,12 @@ auto WithPropertyDescriptorCopied(Isolate* isolate,
 
 ContextifyContext* ContextifyContext::New(Environment* env,
                                           Local<Object> sandbox_obj,
-                                          ContextOptions* options) {
+                                          ContextOptions* options,
+                                          Local<Object> global_object) {
   Local<ObjectTemplate> object_template;
   HandleScope scope(env->isolate());
   CHECK_IMPLIES(sandbox_obj.IsEmpty(), options->vanilla);
+  CHECK_IMPLIES(!global_object.IsEmpty(), sandbox_obj.IsEmpty());
   if (!sandbox_obj.IsEmpty()) {
     // Do not use the template with interceptors for vanilla contexts.
     object_template = env->contextify_global_template();
@@ -159,7 +161,9 @@ ContextifyContext* ContextifyContext::New(Environment* env,
           : env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
 
   Local<Context> v8_context;
-  if (!(CreateV8Context(env->isolate(), object_template, snapshot_data, queue)
+  if (!(CreateV8Context(
+            env->isolate(), object_template, snapshot_data, queue,
+            global_object)
             .ToLocal(&v8_context))) {
     // Allocation failure, maximum call stack size reached, termination, etc.
     return {};
@@ -239,7 +243,8 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
     Isolate* isolate,
     Local<ObjectTemplate> object_template,
     const SnapshotData* snapshot_data,
-    MicrotaskQueue* queue) {
+    MicrotaskQueue* queue,
+    Local<Object> global_object) {
   EscapableHandleScope scope(isolate);
 
   Local<Context> ctx;
@@ -248,7 +253,7 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
         isolate,
         nullptr,  // extensions
         object_template,
-        {},                                       // global object
+        global_object,
         v8::DeserializeInternalFieldsCallback(),  // deserialization callback
         queue);
     if (ctx.IsEmpty() || InitializeBaseContextForSnapshot(ctx).IsNothing()) {
@@ -260,7 +265,7 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
                   v8::DeserializeInternalFieldsCallback(),  // deserialization
                                                             // callback
                   nullptr,                                  // extensions
-                  {},                                       // global object
+                  global_object,
                   queue)
                   .ToLocal(&ctx)) {
     return MaybeLocal<Context>();
@@ -414,9 +419,27 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ContextOptions options;
 
-  CHECK_EQ(args.Length(), 7);
+  CHECK_EQ(args.Length(), 8);
   Local<Object> sandbox;
-  if (args[0]->IsObject()) {
+  Local<Object> reusable_global_proxy;
+  ContextifyContext* context_to_replace = nullptr;
+
+  CHECK(args[7]->IsBoolean());
+  const bool reuse_global_proxy = args[7]->IsTrue();
+  if (reuse_global_proxy) {
+    CHECK(args[0]->IsObject());
+    reusable_global_proxy = args[0].As<Object>();
+    context_to_replace = ContextifyContext::ContextFromContextifiedSandbox(
+        env, reusable_global_proxy);
+    CHECK_NOT_NULL(context_to_replace);
+    if (reusable_global_proxy != context_to_replace->global_proxy()) {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "The context must have been created with "
+          "vm.constants.DONT_CONTEXTIFY");
+    }
+    options.vanilla = true;
+  } else if (args[0]->IsObject()) {
     sandbox = args[0].As<Object>();
     // Don't allow contextifying a sandbox multiple times.
     CHECK(!sandbox
@@ -450,9 +473,13 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[6]->IsSymbol());
   options.host_defined_options_id = args[6].As<Symbol>();
 
+  if (context_to_replace != nullptr) {
+    context_to_replace->context()->DetachGlobal();
+  }
+
   TryCatchScope try_catch(env);
   ContextifyContext* context_ptr =
-      ContextifyContext::New(env, sandbox, &options);
+      ContextifyContext::New(env, sandbox, &options, reusable_global_proxy);
 
   if (try_catch.HasCaught()) {
     if (!try_catch.HasTerminated())
