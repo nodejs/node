@@ -28,6 +28,14 @@ describe('fs.readFileSync utf8 simdutf dispatch', () => {
     assert.strictEqual(fs.readFileSync(p, 'utf8'), '');
   });
 
+  it('UTF-8 encoding aliases', () => {
+    const buf = Buffer.from('hello 中文 — 🚀', 'utf8');
+    const p = writeFile('encoding-aliases.txt', buf);
+    for (const encoding of ['utf8', 'utf-8', 'UTF8', 'UTF-8']) {
+      assert.strictEqual(fs.readFileSync(p, encoding), buf.toString('utf8'));
+    }
+  });
+
   it('ascii small', () => {
     const buf = Buffer.from('hello');
     expectMatches(writeFile('tiny-ascii.txt', buf), buf);
