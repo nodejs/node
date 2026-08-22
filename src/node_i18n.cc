@@ -123,10 +123,13 @@ MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
 
 void CopySourceBuffer(MaybeStackBuffer<UChar>* dest,
                       const char* data,
-                      const size_t length,
                       const size_t length_in_chars) {
   dest->AllocateSufficientStorage(length_in_chars);
   char* dst = reinterpret_cast<char*>(**dest);
+  // The destination holds length_in_chars UChar units. Copy that many whole
+  // units and ignore a trailing odd byte; copying the raw byte length would
+  // write one byte past the buffer when the source length is not even.
+  const size_t length = length_in_chars * sizeof(UChar);
   memcpy(dst, data, length);
   if constexpr (IsBigEndian()) {
     CHECK(nbytes::SwapBytes16(dst, length));
@@ -199,7 +202,7 @@ MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
   to.set_subst_chars(sub.c_str());
 
   const size_t length_in_chars = source_length / sizeof(UChar);
-  CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
+  CopySourceBuffer(&sourcebuf, source, length_in_chars);
   MaybeStackBuffer<char> destbuf(length_in_chars);
   const uint32_t len = ucnv_fromUChars(to.conv(), *destbuf, length_in_chars,
                                        *sourcebuf, length_in_chars, status);
