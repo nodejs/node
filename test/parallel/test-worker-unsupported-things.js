@@ -17,6 +17,9 @@ if (!process.env.HAS_STARTED_WORKER) {
     const after = before + ' in worker';
     process.title = after;
     assert.strictEqual(process.title, after);
+
+    process.setTitle(`${after} via function`);
+    assert.strictEqual(process.title, `${after} via function`);
   }
 
   {
