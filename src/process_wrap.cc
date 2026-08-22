@@ -79,6 +79,7 @@ class ProcessWrap : public HandleWrap {
     SetProtoMethod(isolate, constructor, "kill", Kill);
 
     SetConstructorFunction(context, target, "Process", constructor);
+    SetMethodNoSideEffect(context, target, "getEnvPairs", GetEnvPairs);
 
     Local<Object> constants = Object::New(isolate);
     NODE_DEFINE_CONSTANT(constants, kProcessFlagDetached);
@@ -91,6 +92,7 @@ class ProcessWrap : public HandleWrap {
     registry->Register(New);
     registry->Register(Spawn);
     registry->Register(Kill);
+    registry->Register(GetEnvPairs);
   }
 
   SET_NO_MEMORY_INFO()
@@ -339,6 +341,17 @@ class ProcessWrap : public HandleWrap {
     }
 
     args.GetReturnValue().Set(err);
+  }
+
+  // The current environment as ["KEY=value", ...], i.e. what a spawned
+  // child inherits by default, produced in one pass over the environment
+  // block instead of one interceptor round trip per variable.
+  static void GetEnvPairs(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    Local<Array> pairs;
+    if (env->env_vars()->Pairs(env->isolate()).ToLocal(&pairs)) {
+      args.GetReturnValue().Set(pairs);
+    }
   }
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
