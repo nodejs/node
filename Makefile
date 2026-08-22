@@ -1238,6 +1238,7 @@ endif
 	'$(NODE)' tools/license2rtf.mjs < LICENSE > \
 		$(MACOSOUTDIR)/installer/productbuild/Resources/license.rtf
 	cp doc/osx_installer_logo.png $(MACOSOUTDIR)/installer/productbuild/Resources
+	cp doc/osx_installer_logo_dark.png $(MACOSOUTDIR)/installer/productbuild/Resources
 	pkgbuild --version $(FULLVERSION) \
 		--identifier org.nodejs.node.pkg \
 		--root $(MACOSOUTDIR)/dist/node $(MACOSOUTDIR)/pkgs/node-$(FULLVERSION).pkg
