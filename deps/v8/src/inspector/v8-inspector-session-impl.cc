@@ -355,6 +355,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 }
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(
+      m_inspector->isolate());
   KeepSessionAliveScope keepAlive(*this);
 
   using v8_crdtp::span;

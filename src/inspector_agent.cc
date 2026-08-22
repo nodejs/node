@@ -79,6 +79,52 @@ static std::atomic_bool start_io_thread_async_initialized { false };
 // Protects the Agent* stored in start_io_thread_async.data.
 static Mutex start_io_thread_async_mutex;
 
+template <typename Defer, typename OnFailure>
+void SyncJavaScriptHookState(Environment* env,
+                             JavaScriptHookState* state,
+                             Local<Function> enable_function,
+                             Local<Function> disable_function,
+                             bool require_bootstrapping,
+                             Defer defer,
+                             OnFailure on_failure) {
+  // The debugger can request an interrupt from within a hook's JS toggle
+  // function. A nested sync only records the new requested state; the
+  // outermost sync sees it when re-checking the loop after each toggle.
+  if (state->syncing) return;
+  state->syncing = true;
+  auto on_exit = OnScopeLeave([state]() { state->syncing = false; });
+
+  Isolate* isolate = env->isolate();
+  while (state->wanted != state->enabled) {
+    // No hook events will be emitted during cleanup, and calling into JS is no
+    // longer possible.
+    // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
+    if (!env->can_call_into_js()) return;
+
+    bool enable = state->wanted;
+    Local<Function> function = enable ? enable_function : disable_function;
+    if (function.IsEmpty()) return;
+
+    if (env->is_processing_v8_interrupt()) {
+      defer();
+      return;
+    }
+
+    if (require_bootstrapping) CHECK(env->has_run_bootstrapping_code());
+    Local<Context> context = env->context();
+    v8::TryCatch try_catch(isolate);
+    USE(function->Call(context, Undefined(isolate), 0, nullptr));
+    if (try_catch.HasCaught()) {
+      // Termination may abort the toggle invocation. Do not record a state that
+      // may not have taken effect, so a later sync can retry it.
+      if (try_catch.HasTerminated()) return;
+      PrintCaughtException(isolate, context, try_catch);
+      on_failure();
+    }
+    state->enabled = enable;
+  }
+}
+
 // Called on the main thread.
 void StartIoThreadAsyncCallback(uv_async_t* handle) {
   static_cast<Agent*>(handle->data)->StartIoThread();
@@ -475,6 +521,16 @@ class SameThreadInspectorSession : public InspectorSession {
 
 void NotifyClusterWorkersDebugEnabled(Environment* env) {
   Isolate* isolate = env->isolate();
+
+  // Starting the inspector from an interrupt is safe, but emitting the cluster
+  // notification calls into JS.
+  if (env->is_processing_v8_interrupt()) {
+    env->SetImmediate(
+        [](Environment* env) { NotifyClusterWorkersDebugEnabled(env); },
+        CallbackFlags::kUnrefed);
+    return;
+  }
+
   HandleScope handle_scope(isolate);
 
   // Send message to enable debug in cluster workers
@@ -979,54 +1035,40 @@ void Agent::SetupNetworkTracking(Local<Function> enable_function,
                                  Local<Function> disable_function) {
   parent_env_->set_inspector_enable_network_tracking(enable_function);
   parent_env_->set_inspector_disable_network_tracking(disable_function);
-  if (pending_enable_network_tracking) {
-    pending_enable_network_tracking = false;
-    EnableNetworkTracking();
-  } else if (pending_disable_network_tracking) {
-    pending_disable_network_tracking = false;
-    DisableNetworkTracking();
-  }
+  SyncNetworkTrackingState();
 }
 
 void Agent::EnableNetworkTracking() {
-  if (network_tracking_enabled_) {
-    return;
-  }
-  HandleScope scope(parent_env_->isolate());
-  Local<Function> enable = parent_env_->inspector_enable_network_tracking();
-  if (enable.IsEmpty()) {
-    pending_enable_network_tracking = true;
-  } else {
-    ToggleNetworkTracking(parent_env_->isolate(), enable);
-    network_tracking_enabled_ = true;
-  }
+  network_tracking_state_.wanted = true;
+  SyncNetworkTrackingState();
 }
 
 void Agent::DisableNetworkTracking() {
-  if (!network_tracking_enabled_) {
-    return;
-  }
-  HandleScope scope(parent_env_->isolate());
-  Local<Function> disable = parent_env_->inspector_disable_network_tracking();
-  if (disable.IsEmpty()) {
-    pending_disable_network_tracking = true;
-  } else if (!client_->hasConnectedSessions()) {
-    ToggleNetworkTracking(parent_env_->isolate(), disable);
-    network_tracking_enabled_ = false;
-  }
+  if (client_->hasConnectedSessions()) return;
+  network_tracking_state_.wanted = false;
+  SyncNetworkTrackingState();
 }
 
-void Agent::ToggleNetworkTracking(Isolate* isolate, Local<Function> fn) {
-  if (!parent_env_->can_call_into_js()) return;
-  auto context = parent_env_->context();
+void Agent::SyncNetworkTrackingState() {
+  Isolate* isolate = parent_env_->isolate();
   HandleScope scope(isolate);
-  CHECK(!fn.IsEmpty());
-  v8::TryCatch try_catch(isolate);
-  USE(fn->Call(context, Undefined(isolate), 0, nullptr));
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    PrintCaughtException(isolate, context, try_catch);
-    UNREACHABLE("Cannot toggle network tracking, please report this.");
-  }
+  SyncJavaScriptHookState(
+      parent_env_,
+      &network_tracking_state_,
+      parent_env_->inspector_enable_network_tracking(),
+      parent_env_->inspector_disable_network_tracking(),
+      false,
+      [this]() {
+        parent_env_->SetImmediate(
+            [](Environment* env) {
+              Agent* agent = env->inspector_agent();
+              if (agent != nullptr) agent->SyncNetworkTrackingState();
+            },
+            CallbackFlags::kUnrefed);
+      },
+      []() {
+        UNREACHABLE("Cannot toggle network tracking, please report this.");
+      });
 }
 
 void Agent::WaitForDisconnect() {
@@ -1077,7 +1119,7 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
 }
 
 void Agent::SetAsyncHookTrackingEnabled(bool enabled) {
-  async_hook_wanted_ = enabled;
+  async_hook_state_.wanted = enabled;
   SyncAsyncHookState();
 }
 
@@ -1091,52 +1133,25 @@ void Agent::SetAsyncHookTrackingEnabled(bool enabled) {
 // When it's not safe to call into JS, this is a no-op and we'll try again in
 // RegisterAsyncHook() (for 1) or from a scheduled immediate (for 2).
 void Agent::SyncAsyncHookState() {
-  // The debugger can request an interrupt within the toggle JS function itself,
-  // A nested call only records the new requested state, the outermost call sees
-  // it when re-checking the loop condition after each toggle.
-  if (syncing_async_hook_state_) return;
-  syncing_async_hook_state_ = true;
-  auto on_exit = OnScopeLeave([this]() { syncing_async_hook_state_ = false; });
-
   Isolate* isolate = parent_env_->isolate();
   HandleScope scope(isolate);
-  while (async_hook_wanted_ != async_hook_enabled_) {
-    // Guard against running this during cleanup -- no async events will be
-    // emitted anyway at that point anymore, and calling into JS is not
-    // possible. This should probably not be something we're attempting in the
-    // first place,
-    // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
-    if (!parent_env_->can_call_into_js()) return;
-
-    bool enable = async_hook_wanted_;
-    Local<Function> fn = enable ? parent_env_->inspector_enable_async_hooks()
-                                : parent_env_->inspector_disable_async_hooks();
-    if (fn.IsEmpty()) return;
-
-    if (parent_env_->is_processing_v8_interrupt()) {
-      parent_env_->SetImmediate(
-          [](Environment* env) {
-            Agent* agent = env->inspector_agent();
-            if (agent != nullptr) agent->SyncAsyncHookState();
-          },
-          CallbackFlags::kUnrefed);
-      return;
-    }
-
-    CHECK(parent_env_->has_run_bootstrapping_code());
-    Local<Context> context = parent_env_->context();
-    v8::TryCatch try_catch(isolate);
-    USE(fn->Call(context, Undefined(isolate), 0, nullptr));
-    if (try_catch.HasCaught()) {
-      // Termination may abort the toggle invocation, retrying now would just
-      // be terminated again. Instead of recording the toggle that may not have
-      // taken effect, leave the states as-is so that a later sync retries.
-      if (try_catch.HasTerminated()) return;
-      PrintCaughtException(isolate, context, try_catch);
-      UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
-    }
-    async_hook_enabled_ = enable;
-  }
+  SyncJavaScriptHookState(
+      parent_env_,
+      &async_hook_state_,
+      parent_env_->inspector_enable_async_hooks(),
+      parent_env_->inspector_disable_async_hooks(),
+      true,
+      [this]() {
+        parent_env_->SetImmediate(
+            [](Environment* env) {
+              Agent* agent = env->inspector_agent();
+              if (agent != nullptr) agent->SyncAsyncHookState();
+            },
+            CallbackFlags::kUnrefed);
+      },
+      []() {
+        UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
+      });
 }
 
 void Agent::AsyncTaskScheduled(const StringView& task_name, void* task,

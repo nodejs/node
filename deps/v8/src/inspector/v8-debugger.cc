@@ -532,6 +532,7 @@ void V8Debugger::handleProgramBreak(
         }
       });
   {
+    v8::Isolate::AllowJavascriptExecutionScope allow_script(m_isolate);
     v8::Context::Scope scope(pausedContext);
 
     m_inspector->forEachSession(

@@ -60,13 +60,31 @@ struct MainThreadConnection {
 template <typename ConnectionType>
 class JSBindingsConnection : public BaseObject {
  public:
+  struct PendingMicrotask {
+    explicit PendingMicrotask(JSBindingsConnection* connection)
+        : env(connection->env()), connection(connection) {
+      env->AddCleanupHook(Delete, this);
+    }
+
+    static void Delete(void* data) {
+      delete static_cast<PendingMicrotask*>(data);
+    }
+
+    static void Run(void* data) {
+      std::unique_ptr<PendingMicrotask> pending(
+          static_cast<PendingMicrotask*>(data));
+      pending->env->RemoveCleanupHook(Delete, pending.get());
+      pending->connection->FlushPendingMessages();
+    }
+
+    Environment* env;
+    BaseObjectPtr<JSBindingsConnection> connection;
+  };
+
   class JSBindingsSessionDelegate : public InspectorSessionDelegate {
    public:
-    JSBindingsSessionDelegate(Environment* env,
-                              JSBindingsConnection* connection)
-                              : env_(env),
-                                connection_(connection) {
-    }
+    explicit JSBindingsSessionDelegate(JSBindingsConnection* connection)
+        : connection_(connection) {}
 
     void SendMessageToFrontend(const v8_inspector::StringView& message)
         override {
@@ -74,7 +92,6 @@ class JSBindingsConnection : public BaseObject {
     }
 
    private:
-    Environment* env_;
     BaseObjectPtr<JSBindingsConnection> connection_;
   };
 
@@ -84,10 +101,10 @@ class JSBindingsConnection : public BaseObject {
       : BaseObject(env, wrap), callback_(env->isolate(), callback) {
     Agent* inspector = env->inspector_agent();
     session_ = ConnectionType::Connect(
-        inspector, std::make_unique<JSBindingsSessionDelegate>(env, this));
-    // Inspector responses may be produced from a GC weak callback, where
-    // invoking the JavaScript session callback is forbidden. Defer delivery
-    // until the GC has completed.
+        inspector, std::make_unique<JSBindingsSessionDelegate>(this));
+    // Inspector responses may be produced from a GC weak callback or a V8
+    // interrupt, where invoking the JavaScript session callback is forbidden.
+    // Defer delivery until it is safe to call into JavaScript.
     env->isolate()->AddGCPrologueCallback(GCPrologueCallback, this);
     env->isolate()->AddGCEpilogueCallback(GCEpilogueCallback, this);
   }
@@ -98,7 +115,8 @@ class JSBindingsConnection : public BaseObject {
   }
 
   void SendMessageToFrontend(const v8_inspector::StringView& message) {
-    if (in_gc_ || delivering_ || !pending_messages_.empty()) {
+    if (in_gc_ || env()->is_processing_v8_interrupt() || delivering_ ||
+        !pending_messages_.empty()) {
       pending_messages_.emplace_back(
           message.is8Bit()
               ? std::u16string(message.characters8(),
@@ -126,6 +144,12 @@ class JSBindingsConnection : public BaseObject {
   void ScheduleFlush() {
     if (flush_scheduled_ || delivering_) return;
     flush_scheduled_ = true;
+    if (!in_gc_ && env()->is_processing_v8_interrupt()) {
+      auto* pending = new PendingMicrotask(this);
+      env()->context()->GetMicrotaskQueue()->EnqueueMicrotask(
+          env()->isolate(), PendingMicrotask::Run, pending);
+      return;
+    }
     BaseObjectPtr<JSBindingsConnection> strong_ref{this};
     env()->SetImmediate(
         [strong_ref](Environment*) { strong_ref->FlushPendingMessages(); },

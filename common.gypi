@@ -42,7 +42,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.28',
+    'v8_embedder_string': '-node.29',
 
     ##### V8 defaults for Node.js #####
 
@@ -54,6 +54,8 @@
     # Refs: https://github.com/nodejs/node/issues/23167
     # Enable compiler warnings when using V8_DEPRECATED apis from V8 code.
     'v8_deprecation_warnings': 0,
+    # Check that JavaScript execution is disallowed in V8 API interrupts.
+    'v8_disallow_js_in_api_interrupts_is_checked': 1,
     # Enable compiler warnings when using V8_DEPRECATE_SOON apis from V8 code.
     'v8_imminent_deprecation_warnings': 0,
 
@@ -533,6 +535,9 @@
       }],
       ['v8_deprecation_warnings == 1', {
         'defines': ['V8_DEPRECATION_WARNINGS',],
+      }],
+      ['v8_disallow_js_in_api_interrupts_is_checked == 1', {
+        'defines': ['V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED',],
       }],
       ['v8_imminent_deprecation_warnings == 1', {
         'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
