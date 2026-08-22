@@ -11,12 +11,14 @@
 #include "node_profiling.h"
 #include "node_snapshot_builder.h"
 #include "permission/permission.h"
+#include "path.h"
 #include "util-inl.h"
 #include "v8-cppgc.h"
 #include "v8-profiler.h"
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using node::kAllowedInEnvvar;
@@ -504,6 +506,194 @@ Worker::~Worker() {
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
 
+
+
+
+
+
+
+// SEMVER-MAJOR: Permission-Model ceiling for Worker explicit execArgv.
+//
+// When the parent has the Permission Model enabled, a Worker with explicit
+// execArgv (including []) must not obtain wider permission-related grants
+// than the parent.
+//
+// - Unconfigured worker permission flags → apply parent permission grants.
+// - Configured flags → AND boolean allows with parent; fs lists:
+//   * If worker has permission/permission_audit and an empty fs list, keep
+//     empty (explicit model on with no path grants = no path grants).
+//   * If worker only toggled non-fs allow booleans and fs list is empty, keep
+//     the parent fs list (do not invent a wider set; same ceiling as parent).
+//   * Non-empty worker fs list → keep entries covered by a parent entry
+//     (PathResolve when possible, then separator-aware prefix / equality).
+//   * Worker "*" dropped unless parent has "*".
+// Options only (no exec_argv rewrite). Runtime FSPermission still enforces IO.
+
+static bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
+  if (w->permission || w->permission_audit) {
+    return true;
+  }
+  if (!w->allow_fs_read.empty() || !w->allow_fs_write.empty()) {
+    return true;
+  }
+  return w->allow_addons || w->allow_inspector || w->allow_child_process ||
+         w->allow_net || w->allow_wasi || w->allow_ffi ||
+         w->allow_openssl_store || w->allow_worker_threads;
+}
+
+static void ApplyParentPermissionCeiling(EnvironmentOptions* w,
+                                         const EnvironmentOptions* parent) {
+  w->permission = true;
+  w->permission_audit = parent->permission_audit;
+  w->allow_addons = parent->allow_addons;
+  w->allow_inspector = parent->allow_inspector;
+  w->allow_child_process = parent->allow_child_process;
+  w->allow_net = parent->allow_net;
+  w->allow_wasi = parent->allow_wasi;
+  w->allow_ffi = parent->allow_ffi;
+  w->allow_openssl_store = parent->allow_openssl_store;
+  w->allow_worker_threads = parent->allow_worker_threads;
+  w->allow_fs_read = parent->allow_fs_read;
+  w->allow_fs_write = parent->allow_fs_write;
+}
+
+static void NormalizePathForCompare(std::string* s) {
+  while (s->size() > 1 && (s->back() == '/' || s->back() == '\\')) {
+    s->pop_back();
+  }
+#ifdef _WIN32
+  for (char& c : *s) {
+    if (c >= 'A' && c <= 'Z') {
+      c = static_cast<char>(c - 'A' + 'a');
+    }
+    if (c == '/') {
+      c = '\\';
+    }
+  }
+#endif
+}
+
+static std::string ResolveForCompare(Environment* env, const std::string& in) {
+  if (in.empty() || in == "*") {
+    return in;
+  }
+  std::string resolved =
+      PathResolve(env, std::vector<std::string_view>{std::string_view(in)});
+  if (resolved.empty()) {
+    resolved = in;
+  }
+  NormalizePathForCompare(&resolved);
+  return resolved;
+}
+
+static bool PathCoveredByParentEntry(Environment* env,
+                                     const std::string& parent_raw,
+                                     const std::string& requested_raw) {
+  if (parent_raw == "*") {
+    return true;
+  }
+  const std::string parent = ResolveForCompare(env, parent_raw);
+  const std::string requested = ResolveForCompare(env, requested_raw);
+  if (parent.empty()) {
+    return false;
+  }
+  if (requested == parent) {
+    return true;
+  }
+  if (requested.size() <= parent.size()) {
+    return false;
+  }
+  if (requested.compare(0, parent.size(), parent) != 0) {
+    return false;
+  }
+  const char next = requested[parent.size()];
+  return next == '/' || next == '\\';
+}
+
+static bool ParentListHasWildcard(const std::vector<std::string>& parent) {
+  for (const std::string& p : parent) {
+    if (p == "*") {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void FilterPathListToParentSubset(
+    Environment* env,
+    EnvironmentOptions* w,
+    std::vector<std::string>* worker,
+    const std::vector<std::string>& parent) {
+  if (worker == nullptr) {
+    return;
+  }
+  if (worker->empty()) {
+    // Explicit --permission / --permission-audit with no path grants → no
+    // path grants. Otherwise (only non-fs allow booleans) keep parent fs list.
+    if (w->permission || w->permission_audit) {
+      return;
+    }
+    *worker = parent;
+    return;
+  }
+  if (ParentListHasWildcard(parent)) {
+    return;
+  }
+  std::vector<std::string> out;
+  out.reserve(worker->size());
+  for (const std::string& wpath : *worker) {
+    if (wpath == "*") {
+      continue;
+    }
+    for (const std::string& p : parent) {
+      if (PathCoveredByParentEntry(env, p, wpath)) {
+        out.push_back(wpath);
+        break;
+      }
+    }
+  }
+  *worker = std::move(out);
+}
+
+static void IntersectPermissionGrants(Environment* env,
+                                      EnvironmentOptions* w,
+                                      const EnvironmentOptions* parent) {
+  w->permission = true;
+  w->permission_audit = w->permission_audit || parent->permission_audit;
+  w->allow_addons = w->allow_addons && parent->allow_addons;
+  w->allow_inspector = w->allow_inspector && parent->allow_inspector;
+  w->allow_child_process =
+      w->allow_child_process && parent->allow_child_process;
+  w->allow_net = w->allow_net && parent->allow_net;
+  w->allow_wasi = w->allow_wasi && parent->allow_wasi;
+  w->allow_ffi = w->allow_ffi && parent->allow_ffi;
+  w->allow_openssl_store =
+      w->allow_openssl_store && parent->allow_openssl_store;
+  w->allow_worker_threads =
+      w->allow_worker_threads && parent->allow_worker_threads;
+  FilterPathListToParentSubset(env, w, &w->allow_fs_read, parent->allow_fs_read);
+  FilterPathListToParentSubset(
+      env, w, &w->allow_fs_write, parent->allow_fs_write);
+}
+
+static void ClampWorkerPermissionToParent(Environment* env,
+                                          PerIsolateOptions* worker_opts) {
+  if (worker_opts == nullptr || !env->permission()->enabled()) {
+    return;
+  }
+  EnvironmentOptions* parent =
+      env->isolate_data()->options()->get_per_env_options();
+  EnvironmentOptions* w = worker_opts->get_per_env_options();
+  if (parent == nullptr || w == nullptr) {
+    return;
+  }
+  if (!WorkerConfiguredPermission(w)) {
+    ApplyParentPermissionCeiling(w, parent);
+  } else {
+    IntersectPermissionGrants(env, w, parent);
+  }
+}
+
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -688,6 +878,15 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   // essential to load user codes and must not be blocked by the inspector
   // for internal scripts.
   // Still, `--inspect-node` can break on the first line of internal scripts.
+
+
+
+
+
+  if (env->permission()->enabled() && per_isolate_opts) {
+    ClampWorkerPermissionToParent(env, per_isolate_opts.get());
+  }
+
   if (is_internal) {
     per_isolate_opts->per_env->get_debug_options()
         ->DisableWaitOrBreakFirstLine();

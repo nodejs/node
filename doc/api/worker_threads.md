@@ -1561,6 +1561,12 @@ if (isMainThread) {
 
 ### `new Worker(filename[, options])`
 
+<!-- worker-execargv-permission-ceiling -->
+**Permission Model (breaking):** If the parent process runs with the
+Permission Model enabled, an explicit `execArgv` (including `[]`) does not
+disable or exceed the parent's permission-related grants. See the Permission
+Model documentation.
+
 <!-- YAML
 added: v10.5.0
 changes:

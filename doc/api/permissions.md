@@ -28,6 +28,15 @@ If you find a potential security vulnerability, please refer to our
 
 ### Permission Model
 
+<!-- worker-execargv-permission-ceiling -->
+When the Permission Model is enabled in the parent process, creating a
+`worker_threads.Worker` with an explicit `execArgv` option (including an empty
+array) no longer allows the worker to obtain a wider permission-related grant
+set than the parent. Permission-related grants on the worker are limited to a
+subset of the parent's grants. Non-permission `execArgv` flags are unaffected.
+This is a breaking change relative to earlier releases where `execArgv: []`
+could drop the parent's Permission Model grants.
+
 <!-- YAML
 added: v20.0.0
 changes:
