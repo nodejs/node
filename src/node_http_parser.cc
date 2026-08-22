@@ -31,9 +31,10 @@
 #include "stream_base-inl.h"
 #include "v8.h"
 
+#include <algorithm>
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
-
+#include <string>
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -122,6 +123,197 @@ class BindingData : public BaseObject {
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 };
+
+// Packed incoming headers, always little-endian so the layout is identical
+// on s390x / AIX (big-endian) and little-endian hosts:
+// magic + count + flags + (nlen, vlen, name, value)*
+// Magic 0x5244484E is the LE encoding of the ASCII bytes 'N','H','D','R'.
+// Kept as a Buffer so JS strings are created only when rawHeaders / headers
+// are actually read. Avoids a native BaseObject per request.
+constexpr uint32_t kNativeHeadersMagic = 0x5244484E;  // 'NHDR' LE
+constexpr uint32_t kNativeHeaderFlagHost = 1 << 0;
+constexpr uint32_t kNativeHeaderFlagExpect = 1 << 1;
+constexpr uint32_t kNativeHeaderFlagContentLength = 1 << 2;
+constexpr uint32_t kNativeHeaderFlagTransferEncoding = 1 << 3;
+constexpr uint32_t kNativeHeaderFlagTE = 1 << 4;
+constexpr uint32_t kNativeHeadersCountOffset = 4;
+constexpr uint32_t kNativeHeadersFlagsOffset = 8;
+constexpr size_t kNativeHeadersPrefix = 12;
+
+inline void WriteU32LE(char* p, uint32_t v) {
+  auto* u = reinterpret_cast<unsigned char*>(p);
+  u[0] = static_cast<unsigned char>(v);
+  u[1] = static_cast<unsigned char>(v >> 8);
+  u[2] = static_cast<unsigned char>(v >> 16);
+  u[3] = static_cast<unsigned char>(v >> 24);
+}
+
+inline bool ReadU32LE(const char* p, const char* end, uint32_t* out) {
+  if (p + sizeof(uint32_t) > end) return false;
+  const auto* u = reinterpret_cast<const unsigned char*>(p);
+  *out = static_cast<uint32_t>(u[0]) |
+         (static_cast<uint32_t>(u[1]) << 8) |
+         (static_cast<uint32_t>(u[2]) << 16) |
+         (static_cast<uint32_t>(u[3]) << 24);
+  return true;
+}
+
+inline bool HeaderNameEquals(const char* a,
+                             size_t alen,
+                             const char* b,
+                             size_t blen) {
+  if (alen != blen) return false;
+  for (size_t i = 0; i < alen; i++) {
+    unsigned char ca = static_cast<unsigned char>(a[i]);
+    unsigned char cb = static_cast<unsigned char>(b[i]);
+    if (ca >= 'A' && ca <= 'Z') ca = static_cast<unsigned char>(ca + 32);
+    if (cb >= 'A' && cb <= 'Z') cb = static_cast<unsigned char>(cb + 32);
+    if (ca != cb) return false;
+  }
+  return true;
+}
+
+bool GetPackedHeaders(Local<Value> value,
+                      const char** data,
+                      size_t* size,
+                      uint32_t* count) {
+  if (!Buffer::HasInstance(value)) return false;
+  Local<Object> obj = value.As<Object>();
+  const char* p = Buffer::Data(obj);
+  const size_t n = Buffer::Length(obj);
+  if (n < kNativeHeadersPrefix) return false;
+  uint32_t magic;
+  if (!ReadU32LE(p, p + n, &magic) || magic != kNativeHeadersMagic) {
+    return false;
+  }
+  if (!ReadU32LE(p + kNativeHeadersCountOffset, p + n, count)) return false;
+  *data = p;
+  *size = n;
+  return true;
+}
+
+uint32_t KnownHeaderFlag(const char* name, size_t nlen) {
+  if (HeaderNameEquals(name, nlen, "host", 4)) return kNativeHeaderFlagHost;
+  if (HeaderNameEquals(name, nlen, "expect", 6)) return kNativeHeaderFlagExpect;
+  if (HeaderNameEquals(name, nlen, "content-length", 14))
+    return kNativeHeaderFlagContentLength;
+  if (HeaderNameEquals(name, nlen, "transfer-encoding", 17))
+    return kNativeHeaderFlagTransferEncoding;
+  if (HeaderNameEquals(name, nlen, "te", 2)) return kNativeHeaderFlagTE;
+  return 0;
+}
+
+void NativeHeadersHas(const FunctionCallbackInfo<Value>& args) {
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 2 || !args[1]->IsString() ||
+      !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+  Utf8Value name(args.GetIsolate(), args[1]);
+  const char* want = *name;
+  const size_t nlen = name.length();
+  const char* p = data + kNativeHeadersPrefix;
+  const char* end = data + size;
+  for (uint32_t i = 0; i < count; i++) {
+    uint32_t enlen, evlen;
+    if (!ReadU32LE(p, end, &enlen) || !ReadU32LE(p + 4, end, &evlen)) break;
+    p += 8;
+    if (p + enlen + evlen > end) break;
+    if (HeaderNameEquals(p, enlen, want, nlen)) {
+      args.GetReturnValue().Set(true);
+      return;
+    }
+    p += enlen + evlen;
+  }
+  args.GetReturnValue().Set(false);
+}
+
+void NativeHeadersGet(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 2 || !args[1]->IsString() ||
+      !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  Utf8Value name(isolate, args[1]);
+  const char* want = *name;
+  const size_t nlen = name.length();
+  const char* p = data + kNativeHeadersPrefix;
+  const char* end = data + size;
+  std::string joined;
+  bool found = false;
+  for (uint32_t i = 0; i < count; i++) {
+    uint32_t enlen, evlen;
+    if (!ReadU32LE(p, end, &enlen) || !ReadU32LE(p + 4, end, &evlen)) break;
+    p += 8;
+    if (p + enlen + evlen > end) break;
+    if (HeaderNameEquals(p, enlen, want, nlen)) {
+      if (found) joined.append(", ");
+      joined.append(p + enlen, evlen);
+      found = true;
+    }
+    p += enlen + evlen;
+  }
+  if (!found) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  args.GetReturnValue().Set(
+      OneByteString(isolate, joined.data(), joined.size()));
+}
+
+void NativeHeadersToArray(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 1 || !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().Set(Array::New(isolate, 0));
+    return;
+  }
+  size_t max_elements = static_cast<size_t>(count) * 2;
+  if (args.Length() > 1 && args[1]->IsUint32()) {
+    max_elements = std::min(max_elements,
+                            static_cast<size_t>(args[1].As<Uint32>()->Value()));
+  }
+  const char* p = data + kNativeHeadersPrefix;
+  const char* end = data + size;
+  LocalVector<Value> out(isolate);
+  out.reserve(max_elements);
+  for (uint32_t i = 0; i < count && out.size() < max_elements; i++) {
+    uint32_t enlen, evlen;
+    if (!ReadU32LE(p, end, &enlen) || !ReadU32LE(p + 4, end, &evlen)) break;
+    p += 8;
+    if (p + enlen + evlen > end) break;
+    out.push_back(enlen == 0 ? String::Empty(isolate)
+                             : OneByteString(isolate, p, enlen));
+    if (out.size() >= max_elements) {
+      p += enlen + evlen;
+      break;
+    }
+    out.push_back(evlen == 0 ? String::Empty(isolate)
+                             : OneByteString(isolate, p + enlen, evlen));
+    p += enlen + evlen;
+  }
+  args.GetReturnValue().Set(Array::New(isolate, out.data(), out.size()));
+}
+
+void NativeHeadersByteLength(const FunctionCallbackInfo<Value>& args) {
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 1 || !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().Set(0);
+    return;
+  }
+  args.GetReturnValue().Set(static_cast<uint32_t>(count * 2));
+}
 
 class Parser;
 
@@ -317,6 +509,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     num_fields_ = num_values_ = 0;
     headers_completed_ = false;
+    skip_body_ = false;
     chunk_extensions_nread_ = 0;
     received_data_ = true;
     last_message_start_ = uv_hrtime();
@@ -456,8 +649,10 @@ class Parser : public AsyncWrap, public StreamListener {
       // Slow case, flush remaining headers.
       Flush();
     } else {
-      // Fast case, pass headers and URL to JS land.
-      argv[A_HEADERS] = CreateHeaders();
+      // Keep header bytes in C++. JS materializes strings only if it
+      // reads rawHeaders / headers.
+      argv[A_HEADERS] = CreateNativeHeaders();
+      if (argv[A_HEADERS].IsEmpty()) return -1;
       if (parser_.type == HTTP_REQUEST)
         argv[A_URL] = url_.ToString(env());
     }
@@ -514,8 +709,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_body(const char* at, size_t length) {
-    if (length == 0)
-      return 0;
+    if (length == 0 || skip_body_) return 0;
 
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
@@ -787,6 +981,11 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->stream_->RemoveStreamListener(parser);
   }
 
+  static void SetSkipBody(const FunctionCallbackInfo<Value>& args) {
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    parser->skip_body_ = args.Length() > 0 && args[0]->IsTrue();
+  }
 
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
@@ -955,6 +1154,47 @@ class Parser : public AsyncWrap, public StreamListener {
     return Array::New(env()->isolate(), headers_v, num_values_ * 2);
   }
 
+  Local<Value> CreateNativeHeaders() {
+    auto trimmed_vlen = [this](size_t i) {
+      size_t vlen = values_[i].size_;
+      const char* v = values_[i].str_;
+      while (vlen > 0 && v != nullptr && IsOWS(v[vlen - 1])) vlen--;
+      return vlen;
+    };
+
+    size_t size = kNativeHeadersPrefix;
+    for (size_t i = 0; i < num_values_; ++i)
+      size += 8 + fields_[i].size_ + trimmed_vlen(i);
+
+    Local<Object> buf;
+    if (!Buffer::New(env()->isolate(), size).ToLocal(&buf)) {
+      got_exception_ = true;
+      return Local<Value>();
+    }
+
+    char* p = Buffer::Data(buf);
+    uint32_t flags = 0;
+    WriteU32LE(p, kNativeHeadersMagic);
+    WriteU32LE(p + kNativeHeadersCountOffset,
+               static_cast<uint32_t>(num_values_));
+    p += kNativeHeadersPrefix;
+    for (size_t i = 0; i < num_values_; ++i) {
+      const uint32_t nlen = static_cast<uint32_t>(fields_[i].size_);
+      const uint32_t vlen = static_cast<uint32_t>(trimmed_vlen(i));
+      const char* name = fields_[i].str_ == nullptr ? "" : fields_[i].str_;
+      flags |= KnownHeaderFlag(name, nlen);
+      WriteU32LE(p, nlen);
+      WriteU32LE(p + 4, vlen);
+      p += 8;
+      if (nlen != 0) memcpy(p, name, nlen);
+      p += nlen;
+      if (vlen != 0 && values_[i].str_ != nullptr)
+        memcpy(p, values_[i].str_, vlen);
+      p += vlen;
+    }
+    WriteU32LE(Buffer::Data(buf) + kNativeHeadersFlagsOffset, flags);
+    return buf;
+  }
 
   // spill headers and request path to JS land
   void Flush() {
@@ -1032,6 +1272,7 @@ class Parser : public AsyncWrap, public StreamListener {
     got_exception_ = false;
     is_being_freed_ = false;
     headers_completed_ = false;
+    skip_body_ = false;
     max_http_header_size_ = max_http_header_size;
     header_pairs_ = 0;
   }
@@ -1108,6 +1349,7 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t current_buffer_len_;
   const char* current_buffer_data_;
   bool headers_completed_ = false;
+  bool skip_body_ = false;
   size_t header_pairs_ = 0;
   bool pending_pause_ = false;
   bool received_data_ = false;
@@ -1393,6 +1635,27 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
          Integer::NewFromUnsigned(isolate, kLenientAll));
 
+  // Packed-header layout. Exported so JS does not redefine these values.
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeadersMagic"),
+         Integer::NewFromUnsigned(isolate, kNativeHeadersMagic));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeaderFlagHost"),
+         Integer::NewFromUnsigned(isolate, kNativeHeaderFlagHost));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeaderFlagExpect"),
+         Integer::NewFromUnsigned(isolate, kNativeHeaderFlagExpect));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeaderFlagContentLength"),
+         Integer::NewFromUnsigned(isolate, kNativeHeaderFlagContentLength));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeaderFlagTransferEncoding"),
+         Integer::NewFromUnsigned(isolate,
+                                  kNativeHeaderFlagTransferEncoding));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeaderFlagTE"),
+         Integer::NewFromUnsigned(isolate, kNativeHeaderFlagTE));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeadersCountOffset"),
+         Integer::NewFromUnsigned(isolate, kNativeHeadersCountOffset));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeadersFlagsOffset"),
+         Integer::NewFromUnsigned(isolate, kNativeHeadersFlagsOffset));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kNativeHeadersPrefix"),
+         Integer::NewFromUnsigned(isolate, kNativeHeadersPrefix));
+
   t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, t, "close", Parser::Close);
   SetProtoMethod(isolate, t, "free", Parser::Free);
@@ -1405,8 +1668,15 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethod(isolate, t, "consume", Parser::Consume);
   SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
+  SetProtoMethod(isolate, t, "setSkipBody", Parser::SetSkipBody);
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
+
+  SetMethod(isolate, target, "nativeHeadersHas", NativeHeadersHas);
+  SetMethod(isolate, target, "nativeHeadersGet", NativeHeadersGet);
+  SetMethod(isolate, target, "nativeHeadersToArray", NativeHeadersToArray);
+  SetMethod(
+      isolate, target, "nativeHeadersByteLength", NativeHeadersByteLength);
 
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
@@ -1474,6 +1744,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::Consume);
   registry->Register(Parser::Unconsume);
   registry->Register(Parser::GetCurrentBuffer);
+  registry->Register(Parser::SetSkipBody);
+  registry->Register(NativeHeadersHas);
+  registry->Register(NativeHeadersGet);
+  registry->Register(NativeHeadersToArray);
+  registry->Register(NativeHeadersByteLength);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
   registry->Register(ConnectionsList::Idle);
