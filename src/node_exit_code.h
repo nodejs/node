@@ -33,7 +33,9 @@ namespace node {
   /* typically the exit codes are 128 + signal number. We also exit with */    \
   /* certain error codes directly for legacy reasons. Here we define those */  \
   /* that are used to normalize the exit code on Windows. */                   \
-  V(Abort, 134)
+  V(Abort, 134)                                                                \
+  V(SigInt, 130)                                                               \
+  V(SigTerm, 143)
 
 // TODO(joyeecheung): expose this to user land when the codes are stable.
 // The underlying type should be an int, or we can get undefined behavior when
