@@ -388,3 +388,16 @@ test('cached statements are finalized when the database is closed', () => {
     message: /no such table/i,
   });
 });
+
+test('failed prepares throw', () => {
+  assert.throws(() => {
+    sql.all`SELECT * FROM does_not_exist`;
+  }, {
+    name: 'Error',
+    message: 'Failed to prepare statement',
+    code: 'ERR_SQLITE_ERROR',
+    errcode: 1,
+    errstr: 'SQL logic error',
+    errmsg: 'no such table: does_not_exist'
+  });
+});
