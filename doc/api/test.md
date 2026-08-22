@@ -1935,6 +1935,16 @@ added:
 Shorthand for marking a suite as `TODO`. This is the same as
 [`suite([name], { todo: true }[, fn])`][suite options].
 
+## `suite.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Shorthand for marking a suite as flaky. This is the same as
+[`suite([name], { flaky: true }[, fn])`][suite options].
+
 ## `suite.only([name][, options][, fn])`
 
 <!-- YAML
@@ -2008,6 +2018,18 @@ changes:
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `flaky` {boolean|number} If `true`, the test (or, for a suite, each of its
+    test-cases) is retried until it passes, up to a default of 20 retries. If a
+    positive integer is provided, it is retried up to that many times. A
+    non-positive or non-integer value throws. Each retry re-runs the test's
+    `beforeEach` and `afterEach` hooks. A test-case's own value overrides one
+    inherited from its suite; `flaky: false` opts out. Retries are intended for
+    tests that fail intermittently due to transient conditions; be aware that
+    non-idempotent state may leak between attempts. A test that always fails
+    exhausts its full retry budget, running its body once plus once per retry
+    (for example 21 times with `flaky: true`: 1 initial run + 20 retries), so
+    prefer a small explicit count for tests that fail only occasionally.
+    **Default:** `false`.
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -2073,6 +2095,16 @@ same as [`test([name], { todo: true }[, fn])`][it options].
 Shorthand for marking a test as `only`,
 same as [`test([name], { only: true }[, fn])`][it options].
 
+## `test.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Shorthand for marking a test as flaky,
+same as [`test([name], { flaky: true }[, fn])`][it options].
+
 ## `describe([name][, options][, fn])`
 
 Alias for [`suite()`][].
@@ -2099,6 +2131,16 @@ added:
 
 Shorthand for marking a suite as `only`. This is the same as
 [`describe([name], { only: true }[, fn])`][describe options].
+
+## `describe.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Shorthand for marking a suite as flaky. This is the same as
+[`describe([name], { flaky: true }[, fn])`][describe options].
 
 ## `it([name][, options][, fn])`
 
@@ -2138,6 +2180,16 @@ added:
 
 Shorthand for marking a test as `only`,
 same as [`it([name], { only: true }[, fn])`][it options].
+
+## `it.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Shorthand for marking a test as flaky,
+same as [`it([name], { flaky: true }[, fn])`][it options].
 
 ## `before([fn][, options])`
 
@@ -3664,6 +3716,9 @@ Emitted when code coverage is enabled and all tests have completed.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+  * `retryCount` {number|undefined} The number of retries performed for a test
+    marked `flaky` (`0` if it passed on the first attempt). `undefined` for
+    tests that are not flaky.
 
 Emitted when a test completes its execution.
 This event is not emitted in the same order as the tests are
@@ -3788,6 +3843,9 @@ Emitted when a test is enqueued for execution.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+  * `retryCount` {number|undefined} The number of retries performed for a test
+    marked `flaky` (`0` if it passed on the first attempt). `undefined` for
+    tests that are not flaky.
 
 Emitted when a test fails.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3889,6 +3947,9 @@ making it suitable for reporters that render test output unbuffered.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+  * `retryCount` {number|undefined} The number of retries performed for a test
+    marked `flaky` (`0` if it passed on the first attempt). `undefined` for
+    tests that are not flaky.
 
 Emitted when a test passes.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -4746,6 +4807,18 @@ changes:
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `flaky` {boolean|number} If `true`, the test (or, for a suite, each of its
+    test-cases) is retried until it passes, up to a default of 20 retries. If a
+    positive integer is provided, it is retried up to that many times. A
+    non-positive or non-integer value throws. Each retry re-runs the test's
+    `beforeEach` and `afterEach` hooks. A test-case's own value overrides one
+    inherited from its suite; `flaky: false` opts out. Retries are intended for
+    tests that fail intermittently due to transient conditions; be aware that
+    non-idempotent state may leak between attempts. A test that always fails
+    exhausts its full retry budget, running its body once plus once per retry
+    (for example 21 times with `flaky: true`: 1 initial run + 20 retries), so
+    prefer a small explicit count for tests that fail only occasionally.
+    **Default:** `false`.
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
