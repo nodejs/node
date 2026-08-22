@@ -4253,7 +4253,7 @@ Key decapsulation using a KEM algorithm with a private key.
 
 Supported key types and their KEM algorithms are:
 
-* `'rsa'`[^openssl30] RSA Secret Value Encapsulation
+* `'rsa'`[^noboringssl] RSA Secret Value Encapsulation
 * `'ec'`[^openssl32] DHKEM(P-256, HKDF-SHA256), DHKEM(P-384, HKDF-SHA256), DHKEM(P-521, HKDF-SHA256)
 * `'x25519'`[^openssl32] DHKEM(X25519, HKDF-SHA256)
 * `'x448'`[^openssl32] DHKEM(X448, HKDF-SHA512)
@@ -4325,7 +4325,7 @@ Key encapsulation using a KEM algorithm with a public key.
 
 Supported key types and their KEM algorithms are:
 
-* `'rsa'`[^openssl30] RSA Secret Value Encapsulation
+* `'rsa'`[^noboringssl] RSA Secret Value Encapsulation
 * `'ec'`[^openssl32] DHKEM(P-256, HKDF-SHA256), DHKEM(P-384, HKDF-SHA256), DHKEM(P-521, HKDF-SHA256)
 * `'x25519'`[^openssl32] DHKEM(X25519, HKDF-SHA256)
 * `'x448'`[^openssl32] DHKEM(X448, HKDF-SHA512)
@@ -4337,18 +4337,6 @@ If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
-
-### `crypto.fips`
-
-<!-- YAML
-added: v6.0.0
-deprecated: v10.0.0
--->
-
-> Stability: 0 - Deprecated
-
-Deprecated property for checking and controlling [FIPS mode][]. Use
-[`crypto.getFips()`][] and [`crypto.setFips()`][] instead.
 
 ### `crypto.generateKey(type, options, callback)`
 
@@ -6734,7 +6722,7 @@ console.log(receivedPlaintext);
 
 ### SIV and GCM-SIV modes
 
-`SIV`[^openssl30] and `GCM-SIV`[^openssl32] are supported [AEAD algorithms][]
+`SIV`[^noboringssl] and `GCM-SIV`[^openssl32] are supported [AEAD algorithms][]
 when supported by OpenSSL. Applications which use these modes must adhere to
 certain restrictions when using the cipher API:
 
@@ -7150,7 +7138,7 @@ See the [list of SSL OP Flags][] for details.
   </tr>
 </table>
 
-[^openssl30]: Requires OpenSSL >= 3.0
+[^noboringssl]: Not available when Node.js is built against BoringSSL
 
 [^openssl32]: Requires OpenSSL >= 3.2
 
@@ -7192,7 +7180,7 @@ See the [list of SSL OP Flags][] for details.
 [`--force-fips`]: cli.md#--force-fips
 [`--openssl-config`]: cli.md#--openssl-configfile
 [`--openssl-shared-config`]: cli.md#--openssl-shared-config
-[`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
+[`BN_is_prime_ex`]: https://www.openssl.org/docs/man3.0/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
 [`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html
 [`DiffieHellmanGroup`]: #class-diffiehellmangroup

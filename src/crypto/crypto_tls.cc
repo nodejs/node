@@ -80,7 +80,7 @@ namespace {
 // that the user user Connection::VerifyError after the `secure`
 // callback has been made.
 int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
-  // From https://www.openssl.org/docs/man1.1.1/man3/SSL_verify_cb:
+  // From https://www.openssl.org/docs/man3.0/man3/SSL_verify_cb:
   //
   //   If VerifyCallback returns 1, the verification process is continued. If
   //   VerifyCallback always returns 1, the TLS/SSL handshake will not be

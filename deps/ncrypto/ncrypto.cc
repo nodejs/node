@@ -17,7 +17,7 @@
 #include <climits>
 #include <cstring>
 #include <string_view>
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
@@ -59,17 +59,6 @@ constexpr static PQCMapping pqc_mappings[] = {
 #endif
 };
 
-#endif
-
-// EVP_PKEY_CTX_set_dsa_paramgen_q_bits was added in OpenSSL 1.1.1e.
-#if OPENSSL_VERSION_NUMBER < 0x1010105fL
-#define EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, qbits)                       \
-  EVP_PKEY_CTX_ctrl((ctx),                                                     \
-                    EVP_PKEY_DSA,                                              \
-                    EVP_PKEY_OP_PARAMGEN,                                      \
-                    EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS,                         \
-                    (qbits),                                                   \
-                    nullptr)
 #endif
 
 namespace ncrypto {
@@ -509,7 +498,7 @@ DataPointer DataPointer::resize(size_t len) {
 // ============================================================================
 bool isFipsEnabled() {
   ClearErrorOnReturn clear_error_on_return;
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   return EVP_default_properties_is_fips_enabled(nullptr) == 1;
 #else
   return FIPS_mode() == 1;
@@ -519,7 +508,7 @@ bool isFipsEnabled() {
 bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
   if (isFipsEnabled() == enable) return true;
   ClearErrorOnReturn clearErrorOnReturn(errors);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
 #else
   return FIPS_mode_set(enable ? 1 : 0) == 1;
@@ -528,7 +517,7 @@ bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
 
 bool testFipsEnabled() {
   ClearErrorOnReturn clear_error_on_return;
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   OSSL_PROVIDER* fips_provider = nullptr;
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
     fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
@@ -790,7 +779,7 @@ bool CSPRNG(void* buffer, size_t length) {
   auto buf = reinterpret_cast<unsigned char*>(buffer);
   do {
     if (1 == RAND_status()) {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
       if (1 == RAND_bytes_ex(nullptr, buf, length, 0)) {
         return true;
       }
@@ -803,7 +792,7 @@ bool CSPRNG(void* buffer, size_t length) {
         return true;
 #endif
     }
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
     const auto code = ERR_peek_last_error();
     // A misconfigured OpenSSL 3 installation may report 1 from RAND_poll()
     // and RAND_status() but fail in RAND_bytes() if it cannot look up
@@ -1126,7 +1115,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
         BIO_printf(out.get(), (j == 0) ? "%X" : ":%X", pair);
       }
     } else {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
       BIO_printf(out.get(), "<invalid length=%d>", ip_len);
 #else
       BIO_printf(out.get(), "<invalid>");
@@ -1145,9 +1134,9 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // awkward, especially when passed to translatePeerCertificate.
     bool unicode = true;
     const char* prefix = nullptr;
-    // OpenSSL 1.1.1 does not support othername in GENERAL_NAME_print and may
+    // BoringSSL does not support othername in GENERAL_NAME_print and may
     // not define these NIDs.
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
     int nid = OBJ_obj2nid(gen->d.otherName->type_id);
     switch (nid) {
       case NID_id_on_SmtpUTF8Mailbox:
@@ -1167,7 +1156,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
         prefix = "NAIRealm";
         break;
     }
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // !OPENSSL_IS_BORINGSSL
     int val_type = gen->d.otherName->value->type;
     if (prefix == nullptr || (unicode && val_type != V_ASN1_UTF8STRING) ||
         (!unicode && val_type != V_ASN1_IA5STRING)) {
@@ -1258,7 +1247,7 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext) {
   }
   sk_ACCESS_DESCRIPTION_pop_free(descs, ACCESS_DESCRIPTION_free);
 
-#if OPENSSL_VERSION_MAJOR < 3
+#ifdef OPENSSL_IS_BORINGSSL
   BIO_write(out.get(), "\n", 1);
 #endif
 
@@ -3785,11 +3774,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
                                 passphrase);
       }
 #else
-#if OPENSSL_VERSION_MAJOR >= 3
-      const RSA* rsa = EVP_PKEY_get0_RSA(get());
-#else
       RSA* rsa = EVP_PKEY_get0_RSA(get());
-#endif
       if (rsa == nullptr) return Result<BIOPointer, bool>(false);
 
       switch (config.format) {
@@ -3862,11 +3847,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
                               cipher,
                               passphrase);
 #else
-#if OPENSSL_VERSION_MAJOR >= 3
-      const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
-#else
       EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
-#endif
       if (ec == nullptr) return Result<BIOPointer, bool>(false);
 
       switch (config.format) {
@@ -3930,11 +3911,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
     }
     return bio;
 #else
-#if OPENSSL_VERSION_MAJOR >= 3
-    const RSA* rsa = EVP_PKEY_get0_RSA(get());
-#else
     RSA* rsa = EVP_PKEY_get0_RSA(get());
-#endif
     if (rsa == nullptr) return Result<BIOPointer, bool>(false);
 
     if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
@@ -4098,14 +4075,7 @@ EVPKeyPointer::operator Rsa() const {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   return Rsa(get());
 #else
-  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
-  // versions older than 1.1.1e via FIPS / dynamic linking.
-  OSSL3_CONST RSA* rsa;
-  if (OPENSSL_VERSION_NUMBER >= 0x1010105fL) {
-    rsa = EVP_PKEY_get0_RSA(get());
-  } else {
-    rsa = static_cast<OSSL3_CONST RSA*>(EVP_PKEY_get0(get()));
-  }
+  OSSL3_CONST RSA* rsa = EVP_PKEY_get0_RSA(get());
   if (rsa == nullptr) return {};
   return Rsa(rsa);
 #endif
@@ -4126,7 +4096,7 @@ EVPKeyPointer::operator Dsa() const {
 
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id()) {
 #else
   if (FIPS_mode() && EVP_PKEY_DSA == id()) {
@@ -5622,11 +5592,7 @@ EVPKeyPointer EVPKeyCtxPointer::paramgen() const {
 bool EVPKeyCtxPointer::publicCheck() const {
   if (!ctx_) return false;
 #ifndef OPENSSL_IS_BORINGSSL
-#if OPENSSL_VERSION_MAJOR >= 3
   return EVP_PKEY_public_check_quick(ctx_.get()) == 1;
-#else
-  return EVP_PKEY_public_check(ctx_.get()) == 1;
-#endif
 #else  // OPENSSL_IS_BORINGSSL
   // Boringssl appears not to support this operation.
   // TODO(jasnell): Is there an alternative approach that Boringssl does
@@ -6245,7 +6211,7 @@ constexpr const char* kProviderOnlyAesGcmSivCiphers[] = {
 };
 #endif
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 template <class TypeName,
           TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
           void free_type(TypeName*),
@@ -6301,7 +6267,7 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
   }
 #else
   EVP_CIPHER_do_all_sorted(
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
       array_push_back<EVP_CIPHER,
                       EVP_CIPHER_fetch,
                       EVP_CIPHER_free,

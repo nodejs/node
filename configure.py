@@ -268,7 +268,8 @@ parser.add_argument('--openssl-is-fips',
     action='store_true',
     dest='openssl_is_fips',
     default=None,
-    help='specifies that the OpenSSL library is FIPS compatible')
+    help='specifies that the shared OpenSSL library is FIPS capable '
+         '(requires --shared-openssl)')
 
 parser.add_argument('--openssl-use-def-ca-store',
     action='store_true',
@@ -2273,7 +2274,6 @@ def configure_openssl(o):
   variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
-  variables['node_fipsinstall'] = b(False)
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
@@ -2328,16 +2328,24 @@ def configure_openssl(o):
   if options.openssl_no_asm and options.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
+  if options.openssl_is_fips and not options.shared_openssl:
+    error('--openssl-is-fips is only available with --shared-openssl')
+
   if options.openssl_is_fips:
     o['defines'] += ['OPENSSL_FIPS']
-
-  if options.openssl_is_fips and not options.shared_openssl:
-    variables['node_fipsinstall'] = b(True)
 
   configure_library('openssl', o)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
   o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
+
+  # BoringSSL identifies itself as OpenSSL 1.1.1 and is exempt from this check.
+  # A version of 0 means detection failed, which is already warned about in
+  # get_openssl_version() and is caught at compile time by ncrypto.h.
+  openssl_version = o['variables']['openssl_version']
+  if o['variables']['openssl_is_boringssl'] == 'false' and \
+     0 < openssl_version < 0x30000000:
+    error('OpenSSL 1.x is no longer supported, v3.0.0 or later is required.')
 
 def configure_lief(o):
   if options.without_lief:

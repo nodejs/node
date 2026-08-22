@@ -1606,7 +1606,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
 #endif
 
@@ -2290,7 +2290,7 @@ done:
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
     if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
       // OpenSSL's "unsupported" error without any context is very
       // common and not very helpful, so we override it:

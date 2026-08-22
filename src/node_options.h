@@ -411,7 +411,7 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(enable_fips_crypto) = false;
   DEFINE_BOOL_FIELD(force_fips_crypto) = false;
 #endif  // HAVE_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
+#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   DEFINE_BOOL_FIELD(openssl_legacy_provider) = false;
   DEFINE_BOOL_FIELD(openssl_shared_config) = false;
 #endif
