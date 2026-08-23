@@ -149,3 +149,55 @@ await clientSession.close();
 assert.notStrictEqual(csStats.closingAt, 0n);
 
 await endpoint.close();
+
+// Stats say when they have stopped tracking anything.
+//
+// isConnected is documented as false once the stats are stale, and nothing
+// ever set it: kFinishClose was defined on both stats classes and imported,
+// and no caller in the module ever invoked it. The numbers stayed readable
+// and stopped moving, and isConnected went on saying they were live.
+{
+  const server = listen(() => {}, {
+    cert: serverCert, key: serverKey, host: '127.0.0.1', port: 0,
+  });
+  const client = connect('127.0.0.1', server.address.port, {
+    rejectUnauthorized: false,
+  });
+  await client.opened;
+
+  const sessionStats = client.stats;
+  const endpointStats = server.stats;
+  assert.strictEqual(sessionStats.isConnected, true);
+  assert.strictEqual(endpointStats.isConnected, true);
+
+  // The last values are kept rather than lost, which is the point of taking
+  // a copy rather than simply marking the object dead.
+  const createdAt = sessionStats.createdAt;
+
+  await client.close();
+  assert.strictEqual(sessionStats.isConnected, false);
+  assert.strictEqual(sessionStats.createdAt, createdAt);
+
+  await server.close();
+  assert.strictEqual(endpointStats.isConnected, false);
+}
+
+// destroy() reaches them too, not only the graceful path.
+{
+  const server = listen(() => {}, {
+    cert: serverCert, key: serverKey, host: '127.0.0.1', port: 0,
+  });
+  const client = connect('127.0.0.1', server.address.port, {
+    rejectUnauthorized: false,
+  });
+  await client.opened;
+
+  const sessionStats = client.stats;
+  const endpointStats = server.stats;
+
+  client.destroy();
+  assert.strictEqual(sessionStats.isConnected, false);
+
+  server.destroy();
+  assert.strictEqual(endpointStats.isConnected, false);
+}
