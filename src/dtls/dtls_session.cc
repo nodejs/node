@@ -132,10 +132,14 @@ DTLSSession::DTLSSession(Environment* env,
       is_server_(is_server),
       state_(env->isolate()),
       stats_(env->isolate()) {
+  // Both creation paths pass the endpoint that owns the session. The MTU is
+  // read from it unconditionally below, so a null one was never survivable
+  // and testing for it here only made it look as though it were.
+  CHECK_NOT_NULL(endpoint);
   MakeWeak();
   DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, created_at);
 
-  if (endpoint != nullptr && endpoint->handshake_timeout() > 0) {
+  if (endpoint->handshake_timeout() > 0) {
     handshake_deadline_ =
         uv_hrtime() / 1000000 + endpoint->handshake_timeout();
   }
