@@ -90,7 +90,13 @@ class DTLSContext final : public BaseObject {
   // Peer address for current DTLSv1_listen cookie exchange.
   // Set synchronously before DTLSv1_listen() and consumed by the
   // cookie generate/verify callbacks during that call.
-  SocketAddress current_cookie_peer_;
+  //
+  // Value-initialised: SocketAddress's default constructor is `= default`,
+  // which leaves its sockaddr_storage holding whatever was on the heap. Every
+  // path sets this before the callbacks run, so reading it uninitialised is
+  // not reachable today, but a zeroed family makes CanonicalizeAddress fail
+  // closed instead of deriving a cookie from stale bytes.
+  SocketAddress current_cookie_peer_{};
 
   // ALPN protocols (server-side selection list)
   std::vector<uint8_t> alpn_protos_;

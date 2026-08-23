@@ -375,6 +375,40 @@ void DTLSContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// 1 byte family tag + 2 port + 16 address + 4 scope id.
+constexpr size_t kMaxCanonicalAddrLen = 23;
+
+// Writes the parts of an address that identify a peer -- family, port,
+// address, and for IPv6 the scope id -- into `out`, returning the number of
+// bytes written, or 0 for an address we do not understand.
+//
+// Deliberately not a memcpy of the sockaddr. That would fold in sin_zero and
+// sin6_flowinfo: padding the kernel need not zero, and a QoS label that may
+// differ between two datagrams from the same host. Either would change the
+// cookie for an unchanged peer and fail the handshake. scope id is included
+// because it does identify a link-local peer.
+size_t CanonicalizeAddress(const sockaddr* sa, unsigned char* out) {
+  switch (sa->sa_family) {
+    case AF_INET: {
+      const sockaddr_in* v4 = reinterpret_cast<const sockaddr_in*>(sa);
+      out[0] = 4;
+      memcpy(out + 1, &v4->sin_port, 2);
+      memcpy(out + 3, &v4->sin_addr, 4);
+      return 7;
+    }
+    case AF_INET6: {
+      const sockaddr_in6* v6 = reinterpret_cast<const sockaddr_in6*>(sa);
+      out[0] = 6;
+      memcpy(out + 1, &v6->sin6_port, 2);
+      memcpy(out + 3, &v6->sin6_addr, 16);
+      memcpy(out + 19, &v6->sin6_scope_id, 4);
+      return 23;
+    }
+    default:
+      return 0;
+  }
+}
+
 // HMAC-SHA256 cookie derived from the peer's address and a coarse time window
 // so cookies expire (see kCookieWindowNs). During DTLSv1_listen() the peer
 // address comes from DTLSContext::current_cookie_peer_ (set synchronously
@@ -388,8 +422,8 @@ bool DTLSContext::ComputeCookie(SSL* ssl,
   DTLSContext* dtls_ctx = static_cast<DTLSContext*>(SSL_CTX_get_app_data(ctx));
   CHECK_NOT_NULL(dtls_ctx);
 
-  // Message = peer address bytes followed by the 8-byte window counter.
-  unsigned char msg[sizeof(struct sockaddr_storage) + sizeof(uint64_t)];
+  // Message = canonical peer address followed by the 8-byte window counter.
+  unsigned char msg[kMaxCanonicalAddrLen + sizeof(uint64_t)];
   size_t addr_len = 0;
 
   void* app_data = SSL_get_app_data(ssl);
@@ -397,14 +431,16 @@ bool DTLSContext::ComputeCookie(SSL* ssl,
     // Session handshake path.
     const sockaddr* sa =
         static_cast<DTLSSession*>(app_data)->remote_address().data();
-    addr_len = SocketAddress::GetLength(sa);
-    memcpy(msg, sa, addr_len);
+    addr_len = CanonicalizeAddress(sa, msg);
   } else {
     // DTLSv1_listen path -- use the peer address stored on the context.
     const sockaddr* sa = dtls_ctx->current_cookie_peer_.data();
-    addr_len = SocketAddress::GetLength(sa);
-    memcpy(msg, sa, addr_len);
+    addr_len = CanonicalizeAddress(sa, msg);
   }
+
+  // Fail closed rather than deriving a cookie from an address we could not
+  // make sense of.
+  if (addr_len == 0) return false;
 
   // Append the window counter in a fixed byte order.
   for (size_t i = 0; i < sizeof(uint64_t); i++) {
