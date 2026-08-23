@@ -162,14 +162,33 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
   // Disable OpenSSL's MTU querying (we manage MTU manually).
   SSL_CTX_set_options(ctx.get(), SSL_OP_NO_QUERY_MTU);
 
-  // Enable all workarounds for maximum compatibility.
-  SSL_CTX_set_options(ctx.get(), SSL_OP_ALL);
+  // Name the workarounds rather than taking SSL_OP_ALL. Its membership is not
+  // stable -- it has held SSL_OP_LEGACY_SERVER_CONNECT in the past and does
+  // not now -- so using the macro means silently inheriting whatever a future
+  // OpenSSL decides belongs in it.
+  //
+  // All four of its current members are TLS-specific and inert under DTLS 1.2,
+  // which is the only version this supports. They are kept so that behaviour
+  // is unchanged from taking SSL_OP_ALL, not because any is known to be
+  // needed:
+  //
+  //   DONT_INSERT_EMPTY_FRAGMENTS  the 1/n-1 split for CBC in TLS 1.0; DTLS
+  //                                1.2 has explicit IVs and does not do it
+  //   TLSEXT_PADDING               pads ClientHello for an F5 bug
+  //   CRYPTOPRO_TLSEXT_BUG         GOST client workaround
+  //   SAFARI_ECDHE_ECDSA_BUG       Safari on OS X 10.8
+  SSL_CTX_set_options(ctx.get(),
+                      SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS |
+                          SSL_OP_TLSEXT_PADDING | SSL_OP_CRYPTOPRO_TLSEXT_BUG |
+                          SSL_OP_SAFARI_ECDHE_ECDSA_BUG);
 
   if (is_server) {
-    // NOTE: SSL_OP_COOKIE_EXCHANGE must NOT be set on the context.
-    // DTLSv1_listen() sets it per-SSL automatically (see d1_lib.c:804).
-    // Setting it here would cause session SSLs created via CreateFromSSL()
-    // to attempt a redundant cookie exchange, hanging the handshake.
+    // NOTE: SSL_OP_COOKIE_EXCHANGE must not be set here, on the context. It
+    // would then be inherited by every SSL the context creates, including the
+    // session SSLs built by CreateFromSSL() for peers that have *already*
+    // completed the cookie exchange, which would leave them waiting for a
+    // second one. DTLSv1_listen() sets the option on the individual SSL it is
+    // given (d1_lib.c:804), which is the correct scope.
 
     // Enable session caching for session resumption.
     //

@@ -594,7 +594,10 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   BIO* out_raw = out.release();
   SSL_set_bio(ssl.get(), in_raw, out_raw);
   SSL_set_accept_state(ssl.get());
-  SSL_set_options(ssl.get(), SSL_OP_NO_QUERY_MTU | SSL_OP_COOKIE_EXCHANGE);
+  // SSL_OP_COOKIE_EXCHANGE is deliberately not set here: DTLSv1_listen() sets
+  // it on the SSL it is given (d1_lib.c:804) before doing anything else, so
+  // setting it again just invites the question of why the context does not.
+  SSL_set_options(ssl.get(), SSL_OP_NO_QUERY_MTU);
   SSL_set_mtu(ssl.get(), mtu_);
 
   // Set peer address on context for the cookie callbacks.
