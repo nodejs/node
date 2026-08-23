@@ -600,11 +600,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             BOOL_FIELD(experimental_web_worker),
             kAllowedInEnvvar,
             false);
-  AddOption("--experimental-websocket",
-            "experimental WebSocket API",
-            BOOL_FIELD(experimental_websocket),
-            kAllowedInEnvvar,
-            true);
+  AddOption("--experimental-websocket", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-sqlite",
             "experimental node:sqlite module",
