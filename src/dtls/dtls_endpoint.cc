@@ -95,12 +95,9 @@ Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getStats", GetStats);
     SetProtoMethod(isolate, tmpl, "getAddress", GetAddress);
     SetProtoMethod(isolate, tmpl, "setMTU", SetMTU);
-    SetProtoMethod(
-        isolate, tmpl, "setSocketOptions", SetSocketOptions);
-    SetProtoMethod(
-        isolate, tmpl, "setHandshakeTimeout", SetHandshakeTimeout);
-    SetProtoMethod(
-        isolate, tmpl, "setSessionLimits", SetSessionLimits);
+    SetProtoMethod(isolate, tmpl, "setSocketOptions", SetSocketOptions);
+    SetProtoMethod(isolate, tmpl, "setHandshakeTimeout", SetHandshakeTimeout);
+    SetProtoMethod(isolate, tmpl, "setSessionLimits", SetSessionLimits);
     SetProtoMethod(isolate, tmpl, "setCallbacks", DoSetCallbacks);
 
     env->set_dtls_endpoint_constructor_template(tmpl);
@@ -203,14 +200,13 @@ int DTLSEndpoint::Listen(DTLSContext* context) {
   return 0;
 }
 
-BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
-                                                 const SocketAddress& remote,
-                                                 const char* servername,
-                                                 const char* verify_host,
-                                                 bool verify_is_ip,
-                                                 const ncrypto::Buffer<
-                                                     const unsigned char>&
-                                                     resume) {
+BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(
+    DTLSContext* context,
+    const SocketAddress& remote,
+    const char* servername,
+    const char* verify_host,
+    bool verify_is_ip,
+    const ncrypto::Buffer<const unsigned char>& resume) {
   if (IsHandleClosing()) {
     THROW_ERR_INVALID_STATE(env(), "Endpoint is closing");
     return {};
@@ -699,9 +695,13 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   // Cookie verified. Hand the SSL (which has already completed cookie
   // exchange and consumed the ClientHello) to a DTLSSession. Calling
   // Cycle() will drive SSL_do_handshake to produce the ServerHello.
-  auto session = DTLSSession::CreateFromSSL(
-      env(), this, server_context_.get(), std::move(ssl), in_raw, out_raw,
-      remote);
+  auto session = DTLSSession::CreateFromSSL(env(),
+                                            this,
+                                            server_context_.get(),
+                                            std::move(ssl),
+                                            in_raw,
+                                            out_raw,
+                                            remote);
 
   if (!session) return;
 

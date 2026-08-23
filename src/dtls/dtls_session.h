@@ -176,7 +176,6 @@ class DTLSSession final : public AsyncWrap {
   // callback with Call() rather than MakeCallback() set out to avoid.
   void SetPendingError(v8::Local<v8::Value> error);
 
-
   // Retain a context chosen by the SNI callback. Entries in an sni map are
   // owned by the context holding the map, but one returned from a callback
   // has no other owner: SSL_set_SSL_CTX() references the SSL_CTX and not the

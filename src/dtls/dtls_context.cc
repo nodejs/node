@@ -157,8 +157,7 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "setVerifyMode", SetVerifyMode);
     SetProtoMethod(isolate, tmpl, "loadDefaultCAs", LoadDefaultCAs);
     SetProtoMethod(isolate, tmpl, "setECDHCurve", SetECDHCurve);
-    SetProtoMethod(
-        isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
+    SetProtoMethod(isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
     SetProtoMethod(isolate, tmpl, "setSNIContexts", SetSNIContexts);
     SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
     SetProtoMethod(isolate, tmpl, "setPSK", SetPSK);
@@ -302,8 +301,7 @@ void DTLSContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   ncrypto::X509Pointer issuer;
   if (crypto::SSL_CTX_use_certificate_chain(
           ctx->ctx_.get(), std::move(bio), &cert, &issuer) != 1) {
-    return crypto::ThrowCryptoError(
-        env, ERR_get_error(), "PEM_read_bio_X509");
+    return crypto::ThrowCryptoError(env, ERR_get_error(), "PEM_read_bio_X509");
   }
 }
 
@@ -478,8 +476,7 @@ void DTLSContext::LoadDefaultCAs(const FunctionCallbackInfo<Value>& args) {
 // whose id context differs from the one on the accepting SSL, which is what
 // stops a session established under one configuration being resumed under
 // another. It matters most when client certificates are in use.
-void DTLSContext::SetSessionIdContext(
-    const FunctionCallbackInfo<Value>& args) {
+void DTLSContext::SetSessionIdContext(const FunctionCallbackInfo<Value>& args) {
   DTLSContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
   Environment* env = ctx->env();
@@ -503,8 +500,8 @@ constexpr const char* kSNIWildcard = "*";
 // callbacks and for the same reason: suspending a DTLS handshake to await an
 // answer would mean driving SSL_ERROR_WANT_X509_LOOKUP back through Cycle(),
 // and a datagram peer is retransmitting while it waits.
-DTLSContext* DTLSContext::SelectSNIContextFromCallback(
-    SSL* ssl, const char* servername) {
+DTLSContext* DTLSContext::SelectSNIContextFromCallback(SSL* ssl,
+                                                       const char* servername) {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
@@ -806,8 +803,8 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
     Local<Object> obj = ret.As<Object>();
     Local<Value> id_val;
     Local<Value> key_val;
-    if (!obj->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                        "identity"))
+    if (!obj->Get(env->context(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "identity"))
              .ToLocal(&id_val) ||
         !obj->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "key"))
              .ToLocal(&key_val)) {
@@ -864,15 +861,12 @@ void DTLSContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   if (static_cast<long>(buf.length()) != expected) {  // NOLINT(runtime/int)
     return THROW_ERR_INVALID_ARG_VALUE(
-        ctx->env(),
-        "options.ticketKeys must be exactly %ld bytes",
-        expected);
+        ctx->env(), "options.ticketKeys must be exactly %ld bytes", expected);
   }
 
-  if (SSL_CTX_set_tlsext_ticket_keys(
-          ctx->ctx_.get(),
-          const_cast<unsigned char*>(buf.data()),
-          buf.length()) != 1) {
+  if (SSL_CTX_set_tlsext_ticket_keys(ctx->ctx_.get(),
+                                     const_cast<unsigned char*>(buf.data()),
+                                     buf.length()) != 1) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(ctx->env(),
                                       "Failed to set session ticket keys");
   }
@@ -934,10 +928,9 @@ void DTLSContext::SetPSK(const FunctionCallbackInfo<Value>& args) {
   if (ctx->is_server_) {
     SSL_CTX_set_psk_server_callback(ctx->ctx_.get(), PSKServerCallback);
     if (!ctx->psk_identity_hint_.empty() &&
-        SSL_CTX_use_psk_identity_hint(
-            ctx->ctx_.get(), ctx->psk_identity_hint_.c_str()) != 1) {
-      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                        "Failed to set PSK identity hint");
+        SSL_CTX_use_psk_identity_hint(ctx->ctx_.get(),
+                                      ctx->psk_identity_hint_.c_str()) != 1) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to set PSK identity hint");
     }
   } else {
     SSL_CTX_set_psk_client_callback(ctx->ctx_.get(), PSKClientCallback);
