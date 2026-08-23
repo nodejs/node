@@ -711,7 +711,11 @@ void DTLSEndpoint::DoBind(const FunctionCallbackInfo<Value>& args) {
 
   int err = endpoint->Bind(addr);
   if (err != 0) {
-    return THROW_ERR_INVALID_STATE(env, uv_strerror(err));
+    // A libuv failure reported as ERR_INVALID_STATE loses the errno and the
+    // syscall, so a caller cannot tell EADDRINUSE from anything else. Every
+    // other binding surfaces these as the error code libuv gave, and code
+    // testing err.code === 'EADDRINUSE' is the usual way this is handled.
+    return env->ThrowUVException(err, "bind");
   }
 }
 
@@ -728,7 +732,7 @@ void DTLSEndpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
 
   int err = endpoint->Listen(context);
   if (err != 0) {
-    return THROW_ERR_INVALID_STATE(env, uv_strerror(err));
+    return env->ThrowUVException(err, "listen");
   }
 }
 
