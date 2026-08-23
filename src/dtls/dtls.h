@@ -45,7 +45,8 @@ void RecordTimestampStat(Stats* stats) {
   V(PACKETS_SENT, packets_sent)                                                \
   V(SERVER_SESSIONS, server_sessions)                                          \
   V(CLIENT_SESSIONS, client_sessions)                                          \
-  V(SERVER_BUSY_COUNT, server_busy_count)
+  V(SERVER_BUSY_COUNT, server_busy_count)                                      \
+  V(SERVER_REJECTED_COUNT, server_rejected_count)
 
 #define DTLS_SESSION_STATS(V)                                                  \
   V(CREATED_AT, created_at)                                                    \
