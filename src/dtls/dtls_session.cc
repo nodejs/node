@@ -149,8 +149,7 @@ DTLSSession::DTLSSession(Environment* env,
   DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, created_at);
 
   if (endpoint->handshake_timeout() > 0) {
-    handshake_deadline_ =
-        uv_hrtime() / 1000000 + endpoint->handshake_timeout();
+    handshake_deadline_ = uv_hrtime() / 1000000 + endpoint->handshake_timeout();
   }
   retransmit_timer_.Unref();
 
@@ -229,17 +228,16 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(WasReused);
 }
 
-BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
-                                               DTLSEndpoint* endpoint,
-                                               DTLSContext* context,
-                                               const SocketAddress& remote,
-                                               bool is_server,
-                                               const char* servername,
-                                               const char* verify_host,
-                                               bool verify_is_ip,
-                                               const ncrypto::Buffer<
-                                                   const unsigned char>&
-                                                   resume) {
+BaseObjectPtr<DTLSSession> DTLSSession::Create(
+    Environment* env,
+    DTLSEndpoint* endpoint,
+    DTLSContext* context,
+    const SocketAddress& remote,
+    bool is_server,
+    const char* servername,
+    const char* verify_host,
+    bool verify_is_ip,
+    const ncrypto::Buffer<const unsigned char>& resume) {
   // Create the SSL object.
   SSL* ssl_raw = SSL_new(context->ssl_ctx());
   if (ssl_raw == nullptr) {
@@ -470,8 +468,7 @@ void DTLSSession::CycleInner() {
           return;
         }
         Local<Value> str;
-        if (ToV8Value(env()->context(), message)
-                .ToLocal(&str)) {
+        if (ToV8Value(env()->context(), message).ToLocal(&str)) {
           Local<Value> argv[] = {str};
           EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
         }
@@ -682,8 +679,7 @@ int DTLSSession::Send(const uint8_t* data, size_t len) {
 
   if (!handshake_complete_) {
     THROW_ERR_INVALID_STATE(
-        env(),
-        "Cannot send application data before the handshake completes");
+        env(), "Cannot send application data before the handshake completes");
     return -1;
   }
 
@@ -823,8 +819,7 @@ void DTLSSession::EmitSendError() {
 
   HandleScope handle_scope(env()->isolate());
   Local<Value> message;
-  if (!ToV8Value(env()->context(), uv_strerror(err))
-           .ToLocal(&message)) {
+  if (!ToV8Value(env()->context(), uv_strerror(err)).ToLocal(&message)) {
     return;
   }
   Local<Value> argv[] = {message};
@@ -944,8 +939,7 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
   Local<Value> name;
   Local<Value> standard_name;
   Local<Value> version;
-  if (!ToV8Value(env->context(), SSL_CIPHER_get_name(cipher))
-           .ToLocal(&name) ||
+  if (!ToV8Value(env->context(), SSL_CIPHER_get_name(cipher)).ToLocal(&name) ||
       !ToV8Value(env->context(), SSL_CIPHER_standard_name(cipher))
            .ToLocal(&standard_name) ||
       !ToV8Value(env->context(), SSL_CIPHER_get_version(cipher))
@@ -983,9 +977,8 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
     char* data;
     long len = BIO_get_mem_data(bio.get(), &data);  // NOLINT(runtime/int)
     Local<Value> str;
-    if (len > 0 && ToV8Value(
-                       env->context(), std::string_view(data, len))
-                       .ToLocal(&str)) {
+    if (len > 0 &&
+        ToV8Value(env->context(), std::string_view(data, len)).ToLocal(&str)) {
       args.GetReturnValue().Set(str);
     }
   }
@@ -1025,9 +1018,9 @@ void DTLSSession::GetALPNProtocol(const FunctionCallbackInfo<Value>& args) {
   if (alpn == nullptr || alpn_len == 0) return;
 
   Local<Value> str;
-  if (!ToV8Value(session->env()->context(),
-                           std::string_view(reinterpret_cast<const char*>(alpn),
-                           alpn_len))
+  if (!ToV8Value(
+           session->env()->context(),
+           std::string_view(reinterpret_cast<const char*>(alpn), alpn_len))
            .ToLocal(&str)) {
     return;
   }
@@ -1094,8 +1087,7 @@ void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
   if (profile == nullptr) return;
 
   Local<Value> str;
-  if (!ToV8Value(session->env()->context(), profile->name)
-           .ToLocal(&str)) {
+  if (!ToV8Value(session->env()->context(), profile->name).ToLocal(&str)) {
     return;
   }
   args.GetReturnValue().Set(str);
@@ -1114,8 +1106,8 @@ void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
   // session reaches JavaScript before its handshake runs, so this is
   // reachable from the listen() callback.
   if (!session->handshake_complete_) {
-    args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
-        session->env()->isolate(), "HANDSHAKE_INCOMPLETE"));
+    args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(session->env()->isolate(),
+                                                    "HANDSHAKE_INCOMPLETE"));
     return;
   }
 
@@ -1149,8 +1141,7 @@ void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
   if (servername == nullptr) return;
 
   Local<Value> str;
-  if (!ToV8Value(session->env()->context(), servername)
-           .ToLocal(&str)) {
+  if (!ToV8Value(session->env()->context(), servername).ToLocal(&str)) {
     return;
   }
   args.GetReturnValue().Set(str);

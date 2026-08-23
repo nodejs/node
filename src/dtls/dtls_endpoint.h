@@ -111,12 +111,10 @@ class DTLSEndpoint final : public HandleWrap {
   static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMTU(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetSocketOptions(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSocketOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetHandshakeTimeout(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetSessionLimits(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSessionLimits(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoSetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // libuv callbacks
