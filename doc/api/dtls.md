@@ -79,7 +79,8 @@ added: REPLACEME
     credential options below. Must have been created with `isServer: true`.
     Cannot be combined with any option the context already carries.
   * `sni` {Object|Function} Server Name Indication. A map of host names to the
-    identity to serve them with, or a function returning one. See
+    identity to serve them with, or a function returning one. Cannot be
+    combined with `secureContext`; set it on the context instead. See
     [Server Name Indication][].
   * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
     Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
@@ -229,6 +230,8 @@ added: REPLACEME
     [`dtls.listen()`][] and [`dtls.connect()`][].
   * `requestCert` {boolean} Request a certificate from the peer. Servers only.
   * `sessionIdContext` {string} Session id context. Servers only.
+  * `sni` {Object|Function} Server Name Indication. Servers only. See
+    [Server Name Indication][].
   * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
   * `pskIdentityHint` {string} Identity hint to advertise. Servers only.
   * `srtp` {string} SRTP profile list.
@@ -354,6 +357,12 @@ when it is created, before any name is known, and selecting an identity does
 not replace them, so the keys a server accepts are always the endpoint's own.
 A `psk` given on an SNI identity is never consulted, and an identity cannot be
 served over PSK alone.
+
+`sni` belongs to the secure context rather than to the endpoint, so it can be
+given to [`dtls.createSecureContext()`][] and cannot be combined with a
+`secureContext` that already exists. Applying it to a prepared context would
+reconfigure that context for every endpoint sharing it, and the identities a
+server serves are part of what its context is.
 
 A connection refused for an unrecognized name still reaches the `listen()`
 callback: the session exists once the client's address is validated, which
