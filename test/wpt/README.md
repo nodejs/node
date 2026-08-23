@@ -12,6 +12,36 @@ declares build requirements, expected failures, and tests to skip.
 See [`test/fixtures/wpt/README.md`][] for the pinned WPT commit
 hashes for each module.
 
+## Running tests
+
+Run a WPT module through the Python test runner:
+
+```bash
+tools/test.py wpt/test-url
+```
+
+Pass a source file to its module runner to run all globals and variants
+generated from that file:
+
+```bash
+node test/wpt/test-url.js url-searchparams.any.js
+```
+
+Pass a generated path, as printed in the test output, to run only that test:
+
+```bash
+node test/wpt/test-url.js 'url/url-searchparams.any.html'
+```
+
+### Execution backends
+
+By default, each test runs in a worker thread. Set `WPT_BACKEND=process` to run
+tests in child processes instead:
+
+```bash
+WPT_BACKEND=process tools/test.py wpt
+```
+
 <a id="add-tests"></a>
 
 ## How to add tests for a new module
@@ -53,8 +83,8 @@ runner.runJsTests();
 ```
 
 The runner loads the tests from `test/fixtures/wpt/url`, applies the
-status rules from `test/wpt/status/url.cjs`, and runs them using
-worker threads.
+status rules from `test/wpt/status/url.cjs`, and runs them using the
+selected backend.
 
 #### `new WPTRunner(path[, options])`
 
@@ -64,15 +94,17 @@ worker threads.
   * `concurrency` {number} Number of tests to run in parallel.
     Defaults to `os.availableParallelism() - 1`. Set to `1` for tests
     that require sequential execution (e.g. web-locks, webstorage).
+  * `backend` {string} Test execution backend. Must be either `'thread'` or
+    `'process'`. Defaults to `'thread'`. `WPT_BACKEND` overrides this option.
 
 #### `runner.setFlags(flags)`
 
-* `flags` {string\[]} Node.js CLI flags passed to each worker thread
+* `flags` {string\[]} Node.js CLI flags passed to each test process or worker
   (e.g. `['--expose-internals']`).
 
 #### `runner.setInitScript(script)`
 
-* `script` {string} JavaScript code executed in the worker before
+* `script` {string} JavaScript code executed before
   the tests run. Useful for setting up globals needed by the tests.
 
 #### `runner.setScriptModifier(modifier)`
@@ -94,19 +126,7 @@ Starts running the tests. Must be called last, after all configuration.
 
 ### 4. Run the tests
 
-Run the test using `tools/test.py` and see if there are any failures.
-For example, to run all the URL tests under `test/fixtures/wpt/url`:
-
-```bash
-tools/test.py wpt/test-url
-```
-
-To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
-pass the file name as argument to the corresponding test runner:
-
-```bash
-node test/wpt/test-url.js url-searchparams.any.js
-```
+Run the module as described in [Running tests](#running-tests).
 
 If there are any failures, update the corresponding status file
 (in this case, `test/wpt/status/url.cjs`) to make the test pass.
