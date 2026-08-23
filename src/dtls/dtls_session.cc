@@ -212,6 +212,8 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(GetSRTPProfile);
   registry->Register(GetServername);
   registry->Register(GetVerifyError);
+  registry->Register(GetSession);
+  registry->Register(WasReused);
 }
 
 BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
