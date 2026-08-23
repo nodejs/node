@@ -49,7 +49,13 @@ class X509Certificate final : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static bool HasInstance(Environment* env, v8::Local<v8::Object> object);
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+
+  static void CreateX509CertificateClass(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsX509Certificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void NewFromHandle(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,

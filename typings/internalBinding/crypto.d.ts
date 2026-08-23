@@ -755,6 +755,27 @@ declare namespace InternalCryptoBinding {
     toLegacy(): object;
   }
 
+  interface NativeX509CertificateConstructor {
+    readonly prototype: X509CertificateHandle;
+    new(value: X509CertificateHandle | ArrayBufferView): X509CertificateHandle;
+  }
+
+  interface X509CertificateConstructor {
+    readonly prototype: object;
+    new(buffer: string | ArrayBufferView): object;
+  }
+
+  interface InternalX509CertificateConstructor {
+    readonly prototype: object;
+    new(value: X509CertificateHandle | ArrayBufferView): object;
+  }
+
+  type CreateX509CertificateClassCallback =
+    (NativeX509Certificate: NativeX509CertificateConstructor) => [
+      X509Certificate: X509CertificateConstructor,
+      InternalX509Certificate: InternalX509CertificateConstructor,
+    ];
+
   interface CipherInfo {
     name: string;
     nid: number;
@@ -934,6 +955,12 @@ export interface CryptoBinding {
     PublicKeyObject: InternalCryptoBinding.KeyObjectSubtypeConstructor,
     PrivateKeyObject: InternalCryptoBinding.KeyObjectSubtypeConstructor,
   ];
+  createX509CertificateClass(
+    callback: InternalCryptoBinding.CreateX509CertificateClassCallback,
+  ): [
+    X509Certificate: InternalCryptoBinding.X509CertificateConstructor,
+    InternalX509Certificate: InternalCryptoBinding.InternalX509CertificateConstructor,
+  ];
   getBundledRootCertificates(): string[];
   getCachedAliases(): Record<string, number>;
   getCertificateCompressionAlgorithms(): string[];
@@ -951,6 +978,7 @@ export interface CryptoBinding {
   getHashes(): string[];
   isCryptoKey(key: unknown): boolean;
   isKeyObject(key: unknown): boolean;
+  isX509Certificate(value: unknown): boolean;
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;
   getOpenSSLSecLevelCrypto(): number | undefined;
   getSSLCiphers(): string[];
