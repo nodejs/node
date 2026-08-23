@@ -50,6 +50,7 @@ following table:
 | `crypto_spkac`    | Netscape SPKAC certificate utilities.                                |
 | `crypto_ssl`      | Implementation of the `SSLWrap` object.                              |
 | `crypto_timing`   | Implementation of the TimingSafeEqual.                               |
+| `crypto_x509`     | X.509 certificate parsing and validation.                            |
 
 When new crypto protocols are added, they will be added into their own
 `crypto_` `*.h` and `*.cc` files.
@@ -188,6 +189,14 @@ representation as `KeyObject`, plus the Web Crypto internal slots
 primes a private JavaScript slot cache from the constructor arguments.
 Partially initialized transferred keys populate that cache from the native
 slots on first access.
+
+### X.509 certificates
+
+The public `X509Certificate` is backed directly by the native
+`X509Certificate` object. JavaScript caches derived certificate properties in
+a private array whose final entry is a bitmask of populated slots. Certificates
+from another realm use the same cache layout through a private `WeakMap` after
+passing the native brand check.
 
 ### `CryptoJob`
 
