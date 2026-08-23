@@ -16,6 +16,16 @@ async function setupFixtures() {
   await cp(fixtureDir, tmpdir.path, { recursive: true });
 }
 
+function assertDefaultExclusions(stdout) {
+  assert.match(stdout, /# start of coverage report/);
+  assert.doesNotMatch(stdout, /# file-test\.js\s+\|/);
+  assert.doesNotMatch(stdout, /# file\.test\.mjs\s+\|/);
+  assert.doesNotMatch(stdout, /# file\.test\.ts\s+\|/);
+  assert.doesNotMatch(stdout, /# test\.cjs\s+\|/);
+  assert.doesNotMatch(stdout, /#\s+not-matching-test-name\.js\s+\|/);
+  assert.match(stdout, /# end of coverage report/);
+}
+
 describe('test runner coverage default exclusion', skipIfNoInspector, () => {
   before(async () => {
     await setupFixtures();
@@ -58,18 +68,6 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
   });
 
   it('should exclude test files from coverage by default', async () => {
-    const report = [
-      '# start of coverage report',
-      '# --------------------------------------------------------------',
-      '# file          | line % | branch % | funcs % | uncovered lines',
-      '# --------------------------------------------------------------',
-      '# logic-file.js |  66.67 |   100.00 |   50.00 | 5-7',
-      '# --------------------------------------------------------------',
-      '# all files     |  66.67 |   100.00 |   50.00 | ',
-      '# --------------------------------------------------------------',
-      '# end of coverage report',
-    ].join('\n');
-
     const args = [
       '--no-experimental-strip-types',
       '--test',
@@ -82,23 +80,11 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     });
 
     assert.strictEqual(result.stderr.toString(), '');
-    assert(result.stdout.toString().includes(report));
+    assertDefaultExclusions(result.stdout.toString());
     assert.strictEqual(result.status, 0);
   });
 
   it('should exclude ts test files', async () => {
-    const report = [
-      '# start of coverage report',
-      '# --------------------------------------------------------------',
-      '# file          | line % | branch % | funcs % | uncovered lines',
-      '# --------------------------------------------------------------',
-      '# logic-file.js |  66.67 |   100.00 |   50.00 | 5-7',
-      '# --------------------------------------------------------------',
-      '# all files     |  66.67 |   100.00 |   50.00 | ',
-      '# --------------------------------------------------------------',
-      '# end of coverage report',
-    ].join('\n');
-
     const args = [
       '--test',
       '--experimental-test-coverage',
@@ -111,7 +97,26 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     });
 
     assert.strictEqual(result.stderr.toString(), '');
-    assert(result.stdout.toString().includes(report));
+    assertDefaultExclusions(result.stdout.toString());
+    assert.strictEqual(result.status, 0);
+  });
+
+  it('should exclude dotfile test files from coverage by default', async () => {
+    const args = [
+      '--no-experimental-strip-types',
+      '--test',
+      '--experimental-test-coverage',
+      '--test-reporter=tap',
+      'test/.dotfile.cjs',
+    ];
+    const result = spawnSync(process.execPath, args, {
+      env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+      cwd: tmpdir.path
+    });
+
+    assert.strictEqual(result.stderr.toString(), '');
+    assertDefaultExclusions(result.stdout.toString());
+    assert.doesNotMatch(result.stdout.toString(), /#\s+\.dotfile\.cjs\s+\|/);
     assert.strictEqual(result.status, 0);
   });
 });
