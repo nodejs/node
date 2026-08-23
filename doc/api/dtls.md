@@ -147,7 +147,8 @@ console.log('DTLS server listening on', endpoint.address);
 added: REPLACEME
 -->
 
-* `host` {string} Remote host to connect to.
+* `host` {string} Remote host to connect to, as an IPv4 or IPv6 literal.
+  Host names are not resolved.
 * `port` {number} Remote port to connect to.
 * `options` {Object}
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
@@ -162,7 +163,9 @@ added: REPLACEME
     Indication) extension and as the identity checked during certificate
     verification. **Default:** the `host` argument. Set to `''` to disable SNI.
     SNI is never sent for IP address literals.
-  * `bindHost` {string} Local bind address. **Default:** `'0.0.0.0'`.
+  * `bindHost` {string} Local bind address. **Default:** `'::'` when `host` is an
+    IPv6 literal, otherwise `'0.0.0.0'`. The local socket must be in the same
+    address family as the peer.
   * `bindPort` {number} Local bind port. **Default:** `0` (ephemeral).
   * `alpn` {string\[]|Buffer} ALPN protocol names. Each name must be between
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
