@@ -16,9 +16,9 @@ is powered by AI. Contributors must take full responsibility for their actions i
 the Node.js project.
 
 The Node.js project does not prohibit the use of AI tools in contributions, but
-when the contribution is generated with AI, the contributor must disclose the use
-of such tools, and the extent to which the contributor has personally verified
-the generated output. The changes submitted to the Node.js code base must still satisfy
+when the contribution is generated with AI, the contributor should disclose the use
+of such tools, and what the contributor does to personally verify the generated output.
+The changes submitted to the Node.js code base must still satisfy
 the project's [Developer's Certificate of Origin][] and licensing requirements.
 
 Contributors who choose to submit changes generated with AI must be able to explain
