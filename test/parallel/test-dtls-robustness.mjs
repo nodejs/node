@@ -1,9 +1,10 @@
 // Flags: --experimental-dtls --no-warnings
 
-// Test: a listening DTLS server drops a non-DTLS (junk) datagram without
-// crashing, and still accepts a real client afterwards.
+// Test: a listening DTLS server drops malformed datagrams without crashing,
+// and still accepts a real client afterwards.
 
 import { hasCrypto, skip, mustCall } from '../common/index.mjs';
+import assert from 'node:assert';
 import dgram from 'node:dgram';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -27,13 +28,28 @@ const server = listen(mustCall((session) => {
 
 const { port } = server.address;
 
-// Fire a datagram that is not a ClientHello at the server.
+// Fire datagrams that are not a ClientHello at the server. The empty one is
+// legal UDP but can never carry a DTLS record; it must be dropped before it
+// reaches the accept path or a session BIO.
+const junk = [
+  Buffer.from('this is not a DTLS ClientHello'),
+  Buffer.alloc(0),
+  Buffer.from([22]),
+  Buffer.from([22, 254, 253, 0, 0]),
+];
+
 const raw = dgram.createSocket('udp4');
-await new Promise((resolve, reject) => {
-  raw.send(Buffer.from('this is not a DTLS ClientHello'), port, '127.0.0.1',
-           (err) => (err ? reject(err) : resolve()));
-});
+for (const datagram of junk) {
+  await new Promise((resolve, reject) => {
+    raw.send(datagram, port, '127.0.0.1',
+             (err) => (err ? reject(err) : resolve()));
+  });
+}
 await new Promise((resolve) => raw.close(resolve));
+
+// None of that should have produced a session.
+assert.strictEqual(server.sessions.size, 0);
+assert.strictEqual(server.stats.serverSessions, 0n);
 
 // A real client still completes a handshake against the same server.
 const client = connect('127.0.0.1', port, {
@@ -42,6 +58,10 @@ const client = connect('127.0.0.1', port, {
 });
 
 await client.opened;
+
+// ...and is counted, which also confirms the assertions above were not
+// vacuously true.
+assert.strictEqual(server.stats.serverSessions, 1n);
 
 await client.close();
 await server.close();
