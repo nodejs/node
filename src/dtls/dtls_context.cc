@@ -214,8 +214,16 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
 
   // Default to DTLS 1.2 only. DTLS 1.0 (based on TLS 1.1) is deprecated
   // by RFC 8996 and lacks AEAD cipher suites.
-  SSL_CTX_set_min_proto_version(ctx.get(), DTLS1_2_VERSION);
-  SSL_CTX_set_max_proto_version(ctx.get(), DTLS1_2_VERSION);
+  //
+  // Checked because the whole point is to refuse DTLS 1.0. An OpenSSL built
+  // without DTLS 1.2 would fail these and, unchecked, leave a context whose
+  // floor is whatever the build allows -- the deprecated version this is
+  // meant to exclude.
+  if (SSL_CTX_set_min_proto_version(ctx.get(), DTLS1_2_VERSION) != 1 ||
+      SSL_CTX_set_max_proto_version(ctx.get(), DTLS1_2_VERSION) != 1) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to restrict the DTLS version to 1.2");
+  }
 
   // Disable OpenSSL's MTU querying (we manage MTU manually).
   SSL_CTX_set_options(ctx.get(), SSL_OP_NO_QUERY_MTU);

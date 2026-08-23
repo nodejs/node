@@ -219,9 +219,16 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
   // Ref the handle while we have sessions.
   uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
 
-  // Start receiving if not already.
+  // Start receiving if not already. Listen() checks this and unwinds; here it
+  // was ignored, so a failure left a session in the table that no datagram
+  // could ever reach, and the only report was its handshake timing out.
   if (!listening_) {
-    uv_udp_recv_start(&handle_, OnAlloc, OnRecv);
+    int err = uv_udp_recv_start(&handle_, OnAlloc, OnRecv);
+    if (err != 0) {
+      RemoveSession(remote);
+      env()->ThrowUVException(err, "recv_start");
+      return {};
+    }
   }
 
   // Initiate the DTLS handshake by running Cycle.
@@ -635,9 +642,14 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   // Set peer address on context for the cookie callbacks.
   server_context_->set_cookie_peer(remote);
 
-  BIO_write(in_raw, data, len);
+  // Both are allocation failures rather than anything the peer did, and both
+  // used to be ignored: an unwritten BIO would put DTLSv1_listen() to work on
+  // an empty buffer, and a null BIO_ADDR is not something it accepts. Dropping
+  // the datagram is the right answer -- the peer retransmits.
+  if (BIO_write(in_raw, data, len) <= 0) return;
 
   DeleteFnPtr<BIO_ADDR, BIO_ADDR_free> peer(BIO_ADDR_new());
+  if (!peer) return;
   int ret = DTLSv1_listen(ssl.get(), peer.get());
 
   if (ret == 0) {
