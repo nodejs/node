@@ -74,6 +74,9 @@ added: REPLACEME
 * `options` {Object}
   * `cert` {string|Buffer} Server certificate in PEM format. **Required.**
   * `key` {string|Buffer} Server private key in PEM format. **Required.**
+  * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
+    Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
+    a string, matching [`tls.createSecureContext()`][].
   * `port` {number} Port to bind to. **Required.**
   * `host` {string} Address to bind to. **Default:** `'0.0.0.0'`.
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
@@ -155,6 +158,9 @@ added: REPLACEME
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
   * `cert` {string|Buffer} Client certificate in PEM format.
   * `key` {string|Buffer} Client private key in PEM format.
+  * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
+    Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
+    a string, matching [`tls.createSecureContext()`][].
   * `rejectUnauthorized` {boolean} When `true`, the server's certificate must
     both chain to a trusted CA and match the expected identity (`servername`,
     or `host` when `servername` is not set); otherwise the handshake is
@@ -757,3 +763,4 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`session.opened`]: #sessionopened
 [`session.send()`]: #sessionsenddata
 [`tls.TLSSocket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
+[`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
