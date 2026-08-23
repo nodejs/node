@@ -78,7 +78,9 @@ added: REPLACEME
   * `host` {string} Address to bind to. **Default:** `'0.0.0.0'`.
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
   * `ciphers` {string} OpenSSL cipher list string.
-  * `alpn` {string\[]|Buffer} ALPN protocol names.
+  * `alpn` {string\[]|Buffer} ALPN protocol names. Each name must be between
+    1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
+    length byte followed by that many bytes, repeated.
   * `srtp` {string} Colon-separated SRTP protection profile names
     (e.g., `'SRTP_AES128_CM_SHA1_80:SRTP_AEAD_AES_128_GCM'`).
   * `requestCert` {boolean} Request a certificate from the client.
@@ -162,7 +164,9 @@ added: REPLACEME
     SNI is never sent for IP address literals.
   * `bindHost` {string} Local bind address. **Default:** `'0.0.0.0'`.
   * `bindPort` {number} Local bind port. **Default:** `0` (ephemeral).
-  * `alpn` {string\[]|Buffer} ALPN protocol names.
+  * `alpn` {string\[]|Buffer} ALPN protocol names. Each name must be between
+    1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
+    length byte followed by that many bytes, repeated.
   * `srtp` {string} SRTP protection profile names.
   * `mtu` {number} Maximum transmission unit. **Default:** `1200`.
 * Returns: {DTLSSession}
