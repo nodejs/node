@@ -141,6 +141,7 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
   V(NO_ERROR_CODE, no_error_code, error_code)                                  \
   V(INTERNAL_ERROR_CODE, internal_error_code, error_code)                      \
+  V(REQUEST_REJECTED_CODE, request_rejected_code, error_code)                  \
   V(MAX_DATAGRAM_SIZE, max_datagram_size, uint16_t)                            \
   V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)                           \
   V(MAX_PENDING_DATAGRAMS, max_pending_datagrams, uint16_t)
@@ -2660,6 +2661,7 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
   // without duplicating the per-application table.
   impl_->state()->no_error_code = app->GetNoErrorCode();
   impl_->state()->internal_error_code = app->GetInternalErrorCode();
+  impl_->state()->request_rejected_code = app->GetRequestRejectedCode();
   impl_->application_ = std::move(app);
 }
 
