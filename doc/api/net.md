@@ -785,8 +785,9 @@ Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
 
-> Stability: 0 - Deprecated. Using the `signal` option to destroy long-lived
-> server resources is documentation-only deprecated. See
+> Using the `signal` option to destroy a long-lived server as a resource cleanup
+> mechanism is deprecated. The `signal` option remains appropriate for
+> cancellation, externally propagated aborts, and timeouts. See
 > [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
 
 If `exclusive` is `false` (default), then cluster workers will use the same
