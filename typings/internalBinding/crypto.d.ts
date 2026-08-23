@@ -949,6 +949,7 @@ export interface CryptoBinding {
   getFipsCrypto(): 0 | 1;
   getFipsCryptoGeneration(): bigint;
   getHashes(): string[];
+  isCryptoKey(key: unknown): boolean;
   isKeyObject(key: unknown): boolean;
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;
   getOpenSSLSecLevelCrypto(): number | undefined;
