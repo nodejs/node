@@ -406,6 +406,19 @@ void DTLSSession::Cycle() {
     return;
   }
 
+  CycleInner();
+  cycle_depth_--;
+
+  // A callback that ran inside OpenSSL cannot report its own exception, so it
+  // parks it and this is the first point where running JavaScript is safe
+  // again. CycleInner() reports it itself when the handshake failed, since
+  // there it is the more useful error; this covers the case where it did not
+  // fail, which is every keylog exception and any PSK or SNI exception the
+  // handshake recovered from.
+  EmitPendingError();
+}
+
+void DTLSSession::CycleInner() {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
@@ -427,19 +440,14 @@ void DTLSSession::Cycle() {
           Local<Value> argv[] = {pending_error_.Get(env()->isolate())};
           pending_error_.Reset();
           EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
-          cycle_depth_--;
           return;
         }
-        // Skip only the emit if the string cannot be made. Returning early
-        // here would leak the cycle_depth_ increment taken on entry and
-        // wedge the reentrancy guard for the life of the session.
         Local<String> str;
         if (String::NewFromUtf8(env()->isolate(), message.c_str())
                 .ToLocal(&str)) {
           Local<Value> argv[] = {str};
           EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
         }
-        cycle_depth_--;
         return;
       }
       // SSL_ERROR_WANT_READ/WRITE is normal during handshake.
@@ -471,7 +479,6 @@ void DTLSSession::Cycle() {
   EncOut();
 
   UpdateTimer();
-  cycle_depth_--;
 }
 
 void DTLSSession::ClearOut() {
@@ -723,6 +730,10 @@ void DTLSSession::Destroy() {
 
   retransmit_timer_.Close();
 
+  // A parked exception is a strong reference to a JS Error, whose stack
+  // normally reaches back to this session. Nothing will emit it now.
+  pending_error_.Reset();
+
   // Promote to strong ref to keep endpoint alive during removal,
   // then release our weak pointer.
   BaseObjectPtr<DTLSEndpoint> ep = endpoint_;
@@ -747,8 +758,39 @@ void DTLSSession::SSLKeylogCallback(const SSL* ssl, const char* line) {
   if (!String::NewFromUtf8(session->env()->isolate(), line).ToLocal(&str)) {
     return;
   }
+  // OpenSSL calls this from ssl_log_secret while deriving the master secret,
+  // so this runs inside SSL_do_handshake(). MakeCallback() would drain the
+  // microtask and tick queues here, letting a tick scheduled by the handler
+  // re-enter this SSL -- session.close() calls SSL_shutdown() -- part-way
+  // through a handshake transition. Call() runs the handler and nothing else.
+  v8::TryCatch try_catch(session->env()->isolate());
   Local<Value> argv[] = {str};
-  session->EmitCallback(DTLS_CB_SESSION_KEYLOG, 1, argv);
+  if (session->CallCallback(DTLS_CB_SESSION_KEYLOG, 1, argv).IsEmpty() &&
+      try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    Local<Value> exception = try_catch.Exception();
+    // Must not return into OpenSSL with an exception pending.
+    try_catch.Reset();
+    session->SetPendingError(exception);
+  }
+}
+
+void DTLSSession::EmitPendingError() {
+  if (pending_error_.IsEmpty() || destroyed_) return;
+  HandleScope handle_scope(env()->isolate());
+  Local<Value> argv[] = {pending_error_.Get(env()->isolate())};
+  pending_error_.Reset();
+  EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+}
+
+MaybeLocal<Value> DTLSSession::CallCallback(int cb_index,
+                                            int argc,
+                                            Local<Value>* argv) {
+  auto ep = endpoint_.get();
+  if (ep == nullptr) return MaybeLocal<Value>();
+  Local<Function> cb = ep->GetCallback(cb_index);
+  if (cb.IsEmpty()) return MaybeLocal<Value>();
+
+  return cb->Call(env()->context(), object(), argc, argv);
 }
 
 MaybeLocal<Value> DTLSSession::EmitCallback(int cb_index,
@@ -1092,6 +1134,7 @@ void DTLSSession::SetPendingError(Local<Value> error) {
 }
 
 void DTLSSession::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("pending_error", pending_error_);
   tracker->TrackField("remote_address", remote_address_);
   tracker->TrackField("context", context_);
   tracker->TrackField("sni_context", sni_context_);
