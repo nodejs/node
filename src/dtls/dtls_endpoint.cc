@@ -34,6 +34,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 namespace dtls {
@@ -92,6 +93,8 @@ Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getStats", GetStats);
     SetProtoMethod(isolate, tmpl, "getAddress", GetAddress);
     SetProtoMethod(isolate, tmpl, "setMTU", SetMTU);
+    SetProtoMethod(
+        isolate, tmpl, "setSessionLimits", SetSessionLimits);
     SetProtoMethod(isolate, tmpl, "setCallbacks", DoSetCallbacks);
 
     env->set_dtls_endpoint_constructor_template(tmpl);
@@ -118,6 +121,7 @@ void DTLSEndpoint::RegisterExternalReferences(
   registry->Register(GetStats);
   registry->Register(GetAddress);
   registry->Register(SetMTU);
+  registry->Register(SetSessionLimits);
   registry->Register(DoSetCallbacks);
 }
 
@@ -199,6 +203,7 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
   if (!session) return {};
 
   sessions_[remote] = session;
+  sessions_per_host_[remote]++;
   state_->session_count = sessions_.size();
   DTLS_STAT_INCREMENT(DTLSEndpointStats, client_sessions);
 
@@ -253,7 +258,14 @@ int DTLSEndpoint::SendTo(const SocketAddress& dest,
 }
 
 void DTLSEndpoint::RemoveSession(const SocketAddress& addr) {
-  sessions_.erase(addr);
+  if (sessions_.erase(addr) != 0) {
+    // Drop the host entry entirely at zero so this map tracks live peers
+    // rather than every peer ever seen.
+    auto it = sessions_per_host_.find(addr);
+    if (it != sessions_per_host_.end() && --it->second == 0) {
+      sessions_per_host_.erase(it);
+    }
+  }
   state_->session_count = sessions_.size();
 
   // Unref if no more sessions and not listening.
@@ -470,6 +482,18 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
   }
 }
 
+bool DTLSEndpoint::HasCapacityFor(const SocketAddress& remote) const {
+  if (max_sessions_ != 0 && sessions_.size() >= max_sessions_) return false;
+
+  if (max_sessions_per_host_ != 0) {
+    auto it = sessions_per_host_.find(remote);
+    if (it != sessions_per_host_.end() && it->second >= max_sessions_per_host_)
+      return false;
+  }
+
+  return true;
+}
+
 // Cheap structural screen for a datagram that could plausibly begin a
 // handshake, applied before anything is allocated for it.
 //
@@ -510,6 +534,15 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
 
   if (!CouldBeClientHello(data, len)) {
     DTLS_STAT_INCREMENT(DTLSEndpointStats, server_rejected_count);
+    return;
+  }
+
+  // Refuse before allocating anything. Staying silent rather than sending an
+  // alert is deliberate: the peer has not completed the cookie exchange yet,
+  // so replying would make this an amplification vector. A real client simply
+  // retransmits and gets in once there is room.
+  if (!HasCapacityFor(remote)) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_refused_count);
     return;
   }
 
@@ -588,6 +621,7 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   if (!session) return;
 
   sessions_[remote] = session;
+  sessions_per_host_[remote]++;
   state_->session_count = sessions_.size();
   DTLS_STAT_INCREMENT(DTLSEndpointStats, server_sessions);
 
@@ -720,6 +754,17 @@ void DTLSEndpoint::GetAddress(const FunctionCallbackInfo<Value>& args) {
   if (addr.ToJS(endpoint->env()).ToLocal(&obj)) {
     args.GetReturnValue().Set(obj);
   }
+}
+
+void DTLSEndpoint::SetSessionLimits(const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsUint32());
+
+  endpoint->max_sessions_ = args[0].As<Uint32>()->Value();
+  endpoint->max_sessions_per_host_ = args[1].As<Uint32>()->Value();
 }
 
 void DTLSEndpoint::SetMTU(const FunctionCallbackInfo<Value>& args) {
