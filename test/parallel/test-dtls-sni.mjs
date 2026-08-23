@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings --expose-gc
+// Flags: --experimental-dtls --no-warnings
 
 // Test: server-side SNI, the `sni` option on listen().
 //
@@ -395,129 +395,6 @@ function servedCommonName(session) {
   }
 }
 
-// A context may appear in its own SNI map, or in a cycle with another. The
-// binding holds SNI contexts weakly for this reason: a reference count cannot
-// free a cycle, and these used to leak for the lifetime of the process --
-// enough to trip the base_object_count_ assertion in ~Realm() at exit, which
-// is what makes this test fail if the holding goes back to being strong.
-{
-  const registry = new FinalizationRegistry(() => { finalized++; });
-  let finalized = 0;
-  const total = 20;
-
-  for (let i = 0; i < total; i++) {
-    // The endpoint's own context, also serving one of its own names.
-    const self = createSecureContext({
-      cert: agent1Cert, key: agent1Key, isServer: true,
-    });
-    registry.register(self, 'self');
-    const a = listen(() => {}, {
-      secureContext: self,
-      host: '127.0.0.1',
-      port: 0,
-      sni: { 'self.example': self },
-    });
-    await a.close();
-
-    // Two contexts naming each other.
-    const first = createSecureContext({
-      cert: agent1Cert, key: agent1Key, isServer: true,
-    });
-    const second = createSecureContext({
-      cert: agent1Cert, key: agent1Key, isServer: true,
-    });
-    registry.register(first, 'first');
-    registry.register(second, 'second');
-    const b = listen(() => {}, {
-      cert: agent1Cert,
-      key: agent1Key,
-      host: '127.0.0.1',
-      port: 0,
-      sni: { 'first.example': first, 'second.example': second },
-    });
-    await b.close();
-  }
-
-  for (let i = 0; i < 8 && finalized < total; i++) {
-    globalThis.gc();
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-
-  // Not all of them: whether the most recent is still reachable from a local
-  // is not something a test can pin down. Most of them is the signal, and a
-  // strong cycle collects none.
-  assert.ok(finalized > total / 2,
-            `only ${finalized}/${total} contexts were collected`);
-}
-
-// A name whose context is still configured is still served, so holding them
-// weakly has not made the map unreliable.
-{
-  const identity = createSecureContext({
-    cert: agent1Cert, key: agent1Key, isServer: true,
-  });
-  const server = listen(() => {}, {
-    cert: agent1Cert, key: agent1Key, host: '127.0.0.1', port: 0,
-    sni: { 'held.example': identity },
-  });
-
-  for (let i = 0; i < 4; i++) globalThis.gc();
-
-  const client = connect('127.0.0.1', server.address.port, {
-    servername: 'held.example', rejectUnauthorized: false,
-  });
-  await client.opened;
-  await client.close();
-  await server.close();
-}
-
-// Reconfiguring a context replaces its callback rather than adding to it.
-//
-// A map with no '*' entry refuses an unmatched name. A context that had been
-// given a callback earlier kept it, so the refusal did not happen and the
-// stale callback answered instead -- a configuration that reads as fail-closed
-// behaving as fail-open.
-{
-  const shared = createSecureContext({
-    cert: agent1Cert, key: agent1Key, isServer: true,
-  });
-  const identity = { cert: agent1Cert, key: agent1Key };
-
-  let callbackCalls = 0;
-  const withCallback = listen(() => {}, {
-    secureContext: shared,
-    host: '127.0.0.1',
-    port: 0,
-    sni: () => { callbackCalls++; return identity; },
-  });
-
-  // Same context, now a map with no wildcard.
-  const withMap = listen(() => {}, {
-    secureContext: shared,
-    host: '127.0.0.1',
-    port: 0,
-    sni: { 'known.example': identity },
-  });
-
-  const unmatched = connect('127.0.0.1', withMap.address.port, {
-    servername: 'unknown.example',
-    rejectUnauthorized: false,
-  });
-  await assert.rejects(unmatched.opened, { name: 'Error' });
-  assert.strictEqual(callbackCalls, 0);
-
-  // The name that is in the map is still served.
-  const matched = connect('127.0.0.1', withMap.address.port, {
-    servername: 'known.example',
-    rejectUnauthorized: false,
-  });
-  await matched.opened;
-  await matched.close();
-
-  await withCallback.close();
-  await withMap.close();
-}
-
 // The SNI callback's return value is checked for being a context, not merely
 // for being an object. Unwrapping validates the internal field count with a
 // DCHECK only, so in a release build any other native wrapper would have been
@@ -542,4 +419,50 @@ function servedCommonName(session) {
   await assert.rejects(client.opened, { name: 'Error' });
 
   await server.close();
+}
+
+// The sni option belongs to the context. It can be given to
+// createSecureContext(), and combining it with a prepared secureContext is
+// refused rather than silently reconfiguring a shared context.
+{
+  const identity = { cert: agent1Cert, key: agent1Key };
+
+  const prepared = createSecureContext({
+    cert: agent1Cert,
+    key: agent1Key,
+    isServer: true,
+    sni: { 'named.example': identity },
+  });
+
+  const server = listen(() => {}, {
+    secureContext: prepared, host: '127.0.0.1', port: 0,
+  });
+
+  const named = connect('127.0.0.1', server.address.port, {
+    servername: 'named.example', rejectUnauthorized: false,
+  });
+  await named.opened;
+  await named.close();
+
+  // No '*' entry, so anything else is refused, exactly as when the map is
+  // given to listen() directly.
+  const other = connect('127.0.0.1', server.address.port, {
+    servername: 'other.example', rejectUnauthorized: false,
+  });
+  await assert.rejects(other.opened, { name: 'Error' });
+
+  await server.close();
+
+  // Both at once is refused: the context already carries its identities.
+  assert.throws(() => listen(() => {}, {
+    secureContext: prepared,
+    host: '127.0.0.1',
+    port: 0,
+    sni: { 'late.example': identity },
+  }), { code: 'ERR_INVALID_ARG_VALUE' });
+
+  // And it means nothing on a client.
+  assert.throws(() => createSecureContext({
+    sni: { 'a.example': identity },
+  }), { code: 'ERR_INVALID_ARG_VALUE' });
 }
