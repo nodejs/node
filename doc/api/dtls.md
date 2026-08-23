@@ -367,6 +367,50 @@ Immediately destroys the session without sending `close_notify`.
 
 * Returns: {string|undefined} The peer's certificate in PEM format.
 
+### `session.authorized`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} `true` if the peer presented a certificate chain that
+  verified against the configured certificate authorities, and, for a client,
+  matched the requested identity. `false` before the handshake completes.
+
+### `session.authorizationError`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string|undefined} The short X509 verification error code, for
+  example `'CERT_HAS_EXPIRED'` or `'HOSTNAME_MISMATCH'`, or `undefined` if the
+  peer's chain verified.
+
+A peer that presented no certificate at all reports
+`'UNABLE_TO_GET_ISSUER_CERT'`, so this can be used to distinguish "no
+certificate" from "a certificate that failed to verify".
+
+The chain is verified even when `rejectUnauthorized` is `false`; the result is
+simply not enforced. That makes these two properties the way to apply a custom
+authorization policy:
+
+```mjs
+import { connect } from 'node:dtls';
+
+const session = connect('192.0.2.1', 4433, {
+  ca: [caCert],
+  servername: 'example.com',
+  rejectUnauthorized: false,
+});
+
+await session.opened;
+
+if (!session.authorized && session.authorizationError !== 'CERT_HAS_EXPIRED') {
+  await session.close();
+}
+```
+
 ### `session.alpnProtocol`
 
 * Returns: {string|undefined} The negotiated ALPN protocol.

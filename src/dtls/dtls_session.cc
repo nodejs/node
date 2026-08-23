@@ -150,6 +150,7 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "exportKeyingMaterial", ExportKeyingMaterial);
     SetProtoMethod(isolate, tmpl, "getSRTPProfile", GetSRTPProfile);
     SetProtoMethod(isolate, tmpl, "getServername", GetServername);
+    SetProtoMethod(isolate, tmpl, "getVerifyError", GetVerifyError);
 
     env->set_dtls_session_constructor_template(tmpl);
   }
@@ -179,6 +180,7 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(ExportKeyingMaterial);
   registry->Register(GetSRTPProfile);
   registry->Register(GetServername);
+  registry->Register(GetVerifyError);
 }
 
 BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
@@ -789,6 +791,30 @@ void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
         String::NewFromUtf8(session->env()->isolate(), profile->name)
             .ToLocalChecked());
   }
+}
+
+void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
+  DTLSSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  // SSL_get_verify_result() reports X509_V_OK when the peer sent no
+  // certificate at all, because there was nothing to find fault with. Route
+  // through ncrypto, which reports std::nullopt for that case (allowing for
+  // PSK and resumption, where the absence is legitimate) so it can be
+  // distinguished from a certificate that actually verified.
+  long verify_error =  // NOLINT(runtime/int)
+      session->ssl_.verifyPeerCertificate().value_or(
+          X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
+
+  // undefined means authorized; anything else is the short error code, e.g.
+  // "UNABLE_TO_GET_ISSUER_CERT" or "CERT_HAS_EXPIRED".
+  if (verify_error == X509_V_OK) return;
+
+  const char* code = ncrypto::X509Pointer::ErrorCode(verify_error);
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(session->env()->isolate(), code).ToLocalChecked());
 }
 
 void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
