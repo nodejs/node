@@ -102,12 +102,11 @@ added: REPLACEME
     receives a TLS alert. When `false`, the certificate is still requested and
     verified but the handshake completes regardless, leaving the decision to
     the application via [`session.authorized`][]. **Default:** `true`.
-  * `mtu` {number}
+  * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
+    `1200`.
   * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
     abandoned. `0` disables it. **Default:** `60000`. See
-    [Handshake timeout][]. Maximum size in bytes of a DTLS datagram. **Default:**
-    `1200`.
-    **Default:** `1200`.
+    [Handshake timeout][].
   * `maxSessions` {number} The maximum number of concurrent sessions the
     endpoint will hold. Set to `0` for no limit. **Default:** `10000`.
   * `maxSessionsPerHost` {number} The maximum number of concurrent sessions
@@ -198,7 +197,7 @@ is a `Promise` that resolves when the handshake completes.
 import { connect } from 'node:dtls';
 import { readFileSync } from 'node:fs';
 
-const session = connect('localhost', 4433, {
+const session = connect('127.0.0.1', 4433, {
   ca: [readFileSync('ca-cert.pem')],
 });
 
@@ -275,8 +274,14 @@ const clientContext = createSecureContext({
 });
 
 // One context, many connections, each verified against its own name.
-const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
-const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
+const s1 = connect('192.0.2.1', 5684, {
+  secureContext: clientContext,
+  servername: 'a.example.com',
+});
+const s2 = connect('192.0.2.2', 5684, {
+  secureContext: clientContext,
+  servername: 'b.example.com',
+});
 ```
 
 ## Server Name Indication
@@ -428,7 +433,7 @@ const endpoint = listen(onsession, {
   psk: { 'device-42': deviceKey },
 });
 
-const client = connect('gateway.example', 5684, {
+const client = connect('192.0.2.1', 5684, {
   psk: { identity: 'device-42', key: deviceKey },
 });
 ```
@@ -510,12 +515,16 @@ a later [`dtls.connect()`][]:
 ```mjs
 import { connect } from 'node:dtls';
 
-const first = connect('device.example', 5684, { ca });
+const first = connect('192.0.2.1', 5684, { ca, servername: 'device.example' });
 await first.opened;
 const ticket = first.session;        // Buffer.
 await first.close();
 
-const second = connect('device.example', 5684, { ca, session: ticket });
+const second = connect('192.0.2.1', 5684, {
+  ca,
+  servername: 'device.example',
+  session: ticket,
+});
 await second.opened;
 console.log(second.reused);          // True.
 ```
@@ -1112,7 +1121,7 @@ const server = listen((session) => {
 });
 
 // Client with SRTP
-const session = connect('localhost', 5004, {
+const session = connect('127.0.0.1', 5004, {
   rejectUnauthorized: false,
   srtp: 'SRTP_AEAD_AES_128_GCM:SRTP_AES128_CM_SHA1_80',
 });
