@@ -754,6 +754,8 @@ function runSpecOnThread(execArgv, workerData, handlers) {
  * @returns {SpecHandle}
  */
 function runSpecInProcess(execArgv, workerData, handlers) {
+  const forwardStderr = execArgv.some(
+    (flag) => flag === '--inspect-brk' || flag.startsWith('--inspect-brk='));
   const child = fork(workerPath, {
     execArgv,
     // Status files may skip subtests by regular expression, which JSON
@@ -767,6 +769,9 @@ function runSpecInProcess(execArgv, workerData, handlers) {
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (chunk) => {
     stderr += chunk;
+    if (forwardStderr) {
+      process.stderr.write(chunk);
+    }
   });
 
   child.on('message', (message) => {
@@ -789,7 +794,8 @@ function runSpecInProcess(execArgv, workerData, handlers) {
     const name = signal ?
       `Test process was killed by signal ${signal}` :
       `Test process exited with code ${code}`;
-    if (!handlers.failure({ name, message: name, stack: stderr }) && stderr) {
+    if (!handlers.failure({ name, message: name, stack: stderr }) &&
+        stderr && !forwardStderr) {
       process.stderr.write(stderr);
     }
   });
@@ -823,9 +829,15 @@ class WPTRunner {
       concurrency = Math.min(10, concurrency);
     }
 
+    this.inspectBrk = process.env.WPT_INSPECT !== undefined;
+
     // The override exists so that every suite can be run either way without
     // editing the drivers, which is how the two backends are kept compatible.
-    backend = process.env.WPT_BACKEND || backend;
+    if (this.inspectBrk) {
+      backend = 'process';
+    } else {
+      backend = process.env.WPT_BACKEND || backend;
+    }
     this.runSpec = backends[backend];
     if (this.runSpec === undefined) {
       throw new Error(`Invalid WPT backend ${backend}, expected one of ` +
@@ -841,6 +853,9 @@ class WPTRunner {
     // we enable the API globally. This has no practical
     // effect on the non-web-worker tests, however.
     this.flags = ['--experimental-web-worker'];
+    if (this.inspectBrk) {
+      this.flags.push('--inspect-brk=0');
+    }
     this.globalThisInitScripts = [];
     this.initScript = null;
 
@@ -1299,6 +1314,9 @@ class WPTRunner {
     const queue = [];
     this.skippedSpecCount = 0;
     const arg = process.argv[2];
+    if (this.inspectBrk && !arg) {
+      throw new Error('WPT_INSPECT requires a WPT test path');
+    }
     for (const spec of this.specs) {
       if (arg) {
         if (spec.isSelectedBy(arg)) {
@@ -1329,6 +1347,18 @@ class WPTRunner {
     // `'dir/subset.any.worker.html?1-10'`, runs exactly that one.
     if (arg && queue.length === 0) {
       throw new Error(`${arg} not found!`);
+    }
+    if (this.inspectBrk && queue.length !== 1) {
+      const matches = queue.map((spec) => spec.getTestPath()).join('\n');
+      throw new Error(
+        `WPT_INSPECT requires exactly one generated WPT test path; ` +
+        `${arg} matched ${queue.length}:\n${matches}`,
+      );
+    }
+    if (this.inspectBrk && queue[0].isWebWorkerTest()) {
+      throw new Error(
+        `WPT_INSPECT does not support worker tests: ${queue[0].getTestPath()}`,
+      );
     }
 
     return queue;
