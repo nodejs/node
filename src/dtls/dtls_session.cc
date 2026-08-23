@@ -670,6 +670,13 @@ void DTLSSession::UpdateTimer() {
 // send() already throws for a destroyed session and for a bad argument type,
 // so returning a sentinel from the remaining paths was the inconsistency.
 int DTLSSession::Send(const uint8_t* data, size_t len) {
+  // Kept as a guard, not as a message anyone reads. JavaScript drops the
+  // handle on close and on destroy, and its own send() refuses a null one
+  // first, so this cannot be reached through the public API -- including
+  // when the peer closes, where the close callback clears the handle before
+  // control returns. Instrumented across the suite and a close/send race:
+  // never taken. Do not align the wording with the JavaScript message on the
+  // assumption that a caller can see both.
   if (destroyed_ || closed_) {
     THROW_ERR_INVALID_STATE(env(), "Session is closed");
     return -1;
