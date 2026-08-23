@@ -210,7 +210,7 @@ void DTLSSession::RegisterExternalReferences(
 
 BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
                                                DTLSEndpoint* endpoint,
-                                               SSL_CTX* ssl_ctx,
+                                               DTLSContext* context,
                                                const SocketAddress& remote,
                                                bool is_server,
                                                const char* servername,
@@ -220,7 +220,7 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
                                                    const unsigned char>&
                                                    resume) {
   // Create the SSL object.
-  SSL* ssl_raw = SSL_new(ssl_ctx);
+  SSL* ssl_raw = SSL_new(context->ssl_ctx());
   if (ssl_raw == nullptr) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "SSL_new failed");
     return {};
@@ -329,6 +329,10 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
                                              enc_out_raw,
                                              remote,
                                              is_server);
+  if (session) {
+    // Hold the context. Nothing else does, for a client.
+    session->context_ = BaseObjectPtr<DTLSContext>(context);
+  }
 
   return session;
 }
@@ -409,6 +413,17 @@ void DTLSSession::Cycle() {
         // Flush any fatal alert OpenSSL queued for the peer before emitting the
         // error, which tears the session down and detaches the endpoint.
         EncOut();
+        // An exception from a callback that ran inside the handshake is the
+        // more useful report: OpenSSL only knows the handshake failed, not
+        // that user code threw. It is emitted here, at a point where running
+        // JavaScript is safe.
+        if (!pending_error_.IsEmpty()) {
+          Local<Value> argv[] = {pending_error_.Get(env()->isolate())};
+          pending_error_.Reset();
+          EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+          cycle_depth_--;
+          return;
+        }
         // Skip only the emit if the string cannot be made. Returning early
         // here would leak the cycle_depth_ increment taken on entry and
         // wedge the reentrancy guard for the life of the session.
@@ -1021,8 +1036,13 @@ void DTLSSession::WasReused(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(SSL_session_reused(session->ssl_.get()) == 1);
 }
 
+void DTLSSession::SetPendingError(Local<Value> error) {
+  pending_error_.Reset(env()->isolate(), error);
+}
+
 void DTLSSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("remote_address", remote_address_);
+  tracker->TrackField("context", context_);
 }
 
 }  // namespace dtls

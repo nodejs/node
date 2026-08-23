@@ -197,7 +197,7 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
 
   auto session = DTLSSession::Create(env(),
                                      this,
-                                     context->ssl_ctx(),
+                                     context,
                                      remote,
                                      false /* is_server */,
                                      servername,

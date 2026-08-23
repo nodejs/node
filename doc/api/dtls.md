@@ -169,6 +169,8 @@ added: REPLACEME
     credential options below. Must **not** have been created with
     `isServer: true`. Cannot be combined with any option the context already
     carries.
+  * `psk` {Object|Function} A pre-shared key as `{ identity, key }`, or a
+    function returning one. See [Pre-shared keys][].
   * `session` {Buffer} A session from [`session.session`][] on an earlier
     connection, to resume rather than handshake in full. See
     [Session resumption][].
@@ -290,6 +292,8 @@ added: REPLACEME
     [`dtls.listen()`][] and [`dtls.connect()`][].
   * `requestCert` {boolean} Request a certificate from the peer. Servers only.
   * `sessionIdContext` {string} Session id context. Servers only.
+  * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
+  * `pskIdentityHint` {string} Identity hint to advertise. Servers only.
   * `srtp` {string} SRTP profile list.
   * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
     endpoints and restarts. Servers only. See [Session resumption][].
@@ -334,6 +338,92 @@ const clientContext = createSecureContext({
 const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
 const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
 ```
+
+### Pre-shared keys
+
+DTLS can authenticate with a key both peers already hold instead of a
+certificate (RFC 4279). This is how it is usually deployed to constrained
+devices, which frequently have no certificate at all.
+
+A server gives the identities it accepts; a client gives the one it is. No
+certificate is needed on either side:
+
+```mjs
+import { connect, listen } from 'node:dtls';
+
+const endpoint = listen(onsession, {
+  port: 5684,
+  psk: { 'device-42': deviceKey },
+});
+
+const client = connect('gateway.example', 5684, {
+  psk: { identity: 'device-42', key: deviceKey },
+});
+```
+
+Either side may pass a function instead, for keys that are looked up or
+derived rather than known up front. A server's is called with the identity the
+client offered and returns the key, or nothing to refuse it. A client's is
+called with the server's identity hint, if it sent one, and returns
+`{ identity, key }`:
+
+```mjs
+listen(onsession, {
+  port: 5684,
+  psk: (identity) => deriveKey(masterSecret, identity),
+});
+```
+
+The callback runs during the handshake and must return synchronously, so it
+cannot consult a database. Where both are given, the map is checked first and
+the callback is only reached when the map has no answer -- a configuration
+using only the map never runs JavaScript inside the handshake.
+
+An exception thrown by the callback fails that handshake and is reported to
+the session's error handler. It does not reach the process as an uncaught
+exception.
+
+#### Cipher suites
+
+The default cipher list excludes PSK, so giving `psk` without `ciphers`
+enables the PSK suites. Supplying `ciphers` disables that and uses exactly
+what was asked for.
+
+A server keeps the certificate suites as well, since it may serve both kinds
+of client on one port. A client does not: a client that configured a
+pre-shared key and no CA wants the key, and leaving the certificate suites
+enabled would let a server choose one, failing the handshake while verifying a
+certificate the caller never meant to rely on.
+
+Forward-secret PSK key exchanges are preferred over plain PSK of the same
+strength. Plain PSK derives its keys from the shared secret alone, so anyone
+who later learns that key can decrypt traffic they recorded earlier. `RSA-PSK`
+is excluded: it needs a certificate and adds no forward secrecy.
+
+CoAP requires `TLS_PSK_WITH_AES_128_CCM_8` (RFC 7252), whose 64-bit
+authentication tag OpenSSL rejects at security level 1 and above. Node.js
+default is above it, so that suite has to be asked for explicitly and with the
+security level lowered:
+
+```mjs
+listen(onsession, { port: 5684, psk, ciphers: 'PSK-AES128-CCM8@SECLEVEL=0' });
+```
+
+#### Failure modes
+
+A wrong key does not produce an error. The identity only names the key, so the
+handshake proceeds and the two sides derive different secrets; the first
+record that fails authentication is then discarded rather than answered, since
+DTLS discards invalid records instead of replying to them (RFC 6347 section
+4.1.2.1). Neither peer is told anything and both retransmit.
+
+Nothing times a handshake out, so a session in this state is held until the
+endpoint is closed. The same is true of a cipher list with nothing in common,
+which is what makes the `CCM8` case above present as a hang rather than a
+rejection.
+
+An identity the server does not recognise is refused outright, and the client
+sees the handshake fail.
 
 ### Session resumption
 
@@ -1015,6 +1105,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 
 [Denial of service]: #denial-of-service
 [Permission Model]: permissions.md#permission-model
+[Pre-shared keys]: #pre-shared-keys
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
 [RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
 [Server Name Indication]: #server-name-indication
