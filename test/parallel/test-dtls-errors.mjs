@@ -50,7 +50,9 @@ assert.throws(() => listen(mustNotCall(), {
 {
   const endpoint = new DTLSEndpoint();
   endpoint[kBind]('127.0.0.1', 0);
+  // Reported with libuv's own code for rebinding a bound handle, rather than
+  // a generic ERR_INVALID_STATE that says nothing about which failure it was.
   assert.throws(() => endpoint[kBind]('127.0.0.1', 0),
-                { code: 'ERR_INVALID_STATE' });
+                { code: 'EALREADY', syscall: 'bind' });
   await endpoint.close();
 }
