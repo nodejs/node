@@ -766,8 +766,11 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   X509* peer_cert = SSL_get0_peer_certificate(session->ssl_.get());
   if (peer_cert == nullptr) return;
 
-  // Return the PEM-encoded certificate.
+  // Return the PEM-encoded certificate. This is the leaf only; the chain and
+  // the parsed fields node:tls exposes are not available here.
   auto bio = ncrypto::BIOPointer::NewMem();
+  if (!bio) return;
+
   if (PEM_write_bio_X509(bio.get(), peer_cert)) {
     char* data;
     long len = BIO_get_mem_data(bio.get(), &data);  // NOLINT(runtime/int)

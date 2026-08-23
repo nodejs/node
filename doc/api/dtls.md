@@ -443,7 +443,14 @@ awaiting it cannot hang.
 
 ### `session.peerCertificate`
 
-* Returns: {string|undefined} The peer's certificate in PEM format.
+* Returns: {string|undefined} The peer's certificate in PEM format, or
+  `undefined` if the peer sent none.
+
+This is the leaf certificate only. Unlike [`tls.TLSSocket.getPeerCertificate()`][],
+it does not return the issuer chain, and it does not return the parsed fields
+(`subject`, `issuer`, `valid_from`, `valid_to`, `fingerprint` and so on) -- only
+the PEM text. Use [`session.authorized`][] and \[`session.authorizationError`]\[]
+for the verification result rather than parsing this.
 
 ### `session.authorized`
 
@@ -721,3 +728,4 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`session.authorized`]: #sessionauthorized
 [`session.destroy()`]: #sessiondestroyerror
+[`tls.TLSSocket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
