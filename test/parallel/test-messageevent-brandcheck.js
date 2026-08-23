@@ -3,12 +3,6 @@
 require('../common');
 const assert = require('assert');
 
-[
-  'data',
-  'origin',
-  'lastEventId',
-  'source',
-  'ports',
-].forEach((i) => {
+for (const i of ['data', 'origin', 'lastEventId', 'source', 'ports']) {
   assert.throws(() => Reflect.get(MessageEvent.prototype, i, {}), TypeError);
-});
+}
