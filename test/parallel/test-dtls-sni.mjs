@@ -470,3 +470,50 @@ function servedCommonName(session) {
   await client.close();
   await server.close();
 }
+
+// Reconfiguring a context replaces its callback rather than adding to it.
+//
+// A map with no '*' entry refuses an unmatched name. A context that had been
+// given a callback earlier kept it, so the refusal did not happen and the
+// stale callback answered instead -- a configuration that reads as fail-closed
+// behaving as fail-open.
+{
+  const shared = createSecureContext({
+    cert: agent1Cert, key: agent1Key, isServer: true,
+  });
+  const identity = { cert: agent1Cert, key: agent1Key };
+
+  let callbackCalls = 0;
+  const withCallback = listen(() => {}, {
+    secureContext: shared,
+    host: '127.0.0.1',
+    port: 0,
+    sni: () => { callbackCalls++; return identity; },
+  });
+
+  // Same context, now a map with no wildcard.
+  const withMap = listen(() => {}, {
+    secureContext: shared,
+    host: '127.0.0.1',
+    port: 0,
+    sni: { 'known.example': identity },
+  });
+
+  const unmatched = connect('127.0.0.1', withMap.address.port, {
+    servername: 'unknown.example',
+    rejectUnauthorized: false,
+  });
+  await assert.rejects(unmatched.opened, { name: 'Error' });
+  assert.strictEqual(callbackCalls, 0);
+
+  // The name that is in the map is still served.
+  const matched = connect('127.0.0.1', withMap.address.port, {
+    servername: 'known.example',
+    rejectUnauthorized: false,
+  });
+  await matched.opened;
+  await matched.close();
+
+  await withCallback.close();
+  await withMap.close();
+}
