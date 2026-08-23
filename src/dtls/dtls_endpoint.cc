@@ -599,11 +599,17 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   int ret = DTLSv1_listen(ssl.get(), peer.get());
 
   if (ret == 0) {
-    // Send HelloVerifyRequest.
-    uint8_t resp_buf[65536];
-    int resp_len;
-    while ((resp_len = BIO_read(out_raw, resp_buf, sizeof(resp_buf))) > 0) {
-      SendTo(remote, resp_buf, resp_len);
+    // Send HelloVerifyRequest. `out_raw` is a datagram BIO, so BIO_pending()
+    // gives the exact size of the next datagram; a HelloVerifyRequest is well
+    // under a hundred bytes, so this never leaves the stack in practice.
+    MaybeStackBuffer<uint8_t, 256> resp_buf;
+    for (;;) {
+      size_t pending = BIO_pending(out_raw);
+      if (pending == 0) break;
+      resp_buf.AllocateSufficientStorage(pending);
+      int resp_len = BIO_read(out_raw, resp_buf.out(), pending);
+      if (resp_len <= 0) break;
+      SendTo(remote, resp_buf.out(), resp_len);
     }
     return;
   }

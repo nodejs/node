@@ -488,10 +488,19 @@ void DTLSSession::EncOut() {
   // -- one DTLS record as OpenSSL framed it against the MTU. Loop because a
   // single flight is several records, and send each one separately rather than
   // concatenating them into a datagram that would need IP fragmentation.
-  uint8_t buf[65536];
-  int read;
-  while ((read = BIO_read(enc_out_, buf, sizeof(buf))) > 0) {
-    ep->SendTo(remote_address_, buf, read);
+  //
+  // BIO_pending() on a datagram BIO reports the size of the next datagram, so
+  // the buffer can be sized to it exactly. Reading into a smaller one would
+  // silently truncate the record, and a fixed 64 KiB frame is a lot of stack
+  // for a ~1200 byte datagram in a function Cycle() can re-enter.
+  MaybeStackBuffer<uint8_t, 1500> buf;
+  for (;;) {
+    size_t pending = BIO_pending(enc_out_);
+    if (pending == 0) break;
+    buf.AllocateSufficientStorage(pending);
+    int read = BIO_read(enc_out_, buf.out(), pending);
+    if (read <= 0) break;
+    ep->SendTo(remote_address_, buf.out(), read);
   }
 }
 
