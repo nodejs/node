@@ -194,6 +194,9 @@ added: REPLACEME
   * `srtp` {string} SRTP protection profile names.
   * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
     `1200`.
+  * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
+    abandoned and `session.opened` rejects. `0` disables it. **Default:**
+    `60000`. See [Handshake timeout][].
 * Returns: {DTLSSession}
 
 Connects to a DTLS server. Returns a `DTLSSession` whose `opened` property
@@ -635,6 +638,10 @@ Gracefully closes the endpoint. All active sessions are closed with
 
 Immediately destroys the endpoint without sending `close_notify` alerts.
 
+### `endpoint.destroyed`
+
+* {boolean} True once the endpoint has been destroyed.
+
 ### `endpoint.closed`
 
 * {Promise} Resolves when the endpoint has fully closed.
@@ -799,6 +806,24 @@ Initiates a graceful DTLS shutdown by sending a `close_notify` alert.
 ### `session.destroy([error])`
 
 Immediately destroys the session without sending `close_notify`.
+
+### `session.destroyed`
+
+* {boolean} True once the session has been destroyed, whether by
+  [`session.destroy()`][], by a close, or by its endpoint going away.
+
+### `session.endpoint`
+
+* {DTLSEndpoint} The endpoint carrying this session. For a session from
+  [`dtls.listen()`][] this is the listening endpoint, shared with every other
+  session on it; for one from [`dtls.connect()`][] it is the endpoint created
+  to carry that session alone.
+
+### `session.servername`
+
+* {string|undefined} The server name for this session: the name the client
+  sent in the SNI extension, read on either side of the connection.
+  `undefined` when no name was sent. See [Server name indication][].
 
 ### `session.opened`
 
