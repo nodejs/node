@@ -63,7 +63,7 @@ for (const test of TEST_CASES) {
     continue;
   }
 
-  const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
+  const isCCM = /^(?:aes-(?:128|192|256)|sm4)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
   const isSIV = /^aes-(128|192|256)-siv$/.test(test.algo);
 
@@ -963,6 +963,7 @@ if (!fips3 && !process.features.openssl_is_boringssl) {
 if (ciphers.includes('aes-128-ccm')) {
   const key = crypto.randomBytes(16);
   const nonce = crypto.randomBytes(13);
+  const authError = /Unsupported state or unable to authenticate data/;
 
   const cipher = crypto.createCipheriv('aes-128-ccm', key, nonce, {
     authTagLength: 16,
@@ -986,6 +987,47 @@ if (ciphers.includes('aes-128-ccm')) {
     decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
     decipher.update(new DataView(new ArrayBuffer(0)));
     decipher.final();
+
+    const invalidTag = Buffer.from(tag);
+    invalidTag[0] ^= 0xff;
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(tag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(invalidTag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      decipher.update(Buffer.alloc(0));
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(tag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      decipher.update(Buffer.alloc(0));
+      assert.throws(() => decipher.update(Buffer.alloc(0)), errMessages.state);
+      decipher.final();
+    }
   }
 } else {
   common.printSkipMessage('Skipping unsupported aes-128-ccm test');
