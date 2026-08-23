@@ -48,7 +48,6 @@ class DTLSContext final : public BaseObject {
   // to the SSL rather than the SSL_CTX because SNI reassigns the latter.
   void BindToSSL(SSL* ssl);
 
-
   // Set the peer address for cookie generation during DTLSv1_listen().
   void set_cookie_peer(const SocketAddress& addr) {
     current_cookie_peer_ = addr;
@@ -156,8 +155,7 @@ class DTLSContext final : public BaseObject {
   // Weak: a context may appear in its own map, or in a cycle with another,
   // and a strong count would never reach zero. The JavaScript wrapper holds
   // these so the collector can trace and break such a cycle.
-  std::unordered_map<std::string, BaseObjectWeakPtr<DTLSContext>>
-      sni_contexts_;
+  std::unordered_map<std::string, BaseObjectWeakPtr<DTLSContext>> sni_contexts_;
 
   // PSK identity -> key (server), and the single identity a client presents.
   std::unordered_map<std::string, std::vector<unsigned char>> psk_identities_;
