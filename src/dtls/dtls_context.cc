@@ -102,6 +102,12 @@ void DTLSContext::MemoryInfo(MemoryTracker* tracker) const {
   }
   tracker->TrackFieldWithSize("psk_identities", psk_size);
   tracker->TrackFieldWithSize("psk_client_key", psk_client_key_.size());
+  // Strong references to JavaScript functions held by a weak object. A
+  // callback that closes over the server, which is the usual way to write
+  // one, is a cycle through C++ that a heap snapshot cannot otherwise show.
+  tracker->TrackField("psk_callback", psk_callback_);
+  tracker->TrackField("sni_callback", sni_callback_);
+  tracker->TrackField("sni_contexts", sni_contexts_);
 }
 
 // SSL ex_data slot holding the DTLSContext an SSL was created from, for the
@@ -623,8 +629,14 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
 
   ctx->sni_contexts_ = std::move(next);
 
+  // Assigned either way. Only ever setting it meant a context reconfigured
+  // with a map and no callback kept the callback it was given before, which
+  // for SNI is a fail-open: a map with no '*' entry is meant to refuse an
+  // unmatched name, and a leftover callback answers it instead.
   if (args[1]->IsFunction()) {
     ctx->sni_callback_.Reset(env->isolate(), args[1].As<Function>());
+  } else {
+    ctx->sni_callback_.Reset();
   }
 
   if (ctx->sni_contexts_.empty() && ctx->sni_callback_.IsEmpty()) {
@@ -876,6 +888,8 @@ void DTLSContext::SetPSK(const FunctionCallbackInfo<Value>& args) {
 
   if (args[4]->IsFunction()) {
     ctx->psk_callback_.Reset(env->isolate(), args[4].As<Function>());
+  } else {
+    ctx->psk_callback_.Reset();
   }
 
   if (ctx->is_server_) {
