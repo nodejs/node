@@ -47,10 +47,6 @@ for (const datagram of junk) {
 }
 await new Promise((resolve) => raw.close(resolve));
 
-// None of that should have produced a session.
-assert.strictEqual(server.sessions.size, 0);
-assert.strictEqual(server.stats.serverSessions, 0n);
-
 // A real client still completes a handshake against the same server.
 const client = connect('127.0.0.1', port, {
   ca: [ca],
@@ -59,9 +55,18 @@ const client = connect('127.0.0.1', port, {
 
 await client.opened;
 
-// ...and is counted, which also confirms the assertions above were not
-// vacuously true.
+// The junk was delivered and processed well before this handshake finished,
+// so the counters are settled by now.
+
+// Exactly one session, from the real client. None of the junk made one.
+assert.strictEqual(server.sessions.size, 1);
 assert.strictEqual(server.stats.serverSessions, 1n);
+
+// Three of the four junk datagrams were turned away by the structural screen
+// before anything was allocated for them. The empty one was dropped earlier
+// still, and the real ClientHello passed the screen rather than being counted
+// by it.
+assert.strictEqual(server.stats.serverRejectedCount, 3n);
 
 await client.close();
 await server.close();
