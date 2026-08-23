@@ -16,14 +16,21 @@
 namespace node {
 namespace inspector {
 
+using v8::Array;
+using v8::Boolean;
+using v8::Context;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
+using v8::Number;
 using v8::Object;
 using v8::Uint8Array;
 using v8::Value;
 
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
+constexpr size_t kMaxProtocolValueDepth = 100;
 
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
   isolate->ThrowException(v8::Exception::TypeError(
@@ -31,24 +38,44 @@ static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
 }
 
 static std::unique_ptr<protocol::Value> V8ToProtocolValue(
-    Isolate* isolate, v8::Local<v8::Context> context, Local<Value> value) {
+    Isolate* isolate,
+    Local<Context> context,
+    Local<Value> value,
+    LocalVector<Object>* ancestors) {
   if (value->IsNullOrUndefined()) {
     return protocol::Value::null();
   }
   if (value->IsBoolean()) {
-    return protocol::FundamentalValue::create(value.As<v8::Boolean>()->Value());
+    return protocol::FundamentalValue::create(value.As<Boolean>()->Value());
   }
   if (value->IsInt32()) {
-    return protocol::FundamentalValue::create(value.As<v8::Int32>()->Value());
+    return protocol::FundamentalValue::create(value.As<Int32>()->Value());
   }
   if (value->IsNumber()) {
-    return protocol::FundamentalValue::create(value.As<v8::Number>()->Value());
+    return protocol::FundamentalValue::create(value.As<Number>()->Value());
   }
   if (value->IsString()) {
     return protocol::StringValue::create(ToProtocolString(isolate, value));
   }
+
+  if (!value->IsObject()) {
+    return nullptr;
+  }
+
+  Local<Object> object = value.As<Object>();
+  if (ancestors->size() >= kMaxProtocolValueDepth) {
+    return nullptr;
+  }
+  for (const auto& ancestor : *ancestors) {
+    if (ancestor == object) {
+      return nullptr;
+    }
+  }
+  ancestors->push_back(object);
+  auto pop_ancestor = OnScopeLeave([ancestors]() { ancestors->pop_back(); });
+
   if (value->IsArray()) {
-    Local<v8::Array> array = value.As<v8::Array>();
+    Local<Array> array = value.As<Array>();
     std::unique_ptr<protocol::ListValue> list = protocol::ListValue::create();
     list->reserve(array->Length());
     for (uint32_t i = 0; i < array->Length(); i++) {
@@ -57,7 +84,7 @@ static std::unique_ptr<protocol::Value> V8ToProtocolValue(
         return nullptr;
       }
       std::unique_ptr<protocol::Value> protocol_value =
-          V8ToProtocolValue(isolate, context, element);
+          V8ToProtocolValue(isolate, context, element, ancestors);
       if (!protocol_value) {
         return nullptr;
       }
@@ -65,35 +92,38 @@ static std::unique_ptr<protocol::Value> V8ToProtocolValue(
     }
     return list;
   }
-  if (value->IsObject()) {
-    Local<Object> object = value.As<Object>();
-    Local<v8::Array> property_names;
-    if (!object->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+
+  Local<Array> property_names;
+  if (!object->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+    return nullptr;
+  }
+  std::unique_ptr<protocol::DictionaryValue> dict =
+      protocol::DictionaryValue::create();
+  for (uint32_t i = 0; i < property_names->Length(); i++) {
+    Local<Value> property_name;
+    if (!property_names->Get(context, i).ToLocal(&property_name) ||
+        !property_name->IsString()) {
       return nullptr;
     }
-    std::unique_ptr<protocol::DictionaryValue> dict =
-        protocol::DictionaryValue::create();
-    for (uint32_t i = 0; i < property_names->Length(); i++) {
-      Local<Value> property_name;
-      if (!property_names->Get(context, i).ToLocal(&property_name) ||
-          !property_name->IsString()) {
-        return nullptr;
-      }
-      Local<Value> property;
-      if (!object->Get(context, property_name).ToLocal(&property)) {
-        return nullptr;
-      }
-      std::unique_ptr<protocol::Value> protocol_value =
-          V8ToProtocolValue(isolate, context, property);
-      if (!protocol_value) {
-        return nullptr;
-      }
-      dict->setValue(ToProtocolString(isolate, property_name),
-                     std::move(protocol_value));
+    Local<Value> property;
+    if (!object->Get(context, property_name).ToLocal(&property)) {
+      return nullptr;
     }
-    return dict;
+    std::unique_ptr<protocol::Value> protocol_value =
+        V8ToProtocolValue(isolate, context, property, ancestors);
+    if (!protocol_value) {
+      return nullptr;
+    }
+    dict->setValue(ToProtocolString(isolate, property_name),
+                   std::move(protocol_value));
   }
-  return nullptr;
+  return dict;
+}
+
+static std::unique_ptr<protocol::Value> V8ToProtocolValue(
+    Isolate* isolate, Local<Context> context, Local<Value> value) {
+  LocalVector<Object> ancestors(isolate);
+  return V8ToProtocolValue(isolate, context, value, &ancestors);
 }
 
 // Create a protocol::Network::Headers from the v8 object.
