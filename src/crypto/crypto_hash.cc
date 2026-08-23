@@ -316,9 +316,8 @@ const EVP_MD* GetDigestImplementation(
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   Local<Object> cache = algorithm_cache.As<Object>();
-  const bool cache_invalidated = SynchronizeHashCache(env, cache);
   int32_t cache_id = cache_id_val.As<Int32>()->Value();
-  if (!cache_invalidated && cache_id != -1) {
+  if (cache_id != -1) {
     // Alias already cached, return the cached EVP_MD*.
     if (const EVP_MD* md = GetCachedMDByID(env, cache_id, cache)) return md;
   }
