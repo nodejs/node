@@ -473,6 +473,12 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
+  // Anything reaching this point is unauthenticated and may well be garbage,
+  // so DTLSv1_listen() failing is routine rather than exceptional. Discard
+  // whatever it queues instead of letting it accumulate across packets and
+  // resurface as a bogus error somewhere else on this thread.
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   // Stateless cookie exchange via DTLSv1_listen() for DoS protection.
   //
   // The standard OpenSSL DTLS server flow (see s_server.c) is:
