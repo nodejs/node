@@ -664,7 +664,7 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
 // as an uncaughtException. The exception must not still be pending when
 // control returns to OpenSSL, which goes on to build an alert and unwind
 // through Cycle()'s error path.
-void DTLSContext::ReportPSKError(SSL* ssl, const char* message) {
+void DTLSContext::ReportPSKError(SSL* ssl, std::string_view message) {
   DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
   if (session == nullptr) return;
 

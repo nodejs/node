@@ -14,6 +14,7 @@
 #include <openssl/ssl.h>
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -94,7 +95,7 @@ class DTLSContext final : public BaseObject {
   // Report a PSK callback that did not throw but gave back something
   // unusable. Returning 0 to OpenSSL is the "no PSK" signal, so without this
   // the caller's mistake arrives as a handshake failure naming no cause.
-  static void ReportPSKError(SSL* ssl, const char* message);
+  static void ReportPSKError(SSL* ssl, std::string_view message);
 
   DTLSContext* SelectSNIContextFromCallback(SSL* ssl, const char* servername);
   // Recover the context a callback without an argument slot belongs to.
