@@ -415,6 +415,12 @@ Immediately destroys the session without sending `close_notify`.
 
 * {Promise} Resolves with `{ protocol }` when the DTLS handshake completes.
 
+Rejects if the handshake fails, and also if the session is closed or
+destroyed before the handshake completes -- in that case with
+`ERR_INVALID_STATE`, or with the error passed to
+[`session.destroy()`][] if one was given. The promise always settles, so
+awaiting it cannot hang.
+
 ### `session.closed`
 
 * {Promise} Resolves when the session is fully closed.
@@ -711,3 +717,4 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`dtls.listen()`]: #dtlslistencallback-options
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`session.authorized`]: #sessionauthorized
+[`session.destroy()`]: #sessiondestroyerror
