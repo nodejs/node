@@ -107,6 +107,11 @@ added: REPLACEME
   * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
     abandoned. `0` disables it. **Default:** `60000`. See
     [Handshake timeout][].
+  * `ipv6Only` {boolean} When `true`, an IPv6 endpoint serves IPv6 only. When
+    `false`, binding `'::'` also accepts IPv4 peers, which arrive with mapped
+    addresses such as `'::ffff:203.0.113.1'` -- anything keyed on the peer
+    address, including `maxSessionsPerHost`, sees them in that form. Has no
+    effect on an IPv4 endpoint. **Default:** `false`.
   * `maxSessions` {number} The maximum number of concurrent sessions the
     endpoint will hold. Set to `0` for no limit. **Default:** `10000`.
   * `maxSessionsPerHost` {number} The maximum number of concurrent sessions

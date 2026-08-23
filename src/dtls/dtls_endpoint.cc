@@ -25,6 +25,7 @@
 namespace node {
 
 using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -96,6 +97,8 @@ Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getAddress", GetAddress);
     SetProtoMethod(isolate, tmpl, "setMTU", SetMTU);
     SetProtoMethod(
+        isolate, tmpl, "setSocketOptions", SetSocketOptions);
+    SetProtoMethod(
         isolate, tmpl, "setHandshakeTimeout", SetHandshakeTimeout);
     SetProtoMethod(
         isolate, tmpl, "setSessionLimits", SetSessionLimits);
@@ -125,6 +128,7 @@ void DTLSEndpoint::RegisterExternalReferences(
   registry->Register(GetStats);
   registry->Register(GetAddress);
   registry->Register(SetMTU);
+  registry->Register(SetSocketOptions);
   registry->Register(SetHandshakeTimeout);
   registry->Register(SetSessionLimits);
   registry->Register(DoSetCallbacks);
@@ -141,7 +145,7 @@ int DTLSEndpoint::Bind(const SocketAddress& address) {
   if (state_->bound) return UV_EALREADY;
 
   unsigned int flags = 0;
-  if (address.family() == AF_INET6) {
+  if (address.family() == AF_INET6 && ipv6_only_) {
     flags |= UV_UDP_IPV6ONLY;
   }
 
@@ -858,6 +862,16 @@ void DTLSEndpoint::SetMTU(const FunctionCallbackInfo<Value>& args) {
   // value once, when it builds its SSL. Not currently reachable after
   // construction -- JS calls this from the DTLSEndpoint constructor only.
   endpoint->mtu_ = mtu;
+}
+
+void DTLSEndpoint::SetSocketOptions(const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  // Validated in JavaScript, and read before Bind(), which is what applies
+  // them. The DTLSEndpoint constructor is the only caller.
+  CHECK(args[0]->IsBoolean());  // ipv6Only
+  endpoint->ipv6_only_ = args[0].As<Boolean>()->Value();
 }
 
 void DTLSEndpoint::SetHandshakeTimeout(

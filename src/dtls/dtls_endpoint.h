@@ -111,6 +111,8 @@ class DTLSEndpoint final : public HandleWrap {
   static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMTU(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSocketOptions(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetHandshakeTimeout(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionLimits(
@@ -187,6 +189,11 @@ class DTLSEndpoint final : public HandleWrap {
   // and MAC are counted. Read by DTLSSession when it creates its SSL, so a
   // change only affects sessions created afterwards.
   uint32_t mtu_ = 1200;
+
+  // Applied by Bind(). Dual stack unless asked otherwise, as in node:quic and
+  // node:dgram; this used to be forced on for every IPv6 address, so an
+  // endpoint on :: could not be reached over IPv4 at all.
+  bool ipv6_only_ = false;
 
   // Milliseconds a handshake may take before it is abandoned; 0 disables it.
   uint64_t handshake_timeout_ = 60000;
