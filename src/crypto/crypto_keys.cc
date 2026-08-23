@@ -1695,18 +1695,27 @@ void NativeKeyObject::Initialize(Environment* env, Local<Object> target) {
             NativeKeyObject::CreateNativeKeyObjectClass);
   SetMethod(
       env->context(), target, "getKeyObjectSlots", NativeKeyObject::GetSlots);
+  SetMethodNoSideEffect(
+      env->context(), target, "isKeyObject", NativeKeyObject::IsKeyObject);
 }
 
 void NativeKeyObject::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(NativeKeyObject::CreateNativeKeyObjectClass);
   registry->Register(NativeKeyObject::GetSlots);
+  registry->Register(NativeKeyObject::IsKeyObject);
   registry->Register(NativeKeyObject::New);
 }
 
 bool NativeKeyObject::HasInstance(Environment* env, Local<Value> value) {
   auto t = env->crypto_key_object_constructor_template();
   return !t.IsEmpty() && t->HasInstance(value);
+}
+
+void NativeKeyObject::IsKeyObject(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  args.GetReturnValue().Set(HasInstance(env, args[0]));
 }
 
 void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
