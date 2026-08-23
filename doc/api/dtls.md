@@ -118,20 +118,8 @@ added: REPLACEME
 * Returns: {DTLSEndpoint}
 
 Creates a DTLS server bound to the specified address and port. The server
-uses automatic HMAC-based cookie exchange for DoS protection.
-
-Cookie exchange proves a peer can receive at its claimed address, but it does
-not limit how many sessions that peer may then establish, and each session
-holds a TLS state machine, two buffers and a timer. `maxSessions` bounds the
-total; `maxSessionsPerHost` is what prevents one peer from taking all of it.
-A peer refused by either cap is answered with silence rather than an alert,
-because replying to an address that has not completed cookie exchange would
-create an amplification vector; a legitimate client retransmits and is
-admitted once there is room. Refusals are counted by
-[`endpointStats.serverRefusedCount`][].
-
-Deployments serving many clients behind a single NAT may need to raise
-`maxSessionsPerHost`.
+uses automatic HMAC-based cookie exchange for DoS protection. See
+[Denial of service][].
 
 ```mjs
 import { listen } from 'node:dtls';
@@ -221,7 +209,74 @@ session.onmessage = (data) => {
 };
 ```
 
-### Server Name Indication
+## `dtls.createSecureContext([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `alpn` {string\[]} ALPN protocols.
+  * `ca` {string|Buffer|Array} CA certificates in PEM format. When omitted,
+    the bundled default certificate authorities are used.
+  * `cert` {string|Buffer} Certificate in PEM format.
+  * `ciphers` {string} OpenSSL cipher suite list.
+  * `ecdhCurve` {string} Named curve or curve list for ECDH.
+  * `isServer` {boolean} Build a context for a server. **Default:** `false`.
+  * `key` {string|Buffer} Private key in PEM format.
+  * `passphrase` {string} Passphrase for `key`, if it is encrypted.
+  * `rejectUnauthorized` {boolean} Verification behaviour, as for
+    [`dtls.listen()`][] and [`dtls.connect()`][].
+  * `requestCert` {boolean} Request a certificate from the peer. Servers only.
+  * `sessionIdContext` {string} Session id context. Servers only.
+  * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
+  * `pskIdentityHint` {string} Identity hint to advertise. Servers only.
+  * `srtp` {string} SRTP profile list.
+  * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
+    endpoints and restarts. Servers only. See [Session resumption][].
+* Returns: {DTLSSecureContext}
+
+Creates a reusable secure context. Pass it to [`dtls.listen()`][] or
+[`dtls.connect()`][] as `secureContext` in place of the credential options.
+
+A context holds a parsed certificate and key and, when `ca` is given, its own
+certificate store; roughly 28 KiB in total. Building one per connection is
+therefore expensive in memory rather than in time -- two thousand of them cost
+about 54 MiB, against 2 MiB when a single context is shared. Clients opening
+many connections should build the context once.
+
+The peer identity checked during verification is **not** part of the context.
+It is bound to each connection from `servername` (or the host), so one context
+can be used against different peers and still reject the wrong certificate.
+
+`isServer` is fixed when the context is created, because it selects the
+underlying OpenSSL method. Passing a server context to [`dtls.connect()`][],
+or a client context to [`dtls.listen()`][], throws.
+
+```mjs
+import { connect, createSecureContext, listen } from 'node:dtls';
+import { readFileSync } from 'node:fs';
+
+const serverContext = createSecureContext({
+  cert: readFileSync('server-cert.pem'),
+  key: readFileSync('server-key.pem'),
+  isServer: true,
+});
+
+// One context, several endpoints.
+const a = listen(onsession, { secureContext: serverContext, port: 5684 });
+const b = listen(onsession, { secureContext: serverContext, port: 5685 });
+
+const clientContext = createSecureContext({
+  ca: readFileSync('ca-cert.pem'),
+});
+
+// One context, many connections, each verified against its own name.
+const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
+const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
+```
+
+## Server Name Indication
 
 An endpoint can serve more than one identity by giving `listen()` an `sni`
 map, or a function. Each key of a map is a host name and each value is either
@@ -303,81 +358,30 @@ callback: the session exists once the client's address is validated, which
 happens before the name is examined. It then fails like any other handshake
 failure.
 
-## `dtls.createSecureContext([options])`
+## Denial of service
 
-<!-- YAML
-added: REPLACEME
--->
+Cookie exchange proves a peer can receive at its claimed address, but it does
+not limit how many sessions that peer may then establish, and each session
+holds a TLS state machine, two buffers and a timer. `maxSessions` bounds the
+total; `maxSessionsPerHost` is what prevents one peer from taking all of it.
+A peer refused by either cap is answered with silence rather than an alert,
+because replying to an address that has not completed cookie exchange would
+create an amplification vector; a legitimate client retransmits and is
+admitted once there is room. Refusals are counted by
+[`endpointStats.serverRefusedCount`][].
 
-* `options` {Object}
-  * `alpn` {string\[]} ALPN protocols.
-  * `ca` {string|Buffer|Array} CA certificates in PEM format. When omitted,
-    the bundled default certificate authorities are used.
-  * `cert` {string|Buffer} Certificate in PEM format.
-  * `ciphers` {string} OpenSSL cipher suite list.
-  * `ecdhCurve` {string} Named curve or curve list for ECDH.
-  * `isServer` {boolean} Build a context for a server. **Default:** `false`.
-  * `key` {string|Buffer} Private key in PEM format.
-  * `passphrase` {string} Passphrase for `key`, if it is encrypted.
-  * `rejectUnauthorized` {boolean} Verification behaviour, as for
-    [`dtls.listen()`][] and [`dtls.connect()`][].
-  * `requestCert` {boolean} Request a certificate from the peer. Servers only.
-  * `sessionIdContext` {string} Session id context. Servers only.
-  * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
-  * `pskIdentityHint` {string} Identity hint to advertise. Servers only.
-  * `srtp` {string} SRTP profile list.
-  * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
-    endpoints and restarts. Servers only. See [Session resumption][].
-* Returns: {DTLSSecureContext}
+Deployments serving many clients behind a single NAT may need to raise
+`maxSessionsPerHost`.
 
-Creates a reusable secure context. Pass it to [`dtls.listen()`][] or
-[`dtls.connect()`][] as `secureContext` in place of the credential options.
-
-A context holds a parsed certificate and key and, when `ca` is given, its own
-certificate store; roughly 28 KiB in total. Building one per connection is
-therefore expensive in memory rather than in time -- two thousand of them cost
-about 54 MiB, against 2 MiB when a single context is shared. Clients opening
-many connections should build the context once.
-
-The peer identity checked during verification is **not** part of the context.
-It is bound to each connection from `servername` (or the host), so one context
-can be used against different peers and still reject the wrong certificate.
-
-`isServer` is fixed when the context is created, because it selects the
-underlying OpenSSL method. Passing a server context to [`dtls.connect()`][],
-or a client context to [`dtls.listen()`][], throws.
-
-```mjs
-import { connect, createSecureContext, listen } from 'node:dtls';
-import { readFileSync } from 'node:fs';
-
-const serverContext = createSecureContext({
-  cert: readFileSync('server-cert.pem'),
-  key: readFileSync('server-key.pem'),
-  isServer: true,
-});
-
-// One context, several endpoints.
-const a = listen(onsession, { secureContext: serverContext, port: 5684 });
-const b = listen(onsession, { secureContext: serverContext, port: 5685 });
-
-const clientContext = createSecureContext({
-  ca: readFileSync('ca-cert.pem'),
-});
-
-// One context, many connections, each verified against its own name.
-const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
-const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
-```
-
-### Handshake timeout
+## Handshake timeout
 
 A handshake that never finishes is abandoned after `handshakeTimeout`
 milliseconds, and its session error is `DTLS handshake timeout`.
 
 OpenSSL already gives up on its own, but only after twelve retransmits on a
 doubling backoff capped at 60 seconds -- around eight minutes in total. Until
-then the session holds its place against `maxSessions`,
+then the session holds its place against `maxSessions` (see
+[Denial of service][]),
 so handshakes that are started and abandoned can occupy an endpoint for the
 cost of starting them. That needs no spoofing: the peer completes the cookie
 exchange and then simply stops.
@@ -396,7 +400,7 @@ DTLS discards records it cannot authenticate rather than answering them
 with nothing in common produces silence rather than an alert. This timeout is
 what ends those.
 
-### Pre-shared keys
+## Pre-shared keys
 
 DTLS can authenticate with a key both peers already hold instead of a
 certificate (RFC 4279). This is how it is usually deployed to constrained
@@ -440,7 +444,7 @@ An exception thrown by the callback fails that handshake and is reported to
 the session's error handler. It does not reach the process as an uncaught
 exception.
 
-#### Cipher suites
+### Cipher suites
 
 The default cipher list excludes PSK, so giving `psk` without `ciphers`
 enables the PSK suites. Supplying `ciphers` disables that and uses exactly
@@ -466,7 +470,7 @@ security level lowered:
 listen(onsession, { port: 5684, psk, ciphers: 'PSK-AES128-CCM8@SECLEVEL=0' });
 ```
 
-#### Failure modes
+### Failure modes
 
 A wrong key does not produce an error. The identity only names the key, so the
 handshake proceeds and the two sides derive different secrets; the first
@@ -481,7 +485,7 @@ ended by [`handshakeTimeout`][], after 60 seconds by default.
 An identity the server does not recognise is refused outright, and the client
 sees the handshake fail.
 
-### Session resumption
+## Session resumption
 
 A resumed handshake skips the server's certificate, which matters more here
 than it does over TCP: the `Certificate` flight is fragmented across several
@@ -512,7 +516,7 @@ endpoint -- is not an error. The handshake simply proceeds in full, and
 The cookie exchange still happens for a resumed handshake, so resumption is not
 a way around the address validation described under [Denial of service][].
 
-#### Binding to the authenticated host
+### Binding to the authenticated host
 
 A session may only be resumed against the identity it was authenticated for --
 the `servername`, or the host when there is none. Reusing it for anything else
@@ -525,7 +529,7 @@ skip verification while appearing to succeed. For the same reason a `session`
 that did not come from [`session.session`][] is rejected outright: nothing
 records which identity it belongs to, so it cannot be checked.
 
-#### Ticket keys
+### Ticket keys
 
 The key that encrypts session tickets is generated at random for each context,
 so by default a ticket is only good for the endpoint that issued it and only
