@@ -1071,6 +1071,10 @@ void DTLSSession::WasReused(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(SSL_session_reused(session->ssl_.get()) == 1);
 }
 
+void DTLSSession::SetSNIContext(DTLSContext* context) {
+  sni_context_ = BaseObjectPtr<DTLSContext>(context);
+}
+
 void DTLSSession::SetPendingError(Local<Value> error) {
   pending_error_.Reset(env()->isolate(), error);
 }
@@ -1078,6 +1082,7 @@ void DTLSSession::SetPendingError(Local<Value> error) {
 void DTLSSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("remote_address", remote_address_);
   tracker->TrackField("context", context_);
+  tracker->TrackField("sni_context", sni_context_);
 }
 
 }  // namespace dtls

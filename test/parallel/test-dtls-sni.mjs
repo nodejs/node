@@ -26,6 +26,26 @@ const { connect, createSecureContext, listen } = dtls;
 
 const key = (name) => fixtures.readKey(name).toString();
 
+// Bounded, so a regression fails with something readable rather than hanging
+// until the runner gives up.
+async function within(promise, what, ms = 5000) {
+  const late = Symbol('late');
+  // The timer has to be cleared: left pending it holds the loop open for its
+  // full duration after the race is already decided.
+  let timer;
+  try {
+    const result = await Promise.race([
+      promise,
+      new Promise((resolve) => { timer = setTimeout(resolve, ms, late); }),
+    ]);
+    assert.notStrictEqual(result, late,
+                          `${what} did not happen within ${ms}ms`);
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const agent1Cert = key('agent1-cert.pem');
 const agent1Key = key('agent1-key.pem');
 // A second identity with a different subject, to tell them apart.
@@ -202,4 +222,175 @@ function servedCommonName(session) {
     ...base,
     sni: { 'a.example': createSecureContext({ ca: [key('ca1-cert.pem')] }) },
   }), { code: 'ERR_INVALID_ARG_VALUE' });
+}
+
+// A callback may be given instead of a map, for identities that are chosen
+// rather than enumerated. It returns the same two things a map entry holds.
+{
+  const prepared = createSecureContext({
+    cert: localhostCert, key: localhostKey, isServer: true,
+  });
+
+  const seen = [];
+  const endpoint = listen(() => {}, {
+    cert: agent1Cert,
+    key: agent1Key,
+    host: '127.0.0.1',
+    port: 0,
+    sni: (servername) => {
+      seen.push(servername);
+      if (servername === 'localhost') return prepared;
+      if (servername === 'agent1') return { cert: agent1Cert, key: agent1Key };
+      return undefined;
+    },
+  });
+
+  for (const [servername, expected] of [
+    ['agent1', 'CN=agent1'],            // An options bag.
+    ['localhost', 'CN=localhost'],      // A prepared context.
+  ]) {
+    const client = connect('127.0.0.1', endpoint.address.port, {
+      rejectUnauthorized: false, servername,
+    });
+    await client.opened;
+    assert.strictEqual(servedCommonName(client), expected);
+    await client.close();
+  }
+
+  // Declining is how a callback says a name is not served. It is refused the
+  // same way an unmatched map with no wildcard is, rather than quietly
+  // falling back to the endpoint's own certificate.
+  const refused = connect('127.0.0.1', endpoint.address.port, {
+    rejectUnauthorized: false, servername: 'no.such.host',
+  });
+  await assert.rejects(refused.opened, { name: 'Error' });
+
+  assert.deepStrictEqual(seen, ['agent1', 'localhost', 'no.such.host']);
+
+  await endpoint.close();
+}
+
+// A client that sends no SNI extension still reaches the callback, and is
+// told the name is absent rather than given an empty string it could not
+// tell apart from one.
+{
+  const seen = [];
+  const endpoint = listen(() => {}, {
+    cert: agent1Cert,
+    key: agent1Key,
+    host: '127.0.0.1',
+    port: 0,
+    sni: (servername) => {
+      seen.push(servername);
+      return { cert: agent1Cert, key: agent1Key };
+    },
+  });
+
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    rejectUnauthorized: false,
+  });
+  await client.opened;
+  assert.deepStrictEqual(seen, [undefined]);
+
+  await client.close();
+  await endpoint.close();
+}
+
+// A context the callback built is kept alive for as long as the session
+// needs it. Nothing else holds it: SSL_set_SSL_CTX() references the SSL_CTX
+// and not the object wrapping it, and a callback later in the handshake
+// resolves its configuration through the switched ctx and so lands on this
+// context rather than the endpoint's.
+//
+// This exercises the path under garbage collection, but does not reliably
+// fail without the retaining reference -- whether the object is collected
+// inside the handshake is not something the test can force. It is here to
+// exercise callback-built contexts, not as proof of the retention.
+{
+  const endpoint = listen(() => {}, {
+    cert: agent1Cert,
+    key: agent1Key,
+    host: '127.0.0.1',
+    port: 0,
+    // A fresh context every time, deliberately: none of them is reachable
+    // from JavaScript once the callback returns.
+    sni: () => ({ cert: localhostCert, key: localhostKey }),
+  });
+
+  for (let i = 0; i < 12; i++) {
+    const client = connect('127.0.0.1', endpoint.address.port, {
+      rejectUnauthorized: false, servername: `host-${i}.example`,
+    });
+    await client.opened;
+    assert.strictEqual(servedCommonName(client), 'CN=localhost');
+    globalThis.gc?.();
+    await client.close();
+  }
+
+  await endpoint.close();
+}
+
+// An exception from the callback fails that handshake and is reported to the
+// session, like any other handshake failure. It must not reach the process as
+// an uncaught exception.
+{
+  process.on('uncaughtException', mustNotCall());
+
+  const thrown = new Error('from the sni callback');
+  const seen = Promise.withResolvers();
+
+  const endpoint = listen((session) => {
+    session.onerror = (err) => seen.resolve(err);
+  }, {
+    cert: agent1Cert,
+    key: agent1Key,
+    host: '127.0.0.1',
+    port: 0,
+    sni: () => { throw thrown; },
+  });
+
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    rejectUnauthorized: false, servername: 'anything',
+  });
+  await assert.rejects(client.opened, { name: 'Error' });
+
+  // The user's own error, not something wrapped around it.
+  assert.strictEqual(await within(seen.promise, 'the session error'), thrown);
+
+  await endpoint.close();
+  process.removeAllListeners('uncaughtException');
+}
+
+// Validation of what a callback returns, which is checked the same way a map
+// entry is.
+{
+  const clientContext = createSecureContext({
+    cert: agent1Cert, key: agent1Key,
+  });
+
+  for (const [returned, code] of [
+    [clientContext, 'ERR_INVALID_ARG_VALUE'],  // Built for a client.
+    ['a string', 'ERR_INVALID_ARG_TYPE'],
+    [42, 'ERR_INVALID_ARG_TYPE'],
+  ]) {
+    const failed = Promise.withResolvers();
+    const endpoint = listen((session) => {
+      session.onerror = (err) => failed.resolve(err);
+    }, {
+      cert: agent1Cert,
+      key: agent1Key,
+      host: '127.0.0.1',
+      port: 0,
+      sni: () => returned,
+    });
+
+    const client = connect('127.0.0.1', endpoint.address.port, {
+      rejectUnauthorized: false, servername: 'anything',
+    });
+    await assert.rejects(client.opened, { name: 'Error' });
+    assert.strictEqual(
+      (await within(failed.promise, 'the session error')).code, code);
+
+    await endpoint.close();
+  }
 }
