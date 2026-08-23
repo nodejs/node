@@ -13,6 +13,8 @@
 #include <openssl/dtls1.h>
 #include <openssl/ssl.h>
 
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace node::dtls {
@@ -58,6 +60,12 @@ class DTLSContext final : public BaseObject {
   static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionIdContext(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSNIContexts(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Server Name Indication. Selection is a lookup in sni_contexts_ with no
+  // call into JavaScript, so a handshake never has to be suspended and
+  // re-entered the way node:tls does it.
+  static int SNISelectCallback(SSL* ssl, int* ad, void* arg);
 
   // Compute the address-and-time-window-bound cookie for |window| into |out|
   // (which must have room for EVP_MAX_MD_SIZE bytes). Shared by the cookie
@@ -102,6 +110,11 @@ class DTLSContext final : public BaseObject {
 
   // ALPN protocols (server-side selection list)
   std::vector<uint8_t> alpn_protos_;
+
+  // Host name -> context, for SNI. Empty unless the application supplied an
+  // sni map. The "*" key, if present, is the fallback for names that do not
+  // match; without it an unmatched name is refused.
+  std::unordered_map<std::string, BaseObjectPtr<DTLSContext>> sni_contexts_;
 };
 
 }  // namespace node::dtls

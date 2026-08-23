@@ -26,6 +26,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -112,6 +113,7 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "setECDHCurve", SetECDHCurve);
     SetProtoMethod(
         isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
+    SetProtoMethod(isolate, tmpl, "setSNIContexts", SetSNIContexts);
 
     env->set_dtls_context_constructor_template(tmpl);
   }
@@ -138,6 +140,7 @@ void DTLSContext::RegisterExternalReferences(
   registry->Register(LoadDefaultCAs);
   registry->Register(SetECDHCurve);
   registry->Register(SetSessionIdContext);
+  registry->Register(SetSNIContexts);
 }
 
 // new DTLSContext(isServer)
@@ -433,6 +436,92 @@ void DTLSContext::SetSessionIdContext(
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Failed to set session id context");
   }
+}
+
+// The wildcard key: the identity used when no host name matches.
+constexpr const char* kSNIWildcard = "*";
+
+int DTLSContext::SNISelectCallback(SSL* ssl, int* ad, void* arg) {
+  auto* ctx = static_cast<DTLSContext*>(arg);
+
+  const char* servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+
+  auto it = servername != nullptr ? ctx->sni_contexts_.find(servername)
+                                  : ctx->sni_contexts_.end();
+  if (it == ctx->sni_contexts_.end()) {
+    it = ctx->sni_contexts_.find(kSNIWildcard);
+  }
+
+  if (it == ctx->sni_contexts_.end()) {
+    // Configuring an sni map without a "*" entry is a statement that only
+    // the named hosts are served, so refuse anything else rather than
+    // falling back to the endpoint's own certificate.
+    *ad = SSL_AD_UNRECOGNIZED_NAME;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
+
+  SSL_CTX* selected = it->second->ssl_ctx();
+  if (SSL_set_SSL_CTX(ssl, selected) != selected) {
+    *ad = SSL_AD_INTERNAL_ERROR;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
+
+  // Nothing further is needed. node:tls follows SSL_set_SSL_CTX() with
+  // SSL_set1_verify_cert_store() and a duplicated client-CA list, which
+  // suggests the switch leaves verification behind; it does not.
+  // SSL_set_SSL_CTX() reassigns ssl->ctx (ssl_lib.c), and both the
+  // verification store and the client-CA list are read through it, so they
+  // move with the certificate. Adding the calls anyway changed no observed
+  // behaviour: an SNI identity trusting only ca2 rejects a ca1 client
+  // either way.
+  //
+  // Verify mode is deliberately not touched. requestCert and
+  // rejectUnauthorized belong to the endpoint rather than the identity and
+  // are configured once on its own context.
+  return SSL_TLSEXT_ERR_OK;
+}
+
+void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
+  DTLSContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+  Environment* env = ctx->env();
+
+  CHECK(args[0]->IsArray());
+  Local<Array> entries = args[0].As<Array>();
+
+  // Built to one side and swapped in, so a failure part way through cannot
+  // leave the context serving a half-populated map.
+  std::unordered_map<std::string, BaseObjectPtr<DTLSContext>> next;
+
+  uint32_t length = entries->Length();
+  for (uint32_t i = 0; i < length; i += 2) {
+    Local<Value> host;
+    Local<Value> value;
+    if (!entries->Get(env->context(), i).ToLocal(&host) ||
+        !entries->Get(env->context(), i + 1).ToLocal(&value)) {
+      return;
+    }
+
+    CHECK(host->IsString());
+    CHECK(value->IsObject());
+
+    DTLSContext* entry;
+    ASSIGN_OR_RETURN_UNWRAP(&entry, value.As<Object>());
+
+    Utf8Value hostname(env->isolate(), host);
+    next[*hostname] = BaseObjectPtr<DTLSContext>(entry);
+  }
+
+  ctx->sni_contexts_ = std::move(next);
+
+  if (ctx->sni_contexts_.empty()) {
+    SSL_CTX_set_tlsext_servername_callback(ctx->ctx_.get(), nullptr);
+    SSL_CTX_set_tlsext_servername_arg(ctx->ctx_.get(), nullptr);
+    return;
+  }
+
+  SSL_CTX_set_tlsext_servername_callback(ctx->ctx_.get(), SNISelectCallback);
+  SSL_CTX_set_tlsext_servername_arg(ctx->ctx_.get(), ctx);
 }
 
 void DTLSContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
