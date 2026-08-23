@@ -24,6 +24,7 @@ const { connect, listen } = dtls;
 const KEY = Buffer.from('0123456789abcdef');
 const OTHER = Buffer.from('fedcba9876543210');
 const HOST = '127.0.0.1';
+const PSK_CIPHER = 'PSK-AES128-CCM8@SECLEVEL=0';
 
 const readKey = (name) => fixtures.readKey(name).toString();
 
@@ -420,6 +421,47 @@ function open(endpoint, options) {
     servername: 'a.example',
   });
   await assert.rejects(refused.opened, { name: 'Error' });
+
+  await server.close();
+}
+
+// A psk callback that gives back something unusable says so.
+//
+// Returning 0 is how OpenSSL is told there is no PSK, and it was also what
+// every one of these took, so a mistake in the callback arrived as
+// "error:0A0000DF:SSL routines::psk identity not found" -- the same string
+// for all of them, naming nothing the caller had done.
+{
+  const server = listen(() => {}, {
+    psk: () => ({ key: KEY }),
+    pskIdentityHint: 'hint',
+    host: HOST,
+    port: 0,
+    ciphers: PSK_CIPHER,
+  });
+
+  const cases = [
+    [() => 42, /must return an object/],
+    [() => ({ key: KEY }), /string 'identity'/],
+    [() => ({ identity: 7, key: KEY }), /string 'identity'/],
+    [() => ({ identity: 'a', key: 'not a view' }), /string 'identity'/],
+    [() => ({ identity: 'x'.repeat(9000), key: KEY }), /identity is too long/],
+    [() => ({ identity: 'a', key: Buffer.alloc(9000) }), /key is too long/],
+  ];
+
+  for (const [psk, expected] of cases) {
+    const session = connect(HOST, server.address.port, {
+      psk,
+      ciphers: PSK_CIPHER,
+      handshakeTimeout: 5000,
+    });
+    const error = await session.opened.then(() => null, (e) => e);
+    assert.ok(error, 'the handshake should not have completed');
+    assert.match(error.message, expected);
+    // Not the opaque OpenSSL failure these all used to produce.
+    assert.doesNotMatch(error.message, /psk identity not found/);
+    session.destroy();
+  }
 
   await server.close();
 }

@@ -29,6 +29,7 @@ namespace node {
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
+using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -666,6 +667,17 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
 // as an uncaughtException. The exception must not still be pending when
 // control returns to OpenSSL, which goes on to build an alert and unwind
 // through Cycle()'s error path.
+void DTLSContext::ReportPSKError(SSL* ssl, const char* message) {
+  DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
+  if (session == nullptr) return;
+
+  Environment* env = session->env();
+  HandleScope scope(env->isolate());
+  Local<String> str;
+  if (!String::NewFromUtf8(env->isolate(), message).ToLocal(&str)) return;
+  session->SetPendingError(Exception::TypeError(str));
+}
+
 void DTLSContext::ReportCallbackError(SSL* ssl, TryCatch* try_catch) {
   if (!try_catch->HasCaught() || try_catch->HasTerminated()) return;
 
@@ -784,7 +796,10 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
       ctx->ReportCallbackError(ssl, &try_catch);
       return 0;
     }
-    if (!ret->IsObject()) return 0;
+    if (!ret->IsObject()) {
+      ReportPSKError(ssl, "The psk callback must return an object");
+      return 0;
+    }
 
     // Reading these can throw: the object is whatever the callback returned,
     // so a getter or a Proxy trap runs here. Report it rather than returning
@@ -801,7 +816,12 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
       ctx->ReportCallbackError(ssl, &try_catch);
       return 0;
     }
-    if (!id_val->IsString() || !key_val->IsArrayBufferView()) return 0;
+    if (!id_val->IsString() || !key_val->IsArrayBufferView()) {
+      ReportPSKError(ssl,
+                     "The psk callback must return an object with a string "
+                     "'identity' and a TypedArray or DataView 'key'");
+      return 0;
+    }
 
     Utf8Value id(env->isolate(), id_val);
     ArrayBufferViewContents<unsigned char> key(key_val.As<ArrayBufferView>());
@@ -809,11 +829,20 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
     use_key.assign(key.data(), key.data() + key.length());
   }
 
+  // Returning 0 is how OpenSSL is told there is no PSK, so each of these
+  // would otherwise reach the caller as a handshake that failed for no stated
+  // reason. An empty identity or key is the one case that really is "no PSK".
   if (use_identity.empty() || use_key.empty()) return 0;
   // The identity is written as a C string, so it needs room for the
   // terminator OpenSSL expects.
-  if (use_identity.size() + 1 > max_identity_len) return 0;
-  if (use_key.size() > max_psk_len) return 0;
+  if (use_identity.size() + 1 > max_identity_len) {
+    ReportPSKError(ssl, "The psk identity is too long for this handshake");
+    return 0;
+  }
+  if (use_key.size() > max_psk_len) {
+    ReportPSKError(ssl, "The psk key is too long for this handshake");
+    return 0;
+  }
 
   memcpy(identity, use_identity.c_str(), use_identity.size() + 1);
   memcpy(psk, use_key.data(), use_key.size());
