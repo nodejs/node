@@ -1551,6 +1551,10 @@ link(2) documentation for more detail.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -1561,6 +1565,8 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
@@ -2091,6 +2097,10 @@ Removes files and directories (modeled on the standard POSIX `rm` utility).
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61178
     description: Accepts a `throwIfNoEntry` option to specify whether
@@ -2108,6 +2118,8 @@ changes:
   * `throwIfNoEntry` {boolean} Whether an exception will be thrown
     if no file system entry exists, rather than returning `undefined`.
     **Default:** `true`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the
   given `path`.
 
@@ -3448,6 +3460,10 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.95
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3471,6 +3487,8 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -3815,6 +3833,10 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3842,6 +3864,8 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
