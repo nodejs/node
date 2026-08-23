@@ -640,7 +640,7 @@ added: REPLACEME
 * Type: {DTLSEndpoint.Stats}
 
 The statistics collected for this endpoint. Read only. The stats object is
-live and updated by the C++ internals as data flows through the endpoint.
+live and updated data flows through the endpoint.
 
 ### `endpoint.busy`
 
