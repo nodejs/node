@@ -93,6 +93,7 @@ class DTLSEndpoint final : public HandleWrap {
 
   bool is_listening() const { return listening_; }
   uint32_t mtu() const { return mtu_; }
+  uint64_t handshake_timeout() const { return handshake_timeout_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(DTLSEndpoint)
@@ -110,6 +111,8 @@ class DTLSEndpoint final : public HandleWrap {
   static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMTU(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetHandshakeTimeout(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionLimits(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoSetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -184,6 +187,9 @@ class DTLSEndpoint final : public HandleWrap {
   // and MAC are counted. Read by DTLSSession when it creates its SSL, so a
   // change only affects sessions created afterwards.
   uint32_t mtu_ = 1200;
+
+  // Milliseconds a handshake may take before it is abandoned; 0 disables it.
+  uint64_t handshake_timeout_ = 60000;
 
   // Caps on accepted server sessions. Zero means unlimited.
   uint32_t max_sessions_ = 0;

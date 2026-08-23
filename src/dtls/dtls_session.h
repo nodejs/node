@@ -176,6 +176,9 @@ class DTLSSession final : public AsyncWrap {
   void SetPendingError(v8::Local<v8::Value> error);
 
  private:
+  bool HandshakeDeadlineExpired() const;
+  void EmitHandshakeTimeout();
+
   // Emit a callback to JS via the endpoint's callback dispatch.
   v8::MaybeLocal<v8::Value> EmitCallback(int cb_index,
                                          int argc,
@@ -200,6 +203,17 @@ class DTLSSession final : public AsyncWrap {
   int cycle_depth_ = 0;
 
   v8::Global<v8::Value> pending_error_;
+
+  // Absolute time by which the handshake must finish, or 0 for no limit.
+  //
+  // OpenSSL already gives up on its own, but only after DTLS1_TMO_ALERT_COUNT
+  // retransmits on a doubling backoff capped at 60s -- measured at roughly
+  // eight minutes, which is a long time to hold a slot against maxSessions.
+  // This bounds it without touching the retransmission schedule, which has to
+  // stay as it is: compressing it to force earlier failure would cause
+  // spurious retransmits on exactly the lossy links DTLS is for. Whichever
+  // limit trips first ends the handshake.
+  uint64_t handshake_deadline_ = 0;
 
   // The context this session was created from, kept alive for as long as the
   // session is. SSL_new() takes a reference to the SSL_CTX but not to the
