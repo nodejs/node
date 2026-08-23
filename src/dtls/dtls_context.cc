@@ -38,7 +38,12 @@ using v8::Value;
 namespace dtls {
 
 namespace {
-// The cookie secret is 32 bytes (256 bits).
+// The cookie secret is 32 bytes (256 bits), generated once per context and
+// not rotated. Rotation would need the previous secret kept alive to validate
+// cookies already in flight, which is the job the time window below already
+// does: a cookie stops verifying once its window passes, whatever the secret.
+// A fresh secret is generated on every context, so a restart invalidates
+// outstanding cookies too.
 constexpr size_t kCookieSecretLen = 32;
 // Cookies are bound to a coarse time window so they expire. A cookie is
 // accepted for the window it was minted in and the immediately preceding one,
@@ -471,7 +476,19 @@ size_t CanonicalizeAddress(const sockaddr* sa, unsigned char* out) {
 }
 
 // HMAC-SHA256 cookie derived from the peer's address and a coarse time window
-// so cookies expire (see kCookieWindowNs). During DTLSv1_listen() the peer
+// so cookies expire (see kCookieWindowNs).
+//
+// The cookie is not bound to the ClientHello, which RFC 6347 section 4.2.1
+// recommends, so within one window a cookie issued to an address is accepted
+// for any handshake attempt from that address. The cookie's purpose --
+// proving the peer can receive at the address it claims, so the handshake
+// cannot be used to amplify traffic at a third party -- is unaffected by
+// that. Binding it via SSL_get_client_random() was tried and does not work:
+// the random is not populated consistently across the generate and verify
+// callbacks during DTLSv1_listen(), and every handshake fails with a
+// handshake_failure alert. Doing it would mean lifting the 32-byte random out
+// of the raw ClientHello, which CouldBeClientHello() already walks, and
+// stashing it next to current_cookie_peer_. During DTLSv1_listen() the peer
 // address comes from DTLSContext::current_cookie_peer_ (set synchronously
 // before the call); during the session handshake it comes from the
 // DTLSSession stored in SSL app_data.
