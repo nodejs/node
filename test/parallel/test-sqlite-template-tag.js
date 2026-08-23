@@ -298,22 +298,22 @@ test('sql.db returns the associated DatabaseSync instance', () => {
 test('sql error messages are descriptive', () => {
   assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'test'})`.changes, 1);
 
-  // Test with non-existent column
-  assert.throws(() => {
-    const result = sql.get`SELECT nonexistent_column FROM foo`;
-    assert.fail(`Expected error, got: ${JSON.stringify(result)}`);
-  }, {
+  assert.throws(() => sql.get`SELECT nonexistent_column FROM foo`, {
+    name: 'Error',
     code: 'ERR_SQLITE_ERROR',
-    message: /no such column/i,
+    message: 'Failed to prepare statement',
+    errcode: 1,
+    errstr: 'SQL logic error',
+    errmsg: /no such column/i,
   });
 
-  // Test with non-existent table
-  assert.throws(() => {
-    const result = sql.get`SELECT * FROM nonexistent_table`;
-    assert.fail(`Expected error, got: ${JSON.stringify(result)}`);
-  }, {
+  assert.throws(() => sql.get`SELECT * FROM nonexistent_table`, {
+    name: 'Error',
     code: 'ERR_SQLITE_ERROR',
-    message: /no such table/i,
+    message: 'Failed to prepare statement',
+    errcode: 1,
+    errstr: 'SQL logic error',
+    errmsg: /no such table/i,
   });
 });
 
@@ -384,13 +384,18 @@ test('cached statements are finalized when the database is closed', () => {
   db.open();
 
   assert.throws(() => sql.all`SELECT id FROM foo`, {
+    name: 'Error',
     code: 'ERR_SQLITE_ERROR',
-    message: /no such table/i,
+    message: 'Failed to prepare statement',
+    errcode: 1,
+    errstr: 'SQL logic error',
+    errmsg: 'no such table: foo'
   });
 });
 
 test('failed prepares throw', () => {
   assert.throws(() => {
+    // eslint-disable-next-line no-unused-expressions
     sql.all`SELECT * FROM does_not_exist`;
   }, {
     name: 'Error',
