@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: a server is told when an incoming handshake fails.
 //
@@ -20,6 +20,12 @@ if (!process.features.dtls) {
 }
 
 const dtls = await import('node:dtls');
+
+// The state and sessions views are not public API; they are reached here the
+// way node:quic's tests reach theirs.
+const {
+  getDTLSEndpointState,
+} = (await import('internal/dtls/dtls')).default;
 const { connect, listen } = dtls;
 
 const HOST = '127.0.0.1';
@@ -134,7 +140,7 @@ const privateKey = key('agent1-key.pem');
     new Promise((resolve) => setTimeout(resolve, 300, pending)),
   ]);
 
-  assert.strictEqual(Number(endpoint.state.sessionCount), 0);
+  assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 0);
 
   // Still serving.
   const good = connect(HOST, endpoint.address.port, {

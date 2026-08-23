@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: DTLSEndpoint/DTLSSession state fields and callback accessors reflect
 // what is set and the connection lifecycle.
@@ -19,6 +19,12 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
+// The state view is not public API; reached the way node:quic's tests do.
+const {
+  getDTLSEndpointState,
+  getDTLSSessionState,
+} = (await import('internal/dtls/dtls')).default;
+
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
@@ -30,7 +36,7 @@ const server = listen(mustCall((session) => {
 }), { cert, key, port: 0, host: '127.0.0.1' });
 
 // --- Endpoint state after listen(): bound and listening. ---
-const es = server.state;
+const es = getDTLSEndpointState(server);
 assert.strictEqual(es.bound, true);
 assert.strictEqual(es.listening, true);
 assert.strictEqual(es.closing, false);
@@ -58,7 +64,7 @@ const client = connect('127.0.0.1', server.address.port, {
 });
 
 // --- Session state during the handshake. ---
-const cs = client.state;
+const cs = getDTLSSessionState(client);
 assert.strictEqual(cs.handshaking, true);
 assert.strictEqual(cs.open, false);
 assert.strictEqual(cs.closing, false);

@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: handshake timeout.
 //
@@ -21,6 +21,13 @@ if (!process.features.dtls) {
 }
 
 const dtls = await import('node:dtls');
+
+// The state and sessions views are not public API; they are reached here the
+// way node:quic's tests reach theirs.
+const {
+  getDTLSEndpointState,
+  getDTLSSessionState,
+} = (await import('internal/dtls/dtls')).default;
 const { connect, listen } = dtls;
 
 const HOST = '127.0.0.1';
@@ -90,10 +97,10 @@ function serve(options = {}) {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 150));
-  assert.strictEqual(Number(endpoint.state.sessionCount), 3);
+  assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 3);
 
   await new Promise((resolve) => setTimeout(resolve, 600));
-  assert.strictEqual(Number(endpoint.state.sessionCount), 0);
+  assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 0);
 
   // And the endpoint is usable again.
   const good = connect(HOST, endpoint.address.port, {
@@ -117,7 +124,7 @@ function serve(options = {}) {
   await client.opened;
 
   await new Promise((resolve) => setTimeout(resolve, 600));
-  assert.strictEqual(client.state.destroyed, false);
+  assert.strictEqual(getDTLSSessionState(client).destroyed, false);
 
   // Still usable well after the deadline would have passed.
   const echoed = Promise.withResolvers();
@@ -188,7 +195,7 @@ function serve(options = {}) {
     handshakeTimeout: 5000,
   });
   await resumed.opened;
-  assert.strictEqual(resumed.state.destroyed, false);
+  assert.strictEqual(getDTLSSessionState(resumed).destroyed, false);
 
   await resumed.close();
   await endpoint.close();
