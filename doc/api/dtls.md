@@ -78,6 +78,8 @@ added: REPLACEME
     [`dtls.createSecureContext()`][] to use instead of building one from the
     credential options below. Must have been created with `isServer: true`.
     Cannot be combined with any option the context already carries.
+  * `sni` {Object} Server Name Indication. Maps host names to the identity to
+    serve them with. See [Server Name Indication][].
   * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
     Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
     a string, matching [`tls.createSecureContext()`][].
@@ -209,6 +211,61 @@ session.onmessage = (data) => {
   console.log('Received:', data.toString());
 };
 ```
+
+### Server Name Indication
+
+An endpoint can serve more than one identity by giving `listen()` an `sni`
+map. Each key is a host name and each value is either a
+[`DTLSSecureContext`][] created with `isServer: true`, or a plain object of
+the same options [`dtls.createSecureContext()`][] takes:
+
+```mjs
+import { createSecureContext, listen } from 'node:dtls';
+import { readFileSync } from 'node:fs';
+
+const endpoint = listen(onsession, {
+  cert: readFileSync('default-cert.pem'),
+  key: readFileSync('default-key.pem'),
+  port: 5684,
+  sni: {
+    'api.example.com': {
+      cert: readFileSync('api-cert.pem'),
+      key: readFileSync('api-key.pem'),
+    },
+    'www.example.com': createSecureContext({
+      cert: readFileSync('www-cert.pem'),
+      key: readFileSync('www-key.pem'),
+      isServer: true,
+    }),
+    '*': {
+      cert: readFileSync('default-cert.pem'),
+      key: readFileSync('default-key.pem'),
+    },
+  },
+});
+```
+
+The `'*'` key is the fallback, used when the client's name matches nothing and
+when the client sends no name at all. **Without it, an unmatched name is
+refused with an `unrecognized_name` alert** rather than falling back to the
+endpoint's own `cert` and `key`; providing an `sni` map is taken to mean that
+only the names in it are served. [`tls.createServer()`][] differs here: its
+`SNICallback` falls back to the default identity silently.
+
+Verification follows the selected identity, so an entry carrying its own `ca`
+accepts only client certificates issued under it. `requestCert` and
+`rejectUnauthorized` are not per-identity: they belong to the endpoint and
+apply to every name it serves.
+
+Unlike [`tls.createServer()`][] there is no callback, and therefore no
+asynchronous selection. Choosing an identity is a lookup performed while the
+handshake runs, and suspending a DTLS handshake to wait for JavaScript would
+leave the peer retransmitting. Build the map up front.
+
+A connection refused for an unrecognized name still reaches the `listen()`
+callback: the session exists once the client's address is validated, which
+happens before the name is examined. It then fails like any other handshake
+failure.
 
 ## `dtls.createSecureContext([options])`
 
@@ -859,7 +916,9 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [Permission Model]: permissions.md#permission-model
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
 [RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
+[Server Name Indication]: #server-name-indication
 [`DTLSEndpoint`]: #class-dtlsendpoint
+[`DTLSSecureContext`]: #class-dtlssecurecontext
 [`X509Certificate`]: crypto.md#class-x509certificate
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.createSecureContext()`]: #dtlscreatesecurecontextoptions
@@ -876,3 +935,4 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`tls.TLSSocket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
 [`tls.TLSSocket.getPeerX509Certificate()`]: tls.md#tlssocketgetpeerx509certificate
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
+[`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
