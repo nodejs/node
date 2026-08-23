@@ -24,6 +24,11 @@ namespace node::dtls {
 // ALPN, and automatic cookie generation/verification for servers.
 class DTLSContext final : public BaseObject {
  public:
+  // Whether a value is a DTLSContext. ASSIGN_OR_RETURN_UNWRAP only DCHECKs
+  // the internal field count, so in a release build it will happily
+  // reinterpret some other BaseObject as this one.
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void InitPerContext(v8::Local<v8::Object> target,
