@@ -507,6 +507,7 @@
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
   V(crypto_internal_cryptokey_constructor, v8::Function)                       \
+  V(crypto_internal_x509_certificate_constructor, v8::Function)                \
   V(crypto_key_object_private_constructor, v8::Function)                       \
   V(crypto_key_object_public_constructor, v8::Function)                        \
   V(crypto_key_object_secret_constructor, v8::Function)                        \
