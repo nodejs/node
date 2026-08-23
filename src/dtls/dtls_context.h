@@ -93,8 +93,6 @@ class DTLSContext final : public BaseObject {
   static void ReportCallbackError(SSL* ssl, v8::TryCatch* try_catch);
 
   DTLSContext* SelectSNIContextFromCallback(SSL* ssl, const char* servername);
-  size_t sni_contexts_size() const { return sni_contexts_.size(); }
-
   // Recover the context a callback without an argument slot belongs to.
   static DTLSContext* FromSSL(SSL* ssl);
 
