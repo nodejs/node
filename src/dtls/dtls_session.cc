@@ -64,16 +64,25 @@ static_assert(IDX_SESSION_STATE_COUNT == sizeof(DTLSSessionStateData));
 namespace {
 // Format the OpenSSL error queue into a human readable message.
 //
-// Only the first (oldest, and therefore most specific) entry is rendered; the
-// remainder are left for the enclosing MarkPopErrorOnReturn to discard. An
-// SSL_ERROR_SSL can be reported with nothing queued -- ERR_error_string_n()
-// renders 0 as "error:00000000:lib(0)::reason(0)", which tells nobody
-// anything -- so fall back to a description of the SSL error code instead.
+// The most recently queued entry is rendered and the queue is left alone for
+// the enclosing MarkPopErrorOnReturn to unwind.
+//
+// Peeked at the top rather than taken from the bottom. ERR_get_error() pops
+// the oldest entry in the whole queue, which is not necessarily one of ours:
+// MarkPopErrorOnReturn records a position to unwind to, it does not empty the
+// queue on the way in, so anything already there is below the mark and comes
+// out first. An SSL_ERROR_SSL means this operation queued at least one entry,
+// and the newest is certainly it.
+//
+// An SSL_ERROR_SSL can also be reported with nothing queued --
+// ERR_error_string_n() renders 0 as "error:00000000:lib(0)::reason(0)", which
+// tells nobody anything -- so fall back to a description of the SSL error
+// code instead.
 std::string FormatSSLError(int ssl_err) {
-  unsigned long first = ERR_get_error();  // NOLINT(runtime/int)
-  if (first != 0) {
+  unsigned long last = ERR_peek_last_error();  // NOLINT(runtime/int)
+  if (last != 0) {
     char buf[256];
-    ERR_error_string_n(first, buf, sizeof(buf));
+    ERR_error_string_n(last, buf, sizeof(buf));
     return buf;
   }
   switch (ssl_err) {
