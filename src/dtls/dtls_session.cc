@@ -433,6 +433,7 @@ void DTLSSession::Cycle() {
   // fail, which is every keylog exception and any PSK or SNI exception the
   // handshake recovered from.
   EmitPendingError();
+  EmitSendError();
 }
 
 void DTLSSession::CycleInner() {
@@ -598,7 +599,16 @@ void DTLSSession::EncOut() {
     buf.AllocateSufficientStorage(pending);
     int read = BIO_read(enc_out_, buf.out(), pending);
     if (read <= 0) break;
-    ep->SendTo(remote_address_, buf.out(), read);
+    int err = ep->SendTo(remote_address_, buf.out(), read);
+    if (err != 0) {
+      // A record that cannot be sent will not be retransmitted into
+      // existence: EMSGSIZE means the MTU is wrong for this path and
+      // ENETUNREACH means there is no path. Both used to present as a
+      // handshake that went quiet until the timeout. Keep the first, since
+      // the rest of the flight will fail the same way.
+      if (send_error_ == 0) send_error_ = err;
+      break;
+    }
   }
 }
 
@@ -789,6 +799,21 @@ void DTLSSession::SSLKeylogCallback(const SSL* ssl, const char* line) {
     try_catch.Reset();
     session->SetPendingError(exception);
   }
+}
+
+void DTLSSession::EmitSendError() {
+  if (send_error_ == 0 || destroyed_) return;
+  int err = send_error_;
+  send_error_ = 0;
+
+  HandleScope handle_scope(env()->isolate());
+  Local<String> message;
+  if (!String::NewFromUtf8(env()->isolate(), uv_strerror(err))
+           .ToLocal(&message)) {
+    return;
+  }
+  Local<Value> argv[] = {message};
+  EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
 }
 
 void DTLSSession::EmitPendingError() {
