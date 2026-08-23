@@ -42,6 +42,20 @@ tests in child processes instead:
 WPT_BACKEND=process tools/test.py wpt
 ```
 
+### Debugging a test
+
+Set `WPT_INSPECT=1` to run one generated main-thread test in a child process
+with `--inspect-brk` on an available port:
+
+```bash
+WPT_INSPECT=1 out/Release/node test/wpt/test-compression.js \
+  'compression/compression-bad-chunks.any.html'
+```
+
+Connect an inspector client to the URL printed on stderr. A source file that
+generates multiple tests is rejected with the exact paths to choose from.
+Worker tests are not supported by inspect mode.
+
 <a id="add-tests"></a>
 
 ## How to add tests for a new module
@@ -96,6 +110,7 @@ selected backend.
     that require sequential execution (e.g. web-locks, webstorage).
   * `backend` {string} Test execution backend. Must be either `'thread'` or
     `'process'`. Defaults to `'thread'`. `WPT_BACKEND` overrides this option.
+    `WPT_INSPECT` always uses `'process'`.
 
 #### `runner.setFlags(flags)`
 
