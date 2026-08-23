@@ -50,6 +50,7 @@ namespace node::crypto {
 constexpr size_t kSizeOf_DH = 144;
 constexpr size_t kSizeOf_EC_KEY = 80;
 constexpr size_t kSizeOf_EVP_CIPHER_CTX = 168;
+constexpr size_t kSizeOf_EVP_MAC_CTX = 16;
 constexpr size_t kSizeOf_EVP_MD_CTX = 48;
 constexpr size_t kSizeOf_EVP_PKEY = 72;
 constexpr size_t kSizeOf_EVP_PKEY_CTX = 80;

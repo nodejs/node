@@ -7200,6 +7200,79 @@ EVPMacPointer EVPMacPointer::Fetch(const char* algorithm) {
   return EVPMacPointer(EVP_MAC_fetch(nullptr, algorithm, nullptr));
 }
 
+MacKind MacCache::GetKind(EVP_MAC* mac) {
+  if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_HMAC)) return MacKind::kHmac;
+  if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_CMAC)) return MacKind::kCmac;
+  if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_GMAC)) return MacKind::kGmac;
+  return MacKind::kOther;
+}
+
+MacCache::Result MacCache::lookup(const char* name, uint64_t generation) const {
+  if (generation_ != generation || name == nullptr) return {};
+  const auto it = aliases_.find(name);
+  if (it == aliases_.end()) return {};
+  return lookup(it->second, generation);
+}
+
+MacCache::Result MacCache::insert(const char* name,
+                                  EVPMacPointer&& mac,
+                                  uint64_t generation) {
+  if (generation_ != generation || generation != getFipsStateGeneration() ||
+      name == nullptr || mac == nullptr) {
+    return {};
+  }
+
+  const char* canonical_name = EVP_MAC_get0_name(mac.get());
+  const OSSL_PROVIDER* provider = EVP_MAC_get0_provider(mac.get());
+  if (canonical_name == nullptr || provider == nullptr) return {};
+
+  for (size_t index = 0; index < macs_.size(); index++) {
+    EVP_MAC* cached = macs_[index].mac.get();
+    if (cached == nullptr) continue;
+    const char* cached_name = EVP_MAC_get0_name(cached);
+    if (EVP_MAC_get0_provider(cached) == provider && cached_name != nullptr &&
+        CaseInsensitiveNameEqual()(cached_name, canonical_name)) {
+      if (generation != getFipsStateGeneration()) return {};
+      const int32_t id = static_cast<int32_t>(first_id_ + index);
+      aliases_.insert_or_assign(name, id);
+      return {cached, id, macs_[index].kind};
+    }
+  }
+
+  if (next_id_ == UINT32_MAX) return {};
+
+  std::vector<std::string> aliases;
+  {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (EVP_MAC_names_do_all(mac.get(), PushAlgorithmAlias, &aliases) != 1) {
+      return {};
+    }
+  }
+  if (generation != getFipsStateGeneration()) return {};
+
+  const MacKind kind = GetKind(mac.get());
+  macs_.push_back({std::move(mac), kind});
+  const int32_t id = static_cast<int32_t>(next_id_++);
+  const size_t index = macs_.size() - 1;
+
+  for (const std::string& alias : aliases) aliases_.emplace(alias, id);
+  aliases_.insert_or_assign(name, id);
+
+  return {macs_[index].mac.get(), id, kind};
+}
+
+void MacCache::reset(uint64_t generation) {
+  if (generation_ == generation) return;
+  aliases_.clear();
+  macs_.clear();
+  first_id_ = next_id_;
+  generation_ = generation;
+}
+
+const MacCache::AliasMap& MacCache::aliases() const {
+  return aliases_;
+}
+
 EVPMacCtxPointer::EVPMacCtxPointer(EVP_MAC_CTX* ctx) : ctx_(ctx) {}
 
 EVPMacCtxPointer::EVPMacCtxPointer(EVPMacCtxPointer&& other) noexcept
@@ -7227,22 +7300,42 @@ EVP_MAC_CTX* EVPMacCtxPointer::release() {
 bool EVPMacCtxPointer::init(const Buffer<const void>& key,
                             const OSSL_PARAM* params) {
   if (!ctx_) return false;
-  return EVP_MAC_init(ctx_.get(),
-                      static_cast<const unsigned char*>(key.data),
-                      key.len,
-                      params) == 1;
+
+  static constexpr unsigned char kEmptyKey = 0;
+  const unsigned char* key_data = static_cast<const unsigned char*>(key.data);
+  if (key_data == nullptr) {
+    if (key.len != 0) return false;
+    key_data = &kEmptyKey;
+  }
+
+  return EVP_MAC_init(ctx_.get(), key_data, key.len, params) == 1;
 }
 
 bool EVPMacCtxPointer::update(const Buffer<const void>& data) {
   if (!ctx_) return false;
+  if (data.len == 0) return true;
+  if (data.data == nullptr) return false;
   return EVP_MAC_update(ctx_.get(),
                         static_cast<const unsigned char*>(data.data),
                         data.len) == 1;
 }
 
+size_t EVPMacCtxPointer::getSize() const {
+  return ctx_ ? EVP_MAC_CTX_get_mac_size(ctx_.get()) : 0;
+}
+
+const OSSL_PARAM* EVPMacCtxPointer::getSettableParams() const {
+  return ctx_ ? EVP_MAC_CTX_settable_params(ctx_.get()) : nullptr;
+}
+
 DataPointer EVPMacCtxPointer::final(size_t length) {
   if (!ctx_) return {};
-  auto buf = DataPointer::Alloc(length);
+
+  // DataPointer uses a null allocation to represent failure. Retain a
+  // one-byte allocation for a successful zero-length result while passing the
+  // requested zero capacity to OpenSSL. A non-null output pointer is required
+  // to actually finalize; nullptr only queries the output length.
+  auto buf = DataPointer::Alloc(length == 0 ? 1 : length);
   if (!buf) return {};
 
   size_t result_len = length;
@@ -7252,8 +7345,9 @@ DataPointer EVPMacCtxPointer::final(size_t length) {
                     length) != 1) {
     return {};
   }
+  if (result_len > length) return {};
 
-  return buf;
+  return buf.resize(result_len);
 }
 
 EVPMacCtxPointer EVPMacCtxPointer::New(EVP_MAC* mac) {

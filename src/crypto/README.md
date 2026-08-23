@@ -43,6 +43,7 @@ following table:
 | `crypto_hkdf`     | HKDF (Key derivation) implementation.                                |
 | `crypto_hmac`     | HMAC implementations.                                                |
 | `crypto_keys`     | Utilities for using and generating secret, private, and public keys. |
+| `crypto_mac`      | Provider-generic MAC implementations.                                |
 | `crypto_pbkdf2`   | PBKDF2 key / bit generation implementation.                          |
 | `crypto_rsa`      | RSA Key Generation functions.                                        |
 | `crypto_scrypt`   | Scrypt key / bit generation implementation.                          |
