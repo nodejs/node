@@ -27,10 +27,11 @@ class SocketAddress : public MemoryRetainer {
     size_t operator()(const SocketAddress& addr) const;
   };
 
-  // Compares the same bytes Hash hashes: family, port and address. Pair this
-  // with Hash rather than relying on operator==, which memcmps the whole
-  // sockaddr including sin_zero, sin6_flowinfo and sin6_scope_id, and so can
-  // report unequal for two addresses that hash the same.
+  // Compares what identifies a peer: family, port, address, and scope_id for
+  // IPv6. operator== memcmps the whole sockaddr, so it also distinguishes
+  // sin6_flowinfo, which is a QoS label a peer may vary between datagrams,
+  // and sin_zero, which is padding. Pair this with Hash where two datagrams
+  // from one peer have to reach one entry.
   struct Equal {
     bool operator()(const SocketAddress& a, const SocketAddress& b) const;
   };
@@ -146,7 +147,13 @@ class SocketAddress : public MemoryRetainer {
   SET_SELF_SIZE(SocketAddress)
 
   template <typename T>
-  using Map = std::unordered_map<SocketAddress, T, Hash, Equal>;
+  using Map = std::unordered_map<SocketAddress, T, Hash>;
+
+  // As Map, but keyed on what identifies a peer rather than on every byte of
+  // the sockaddr. Separate from Map because Map is what SocketAddressLRU
+  // uses, and QUIC's address validation counts entries in one of those.
+  template <typename T>
+  using PeerMap = std::unordered_map<SocketAddress, T, Hash, Equal>;
 
   template <typename T>
   using IpMap = std::unordered_map<SocketAddress, T, IpHash, IpEqual>;
