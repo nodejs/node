@@ -424,7 +424,14 @@ void DTLSSession::ClearOut() {
   while ((read = SSL_read(ssl_.get(), buf, sizeof(buf))) > 0) {
     DTLS_STAT_INCREMENT_N(DTLSSessionStats, bytes_received, read);
     DTLS_STAT_INCREMENT(DTLSSessionStats, messages_received);
-    // Emit the data to JS via callback.
+
+    // Only materialise the payload as a JS Buffer if something is listening.
+    // JS sets this flag from the onmessage setter; without the check, every
+    // datagram was copied into the heap and dispatched into JS only for the
+    // handler to find no listener and drop it. Reading continues either way,
+    // so the data is still drained out of OpenSSL rather than accumulating.
+    if (!state_->has_message_listener) continue;
+
     Local<Value> argv[] = {
         Buffer::Copy(env(), reinterpret_cast<const char*>(buf), read)
             .ToLocalChecked(),
