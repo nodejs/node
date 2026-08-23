@@ -580,19 +580,6 @@ Manages a UDP socket and multiplexes DTLS sessions.
 
 The local address the endpoint is bound to.
 
-### `endpoint.state`
-
-* Returns: {DTLSEndpointState}
-
-Shared state object with properties:
-
-* `bound` {boolean}
-* `listening` {boolean}
-* `closing` {boolean}
-* `destroyed` {boolean}
-* `sessionCount` {number}
-* `busy` {boolean}
-
 ### `endpoint.stats`
 
 <!-- YAML
@@ -934,22 +921,6 @@ handshake completes with no protocol negotiated.
 
 * Returns: {string|undefined} The negotiated SRTP protection profile name.
 
-### Internal properties
-
-`session.state` and `endpoint.sessions` exist on these objects but are not
-public API, and may change or disappear without notice.
-
-`session.state` is a shared-memory view of flags used to coordinate with the
-C++ layer (`handshaking`, `open`, and whether a message or keylog listener is
-attached). Use [`session.opened`][] and [`session.closed`][] instead.
-
-`endpoint.sessions` is the live `Set` the endpoint tracks its sessions in,
-not a copy, so mutating it desynchronises the JavaScript and C++ views of
-which sessions exist. Use [`endpoint.state`][] to count sessions.
-
-Note [`endpoint.state`][] and [`endpoint.stats`][] _are_ public and documented
-above.
-
 ### `session.stats`
 
 <!-- YAML
@@ -1177,14 +1148,10 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.createSecureContext()`]: #dtlscreatesecurecontextoptions
 [`dtls.listen()`]: #dtlslistencallback-options
-[`endpoint.state`]: #endpointstate
-[`endpoint.stats`]: #endpointstats
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`handshakeTimeout`]: #handshake-timeout
 [`session.authorized`]: #sessionauthorized
-[`session.closed`]: #sessionclosed
 [`session.destroy()`]: #sessiondestroyerror
-[`session.opened`]: #sessionopened
 [`session.peerX509Certificate`]: #sessionpeerx509certificate
 [`session.reused`]: #sessionreused
 [`session.send()`]: #sessionsenddata
