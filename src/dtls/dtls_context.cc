@@ -27,6 +27,7 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBufferView;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -114,6 +115,7 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(
         isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
     SetProtoMethod(isolate, tmpl, "setSNIContexts", SetSNIContexts);
+    SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
 
     env->set_dtls_context_constructor_template(tmpl);
   }
@@ -141,6 +143,7 @@ void DTLSContext::RegisterExternalReferences(
   registry->Register(SetECDHCurve);
   registry->Register(SetSessionIdContext);
   registry->Register(SetSNIContexts);
+  registry->Register(SetTicketKeys);
 }
 
 // new DTLSContext(isServer)
@@ -522,6 +525,37 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
 
   SSL_CTX_set_tlsext_servername_callback(ctx->ctx_.get(), SNISelectCallback);
   SSL_CTX_set_tlsext_servername_arg(ctx->ctx_.get(), ctx);
+}
+
+void DTLSContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
+  DTLSContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+
+  CHECK(args[0]->IsArrayBufferView());
+  ArrayBufferViewContents<unsigned char> buf(args[0].As<ArrayBufferView>());
+
+  // Key name, HMAC key and AES key concatenated. node:tls installs its own
+  // callback and defines a 48-byte layout of its own; this uses OpenSSL's
+  // native keys instead, which are longer -- a 32-byte HMAC key and AES-256
+  // rather than 16 and AES-128 -- and need no callback. The length is asked
+  // for rather than hardcoded, since it comes from a private OpenSSL header.
+  long expected =  // NOLINT(runtime/int) -- SSL_CTX_ctrl returns long
+      SSL_CTX_set_tlsext_ticket_keys(ctx->ctx_.get(), nullptr, 0);
+
+  if (static_cast<long>(buf.length()) != expected) {  // NOLINT(runtime/int)
+    return THROW_ERR_INVALID_ARG_VALUE(
+        ctx->env(),
+        "options.ticketKeys must be exactly %ld bytes",
+        expected);
+  }
+
+  if (SSL_CTX_set_tlsext_ticket_keys(
+          ctx->ctx_.get(),
+          const_cast<unsigned char*>(buf.data()),
+          buf.length()) != 1) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(ctx->env(),
+                                      "Failed to set session ticket keys");
+  }
 }
 
 void DTLSContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {

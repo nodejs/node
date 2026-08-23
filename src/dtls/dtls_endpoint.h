@@ -64,11 +64,13 @@ class DTLSEndpoint final : public HandleWrap {
   // verification on the client SSL before the handshake begins; see
   // DTLSSession::Create.
   // Returns the created DTLSSession.
-  BaseObjectPtr<DTLSSession> Connect(DTLSContext* context,
-                                     const SocketAddress& remote,
-                                     const char* servername = nullptr,
-                                     const char* verify_host = nullptr,
-                                     bool verify_is_ip = false);
+  BaseObjectPtr<DTLSSession> Connect(
+      DTLSContext* context,
+      const SocketAddress& remote,
+      const char* servername = nullptr,
+      const char* verify_host = nullptr,
+      bool verify_is_ip = false,
+      const ncrypto::Buffer<const unsigned char>& resume = {});
 
   // Send a raw UDP datagram to the given address.
   // Called by DTLSSession to send encrypted packets.

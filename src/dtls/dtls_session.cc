@@ -27,6 +27,7 @@
 namespace node {
 
 using ncrypto::MarkPopErrorOnReturn;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -38,6 +39,7 @@ using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace dtls {
@@ -170,6 +172,8 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "exportKeyingMaterial", ExportKeyingMaterial);
     SetProtoMethod(isolate, tmpl, "getSRTPProfile", GetSRTPProfile);
     SetProtoMethod(isolate, tmpl, "getServername", GetServername);
+    SetProtoMethod(isolate, tmpl, "getSession", GetSession);
+    SetProtoMethod(isolate, tmpl, "wasReused", WasReused);
     SetProtoMethod(isolate, tmpl, "getVerifyError", GetVerifyError);
 
     env->set_dtls_session_constructor_template(tmpl);
@@ -211,7 +215,10 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
                                                bool is_server,
                                                const char* servername,
                                                const char* verify_host,
-                                               bool verify_is_ip) {
+                                               bool verify_is_ip,
+                                               const ncrypto::Buffer<
+                                                   const unsigned char>&
+                                                   resume) {
   // Create the SSL object.
   SSL* ssl_raw = SSL_new(ssl_ctx);
   if (ssl_raw == nullptr) {
@@ -248,6 +255,26 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
     SSL_set_accept_state(ssl.get());
   } else {
     SSL_set_connect_state(ssl.get());
+
+    // Offer a previous session for resumption. Like SNI this has to happen
+    // before Cycle() emits the ClientHello, since the session id and ticket
+    // ride in it.
+    //
+    // A session that OpenSSL rejects is not an error: it falls back to a full
+    // handshake, which is what an expired or unknown ticket should do. Only a
+    // blob that will not parse is worth reporting, and that is the caller
+    // handing over something that is not a session at all.
+    if (resume.len > 0) {
+      const unsigned char* p = resume.data;
+      ncrypto::SSLSessionPointer sess(d2i_SSL_SESSION(nullptr, &p, resume.len));
+      if (!sess) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to parse resumed session");
+        return {};
+      }
+      // Failure here also just means no resumption, so it is not fatal.
+      USE(SSL_set_session(ssl.get(), sess.get()));
+    }
 
     // Configure SNI and peer identity verification BEFORE the handshake
     // starts. The caller (DTLSEndpoint::Connect) runs Cycle() immediately
@@ -962,6 +989,36 @@ void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   args.GetReturnValue().Set(str);
+}
+
+void DTLSSession::GetSession(const FunctionCallbackInfo<Value>& args) {
+  DTLSSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = session->env();
+
+  if (!session->ssl_) return;
+
+  // SSL_get1_session() takes a reference, which the pointer releases.
+  ncrypto::SSLSessionPointer sess(SSL_get1_session(session->ssl_.get()));
+  if (!sess) return;
+
+  int size = i2d_SSL_SESSION(sess.get(), nullptr);
+  if (size <= 0) return;
+
+  auto store = ArrayBuffer::NewBackingStore(env->isolate(), size);
+  unsigned char* p = static_cast<unsigned char*>(store->Data());
+  if (i2d_SSL_SESSION(sess.get(), &p) <= 0) return;
+
+  Local<ArrayBuffer> buffer =
+      ArrayBuffer::New(env->isolate(), std::move(store));
+  args.GetReturnValue().Set(Uint8Array::New(buffer, 0, size));
+}
+
+void DTLSSession::WasReused(const FunctionCallbackInfo<Value>& args) {
+  DTLSSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  if (!session->ssl_) return;
+  args.GetReturnValue().Set(SSL_session_reused(session->ssl_.get()) == 1);
 }
 
 void DTLSSession::MemoryInfo(MemoryTracker* tracker) const {
