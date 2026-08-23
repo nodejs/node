@@ -367,7 +367,6 @@ void DTLSEndpoint::SetCallbacks(Local<Object> callbacks) {
       "onSessionHandshake",
       "onSessionMessage",
       "onSessionKeylog",
-      "onSessionTicket",
   };
 
   for (int i = 0; i < DTLS_CB_COUNT; i++) {
