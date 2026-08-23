@@ -92,6 +92,11 @@ class DTLSContext final : public BaseObject {
 
   static void ReportCallbackError(SSL* ssl, v8::TryCatch* try_catch);
 
+  // Report a PSK callback that did not throw but gave back something
+  // unusable. Returning 0 to OpenSSL is the "no PSK" signal, so without this
+  // the caller's mistake arrives as a handshake failure naming no cause.
+  static void ReportPSKError(SSL* ssl, const char* message);
+
   DTLSContext* SelectSNIContextFromCallback(SSL* ssl, const char* servername);
   // Recover the context a callback without an argument slot belongs to.
   static DTLSContext* FromSSL(SSL* ssl);
