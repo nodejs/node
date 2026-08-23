@@ -1063,6 +1063,8 @@ class Environment final : public MemoryRetainer {
 
   uv_buf_t allocate_managed_buffer(const size_t suggested_size);
   std::unique_ptr<v8::BackingStore> release_managed_buffer(const uv_buf_t& buf);
+  // Only buffers that were not exposed externally may be recycled.
+  void recycle_managed_buffer(std::unique_ptr<v8::BackingStore> bs);
 
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
@@ -1279,6 +1281,7 @@ class Environment final : public MemoryRetainer {
   // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
+  std::unique_ptr<v8::BackingStore> managed_buffer_cache_;
 
   v8::CpuProfiler* cpu_profiler_ = nullptr;
   std::vector<v8::ProfilerId> pending_profiles_;

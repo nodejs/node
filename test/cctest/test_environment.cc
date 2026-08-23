@@ -39,6 +39,27 @@ class EnvironmentTest : public EnvironmentTestFixture {
   }
 };
 
+TEST_F(EnvironmentTest, ManagedBufferCache) {
+  constexpr size_t kCacheSize = 64 * 1024;
+  constexpr size_t kOtherSize = 1024;
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv};
+
+  (*env)->recycle_managed_buffer(nullptr);
+
+  uv_buf_t buffer = (*env)->allocate_managed_buffer(kCacheSize);
+  char* cached_data = buffer.base;
+  (*env)->recycle_managed_buffer((*env)->release_managed_buffer(buffer));
+
+  buffer = (*env)->allocate_managed_buffer(kOtherSize);
+  (*env)->recycle_managed_buffer((*env)->release_managed_buffer(buffer));
+
+  buffer = (*env)->allocate_managed_buffer(kCacheSize);
+  EXPECT_EQ(buffer.base, cached_data);
+  (*env)->release_managed_buffer(buffer);
+}
+
 TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
