@@ -3789,6 +3789,11 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Hash algorithms exposed by OpenSSL providers are now
+                 supported. The `functionName` and `customization` options
+                 were added for cSHAKE hash functions.
   - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
@@ -3796,6 +3801,14 @@ changes:
 
 * `algorithm` {string}
 * `options` {Object} [`stream.transform` options][]
+  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the customization byte string. **Default:** an
+    empty byte string.
+  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the NIST function-name byte string. **Default:**
+    an empty byte string.
+  * `outputLength` {number} For XOF hash functions, specifies the desired
+    output length in bytes.
 * Returns: {Hash}
 
 Creates and returns a `Hash` object that can be used to generate hash digests
@@ -3803,12 +3816,23 @@ using the given `algorithm`. Optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
 can be used to specify the desired output length in bytes.
 
+The `functionName` and `customization` options apply only to cSHAKE-128 and
+cSHAKE-256. They are supported only when Node.js is built with OpenSSL 4.0 or
+later and the selected provider supports the corresponding digest parameters.
+Strings are encoded as UTF-8, and neither strings nor byte values may contain
+NUL bytes. Both options default to an empty byte string. For OpenSSL's built-in
+providers, `functionName` is case-sensitive and must be `''`, `'TupleHash'`,
+`'ParallelHash'`, or `'KMAC'`. Other providers can impose different
+restrictions. With both options empty, cSHAKE produces the same output as the
+corresponding SHAKE function for the same output length. `cshake-128` and
+`cshake-256` default to output lengths of 32 and 64 bytes, respectively.
+
 When the data is small (< 5MB) and readily available, [`crypto.hash()`][] is usually faster.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+The available algorithms depend on the version and configuration of OpenSSL on
+the platform. Examples are `'sha256'` and `'sha512'`. Use
+[`crypto.getHashes()`][] to obtain the list of hash algorithms available to the
+Node.js process.
 
 Example: generating the sha256 sum of a file
 
@@ -3891,10 +3915,11 @@ changes:
 Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
 Optional `options` argument controls stream behavior.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+The available algorithms depend on the version and configuration of OpenSSL on
+the platform. Examples are `'sha256'` and `'sha512'`.
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+HMAC imposes additional restrictions, so not every listed algorithm is
+suitable.
 
 The `key` is the HMAC key used to generate the cryptographic HMAC hash. If it is
 a [`KeyObject`][], its type must be `secret`. If it is a string, please consider
@@ -4171,8 +4196,10 @@ added: v0.1.92
 * Returns: {Sign}
 
 Creates and returns a `Sign` object that uses the given `algorithm`. Use
-[`crypto.getHashes()`][] to obtain the names of the available digest algorithms.
-Optional `options` argument controls the `stream.Writable` behavior.
+[`crypto.getHashes()`][] to obtain the names available to the hashing APIs. The
+key type and signature scheme can impose additional restrictions on which
+digests can be used. Optional `options` argument controls the
+`stream.Writable` behavior.
 
 In some cases, a `Sign` instance can be created using the name of a signature
 algorithm, such as `'RSA-SHA256'`, instead of a digest algorithm. This will use
@@ -4191,8 +4218,9 @@ added: v0.1.92
 * Returns: {Verify}
 
 Creates and returns a `Verify` object that uses the given algorithm.
-Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms. Optional `options` argument controls the
+Use [`crypto.getHashes()`][] to obtain the names available to the hashing APIs.
+The key type and signature scheme can impose additional restrictions on which
+digests can be used. Optional `options` argument controls the
 `stream.Writable` behavior.
 
 In some cases, a `Verify` instance can be created using the name of a signature
@@ -4439,6 +4467,10 @@ changes:
 Generates a new asymmetric key pair of the given `type`. See the
 supported [asymmetric key types][].
 
+For RSA-PSS keys, [`crypto.getHashes()`][] lists algorithms available to the
+hashing APIs, but not every listed digest can be encoded in RSA-PSS parameters
+or is supported by the active RSA implementation.
+
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
 the respective part of the key is returned as a [`KeyObject`][].
@@ -4560,6 +4592,10 @@ changes:
 
 Generates a new asymmetric key pair of the given `type`. See the
 supported [asymmetric key types][].
+
+For RSA-PSS keys, [`crypto.getHashes()`][] lists algorithms available to the
+hashing APIs, but not every listed digest can be encoded in RSA-PSS parameters
+or is supported by the active RSA implementation.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -4919,10 +4955,26 @@ mode][].
 
 <!-- YAML
 added: v0.9.3
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Names and aliases exposed by loaded OpenSSL providers that
+                 match the default property query are now included.
 -->
 
 * Returns: {string\[]} An array of the names of the supported hash algorithms,
   such as `'RSA-SHA256'`. Hash algorithms are also called "digest" algorithms.
+
+This is the authoritative Node.js list of hash algorithms available to
+[`crypto.createHash()`][] and [`crypto.hash()`][] in the current process. With
+OpenSSL 3 or later, the list depends on the loaded providers and the default
+property query in effect when the list is first generated. Some listed
+algorithms can require API-specific options, such as `outputLength` for XOF
+hash functions.
+
+A listed hash algorithm is not necessarily supported by APIs that combine a
+digest with another cryptographic operation, such as HMAC, key derivation, or
+signing. Those operations can apply additional restrictions.
 
 ```mjs
 const {
@@ -4960,6 +5012,11 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Hash algorithms exposed by OpenSSL providers are now
+                 supported. The `functionName` and `customization` options
+                 were added for cSHAKE hash functions.
   - version:
      - v25.5.0
      - v24.13.1
@@ -4977,6 +5034,12 @@ changes:
   into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
   the encoded `TypedArray` into this API instead.
 * `options` {Object|string}
+  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the customization byte string. **Default:** an
+    empty byte string.
+  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the NIST function-name byte string. **Default:**
+    an empty byte string.
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
   * `outputLength` {number} For XOF hash functions such as 'shake256',
@@ -4988,10 +5051,21 @@ the object-based `crypto.createHash()` when hashing a smaller amount of data
 (<= 5MB) that's readily available. If the data can be big or if it is streamed,
 it's still recommended to use `crypto.createHash()` instead.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+The available algorithms depend on the version and configuration of OpenSSL on
+the platform. Examples are `'sha256'` and `'sha512'`. Use
+[`crypto.getHashes()`][] to obtain the list of hash algorithms available to the
+Node.js process.
+
+The `functionName` and `customization` options apply only to cSHAKE-128 and
+cSHAKE-256. They are supported only when Node.js is built with OpenSSL 4.0 or
+later and the selected provider supports the corresponding digest parameters.
+Strings are encoded as UTF-8, and neither strings nor byte values may contain
+NUL bytes. Both options default to an empty byte string. For OpenSSL's built-in
+providers, `functionName` is case-sensitive and must be `''`, `'TupleHash'`,
+`'ParallelHash'`, or `'KMAC'`. Other providers can impose different
+restrictions. With both options empty, cSHAKE produces the same output as the
+corresponding SHAKE function for the same output length. `cshake-128` and
+`cshake-256` default to output lengths of 32 and 64 bytes, respectively.
 
 If `options` is a string, then it specifies the `outputEncoding`.
 
@@ -5063,6 +5137,10 @@ changes:
 
 HKDF is a simple key derivation function defined in RFC 5869. The given `ikm`,
 `salt` and `info` are used with the `digest` to derive a key of `keylen` bytes.
+The available digest algorithms depend on the version and configuration of
+OpenSSL. HKDF uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or HKDF.
 
 The supplied `callback` function is called with two arguments: `err` and
 `derivedKey`. If an error occurs while deriving the key, `err` will be set;
@@ -5122,6 +5200,10 @@ changes:
 Provides a synchronous HKDF key derivation function as defined in RFC 5869. The
 given `ikm`, `salt` and `info` are used with the `digest` to derive a key of
 `keylen` bytes.
+The available digest algorithms depend on the version and configuration of
+OpenSSL. HKDF uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or HKDF.
 
 The successfully generated `derivedKey` will be returned as an {ArrayBuffer}.
 
@@ -5231,8 +5313,10 @@ pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
 });
 ```
 
-An array of supported digest functions can be retrieved using
-[`crypto.getHashes()`][].
+The available digest algorithms depend on the version and configuration of
+OpenSSL. PBKDF2 uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or PBKDF2.
 
 This API uses libuv's threadpool, which can have surprising and
 negative performance implications for some applications; see the
@@ -5304,8 +5388,10 @@ const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
-An array of supported digest functions can be retrieved using
-[`crypto.getHashes()`][].
+The available digest algorithms depend on the version and configuration of
+OpenSSL. PBKDF2 uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or PBKDF2.
 
 ### `crypto.privateDecrypt(privateKey, buffer)`
 
@@ -5360,6 +5446,10 @@ changes:
 
 Decrypts `buffer` with `privateKey`. `buffer` was previously encrypted using
 the corresponding public key, for example using [`crypto.publicEncrypt()`][].
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the active RSA implementation can impose additional restrictions on digests
+used for OAEP or MGF1.
 
 If `privateKey` is not a [`KeyObject`][], this function behaves as if
 `privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
@@ -5508,6 +5598,10 @@ changes:
 Encrypts the content of `buffer` with `key` and returns a new
 [`Buffer`][] with encrypted content. The returned data can be decrypted using
 the corresponding private key, for example using [`crypto.privateDecrypt()`][].
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the active RSA implementation can impose additional restrictions on digests
+used for OAEP or MGF1.
 
 If `key` is not a [`KeyObject`][], this function behaves as if
 `key` had been passed to [`crypto.createPublicKey()`][]. If it is an
@@ -6282,6 +6376,10 @@ dependent upon the key type.
 `algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
 ML-DSA.
 
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the key type and signature scheme determine whether a listed digest can be
+used for signing.
+
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. When `key` is a string, `ArrayBuffer`,
 [`Buffer`][], `TypedArray`, or `DataView`, it must contain PEM-encoded key
@@ -6418,6 +6516,10 @@ key type.
 
 `algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
 ML-DSA.
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the key type and signature scheme determine whether a listed digest can be
+used for verification.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. When `key` is a string, `ArrayBuffer`,
