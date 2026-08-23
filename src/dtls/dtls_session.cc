@@ -40,6 +40,23 @@ using v8::Value;
 
 namespace dtls {
 
+// The session state "indices" are byte offsets into DTLSSessionStateData,
+// accessed from JS via a DataView. Pin them to the actual struct layout, as
+// the endpoint state already does, so adding or reordering a field cannot
+// silently point JS at the wrong byte.
+static_assert(IDX_SESSION_STATE_HANDSHAKING ==
+              offsetof(DTLSSessionStateData, handshaking));
+static_assert(IDX_SESSION_STATE_OPEN == offsetof(DTLSSessionStateData, open));
+static_assert(IDX_SESSION_STATE_CLOSING ==
+              offsetof(DTLSSessionStateData, closing));
+static_assert(IDX_SESSION_STATE_DESTROYED ==
+              offsetof(DTLSSessionStateData, destroyed));
+static_assert(IDX_SESSION_STATE_HAS_MESSAGE_LISTENER ==
+              offsetof(DTLSSessionStateData, has_message_listener));
+static_assert(IDX_SESSION_STATE_HAS_KEYLOG_LISTENER ==
+              offsetof(DTLSSessionStateData, has_keylog_listener));
+static_assert(IDX_SESSION_STATE_COUNT == sizeof(DTLSSessionStateData));
+
 namespace {
 // Format the OpenSSL error queue into a human readable message.
 //
@@ -118,9 +135,6 @@ DTLSSession::DTLSSession(Environment* env,
 
   // Store this session in SSL app data for callbacks.
   SSL_set_app_data(ssl_.get(), this);
-
-  // Enable keylog for TLS key export (useful for Wireshark debugging).
-  SSL_CTX_set_keylog_callback(SSL_get_SSL_CTX(ssl_.get()), SSLKeylogCallback);
 
   // Set the MTU on the SSL object.
   SSL_set_mtu(ssl_.get(), endpoint->mtu());
@@ -580,6 +594,12 @@ void DTLSSession::Destroy() {
 void DTLSSession::SSLKeylogCallback(const SSL* ssl, const char* line) {
   DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
   if (session == nullptr || session->destroyed_) return;
+
+  // `line` carries the connection's secrets. Do not copy it into the JS heap
+  // unless something is actually listening -- once it is a JS string it is
+  // reachable from heap snapshots, core dumps and the inspector for as long as
+  // the string lives.
+  if (!session->state_->has_keylog_listener) return;
 
   HandleScope handle_scope(session->env()->isolate());
   Context::Scope context_scope(session->env()->context());
