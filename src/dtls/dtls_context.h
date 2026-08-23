@@ -61,6 +61,7 @@ class DTLSContext final : public BaseObject {
   static void SetSessionIdContext(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSNIContexts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Server Name Indication. Selection is a lookup in sni_contexts_ with no
   // call into JavaScript, so a handshake never has to be suspended and

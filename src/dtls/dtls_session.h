@@ -62,14 +62,20 @@ class DTLSSession final : public AsyncWrap {
   //                  nullptr disables identity checking.
   // |verify_is_ip| - true if |verify_host| is an IP literal (verified
   //                  against iPAddress SANs) rather than a DNS name.
-  static BaseObjectPtr<DTLSSession> Create(Environment* env,
-                                           DTLSEndpoint* endpoint,
-                                           SSL_CTX* ssl_ctx,
-                                           const SocketAddress& remote,
-                                           bool is_server,
-                                           const char* servername = nullptr,
-                                           const char* verify_host = nullptr,
-                                           bool verify_is_ip = false);
+  // |resume|       - DER-encoded SSL_SESSION to resume (client only), or an
+  //                  empty span for a full handshake. Like servername this
+  //                  has to be applied before the ClientHello is emitted, so
+  //                  it is a creation parameter rather than a setter.
+  static BaseObjectPtr<DTLSSession> Create(
+      Environment* env,
+      DTLSEndpoint* endpoint,
+      SSL_CTX* ssl_ctx,
+      const SocketAddress& remote,
+      bool is_server,
+      const char* servername = nullptr,
+      const char* verify_host = nullptr,
+      bool verify_is_ip = false,
+      const ncrypto::Buffer<const unsigned char>& resume = {});
 
   // Create a session from an already-initialized SSL object.
   // Used by the server after DTLSv1_listen() returns 1 — the SSL
@@ -133,6 +139,8 @@ class DTLSSession final : public AsyncWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSRTPProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WasReused(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetVerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  public:
