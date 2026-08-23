@@ -1004,6 +1004,18 @@ void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
+  // Nothing has been verified before the handshake completes, and asking is
+  // not merely meaningless but fatal: with no negotiated cipher,
+  // SSL_get_current_cipher() is NULL and SSL_CIPHER_get_auth_nid(), which
+  // ncrypto calls to allow for PSK, dereferences it without checking. The
+  // session reaches JavaScript before its handshake runs, so this is
+  // reachable from the listen() callback.
+  if (!session->handshake_complete_) {
+    args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
+        session->env()->isolate(), "HANDSHAKE_INCOMPLETE"));
+    return;
+  }
+
   // SSL_get_verify_result() reports X509_V_OK when the peer sent no
   // certificate at all, because there was nothing to find fault with. Route
   // through ncrypto, which reports std::nullopt for that case (allowing for
