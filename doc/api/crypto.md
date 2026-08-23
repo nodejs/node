@@ -633,6 +633,10 @@ The [`crypto.createCipheriv()`][] method is
 used to create `Cipheriv` instances. `Cipheriv` objects are not to be created
 directly using the `new` keyword.
 
+The selected algorithm may impose additional restrictions on streaming and
+calls to [`cipher.update()`][]. See [CCM mode][], [CBC-CTS mode][], [XTS mode][],
+[AES key wrap modes][], and [SIV and GCM-SIV modes][].
+
 Example: Using `Cipheriv` objects as streams:
 
 ```mjs
@@ -905,14 +909,15 @@ added: v0.7.1
 * `autoPadding` {boolean} **Default:** `true`
 * Returns: {Cipheriv} The same `Cipheriv` instance for method chaining.
 
-When using block encryption algorithms, the `Cipheriv` class will automatically
-add padding to the input data to the appropriate block size. To disable the
-default padding call `cipher.setAutoPadding(false)`.
+When using block ciphers that use standard block padding, the `Cipheriv` class
+will automatically add padding to the input data to the appropriate block size.
+To disable the default padding call `cipher.setAutoPadding(false)`.
 
-When `autoPadding` is `false`, the length of the entire input data must be a
-multiple of the cipher's block size or [`cipher.final()`][] will throw an error.
-Disabling automatic padding is useful for non-standard padding, for instance
-using `0x0` instead of PKCS padding.
+For block ciphers that use standard block padding, when `autoPadding` is
+`false`, the length of the entire input data must be a multiple of the cipher's
+block size or [`cipher.final()`][] will throw an error. Disabling automatic
+padding is useful for non-standard padding, for instance using `0x0` instead of
+PKCS padding.
 
 The `cipher.setAutoPadding()` method must be called before
 [`cipher.final()`][].
@@ -946,9 +951,12 @@ is specified, a string using the specified encoding is returned. If no
 When `outputEncoding` is specified, it must use the same encoding as previous
 calls to `cipher.update()`.
 
-The `cipher.update()` method can be called multiple times with new data until
-[`cipher.final()`][] is called. Calling `cipher.update()` after
-[`cipher.final()`][] will result in an error being thrown.
+For most algorithms, `cipher.update()` can be called multiple times with new
+data until [`cipher.final()`][] is called. Some algorithms restrict calls to
+`cipher.update()`. For example, [CCM mode][], [CBC-CTS mode][], [XTS mode][],
+[AES key wrap modes][], and [SIV and GCM-SIV modes][] require the whole message
+in a single call. Calling `cipher.update()` after [`cipher.final()`][] will
+result in an error being thrown.
 
 ## Class: `Decipheriv`
 
@@ -969,6 +977,10 @@ used in one of two ways:
 The [`crypto.createDecipheriv()`][] method is
 used to create `Decipheriv` instances. `Decipheriv` objects are not to be created
 directly using the `new` keyword.
+
+The selected algorithm may impose additional restrictions on streaming and
+calls to [`decipher.update()`][]. See [CCM mode][], [CBC-CTS mode][],
+[XTS mode][], [AES key wrap modes][], and [SIV and GCM-SIV modes][].
 
 Example: Using `Decipheriv` objects as streams:
 
@@ -1267,8 +1279,8 @@ When data has been encrypted without standard block padding, calling
 `decipher.setAutoPadding(false)` will disable automatic padding to prevent
 [`decipher.final()`][] from checking for and removing padding.
 
-Turning auto padding off will only work if the input data's length is a
-multiple of the ciphers block size.
+For block ciphers that use standard block padding, disabling it requires the
+input data's length to be a multiple of the cipher's block size.
 
 The `decipher.setAutoPadding()` method must be called before
 [`decipher.final()`][].
@@ -1291,19 +1303,23 @@ changes:
 Updates the decipher with `data`. If the `inputEncoding` argument is given,
 the `data`
 argument is a string using the specified encoding. If the `inputEncoding`
-argument is not given, `data` must be a [`Buffer`][]. If `data` is a
-[`Buffer`][] then `inputEncoding` is ignored.
+argument is not given, `data` must be a [`Buffer`][], `TypedArray`, or
+`DataView`. If `data` is a [`Buffer`][], `TypedArray`, or `DataView`, then
+`inputEncoding` is ignored.
 
-The `outputEncoding` specifies the output format of the enciphered
+The `outputEncoding` specifies the output format of the deciphered
 data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
 When `outputEncoding` is specified, it must use the same encoding as previous
 calls to `decipher.update()`.
 
-The `decipher.update()` method can be called multiple times with new data until
-[`decipher.final()`][] is called. Calling `decipher.update()` after
-[`decipher.final()`][] will result in an error being thrown.
+For most algorithms, `decipher.update()` can be called multiple times with new
+data until [`decipher.final()`][] is called. Some algorithms restrict calls to
+`decipher.update()`. For example, [CCM mode][], [CBC-CTS mode][], [XTS mode][],
+[AES key wrap modes][], and [SIV and GCM-SIV modes][] require the whole message
+in a single call. Calling `decipher.update()` after [`decipher.final()`][] will
+result in an error being thrown.
 
 Even if the underlying cipher implements authentication, the authenticity and
 integrity of the plaintext returned from this function may be uncertain at this
@@ -3567,6 +3583,12 @@ operations. The specific constants currently defined are described in
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Additional ciphers available through OpenSSL providers (e.g.
+                 SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
+                 are now supported. The `ctsMode` and `xtsStandard` options
+                 were added.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: REPLACEME
@@ -3610,47 +3632,74 @@ changes:
 * `algorithm` {string}
 * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `iv` {string|ArrayBuffer|Buffer|TypedArray|DataView|null}
-* `options` {Object} [`stream.transform` options][]
+* `options` {Object} [`stream.transform` options][] with these additional
+  properties:
+  * `authTagLength` {number} The authentication tag length in bytes. Its
+    requirements and default depend on the authenticated cipher, as described
+    below.
+  * `ctsMode` {string} The [CBC-CTS mode][] variant. One of `'CS1'`, `'CS2'`,
+    or `'CS3'`. The values are case-sensitive. **Default:** `'CS1'`.
+  * `encoding` {string} The [encoding][] to use when `key` is a string. This
+    option does not affect a string `iv`, which is always interpreted as UTF-8.
+    **Default:** `'utf8'`.
+  * `xtsStandard` {string} The standard used by `sm4-xts`. One of `'GB'` or
+    `'IEEE'`. The values are case-sensitive. **Default:** `'GB'`.
 * Returns: {Cipheriv}
 
 Creates and returns a `Cipheriv` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
 
-The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
-`authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
-option is not required but can be used to set the length of the authentication
-tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
+The `options` argument controls cipher-specific settings and stream behavior.
+It is optional except when a cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`)
+is used. In that case, the `authTagLength` option is required and specifies the
+length of the authentication tag in bytes, see [CCM mode][]. In GCM mode, the
+`authTagLength` option is not required but can be used to set the length of the
+authentication tag that will be returned by `getAuthTag()` and defaults to 16
+bytes.
 For `SIV`, `GCM-SIV`, and `chacha20-poly1305`, the `authTagLength` option
 defaults to 16 bytes. `SIV` and `GCM-SIV` only support 16-byte authentication
 tags.
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms` will
-display the available cipher algorithms.
+The `ctsMode` and `xtsStandard` options configure parameters exposed by OpenSSL
+providers. They are available only with OpenSSL 3.0 or later and a provider
+that supports the corresponding parameter. `ctsMode` applies only to CBC-CTS
+ciphers, and `xtsStandard` applies only to `sm4-xts`. Supplying either option
+for an available cipher implementation that does not support it throws an
+`ERR_CRYPTO_UNSUPPORTED_OPERATION` error. See [CBC-CTS mode][] and [XTS mode][]
+for details.
+
+The available algorithms depend on OpenSSL. [`crypto.getCiphers()`][] lists the
+algorithms exposed by Node.js. On recent OpenSSL releases,
+`openssl list -cipher-algorithms` displays the algorithms available to OpenSSL,
+which can include algorithms that Node.js does not expose.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
-a [`KeyObject`][] of type `secret`. If the cipher does not need
-an initialization vector, `iv` may be `null`.
+[initialization vector][]. Each may be a string, `ArrayBuffer`, [`Buffer`][],
+`TypedArray`, or `DataView`. A string `key` is decoded using `options.encoding`,
+which defaults to `'utf8'`; a string `iv` is always decoded as UTF-8. The `key`
+may optionally be a [`KeyObject`][] of type `secret`. If the cipher does not
+need an initialization vector, `iv` may be `null`.
 
 When passing strings for `key` or `iv`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
-Initialization vectors should be unpredictable and unique; ideally, they will be
-cryptographically random. They do not have to be secret: IVs are typically just
-added to ciphertext messages unencrypted. It may sound contradictory that
-something has to be unpredictable and unique, but does not have to be secret;
-remember that an attacker must not be able to predict ahead of time what a
-given IV will be.
+Initialization vector requirements depend on the algorithm. For some
+algorithms, an IV must be unpredictable and unique; for others, uniqueness
+alone is sufficient, a fixed value is required, or no IV is used. Follow the
+requirements for the selected algorithm. IVs typically do not have to be secret
+and can be transmitted with the ciphertext.
 
 ### `crypto.createDecipheriv(algorithm, key, iv[, options])`
 
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Additional ciphers available through OpenSSL providers (e.g.
+                 SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
+                 are now supported. The `ctsMode` and `xtsStandard` options
+                 were added.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
@@ -3691,40 +3740,59 @@ changes:
 * `algorithm` {string}
 * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `iv` {string|ArrayBuffer|Buffer|TypedArray|DataView|null}
-* `options` {Object} [`stream.transform` options][]
+* `options` {Object} [`stream.transform` options][] with these additional
+  properties:
+  * `authTagLength` {number} The authentication tag length in bytes. Its
+    requirements and default depend on the authenticated cipher, as described
+    below.
+  * `ctsMode` {string} The [CBC-CTS mode][] variant. One of `'CS1'`, `'CS2'`,
+    or `'CS3'`. The values are case-sensitive. **Default:** `'CS1'`.
+  * `encoding` {string} The [encoding][] to use when `key` is a string. This
+    option does not affect a string `iv`, which is always interpreted as UTF-8.
+    **Default:** `'utf8'`.
+  * `xtsStandard` {string} The standard used by `sm4-xts`. One of `'GB'` or
+    `'IEEE'`. The values are case-sensitive. **Default:** `'GB'`.
 * Returns: {Decipheriv}
 
 Creates and returns a `Decipheriv` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
 
-The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
-`authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][].
-For AES-GCM and `chacha20-poly1305`, the `authTagLength` option defaults to 16
-bytes and must be set to a different value if a different length is used. For
-`SIV` and `GCM-SIV`, the `authTagLength` option defaults to 16 bytes and only
-16-byte authentication tags are supported.
+The `options` argument controls cipher-specific settings and stream behavior.
+It is optional except when a cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`)
+is used. In that case, the `authTagLength` option is required and specifies the
+length of the authentication tag in bytes, see [CCM mode][]. For GCM and
+`chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes and must be
+set if a different length is used. For `SIV` and `GCM-SIV`, the `authTagLength`
+option defaults to 16 bytes and only 16-byte authentication tags are supported.
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms` will
-display the available cipher algorithms.
+The `ctsMode` and `xtsStandard` options configure parameters exposed by OpenSSL
+providers. They are available only with OpenSSL 3.0 or later and a provider
+that supports the corresponding parameter. `ctsMode` applies only to CBC-CTS
+ciphers, and `xtsStandard` applies only to `sm4-xts`. Supplying either option
+for an available cipher implementation that does not support it throws an
+`ERR_CRYPTO_UNSUPPORTED_OPERATION` error. See [CBC-CTS mode][] and [XTS mode][]
+for details.
+
+The available algorithms depend on OpenSSL. [`crypto.getCiphers()`][] lists the
+algorithms exposed by Node.js. On recent OpenSSL releases,
+`openssl list -cipher-algorithms` displays the algorithms available to OpenSSL,
+which can include algorithms that Node.js does not expose.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
-a [`KeyObject`][] of type `secret`. If the cipher does not need
-an initialization vector, `iv` may be `null`.
+[initialization vector][]. Each may be a string, `ArrayBuffer`, [`Buffer`][],
+`TypedArray`, or `DataView`. A string `key` is decoded using `options.encoding`,
+which defaults to `'utf8'`; a string `iv` is always decoded as UTF-8. The `key`
+may optionally be a [`KeyObject`][] of type `secret`. If the cipher does not
+need an initialization vector, `iv` may be `null`.
 
 When passing strings for `key` or `iv`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
-Initialization vectors should be unpredictable and unique; ideally, they will be
-cryptographically random. They do not have to be secret: IVs are typically just
-added to ciphertext messages unencrypted. It may sound contradictory that
-something has to be unpredictable and unique, but does not have to be secret;
-remember that an attacker must not be able to predict ahead of time what a given
-IV will be.
+Initialization vector requirements depend on the algorithm. For some
+algorithms, an IV must be unpredictable and unique; for others, uniqueness
+alone is sufficient, a fixed value is required, or no IV is used. Follow the
+requirements for the selected algorithm. IVs typically do not have to be secret
+and can be transmitted with the ciphertext.
 
 ### `crypto.createDiffieHellman(prime[, primeEncoding][, generator][, generatorEncoding])`
 
@@ -6834,6 +6902,79 @@ try {
 console.log(receivedPlaintext);
 ```
 
+### CBC-CTS mode
+
+For CBC ciphertext stealing (CBC-CTS) ciphers, the `ctsMode` option to
+[`crypto.createCipheriv()`][] or [`crypto.createDecipheriv()`][] selects the
+variant:
+
+* `'CS1'` is the default. For block-aligned input, its output is the same as CBC
+  mode.
+* `'CS2'` is also the same as CBC for block-aligned input. For input with a
+  partial final block, it swaps the final full and partial ciphertext blocks
+  relative to CS1.
+* `'CS3'` is the Kerberos 5 variant. It uses the CS2 ordering for a partial
+  final block and swaps the final two ciphertext blocks even for block-aligned
+  input.
+
+Encryption and decryption must use the same variant. The option is available
+only with CBC-CTS provider ciphers on OpenSSL 3.0 or later.
+
+Applications which use this mode must adhere to these restrictions:
+
+* The plaintext or ciphertext must be at least one block long.
+* The ciphertext has the same length as the plaintext.
+* `cipher.update()` or `decipher.update()` must be called exactly once with all
+  input data. Stream methods such as `write(data)`, `end(data)`, or `pipe()` may
+  fail because CBC-CTS does not accept multiple data updates.
+* `cipher.final()` or `decipher.final()` must still be called to complete the
+  operation.
+* `crypto.getCipherInfo()` reports the base mode as `'cbc'`.
+
+### XTS mode
+
+XTS ciphers operate on independently tweakable data units. A `Cipheriv` or
+`Decipheriv` instance represents one complete data unit, and its `iv` argument
+provides the 16-byte tweak. Use a new instance with the appropriate positional
+tweak for each different logical data unit.
+
+Applications which use XTS mode must adhere to these restrictions:
+
+* The plaintext or ciphertext must be at least one 16-byte block. Its length
+  does not have to be a multiple of 16 bytes because XTS uses ciphertext
+  stealing for a final partial block.
+* The ciphertext has the same length as the plaintext.
+* `cipher.update()` or `decipher.update()` must be called exactly once with all
+  input data. Stream methods such as `write(data)`, `end(data)`, or `pipe()` may
+  fail because XTS does not accept multiple data updates.
+* `cipher.final()` or `decipher.final()` must still be called to complete the
+  operation.
+
+For `sm4-xts`, the `xtsStandard` option to [`crypto.createCipheriv()`][] or
+[`crypto.createDecipheriv()`][] selects either the default `'GB'` variant from
+GB/T 17964-2021 or the `'IEEE'` variant from IEEE Std 1619-2007. Encryption and
+decryption must use the same variant. The option is available only for
+`sm4-xts`; it does not apply to AES-XTS ciphers. OpenSSL's default provider
+supports `sm4-xts` in OpenSSL 3.2 or later.
+
+### AES key wrap modes
+
+AES key wrap (`AES-WRAP`) and AES key wrap with padding (`AES-WRAP-PAD`)
+ciphers operate on a complete key-data value rather than on an incremental byte
+stream. The inverse-transform variants have the same processing restrictions.
+
+Applications which use an AES key wrap cipher must adhere to these
+restrictions:
+
+* `cipher.update()` or `decipher.update()` must be called exactly once with the
+  complete, non-empty input value.
+* Do not use AES key wrap ciphers as generic [`stream.Transform`][] streams.
+  Methods such as `write(data)`, `end(data)`, and `pipe()` can split one value
+  across multiple updates, with each update being treated as a separate wrap or
+  unwrap operation.
+* `cipher.final()` or `decipher.final()` must still be called to complete the
+  operation.
+
 ### SIV and GCM-SIV modes
 
 `SIV`[^openssl30] and `GCM-SIV`[^openssl32] are supported [AEAD algorithms][]
@@ -7259,6 +7400,8 @@ See the [list of SSL OP Flags][] for details.
 [^openssl35]: Requires OpenSSL >= 3.5
 
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
+[AES key wrap modes]: #aes-key-wrap-modes
+[CBC-CTS mode]: #cbc-cts-mode
 [CCM mode]: #ccm-mode
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
 [Caveats]: #support-for-weak-or-compromised-algorithms
@@ -7288,7 +7431,9 @@ See the [list of SSL OP Flags][] for details.
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
 [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
+[SIV and GCM-SIV modes]: #siv-and-gcm-siv-modes
 [Web Crypto API documentation]: webcrypto.md
+[XTS mode]: #xts-mode
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--enable-fips`]: cli.md#--enable-fips
 [`--force-fips`]: cli.md#--force-fips
@@ -7318,6 +7463,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createVerify()`]: #cryptocreateverifyalgorithm-options
 [`crypto.generateKey()`]: #cryptogeneratekeytype-options-callback
 [`crypto.generateKeyPair()`]: #cryptogeneratekeypairtype-options-callback
+[`crypto.getCiphers()`]: #cryptogetciphers
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getFips()`]: #cryptogetfips
@@ -7350,6 +7496,7 @@ See the [list of SSL OP Flags][] for details.
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding
 [`sign.update()`]: #signupdatedata-inputencoding
+[`stream.Transform`]: stream.md#class-streamtransform
 [`stream.Writable` options]: stream.md#new-streamwritableoptions
 [`stream.transform` options]: stream.md#new-streamtransformoptions
 [`util.promisify()`]: util.md#utilpromisifyoriginal
