@@ -348,10 +348,12 @@ An exception thrown by the function fails that handshake and is reported to the
 session's error handler, like any other handshake failure. It does not reach
 the process as an uncaught exception.
 
-The certificate and the cipher list both follow the selected context. The
-pre-shared key callbacks do not: OpenSSL binds those to the connection when it
-is created, before a name is known, so they come from the endpoint's own
-context regardless of which identity is selected.
+The certificate and the cipher list both follow the selected context.
+Pre-shared keys do not. OpenSSL installs the PSK callbacks on the connection
+when it is created, before any name is known, and selecting an identity does
+not replace them, so the keys a server accepts are always the endpoint's own.
+A `psk` given on an SNI identity is never consulted, and an identity cannot be
+served over PSK alone.
 
 A connection refused for an unrecognized name still reaches the `listen()`
 callback: the session exists once the client's address is validated, which
