@@ -25,6 +25,7 @@
 
 namespace node {
 
+using ncrypto::MarkPopErrorOnReturn;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -38,6 +39,32 @@ using v8::String;
 using v8::Value;
 
 namespace dtls {
+
+namespace {
+// Format the OpenSSL error queue into a human readable message.
+//
+// Only the first (oldest, and therefore most specific) entry is rendered; the
+// remainder are left for the enclosing MarkPopErrorOnReturn to discard. An
+// SSL_ERROR_SSL can be reported with nothing queued -- ERR_error_string_n()
+// renders 0 as "error:00000000:lib(0)::reason(0)", which tells nobody
+// anything -- so fall back to a description of the SSL error code instead.
+std::string FormatSSLError(int ssl_err) {
+  unsigned long first = ERR_get_error();  // NOLINT(runtime/int)
+  if (first != 0) {
+    char buf[256];
+    ERR_error_string_n(first, buf, sizeof(buf));
+    return buf;
+  }
+  switch (ssl_err) {
+    case SSL_ERROR_SYSCALL:
+      return "DTLS I/O error";
+    case SSL_ERROR_ZERO_RETURN:
+      return "DTLS connection closed by peer";
+    default:
+      return "DTLS protocol error";
+  }
+}
+}  // namespace
 
 DTLSSession::DTLSSession(Environment* env,
                          Local<Object> wrap,
@@ -59,6 +86,7 @@ DTLSSession::DTLSSession(Environment* env,
                           // an error or running Cycle() below can synchronously
                           // destroy this session, and this timer lives on it.
                           BaseObjectPtr<DTLSSession> strong_ref{this};
+                          MarkPopErrorOnReturn mark_pop_error_on_return;
                           DTLS_STAT_INCREMENT(DTLSSessionStats,
                                               retransmit_count);
                           int ret = DTLSv1_handle_timeout(ssl_.get());
@@ -285,6 +313,8 @@ void DTLSSession::New(const FunctionCallbackInfo<Value>& args) {
 void DTLSSession::Receive(const uint8_t* data, size_t len) {
   if (destroyed_ || closed_) return;
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   // Write the encrypted datagram into enc_in_ BIO.
   int written = BIO_write(enc_in_, data, len);
   if (written <= 0) return;
@@ -295,6 +325,12 @@ void DTLSSession::Receive(const uint8_t* data, size_t len) {
 
 void DTLSSession::Cycle() {
   if (destroyed_) return;
+
+  // Everything OpenSSL queues while the pump runs is consumed here (for the
+  // error callbacks below) or discarded on the way out. Leaving entries behind
+  // would misattribute them to whatever crypto operation runs next on this
+  // thread -- including unrelated node:crypto work.
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   // Pin a strong reference to ourselves for the duration of the pump. A JS
   // callback dispatched below (message/handshake/error) can synchronously
@@ -317,14 +353,13 @@ void DTLSSession::Cycle() {
     if (ret <= 0) {
       int err = SSL_get_error(ssl_.get(), ret);
       if (err == SSL_ERROR_SSL) {
-        unsigned long ossl_err = ERR_get_error();  // NOLINT(runtime/int)
-        char err_buf[256];
-        ERR_error_string_n(ossl_err, err_buf, sizeof(err_buf));
+        std::string message = FormatSSLError(err);
         // Flush any fatal alert OpenSSL queued for the peer before emitting the
         // error, which tears the session down and detaches the endpoint.
         EncOut();
         Local<Value> argv[] = {
-            String::NewFromUtf8(env()->isolate(), err_buf).ToLocalChecked(),
+            String::NewFromUtf8(env()->isolate(), message.c_str())
+                .ToLocalChecked(),
         };
         EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
         cycle_depth_--;
@@ -409,14 +444,13 @@ void DTLSSession::ClearOut() {
 
     case SSL_ERROR_SSL: {
       // SSL error during handshake or data exchange.
-      unsigned long ossl_err = ERR_get_error();  // NOLINT(runtime/int)
-      char err_buf[256];
-      ERR_error_string_n(ossl_err, err_buf, sizeof(err_buf));
+      std::string message = FormatSSLError(err);
       // Flush any fatal alert OpenSSL queued for the peer before emitting the
       // error, which tears the session down and detaches the endpoint.
       EncOut();
       Local<Value> argv[] = {
-          String::NewFromUtf8(env()->isolate(), err_buf).ToLocalChecked(),
+          String::NewFromUtf8(env()->isolate(), message.c_str())
+              .ToLocalChecked(),
       };
       EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
       break;
@@ -463,6 +497,8 @@ int DTLSSession::Send(const uint8_t* data, size_t len) {
     return -1;
   }
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   int written = SSL_write(ssl_.get(), data, len);
   if (written > 0) {
     DTLS_STAT_INCREMENT_N(DTLSSessionStats, bytes_sent, written);
@@ -480,6 +516,8 @@ void DTLSSession::Close() {
   // down from the close callback), and we call Destroy() afterwards. Pin a
   // strong reference so `this` survives until we return.
   BaseObjectPtr<DTLSSession> strong_ref{this};
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   closed_ = true;
   state_->closing = 1;
@@ -652,6 +690,8 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = session->env();
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   X509* peer_cert = SSL_get0_peer_certificate(session->ssl_.get());
   if (peer_cert == nullptr) return;
 
@@ -710,6 +750,8 @@ void DTLSSession::ExportKeyingMaterial(
     context_len = Buffer::Length(args[2]);
     use_context = true;
   }
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   std::vector<uint8_t> out(length);
   int ret = SSL_export_keying_material(session->ssl_.get(),
