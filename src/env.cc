@@ -16,6 +16,9 @@
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
+#if HAVE_OPENSSL
+#include "ncrypto.h"
+#endif
 #include "req_wrap-inl.h"
 #include "stream_base.h"
 #include "tracing/agent.h"
@@ -865,6 +868,10 @@ Environment::Environment(IsolateData* isolate_data,
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id),
       thread_name_(thread_name) {
+#if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL3_PROVIDER
+  provider_digest_cache = std::make_unique<ncrypto::DigestCache>();
+#endif
+
   if (!is_main_thread()) {
     // If this is a Worker thread, we can always safely use the parent's
     // Isolate's code cache because of the shared read-only heap.
@@ -1116,6 +1123,11 @@ Environment::~Environment() {
   // Also, since the main thread usually stops just before the process exits,
   // this is far less relevant here.
   if (!is_main_thread()) {
+#if HAVE_OPENSSL
+    // Provider methods can contain callbacks into native addons. Release the
+    // environment-owned methods before unloading any addon DSOs.
+    provider_digest_cache.reset();
+#endif
     // Dereference all addons that were loaded into this environment.
     for (binding::DLib& addon : loaded_addons_) {
       addon.Close();
