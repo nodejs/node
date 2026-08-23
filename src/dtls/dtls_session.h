@@ -209,6 +209,9 @@ class DTLSSession final : public AsyncWrap {
   // Emit an exception captured from a callback that ran inside OpenSSL.
   void EmitPendingError();
 
+  // Emit a failure to put a record on the wire.
+  void EmitSendError();
+
   BaseObjectWeakPtr<DTLSEndpoint> endpoint_;
   ncrypto::SSLPointer ssl_;
 
@@ -228,6 +231,11 @@ class DTLSSession final : public AsyncWrap {
   int cycle_depth_ = 0;
 
   v8::Global<v8::Value> pending_error_;
+
+  // First libuv error from sending a record, or 0. Reported once Cycle() is
+  // done rather than from inside the send loop, which runs while the SSL is
+  // mid-flight.
+  int send_error_ = 0;
 
   // Absolute time by which the handshake must finish, or 0 for no limit.
   //
