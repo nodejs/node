@@ -108,6 +108,8 @@ class DTLSEndpoint final : public HandleWrap {
   static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMTU(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSessionLimits(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoSetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // libuv callbacks
@@ -128,6 +130,10 @@ class DTLSEndpoint final : public HandleWrap {
   void ProcessDatagram(const uint8_t* data,
                        size_t len,
                        const SocketAddress& remote);
+
+  // True if another server session can be accepted from this address without
+  // exceeding either cap.
+  bool HasCapacityFor(const SocketAddress& remote) const;
 
   // True if the datagram could plausibly be a ClientHello. Used to reject
   // obvious junk before allocating an SSL for it.
@@ -151,6 +157,12 @@ class DTLSEndpoint final : public HandleWrap {
                      SocketAddress::Hash>
       sessions_;
 
+  // Concurrent sessions per source IP, ignoring port, so one host cannot fill
+  // the whole table. Entries are erased when their count reaches zero, so this
+  // stays proportional to the number of distinct peers, not to peers ever
+  // seen.
+  SocketAddress::IpMap<uint32_t> sessions_per_host_;
+
   // Server context (set when listening).
   BaseObjectPtr<DTLSContext> server_context_;
 
@@ -167,6 +179,10 @@ class DTLSEndpoint final : public HandleWrap {
 
   bool listening_ = false;
   uint32_t mtu_ = 1200;  // Conservative default MTU for data payload
+
+  // Caps on accepted server sessions. Zero means unlimited.
+  uint32_t max_sessions_ = 0;
+  uint32_t max_sessions_per_host_ = 0;
 };
 
 }  // namespace node::dtls
