@@ -81,7 +81,14 @@ added: REPLACEME
   * `alpn` {string\[]|Buffer} ALPN protocol names.
   * `srtp` {string} Colon-separated SRTP protection profile names
     (e.g., `'SRTP_AES128_CM_SHA1_80:SRTP_AEAD_AES_128_GCM'`).
-  * `requestCert` {boolean} Request client certificate. **Default:** `false`.
+  * `requestCert` {boolean} Request a certificate from the client.
+    **Default:** `false`.
+  * `rejectUnauthorized` {boolean} Only has an effect together with
+    `requestCert`. When `true`, a client that presents no certificate, or one
+    that does not chain to a trusted CA, is rejected during the handshake and
+    receives a TLS alert. When `false`, the certificate is still requested and
+    verified but the handshake completes regardless, leaving the decision to
+    the application via [`session.authorized`][]. **Default:** `true`.
   * `mtu` {number} Maximum transmission unit for DTLS records.
     **Default:** `1200`.
 * Returns: {DTLSEndpoint}
@@ -626,3 +633,4 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`DTLSEndpoint`]: #class-dtlsendpoint
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.listen()`]: #dtlslistencallback-options
+[`session.authorized`]: #sessionauthorized
