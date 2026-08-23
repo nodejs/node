@@ -28,6 +28,7 @@ namespace node {
 
 using ncrypto::MarkPopErrorOnReturn;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -861,12 +862,17 @@ void DTLSSession::DoSend(const FunctionCallbackInfo<Value>& args) {
   DTLSSession* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
-  if (!Buffer::HasInstance(args[0])) {
-    return THROW_ERR_INVALID_ARG_TYPE(session->env(), "data must be a Buffer");
+  // Any view over bytes, not only a Buffer. Buffer::HasInstance() is true for
+  // every TypedArray, but a DataView is not one, and the rest of this module
+  // -- exportKeyingMaterial(), the PSK key -- already takes both.
+  if (!args[0]->IsArrayBufferView()) {
+    return THROW_ERR_INVALID_ARG_TYPE(session->env(),
+                                      "data must be a TypedArray or DataView");
   }
 
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(Buffer::Data(args[0]));
-  size_t len = Buffer::Length(args[0]);
+  ArrayBufferViewContents<uint8_t> view(args[0].As<ArrayBufferView>());
+  const uint8_t* data = view.data();
+  size_t len = view.length();
 
   int written = session->Send(data, len);
   if (written < 0) return;  // Send() has thrown.

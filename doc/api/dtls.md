@@ -778,7 +778,9 @@ Represents a DTLS association with a single remote peer.
 
 ### `session.send(data)`
 
-* `data` {string|Buffer} The data to send. At most 16384 bytes.
+* `data` {string|Buffer|TypedArray|DataView} The data to send. At most 16384
+  bytes. A view sends the bytes it covers, so an offset or a subarray is sent
+  as given rather than as the whole buffer behind it.
 * Returns: {number} The number of bytes written to the DTLS layer.
 
 Send application data to the peer. The data is encrypted by DTLS before
