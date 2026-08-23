@@ -108,21 +108,22 @@ DTLSSession::DTLSSession(Environment* env,
                           // destroy this session, and this timer lives on it.
                           BaseObjectPtr<DTLSSession> strong_ref{this};
                           MarkPopErrorOnReturn mark_pop_error_on_return;
+
+                          // The deadline is checked before retransmitting, so
+                          // an expired handshake stops rather than sends once
+                          // more.
+                          if (HandshakeDeadlineExpired()) {
+                            EmitHandshakeTimeout();
+                            return;
+                          }
+
                           DTLS_STAT_INCREMENT(DTLSSessionStats,
                                               retransmit_count);
                           int ret = DTLSv1_handle_timeout(ssl_.get());
                           if (ret < 0) {
-                            // Handshake timeout expired.
-                            HandleScope hs(this->env()->isolate());
-                            Context::Scope cs(this->env()->context());
-                            Local<String> message;
-                            if (!String::NewFromUtf8(this->env()->isolate(),
-                                                     "DTLS handshake timeout")
-                                     .ToLocal(&message)) {
-                              return;
-                            }
-                            Local<Value> argv[] = {message};
-                            EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+                            // OpenSSL gave up first, having exhausted its own
+                            // retransmit budget.
+                            EmitHandshakeTimeout();
                             return;
                           }
                           Cycle();
@@ -133,6 +134,11 @@ DTLSSession::DTLSSession(Environment* env,
       stats_(env->isolate()) {
   MakeWeak();
   DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, created_at);
+
+  if (endpoint != nullptr && endpoint->handshake_timeout() > 0) {
+    handshake_deadline_ =
+        uv_hrtime() / 1000000 + endpoint->handshake_timeout();
+  }
   retransmit_timer_.Unref();
 
   // Update shared state.
@@ -572,6 +578,23 @@ void DTLSSession::EncOut() {
   }
 }
 
+bool DTLSSession::HandshakeDeadlineExpired() const {
+  if (handshake_deadline_ == 0 || handshake_complete_) return false;
+  return uv_hrtime() / 1000000 >= handshake_deadline_;
+}
+
+void DTLSSession::EmitHandshakeTimeout() {
+  HandleScope hs(env()->isolate());
+  Context::Scope cs(env()->context());
+  Local<String> message;
+  if (!String::NewFromUtf8(env()->isolate(), "DTLS handshake timeout")
+           .ToLocal(&message)) {
+    return;
+  }
+  Local<Value> argv[] = {message};
+  EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+}
+
 void DTLSSession::UpdateTimer() {
   if (destroyed_) return;
 
@@ -579,6 +602,18 @@ void DTLSSession::UpdateTimer() {
   if (DTLSv1_get_timeout(ssl_.get(), &tv)) {
     uint64_t timeout_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
     if (timeout_ms == 0) timeout_ms = 1;  // Minimum 1ms.
+
+    // Wake at the deadline if it falls first. The retransmit schedule doubles
+    // -- 1s, 3s, 7s, 15s, 31s -- so without this a 60s limit would not be
+    // noticed until 63s, and a shorter one could be out by almost its own
+    // length.
+    if (handshake_deadline_ > 0 && !handshake_complete_) {
+      uint64_t now = uv_hrtime() / 1000000;
+      uint64_t remaining =
+          handshake_deadline_ > now ? handshake_deadline_ - now : 1;
+      if (remaining < timeout_ms) timeout_ms = remaining;
+    }
+
     retransmit_timer_.Update(timeout_ms);
   } else {
     // No timeout needed (handshake complete or not started).

@@ -105,8 +105,9 @@ function open(endpoint, options) {
 // section 4.1.2.1). Neither peer is told anything, and both retransmit.
 //
 // Asserted rather than fixed: it is the protocol's behaviour, not this
-// implementation's. Note that nothing here times out, so the session lives
-// until the endpoint is closed.
+// implementation's. What ends it is the handshake timeout, which is left at
+// its default here and covered by test-dtls-handshake-timeout.mjs; the short
+// wait below is only to observe the stall, not to wait one out.
 {
   const endpoint = listen(() => {}, {
     psk: { 'device-42': KEY }, host: HOST, port: 0,
