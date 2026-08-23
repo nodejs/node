@@ -388,6 +388,16 @@ void DTLSEndpoint::OnAlloc(uv_handle_t* handle,
   // this thread, and OnRecv fully consumes each datagram (copying it into the
   // session's BIO) before the next OnAlloc, so a per-endpoint buffer suffices
   // and avoids a heap allocation on every packet.
+  //
+  // One datagram at a time holds only because recvmmsg is off: libuv sets
+  // UV_HANDLE_UDP_RECVMMSG solely when uv_udp_init_ex() is passed
+  // UV_UDP_RECVMMSG, and DTLSEndpoint uses plain uv_udp_init(). Enabling it
+  // would have libuv pack several datagrams into this one buffer and deliver
+  // them as UV_UDP_MMSG_CHUNK slices, which this design does not handle.
+  //
+  // The size matters too: OnRecv drops anything flagged UV_UDP_PARTIAL, so a
+  // buffer below the 65507-byte maximum UDP payload would start discarding
+  // large datagrams rather than truncating them.
   if (endpoint->recv_buf_.empty()) {
     endpoint->recv_buf_.resize(65536);
   }
@@ -424,6 +434,18 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   }
 
   if (addr == nullptr) {
+    return;
+  }
+
+  // A truncated datagram is not a short DTLS record, it is a corrupt one, so
+  // drop it rather than hand a fragment to OpenSSL.
+  //
+  // This cannot currently fire. libuv raises UV_UDP_PARTIAL from MSG_TRUNC,
+  // which the kernel only sets when the datagram did not fit the buffer, and
+  // OnAlloc always supplies 65536 -- above the largest possible UDP payload,
+  // 65507 over IPv4 and 65527 over IPv6. The check is here so that shrinking
+  // that buffer degrades to dropped packets instead of corrupt records.
+  if ((flags & UV_UDP_PARTIAL) != 0) {
     return;
   }
 
