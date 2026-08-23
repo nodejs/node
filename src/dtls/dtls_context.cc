@@ -519,8 +519,8 @@ DTLSContext* DTLSContext::SelectSNIContextFromCallback(
   // from one.
   Local<Value> name = Undefined(env()->isolate());
   if (servername != nullptr) {
-    Local<String> name_str;
-    if (!String::NewFromUtf8(env()->isolate(), servername).ToLocal(&name_str)) {
+    Local<Value> name_str;
+    if (!ToV8Value(env()->context(), servername).ToLocal(&name_str)) {
       ReportCallbackError(ssl, &try_catch);
       return nullptr;
     }
@@ -673,9 +673,9 @@ void DTLSContext::ReportPSKError(SSL* ssl, const char* message) {
 
   Environment* env = session->env();
   HandleScope scope(env->isolate());
-  Local<String> str;
-  if (!String::NewFromUtf8(env->isolate(), message).ToLocal(&str)) return;
-  session->SetPendingError(Exception::TypeError(str));
+  Local<Value> str;
+  if (!ToV8Value(env->context(), message).ToLocal(&str)) return;
+  session->SetPendingError(Exception::TypeError(str.As<String>()));
 }
 
 void DTLSContext::ReportCallbackError(SSL* ssl, TryCatch* try_catch) {
@@ -728,8 +728,8 @@ unsigned int DTLSContext::PSKServerCallback(SSL* ssl,
   // uncaughtException, killing the process over one bad callback.
   TryCatch try_catch(env->isolate());
 
-  Local<String> identity_str;
-  if (!String::NewFromUtf8(env->isolate(), identity).ToLocal(&identity_str)) {
+  Local<Value> identity_str;
+  if (!ToV8Value(env->context(), identity).ToLocal(&identity_str)) {
     ctx->ReportCallbackError(ssl, &try_catch);
     return 0;
   }
@@ -780,12 +780,10 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
     // The hint is optional and frequently absent (RFC 4279 section 5.2).
     Local<Value> hint_value = Undefined(env->isolate());
     if (hint != nullptr) {
-      Local<String> hint_str;
-      if (!String::NewFromUtf8(env->isolate(), hint).ToLocal(&hint_str)) {
+      if (!ToV8Value(env->context(), hint).ToLocal(&hint_value)) {
         ctx->ReportCallbackError(ssl, &try_catch);
         return 0;
       }
-      hint_value = hint_str;
     }
 
     Local<Value> argv[] = {hint_value};

@@ -38,7 +38,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::String;
 using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
@@ -470,8 +469,8 @@ void DTLSSession::CycleInner() {
           EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
           return;
         }
-        Local<String> str;
-        if (String::NewFromUtf8(env()->isolate(), message.c_str())
+        Local<Value> str;
+        if (ToV8Value(env()->context(), message)
                 .ToLocal(&str)) {
           Local<Value> argv[] = {str};
           EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
@@ -492,8 +491,8 @@ void DTLSSession::CycleInner() {
 
       // Skip only the emit on failure: the read below and the cycle_depth_
       // decrement at the end of Cycle() still have to happen.
-      Local<String> str;
-      if (String::NewFromUtf8(env()->isolate(), SSL_get_version(ssl_.get()))
+      Local<Value> str;
+      if (ToV8Value(env()->context(), SSL_get_version(ssl_.get()))
               .ToLocal(&str)) {
         Local<Value> argv[] = {str};
         EmitCallback(DTLS_CB_SESSION_HANDSHAKE, 1, argv);
@@ -574,9 +573,8 @@ void DTLSSession::ClearOut() {
       // Flush any fatal alert OpenSSL queued for the peer before emitting the
       // error, which tears the session down and detaches the endpoint.
       EncOut();
-      Local<String> str;
-      if (String::NewFromUtf8(env()->isolate(), message.c_str())
-              .ToLocal(&str)) {
+      Local<Value> str;
+      if (ToV8Value(env()->context(), message).ToLocal(&str)) {
         Local<Value> argv[] = {str};
         EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
       }
@@ -630,8 +628,8 @@ bool DTLSSession::HandshakeDeadlineExpired() const {
 void DTLSSession::EmitHandshakeTimeout() {
   HandleScope hs(env()->isolate());
   Context::Scope cs(env()->context());
-  Local<String> message;
-  if (!String::NewFromUtf8(env()->isolate(), "DTLS handshake timeout")
+  Local<Value> message;
+  if (!ToV8Value(env()->context(), "DTLS handshake timeout")
            .ToLocal(&message)) {
     return;
   }
@@ -798,8 +796,8 @@ void DTLSSession::SSLKeylogCallback(const SSL* ssl, const char* line) {
   HandleScope handle_scope(session->env()->isolate());
   Context::Scope context_scope(session->env()->context());
 
-  Local<String> str;
-  if (!String::NewFromUtf8(session->env()->isolate(), line).ToLocal(&str)) {
+  Local<Value> str;
+  if (!ToV8Value(session->env()->context(), line).ToLocal(&str)) {
     return;
   }
   // OpenSSL calls this from ssl_log_secret while deriving the master secret,
@@ -824,8 +822,8 @@ void DTLSSession::EmitSendError() {
   send_error_ = 0;
 
   HandleScope handle_scope(env()->isolate());
-  Local<String> message;
-  if (!String::NewFromUtf8(env()->isolate(), uv_strerror(err))
+  Local<Value> message;
+  if (!ToV8Value(env()->context(), uv_strerror(err))
            .ToLocal(&message)) {
     return;
   }
@@ -926,8 +924,8 @@ void DTLSSession::GetProtocol(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   const char* version = SSL_get_version(session->ssl_.get());
-  Local<String> str;
-  if (!String::NewFromUtf8(session->env()->isolate(), version).ToLocal(&str)) {
+  Local<Value> str;
+  if (!ToV8Value(session->env()->context(), version).ToLocal(&str)) {
     return;
   }
   args.GetReturnValue().Set(str);
@@ -943,14 +941,14 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
 
   // Build the three strings up front so a failure leaves the return value
   // untouched rather than a half-populated object.
-  Local<String> name;
-  Local<String> standard_name;
-  Local<String> version;
-  if (!String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_name(cipher))
+  Local<Value> name;
+  Local<Value> standard_name;
+  Local<Value> version;
+  if (!ToV8Value(env->context(), SSL_CIPHER_get_name(cipher))
            .ToLocal(&name) ||
-      !String::NewFromUtf8(env->isolate(), SSL_CIPHER_standard_name(cipher))
+      !ToV8Value(env->context(), SSL_CIPHER_standard_name(cipher))
            .ToLocal(&standard_name) ||
-      !String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_version(cipher))
+      !ToV8Value(env->context(), SSL_CIPHER_get_version(cipher))
            .ToLocal(&version)) {
     return;
   }
@@ -984,9 +982,9 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   if (PEM_write_bio_X509(bio.get(), peer_cert)) {
     char* data;
     long len = BIO_get_mem_data(bio.get(), &data);  // NOLINT(runtime/int)
-    Local<String> str;
-    if (len > 0 && String::NewFromUtf8(
-                       env->isolate(), data, v8::NewStringType::kNormal, len)
+    Local<Value> str;
+    if (len > 0 && ToV8Value(
+                       env->context(), std::string_view(data, len))
                        .ToLocal(&str)) {
       args.GetReturnValue().Set(str);
     }
@@ -1026,11 +1024,10 @@ void DTLSSession::GetALPNProtocol(const FunctionCallbackInfo<Value>& args) {
 
   if (alpn == nullptr || alpn_len == 0) return;
 
-  Local<String> str;
-  if (!String::NewFromUtf8(session->env()->isolate(),
-                           reinterpret_cast<const char*>(alpn),
-                           v8::NewStringType::kNormal,
-                           alpn_len)
+  Local<Value> str;
+  if (!ToV8Value(session->env()->context(),
+                           std::string_view(reinterpret_cast<const char*>(alpn),
+                           alpn_len))
            .ToLocal(&str)) {
     return;
   }
@@ -1096,8 +1093,8 @@ void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
 
   if (profile == nullptr) return;
 
-  Local<String> str;
-  if (!String::NewFromUtf8(session->env()->isolate(), profile->name)
+  Local<Value> str;
+  if (!ToV8Value(session->env()->context(), profile->name)
            .ToLocal(&str)) {
     return;
   }
@@ -1136,8 +1133,8 @@ void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
   if (verify_error == X509_V_OK) return;
 
   const char* code = ncrypto::X509Pointer::ErrorCode(verify_error);
-  Local<String> str;
-  if (!String::NewFromUtf8(session->env()->isolate(), code).ToLocal(&str)) {
+  Local<Value> str;
+  if (!ToV8Value(session->env()->context(), code).ToLocal(&str)) {
     return;
   }
   args.GetReturnValue().Set(str);
@@ -1151,8 +1148,8 @@ void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
       SSL_get_servername(session->ssl_.get(), TLSEXT_NAMETYPE_host_name);
   if (servername == nullptr) return;
 
-  Local<String> str;
-  if (!String::NewFromUtf8(session->env()->isolate(), servername)
+  Local<Value> str;
+  if (!ToV8Value(session->env()->context(), servername)
            .ToLocal(&str)) {
     return;
   }

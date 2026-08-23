@@ -36,7 +36,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
-using v8::String;
 using v8::Uint32;
 using v8::Value;
 
@@ -402,8 +401,8 @@ void DTLSEndpoint::SetCallbacks(Local<Object> callbacks) {
   };
 
   for (int i = 0; i < DTLS_CB_COUNT; i++) {
-    Local<String> name;
-    if (!String::NewFromUtf8(isolate, names[i]).ToLocal(&name)) {
+    Local<Value> name;
+    if (!ToV8Value(context, names[i]).ToLocal(&name)) {
       THROW_ERR_OPERATION_FAILED(isolate,
                                  "Failed to create callback name string");
       return;
@@ -460,8 +459,8 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     HandleScope handle_scope(endpoint->env()->isolate());
     Context::Scope context_scope(endpoint->env()->context());
-    Local<String> message;
-    if (!String::NewFromUtf8(endpoint->env()->isolate(), uv_strerror(nread))
+    Local<Value> message;
+    if (!ToV8Value(endpoint->env()->context(), uv_strerror(nread))
              .ToLocal(&message)) {
       return;
     }
