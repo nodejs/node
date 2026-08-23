@@ -192,6 +192,22 @@ class DTLSSession final : public AsyncWrap {
                                          int argc,
                                          v8::Local<v8::Value>* argv);
 
+  // As EmitCallback, but a plain Call() rather than MakeCallback(): for
+  // callbacks OpenSSL invokes from inside its own state machine, where
+  // draining the microtask and tick queues would run user code in the middle
+  // of a transition.
+  v8::MaybeLocal<v8::Value> CallCallback(int cb_index,
+                                         int argc,
+                                         v8::Local<v8::Value>* argv);
+
+  // Everything Cycle() does between taking and releasing the reentrancy
+  // guard. Split out so the guard and the pending-error drain happen on every
+  // path out, rather than at each return.
+  void CycleInner();
+
+  // Emit an exception captured from a callback that ran inside OpenSSL.
+  void EmitPendingError();
+
   BaseObjectWeakPtr<DTLSEndpoint> endpoint_;
   ncrypto::SSLPointer ssl_;
 
