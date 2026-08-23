@@ -723,8 +723,11 @@ void DTLSSession::GetProtocol(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   const char* version = SSL_get_version(session->ssl_.get());
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(session->env()->isolate(), version).ToLocalChecked());
+  Local<String> str;
+  if (!String::NewFromUtf8(session->env()->isolate(), version).ToLocal(&str)) {
+    return;
+  }
+  args.GetReturnValue().Set(str);
 }
 
 void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
@@ -735,23 +738,27 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
   const SSL_CIPHER* cipher = SSL_get_current_cipher(session->ssl_.get());
   if (cipher == nullptr) return;
 
+  // Build the three strings up front so a failure leaves the return value
+  // untouched rather than a half-populated object.
+  Local<String> name;
+  Local<String> standard_name;
+  Local<String> version;
+  if (!String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_name(cipher))
+           .ToLocal(&name) ||
+      !String::NewFromUtf8(env->isolate(), SSL_CIPHER_standard_name(cipher))
+           .ToLocal(&standard_name) ||
+      !String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_version(cipher))
+           .ToLocal(&version)) {
+    return;
+  }
+
   Local<Object> info = Object::New(env->isolate());
+  info->Set(env->context(), env->name_string(), name).Check();
   info->Set(env->context(),
-            env->name_string(),
-            String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_name(cipher))
-                .ToLocalChecked())
+            FIXED_ONE_BYTE_STRING(env->isolate(), "standardName"),
+            standard_name)
       .Check();
-  info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "standardName"),
-          String::NewFromUtf8(env->isolate(), SSL_CIPHER_standard_name(cipher))
-              .ToLocalChecked())
-      .Check();
-  info->Set(env->context(),
-            env->version_string(),
-            String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_version(cipher))
-                .ToLocalChecked())
-      .Check();
+  info->Set(env->context(), env->version_string(), version).Check();
 
   args.GetReturnValue().Set(info);
 }
@@ -774,11 +781,11 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   if (PEM_write_bio_X509(bio.get(), peer_cert)) {
     char* data;
     long len = BIO_get_mem_data(bio.get(), &data);  // NOLINT(runtime/int)
-    if (len > 0) {
-      args.GetReturnValue().Set(
-          String::NewFromUtf8(
-              env->isolate(), data, v8::NewStringType::kNormal, len)
-              .ToLocalChecked());
+    Local<String> str;
+    if (len > 0 && String::NewFromUtf8(
+                       env->isolate(), data, v8::NewStringType::kNormal, len)
+                       .ToLocal(&str)) {
+      args.GetReturnValue().Set(str);
     }
   }
 }
@@ -791,14 +798,17 @@ void DTLSSession::GetALPNProtocol(const FunctionCallbackInfo<Value>& args) {
   unsigned int alpn_len = 0;
   SSL_get0_alpn_selected(session->ssl_.get(), &alpn, &alpn_len);
 
-  if (alpn != nullptr && alpn_len > 0) {
-    args.GetReturnValue().Set(
-        String::NewFromUtf8(session->env()->isolate(),
-                            reinterpret_cast<const char*>(alpn),
-                            v8::NewStringType::kNormal,
-                            alpn_len)
-            .ToLocalChecked());
+  if (alpn == nullptr || alpn_len == 0) return;
+
+  Local<String> str;
+  if (!String::NewFromUtf8(session->env()->isolate(),
+                           reinterpret_cast<const char*>(alpn),
+                           v8::NewStringType::kNormal,
+                           alpn_len)
+           .ToLocal(&str)) {
+    return;
   }
+  args.GetReturnValue().Set(str);
 }
 
 void DTLSSession::ExportKeyingMaterial(
@@ -843,9 +853,12 @@ void DTLSSession::ExportKeyingMaterial(
         env, "SSL_export_keying_material failed");
   }
 
-  args.GetReturnValue().Set(
-      Buffer::Copy(env, reinterpret_cast<const char*>(out.data()), length)
-          .ToLocalChecked());
+  Local<Object> buf;
+  if (!Buffer::Copy(env, reinterpret_cast<const char*>(out.data()), length)
+           .ToLocal(&buf)) {
+    return;
+  }
+  args.GetReturnValue().Set(buf);
 }
 
 void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
@@ -855,11 +868,14 @@ void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
   const SRTP_PROTECTION_PROFILE* profile =
       SSL_get_selected_srtp_profile(session->ssl_.get());
 
-  if (profile != nullptr) {
-    args.GetReturnValue().Set(
-        String::NewFromUtf8(session->env()->isolate(), profile->name)
-            .ToLocalChecked());
+  if (profile == nullptr) return;
+
+  Local<String> str;
+  if (!String::NewFromUtf8(session->env()->isolate(), profile->name)
+           .ToLocal(&str)) {
+    return;
   }
+  args.GetReturnValue().Set(str);
 }
 
 void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
@@ -882,8 +898,11 @@ void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
   if (verify_error == X509_V_OK) return;
 
   const char* code = ncrypto::X509Pointer::ErrorCode(verify_error);
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(session->env()->isolate(), code).ToLocalChecked());
+  Local<String> str;
+  if (!String::NewFromUtf8(session->env()->isolate(), code).ToLocal(&str)) {
+    return;
+  }
+  args.GetReturnValue().Set(str);
 }
 
 void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
@@ -892,11 +911,14 @@ void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {
 
   const char* servername =
       SSL_get_servername(session->ssl_.get(), TLSEXT_NAMETYPE_host_name);
-  if (servername != nullptr) {
-    args.GetReturnValue().Set(
-        String::NewFromUtf8(session->env()->isolate(), servername)
-            .ToLocalChecked());
+  if (servername == nullptr) return;
+
+  Local<String> str;
+  if (!String::NewFromUtf8(session->env()->isolate(), servername)
+           .ToLocal(&str)) {
+    return;
   }
+  args.GetReturnValue().Set(str);
 }
 
 void DTLSSession::MemoryInfo(MemoryTracker* tracker) const {
