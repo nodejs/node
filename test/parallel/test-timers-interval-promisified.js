@@ -247,12 +247,10 @@ process.on('multipleResolves', common.mustNotCall());
 
 (async () => {
   const signal = AbortSignal.abort('boom');
-  try {
+  await assert.rejects(async () => {
     const iterable = timerPromises.setInterval(2, undefined, { signal });
+
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of iterable) { }
-    assert.fail('should have failed');
-  } catch (err) {
-    assert.strictEqual(err.cause, 'boom');
-  }
+  }, { cause: 'boom' }, 'should have failed');
 })().then(common.mustCall());
