@@ -30,6 +30,9 @@ struct DTLSSessionStateData {
   uint8_t closing = 0;
   uint8_t destroyed = 0;
   uint8_t has_message_listener = 0;
+  // Gates SSLKeylogCallback. Secrets are only turned into JS strings when the
+  // application has actually asked for them.
+  uint8_t has_keylog_listener = 0;
 };
 
 // Stats collected for a DTLS session, backed by a BigUint64Array.
@@ -148,9 +151,13 @@ class DTLSSession final : public AsyncWrap {
   // Update the DTLS retransmission timer based on OpenSSL's timeout.
   void UpdateTimer();
 
-  // OpenSSL keylog callback.
+ public:
+  // OpenSSL keylog callback. Registered once per SSL_CTX by DTLSContext; it
+  // resolves the session from the SSL and does nothing unless that session has
+  // a keylog listener.
   static void SSLKeylogCallback(const SSL* ssl, const char* line);
 
+ private:
   // Emit a callback to JS via the endpoint's callback dispatch.
   v8::MaybeLocal<v8::Value> EmitCallback(int cb_index,
                                          int argc,
