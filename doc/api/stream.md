@@ -3531,6 +3531,10 @@ changes:
                  `WritableStream`.
 -->
 
+> Stability: 0 - Deprecated. Using [`stream.addAbortSignal()`][] to destroy
+> long-lived stream resources is documentation-only deprecated. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
+
 * `signal` {AbortSignal} A signal representing possible cancellation
 * `stream` {Stream|ReadableStream|WritableStream} A stream to attach a signal
   to.
