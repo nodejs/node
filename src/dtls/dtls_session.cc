@@ -199,16 +199,21 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
   ncrypto::SSLPointer ssl(ssl_raw);
 
   // Create memory BIOs for encrypted data I/O.
+  // enc_out_ must preserve datagram boundaries: OpenSSL emits one BIO_write
+  // per DTLS record, each sized to fit SSL_set_mtu(). A byte-stream BIO throws
+  // that away and lets EncOut() coalesce a whole flight into one oversized
+  // datagram. BIO_s_dgram_mem() returns exactly one datagram per BIO_read and
+  // already reports "empty" as a retry, so no BIO_set_mem_eof_return() is
+  // needed for it.
   auto enc_in = ncrypto::BIOPointer::NewMem();
-  auto enc_out = ncrypto::BIOPointer::NewMem();
+  auto enc_out = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
   if (!enc_in || !enc_out) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "BIO_new failed");
     return {};
   }
 
-  // Make the BIOs non-blocking.
+  // Make the BIO non-blocking.
   BIO_set_mem_eof_return(enc_in.get(), -1);
-  BIO_set_mem_eof_return(enc_out.get(), -1);
 
   // Associate BIOs with the SSL object. SSL_set_bio takes ownership.
   BIO* enc_in_raw = enc_in.release();
@@ -466,8 +471,10 @@ void DTLSSession::EncOut() {
   auto ep = endpoint_.get();
   if (ep == nullptr) return;
 
-  // Read encrypted data from enc_out_ BIO and send via UDP.
-  // Read in a loop since there may be multiple DTLS records.
+  // enc_out_ is a datagram BIO, so each BIO_read yields exactly one datagram
+  // -- one DTLS record as OpenSSL framed it against the MTU. Loop because a
+  // single flight is several records, and send each one separately rather than
+  // concatenating them into a datagram that would need IP fragmentation.
   uint8_t buf[65536];
   int read;
   while ((read = BIO_read(enc_out_, buf, sizeof(buf))) > 0) {
