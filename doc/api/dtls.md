@@ -100,7 +100,10 @@ added: REPLACEME
     receives a TLS alert. When `false`, the certificate is still requested and
     verified but the handshake completes regardless, leaving the decision to
     the application via [`session.authorized`][]. **Default:** `true`.
-  * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
+  * `mtu` {number}
+  * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
+    abandoned. `0` disables it. **Default:** `60000`. See
+    [Handshake timeout][]. Maximum size in bytes of a DTLS datagram. **Default:**
     `1200`.
     **Default:** `1200`.
   * `maxSessions` {number} The maximum number of concurrent sessions the
@@ -339,6 +342,32 @@ const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
 const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
 ```
 
+### Handshake timeout
+
+A handshake that never finishes is abandoned after `handshakeTimeout`
+milliseconds, and its session error is `DTLS handshake timeout`.
+
+OpenSSL already gives up on its own, but only after twelve retransmits on a
+doubling backoff capped at 60 seconds -- around eight minutes in total. Until
+then the session holds its place against \[`endpointOptions.maxSessions`]\[],
+so handshakes that are started and abandoned can occupy an endpoint for the
+cost of starting them. That needs no spoofing: the peer completes the cookie
+exchange and then simply stops.
+
+The two limits coexist and whichever comes first ends the handshake. The
+retransmit schedule itself is untouched, deliberately -- compressing it to
+force earlier failure would cause spurious retransmissions on exactly the
+lossy links DTLS is meant for.
+
+The timeout covers resumed and PSK handshakes as well, and stops applying once
+the handshake completes; it is not an idle timeout.
+
+A handshake can stall without either peer being at fault or aware.
+DTLS discards records it cannot authenticate rather than answering them
+(RFC 6347 section 4.1.2.1), so a mismatched pre-shared key or a cipher list
+with nothing in common produces silence rather than an alert. This timeout is
+what ends those.
+
 ### Pre-shared keys
 
 DTLS can authenticate with a key both peers already hold instead of a
@@ -417,10 +446,9 @@ record that fails authentication is then discarded rather than answered, since
 DTLS discards invalid records instead of replying to them (RFC 6347 section
 4.1.2.1). Neither peer is told anything and both retransmit.
 
-Nothing times a handshake out, so a session in this state is held until the
-endpoint is closed. The same is true of a cipher list with nothing in common,
-which is what makes the `CCM8` case above present as a hang rather than a
-rejection.
+A cipher list with nothing in common behaves the same way, which is what makes
+the `CCM8` case above present as a stall rather than a rejection. Both are
+ended by [`handshakeTimeout`][], after 60 seconds by default.
 
 An identity the server does not recognise is refused outright, and the client
 sees the handshake fail.
@@ -1104,6 +1132,7 @@ const endpoint = listen(callback, {
 The minimum allowed MTU is 256 bytes. The maximum is 65535.
 
 [Denial of service]: #denial-of-service
+[Handshake timeout]: #handshake-timeout
 [Permission Model]: permissions.md#permission-model
 [Pre-shared keys]: #pre-shared-keys
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
@@ -1119,6 +1148,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`endpoint.state`]: #endpointstate
 [`endpoint.stats`]: #endpointstats
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
+[`handshakeTimeout`]: #handshake-timeout
 [`session.authorized`]: #sessionauthorized
 [`session.closed`]: #sessionclosed
 [`session.destroy()`]: #sessiondestroyerror

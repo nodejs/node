@@ -33,6 +33,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -95,6 +96,8 @@ Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getAddress", GetAddress);
     SetProtoMethod(isolate, tmpl, "setMTU", SetMTU);
     SetProtoMethod(
+        isolate, tmpl, "setHandshakeTimeout", SetHandshakeTimeout);
+    SetProtoMethod(
         isolate, tmpl, "setSessionLimits", SetSessionLimits);
     SetProtoMethod(isolate, tmpl, "setCallbacks", DoSetCallbacks);
 
@@ -122,6 +125,7 @@ void DTLSEndpoint::RegisterExternalReferences(
   registry->Register(GetStats);
   registry->Register(GetAddress);
   registry->Register(SetMTU);
+  registry->Register(SetHandshakeTimeout);
   registry->Register(SetSessionLimits);
   registry->Register(DoSetCallbacks);
 }
@@ -835,6 +839,17 @@ void DTLSEndpoint::SetMTU(const FunctionCallbackInfo<Value>& args) {
   // value once, when it builds its SSL. Not currently reachable after
   // construction -- JS calls this from the DTLSEndpoint constructor only.
   endpoint->mtu_ = mtu;
+}
+
+void DTLSEndpoint::SetHandshakeTimeout(
+    const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  CHECK(args[0]->IsNumber());
+  double timeout = args[0].As<Number>()->Value();
+  // Read once per session, when it is created, like the MTU above.
+  endpoint->handshake_timeout_ = static_cast<uint64_t>(timeout);
 }
 
 void DTLSEndpoint::DoSetCallbacks(const FunctionCallbackInfo<Value>& args) {
