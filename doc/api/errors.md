@@ -934,7 +934,7 @@ be called no more than one time per instance of a `Hash` object.
 
 ### `ERR_CRYPTO_HASH_UPDATE_FAILED`
 
-[`hash.update()`][] failed for any reason. This should rarely, if ever, happen.
+[`hash.update()`][] failed for an unspecified reason.
 
 <a id="ERR_CRYPTO_INCOMPATIBLE_KEY"></a>
 
@@ -1050,6 +1050,16 @@ An invalid key type was provided.
 
 The given crypto key object's type is invalid for the attempted operation.
 
+<a id="ERR_CRYPTO_INVALID_MAC"></a>
+
+### `ERR_CRYPTO_INVALID_MAC`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An invalid MAC algorithm was specified.
+
 <a id="ERR_CRYPTO_INVALID_MESSAGELEN"></a>
 
 ### `ERR_CRYPTO_INVALID_MESSAGELEN`
@@ -1122,6 +1132,37 @@ added: v24.7.0
 
 Attempted to use KEM operations while Node.js was not compiled with
 OpenSSL with KEM support.
+
+<a id="ERR_CRYPTO_MAC_FINALIZED"></a>
+
+### `ERR_CRYPTO_MAC_FINALIZED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An operation was attempted on a `Mac` object after finalization was attempted
+or an underlying MAC update failed.
+
+<a id="ERR_CRYPTO_MAC_NOT_SUPPORTED"></a>
+
+### `ERR_CRYPTO_MAC_NOT_SUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Node.js was built without support for the OpenSSL `EVP_MAC` API.
+
+<a id="ERR_CRYPTO_MAC_UPDATE_FAILED"></a>
+
+### `ERR_CRYPTO_MAC_UPDATE_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+[`mac.update()`][] failed for an unspecified reason.
 
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 
@@ -4684,6 +4725,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`http`]: http.md
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
+[`mac.update()`]: crypto.md#macupdatedata-inputencoding
 [`net.Server`]: net.md#class-netserver
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
 [`net.Socket`]: net.md#class-netsocket
