@@ -46,8 +46,12 @@ TEST(SocketAddress, SocketAddress) {
 TEST(SocketAddress, HashAndEqualAgree) {
   // Hash covers family, port and address. operator== memcmps the whole
   // sockaddr, so it also sees sin_zero, which is padding the kernel is not
-  // obliged to zero for us. Pairing Hash with the default std::equal_to
-  // therefore let one peer occupy two entries of the same hash bucket.
+  // obliged to zero for us. Two datagrams from one peer can therefore compare
+  // unequal, which for a session table means one peer with two sessions.
+  //
+  // Not a broken container: operator== is stricter than Hash, so equal keys
+  // still hash equal and unordered_map's invariant holds. Map keeps that
+  // pairing. PeerMap is for callers that need one peer to mean one entry.
   sockaddr_storage s1, s2;
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s1);
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s2);
@@ -68,16 +72,16 @@ TEST(SocketAddress, HashAndEqualAgree) {
   // Equal agrees with Hash.
   CHECK(equal(addr1, addr2));
 
-  // The old pairing, Hash with the default std::equal_to, is what
-  // SocketAddress::Map used to expand to. It splits this single peer across
-  // two entries of one bucket -- the defect being fixed.
-  std::unordered_map<SocketAddress, size_t, SocketAddress::Hash> unfixed;
-  unfixed[addr1]++;
-  unfixed[addr2]++;
-  CHECK_EQ(unfixed.size(), 2);
+  // Map pairs Hash with the default std::equal_to, which splits this single
+  // peer across two entries of one bucket. Unchanged deliberately: it is what
+  // SocketAddressLRU uses, and QUIC counts entries in one of those.
+  SocketAddress::Map<size_t> split;
+  split[addr1]++;
+  split[addr2]++;
+  CHECK_EQ(split.size(), 2);
 
-  // The regression that matters: one key, not two.
-  SocketAddress::Map<size_t> map;
+  // PeerMap is the one that treats them as the peer they are.
+  SocketAddress::PeerMap<size_t> map;
   map[addr1]++;
   map[addr2]++;
   CHECK_EQ(map.size(), 1);
@@ -108,7 +112,7 @@ TEST(SocketAddress, HashAndEqualAgreeIPv6) {
   CHECK_EQ(SocketAddress::Hash()(addr1), SocketAddress::Hash()(addr2));
   CHECK(equal(addr1, addr2));
 
-  SocketAddress::Map<size_t> map;
+  SocketAddress::PeerMap<size_t> map;
   map[addr1]++;
   map[addr2]++;
   CHECK_EQ(map.size(), 1);
