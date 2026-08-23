@@ -104,6 +104,8 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "setVerifyMode", SetVerifyMode);
     SetProtoMethod(isolate, tmpl, "loadDefaultCAs", LoadDefaultCAs);
     SetProtoMethod(isolate, tmpl, "setECDHCurve", SetECDHCurve);
+    SetProtoMethod(
+        isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
 
     env->set_dtls_context_constructor_template(tmpl);
   }
@@ -129,6 +131,7 @@ void DTLSContext::RegisterExternalReferences(
   registry->Register(SetVerifyMode);
   registry->Register(LoadDefaultCAs);
   registry->Register(SetECDHCurve);
+  registry->Register(SetSessionIdContext);
 }
 
 // new DTLSContext(isServer)
@@ -169,8 +172,16 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
     // to attempt a redundant cookie exchange, hanging the handshake.
 
     // Enable session caching for session resumption.
+    //
+    // SSL_SESS_CACHE_NO_INTERNAL, matching node:tls and the client branch
+    // below. The previous mode enabled OpenSSL's internal cache and then set
+    // NO_AUTO_CLEAR, which is only coherent as node:tls uses it -- alongside
+    // NO_INTERNAL, where there is no internal cache for the auto-clear to
+    // walk. Enabled-plus-NO_AUTO_CLEAR instead meant every accepted session
+    // was retained, with its master secret, for the 7200 second default
+    // timeout and past it.
     SSL_CTX_set_session_cache_mode(
-        ctx.get(), SSL_SESS_CACHE_SERVER | SSL_SESS_CACHE_NO_AUTO_CLEAR);
+        ctx.get(), SSL_SESS_CACHE_SERVER | SSL_SESS_CACHE_NO_INTERNAL);
   } else {
     // Client session caching for resumption.
     SSL_CTX_set_session_cache_mode(
@@ -357,6 +368,28 @@ void DTLSContext::LoadDefaultCAs(const FunctionCallbackInfo<Value>& args) {
   DTLSContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
   crypto::UseDefaultRootCertStore(ctx->env(), ctx->ctx_.get());
+}
+
+// Scopes cached sessions to this server. OpenSSL refuses to resume a session
+// whose id context differs from the one on the accepting SSL, which is what
+// stops a session established under one configuration being resumed under
+// another. It matters most when client certificates are in use.
+void DTLSContext::SetSessionIdContext(
+    const FunctionCallbackInfo<Value>& args) {
+  DTLSContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+  Environment* env = ctx->env();
+
+  CHECK(args[0]->IsString());
+  Utf8Value sid_ctx(env->isolate(), args[0]);
+
+  if (!SSL_CTX_set_session_id_context(
+          ctx->ctx_.get(),
+          reinterpret_cast<const unsigned char*>(*sid_ctx),
+          sid_ctx.length())) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to set session id context");
+  }
 }
 
 void DTLSContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
