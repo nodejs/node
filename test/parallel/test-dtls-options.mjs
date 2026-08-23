@@ -14,7 +14,7 @@ if (!process.features.dtls) {
   skip('DTLS is not enabled');
 }
 
-const { listen, connect } = await import('node:dtls');
+const { connect, createSecureContext, listen } = await import('node:dtls');
 
 // Test: listen() requires a callback.
 assert.throws(() => {
@@ -120,4 +120,46 @@ assert.throws(() => {
   assert.strictEqual(endpoint.bind, undefined);
   assert.strictEqual(endpoint.listen, undefined);
   assert.strictEqual(endpoint.connect, undefined);
+}
+
+// isServer and rejectUnauthorized are booleans, and are checked rather than
+// coerced. Both decide something security-relevant, and both read a value
+// that was not a boolean as the opposite of what it looked like:
+//
+//   createSecureContext({ isServer: 'yes' })  -> a client context
+//   connect(..., { rejectUnauthorized: 0 })   -> verification on
+//
+// Neither failed open, so nothing was unsafe. Both were silent.
+{
+  for (const value of ['yes', 1, 0, '', null, {}]) {
+    assert.throws(() => createSecureContext({ isServer: value }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    }, `isServer: ${inspect(value)}`);
+  }
+
+  // Booleans still work, and still select the side they name.
+  assert.strictEqual(createSecureContext({ isServer: true }).isServer, true);
+  assert.strictEqual(createSecureContext({ isServer: false }).isServer, false);
+  // Omitted means a client, as documented.
+  assert.strictEqual(createSecureContext({}).isServer, false);
+
+  const fixtures = await import('../common/fixtures.mjs');
+  const serverCert = fixtures.readKey('agent1-cert.pem').toString();
+  const serverKey = fixtures.readKey('agent1-key.pem').toString();
+
+  for (const value of [0, 1, '', 'no', null]) {
+    assert.throws(
+      () => connect('127.0.0.1', 4433, { rejectUnauthorized: value }),
+      { code: 'ERR_INVALID_ARG_TYPE' },
+      `connect rejectUnauthorized: ${inspect(value)}`);
+
+    assert.throws(() => listen(() => {}, {
+      cert: serverCert,
+      key: serverKey,
+      host: '127.0.0.1',
+      port: 0,
+      rejectUnauthorized: value,
+    }), { code: 'ERR_INVALID_ARG_TYPE' },
+                  `listen rejectUnauthorized: ${inspect(value)}`);
+  }
 }
