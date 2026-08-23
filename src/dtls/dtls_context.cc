@@ -469,6 +469,65 @@ void DTLSContext::SetSessionIdContext(
 // The wildcard key: the identity used when no host name matches.
 constexpr const char* kSNIWildcard = "*";
 
+// Ask JavaScript which identity to serve. Synchronous, like the PSK
+// callbacks and for the same reason: suspending a DTLS handshake to await an
+// answer would mean driving SSL_ERROR_WANT_X509_LOOKUP back through Cycle(),
+// and a datagram peer is retransmitting while it waits.
+DTLSContext* DTLSContext::SelectSNIContextFromCallback(
+    SSL* ssl, const char* servername) {
+  HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+
+  // Called rather than MakeCallback'd: this runs inside SSL_do_handshake(),
+  // and MakeCallback drains the tick queue as its scope exits, which would
+  // run user code in the middle of OpenSSL's state machine. See
+  // PSKServerCallback.
+  TryCatch try_catch(env()->isolate());
+
+  // A client that sent no SNI extension still reaches here, and the callback
+  // is told so rather than being given an empty string it cannot distinguish
+  // from one.
+  Local<Value> name = Undefined(env()->isolate());
+  if (servername != nullptr) {
+    Local<String> name_str;
+    if (!String::NewFromUtf8(env()->isolate(), servername).ToLocal(&name_str)) {
+      return nullptr;
+    }
+    // Reject a name that did not survive the round trip through UTF-8, so a
+    // peer cannot offer bytes that reach JavaScript as replacement characters
+    // and match a host it was never given.
+    Utf8Value round_trip(env()->isolate(), name_str);
+    if (round_trip != servername) return nullptr;
+    name = name_str;
+  }
+
+  Local<Value> argv[] = {name};
+  Local<Value> ret;
+  if (!sni_callback_.Get(env()->isolate())
+           ->Call(env()->context(), object(), 1, argv)
+           .ToLocal(&ret)) {
+    ReportCallbackError(ssl, &try_catch);
+    return nullptr;
+  }
+
+  // Declining is not an error: it means this name is not served.
+  if (!ret->IsObject()) return nullptr;
+
+  DTLSContext* chosen;
+  ASSIGN_OR_RETURN_UNWRAP(&chosen, ret.As<Object>(), nullptr);
+
+  // Hold it. A context the callback built has no other owner once it
+  // returns, and the handshake is not finished with it: SSL_set_SSL_CTX()
+  // reassigns ssl->ctx, so a later callback resolving its configuration
+  // through SSL_get_SSL_CTX() lands on this context and not on the one the
+  // endpoint holds. Verified by pointer -- the PSK callback on a session
+  // whose name was chosen here reports the chosen context, not the base.
+  DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
+  if (session != nullptr) session->SetSNIContext(chosen);
+
+  return chosen;
+}
+
 int DTLSContext::SNISelectCallback(SSL* ssl, int* ad, void* arg) {
   auto* ctx = static_cast<DTLSContext*>(arg);
 
@@ -480,15 +539,25 @@ int DTLSContext::SNISelectCallback(SSL* ssl, int* ad, void* arg) {
     it = ctx->sni_contexts_.find(kSNIWildcard);
   }
 
-  if (it == ctx->sni_contexts_.end()) {
-    // Configuring an sni map without a "*" entry is a statement that only
-    // the named hosts are served, so refuse anything else rather than
-    // falling back to the endpoint's own certificate.
+  DTLSContext* chosen =
+      it != ctx->sni_contexts_.end() ? it->second.get() : nullptr;
+
+  // The map answers first, so a configuration using only the map still runs
+  // no JavaScript inside the handshake. The callback is reached only when it
+  // has nothing to say.
+  if (chosen == nullptr && !ctx->sni_callback_.IsEmpty()) {
+    chosen = ctx->SelectSNIContextFromCallback(ssl, servername);
+  }
+
+  if (chosen == nullptr) {
+    // Configuring sni without a "*" entry, or a callback that declines, is a
+    // statement that only the named hosts are served, so refuse anything
+    // else rather than falling back to the endpoint's own certificate.
     *ad = SSL_AD_UNRECOGNIZED_NAME;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  SSL_CTX* selected = it->second->ssl_ctx();
+  SSL_CTX* selected = chosen->ssl_ctx();
   if (SSL_set_SSL_CTX(ssl, selected) != selected) {
     *ad = SSL_AD_INTERNAL_ERROR;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
@@ -542,7 +611,11 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
 
   ctx->sni_contexts_ = std::move(next);
 
-  if (ctx->sni_contexts_.empty()) {
+  if (args[1]->IsFunction()) {
+    ctx->sni_callback_.Reset(env->isolate(), args[1].As<Function>());
+  }
+
+  if (ctx->sni_contexts_.empty() && ctx->sni_callback_.IsEmpty()) {
     SSL_CTX_set_tlsext_servername_callback(ctx->ctx_.get(), nullptr);
     SSL_CTX_set_tlsext_servername_arg(ctx->ctx_.get(), nullptr);
     return;
@@ -552,12 +625,12 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_set_tlsext_servername_arg(ctx->ctx_.get(), ctx);
 }
 
-// Hand an exception thrown by a PSK callback to the session it belongs to,
-// so it fails that handshake instead of reaching the process as an
-// uncaughtException. The exception must not still be pending when control
-// returns to OpenSSL, which goes on to build an alert and unwind through
-// Cycle()'s error path.
-void DTLSContext::ReportPSKError(SSL* ssl, TryCatch* try_catch) {
+// Hand an exception thrown by one of the handshake callbacks to the session
+// it belongs to, so it fails that handshake instead of reaching the process
+// as an uncaughtException. The exception must not still be pending when
+// control returns to OpenSSL, which goes on to build an alert and unwind
+// through Cycle()'s error path.
+void DTLSContext::ReportCallbackError(SSL* ssl, TryCatch* try_catch) {
   if (!try_catch->HasCaught() || try_catch->HasTerminated()) return;
 
   DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
@@ -624,7 +697,7 @@ unsigned int DTLSContext::PSKServerCallback(SSL* ssl,
   if (!ctx->psk_callback_.Get(env->isolate())
            ->Call(env->context(), ctx->object(), 1, argv)
            .ToLocal(&ret)) {
-    ctx->ReportPSKError(ssl, &try_catch);
+    ctx->ReportCallbackError(ssl, &try_catch);
     return 0;
   }
 
@@ -670,7 +743,7 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
     if (!ctx->psk_callback_.Get(env->isolate())
              ->Call(env->context(), ctx->object(), 1, argv)
              .ToLocal(&ret)) {
-      ctx->ReportPSKError(ssl, &try_catch);
+      ctx->ReportCallbackError(ssl, &try_catch);
       return 0;
     }
     if (!ret->IsObject()) return 0;

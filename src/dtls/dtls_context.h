@@ -79,7 +79,10 @@ class DTLSContext final : public BaseObject {
                                         unsigned char* psk,
                                         unsigned int max_psk_len);
 
-  static void ReportPSKError(SSL* ssl, v8::TryCatch* try_catch);
+  static void ReportCallbackError(SSL* ssl, v8::TryCatch* try_catch);
+
+  DTLSContext* SelectSNIContextFromCallback(SSL* ssl, const char* servername);
+  size_t sni_contexts_size() const { return sni_contexts_.size(); }
 
   // Recover the context a callback without an argument slot belongs to.
   static DTLSContext* FromSSL(SSL* ssl);
@@ -146,6 +149,7 @@ class DTLSContext final : public BaseObject {
 
   // Consulted only when the map does not answer.
   v8::Global<v8::Function> psk_callback_;
+  v8::Global<v8::Function> sni_callback_;
 };
 
 }  // namespace node::dtls

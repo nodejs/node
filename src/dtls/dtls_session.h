@@ -175,6 +175,14 @@ class DTLSSession final : public AsyncWrap {
   // callback with Call() rather than MakeCallback() set out to avoid.
   void SetPendingError(v8::Local<v8::Value> error);
 
+
+  // Retain a context chosen by the SNI callback. Entries in an sni map are
+  // owned by the context holding the map, but one returned from a callback
+  // has no other owner: SSL_set_SSL_CTX() references the SSL_CTX and not the
+  // DTLSContext wrapping it, and callbacks reached later in the handshake
+  // find their configuration through that wrapper.
+  void SetSNIContext(DTLSContext* context);
+
  private:
   bool HandshakeDeadlineExpired() const;
   void EmitHandshakeTimeout();
@@ -223,6 +231,7 @@ class DTLSSession final : public AsyncWrap {
   // connect() returned, and the first client-side callback to look for it
   // read freed memory.
   BaseObjectPtr<DTLSContext> context_;
+  BaseObjectPtr<DTLSContext> sni_context_;
 
   AliasedStruct<DTLSSessionStateData> state_;
   AliasedStruct<DTLSSessionStats> stats_;
