@@ -5,7 +5,7 @@ let
   nixpkgs = import (builtins.fetchTarball {
     url = "${repo}/archive/${rev}.tar.gz";
     sha256 = "0vi99516bn335vdzcjmvrkff8ikj0brpmjfcfdrjnb8bfd0wlr5j";
-  }) arg;
+  }) (arg // { overlays = (arg.overlays or [ ]) ++ [ (import ./R-overlay.nix) ]; });
 in
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
 # to keep testing on that platform for a little longer.
