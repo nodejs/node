@@ -113,3 +113,72 @@ function newClient() {
 
   await endpoint.close();
 }
+
+// Destroying an endpoint settles the promises of the sessions it holds.
+//
+// The binding destroys those sessions but emits no callback for them, so
+// anything awaiting one waited for a session that no longer existed. The
+// documentation says the promise always settles and awaiting it cannot hang.
+{
+  const arrived = Promise.withResolvers();
+  let serverSession;
+
+  const endpoint = listen((session) => {
+    serverSession = session;
+    arrived.resolve();
+  }, { cert, key, host: '127.0.0.1', port: 0 });
+
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    rejectUnauthorized: false,
+  });
+  await client.opened;
+  await arrived.promise;
+
+  endpoint.destroy();
+
+  await serverSession.closed;
+  assert.strictEqual(serverSession.destroyed, true);
+
+  await client.close();
+}
+
+// The endpoint's error reaches them, rather than being reported only on the
+// endpoint while the sessions resolve as though nothing went wrong.
+{
+  const arrived = Promise.withResolvers();
+  let serverSession;
+
+  const endpoint = listen((session) => {
+    serverSession = session;
+    arrived.resolve();
+  }, { cert, key, host: '127.0.0.1', port: 0 });
+
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    rejectUnauthorized: false,
+  });
+  await client.opened;
+  await arrived.promise;
+
+  const failure = new Error('endpoint went away');
+  endpoint.destroy(failure);
+
+  await assert.rejects(serverSession.closed, { message: 'endpoint went away' });
+  await assert.rejects(endpoint.closed, { message: 'endpoint went away' });
+
+  await client.close();
+}
+
+// A session torn down mid-handshake settles both of its promises, not just
+// the one the peer's departure would settle.
+{
+  const endpoint = listen(() => {}, { cert, key, host: '127.0.0.1', port: 0 });
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    rejectUnauthorized: false,
+  });
+
+  // Before the handshake can finish.
+  endpoint.destroy();
+
+  await assert.rejects(client.opened, { name: 'Error' });
+  await client.close();
+}
