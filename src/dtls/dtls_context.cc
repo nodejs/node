@@ -71,6 +71,12 @@ DTLSContext::DTLSContext(Environment* env,
   SSL_CTX_set_cookie_generate_cb(ctx_.get(), CookieGenerateCallback);
   SSL_CTX_set_cookie_verify_cb(ctx_.get(), CookieVerifyCallback);
 
+  // Keylog is a per-SSL_CTX setting, so register it once here rather than
+  // re-registering it from every session constructor. The callback is inert
+  // unless the session it resolves to has a keylog listener, so installing it
+  // unconditionally costs nothing and no secret reaches the JS heap uninvited.
+  SSL_CTX_set_keylog_callback(ctx_.get(), DTLSSession::SSLKeylogCallback);
+
   // Store pointer to this context in the SSL_CTX app data for callbacks.
   SSL_CTX_set_app_data(ctx_.get(), this);
 }
