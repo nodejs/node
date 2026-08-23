@@ -286,6 +286,35 @@ enum CryptoJobMode { kCryptoJobAsync, kCryptoJobSync, kCryptoJobWebCrypto };
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args);
 bool IsCryptoJobAsync(CryptoJobMode mode);
 
+struct CShakeOptions final : public MemoryRetainer {
+  enum Flag : uint8_t {
+    kFunctionName = 1 << 0,
+    kCustomization = 1 << 1,
+  };
+
+  std::string function_name;
+  std::string customization;
+  uint8_t flags = 0;
+
+  CShakeOptions() = default;
+  CShakeOptions(CShakeOptions&& other) noexcept;
+  CShakeOptions& operator=(CShakeOptions&& other) noexcept;
+
+  bool empty() const { return flags == 0; }
+  bool has(Flag flag) const { return (flags & flag) != 0; }
+
+  bool Initialize(ncrypto::EVPMDCtxPointer* ctx, const EVP_MD* digest) const;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(CShakeOptions)
+  SET_SELF_SIZE(CShakeOptions)
+};
+
+v8::Maybe<void> GetCShakeOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    unsigned int offset,
+    CShakeOptions* options);
+
 v8::MaybeLocal<v8::Value> CreateWebCryptoJobError(Environment* env,
                                                   v8::Local<v8::Value> cause);
 
