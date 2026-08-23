@@ -278,6 +278,7 @@ class NativeCryptoKey : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateCryptoKeyClass(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsCryptoKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::MaybeLocal<v8::Value> Create(Environment* env,
                                           const KeyObjectData& data,

@@ -1848,12 +1848,15 @@ void NativeCryptoKey::Initialize(Environment* env, Local<Object> target) {
             NativeCryptoKey::CreateCryptoKeyClass);
   SetMethod(
       env->context(), target, "getCryptoKeySlots", NativeCryptoKey::GetSlots);
+  SetMethodNoSideEffect(
+      env->context(), target, "isCryptoKey", NativeCryptoKey::IsCryptoKey);
 }
 
 void NativeCryptoKey::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(NativeCryptoKey::CreateCryptoKeyClass);
   registry->Register(NativeCryptoKey::GetSlots);
+  registry->Register(NativeCryptoKey::IsCryptoKey);
   registry->Register(NativeCryptoKey::New);
 }
 
@@ -1868,6 +1871,12 @@ bool IsNativeCryptoKey(Environment* env, Local<Value> value) {
 
 bool NativeCryptoKey::HasInstance(Environment* env, Local<Value> value) {
   return IsNativeCryptoKey(env, value);
+}
+
+void NativeCryptoKey::IsCryptoKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  args.GetReturnValue().Set(HasInstance(env, args[0]));
 }
 
 MaybeLocal<Value> NativeCryptoKey::Create(Environment* env,
