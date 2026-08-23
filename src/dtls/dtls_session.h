@@ -126,6 +126,8 @@ class DTLSSession final : public AsyncWrap {
   static void GetCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPeerCertificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerX509Certificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetALPNProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExportKeyingMaterial(
       const v8::FunctionCallbackInfo<v8::Value>& args);

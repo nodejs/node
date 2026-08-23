@@ -454,11 +454,34 @@ awaiting it cannot hang.
 * Returns: {string|undefined} The peer's certificate in PEM format, or
   `undefined` if the peer sent none.
 
-This is the leaf certificate only. Unlike [`tls.TLSSocket.getPeerCertificate()`][],
-it does not return the issuer chain, and it does not return the parsed fields
-(`subject`, `issuer`, `valid_from`, `valid_to`, `fingerprint` and so on) -- only
-the PEM text. Use [`session.authorized`][] and \[`session.authorizationError`]\[]
-for the verification result rather than parsing this.
+This is the leaf certificate as PEM text and nothing else. For the issuer chain
+and the parsed fields, use [`session.peerX509Certificate`][], whose `toString()`
+returns this same PEM. Use [`session.authorized`][] and
+\[`session.authorizationError`]\[] for the verification result rather than
+parsing either.
+
+### `session.peerX509Certificate`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {X509Certificate|undefined} The peer's certificate, or `undefined`
+  if the peer sent none.
+
+An [`X509Certificate`][] for the peer's leaf certificate. The issuer chain is
+reachable through its `issuerCertificate` property, and the parsed fields --
+`subject`, `issuer`, `validFrom`, `validTo`, `fingerprint256`, `serialNumber`
+and the rest -- are properties of that object.
+
+Where [`tls.TLSSocket.getPeerCertificate()`][] returns a plain dictionary with
+`valid_from`, `valid_to` and a chain walked through `issuerCertificate`, this
+returns the same `X509Certificate` class that
+[`tls.TLSSocket.getPeerX509Certificate()`][] does. Call `toLegacyObject()` on
+it to get the dictionary form.
+
+The same object is returned on every access once the peer's certificate is
+available.
 
 ### `session.authorized`
 
@@ -752,6 +775,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
 [RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
 [`DTLSEndpoint`]: #class-dtlsendpoint
+[`X509Certificate`]: crypto.md#class-x509certificate
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.listen()`]: #dtlslistencallback-options
 [`endpoint.state`]: #endpointstate
@@ -761,6 +785,8 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`session.closed`]: #sessionclosed
 [`session.destroy()`]: #sessiondestroyerror
 [`session.opened`]: #sessionopened
+[`session.peerX509Certificate`]: #sessionpeerx509certificate
 [`session.send()`]: #sessionsenddata
 [`tls.TLSSocket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
+[`tls.TLSSocket.getPeerX509Certificate()`]: tls.md#tlssocketgetpeerx509certificate
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
