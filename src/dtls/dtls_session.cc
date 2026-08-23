@@ -7,6 +7,7 @@
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_x509.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <node_buffer.h>
@@ -163,6 +164,8 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getProtocol", GetProtocol);
     SetProtoMethod(isolate, tmpl, "getCipher", GetCipher);
     SetProtoMethod(isolate, tmpl, "getPeerCertificate", GetPeerCertificate);
+    SetProtoMethod(
+        isolate, tmpl, "getPeerX509Certificate", GetPeerX509Certificate);
     SetProtoMethod(isolate, tmpl, "getALPNProtocol", GetALPNProtocol);
     SetProtoMethod(isolate, tmpl, "exportKeyingMaterial", ExportKeyingMaterial);
     SetProtoMethod(isolate, tmpl, "getSRTPProfile", GetSRTPProfile);
@@ -193,6 +196,7 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(GetProtocol);
   registry->Register(GetCipher);
   registry->Register(GetPeerCertificate);
+  registry->Register(GetPeerX509Certificate);
   registry->Register(GetALPNProtocol);
   registry->Register(ExportKeyingMaterial);
   registry->Register(GetSRTPProfile);
@@ -803,6 +807,29 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
                        .ToLocal(&str)) {
       args.GetReturnValue().Set(str);
     }
+  }
+}
+
+void DTLSSession::GetPeerX509Certificate(
+    const FunctionCallbackInfo<Value>& args) {
+  DTLSSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = session->env();
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  // The two sides need different handling: SSL_get_peer_cert_chain() omits
+  // the peer's leaf on the server but includes it on the client, and this
+  // flag is what tells X509Certificate which it is dealing with. Getting it
+  // wrong drops or duplicates the leaf rather than failing outright.
+  auto flag = session->is_server_
+                  ? crypto::X509Certificate::GetPeerCertificateFlag::SERVER
+                  : crypto::X509Certificate::GetPeerCertificateFlag::NONE;
+
+  Local<Object> cert;
+  if (crypto::X509Certificate::GetPeerCert(env, session->ssl_, flag)
+          .ToLocal(&cert)) {
+    args.GetReturnValue().Set(cert);
   }
 }
 
