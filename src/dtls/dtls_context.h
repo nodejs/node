@@ -145,7 +145,11 @@ class DTLSContext final : public BaseObject {
   // Host name -> context, for SNI. Empty unless the application supplied an
   // sni map. The "*" key, if present, is the fallback for names that do not
   // match; without it an unmatched name is refused.
-  std::unordered_map<std::string, BaseObjectPtr<DTLSContext>> sni_contexts_;
+  // Weak: a context may appear in its own map, or in a cycle with another,
+  // and a strong count would never reach zero. The JavaScript wrapper holds
+  // these so the collector can trace and break such a cycle.
+  std::unordered_map<std::string, BaseObjectWeakPtr<DTLSContext>>
+      sni_contexts_;
 
   // PSK identity -> key (server), and the single identity a client presents.
   std::unordered_map<std::string, std::vector<unsigned char>> psk_identities_;
