@@ -311,3 +311,48 @@ function open(endpoint, options) {
   assert.throws(() => listen(() => {}, { host: HOST, port: 0 }),
                 { code: 'ERR_MISSING_ARGS' });
 }
+
+// A client callback may return an object whose properties are accessors, or a
+// Proxy. Reading identity and key therefore runs user code that can throw,
+// inside the binding, inside the handshake.
+//
+// That exception used to be caught and then dropped: the binding returned
+// without reporting it, so the caller saw an opaque SSL error instead of what
+// it threw, and the TryCatch was left to unwind with the exception still
+// caught on the way back into OpenSSL.
+{
+  const server = listen(() => {}, {
+    host: HOST, port: 0, psk: { 'id-1': KEY },
+  });
+
+  for (const build of [
+    () => ({ get identity() { throw new Error('identity getter threw'); },
+             key: KEY }),
+    () => ({ identity: 'id-1',
+             get key() { throw new Error('key getter threw'); } }),
+    () => new Proxy({ identity: 'id-1', key: KEY }, {
+      get() { throw new Error('proxy trap threw'); },
+    }),
+  ]) {
+    const expected = (() => {
+      try {
+        const o = build();
+        return (o.identity, o.key, undefined);
+      } catch (e) {
+        return e.message;
+      }
+    })();
+
+    const client = connect(HOST, server.address.port, { psk: build });
+    const seen = Promise.withResolvers();
+    client.onerror = (error) => seen.resolve(error);
+
+    const error = await seen.promise;
+    // The caller's own error, not "error:0A0000DF:SSL routines".
+    assert.strictEqual(error.message, expected);
+
+    await assert.rejects(client.opened, { message: expected });
+  }
+
+  await server.close();
+}
