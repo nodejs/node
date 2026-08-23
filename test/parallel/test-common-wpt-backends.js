@@ -13,6 +13,7 @@ const { spawnSync } = require('child_process');
 const { backends, WPTRunner } = require('../common/wpt');
 
 const queueProbe = process.env.NODE_TEST_WPT_QUEUE_PROBE === '1';
+const backendProbe = process.env.NODE_TEST_WPT_BACKEND_PROBE;
 
 const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
 const specPath = fixtures.path('wpt-backends-spec.js');
@@ -156,7 +157,74 @@ function checkQueuedSpecsKeepRunnerAlive() {
   assert.strictEqual(status, 0, `Queued WPT probe failed:\n${stdout}${stderr}`);
 }
 
+function runDefaultBackendProbe() {
+  const runner = new WPTRunner('compression');
+  assert.strictEqual(runner.runSpec, backends[backendProbe]);
+}
+
+function checkBackendSelection() {
+  const env = { ...process.env };
+  delete env.WPT_BACKEND;
+  delete env.WPT_INSPECT;
+
+  for (const [name, expected, args, overrides] of [
+    ['default', 'thread', [__filename]],
+    ['environment override', 'process', [__filename], { WPT_BACKEND: 'process' }],
+    ['inspect override', 'process', [__filename], {
+      WPT_BACKEND: 'thread',
+      WPT_INSPECT: '1',
+    }],
+  ]) {
+    const result = spawnSync(process.execPath, args, {
+      env: {
+        ...env,
+        ...overrides,
+        NODE_TEST_WPT_BACKEND_PROBE: expected,
+      },
+      encoding: 'utf8',
+      timeout: common.platformTimeout(10_000),
+    });
+    const { error, status, stdout, stderr } = result;
+    assert.ifError(error);
+    assert.strictEqual(
+      status,
+      0,
+      `${name} WPT backend probe failed:\n${stdout}${stderr}`,
+    );
+  }
+}
+
+function checkInspectSelection() {
+  const driver = path.join(__dirname, '../wpt/test-compression.js');
+  const env = { ...process.env, WPT_INSPECT: '1' };
+  delete env.WPT_BACKEND;
+
+  const runFailure = common.mustCall((args, expected) => {
+    const result = spawnSync(process.execPath, [driver, ...args], {
+      env,
+      encoding: 'utf8',
+      timeout: common.platformTimeout(10_000),
+    });
+    const { error, status, stdout, stderr } = result;
+    assert.ifError(error);
+    assert.strictEqual(status, 1, `WPT inspect probe passed:\n${stdout}${stderr}`);
+    assert.match(stderr, expected);
+  }, 3);
+
+  runFailure([], /WPT_INSPECT requires a WPT test path/);
+  runFailure(
+    ['compression-bad-chunks.any.js'],
+    /WPT_INSPECT requires exactly one generated WPT test path; .* matched 2:\r?\ncompression\/compression-bad-chunks\.any\.html\r?\ncompression\/compression-bad-chunks\.any\.worker\.html/,
+  );
+  runFailure(
+    ['compression/compression-bad-chunks.any.worker.html'],
+    /WPT_INSPECT does not support worker tests: compression\/compression-bad-chunks\.any\.worker\.html/,
+  );
+}
+
 async function main() {
+  checkBackendSelection();
+  checkInspectSelection();
   checkQueuedSpecsKeepRunnerAlive();
 
   const completed = await compare(false);
@@ -197,7 +265,9 @@ async function main() {
   assert.deepStrictEqual(workerResults, windowResults);
 }
 
-if (queueProbe) {
+if (backendProbe) {
+  runDefaultBackendProbe();
+} else if (queueProbe) {
   runQueueProbe();
 } else {
   main().then(common.mustCall());
