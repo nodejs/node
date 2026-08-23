@@ -91,10 +91,28 @@ added: REPLACEME
     the application via [`session.authorized`][]. **Default:** `true`.
   * `mtu` {number} Maximum transmission unit for DTLS records.
     **Default:** `1200`.
+  * `maxSessions` {number} The maximum number of concurrent sessions the
+    endpoint will hold. Set to `0` for no limit. **Default:** `10000`.
+  * `maxSessionsPerHost` {number} The maximum number of concurrent sessions
+    from any single source IP address, ignoring port. Set to `0` for no limit.
+    **Default:** `1000`.
 * Returns: {DTLSEndpoint}
 
 Creates a DTLS server bound to the specified address and port. The server
 uses automatic HMAC-based cookie exchange for DoS protection.
+
+Cookie exchange proves a peer can receive at its claimed address, but it does
+not limit how many sessions that peer may then establish, and each session
+holds a TLS state machine, two buffers and a timer. `maxSessions` bounds the
+total; `maxSessionsPerHost` is what prevents one peer from taking all of it.
+A peer refused by either cap is answered with silence rather than an alert,
+because replying to an address that has not completed cookie exchange would
+create an amplification vector; a legitimate client retransmits and is
+admitted once there is room. Refusals are counted by
+[`endpointStats.serverRefusedCount`][].
+
+Deployments serving many clients behind a single NAT may need to raise
+`maxSessionsPerHost`.
 
 ```mjs
 import { listen } from 'node:dtls';
@@ -325,6 +343,16 @@ session are screened for the shape of a DTLS ClientHello record before any
 state is allocated for them. A steadily rising value indicates junk or scan
 traffic rather than failing clients, which are counted as sessions that never
 complete.
+
+### `endpointStats.serverRefusedCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The number of otherwise valid handshake attempts refused
+  because the endpoint was at `maxSessions` or the peer was at
+  `maxSessionsPerHost`. Read only.
 
 ### `endpointStats.isConnected`
 
@@ -648,4 +676,5 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`DTLSEndpoint`]: #class-dtlsendpoint
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.listen()`]: #dtlslistencallback-options
+[`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`session.authorized`]: #sessionauthorized
