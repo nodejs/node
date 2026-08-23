@@ -91,7 +91,8 @@ added: REPLACEME
     receives a TLS alert. When `false`, the certificate is still requested and
     verified but the handshake completes regardless, leaving the decision to
     the application via [`session.authorized`][]. **Default:** `true`.
-  * `mtu` {number} Maximum transmission unit for DTLS records.
+  * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
+    `1200`.
     **Default:** `1200`.
   * `maxSessions` {number} The maximum number of concurrent sessions the
     endpoint will hold. Set to `0` for no limit. **Default:** `10000`.
@@ -171,7 +172,8 @@ added: REPLACEME
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
     length byte followed by that many bytes, repeated.
   * `srtp` {string} SRTP protection profile names.
-  * `mtu` {number} Maximum transmission unit. **Default:** `1200`.
+  * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
+    `1200`.
 * Returns: {DTLSSession}
 
 Connects to a DTLS server. Returns a `DTLSSession` whose `opened` property
@@ -707,6 +709,11 @@ Since libuv does not currently support path MTU discovery, the DTLS module
 uses a conservative default MTU of 1200 bytes. This value works across
 virtually all network paths but may be suboptimal for local networks.
 
+This bounds the UDP payload, not the application payload: a record carries
+somewhat less once its header and MAC are accounted for. It is fixed when the
+endpoint is created and cannot be changed afterwards. It does not bound
+[`session.send()`][], which is limited by the DTLS record size instead.
+
 The MTU can be configured via the `mtu` option:
 
 ```mjs
@@ -728,4 +735,5 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`session.authorized`]: #sessionauthorized
 [`session.destroy()`]: #sessiondestroyerror
+[`session.send()`]: #sessionsenddata
 [`tls.TLSSocket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed

@@ -177,7 +177,11 @@ class DTLSEndpoint final : public HandleWrap {
   BaseObjectPtr<DTLSEndpoint> self_ref_;
 
   bool listening_ = false;
-  uint32_t mtu_ = 1200;  // Conservative default MTU for data payload
+  // Maximum size of a DTLS datagram, i.e. the UDP payload, not the
+  // application payload -- a record carries less than this once its header
+  // and MAC are counted. Read by DTLSSession when it creates its SSL, so a
+  // change only affects sessions created afterwards.
+  uint32_t mtu_ = 1200;
 
   // Caps on accepted server sessions. Zero means unlimited.
   uint32_t max_sessions_ = 0;
