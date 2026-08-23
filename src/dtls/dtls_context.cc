@@ -29,6 +29,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
@@ -316,12 +317,34 @@ void DTLSContext::SetSRTP(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+namespace {
+// Installed only where the application has taken responsibility for the
+// authorization decision itself: a server that asked for a client certificate
+// but disabled rejection. Returning 1 unconditionally keeps the handshake
+// going; the verification result is still recorded and remains reachable
+// through SSL_get_verify_result(), which is what session.authorized reports.
+//
+// Everywhere else the callback is left null so OpenSSL enforces, and a peer
+// that fails verification receives a proper alert.
+int AllowUnauthorizedCallback(int preverify_ok, X509_STORE_CTX* ctx) {
+  return 1;
+}
+}  // namespace
+
 void DTLSContext::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   DTLSContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
 
-  int mode = args[0]->Int32Value(ctx->env()->context()).FromJust();
-  SSL_CTX_set_verify(ctx->ctx_.get(), mode, nullptr);
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsBoolean());
+
+  int mode = args[0].As<Int32>()->Value();
+  bool defer_to_application = args[1]->IsTrue();
+
+  SSL_CTX_set_verify(
+      ctx->ctx_.get(),
+      mode,
+      defer_to_application ? AllowUnauthorizedCallback : nullptr);
 }
 
 void DTLSContext::LoadDefaultCAs(const FunctionCallbackInfo<Value>& args) {
