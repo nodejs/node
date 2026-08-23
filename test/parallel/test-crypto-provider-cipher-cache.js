@@ -21,7 +21,7 @@ const {
 const { internalBinding } = require('internal/test/binding');
 const { Worker } = require('worker_threads');
 
-const algorithm = 'aes-128-cbc-cts';
+const algorithm = 'camellia-128-cbc-cts';
 const hashAlgorithm = 'md5';
 const originalFips = getFips();
 setFips(0);
