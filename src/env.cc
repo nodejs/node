@@ -883,6 +883,7 @@ Environment::Environment(IsolateData* isolate_data,
       thread_name_(thread_name) {
 #if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL3_PROVIDER
   provider_digest_cache = std::make_unique<ncrypto::DigestCache>();
+  provider_cipher_cache = std::make_unique<ncrypto::CipherCache>();
 #endif
 
   if (!is_main_thread()) {
@@ -1140,6 +1141,7 @@ Environment::~Environment() {
     // Provider methods can contain callbacks into native addons. Release the
     // environment-owned methods before unloading any addon DSOs.
     provider_digest_cache.reset();
+    provider_cipher_cache.reset();
 #endif
     // Dereference all addons that were loaded into this environment.
     for (binding::DLib& addon : loaded_addons_) {

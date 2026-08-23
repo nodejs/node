@@ -52,6 +52,38 @@ module.exports = [
     ct: '0eaccb',
     tag: '93da9bb81333aee0c785b240d319719d', tampered: false },
 
+  // RFC 8998, Appendix A.1
+  { algo: 'sm4-gcm',
+    key: '0123456789abcdeffedcba9876543210',
+    iv: '00001234567800000000abcd',
+    plain: 'aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbb' +
+           'ccccccccccccccccdddddddddddddddd' +
+           'eeeeeeeeeeeeeeeeffffffffffffffff' +
+           'eeeeeeeeeeeeeeeeaaaaaaaaaaaaaaaa',
+    plainIsHex: true,
+    aad: 'feedfacedeadbeeffeedfacedeadbeefabaddad2',
+    ct: '17f399f08c67d5ee19d0dc9969c4bb7d' +
+        '5fd46fd3756489069157b282bb200735' +
+        'd82710ca5c22f0ccfa7cbf93d496ac15' +
+        'a56834cbcf98c397b4024a2691233b8d',
+    tag: '83de3541e4c2b58177e065a9bf7b62ec', tampered: false },
+
+  // RFC 8998, Appendix A.2
+  { algo: 'sm4-ccm',
+    key: '0123456789abcdeffedcba9876543210',
+    iv: '00001234567800000000abcd',
+    plain: 'aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbb' +
+           'ccccccccccccccccdddddddddddddddd' +
+           'eeeeeeeeeeeeeeeeffffffffffffffff' +
+           'eeeeeeeeeeeeeeeeaaaaaaaaaaaaaaaa',
+    plainIsHex: true,
+    aad: 'feedfacedeadbeeffeedfacedeadbeefabaddad2',
+    ct: '48af93501fa62adbcd414cce6034d895' +
+        'dda1bf8f132f042098661572e7483094' +
+        'fd12e518ce062c98acee28d95df4416b' +
+        'ed31a2f04476c18bb40c84a74b97dc5b',
+    tag: '16842d4fa186f56ab33256971fa110f4', tampered: false },
+
   { algo: 'aes-128-gcm',
     key: '6970787039613669314d623455536234',
     iv: '583673497131313748307652', plain: 'Hello World!',
