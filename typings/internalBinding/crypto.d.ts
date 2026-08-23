@@ -1,6 +1,8 @@
 declare namespace InternalCryptoBinding {
   type Buffer = Uint8Array;
-  type ByteSource = string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
+  type BufferSource = ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
+  type OptionalBufferSource = BufferSource | undefined;
+  type ByteSource = string | BufferSource;
   type OptionalByteSource = ByteSource | undefined;
   type JwkKey = Record<string, string | string[] | boolean | undefined>;
   type KeyFormatDER = 0;
@@ -300,6 +302,8 @@ declare namespace InternalCryptoBinding {
       algorithm: string,
       data: ByteSource,
       outputLength?: number,
+      functionName?: OptionalBufferSource,
+      customization?: OptionalBufferSource,
     ): CryptoJobForMode<M, ArrayBuffer>;
   }
 
@@ -818,6 +822,8 @@ export interface CryptoBinding {
     xofLen?: number,
     algorithmId?: number,
     algorithmCache?: Record<string, number>,
+    functionName?: InternalCryptoBinding.OptionalBufferSource,
+    customization?: InternalCryptoBinding.OptionalBufferSource,
   ) => InternalCryptoBinding.HashHandle;
   Hmac: new () => InternalCryptoBinding.HmacHandle;
   KeyObjectHandle: new () => InternalCryptoBinding.KeyObjectHandle;
@@ -939,6 +945,7 @@ export interface CryptoBinding {
   getCurves(): string[];
   getExtraCACertificates(): string[];
   getFipsCrypto(): 0 | 1;
+  getFipsCryptoGeneration(): bigint;
   getHashes(): string[];
   isCryptoKey(key: unknown): boolean;
   isKeyObject(key: unknown): boolean;
@@ -955,6 +962,8 @@ export interface CryptoBinding {
     outputEncoding: string,
     outputEncodingId?: number,
     outputLength?: number,
+    functionName?: InternalCryptoBinding.OptionalBufferSource,
+    customization?: InternalCryptoBinding.OptionalBufferSource,
   ): string | InternalCryptoBinding.Buffer;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
   privateDecrypt: InternalCryptoBinding.PublicKeyCipher;

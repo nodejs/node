@@ -13,6 +13,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <memory>
@@ -397,9 +398,12 @@ class Digest final {
   static constexpr size_t MAX_SIZE = EVP_MAX_MD_SIZE;
   Digest() = default;
   Digest(const EVP_MD* md) : md_(md) {}
-  Digest(const Digest&) = default;
-  Digest& operator=(const Digest&) = default;
+  Digest(const Digest& other);
+  Digest& operator=(const Digest& other);
   inline Digest& operator=(const EVP_MD* md) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    fetched_md_.reset();
+#endif
     md_ = md;
     return *this;
   }
@@ -418,9 +422,72 @@ class Digest final {
   static const Digest SHA512;
 
   static const Digest FromName(const char* name);
+  static const Digest Fetch(const char* name);
 
  private:
   const EVP_MD* md_ = nullptr;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  explicit Digest(DeleteFnPtr<EVP_MD, EVP_MD_free> md);
+  DeleteFnPtr<EVP_MD, EVP_MD_free> fetched_md_;
+#endif
+};
+
+struct CaseInsensitiveNameHash {
+  using is_transparent = void;
+  size_t operator()(std::string_view name) const noexcept;
+};
+
+struct CaseInsensitiveNameEqual {
+  using is_transparent = void;
+  bool operator()(std::string_view lhs, std::string_view rhs) const noexcept;
+};
+
+class DigestCache final {
+ public:
+  struct Result {
+    const EVP_MD* digest = nullptr;
+    int32_t id = -1;
+  };
+
+  using AliasMap = std::unordered_map<std::string,
+                                      int32_t,
+                                      CaseInsensitiveNameHash,
+                                      CaseInsensitiveNameEqual>;
+
+  DigestCache() = default;
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(DigestCache)
+
+  Result lookup(const char* name, uint64_t generation) const;
+  inline Result lookup(int32_t id, uint64_t generation) const {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    if (generation_ != generation || id == -1) return {};
+    const uint32_t unsigned_id = static_cast<uint32_t>(id);
+    if (unsigned_id < first_id_) return {};
+    const size_t index = unsigned_id - first_id_;
+    if (index >= digests_.size()) return {};
+    return {digests_[index].get(), id};
+#else
+    static_cast<void>(id);
+    static_cast<void>(generation);
+    return {};
+#endif
+  }
+  Result insert(const char* name, const EVP_MD* digest, uint64_t generation);
+  void reset(uint64_t generation);
+  const AliasMap& aliases() const;
+
+ private:
+  uint64_t generation_ = 0;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
+
+  // IDs are not reused across generations because JavaScript caches them
+  // independently in each Realm.
+  uint32_t first_id_ = 0;
+  uint32_t next_id_ = 0;
+  std::vector<EVPMDPointer> digests_;
+  AliasMap aliases_;
+#endif
 };
 
 // Computes a fixed-length digest.
@@ -1690,7 +1757,16 @@ class EVPMDCtxPointer final {
   void reset(EVP_MD_CTX* ctx = nullptr);
   EVP_MD_CTX* release();
 
-  bool digestInit(const Digest& digest);
+  bool digestInit(const EVP_MD* digest);
+  inline bool digestInit(const Digest& digest) {
+    return digestInit(digest.get());
+  }
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+  bool digestInit(const EVP_MD* digest, const OSSL_PARAM* params);
+  inline bool digestInit(const Digest& digest, const OSSL_PARAM* params) {
+    return digestInit(digest.get(), params);
+  }
+#endif
   bool digestUpdate(const Buffer<const void>& in);
   DataPointer digestFinal(size_t length);
   bool digestFinalInto(Buffer<void>* buf);
@@ -1879,6 +1955,8 @@ class EnginePointer final {
 bool isFipsEnabled();
 
 bool setFipsEnabled(bool enabled, CryptoErrorList* errors);
+
+uint64_t getFipsStateGeneration();
 
 bool testFipsEnabled();
 
