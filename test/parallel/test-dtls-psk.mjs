@@ -356,3 +356,70 @@ function open(endpoint, options) {
 
   await server.close();
 }
+
+// Pre-shared keys keep working on a server that also serves SNI identities.
+//
+// The PSK callbacks have no argument of their own, so they recover their
+// context from the SSL's ex_data. That used to be read through
+// SSL_get_SSL_CTX(), which SNI reassigns: selecting any identity -- including
+// the '*' fallback, so this needed no servername at all -- pointed the lookup
+// at a context with no PSK configuration and every PSK handshake failed.
+{
+  const cert = fixtures.readKey('agent1-cert.pem').toString();
+  const key = fixtures.readKey('agent1-key.pem').toString();
+  const identity = { cert, key };
+
+  const server = listen(() => {}, {
+    host: HOST,
+    port: 0,
+    cert,
+    key,
+    psk: { 'id-1': KEY },
+    sni: { 'a.example': identity, '*': identity },
+  });
+
+  for (const servername of [undefined, 'a.example', 'unmatched.example']) {
+    const client = connect(HOST, server.address.port, {
+      psk: { identity: 'id-1', key: KEY },
+      servername,
+    });
+    await client.opened;
+    await client.close();
+  }
+
+  await server.close();
+}
+
+// Which identity SNI selected does not change which keys are accepted. The
+// callbacks are installed on the connection by SSL_new(), before any name is
+// known, and SSL_set_SSL_CTX() does not replace them -- so they stay the
+// endpoint's, and a PSK configured on an SNI identity is never consulted.
+{
+  const cert = fixtures.readKey('agent1-cert.pem').toString();
+  const key = fixtures.readKey('agent1-key.pem').toString();
+  const other = Buffer.from('fedcba9876543210');
+
+  const server = listen(() => {}, {
+    host: HOST,
+    port: 0,
+    cert,
+    key,
+    psk: { 'endpoint-id': KEY },
+    sni: { 'a.example': { cert, key, psk: { 'sni-id': other } } },
+  });
+
+  const accepted = connect(HOST, server.address.port, {
+    psk: { identity: 'endpoint-id', key: KEY },
+    servername: 'a.example',
+  });
+  await accepted.opened;
+  await accepted.close();
+
+  const refused = connect(HOST, server.address.port, {
+    psk: { identity: 'sni-id', key: other },
+    servername: 'a.example',
+  });
+  await assert.rejects(refused.opened, { name: 'Error' });
+
+  await server.close();
+}

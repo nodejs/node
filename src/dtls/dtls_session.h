@@ -83,6 +83,7 @@ class DTLSSession final : public AsyncWrap {
   // has already verified the cookie and is ready to continue.
   static BaseObjectPtr<DTLSSession> CreateFromSSL(Environment* env,
                                                   DTLSEndpoint* endpoint,
+                                                  DTLSContext* context,
                                                   ncrypto::SSLPointer ssl,
                                                   BIO* enc_in,
                                                   BIO* enc_out,

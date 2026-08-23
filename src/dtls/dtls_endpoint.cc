@@ -665,7 +665,8 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   // exchange and consumed the ClientHello) to a DTLSSession. Calling
   // Cycle() will drive SSL_do_handshake to produce the ServerHello.
   auto session = DTLSSession::CreateFromSSL(
-      env(), this, std::move(ssl), in_raw, out_raw, remote);
+      env(), this, server_context_.get(), std::move(ssl), in_raw, out_raw,
+      remote);
 
   if (!session) return;
 

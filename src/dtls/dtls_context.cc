@@ -104,17 +104,28 @@ void DTLSContext::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("psk_client_key", psk_client_key_.size());
 }
 
-// SSL_CTX ex_data slot holding the DTLSContext, for the PSK callbacks, which
-// unlike the ALPN and SNI ones have no argument of their own.
+// SSL ex_data slot holding the DTLSContext an SSL was created from, for the
+// PSK callbacks, which unlike the ALPN and SNI ones have no argument of their
+// own.
+//
+// On the SSL and not the SSL_CTX. SSL_set_SSL_CTX(), which is how SNI selects
+// an identity, reassigns ssl->ctx but does not re-copy the PSK callbacks --
+// those were installed on the SSL by SSL_new() and stay. Looking the context
+// up through SSL_get_SSL_CTX() therefore found whichever context SNI had
+// switched to, which is not the one whose PSK configuration is in force and
+// is usually not configured for PSK at all.
 static int PSKContextIndex() {
   static const int index =
-      SSL_CTX_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
+      SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
   return index;
 }
 
+void DTLSContext::BindToSSL(SSL* ssl) {
+  SSL_set_ex_data(ssl, PSKContextIndex(), this);
+}
+
 DTLSContext* DTLSContext::FromSSL(SSL* ssl) {
-  return static_cast<DTLSContext*>(
-      SSL_CTX_get_ex_data(SSL_get_SSL_CTX(ssl), PSKContextIndex()));
+  return static_cast<DTLSContext*>(SSL_get_ex_data(ssl, PSKContextIndex()));
 }
 
 Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
@@ -866,10 +877,6 @@ void DTLSContext::SetPSK(const FunctionCallbackInfo<Value>& args) {
   if (args[4]->IsFunction()) {
     ctx->psk_callback_.Reset(env->isolate(), args[4].As<Function>());
   }
-
-  // The callbacks have no argument slot of their own, so the context is
-  // reachable only through the SSL_CTX.
-  SSL_CTX_set_ex_data(ctx->ctx_.get(), PSKContextIndex(), ctx);
 
   if (ctx->is_server_) {
     SSL_CTX_set_psk_server_callback(ctx->ctx_.get(), PSKServerCallback);

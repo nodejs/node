@@ -233,6 +233,7 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "SSL_new failed");
     return {};
   }
+  context->BindToSSL(ssl_raw);
 
   ncrypto::SSLPointer ssl(ssl_raw);
 
@@ -348,6 +349,7 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
 BaseObjectPtr<DTLSSession> DTLSSession::CreateFromSSL(
     Environment* env,
     DTLSEndpoint* endpoint,
+    DTLSContext* context,
     ncrypto::SSLPointer ssl,
     BIO* enc_in,
     BIO* enc_out,
@@ -358,14 +360,23 @@ BaseObjectPtr<DTLSSession> DTLSSession::CreateFromSSL(
     return {};
   }
 
-  return MakeBaseObject<DTLSSession>(env,
-                                     obj,
-                                     endpoint,
-                                     std::move(ssl),
-                                     enc_in,
-                                     enc_out,
-                                     remote,
-                                     true /* is_server */);
+  auto session = MakeBaseObject<DTLSSession>(env,
+                                             obj,
+                                             endpoint,
+                                             std::move(ssl),
+                                             enc_in,
+                                             enc_out,
+                                             remote,
+                                             true /* is_server */);
+  if (session) {
+    // The SSL was created from this context by the endpoint, before the
+    // session existed, so bind it here. Held for the same reason the client
+    // path holds it: the SSL references the SSL_CTX, but nothing references
+    // the wrapper whose ex_data slot the PSK callbacks resolve through.
+    context->BindToSSL(session->ssl_.get());
+    session->context_ = BaseObjectPtr<DTLSContext>(context);
+  }
+  return session;
 }
 
 void DTLSSession::New(const FunctionCallbackInfo<Value>& args) {

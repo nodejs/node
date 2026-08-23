@@ -38,6 +38,12 @@ class DTLSContext final : public BaseObject {
 
   SSL_CTX* ssl_ctx() const { return ctx_.get(); }
 
+  // Record this context as the one an SSL was created from, so the callbacks
+  // OpenSSL invokes without an argument of their own can find it again. Bound
+  // to the SSL rather than the SSL_CTX because SNI reassigns the latter.
+  void BindToSSL(SSL* ssl);
+
+
   // Set the peer address for cookie generation during DTLSv1_listen().
   void set_cookie_peer(const SocketAddress& addr) {
     current_cookie_peer_ = addr;
