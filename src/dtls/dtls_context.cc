@@ -600,7 +600,7 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
 
   // Built to one side and swapped in, so a failure part way through cannot
   // leave the context serving a half-populated map.
-  std::unordered_map<std::string, BaseObjectPtr<DTLSContext>> next;
+  std::unordered_map<std::string, BaseObjectWeakPtr<DTLSContext>> next;
 
   uint32_t length = entries->Length();
   for (uint32_t i = 0; i < length; i += 2) {
@@ -618,7 +618,7 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
     ASSIGN_OR_RETURN_UNWRAP(&entry, value.As<Object>());
 
     Utf8Value hostname(env->isolate(), host);
-    next[*hostname] = BaseObjectPtr<DTLSContext>(entry);
+    next[*hostname] = BaseObjectWeakPtr<DTLSContext>(entry);
   }
 
   ctx->sni_contexts_ = std::move(next);
