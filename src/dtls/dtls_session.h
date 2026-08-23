@@ -21,6 +21,7 @@
 
 namespace node::dtls {
 
+class DTLSContext;
 class DTLSEndpoint;
 
 // Shared C++ <-> JS state for a DTLS session.
@@ -69,7 +70,7 @@ class DTLSSession final : public AsyncWrap {
   static BaseObjectPtr<DTLSSession> Create(
       Environment* env,
       DTLSEndpoint* endpoint,
-      SSL_CTX* ssl_ctx,
+      DTLSContext* context,
       const SocketAddress& remote,
       bool is_server,
       const char* servername = nullptr,
@@ -167,6 +168,13 @@ class DTLSSession final : public AsyncWrap {
   // a keylog listener.
   static void SSLKeylogCallback(const SSL* ssl, const char* line);
 
+  // Hold an exception thrown by a callback that ran inside the handshake, to
+  // be emitted once SSL_do_handshake() has returned. Emitting it there and
+  // then would mean running JavaScript -- and draining the tick queue -- in
+  // the middle of OpenSSL's state machine, which is what calling the
+  // callback with Call() rather than MakeCallback() set out to avoid.
+  void SetPendingError(v8::Local<v8::Value> error);
+
  private:
   // Emit a callback to JS via the endpoint's callback dispatch.
   v8::MaybeLocal<v8::Value> EmitCallback(int cb_index,
@@ -190,6 +198,17 @@ class DTLSSession final : public AsyncWrap {
   bool closed_ = false;
   bool destroyed_ = false;
   int cycle_depth_ = 0;
+
+  v8::Global<v8::Value> pending_error_;
+
+  // The context this session was created from, kept alive for as long as the
+  // session is. SSL_new() takes a reference to the SSL_CTX but not to the
+  // DTLSContext wrapping it, and callbacks reached from the handshake find
+  // their configuration through that wrapper. An endpoint holds its server
+  // context, but nothing held a client's: it became garbage the moment
+  // connect() returned, and the first client-side callback to look for it
+  // read freed memory.
+  BaseObjectPtr<DTLSContext> context_;
 
   AliasedStruct<DTLSSessionStateData> state_;
   AliasedStruct<DTLSSessionStats> stats_;

@@ -62,6 +62,27 @@ class DTLSContext final : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSNIContexts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPSK(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // RFC 4279 pre-shared keys. The identity map is consulted first and needs
+  // no call into JavaScript; the callback, if there is one, is only reached
+  // when the map does not answer. Both are synchronous -- OpenSSL wants the
+  // key returned from the callback, and node:tls does the same.
+  static unsigned int PSKServerCallback(SSL* ssl,
+                                        const char* identity,
+                                        unsigned char* psk,
+                                        unsigned int max_psk_len);
+  static unsigned int PSKClientCallback(SSL* ssl,
+                                        const char* hint,
+                                        char* identity,
+                                        unsigned int max_identity_len,
+                                        unsigned char* psk,
+                                        unsigned int max_psk_len);
+
+  static void ReportPSKError(SSL* ssl, v8::TryCatch* try_catch);
+
+  // Recover the context a callback without an argument slot belongs to.
+  static DTLSContext* FromSSL(SSL* ssl);
 
   // Server Name Indication. Selection is a lookup in sni_contexts_ with no
   // call into JavaScript, so a handshake never has to be suspended and
@@ -116,6 +137,15 @@ class DTLSContext final : public BaseObject {
   // sni map. The "*" key, if present, is the fallback for names that do not
   // match; without it an unmatched name is refused.
   std::unordered_map<std::string, BaseObjectPtr<DTLSContext>> sni_contexts_;
+
+  // PSK identity -> key (server), and the single identity a client presents.
+  std::unordered_map<std::string, std::vector<unsigned char>> psk_identities_;
+  std::string psk_identity_hint_;
+  std::string psk_client_identity_;
+  std::vector<unsigned char> psk_client_key_;
+
+  // Consulted only when the map does not answer.
+  v8::Global<v8::Function> psk_callback_;
 };
 
 }  // namespace node::dtls
