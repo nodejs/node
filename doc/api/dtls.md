@@ -96,6 +96,9 @@ added: REPLACEME
   * `maxSessionsPerHost` {number} The maximum number of concurrent sessions
     from any single source IP address, ignoring port. Set to `0` for no limit.
     **Default:** `1000`.
+  * `sessionIdContext` {string} Opaque identifier scoping resumable sessions
+    to this server, at most 32 bytes. **Default:** a value derived from
+    `process.argv`, as in `tls.createServer()`.
 * Returns: {DTLSEndpoint}
 
 Creates a DTLS server bound to the specified address and port. The server
