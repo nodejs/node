@@ -129,6 +129,10 @@ class DTLSEndpoint final : public HandleWrap {
                        size_t len,
                        const SocketAddress& remote);
 
+  // True if the datagram could plausibly be a ClientHello. Used to reject
+  // obvious junk before allocating an SSL for it.
+  static bool CouldBeClientHello(const uint8_t* data, size_t len);
+
   // Handle a new client connection (server mode).
   void AcceptConnection(const uint8_t* data,
                         size_t len,

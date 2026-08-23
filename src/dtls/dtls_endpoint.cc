@@ -470,11 +470,46 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
   }
 }
 
+// Cheap structural screen for a datagram that could plausibly begin a
+// handshake, applied before anything is allocated for it.
+//
+// Everything reaching the accept path is unauthenticated and from a source
+// address that has not been validated yet, and DTLSv1_listen() only ever
+// proceeds on a ClientHello. Recognising the obvious rejects here avoids
+// paying SSL_new() + two BIO_new()s + SSL_free() to reach the same verdict.
+// This deliberately does not attempt to parse the ClientHello itself; that is
+// OpenSSL's job, and getting it wrong would mean rejecting real clients.
+bool DTLSEndpoint::CouldBeClientHello(const uint8_t* data, size_t len) {
+  // DTLS record header is 13 bytes, then the handshake msg_type.
+  if (len < 14) return false;
+
+  // ContentType must be handshake(22).
+  if (data[0] != 22) return false;
+
+  // ProtocolVersion is DTLS 1.0 (0xfeff) or 1.2 (0xfefd); both have major
+  // 0xfe. DTLS 1.3 keeps the record version at 0xfefd for compatibility.
+  if (data[1] != 0xfe) return false;
+
+  // The record must not claim more payload than the datagram actually holds.
+  const size_t record_len = (static_cast<size_t>(data[11]) << 8) | data[12];
+  if (record_len > len - 13) return false;
+
+  // HandshakeType must be client_hello(1).
+  if (data[13] != 1) return false;
+
+  return true;
+}
+
 void DTLSEndpoint::AcceptConnection(const uint8_t* data,
                                     size_t len,
                                     const SocketAddress& remote) {
   if (state_->busy) {
     DTLS_STAT_INCREMENT(DTLSEndpointStats, server_busy_count);
+    return;
+  }
+
+  if (!CouldBeClientHello(data, len)) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_rejected_count);
     return;
   }
 

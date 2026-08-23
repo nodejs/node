@@ -311,6 +311,21 @@ added: REPLACEME
 * Type: {bigint} The total number of incoming connections rejected because the
   endpoint was marked busy. Read only.
 
+### `endpointStats.serverRejectedCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The number of datagrams discarded before a handshake was
+  attempted because they could not be a ClientHello. Read only.
+
+Datagrams arriving at a listening endpoint that do not match an existing
+session are screened for the shape of a DTLS ClientHello record before any
+state is allocated for them. A steadily rising value indicates junk or scan
+traffic rather than failing clients, which are counted as sessions that never
+complete.
+
 ### `endpointStats.isConnected`
 
 <!-- YAML
