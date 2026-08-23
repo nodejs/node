@@ -22,6 +22,7 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
+const HOST = '127.0.0.1';
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
@@ -126,5 +127,51 @@ const MAX_RECORD = 16384;
     () => client.send('after close'),
     { code: 'ERR_INVALID_STATE' });
 
+  await server.close();
+}
+
+// send() takes any view over bytes, not only a Buffer.
+//
+// A Uint8Array is the obvious thing to send and was refused, while
+// exportKeyingMaterial() on the same object accepted one. Views with an
+// offset and views whose elements are wider than a byte have to send the
+// bytes they cover, not the bytes of the buffer behind them.
+{
+  const received = [];
+  const done = Promise.withResolvers();
+  let expected = 0;
+
+  const server = listen((session) => {
+    session.onmessage = (data) => {
+      received.push(Buffer.from(data).toString('hex'));
+      if (received.length === expected) done.resolve();
+    };
+  }, { cert, key, host: HOST, port: 0 });
+
+  const client = connect(HOST, server.address.port, {
+    rejectUnauthorized: false,
+  });
+  await client.opened;
+
+  const base = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
+  const cases = [
+    [base, '0001020304050607'],
+    [base.subarray(2, 5), '020304'],
+    [new Int16Array([0x0201, 0x0403]), '01020304'],
+    [new DataView(base.buffer, 4, 3), '040506'],
+  ];
+  expected = cases.length;
+
+  for (const [value] of cases) client.send(value);
+  await done.promise;
+
+  cases.forEach(([, hex], i) => assert.strictEqual(received[i], hex));
+
+  // A bare ArrayBuffer is not a view and is still refused, as it is by
+  // exportKeyingMaterial().
+  assert.throws(() => client.send(new ArrayBuffer(4)),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+
+  await client.close();
   await server.close();
 }
