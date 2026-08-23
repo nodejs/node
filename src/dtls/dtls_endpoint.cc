@@ -793,6 +793,9 @@ void DTLSEndpoint::SetMTU(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_OUT_OF_RANGE(endpoint->env(),
                                   "MTU must be between 256 and 65535");
   }
+  // Only affects sessions created after this point: DTLSSession reads the
+  // value once, when it builds its SSL. Not currently reachable after
+  // construction -- JS calls this from the DTLSEndpoint constructor only.
   endpoint->mtu_ = mtu;
 }
 

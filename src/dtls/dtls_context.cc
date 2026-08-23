@@ -386,6 +386,15 @@ void DTLSContext::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
 void DTLSContext::LoadDefaultCAs(const FunctionCallbackInfo<Value>& args) {
   DTLSContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+
+  // This populates the verification store only, not the client-CA list sent
+  // in a CertificateRequest. That is deliberate. The bundled root store holds
+  // on the order of 150 certificates, and advertising all of their
+  // distinguished names would produce a CertificateRequest of tens of
+  // kilobytes -- which, over a datagram transport, then has to be fragmented
+  // across many packets, any of which can be lost. node:tls does the same:
+  // SSL_CTX_add_client_CA() is called for explicitly supplied chains and PFX
+  // bundles, never from UseDefaultRootCertStore().
   crypto::UseDefaultRootCertStore(ctx->env(), ctx->ctx_.get());
 }
 
