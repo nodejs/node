@@ -519,22 +519,49 @@ void DTLSSession::UpdateTimer() {
   }
 }
 
+// Returns the number of bytes written, or -1 with a JS exception pending.
+// Every failure path throws: a bare -1 return is trivially ignored, and
+// send() already throws for a destroyed session and for a bad argument type,
+// so returning a sentinel from the remaining paths was the inconsistency.
 int DTLSSession::Send(const uint8_t* data, size_t len) {
-  if (destroyed_ || closed_) return -1;
+  if (destroyed_ || closed_) {
+    THROW_ERR_INVALID_STATE(env(), "Session is closed");
+    return -1;
+  }
 
   if (!handshake_complete_) {
-    // Can't send application data before handshake.
+    THROW_ERR_INVALID_STATE(
+        env(),
+        "Cannot send application data before the handshake completes");
+    return -1;
+  }
+
+  // DTLS carries application data in a single record per datagram and does
+  // not fragment it, so anything above the maximum plaintext record length is
+  // unsendable. Report the limit rather than letting SSL_write fail opaquely.
+  if (len > SSL3_RT_MAX_PLAIN_LENGTH) {
+    THROW_ERR_OUT_OF_RANGE(
+        env(),
+        "data is %zu bytes, which exceeds the %d byte maximum for a single "
+        "DTLS record",
+        len,
+        SSL3_RT_MAX_PLAIN_LENGTH);
     return -1;
   }
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int written = SSL_write(ssl_.get(), data, len);
-  if (written > 0) {
-    DTLS_STAT_INCREMENT_N(DTLSSessionStats, bytes_sent, written);
-    DTLS_STAT_INCREMENT(DTLSSessionStats, messages_sent);
-    EncOut();
+  if (written <= 0) {
+    int err = SSL_get_error(ssl_.get(), written);
+    std::string message = FormatSSLError(err);
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env(), message.c_str());
+    return -1;
   }
+
+  DTLS_STAT_INCREMENT_N(DTLSSessionStats, bytes_sent, written);
+  DTLS_STAT_INCREMENT(DTLSSessionStats, messages_sent);
+  EncOut();
   return written;
 }
 
@@ -645,6 +672,7 @@ void DTLSSession::DoSend(const FunctionCallbackInfo<Value>& args) {
   size_t len = Buffer::Length(args[0]);
 
   int written = session->Send(data, len);
+  if (written < 0) return;  // Send() has thrown.
   args.GetReturnValue().Set(written);
 }
 

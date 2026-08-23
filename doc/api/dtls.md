@@ -382,12 +382,24 @@ Represents a DTLS association with a single remote peer.
 
 ### `session.send(data)`
 
-* `data` {string|Buffer} The data to send.
+* `data` {string|Buffer} The data to send. At most 16384 bytes.
 * Returns: {number} The number of bytes written to the DTLS layer.
 
 Send application data to the peer. The data is encrypted by DTLS before
 being sent over UDP. Can only be called after the handshake completes
 (`session.opened` has resolved).
+
+DTLS carries application data in a single record per datagram and does not
+fragment it, so `data` must fit in one record. Sending more throws
+`ERR_OUT_OF_RANGE`. This limit is independent of the `mtu` option: a record
+larger than the path MTU is still sent, and is fragmented by IP.
+
+Throws `ERR_INVALID_STATE` if the handshake has not completed, or if the
+session is closed or destroyed.
+
+A successful return means the data was handed to the DTLS layer and written
+to the socket, not that the peer received it. DTLS runs over UDP, so
+application data may still be lost in transit.
 
 ### `session.close()`
 
