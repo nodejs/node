@@ -169,6 +169,9 @@ added: REPLACEME
     credential options below. Must **not** have been created with
     `isServer: true`. Cannot be combined with any option the context already
     carries.
+  * `session` {Buffer} A session from [`session.session`][] on an earlier
+    connection, to resume rather than handshake in full. See
+    [Session resumption][].
   * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
     Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
     a string, matching [`tls.createSecureContext()`][].
@@ -288,6 +291,8 @@ added: REPLACEME
   * `requestCert` {boolean} Request a certificate from the peer. Servers only.
   * `sessionIdContext` {string} Session id context. Servers only.
   * `srtp` {string} SRTP profile list.
+  * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
+    endpoints and restarts. Servers only. See [Session resumption][].
 * Returns: {DTLSSecureContext}
 
 Creates a reusable secure context. Pass it to [`dtls.listen()`][] or
@@ -329,6 +334,74 @@ const clientContext = createSecureContext({
 const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
 const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
 ```
+
+### Session resumption
+
+A resumed handshake skips the server's certificate, which matters more here
+than it does over TCP: the `Certificate` flight is fragmented across several
+datagrams, and losing any one of them costs a retransmission timeout. Measured
+on loopback, a full handshake has the server send 1850 bytes in 4 packets
+against 280 bytes in 3 for a resumed one.
+
+A client reads [`session.session`][] once the session is open and passes it to
+a later [`dtls.connect()`][]:
+
+```mjs
+import { connect } from 'node:dtls';
+
+const first = connect('device.example', 5684, { ca });
+await first.opened;
+const ticket = first.session;        // Buffer.
+await first.close();
+
+const second = connect('device.example', 5684, { ca, session: ticket });
+await second.opened;
+console.log(second.reused);          // True.
+```
+
+A session that the server will not accept -- expired, or issued by a different
+endpoint -- is not an error. The handshake simply proceeds in full, and
+[`session.reused`][] is `false`.
+
+The cookie exchange still happens for a resumed handshake, so resumption is not
+a way around the address validation described under [Denial of service][].
+
+#### Binding to the authenticated host
+
+A session may only be resumed against the identity it was authenticated for --
+the `servername`, or the host when there is none. Reusing it for anything else
+throws.
+
+This is not a convenience check. A resumed handshake does not re-send or
+re-verify the peer's certificate; it inherits the authenticated identity of the
+original session. Replaying a session against a different host would therefore
+skip verification while appearing to succeed. For the same reason a `session`
+that did not come from [`session.session`][] is rejected outright: nothing
+records which identity it belongs to, so it cannot be checked.
+
+#### Ticket keys
+
+The key that encrypts session tickets is generated at random for each context,
+so by default a ticket is only good for the endpoint that issued it and only
+until the process restarts. Give every endpoint the same `ticketKeys` to let
+tickets be resumed across a restart or a cluster:
+
+```mjs
+import { listen } from 'node:dtls';
+import { randomBytes } from 'node:crypto';
+
+const ticketKeys = randomBytes(80);    // Share this between processes.
+const endpoint = listen(onsession, { cert, key, port: 5684, ticketKeys });
+```
+
+The length is OpenSSL's: a key name followed by an HMAC key and an AES key. It
+differs from the 48 bytes [`tls.createServer()`][] uses, which is a layout
+`node:tls` defines for itself. Supplying the wrong length throws and reports
+the length expected.
+
+Ticket keys are long-lived secrets. Anyone holding them can decrypt tickets and
+recover the sessions they protect, so treat them as key material and rotate
+them.
 
 ## Class: `DTLSSecureContext`
 
@@ -625,6 +698,33 @@ it to get the dictionary form.
 The same object is returned on every access once the peer's certificate is
 available.
 
+### `session.session`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Buffer|undefined} An opaque session for resuming this connection
+  later, or `undefined` on a server session or before the handshake completes.
+
+Pass it as the `session` option to a later [`dtls.connect()`][]. It is bound to
+the host this connection authenticated against and is refused elsewhere; see
+[Session resumption][].
+
+Server sessions return `undefined`: a server has no identity to bind the value
+to, and it is the client that carries a session between connections.
+
+### `session.reused`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} `true` if this connection resumed an earlier session
+  rather than performing a full handshake.
+
+Like [`session.authorized`][], this reads `false` once the session is closed.
+
 ### `session.authorized`
 
 <!-- YAML
@@ -913,10 +1013,12 @@ const endpoint = listen(callback, {
 
 The minimum allowed MTU is 256 bytes. The maximum is 65535.
 
+[Denial of service]: #denial-of-service
 [Permission Model]: permissions.md#permission-model
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
 [RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
 [Server Name Indication]: #server-name-indication
+[Session resumption]: #session-resumption
 [`DTLSEndpoint`]: #class-dtlsendpoint
 [`DTLSSecureContext`]: #class-dtlssecurecontext
 [`X509Certificate`]: crypto.md#class-x509certificate
@@ -931,7 +1033,9 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`session.destroy()`]: #sessiondestroyerror
 [`session.opened`]: #sessionopened
 [`session.peerX509Certificate`]: #sessionpeerx509certificate
+[`session.reused`]: #sessionreused
 [`session.send()`]: #sessionsenddata
+[`session.session`]: #sessionsession
 [`tls.TLSSocket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
 [`tls.TLSSocket.getPeerX509Certificate()`]: tls.md#tlssocketgetpeerx509certificate
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions

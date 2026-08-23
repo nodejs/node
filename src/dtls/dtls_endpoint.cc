@@ -24,6 +24,7 @@
 
 namespace node {
 
+using v8::ArrayBufferView;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -178,7 +179,10 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
                                                  const SocketAddress& remote,
                                                  const char* servername,
                                                  const char* verify_host,
-                                                 bool verify_is_ip) {
+                                                 bool verify_is_ip,
+                                                 const ncrypto::Buffer<
+                                                     const unsigned char>&
+                                                     resume) {
   if (IsHandleClosing()) {
     THROW_ERR_INVALID_STATE(env(), "Endpoint is closing");
     return {};
@@ -198,7 +202,8 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
                                      false /* is_server */,
                                      servername,
                                      verify_host,
-                                     verify_is_ip);
+                                     verify_is_ip,
+                                     resume);
 
   if (!session) return {};
 
@@ -752,8 +757,17 @@ void DTLSEndpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   const char* verify_host_ptr = args[4]->IsString() ? *verify_host : nullptr;
   bool verify_is_ip = args[5]->IsTrue();
 
+  // Optional DER-encoded session to resume. The identity it was authenticated
+  // for is checked in JS before it reaches here.
+  ncrypto::Buffer<const unsigned char> resume{};
+  ArrayBufferViewContents<unsigned char> resume_buf;
+  if (args[6]->IsArrayBufferView()) {
+    resume_buf.Read(args[6].As<ArrayBufferView>());
+    resume = {resume_buf.data(), resume_buf.length()};
+  }
+
   auto session = endpoint->Connect(
-      context, remote, servername_ptr, verify_host_ptr, verify_is_ip);
+      context, remote, servername_ptr, verify_host_ptr, verify_is_ip, resume);
   if (session) {
     args.GetReturnValue().Set(session->object());
   }
