@@ -494,6 +494,7 @@ DTLSContext* DTLSContext::SelectSNIContextFromCallback(
   if (servername != nullptr) {
     Local<String> name_str;
     if (!String::NewFromUtf8(env()->isolate(), servername).ToLocal(&name_str)) {
+      ReportCallbackError(ssl, &try_catch);
       return nullptr;
     }
     // Reject a name that did not survive the round trip through UTF-8, so a
@@ -685,6 +686,7 @@ unsigned int DTLSContext::PSKServerCallback(SSL* ssl,
 
   Local<String> identity_str;
   if (!String::NewFromUtf8(env->isolate(), identity).ToLocal(&identity_str)) {
+    ctx->ReportCallbackError(ssl, &try_catch);
     return 0;
   }
 
@@ -736,6 +738,7 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
     if (hint != nullptr) {
       Local<String> hint_str;
       if (!String::NewFromUtf8(env->isolate(), hint).ToLocal(&hint_str)) {
+        ctx->ReportCallbackError(ssl, &try_catch);
         return 0;
       }
       hint_value = hint_str;
@@ -751,6 +754,10 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
     }
     if (!ret->IsObject()) return 0;
 
+    // Reading these can throw: the object is whatever the callback returned,
+    // so a getter or a Proxy trap runs here. Report it rather than returning
+    // with it caught but unreported, which loses the error the caller threw
+    // and leaves it to unwind into OpenSSL when the TryCatch is destroyed.
     Local<Object> obj = ret.As<Object>();
     Local<Value> id_val;
     Local<Value> key_val;
@@ -758,10 +765,11 @@ unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
                                                         "identity"))
              .ToLocal(&id_val) ||
         !obj->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "key"))
-             .ToLocal(&key_val) ||
-        !id_val->IsString() || !key_val->IsArrayBufferView()) {
+             .ToLocal(&key_val)) {
+      ctx->ReportCallbackError(ssl, &try_catch);
       return 0;
     }
+    if (!id_val->IsString() || !key_val->IsArrayBufferView()) return 0;
 
     Utf8Value id(env->isolate(), id_val);
     ArrayBufferViewContents<unsigned char> key(key_val.As<ArrayBufferView>());
