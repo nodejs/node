@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: a session is removed from its endpoint's session table when it closes,
 // whether closed locally or by the peer. Regression test for closed sessions
@@ -17,6 +17,12 @@ if (!process.features.dtls) {
 }
 
 const { listen, connect } = await import('node:dtls');
+
+// The state and sessions views are not public API; they are reached here the
+// way node:quic's tests reach theirs.
+const {
+  getDTLSEndpointState,
+} = (await import('internal/dtls/dtls')).default;
 
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
@@ -39,9 +45,9 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
   await client.opened;
   const session = await gotSession.promise;
 
-  assert.strictEqual(server.state.sessionCount, 1);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 1);
   await session.close();
-  assert.strictEqual(server.state.sessionCount, 0);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 0);
 
   await client.close();
   await server.close();
@@ -65,10 +71,10 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
   await client.opened;
   const session = await gotSession.promise;
 
-  assert.strictEqual(server.state.sessionCount, 1);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 1);
   await client.close();   // Sends close_notify to the server
   await session.closed;   // Server processes it, detaches, and emits its close
-  assert.strictEqual(server.state.sessionCount, 0);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 0);
 
   await server.close();
 }

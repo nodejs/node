@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: maxSessions and maxSessionsPerHost bound the server session table.
 //
@@ -18,6 +18,12 @@ if (!process.features.dtls) {
 }
 
 const { connect, listen } = await import('node:dtls');
+
+// The state and sessions views are not public API; they are reached here the
+// way node:quic's tests reach theirs.
+const {
+  getDTLSEndpointState,
+} = (await import('internal/dtls/dtls')).default;
 
 const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
@@ -43,12 +49,12 @@ async function tryConnect(port, timeout = 1500) {
 // only drops its half once the close_notify arrives.
 async function waitForSessionCount(server, expected) {
   for (let i = 0; i < 100; i++) {
-    if (server.state.sessionCount === expected) return;
+    if (getDTLSEndpointState(server).sessionCount === expected) return;
     await new Promise((resolve) => {
       setTimeout(resolve, 10).unref();
     });
   }
-  assert.strictEqual(server.state.sessionCount, expected);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, expected);
 }
 
 // --- maxSessions ---------------------------------------------------------
@@ -63,12 +69,12 @@ async function waitForSessionCount(server, expected) {
   const second = await tryConnect(port);
   assert.strictEqual(first.opened, true);
   assert.strictEqual(second.opened, true);
-  assert.strictEqual(server.state.sessionCount, 2);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 2);
 
   // The table is full, so the third is refused before anything is allocated.
   const third = await tryConnect(port);
   assert.strictEqual(third.opened, false);
-  assert.strictEqual(server.state.sessionCount, 2);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 2);
   assert.ok(server.stats.serverRefusedCount > 0n,
             'expected the refusal to be counted');
 
@@ -106,7 +112,7 @@ async function waitForSessionCount(server, expected) {
 
   const second = await tryConnect(port);
   assert.strictEqual(second.opened, false);
-  assert.strictEqual(server.state.sessionCount, 1);
+  assert.strictEqual(getDTLSEndpointState(server).sessionCount, 1);
 
   // The per-host count is released along with the session.
   await first.client.close();

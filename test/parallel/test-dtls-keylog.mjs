@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: the onkeylog callback delivers NSS-format key material during the
 // handshake (useful for decrypting captures in Wireshark), and that key
@@ -17,6 +17,12 @@ if (!process.features.dtls) {
 }
 
 const { listen, connect } = await import('node:dtls');
+
+// The state and sessions views are not public API; they are reached here the
+// way node:quic's tests reach theirs.
+const {
+  getDTLSSessionState,
+} = (await import('internal/dtls/dtls')).default;
 
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
@@ -37,7 +43,7 @@ const client = connect('127.0.0.1', server.address.port, {
 // decide whether to extract key material at all. Without a listener the
 // secrets stay inside OpenSSL and are never turned into JS strings, where
 // they would be reachable from heap snapshots and core dumps.
-assert.strictEqual(client.state.hasKeylogListener, false);
+assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, false);
 
 // A keylog line is "<LABEL> <hex> <hex>" (e.g. "CLIENT_RANDOM ...").
 client.onkeylog = mustCallAtLeast((line) => {
@@ -46,14 +52,14 @@ client.onkeylog = mustCallAtLeast((line) => {
   gotKeylog.resolve();
 });
 
-assert.strictEqual(client.state.hasKeylogListener, true);
+assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, true);
 
 await client.opened;
 await gotKeylog.promise;
 
 // Clearing the listener puts the gate back.
 client.onkeylog = null;
-assert.strictEqual(client.state.hasKeylogListener, false);
+assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, false);
 
 await client.close();
 await server.close();
@@ -70,11 +76,11 @@ await server.close();
   });
 
   assert.strictEqual(quietClient.onkeylog, undefined);
-  assert.strictEqual(quietClient.state.hasKeylogListener, false);
+  assert.strictEqual(getDTLSSessionState(quietClient).hasKeylogListener, false);
 
   await quietClient.opened;
 
-  assert.strictEqual(quietClient.state.hasKeylogListener, false);
+  assert.strictEqual(getDTLSSessionState(quietClient).hasKeylogListener, false);
 
   await quietClient.close();
   await quietServer.close();

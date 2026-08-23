@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: a listening DTLS server drops malformed datagrams without crashing,
 // and still accepts a real client afterwards.
@@ -17,6 +17,12 @@ if (!process.features.dtls) {
 }
 
 const { listen, connect } = await import('node:dtls');
+
+// The state and sessions views are not public API; they are reached here the
+// way node:quic's tests reach theirs.
+const {
+  getDTLSEndpointSessions,
+} = (await import('internal/dtls/dtls')).default;
 
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
@@ -59,7 +65,7 @@ await client.opened;
 // so the counters are settled by now.
 
 // Exactly one session, from the real client. None of the junk made one.
-assert.strictEqual(server.sessions.size, 1);
+assert.strictEqual(getDTLSEndpointSessions(server).size, 1);
 assert.strictEqual(server.stats.serverSessions, 1n);
 
 // Three of the four junk datagrams were turned away by the structural screen
