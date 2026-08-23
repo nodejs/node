@@ -148,9 +148,30 @@ int DTLSEndpoint::Bind(const SocketAddress& address) {
   if (address.family() == AF_INET6 && ipv6_only_) {
     flags |= UV_UDP_IPV6ONLY;
   }
+  if (reuse_port_) {
+    flags |= UV_UDP_REUSEPORT;
+  }
 
   int err = uv_udp_bind(&handle_, address.data(), flags);
   if (err != 0) return err;
+
+  // Only once bound: there is no socket to set them on before that. A zero
+  // means the option was not given, so the system default stands.
+  auto* h = reinterpret_cast<uv_handle_t*>(&handle_);
+  if (udp_receive_buffer_size_ > 0) {
+    int size = static_cast<int>(udp_receive_buffer_size_);
+    err = uv_recv_buffer_size(h, &size);
+    if (err != 0) return err;
+  }
+  if (udp_send_buffer_size_ > 0) {
+    int size = static_cast<int>(udp_send_buffer_size_);
+    err = uv_send_buffer_size(h, &size);
+    if (err != 0) return err;
+  }
+  if (udp_ttl_ > 0) {
+    err = uv_udp_set_ttl(&handle_, static_cast<int>(udp_ttl_));
+    if (err != 0) return err;
+  }
 
   state_->bound = 1;
 
@@ -871,7 +892,15 @@ void DTLSEndpoint::SetSocketOptions(const FunctionCallbackInfo<Value>& args) {
   // Validated in JavaScript, and read before Bind(), which is what applies
   // them. The DTLSEndpoint constructor is the only caller.
   CHECK(args[0]->IsBoolean());  // ipv6Only
+  CHECK(args[1]->IsBoolean());  // reusePort
+  CHECK(args[2]->IsUint32());   // udpReceiveBufferSize
+  CHECK(args[3]->IsUint32());   // udpSendBufferSize
+  CHECK(args[4]->IsUint32());   // udpTTL
   endpoint->ipv6_only_ = args[0].As<Boolean>()->Value();
+  endpoint->reuse_port_ = args[1].As<Boolean>()->Value();
+  endpoint->udp_receive_buffer_size_ = args[2].As<Uint32>()->Value();
+  endpoint->udp_send_buffer_size_ = args[3].As<Uint32>()->Value();
+  endpoint->udp_ttl_ = args[4].As<Uint32>()->Value();
 }
 
 void DTLSEndpoint::SetHandshakeTimeout(
