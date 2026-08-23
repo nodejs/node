@@ -231,15 +231,22 @@ int DTLSEndpoint::SendTo(const SocketAddress& dest,
       uv_buf_init(const_cast<char*>(reinterpret_cast<const char*>(data)), len);
   int err = uv_udp_try_send(&handle_, &buf, 1, dest.data());
 
-  if (err == static_cast<int>(len)) {
+  // A datagram is sent whole or not at all, and libuv documents a
+  // non-negative return as always matching the buffer size, so there is no
+  // partial send to resume. Testing for == len instead let any other
+  // non-negative value fall through to the queued send below and put the
+  // same datagram on the wire a second time.
+  if (err >= 0) {
     DTLS_STAT_INCREMENT_N(DTLSEndpointStats, bytes_sent, len);
     DTLS_STAT_INCREMENT(DTLSEndpointStats, packets_sent);
-    return 0;  // Sent successfully.
+    return 0;
   }
 
-  if (err != UV_EAGAIN && err < 0) {
+  if (err != UV_EAGAIN) {
     return err;  // Real error.
   }
+
+  // EAGAIN: the socket buffer is full, so queue it.
 
   // Async send: copy the data since it won't outlive this call.
   auto* req = new SendReq();
