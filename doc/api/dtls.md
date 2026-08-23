@@ -241,11 +241,16 @@ added: REPLACEME
   * `sni` {Object|Function} Server Name Indication. Servers only. See
     [Server Name Indication][].
   * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
-  * `pskIdentityHint` {string} Identity hint to advertise. Servers only.
+  * `pskIdentityHint` {string} Identity hint to advertise, naming which key a
+    client should pick. Requires `psk`. Servers only.
   * `srtp` {string} SRTP profile list.
   * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
     endpoints and restarts. Servers only. See [Session resumption][].
 * Returns: {DTLSSecureContext}
+
+Options marked "Servers only" require `isServer: true`. Passing one to a
+client context throws `ERR_INVALID_ARG_VALUE`, rather than being ignored or
+applied where it can have no effect.
 
 Creates a reusable secure context. Pass it to [`dtls.listen()`][] or
 [`dtls.connect()`][] as `secureContext` in place of the credential options.
