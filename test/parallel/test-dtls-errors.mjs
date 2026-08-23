@@ -1,4 +1,4 @@
-// Flags: --experimental-dtls --no-warnings
+// Flags: --experimental-dtls --no-warnings --expose-internals
 
 // Test: DTLS error handling for invalid certificate/key material and endpoint
 // state.
@@ -16,6 +16,11 @@ if (!process.features.dtls) {
 }
 
 const { listen, DTLSEndpoint } = await import('node:dtls');
+
+// bind() is module plumbing rather than API; every argument reaches a
+// CHECK() in the binding, so it is symbol-keyed and not callable from
+// user code.
+const { kBind } = (await import('internal/dtls/symbols')).default;
 
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
@@ -44,7 +49,8 @@ assert.throws(() => listen(mustNotCall(), {
 // Binding the same endpoint twice fails.
 {
   const endpoint = new DTLSEndpoint();
-  endpoint.bind('127.0.0.1', 0);
-  assert.throws(() => endpoint.bind('127.0.0.1', 0), { code: 'ERR_INVALID_STATE' });
+  endpoint[kBind]('127.0.0.1', 0);
+  assert.throws(() => endpoint[kBind]('127.0.0.1', 0),
+                { code: 'ERR_INVALID_STATE' });
   await endpoint.close();
 }

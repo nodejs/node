@@ -58,13 +58,14 @@ const ca = fixtures.readKey('ca1-cert.pem');
   await endpoint.close();
 }
 
-// SSL_CTX_set_session_id_context caps the context at 32 bytes and fails
-// above it, which must surface as an error rather than being ignored.
+// SSL_CTX_set_session_id_context caps the context at 32 bytes. Rejected in
+// JavaScript, so the caller is told what the limit is: OpenSSL's own failure
+// arrived as "Failed to set session id context", which does not say.
 {
   assert.throws(
     () => listen(() => {}, {
       cert, key, host: '127.0.0.1', port: 0,
       sessionIdContext: 'x'.repeat(33),
     }),
-    { code: 'ERR_CRYPTO_OPERATION_FAILED' });
+    { code: 'ERR_OUT_OF_RANGE' });
 }
