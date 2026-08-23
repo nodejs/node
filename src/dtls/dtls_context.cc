@@ -134,6 +134,10 @@ DTLSContext* DTLSContext::FromSSL(SSL* ssl) {
   return static_cast<DTLSContext*>(SSL_get_ex_data(ssl, PSKContextIndex()));
 }
 
+bool DTLSContext::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
 Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
   auto tmpl = env->dtls_context_constructor_template();
   if (tmpl.IsEmpty()) {
@@ -529,7 +533,7 @@ DTLSContext* DTLSContext::SelectSNIContextFromCallback(
   }
 
   // Declining is not an error: it means this name is not served.
-  if (!ret->IsObject()) return nullptr;
+  if (!HasInstance(env(), ret)) return nullptr;
 
   DTLSContext* chosen;
   ASSIGN_OR_RETURN_UNWRAP(&chosen, ret.As<Object>(), nullptr);
@@ -618,7 +622,7 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
     }
 
     CHECK(host->IsString());
-    CHECK(value->IsObject());
+    CHECK(DTLSContext::HasInstance(env, value));
 
     DTLSContext* entry;
     ASSIGN_OR_RETURN_UNWRAP(&entry, value.As<Object>());

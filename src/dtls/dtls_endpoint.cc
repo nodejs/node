@@ -723,6 +723,7 @@ void DTLSEndpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
 
+  CHECK(DTLSContext::HasInstance(env, args[0]));
   DTLSContext* context;
   ASSIGN_OR_RETURN_UNWRAP(&context, args[0].As<Object>());
 
@@ -737,6 +738,7 @@ void DTLSEndpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   Environment* env = endpoint->env();
 
+  CHECK(DTLSContext::HasInstance(env, args[0]));
   DTLSContext* context;
   ASSIGN_OR_RETURN_UNWRAP(&context, args[0].As<Object>());
 
