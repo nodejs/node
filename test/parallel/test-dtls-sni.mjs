@@ -517,3 +517,29 @@ function servedCommonName(session) {
   await withCallback.close();
   await withMap.close();
 }
+
+// The SNI callback's return value is checked for being a context, not merely
+// for being an object. Unwrapping validates the internal field count with a
+// DCHECK only, so in a release build any other native wrapper would have been
+// reinterpreted as a context and its SSL_CTX read out of whatever was there.
+{
+  const { Gzip } = await import('node:zlib');
+  const nativeButNotAContext = new Gzip();
+
+  const server = listen(() => {}, {
+    cert: agent1Cert,
+    key: agent1Key,
+    host: '127.0.0.1',
+    port: 0,
+    // A different kind of native object, not a DTLSSecureContext.
+    sni: () => nativeButNotAContext,
+  });
+
+  const client = connect('127.0.0.1', server.address.port, {
+    servername: 'a.example',
+    rejectUnauthorized: false,
+  });
+  await assert.rejects(client.opened, { name: 'Error' });
+
+  await server.close();
+}
