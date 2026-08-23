@@ -3708,6 +3708,15 @@ When set to 1, the [module compile cache][] can be reused across different direc
 locations as long as the module layout relative to the cache directory remains the same,
 and by any user (the cache subdirectory is not suffixed with the creating user's uid).
 
+### `NODE_COMPILE_CACHE_READONLY=1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to 1, the [module compile cache][] only reads existing entries from
+its directory: nothing is written to it and it is not created if missing.
+
 ### `NODE_DEBUG=module[,…]`
 
 <!-- YAML

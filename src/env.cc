@@ -1195,8 +1195,14 @@ void Environment::InitializeCompileCache() {
           DebugCategory::COMPILE_CACHE,
           "[compile cache] using relative path\n");
   }
-  EnableCompileCache(dir_from_env,
-                     portable ? EnableOption::PORTABLE : EnableOption::DEFAULT);
+  std::string read_only_env;
+  bool read_only = credentials::SafeGetenv(
+                       "NODE_COMPILE_CACHE_READONLY", &read_only_env, this) &&
+                   read_only_env == "1";
+  EnableOption option = EnableOption::DEFAULT;
+  if (portable) option = option | EnableOption::PORTABLE;
+  if (read_only) option = option | EnableOption::READ_ONLY;
+  EnableCompileCache(dir_from_env, option);
 }
 
 CompileCacheEnableResult Environment::EnableCompileCache(
