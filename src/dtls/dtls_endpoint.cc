@@ -508,13 +508,12 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   ncrypto::SSLPointer ssl(SSL_new(server_context_->ssl_ctx()));
   if (!ssl) return;
 
-  // `out` becomes the session's enc_out_, so it has to preserve the datagram
-  // boundaries OpenSSL writes records on -- see DTLSSession::Create().
-  auto in = ncrypto::BIOPointer::NewMem();
+  // These become the session's enc_in_/enc_out_, so both have to preserve
+  // datagram boundaries -- see DTLSSession::Create().
+  auto in = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
   auto out = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
   if (!in || !out) return;
 
-  BIO_set_mem_eof_return(in.get(), -1);
   // SSL_set_bio takes ownership of both BIOs.
   BIO* in_raw = in.release();
   BIO* out_raw = out.release();
