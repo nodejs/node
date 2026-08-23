@@ -676,15 +676,16 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
 
   uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
 
-  // Drive the handshake forward — produces ServerHello etc.
-  session->Cycle();
-
-  // Emit the new session to JS.
+  // Emit the new session to JS before driving the handshake, so a listener
+  // is in place for anything the handshake reports. Cycle() runs second.
   Local<Value> argv[] = {session->object()};
   Local<Function> cb = GetCallback(DTLS_CB_SESSION_NEW);
   if (!cb.IsEmpty()) {
     MakeCallback(cb, 1, argv);
   }
+
+  // Drive the handshake forward — produces ServerHello etc.
+  session->Cycle();
 }
 
 // --- JS binding methods ---
