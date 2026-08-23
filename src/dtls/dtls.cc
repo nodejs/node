@@ -47,6 +47,7 @@ void CreatePerContextProperties(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, IDX_SESSION_STATE_CLOSING);
   NODE_DEFINE_CONSTANT(target, IDX_SESSION_STATE_DESTROYED);
   NODE_DEFINE_CONSTANT(target, IDX_SESSION_STATE_HAS_MESSAGE_LISTENER);
+  NODE_DEFINE_CONSTANT(target, IDX_SESSION_STATE_HAS_KEYLOG_LISTENER);
 
   // Endpoint stats indices (for BigUint64Array access from JS)
 #define V(name, _) IDX_STATS_ENDPOINT_##name,
