@@ -5,6 +5,29 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
+if (process.argv[2] === undefined) {
+  const { fork } = require('child_process');
+
+  function run(policy) {
+    return new Promise((resolve) => {
+      const child = fork(__filename, [policy]);
+      child.on('exit', common.mustCall((code) => {
+        assert.strictEqual(code, 0);
+        resolve();
+      }));
+    });
+  }
+
+  (async () => {
+    await run('none');
+    await run('rr');
+  })().then(common.mustCall());
+  return;
+}
+
+cluster.schedulingPolicy =
+  process.argv[2] === 'rr' ? cluster.SCHED_RR : cluster.SCHED_NONE;
+
 if (cluster.isPrimary) {
   cluster.fork().on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 0);
