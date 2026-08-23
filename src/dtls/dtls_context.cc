@@ -240,7 +240,8 @@ void DTLSContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   ncrypto::X509Pointer issuer;
   if (crypto::SSL_CTX_use_certificate_chain(
           ctx->ctx_.get(), std::move(bio), &cert, &issuer) != 1) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "PEM_read_bio_X509 failed");
+    return crypto::ThrowCryptoError(
+        env, ERR_get_error(), "PEM_read_bio_X509");
   }
 }
 
@@ -264,17 +265,17 @@ void DTLSContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     case crypto::PrivateKeyResult::kSuccess:
       break;
     case crypto::PrivateKeyResult::kParseError:
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(
-          env, "PEM_read_bio_PrivateKey failed");
+      return crypto::ThrowCryptoError(
+          env, ERR_get_error(), "PEM_read_bio_PrivateKey");
     case crypto::PrivateKeyResult::kApplyError:
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                               "SSL_CTX_use_PrivateKey failed");
+      return crypto::ThrowCryptoError(
+          env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
   }
 
   // Verify that the private key matches the certificate.
   if (SSL_CTX_check_private_key(ctx->ctx_.get()) != 1) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(
-        env, "Private key does not match certificate");
+    return crypto::ThrowCryptoError(
+        env, ERR_get_error(), "Private key does not match certificate");
   }
 }
 

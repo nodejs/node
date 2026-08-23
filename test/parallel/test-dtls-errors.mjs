@@ -21,20 +21,25 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const mismatchedKey = fixtures.readKey('agent2-key.pem').toString();
 
+// Bad credentials report the reason OpenSSL gave, rather than a single
+// ERR_CRYPTO_OPERATION_FAILED for every kind of failure. These codes come
+// from OpenSSL and could shift if the bundled version changes; the point
+// being pinned is that the three cases are distinguishable.
+
 // A malformed certificate PEM is rejected.
 assert.throws(() => listen(mustNotCall(), {
   cert: 'not a certificate', key, port: 0,
-}), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
+}), { code: 'ERR_OSSL_PEM_NO_START_LINE' });
 
 // A malformed private key PEM is rejected.
 assert.throws(() => listen(mustNotCall(), {
   cert, key: 'not a key', port: 0,
-}), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
+}), { code: 'ERR_OSSL_UNSUPPORTED' });
 
 // A private key that does not match the certificate is rejected.
 assert.throws(() => listen(mustNotCall(), {
   cert, key: mismatchedKey, port: 0,
-}), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
+}), { code: 'ERR_OSSL_X509_KEY_VALUES_MISMATCH' });
 
 // Binding the same endpoint twice fails.
 {
