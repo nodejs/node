@@ -121,6 +121,10 @@ Creates a DTLS server bound to the specified address and port. The server
 uses automatic HMAC-based cookie exchange for DoS protection. See
 [Denial of service][].
 
+Binding failures are thrown with the code the operating system gave, as in
+`net` and `dgram`: an address already in use throws an error whose `code` is
+`'EADDRINUSE'`, with `errno` and `syscall` set.
+
 ```mjs
 import { listen } from 'node:dtls';
 import { readFileSync } from 'node:fs';
