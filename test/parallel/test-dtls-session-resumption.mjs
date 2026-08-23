@@ -13,6 +13,7 @@ import { hasCrypto, skip } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { randomBytes } from 'node:crypto';
+import { inspect } from 'node:util';
 
 if (!hasCrypto) {
   skip('missing crypto');
@@ -256,4 +257,25 @@ const serverOptions = {
 
   await client.close();
   await endpoint.close();
+}
+
+// A session that is not a Buffer is a type error, not a value error.
+//
+// The Buffer check was folded in with the prefix and length checks and all
+// four reported ERR_INVALID_ARG_VALUE, so passing a string got the code that
+// means the type was right and the contents were wrong.
+{
+  for (const value of ['a string', 7, {}, null, []]) {
+    assert.throws(() => connect('127.0.0.1', 4433, { session: value }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    }, `session: ${inspect(value)}`);
+  }
+
+  // A Buffer that is not one of ours is still a value error: the right type,
+  // contents this cannot resume.
+  for (const value of [Buffer.alloc(0), Buffer.alloc(40), Buffer.from('xx')]) {
+    assert.throws(() => connect('127.0.0.1', 4433, { session: value }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    }, `session: ${inspect(value)}`);
+  }
 }
