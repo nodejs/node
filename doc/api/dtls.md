@@ -112,6 +112,18 @@ added: REPLACEME
     addresses such as `'::ffff:203.0.113.1'` -- anything keyed on the peer
     address, including `maxSessionsPerHost`, sees them in that form. Has no
     effect on an IPv4 endpoint. **Default:** `false`.
+  * `reusePort` {boolean} When `true`, sets `SO_REUSEPORT`, so several
+    processes may bind the same port and the kernel spreads arriving
+    datagrams between them. Every one of them must set it. **Default:**
+    `false`.
+  * `udpReceiveBufferSize` {number} Size in bytes for the socket's receive
+    buffer (`SO_RCVBUF`). Raising it gives the endpoint room for bursts that
+    the default would drop. The kernel clamps this to its own maximum.
+    **Default:** the system default.
+  * `udpSendBufferSize` {number} Size in bytes for the socket's send buffer
+    (`SO_SNDBUF`). Clamped as above. **Default:** the system default.
+  * `udpTTL` {number} IP time-to-live for outgoing datagrams, from `1` to
+    `255`. **Default:** the system default.
   * `maxSessions` {number} The maximum number of concurrent sessions the
     endpoint will hold. Set to `0` for no limit. **Default:** `10000`.
   * `maxSessionsPerHost` {number} The maximum number of concurrent sessions
