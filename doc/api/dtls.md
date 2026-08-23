@@ -78,8 +78,9 @@ added: REPLACEME
     [`dtls.createSecureContext()`][] to use instead of building one from the
     credential options below. Must have been created with `isServer: true`.
     Cannot be combined with any option the context already carries.
-  * `sni` {Object} Server Name Indication. Maps host names to the identity to
-    serve them with. See [Server Name Indication][].
+  * `sni` {Object|Function} Server Name Indication. A map of host names to the
+    identity to serve them with, or a function returning one. See
+    [Server Name Indication][].
   * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
     Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
     a string, matching [`tls.createSecureContext()`][].
@@ -223,7 +224,8 @@ session.onmessage = (data) => {
 ### Server Name Indication
 
 An endpoint can serve more than one identity by giving `listen()` an `sni`
-map. Each key is a host name and each value is either a
+map, or a function. Each key of a map is a host name and each value is either
+a
 [`DTLSSecureContext`][] created with `isServer: true`, or a plain object of
 the same options [`dtls.createSecureContext()`][] takes:
 
@@ -265,10 +267,36 @@ accepts only client certificates issued under it. `requestCert` and
 `rejectUnauthorized` are not per-identity: they belong to the endpoint and
 apply to every name it serves.
 
-Unlike [`tls.createServer()`][] there is no callback, and therefore no
-asynchronous selection. Choosing an identity is a lookup performed while the
-handshake runs, and suspending a DTLS handshake to wait for JavaScript would
-leave the peer retransmitting. Build the map up front.
+A function may be given instead of a map, for identities that are chosen
+rather than enumerated:
+
+```mjs
+listen(onsession, {
+  port: 5684,
+  cert,
+  key,
+  sni: (servername) => contexts.get(servername),
+});
+```
+
+It is called with the name the client asked for, or `undefined` if the client
+sent no SNI extension, and returns what a map entry holds: a
+[`dtls.createSecureContext()`][] result or the options to build one. Returning
+nothing declines the name, which is refused exactly as an unmatched map with no
+`'*'` entry is, rather than falling back to the endpoint's own certificate.
+
+The function runs during the handshake and must return synchronously, so it
+cannot consult a database. Returning a prepared context is worth doing:
+building one from options parses the certificate again on every handshake.
+
+An exception thrown by the function fails that handshake and is reported to the
+session's error handler, like any other handshake failure. It does not reach
+the process as an uncaught exception.
+
+The certificate and the cipher list both follow the selected context. The
+pre-shared key callbacks do not: OpenSSL binds those to the connection when it
+is created, before a name is known, so they come from the endpoint's own
+context regardless of which identity is selected.
 
 A connection refused for an unrecognized name still reaches the `listen()`
 callback: the session exists once the client's address is validated, which
@@ -349,7 +377,7 @@ milliseconds, and its session error is `DTLS handshake timeout`.
 
 OpenSSL already gives up on its own, but only after twelve retransmits on a
 doubling backoff capped at 60 seconds -- around eight minutes in total. Until
-then the session holds its place against \[`endpointOptions.maxSessions`]\[],
+then the session holds its place against `maxSessions`,
 so handshakes that are started and abandoned can occupy an endpoint for the
 cost of starting them. That needs no spoofing: the peer completes the cookie
 exchange and then simply stops.
