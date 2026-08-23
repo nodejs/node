@@ -128,6 +128,7 @@ class DTLSSession final : public AsyncWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSRTPProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetVerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  public:
   // The core state machine pump. Processes pending OpenSSL I/O:
