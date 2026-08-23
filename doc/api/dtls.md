@@ -74,6 +74,10 @@ added: REPLACEME
 * `options` {Object}
   * `cert` {string|Buffer} Server certificate in PEM format. **Required.**
   * `key` {string|Buffer} Server private key in PEM format. **Required.**
+  * `secureContext` {DTLSSecureContext} A context from
+    [`dtls.createSecureContext()`][] to use instead of building one from the
+    credential options below. Must have been created with `isServer: true`.
+    Cannot be combined with any option the context already carries.
   * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
     Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
     a string, matching [`tls.createSecureContext()`][].
@@ -158,6 +162,11 @@ added: REPLACEME
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
   * `cert` {string|Buffer} Client certificate in PEM format.
   * `key` {string|Buffer} Client private key in PEM format.
+  * `secureContext` {DTLSSecureContext} A context from
+    [`dtls.createSecureContext()`][] to use instead of building one from the
+    credential options below. Must **not** have been created with
+    `isServer: true`. Cannot be combined with any option the context already
+    carries.
   * `passphrase` {string} Passphrase to decrypt `key`, if it is encrypted.
     Ignored when `key` is not encrypted. Unlike `key` and `cert`, this must be
     a string, matching [`tls.createSecureContext()`][].
@@ -200,6 +209,82 @@ session.onmessage = (data) => {
   console.log('Received:', data.toString());
 };
 ```
+
+## `dtls.createSecureContext([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `alpn` {string\[]} ALPN protocols.
+  * `ca` {string|Buffer|Array} CA certificates in PEM format. When omitted,
+    the bundled default certificate authorities are used.
+  * `cert` {string|Buffer} Certificate in PEM format.
+  * `ciphers` {string} OpenSSL cipher suite list.
+  * `ecdhCurve` {string} Named curve or curve list for ECDH.
+  * `isServer` {boolean} Build a context for a server. **Default:** `false`.
+  * `key` {string|Buffer} Private key in PEM format.
+  * `passphrase` {string} Passphrase for `key`, if it is encrypted.
+  * `rejectUnauthorized` {boolean} Verification behaviour, as for
+    [`dtls.listen()`][] and [`dtls.connect()`][].
+  * `requestCert` {boolean} Request a certificate from the peer. Servers only.
+  * `sessionIdContext` {string} Session id context. Servers only.
+  * `srtp` {string} SRTP profile list.
+* Returns: {DTLSSecureContext}
+
+Creates a reusable secure context. Pass it to [`dtls.listen()`][] or
+[`dtls.connect()`][] as `secureContext` in place of the credential options.
+
+A context holds a parsed certificate and key and, when `ca` is given, its own
+certificate store; roughly 28 KiB in total. Building one per connection is
+therefore expensive in memory rather than in time -- two thousand of them cost
+about 54 MiB, against 2 MiB when a single context is shared. Clients opening
+many connections should build the context once.
+
+The peer identity checked during verification is **not** part of the context.
+It is bound to each connection from `servername` (or the host), so one context
+can be used against different peers and still reject the wrong certificate.
+
+`isServer` is fixed when the context is created, because it selects the
+underlying OpenSSL method. Passing a server context to [`dtls.connect()`][],
+or a client context to [`dtls.listen()`][], throws.
+
+```mjs
+import { connect, createSecureContext, listen } from 'node:dtls';
+import { readFileSync } from 'node:fs';
+
+const serverContext = createSecureContext({
+  cert: readFileSync('server-cert.pem'),
+  key: readFileSync('server-key.pem'),
+  isServer: true,
+});
+
+// One context, several endpoints.
+const a = listen(onsession, { secureContext: serverContext, port: 5684 });
+const b = listen(onsession, { secureContext: serverContext, port: 5685 });
+
+const clientContext = createSecureContext({
+  ca: readFileSync('ca-cert.pem'),
+});
+
+// One context, many connections, each verified against its own name.
+const s1 = connect('a.example.com', 5684, { secureContext: clientContext });
+const s2 = connect('b.example.com', 5684, { secureContext: clientContext });
+```
+
+## Class: `DTLSSecureContext`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An opaque, reusable bundle of credentials and TLS settings, created by
+[`dtls.createSecureContext()`][]. It cannot be constructed directly.
+
+### `secureContext.isServer`
+
+* Returns: {boolean} `true` if the context was created for a server.
 
 ## Class: `DTLSEndpoint`
 
@@ -777,6 +862,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`DTLSEndpoint`]: #class-dtlsendpoint
 [`X509Certificate`]: crypto.md#class-x509certificate
 [`dtls.connect()`]: #dtlsconnecthost-port-options
+[`dtls.createSecureContext()`]: #dtlscreatesecurecontextoptions
 [`dtls.listen()`]: #dtlslistencallback-options
 [`endpoint.state`]: #endpointstate
 [`endpoint.stats`]: #endpointstats
