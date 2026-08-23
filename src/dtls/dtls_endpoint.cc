@@ -449,6 +449,14 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
                                    const SocketAddress& remote) {
   if (IsHandleClosing()) return;
 
+  // An empty datagram is legal UDP but can never carry a DTLS record, and
+  // anyone can send one. Dropping it here keeps it out of the accept path,
+  // where it would otherwise cost a full SSL_new()/DTLSv1_listen()/SSL_free()
+  // cycle, and out of the session BIOs, where a zero length write to a
+  // datagram BIO queues an empty datagram whose read reports EOF rather than
+  // "try again".
+  if (len == 0) return;
+
   // Look up existing session by remote address.
   auto it = sessions_.find(remote);
   if (it != sessions_.end()) {
