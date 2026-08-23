@@ -316,7 +316,7 @@
               'V8_TARGET_ARCH_S390_LE_SIM',
             ],
           }, {
-            'cflags': [ '-march=z196' ],
+            'cflags': [ '-march=z14' ],
           }],
           ],
       }],  # s390x
@@ -326,11 +326,11 @@
         ],
         'cflags': [
           '-ffp-contract=off',
+          '-mcpu=power9',
         ],
         'conditions': [
           ['OS=="aix" or OS=="os400"', {
             # Work around AIX ceil, trunc and round oddities.
-            'cflags': [ '-mcpu=power9' ],
             'conditions': [
               ['clang==0', {
                 'cflags': [ '-mfprnd' ],

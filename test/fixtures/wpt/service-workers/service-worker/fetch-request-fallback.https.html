@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<title>Service Worker: the fallback behavior of FetchEvent</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function get_fetched_urls(worker) {
+  return new Promise(function(resolve) {
+      var channel = new MessageChannel();
+      channel.port1.onmessage = function(msg) { resolve(msg); };
+      worker.postMessage({port: channel.port2}, [channel.port2]);
+    });
+}
+
+function check_urls(worker, expected_requests) {
+  return get_fetched_urls(worker)
+    .then(function(msg) {
+        var requests = msg.data.requests;
+        assert_object_equals(requests, expected_requests);
+    });
+}
+
+var path = new URL(".", window.location).pathname;
+var SCOPE = 'resources/fetch-request-fallback-iframe.html';
+var SCRIPT = 'resources/fetch-request-fallback-worker.js';
+var host_info = get_host_info();
+var BASE_URL = host_info['HTTPS_ORIGIN'] +
+               path + 'resources/fetch-access-control.py?';
+var BASE_PNG_URL = BASE_URL + 'PNGIMAGE&';
+var OTHER_BASE_URL = host_info['HTTPS_REMOTE_ORIGIN'] +
+                     path + 'resources/fetch-access-control.py?';
+var OTHER_BASE_PNG_URL = OTHER_BASE_URL + 'PNGIMAGE&';
+var REDIRECT_URL = host_info['HTTPS_ORIGIN'] +
+                   path + 'resources/redirect.py?Redirect=';
+var register;
+
+promise_test(function(t) {
+  var registration;
+  var worker;
+
+  register = service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+    .then(function(r) {
+        registration = r;
+        worker = registration.installing;
+        return wait_for_state(t, worker, 'activated');
+      })
+    .then(function() { return with_iframe(SCOPE); })
+    .then(function(frame) {
+        // This test should not be considered complete until after the service
+        // worker has been unregistered. Currently, `testharness.js` does not
+        // support asynchronous global "tear down" logic, so this must be
+        // expressed using a dedicated `promise_test`. Because the other
+        // sub-tests in this file are declared synchronously, this test will be
+        // the final test executed.
+        promise_test(function(t) {
+            t.add_cleanup(function() {
+                frame.remove();
+              });
+            return registration.unregister();
+          }, 'restore global state');
+
+        return {frame: frame, worker: worker};
+      });
+
+    return register;
+  }, 'initialize global state');
+
+function promise_frame_test(body, desc) {
+  promise_test(function(test) {
+      return register.then(function(result) {
+          return body(test, result.frame, result.worker);
+        });
+    }, desc);
+}
+
+promise_frame_test(function(t, frame, worker) {
+      return check_urls(
+          worker,
+          [{
+            url: host_info['HTTPS_ORIGIN'] + path + SCOPE,
+            mode: 'navigate'
+          }]);
+  }, 'The SW must intercept the request for a main resource.');
+
+promise_frame_test(function(t, frame, worker) {
+    return frame.contentWindow.xhr(BASE_URL)
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: BASE_URL, mode: 'cors' }]);
+        });
+  }, 'The SW must intercept the request of same origin XHR.');
+
+promise_frame_test(function(t, frame, worker) {
+    return promise_rejects_js(
+        t,
+        frame.contentWindow.Error,
+        frame.contentWindow.xhr(OTHER_BASE_URL),
+        'SW fallbacked CORS-unsupported other origin XHR should fail.')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: OTHER_BASE_URL, mode: 'cors' }]);
+        });
+  }, 'The SW must intercept the request of CORS-unsupported other origin XHR.');
+
+promise_frame_test(function(t, frame, worker) {
+    return frame.contentWindow.xhr(OTHER_BASE_URL + 'ACAOrigin=*')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: OTHER_BASE_URL + 'ACAOrigin=*', mode: 'cors' }]);
+        })
+  }, 'The SW must intercept the request of CORS-supported other origin XHR.');
+
+promise_frame_test(function(t, frame, worker) {
+    return frame.contentWindow.xhr(
+                  REDIRECT_URL + encodeURIComponent(BASE_URL))
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL + encodeURIComponent(BASE_URL),
+                mode: 'cors'
+              }]);
+        });
+  }, 'The SW must intercept only the first request of redirected XHR.');
+
+promise_frame_test(function(t, frame, worker) {
+    return promise_rejects_js(
+        t,
+        frame.contentWindow.Error,
+        frame.contentWindow.xhr(
+          REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL)),
+        'SW fallbacked XHR which is redirected to CORS-unsupported ' +
+          'other origin should fail.')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL),
+                mode: 'cors'
+              }]);
+        });
+  }, 'The SW must intercept only the first request for XHR which is' +
+     ' redirected to CORS-unsupported other origin.');
+
+promise_frame_test(function(t, frame, worker) {
+  return frame.contentWindow.xhr(
+                  REDIRECT_URL +
+                  encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*'))
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL +
+                     encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*'),
+                mode: 'cors'
+              }]);
+        });
+  }, 'The SW must intercept only the first request for XHR which is ' +
+     'redirected to CORS-supported other origin.');
+
+promise_frame_test(function(t, frame, worker) {
+  return frame.contentWindow.load_image(BASE_PNG_URL, '')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: BASE_PNG_URL, mode: 'no-cors' }]);
+        });
+  }, 'The SW must intercept the request for image.');
+
+promise_frame_test(function(t, frame, worker) {
+  return frame.contentWindow.load_image(OTHER_BASE_PNG_URL, '')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: OTHER_BASE_PNG_URL, mode: 'no-cors' }]);
+        });
+  }, 'The SW must intercept the request for other origin image.');
+
+promise_frame_test(function(t, frame, worker) {
+  return promise_rejects_js(
+        t,
+        frame.contentWindow.Error,
+        frame.contentWindow.load_image(OTHER_BASE_PNG_URL, 'anonymous'),
+        'SW fallbacked CORS-unsupported other origin image request ' +
+          'should fail.')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: OTHER_BASE_PNG_URL, mode: 'cors' }]);
+        })
+  }, 'The SW must intercept the request for CORS-unsupported other ' +
+     'origin image.');
+
+promise_frame_test(function(t, frame, worker) {
+  return frame.contentWindow.load_image(
+                  OTHER_BASE_PNG_URL + 'ACAOrigin=*', 'anonymous')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{ url: OTHER_BASE_PNG_URL + 'ACAOrigin=*', mode: 'cors' }]);
+        });
+  }, 'The SW must intercept the request for CORS-supported other ' +
+     'origin image.');
+
+promise_frame_test(function(t, frame, worker) {
+  return frame.contentWindow.load_image(
+                  REDIRECT_URL + encodeURIComponent(BASE_PNG_URL), '')
+      .catch(function() {
+          assert_unreached(
+              'SW fallbacked redirected image request should succeed.');
+        })
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL + encodeURIComponent(BASE_PNG_URL),
+                mode: 'no-cors'
+              }]);
+        });
+  }, 'The SW must intercept only the first request for redirected ' +
+     'image resource.');
+
+promise_frame_test(function(t, frame, worker) {
+  return frame.contentWindow.load_image(
+                  REDIRECT_URL + encodeURIComponent(OTHER_BASE_PNG_URL), '')
+      .catch(function() {
+          assert_unreached(
+              'SW fallbacked image request which is redirected to ' +
+              'other origin should succeed.');
+        })
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL + encodeURIComponent(OTHER_BASE_PNG_URL),
+                mode: 'no-cors'
+              }]);
+        })
+  }, 'The SW must intercept only the first request for image ' +
+     'resource which is redirected to other origin.');
+
+promise_frame_test(function(t, frame, worker) {
+  return promise_rejects_js(
+        t,
+        frame.contentWindow.Error,
+        frame.contentWindow.load_image(
+            REDIRECT_URL + encodeURIComponent(OTHER_BASE_PNG_URL),
+            'anonymous'),
+        'SW fallbacked image request which is redirected to ' +
+          'CORS-unsupported other origin should fail.')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL + encodeURIComponent(OTHER_BASE_PNG_URL),
+                mode: 'cors'
+              }]);
+        });
+  }, 'The SW must intercept only the first request for image ' +
+     'resource which is redirected to CORS-unsupported other origin.');
+
+promise_frame_test(function(t, frame, worker) {
+    return frame.contentWindow.load_image(
+        REDIRECT_URL +
+          encodeURIComponent(OTHER_BASE_PNG_URL + 'ACAOrigin=*'),
+        'anonymous')
+      .then(function() {
+          return check_urls(
+              worker,
+              [{
+                url: REDIRECT_URL +
+                     encodeURIComponent(OTHER_BASE_PNG_URL + 'ACAOrigin=*'),
+                mode: 'cors'
+              }]);
+        });
+  }, 'The SW must intercept only the first request for image ' +
+     'resource which is redirected to CORS-supported other origin.');
+</script>

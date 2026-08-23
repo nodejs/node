@@ -697,6 +697,7 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   std::unique_ptr<BackingStore> bs = env->release_managed_buffer(buf_);
 
   if (nread <= 0)  {
+    env->recycle_managed_buffer(std::move(bs));
     if (nread < 0)
       stream->CallJSOnreadMethod(nread, Local<ArrayBuffer>());
     return;
@@ -708,6 +709,7 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     bs = ArrayBuffer::NewBackingStore(
         isolate, nread, BackingStoreInitializationMode::kUninitialized);
     memcpy(bs->Data(), old_bs->Data(), nread);
+    env->recycle_managed_buffer(std::move(old_bs));
   }
 
   stream->CallJSOnreadMethod(nread, ArrayBuffer::New(isolate, std::move(bs)));
@@ -752,6 +754,8 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
     StreamReq* req_wrap, int status) {
   StreamBase* stream = static_cast<StreamBase*>(stream_);
+  if (stream == nullptr) return;
+  if (req_wrap == nullptr) return;
   Environment* env = stream->stream_env();
   if (!env->can_call_into_js()) return;
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();

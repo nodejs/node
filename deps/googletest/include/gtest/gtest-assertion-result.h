@@ -158,14 +158,18 @@ class GTEST_API_ [[nodiscard]] AssertionResult {
   // The second parameter prevents this overload from being considered if
   // the argument is implicitly convertible to AssertionResult. In that case
   // we want AssertionResult's copy constructor to be used.
-  template <typename T>
-  explicit AssertionResult(
-      const T& success,
-      typename std::enable_if<
-          !std::is_convertible<T, AssertionResult>::value>::type*
-      /*enabler*/
-      = nullptr)
-      : success_(success) {}
+  template <typename T,
+            std::enable_if_t<!std::is_convertible_v<T, AssertionResult> &&
+                                 !std::is_trivially_constructible_v<bool, T>,
+                             int> = 0>
+  explicit AssertionResult(T&& success) : success_(std::forward<T>(success)) {}
+
+  // Similar to the mutable overload, but for cases where mutability is
+  // unnecessary or problematic (e.g., bitfields).
+  template <typename T,
+            std::enable_if_t<!std::is_convertible_v<const T&, AssertionResult>,
+                             int> = 0>
+  explicit AssertionResult(const T& success) : success_(success) {}
 
 #if defined(_MSC_VER) && (_MSC_VER < 1910 || _MSC_VER >= 1920)
   GTEST_DISABLE_MSC_WARNINGS_POP_()
@@ -226,6 +230,24 @@ class GTEST_API_ [[nodiscard]] AssertionResult {
   // with test assertions.
   std::unique_ptr< ::std::string> message_;
 };
+
+namespace internal {
+
+// A pair containing the result that an assertion is evaluating, and the
+// expected result (true, false).
+//
+// Contains a conversion operator that indicates whether the two match.
+struct AssertionResultExpectation {
+  testing::AssertionResult assertion_result;
+  bool expected_result;
+
+  explicit operator bool() const {
+    bool converted(assertion_result);
+    return converted == expected_result;
+  }
+};
+
+}  // namespace internal
 
 // Makes a successful assertion result.
 GTEST_API_ AssertionResult AssertionSuccess();

@@ -53,6 +53,7 @@ const {
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   skipIfSQLiteMissing,
+  skipIfPerfettoEnabled,
   spawnPromisified,
   sleepSync,
 } = common;
@@ -111,6 +112,7 @@ export {
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   skipIfSQLiteMissing,
+  skipIfPerfettoEnabled,
   spawnPromisified,
   sleepSync,
 };

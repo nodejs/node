@@ -1,4 +1,8 @@
 <!--
+If you are submitting a pull request for the first time,
+check out the guide for first-time contributors for tips and answers to FAQs:
+https://github.com/nodejs/node/blob/HEAD/doc/contributing/first-contributions.md
+
 Before submitting a pull request, please read:
 
 - the CONTRIBUTING guide at https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md

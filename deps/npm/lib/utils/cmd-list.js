@@ -5,6 +5,7 @@ const abbrev = require('abbrev')
 const commands = [
   'access',
   'adduser',
+  'approve-scripts',
   'audit',
   'bugs',
   'cache',
@@ -12,6 +13,7 @@ const commands = [
   'completion',
   'config',
   'dedupe',
+  'deny-scripts',
   'deprecate',
   'diff',
   'dist-tag',
@@ -29,6 +31,7 @@ const commands = [
   'init',
   'install',
   'install-ci-test',
+  'install-scripts',
   'install-test',
   'link',
   'll',

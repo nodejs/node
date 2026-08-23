@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -104,7 +104,7 @@ void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x)
 }
 #endif
 
-#define HEADER_SIZE 8
+#define HEADER_SIZE 2
 #define ASN1_CHUNK_INITIAL_SIZE (16 * 1024)
 int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
 {
@@ -138,7 +138,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                 goto err;
             }
             i = BIO_read(in, &(b->data[len]), want);
-            if (i < 0 && diff == 0) {
+            if (i <= 0) {
                 ERR_raise(ERR_LIB_ASN1, ASN1_R_NOT_ENOUGH_DATA);
                 goto err;
             }
@@ -154,12 +154,65 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
         }
         /* else data already loaded */
 
+        /* make sure there is enough data for a complete header */
         p = (unsigned char *)&(b->data[off]);
         q = p;
         diff = len - off;
-        if (diff == 0)
+        if (diff < 2) {
+            /* Failed sanity check */
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_NOT_ENOUGH_DATA);
             goto err;
-        inf = ASN1_get_object(&q, &slen, &tag, &xclass, diff);
+        }
+
+        diff--;
+        if ((*(q++) & V_ASN1_PRIMITIVE_TAG) == V_ASN1_PRIMITIVE_TAG) {
+            unsigned int n = 0;
+            /* Multi-byte tag.  See if we have the whole thing yet */
+            do {
+                if (n > 4) {
+                    /* The tag value must fit into int */
+                    ERR_raise(ERR_LIB_ASN1, ASN1_R_HEADER_TOO_LONG);
+                    goto err;
+                }
+                ++n;
+                diff--;
+            } while (diff > 0 && *(q++) & 0x80);
+
+            if (diff == 0) {
+                /*
+                 * End of current data, will need at least 1 more byte for
+                 * length.  2 if the tag is still incomplete
+                 */
+                want = q - p + 2;
+                if (*q & 0x80) {
+                    want++;
+                }
+                continue;
+            }
+        }
+
+        /* Check the length.  This should also work for indefinite length */
+        diff--;
+        if (*q & 0x80) {
+            unsigned int n = *q & 0x7f;
+
+            if (n > sizeof(long)) {
+                ERR_raise(ERR_LIB_ASN1, ASN1_R_TOO_LONG);
+                goto err;
+            }
+            if (n > diff) {
+                want = q - p + n + 1;
+                continue;
+            }
+        }
+
+        /*
+         * We have a complete header now, assuming we didn't hit EOF. Parse the
+         * tag and length
+         */
+        q = p;
+        diff = len - off;
+        inf = ASN1_get_object(&q, &slen, &tag, &xclass, (int)diff);
         if (inf & 0x80) {
             unsigned long e;
 
@@ -169,8 +222,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
             ERR_pop_to_mark();
             ERR_set_mark();
         }
-        i = q - p; /* header length */
-        off += i; /* end of data */
+        off += q - p; /* end of data */
 
         if (inf & 1) {
             /* no data body so go round again */

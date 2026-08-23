@@ -78,10 +78,10 @@ int nghttp3_map_each(const nghttp3_map *map, int (*func)(void *data, void *ptr),
 /* Hasher from
    https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
    to maximize the output's sensitivity to all input bits. */
-#define NGHTTP3_MAP_HASHER 0xf1357aea2e62a9c5ull
+#define NGHTTP3_MAP_HASHER 0xF1357AEA2E62A9C5ULL
 /* 64-bit Fibonacci hashing constant, Golden Ratio constant, to get
    the high bits with the good distribution. */
-#define NGHTTP3_MAP_FIBO 0x9e3779b97f4a7c15ull
+#define NGHTTP3_MAP_FIBO 0x9E3779B97F4A7C15ULL
 
 static size_t map_index(const nghttp3_map *map, nghttp3_map_key_type key) {
   key += map->seed;

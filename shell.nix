@@ -19,6 +19,7 @@
   withFFI ? true,
   withSSL ? true,
   withTemporal ? false,
+  withPerfetto ? false,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -32,6 +33,13 @@
         ;
     }
   ),
+
+  # PKCS#11 fixture for `test/parallel/test-crypto-key-store-pkcs11.js`. `true`
+  # builds the one from tools/nix/pkcs11.nix against the OpenSSL being linked,
+  # which needs a shared OpenSSL >= 3 and a platform nixpkgs ships
+  # pkcs11-provider for. `false` and `null` disable it, any other value is used
+  # as the fixture itself.
+  pkcs11 ? false,
 
   # dev tools (not needed to build Node.js, useful to maintain it)
   ncu-path ? null, # Provide this if you want to use a local version of NCU
@@ -67,7 +75,8 @@ let
     )
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
-  ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi";
+  ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
+  ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;
@@ -97,38 +106,60 @@ pkgs.mkShell {
     export CXX="${pkgs.lib.getExe ccache} $CXX"
   '';
 
-  BUILD_WITH = if (ninja != null) then "ninja" else "make";
-  NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
-  CONFIG_FLAGS = builtins.toString (
-    configureFlags
-    ++ extraConfigFlags
-    ++ pkgs.lib.optional (ninja != null) "--ninja"
-    ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
-    ++ pkgs.lib.optional (!withLief) "--without-lief"
-    ++ pkgs.lib.optional withQuic "--experimental-quic"
-    ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
-    ++ pkgs.lib.optional (!withFFI) "--without-ffi"
-    ++ pkgs.lib.optional (!withSSL) "--without-ssl"
-    ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
-    ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
-    ++
-      pkgs.lib.concatMap
-        (name: [
-          "--shared-${name}"
-          "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
-          "--shared-${name}-include=${pkgs.lib.getInclude sharedLibDeps.${name}}/include"
-        ])
-        (
-          builtins.attrNames (
-            if (useSeparateDerivationForV8 != false) then
-              builtins.removeAttrs sharedLibDeps [
-                "simdutf"
-                "temporal_capi"
-              ]
-            else
-              sharedLibDeps
+  env = {
+    BUILD_WITH = if (ninja != null) then "ninja" else "make";
+    NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
+    CONFIG_FLAGS = builtins.toString (
+      configureFlags
+      ++ extraConfigFlags
+      ++ pkgs.lib.optional (ninja != null) "--ninja"
+      ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
+      ++ pkgs.lib.optional (!withLief) "--without-lief"
+      ++ pkgs.lib.optional withQuic "--experimental-quic"
+      ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
+      ++ pkgs.lib.optional (!withFFI) "--without-ffi"
+      ++ pkgs.lib.optional (!withSSL) "--without-ssl"
+      ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
+      ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
+      ++
+        pkgs.lib.concatMap
+          (name: [
+            "--shared-${name}"
+            "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
+            "--shared-${name}-include=${pkgs.lib.getInclude sharedLibDeps.${name}}/include"
+          ])
+          (
+            builtins.attrNames (
+              if (useSeparateDerivationForV8 != false) then
+                builtins.removeAttrs sharedLibDeps [
+                  "simdutf"
+                  "temporal_capi"
+                ]
+              else
+                sharedLibDeps
+            )
           )
-        )
+    );
+  }
+  // pkgs.lib.optionalAttrs (!withSQLite) {
+    NOSQLITE = "1";
+  }
+  // pkgs.lib.optionalAttrs (pkcs11 != false && pkcs11 != null) (
+    let
+      pkcs11' =
+        if pkcs11 == true then
+          import ./tools/nix/pkcs11.nix {
+            inherit pkgs;
+            # Building pkcs11-provider without a shared OpenSSL is not supported.
+            inherit (sharedLibDeps) openssl;
+          }
+        else
+          pkcs11;
+    in
+    {
+      NODE_TEST_PKCS11_OPENSSL_CONF = pkcs11'.opensslConf;
+      NODE_TEST_PKCS11_PIN = pkcs11'.softhsmDir.pin;
+      NODE_TEST_PKCS11_SOFTHSM_DIR = pkcs11'.softhsmDir;
+    }
   );
-  NOSQLITE = pkgs.lib.optionalString (!withSQLite) "1";
 }

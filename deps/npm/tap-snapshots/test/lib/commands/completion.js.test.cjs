@@ -62,6 +62,7 @@ Array [
   String(
     access
     adduser
+    approve-scripts
     audit
     author
     add

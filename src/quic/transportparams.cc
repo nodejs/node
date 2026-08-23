@@ -506,6 +506,16 @@ TransportParams::operator bool() const {
   return ptr_ != nullptr;
 }
 
+uint64_t TransportParams::initial_max_streams_bidi() const {
+  DCHECK_NOT_NULL(ptr_);
+  return ptr_->initial_max_streams_bidi;
+}
+
+uint64_t TransportParams::initial_max_streams_uni() const {
+  DCHECK_NOT_NULL(ptr_);
+  return ptr_->initial_max_streams_uni;
+}
+
 void TransportParams::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_STREAM_DATA);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_DATA);

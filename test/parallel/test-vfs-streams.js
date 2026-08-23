@@ -229,6 +229,18 @@ const { pipeline } = require('stream/promises');
   }));
 }
 
+// createReadStream via for-await iteration
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/iter.txt', 'abc');
+  const rs = myVfs.createReadStream('/iter.txt', { encoding: 'utf8' });
+  const chunks = [];
+  for await (const chunk of rs) {
+    chunks.push(chunk);
+  }
+  assert.strictEqual(chunks.join(''), 'abc');
+})().then(common.mustCall());
+
 // start: beyond file size → empty stream
 {
   const myVfs = vfs.create();
@@ -255,6 +267,17 @@ const { pipeline } = require('stream/promises');
     myVfs.createWriteStream('/out.txt'),
   );
   assert.strictEqual(myVfs.readFileSync('/out.txt', 'utf8'), 'hello world');
+})().then(common.mustCall());
+
+// Pipeline read
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/in.txt', 'hello world');
+  await pipeline(
+    myVfs.createReadStream('/in.txt'),
+    myVfs.createWriteStream('/copied.txt'),
+  );
+  assert.strictEqual(myVfs.readFileSync('/copied.txt', 'utf8'), 'hello world');
 })().then(common.mustCall());
 
 // Pipeline write with start position

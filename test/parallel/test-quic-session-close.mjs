@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -30,7 +28,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // No streams opened. close() should resolve.
   await clientSession.close();
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
   await serverEndpoint.close();
 }
 
@@ -50,7 +48,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   // Client's closed promise should resolve when the server closes.
   await clientSession.closed;
-  strictEqual(clientSession.destroyed, true);
+  assert.strictEqual(clientSession.destroyed, true);
   await serverEndpoint.close();
 }
 
@@ -63,7 +61,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     // The server's closed promise should resolve when the client closes.
     await serverSession.closed;
-    strictEqual(serverSession.destroyed, true);
+    assert.strictEqual(serverSession.destroyed, true);
     serverDone.resolve();
   }));
 

@@ -1455,7 +1455,7 @@ err:
 static void tls_int_free(OSSL_RECORD_LAYER *rl)
 {
     BIO_free(rl->prev);
-    BIO_free(rl->bio);
+    BIO_free_all(rl->bio);
     BIO_free(rl->next);
     ossl_tls_buffer_release(&rl->rbuf);
 
@@ -1975,6 +1975,28 @@ int tls_retry_write_records(OSSL_RECORD_LAYER *rl)
                 tls_release_write_buffer(rl);
             return OSSL_RECORD_RETURN_SUCCESS;
         } else if (i <= 0) {
+            /*
+             * If the app buffer is used directly (kTLS) and the caller is
+             * allowed to move it, copy the unsent data so the original
+             * buffer can be safely released.
+             */
+            if (TLS_BUFFER_is_app_buffer(thiswb)
+                && (rl->mode & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER) != 0) {
+                size_t left = TLS_BUFFER_get_left(thiswb);
+                unsigned char *buf;
+
+                buf = OPENSSL_malloc(left);
+                if (buf == NULL) {
+                    RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+                    return OSSL_RECORD_RETURN_FATAL;
+                }
+                memcpy(buf,
+                    TLS_BUFFER_get_buf(thiswb) + TLS_BUFFER_get_offset(thiswb),
+                    left);
+                TLS_BUFFER_set_buf(thiswb, buf);
+                TLS_BUFFER_set_offset(thiswb, 0);
+                TLS_BUFFER_set_app_buffer(thiswb, 0);
+            }
             if (rl->isdtls) {
                 /*
                  * For DTLS, just drop it. That's kind of the whole point in
@@ -2001,7 +2023,7 @@ int tls_set1_bio(OSSL_RECORD_LAYER *rl, BIO *bio)
 {
     if (bio != NULL && !BIO_up_ref(bio))
         return 0;
-    BIO_free(rl->bio);
+    BIO_free_all(rl->bio);
     rl->bio = bio;
 
     return 1;

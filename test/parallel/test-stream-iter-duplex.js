@@ -46,7 +46,7 @@ async function testBidirectional() {
 }
 
 async function testMultipleWrites() {
-  const [channelA, channelB] = duplex({ highWaterMark: 10 });
+  const [channelA, channelB] = duplex({ budget: 16384 });
 
   await channelA.writer.write('one');
   await channelA.writer.write('two');
@@ -75,7 +75,7 @@ async function testChannelClose() {
 
 async function testWithOptions() {
   const [channelA, channelB] = duplex({
-    highWaterMark: 2,
+    budget: 16384,
     backpressure: 'strict',
   });
 
@@ -88,8 +88,8 @@ async function testWithOptions() {
 
 async function testPerChannelOptions() {
   const [channelA, channelB] = duplex({
-    a: { highWaterMark: 1 },
-    b: { highWaterMark: 4 },
+    a: { budget: 16384 },
+    b: { budget: 16384 },
   });
 
   // Channel A -> B direction uses A's options
@@ -125,6 +125,22 @@ async function testAbortSignal() {
     },
     (err) => err.name === 'AbortError',
   );
+}
+
+async function testWriterEndWithPreAbortedSignal() {
+  const [channelA, channelB] = duplex();
+  const reason = new Error('end aborted');
+
+  await assert.rejects(
+    channelA.writer.end({ signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+
+  await channelA.writer.write('still open');
+  const completedEnd = channelA.writer.end();
+  assert.strictEqual(await text(channelB.readable), 'still open');
+  assert.strictEqual(await completedEnd, 10);
+  await channelB.close();
 }
 
 async function testEmptyDuplex() {
@@ -182,6 +198,7 @@ Promise.all([
   testWithOptions(),
   testPerChannelOptions(),
   testAbortSignal(),
+  testWriterEndWithPreAbortedSignal(),
   testEmptyDuplex(),
   testChannelFail(),
   testAbortSignalBothChannels(),

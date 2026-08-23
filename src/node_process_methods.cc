@@ -107,6 +107,7 @@ inline Local<ArrayBuffer> get_fields_array_buffer(
   CHECK(args[index]->IsFloat64Array());
   Local<Float64Array> arr = args[index].As<Float64Array>();
   CHECK_EQ(arr->Length(), array_length);
+  CHECK_EQ(arr->ByteOffset(), 0);
   return arr->Buffer();
 }
 

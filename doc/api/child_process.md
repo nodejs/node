@@ -1714,10 +1714,14 @@ may not actually terminate the process.
 
 See kill(2) for reference.
 
-On Windows, where POSIX signals do not exist, the `signal` argument will be
-ignored except for `'SIGKILL'`, `'SIGTERM'`, `'SIGINT'` and `'SIGQUIT'`, and the
-process will always be killed forcefully and abruptly (similar to `'SIGKILL'`).
-See [Signal Events][] for more details.
+On Windows, where POSIX signals do not exist, signals are handled as follows.
+`'SIGKILL'`, `'SIGTERM'`, `'SIGINT'` and `'SIGQUIT'` terminate the process
+forcefully and abruptly (similar to `'SIGKILL'`); any other signal whose name is
+known on Windows (such as `'SIGHUP'`) does the same. `'SIGWINCH'` is not
+terminal and is not coerced: `subprocess.kill()` throws an `ENOSYS` error and
+the child keeps running. A signal name that does not exist on Windows (such as
+`'SIGSTOP'`) throws an `ERR_UNKNOWN_SIGNAL` error. See [Signal Events][] for more
+details.
 
 On Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
@@ -2390,7 +2394,7 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
-[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignalcode
+[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignal
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api

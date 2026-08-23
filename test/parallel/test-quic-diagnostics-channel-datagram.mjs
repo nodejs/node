@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,15 +18,15 @@ const serverGot = Promise.withResolvers();
 
 // quic.session.send.datagram fires on send.
 dc.subscribe('quic.session.send.datagram', mustCall((msg) => {
-  ok(msg.session);
-  ok(msg.id);
-  ok(msg.length > 0);
+  assert.ok(msg.session);
+  assert.ok(msg.id);
+  assert.ok(msg.length > 0);
 }));
 
 // quic.session.receive.datagram fires on receipt.
 dc.subscribe('quic.session.receive.datagram', mustCall((msg) => {
-  ok(msg.session);
-  ok(msg.length > 0);
+  assert.ok(msg.session);
+  assert.ok(msg.length > 0);
 }));
 
 const serverEndpoint = await listen(async (serverSession) => {

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  assert_throws_js(TypeError, () => { new URLPattern({ pathname: '()' }); });
+}, `URLPattern rejects an empty regexp group '()' with a TypeError`);
+
+test(() => {
+  new URLPattern({ pathname: '(a)' });
+}, `URLPattern accepts a non-empty regexp group '(a)'`);
+</script>

@@ -52,7 +52,7 @@ async function testBasicWrite() {
     },
   });
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
   await pipeTo(from('hello world'), writer);
 
   assert.strictEqual(Buffer.concat(chunks).toString(), 'hello world');
@@ -95,7 +95,7 @@ async function testBlockWaitsForDrain() {
     },
   });
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
   await writer.write('a');
   await writer.write('b');
@@ -117,7 +117,7 @@ async function testBlockErrorRejectsPendingWrite() {
     },
   });
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
   // First write fills the buffer, waits for drain
   const writePromise = writer.write('data that will block');
@@ -251,8 +251,8 @@ async function testDropNewestCountsBytes() {
   await writer.write('12345');  // 5 bytes, accepted
   await writer.write('67890');  // 5 bytes, dropped
 
-  // desiredSize should be 0 (buffer is full)
-  assert.strictEqual(writer.desiredSize, 0);
+  // canWrite should be false (buffer is full)
+  assert.strictEqual(writer.canWrite, false);
 }
 
 // =============================================================================
@@ -299,7 +299,7 @@ async function testWritev() {
     },
   });
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
   await writer.writev([
     new TextEncoder().encode('hello'),
     new TextEncoder().encode(' '),
@@ -365,10 +365,10 @@ async function testFail() {
 }
 
 // =============================================================================
-// desiredSize reflects buffer state
+// canWrite reflects buffer state
 // =============================================================================
 
-function testDesiredSize() {
+function testCanWrite() {
   const writable = new Writable({
     highWaterMark: 100,
     write(chunk, enc, cb) {
@@ -377,19 +377,19 @@ function testDesiredSize() {
   });
 
   const writer = fromWritable(writable);
-  assert.strictEqual(writer.desiredSize, 100);
+  assert.strictEqual(writer.canWrite, true);
 }
 
 // =============================================================================
-// desiredSize is null when destroyed
+// canWrite is null when destroyed
 // =============================================================================
 
-function testDesiredSizeNull() {
+function testCanWriteNull() {
   const writable = new Writable({ write(chunk, enc, cb) { cb(); } });
   const writer = fromWritable(writable);
 
   writable.destroy();
-  assert.strictEqual(writer.desiredSize, null);
+  assert.strictEqual(writer.canWrite, null);
 }
 
 // =============================================================================
@@ -481,7 +481,7 @@ async function testPipeToWithTransform() {
     },
   });
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
   await pipeTo(from('hello via transform'), compressGzip(), writer);
 
   const decompressed = await text(
@@ -590,7 +590,7 @@ async function testFailRejectsPendingWaiters() {
   });
   writable.on('error', () => {});  // Prevent unhandled error
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
   // This write will block on drain
   const writePromise = writer.write('blocked data');
@@ -613,7 +613,7 @@ async function testDisposeRejectsPendingWaiters() {
     },
   });
 
-  const writer = fromWritable(writable, { backpressure: 'block' });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
   // This write will block on drain
   const writePromise = writer.write('blocked data');
@@ -647,8 +647,8 @@ function testObjectModeThrows() {
 testFunctionExists();
 testSyncMethodsReturnFalse();
 testEndSyncReturnsNegativeOne();
-testDesiredSize();
-testDesiredSizeNull();
+testCanWrite();
+testCanWriteNull();
 testDrainableNull();
 testDropOldestThrows();
 testInvalidBackpressureThrows();

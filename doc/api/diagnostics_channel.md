@@ -237,9 +237,13 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64525
+    description: Marked as stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 * `nameOrChannels` {string|TracingChannel} Channel name or
   object containing all the [TracingChannel Channels][]
@@ -744,9 +748,13 @@ The scope must be used with the `using` syntax to ensure proper disposal.
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64525
+    description: Marked as stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The class `TracingChannel` is a collection of [TracingChannel Channels][] which
 together express a single traceable action. It is used to formalize and
@@ -948,20 +956,23 @@ added:
  - v19.9.0
  - v18.19.0
 changes:
+  - version: v26.5.0
+    pr-url: https://github.com/nodejs/node/pull/62407
+    description: Non-native-Promise thenables are now returned as-is,
+                 preserving their original type and methods.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61766
-    description: Custom thenables will no longer be wrapped in native Promises.
-                 Non-thenables will be returned with a warning.
+    description: Non-thenables will be returned with a warning.
 -->
 
 * `fn` {Function} Function to wrap a trace around
 * `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
-* Returns: {any} The return value of the given function, or the result of
-  calling `.then(...)` on the return value if the tracing channel has active
-  subscribers. If the return value is not a Promise or thenable, then
-  it is returned as-is and a warning is emitted.
+* Returns: {any} The return value of the given function. If the return value
+  is a Promise or thenable, tracing events will be published when it settles.
+  If the return value is not a Promise or thenable, it is returned as-is and
+  a warning is emitted.
 
 Trace an asynchronous function call which returns a {Promise} or
 [thenable object][]. This will always produce a [`start` event][] and
@@ -1913,10 +1924,47 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+#### SQLite
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'sqlite.db.query'`
+
+* `sql` {string} The expanded SQL with bound parameter values substituted.
+  If expansion fails, the source SQL with unsubstituted placeholders is used
+  instead.
+* `database` {DatabaseSync} The [`DatabaseSync`][] instance that executed the
+  statement.
+* `duration` {number} SQLite's internal estimate of the statement run time in
+  nanoseconds. This reflects C-layer execution time only and does not include
+  JavaScript binding overhead such as argument marshaling or result-row
+  construction.
+
+Emitted after a SQL statement finishes executing against a [`DatabaseSync`][]
+instance. This is a **profiling** event: it fires once per statement upon
+completion and reports an estimated duration from SQLite's internal profiler.
+It is not a distributed-tracing span. There is no corresponding start event,
+no async context propagation, and no parent-span linkage. If you need
+OpenTelemetry-compatible spans or async context propagation, wrap your SQLite
+calls with a [`TracingChannel`][] at the JavaScript layer instead.
+
+Publishing is zero-overhead when there are no subscribers.
+
+No event is emitted for a statement that is abandoned mid-iteration and later
+finalized, either explicitly through [`statement.close()`][] or when the
+statement is garbage collected. Subscribers must not close the database or the
+statement, since both are still in use while the event is being delivered; see
+[`database.close()`][] and [`statement.close()`][].
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`BoundedChannel`]: #class-boundedchannel
+[`DatabaseSync`]: sqlite.md#class-databasesync
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
@@ -1927,6 +1975,7 @@ Emitted when a new thread is created.
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
+[`database.close()`]: sqlite.md#databaseclose
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
@@ -1936,6 +1985,7 @@ Emitted when a new thread is created.
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`statement.close()`]: sqlite.md#statementclose
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables

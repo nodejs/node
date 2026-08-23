@@ -681,6 +681,9 @@ static void quic_unref_port_bios(QUIC_PORT *port)
 {
     BIO *b;
 
+    if (port == NULL)
+        return;
+
     b = ossl_quic_port_get_net_rbio(port);
     BIO_free_all(b);
 
@@ -1818,6 +1821,7 @@ static int create_channel(QUIC_CONNECTION *qc, SSL_CTX *ctx)
     if (qc->port == NULL) {
         QUIC_RAISE_NON_NORMAL_ERROR(NULL, ERR_R_INTERNAL_ERROR, NULL);
         ossl_quic_engine_free(qc->engine);
+        qc->engine = NULL;
         return 0;
     }
 
@@ -1825,7 +1829,9 @@ static int create_channel(QUIC_CONNECTION *qc, SSL_CTX *ctx)
     if (qc->ch == NULL) {
         QUIC_RAISE_NON_NORMAL_ERROR(NULL, ERR_R_INTERNAL_ERROR, NULL);
         ossl_quic_port_free(qc->port);
+        qc->port = NULL;
         ossl_quic_engine_free(qc->engine);
+        qc->engine = NULL;
         return 0;
     }
 
@@ -4008,14 +4014,14 @@ static void quic_classify_stream(QUIC_CONNECTION *qc,
     uint64_t *app_error_code)
 {
     int local_init;
-    uint64_t final_size;
+    uint64_t scratch_pad; /* throw away value */
 
     local_init = (ossl_quic_stream_is_server_init(qs) == qc->as_server);
 
     if (app_error_code != NULL)
         *app_error_code = UINT64_MAX;
     else
-        app_error_code = &final_size; /* throw away value */
+        app_error_code = &scratch_pad;
 
     if (!ossl_quic_stream_is_bidi(qs) && local_init != is_write) {
         /*
@@ -4048,7 +4054,7 @@ static void quic_classify_stream(QUIC_CONNECTION *qc,
         *app_error_code = !is_write
             ? qs->peer_reset_stream_aec
             : qs->peer_stop_sending_aec;
-    } else if (is_write && ossl_quic_sstream_get_final_size(qs->sstream, &final_size)) {
+    } else if (is_write && qs->have_final_size) {
         /*
          * Stream has been finished. Stream reset takes precedence over this for
          * the write case as peer may not have received all data.
@@ -4292,7 +4298,7 @@ SSL *ossl_quic_new_listener(SSL_CTX *ctx, uint64_t flags)
 
     if ((ql = OPENSSL_zalloc(sizeof(*ql))) == NULL) {
         QUIC_RAISE_NON_NORMAL_ERROR(NULL, ERR_R_CRYPTO_LIB, NULL);
-        goto err;
+        return NULL;
     }
 
 #if defined(OPENSSL_THREADS)
@@ -4340,8 +4346,8 @@ SSL *ossl_quic_new_listener(SSL_CTX *ctx, uint64_t flags)
     return &ql->obj.ssl;
 
 err:
-    if (ql != NULL)
-        ossl_quic_engine_free(ql->engine);
+    ossl_quic_port_free(ql->port);
+    ossl_quic_engine_free(ql->engine);
 
 #if defined(OPENSSL_THREADS)
     ossl_crypto_mutex_free(&ql->mutex);
@@ -4488,7 +4494,7 @@ SSL *ossl_quic_new_from_listener(SSL *ssl, uint64_t flags)
 #endif
 
     /* Create the handshake layer. */
-    qc->tls = ossl_ssl_connection_new_int(ql->obj.ssl.ctx, NULL, TLS_method());
+    qc->tls = ossl_ssl_connection_new_int(ql->obj.ssl.ctx, &qc->obj.ssl, TLS_method());
     if (qc->tls == NULL || (sc = SSL_CONNECTION_FROM_SSL(qc->tls)) == NULL) {
         QUIC_RAISE_NON_NORMAL_ERROR(NULL, ERR_R_INTERNAL_ERROR, NULL);
         goto err;

@@ -245,6 +245,7 @@ changes:
   * `deregister()` {Function} Remove the registered hooks so that they are no
     longer called. Hooks are otherwise retained for the lifetime of the running
     process.
+  * `[Symbol.dispose]` {Function} The same as `deregister`.
 
 Register [hooks][] that customize Node.js module resolution and loading behavior.
 See [Customization hooks][]. The returned object can be used to
@@ -406,6 +407,14 @@ to the cache directory remains the same. This would be done on a best-effort bas
 Node.js cannot compute the location of a module relative to the cache directory, the module
 will not be cached.
 
+A portable cache is also not split by user: on platforms with uids the
+cache subdirectory of a non-portable cache is suffixed with the uid of the
+user who created it, so it is only found by that user, while a portable
+cache uses the same subdirectory for every user. This lets a cache generated
+once (for example at build time, then shipped read-only with an application)
+be read by whoever runs the code; a user who cannot write to the directory
+still reads it, and a failed write only means the module is compiled again.
+
 There are two ways to enable the portable mode:
 
 1. Using the portable option in [`module.enableCompileCache()`][]:
@@ -419,6 +428,15 @@ There are two ways to enable the portable mode:
    ```
 
 2. Setting the environment variable: [`NODE_COMPILE_CACHE_PORTABLE=1`][]
+
+### Read-only compile cache
+
+A cache that was generated ahead of time, for example at build time to be
+shipped inside an application package, can be enabled with `readOnly: true`
+(or [`NODE_COMPILE_CACHE_READONLY=1`][]). Node.js then loads whatever entries
+the directory holds and never writes to it: modules without a usable entry are
+compiled as usual but not persisted, [`module.flushCompileCache()`][] is a
+no-op, and the directory is not created if it is missing.
 
 ### Limitations of the compile cache
 
@@ -493,6 +511,9 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65302
+    description: Add the `readOnly` option.
   - version:
      - v25.4.0
      - v24.15.0
@@ -519,6 +540,11 @@ changes:
     the cache can be reused even if the project directory is moved. This is a best-effort
     feature. If not specified, it will depend on whether the environment variable
     [`NODE_COMPILE_CACHE_PORTABLE=1`][] is set.
+  * `readOnly` {boolean} Optional. If `true`, existing cache entries in `directory` are
+    used but nothing is ever written to it, and the directory is not created when it does
+    not exist (enabling then fails). Meant for caches generated ahead of time and shipped
+    with an application. If not specified, it will depend on whether the environment
+    variable [`NODE_COMPILE_CACHE_READONLY=1`][] is set.
 * Returns: {Object}
   * `status` {integer} One of the [`module.constants.compileCacheStatus`][]
   * `message` {string|undefined} If Node.js cannot enable the compile cache, this contains
@@ -534,7 +560,7 @@ For general use cases, it's recommended to call `module.enableCompileCache()` wi
 specifying the `options.directory`, so that the directory can be overridden by the
 `NODE_COMPILE_CACHE` environment variable when necessary.
 
-Since compile cache is supposed to be a optimization that is not mission critical, this
+Since compile cache is supposed to be an optimization that is not mission critical, this
 method is designed to not throw any exception when the compile cache cannot be enabled.
 Instead, it will return an object containing an error message in the `message` field to
 aid debugging. If compile cache is enabled successfully, the `directory` field in the
@@ -2058,6 +2084,7 @@ returned object contains the following keys:
 [`--require`]: cli.md#-r---require-module
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
+[`NODE_COMPILE_CACHE_READONLY=1`]: cli.md#node_compile_cache_readonly1
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -273,8 +273,8 @@ int BN_is_negative(const BIGNUM *b);
 
 int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     BN_CTX *ctx);
-#define BN_mod(rem, m, d, ctx) BN_div(NULL, (rem), (m), (d), (ctx))
-int BN_nnmod(BIGNUM *r, const BIGNUM *m, const BIGNUM *d, BN_CTX *ctx);
+#define BN_mod(rem, a, m, ctx) BN_div(NULL, (rem), (a), (m), (ctx))
+int BN_nnmod(BIGNUM *r, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
 int BN_mod_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m,
     BN_CTX *ctx);
 int BN_mod_add_quick(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,

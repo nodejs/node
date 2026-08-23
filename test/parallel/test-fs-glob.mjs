@@ -1,5 +1,6 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
+import { spawnSync } from 'node:child_process';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
 import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
@@ -393,7 +394,7 @@ describe('fsPromises.glob - with file: URL as cwd', function() {
 
 const normalizeDirent = (dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name));
 // The call to `join()` with only one argument is important, as
-// it ensures that the proper path seperators are applied.
+// it ensures that the proper path separators are applied.
 const normalizePath = (path) => (isAbsolute(path) ? relative(fixtureDir, path) : join(path));
 
 describe('glob - withFileTypes', function() {
@@ -667,5 +668,80 @@ describe('globSync - ENOTDIR', function() {
         // ignore
       }
     }
+  });
+});
+
+describe('glob - seen cache', function() {
+  // Refs: https://github.com/nodejs/node/issues/62897
+  test('does not skip siblings after a seen child path', () => {
+    // The glob traversal used to return early from the children loop when a
+    // child path had already been seen through a different pattern context,
+    // silently dropping the remaining siblings. Whether the bug triggered
+    // depended on directory iteration order, so the child process pins the
+    // order by patching readdir before loading the glob implementation.
+    const script = `
+      const assert = require('node:assert');
+      const fs = require('node:fs');
+      const fsPromises = require('node:fs/promises');
+      const path = require('node:path');
+
+      const cwd = process.argv[1];
+      const a = path.join(cwd, 'a');
+      fs.mkdirSync(path.join(a, 'b', 'c', 'd'), { recursive: true });
+      fs.mkdirSync(path.join(a, 'c', 'd', 'c'), { recursive: true });
+      fs.writeFileSync(path.join(a, 'x'), '');
+      fs.writeFileSync(path.join(a, 'z'), '');
+
+      const originalReaddirSync = fs.readdirSync;
+      const originalReaddir = fsPromises.readdir;
+
+      const reorder = (target, entries) => {
+        if (!Array.isArray(entries) || target !== a) return entries;
+        const names = ['c', 'b', 'x', 'z'];
+        return names.map((name) => entries.find((entry) => entry.name === name))
+          .filter(Boolean);
+      };
+
+      fs.readdirSync = function(target, options) {
+        return reorder(target, originalReaddirSync.call(this, target, options));
+      };
+      fsPromises.readdir = async function(target, options) {
+        return reorder(target, await originalReaddir.call(this, target, options));
+      };
+
+      const { Glob } = require('internal/fs/glob');
+      const expected = ['a/b', 'a/c', 'a/x', 'a/z'];
+      const normalize = (results) =>
+        results.map((item) => item.replaceAll(path.sep, '/')).sort();
+
+      (async () => {
+        const syncResults = normalize(new Glob('a/**/../*', { cwd }).globSync());
+        for (const item of expected) {
+          assert.ok(syncResults.includes(item),
+                    \`missing \${item} from sync results: \${syncResults}\`);
+        }
+
+        const asyncResults = [];
+        for await (const item of new Glob('a/**/../*', { cwd }).glob()) {
+          asyncResults.push(item);
+        }
+        const normalized = normalize(asyncResults);
+        for (const item of expected) {
+          assert.ok(normalized.includes(item),
+                    \`missing \${item} from async results: \${normalized}\`);
+        }
+      })().catch((err) => {
+        console.error(err);
+        process.exitCode = 1;
+      });
+    `;
+
+    const seenDir = tmpdir.resolve('glob-seen');
+    const child = spawnSync(
+      process.execPath,
+      ['--expose-internals', '-e', script, seenDir],
+      { encoding: 'utf8' },
+    );
+    assert.strictEqual(child.status, 0, child.stderr || child.stdout);
   });
 });

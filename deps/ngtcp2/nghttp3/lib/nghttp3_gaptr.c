@@ -36,11 +36,11 @@ void nghttp3_gaptr_init(nghttp3_gaptr *gaptr, const nghttp3_mem *mem) {
 }
 
 static int gaptr_gap_init(nghttp3_gaptr *gaptr) {
-  return nghttp3_ksl_insert(&gaptr->gap, NULL,
-                            &(nghttp3_range){
-                              .end = UINT64_MAX,
-                            },
-                            NULL);
+  static const nghttp3_range end = {
+    .end = UINT64_MAX,
+  };
+
+  return nghttp3_ksl_insert(&gaptr->gap, NULL, &end, NULL);
 }
 
 void nghttp3_gaptr_free(nghttp3_gaptr *gaptr) {

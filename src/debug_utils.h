@@ -49,7 +49,6 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(COMPILE_CACHE)                                                             \
   V(CONTEXTIFY)                                                                \
   V(DIAGNOSTICS)                                                               \
-  V(HUGEPAGES)                                                                 \
   V(INSPECTOR_SERVER)                                                          \
   V(INSPECTOR_CLIENT)                                                          \
   V(INSPECTOR_PROFILER)                                                        \
@@ -61,6 +60,7 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(MODULE)                                                                    \
   V(MKSNAPSHOT)                                                                \
   V(SNAPSHOT_SERDES)                                                           \
+  V(PERFETTO)                                                                  \
   V(PERMISSION_MODEL)                                                          \
   V(PLATFORM_MINIMAL)                                                          \
   V(PLATFORM_VERBOSE)                                                          \

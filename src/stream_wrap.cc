@@ -227,12 +227,10 @@ void LibuvStreamWrap::OnUvAlloc(size_t suggested_size, uv_buf_t* buf) {
 }
 
 template <class WrapType>
+  requires(std::derived_from<WrapType, LibuvStreamWrap> ||
+           std::derived_from<WrapType, UDPWrap>)
 static MaybeLocal<Object> AcceptHandle(Environment* env,
                                        LibuvStreamWrap* parent) {
-  static_assert(std::is_base_of<LibuvStreamWrap, WrapType>::value ||
-                std::is_base_of<UDPWrap, WrapType>::value,
-                "Can only accept stream handles");
-
   EscapableHandleScope scope(env->isolate());
   Local<Object> wrap_obj;
 

@@ -2,58 +2,96 @@
 
 set -xe
 
-OWNER=$1
-REPOSITORY=$2
-shift 2
-
 UPSTREAM=origin
 DEFAULT_BRANCH=main
 
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
+cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
+
+escape_code_block_or_line() {
+  case $1 in
+    *"
+"*|'') fence='```' sep='
+' ;;
+    *[![:space:]]*) fence='`' sep=' ' ;;
+    *) fence='`' sep='' ;;
+  esac
+  while case $1 in *"$fence"*) ;; *) false ;; esac; do
+    fence=$fence'`'
+  done
+  printf '%s%s%s%s%s\n' "$fence" "$sep" "$1" "$sep" "$fence"
+}
+
 commit_queue_failed() {
   pr=$1
+  reported_failure=${2:-}
 
-  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}"
+  gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
-  # shellcheck disable=SC2154
-  cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-  body="<details><summary>Commit Queue failed</summary><pre>$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' output)</pre><a href='$cqurl'>$cqurl</a></details>"
+  last_output_line=$(awk 'NF { line = $0 } END { sub(/^[[:space:]]*/, "", line); print line }' output)
+  # shellcheck disable=SC2016
+  missing_policy_message='ℹ  Add `commit-queue-squash` label to land the PR as one commit, or `commit-queue-rebase` to land as separate commits.'
+  if [ "$last_output_line" = "$missing_policy_message" ]; then
+    failure_body='This pull request has multiple commits, but no landing policy was selected.
+
+Add https://github.com/nodejs/node/labels/commit-queue-squash to land it as one commit, or https://github.com/nodejs/node/labels/commit-queue-rebase to land the commits separately.'
+  else
+    if [ -z "$reported_failure" ]; then
+      reported_failure=$(grep -e '✘' -e '⚠' output | tail -n 10)
+    fi
+    if [ -z "$reported_failure" ]; then
+      reported_failure=$(tail -n 10 output)
+    fi
+    if [ -z "$reported_failure" ]; then
+      reported_failure='No failure reason was reported.'
+    fi
+    failure_body=$(escape_code_block_or_line "$reported_failure")
+  fi
+
+  raw_output=$(cat output)
+
+  body="### Commit Queue failed
+
+$failure_body
+
+The pull request was removed from the Commit Queue and labeled https://github.com/nodejs/node/labels/commit-queue-failed. After resolving the failure, remove that label and add https://github.com/nodejs/node/labels/commit-queue to retry.
+
+<details>
+<summary>Full Commit Queue output</summary>
+
+$(escape_code_block_or_line "$raw_output")
+
+</details>
+
+[View workflow run]($cqurl)"
   echo "$body"
 
-  gh pr comment "$pr" --body "$body"
+  gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "$body"
 
   rm output
 }
 
-# TODO(mmarchini): should this be set with whoever added the label for each PR?
-git config --local user.email "github-bot@iojs.org"
-git config --local user.name "Node.js GitHub Bot"
+SHOULD_ABORT=
 
 for pr in "$@"; do
-  gh pr view "$pr" --json labels --jq ".labels" > labels.json
-  # Skip PR if CI was requested
-  if jq -e 'map(.name) | index("request-ci")' < labels.json; then
-    echo "pr ${pr} skipped, waiting for CI to start"
-    continue
-  fi
-
-  # Skip PR if CI is still running
-  if gh pr checks "$pr" | grep -q "\spending\s"; then
-    echo "pr ${pr} skipped, CI still running"
-    continue
-  fi
-
-  # Delete the commit queue label
-  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL"
-
+  gh -R "$GITHUB_REPOSITORY" pr view "$pr" --json labels --jq ".labels" > labels.json
+  
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
   elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
     MULTIPLE_COMMIT_POLICY=""
   else
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
+  fi
+
+  if [ -n "$SHOULD_ABORT" ]; then
+    # If `git node land --abort` fails, we're in unknown state. Better to stop
+    # the script here, current PR was removed from the queue so it shouldn't
+    # interfere again in the future.
+    git node land --abort --yes
+    SHOULD_ABORT=
   fi
 
   git node land --autorebase --yes $MULTIPLE_COMMIT_POLICY "$pr" >output 2>&1 || echo "Failed to land #${pr}"
@@ -64,10 +102,8 @@ for pr in "$@"; do
   # if the "Landed in..." message was not on the output we assume land failed
   if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
     commit_queue_failed "$pr"
-    # If `git node land --abort` fails, we're in unknown state. Better to stop
-    # the script here, current PR was removed from the queue so it shouldn't
-    # interfere again in the future.
-    git node land --abort --yes
+    # Using a variable as there's no point in aborting if there are no PRs left in the queue.
+    SHOULD_ABORT=1
     continue
   fi
 
@@ -77,7 +113,8 @@ for pr in "$@"; do
     commits="${start_sha}...${end_sha}"
 
     if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
-      commit_queue_failed "$pr"
+      commit_queue_failed "$pr" \
+        "Failed to push the landed commits to ${UPSTREAM}/${DEFAULT_BRANCH}."
       continue
     fi
   else
@@ -93,19 +130,23 @@ for pr in "$@"; do
         --arg body "${commit_body}" \
         --arg head "${commit_head}" \
         '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' |\
-      gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input -\
-        --jq 'if .merged then .sha else halt_error end'
+      gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr}/merge" --input -\
+        --jq 'if .merged then .sha else halt_error end' 2>> output
     )"; then
-      commit_queue_failed "$pr"
+      commit_queue_failed "$pr" \
+        'GitHub failed to squash and merge this pull request.'
       continue
     fi
   fi
 
   rm output
 
-  gh pr comment "$pr" --body "Landed in $commits"
+  gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "Landed in $commits"
 
-  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh pr close "$pr"
+  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh -R "$GITHUB_REPOSITORY" pr close "$pr"
+
+  # Delete the commit queue label (but ignore errors, it's no big deal if a closed PR still has the label)
+  gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
 done
 
 rm -f labels.json

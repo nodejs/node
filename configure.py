@@ -55,7 +55,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
-maglev_enabled_architectures = ('x64', 'arm', 'arm64', 's390x')
+maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x', 'riscv64')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
@@ -116,6 +116,12 @@ parser.add_argument('--dest-cpu',
     dest='dest_cpu',
     choices=valid_arch,
     help=f"CPU architecture to build for ({', '.join(valid_arch)})")
+
+parser.add_argument('--emulator',
+    action='store',
+    dest='emulator',
+    default=None,
+    help='emulator command that can run executables built for the target system')
 
 parser.add_argument('--cross-compiling',
     action='store_true',
@@ -878,13 +884,13 @@ parser.add_argument('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
     default=None,
-    help='This option has no effect. --use-largepages is now a runtime option.')
+    help='This option is no longer supported and a no-op.')
 
 parser.add_argument('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
     default=None,
-    help='This option has no effect. --use-largepages is now a runtime option.')
+    help='This option is no longer supported and a no-op.')
 
 parser.add_argument('--use-section-ordering-file',
     action='store',
@@ -1101,7 +1107,7 @@ parser.add_argument('--enable-static',
     action='store_true',
     dest='enable_static',
     default=None,
-    help='build as static library')
+    help=argparse.SUPPRESS) # Deprecated
 
 parser.add_argument('--no-browser-globals',
     action='store_true',
@@ -1116,6 +1122,12 @@ parser.add_argument('--without-inspector',
     dest='without_inspector',
     default=None,
     help='disable the V8 inspector protocol')
+
+parser.add_argument('--with-perfetto',
+    action='store_true',
+    dest='with_perfetto',
+    default=None,
+    help='enable perfetto support')
 
 parser.add_argument('--shared',
     action='store_true',
@@ -1434,6 +1446,48 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
+def get_openssl_macros(o):
+  """Extract OpenSSL preprocessor macros from the configured headers."""
+
+  # Use the C compiler to extract preprocessor macros from OpenSSL headers.
+  # crypto.h is included because BoringSSL declares OPENSSL_IS_BORINGSSL there.
+  args = ['-E', '-dM',
+          '-include', 'openssl/opensslv.h',
+          '-include', 'openssl/crypto.h',
+          '-']
+  if not options.shared_openssl:
+    args = ['-I', 'deps/openssl/openssl/include'] + args
+  elif options.shared_openssl_includes:
+    args = ['-I', options.shared_openssl_includes] + args
+  else:
+    for dir in o['include_dirs']:
+      args = ['-I', dir] + args
+
+  proc = subprocess.Popen(
+    shlex.split(CC) + args,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE
+  )
+  with proc:
+    proc.stdin.write(b'\n')
+    out = to_utf8(proc.communicate()[0])
+
+  if proc.returncode != 0:
+    warn('Failed to extract OpenSSL macros from headers')
+    return {}
+
+  macros = {}
+  for line in out.split('\n'):
+    if line.startswith('#define OPENSSL_'):
+      parts = line.split()
+      if len(parts) >= 2:
+        macro_name = parts[1]
+        macro_value = parts[2] if len(parts) >= 3 else '1'
+        macros[macro_name] = macro_value
+
+  return macros
+
 def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
@@ -1443,39 +1497,7 @@ def get_openssl_version(o):
   """
 
   try:
-    # Use the C compiler to extract preprocessor macros from opensslv.h
-    args = ['-E', '-dM', '-include', 'openssl/opensslv.h', '-']
-    if not options.shared_openssl:
-      args = ['-I', 'deps/openssl/openssl/include'] + args
-    elif options.shared_openssl_includes:
-      args = ['-I', options.shared_openssl_includes] + args
-    else:
-      for dir in o['include_dirs']:
-        args = ['-I', dir] + args
-
-    proc = subprocess.Popen(
-      shlex.split(CC) + args,
-      stdin=subprocess.PIPE,
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE
-    )
-    with proc:
-      proc.stdin.write(b'\n')
-      out = to_utf8(proc.communicate()[0])
-
-    if proc.returncode != 0:
-      warn('Failed to extract OpenSSL version from opensslv.h header')
-      return 0
-
-    # Parse the macro definitions
-    macros = {}
-    for line in out.split('\n'):
-      if line.startswith('#define OPENSSL_VERSION_'):
-        parts = line.split()
-        if len(parts) >= 3:
-          macro_name = parts[1]
-          macro_value = parts[2]
-          macros[macro_name] = macro_value
+    macros = get_openssl_macros(o)
 
     # Extract version components
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
@@ -1501,9 +1523,16 @@ def get_openssl_version(o):
 
     return version_number
 
-  except (OSError, ValueError, subprocess.SubprocessError) as e:
+  except (OSError, TypeError, ValueError, subprocess.SubprocessError) as e:
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
+
+def get_openssl_is_boringssl(o):
+  try:
+    return b('OPENSSL_IS_BORINGSSL' in get_openssl_macros(o))
+  except (OSError, ValueError, subprocess.SubprocessError) as e:
+    warn(f'Failed to determine whether OpenSSL headers are BoringSSL: {e}')
+    return 'false'
 
 def get_cargo_version(cargo):
   try:
@@ -1818,7 +1847,7 @@ def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node_cctest_sources(o):
-  o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+  o['variables']['node_cctest_sources'] = [] + \
     SearchFiles('test/cctest', 'cc') + \
     SearchFiles('test/cctest', 'h')
 
@@ -1886,10 +1915,6 @@ def configure_node(o):
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
 
   if options.node_snapshot_main is not None:
-    if options.shared:
-      # This should be possible to fix, but we will need to refactor the
-      # libnode target to avoid building it twice.
-      error('--node-snapshot-main is incompatible with --shared')
     if options.without_node_snapshot:
       error('--node-snapshot-main is incompatible with ' +
             '--without-node-snapshot')
@@ -1900,8 +1925,7 @@ def configure_node(o):
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
   else:
-    o['variables']['node_use_node_snapshot'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
 
   # Do not use code cache when Node.js is built for collecting coverage of itself, this allows more
   # precise coverage for the JS built-ins.
@@ -1909,8 +1933,7 @@ def configure_node(o):
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-    o['variables']['node_use_node_code_cache'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_code_cache'] = b(not cross_compiling)
 
   if options.write_snapshot_as_array_literals is not None:
      o['variables']['node_write_snapshot_as_array_literals'] = b(options.write_snapshot_as_array_literals)
@@ -2024,10 +2047,8 @@ def configure_node(o):
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
-         have no effect during build time. Support for mapping to large pages is
-         now a runtime option of Node.js. Run `node --use-largepages` or add
-         `--use-largepages` to the `NODE_OPTIONS` environment variable once
-         Node.js is built to enable mapping to large pages.''')
+         have no effect. Mapping the Node.js static code to large pages is
+         no longer supported.''')
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
@@ -2057,9 +2078,6 @@ def configure_node(o):
 
   if options.v8_options:
     o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
-
-  if options.enable_static:
-    o['variables']['node_target_type'] = 'static_library'
 
   o['variables']['node_debug_lib'] = b(options.node_debug_lib)
 
@@ -2103,10 +2121,13 @@ def configure_node(o):
   else:
     o['variables']['coverage'] = 'false'
 
+  if options.enable_static and options.shared:
+    error('--enable-static must not be set with --shared')
+  if options.enable_static:
+    warn('--enable-static is deprecated and libnode.a is always produced')
+
   if options.shared:
     o['variables']['node_target_type'] = 'shared_library'
-  elif options.enable_static:
-    o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
 
@@ -2175,7 +2196,7 @@ def configure_v8(o, configs):
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_maglev'] = B(not options.v8_disable_maglev and
-                                         flavor != 'zos' and
+                                         flavor not in ('aix', 'os400', 'zos') and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
@@ -2206,6 +2227,7 @@ def configure_v8(o, configs):
         options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
+  o['variables']['v8_use_perfetto'] = 1 if options.with_perfetto else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
@@ -2315,6 +2337,7 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
   o['variables']['openssl_version'] = get_openssl_version(o)
+  o['variables']['openssl_is_boringssl'] = get_openssl_is_boringssl(o)
 
 def configure_lief(o):
   if options.without_lief:
@@ -2952,6 +2975,14 @@ if flavor == 'win' and python.lower().endswith('.exe'):
 # Always set 'python' variable, otherwise environments that only have python3
 # will fail to run python scripts.
 gyp_args += ['-Dpython=' + python]
+
+if options.emulator is not None:
+  if not options.cross_compiling:
+    # Note that emulator is a list so we have to quote the variable.
+    gyp_args += ['-Demulator=' + shlex.quote(options.emulator)]
+  else:
+    # TODO: perhaps use emulator for tests?
+    warn('The `--emulator` option has no effect when cross-compiling.')
 
 if not options.v8_disable_temporal_support or not options.shared_temporal_capi:
   cargo = os.environ.get('CARGO')

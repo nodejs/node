@@ -19,7 +19,7 @@ spawnSyncAndAssert(process.execPath, [
   '--probe', 'utils.js:5',
   '--expr', 'b',
   'probe-multi-entry.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   stdout(output) {
     assertProbeJson(output, {
       v: 2,

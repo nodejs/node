@@ -4,15 +4,14 @@ require('../common');
 const { DeflateRaw } = require('zlib');
 const { Readable } = require('stream');
 
-// Validates that zlib.DeflateRaw can be inherited
-// with Object.setPrototypeOf
+// Validates that zlib.DeflateRaw can be subclassed with class syntax.
 
-function NotInitialized(options) {
-  DeflateRaw.call(this, options);
-  this.prop = true;
+class NotInitialized extends DeflateRaw {
+  constructor(options) {
+    super(options);
+    this.prop = true;
+  }
 }
-Object.setPrototypeOf(NotInitialized.prototype, DeflateRaw.prototype);
-Object.setPrototypeOf(NotInitialized, DeflateRaw);
 
 const dest = new NotInitialized();
 

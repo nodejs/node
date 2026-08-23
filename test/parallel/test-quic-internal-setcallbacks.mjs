@@ -2,8 +2,6 @@
 import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -15,6 +13,7 @@ const callbacks = {
   onEndpointClose() {},
   onSessionNew() {},
   onSessionClose() {},
+  onSessionApplication() {},
   onSessionDatagram() {},
   onSessionDatagramStatus() {},
   onSessionHandshake() {},
@@ -32,6 +31,7 @@ const callbacks = {
   onStreamClose() {},
   onStreamDrain() {},
   onStreamReset() {},
+  onStreamStopSending() {},
   onStreamHeaders() {},
   onStreamTrailers() {},
 };
@@ -39,7 +39,7 @@ const callbacks = {
 for (const fn of Object.keys(callbacks)) {
   // eslint-disable-next-line no-unused-vars
   const { [fn]: _, ...rest } = callbacks;
-  throws(() => quic.setCallbacks(rest), {
+  assert.throws(() => quic.setCallbacks(rest), {
     code: 'ERR_MISSING_ARGS',
   });
 }

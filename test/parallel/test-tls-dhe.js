@@ -34,10 +34,11 @@ if (process.features.openssl_is_boringssl) {
 const {
   opensslCli,
   hasOpenSSL,
+  hasFIPS,
 } = require('../common/crypto');
 
 // OpenSSL has a set of security levels which affect what algorithms
-// are available by default. Different OpenSSL veresions have different
+// are available by default. Different OpenSSL versions have different
 // default security levels and we use this value to adjust what a test
 // expects based on the security level. You can read more in
 // https://docs.openssl.org/1.1.1/man3/SSL_CTX_set_security_level/#default-callback-behaviour
@@ -62,7 +63,7 @@ const dheCipher = 'DHE-RSA-AES128-SHA256';
 const ecdheCipher = 'ECDHE-RSA-AES128-SHA256';
 const ciphers = `${dheCipher}:${ecdheCipher}`;
 
-if (secLevel < 2) {
+if (secLevel < 2 && !hasFIPS(3)) {
   // Test will emit a warning because the DH parameter size is < 2048 bits
   // when the test is run on versions lower than OpenSSL32
   common.expectWarning('SecurityWarning',
@@ -74,7 +75,7 @@ function loadDHParam(n) {
   return fixtures.readKey(keyname);
 }
 
-function test(dhparam, keylen, expectedCipher) {
+function test(dhparam, keylen, expectedCipher, expectedError) {
   const options = {
     key,
     cert,
@@ -84,12 +85,29 @@ function test(dhparam, keylen, expectedCipher) {
   };
 
   const server = tls.createServer(options, (conn) => conn.end());
+  if (typeof expectedError === 'string' || Array.isArray(expectedError)) {
+    server.once('tlsClientError', common.mustCall((err) => {
+      if (Array.isArray(expectedError)) {
+        assert.ok(expectedError.includes(err.code), err);
+      } else {
+        assert.strictEqual(err.code, expectedError);
+      }
+    }));
+  }
 
   server.listen(0, '127.0.0.1', common.mustCall(() => {
     const args = ['s_client', '-connect', `127.0.0.1:${server.address().port}`,
                   '-cipher', `${ciphers}:@SECLEVEL=1`];
 
-    execFile(opensslCli, args, common.mustSucceed((stdout) => {
+    execFile(opensslCli, args, common.mustCall((err, stdout, stderr) => {
+      if (expectedError) {
+        assert.strictEqual(err?.code, 1);
+        if (expectedError instanceof RegExp) assert.match(stderr, expectedError);
+        server.close();
+        return;
+      }
+
+      assert.ifError(err);
       assert(keylen === null ||
              // s_client < OpenSSL 3.5
              stdout.includes(`Server Temp Key: DH, ${keylen} bits`) ||
@@ -103,10 +121,10 @@ function test(dhparam, keylen, expectedCipher) {
   return once(server, 'close');
 }
 
-function testCustomParam(keylen, expectedCipher) {
+function testCustomParam(keylen, expectedCipher, expectedError) {
   const dhparam = loadDHParam(keylen);
   if (keylen === 'error') keylen = null;
-  return test(dhparam, keylen, expectedCipher);
+  return test(dhparam, keylen, expectedCipher, expectedError);
 }
 
 (async () => {
@@ -140,14 +158,29 @@ function testCustomParam(keylen, expectedCipher) {
   // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
   // ignores the server-supplied dhparam in favor of FFDHE-2048, so the
   // negotiated key length is always 2048.
-  if (secLevel < 2) {
-    await testCustomParam(1024, dheCipher);
-  } else if (hasOpenSSL(4, 0)) {
-    await test(loadDHParam(3072), 2048, dheCipher);
+  if (hasFIPS(3)) {
+    if (hasFIPS(4)) {
+      await test(loadDHParam(3072), 2048, dheCipher);
+      await testCustomParam(2048, dheCipher);
+    } else {
+      const errorCode = hasFIPS(3, 5) ?
+        [
+          'ERR_SSL_INVALID_KEY_LENGTH',
+          'ERR_SSL_SSL/TLS_ALERT_ILLEGAL_PARAMETER',
+        ] : 'ERR_SSL_INTERNAL_ERROR';
+      await testCustomParam(3072, null, errorCode);
+      await testCustomParam(2048, null, errorCode);
+    }
   } else {
-    await testCustomParam(3072, dheCipher);
+    if (secLevel < 2) {
+      await testCustomParam(1024, dheCipher);
+    } else if (hasOpenSSL(4, 0)) {
+      await test(loadDHParam(3072), 2048, dheCipher);
+    } else {
+      await testCustomParam(3072, dheCipher);
+    }
+    await testCustomParam(2048, dheCipher);
   }
-  await testCustomParam(2048, dheCipher);
 
   // Invalid DHE parameters are discarded. Prior to OpenSSL 4.0 this
   // disabled DHE and ECDHE was negotiated; since 4.0, FFDHE-2048 is used.

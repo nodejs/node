@@ -43,20 +43,22 @@ void nghttp2_frame_pack_frame_hd(uint8_t *buf, const nghttp2_frame_hd *hd) {
 }
 
 void nghttp2_frame_unpack_frame_hd(nghttp2_frame_hd *hd, const uint8_t *buf) {
-  hd->length = nghttp2_get_uint32(&buf[0]) >> 8;
-  hd->type = buf[3];
-  hd->flags = buf[4];
-  hd->stream_id = nghttp2_get_uint32(&buf[5]) & NGHTTP2_STREAM_ID_MASK;
-  hd->reserved = 0;
+  *hd = (nghttp2_frame_hd){
+    .length = nghttp2_get_uint32(&buf[0]) >> 8,
+    .stream_id = nghttp2_get_uint32(&buf[5]) & NGHTTP2_STREAM_ID_MASK,
+    .type = buf[3],
+    .flags = buf[4],
+  };
 }
 
 void nghttp2_frame_hd_init(nghttp2_frame_hd *hd, size_t length, uint8_t type,
                            uint8_t flags, int32_t stream_id) {
-  hd->length = length;
-  hd->type = type;
-  hd->flags = flags;
-  hd->stream_id = stream_id;
-  hd->reserved = 0;
+  *hd = (nghttp2_frame_hd){
+    .length = length,
+    .stream_id = stream_id,
+    .type = type,
+    .flags = flags,
+  };
 }
 
 void nghttp2_frame_headers_init(nghttp2_headers *frame, uint8_t flags,
@@ -199,16 +201,15 @@ void nghttp2_frame_extension_free(nghttp2_extension *frame) { (void)frame; }
 void nghttp2_frame_altsvc_init(nghttp2_extension *frame, int32_t stream_id,
                                uint8_t *origin, size_t origin_len,
                                uint8_t *field_value, size_t field_value_len) {
-  nghttp2_ext_altsvc *altsvc;
-
   nghttp2_frame_hd_init(&frame->hd, 2 + origin_len + field_value_len,
                         NGHTTP2_ALTSVC, NGHTTP2_FLAG_NONE, stream_id);
 
-  altsvc = frame->payload;
-  altsvc->origin = origin;
-  altsvc->origin_len = origin_len;
-  altsvc->field_value = field_value;
-  altsvc->field_value_len = field_value_len;
+  *(nghttp2_ext_altsvc *)frame->payload = (nghttp2_ext_altsvc){
+    .origin = origin,
+    .origin_len = origin_len,
+    .field_value = field_value,
+    .field_value_len = field_value_len,
+  };
 }
 
 void nghttp2_frame_altsvc_free(nghttp2_extension *frame, nghttp2_mem *mem) {
@@ -225,7 +226,6 @@ void nghttp2_frame_altsvc_free(nghttp2_extension *frame, nghttp2_mem *mem) {
 
 void nghttp2_frame_origin_init(nghttp2_extension *frame,
                                nghttp2_origin_entry *ov, size_t nov) {
-  nghttp2_ext_origin *origin;
   size_t payloadlen = 0;
   size_t i;
 
@@ -236,9 +236,10 @@ void nghttp2_frame_origin_init(nghttp2_extension *frame,
   nghttp2_frame_hd_init(&frame->hd, payloadlen, NGHTTP2_ORIGIN,
                         NGHTTP2_FLAG_NONE, 0);
 
-  origin = frame->payload;
-  origin->ov = ov;
-  origin->nov = nov;
+  *(nghttp2_ext_origin *)frame->payload = (nghttp2_ext_origin){
+    .ov = ov,
+    .nov = nov,
+  };
 }
 
 void nghttp2_frame_origin_free(nghttp2_extension *frame, nghttp2_mem *mem) {
@@ -256,15 +257,15 @@ void nghttp2_frame_origin_free(nghttp2_extension *frame, nghttp2_mem *mem) {
 void nghttp2_frame_priority_update_init(nghttp2_extension *frame,
                                         int32_t stream_id, uint8_t *field_value,
                                         size_t field_value_len) {
-  nghttp2_ext_priority_update *priority_update;
-
   nghttp2_frame_hd_init(&frame->hd, 4 + field_value_len,
                         NGHTTP2_PRIORITY_UPDATE, NGHTTP2_FLAG_NONE, 0);
 
-  priority_update = frame->payload;
-  priority_update->stream_id = stream_id;
-  priority_update->field_value = field_value;
-  priority_update->field_value_len = field_value_len;
+  *(nghttp2_ext_priority_update *)frame->payload =
+    (nghttp2_ext_priority_update){
+      .stream_id = stream_id,
+      .field_value = field_value,
+      .field_value_len = field_value_len,
+    };
 }
 
 void nghttp2_frame_priority_update_free(nghttp2_extension *frame,
@@ -517,8 +518,10 @@ void nghttp2_frame_unpack_settings_payload(nghttp2_settings *frame,
 
 void nghttp2_frame_unpack_settings_entry(nghttp2_settings_entry *iv,
                                          const uint8_t *payload) {
-  iv->settings_id = nghttp2_get_uint16(&payload[0]);
-  iv->value = nghttp2_get_uint32(&payload[2]);
+  *iv = (nghttp2_settings_entry){
+    .settings_id = nghttp2_get_uint16(&payload[0]),
+    .value = nghttp2_get_uint32(&payload[2]),
+  };
 }
 
 int nghttp2_frame_unpack_settings_payload2(nghttp2_settings_entry **iv_ptr,
@@ -752,10 +755,7 @@ void nghttp2_frame_unpack_altsvc_payload(nghttp2_extension *frame,
   altsvc = frame->payload;
 
   if (payloadlen == 0) {
-    altsvc->origin = NULL;
-    altsvc->origin_len = 0;
-    altsvc->field_value = NULL;
-    altsvc->field_value_len = 0;
+    *altsvc = (nghttp2_ext_altsvc){0};
 
     return;
   }
@@ -862,8 +862,7 @@ int nghttp2_frame_unpack_origin_payload(nghttp2_extension *frame,
   }
 
   if (nov == 0) {
-    origin->ov = NULL;
-    origin->nov = 0;
+    *origin = (nghttp2_ext_origin){0};
 
     return 0;
   }
@@ -875,8 +874,10 @@ int nghttp2_frame_unpack_origin_payload(nghttp2_extension *frame,
     return NGHTTP2_ERR_NOMEM;
   }
 
-  origin->ov = ov;
-  origin->nov = nov;
+  *origin = (nghttp2_ext_origin){
+    .nov = nov,
+    .ov = ov,
+  };
 
   dst = (uint8_t *)ov + nov * sizeof(nghttp2_origin_entry);
   p = payload;
@@ -887,8 +888,10 @@ int nghttp2_frame_unpack_origin_payload(nghttp2_extension *frame,
     if (originlen == 0) {
       continue;
     }
-    ov->origin = dst;
-    ov->origin_len = originlen;
+    *ov = (nghttp2_origin_entry){
+      .origin = dst,
+      .origin_len = originlen,
+    };
     dst = nghttp2_cpymem(dst, p, originlen);
     *dst++ = '\0';
     p += originlen;

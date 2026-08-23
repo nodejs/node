@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setTimeout } = require('timers/promises');
 const { pipeTo, from } = require('stream/iter');
 
 // pipeTo with live signal, no transforms — abort mid-stream
@@ -28,6 +29,38 @@ async function testPipeToLiveSignalNoTransforms() {
   );
   // Should have written at least the first two chunks before abort
   assert.ok(written.length >= 1);
+}
+
+// pipeTo with live signal, no transforms — abort while waiting for next chunk
+async function testPipeToLiveSignalNoTransformsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('abort reason');
+  const writer = {
+    write: common.mustNotCall(),
+  };
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          return new Promise(() => {});
+        },
+      };
+    },
+  };
+
+  setTimeout(10)
+    .then(() => ac.abort(reason))
+    .then(common.mustCall());
+
+  const result = await Promise.race([
+    assert.rejects(
+      () => pipeTo(source, writer, { signal: ac.signal }),
+      reason,
+    ).then(() => 'aborted'),
+    setTimeout(1000, 'timed out'),
+  ]);
+
+  assert.strictEqual(result, 'aborted');
 }
 
 // pipeTo with live signal + transforms — abort mid-stream
@@ -84,6 +117,7 @@ async function testPipeToLiveSignalWithTransformsCompletes() {
 
 Promise.all([
   testPipeToLiveSignalNoTransforms(),
+  testPipeToLiveSignalNoTransformsPendingNext(),
   testPipeToLiveSignalWithTransforms(),
   testPipeToLiveSignalCompletes(),
   testPipeToLiveSignalWithTransformsCompletes(),

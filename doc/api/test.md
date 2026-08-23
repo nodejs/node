@@ -482,15 +482,17 @@ tests must satisfy **both** requirements in order to be executed.
 ## Test tags
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
 
 Tags annotate tests and suites with arbitrary string labels. The
 [`--experimental-test-tag-filter`][] CLI flag (or the `testTagFilters`
-option on [`run()`][]) selects tests whose tag set contains every
-provided filter value.
+option on [`run()`][]) selects tests by a boolean expression over those
+labels.
 
 Tags are an alternative to encoding metadata into test names. They are
 useful for cross-cutting axes such as subsystem, speed bucket, flakiness,
@@ -523,37 +525,89 @@ describe('database', { tags: ['db'] }, () => {
 });
 ```
 
-Tag values must be non-empty strings. Tags are matched case-insensitively;
-the canonical form is lowercase. Duplicates within a single `tags` array
-are collapsed on the lowercased form, preserving the first-seen
-declaration order.
+Tag values must be non-empty strings that contain no whitespace, no
+operator characters (`& | ! ( ) *`), and are not the reserved words
+`'and'`, `'or'`, or `'not'` in any casing. Tags are matched
+case-insensitively; the canonical form is lowercase. Duplicates within a
+single `tags` array are collapsed on the lowercased form, preserving the
+first-seen declaration order.
 
 Hooks (`before`, `after`, `beforeEach`, `afterEach`) do not declare their
 own tags. They run as part of their owning suite, which carries the
 suite's tags.
 
-### Filtering by tag
+### Filtering syntax
 
-Each [`--experimental-test-tag-filter`][] value is a literal tag name. A
-test runs only when its tag set contains that name. The flag may be
-specified more than once; tests must match **every** filter to run. The
-same applies to the `testTagFilters` array on [`run()`][]. Filters are
-case-insensitive and AND'd with [`--test-name-pattern`][],
-[`--test-skip-pattern`][], and `.only` filtering.
+The filter expression supports:
 
-Untagged tests are excluded under any non-empty filter, since the filter
-requires the tag to be present.
+* Identifiers—any non-whitespace, non-operator characters. A literal
+  identifier matches a tag of the same value (case-insensitive).
+* `*` wildcards inside an identifier match any sequence of characters.
+  A bare `*` matches any tagged test.
+* Boolean operators with two equivalent forms:
+  * `and` / `&&`
+  * `or` / `||`
+  * `not` / `!`
+* Parentheses for grouping.
 
-### Reading tags from inside a test
+The word forms (`and`, `or`, `not`) require whitespace separation; the
+punctuation forms do not.
+
+#### Operator precedence
+
+The expression is evaluated with the standard precedence
+`not > and > or`. Binary operators are left-associative.
+
+| Expression     | Equivalent grouping |
+| -------------- | ------------------- |
+| `a or b and c` | `a or (b and c)`    |
+| `not a and b`  | `(not a) and b`     |
+
+Use parentheses to override:
+
+| Expression                     | Selects                                    |
+| ------------------------------ | ------------------------------------------ |
+| `(unit or smoke) and not slow` | unit-or-smoke tests that are not also slow |
+| `db && !flaky`                 | db tests that are not flaky                |
+| `*`                            | every tagged test                          |
+
+#### Untagged tests
+
+Untagged tests behave as if they have an empty tag set. As a result:
+
+| Filter expression        | Untagged test | Why                                              |
+| ------------------------ | ------------- | ------------------------------------------------ |
+| `db`                     | excluded      | Positive match against an empty tag set is false |
+| `*`                      | excluded      | The bare wildcard requires at least one tag      |
+| `db or unit`             | excluded      | Both branches are false against an empty tag set |
+| `not flaky`              | included      | Negation against an empty tag set is true        |
+| `not flaky and not slow` | included      | Both negations are true against an empty tag set |
+| `db or not flaky`        | included      | The negated branch is true                       |
+
+For example, `--experimental-test-tag-filter='not flaky'` runs every test
+that is not tagged `flaky`, including all untagged tests.
+
+#### Composing multiple filters
+
+[`--experimental-test-tag-filter`][] may be specified more than once on the
+command line. Multiple expressions compose by AND—a test must satisfy
+every expression to run. The same applies to passing an array to
+`testTagFilters` on [`run()`][]. The tag filter is also AND'd with
+[`--test-name-pattern`][], [`--test-skip-pattern`][], and `.only`
+filtering.
+
+#### Reading tags from inside a test
 
 The [`TestContext`][] object exposes the test's tags as a frozen array
 through [`context.tags`][], so tests can branch on their own metadata.
 
-### Errors
+#### Errors
 
 A tag value that violates the validation rules above throws
 `ERR_INVALID_ARG_VALUE` at the registration site, before any test runs.
-A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`.
+A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`. A malformed
+filter expression on the CLI causes the test runner to exit with a
+non-zero status before running any test files.
 
 ## Extraneous asynchronous activity
 
@@ -828,7 +882,7 @@ test runner functionality:
 
 * `--test` - Prevented to avoid recursive test execution
 * `--experimental-test-coverage` - Managed by the test runner
-* `--experimental-test-tag-filter` - Filter values are validated by the parent
+* `--experimental-test-tag-filter` - Filter expressions are validated by the parent
   process and re-emitted to child processes
 * `--watch` - Watch mode is handled at the parent level
 * `--experimental-default-config-file` - Config file loading is handled by the parent
@@ -1248,7 +1302,7 @@ test('setTime does not execute timers', (context) => {
 const assert = require('node:assert');
 const { test } = require('node:test');
 
-test('runs timers as setTime passes ticks', (context) => {
+test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const fn = context.mock.fn();
@@ -1260,7 +1314,10 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 800);
 
   context.mock.timers.setTime(1200);
-  // Timer is executed as the time is now reached
+  // Timer is still not executed
+  assert.strictEqual(fn.mock.callCount(), 0);
+  // Advance in time to execute the timer
+  context.mock.timers.tick(0);
   assert.strictEqual(fn.mock.callCount(), 1);
   assert.strictEqual(Date.now(), 1200);
 });
@@ -1648,7 +1705,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `testTagFilters` option.
   - version:
@@ -1739,10 +1798,11 @@ changes:
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
     **Default:** `undefined`.
-  * `testTagFilters` {string|string\[]} A tag name, or an array of tag names,
-    used to filter tests by their declared tags. Tests must contain every
-    listed tag to run. Equivalent to passing [`--experimental-test-tag-filter`][]
-    on the command line. See [Test tags][]. **Default:** `undefined`.
+  * `testTagFilters` {string|string\[]} A boolean expression, or an array of
+    boolean expressions, used to filter tests by their declared tags.
+    Multiple expressions compose by AND. Equivalent to passing
+    [`--experimental-test-tag-filter`][] on the command line. See
+    [Test tags][]. **Default:** `undefined`.
   * `timeout` {number} A number of milliseconds the test execution will
     fail after.
     If unspecified, subtests inherit this value from their parent.
@@ -1779,6 +1839,13 @@ changes:
     If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
     files must meet **both** criteria to be included in the coverage report.
     **Default:** `undefined`.
+  * `coverageIncludeAll` {boolean} Includes source files that were never loaded by
+    the test run in the coverage report, where they are reported as having zero
+    coverage. Candidate files are searched for in `cwd`, and are subject to the
+    same `coverageIncludeGlobs` and `coverageExcludeGlobs` filtering as the rest
+    of the report. This property is only applicable when `coverage` was set to
+    `true`.
+    **Default:** `false`.
   * `lineCoverage` {number} Require a minimum percent of covered lines. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
@@ -1886,7 +1953,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `tags` option.
   - version:
@@ -1946,6 +2015,10 @@ changes:
     If the number of assertions run in the test does not match the number
     specified in the plan, the test will fail.
     **Default:** `undefined`.
+  * `fn` {Function|AsyncFunction} The function under test. If provided, it will take
+    precedence over the `fn` parameter.
+  * `name` {string} The name of the test. If provided, it will take precedence over the
+    `name` parameter.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -2252,8 +2325,7 @@ added: v22.3.0
 * `fn` {Function} A function used to compute the location of the snapshot file.
   The function receives the path of the test file as its only argument. If the
   test is not associated with a file (for example in the REPL), the input is
-  undefined. `fn()` must return a string specifying the location of the snapshot
-  snapshot file.
+  undefined. `fn()` must return a string specifying the location of the snapshot file.
 
 This function is used to customize the location of the snapshot file used for
 snapshot testing. By default, the snapshot filename is the same as the entry
@@ -2730,8 +2802,8 @@ test('mocks a builtin module in both module systems', async (t) => {
   // cursorTo() is an export of the original 'node:readline' module.
   assert.strictEqual(esmImpl.cursorTo, undefined);
   assert.strictEqual(cjsImpl.cursorTo, undefined);
-  assert.strictEqual(esmImpl.fn(), 42);
-  assert.strictEqual(cjsImpl.fn(), 42);
+  assert.strictEqual(esmImpl.foo(), 42);
+  assert.strictEqual(cjsImpl.foo(), 42);
 
   mock.restore();
 
@@ -2741,8 +2813,8 @@ test('mocks a builtin module in both module systems', async (t) => {
 
   assert.strictEqual(typeof esmImpl.cursorTo, 'function');
   assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
-  assert.strictEqual(esmImpl.fn, undefined);
-  assert.strictEqual(cjsImpl.fn, undefined);
+  assert.strictEqual(esmImpl.foo, undefined);
+  assert.strictEqual(cjsImpl.foo, undefined);
 });
 ```
 
@@ -3437,7 +3509,13 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.6.0
+    pr-url: https://github.com/nodejs/node/pull/64309
+    description: Added `entryFile` to events forwarded from child processes
+                 when tests run with process isolation.
+  - version:
+     - v26.3.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63435
     description: Added `parentId` to test events that carry a `testId`.
   - version:
@@ -3456,6 +3534,49 @@ object, streaming a series of events representing the execution of the tests.
 
 Some of the events are guaranteed to be emitted in the same order as the tests
 are defined, while others are emitted in the order that the tests execute.
+
+The following tables summarize all events by scope.
+
+Test scoped events are emitted once per test or suite. Most of them come in
+pairs: a declaration ordered event, buffered so that events are emitted in the
+same order as the tests are defined, and one or more corresponding execution
+ordered events, emitted immediately as the tests execute.
+
+| Declaration ordered (buffered) | Execution ordered (immediate)                         |
+| ------------------------------ | ----------------------------------------------------- |
+| [`'test:start'`][]             | [`'test:enqueue'`][] followed by [`'test:dequeue'`][] |
+| [`'test:pass'`][]              | [`'test:complete'`][] (`details.passed` is `true`)    |
+| [`'test:fail'`][]              | [`'test:complete'`][] (`details.passed` is `false`)   |
+| [`'test:plan'`][]              |                                                       |
+| [`'test:diagnostic'`][]        |                                                       |
+|                                | [`'test:log'`][]                                      |
+
+[`'test:log'`][] is deliberately execution ordered only: it is the live
+counterpart of [`'test:diagnostic'`][]'s buffered reporting.
+
+File scoped and global events are always emitted immediately, in execution
+order.
+
+File scoped events are emitted once per test file:
+
+| Event                | Notes                                          |
+| -------------------- | ---------------------------------------------- |
+| [`'test:stderr'`][]  | Only emitted if the `--test` flag is passed.   |
+| [`'test:stdout'`][]  | Only emitted if the `--test` flag is passed.   |
+| [`'test:summary'`][] | Per file, only when process isolation is used. |
+
+Global events are emitted once per test run:
+
+| Event                        | Notes                                |
+| ---------------------------- | ------------------------------------ |
+| [`'test:summary'`][]         | The final cumulative summary.        |
+| [`'test:coverage'`][]        | Only when code coverage is enabled.  |
+| [`'test:interrupted'`][]     | Only when the run receives `SIGINT`. |
+| [`'test:watch:drained'`][]   | Watch mode only.                     |
+| [`'test:watch:restarted'`][] | Watch mode only.                     |
+
+The root test also emits [`'test:plan'`][] and [`'test:diagnostic'`][] events
+at the end of the run to report run level totals.
 
 ### Event: `'test:coverage'`
 
@@ -3521,6 +3642,10 @@ Emitted when code coverage is enabled and all tests have completed.
       * `cause` {Error} The actual error thrown by the test.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3550,6 +3675,10 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3576,6 +3705,10 @@ defined. The corresponding declaration ordered event is `'test:start'`.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3597,6 +3730,10 @@ defined.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3629,6 +3766,10 @@ Emitted when a test is enqueued for execution.
       this is a suite.
     * `attempt` {number|undefined} The attempt number of the test run,
       present only when using the [`--test-rerun-failures`][] flag.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3681,6 +3822,38 @@ When using process isolation (the default), the test name will be the file path
 since the parent runner only knows about file-level tests. When using
 `--test-isolation=none`, the actual test name is shown.
 
+### Event: `'test:log'`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `data` {any} The structured payload passed to [`context.log`][], or
+    `undefined` if none was provided. The test runner does not interpret this
+    value.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
+  * `file` {string|undefined} The path of the test file,
+    `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `message` {string} The log message.
+  * `name` {string} The test name.
+  * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests.
+  * `testId` {number} A numeric identifier for the test instance that emitted
+    the log message.
+
+Emitted when [`context.log`][] is called. Unlike [`'test:diagnostic'`][],
+this event is emitted immediately, in the order that the tests execute,
+making it suitable for reporters that render test output unbuffered.
+
 ### Event: `'test:pass'`
 
 * `data` {Object}
@@ -3694,6 +3867,10 @@ since the parent runner only knows about file-level tests. When using
       present only when using the [`--test-rerun-failures`][] flag.
     * `passed_on_attempt` {number|undefined} The attempt number the test passed on,
       present only when using the [`--test-rerun-failures`][] flag.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3723,6 +3900,10 @@ The corresponding execution ordered event is `'test:complete'`.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3739,6 +3920,10 @@ defined.
 * `data` {Object}
   * `column` {number|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation. May differ from
+    `file` when the test is defined in a module imported by the entry file.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3763,6 +3948,9 @@ The corresponding execution ordered event is `'test:dequeue'`.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation.
   * `file` {string} The path of the test file.
   * `message` {string} The message written to `stderr`.
 
@@ -3774,6 +3962,9 @@ defined.
 ### Event: `'test:stdout'`
 
 * `data` {Object}
+  * `entryFile` {string|undefined} The path of the test file that was
+    executed as the entry point of the child process that emitted this event.
+    Only present when tests run with process isolation.
   * `file` {string} The path of the test file.
   * `message` {string} The message written to `stdout`.
 
@@ -3818,7 +4009,9 @@ Emitted when one or more tests are restarted due to a file change in watch mode.
 ## `getTestContext()`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.19.0
 -->
 
 * Returns: {TestContext|SuiteContext|undefined}
@@ -3977,8 +4170,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running before
-subtest of the current test.
+This function registers a hook that runs before any subtests of the current
+test.
 
 ### `context.beforeEach([fn][, options])`
 
@@ -3999,8 +4192,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-before each subtest of the current test.
+This function registers a hook that runs before each subtest of the current
+test.
 
 ```js
 test('top level test', async (t) => {
@@ -4033,8 +4226,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook that runs after the current test
-finishes.
+This function registers a hook that runs after the current test finishes.
 
 ```js
 test('top level test', async (t) => {
@@ -4062,8 +4254,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-after each subtest of the current test.
+This function registers a hook that runs after each subtest of the current
+test.
 
 ```js
 test('top level test', async (t) => {
@@ -4188,6 +4380,29 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.log(message[, data])`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* `message` {string} Message to be reported.
+* `data` {any} Optional structured payload attached to the message. The test
+  runner passes it through untouched. When tests run with process isolation,
+  this value must be compatible with the [HTML structured clone algorithm][].
+
+This function is used to write a log message to the output. Unlike
+[`context.diagnostic`][], the resulting [`'test:log'`][] event is emitted
+immediately, in the order that the tests execute, rather than being buffered
+until the test reports its results. This function does not return a value.
+
+```js
+test('top level test', (t) => {
+  t.log('fetched user', { userId: 42 });
+  t.log('retrying flaky endpoint', { attempt: 3 });
+});
+```
+
 ### `context.filePath`
 
 <!-- YAML
@@ -4259,7 +4474,9 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.tags`
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -4487,7 +4704,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `tags` option.
   - version:
@@ -4677,11 +4896,47 @@ test.describe('my suite', (suite) => {
 });
 ```
 
+### `context.log(message[, data])`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* `message` {string} Message to be reported.
+* `data` {any} Optional structured payload attached to the message. The test
+  runner passes it through untouched.
+
+Write a log message to the output. The resulting [`'test:log'`][] event is
+emitted immediately, in the order that the tests execute.
+
+```js
+test.describe('my suite', (suite) => {
+  suite.log('Suite log message');
+});
+```
+
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [TAP]: https://testanything.org/
 [Test tags]: #test-tags
+[`'test:complete'`]: #event-testcomplete
+[`'test:coverage'`]: #event-testcoverage
+[`'test:dequeue'`]: #event-testdequeue
+[`'test:diagnostic'`]: #event-testdiagnostic
+[`'test:enqueue'`]: #event-testenqueue
+[`'test:fail'`]: #event-testfail
+[`'test:interrupted'`]: #event-testinterrupted
+[`'test:log'`]: #event-testlog
+[`'test:pass'`]: #event-testpass
+[`'test:plan'`]: #event-testplan
+[`'test:start'`]: #event-teststart
+[`'test:stderr'`]: #event-teststderr
+[`'test:stdout'`]: #event-teststdout
+[`'test:summary'`]: #event-testsummary
+[`'test:watch:drained'`]: #event-testwatchdrained
+[`'test:watch:restarted'`]: #event-testwatchrestarted
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
-[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filterexpr
+[`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filtertag
 [`--import`]: cli.md#--importmodule
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
@@ -4706,6 +4961,7 @@ test.describe('my suite', (suite) => {
 [`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
+[`context.log`]: #contextlogmessage-data
 [`context.skip`]: #contextskipmessage
 [`context.tags`]: #contexttags
 [`context.todo`]: #contexttodomessage

@@ -4,6 +4,9 @@
       'NDEBUG',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_darwin-i386-cc': [
@@ -12,7 +15,7 @@
       '-O3 -fomit-frame-pointer',
     ],
     'openssl_ex_libs_darwin-i386-cc': [
-      '',
+      '-lm',
     ],
     'openssl_cli_srcs_darwin-i386-cc': [
       'openssl/apps/lib/cmp_mock_srv.c',

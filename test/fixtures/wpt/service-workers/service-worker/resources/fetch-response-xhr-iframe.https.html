@@ -1,0 +1,53 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js?pipe=sub"></script>
+<script>
+var host_info = get_host_info();
+
+function xhr_send(method, data) {
+  return new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        resolve(xhr);
+      };
+      xhr.onerror = function() {
+        reject('XHR should succeed.');
+      };
+      xhr.responseType = 'text';
+      xhr.open(method, './sample?test', true);
+      xhr.send(data);
+    });
+}
+
+function coalesce_headers_test() {
+  return xhr_send('POST', 'test string')
+  .then(function(xhr) {
+      window.parent.postMessage({results: xhr.getResponseHeader('foo')},
+                                host_info['HTTPS_ORIGIN']);
+
+      return new Promise(function(resolve) {
+          window.addEventListener('message', function handle(evt) {
+              if (evt.data !== 'ACK') {
+                return;
+              }
+
+              window.removeEventListener('message', handle);
+              resolve();
+            });
+        });
+    });
+}
+
+window.addEventListener('message', function(evt) {
+    var port;
+
+    if (evt.data !== 'START') {
+      return;
+    }
+
+    port = evt.ports[0];
+
+    coalesce_headers_test()
+      .then(function() { port.postMessage({results: 'finish'}); })
+      .catch(function(e) { port.postMessage({results: 'failure:' + e}); });
+  });
+</script>

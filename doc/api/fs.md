@@ -196,7 +196,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
@@ -323,6 +323,9 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
   - version:
     - v21.0.0
     - v20.10.0
@@ -335,7 +338,8 @@ changes:
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {number} **Default:** See
+    [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
@@ -400,7 +404,7 @@ added:
     reached, whichever comes first. **Default:** read until EOF.
   * `chunkSize` {number} Size in bytes of the buffer allocated for each
     read operation. **Default:** `131072` (128 KB).
-* Returns: {AsyncIterable\<Uint8Array\[]>}
+* Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Return the file contents as an async iterable using the
 [`node:stream/iter`][] pull model. Reads are performed in `chunkSize`-byte
@@ -475,7 +479,7 @@ added:
     iterator. **Default:** read until EOF.
   * `chunkSize` {number} Size in bytes of the buffer allocated for each
     read operation. **Default:** `131072` (128 KB).
-* Returns: {Iterable\<Uint8Array\[]>}
+* Returns: {Iterable} whose chunks return {Uint8Array\[]}
 
 Synchronous counterpart of [`filehandle.pull()`][]. Returns a sync iterable
 that reads the file using synchronous I/O on the main thread. Reads are
@@ -696,11 +700,19 @@ close the `FileHandle` automatically. User code must still call the
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version:
+     - v26.4.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
 -->
 
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * Returns: {Promise} Fulfills upon a successful read with the contents of the
   file. If no encoding is specified (using `options.encoding`), the data is
   returned as a {Buffer} object. Otherwise, the data will be a string.
@@ -709,12 +721,50 @@ Asynchronously reads the entire contents of a file.
 
 If `options` is a string, then it specifies the `encoding`.
 
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the operation will
+fail.
+
 The {FileHandle} has to support reading.
 
 If one or more `filehandle.read()` calls are made on a file handle and then a
 `filehandle.readFile()` call is made, the data will be read from the current
 position till the end of the file. It doesn't always read from the beginning
 of the file.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+try {
+  const buf = Buffer.alloc(16384);
+  const contents = await file.readFile({ buffer: buf });
+  console.log(contents); // A view over `buf` containing only the bytes read
+} finally {
+  await file.close();
+}
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+try {
+  const contents = await file.readFile({
+    buffer: (size) => Buffer.alloc(size),
+  });
+  console.log(contents);
+} finally {
+  await file.close();
+}
+```
 
 #### `filehandle.readLines([options])`
 
@@ -963,7 +1013,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -1141,8 +1191,14 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
+
+This method enables the filehandle to be used with [`await using`][], which
+will automatically close the file when the scope exits. For more information,
+see the [MDN documentation on `using` statements][`using`].
 
 ### `fsPromises.access(path[, mode])`
 
@@ -1194,10 +1250,15 @@ changes:
     - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
+  - version:
+      - v15.14.0
+      - v14.18.0
+    pr-url: https://github.com/nodejs/node/pull/37490
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
-* `data` {string|Buffer}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -1207,7 +1268,7 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a {Buffer}.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 
 If `options` is a string, then it specifies the `encoding`.
 
@@ -1272,6 +1333,10 @@ changes:
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists.
+
+Symbolic links are followed. If `src` is a symbolic link, the target file is
+copied. If `dest` is a symbolic link, the target file is overwritten unless
+`mode` contains `fs.constants.COPYFILE_EXCL`.
 
 No guarantees are made about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, an attempt
@@ -1419,6 +1484,7 @@ const { glob } = require('node:fs/promises');
 ### `fsPromises.lchmod(path, mode)`
 
 <!-- YAML
+added: v10.0.0
 deprecated: v10.0.0
 -->
 
@@ -1623,10 +1689,11 @@ directory cannot be deleted, disposal will throw an error. The object has an
 async `remove()` method which will perform the same task.
 
 Both this function and the disposal function on the resulting object are
-async, so it should be used with `await` + `await using` as in
+async, so it should be used with `await` + [`await using`][] as in
 `await using dir = await fsPromises.mkdtempDisposable('prefix')`.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+See the [MDN documentation on `using` statements][`using`] for more information about
+explicit resource management.
 
 For detailed information, see the documentation of [`fsPromises.mkdtemp()`][].
 
@@ -1766,6 +1833,11 @@ try {
 added: v10.0.0
 changes:
   - version:
+     - v26.4.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
+  - version:
     - v15.2.0
     - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/35911
@@ -1778,6 +1850,8 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * Returns: {Promise}  Fulfills with the contents of the file.
 
 Asynchronously reads the entire contents of a file.
@@ -1786,6 +1860,11 @@ If no encoding is specified (using `options.encoding`), the data is returned
 as a {Buffer} object. Otherwise, the data will be a string.
 
 If `options` is a string, then it specifies the encoding.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the promise will be
+rejected.
 
 When the `path` is a directory, the behavior of `fsPromises.readFile()` is
 platform-specific. On macOS, Linux, and Windows, the promise will be rejected
@@ -1846,6 +1925,29 @@ Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
 
 Any specified {FileHandle} has to support reading.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+
+const buf = Buffer.alloc(16384);
+const contents = await readFile('/path/to/file', { buffer: buf });
+console.log(contents); // A view over `buf` containing only the bytes read
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+
+const contents = await readFile('/path/to/file', {
+  buffer: (size) => Buffer.alloc(size),
+});
+console.log(contents);
+```
 
 ### `fsPromises.readlink(path[, options])`
 
@@ -2188,7 +2290,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -2754,6 +2856,10 @@ callback function. Node.js makes no guarantees about the atomicity of the copy
 operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
 
+Symbolic links are followed. If `src` is a symbolic link, the target file is
+copied. If `dest` is a symbolic link, the target file is overwritten unless
+`mode` contains `fs.constants.COPYFILE_EXCL`.
+
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
@@ -2849,6 +2955,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63851
+    description: Add the `windowsHandle` option.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40013
     description: The `fs` option does not need `open` method if an `fd` was provided.
@@ -2905,6 +3014,8 @@ changes:
   * `highWaterMark` {integer} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
+  * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to read from, in place
+    of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.ReadStream}
 
 `options` can include `start` and `end` values to read a range of bytes from
@@ -2924,6 +3035,12 @@ If `fd` points to a character device that only supports blocking reads
 (such as keyboard or sound card), read operations do not finish until data is
 available. This can prevent the process from exiting and the stream from
 closing naturally.
+
+On Windows, a value passed in `fd` is interpreted as a CRT file descriptor. To
+use a raw Win32 `HANDLE` instead, such as an inherited anonymous pipe handle
+obtained from another process, pass it as `windowsHandle`. The handle is wrapped
+in a file descriptor that the stream owns and closes. The `windowsHandle` option
+throws on non-Windows platforms and cannot be combined with the `fs` option.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
@@ -2975,6 +3092,12 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63851
+    description: Add the `windowsHandle` option.
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
   - version:
     - v21.0.0
     - v20.10.0
@@ -3032,9 +3155,12 @@ changes:
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {number} **Default:** See
+    [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
+  * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to write to, in place
+    of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -3048,6 +3174,12 @@ the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
+
+On Windows, a value passed in `fd` is interpreted as a CRT file descriptor. To
+use a raw Win32 `HANDLE` instead, such as an inherited anonymous pipe handle
+obtained from another process, pass it as `windowsHandle`. The handle is wrapped
+in a file descriptor that the stream owns and closes. The `windowsHandle` option
+throws on non-Windows platforms and cannot be combined with the `fs` option.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
@@ -3545,7 +3677,8 @@ glob('**/*.js', (err, matches) => {
 ### `fs.lchmod(path, mode, callback)`
 
 <!-- YAML
-deprecated: v0.4.7
+added: v0.5.0
+deprecated: v0.5.0
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -4225,6 +4358,11 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
+  - version:
+     - v26.4.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4266,6 +4404,8 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * `callback` {Function}
   * `err` {Error|AggregateError}
   * `data` {string|Buffer}
@@ -4285,6 +4425,11 @@ The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
 
 If no encoding is specified, then the raw buffer is returned.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the callback is
+called with an error.
 
 If `options` is a string, then it specifies the encoding:
 
@@ -4333,6 +4478,33 @@ when possible prefer streaming via `fs.createReadStream()`.
 
 Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs';
+
+const buf = Buffer.alloc(16384);
+readFile('/path/to/file', { buffer: buf }, (err, data) => {
+  if (err) throw err;
+  console.log(data); // A view over `buf` containing only the bytes read
+});
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs';
+
+readFile('/path/to/file', {
+  buffer: (size) => Buffer.alloc(size),
+}, (err, data) => {
+  if (err) throw err;
+  console.log(data);
+});
+```
 
 #### File descriptors
 
@@ -5857,6 +6029,10 @@ already exists. Returns `undefined`. Node.js makes no guarantees about the
 atomicity of the copy operation. If an error occurs after the destination file
 has been opened for writing, Node.js will attempt to remove the destination.
 
+Symbolic links are followed. If `src` is a symbolic link, the target file is
+copied. If `dest` is a symbolic link, the target file is overwritten unless
+`mode` contains `fs.constants.COPYFILE_EXCL`.
+
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
@@ -6128,7 +6304,8 @@ console.log(globSync('**/*.js'));
 ### `fs.lchmodSync(path, mode)`
 
 <!-- YAML
-deprecated: v0.4.7
+added: v0.5.0
+deprecated: v0.5.0
 -->
 
 > Stability: 0 - Deprecated
@@ -6311,12 +6488,13 @@ removed if it still exists. If the directory cannot be deleted, disposal will
 throw an error. The object has a `remove()` method which will perform the same
 task.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+See the [MDN documentation on `using` statements][`using`] for more information about
+explicit resource management.
 
 For detailed information, see the documentation of [`fs.mkdtemp()`][].
 
 There is no callback-based version of this API because it is designed for use
-with the `using` syntax.
+with the [`using`][] syntax.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
@@ -6428,6 +6606,11 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.8
 changes:
+  - version:
+     - v26.4.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -6441,6 +6624,8 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    function called with the file size that returns the buffer.
 * Returns: {string|Buffer}
 
 Returns the contents of the `path`.
@@ -6450,6 +6635,11 @@ this API: [`fs.readFile()`][].
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, an error will be
+thrown.
 
 Similar to [`fs.readFile()`][], when the path is a directory, the behavior of
 `fs.readFileSync()` is platform-specific.
@@ -7175,8 +7365,14 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `dir.close()` if the directory handle is open, and returns a promise that
 fulfills when disposal is complete.
+
+This method enables the directory to be used with [`await using`][], which
+will automatically close the directory when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
 
 #### `dir[Symbol.dispose]()`
 
@@ -7193,6 +7389,10 @@ changes:
 Calls `dir.closeSync()` if the directory handle is open, and returns
 `undefined`.
 
+This method enables the directory to be used with [`using`][], which
+will automatically close the directory when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
+
 ### Class: `fs.Dirent`
 
 <!-- YAML
@@ -7206,6 +7406,13 @@ directory entry is a combination of the file name and file type pairs.
 Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
 {fs.Dirent} objects, rather than strings or {Buffer}s.
+
+When a directory is read, such as with [`fs.readdir()`][] or
+[`fs.opendir()`][], the file type of each entry is the type reported by the
+operating system and may depend on the file system; for example, some file
+systems may report a type that differs from what [`fs.lstat()`][] returns.
+Node.js calls [`fs.lstat()`][] on such an entry only when the reported type
+is unknown. Use [`fs.lstat()`][] when an accurate file type is required.
 
 #### `dirent.isBlockDevice()`
 
@@ -8232,6 +8439,7 @@ of bytes written is passed as the first argument to the event handler.
     * `writeBufferLen` {number}
     * `remainingBufferLen`: {number}
   * `sync`: {boolean} Perform writes synchronously.
+* Returns: {fs.Utf8Stream}
 
 #### `utf8Stream.append`
 
@@ -8328,6 +8536,10 @@ the `data` argument must be a {Buffer}.
 #### `utf8Stream[Symbol.dispose]()`
 
 Calls `utf8Stream.destroy()`.
+
+This method enables the stream to be used with [`using`][], which
+will automatically destroy the stream when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
 
 ### Class: `fs.WriteStream`
 
@@ -8577,12 +8789,14 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_SYNC</code></td>
     <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for file integrity.</td>
+    operations waiting for file integrity. On Windows, this maps to
+    <code>FILE_FLAG_WRITE_THROUGH</code>.</td>
   </tr>
   <tr>
     <td><code>O_DSYNC</code></td>
     <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for data integrity.</td>
+    operations waiting for data integrity. On Windows, this maps to
+    <code>FILE_FLAG_WRITE_THROUGH</code>.</td>
   </tr>
   <tr>
     <td><code>O_SYMLINK</code></td>
@@ -8592,7 +8806,7 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_DIRECT</code></td>
     <td>When set, an attempt will be made to minimize caching effects of file
-    I/O.</td>
+    I/O. On Windows, this maps to <code>FILE_FLAG_NO_BUFFERING</code>.</td>
   </tr>
   <tr>
     <td><code>O_NONBLOCK</code></td>
@@ -8604,10 +8818,36 @@ The following constants are meant for use with `fs.open()`.
     is available on Windows operating systems only. On other operating systems,
     this flag is ignored.</td>
   </tr>
+  <tr>
+    <td><code>UV_FS_O_TEMPORARY</code></td>
+    <td>When set, the file is deleted automatically when the last handle to it
+    is closed. This flag is available on Windows operating systems only. On
+    other operating systems, this flag is ignored.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_SHORT_LIVED</code></td>
+    <td>Hint that the file is short-lived, so the system avoids flushing it to
+    disk when possible. This flag is available on Windows operating systems
+    only. On other operating systems, this flag is ignored.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_SEQUENTIAL</code></td>
+    <td>Hint that the file is accessed sequentially from beginning to end, to
+    optimize caching. This flag is available on Windows operating systems only.
+    On other operating systems, this flag is ignored.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_RANDOM</code></td>
+    <td>Hint that the file is accessed randomly, to optimize caching. This flag
+    is available on Windows operating systems only. On other operating systems,
+    this flag is ignored.</td>
+  </tr>
 </table>
 
 On Windows, only `O_APPEND`, `O_CREAT`, `O_EXCL`, `O_RDONLY`, `O_RDWR`,
-`O_TRUNC`, `O_WRONLY`, and `UV_FS_O_FILEMAP` are available.
+`O_TRUNC`, `O_WRONLY`, `UV_FS_O_FILEMAP`, `UV_FS_O_TEMPORARY`,
+`UV_FS_O_SHORT_LIVED`, `UV_FS_O_SEQUENTIAL`, and `UV_FS_O_RANDOM` are
+available.
 
 ##### File type constants
 
@@ -8790,7 +9030,7 @@ rename('/tmp/hello', '/tmp/world', (err) => {
 ```
 
 ```cjs
-const { rename, stat } = require('node:fs/promises');
+const { rename, stat } = require('node:fs');
 
 rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;
@@ -9145,6 +9385,7 @@ the file contents.
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
+[`await using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/await_using
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.createReadStream()`]: #filehandlecreatereadstreamoptions
 [`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions
@@ -9201,9 +9442,11 @@ the file contents.
 [`minimatch`]: https://github.com/isaacs/minimatch
 [`node:stream/iter`]: stream_iter.md
 [`statfs.bsize`]: #statfsbsize
-[`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer
+[`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
+[`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer-options
 [`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
 [`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms
+[`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats

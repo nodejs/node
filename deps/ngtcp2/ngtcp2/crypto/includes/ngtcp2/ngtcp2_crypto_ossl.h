@@ -148,6 +148,18 @@ NGTCP2_EXTERN int ngtcp2_crypto_ossl_init(void);
 /**
  * @function
  *
+ * `ngtcp2_crypto_ossl_free` frees the resources allocated by
+ * `ngtcp2_crypto_ossl_init`.  It is safe to call this function even
+ * if `ngtcp2_crypto_ossl_init` fails or is not called at all.  This
+ * function might be useful to make some leak detection tools happy.
+ *
+ * .. version-added:: 1.24.0
+ */
+NGTCP2_EXTERN void ngtcp2_crypto_ossl_free(void);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_ossl_configure_server_session` configures |ssl| for
  * server side QUIC connection.  It performs the following
  * modifications:

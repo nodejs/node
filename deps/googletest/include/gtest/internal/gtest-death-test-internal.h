@@ -43,6 +43,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "gtest/gtest-matchers.h"
 #include "gtest/internal/gtest-internal.h"
@@ -62,6 +63,10 @@ const char kInternalRunDeathTestFlag[] = "internal_run_death_test";
 inline Matcher<const ::std::string&> MakeDeathTestMatcher(
     ::testing::internal::RE regex) {
   return ContainsRegex(regex.pattern());
+}
+inline Matcher<const ::std::string&> MakeDeathTestMatcher(
+    std::string_view regex) {
+  return ContainsRegex(regex);
 }
 inline Matcher<const ::std::string&> MakeDeathTestMatcher(const char* regex) {
   return ContainsRegex(regex);
@@ -229,7 +234,8 @@ GTEST_API_ bool ExitedUnsuccessfully(int exit_status);
       goto GTEST_CONCAT_TOKEN_(gtest_label_, __LINE__);                        \
     }                                                                          \
     if (gtest_dt != nullptr) {                                                 \
-      std::unique_ptr< ::testing::internal::DeathTest> gtest_dt_ptr(gtest_dt); \
+      const std::unique_ptr< ::testing::internal::DeathTest> gtest_dt_ptr(     \
+          gtest_dt);                                                           \
       switch (gtest_dt->AssumeRole()) {                                        \
         case ::testing::internal::DeathTest::OVERSEE_TEST:                     \
           if (!gtest_dt->Passed(predicate(gtest_dt->Wait()))) {                \

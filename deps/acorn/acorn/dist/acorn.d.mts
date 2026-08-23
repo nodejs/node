@@ -620,6 +620,12 @@ export interface Options {
   sourceType?: "script" | "module" | "commonjs"
 
   /**
+   * When set to true, enable strict parsing mode even if `sourceType`
+   * is `"script"`.
+   */
+  strict?: boolean
+
+  /**
    * a callback that will be called when a semicolon is automatically inserted.
    * @param lastTokEnd the position of the comma as an offset
    * @param lastTokEndLoc location if {@link locations} is enabled
@@ -686,6 +692,14 @@ export interface Options {
    * nodes.
    */
   locations?: boolean
+
+  /**
+   * Pass an optional `{line, column}` object to use for the start of
+   * the parse. This is mostly useful when using `parseExpressionAt`
+   * with `locations: true`, to prevent the parser from having to
+   * determine the line position at the start position.
+   */
+  startLocation?: {line: number, column: number}
 
   /**
    * a callback that will cause Acorn to call that export function with object in the same

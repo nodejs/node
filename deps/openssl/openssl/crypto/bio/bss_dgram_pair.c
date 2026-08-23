@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -305,6 +305,7 @@ static int dgram_mem_init(BIO *bio)
     b = bio->ptr;
 
     if (ring_buf_init(&b->rbuf, b->req_buf_len) == 0) {
+        dgram_pair_free(bio);
         ERR_raise(ERR_LIB_BIO, ERR_R_BIO_LIB);
         return 0;
     }

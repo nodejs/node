@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2014 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <openssl/e_os2.h>
 #include "curve448utils.h"
+#include "internal/constant_time.h"
 
 #ifdef INT128_MAX
 #include "arch_64/arch_intrinsics.h"
@@ -51,6 +52,12 @@ typedef int64_t dsword_t;
 #define SC_LIMB(x) ((uint32_t)(x)), ((x) >> 32)
 #else
 #error "For now we only support 32- and 64-bit architectures."
+#endif
+
+#if C448_WORD_BITS == 64
+#define value_barrier_c448(x) value_barrier_64(x)
+#elif C448_WORD_BITS == 32
+#define value_barrier_c448(x) value_barrier_32(x)
 #endif
 
 /*

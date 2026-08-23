@@ -17,7 +17,7 @@ const {
 // =============================================================================
 
 async function testBasicWrite() {
-  const { writer, readable } = push({ backpressure: 'block' });
+  const { writer, readable } = push({ backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   writable.write('hello');
@@ -324,7 +324,7 @@ function testInvalidWriterThrows() {
 // =============================================================================
 
 async function testRoundTrip() {
-  const { writer, readable } = push({ backpressure: 'block' });
+  const { writer, readable } = push({ backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   const data = 'round trip test data';
@@ -340,7 +340,7 @@ async function testRoundTrip() {
 // =============================================================================
 
 async function testPushWriterBlockBackpressureNoDuplicate() {
-  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   await new Promise((resolve, reject) => {
@@ -362,7 +362,7 @@ async function testPushWriterBlockBackpressureNoDuplicate() {
 // =============================================================================
 
 async function testPushWriterBlockBackpressureWritevNoDuplicate() {
-  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   await new Promise((resolve, reject) => {
@@ -387,7 +387,7 @@ async function testPushWriterBlockBackpressureWritevNoDuplicate() {
 // =============================================================================
 
 async function testSequentialWrites() {
-  const { writer, readable } = push({ backpressure: 'block' });
+  const { writer, readable } = push({ backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   for (let i = 0; i < 10; i++) {
@@ -537,18 +537,15 @@ function testHighWaterMarkIsMaxSafeInt() {
 }
 
 // =============================================================================
-// writeSync throws -- falls back to async
+// writeSync throws -- error propagates, does NOT fall back to async
 // =============================================================================
 
-async function testWriteSyncThrowsFallback() {
-  let asyncCalled = false;
-
+async function testWriteSyncThrowsPropagation() {
   const writer = {
     writeSync() {
       throw new Error('sync broken');
     },
-    write(chunk) {
-      asyncCalled = true;
+    write() {
       return Promise.resolve();
     },
     end() { return Promise.resolve(0); },
@@ -557,11 +554,12 @@ async function testWriteSyncThrowsFallback() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => {
-    writable.write('test', resolve);
-  });
-
-  assert.ok(asyncCalled, 'async write should be called as fallback');
+  await assert.rejects(new Promise((resolve, reject) => {
+    writable.write('test', (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  }), { message: 'sync broken' });
 }
 
 // =============================================================================
@@ -625,7 +623,7 @@ Promise.all([
   testWritevDelegation(),
   testWriteSyncFirst(),
   testWriteSyncFallback(),
-  testWriteSyncThrowsFallback(),
+  testWriteSyncThrowsPropagation(),
   testEndSyncFirst(),
   testEndSyncFallback(),
   testFinalDelegatesToEnd(),

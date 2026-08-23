@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Service Worker: CSP default directive for ServiceWorker script</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+service_worker_test(
+    'resources/service-worker-csp-worker.py?directive=default',
+    'CSP test for default-src in ServiceWorkerGlobalScope');
+</script>

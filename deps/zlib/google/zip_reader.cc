@@ -5,14 +5,18 @@
 #include "third_party/zlib/google/zip_reader.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/containers/heap_array.h"
+#include "base/strings/string_view_util.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/i18n/i18n_constants.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -86,8 +90,8 @@ class StringWriterDelegate : public WriterDelegate {
   explicit StringWriterDelegate(std::string* output) : output_(output) {}
 
   // WriterDelegate methods:
-  bool WriteBytes(const char* data, int num_bytes) override {
-    output_->append(data, num_bytes);
+  bool WriteBytes(base::span<const uint8_t> data) override {
+    *output_ += base::as_string_view(data);
     return true;
   }
 
@@ -304,18 +308,62 @@ bool ZipReader::OpenEntry() {
   DCHECK(path_in_zip[info.size_filename] == '\0');
   entry_.path_in_original_encoding = path_in_zip.data();
 
+    const char* const configured_encoding =
+      encoding_.empty() ? base::kCodepageUTF8 : encoding_.c_str();
+  const char* entry_path_encoding = configured_encoding;
+  bool physical_path_is_directory = false;
+  bool physical_path_is_unsafe = false;
+
+  // If an Info-ZIP Unicode Path Extra Field is present, the physical Central
+  // Directory path is about to be overridden. Decode and normalize it now into
+  // `entry_.physical_path` so consumers (e.g. Safe Browsing) can still see the
+  // name that other tools (e.g. Windows Explorer) would use for extraction.
+  if (info.size_utf8_filename > 0) {
+    std::u16string physical_path_in_utf16;
+    if (!base::CodepageToUTF16(entry_.path_in_original_encoding,
+                               configured_encoding,
+                               base::OnStringConversionError::SUBSTITUTE,
+                               &physical_path_in_utf16)) {
+      LOG(ERROR) << "Cannot convert path from encoding " << configured_encoding;
+      return false;
+    }
+    // Normalize() stores the normalized result in entry_.path; copy it before
+    // applying the Unicode Path Extra Field below.
+    Normalize(physical_path_in_utf16);
+    entry_.physical_path = entry_.path;
+    physical_path_is_directory = entry_.is_directory;
+    physical_path_is_unsafe = entry_.is_unsafe;
+
+    // Use the Info-ZIP Unicode Path Extra Field if present.
+    DCHECK(info.utf8_filename[info.size_utf8_filename] == '\0');
+    entry_.path_in_original_encoding = info.utf8_filename;
+    entry_path_encoding = base::kCodepageUTF8;
+  }
+
   // Convert path from original encoding to Unicode.
   std::u16string path_in_utf16;
-  const char* const encoding = encoding_.empty() ? "UTF-8" : encoding_.c_str();
-  if (!base::CodepageToUTF16(entry_.path_in_original_encoding, encoding,
+  if (!base::CodepageToUTF16(entry_.path_in_original_encoding,
+                             entry_path_encoding,
                              base::OnStringConversionError::SUBSTITUTE,
                              &path_in_utf16)) {
-    LOG(ERROR) << "Cannot convert path from encoding " << encoding;
+    LOG(ERROR) << "Cannot convert path from encoding " << entry_path_encoding;
     return false;
   }
 
   // Normalize path.
   Normalize(path_in_utf16);
+
+  if (info.size_utf8_filename > 0) {
+    // Treat an entry as a directory only if both names are directories;
+    // otherwise callers that analyze file entries should inspect it as a file.
+    entry_.is_directory = entry_.is_directory && physical_path_is_directory;
+    // Treat an entry as unsafe if either name is unsafe.
+    entry_.is_unsafe = entry_.is_unsafe || physical_path_is_unsafe;
+  } else {
+    // In the common case (no Unicode Path Extra Field) the physical path
+    // matches the effective path.
+    entry_.physical_path = entry_.path;
+  }
 
   entry_.original_size = info.uncompressed_size;
 
@@ -485,8 +533,10 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
 
     uint64_t num_bytes_to_write = std::min<uint64_t>(
         remaining_capacity, base::checked_cast<uint64_t>(num_bytes_read));
-    if (!delegate->WriteBytes(buf, num_bytes_to_write))
+    if (!delegate->WriteBytes(base::as_byte_span(buf).first(
+            base::checked_cast<size_t>(num_bytes_to_write)))) {
       break;
+    }
 
     if (remaining_capacity == base::checked_cast<uint64_t>(num_bytes_read)) {
       // Ensures function returns true if the entire file has been read.
@@ -679,7 +729,9 @@ void ZipReader::ExtractChunk(base::File output_file,
     return;
   }
 
-  if (num_bytes_read != output_file.Write(offset, buffer, num_bytes_read)) {
+  if (!output_file.WriteAndCheck(
+          offset, base::as_byte_span(buffer).first(
+                      static_cast<size_t>(num_bytes_read)))) {
     LOG(ERROR) << "Cannot write " << num_bytes_read
                << " bytes to file at offset " << offset;
     std::move(failure_callback).Run();
@@ -734,11 +786,12 @@ bool FileWriterDelegate::PrepareOutput() {
   return true;
 }
 
-bool FileWriterDelegate::WriteBytes(const char* data, int num_bytes) {
-  int bytes_written = file_->WriteAtCurrentPos(data, num_bytes);
-  if (bytes_written > 0)
-    file_length_ += bytes_written;
-  return bytes_written == num_bytes;
+bool FileWriterDelegate::WriteBytes(base::span<const uint8_t> data) {
+  const std::optional<size_t> bytes_written = file_->WriteAtCurrentPos(data);
+  if (bytes_written > 0) {
+    file_length_ += *bytes_written;
+  }
+  return bytes_written == data.size();
 }
 
 void FileWriterDelegate::SetTimeModified(const base::Time& time) {

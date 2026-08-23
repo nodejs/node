@@ -44,6 +44,9 @@ let
         ../../tools/v8_gypfiles/toolchain.gypi
         ../../tools/v8_gypfiles/v8.gyp
       ]
+      ++ lib.optionals (builtins.elem "--with-perfetto" configureFlags) [
+        ../../deps/perfetto
+      ]
       ++ lib.optionals (icu != null) [
         ../../tools/icu/icu_versions.json
         ../../tools/icu/icu-system.gyp
@@ -57,10 +60,24 @@ let
         ../../tools/icu/icutrim.py
         ../../tools/icu/no-op.cc
       ];
+      potentiallyAlreadyRemovedFiles =
+        # Files that are removed in the release tarball (see Makefile $(TARBALL) target)
+        [ (fileset.difference ../../deps/v8/test ../../deps/v8/test/torque) ]
+        ++ (builtins.filter builtins.pathExists [
+          ../../deps/v8/samples
+          ../../deps/v8/tools/profviz
+          ../../deps/v8/tools/run-tests.py
+          ../../deps/v8/third_party/ittapi
+        ]);
+      trackedFiles =
+        ({
+          # This line is being modified by Makefile $(TARBALL) target, any change to it should be sync
+          fileset = fileset.intersection (fileset.gitTracked root) (fileset.unions files);
+        }).fileset;
     in
     fileset.toSource {
       inherit root;
-      fileset = fileset.intersection (fileset.gitTracked root) (fileset.unions files);
+      fileset = fileset.difference trackedFiles (fileset.unions potentiallyAlreadyRemovedFiles);
     };
   v8Dir = "${src}/deps/v8";
 in

@@ -20,10 +20,10 @@ const actual = {
 // add more builtins to worker snapshots, we should also distinguish
 // the two stages for them.
 const expected = {};
+const getFormatNativeModule = 'NativeModule internal/modules/esm/get_format';
 
 expected.beforePreExec = new Set([
   'Internal Binding builtins',
-  'Internal Binding encoding_binding',
   'Internal Binding modules',
   'Internal Binding errors',
   'Internal Binding util',
@@ -88,10 +88,6 @@ expected.beforePreExec = new Set([
   'NativeModule internal/v8/startup_snapshot',
   'NativeModule internal/process/signal',
   'Internal Binding fs',
-  'NativeModule internal/encoding',
-  'NativeModule internal/encoding/single-byte',
-  'NativeModule internal/encoding/util',
-  'NativeModule internal/blob',
   'NativeModule internal/fs/utils',
   'NativeModule fs',
   'Internal Binding options',
@@ -104,19 +100,16 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule internal/modules/package_map',
   'NativeModule diagnostics_channel',
   'Internal Binding diagnostics_channel',
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
-  'NativeModule internal/modules/typescript',
-  'NativeModule internal/data_url',
-  'NativeModule internal/mime',
   'NativeModule internal/modules/esm/utils',
   'Internal Binding worker',
   'NativeModule internal/modules/run_main',
-  'NativeModule internal/net',
-  'NativeModule internal/dns/utils',
-  'NativeModule internal/modules/esm/get_format',
+  getFormatNativeModule,
+  'NativeModule internal/trace_events',
 ]);
 
 expected.atRunTime = new Set([
@@ -124,8 +117,13 @@ expected.atRunTime = new Set([
 ]);
 
 const { isMainThread } = require('worker_threads');
+// Binaries built without the snapshot (e.g. cross-compiled) and
+// --no-node-snapshot bootstrap the main context from scratch, like a worker.
+const mainContextFromSnapshot = isMainThread &&
+  process.config.variables.node_use_node_snapshot &&
+  !process.execArgv.includes('--no-node-snapshot');
 
-if (isMainThread) {
+if (mainContextFromSnapshot) {
   [
     'Internal Binding cjs_lexer',
     'NativeModule internal/modules/esm/assert',
@@ -133,16 +131,27 @@ if (isMainThread) {
     'NativeModule internal/modules/esm/load',
     'NativeModule internal/modules/esm/resolve',
     'NativeModule internal/modules/esm/translators',
+    'NativeModule internal/modules/esm/module_job',
+    'NativeModule internal/modules/esm/module_map',
     'NativeModule url',
+    'Internal Binding encoding_binding',
+    'NativeModule internal/blob',
+    'NativeModule internal/data_url',
+    'NativeModule internal/dns/utils',
+    'NativeModule internal/encoding',
+    'NativeModule internal/encoding/single-byte',
+    'NativeModule internal/encoding/util',
+    'NativeModule internal/mime',
+    'NativeModule internal/modules/typescript',
+    'NativeModule internal/net',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
+} else if (isMainThread) {
+  expected.beforePreExec.delete(getFormatNativeModule);
+  expected.atRunTime.add(getFormatNativeModule);
 } else {  // Worker.
   [
-    'Internal Binding locks',
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',
-    'NativeModule internal/error_serdes',
-    'NativeModule internal/locks',
-    'NativeModule internal/perf/event_loop_utilization',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/add-abort-signal',
     'NativeModule internal/streams/compose',

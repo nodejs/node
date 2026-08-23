@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Test setTimeOut,cancelTimeout in Web Workers.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+promise_test(t => {
+  let worker
+
+  return new Promise(resolve => {
+    worker = new Worker('support/Worker-timeout-cancel-order.js');
+    worker.postMessage('start');
+    worker.onmessage = resolve;
+  }).then(evt => {
+    assert_equals(evt.data, 2, 'Timeout not canceled');
+  });
+}, 'Tests setting and canceling timeout in workers.');
+</script>

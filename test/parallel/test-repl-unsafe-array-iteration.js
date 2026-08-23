@@ -3,6 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
 
+common.skipIfInspectorDisabled();
+
 const replProcess = spawn(process.argv0, ['--interactive'], {
   stdio: ['pipe', 'pipe', 'inherit'],
   windowsHide: true,

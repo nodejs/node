@@ -58,8 +58,14 @@ t.test('npm edit', async t => {
     : ['-c', 'testinstall']
   spawk.spawn(scriptShell, scriptArgs, { cwd: semverPath })
 
+  const inputEvents = []
+  const inputListener = (level) => inputEvents.push(level)
+  process.on('input', inputListener)
+  t.teardown(() => process.off('input', inputListener))
+
   await npm.exec('edit', ['semver'])
   t.match(joinedOutput(), 'rebuilt dependencies successfully')
+  t.same(inputEvents.slice(0, 2), ['start', 'end'], 'progress paused and resumed around editor')
 })
 
 t.test('rebuild failure', async t => {

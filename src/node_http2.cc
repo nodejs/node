@@ -612,6 +612,17 @@ Http2Session::Http2Session(Http2State* http2_state,
       &alloc_info), 0);
   session_.reset(session);
 
+  // Increase the default local connection window to improve throughput
+  // on high-latency connections. The default 64KB window limits throughput
+  // to window_size / RTT. With a 32MB connection window, throughput is
+  // significantly improved. See https://github.com/nodejs/node/issues/38426
+  CHECK_EQ(nghttp2_session_set_local_window_size(
+               session,
+               NGHTTP2_FLAG_NONE,
+               0,
+               DEFAULT_SETTINGS_LOCAL_CONNECTION_WINDOW_SIZE),
+           0);
+
   outgoing_storage_.reserve(1024);
   outgoing_buffers_.reserve(32);
 
@@ -815,6 +826,21 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     return;
   set_closing();
 
+  // Do not flush GOAWAY from inside nghttp2_session_mem_recv() callbacks.
+  // ConsumeHTTP2Data() finishes the close once mem_recv returns.
+  if (is_receiving()) {
+    set_close_pending();
+    pending_close_code_ = code;
+    pending_close_socket_closed_ = socket_closed;
+    return;
+  }
+
+  FinishClose(code, socket_closed);
+}
+
+void Http2Session::FinishClose(uint32_t code, bool socket_closed) {
+  CHECK(is_closing());
+
   // Stop reading on the i/o stream
   if (stream_ != nullptr) {
     set_reading_stopped();
@@ -864,6 +890,12 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
   EmitStatistics();
 }
 
+void Http2Session::MaybeFinishPendingClose() {
+  if (!is_close_pending() || is_destroyed()) return;
+  set_close_pending(false);
+  FinishClose(pending_close_code_, pending_close_socket_closed_);
+}
+
 // Locates an existing known stream by ID. nghttp2 has a similar method
 // but this is faster and does not fail if the stream is not found.
 BaseObjectPtr<Http2Stream> Http2Session::FindStream(int32_t id) {
@@ -902,6 +934,14 @@ BaseObjectPtr<Http2Stream> Http2Session::RemoveStream(int32_t id) {
   stream = FindStream(id);
   if (stream) {
     streams_.erase(id);
+    if (stream->current_headers_length_ > 0) {
+      DecrementCurrentSessionMemory(stream->current_headers_length_);
+      stream->current_headers_length_ = 0;
+    }
+    if (stream->retained_headers_length_ > 0) {
+      DecrementCurrentSessionMemory(stream->retained_headers_length_);
+      stream->retained_headers_length_ = 0;
+    }
     DecrementCurrentSessionMemory(sizeof(*stream));
   }
   return stream;
@@ -950,11 +990,13 @@ void Http2Session::ConsumeHTTP2Data() {
         nghttp2_session_want_read(session_.get()));
   set_receive_paused(false);
   custom_recv_error_code_ = nullptr;
+  set_receiving();
   ssize_t ret =
     nghttp2_session_mem_recv(session_.get(),
                              reinterpret_cast<uint8_t*>(stream_buf_.base) +
                                  stream_buf_offset_,
                              read_len);
+  set_receiving(false);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   CHECK_IMPLIES(custom_recv_error_code_ != nullptr, ret < 0);
 
@@ -968,6 +1010,10 @@ void Http2Session::ConsumeHTTP2Data() {
     // Even if all bytes were received, a paused stream may delay the
     // nghttp2_on_frame_recv_callback which may have an END_STREAM flag.
     stream_buf_offset_ += ret;
+    // Still complete a Close() deferred during mem_recv; do not fall through
+    // to SendPendingData() here (paused receives historically skip that flush
+    // because a write may already be in progress).
+    MaybeFinishPendingClose();
     goto done;
   }
 
@@ -978,12 +1024,23 @@ void Http2Session::ConsumeHTTP2Data() {
   stream_buf_allocation_.reset();
   stream_buf_ = uv_buf_init(nullptr, 0);
 
+  // Finish a Close() deferred during mem_recv before flushing, so GOAWAY is
+  // not written after pending RST_STREAM frames.
+  MaybeFinishPendingClose();
+
+done:
+  // Finish a Close() deferred above before flushing, so GOAWAY is not written
+  // after pending RST_STREAM frames.
+  if (is_close_pending() && !is_destroyed()) {
+    set_close_pending(false);
+    FinishClose(pending_close_code_, pending_close_socket_closed_);
+  }
+
   // Send any data that was queued up while processing the received data.
   if (ret >= 0 && !is_destroyed()) {
     SendPendingData();
   }
 
-done:
   if (ret < 0) [[unlikely]] {
     Isolate* isolate = env()->isolate();
     Debug(this,
@@ -1100,6 +1157,16 @@ int Http2Session::OnFrameReceive(nghttp2_session* handle,
       // Intentional fall-through, handled just like headers frames
     case NGHTTP2_HEADERS:
       session->HandleHeadersFrame(frame);
+      break;
+    case NGHTTP2_RST_STREAM:
+      // Stamp the stream so JS onStreamClose can tell a peer reset apart
+      // from a clean close — both surface as on_stream_close, and a peer
+      // RST_STREAM(NO_ERROR) is otherwise indistinguishable from a natural
+      // close at the on_stream_close layer.
+      if (BaseObjectPtr<Http2Stream> stream =
+              session->FindStream(frame->hd.stream_id)) {
+        stream->set_peer_reset();
+      }
       break;
     case NGHTTP2_SETTINGS:
       session->HandleSettingsFrame(frame);
@@ -1310,9 +1377,12 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // ever passed on to the javascript side. If that happens, the callback
   // will return false.
   if (env->can_call_into_js()) {
-    Local<Value> arg = Integer::NewFromUnsigned(isolate, code);
+    Local<Value> argv[2] = {
+        Integer::NewFromUnsigned(isolate, code),
+        Boolean::New(isolate, stream->peer_reset()),
+    };
     MaybeLocal<Value> answer = stream->MakeCallback(
-        env->http2session_on_stream_close_function(), 1, &arg);
+        env->http2session_on_stream_close_function(), arraysize(argv), argv);
     if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
       // Skip to destroy
       stream->Destroy();
@@ -1396,6 +1466,9 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     data += avail;
     len -= avail;
     stream->EmitRead(avail, buf);
+
+    // JS may have destroyed the stream from inside onread; stop delivering.
+    if (stream->is_destroyed()) break;
 
     // If the stream owner (e.g. the JS Http2Stream) wants more data, just
     // tell nghttp2 that all data has been consumed. Otherwise, defer until
@@ -1536,8 +1609,8 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   // this way for performance reasons (it's faster to generate and pass an
   // array than it is to generate and pass the object).
 
-  MaybeStackBuffer<Local<Value>, 64> headers_v(stream->headers_count() * 2);
-  MaybeStackBuffer<Local<Value>, 32> sensitive_v(stream->headers_count());
+  MaybeStackBuffer<Value, 64> headers_v(isolate, stream->headers_count() * 2);
+  MaybeStackBuffer<Value, 32> sensitive_v(isolate, stream->headers_count());
   size_t sensitive_count = 0;
 
   stream->TransferHeaders([&](const Http2Header& header, size_t i) {
@@ -1548,16 +1621,20 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   });
   CHECK_EQ(stream->headers_count(), 0);
 
-  DecrementCurrentSessionMemory(stream->current_headers_length_);
+  // Keep the header block charged against maxSessionMemory while the
+  // corresponding JS objects can still keep it alive for the lifetime of
+  // the stream.
+  stream->retained_headers_length_ += stream->current_headers_length_;
   stream->current_headers_length_ = 0;
 
+  sensitive_v.SetLength(sensitive_count);
   Local<Value> args[] = {
-    stream->object(),
-    Integer::New(isolate, id),
-    Integer::New(isolate, stream->headers_category()),
-    Integer::New(isolate, frame->hd.flags),
-    Array::New(isolate, headers_v.out(), headers_v.length()),
-    Array::New(isolate, sensitive_v.out(), sensitive_count),
+      stream->object(),
+      Integer::New(isolate, id),
+      Integer::New(isolate, stream->headers_category()),
+      Integer::New(isolate, frame->hd.flags),
+      headers_v.ToArray(),
+      sensitive_v.ToArray(),
   };
   MakeCallback(env()->http2session_on_headers_function(),
                arraysize(args), args);
@@ -1951,6 +2028,12 @@ uint8_t Http2Session::SendPendingData() {
   // SendPendingData should not be called recursively.
   if (is_sending())
     return 1;
+
+  // Do not call `nghttp2_session_mem_send()` while nghttp2 is processing
+  // incoming data. Sending may close the stream and free nghttp2 state
+  // that is still in use by `nghttp2_session_mem_recv()`.
+  if (is_receiving()) return 1;
+
   // This is cleared by ClearOutgoing().
   set_sending();
 
@@ -2284,6 +2367,8 @@ Http2Stream::Http2Stream(Http2Session* session,
   if (options & STREAM_OPTION_GET_TRAILERS)
     set_has_trailers();
 
+  if (options & STREAM_OPTION_AUTO_EMPTY_TRAILERS) set_auto_empty_trailers();
+
   PushStreamListener(&stream_listener_);
 
   if (options & STREAM_OPTION_EMPTY_PAYLOAD)
@@ -2361,9 +2446,47 @@ void Http2Stream::Destroy() {
   // Do nothing if this stream instance is already destroyed
   if (is_destroyed())
     return;
-  if (session_->has_pending_rststream(id_))
-    FlushRstStream();
+
+  // Session may already be gone if destroy was deferred across a session
+  // teardown.
+  if (!session_) {
+    set_destroyed();
+    Detach();
+    return;
+  }
+
+  // Mark destroyed immediately so OnDataChunkReceived stops EmitRead into an
+  // already-destroyed JS stream (which would treat the byte count as errno).
   set_destroyed();
+
+  // While mem_recv is active, do not FlushRstStream or RemoveStream yet:
+  // - FlushRstStream would close the nghttp2 stream before queued response
+  //   DATA can be mem_send'd after receive returns.
+  // - RemoveStream would make OnSendData/Provider::OnRead fail to FindStream.
+  // Pending RSTs stay in pending_rst_streams_ and are flushed from
+  // ClearOutgoing after the post-receive SendPendingData.
+  if (session_->is_receiving()) {
+    BaseObjectPtr<Http2Stream> strong_ref{this};
+    env()->SetImmediate(
+        [this, strong_ref](Environment*) { CompleteDestroyCleanup(); });
+    return;
+  }
+
+  if (session_->has_pending_rststream(id_)) FlushRstStream();
+
+  CompleteDestroyCleanup();
+}
+
+void Http2Stream::CompleteDestroyCleanup() {
+  if (!session_) {
+    Detach();
+    return;
+  }
+
+  // Destroy() always set_destroyed() before scheduling or calling this.
+  CHECK(is_destroyed());
+
+  if (session_->has_pending_rststream(id_)) FlushRstStream();
 
   Debug(this, "destroying stream");
 
@@ -2401,7 +2524,6 @@ void Http2Stream::Destroy() {
   EmitStatistics();
 }
 
-
 // Initiates a response on the Http2Stream using data provided via the
 // StreamBase Streams API.
 int Http2Stream::SubmitResponse(const Http2Headers& headers, int options) {
@@ -2410,6 +2532,8 @@ int Http2Stream::SubmitResponse(const Http2Headers& headers, int options) {
   Debug(this, "submitting response");
   if (options & STREAM_OPTION_GET_TRAILERS)
     set_has_trailers();
+
+  if (options & STREAM_OPTION_AUTO_EMPTY_TRAILERS) set_auto_empty_trailers();
 
   if (!is_writable())
     options |= STREAM_OPTION_EMPTY_PAYLOAD;
@@ -2444,39 +2568,60 @@ int Http2Stream::SubmitInfo(const Http2Headers& headers) {
 }
 
 void Http2Stream::OnTrailers() {
+  CHECK(!this->is_destroyed());
+  set_has_trailers(false);
+  if (!auto_empty_trailers()) {
+    EmitWantTrailers();
+    return;
+  }
+  // The JS side has not registered any trailers, so the stream can be
+  // finished without calling into JS at all. The empty DATA frame cannot be
+  // submitted synchronously because OnTrailers() runs from inside the data
+  // source read callback for the final DATA frame; defer it to the next
+  // turn of the event loop, just like the JS sendTrailers() path does.
+  Debug(this, "auto-submitting empty trailers");
+  env()->SetImmediate(
+      [self = BaseObjectPtr<Http2Stream>(this)](Environment* env) {
+        if (self->is_destroyed()) return;
+        // Hand control back to the JS side if trailers were registered in
+        // the meantime or if submitting the empty DATA frame failed.
+        if (!self->auto_empty_trailers() || self->SubmitEmptyTrailers() != 0)
+          self->EmitWantTrailers();
+      });
+}
+
+void Http2Stream::EmitWantTrailers() {
   Debug(this, "let javascript know we are ready for trailers");
   CHECK(!this->is_destroyed());
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
-  set_has_trailers(false);
   MakeCallback(env()->http2session_on_stream_trailers_function(), 0, nullptr);
 }
 
-// Submit informational headers for a stream.
-int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
+// Sending an empty trailers frame poses problems in Safari, Edge & IE.
+// Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
+// to indicate that the stream is ready to be closed.
+int Http2Stream::SubmitEmptyTrailers() {
   CHECK(!this->is_destroyed());
   Http2Scope h2scope(this);
+  Debug(this, "sending empty trailers");
+  Http2Stream::Provider::Stream prov(this, 0);
+  int ret = nghttp2_submit_data(
+      session_->session(), NGHTTP2_FLAG_END_STREAM, id_, *prov);
+  CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
+  return ret;
+}
+
+// Submit trailing headers for a stream.
+int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
+  CHECK(!this->is_destroyed());
+  if (headers.length() == 0) return SubmitEmptyTrailers();
+  Http2Scope h2scope(this);
   Debug(this, "sending %d trailers", headers.length());
-  int ret;
-  // Sending an empty trailers frame poses problems in Safari, Edge & IE.
-  // Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
-  // to indicate that the stream is ready to be closed.
-  if (headers.length() == 0) {
-    Http2Stream::Provider::Stream prov(this, 0);
-    ret = nghttp2_submit_data(
-        session_->session(),
-        NGHTTP2_FLAG_END_STREAM,
-        id_,
-        *prov);
-  } else {
-    ret = nghttp2_submit_trailer(
-        session_->session(),
-        id_,
-        headers.data(),
-        headers.length());
-  }
+  int ret = nghttp2_submit_trailer(
+      session_->session(), id_, headers.data(), headers.length());
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2510,6 +2655,18 @@ void Http2Stream::SubmitRstStream(const uint32_t code) {
     return code == NGHTTP2_CANCEL;
   };
 
+  // Do not call `nghttp2_session_mem_send()` while nghttp2 is processing
+  // incoming data. Sending may close the stream and free nghttp2 state
+  // that is still in use by `nghttp2_session_mem_recv()`.
+  if (session_->is_receiving() && available_outbound_length_ == 0) {
+    if (is_stream_cancel(code)) {
+      session_->AddPendingRstStream(id_);
+      return;
+    }
+    FlushRstStream();
+    return;
+  }
+
   // If RST_STREAM frame is received with error code NGHTTP2_CANCEL,
   // add it to the pending list and don't force purge the data. It is
   // to avoids the double free error due to unwanted behavior of nghttp2.
@@ -2519,10 +2676,18 @@ void Http2Stream::SubmitRstStream(const uint32_t code) {
   // if RST_STREAM received is not in scope and added to the list
   // causing endpoint to hang.
   if (session_->is_in_scope() && is_stream_cancel(code)) {
-      session_->AddPendingRstStream(id_);
-      return;
+    session_->AddPendingRstStream(id_);
+    return;
   }
 
+  // If RST_STREAM is submitted while nghttp2 is processing callbacks for
+  // a refused stream, don't force purge pending data. Sending pending data
+  // here can re-enter nghttp2 and close streams that are still being used
+  // by the active receive operation.
+  if (session_->is_in_scope() && code == NGHTTP2_REFUSED_STREAM) {
+    FlushRstStream();
+    return;
+  }
 
   // If possible, force a purge of any currently pending data here to make sure
   // it is sent before closing the stream. If it returns non-zero then we need
@@ -2537,8 +2702,8 @@ void Http2Stream::SubmitRstStream(const uint32_t code) {
 }
 
 void Http2Stream::FlushRstStream() {
-  if (is_destroyed())
-    return;
+  if (!session_) return;
+  session_->RemovePendingRstStream(id_);
   Http2Scope h2scope(this);
   CHECK_EQ(nghttp2_submit_rst_stream(
       session_->session(),
@@ -3086,6 +3251,15 @@ void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
       stream->SubmitTrailers(Http2Headers(env, headers)));
 }
 
+// Called by the JS layer when trailers are registered after the response
+// headers were already submitted with STREAM_OPTION_AUTO_EMPTY_TRAILERS set,
+// so that the trailers are handed back to JS instead of being auto-emptied.
+void Http2Stream::DisableAutoTrailers(const FunctionCallbackInfo<Value>& args) {
+  Http2Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+  stream->set_auto_empty_trailers(false);
+}
+
 // Grab the numeric id of the Http2Stream
 void Http2Stream::GetID(const FunctionCallbackInfo<Value>& args) {
   Http2Stream* stream;
@@ -3523,6 +3697,8 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, stream, "pushPromise", Http2Stream::PushPromise);
   SetProtoMethod(isolate, stream, "info", Http2Stream::Info);
   SetProtoMethod(isolate, stream, "trailers", Http2Stream::Trailers);
+  SetProtoMethod(
+      isolate, stream, "disableAutoTrailers", Http2Stream::DisableAutoTrailers);
   SetProtoMethod(isolate, stream, "respond", Http2Stream::Respond);
   SetProtoMethod(isolate, stream, "rstStream", Http2Stream::RstStream);
   SetProtoMethod(isolate, stream, "refreshState", Http2Stream::RefreshState);

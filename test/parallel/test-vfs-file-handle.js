@@ -82,6 +82,12 @@ myVfs.writeFileSync('/file.txt', 'hello world');
   myVfs.writeSync(fd, buf, 0, 3, 0);
   myVfs.closeSync(fd);
 
+  const fd3 = myVfs.openSync('/sync-current.txt', 'w');
+  myVfs.writeSync(fd3, Buffer.from('abc'), 0, 3, -1);
+  myVfs.writeSync(fd3, Buffer.from('def'), 0, 3, -1);
+  myVfs.closeSync(fd3);
+  assert.strictEqual(myVfs.readFileSync('/sync-current.txt', 'utf8'), 'abcdef');
+
   const fd2 = myVfs.openSync('/sync.txt', 'r');
   const out = Buffer.alloc(3);
   myVfs.readSync(fd2, out, 0, 3, 0);

@@ -257,7 +257,7 @@ useful.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.
+If binding fails, an `'error'` event is generated. In rare cases (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 Example of a UDP server listening on port 41234:
@@ -350,7 +350,7 @@ is called.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.
+If binding fails, an `'error'` event is generated. In rare cases (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 An example socket listening on an exclusive port is shown below.
@@ -362,6 +362,46 @@ socket.bind({
   exclusive: true,
 });
 ```
+
+### `socket.bindSync([options])`
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.19.0
+-->
+
+* `options` {Object}
+  * `port` {integer} If omitted or `0`, the operating system will assign an
+    arbitrary unused port. **Default:** `0`.
+  * `address` {string} A numeric IP address to bind to. Unlike
+    [`socket.bind()`][], no DNS resolution is performed, so a host name is not
+    accepted. If omitted, the operating system binds to all addresses
+    (`'0.0.0.0'` for `udp4` sockets, `'::'` for `udp6`).
+* Returns: {Object} The bound address as returned by [`socket.address()`][].
+
+The synchronous counterpart of [`socket.bind()`][]. `bind(2)` is a local,
+non-blocking system call, so the bind is performed inline and the resolved
+address is returned immediately, including the operating-system-assigned
+ephemeral port when `port` is `0`:
+
+```js
+const dgram = require('node:dgram');
+
+const socket = dgram.createSocket('udp4');
+const address = socket.bindSync({ address: '0.0.0.0', port: 0 });
+console.log(address); // e.g. { address: '0.0.0.0', family: 'IPv4', port: 53124 }
+```
+
+A bind failure such as `EADDRINUSE` is thrown synchronously rather than emitted
+as an `'error'` event. After `bindSync()` returns, [`socket.address()`][] is
+valid synchronously and the `'listening'` event is emitted on the next tick.
+
+`address` must be a numeric IP literal; `bindSync()` never performs DNS
+resolution (asynchronous name resolution being the only genuinely blocking part
+of binding). Incoming datagrams continue to be delivered asynchronously via the
+[`'message'`][] event. `bindSync()` always binds the socket's own handle and
+does not participate in [`cluster`][] handle sharing.
 
 ### `socket.close([callback])`
 
@@ -408,6 +448,49 @@ provided, `'127.0.0.1'` (for `udp4` sockets) or `'::1'` (for `udp6` sockets)
 will be used by default. Once the connection is complete, a `'connect'` event
 is emitted and the optional `callback` function is called. In case of failure,
 the `callback` is called or, failing this, an `'error'` event is emitted.
+
+### `socket.connectSync(port[, address])`
+
+<!-- YAML
+added:
+ - v26.4.0
+ - v24.19.0
+-->
+
+* `port` {integer}
+* `address` {string} A numeric IP address to connect to. Unlike
+  [`socket.connect()`][], no DNS resolution is performed, so a host name is not
+  accepted. If omitted, `'127.0.0.1'` (for `udp4` sockets) or `'::1'` (for
+  `udp6` sockets) is used.
+
+The synchronous counterpart of [`socket.connect()`][]. For a UDP socket
+`connect(2)` only records the default peer address and is a local, non-blocking
+system call, so the association is performed inline. Any error raised by the
+call itself (for example `EAFNOSUPPORT` for a mismatched address family) is
+thrown synchronously rather than reported via the `'error'` event. Because
+`connect(2)` does not probe reachability, errors such as `ECONNREFUSED` are
+still surfaced asynchronously on a later send or receive, exactly as for
+[`socket.connect()`][]:
+
+```js
+const dgram = require('node:dgram');
+
+const socket = dgram.createSocket('udp4');
+socket.connectSync(41234, '127.0.0.1');
+console.log(socket.remoteAddress()); // { address: '127.0.0.1', family: 'IPv4', port: 41234 }
+```
+
+If the socket is still unbound it is bound synchronously first. After
+`connectSync()` returns, [`socket.remoteAddress()`][] is valid synchronously
+and the `'connect'` event is emitted on the next tick. Trying to call
+`connectSync()` on an already connected socket throws an
+[`ERR_SOCKET_DGRAM_IS_CONNECTED`][] exception, and calling it while an
+asynchronous [`socket.bind()`][] is still in progress throws an
+[`ERR_SOCKET_ALREADY_BOUND`][] exception.
+
+`address` must be a numeric IP literal; `connectSync()` never performs DNS
+resolution (asynchronous name resolution being the only genuinely blocking part
+of connecting).
 
 ### `socket.disconnect()`
 
@@ -513,7 +596,7 @@ to exclude the socket from the reference counting that keeps the Node.js
 process active. The `socket.ref()` method adds the socket back to the reference
 counting and restores the default behavior.
 
-Calling `socket.ref()` multiples times will have no additional effect.
+Calling `socket.ref()` multiple times will have no additional effect.
 
 The `socket.ref()` method returns a reference to the socket so calls can be
 chained.
@@ -662,7 +745,7 @@ client.send([buf1, buf2], 41234, (err) => {
 });
 ```
 
-Sending multiple buffers might be faster or slower depending on the
+Sending multiple buffers might be faster or slower, depending on the
 application and operating system. Run benchmarks to
 determine the optimal strategy on a case-by-case basis. Generally speaking,
 however, sending multiple buffers is faster.
@@ -804,7 +887,7 @@ socket.bind(1234, () => {
 A call on a socket that is not ready to send or no longer open may throw a _Not
 running_ [`Error`][].
 
-If `multicastInterface` can not be parsed into an IP then an _EINVAL_
+If `multicastInterface` cannot be parsed into an IP then an _EINVAL_
 [`System Error`][] is thrown.
 
 On IPv4, if `multicastInterface` is a valid address but does not match any
@@ -960,6 +1043,8 @@ changes:
   * `recvBufferSize` {number} Sets the `SO_RCVBUF` socket value.
   * `sendBufferSize` {number} Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
+    When the default is used, a literal IP address of the socket's family
+    resolves to itself without calling [`dns.lookup()`][].
   * `signal` {AbortSignal} An AbortSignal that may be used to close a socket.
   * `receiveBlockList` {net.BlockList} `receiveBlockList` can be used for discarding
     inbound datagram to specific IP addresses, IP ranges, or IP subnets. This does not
@@ -1015,6 +1100,8 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [IPv6 Zone Indexes]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [`'close'`]: #event-close
+[`'message'`]: #event-message
+[`ERR_SOCKET_ALREADY_BOUND`]: errors.md#err_socket_already_bound
 [`ERR_SOCKET_BAD_PORT`]: errors.md#err_socket_bad_port
 [`ERR_SOCKET_BUFFER_SIZE`]: errors.md#err_socket_buffer_size
 [`ERR_SOCKET_DGRAM_IS_CONNECTED`]: errors.md#err_socket_dgram_is_connected
@@ -1028,6 +1115,9 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`socket.address().address`]: #socketaddress
 [`socket.address().port`]: #socketaddress
+[`socket.address()`]: #socketaddress
 [`socket.bind()`]: #socketbindport-address-callback
 [`socket.close()`]: #socketclosecallback
+[`socket.connect()`]: #socketconnectport-address-callback
+[`socket.remoteAddress()`]: #socketremoteaddress
 [byte length]: buffer.md#static-method-bufferbytelengthstring-encoding

@@ -75,6 +75,55 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
     await handle.close();
   }
 
+  // ===== readFile through an open real fd survives backing path rename =====
+  {
+    fs.writeFileSync(path.join(root, 'rename-read.txt'), 'still readable');
+    const syncHandle = await myVfs.provider.open('/rename-read.txt', 'r');
+    const asyncHandle = await myVfs.provider.open('/rename-read.txt', 'r');
+    fs.renameSync(path.join(root, 'rename-read.txt'),
+                  path.join(root, 'rename-read-renamed.txt'));
+    try {
+      assert.strictEqual(syncHandle.readFileSync('utf8'), 'still readable');
+      assert.strictEqual(await asyncHandle.readFile('utf8'), 'still readable');
+    } finally {
+      await syncHandle.close();
+      await asyncHandle.close();
+      fs.unlinkSync(path.join(root, 'rename-read-renamed.txt'));
+    }
+  }
+
+  // ===== readFile reads past the fallback chunk when fstat reports size 0 =====
+  {
+    const content = 'a'.repeat(8192) + 'trailing data';
+    fs.writeFileSync(path.join(root, 'zero-stat.txt'), content);
+    const syncHandle = await myVfs.provider.open('/zero-stat.txt', 'r');
+    const asyncHandle = await myVfs.provider.open('/zero-stat.txt', 'r');
+    const originalFstatSync = fs.fstatSync;
+    const originalFstat = fs.fstat;
+
+    fs.fstatSync = common.mustCall(function fstatSync(...args) {
+      const stats = originalFstatSync.apply(this, args);
+      stats.size = 0;
+      return stats;
+    });
+    fs.fstat = common.mustCall(function fstat(fd, options, callback) {
+      return originalFstat.call(this, fd, options, (err, stats) => {
+        if (stats) stats.size = 0;
+        callback(err, stats);
+      });
+    });
+
+    try {
+      assert.strictEqual(syncHandle.readFileSync('utf8'), content);
+      assert.strictEqual(await asyncHandle.readFile('utf8'), content);
+    } finally {
+      fs.fstatSync = originalFstatSync;
+      fs.fstat = originalFstat;
+      await syncHandle.close();
+      await asyncHandle.close();
+    }
+  }
+
   // ===== EBADF after close =====
   {
     await myVfs.promises.writeFile('/h.txt', 'hello');

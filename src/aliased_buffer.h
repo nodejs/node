@@ -29,10 +29,9 @@ typedef size_t AliasedBufferIndex;
  * observed. Any notification APIs will be left as a future exercise.
  */
 template <class NativeT, class V8T>
+  requires std::is_scalar_v<NativeT>
 class AliasedBufferBase final : public MemoryRetainer {
  public:
-  static_assert(std::is_scalar_v<NativeT>);
-
   AliasedBufferBase(v8::Isolate* isolate,
                     size_t count,
                     const AliasedBufferIndex* index = nullptr);

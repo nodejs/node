@@ -53,6 +53,9 @@ const { code, signal, stderr } = await runProxiedRequest({
 // The proxy client should get an error from proxy authentication failure.
 // Since the process exits cleanly but with an error, check for any error output
 assert.match(stderr, /407 Proxy Authentication Required/);
+assert.match(stderr, /via http:\/\/localhost:\d+\/?/);
+assert.doesNotMatch(stderr, /baduser/);
+assert.doesNotMatch(stderr, /badpass/);
 assert.strictEqual(code, 0);
 assert.strictEqual(signal, null);
 

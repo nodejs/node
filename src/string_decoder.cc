@@ -28,22 +28,20 @@ MaybeLocal<String> MakeString(Isolate* isolate,
                               const char* data,
                               size_t length,
                               enum encoding encoding) {
-  MaybeLocal<Value> ret;
-  if (encoding == UTF8) {
-    MaybeLocal<String> utf8_string;
-    if (length <= static_cast<size_t>(v8::String::kMaxLength)) {
-      utf8_string = String::NewFromUtf8(
-          isolate, data, v8::NewStringType::kNormal, length);
-    }
-    if (utf8_string.IsEmpty()) {
-      isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
-      return MaybeLocal<String>();
-    } else {
-      return utf8_string;
-    }
-  } else {
-    ret = StringBytes::Encode(isolate, data, length, encoding);
+  // StringBytes::Encode() would report an over-long UTF-8 input as
+  // ERR_BUFFER_TOO_LARGE (or clamp it); keep reporting it the way this
+  // decoder always has.
+  if (encoding == UTF8 && length > static_cast<size_t>(v8::String::kMaxLength))
+      [[unlikely]] {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+    return MaybeLocal<String>();
   }
+
+  // For UTF-8 this takes the simdutf-backed ASCII / Latin-1 / UTF-16 paths and
+  // only falls back to v8::String::NewFromUtf8() (the previous unconditional
+  // path here) for input containing invalid sequences, so U+FFFD replacement
+  // is unchanged.
+  MaybeLocal<Value> ret = StringBytes::Encode(isolate, data, length, encoding);
 
   if (ret.IsEmpty()) {
     return {};

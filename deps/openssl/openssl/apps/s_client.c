@@ -2549,7 +2549,7 @@ re_start:
                          "xmlns='jabber:%s' to='%s' version='1.0'>",
             starttls_proto == PROTO_XMPP ? "client" : "server",
             protohost ? protohost : host);
-        seen = BIO_read(sbio, mbuf, BUFSIZZ);
+        seen = BIO_read(sbio, mbuf, BUFSIZZ - 1);
         if (seen < 0) {
             BIO_printf(bio_err, "BIO_read failed\n");
             goto end;
@@ -2558,7 +2558,7 @@ re_start:
         while (!strstr(mbuf, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'")
             && !strstr(mbuf,
                 "<starttls xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\"")) {
-            seen = BIO_read(sbio, mbuf, BUFSIZZ);
+            seen = BIO_read(sbio, mbuf, BUFSIZZ - 1);
 
             if (seen <= 0)
                 goto shut;
@@ -2567,7 +2567,7 @@ re_start:
         }
         BIO_printf(sbio,
             "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>");
-        seen = BIO_read(sbio, sbuf, BUFSIZZ);
+        seen = BIO_read(sbio, sbuf, BUFSIZZ - 1);
         if (seen < 0) {
             BIO_printf(bio_err, "BIO_read failed\n");
             goto shut;
@@ -2793,7 +2793,7 @@ re_start:
                 "Didn't find STARTTLS in server response,"
                 " trying anyway...\n");
         BIO_printf(sbio, "STARTTLS\r\n");
-        mbuf_len = BIO_read(sbio, mbuf, BUFSIZZ);
+        mbuf_len = BIO_read(sbio, mbuf, BUFSIZZ - 1);
         if (mbuf_len < 0) {
             BIO_printf(bio_err, "BIO_read failed\n");
             goto end;
@@ -2834,7 +2834,7 @@ re_start:
                 "Didn't find STARTTLS in server response,"
                 " trying anyway...\n");
         BIO_printf(sbio, "STARTTLS\r\n");
-        mbuf_len = BIO_read(sbio, mbuf, BUFSIZZ);
+        mbuf_len = BIO_read(sbio, mbuf, BUFSIZZ - 1);
         if (mbuf_len < 0) {
             BIO_printf(bio_err, "BIO_read failed\n");
             goto end;
@@ -3307,7 +3307,7 @@ re_start:
             if (crlf) {
                 int j, lf_num;
 
-                i = raw_read_stdin(cbuf, BUFSIZZ / 2);
+                i = raw_read_stdin(cbuf, (BUFSIZZ - 1) / 2);
                 lf_num = 0;
                 /* both loops are skipped when i <= 0 */
                 for (j = 0; j < i; j++)
@@ -3323,7 +3323,7 @@ re_start:
                 }
                 assert(lf_num == 0);
             } else
-                i = raw_read_stdin(cbuf, BUFSIZZ);
+                i = raw_read_stdin(cbuf, BUFSIZZ - 1);
 #if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_MSDOS)
             if (i == 0)
                 at_eof = 1;

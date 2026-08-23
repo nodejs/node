@@ -31,7 +31,7 @@
 
 void nghttp3_balloc_init(nghttp3_balloc *balloc, size_t blklen,
                          const nghttp3_mem *mem) {
-  assert((blklen & 0xfu) == 0);
+  assert((blklen & 0xFU) == 0);
 
   balloc->mem = mem;
   balloc->blklen = blklen;
@@ -67,7 +67,7 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n) {
 
   if (nghttp3_buf_left(&balloc->buf) < n) {
     p = nghttp3_mem_malloc(balloc->mem,
-                           sizeof(nghttp3_memblock_hd) + 0x8u + balloc->blklen);
+                           sizeof(nghttp3_memblock_hd) + 0x8U + balloc->blklen);
     if (p == NULL) {
       return NGHTTP3_ERR_NOMEM;
     }
@@ -77,15 +77,15 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n) {
     balloc->head = hd;
     nghttp3_buf_wrap_init(
       &balloc->buf,
-      (uint8_t *)(((uintptr_t)p + sizeof(nghttp3_memblock_hd) + 0xfu) &
-                  ~(uintptr_t)0xfu),
+      (uint8_t *)(((uintptr_t)p + sizeof(nghttp3_memblock_hd) + 0xFU) &
+                  ~(uintptr_t)0xFU),
       balloc->blklen);
   }
 
-  assert(((uintptr_t)balloc->buf.last & 0xfu) == 0);
+  assert(((uintptr_t)balloc->buf.last & 0xFU) == 0);
 
   *pbuf = balloc->buf.last;
-  balloc->buf.last += (n + 0xfu) & ~(uintptr_t)0xfu;
+  balloc->buf.last += (n + 0xFU) & ~(size_t)0xFU;
 
   return 0;
 }

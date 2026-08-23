@@ -121,13 +121,20 @@ static void MakeUtf8String(Isolate* isolate,
     return;
   }
 
-  // Add +1 for null termination.
-  size_t storage = (3 * value_length) + 1;
+  auto const_char16 = reinterpret_cast<const char16_t*>(value_view.data16());
+  size_t storage = static_cast<size_t>(value_length) * 3 + 1;
   target->AllocateSufficientStorage(storage);
 
-  size_t length = string->WriteUtf8V2(
-      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
-  target->SetLengthAndZeroTerminate(length);
+  size_t actual_length =
+      simdutf::convert_utf16_to_utf8(const_char16, value_length, target->out());
+  if (actual_length == 0) {
+    actual_length =
+        string->WriteUtf8V2(isolate,
+                            target->out(),
+                            storage,
+                            String::WriteFlags::kReplaceInvalidUtf8);
+  }
+  target->SetLengthAndZeroTerminate(actual_length);
 }
 
 Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
@@ -466,6 +473,31 @@ void SetFastMethodNoSideEffect(
       v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
           .ToLocalChecked();
   that->Set(name_string, t);
+}
+
+void SetFastMethodNoSideEffect(
+    Local<v8::Context> context,
+    Local<v8::Object> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Local<v8::Function> function = FunctionTemplate::NewWithCFunctionOverloads(
+                                     isolate,
+                                     slow_callback,
+                                     Local<Value>(),
+                                     Local<v8::Signature>(),
+                                     0,
+                                     v8::ConstructorBehavior::kThrow,
+                                     v8::SideEffectType::kHasNoSideEffect,
+                                     methods)
+                                     ->GetFunction(context)
+                                     .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(context, name_string, function).Check();
 }
 
 void SetMethodNoSideEffect(Local<v8::Context> context,

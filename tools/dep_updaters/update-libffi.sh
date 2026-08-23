@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -ex
 # Shell script to update libffi in the source tree to a specific version
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
@@ -26,13 +26,13 @@ const tarball = assets.find(({ name }) => name === tarballName);
 if (!tarball?.browser_download_url) throw new Error(`No release tarball found for ${tag_name}`);
 console.log(`${version} ${tarball.browser_download_url} ${tarballName}`);
 EOF
-)"
+)" # "
 
 IFS=' ' read -r NEW_VERSION NEW_VERSION_URL LIBFFI_TARBALL <<EOF
 $NEW_VERSION_METADATA
 EOF
 
-CURRENT_VERSION=$(grep "^LIBFFI_VERSION = " "$DEPS_DIR/libffi/generate-headers.py" | sed -n "s/^LIBFFI_VERSION = '\(.*\)'/\1/p")
+CURRENT_VERSION=$(sed -n '/^@set VERSION /s/.* \([0-9.]*\)$/\1/p' "$DEPS_DIR/libffi/doc/version.texi")
 
 # This function exit with 0 if new version and current version are the same
 compare_dependency_version "libffi" "$NEW_VERSION" "$CURRENT_VERSION"
@@ -49,25 +49,21 @@ cleanup () {
 
 trap cleanup INT TERM EXIT
 
-cd "$WORKSPACE"
-
 echo "Fetching libffi source archive..."
-curl -sL -o "$LIBFFI_TARBALL" "$NEW_VERSION_URL"
-log_and_verify_sha256sum "libffi" "$LIBFFI_TARBALL"
-gzip -dc "$LIBFFI_TARBALL" | tar xf -
-rm "$LIBFFI_TARBALL"
-
-FOLDER=$(ls -d -- */)
-mv "$FOLDER" libffi
+curl -fsSLo "$WORKSPACE/$LIBFFI_TARBALL" "$NEW_VERSION_URL"
+log_and_verify_sha256sum "libffi" "$WORKSPACE/$LIBFFI_TARBALL"
+tar -C "$WORKSPACE" -xzf "$WORKSPACE/$LIBFFI_TARBALL"
+LIBFFI_STAGING=$(find "$WORKSPACE" -mindepth 1 -maxdepth 1 -type d -print -quit)
 
 echo "Copying existing Node.js-specific files"
-cp "$DEPS_DIR/libffi/libffi.gyp" "$WORKSPACE/libffi"
-cp "$DEPS_DIR/libffi/generate-headers.py" "$WORKSPACE/libffi"
-cp "$DEPS_DIR/libffi/generate-configure-headers.py" "$WORKSPACE/libffi"
-cp "$DEPS_DIR/libffi/generate-darwin-source-and-headers.py" "$WORKSPACE/libffi"
+cp "$DEPS_DIR/libffi/libffi.gyp" "$LIBFFI_STAGING"
+cp "$DEPS_DIR/libffi/preprocess_asm.py" "$LIBFFI_STAGING"
+cp "$DEPS_DIR/libffi/generate-headers.py" "$LIBFFI_STAGING"
+cp "$DEPS_DIR/libffi/generate-configure-headers.py" "$LIBFFI_STAGING"
+cp "$DEPS_DIR/libffi/generate-darwin-source-and-headers.py" "$LIBFFI_STAGING"
 
 echo "Replacing existing libffi"
-replace_dir "$DEPS_DIR/libffi" "$WORKSPACE/libffi"
+replace_dir "$DEPS_DIR/libffi" "$LIBFFI_STAGING"
 
 NEW_VERSION_NUMBER=$($NODE -e "const [major, minor, patch] = process.argv[1].split('.'); console.log(String(Number(major)) + String(Number(minor)).padStart(2, '0') + String(Number(patch)).padStart(2, '0'));" "$NEW_VERSION")
 

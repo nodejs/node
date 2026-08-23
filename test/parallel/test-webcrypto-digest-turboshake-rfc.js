@@ -5,6 +5,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasFIPS } = require('../common/crypto');
+
+if (hasFIPS())
+  common.skip('TurboSHAKE and KangarooTwelve are not available in FIPS mode');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
@@ -326,6 +331,15 @@ async function checkDigest(name, vectors) {
       else
         algorithm.domainSeparation = rest[0];
     }
+
+    if (isKT && algorithm.customization?.byteLength > 512) {
+      await assert.rejects(subtle.digest(algorithm, input), {
+        name: 'OperationError',
+        message: 'KangarooTwelveParams.customization must be at most 512 bytes',
+      });
+      continue;
+    }
+
     const result = await subtle.digest(algorithm, input);
     assert.deepStrictEqual(
       Buffer.from(result).toString('hex'),

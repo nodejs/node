@@ -24,7 +24,6 @@
  */
 #include "tls_server_context_picotls.h"
 
-#include <iostream>
 #include <memory>
 #include <algorithm>
 
@@ -207,7 +206,7 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
   uint32_t ver;
 
   if (is_encrypt) {
-    ver = htonl(ngtcp2_conn_get_negotiated_version(conn));
+    ver = htonl(ngtcp2_conn_get_negotiated_version2(conn));
     // TODO Replace std::make_unique with
     // std::make_unique_for_overwrite when it is available.
     auto buf = std::make_unique<uint8_t[]>(src.len + sizeof(ver));
@@ -245,7 +244,7 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
 
   memcpy(&ver, dst->base + dst->off - sizeof(ver), sizeof(ver));
 
-  if (ngtcp2_conn_get_client_chosen_version(conn) != ntohl(ver)) {
+  if (ngtcp2_conn_get_client_chosen_version2(conn) != ntohl(ver)) {
     return -1;
   }
 

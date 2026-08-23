@@ -11,7 +11,7 @@
     "bindings",
     "gyp"
   ],
-  "version": "12.3.0",
+  "version": "12.4.0",
   "installVersion": 11,
   "author": "Nathan Rajlich <nathan@tootallnate.net> (http://tootallnate.net)",
   "repository": {

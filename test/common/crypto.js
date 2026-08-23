@@ -50,9 +50,14 @@ function assertApproximateSize(key, expectedSize) {
 function testEncryptDecrypt(publicKey, privateKey) {
   const message = 'Hello Node.js world!';
   const plaintext = Buffer.from(message, 'utf8');
+  const withOaepHash = (key) => {
+    if (!hasFIPS(3)) return key;
+    if (key?.key !== undefined) return { ...key, oaepHash: 'sha256' };
+    return { key, oaepHash: 'sha256' };
+  };
   for (const key of [publicKey, privateKey]) {
-    const ciphertext = publicEncrypt(key, plaintext);
-    const received = privateDecrypt(privateKey, ciphertext);
+    const ciphertext = publicEncrypt(withOaepHash(key), plaintext);
+    const received = privateDecrypt(withOaepHash(privateKey), ciphertext);
     assert.strictEqual(received.toString('utf8'), message);
   }
 }
@@ -118,6 +123,10 @@ const hasOpenSSL = (major = 0, minor = 0, patch = 0) => {
   return OPENSSL_VERSION_NUMBER >= opensslVersionNumber(major, minor, patch);
 };
 
+const hasFIPS = (major = 0, minor = 0, patch = 0) => {
+  return crypto.getFips() === 1 && hasOpenSSL(major, minor, patch);
+};
+
 let opensslCli = null;
 
 module.exports = {
@@ -134,6 +143,7 @@ module.exports = {
   sec1Exp,
   sec1EncExp,
   hasOpenSSL,
+  hasFIPS,
   get hasOpenSSL3() {
     return hasOpenSSL(3);
   },

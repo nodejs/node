@@ -20,6 +20,9 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "allow-file": "all",
   "allow-git": "all",
   "allow-remote": "all",
+  "allow-scripts": [
+    ""
+  ],
   "also": null,
   "audit": true,
   "audit-level": null,
@@ -37,6 +40,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "cidr": null,
   "commit-hooks": true,
   "cpu": null,
+  "dangerously-allow-all-scripts": false,
   "depth": null,
   "description": true,
   "dev": false,
@@ -108,6 +112,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "maxsockets": 15,
   "message": "%s",
   "min-release-age": null,
+  "min-release-age-exclude": [],
   "node-gyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "node-options": null,
   "noproxy": [
@@ -127,6 +132,8 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "pack-destination": ".",
   "packages": [],
   "parseable": false,
+  "allow-scripts-pending": false,
+  "allow-scripts-pin": true,
   "prefer-dedupe": false,
   "prefer-offline": false,
   "prefer-online": false,
@@ -167,6 +174,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "sign-git-commit": false,
   "sign-git-tag": false,
   "strict-peer-deps": false,
+  "strict-allow-scripts": false,
   "strict-ssl": true,
   "tag": "latest",
   "tag-version-prefix": "v",
@@ -200,6 +208,9 @@ allow-file = "all"
 allow-git = "all"
 allow-remote = "all"
 allow-same-version = false
+allow-scripts = [""]
+allow-scripts-pending = false
+allow-scripts-pin = true
 also = null
 audit = true
 audit-level = null
@@ -219,6 +230,7 @@ cidr = null
 ; color = {COLOR}
 commit-hooks = true
 cpu = null
+dangerously-allow-all-scripts = false
 depth = null
 description = true
 dev = false
@@ -290,6 +302,7 @@ logs-max = 10
 maxsockets = 15
 message = "%s"
 min-release-age = null
+min-release-age-exclude = []
 name = null
 node-gyp = "{CWD}/node_modules/node-gyp/bin/node-gyp.js"
 node-options = null
@@ -348,6 +361,7 @@ shell = "{SHELL}"
 shrinkwrap = true
 sign-git-commit = false
 sign-git-tag = false
+strict-allow-scripts = false
 strict-peer-deps = false
 strict-ssl = true
 tag = "latest"

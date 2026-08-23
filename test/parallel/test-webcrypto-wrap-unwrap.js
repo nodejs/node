@@ -5,10 +5,13 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 const assert = require('assert');
+const { getFips } = require('crypto');
 const { subtle } = globalThis.crypto;
+const fips3 = hasFIPS(3);
+const fips35 = hasFIPS(3, 5);
 
 const kWrappingData = {
   'RSA-OAEP': {
@@ -35,7 +38,7 @@ const kWrappingData = {
     wrap: {
       iv: new Uint8Array(16),
       additionalData: new Uint8Array(16),
-      tagLength: 64
+      tagLength: fips3 ? 128 : 64
     },
     pair: false
   },
@@ -54,7 +57,10 @@ const kWrappingData = {
   }
 };
 
-if (hasOpenSSL(3)) {
+if (fips3)
+  delete kWrappingData['ChaCha20-Poly1305'];
+
+if (hasOpenSSL(3) && !fips3) {
   kWrappingData['AES-OCB'] = {
     generate: { length: 128 },
     wrap: {
@@ -87,7 +93,7 @@ async function generateKeysToWrap() {
     {
       algorithm: {
         name: 'RSASSA-PKCS1-v1_5',
-        modulusLength: 1024,
+        modulusLength: getFips() === 1 ? 2048 : 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256'
       },
@@ -98,7 +104,7 @@ async function generateKeysToWrap() {
     {
       algorithm: {
         name: 'RSA-PSS',
-        modulusLength: 1024,
+        modulusLength: getFips() === 1 ? 2048 : 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256'
       },
@@ -109,7 +115,7 @@ async function generateKeysToWrap() {
     {
       algorithm: {
         name: 'RSA-OAEP',
-        modulusLength: 1024,
+        modulusLength: getFips() === 1 ? 2048 : 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256'
       },
@@ -232,6 +238,20 @@ async function generateKeysToWrap() {
     );
   } else {
     common.printSkipMessage('Skipping unsupported Curve test cases');
+  }
+
+  if (fips3) {
+    const unsupported = new Set([
+      'ChaCha20-Poly1305',
+    ]);
+    if (fips35) {
+      unsupported.add('X25519');
+      unsupported.add('X448');
+    }
+    for (let i = parameters.length - 1; i >= 0; --i) {
+      if (unsupported.has(parameters[i].algorithm.name))
+        parameters.splice(i, 1);
+    }
   }
 
   const allkeys = await Promise.all(parameters.map(async (params) => {
@@ -360,6 +380,37 @@ function testWrapping(name, keys) {
 }
 
 (async function() {
+  if (fips3) {
+    await assert.rejects(
+      subtle.generateKey(
+        { name: 'ChaCha20-Poly1305' }, true, ['wrapKey']),
+      { name: 'NotSupportedError' });
+
+    if (fips35) {
+      for (const name of ['X25519', 'X448']) {
+        await assert.rejects(
+          subtle.generateKey({ name }, true, ['deriveBits']),
+          (err) => err.name === 'OperationError' &&
+                   err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+      }
+    }
+
+    const wrappingKey = await subtle.generateKey(
+      { name: 'AES-OCB', length: 128 }, true, ['wrapKey']);
+    const key = await subtle.generateKey(
+      { name: 'HMAC', hash: 'SHA-256', length: 256 },
+      true,
+      ['sign']);
+    await assert.rejects(
+      subtle.wrapKey(
+        'raw',
+        key,
+        wrappingKey,
+        { name: 'AES-OCB', iv: new Uint8Array(15), tagLength: 128 }),
+      (err) => err.name === 'OperationError' &&
+               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+  }
+
   await generateWrappingKeys();
   const keys = await generateKeysToWrap();
   const variations = [];
@@ -367,6 +418,89 @@ function testWrapping(name, keys) {
     variations.push(...testWrapping(name, keys));
   });
   await Promise.all(variations);
+})().then(common.mustCall());
+
+async function testNonByteLengthWrapUnwrap({
+  key,
+  formats,
+  rawFormat,
+  explicitAlgorithm,
+  implicitAlgorithm,
+}) {
+  const wrappingKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['wrapKey', 'unwrapKey']);
+  const expectedRaw = new Uint8Array(await subtle.exportKey(rawFormat, key));
+
+  for (const [i, format] of formats.entries()) {
+    const wrapAlgorithm = {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12).fill(i),
+    };
+    const wrapped = await subtle.wrapKey(format, key, wrappingKey, wrapAlgorithm);
+
+    // The serialized key material carries bytes, not the requested bit length.
+    const explicit = await subtle.unwrapKey(
+      format,
+      wrapped,
+      wrappingKey,
+      wrapAlgorithm,
+      explicitAlgorithm,
+      true,
+      ['sign', 'verify']);
+    assert.strictEqual(explicit.algorithm.length, 9);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey(rawFormat, explicit)),
+      expectedRaw);
+
+    const implicit = await subtle.unwrapKey(
+      format,
+      wrapped,
+      wrappingKey,
+      wrapAlgorithm,
+      implicitAlgorithm,
+      true,
+      ['sign', 'verify']);
+    assert.strictEqual(implicit.algorithm.length, expectedRaw.byteLength * 8);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey(rawFormat, implicit)),
+      expectedRaw);
+  }
+}
+
+(async function() {
+  const hmacAlgorithm = { name: 'HMAC', hash: 'SHA-256' };
+  const hmacKey = await subtle.importKey(
+    'raw',
+    new Uint8Array([0xff, 0xff]),
+    { ...hmacAlgorithm, length: 9 },
+    true,
+    ['sign', 'verify']);
+  await testNonByteLengthWrapUnwrap({
+    key: hmacKey,
+    formats: ['raw', 'jwk'],
+    rawFormat: 'raw',
+    explicitAlgorithm: { ...hmacAlgorithm, length: 9 },
+    implicitAlgorithm: hmacAlgorithm,
+  });
+
+  if (hasOpenSSL(3) && getFips() !== 1) {
+    const kmacAlgorithm = { name: 'KMAC128' };
+    const kmacKey = await subtle.importKey(
+      'raw-secret',
+      new Uint8Array([0xff, 0xff]),
+      { ...kmacAlgorithm, length: 9 },
+      true,
+      ['sign', 'verify']);
+    await testNonByteLengthWrapUnwrap({
+      key: kmacKey,
+      formats: ['raw-secret', 'jwk'],
+      rawFormat: 'raw-secret',
+      explicitAlgorithm: { ...kmacAlgorithm, length: 9 },
+      implicitAlgorithm: kmacAlgorithm,
+    });
+  }
 })().then(common.mustCall());
 
 // Test that wrapKey/unwrapKey validate the wrapping/unwrapping key's

@@ -8,7 +8,6 @@
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_buffer.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
@@ -16,22 +15,19 @@ namespace node {
 
 using ncrypto::EVPKeyPointer;
 using v8::Array;
-using v8::ArrayBufferView;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
 
 KEMConfiguration::KEMConfiguration(KEMConfiguration&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
-      key(std::move(other.key)),
-      ciphertext(std::move(other.ciphertext)) {}
+    : key(std::move(other.key)), ciphertext(std::move(other.ciphertext)) {}
 
 KEMConfiguration& KEMConfiguration::operator=(
     KEMConfiguration&& other) noexcept {
@@ -42,55 +38,10 @@ KEMConfiguration& KEMConfiguration::operator=(
 
 void KEMConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  if (IsCryptoJobAsync(job_mode)) {
-    tracker->TrackFieldWithSize("ciphertext", ciphertext.size());
-  }
+  tracker->TraitTrackInline(ciphertext, "ciphertext");
 }
 
 namespace {
-
-bool DoKEMEncapsulate(Environment* env,
-                      const EVPKeyPointer& public_key,
-                      ByteSource* out,
-                      CryptoJobMode mode,
-                      CryptoErrorStore* errors) {
-  auto result = ncrypto::KEM::Encapsulate(public_key);
-  if (!result) {
-    errors->Insert(NodeCryptoError::ENCAPSULATION_FAILED);
-    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
-    return false;
-  }
-
-  // Pack the result: [ciphertext_len][shared_key_len][ciphertext][shared_key]
-  size_t ciphertext_len = result->ciphertext.size();
-  size_t shared_key_len = result->shared_key.size();
-  size_t total_len =
-      sizeof(uint32_t) + sizeof(uint32_t) + ciphertext_len + shared_key_len;
-
-  auto data = ncrypto::DataPointer::Alloc(total_len);
-  if (!data) {
-    errors->Insert(NodeCryptoError::ALLOCATION_FAILED);
-    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
-    return false;
-  }
-
-  unsigned char* ptr = static_cast<unsigned char*>(data.get());
-
-  // Write size headers
-  *reinterpret_cast<uint32_t*>(ptr) = static_cast<uint32_t>(ciphertext_len);
-  *reinterpret_cast<uint32_t*>(ptr + sizeof(uint32_t)) =
-      static_cast<uint32_t>(shared_key_len);
-
-  // Write ciphertext and shared key data
-  unsigned char* ciphertext_ptr = ptr + 2 * sizeof(uint32_t);
-  unsigned char* shared_key_ptr = ciphertext_ptr + ciphertext_len;
-
-  std::memcpy(ciphertext_ptr, result->ciphertext.get(), ciphertext_len);
-  std::memcpy(shared_key_ptr, result->shared_key.get(), shared_key_len);
-
-  *out = ByteSource::Allocated(data.release());
-  return true;
-}
 
 bool DoKEMDecapsulate(Environment* env,
                       const EVPKeyPointer& private_key,
@@ -119,9 +70,6 @@ Maybe<void> KEMEncapsulateTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     KEMConfiguration* params) {
-  params->job_mode = mode;
-  params->mode = KEMMode::Encapsulate;
-
   unsigned int key_offset = offset;
   auto public_key_data =
       KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &key_offset);
@@ -133,72 +81,113 @@ Maybe<void> KEMEncapsulateTraits::AdditionalConfig(
   return v8::JustVoid();
 }
 
-bool KEMEncapsulateTraits::DeriveBits(Environment* env,
-                                      const KEMConfiguration& params,
-                                      ByteSource* out,
-                                      CryptoJobMode mode,
-                                      CryptoErrorStore* errors) {
-  Mutex::ScopedLock lock(params.key.mutex());
-  const auto& public_key = params.key.GetAsymmetricKey();
+void KEMEncapsulateJob::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
 
-  return DoKEMEncapsulate(env, public_key, out, mode, errors);
+  CryptoJobMode mode = GetCryptoJobMode(args[0]);
+  AdditionalParams params;
+  if (KEMEncapsulateTraits::AdditionalConfig(mode, args, 1, &params)
+          .IsNothing()) {
+    return;
+  }
+
+  new KEMEncapsulateJob(env, args.This(), mode, std::move(params));
 }
 
-MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(
-    Environment* env, const KEMConfiguration& params, ByteSource* out) {
-  // The output contains:
-  // [ciphertext_len][shared_key_len][ciphertext][shared_key]
-  const unsigned char* data = out->data<unsigned char>();
+void KEMEncapsulateJob::Initialize(Environment* env, Local<Object> target) {
+  CryptoJob<KEMEncapsulateTraits>::Initialize(New, env, target);
+}
 
-  uint32_t ciphertext_len = *reinterpret_cast<const uint32_t*>(data);
-  uint32_t shared_key_len =
-      *reinterpret_cast<const uint32_t*>(data + sizeof(uint32_t));
+void KEMEncapsulateJob::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  CryptoJob<KEMEncapsulateTraits>::RegisterExternalReferences(New, registry);
+}
 
-  const unsigned char* ciphertext_ptr = data + 2 * sizeof(uint32_t);
-  const unsigned char* shared_key_ptr = ciphertext_ptr + ciphertext_len;
+KEMEncapsulateJob::KEMEncapsulateJob(Environment* env,
+                                     Local<Object> object,
+                                     CryptoJobMode mode,
+                                     AdditionalParams&& params)
+    : CryptoJob<KEMEncapsulateTraits>(env,
+                                      object,
+                                      KEMEncapsulateTraits::Provider,
+                                      mode,
+                                      std::move(params)) {}
 
-  MaybeLocal<Object> ciphertext_buf =
-      node::Buffer::Copy(env->isolate(),
-                         reinterpret_cast<const char*>(ciphertext_ptr),
-                         ciphertext_len);
+void KEMEncapsulateJob::DoThreadPoolWork() {
+  ncrypto::ClearErrorOnReturn clear_error_on_return;
+  AdditionalParams* params = CryptoJob<KEMEncapsulateTraits>::params();
+  Mutex::ScopedLock lock(params->key.mutex());
+  auto result = ncrypto::KEM::Encapsulate(params->key.GetAsymmetricKey());
+  if (result) {
+    out_.emplace();
+    out_->ciphertext = ByteSource::Allocated(result->ciphertext.release());
+    out_->shared_key = ByteSource::Allocated(result->shared_key.release());
+  } else {
+    CryptoErrorStore* errors = CryptoJob<KEMEncapsulateTraits>::errors();
+    errors->Insert(NodeCryptoError::ENCAPSULATION_FAILED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
+  }
+}
 
-  MaybeLocal<Object> shared_key_buf =
-      node::Buffer::Copy(env->isolate(),
-                         reinterpret_cast<const char*>(shared_key_ptr),
-                         shared_key_len);
-
-  Local<Object> ciphertext_obj;
-  Local<Object> shared_key_obj;
-  if (!ciphertext_buf.ToLocal(&ciphertext_obj) ||
-      !shared_key_buf.ToLocal(&shared_key_obj)) {
-    return MaybeLocal<Value>();
+Maybe<void> KEMEncapsulateJob::ToResult(Local<Value>* err,
+                                        Local<Value>* result) {
+  Environment* env = AsyncWrap::env();
+  CryptoErrorStore* errors = CryptoJob<KEMEncapsulateTraits>::errors();
+  if (!out_) {
+    if (errors->Empty()) errors->Capture();
+    CHECK(!errors->Empty());
+    *result = v8::Undefined(env->isolate());
+    if (!errors->ToException(env).ToLocal(err)) return Nothing<void>();
+    return v8::JustVoid();
   }
 
-  if (params.job_mode == kCryptoJobWebCrypto) {
-    Local<Object> result = Object::New(env->isolate());
-    if (!result
+  CHECK(errors->Empty());
+  *err = v8::Undefined(env->isolate());
+
+  ByteSource ciphertext = std::move(out_->ciphertext);
+  ByteSource shared_key = std::move(out_->shared_key);
+
+  if (mode() == kCryptoJobWebCrypto) {
+    Local<Object> output = Object::New(env->isolate());
+    if (!output
              ->DefineOwnProperty(env->context(),
                                  OneByteString(env->isolate(), "sharedKey"),
-                                 shared_key_obj.As<ArrayBufferView>()->Buffer())
+                                 shared_key.ToArrayBuffer(env))
              .FromMaybe(false) ||
-        !result
+        !output
              ->DefineOwnProperty(env->context(),
                                  OneByteString(env->isolate(), "ciphertext"),
-                                 ciphertext_obj.As<ArrayBufferView>()->Buffer())
+                                 ciphertext.ToArrayBuffer(env))
              .FromMaybe(false)) {
-      return MaybeLocal<Value>();
+      return Nothing<void>();
     }
-    return result;
+    *result = output;
+    return v8::JustVoid();
   }
 
-  // Return an array [sharedKey, ciphertext].
-  Local<Array> result = Array::New(env->isolate(), 2);
-  if (result->Set(env->context(), 0, shared_key_obj).IsNothing() ||
-      result->Set(env->context(), 1, ciphertext_obj).IsNothing()) {
-    return MaybeLocal<Value>();
+  Local<Uint8Array> shared_key_buf;
+  Local<Uint8Array> ciphertext_buf;
+  if (!shared_key.ToBuffer(env).ToLocal(&shared_key_buf) ||
+      !ciphertext.ToBuffer(env).ToLocal(&ciphertext_buf)) {
+    return Nothing<void>();
   }
 
-  return result;
+  Local<Array> output = Array::New(env->isolate(), 2);
+  if (output->Set(env->context(), 0, shared_key_buf).IsNothing() ||
+      output->Set(env->context(), 1, ciphertext_buf).IsNothing()) {
+    return Nothing<void>();
+  }
+  *result = output;
+  return v8::JustVoid();
+}
+
+void KEMEncapsulateJob::MemoryInfo(MemoryTracker* tracker) const {
+  if (out_) {
+    tracker->TraitTrackInline(out_->ciphertext, "ciphertext");
+    tracker->TraitTrackInline(out_->shared_key, "shared_key");
+  }
+  CryptoJob<KEMEncapsulateTraits>::MemoryInfo(tracker);
 }
 
 // KEMDecapsulateTraits implementation
@@ -208,9 +197,6 @@ Maybe<void> KEMDecapsulateTraits::AdditionalConfig(
     unsigned int offset,
     KEMConfiguration* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
-  params->mode = KEMMode::Decapsulate;
 
   unsigned int key_offset = offset;
   auto private_key_data =

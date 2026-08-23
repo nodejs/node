@@ -24,6 +24,12 @@ const algorithms = [
         publicKeyUsages: ["verify"]
     },
     {
+        name: "Ed448",
+        generateKeyParams: { name: "Ed448" },
+        usages: ["sign", "verify"],
+        publicKeyUsages: ["verify"]
+    },
+    {
         name: "RSA-OAEP",
         generateKeyParams: {
             name: "RSA-OAEP",
@@ -61,6 +67,48 @@ const algorithms = [
         generateKeyParams: { name: "X25519" },
         usages: ["deriveKey", "deriveBits"],
         publicKeyUsages: []
+    },
+    {
+        name: "X448",
+        generateKeyParams: { name: "X448" },
+        usages: ["deriveKey", "deriveBits"],
+        publicKeyUsages: []
+    },
+    {
+        name: "ML-DSA-44",
+        generateKeyParams: { name: "ML-DSA-44" },
+        usages: ["sign", "verify"],
+        publicKeyUsages: ["verify"]
+    },
+    {
+        name: "ML-DSA-65",
+        generateKeyParams: { name: "ML-DSA-65" },
+        usages: ["sign", "verify"],
+        publicKeyUsages: ["verify"]
+    },
+    {
+        name: "ML-DSA-87",
+        generateKeyParams: { name: "ML-DSA-87" },
+        usages: ["sign", "verify"],
+        publicKeyUsages: ["verify"]
+    },
+    {
+        name: "ML-KEM-512",
+        generateKeyParams: { name: "ML-KEM-512" },
+        usages: ["encapsulateBits", "encapsulateKey", "decapsulateBits", "decapsulateKey"],
+        publicKeyUsages: ["encapsulateBits", "encapsulateKey"]
+    },
+    {
+        name: "ML-KEM-768",
+        generateKeyParams: { name: "ML-KEM-768" },
+        usages: ["encapsulateBits", "encapsulateKey", "decapsulateBits", "decapsulateKey"],
+        publicKeyUsages: ["encapsulateBits", "encapsulateKey"]
+    },
+    {
+        name: "ML-KEM-1024",
+        generateKeyParams: { name: "ML-KEM-1024" },
+        usages: ["encapsulateBits", "encapsulateKey", "decapsulateBits", "decapsulateKey"],
+        publicKeyUsages: ["encapsulateBits", "encapsulateKey"]
     }
 ];
 

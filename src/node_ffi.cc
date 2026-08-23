@@ -8,6 +8,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "ffi/data.h"
+#include "ffi/fast.h"
 #include "ffi/types.h"
 #include "node_errors.h"
 
@@ -31,7 +32,6 @@ using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -41,17 +41,32 @@ using v8::Value;
 
 namespace ffi {
 
+void FFIFunction::Invoke(void* result, void** values) {
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+  if (call_plan != nullptr) {
+    ffi_call_plan_invoke(call_plan.get(), FFI_FN(ptr), result, values);
+    return;
+  }
+#endif
+
+  ffi_call(&cif, FFI_FN(ptr), result, values);
+}
+
 void FFIFunctionInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("sb_backing", sb_backing);
 }
 
 DynamicLibrary::DynamicLibrary(Environment* env, Local<Object> object)
-    : BaseObject(env, object), lib_{}, handle_(nullptr), symbols_() {
+    : BaseObject(env, object) {
   MakeWeak();
 }
 
 DynamicLibrary::~DynamicLibrary() {
   this->Close();
+}
+
+bool DynamicLibrary::is_closed() const {
+  return static_cast<void*>(lib_.handle) == nullptr;
 }
 
 void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
@@ -66,6 +81,12 @@ void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
 
   tracker->TrackFieldWithSize(
       "symbols", symbols_size, "std::unordered_map<std::string, void*>");
+
+  tracker->TrackFieldWithSize(
+      "function_wrappers",
+      function_wrappers_.size() *
+          sizeof(decltype(function_wrappers_)::value_type),
+      "std::unordered_map<std::string, v8::Global<v8::Function>>");
 
   // FFIFunctionInfo instances and their sb_backing ArrayBuffers are
   // owned by V8 function wrappers and reachable only via weak references,
@@ -85,19 +106,20 @@ void DynamicLibrary::Close() {
   // dangerous: it can crash the process, produce incorrect output, or corrupt
   // memory.
 
-  if (handle_ != nullptr) {
+  if (!is_closed()) {
     uv_dlclose(&lib_);
-    handle_ = nullptr;
+    lib_ = {};
   }
 
   symbols_.clear();
   functions_.clear();
+  function_wrappers_.clear();
   callbacks_.clear();
 }
 
 Maybe<void*> DynamicLibrary::ResolveSymbol(Environment* env,
                                            const std::string& name) {
-  if (handle_ == nullptr) {
+  if (is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return {};
   }
@@ -141,14 +163,12 @@ Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
 
     should_cache_symbol = symbols_.find(name) == symbols_.end();
 
-    fn = std::make_shared<FFIFunction>(
-        FFIFunction{.closed = false,
-                    .ptr = ptr,
-                    .cif = {},
-                    .args = args,
-                    .return_type = return_type,
-                    .arg_type_names = std::move(arg_type_names),
-                    .return_type_name = std::move(return_type_name)});
+    fn = std::make_shared<FFIFunction>();
+    fn->ptr = ptr;
+    fn->args = std::move(args);
+    fn->return_type = return_type;
+    fn->arg_type_names = std::move(arg_type_names);
+    fn->return_type_name = std::move(return_type_name);
 
     ffi_status status = ffi_prep_cif(&fn->cif,
                                      FFI_DEFAULT_ABI,
@@ -172,6 +192,14 @@ Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
       THROW_ERR_FFI_CALL_FAILED(env, msg);
       return {};
     }
+
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+    // Allocation failure is non-fatal. Invoke() falls back to ffi_call().
+    ffi_call_plan* call_plan = ffi_call_plan_alloc(&fn->cif);
+    if (call_plan != nullptr) {
+      fn->call_plan.reset(call_plan);
+    }
+#endif
 
     should_cache_function = true;
   } else {
@@ -237,18 +265,69 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
+  // Creating a callable emits a trampoline, allocates an FFIFunctionInfo, and
+  // on the SharedBuffer path allocates an ArrayBuffer, so reuse the one already
+  // handed out for this symbol. `PrepareFunction()` rejects a request that uses
+  // a different signature, so a hit always describes the same signature. An
+  // empty handle means the wrapper was collected; fall through and rebuild.
+  auto cached = function_wrappers_.find(name);
+  if (cached != function_wrappers_.end()) {
+    if (!cached->second.IsEmpty()) {
+      return cached->second.Get(isolate);
+    }
+    function_wrappers_.erase(cached);
+  }
+
   auto info = FFIFunctionInfo::Create(env, fn, this);
 
   DCHECK_EQ(fn->args.size(), fn->arg_type_names.size());
 
-  bool use_sb = IsSBEligibleSignature(*fn);
+  // Try the generated Fast API path first. If metadata creation rejects the
+  // signature, fall back to SharedBuffer for supported scalar shapes, then to
+  // the generic libffi invoker.
+  std::shared_ptr<FFIFunction> fast_fn = CloneWithRawPointerArgNames(fn);
+  info->fast_metadata = CreateFastFFIMetadata(*fast_fn, &fn->closed, isolate);
+  bool use_fast_api = info->fast_metadata != nullptr;
+  bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
+  // Signatures that need JS-side conversion or validation use a wrapper, as
+  // do all fast signatures on platforms without a native library guard.
+  bool needs_fast_argument_wrapper =
+      use_fast_api && (SignatureNeedsRawPointerConversions(*fn) ||
+                       SignatureNeedsFastIntegerValidation(*fn) ||
+                       !info->fast_metadata->guards_library);
+  // A single pointer-like parameter can get a separate Buffer-aware Fast API
+  // entrypoint so Buffer calls avoid JS pointer extraction.
+  bool needs_fast_buffer_invoke =
+      use_fast_api && SignatureNeedsFastBufferInvoke(*fn);
 
-  MaybeLocal<Function> maybe_ret =
-      Function::New(context,
-                    use_sb ? DynamicLibrary::InvokeFunctionSB
-                           : DynamicLibrary::InvokeFunction,
-                    info->object());
+  MaybeLocal<Function> maybe_ret;
+  if (use_fast_api) {
+    // V8 calls this FunctionTemplate through `fast_metadata->c_function` when
+    // the optimized Fast API call path is available. The normal callback stays
+    // attached as a fallback for V8 deopts and unsupported call sites.
+    Local<FunctionTemplate> tmpl =
+        FunctionTemplate::New(isolate,
+                              DynamicLibrary::InvokeFunction,
+                              info->object(),
+                              Local<v8::Signature>(),
+                              fn->args.size(),
+                              v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect,
+                              &info->fast_metadata->c_function);
+    maybe_ret = tmpl->GetFunction(context);
+  } else {
+    // Non-Fast signatures either use the SharedBuffer invoker, where JS writes
+    // argument slots before calling with no arguments, or the generic invoker
+    // that converts each JS argument in C++.
+    maybe_ret = Function::New(context,
+                              use_sb ? DynamicLibrary::InvokeFunctionSB
+                                     : DynamicLibrary::InvokeFunction,
+                              info->object(),
+                              0,
+                              v8::ConstructorBehavior::kThrow);
+  }
+
   Local<Function> ret;
   if (!maybe_ret.ToLocal(&ret)) {
     return MaybeLocal<Function>();
@@ -278,6 +357,9 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
       static_cast<PropertyAttribute>(ReadOnly | DontEnum | DontDelete);
 
   if (use_sb) {
+    // SharedBuffer layout is intentionally fixed-width: slot 0 stores the
+    // return value and slots 1..N store argument payloads. The JS wrapper and
+    // InvokeFunctionSB share this exact layout.
     size_t sb_size = 8 * (fn->args.size() + 1);
     Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sb_size);
     // The shared_ptr to the backing store keeps the memory alive while
@@ -296,8 +378,11 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // (strings, Buffers, ArrayBuffers, and ArrayBufferViews).
     if (has_ptr_args) {
       Local<Function> slow_fn;
-      if (!Function::New(
-               context, DynamicLibrary::InvokeFunction, info->object())
+      if (!Function::New(context,
+                         DynamicLibrary::InvokeFunction,
+                         info->object(),
+                         0,
+                         v8::ConstructorBehavior::kThrow)
                .ToLocal(&slow_fn)) {
         return MaybeLocal<Function>();
       }
@@ -340,6 +425,67 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     }
   }
 
+  if (needs_fast_argument_wrapper || needs_fast_buffer_invoke) {
+    // Fast API wrappers need only the parameter type names. Result conversion
+    // is still handled by V8's CFunction metadata, unlike the SharedBuffer path
+    // which must also know how to read slot 0.
+    Local<Value> arguments_arr;
+    if (!ToV8Value(context, fn->arg_type_names, isolate)
+             .ToLocal(&arguments_arr)) {
+      return MaybeLocal<Function>();
+    }
+    if (!ret->DefineOwnProperty(context,
+                                env->ffi_fast_arguments_symbol(),
+                                arguments_arr,
+                                internal_attrs)
+             .FromMaybe(false)) {
+      return MaybeLocal<Function>();
+    }
+  }
+
+  if (needs_fast_buffer_invoke) {
+    // Build an alternate CFunction that describes the pointer-like argument as
+    // a V8 buffer value. The JS wrapper dispatches here only when the runtime
+    // argument is Buffer/ArrayBuffer-backed memory.
+    std::shared_ptr<FFIFunction> fast_buffer_fn =
+        CloneWithFastBufferArgNames(fn);
+    info->fast_buffer_metadata =
+        CreateFastFFIMetadata(*fast_buffer_fn, &fn->closed, isolate);
+    if (info->fast_buffer_metadata != nullptr) {
+      // Store the secondary invoker on the primary raw function under a hidden
+      // Symbol. Keeping it separate avoids overloading SharedBuffer slow-path
+      // metadata for Fast API routing.
+      Local<FunctionTemplate> tmpl =
+          FunctionTemplate::New(isolate,
+                                DynamicLibrary::InvokeFunction,
+                                info->object(),
+                                Local<v8::Signature>(),
+                                fn->args.size(),
+                                v8::ConstructorBehavior::kThrow,
+                                v8::SideEffectType::kHasSideEffect,
+                                &info->fast_buffer_metadata->c_function);
+      Local<Function> fast_buffer_invoke;
+      if (!tmpl->GetFunction(context).ToLocal(&fast_buffer_invoke)) {
+        return MaybeLocal<Function>();
+      }
+      if (!ret->DefineOwnProperty(context,
+                                  env->ffi_fast_buffer_invoke_symbol(),
+                                  fast_buffer_invoke,
+                                  internal_attrs)
+               .FromMaybe(false)) {
+        return MaybeLocal<Function>();
+      }
+    }
+  }
+
+  // A strong handle would root the callable, which holds the library object
+  // through FFIFunctionInfo, so neither could ever be collected. Weaken the
+  // stored handle instead, so the cache lasts exactly as long as user code
+  // keeps a reference. SetWeak() runs after the move into the map because
+  // moving a handle relocates the underlying slot.
+  function_wrappers_.emplace(name, Global<Function>(isolate, ret))
+      .first->second.SetWeak();
+
   return ret;
 }
 
@@ -378,13 +524,12 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
     library_path = lib->path_.c_str();
   }
 
+  CHECK(lib->is_closed());
   // Open the library
   if (uv_dlopen(library_path, &lib->lib_) != 0) {
     THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
     return;
   }
-
-  lib->handle_ = static_cast<void*>(lib->lib_.handle);
 }
 
 void DynamicLibrary::Close(const FunctionCallbackInfo<Value>& args) {
@@ -456,7 +601,7 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
     result = Malloc(GetFFIReturnValueStorageSize(fn->return_type));
   }
 
-  ffi_call(&fn->cif, FFI_FN(fn->ptr), result, ffi_args.data());
+  fn->Invoke(result, ffi_args.data());
 
   // Return result back to Javascript
   ToJSReturnValue(env, args, fn->return_type, result);
@@ -515,7 +660,7 @@ void DynamicLibrary::InvokeFunctionSB(const FunctionCallbackInfo<Value>& args) {
   alignas(8) uint8_t result_storage[kSBResultStorageSize] = {0};
   void* result = (fn->return_type != &ffi_type_void) ? result_storage : nullptr;
 
-  ffi_call(&fn->cif, FFI_FN(fn->ptr), result, ffi_args.data());
+  fn->Invoke(result, ffi_args.data());
 
   if (result != nullptr) {
     WriteFFIReturnToBuffer(fn->return_type, result, buffer, 0);
@@ -539,7 +684,7 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   // It is unsupported and dangerous for a callback to unregister itself or
   // close its owning library while executing. The current invocation must
   // return before teardown APIs are used.
-  if (cb->owner->handle_ == nullptr || cb->ptr == nullptr) {
+  if (cb->owner->is_closed() || cb->ptr == nullptr) {
     if (ret != nullptr && cb->return_type->size > 0) {
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
@@ -569,13 +714,11 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   size_t expected_args = cb->args.size();
   LocalVector<Value> callback_args(isolate, expected_args);
 
+  // libffi always points `args[i]` at its own storage for the value of
+  // argument `i`, so the slot pointers themselves are never null. A NULL
+  // pointer argument surfaces as the BigInt `0n` via ToJSArgument.
   for (size_t i = 0; i < expected_args; i++) {
-    if (args[i] == nullptr) {
-      callback_args[i] = Null(isolate);
-      continue;
-    } else {
-      callback_args[i] = ToJSArgument(isolate, cb->args[i], args[i]);
-    }
+    callback_args[i] = ToJSArgument(isolate, cb->args[i], args[i]);
   }
 
   TryCatch try_catch(isolate);
@@ -669,7 +812,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -818,7 +961,7 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -890,7 +1033,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -971,7 +1114,7 @@ void DynamicLibrary::UnregisterCallback(
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -1007,7 +1150,7 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -1031,6 +1174,15 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // The callback function may already have been collected after a previous
+  // unrefCallback() call. The persistent handle is empty in that case, and
+  // ClearWeak() on an empty handle dereferences a null slot. There is also no
+  // function left to make strong again.
+  if (existing->second->fn.IsEmpty()) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
+    return;
+  }
+
   existing->second->fn.ClearWeak();
 }
 
@@ -1038,7 +1190,7 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -1058,6 +1210,14 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   auto existing = lib->callbacks_.find(ptr);
 
   if (existing == lib->callbacks_.end()) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
+    return;
+  }
+
+  // The callback function may already have been collected by a previous
+  // unrefCallback() call. The persistent handle is empty in that case, and
+  // SetWeak() on an empty handle dereferences a null slot.
+  if (existing->second->fn.IsEmpty()) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
     return;
   }
@@ -1080,7 +1240,7 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
         DynamicLibrary::kInternalFieldCount);
 
     tmpl->InstanceTemplate()->SetAccessorProperty(
-        FIXED_ONE_BYTE_STRING(isolate, "path"),
+        env->path_string(),
         FunctionTemplate::New(env->isolate(), DynamicLibrary::GetPath),
         Local<FunctionTemplate>(),
         attributes);
@@ -1123,6 +1283,17 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
   return tmpl;
 }
 
+void GetCurrentEventLoop(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(
+      isolate,
+      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(env->event_loop()))));
+}
+
 // Module initialization.
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
@@ -1138,6 +1309,7 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "toArrayBuffer", ToArrayBuffer);
   SetMethod(context, target, "exportBytes", ExportBytes);
   SetMethod(context, target, "getRawPointer", GetRawPointer);
+  SetMethod(context, target, "getCurrentEventLoop", GetCurrentEventLoop);
 
   SetMethod(context, target, "getInt8", GetInt8);
   SetMethod(context, target, "getUint8", GetUint8);
@@ -1171,9 +1343,9 @@ static void Initialize(Local<Object> target,
             Boolean::New(isolate, CHAR_MIN < 0))
       .Check();
 
-  // The shared-buffer fast path uses `uintptrMax` to reject pointer BigInts
-  // that would otherwise be silently truncated by `ReadFFIArgFromBuffer`'s
-  // `memcpy(..., type->size, ...)` on 32-bit platforms. The slow path
+  // The JavaScript fast paths use `uintptrMax` to reject pointer BigInts that
+  // would otherwise be silently truncated by V8 or, on 32-bit platforms, by
+  // `ReadFFIArgFromBuffer`'s `memcpy(..., type->size, ...)`. The slow path
   // rejects the same values through `ToFFIArgument`.
   target
       ->Set(context,
@@ -1204,6 +1376,18 @@ static void Initialize(Local<Object> target,
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kSbReturn"),
             env->ffi_sb_return_symbol())
+      .Check();
+  // Fast API wrappers use separate metadata Symbols so pointer-conversion
+  // routing does not depend on SharedBuffer internals.
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kFastArguments"),
+            env->ffi_fast_arguments_symbol())
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kFastBufferInvoke"),
+            env->ffi_fast_buffer_invoke_symbol())
       .Check();
 }
 

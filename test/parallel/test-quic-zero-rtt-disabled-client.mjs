@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -53,8 +51,8 @@ const cs2 = await connect(serverEndpoint.address, {
 
 const info2 = await cs2.opened;
 // 0-RTT should NOT be attempted.
-strictEqual(info2.earlyDataAttempted, false);
-strictEqual(info2.earlyDataAccepted, false);
+assert.strictEqual(info2.earlyDataAttempted, false);
+assert.strictEqual(info2.earlyDataAccepted, false);
 
 await cs2.close();
 await serverEndpoint.close();

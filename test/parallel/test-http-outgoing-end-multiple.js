@@ -10,8 +10,10 @@ const onWriteAfterEndError = common.mustCall((err) => {
 const server = http.createServer(common.mustCall(function(req, res) {
   res.end('testing ended state', common.mustCall());
   assert.strictEqual(res.writableCorked, 0);
+  // end() before 'finish' has been emitted queues the callback, which then
+  // reports the outcome of the flush, matching stream.Writable.
   res.end(common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_ALREADY_FINISHED');
+    assert.strictEqual(err, null);
   }));
   assert.strictEqual(res.writableCorked, 0);
   res.end('end', onWriteAfterEndError);

@@ -4,7 +4,7 @@ Welcome. You've found your way to the Node.js native crypto subsystem.
 
 Do not be afraid.
 
-While crypto may be a dark, mysterious, and forboding subject; and while
+While crypto may be a dark, mysterious, and foreboding subject; and while
 this directory may be filled with many `*.h` and `*.cc` files, finding
 your way around is not too difficult. And I can promise you that a Gru
 will not jump out of the shadows and eat you (well, "promise" may be a
@@ -30,27 +30,26 @@ throughout the rest of the code.
 The rest of the files are structured by their function, as detailed in the
 following table:
 
-| File (\*.h/\*.cc)    | Description                                                                |
-| -------------------- | -------------------------------------------------------------------------- |
-| `crypto_aes`         | AES Cipher support.                                                        |
-| `crypto_argon2`      | Argon2 key / bit generation implementation.                                |
-| `crypto_cipher`      | General Encryption/Decryption utilities.                                   |
-| `crypto_clienthello` | TLS/SSL client hello parser implementation. Used during SSL/TLS handshake. |
-| `crypto_context`     | Implementation of the `SecureContext` object.                              |
-| `crypto_dh`          | Diffie-Hellman Key Agreement implementation.                               |
-| `crypto_dsa`         | DSA (Digital Signature) Key Generation functions.                          |
-| `crypto_ec`          | Elliptic-curve cryptography implementation.                                |
-| `crypto_hash`        | Basic hash (e.g. SHA-256) functions.                                       |
-| `crypto_hkdf`        | HKDF (Key derivation) implementation.                                      |
-| `crypto_hmac`        | HMAC implementations.                                                      |
-| `crypto_keys`        | Utilities for using and generating secret, private, and public keys.       |
-| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation.                                |
-| `crypto_rsa`         | RSA Key Generation functions.                                              |
-| `crypto_scrypt`      | Scrypt key / bit generation implementation.                                |
-| `crypto_sig`         | General digital signature and verification utilities.                      |
-| `crypto_spkac`       | Netscape SPKAC certificate utilities.                                      |
-| `crypto_ssl`         | Implementation of the `SSLWrap` object.                                    |
-| `crypto_timing`      | Implementation of the TimingSafeEqual.                                     |
+| File (\*.h/\*.cc) | Description                                                          |
+| ----------------- | -------------------------------------------------------------------- |
+| `crypto_aes`      | AES Cipher support.                                                  |
+| `crypto_argon2`   | Argon2 key / bit generation implementation.                          |
+| `crypto_cipher`   | General Encryption/Decryption utilities.                             |
+| `crypto_context`  | Implementation of the `SecureContext` object.                        |
+| `crypto_dh`       | Diffie-Hellman Key Agreement implementation.                         |
+| `crypto_dsa`      | DSA (Digital Signature) Key Generation functions.                    |
+| `crypto_ec`       | Elliptic-curve cryptography implementation.                          |
+| `crypto_hash`     | Basic hash (e.g. SHA-256) functions.                                 |
+| `crypto_hkdf`     | HKDF (Key derivation) implementation.                                |
+| `crypto_hmac`     | HMAC implementations.                                                |
+| `crypto_keys`     | Utilities for using and generating secret, private, and public keys. |
+| `crypto_pbkdf2`   | PBKDF2 key / bit generation implementation.                          |
+| `crypto_rsa`      | RSA Key Generation functions.                                        |
+| `crypto_scrypt`   | Scrypt key / bit generation implementation.                          |
+| `crypto_sig`      | General digital signature and verification utilities.                |
+| `crypto_spkac`    | Netscape SPKAC certificate utilities.                                |
+| `crypto_ssl`      | Implementation of the `SSLWrap` object.                              |
+| `crypto_timing`   | Implementation of the TimingSafeEqual.                               |
 
 When new crypto protocols are added, they will be added into their own
 `crypto_` `*.h` and `*.cc` files.
@@ -90,11 +89,17 @@ using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
-using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 ```
 
 Examples of these being used are pervasive through the `src/crypto` code.
+
+`HMACCtxPointer` is a dedicated HMAC state wrapper rather than a plain
+`DeleteFnPtr` alias. On OpenSSL 3 and later it owns the provider-backed
+`EVP_MAC`/`EVP_MAC_CTX` state. On OpenSSL 1.1.1 and BoringSSL it owns the
+legacy `HMAC_CTX` state. HMAC call sites should use `HMACCtxPointer::New()`,
+`init()`, `update()`, and `digest()`/`digestInto()` so the backend selection
+stays contained in ncrypto.
 
 ### `ByteSource`
 

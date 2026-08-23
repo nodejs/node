@@ -4,6 +4,8 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+common.skipIfPerfettoEnabled();
+
 const CODE = `
   const { internalBinding } = require('internal/test/binding');
   const { trace } = internalBinding('trace_events');
