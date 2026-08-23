@@ -33,6 +33,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 namespace dtls {
@@ -261,7 +262,15 @@ void DTLSContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to create BIO");
   }
 
-  switch (crypto::UsePrivateKey(ctx->ctx_.get(), bio)) {
+  // Optional passphrase for an encrypted key. Absent is not the same as
+  // empty: UsePrivateKey() substitutes an empty ByteSource when given
+  // nullptr, and OpenSSL reports a decryption failure either way.
+  crypto::ByteSource passphrase;
+  if (args[1]->IsString()) {
+    passphrase = crypto::ByteSource::FromString(env, args[1].As<String>());
+  }
+
+  switch (crypto::UsePrivateKey(ctx->ctx_.get(), bio, &passphrase)) {
     case crypto::PrivateKeyResult::kSuccess:
       break;
     case crypto::PrivateKeyResult::kParseError:
