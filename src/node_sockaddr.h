@@ -27,6 +27,14 @@ class SocketAddress : public MemoryRetainer {
     size_t operator()(const SocketAddress& addr) const;
   };
 
+  // Compares the same bytes Hash hashes: family, port and address. Pair this
+  // with Hash rather than relying on operator==, which memcmps the whole
+  // sockaddr including sin_zero, sin6_flowinfo and sin6_scope_id, and so can
+  // report unequal for two addresses that hash the same.
+  struct Equal {
+    bool operator()(const SocketAddress& a, const SocketAddress& b) const;
+  };
+
   // Hashes and compares only the IP address, ignoring the port.
   // Useful for per-host connection counting where clients from
   // the same IP but different ports should be treated as one host.
@@ -138,7 +146,7 @@ class SocketAddress : public MemoryRetainer {
   SET_SELF_SIZE(SocketAddress)
 
   template <typename T>
-  using Map = std::unordered_map<SocketAddress, T, Hash>;
+  using Map = std::unordered_map<SocketAddress, T, Hash, Equal>;
 
   template <typename T>
   using IpMap = std::unordered_map<SocketAddress, T, IpHash, IpEqual>;

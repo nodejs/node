@@ -151,11 +151,10 @@ class DTLSEndpoint final : public HandleWrap {
   // single buffer per endpoint avoids a heap allocation on every packet.
   std::vector<char> recv_buf_;
 
-  // Session table: maps remote address -> session.
-  std::unordered_map<SocketAddress,
-                     BaseObjectPtr<DTLSSession>,
-                     SocketAddress::Hash>
-      sessions_;
+  // Session table: maps remote address -> session. SocketAddress::Map pairs
+  // Hash with the matching Equal; the default std::equal_to would compare
+  // padding bytes that Hash ignores.
+  SocketAddress::Map<BaseObjectPtr<DTLSSession>> sessions_;
 
   // Concurrent sessions per source IP, ignoring port, so one host cannot fill
   // the whole table. Entries are erased when their count reaches zero, so this
