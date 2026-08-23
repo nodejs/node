@@ -176,8 +176,10 @@ added: REPLACEME
   * `rejectUnauthorized` {boolean} When `true`, the server's certificate must
     both chain to a trusted CA and match the expected identity (`servername`,
     or `host` when `servername` is not set); otherwise the handshake is
-    aborted and `session.opened` rejects. When `false`, the certificate is not
-    verified. **Default:** `true`.
+    aborted and `session.opened` rejects. When `false`, the certificate is
+    still verified and the handshake completes regardless, leaving the
+    decision to the application via [`session.authorized`][] and
+    [`session.authorizationError`][]. **Default:** `true`.
   * `servername` {string} Server name used for the SNI (Server Name
     Indication) extension and as the identity checked during certificate
     verification. **Default:** the `host` argument. Set to `''` to disable SNI.
@@ -810,7 +812,10 @@ awaiting it cannot hang.
 
 ### `session.closed`
 
-* {Promise} Resolves when the session is fully closed.
+* {Promise} Settles when the session is fully closed. Resolves when the close
+  was graceful, and rejects with the error when the session was destroyed with
+  one, or when its endpoint was. The promise always settles, so awaiting it
+  cannot hang.
 
 ### `session.remoteAddress`
 
@@ -833,7 +838,7 @@ awaiting it cannot hang.
 This is the leaf certificate as PEM text and nothing else. For the issuer chain
 and the parsed fields, use [`session.peerX509Certificate`][], whose `toString()`
 returns this same PEM. Use [`session.authorized`][] and
-\[`session.authorizationError`]\[] for the verification result rather than
+[`session.authorizationError`][] for the verification result rather than
 parsing either.
 
 ### `session.peerX509Certificate`
@@ -973,6 +978,40 @@ bound is not imposed by [RFC 5705][]; it exists so that a caller cannot request
 an arbitrarily large allocation, and is far above what any defined exporter
 needs (DTLS-SRTP uses 60 bytes).
 
+### Callback properties
+
+#### `session.onmessage`
+
+* {Function}
+  * `data` {Buffer}
+
+Set to receive application data from the peer.
+
+#### `session.onerror`
+
+* {Function}
+  * `error` {Error}
+
+Set to receive error notifications.
+
+#### `session.onhandshake`
+
+* {Function}
+  * `protocol` {string}
+
+Set to receive handshake completion notifications.
+
+#### `session.onkeylog`
+
+* {Function}
+  * `line` {string}
+
+Set to receive TLS key log lines (for debugging with Wireshark).
+
+### `session[Symbol.asyncDispose]()`
+
+Equivalent to calling `session.close()`.
+
 ## Class: `DTLSSession.Stats`
 
 <!-- YAML
@@ -1064,40 +1103,6 @@ added: REPLACEME
 `true` if the stats object is still connected to the underlying session.
 Once the session is destroyed, the stats become a stale snapshot.
 
-### Callback properties
-
-#### `session.onmessage`
-
-* {Function}
-  * `data` {Buffer}
-
-Set to receive application data from the peer.
-
-#### `session.onerror`
-
-* {Function}
-  * `error` {Error}
-
-Set to receive error notifications.
-
-#### `session.onhandshake`
-
-* {Function}
-  * `protocol` {string}
-
-Set to receive handshake completion notifications.
-
-#### `session.onkeylog`
-
-* {Function}
-  * `line` {string}
-
-Set to receive TLS key log lines (for debugging with Wireshark).
-
-### `session[Symbol.asyncDispose]()`
-
-Equivalent to calling `session.close()`.
-
 ## DTLS-SRTP example
 
 DTLS-SRTP is used by WebRTC for media encryption. The DTLS handshake
@@ -1174,6 +1179,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`dtls.listen()`]: #dtlslistencallback-options
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`handshakeTimeout`]: #handshake-timeout
+[`session.authorizationError`]: #sessionauthorizationerror
 [`session.authorized`]: #sessionauthorized
 [`session.destroy()`]: #sessiondestroyerror
 [`session.peerX509Certificate`]: #sessionpeerx509certificate
