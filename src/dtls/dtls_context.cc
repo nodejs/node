@@ -29,13 +29,17 @@ namespace node {
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
+using v8::TryCatch;
+using v8::Undefined;
 using v8::Value;
 
 namespace dtls {
@@ -92,6 +96,25 @@ DTLSContext::DTLSContext(Environment* env,
 void DTLSContext::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("cookie_secret", cookie_secret_.size());
   tracker->TrackFieldWithSize("alpn_protos", alpn_protos_.size());
+  size_t psk_size = 0;
+  for (const auto& [identity, key] : psk_identities_) {
+    psk_size += identity.size() + key.size();
+  }
+  tracker->TrackFieldWithSize("psk_identities", psk_size);
+  tracker->TrackFieldWithSize("psk_client_key", psk_client_key_.size());
+}
+
+// SSL_CTX ex_data slot holding the DTLSContext, for the PSK callbacks, which
+// unlike the ALPN and SNI ones have no argument of their own.
+static int PSKContextIndex() {
+  static const int index =
+      SSL_CTX_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
+  return index;
+}
+
+DTLSContext* DTLSContext::FromSSL(SSL* ssl) {
+  return static_cast<DTLSContext*>(
+      SSL_CTX_get_ex_data(SSL_get_SSL_CTX(ssl), PSKContextIndex()));
 }
 
 Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
@@ -116,6 +139,7 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
         isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
     SetProtoMethod(isolate, tmpl, "setSNIContexts", SetSNIContexts);
     SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
+    SetProtoMethod(isolate, tmpl, "setPSK", SetPSK);
 
     env->set_dtls_context_constructor_template(tmpl);
   }
@@ -144,6 +168,7 @@ void DTLSContext::RegisterExternalReferences(
   registry->Register(SetSessionIdContext);
   registry->Register(SetSNIContexts);
   registry->Register(SetTicketKeys);
+  registry->Register(SetPSK);
 }
 
 // new DTLSContext(isServer)
@@ -527,6 +552,158 @@ void DTLSContext::SetSNIContexts(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_set_tlsext_servername_arg(ctx->ctx_.get(), ctx);
 }
 
+// Hand an exception thrown by a PSK callback to the session it belongs to,
+// so it fails that handshake instead of reaching the process as an
+// uncaughtException. The exception must not still be pending when control
+// returns to OpenSSL, which goes on to build an alert and unwind through
+// Cycle()'s error path.
+void DTLSContext::ReportPSKError(SSL* ssl, TryCatch* try_catch) {
+  if (!try_catch->HasCaught() || try_catch->HasTerminated()) return;
+
+  DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
+  Local<Value> exception = try_catch->Exception();
+
+  // Clear before reporting: EmitCallback runs JavaScript, which cannot be
+  // entered with an exception still pending.
+  try_catch->Reset();
+
+  if (session != nullptr && !exception.IsEmpty()) {
+    session->SetPendingError(exception);
+  }
+}
+
+unsigned int DTLSContext::PSKServerCallback(SSL* ssl,
+                                            const char* identity,
+                                            unsigned char* psk,
+                                            unsigned int max_psk_len) {
+  DTLSContext* ctx = FromSSL(ssl);
+  if (ctx == nullptr || identity == nullptr) return 0;
+
+  // The map first, so a configuration that uses only the map never runs
+  // JavaScript inside the handshake.
+  auto it = ctx->psk_identities_.find(identity);
+  if (it != ctx->psk_identities_.end()) {
+    if (it->second.size() > max_psk_len) return 0;
+    memcpy(psk, it->second.data(), it->second.size());
+    return static_cast<unsigned int>(it->second.size());
+  }
+
+  if (ctx->psk_callback_.IsEmpty()) return 0;
+
+  Environment* env = ctx->env();
+  HandleScope scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  // Called rather than MakeCallback'd, deliberately. MakeCallback drains the
+  // tick queue as its scope exits, and this runs inside SSL_do_handshake():
+  // measured, a nextTick scheduled by the callback runs before OpenSSL's
+  // state machine has finished the transition it is in the middle of. The
+  // module's other MakeCallback uses all fire at safe points in Cycle(),
+  // after SSL_do_handshake() has returned. node:tls accepts that risk here;
+  // this does not, having a reentrancy guard that exists because of it.
+  //
+  // The cost is that exceptions are ours to handle: a pending one would
+  // otherwise be carried back into OpenSSL and surface as an
+  // uncaughtException, killing the process over one bad callback.
+  TryCatch try_catch(env->isolate());
+
+  Local<String> identity_str;
+  if (!String::NewFromUtf8(env->isolate(), identity).ToLocal(&identity_str)) {
+    return 0;
+  }
+
+  // Reject an identity that did not survive the round trip through UTF-8:
+  // otherwise a peer could offer bytes that reach JavaScript as replacement
+  // characters and match an identity it was never given. node:tls does the
+  // same check.
+  Utf8Value round_trip(env->isolate(), identity_str);
+  if (round_trip != identity) return 0;
+
+  Local<Value> argv[] = {identity_str};
+  Local<Value> ret;
+  if (!ctx->psk_callback_.Get(env->isolate())
+           ->Call(env->context(), ctx->object(), 1, argv)
+           .ToLocal(&ret)) {
+    ctx->ReportPSKError(ssl, &try_catch);
+    return 0;
+  }
+
+  if (!ret->IsArrayBufferView()) return 0;
+  ArrayBufferViewContents<unsigned char> key(ret.As<ArrayBufferView>());
+  if (key.length() > max_psk_len) return 0;  // measurement: allow empty
+
+  memcpy(psk, key.data(), key.length());
+  return static_cast<unsigned int>(key.length());
+}
+
+unsigned int DTLSContext::PSKClientCallback(SSL* ssl,
+                                            const char* hint,
+                                            char* identity,
+                                            unsigned int max_identity_len,
+                                            unsigned char* psk,
+                                            unsigned int max_psk_len) {
+  DTLSContext* ctx = FromSSL(ssl);
+  if (ctx == nullptr) return 0;
+
+  std::string use_identity = ctx->psk_client_identity_;
+  std::vector<unsigned char> use_key = ctx->psk_client_key_;
+
+  if (!ctx->psk_callback_.IsEmpty()) {
+    Environment* env = ctx->env();
+    HandleScope scope(env->isolate());
+    Context::Scope context_scope(env->context());
+    // See PSKServerCallback for why this is Call() and not MakeCallback().
+    TryCatch try_catch(env->isolate());
+
+    // The hint is optional and frequently absent (RFC 4279 section 5.2).
+    Local<Value> hint_value = Undefined(env->isolate());
+    if (hint != nullptr) {
+      Local<String> hint_str;
+      if (!String::NewFromUtf8(env->isolate(), hint).ToLocal(&hint_str)) {
+        return 0;
+      }
+      hint_value = hint_str;
+    }
+
+    Local<Value> argv[] = {hint_value};
+    Local<Value> ret;
+    if (!ctx->psk_callback_.Get(env->isolate())
+             ->Call(env->context(), ctx->object(), 1, argv)
+             .ToLocal(&ret)) {
+      ctx->ReportPSKError(ssl, &try_catch);
+      return 0;
+    }
+    if (!ret->IsObject()) return 0;
+
+    Local<Object> obj = ret.As<Object>();
+    Local<Value> id_val;
+    Local<Value> key_val;
+    if (!obj->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                        "identity"))
+             .ToLocal(&id_val) ||
+        !obj->Get(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "key"))
+             .ToLocal(&key_val) ||
+        !id_val->IsString() || !key_val->IsArrayBufferView()) {
+      return 0;
+    }
+
+    Utf8Value id(env->isolate(), id_val);
+    ArrayBufferViewContents<unsigned char> key(key_val.As<ArrayBufferView>());
+    use_identity.assign(*id, id.length());
+    use_key.assign(key.data(), key.data() + key.length());
+  }
+
+  if (use_identity.empty() || use_key.empty()) return 0;
+  // The identity is written as a C string, so it needs room for the
+  // terminator OpenSSL expects.
+  if (use_identity.size() + 1 > max_identity_len) return 0;
+  if (use_key.size() > max_psk_len) return 0;
+
+  memcpy(identity, use_identity.c_str(), use_identity.size() + 1);
+  memcpy(psk, use_key.data(), use_key.size());
+  return static_cast<unsigned int>(use_key.size());
+}
+
 void DTLSContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   DTLSContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
@@ -555,6 +732,74 @@ void DTLSContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
           buf.length()) != 1) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(ctx->env(),
                                       "Failed to set session ticket keys");
+  }
+}
+
+// setPSK(entries, hint, clientIdentity, clientKey, callback)
+//
+// |entries| is a flattened [identity, key, ...] array for a server; the
+// client fields carry the single identity a client presents. Any of them may
+// be absent: a server may rely entirely on the callback, and a client may
+// rely on it too.
+void DTLSContext::SetPSK(const FunctionCallbackInfo<Value>& args) {
+  DTLSContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+  Environment* env = ctx->env();
+
+  if (args[0]->IsArray()) {
+    Local<Array> entries = args[0].As<Array>();
+    std::unordered_map<std::string, std::vector<unsigned char>> next;
+    uint32_t length = entries->Length();
+    for (uint32_t i = 0; i < length; i += 2) {
+      Local<Value> identity;
+      Local<Value> key;
+      if (!entries->Get(env->context(), i).ToLocal(&identity) ||
+          !entries->Get(env->context(), i + 1).ToLocal(&key)) {
+        return;
+      }
+      CHECK(identity->IsString());
+      CHECK(key->IsArrayBufferView());
+      Utf8Value id(env->isolate(), identity);
+      ArrayBufferViewContents<unsigned char> buf(key.As<ArrayBufferView>());
+      next[std::string(*id, id.length())] =
+          std::vector<unsigned char>(buf.data(), buf.data() + buf.length());
+    }
+    ctx->psk_identities_ = std::move(next);
+  }
+
+  if (args[1]->IsString()) {
+    Utf8Value hint(env->isolate(), args[1]);
+    ctx->psk_identity_hint_.assign(*hint, hint.length());
+  }
+
+  if (args[2]->IsString()) {
+    Utf8Value identity(env->isolate(), args[2]);
+    ctx->psk_client_identity_.assign(*identity, identity.length());
+  }
+
+  if (args[3]->IsArrayBufferView()) {
+    ArrayBufferViewContents<unsigned char> key(args[3].As<ArrayBufferView>());
+    ctx->psk_client_key_.assign(key.data(), key.data() + key.length());
+  }
+
+  if (args[4]->IsFunction()) {
+    ctx->psk_callback_.Reset(env->isolate(), args[4].As<Function>());
+  }
+
+  // The callbacks have no argument slot of their own, so the context is
+  // reachable only through the SSL_CTX.
+  SSL_CTX_set_ex_data(ctx->ctx_.get(), PSKContextIndex(), ctx);
+
+  if (ctx->is_server_) {
+    SSL_CTX_set_psk_server_callback(ctx->ctx_.get(), PSKServerCallback);
+    if (!ctx->psk_identity_hint_.empty() &&
+        SSL_CTX_use_psk_identity_hint(
+            ctx->ctx_.get(), ctx->psk_identity_hint_.c_str()) != 1) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to set PSK identity hint");
+    }
+  } else {
+    SSL_CTX_set_psk_client_callback(ctx->ctx_.get(), PSKClientCallback);
   }
 }
 
