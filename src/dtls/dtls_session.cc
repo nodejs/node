@@ -199,21 +199,18 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
   ncrypto::SSLPointer ssl(ssl_raw);
 
   // Create memory BIOs for encrypted data I/O.
-  // enc_out_ must preserve datagram boundaries: OpenSSL emits one BIO_write
-  // per DTLS record, each sized to fit SSL_set_mtu(). A byte-stream BIO throws
-  // that away and lets EncOut() coalesce a whole flight into one oversized
-  // datagram. BIO_s_dgram_mem() returns exactly one datagram per BIO_read and
-  // already reports "empty" as a retry, so no BIO_set_mem_eof_return() is
-  // needed for it.
-  auto enc_in = ncrypto::BIOPointer::NewMem();
+  // Both must preserve datagram boundaries. OpenSSL's DTLS record layer
+  // assumes a read returns exactly one datagram (see the isdtls branch of
+  // tls_default_read_n()), and its write path emits one BIO_write per record,
+  // each sized to fit SSL_set_mtu(). BIO_s_dgram_mem() honours both, already
+  // reports "empty" as a retry -- so no BIO_set_mem_eof_return() is needed --
+  // and grows on write.
+  auto enc_in = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
   auto enc_out = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
   if (!enc_in || !enc_out) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "BIO_new failed");
     return {};
   }
-
-  // Make the BIO non-blocking.
-  BIO_set_mem_eof_return(enc_in.get(), -1);
 
   // Associate BIOs with the SSL object. SSL_set_bio takes ownership.
   BIO* enc_in_raw = enc_in.release();
