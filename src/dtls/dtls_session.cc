@@ -112,11 +112,13 @@ DTLSSession::DTLSSession(Environment* env,
                             // Handshake timeout expired.
                             HandleScope hs(this->env()->isolate());
                             Context::Scope cs(this->env()->context());
-                            Local<Value> argv[] = {
-                                String::NewFromUtf8(this->env()->isolate(),
-                                                    "DTLS handshake timeout")
-                                    .ToLocalChecked(),
-                            };
+                            Local<String> message;
+                            if (!String::NewFromUtf8(this->env()->isolate(),
+                                                     "DTLS handshake timeout")
+                                     .ToLocal(&message)) {
+                              return;
+                            }
+                            Local<Value> argv[] = {message};
                             EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
                             return;
                           }
@@ -376,11 +378,15 @@ void DTLSSession::Cycle() {
         // Flush any fatal alert OpenSSL queued for the peer before emitting the
         // error, which tears the session down and detaches the endpoint.
         EncOut();
-        Local<Value> argv[] = {
-            String::NewFromUtf8(env()->isolate(), message.c_str())
-                .ToLocalChecked(),
-        };
-        EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+        // Skip only the emit if the string cannot be made. Returning early
+        // here would leak the cycle_depth_ increment taken on entry and
+        // wedge the reentrancy guard for the life of the session.
+        Local<String> str;
+        if (String::NewFromUtf8(env()->isolate(), message.c_str())
+                .ToLocal(&str)) {
+          Local<Value> argv[] = {str};
+          EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+        }
         cycle_depth_--;
         return;
       }
@@ -396,11 +402,14 @@ void DTLSSession::Cycle() {
       state_->open = 1;
       DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, handshake_completed_at);
 
-      Local<Value> argv[] = {
-          String::NewFromUtf8(env()->isolate(), SSL_get_version(ssl_.get()))
-              .ToLocalChecked(),
-      };
-      EmitCallback(DTLS_CB_SESSION_HANDSHAKE, 1, argv);
+      // Skip only the emit on failure: the read below and the cycle_depth_
+      // decrement at the end of Cycle() still have to happen.
+      Local<String> str;
+      if (String::NewFromUtf8(env()->isolate(), SSL_get_version(ssl_.get()))
+              .ToLocal(&str)) {
+        Local<Value> argv[] = {str};
+        EmitCallback(DTLS_CB_SESSION_HANDSHAKE, 1, argv);
+      }
     }
   }
 
@@ -432,10 +441,14 @@ void DTLSSession::ClearOut() {
     // so the data is still drained out of OpenSSL rather than accumulating.
     if (!state_->has_message_listener) continue;
 
-    Local<Value> argv[] = {
-        Buffer::Copy(env(), reinterpret_cast<const char*>(buf), read)
-            .ToLocalChecked(),
-    };
+    // continue, not return: this loop is what drains OpenSSL, and bailing
+    // out of it would leave the remaining records buffered.
+    Local<Object> chunk;
+    if (!Buffer::Copy(env(), reinterpret_cast<const char*>(buf), read)
+             .ToLocal(&chunk)) {
+      continue;
+    }
+    Local<Value> argv[] = {chunk};
     EmitCallback(DTLS_CB_SESSION_MESSAGE, 1, argv);
     // The message handler may have destroyed the session synchronously; stop
     // reading if so (Cycle()'s strong reference keeps `this` itself alive).
@@ -474,11 +487,12 @@ void DTLSSession::ClearOut() {
       // Flush any fatal alert OpenSSL queued for the peer before emitting the
       // error, which tears the session down and detaches the endpoint.
       EncOut();
-      Local<Value> argv[] = {
-          String::NewFromUtf8(env()->isolate(), message.c_str())
-              .ToLocalChecked(),
-      };
-      EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+      Local<String> str;
+      if (String::NewFromUtf8(env()->isolate(), message.c_str())
+              .ToLocal(&str)) {
+        Local<Value> argv[] = {str};
+        EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+      }
       break;
     }
 
@@ -648,9 +662,11 @@ void DTLSSession::SSLKeylogCallback(const SSL* ssl, const char* line) {
   HandleScope handle_scope(session->env()->isolate());
   Context::Scope context_scope(session->env()->context());
 
-  Local<Value> argv[] = {
-      String::NewFromUtf8(session->env()->isolate(), line).ToLocalChecked(),
-  };
+  Local<String> str;
+  if (!String::NewFromUtf8(session->env()->isolate(), line).ToLocal(&str)) {
+    return;
+  }
+  Local<Value> argv[] = {str};
   session->EmitCallback(DTLS_CB_SESSION_KEYLOG, 1, argv);
 }
 

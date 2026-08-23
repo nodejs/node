@@ -410,10 +410,12 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     HandleScope handle_scope(endpoint->env()->isolate());
     Context::Scope context_scope(endpoint->env()->context());
-    Local<Value> argv[] = {
-        String::NewFromUtf8(endpoint->env()->isolate(), uv_strerror(nread))
-            .ToLocalChecked(),
-    };
+    Local<String> message;
+    if (!String::NewFromUtf8(endpoint->env()->isolate(), uv_strerror(nread))
+             .ToLocal(&message)) {
+      return;
+    }
+    Local<Value> argv[] = {message};
     Local<Function> cb = endpoint->GetCallback(DTLS_CB_ENDPOINT_ERROR);
     if (!cb.IsEmpty()) {
       endpoint->MakeCallback(cb, 1, argv);
