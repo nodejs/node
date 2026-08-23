@@ -21,7 +21,11 @@ const { getProviders } = require(`./build/${common.buildType}/binding`);
 const providers = {
   'default': {
     ciphers: ['des3-wrap'],
-    hashes: ['sha512-256'],
+    hashes: [
+      'sha512-256',
+      ...['keccak-kmac-128', 'keccak-kmac128']
+        .filter((name) => getHashes().includes(name)),
+    ],
   },
   'legacy': {
     ciphers: ['blowfish', 'idea'],
@@ -47,6 +51,15 @@ function assertArrayIncludes(array, item, desc) {
          `${desc} [${array}] does not include "${item}"`);
 }
 
+function createSupportedHash(hash) {
+  try {
+    return createHash(hash);
+  } catch (err) {
+    if (err?.code !== 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH') throw err;
+    return createHash(hash, { outputLength: 32 });
+  }
+}
+
 function testProviderPresent(provider) {
   debug(`Checking '${provider}' is present`);
   assertArrayIncludes(getProviders(), provider, 'Loaded providers');
@@ -57,7 +70,7 @@ function testProviderPresent(provider) {
   for (const hash of providers[provider].hashes || []) {
     debug(`Checking '${hash}' hash is available`);
     assertArrayIncludes(getHashes(), hash, 'Available hashes');
-    createHash(hash);
+    createSupportedHash(hash);
   }
 }
 
