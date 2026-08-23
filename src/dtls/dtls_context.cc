@@ -525,6 +525,10 @@ int DTLSContext::ALPNSelectCallback(SSL* ssl,
                                     void* arg) {
   DTLSContext* ctx = static_cast<DTLSContext*>(arg);
 
+  // This server does not do ALPN. Decline the extension and let the handshake
+  // continue: the client offering protocols to a server that has none
+  // configured is not an error. OpenSSL only calls this at all when the client
+  // sent the extension, so a client that offered nothing never reaches here.
   if (ctx->alpn_protos_.empty()) {
     return SSL_TLSEXT_ERR_NOACK;
   }

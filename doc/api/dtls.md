@@ -470,7 +470,14 @@ if (!session.authorized && session.authorizationError !== 'CERT_HAS_EXPIRED') {
 
 ### `session.alpnProtocol`
 
-* Returns: {string|undefined} The negotiated ALPN protocol.
+* Returns: {string|undefined} The negotiated ALPN protocol, or `undefined` if
+  ALPN was not used.
+
+If a server has `alpn` configured and a client offers only protocols the
+server does not support, the server sends a fatal `no_application_protocol`
+alert and the handshake fails, as required by [RFC 7301][] section 3.2. A
+server with no `alpn` configured declines the extension instead, and the
+handshake completes with no protocol negotiated.
 
 ### `session.srtpProfile`
 
@@ -686,6 +693,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 
 [Permission Model]: permissions.md#permission-model
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
+[RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
 [`DTLSEndpoint`]: #class-dtlsendpoint
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.listen()`]: #dtlslistencallback-options
