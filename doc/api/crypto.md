@@ -7,8 +7,8 @@
 <!-- source_link=lib/crypto.js -->
 
 The `node:crypto` module provides cryptographic functionality that includes a
-set of wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify
-functions.
+set of wrappers for OpenSSL's hash, message authentication code (MAC), cipher,
+decipher, sign, verify, and key encapsulation mechanism (KEM) functions.
 
 ```mjs
 const { createHmac } = await import('node:crypto');
@@ -2543,6 +2543,91 @@ Depending on the type of this `KeyObject`, this property is either
 `'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
 or `'private'` for private (asymmetric) keys.
 
+## Class: `Mac`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends: {stream.Transform}
+
+The `Mac` class computes message authentication codes using MAC
+implementations supplied by OpenSSL providers. It can be used in one of two
+ways:
+
+* As a [stream][] that is both readable and writable, where data is written and
+  one authentication tag is produced on the readable side when the writable
+  side ends; or
+* By calling [`mac.update()`][] one or more times followed by [`mac.final()`][].
+
+Instances of `Mac` are created using [`crypto.createMac()`][]. The `Mac` class
+is not exported directly by the `node:crypto` module.
+
+Calling `mac.end()` without first writing data computes the authentication tag
+for an empty message. If the selected MAC produces a zero-byte tag, such as
+when a provider accepts `outputLength: 0`, the readable side ends without
+emitting a data chunk because Node.js streams do not emit zero-length chunks.
+When using `mac.final()` instead, it returns a zero-length [`Buffer`][] or an
+empty encoded string.
+
+`mac.end()` and `mac.final()` are alternative terminal operations and must not
+both be called on the same object. A `Mac` object cannot be used again after
+either operation attempts finalization or after an underlying MAC update fails.
+
+Example: Using [`mac.update()`][] and [`mac.final()`][]:
+
+```mjs
+const { createMac, randomBytes } = await import('node:crypto');
+
+const key = randomBytes(16);
+const mac = createMac('CMAC', key, {
+  cipher: 'AES-128-CBC',
+});
+
+mac.update('some data to authenticate');
+console.log(mac.final('hex'));
+```
+
+### `mac.final([outputEncoding])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `outputEncoding` {string} The [encoding][] of the return value.
+* Returns: {Buffer | string}
+
+Completes the MAC computation and returns the authentication tag. If
+`outputEncoding` is omitted or is `'buffer'`, a [`Buffer`][] is returned.
+Otherwise, a string is returned.
+
+To verify an authentication tag, compare equal-length [`Buffer`][] values using
+[`crypto.timingSafeEqual()`][].
+
+The `Mac` object cannot be used again after finalization is attempted,
+including when finalization fails. Later calls to `mac.update()` or
+`mac.final()` throw `ERR_CRYPTO_MAC_FINALIZED`.
+
+### `mac.update(data[, inputEncoding])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {string|Buffer|TypedArray|DataView}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
+* Returns: {Mac}
+
+Updates the MAC with `data` and returns the `Mac` object so that calls can be
+chained. When `data` is a string, `inputEncoding` defaults to `'utf8'`. When
+`data` is a [`Buffer`][], `TypedArray`, or `DataView`, `inputEncoding` is
+ignored.
+
+This method can be called multiple times before finalization. If an underlying
+MAC update fails, the `Mac` object cannot be used again. Calling this method
+after a previous underlying MAC update failure or after finalization throws
+`ERR_CRYPTO_MAC_FINALIZED`.
+
 ## Class: `Sign`
 
 <!-- YAML
@@ -4076,6 +4161,65 @@ input.on('readable', () => {
 });
 ```
 
+### `crypto.createMac(algorithm, key[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `algorithm` {string} The name of the MAC algorithm.
+* `key` {ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+* `options` {Object} [`stream.transform` options][]
+  * `digest` {string} The digest used by a MAC such as HMAC.
+  * `cipher` {string} The cipher used by a MAC such as CMAC or GMAC.
+  * `iv` {ArrayBuffer|Buffer|TypedArray|DataView} The initialization vector for
+    a MAC such as GMAC.
+  * `customization` {ArrayBuffer|Buffer|TypedArray|DataView} A customization
+    byte string for MACs that support it, such as KMAC.
+  * `salt` {ArrayBuffer|Buffer|TypedArray|DataView} A salt byte string for MACs
+    that support it, such as BLAKE2 MACs.
+  * `outputLength` {number} The requested provider output size in bytes. Must be
+    an unsigned 32-bit integer. Provider-specific restrictions also apply.
+* Returns: {Mac}
+
+`algorithm` must be a non-empty provider MAC name. The MAC-specific properties
+listed above are extensions to the standard [`stream.transform` options][] and
+are passed only when the selected provider implementation advertises the
+corresponding parameter with the expected type. A supplied MAC-specific option
+that the selected implementation does not support causes an error.
+
+The following table summarizes the MAC-specific options accepted by MAC
+implementations in OpenSSL's built-in providers. The `key` argument is required
+for every MAC. The table lists only MAC-specific options; standard
+[`stream.transform` options][] remain available for every family.
+
+| MAC family | Required options                        | Optional options                        | Notes                                                                  |
+| ---------- | --------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------- |
+| HMAC       | `digest`                                | None                                    |                                                                        |
+| CMAC       | `cipher` using CBC mode                 | None                                    |                                                                        |
+| GMAC       | `cipher` using GCM mode, non-empty `iv` | None                                    | Requires a unique IV for every message authenticated with a given key. |
+| KMAC       | None                                    | `customization`, `outputLength`         |                                                                        |
+| BLAKE2 MAC | None                                    | `customization`, `salt`, `outputLength` |                                                                        |
+| Poly1305   | None                                    | None                                    | Each key must be used for only one message.                            |
+| SipHash    | None                                    | `outputLength`                          |                                                                        |
+
+`outputLength` configures the output size of the provider MAC. It is never
+implemented by computing a longer tag and truncating it. A value of `0` is
+passed to the provider and is accepted only when that provider can initialize
+and finalize the MAC with a zero-byte output. When `outputLength` is omitted,
+the provider's default output size is used and must be nonzero.
+
+The `key` must contain bytes or be a [`KeyObject`][] of type `secret`. Key
+length and other key requirements are determined by the selected provider
+implementation.
+
+Available algorithms and their accepted parameters depend on the OpenSSL
+version, loaded providers, and active default property query. Use
+[`crypto.getMacs()`][] to list fetchable MAC names. A listed name can still
+require options or a key with provider-specific properties.
+
 ### `crypto.createPrivateKey(key)`
 
 <!-- YAML
@@ -5093,6 +5237,40 @@ const {
 } = require('node:crypto');
 
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
+```
+
+### `crypto.getMacs()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* Returns: {string\[]} A fresh array containing the sorted, lowercase names
+  and aliases of fetchable MAC implementations.
+
+Returns MAC names exposed by loaded OpenSSL providers that match the active
+default property query. Duplicate names and numeric OID aliases are omitted.
+On builds without OpenSSL `EVP_MAC` support, this function returns an empty
+array.
+
+The returned names describe implementations that OpenSSL can fetch. They do not
+guarantee that [`crypto.createMac()`][] can initialize the MAC without
+additional options. A provider can require additional parameters or a key with
+algorithm-specific properties, and it can expose parameters that this API does
+not support.
+
+After a successful FIPS mode change made with [`crypto.setFips()`][], subsequent
+calls reflect the new mode, and newly created `Mac` objects use it. Existing
+`Mac` objects continue using the provider implementation selected when they
+were created.
+
+```mjs
+const { getMacs } = await import('node:crypto');
+
+console.log(getMacs());
+// ['blake2bmac', 'blake2smac', 'cmac', 'gmac', 'hmac', ...]
 ```
 
 ### `crypto.getRandomValues(typedArray)`
@@ -7456,6 +7634,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createECDH()`]: #cryptocreateecdhcurvename
 [`crypto.createHash()`]: #cryptocreatehashalgorithm-options
 [`crypto.createHmac()`]: #cryptocreatehmacalgorithm-key-options
+[`crypto.createMac()`]: #cryptocreatemacalgorithm-key-options
 [`crypto.createPrivateKey()`]: #cryptocreateprivatekeykey
 [`crypto.createPublicKey()`]: #cryptocreatepublickeykey
 [`crypto.createSecretKey()`]: #cryptocreatesecretkeykey-encoding
@@ -7468,6 +7647,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getFips()`]: #cryptogetfips
 [`crypto.getHashes()`]: #cryptogethashes
+[`crypto.getMacs()`]: #cryptogetmacs
 [`crypto.hash()`]: #cryptohashalgorithm-data-options
 [`crypto.privateDecrypt()`]: #cryptoprivatedecryptprivatekey-buffer
 [`crypto.privateEncrypt()`]: #cryptoprivateencryptprivatekey-buffer
@@ -7477,6 +7657,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
 [`crypto.setFips()`]: #cryptosetfipsbool
 [`crypto.sign()`]: #cryptosignalgorithm-data-key-callback
+[`crypto.timingSafeEqual()`]: #cryptotimingsafeequala-b
 [`crypto.verify()`]: #cryptoverifyalgorithm-data-key-signature-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
 [`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
@@ -7493,6 +7674,8 @@ See the [list of SSL OP Flags][] for details.
 [`hmac.update()`]: #hmacupdatedata-inputencoding
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`keyObject.export()`]: #keyobjectexportoptions
+[`mac.final()`]: #macfinaloutputencoding
+[`mac.update()`]: #macupdatedata-inputencoding
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding
 [`sign.update()`]: #signupdatedata-inputencoding

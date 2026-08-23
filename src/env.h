@@ -71,6 +71,7 @@
 namespace ncrypto {
 class CipherCache;
 class DigestCache;
+class MacCache;
 }  // namespace ncrypto
 
 namespace node {
@@ -1098,6 +1099,10 @@ class Environment final : public MemoryRetainer {
   std::unique_ptr<ncrypto::DigestCache> provider_digest_cache;
   std::unique_ptr<ncrypto::CipherCache> provider_cipher_cache;
   std::vector<std::string> supported_hash_algorithms;
+  uint64_t mac_cache_generation = 0;
+  std::unique_ptr<ncrypto::MacCache> provider_mac_cache;
+  std::vector<std::string> supported_mac_algorithms;
+  bool supported_mac_algorithms_initialized = false;
 #endif  // HAVE_OPENSSL
 
   v8::Global<v8::Module> temporary_required_module_facade_original;

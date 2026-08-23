@@ -366,6 +366,7 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class MacCache;
 class EVPMacCtxPointer;
 class EVPMacPointer;
 class EVPMDCtxPointer;
@@ -1887,6 +1888,61 @@ class EVPMacPointer final {
   DeleteFnPtr<EVP_MAC, EVP_MAC_free> mac_;
 };
 
+enum class MacKind : uint8_t {
+  kOther,
+  kHmac,
+  kCmac,
+  kGmac,
+};
+
+class MacCache final {
+ public:
+  struct Result {
+    // Borrowed from the cache and valid until the cache is reset. Creating an
+    // EVP_MAC_CTX takes an independent reference to the method.
+    EVP_MAC* mac = nullptr;
+    int32_t id = -1;
+    MacKind kind = MacKind::kOther;
+  };
+
+  using AliasMap = std::unordered_map<std::string,
+                                      int32_t,
+                                      CaseInsensitiveNameHash,
+                                      CaseInsensitiveNameEqual>;
+
+  MacCache() = default;
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(MacCache)
+
+  Result lookup(const char* name, uint64_t generation) const;
+  inline Result lookup(int32_t id, uint64_t generation) const {
+    if (generation_ != generation || id == -1) return {};
+    const uint32_t unsigned_id = static_cast<uint32_t>(id);
+    if (unsigned_id < first_id_) return {};
+    const size_t index = unsigned_id - first_id_;
+    if (index >= macs_.size()) return {};
+    return {macs_[index].mac.get(), id, macs_[index].kind};
+  }
+  Result insert(const char* name, EVPMacPointer&& mac, uint64_t generation);
+  void reset(uint64_t generation);
+  const AliasMap& aliases() const;
+  static MacKind GetKind(EVP_MAC* mac);
+
+ private:
+  struct Entry {
+    EVPMacPointer mac;
+    MacKind kind;
+  };
+
+  uint64_t generation_ = 0;
+
+  // IDs are not reused across generations because JavaScript may cache them
+  // independently in each Realm.
+  uint32_t first_id_ = 0;
+  uint32_t next_id_ = 0;
+  std::vector<Entry> macs_;
+  AliasMap aliases_;
+};
+
 class EVPMacCtxPointer final {
  public:
   EVPMacCtxPointer() = default;
@@ -1905,6 +1961,8 @@ class EVPMacCtxPointer final {
 
   bool init(const Buffer<const void>& key, const OSSL_PARAM* params = nullptr);
   bool update(const Buffer<const void>& data);
+  size_t getSize() const;
+  const OSSL_PARAM* getSettableParams() const;
   DataPointer final(size_t length);
 
   static EVPMacCtxPointer New(EVP_MAC* mac);
@@ -1940,6 +1998,14 @@ class HMACCtxPointer final {
   size_t md_size_ = 0;
 };
 #endif  // OPENSSL_WITH_EVP_MAC
+
+#if !OPENSSL_WITH_EVP_MAC
+class MacCache final {
+ public:
+  MacCache() = default;
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(MacCache)
+};
+#endif
 
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {
