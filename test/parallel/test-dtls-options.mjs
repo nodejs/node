@@ -163,3 +163,62 @@ assert.throws(() => {
                   `listen rejectUnauthorized: ${inspect(value)}`);
   }
 }
+
+// Server-only options are refused on a client context, all in the same way.
+//
+// They used to be handled four different ways: sni threw, sessionIdContext
+// was ignored, ticketKeys was applied to a client that can do nothing with
+// it, and requestCert was validated and then ignored. A client naming any of
+// them has misunderstood the option, and now hears so.
+{
+  const fixtures = await import('../common/fixtures.mjs');
+  const pem = fixtures.readKey('agent1-cert.pem').toString();
+  const pemKey = fixtures.readKey('agent1-key.pem').toString();
+
+  const serverOnly = {
+    pskIdentityHint: 'hint',
+    requestCert: true,
+    sessionIdContext: 'ctx',
+    sni: { 'a.example': { cert: pem, key: pemKey } },
+    ticketKeys: Buffer.alloc(80),
+  };
+
+  for (const [name, value] of Object.entries(serverOnly)) {
+    assert.throws(() => createSecureContext({ [name]: value }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: new RegExp(`options\\.${name}`),
+    }, `client context accepted ${name}`);
+
+    // connect() builds a client context, so it refuses them too.
+    assert.throws(() => connect('127.0.0.1', 4433, { [name]: value }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    }, `connect() accepted ${name}`);
+  }
+
+  // Each is still accepted by a server context, so the rule is about the
+  // side and not about the option being unusable.
+  for (const [name, value] of Object.entries(serverOnly)) {
+    if (name === 'pskIdentityHint') continue;   // Needs psk; covered below.
+    createSecureContext({
+      isServer: true, cert: pem, key: pemKey, [name]: value,
+    });
+  }
+}
+
+// An identity hint with no key to hint at.
+//
+// pskIdentityHint names which key a client should pick. Given without psk it
+// was dropped, and the handshake then failed for want of a PSK without ever
+// mentioning the option that had been set.
+{
+  assert.throws(() => createSecureContext({
+    isServer: true, pskIdentityHint: 'hint',
+  }), { code: 'ERR_INVALID_ARG_VALUE', message: /together with options\.psk/ });
+
+  // With psk it is accepted.
+  createSecureContext({
+    isServer: true,
+    psk: { 'device-42': Buffer.alloc(16) },
+    pskIdentityHint: 'hint',
+  });
+}
