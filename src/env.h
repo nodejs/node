@@ -69,6 +69,7 @@
 #include <vector>
 
 namespace ncrypto {
+class CipherCache;
 class DigestCache;
 }  // namespace ncrypto
 
@@ -1095,6 +1096,7 @@ class Environment final : public MemoryRetainer {
 #if HAVE_OPENSSL
   uint64_t hash_cache_generation = 0;
   std::unique_ptr<ncrypto::DigestCache> provider_digest_cache;
+  std::unique_ptr<ncrypto::CipherCache> provider_cipher_cache;
   std::vector<std::string> supported_hash_algorithms;
 #endif  // HAVE_OPENSSL
 
