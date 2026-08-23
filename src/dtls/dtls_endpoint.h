@@ -195,6 +195,17 @@ class DTLSEndpoint final : public HandleWrap {
   // endpoint on :: could not be reached over IPv4 at all.
   bool ipv6_only_ = false;
 
+  // SO_REUSEPORT: several processes bind the same port and the kernel spreads
+  // datagrams between them. Not SO_REUSEADDR, which on Linux lets the last
+  // binder take the port from a running server.
+  bool reuse_port_ = false;
+
+  // Applied after the bind succeeds. Zero leaves the operating system's
+  // default alone, which is what not naming the option means.
+  uint32_t udp_receive_buffer_size_ = 0;
+  uint32_t udp_send_buffer_size_ = 0;
+  uint32_t udp_ttl_ = 0;
+
   // Milliseconds a handshake may take before it is abandoned; 0 disables it.
   uint64_t handshake_timeout_ = 60000;
 
