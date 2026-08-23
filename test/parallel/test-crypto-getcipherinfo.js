@@ -5,11 +5,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const {
+  createCipheriv,
   createHash,
   getCiphers,
   getCipherInfo,
 } = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL3 } = require('../common/crypto');
 
 const assert = require('assert');
 
@@ -17,6 +18,42 @@ const ciphers = getCiphers();
 
 assert.strictEqual(getCipherInfo(-1), undefined);
 assert.strictEqual(getCipherInfo('cipher that does not exist'), undefined);
+if (hasOpenSSL3) {
+  assert.deepStrictEqual(
+    ciphers.filter((cipher) => cipher.includes('cbc-hmac')), []);
+  for (const cipher of [
+    'null',
+    'aes-128-cbc-hmac-sha1',
+    'aes-256-cbc-hmac-sha1',
+    'aes-128-cbc-hmac-sha256',
+    'aes-256-cbc-hmac-sha256',
+    'aes-128-cbc-hmac-sha1-etm',
+    'aes-192-cbc-hmac-sha1-etm',
+    'aes-256-cbc-hmac-sha1-etm',
+    'aes-128-cbc-hmac-sha256-etm',
+    'aes-192-cbc-hmac-sha256-etm',
+    'aes-256-cbc-hmac-sha256-etm',
+    'aes-128-cbc-hmac-sha512-etm',
+    'aes-192-cbc-hmac-sha512-etm',
+    'aes-256-cbc-hmac-sha512-etm',
+  ]) {
+    assert(!ciphers.includes(cipher));
+    assert.strictEqual(getCipherInfo(cipher), undefined);
+    assert.throws(
+      () => createCipheriv(cipher, Buffer.alloc(16), Buffer.alloc(16)), {
+        code: 'ERR_CRYPTO_UNKNOWN_CIPHER',
+      });
+  }
+}
+
+if (ciphers.includes('aes-128-wrap-inv')) {
+  const alias = 'aes128-wrap-inv';
+  assert(ciphers.includes(alias));
+  assert.deepStrictEqual(getCipherInfo(alias),
+                         getCipherInfo('aes-128-wrap-inv'));
+}
+assert(!ciphers.some((cipher) => /^\d+(?:\.\d+)+$/.test(cipher)));
+
 if (!process.features.openssl_is_boringssl) {
   // A failed provider fetch must not contaminate the OpenSSL error queue.
   assert.throws(() => createHash('sha256', { outputLength: 28 }), {
@@ -96,6 +133,19 @@ if (hasFIPS(3)) {
   common.printSkipMessage('Skipping unsupported aes-128-ocb test cases');
 }
 
+if (ciphers.includes('aes-128-cbc-cts')) {
+  const info = getCipherInfo('aes-128-cbc-cts');
+  assert.strictEqual(info.name, 'aes-128-cbc-cts');
+  assert.strictEqual(info.mode, 'cbc');
+  assert.strictEqual(info.keyLength, 16);
+  assert.strictEqual(info.blockSize, 16);
+  assert.strictEqual(info.ivLength, 16);
+  assert(getCipherInfo('aes-128-cbc-cts', { ivLength: 16 }));
+  assert(!getCipherInfo('aes-128-cbc-cts', { ivLength: 15 }));
+} else {
+  common.printSkipMessage('Skipping unsupported aes-128-cbc-cts test cases');
+}
+
 if (ciphers.includes('aes-128-siv')) {
   const info = getCipherInfo('aes-128-siv');
   assert.strictEqual(info.name, 'aes-128-siv');
@@ -118,4 +168,21 @@ if (ciphers.includes('aes-128-gcm-siv')) {
   assert(!getCipherInfo('aes-128-gcm-siv', { ivLength: 11 }));
 } else {
   common.printSkipMessage('Skipping unsupported aes-128-gcm-siv test cases');
+}
+
+for (const [name, mode, keyLength, ivLength] of [
+  ['sm4-gcm', 'gcm', 16, 12],
+  ['sm4-ccm', 'ccm', 16, 12],
+  ['sm4-xts', 'xts', 32, 16],
+]) {
+  if (ciphers.includes(name)) {
+    const info = getCipherInfo(name);
+    assert.strictEqual(info.name, name);
+    assert.strictEqual(info.mode, mode);
+    assert.strictEqual(info.nid, undefined);
+    assert.strictEqual(info.keyLength, keyLength);
+    assert.strictEqual(info.ivLength, ivLength);
+  } else {
+    common.printSkipMessage(`Skipping unsupported ${name} test cases`);
+  }
 }
