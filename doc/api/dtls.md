@@ -482,7 +482,8 @@ live and updated as data flows through the session.
 
 ### `session.exportKeyingMaterial(length, label[, context])`
 
-* `length` {number} Number of bytes to export.
+* `length` {number} Number of bytes to export. Must be an integer between
+  `1` and `65536`.
 * `label` {string} The label for the exported keying material.
 * `context` {Buffer} Optional context value.
 * Returns: {Buffer}
@@ -490,6 +491,11 @@ live and updated as data flows through the session.
 Exports keying material from the DTLS session, as defined in
 [RFC 5705][]. This is commonly used with DTLS-SRTP to derive
 encryption keys for media streams.
+
+Throws `ERR_OUT_OF_RANGE` if `length` is outside the accepted range. The upper
+bound is not imposed by [RFC 5705][]; it exists so that a caller cannot request
+an arbitrarily large allocation, and is far above what any defined exporter
+needs (DTLS-SRTP uses 60 bytes).
 
 ## Class: `DTLSSession.Stats`
 

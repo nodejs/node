@@ -36,6 +36,7 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 namespace dtls {
@@ -768,12 +769,13 @@ void DTLSSession::ExportKeyingMaterial(
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = session->env();
 
-  if (!args[0]->IsNumber() || !args[1]->IsString()) {
-    return THROW_ERR_INVALID_ARG_TYPE(
-        env, "Expected (length: number, label: string[, context: Buffer])");
-  }
+  // The JS wrapper validates these; a bad value here is a bug on our side, not
+  // a user error. Int32Value(...).FromJust() used to accept a negative length
+  // straight into std::vector's constructor, which aborted the process.
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsString());
 
-  int length = args[0]->Int32Value(env->context()).FromJust();
+  uint32_t length = args[0].As<Uint32>()->Value();
   Utf8Value label(env->isolate(), args[1]);
 
   const uint8_t* context_value = nullptr;
