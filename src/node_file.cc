@@ -64,6 +64,7 @@ namespace node {
 namespace fs {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -86,6 +87,8 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::TryCatch;
+using v8::Uint32Array;
+using v8::Uint8Array;
 using v8::Undefined;
 using v8::Value;
 
@@ -2254,6 +2257,486 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       args.GetReturnValue().Set(Array::New(isolate, result, arraysize(result)));
     } else {
       args.GetReturnValue().Set(names);
+    }
+  }
+}
+
+namespace {
+
+// Recursive readdir.
+//
+// The result is breadth-first: every entry of the root, then every entry of
+// the first subdirectory, and so on, each directory's entries in the order
+// uv_fs_scandir() reports them. Symbolic links to directories are followed,
+// see https://github.com/nodejs/node/issues/52663.
+//
+// The tree is walked by one or more threads that share a queue of
+// directories, and the breadth-first order is derived from the tree
+// afterwards, so it does not depend on which thread scanned what. The walk
+// does not touch the Environment; lib does not use it when the permission
+// model is enabled, as every directory would need a check on the main thread.
+
+// Maps an st_mode to the uv_dirent_type_t that uv_fs_scandir would report.
+uv_dirent_type_t DirentTypeFromMode(uint64_t mode) {
+  switch (mode & S_IFMT) {
+    case S_IFREG:
+      return UV_DIRENT_FILE;
+    case S_IFDIR:
+      return UV_DIRENT_DIR;
+    case S_IFLNK:
+      return UV_DIRENT_LINK;
+    case S_IFCHR:
+      return UV_DIRENT_CHAR;
+#ifdef S_IFIFO
+    case S_IFIFO:
+      return UV_DIRENT_FIFO;
+#endif
+#ifdef S_IFSOCK
+    case S_IFSOCK:
+      return UV_DIRENT_SOCKET;
+#endif
+#ifdef S_IFBLK
+    case S_IFBLK:
+      return UV_DIRENT_BLOCK;
+#endif
+    default:
+      return UV_DIRENT_UNKNOWN;
+  }
+}
+
+// Appends `name` to `path`, with a separator unless `path` already ends in
+// one (so that a root of "dir/" does not turn into "dir//name").
+void AppendPathComponent(std::string* path, std::string_view name) {
+  if (name.empty()) return;
+  if (!path->empty()) {
+#ifdef _WIN32
+    const bool has_separator = path->back() == '\\' || path->back() == '/';
+    if (!has_separator) *path += '\\';
+#else
+    const bool has_separator = path->back() == '/';
+    if (!has_separator) *path += '/';
+#endif
+  }
+  path->append(name);
+}
+
+struct ReadDirEntry {
+  // Offset and length of the name within ScannedDirectory::names.
+  uint32_t name_offset;
+  uint32_t name_length;
+  uint8_t type;  // A uv_dirent_type_t.
+  // Whether the walk descends into this entry (a directory, or a symbolic
+  // link to one).
+  bool is_dir = false;
+};
+
+// One directory of the tree.
+struct ScannedDirectory {
+  explicit ScannedDirectory(std::string relative)
+      : relative(std::move(relative)) {}
+
+  std::string_view name(const ReadDirEntry& entry) const {
+    return std::string_view(names).substr(entry.name_offset, entry.name_length);
+  }
+
+  // Path relative to the root; empty for the root itself.
+  const std::string relative;
+  // The entry names, concatenated.
+  std::string names;
+  std::vector<ReadDirEntry> entries;
+  // Indices (into RecursiveReadDir::dirs()) of the subdirectories, in entry
+  // order.
+  std::vector<uint32_t> subdirs;
+};
+
+class RecursiveReadDir {
+ public:
+  explicit RecursiveReadDir(std::string root) : root_(std::move(root)) {
+    dirs_.push_back(std::make_unique<ScannedDirectory>(""));
+  }
+
+  // Scans directories until none are left or an error occurred. May be
+  // called from several threads at once, which then share the work.
+  void Run();
+  void RunWithHelpers(int max_helpers);
+
+  // The following are only valid once every Run() has returned.
+
+  // 0 or a uv error code; error_path() is then the directory that failed.
+  int error() const { return error_; }
+  const std::string& error_path() const { return error_path_; }
+
+  const std::vector<std::unique_ptr<ScannedDirectory>>& dirs() const {
+    return dirs_;
+  }
+
+  // The indices of dirs() in breadth-first order.
+  std::vector<uint32_t> BreadthFirstOrder() const {
+    std::vector<uint32_t> order;
+    order.reserve(dirs_.size());
+    order.push_back(0);
+    for (size_t i = 0; i < order.size(); i++) {
+      for (uint32_t subdir : dirs_[order[i]]->subdirs) order.push_back(subdir);
+    }
+    return order;
+  }
+
+ private:
+  // Reads the directory at `path` into `dir`, resolving the type of entries
+  // where needed, and creates the ScannedDirectory of each subdirectory.
+  static int Scan(const std::string& path,
+                  ScannedDirectory* dir,
+                  std::vector<std::unique_ptr<ScannedDirectory>>* subdirs);
+
+  // Called with the lock held.
+  void MaybeStartHelper();
+
+  // The number of entries a walk has to have seen, with directories still
+  // to scan, before RunWithHelpers() starts a helper thread.
+  static constexpr size_t kHelperThreshold = 1024;
+
+  const std::string root_;
+
+  Mutex mutex_;
+  ConditionVariable cv_;
+  // Directories in the order they were found; the first next_ have been or
+  // are being scanned by one of the active_ threads.
+  std::vector<std::unique_ptr<ScannedDirectory>> dirs_;
+  size_t next_ = 0;
+  size_t active_ = 0;
+  size_t entries_seen_ = 0;
+  int error_ = 0;
+  std::string error_path_;
+  size_t max_helpers_ = 0;
+  std::vector<uv_thread_t> helpers_;
+};
+
+void RecursiveReadDir::RunWithHelpers(int max_helpers) {
+  max_helpers_ = max_helpers;
+  Run();
+  for (uv_thread_t& helper : helpers_) CHECK_EQ(uv_thread_join(&helper), 0);
+}
+
+void RecursiveReadDir::Run() {
+  std::vector<std::unique_ptr<ScannedDirectory>> subdirs;
+  std::string path;
+  Mutex::ScopedLock lock(mutex_);
+  for (;;) {
+    while (next_ == dirs_.size() && active_ > 0 && error_ == 0) {
+      cv_.Wait(lock);
+    }
+    if (next_ == dirs_.size() || error_ != 0) return;
+
+    ScannedDirectory* dir = dirs_[next_++].get();
+    active_++;
+    int r;
+    {
+      Mutex::ScopedUnlock unlock(lock);
+      path = root_;
+      AppendPathComponent(&path, dir->relative);
+      r = Scan(path, dir, &subdirs);
+    }
+    active_--;
+
+    if (r != 0) {
+      if (error_ == 0) {
+        error_ = r;
+        error_path_ = std::move(path);
+      }
+    } else {
+      for (std::unique_ptr<ScannedDirectory>& subdir : subdirs) {
+        dir->subdirs.push_back(static_cast<uint32_t>(dirs_.size()));
+        dirs_.push_back(std::move(subdir));
+      }
+      entries_seen_ += dir->entries.size();
+    }
+    // Wake the others if there is new work, or nothing left to wait for.
+    if (!subdirs.empty() || active_ == 0 || error_ != 0) cv_.Broadcast(lock);
+    subdirs.clear();
+    MaybeStartHelper();
+  }
+}
+
+void RecursiveReadDir::MaybeStartHelper() {
+  if (helpers_.size() >= max_helpers_ || entries_seen_ < kHelperThreshold ||
+      dirs_.size() - next_ < 2) {
+    return;
+  }
+  uv_thread_t helper;
+  int r = uv_thread_create(
+      &helper,
+      [](void* arg) { static_cast<RecursiveReadDir*>(arg)->Run(); },
+      this);
+  if (r == 0) {
+    helpers_.push_back(helper);
+  } else {
+    max_helpers_ = 0;  // Carry on alone.
+  }
+}
+
+int RecursiveReadDir::Scan(
+    const std::string& path,
+    ScannedDirectory* dir,
+    std::vector<std::unique_ptr<ScannedDirectory>>* subdirs) {
+  uv_fs_t req;
+  int r = uv_fs_scandir(nullptr, &req, path.c_str(), 0, nullptr);
+  if (r >= 0) {
+    dir->entries.reserve(r);
+    uv_dirent_t ent;
+    while ((r = uv_fs_scandir_next(&req, &ent)) == 0) {
+      const size_t length = strlen(ent.name);
+      dir->entries.push_back({static_cast<uint32_t>(dir->names.size()),
+                              static_cast<uint32_t>(length),
+                              static_cast<uint8_t>(ent.type)});
+      dir->names.append(ent.name, length);
+    }
+    if (r == UV_EOF) r = 0;
+  }
+  uv_fs_req_cleanup(&req);
+  if (r != 0) return r;
+
+  std::string child;
+  for (ReadDirEntry& entry : dir->entries) {
+    const std::string_view name = dir->name(entry);
+    if (entry.type == UV_DIRENT_UNKNOWN || entry.type == UV_DIRENT_LINK) {
+      // The file system did not report a type, or the entry is a symbolic
+      // link that may point at a directory.
+      child = path;
+      AppendPathComponent(&child, name);
+      if (entry.type == UV_DIRENT_UNKNOWN) {
+        if (uv_fs_lstat(nullptr, &req, child.c_str(), nullptr) == 0) {
+          entry.type = DirentTypeFromMode(req.statbuf.st_mode);
+        }
+        uv_fs_req_cleanup(&req);
+      }
+      if (entry.type == UV_DIRENT_LINK) {
+        if (uv_fs_stat(nullptr, &req, child.c_str(), nullptr) == 0) {
+          entry.is_dir = S_ISDIR(req.statbuf.st_mode);
+        }
+        uv_fs_req_cleanup(&req);
+      }
+    }
+    if (entry.type == UV_DIRENT_DIR) entry.is_dir = true;
+
+    if (entry.is_dir) {
+      std::string relative = dir->relative;
+      AppendPathComponent(&relative, name);
+      subdirs->push_back(
+          std::make_unique<ScannedDirectory>(std::move(relative)));
+    }
+  }
+  return 0;
+}
+
+// Without file types the result is an array of paths relative to the root.
+// With file types it is [names, types, counts, dirs]: `types` is a
+// Uint8Array with the uv_dirent_type_t of every entry, `dirs` the relative
+// path of every directory in the order their entries appear, and `counts` a
+// Uint32Array with the number of entries in each of those directories. See
+// getRecursiveDirents() in lib/internal/fs/utils.js.
+MaybeLocal<Value> MarshalRecursiveReadDir(Isolate* isolate,
+                                          const RecursiveReadDir& walk,
+                                          enum encoding encoding,
+                                          bool with_types) {
+  EscapableHandleScope scope(isolate);
+  const std::vector<uint32_t> order = walk.BreadthFirstOrder();
+
+  LocalVector<Value> names(isolate);
+  LocalVector<Value> dirs(isolate);
+  std::vector<uint8_t> types;
+  std::vector<uint32_t> counts;
+  std::string path;
+  for (uint32_t index : order) {
+    const ScannedDirectory& dir = *walk.dirs()[index];
+    for (const ReadDirEntry& entry : dir.entries) {
+      std::string_view data = dir.name(entry);
+      if (!with_types) {
+        path = dir.relative;
+        AppendPathComponent(&path, data);
+        data = path;
+      }
+      Local<Value> name;
+      if (!StringBytes::Encode(isolate, data.data(), data.size(), encoding)
+               .ToLocal(&name)) {
+        return MaybeLocal<Value>();
+      }
+      names.push_back(name);
+      types.push_back(entry.type);
+    }
+    if (!with_types) continue;
+    counts.push_back(static_cast<uint32_t>(dir.entries.size()));
+    Local<Value> relative;
+    if (!StringBytes::Encode(
+             isolate, dir.relative.data(), dir.relative.size(), encoding)
+             .ToLocal(&relative)) {
+      return MaybeLocal<Value>();
+    }
+    dirs.push_back(relative);
+  }
+
+  if (!with_types) {
+    return scope.Escape(Array::New(isolate, names.data(), names.size()));
+  }
+
+  // One ArrayBuffer holding the types, then (4-byte aligned) the counts.
+  const size_t counts_offset = (types.size() + 3) & ~static_cast<size_t>(3);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(
+      isolate, counts_offset + counts.size() * sizeof(uint32_t));
+  char* bytes = static_cast<char*>(ab->Data());
+  memcpy(bytes, types.data(), types.size());
+  memcpy(
+      bytes + counts_offset, counts.data(), counts.size() * sizeof(uint32_t));
+
+  Local<Value> parts[] = {
+      Array::New(isolate, names.data(), names.size()),
+      Uint8Array::New(ab, 0, types.size()),
+      Uint32Array::New(ab, counts_offset, counts.size()),
+      Array::New(isolate, dirs.data(), dirs.size()),
+  };
+  return scope.Escape(Array::New(isolate, parts, arraysize(parts)));
+}
+
+// The number of thread pool work items that share an asynchronous walk, and
+// the number of helper threads a synchronous walk may start.
+constexpr int kReadDirRecursiveWorkers = 4;
+constexpr int kReadDirRecursiveSyncHelpers = kReadDirRecursiveWorkers - 1;
+
+// An asynchronous recursive readdir: the walk, and the request it settles
+// once every worker has finished.
+class ReadDirRecursiveRequest {
+ public:
+  ReadDirRecursiveRequest(Environment* env,
+                          FSReqBase* req_wrap,
+                          std::string path,
+                          enum encoding encoding,
+                          bool with_types,
+                          int workers)
+      : env_(env),
+        req_wrap_(req_wrap),
+        walk_(std::move(path)),
+        encoding_(encoding),
+        with_types_(with_types),
+        pending_(workers) {}
+
+  RecursiveReadDir* walk() { return &walk_; }
+
+  // Called on the main thread when a worker is done.
+  void OnWorkerDone(int status) {
+    CHECK(status == 0 || status == UV_ECANCELED);
+    if (status == UV_ECANCELED) cancelled_ = true;
+    if (--pending_ > 0) return;
+
+    Isolate* isolate = env_->isolate();
+    HandleScope handle_scope(isolate);
+    Context::Scope context_scope(env_->context());
+
+    // Release the request even if the environment is shutting down.
+    BaseObjectPtr<FSReqBase> req_wrap = std::move(req_wrap_);
+    req_wrap->Detach();
+
+    FS_ASYNC_TRACE_END1(UV_FS_SCANDIR, req_wrap.get(), "result", walk_.error())
+    if (cancelled_ || !env_->can_call_into_js()) return;
+
+    if (walk_.error() != 0) {
+      return req_wrap->Reject(UVException(isolate,
+                                          walk_.error(),
+                                          "scandir",
+                                          nullptr,
+                                          walk_.error_path().c_str()));
+    }
+
+    Local<Value> value;
+    TryCatch try_catch(isolate);
+    if (!MarshalRecursiveReadDir(isolate, walk_, encoding_, with_types_)
+             .ToLocal(&value)) {
+      CHECK(try_catch.CanContinue());
+      return req_wrap->Reject(try_catch.Exception());
+    }
+    req_wrap->Resolve(value);
+  }
+
+ private:
+  Environment* const env_;
+  BaseObjectPtr<FSReqBase> req_wrap_;
+  RecursiveReadDir walk_;
+  const enum encoding encoding_;
+  const bool with_types_;
+  int pending_;
+  bool cancelled_ = false;
+};
+
+class ReadDirRecursiveWork final : public ThreadPoolWork {
+ public:
+  ReadDirRecursiveWork(Environment* env,
+                       std::shared_ptr<ReadDirRecursiveRequest> request)
+      : ThreadPoolWork(env, "readdir_recursive"),
+        request_(std::move(request)) {}
+
+  void DoThreadPoolWork() override { request_->walk()->Run(); }
+
+  void AfterThreadPoolWork(int status) override {
+    std::unique_ptr<ReadDirRecursiveWork> self(this);
+    request_->OnWorkerDone(status);
+  }
+
+ private:
+  std::shared_ptr<ReadDirRecursiveRequest> request_;
+};
+
+}  // namespace
+
+// readdirRecursive(path, encoding, withTypes[, req])
+static void ReadDirRecursive(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  bool with_types = args[2]->IsTrue();
+
+  // Every directory would need a permission check, and only the main thread
+  // can do those: lib walks the tree in JS when the permission model is on.
+  CHECK(!env->permission()->enabled());
+
+  if (argc > 3) {  // readdirRecursive(path, encoding, withTypes, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
+    CHECK_NOT_NULL(req_wrap_async);
+    req_wrap_async->Init("scandir", nullptr, 0, encoding);
+    FS_ASYNC_TRACE_BEGIN1(
+        UV_FS_SCANDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
+    auto request =
+        std::make_shared<ReadDirRecursiveRequest>(env,
+                                                  req_wrap_async,
+                                                  path.ToString(),
+                                                  encoding,
+                                                  with_types,
+                                                  kReadDirRecursiveWorkers);
+    for (int i = 0; i < kReadDirRecursiveWorkers; i++) {
+      (new ReadDirRecursiveWork(env, request))->ScheduleWork();
+    }
+  } else {  // readdirRecursive(path, encoding, withTypes)
+    env->PrintSyncTrace();
+    FS_SYNC_TRACE_BEGIN(readdir);
+    RecursiveReadDir walk(path.ToString());
+    walk.RunWithHelpers(kReadDirRecursiveSyncHelpers);
+    FS_SYNC_TRACE_END(readdir);
+
+    if (walk.error() != 0) {
+      return env->ThrowUVException(
+          walk.error(), "scandir", nullptr, walk.error_path().c_str());
+    }
+
+    Local<Value> value;
+    if (MarshalRecursiveReadDir(isolate, walk, encoding, with_types)
+            .ToLocal(&value)) {
+      args.GetReturnValue().Set(value);
     }
   }
 }
@@ -4566,6 +5049,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rmSync", RmSync);
   SetMethod(isolate, target, "mkdir", MKDir);
   SetMethod(isolate, target, "readdir", ReadDir);
+  SetMethod(isolate, target, "readdirRecursive", ReadDirRecursive);
   SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
   SetMethod(isolate, target, "stat", Stat);
   SetMethod(isolate, target, "lstat", LStat);
@@ -4705,6 +5189,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RmSync);
   registry->Register(MKDir);
   registry->Register(ReadDir);
+  registry->Register(ReadDirRecursive);
   registry->Register(InternalModuleStat);
   registry->Register(Stat);
   registry->Register(LStat);
