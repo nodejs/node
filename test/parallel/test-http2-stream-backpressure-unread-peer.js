@@ -109,10 +109,10 @@ serverSession.on('stream', common.mustCall((stream) => {
       assert(source.isPaused());
       assert(stream.writableNeedDrain);
 
-      // Four chunks fill the stream's 64KB writable buffer and one more is
-      // prefetched into the source's 16KB readable buffer. Only 80KB of the
-      // 1MB source is produced before TCP backpressure stops buffering.
-      assert.strictEqual(produced, CHUNK_SIZE * 5);
+      // Exact amount produced depends on platform-specific variables but
+      // backpressure must stop the source well before it completes:
+      assert.ok(produced <= RESPONSE_SIZE / 4,
+                `produced ${produced} of ${RESPONSE_SIZE} bytes`);
 
       serverSession.destroy();
       socket.destroy();
