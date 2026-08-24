@@ -19,7 +19,10 @@ const {
   setFips,
 } = require('crypto');
 const { internalBinding } = require('internal/test/binding');
-const { Worker } = require('worker_threads');
+const { isMainThread, Worker } = require('worker_threads');
+
+if (!isMainThread)
+  common.skip('crypto.setFips() is not supported in workers');
 
 const algorithm = 'camellia-128-cbc-cts';
 const hashAlgorithm = 'md5';
