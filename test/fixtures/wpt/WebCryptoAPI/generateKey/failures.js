@@ -101,13 +101,19 @@ function run_test(algorithmNames) {
 
         if (algorithmName.toUpperCase().substring(0, 3) === "AES") {
             // Specifier properties are name and length
-            [64, 127, 129, 255, 257, 512].forEach(function(length) {
+            [64, 127, 129, 255, 257, 512, 128 + 2**32, 128 - 2**32].forEach(function(length) {
                 results.push({name: algorithmName, length: length});
+            });
+        } else if (algorithmName.toUpperCase() === "HMAC") {
+            [128 + 2**32, 128 - 2**32].forEach(function(length) {
+                results.push({name: algorithmName, hash: "SHA-256", length: length});
             });
         } else if (algorithmName.toUpperCase().substring(0, 3) === "RSA") {
             [new Uint8Array([1]), new Uint8Array([1,0,0])].forEach(function(publicExponent) {
                 results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024, publicExponent: publicExponent});
             });
+            results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024 + 2 ** 32, publicExponent: new Uint8Array([1,0,1])});
+            results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024 - 2 ** 32, publicExponent: new Uint8Array([1,0,1])});
         } else if (algorithmName.toUpperCase().substring(0, 2) === "EC") {
             ["P-512", "Curve25519"].forEach(function(curveName) {
                 results.push({name: algorithmName, namedCurve: curveName});
@@ -177,6 +183,9 @@ function run_test(algorithmNames) {
                 [false, true].forEach(function(extractable) {
                     if (name.substring(0,2) === "EC") {
                         testError(algorithm, extractable, usages, "NotSupportedError", "Bad algorithm property");
+                    } else if (name.substring(0,3) === "RSA" && (algorithm.modulusLength < 0 || algorithm.modulusLength > 2**32) ||
+                        (name.substring(0,3) === "AES" || name === "HMAC") && (algorithm.length < 0 || algorithm.length > 2**32)) {
+                        testError(algorithm, extractable, usages, "TypeError", "Bad algorithm property");
                     } else {
                         testError(algorithm, extractable, usages, "OperationError", "Bad algorithm property");
                     }

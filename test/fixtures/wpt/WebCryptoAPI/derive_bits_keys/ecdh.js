@@ -66,6 +66,7 @@ async function defineEcdhTests(operation) {
                 {
                     name: namedCurve + " mismatched curves",
                     key: keys[otherCurve].publicKey,
+                    length: 256,
                 },
                 {
                     name: namedCurve +
