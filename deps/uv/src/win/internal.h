@@ -276,7 +276,7 @@ int uv__random_winrandom(void* buf, size_t buflen);
  * Process stdio handles.
  */
 int uv__stdio_create(uv_loop_t* loop,
-                     const uv_process_options_t* options,
+                     const uv_process_options2_t* options,
                      BYTE** buffer_ptr);
 void uv__stdio_destroy(BYTE* buffer);
 void uv__stdio_noinherit(BYTE* buffer);
