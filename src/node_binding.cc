@@ -670,6 +670,9 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
   const char* name = *module_name_v;
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kAddon, module_name_v.ToStringView());
+
   node_module* mod = nullptr;
 
   // Iterate from here to the nearest non-Worker Environment to see if there's
