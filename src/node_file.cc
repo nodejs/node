@@ -2923,9 +2923,19 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     uv_fs_req_cleanup(&req);
   });
 
+  // Past the first 8 KiB, read into one heap buffer sized from fstat(); the
+  // size is only a hint, reading continues until read() reports EOF.
   std::string result{};
   char buffer[8192];
   uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  char* big = nullptr;
+  size_t big_len = 0;
+  size_t big_cap = 0;
+  bool sized = false;
+  auto free_big = OnScopeLeave([&big]() { free(big); });
+  constexpr size_t kMinChunk = 64 * 1024;
+  constexpr size_t kMaxChunk = 8 * 1024 * 1024;
 
   FS_SYNC_TRACE_BEGIN(read);
   while (true) {
@@ -2939,12 +2949,62 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (r <= 0) {
       break;
     }
-    result.append(buf.base, r);
+    if (big == nullptr) {
+      result.append(buf.base, r);
+      if (static_cast<size_t>(r) < sizeof(buffer)) {
+        continue;
+      }
+      // Switch to the heap buffer.
+      uv_fs_req_cleanup(&req);
+      big_cap = kMinChunk;
+      big = UncheckedMalloc<char>(big_cap);
+      if (big == nullptr) {
+        FS_SYNC_TRACE_END(read);
+        return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      }
+      memcpy(big, result.data(), result.size());
+      big_len = result.size();
+      result = std::string();
+    } else {
+      big_len += static_cast<size_t>(r);
+    }
+    if (big_len == big_cap) {
+      // +1 leaves room for the read() that reports EOF.
+      size_t new_cap =
+          big_cap + std::min(kMaxChunk, std::max(kMinChunk, big_cap));
+      if (!sized) {
+        sized = true;
+        uv_fs_req_cleanup(&req);
+        uv_fs_t stat_req;
+        if (uv_fs_fstat(nullptr, &stat_req, file, nullptr) == 0) {
+          const uv_stat_t* const st =
+              static_cast<const uv_stat_t*>(stat_req.ptr);
+          if ((st->st_mode & S_IFMT) == S_IFREG &&
+              static_cast<uint64_t>(st->st_size) > big_len &&
+              static_cast<uint64_t>(st->st_size) <
+                  static_cast<uint64_t>(v8::String::kMaxLength)) {
+            new_cap = static_cast<size_t>(st->st_size) + 1;
+          }
+        }
+        uv_fs_req_cleanup(&stat_req);
+      }
+      char* const grown = UncheckedRealloc<char>(big, new_cap);
+      if (grown == nullptr) {
+        FS_SYNC_TRACE_END(read);
+        return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      }
+      big = grown;
+      big_cap = new_cap;
+    }
+    buf = uv_buf_init(big + big_len, std::min(kMaxChunk, big_cap - big_len));
   }
   FS_SYNC_TRACE_END(read);
 
   Local<Value> val;
-  if (!ToV8Value(env->context(), result, isolate).ToLocal(&val)) {
+  const std::string_view content = big != nullptr
+                                       ? std::string_view(big, big_len)
+                                       : std::string_view(result);
+  if (!ToV8Value(env->context(), content, isolate).ToLocal(&val)) {
     return;
   }
 
