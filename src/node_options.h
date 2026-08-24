@@ -389,6 +389,9 @@ class PerProcessOptions : public Options {
   // TODO(addaleax): Some of these could probably be per-Environment.
   std::string use_largepages = "off";
   bool trace_sigint = false;
+  // Tracks whether `--run` was passed, since an empty `run` is ambiguous
+  // between "not passed" and "passed without a script name" (lists scripts).
+  bool has_run = false;
   std::vector<std::string> cmdline;
 
   inline PerIsolateOptions* get_per_isolate_options();
