@@ -49,13 +49,10 @@ const standardAlgorithms = {
     operations: ['generateKey', 'importKey', 'deriveBits', 'getPublicKey'],
     keyGenParams: { name: 'ECDH', namedCurve: 'P-256' },
     importParams: { name: 'ECDH', namedCurve: 'P-256' },
-    deriveBitsParams: {
-      name: 'ECDH',
-      public: crypto.subtle.generateKey(
-        { name: 'ECDH', namedCurve: 'P-256' },
-        false,
-        ['deriveBits']
-      ),
+    deriveBitsParamsFactory: async () => {
+      const {publicKey} = await crypto.subtle.generateKey(
+        {name: 'ECDH', namedCurve: 'P-256'}, false, ['deriveBits']);
+      return {name: 'ECDH', public: publicKey};
     },
   },
   Ed25519: {
@@ -66,9 +63,10 @@ const standardAlgorithms = {
   X25519: {
     operations: ['generateKey', 'importKey', 'deriveBits', 'getPublicKey'],
     keyGenParams: null,
-    deriveBitsParams: {
-      name: 'X25519',
-      public: crypto.subtle.generateKey('X25519', false, ['deriveBits']),
+    deriveBitsParamsFactory: async () => {
+      const {publicKey} = await crypto.subtle.generateKey(
+        'X25519', false, ['deriveBits']);
+      return {name: 'X25519', public: publicKey};
     },
   },
 
@@ -248,6 +246,13 @@ test(() => {
       }),
       'Invalid tag length for AES-GCM should return false');
   assert_false(
+      SubtleCrypto.supports('decrypt', {
+        name: 'AES-GCM',
+        iv: new Uint8Array(16),
+        tagLength: 100,
+      }),
+      'Invalid tag length for AES-GCM should return false');
+  assert_false(
       SubtleCrypto.supports('generateKey', {name: 'ECDH', namedCurve: 'P-51'}),
       'Invalid curve for ECDH should return false');
   assert_false(
@@ -347,6 +352,214 @@ test(() => {
       'Invalid hash for RSA OAEP should return false');
 
 }, 'supports returns false for algorithm objects with invalid parameters');
+
+[
+  ['SHA-1', 160],
+  ['SHA-256', 256],
+  ['SHA-384', 384],
+  ['SHA-512', 512],
+].forEach(([hash, hashLength]) => {
+  test(() => {
+    const algorithm = {
+      name: 'HKDF',
+      hash,
+      salt: new Uint8Array(),
+      info: new Uint8Array(),
+    };
+    const maximumLength = 255 * hashLength;
+
+    assert_true(
+      SubtleCrypto.supports('deriveBits', algorithm, maximumLength),
+      `HKDF with ${hash} supports its maximum output length`
+    );
+    assert_false(
+      SubtleCrypto.supports('deriveBits', algorithm, maximumLength + 8),
+      `HKDF with ${hash} rejects output longer than its maximum`
+    );
+  }, `supports validates HKDF ${hash} output length`);
+});
+
+test(() => {
+  assert_false(
+    SubtleCrypto.supports(
+      'deriveKey',
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: new Uint8Array(),
+        info: new Uint8Array(),
+      },
+      {name: 'HMAC', hash: 'SHA-256', length: 65288}
+    ),
+    'HKDF rejects a derived key longer than 255 hash blocks'
+  );
+}, 'supports validates HKDF output length for deriveKey');
+
+test(() => {
+  assert_false(
+    SubtleCrypto.supports('importKey', {
+      name: 'HMAC',
+      hash: 'SHA-256',
+      length: 0,
+    }),
+    'HMAC rejects an explicitly zero-length imported key'
+  );
+}, 'supports validates HMAC import length');
+
+const invalidRsaKeyGenParameters = [
+  {
+    description: 'a modulus shorter than 4 bits',
+    modulusLength: 3,
+    publicExponent: Uint8Array.of(3),
+  },
+  {
+    description: 'a public exponent less than 3',
+    modulusLength: 2048,
+    publicExponent: Uint8Array.of(1),
+  },
+  {
+    description: 'an even public exponent',
+    modulusLength: 2048,
+    publicExponent: Uint8Array.of(4),
+  },
+  {
+    description: 'a public exponent equal to 2^modulusLength - 1',
+    modulusLength: 2048,
+    publicExponent: new Uint8Array(256).fill(0xff),
+  },
+];
+
+[
+  'RSASSA-PKCS1-v1_5',
+  'RSA-PSS',
+  'RSA-OAEP',
+].forEach(name => {
+  invalidRsaKeyGenParameters.forEach(({description, ...parameters}) => {
+    test(() => {
+      assert_false(
+        SubtleCrypto.supports('generateKey', {
+          name,
+          ...parameters,
+          hash: 'SHA-256',
+        }),
+        `${name} rejects ${description}`
+      );
+    }, `supports rejects ${name} generateKey with ${description}`);
+  });
+});
+
+['ECDSA', 'ECDH'].forEach(name => {
+  test(() => {
+    assert_false(
+      SubtleCrypto.supports('importKey', {
+        name,
+        namedCurve: 'not-a-curve',
+      }),
+      `${name} rejects an unknown named curve`
+    );
+  }, `supports validates ${name} import namedCurve`);
+});
+
+[
+  ['P-256', 256],
+  ['P-384', 384],
+  ['P-521', 528],
+].forEach(([namedCurve, maximumLength]) => {
+  promise_test(async () => {
+    const {publicKey} = await crypto.subtle.generateKey(
+      {name: 'ECDH', namedCurve}, false, ['deriveBits']);
+    const algorithm = {name: 'ECDH', public: publicKey};
+
+    assert_true(
+      SubtleCrypto.supports('deriveBits', algorithm, maximumLength),
+      `ECDH ${namedCurve} supports its maximum output length`
+    );
+    assert_false(
+      SubtleCrypto.supports('deriveBits', algorithm, maximumLength + 1),
+      `ECDH ${namedCurve} rejects output longer than its maximum`
+    );
+  }, `supports validates ECDH ${namedCurve} deriveBits length`);
+});
+
+promise_test(async () => {
+  const {publicKey} = await crypto.subtle.generateKey(
+    'X25519', false, ['deriveBits']);
+  const algorithm = {name: 'X25519', public: publicKey};
+
+  assert_true(
+    SubtleCrypto.supports('deriveBits', algorithm, 256),
+    'X25519 supports its maximum output length'
+  );
+  assert_false(
+    SubtleCrypto.supports('deriveBits', algorithm, 257),
+    'X25519 rejects output longer than its maximum'
+  );
+}, 'supports validates X25519 deriveBits length');
+
+promise_test(async () => {
+  const [ecdhKeyPair, x25519KeyPair] = await Promise.all([
+    crypto.subtle.generateKey(
+      {name: 'ECDH', namedCurve: 'P-256'}, false, ['deriveBits']),
+    crypto.subtle.generateKey('X25519', false, ['deriveBits']),
+  ]);
+
+  assert_false(
+    SubtleCrypto.supports(
+      'deriveBits', {name: 'ECDH', public: ecdhKeyPair.privateKey}, 256),
+    'ECDH rejects a private public property'
+  );
+  assert_false(
+    SubtleCrypto.supports(
+      'deriveBits', {name: 'ECDH', public: x25519KeyPair.publicKey}, 256),
+    'ECDH rejects a public property for another algorithm'
+  );
+}, 'supports validates the ECDH public key');
+
+promise_test(async () => {
+  const [x25519KeyPair, ecdhKeyPair] = await Promise.all([
+    crypto.subtle.generateKey('X25519', false, ['deriveBits']),
+    crypto.subtle.generateKey(
+      {name: 'ECDH', namedCurve: 'P-256'}, false, ['deriveBits']),
+  ]);
+
+  assert_false(
+    SubtleCrypto.supports(
+      'deriveBits', {name: 'X25519', public: x25519KeyPair.privateKey}, 256),
+    'X25519 rejects a private public property'
+  );
+  assert_false(
+    SubtleCrypto.supports(
+      'deriveBits', {name: 'X25519', public: ecdhKeyPair.publicKey}, 256),
+    'X25519 rejects a public property for another algorithm'
+  );
+}, 'supports validates the X25519 public key');
+
+promise_test(async () => {
+  const [p256KeyPair, p521KeyPair] = await Promise.all([
+    crypto.subtle.generateKey(
+      {name: 'ECDH', namedCurve: 'P-256'}, false, ['deriveBits']),
+    crypto.subtle.generateKey(
+      {name: 'ECDH', namedCurve: 'P-521'}, false, ['deriveBits']),
+  ]);
+  const derivedKeyAlgorithm = {name: 'HMAC', hash: 'SHA-256'};
+
+  assert_false(
+    SubtleCrypto.supports(
+      'deriveKey',
+      {name: 'ECDH', public: p256KeyPair.publicKey},
+      derivedKeyAlgorithm
+    ),
+    'ECDH P-256 cannot derive a 512-bit HMAC key'
+  );
+  assert_true(
+    SubtleCrypto.supports(
+      'deriveKey',
+      {name: 'ECDH', public: p521KeyPair.publicKey},
+      derivedKeyAlgorithm
+    ),
+    'ECDH P-521 can derive a 512-bit HMAC key'
+  );
+}, 'supports derives the ECDH output limit from the public curve');
 
 // Test some specific combinations that should work
 test(() => {
