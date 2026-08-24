@@ -1401,10 +1401,9 @@ Inside a worker, \[`worker_threads.parentPort`]\[] is the port behind
 `self.postMessage()` and the worker's `message` events, `isMainThread` is
 `false`, and `workerData` is `undefined`.
 
-Because that thread keeps the event loop alive, `Worker` instances also get
-the non-standard `ref()` and `unref()` methods of [`node:worker_threads`][]
-{Worker}: `worker.unref()` allows the program to exit even while the worker
-is still running, and `worker.ref()` restores the default behavior.
+Because that thread keeps the event loop alive, `Worker` instances can be
+mutated using the non-standard `process.ref(worker)` and `process.unref(worker)`
+methods.
 
 As a rule of thumb, use [`node:worker_threads`][] directly when a program
 needs `workerData`, a custom `env` or `execArgv`, resource limits, stdio
