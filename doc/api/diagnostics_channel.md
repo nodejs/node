@@ -2189,8 +2189,8 @@ statement, since both are still in use while the event is being delivered; see
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
-[`diagnostics_channel.bypass()`]: #diagnostics_channelbypasskey-fn-thisarg-args
 [`database.close()`]: sqlite.md#databaseclose
+[`diagnostics_channel.bypass()`]: #diagnostics_channelbypasskey-fn-thisarg-args
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
