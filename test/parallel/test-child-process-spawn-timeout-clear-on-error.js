@@ -1,21 +1,22 @@
 'use strict';
 
-// The timeout timer must clear on a spawn-time 'error', not just 'exit'.
+// Measures the child's actual exit time, not just its 'error' event - the outer spawnSync timeout catches a leaked inner timer.
 
 const common = require('../common');
 const assert = require('assert');
-const { spawn } = require('child_process');
+const { spawnSync } = require('child_process');
 
-const start = Date.now();
+const bugStallMs = common.platformTimeout(10000);
+const outerTimeoutMs = common.platformTimeout(2000);
 
-const cp = spawn(process.execPath, ['--version'], {
-  cwd: '/nonexistent/path/that/should/never/exist',
-  timeout: common.platformTimeout(10000),
-});
+const child = spawnSync(process.execPath, ['-e', `
+  const { spawn } = require('child_process');
+  const cp = spawn(process.execPath, ['--version'], {
+    cwd: '/nonexistent/path/that/should/never/exist',
+    timeout: ${bugStallMs},
+  });
+  cp.on('error', () => {});
+`], { timeout: outerTimeoutMs });
 
-cp.on('error', common.mustCall((err) => {
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.ok(Date.now() - start < 2000);
-}));
-
-cp.on('exit', common.mustNotCall());
+assert.strictEqual(child.signal, null);
+assert.strictEqual(child.status, 0);
