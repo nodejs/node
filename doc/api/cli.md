@@ -2677,6 +2677,9 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64606
+    description: Passing `--run` without a command lists the available scripts.
   - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53032
     description: NODE_RUN_SCRIPT_NAME environment variable is added.
@@ -2692,6 +2695,15 @@ changes:
 
 This runs a specified command from a package.json's `"scripts"` object.
 If a missing `"command"` is provided, it will list the available scripts.
+
+Passing `--run` without a command lists the available scripts and exits
+with a non-zero exit code:
+
+```console
+$ node --run
+Available scripts are:
+  test: node --test
+```
 
 `--run` will traverse up to the root directory and finds a `package.json`
 file to run the command from.

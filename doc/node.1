@@ -1329,6 +1329,13 @@ forked processes, or clustered processes.
 .It Fl -run
 This runs a specified command from a package.json's \fB"scripts"\fR object.
 If a missing \fB"command"\fR is provided, it will list the available scripts.
+Passing \fB--run\fR without a command lists the available scripts and exits
+with a non-zero exit code:
+.Bd -literal
+$ node --run
+Available scripts are:
+  test: node --test
+.Ed
 \fB--run\fR will traverse up to the root directory and finds a \fBpackage.json\fR
 file to run the command from.
 \fB--run\fR prepends \fB./node_modules/.bin\fR for each ancestor of
