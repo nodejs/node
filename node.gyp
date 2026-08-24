@@ -420,6 +420,7 @@
       'src/crypto/crypto_spkac.h',
       'src/crypto/crypto_util.h',
       'src/crypto/crypto_cipher.h',
+      'src/crypto/crypto_client_hello.h',
       'src/crypto/crypto_common.h',
       'src/crypto/crypto_dsa.h',
       'src/crypto/crypto_hash.h',

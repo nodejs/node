@@ -12,6 +12,7 @@
 #include <timer_wrap.h>
 #include <util.h>
 #include <optional>
+#include <span>
 #include "bindingdata.h"
 #include "cid.h"
 #include "data.h"
@@ -123,19 +124,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     std::string ToString() const;
   };
 
-  // Decode the first ALPN protocol name from wire format (length-prefixed).
-  static std::string_view DecodeAlpn(std::string_view wire);
-
-  // Select the Application implementation based on the negotiated ALPN.
-  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
-  // to DefaultApplication. Sets the application_type state field.
-  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
-
-  // Install the Application on the session. Called at construction for
-  // clients (ALPN known upfront) or from OnSelectAlpn for servers
-  // (ALPN negotiated during handshake). Must be called before any
-  // application data is received.
-  void SetApplication(std::unique_ptr<Application> app);
   // Controls which datagram to drop when the pending datagram queue is full.
   enum class DatagramDropPolicy : uint8_t {
     DROP_OLDEST = 0,  // Drop the oldest queued datagram (default).
@@ -431,6 +419,29 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                   const PacketInfo& pkt_info = PacketInfo(),
                   uint64_t ts = 0);
 
+  // Handles the result of an ngtcp2 call that drives inbound processing
+  // (ngtcp2_conn_read_pkt or ngtcp2_conn_continue_handshake).
+  bool AfterNgtcp2Read(int err);
+
+  // Decode the first ALPN protocol name from wire format (length-prefixed).
+  static std::string_view DecodeAlpn(std::string_view wire);
+
+  // Select the Application implementation based on the negotiated ALPN.
+  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
+  // to DefaultApplication. Sets the application_type state field.
+  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+
+  // Install the Application on the session. Called at construction for
+  // clients (ALPN known upfront) or from the ClientHello callback for
+  // servers (ALPN negotiated during handshake). Must be called before any
+  // application data is received.
+  void SetApplication(std::unique_ptr<Application> app);
+
+  void InstallApplicationForAlpn(std::string_view alpn);
+
+  // ngtcp2 ignores the duplicate when the TLS stack reports these again.
+  void SetEarlyRemoteTransportParams(std::span<const uint8_t> params);
+
   // Called by BindingData's flush callback to trigger SendPendingData
   // on this session. Encapsulates the application() access so that
   // bindingdata.cc doesn't need the full Application type definition.
@@ -610,24 +621,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // defined there to manage it.
   void set_wrapped();
 
-  // True while JS emits must be held for later replay, before the handshake
-  // is complete and the server session event has been emitted.
-  bool must_defer_emits() const;
+  bool ResumeHandshake();
 
-  // Replays, in order, any emits held while must_defer_emits() was true.
-  // Called synchronously right after the new-session emit.
-  void ReplayDeferredEmits();
-
-  // Queues fn to be replayed by ReplayDeferredEmits(). Out-of-line so the
-  // header does not need the full Impl definition.
-  void QueueDeferredEmit(std::function<void()> fn);
-
-  template <typename F>
-  bool DeferEmit(F&& fn) {
-    if (!must_defer_emits()) return false;
-    QueueDeferredEmit(std::forward<F>(fn));
-    return true;
-  }
+  void FlushPendingQlog();
 
   enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all

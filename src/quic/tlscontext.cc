@@ -334,52 +334,98 @@ TLSContext::operator SSL_CTX*() const {
   return ctx_.get();
 }
 
+crypto::ClientHelloResult TLSContext::OnClientHello(
+    const crypto::ClientHelloContext& hello) {
+  auto& tls_session = TLSSession::From(hello.ssl());
+  auto& session = tls_session.session();
+
+  using EarlySelection = TLSSession::EarlySelection;
+  switch (tls_session.early_selection()) {
+    case EarlySelection::kPending:
+      break;
+    case EarlySelection::kSelected:
+      // Selected already, but the Session has not been surfaced yet, so
+      // the handshake must stay where it is.
+      return crypto::ClientHelloResult::kRetry;
+    case EarlySelection::kComplete:
+      // Don't let HelloRetryRequests change SNI:
+      if (hello.servername() != tls_session.servername()) {
+        Debug(&session, "ClientHello changed the requested servername");
+        hello.set_alert(SSL_AD_ILLEGAL_PARAMETER);
+        return crypto::ClientHelloResult::kFail;
+      }
+      // Everything else the TLS library needs from here on is cached on the
+      // TLSSession, so just let the handshake run.
+      return crypto::ClientHelloResult::kContinue;
+  }
+
+  auto servername = hello.servername();
+  auto* selected = tls_session.context().SelectSNIContext(servername);
+  if (selected == nullptr) {
+    Debug(&session, "No TLS context for servername %s", servername);
+    hello.set_alert(SSL_AD_UNRECOGNIZED_NAME);
+    return crypto::ClientHelloResult::kFail;
+  }
+  if (selected != &tls_session.context()) {
+    SSL_set_SSL_CTX(hello.ssl(), *selected);
+  }
+  tls_session.set_servername(servername);
+
+  // The client's QUIC transport parameters travel in the ClientHello, but
+  // the TLS stack does not hand them to ngtcp2 until it parses extensions,
+  // which is after this callback.
+  auto params = hello.extension(TLSEXT_TYPE_quic_transport_parameters);
+  if (params.has_value()) session.SetEarlyRemoteTransportParams(*params);
+
+  const auto& supported = selected->options().alpn;
+  if (supported.empty()) {
+    // The server has no ALPN preference, so there is nothing to select and
+    // no Application to install. QUIC requires ALPN so this will fail later.
+    tls_session.set_early_selection(EarlySelection::kComplete);
+    return crypto::ClientHelloResult::kContinue;
+  }
+
+  auto negotiated = crypto::SelectNextProtocol(
+      {reinterpret_cast<const uint8_t*>(supported.data()), supported.size()},
+      hello.alpn_protocols());
+  if (!negotiated.has_value()) {
+    Debug(&session, "ALPN negotiation failed");
+    hello.set_alert(SSL_AD_NO_APPLICATION_PROTOCOL);
+    return crypto::ClientHelloResult::kFail;
+  }
+  Debug(&session, "ALPN negotiation succeeded: %s", *negotiated);
+  tls_session.set_alpn(*negotiated);
+
+  // Install the Application while the handshake is still stopped, so that
+  // it is in place before a session ticket can be accepted and early data
+  // can start arriving.
+  session.InstallApplicationForAlpn(*negotiated);
+  session.set_hello_processed();
+
+  // Stop here. Session::AfterNgtcp2Read surfaces the server session to
+  // JavaScript and then resumes the handshake, at which point this callback
+  // runs again and takes the kComplete path.
+  tls_session.set_early_selection(EarlySelection::kSelected);
+  return crypto::ClientHelloResult::kRetry;
+}
+
 int TLSContext::OnSelectAlpn(SSL* ssl,
                              const unsigned char** out,
                              unsigned char* outlen,
                              const unsigned char* in,
                              unsigned int inlen,
                              void* arg) {
-  auto& tls_session = TLSSession::From(ssl);
-
-  const auto& requested = tls_session.context().options().alpn;
-  if (requested.empty()) return SSL_TLSEXT_ERR_NOACK;
-
-  // The requested ALPN string is in wire format (one or more
-  // length-prefixed protocol names). SSL_select_next_proto finds the
-  // first match between the server's list and the client's list.
-  if (SSL_select_next_proto(
-          const_cast<unsigned char**>(out),
-          outlen,
-          reinterpret_cast<const unsigned char*>(requested.data()),
-          requested.length(),
-          in,
-          inlen) == OPENSSL_NPN_NO_OVERLAP) {
-    Debug(&tls_session.session(), "ALPN negotiation failed");
+  // The protocol was already chosen from the ClientHello. OpenSSL still
+  // requires it to be handed back here for the ALPN extension to be sent.
+  const auto& negotiated = TLSSession::From(ssl).alpn();
+  if (negotiated.empty()) return SSL_TLSEXT_ERR_NOACK;
+  // The list offered here should be the one the choice was made from, but
+  // a peer can send a second ClientHello after HelloRetryRequest; never
+  // answer with a protocol this one does not offer.
+  if (!crypto::AlpnListContains({in, inlen}, negotiated)) {
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
-
-  // ALPN negotiated successfully. *out/*outlen point to the selected
-  // protocol name (without the length prefix). Select the Application
-  // implementation based on the negotiated ALPN. This must happen now
-  // because early data (0-RTT) may arrive in the same ngtcp2_conn_read_pkt
-  // call and needs the Application to be ready.
-  std::string_view negotiated(reinterpret_cast<const char*>(*out), *outlen);
-  Debug(&tls_session.session(),
-        "ALPN negotiation succeeded: %s",
-        std::string(negotiated).c_str());
-
-  auto& session = tls_session.session();
-  auto app = session.SelectApplicationFromAlpn(negotiated);
-  if (!app) {
-    Debug(&session,
-          "Failed to create Application for ALPN %s",
-          std::string(negotiated).c_str());
-    return SSL_TLSEXT_ERR_NOACK;
-  }
-  session.SetApplication(std::move(app));
-  session.set_hello_processed();
-
+  crypto::SetSelectedProtocol(out, outlen, negotiated);
   return SSL_TLSEXT_ERR_OK;
 }
 
@@ -486,6 +532,7 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
 
       SSL_CTX_set_mode(ctx.get(), SSL_MODE_RELEASE_BUFFERS);
       SSL_CTX_set_alpn_select_cb(ctx.get(), OnSelectAlpn, this);
+      crypto::SetClientHelloCallback<OnClientHello>(ctx.get());
 
       if (SSL_CTX_set_session_id_context(
               ctx.get(), kSidCtx, sizeof(kSidCtx) - 1) != 1) {
@@ -506,8 +553,9 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
                                              nullptr),
                1);
 
+      // The SNI context is selected from the ClientHello; this callback
+      // exists only so that OpenSSL acknowledges the extension.
       SSL_CTX_set_tlsext_servername_callback(ctx.get(), OnSNI);
-      SSL_CTX_set_tlsext_servername_arg(ctx.get(), this);
       break;
     }
     case Side::CLIENT: {
@@ -654,23 +702,22 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   return ctx;
 }
 
+TLSContext* TLSContext::SelectSNIContext(std::string_view servername) {
+  DCHECK_EQ(side_, Side::SERVER);
+  if (!servername.empty()) {
+    auto it = sni_contexts_.find(servername);
+    if (it != sni_contexts_.end()) return it->second.get();
+  }
+  // No matching hostname. If this context has a certificate (from the
+  // sni['*'] wildcard identity), fall back to it. Otherwise there is no
+  // identity that can serve this connection.
+  if (SSL_CTX_get0_certificate(ctx_.get()) == nullptr) return nullptr;
+  return this;
+}
+
 int TLSContext::OnSNI(SSL* ssl, int* ad, void* arg) {
-  auto* default_ctx = static_cast<TLSContext*>(arg);
-  const char* servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
-  if (servername != nullptr) {
-    auto it = default_ctx->sni_contexts_.find(servername);
-    if (it != default_ctx->sni_contexts_.end()) {
-      SSL_set_SSL_CTX(ssl, it->second->ctx_.get());
-      return SSL_TLSEXT_ERR_OK;
-    }
-  }
-  // No matching hostname found. If the default context has a certificate
-  // (from the sni['*'] wildcard identity), fall through to use it.
-  // Otherwise, reject the connection with an unrecognized_name alert.
-  if (SSL_CTX_get0_certificate(default_ctx->ctx_.get()) == nullptr) {
-    *ad = SSL_AD_UNRECOGNIZED_NAME;
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-  }
+  // The context for this host name was already selected and applied from
+  // the ClientHello. OpenSSL only needs the extension acknowledged here.
   return SSL_TLSEXT_ERR_OK;
 }
 
@@ -687,7 +734,7 @@ bool TLSContext::AddSNIContext(Environment* env,
 bool TLSContext::SetSNIContexts(
     Environment* env, const std::unordered_map<std::string, Options>& entries) {
   DCHECK_EQ(side_, Side::SERVER);
-  std::unordered_map<std::string, std::shared_ptr<TLSContext>> new_contexts;
+  decltype(sni_contexts_) new_contexts;
   for (const auto& [hostname, options] : entries) {
     auto ctx = std::make_shared<TLSContext>(env, Side::SERVER, options);
     if (!*ctx) return false;
@@ -789,7 +836,7 @@ const TLSContext::Options TLSContext::Options::kDefault = {};
 
 // ============================================================================
 
-const TLSSession& TLSSession::From(const SSL* ssl) {
+TLSSession& TLSSession::From(const SSL* ssl) {
   auto ref = static_cast<ngtcp2_crypto_conn_ref*>(SSL_get_app_data(ssl));
   CHECK_NOT_NULL(ref);
   return *static_cast<TLSSession*>(ref->user_data);
@@ -990,12 +1037,19 @@ MaybeLocal<Value> TLSSession::cipher_version(Environment* env) const {
 }
 
 const std::string_view TLSSession::servername() const {
+  // A server caches the name from the ClientHello, which is available
+  // earlier than SSL_get_servername() and stays available while the
+  // handshake is paused. A client just reports what it asked for.
+  if (context_->side() == Side::SERVER) return servername_;
   SSLPointerRef ssl(ossl_context_);
   return ssl->getServerName().value_or(std::string_view());
 }
 
 const std::string TLSSession::protocol() const {
   CHECK(ossl_context_);
+  // As with servername(), a server has the answer cached from the
+  // ClientHello; a client learns it from the ServerHello.
+  if (context_->side() == Side::SERVER) return alpn_;
   return ossl_context_.get_selected_alpn();
 }
 
