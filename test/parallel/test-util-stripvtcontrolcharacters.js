@@ -18,8 +18,30 @@ for (const ST of ['\u0007', '\u001B\u005C', '\u009C']) {
   tests.push(
     [`\u001B]8;;mailto:no-replay@mail.com${ST}mail\u001B]8;;${ST}`, 'mail'],
     [`\u001B]8;k=v;https://example-a.com/?a_b=1&c=2#tit%20le${ST}click\u001B]8;;${ST}`, 'click'],
+    [`\u001B]8;;https://example.com/(foo${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/foo)bar${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/!foo${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/foo+bar${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/[foo]${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/foo$bar${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/foo'bar${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/foo*bar${ST}label\u001B]8;;${ST}`, 'label'],
+    [`\u001B]8;;https://example.com/foo,bar${ST}label\u001B]8;;${ST}`, 'label'],
   );
 }
+
+// Colon-delimited CSI sub-parameters (SGR) should be stripped like the
+// semicolon-delimited form.
+tests.push(
+  ['\u001B[38:2:255:0:0mHello\u001B[0m', 'Hello'],
+  ['\u001B[4:3mUnderline\u001B[4:0m', 'Underline'],
+);
+
+// Unterminated OSC does not match the OSC alternative; the CSI alternative may
+// still consume a short prefix (here ESC ] 8 ;; h), leaving the remainder.
+tests.push(
+  ['\u001B]8;;https://example.com/no-terminator', 'ttps://example.com/no-terminator'],
+);
 
 test('util.stripVTControlCharacters', (t) => {
   for (const [before, expected] of tests) {
