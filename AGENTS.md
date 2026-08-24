@@ -36,18 +36,18 @@ New Node.js contributors should avoid using AI agents to interact with the proje
 
 AI agents **must not**:
 
-* Push to any branch or tag in nodejs/node
-* Create unsupervised pull requests or issues without active human engagement
-* Make claims about code without human verification against actual source code
-* Remove or modify existing tests without human judgment
-* Interact with the repository through means other than those explicitly authorized
+* Push to any branch or tag in nodejs/node.
+* Create unsupervised pull requests or issues without active human engagement.
+* Make claims about code without human verification against actual source code.
+* Remove or modify existing tests without human judgment.
+* Interact with the repository through means other than those explicitly authorized.
 * Use commit messages to promote for-profit AI tools or commercial brands. A single
   `Assisted-by: <agent-name>` annotation is required disclosure, not promotion, and is
   permitted.
 * Post AI-generated messages directly into pull requests, issues, or project communication
   channels without direct human review and editing to ensure clarity, accuracy, and respect
-  for collaborator time
-* Sign off commits using `Signed-off-by: <agent name>` or `Co-authored-by: <agent name>`
+  for collaborator time.
+* Sign off commits using `Signed-off-by: <agent name>` or `Co-authored-by: <agent name>`.
 
 ## Violations
 
