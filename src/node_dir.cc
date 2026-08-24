@@ -206,7 +206,7 @@ static MaybeLocal<Array> DirentListToArray(Environment* env,
                                            uv_dirent_t* ents,
                                            int num,
                                            enum encoding encoding) {
-  MaybeStackBuffer<Local<Value>, 64> entries(num * 2);
+  MaybeStackBuffer<Value, 64> entries(env->isolate(), num * 2);
 
   // Return an array of all read filenames.
   int j = 0;
@@ -222,7 +222,8 @@ static MaybeLocal<Array> DirentListToArray(Environment* env,
     entries[j++] = Integer::New(env->isolate(), ents[i].type);
   }
 
-  return Array::New(env->isolate(), entries.out(), j);
+  CHECK_EQ(j, num * 2);
+  return entries.ToArray();
 }
 
 static void AfterDirRead(uv_fs_t* req) {

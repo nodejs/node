@@ -23,6 +23,7 @@ on:
       - tools/eslint-rules/**
       - tools/eslint/**
       - tools/lint-md/**
+      - tools/nix/**
       - typings/**
       - vcbuild.bat
       - .**
@@ -52,6 +53,7 @@ on:
       - tools/eslint-rules/**
       - tools/eslint/**
       - tools/lint-md/**
+      - tools/nix/**
       - typings/**
       - vcbuild.bat
       - .**

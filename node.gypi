@@ -87,6 +87,12 @@
     [ 'OS=="aix" or OS=="os400"', {
       'cflags': [ '-mcpu=power9' ],
     }],
+    [ 'OS=="linux" and target_arch=="ppc64"', {
+      'cflags': [ '-mcpu=power9' ],
+    }],
+    [ 'OS=="linux" and target_arch=="s390x"', {
+      'cflags': [ '-march=z14' ],
+    }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],

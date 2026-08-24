@@ -154,7 +154,7 @@ std::string EscapeShell(const std::string_view input) {
   }
 
   static constexpr std::string_view forbidden_characters =
-      "[\t\n\r \"#$&'()*;<>?\\\\`|~]";
+      "[\t\n\r \"#$&'()*;<>%?\\\\`|~]";
 
   // Check if input contains any forbidden characters
   // If it doesn't, return the input as is.
@@ -174,6 +174,7 @@ std::string EscapeShell(const std::string_view input) {
   static const std::regex tripleSingleQuote("\\\\\"\"\"");
   escaped = std::regex_replace(escaped, leadingQuotePairs, "");
   escaped = std::regex_replace(escaped, tripleSingleQuote, "\\\"");
+  escaped = std::regex_replace(escaped, std::regex("%"), "^%");
 #else
   // Replace single quotes("'") with `'"'"'` and wrap the result
   // in single quotes.
@@ -253,6 +254,27 @@ FindPackageJson(const std::filesystem::path& cwd) {
   return {{package_json_path, raw_content, path_env_var}};
 }
 
+// Prints every "name: command" pair in the scripts object to the given stream.
+static void PrintScripts(FILE* out,
+                         simdjson::ondemand::object& scripts_object) {
+  // Reset the object to iterate from the beginning, in case it was read before.
+  scripts_object.reset();
+  simdjson::ondemand::value value;
+  for (auto field : scripts_object) {
+    std::string_view key_str;
+    std::string_view value_str;
+    if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
+        !value.get_string().get(value_str)) {
+      fprintf(out,
+              "  %.*s: %.*s\n",
+              static_cast<int>(key_str.size()),
+              key_str.data(),
+              static_cast<int>(value_str.size()),
+              value_str.data());
+    }
+  }
+}
+
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
@@ -305,6 +327,16 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
     return;
   }
 
+  // With no command (e.g. bare `node --run`), list the available scripts but
+  // exit non-zero so a script invoking `node --run $CMD` with an unset
+  // variable still fails, as it did before bare `--run` was allowed.
+  if (command_id.empty()) {
+    fprintf(stderr, "Available scripts are:\n");
+    PrintScripts(stderr, scripts_object);
+    result->exit_code_ = ExitCode::kInvalidCommandLineArgument;
+    return;
+  }
+
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
   if (auto command_error =
@@ -322,23 +354,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
               command_id.data(),
               ConvertPathToUTF8(path).c_str());
       fprintf(stderr, "Available scripts are:\n");
-
-      // Reset the object to iterate over it again
-      scripts_object.reset();
-      simdjson::ondemand::value value;
-      for (auto field : scripts_object) {
-        std::string_view key_str;
-        std::string_view value_str;
-        if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-            !value.get_string().get(value_str)) {
-          fprintf(stderr,
-                  "  %.*s: %.*s\n",
-                  static_cast<int>(key_str.size()),
-                  key_str.data(),
-                  static_cast<int>(value_str.size()),
-                  value_str.data());
-        }
-      }
+      PrintScripts(stderr, scripts_object);
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;

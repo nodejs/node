@@ -81,8 +81,6 @@
 #include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
 
-#include "large_pages/node_large_page.h"
-
 #if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
 #define NODE_USE_V8_WASM_TRAP_HANDLER 1
 #else
@@ -759,13 +757,6 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     return ExitCode::kInvalidCommandLineArgument2;
   }
 
-  // TODO(aduh95): remove this when the harmony-import-attributes flag
-  // is removed in V8.
-  if (std::ranges::find(v8_args, "--no-harmony-import-attributes") ==
-      v8_args.end()) {
-    v8_args.emplace_back("--harmony-import-attributes");
-  }
-
   if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
            .empty()) {
     v8_args.emplace_back(
@@ -1125,15 +1116,12 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoUseLargePages) &&
-      (per_process::cli_options->use_largepages == "on" ||
-       per_process::cli_options->use_largepages == "silent")) {
-    int lp_result = node::MapStaticCodeToLargePages();
-    if (per_process::cli_options->use_largepages == "on" && lp_result != 0) {
-      result->errors_.emplace_back(node::LargePagesError(lp_result));
-    }
+      (per_process::cli_options->use_largepages == "on")) {
+    result->errors_.emplace_back("--use-largepages is no longer supported.");
   }
 
-  if (!per_process::cli_options->run.empty()) {
+  // A bare `--run` (empty value) lists the available scripts; a value runs it.
+  if (per_process::cli_options->has_run) {
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(

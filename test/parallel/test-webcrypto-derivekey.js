@@ -284,7 +284,7 @@ const fips4 = hasFIPS(4);
   })().then(common.mustCall());
 }
 
-if (hasOpenSSL(3)) {
+if (hasOpenSSL(3) && !hasFIPS()) {
   (async () => {
     const derivedKeyAlgorithm = { name: 'KMAC128', length: 0 };
     const usages = ['sign'];
@@ -326,11 +326,7 @@ if (hasOpenSSL(3)) {
         name: 'KMAC128',
         outputLength: 256,
       }, derived, new Uint8Array());
-      if (fips4) {
-        await assert.rejects(signature, { name: 'OperationError' });
-      } else {
-        assert.strictEqual((await signature).byteLength, 32);
-      }
+      assert.strictEqual((await signature).byteLength, 32);
     }
   })().then(common.mustCall());
 }

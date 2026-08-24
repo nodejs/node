@@ -1191,6 +1191,8 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
 
@@ -1331,6 +1333,10 @@ changes:
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists.
+
+Symbolic links are followed. If `src` is a symbolic link, the target file is
+copied. If `dest` is a symbolic link, the target file is overwritten unless
+`mode` contains `fs.constants.COPYFILE_EXCL`.
 
 No guarantees are made about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, an attempt
@@ -1478,6 +1484,7 @@ const { glob } = require('node:fs/promises');
 ### `fsPromises.lchmod(path, mode)`
 
 <!-- YAML
+added: v10.0.0
 deprecated: v10.0.0
 -->
 
@@ -1544,6 +1551,10 @@ link(2) documentation for more detail.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -1554,6 +1565,8 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
@@ -2084,6 +2097,10 @@ Removes files and directories (modeled on the standard POSIX `rm` utility).
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61178
     description: Accepts a `throwIfNoEntry` option to specify whether
@@ -2101,6 +2118,8 @@ changes:
   * `throwIfNoEntry` {boolean} Whether an exception will be thrown
     if no file system entry exists, rather than returning `undefined`.
     **Default:** `true`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the
   given `path`.
 
@@ -2849,6 +2868,10 @@ callback function. Node.js makes no guarantees about the atomicity of the copy
 operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
 
+Symbolic links are followed. If `src` is a symbolic link, the target file is
+copied. If `dest` is a symbolic link, the target file is overwritten unless
+`mode` contains `fs.constants.COPYFILE_EXCL`.
+
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
@@ -3437,6 +3460,10 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.95
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3460,6 +3487,8 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -3666,7 +3695,8 @@ glob('**/*.js', (err, matches) => {
 ### `fs.lchmod(path, mode, callback)`
 
 <!-- YAML
-deprecated: v0.4.7
+added: v0.5.0
+deprecated: v0.5.0
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -3803,6 +3833,10 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63143
+    description: Accepts an additional `signal` option to allow aborting the
+                 operation.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3830,6 +3864,8 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation.
+    **Default:** `undefined`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -6017,6 +6053,10 @@ already exists. Returns `undefined`. Node.js makes no guarantees about the
 atomicity of the copy operation. If an error occurs after the destination file
 has been opened for writing, Node.js will attempt to remove the destination.
 
+Symbolic links are followed. If `src` is a symbolic link, the target file is
+copied. If `dest` is a symbolic link, the target file is overwritten unless
+`mode` contains `fs.constants.COPYFILE_EXCL`.
+
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
@@ -6288,7 +6328,8 @@ console.log(globSync('**/*.js'));
 ### `fs.lchmodSync(path, mode)`
 
 <!-- YAML
-deprecated: v0.4.7
+added: v0.5.0
+deprecated: v0.5.0
 -->
 
 > Stability: 0 - Deprecated
@@ -7348,6 +7389,8 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `dir.close()` if the directory handle is open, and returns a promise that
 fulfills when disposal is complete.
 
@@ -7387,6 +7430,13 @@ directory entry is a combination of the file name and file type pairs.
 Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
 {fs.Dirent} objects, rather than strings or {Buffer}s.
+
+When a directory is read, such as with [`fs.readdir()`][] or
+[`fs.opendir()`][], the file type of each entry is the type reported by the
+operating system and may depend on the file system; for example, some file
+systems may report a type that differs from what [`fs.lstat()`][] returns.
+Node.js calls [`fs.lstat()`][] on such an entry only when the reported type
+is unknown. Use [`fs.lstat()`][] when an accurate file type is required.
 
 #### `dirent.isBlockDevice()`
 
@@ -8413,6 +8463,7 @@ of bytes written is passed as the first argument to the event handler.
     * `writeBufferLen` {number}
     * `remainingBufferLen`: {number}
   * `sync`: {boolean} Perform writes synchronously.
+* Returns: {fs.Utf8Stream}
 
 #### `utf8Stream.append`
 
@@ -8762,12 +8813,14 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_SYNC</code></td>
     <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for file integrity.</td>
+    operations waiting for file integrity. On Windows, this maps to
+    <code>FILE_FLAG_WRITE_THROUGH</code>.</td>
   </tr>
   <tr>
     <td><code>O_DSYNC</code></td>
     <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for data integrity.</td>
+    operations waiting for data integrity. On Windows, this maps to
+    <code>FILE_FLAG_WRITE_THROUGH</code>.</td>
   </tr>
   <tr>
     <td><code>O_SYMLINK</code></td>
@@ -8777,7 +8830,7 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_DIRECT</code></td>
     <td>When set, an attempt will be made to minimize caching effects of file
-    I/O.</td>
+    I/O. On Windows, this maps to <code>FILE_FLAG_NO_BUFFERING</code>.</td>
   </tr>
   <tr>
     <td><code>O_NONBLOCK</code></td>

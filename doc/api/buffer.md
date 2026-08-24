@@ -536,6 +536,8 @@ added:
   - v20.16.0
 -->
 
+* Returns: {Promise}
+
 The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
 
 ```js
@@ -566,6 +568,7 @@ added:
 * `start` {number} The starting index.
 * `end` {number} The ending index.
 * `type` {string} The content-type for the new `Blob`
+* Returns: {Blob}
 
 Creates and returns a new `Blob` containing a subset of this `Blob` objects
 data. The original `Blob` is not altered.
@@ -5278,6 +5281,7 @@ added:
 > Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
 
 * `data` {any} The Base64-encoded input string.
+* Returns: {string}
 
 Decodes a string of Base64-encoded data into bytes, and encodes those bytes
 into a string using Latin-1 (ISO-8859-1).
@@ -5308,6 +5312,7 @@ added:
 > Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
 
 * `data` {any} An ASCII (Latin1) string.
+* Returns: {string}
 
 Decodes a string into bytes using Latin-1 (ISO-8859), and encodes those bytes
 into a string using Base64.

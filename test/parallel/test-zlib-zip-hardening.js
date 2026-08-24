@@ -118,13 +118,14 @@ test('a declared-size mismatch is rejected as corrupt', async () => {
   const entry = await zlib.ZipEntry.create('f.txt', Buffer.from('hello world'), { method: 'store' });
   const archive = await buildArchive([entry]);
 
-  // Shrink the *declared* uncompressed size in the central directory record
-  // without touching the stored bytes themselves, so the amount of data
-  // produced no longer matches what the header promised.
+  // Shrink the *declared* uncompressed size in both the local and central
+  // headers (kept consistent so the header cross-check passes) without touching
+  // the stored bytes, so the produced amount no longer matches the headers'
+  // promise and the decode-time size check fires.
   const tampered = Buffer.from(archive);
   const centralHeaderStart = 30 + 'f.txt'.length + 'hello world'.length;
-  const uncompressedSizeOffset = centralHeaderStart + 24;
-  tampered.writeUInt32LE(1, uncompressedSizeOffset);
+  tampered.writeUInt32LE(1, 22); // Local uncompressed size
+  tampered.writeUInt32LE(1, centralHeaderStart + 24); // Central uncompressed size
 
   const [tamperedEntry] = zlib.ZipEntry.read(tampered);
   assert.strictEqual(tamperedEntry.size, 1);
@@ -165,7 +166,10 @@ test('a forged small header whose content inflates past its declared size is rej
     const tampered = Buffer.from(archive);
     const eocd = tampered.length - 22; // No comment, so EOCD is the last 22 bytes
     const cdOffset = tampered.readUInt32LE(eocd + 16);
-    tampered.writeUInt32LE(50, cdOffset + 24); // Forge declared uncompressedSize
+    // Forge the declared uncompressedSize in both headers (kept consistent so
+    // the header cross-check passes; the decompressor still catches the lie).
+    tampered.writeUInt32LE(50, 22); // Local uncompressedSize
+    tampered.writeUInt32LE(50, cdOffset + 24); // Central uncompressedSize
 
     const [e] = zlib.ZipEntry.read(tampered);
     assert.strictEqual(e.size, 50); // 50 <= maxSize 100 clears the up-front check
@@ -413,9 +417,11 @@ test('a member whose data crosses into the central directory is rejected', async
   const archive = Buffer.from(await buildArchive(
     [await zlib.ZipEntry.create(name, content, { method: 'store' })]));
   const centralHeaderStart = 30 + name.length + content.length;
-  // Lie about the compressed size so the member's data range reaches into
-  // the central directory (while staying inside the buffer).
-  archive.writeUInt32LE(content.length + 40, centralHeaderStart + 20);
+  // Lie about the compressed size in both headers (kept consistent so the
+  // header cross-check passes) so the member's data range reaches into the
+  // central directory (while staying inside the buffer).
+  archive.writeUInt32LE(content.length + 40, 18); // Local compressed size
+  archive.writeUInt32LE(content.length + 40, centralHeaderStart + 20); // Central
   assert.throws(() => [...zlib.ZipEntry.read(archive)],
                 { code: 'ERR_ZIP_INVALID_ARCHIVE', message: /possible zip bomb/ });
 });

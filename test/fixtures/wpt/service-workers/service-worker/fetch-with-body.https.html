@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+const SCRIPT = 'resources/fetch-with-body-worker.js';
+const SCOPE = 'resources/blank.html';
+
+let frame, registration;
+
+promise_test(async t => {
+  t.add_cleanup(async() => {
+    if (frame)
+      frame.remove();
+    if (registration)
+      await registration.unregister();
+  });
+
+  await service_worker_unregister(t, SCOPE);
+  registration = await navigator.serviceWorker.register(SCRIPT, {scope: SCOPE});
+  await wait_for_state(t, registration.installing, 'activating');
+  frame = await with_iframe(SCOPE);
+
+  const request1 = new Request("resources/fetch-with-body-worker.py", {
+    method: "GET",
+  });
+
+  const response1 = await frame.contentWindow.fetch(request1);
+  assert_false(response1.ok);
+
+  const request2 = new Request("resources/fetch-with-body-worker.py", {
+    method: "POST",
+    body: "BODY",
+    headers: { "Content-Type": "text/ascii" },
+  });
+
+  const response2 = await frame.contentWindow.fetch(request2);
+  assert_true(response2.ok);
+}, 'Validate body is preserved');
+
+</script>
+</body>
+</html>

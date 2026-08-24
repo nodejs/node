@@ -16,14 +16,14 @@ function main(conf) {
   }
 
   let i;
-  let deadCodeElimination = true;
+  let deadCodeElimination;
 
   bench.start();
   for (i = 0; i < conf.n; i += 1)
-    deadCodeElimination &&= db.isTransaction;
+    deadCodeElimination = db.isTransaction;
   bench.end(conf.n);
 
-  assert.ok(deadCodeElimination === (conf.transaction === 'true'));
+  assert.strictEqual(deadCodeElimination, conf.transaction === 'true');
 
   if (conf.transaction === 'true') {
     db.exec('ROLLBACK');

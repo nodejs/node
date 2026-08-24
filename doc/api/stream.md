@@ -3570,6 +3570,10 @@ changes:
 Attaches an AbortSignal to a readable or writable stream. This lets code
 control stream destruction using an `AbortController`.
 
+> Stability: 0 - Deprecated. Using [`stream.addAbortSignal()`][] to destroy
+> long-lived stream resources is documentation-only deprecated. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
+
 Calling `abort` on the `AbortController` corresponding to the passed
 `AbortSignal` will behave the same way as calling `.destroy(new AbortError())`
 on the stream, and `controller.error(new AbortError())` for webstreams.

@@ -280,6 +280,11 @@ class DefaultApplication final : public Session::Application {
     return NGTCP2_INTERNAL_ERROR;
   }
 
+  // Raw QUIC has no "request rejected" semantic; reuse the no-error code.
+  error_code GetRequestRejectedCode() const override {
+    return GetNoErrorCode();
+  }
+
   void EarlyDataRejected() override {
     // Destroy all open streams — ngtcp2 has already discarded their
     // internal state when it rejected the early data. Use the
@@ -431,6 +436,7 @@ class DefaultApplication final : public Session::Application {
     // The peer granted more flow control for this stream. Re-schedule
     // it so SendPendingData will resume writing.
     DCHECK_NOT_NULL(stream);
+    stream->UpdateWriteDesiredSize();  // the stream might be blocked on js side
     stream->Schedule(&stream_queue_);
   }
 

@@ -785,6 +785,11 @@ Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
 
+> Using the `signal` option to destroy a long-lived server as a resource cleanup
+> mechanism is deprecated. The `signal` option remains appropriate for
+> cancellation, externally propagated aborts, and timeouts. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
+
 If `exclusive` is `false` (default), then cluster workers will use the same
 underlying handle, allowing connection handling duties to be shared. When
 `exclusive` is `true`, the handle is not shared, and attempted port sharing
@@ -1452,15 +1457,15 @@ added: v0.1.90
 * `error` {Object}
 * Returns: {net.Socket}
 
-Ensures that no more I/O activity happens on this socket.
+Ensures that no more I/O activity happens on the current connection.
 Destroys the stream and closes the connection.
 
 See [`writable.destroy()`][] for further details.
 
 ### `socket.destroyed`
 
-* Type: {boolean} Indicates if the connection is destroyed or not. Once a
-  connection is destroyed no further data can be transferred using it.
+* Type: {boolean} Indicates if the connection is destroyed or not. No further
+  data can be transferred using a destroyed connection.
 
 See [`writable.destroyed`][] for further details.
 
@@ -2443,12 +2448,13 @@ added: v0.3.0
 * `input` {string}
 * Returns: {integer}
 
-Returns `6` if `input` is an IPv6 address. Returns `4` if `input` is an IPv4
-address in [dot-decimal notation][] with no leading zeroes. Otherwise, returns
-`0`.
+Returns `6` if `input` is an IPv6 address, including an IPv4-mapped IPv6 address.
+Returns `4` if `input` is an IPv4 address in [dot-decimal notation][] with no
+leading zeroes. Otherwise, returns `0`.
 
 ```js
 net.isIP('::1'); // returns 6
+net.isIP('::ffff:127.0.0.1'); // returns 6
 net.isIP('127.0.0.1'); // returns 4
 net.isIP('127.000.000.001'); // returns 0
 net.isIP('127.0.0.1/24'); // returns 0
@@ -2483,10 +2489,12 @@ added: v0.3.0
 * `input` {string}
 * Returns: {boolean}
 
-Returns `true` if `input` is an IPv6 address. Otherwise, returns `false`.
+Returns `true` if `input` is an IPv6 address, including an IPv4-mapped IPv6 address.
+Otherwise, returns `false`.
 
 ```js
 net.isIPv6('::1'); // returns true
+net.isIPv6('::ffff:127.0.0.1'); // returns true
 net.isIPv6('fhqwhgads'); // returns false
 ```
 

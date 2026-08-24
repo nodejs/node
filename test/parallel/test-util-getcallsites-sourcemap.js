@@ -39,6 +39,18 @@ const fixtures = require('../common/fixtures');
   assert.strictEqual(callSite.columnNumber, 1);
 }
 
+// A source map may omit names, so preserve the function name from the call site.
+{
+  const file = fixtures.path('source-map', 'get-call-sites-function-name-mapped.js');
+  const { status, stderr, stdout } = spawnSync(
+    process.execPath,
+    ['--enable-source-maps', file],
+  );
+  assert.strictEqual(status, 0, stderr.toString());
+  const callSite = JSON.parse(stdout.toString());
+  assert.strictEqual(callSite.functionName, 'foo');
+}
+
 // Without --enable-source-maps the generated file path is preserved.
 {
   const file = fixtures.path('source-map', 'get-call-sites-mapped.js');

@@ -77,6 +77,14 @@ class Session::Application : public MemoryRetainer {
   // NGTCP2_INTERNAL_ERROR (0x1).
   virtual error_code GetInternalErrorCode() const = 0;
 
+  // The "request rejected" code is sent on RESET_STREAM when an incoming
+  // request stream is rejected without any application processing (e.g.
+  // the session has no consumer for it), so the peer learns the request
+  // was not processed. For HTTP/3 this is NGHTTP3_H3_REQUEST_REJECTED
+  // (0x10b); other applications have no such semantic and reuse the
+  // "no error" code.
+  virtual error_code GetRequestRejectedCode() const = 0;
+
   // Called after Session::Receive processes a packet, outside all callback
   // scopes. Applications can use this to handle deferred operations that
   // require calling into JS (e.g., HTTP/3 GOAWAY processing).
@@ -209,6 +217,11 @@ class Session::Application : public MemoryRetainer {
   // receiving headers on streams (e.g. HTTP/3). Applications that
   // do not support headers should return false (the default).
   virtual bool SupportsHeaders() const { return false; }
+
+  // True if this application dispatches the session-level stream
+  // callbacks (onheaders et al) for incoming streams when they are
+  // registered on the session.
+  virtual bool SupportsStreamCallbacks() const { return false; }
 
   // Initiates application-level graceful shutdown signaling (e.g.,
   // HTTP/3 GOAWAY). Called when Session::Close(GRACEFUL) is invoked.

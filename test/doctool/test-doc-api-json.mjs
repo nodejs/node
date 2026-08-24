@@ -153,7 +153,6 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
     'packages.md': ['introduced_in', 'meta', 'miscs'],
     'process.md': ['globals'],
     'report.md': ['introduced_in', 'meta', 'stability', 'stabilityText', 'miscs'],
-    'synopsis.md': ['introduced_in', 'miscs'],
   }[dirent.name] ?? ['modules'])]);
 
   assert.partialDeepStrictEqual(allExpectedKeys, findAllKeys(json));

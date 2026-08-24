@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>Service Worker: Skip waiting using registration</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+promise_test(function(t) {
+    var scope = 'resources/blank.html?skip-waiting-using-registration';
+    var url1 = 'resources/empty.js';
+    var url2 = 'resources/skip-waiting-worker.js';
+    var frame, frame_sw, sw_registration, oncontrollerchanged;
+    var saw_controllerchanged = new Promise(function(resolve) {
+        oncontrollerchanged = function(e) {
+            resolve(e);
+          };
+        })
+      .then(function(e) {
+          assert_equals(e.type, 'controllerchange',
+                        'Event name should be "controllerchange"');
+          assert_true(
+              e.target instanceof frame.contentWindow.ServiceWorkerContainer,
+              'Event target should be a ServiceWorkerContainer');
+          assert_equals(e.target.controller.state, 'activating',
+                        'Controller state should be activating');
+          assert_equals(
+              frame_sw.controller.scriptURL, normalizeURL(url2),
+              'Controller scriptURL should change to the second one');
+        });
+
+    return service_worker_unregister_and_register(t, url1, scope)
+      .then(function(registration) {
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          t.add_cleanup(function() {
+              f.remove();
+            });
+          frame = f;
+          frame_sw = f.contentWindow.navigator.serviceWorker;
+          assert_equals(
+              frame_sw.controller.scriptURL, normalizeURL(url1),
+              'Document controller scriptURL should equal to the first one');
+          frame_sw.oncontrollerchange = t.step_func(oncontrollerchanged);
+          return navigator.serviceWorker.register(url2, {scope: scope});
+        })
+      .then(function(registration) {
+          sw_registration = registration;
+          t.add_cleanup(function() {
+              return registration.unregister();
+            });
+          return saw_controllerchanged;
+        })
+      .then(function() {
+          assert_not_equals(sw_registration.active, null,
+                            'Registration active worker should not be null');
+          return fetch_tests_from_worker(sw_registration.active);
+        });
+  }, 'Test skipWaiting while a client is using the registration');
+
+</script>

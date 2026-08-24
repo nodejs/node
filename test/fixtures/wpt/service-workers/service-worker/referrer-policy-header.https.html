@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>Service Worker: check referer of fetch() with Referrer Policy</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+const SCOPE = 'resources/referrer-policy-iframe.html';
+const SCRIPT = 'resources/fetch-rewrite-worker-referrer-policy.js';
+
+promise_test(async t => {
+    const registration =
+        await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+    await wait_for_state(t, registration.installing, 'activated');
+    t.add_cleanup(() => registration.unregister(),
+                 'Remove registration as a cleanup');
+
+    const full_scope_url = new URL(SCOPE, location.href);
+    const redirect_to = `${full_scope_url.href}?ignore=true`;
+    const frame = await with_iframe(
+        `${SCOPE}?pipe=status(302)|header(Location,${redirect_to})|` +
+        'header(Referrer-Policy,origin)');
+    assert_equals(frame.contentDocument.referrer,
+                  full_scope_url.origin + '/');
+    t.add_cleanup(() => frame.remove());
+}, 'Referrer for a main resource redirected with referrer-policy (origin) ' +
+   'should only have origin.');
+
+promise_test(async t => {
+    const registration =
+        await service_worker_unregister_and_register(t, SCRIPT, SCOPE, `{type: 'module'}`);
+    await wait_for_state(t, registration.installing, 'activated');
+    t.add_cleanup(() => registration.unregister(),
+                 'Remove registration as a cleanup');
+
+    const full_scope_url = new URL(SCOPE, location.href);
+    const redirect_to = `${full_scope_url.href}?ignore=true`;
+    const frame = await with_iframe(
+        `${SCOPE}?pipe=status(302)|header(Location,${redirect_to})|` +
+        'header(Referrer-Policy,origin)');
+    assert_equals(frame.contentDocument.referrer,
+                  full_scope_url.origin + '/');
+    t.add_cleanup(() => frame.remove());
+}, 'Referrer for a main resource redirected with a module script with referrer-policy (origin) ' +
+   'should only have origin.');
+
+promise_test(async t => {
+    const registration =
+        await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+    await wait_for_state(t, registration.installing, 'activated');
+    t.add_cleanup(() => registration.unregister(),
+                 'Remove registration as a cleanup');
+
+    const host_info = get_host_info();
+    const frame = await with_iframe(SCOPE);
+    const channel = new MessageChannel();
+    t.add_cleanup(() => frame.remove());
+    const e = await new Promise(resolve => {
+        channel.port1.onmessage = resolve;
+        frame.contentWindow.postMessage(
+            {}, host_info['HTTPS_ORIGIN'], [channel.port2]);
+    });
+    assert_equals(e.data.results, 'finish');
+}, 'Referrer for fetch requests initiated from a service worker with ' +
+   'referrer-policy (origin) should only have origin.');
+</script>

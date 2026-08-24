@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>SharedWorker extendedLifetime</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<script>
+
+/**
+ * Connects to a SharedWorker and performs a single message exchange.
+ * Used both in the main window and in the popup via execute_script.
+ */
+const connectAndOperate = async (url, data) => {
+  const worker = new SharedWorker(url, {extendedLifetime: true});
+  worker.port.start();
+  return new Promise(resolve => {
+    const listener = event => {
+      if (event.data.reqid === data.reqid) {
+        worker.port.removeEventListener('message', listener);
+        resolve(event.data);
+      }
+    };
+    worker.port.addEventListener('message', listener);
+    worker.port.postMessage(data);
+  });
+};
+
+promise_test(async t => {
+  const uuid = token();
+  const worker_url = '/workers/resources/shared-worker-memory.js?' + token();
+  const ctx = new RemoteContext(token());
+  const popup = window.open(remoteExecutorUrl(ctx.context_id));
+  t.add_cleanup(() => popup.close());
+
+  // 1. Store data from the popup side.
+  const popup_response = await ctx.execute_script(connectAndOperate, [
+    worker_url, {op: 'store', data: uuid, reqid: 1}
+  ]);
+  assert_equals(popup_response.status, 'OK');
+  popup.close();
+
+  // Wait to ensure the worker survives across the client's disappearance.
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  // 2. Load data from the main window side.
+  const response = await connectAndOperate(worker_url, {op: 'load', reqid: 2});
+
+  assert_equals(response.status, 'OK');
+  assert_equals(response.data, uuid);
+}, "SharedWorker lifetime should be extended with extendedLifetime");
+</script>

@@ -230,6 +230,40 @@ test('open() rejects contradictory classic-EOCD vs Zip64 metadata', async () => 
   }
 }, { timeout: 120_000 });
 
+test('central-directory record count must account for its full declared size', async () => {
+  const chunks = [];
+  for await (const chunk of zlib.createZipArchive([
+    await zlib.ZipEntry.create('visible.txt', Buffer.from('visible'), { method: 'store' }),
+    await zlib.ZipEntry.create('hidden.txt', Buffer.from('hidden'), { method: 'store' }),
+  ])) chunks.push(chunk);
+  const tampered = Buffer.concat(chunks);
+  const eocd = tampered.length - 22;
+  assert.strictEqual(tampered.readUInt16LE(eocd + 8), 2);
+  assert.strictEqual(tampered.readUInt16LE(eocd + 10), 2);
+
+  // Keep the single-disk counts consistent with each other, but make both
+  // disagree with the two complete records in the declared directory size.
+  tampered.writeUInt16LE(1, eocd + 8);
+  tampered.writeUInt16LE(1, eocd + 10);
+  const expected = {
+    code: 'ERR_ZIP_INVALID_ARCHIVE',
+    message: /central directory record count is inconsistent with its size/,
+  };
+
+  assert.throws(() => [...zlib.ZipEntry.read(tampered)], expected);
+  assert.throws(() => new zlib.ZipBuffer(tampered), expected);
+
+  const dir = await fsp.mkdtemp(path.join(tmpdir.path, `zip-sec-${seq++}-`));
+  const p = path.join(dir, 'record-count-mismatch.zip');
+  try {
+    await fsp.writeFile(p, tampered);
+    await assert.rejects(zlib.ZipFile.open(p), expected);
+    assert.throws(() => zlib.ZipFile.openSync(p), expected);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
 // -- Finding 4: the file-backed open-time overlap check uses a 30-byte lower
 // bound for each local header, while the in-memory reader uses the exact
 // local-header length. A crafted "quoted overlap" archive therefore passes

@@ -754,7 +754,7 @@
             },
             "use-largepages": {
               "type": "string",
-              "description": "Map the Node.js static code to large pages. Options are 'off' (the default value, meaning do not map), 'on' (map and ignore failure, reporting it to stderr), or 'silent' (map and silently ignore failure)"
+              "description": "This option is no longer supported and a no-op. Options are 'off' (default), 'on' (report a warning to stderr), or 'silent' (same as 'off')."
             },
             "use-openssl-ca": {
               "type": "boolean",

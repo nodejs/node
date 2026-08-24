@@ -65,6 +65,39 @@ test('fast FFI validates integer argument ranges', () => {
     assert.throws(() => callI64(2n ** 63n), expect);
     assert.throws(() => callU64(2n ** 64n), expect);
   } finally {
+    eval('%WaitForBackgroundOptimization()');
+    lib.close();
+  }
+});
+
+test('fast FFI validates pointer BigInt ranges', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  try {
+    for (const type of ['pointer', 'ptr', 'string', 'str',
+                        'buffer', 'arraybuffer']) {
+      const identityPointer = lib.getFunction('identity_pointer', {
+        arguments: [type],
+        return: 'pointer',
+      });
+      const sumBuffer = lib.getFunction('sum_buffer', {
+        arguments: [type, 'u64'],
+        return: 'u64',
+      });
+      function callSingle(value) { return identityPointer(value); }
+
+      function callMultiple(value) { return sumBuffer(value, 0n); }
+
+      optimize(callSingle, 0n);
+      optimize(callMultiple, 0n);
+
+      const expect = { code: 'ERR_INVALID_ARG_VALUE' };
+      for (const call of [callSingle, callMultiple]) {
+        assert.throws(() => call(-1n), expect);
+        assert.throws(() => call((2n ** 64n) + 5n), expect);
+      }
+    }
+  } finally {
+    eval('%WaitForBackgroundOptimization()');
     lib.close();
   }
 });

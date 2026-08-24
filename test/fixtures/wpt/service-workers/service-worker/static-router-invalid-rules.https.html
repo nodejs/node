@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: registration of invalid rules should raise.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+
+const ROUTER_RULE_KEY_INVALID_BYTESTRING_REQUEST_METHOD =
+    'condition-invalid-bytestring-request-method';
+const ROUTER_RULE_KEY_INVALID_HTTP_REQUEST_METHOD =
+    'condition-invalid-http-request-method';
+const ROUTER_RULE_KEY_FORBIDDEN_REQUEST_METHOD =
+    'condition-invalid-forbidden-method';
+const ROUTER_RULE_KEY_INVALID_REQUEST_METHOD =
+    'condition-invalid-request-method';
+const ROUTER_RULE_KEY_INVALID_OR_CONDITION_DEPTH =
+    'condition-invalid-or-condition-depth';
+const ROUTER_RULE_KEY_INVALID_NOT_CONDITION_DEPTH =
+    'condition-invalid-not-condition-depth';
+const ROUTER_RULE_KEY_INVALID_ROUTER_SIZE =
+    'condition-invalid-router-size';
+const ROUTER_RULE_KEY_LACK_OF_CONDITION =
+    'condition-lack-of-condition';
+const ROUTER_RULE_KEY_LACK_OF_SOURCE =
+    'condition-lack-of-source';
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_INVALID_BYTESTRING_REQUEST_METHOD);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise for invalid ByteString request method.');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_INVALID_HTTP_REQUEST_METHOD);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise for invalid HTTP request method.');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_FORBIDDEN_REQUEST_METHOD);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise for forbidden request method.');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_INVALID_OR_CONDITION_DEPTH);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if or condition exceeds the depth limit');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_INVALID_NOT_CONDITION_DEPTH);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if not condition exceeds the depth limit');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_INVALID_ROUTER_SIZE);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if the number of router rules exceeds the length limit');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_LACK_OF_CONDITION);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if the conditon does not exist in the rule');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_LACK_OF_SOURCE);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if the source does not exiswt in the rule');
+
+
+</script>
+</body>

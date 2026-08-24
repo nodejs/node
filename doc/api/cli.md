@@ -1499,7 +1499,7 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-test-tag-filter=<tag>`
+### `--experimental-test-tag-filter='<expr>'`
 
 <!-- YAML
 added:
@@ -1509,14 +1509,20 @@ added:
 
 > Stability: 1.0 - Early development
 
-Run only tests whose tag set contains `<tag>`. Tests declare tags via the
-`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the `tags` option on `test()`, `it()`, `suite()`, or
+`describe()`. Tags inherit from suites to nested tests by union.
 
-The flag may be specified more than once; tests must contain **every**
-filter value to run. See [Test tags][] for details on declaring and
-inheriting tags.
+The expression supports boolean operators (`and`/`&&`, `or`/`||`,
+`not`/`!`), parentheses for grouping, and `*` wildcards inside identifiers.
+Standard precedence applies: `not` binds tighter than `and`, which binds
+tighter than `or`. See [Test tags][] for the full grammar and behavior.
+
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 
 ### `--experimental-vfs`
 
@@ -1556,6 +1562,14 @@ changes:
 -->
 
 Enable experimental WebAssembly System Interface (WASI) support.
+
+### `--experimental-web-worker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental support for the Web Worker API.
 
 ### `--experimental-worker-inspection`
 
@@ -2133,14 +2147,6 @@ changes:
 
 Disable the experimental [`node:sqlite`][] module.
 
-### `--no-experimental-websocket`
-
-<!-- YAML
-added: v22.0.0
--->
-
-Disable exposition of {WebSocket} on the global scope.
-
 ### `--no-experimental-webstorage`
 
 <!-- YAML
@@ -2671,6 +2677,9 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64606
+    description: Passing `--run` without a command lists the available scripts.
   - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53032
     description: NODE_RUN_SCRIPT_NAME environment variable is added.
@@ -2686,6 +2695,15 @@ changes:
 
 This runs a specified command from a package.json's `"scripts"` object.
 If a missing `"command"` is provided, it will list the available scripts.
+
+Passing `--run` without a command lists the available scripts and exits
+with a non-zero exit code:
+
+```console
+$ node --run
+Available scripts are:
+  test: node --test
+```
 
 `--run` will traverse up to the root directory and finds a `package.json`
 file to run the command from.
@@ -3472,19 +3490,21 @@ When both are set, `--use-env-proxy` takes precedence.
 added:
  - v13.6.0
  - v12.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65389
+    description: This option is now a no-op.
 -->
 
-Re-map the Node.js static code to large memory pages at startup. If supported on
-the target system, this will cause the Node.js static code to be moved onto 2
-MiB pages instead of 4 KiB pages.
+This option is no longer supported and a no-op. It used to re-map the Node.js
+static code to large memory pages at startup.
 
-The following values are valid for `mode`:
+It still accepts the following values for compatibility:
 
 * `off`: No mapping will be attempted. This is the default.
-* `on`: If supported by the OS, mapping will be attempted. Failure to map will
-  be ignored and a message will be printed to standard error.
-* `silent`: If supported by the OS, mapping will be attempted. Failure to map
-  will be ignored and will not be reported.
+* `on`: No mapping will be attempted and a message will be printed to
+  standard error stating it's no longer supported.
+* `silent`: Same as `off`.
 
 ### `--use-system-ca`
 
@@ -3720,8 +3740,18 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 
 ### `NODE_COMPILE_CACHE_PORTABLE=1`
 
-When set to 1, the [module compile cache][]  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the [module compile cache][] can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
+
+### `NODE_COMPILE_CACHE_READONLY=1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to 1, the [module compile cache][] only reads existing entries from
+its directory: nothing is written to it and it is not created if missing.
 
 ### `NODE_DEBUG=module[,…]`
 
@@ -3874,6 +3904,7 @@ one is included in the list below.
 * `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
+* `--experimental-repl-await`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
@@ -3883,6 +3914,8 @@ one is included in the list below.
 * `--experimental-vfs`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
+* `--experimental-web-worker`
+* `--experimental-websocket`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -3913,7 +3946,6 @@ one is included in the list below.
 * `--no-experimental-global-navigator`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
-* `--no-experimental-websocket`
 * `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -4262,8 +4294,15 @@ added: v6.11.0
 Load an OpenSSL configuration file on startup. The file can be used as part of
 a [FIPS mode][] configuration.
 
+If the variable is set to an empty value, Node.js starts without loading any
+OpenSSL configuration file. This is a way past a default configuration file
+that exists but cannot be read, for example when `/etc/ssl` is not accessible
+to the user Node.js runs as, which is otherwise fatal at startup. No
+configuration is applied in that case, including any [FIPS mode][] setup the
+file would have performed.
+
 If the [`--openssl-config`][] command-line option is used, the environment
-variable is ignored.
+variable is ignored, and an empty value has no effect.
 
 ### `SSL_CERT_DIR=dir`
 
@@ -4547,11 +4586,11 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
 [debugger]: debugger.md
-[debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
+[debugging security implications]: https://nodejs.org/learn/getting-started/debugging#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
-[environment_variables]: #environment-variables_1
+[environment_variables]: #environment-variables-1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
 [jitless]: https://v8.dev/blog/jitless
@@ -4563,7 +4602,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [running tests from the command line]: test.md#running-tests-from-the-command-line
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
-[semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
+[semi-space]: https://v8.dev/blog/trash-talk#minor-gc
 [single executable application]: single-executable-applications.md
 [snapshot testing]: test.md#snapshot-testing
 [syntax detection]: packages.md#syntax-detection

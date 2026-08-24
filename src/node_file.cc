@@ -40,6 +40,7 @@
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
+#include "threadpoolwork-inl.h"
 #include "uv.h"
 #include "v8-fast-api-calls.h"
 
@@ -78,6 +79,7 @@ using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -1791,6 +1793,9 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
             error == std::errc::too_many_files_open ||
             error == std::errc::too_many_files_open_in_system ||
             error == std::errc::directory_not_empty ||
+#ifdef _WIN32
+            error == std::errc::permission_denied ||
+#endif
             error == std::errc::operation_not_permitted);
   };
 
@@ -1811,8 +1816,10 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
 
     if (retryDelay > 0) {
 #ifdef _WIN32
-      Sleep(i * retryDelay / 1000);
+      // No conversion needed: Sleep() takes milliseconds.
+      Sleep(i * retryDelay);
 #else
+      // sleep() takes seconds, so convert the millisecond delay.
       sleep(i * retryDelay / 1000);
 #endif
     }
@@ -2924,9 +2931,19 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     uv_fs_req_cleanup(&req);
   });
 
+  // Past the first 8 KiB, read into one heap buffer sized from fstat(); the
+  // size is only a hint, reading continues until read() reports EOF.
   std::string result{};
   char buffer[8192];
   uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  char* big = nullptr;
+  size_t big_len = 0;
+  size_t big_cap = 0;
+  bool sized = false;
+  auto free_big = OnScopeLeave([&big]() { free(big); });
+  constexpr size_t kMinChunk = 64 * 1024;
+  constexpr size_t kMaxChunk = 8 * 1024 * 1024;
 
   FS_SYNC_TRACE_BEGIN(read);
   while (true) {
@@ -2940,17 +2957,345 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (r <= 0) {
       break;
     }
-    result.append(buf.base, r);
+    if (big == nullptr) {
+      result.append(buf.base, r);
+      if (static_cast<size_t>(r) < sizeof(buffer)) {
+        continue;
+      }
+      // Switch to the heap buffer.
+      uv_fs_req_cleanup(&req);
+      big_cap = kMinChunk;
+      big = UncheckedMalloc<char>(big_cap);
+      if (big == nullptr) {
+        FS_SYNC_TRACE_END(read);
+        return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      }
+      memcpy(big, result.data(), result.size());
+      big_len = result.size();
+      result = std::string();
+    } else {
+      big_len += static_cast<size_t>(r);
+    }
+    if (big_len == big_cap) {
+      // +1 leaves room for the read() that reports EOF.
+      size_t new_cap =
+          big_cap + std::min(kMaxChunk, std::max(kMinChunk, big_cap));
+      if (!sized) {
+        sized = true;
+        uv_fs_req_cleanup(&req);
+        uv_fs_t stat_req;
+        if (uv_fs_fstat(nullptr, &stat_req, file, nullptr) == 0) {
+          const uv_stat_t* const st =
+              static_cast<const uv_stat_t*>(stat_req.ptr);
+          if ((st->st_mode & S_IFMT) == S_IFREG &&
+              static_cast<uint64_t>(st->st_size) > big_len &&
+              static_cast<uint64_t>(st->st_size) <
+                  static_cast<uint64_t>(v8::String::kMaxLength)) {
+            new_cap = static_cast<size_t>(st->st_size) + 1;
+          }
+        }
+        uv_fs_req_cleanup(&stat_req);
+      }
+      char* const grown = UncheckedRealloc<char>(big, new_cap);
+      if (grown == nullptr) {
+        FS_SYNC_TRACE_END(read);
+        return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      }
+      big = grown;
+      big_cap = new_cap;
+    }
+    buf = uv_buf_init(big + big_len, std::min(kMaxChunk, big_cap - big_len));
   }
   FS_SYNC_TRACE_END(read);
 
   Local<Value> val;
-  if (!ToV8Value(env->context(), result, isolate).ToLocal(&val)) {
+  const std::string_view content = big != nullptr
+                                       ? std::string_view(big, big_len)
+                                       : std::string_view(result);
+  if (!ToV8Value(env->context(), content, isolate).ToLocal(&val)) {
     return;
   }
 
   args.GetReturnValue().Set(val);
 }
+
+// Reads a whole (small) file in ONE thread pool round trip -- open + fstat +
+// read + close -- instead of one round trip per step, which is what dominates
+// fs.readFile() for the typical small file and multiplies thread pool
+// contention when many files are read at once. Files whose size exceeds
+// `limit` are not read here: the job hands the open fd and the size back so
+// that the caller continues with the chunked reader (which stays fair and
+// abortable for large files); it then only saved the fstat() round trip.
+//
+// JS: const job = new ReadFileJob(path, flags, limit, trackFd);
+//     job.ondone = (err, buffer, fd, size, closeErr) => {...}; job.run(path);
+// Exactly one of these outcomes is reported:
+//   err            -- open/fstat/read failed (any fd opened here was closed);
+//   fd >= 0, size  -- file is larger than `limit`: caller owns fd now (it is
+//                     registered as an unmanaged fd iff trackFd, i.e. when the
+//                     caller will close it through fs.close() rather than a
+//                     FileHandle);
+//   buffer         -- the whole content; closeErr set if only close() failed.
+class ReadFileJob final : public AsyncWrap, public ThreadPoolWork {
+ public:
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    Environment* env = Environment::GetCurrent(args);
+    CHECK_GE(args.Length(), 3);
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    CHECK(args[1]->IsInt32());
+    CHECK(args[2]->IsNumber());
+    const int flags = args[1].As<Int32>()->Value();
+    const double limit = args[2].As<Number>()->Value();
+    const bool track_fd = args.Length() > 3 && args[3]->IsTrue();
+    new ReadFileJob(env,
+                    args.This(),
+                    path.ToString(),
+                    flags,
+                    limit < 0 ? 0 : static_cast<uint64_t>(limit),
+                    track_fd);
+  }
+
+  // Returns undefined when the job was scheduled, or the ERR_ACCESS_DENIED
+  // error the asynchronous open() would have delivered through its request
+  // (nothing is scheduled then; the caller passes it to the callback).
+  static void Run(const FunctionCallbackInfo<Value>& args) {
+    ReadFileJob* job;
+    ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
+    Environment* env = job->AsyncWrap::env();
+    CHECK(!job->scheduled_);
+    BufferValue path(env->isolate(), args[0]);
+    CHECK_NOT_NULL(*path);
+    ToNamespacedPath(env, &path);
+    Local<Value> access_error;
+    if (OpenPermissionError(env, path, job->flags_).ToLocal(&access_error)) {
+      args.GetReturnValue().Set(access_error);
+      return;
+    }
+    job->scheduled_ = true;
+    // Keep the wrapper alive while the work is in flight.
+    job->ClearWeak();
+    FS_ASYNC_TRACE_BEGIN0(UV_FS_READ, job)
+    job->ScheduleWork();
+  }
+
+  void DoThreadPoolWork() override {
+    uv_fs_t req;
+    int fd = uv_fs_open(nullptr, &req, path_.c_str(), flags_, 0666, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (fd < 0) return Fail("open", fd);
+
+    int rc = uv_fs_fstat(nullptr, &req, fd, nullptr);
+    if (rc < 0) {
+      uv_fs_req_cleanup(&req);
+      Fail("fstat", rc);
+      CloseQuietly(fd);
+      return;
+    }
+    const uv_stat_t* const st = static_cast<const uv_stat_t*>(req.ptr);
+    const bool regular = (st->st_mode & S_IFMT) == S_IFREG;
+    const uint64_t size = regular ? static_cast<uint64_t>(st->st_size) : 0;
+    uv_fs_req_cleanup(&req);
+
+    if (size > limit_) {
+      // Too large to read in one go here: hand the fd back.
+      fd_ = fd;
+      size_ = size;
+      return;
+    }
+
+    // Known size: read exactly that much (like the chunked reader, stop when
+    // it has been read or at EOF, whichever comes first). Unknown size (0,
+    // e.g. procfs): grow until EOF.
+    size_t cap = size > 0 ? static_cast<size_t>(size) : kUnknownSizeChunk;
+    data_ = UncheckedMalloc<char>(cap);
+    if (data_ == nullptr) {
+      Fail("read", UV_ENOMEM);
+      CloseQuietly(fd);
+      return;
+    }
+    while (true) {
+      if (len_ == cap) {
+        if (size > 0) break;  // Read all of the announced size.
+        // A file that claims size 0 keeps growing until EOF (or ENOMEM),
+        // like the chunked reader's buffer list did.
+        size_t new_cap = cap * 2;
+        char* grown = UncheckedRealloc<char>(data_, new_cap);
+        if (grown == nullptr) {
+          Fail("read", UV_ENOMEM);
+          break;
+        }
+        data_ = grown;
+        cap = new_cap;
+      }
+      uv_buf_t buf = uv_buf_init(data_ + len_,
+                                 static_cast<unsigned int>(std::min<size_t>(
+                                     cap - len_, kMaxReadChunk)));
+      int r = uv_fs_read(nullptr, &req, fd, &buf, 1, -1, nullptr);
+      uv_fs_req_cleanup(&req);
+      if (r < 0) {
+        Fail("read", r);
+        break;
+      }
+      if (r == 0) break;
+      len_ += static_cast<size_t>(r);
+    }
+
+    rc = uv_fs_close(nullptr, &req, fd, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (rc < 0) close_error_ = rc;
+    if (error_ != 0) {
+      free(data_);
+      data_ = nullptr;
+      len_ = 0;
+    } else if (cap - len_ >= 4096) {
+      // Do not retain the slack of a size-0 (grown) or short file.
+      char* shrunk = UncheckedRealloc<char>(data_, len_ > 0 ? len_ : 1);
+      if (shrunk != nullptr) data_ = shrunk;
+    }
+  }
+
+  void AfterThreadPoolWork(int status) override {
+    Environment* env = AsyncWrap::env();
+    std::unique_ptr<ReadFileJob> self(this);
+    CHECK(status == 0 || status == UV_ECANCELED);
+    FS_ASYNC_TRACE_END0(UV_FS_READ, this)
+    if (status == UV_ECANCELED) {
+      if (fd_ >= 0) CloseQuietly(fd_);
+      return;
+    }
+    if (!env->can_call_into_js()) {
+      if (fd_ >= 0) CloseQuietly(fd_);
+      return;
+    }
+    HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
+    Isolate* isolate = env->isolate();
+
+    Local<Value> argv[5] = {Null(isolate),
+                            Undefined(isolate),
+                            Integer::New(isolate, -1),
+                            Undefined(isolate),
+                            Undefined(isolate)};
+    if (error_ != 0) {
+      argv[0] = UVException(isolate, error_, syscall_, nullptr, path_.c_str());
+    } else if (fd_ >= 0) {
+      if (track_fd_) env->AddUnmanagedFd(fd_);
+      argv[2] = Integer::New(isolate, fd_);
+      argv[3] = Number::New(isolate, static_cast<double>(size_));
+      fd_ = -1;
+    } else {
+      Local<Object> buffer;
+      char* data = data_;
+      data_ = nullptr;
+      if (!Buffer::New(env, data, len_).ToLocal(&buffer)) {
+        // Buffer::New took ownership of data either way.
+        argv[0] = ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      } else {
+        argv[1] = buffer;
+      }
+      if (close_error_ != 0) {
+        argv[4] = UVException(isolate, close_error_, "close");
+      }
+    }
+    MakeCallback(env->ondone_string(), arraysize(argv), argv);
+  }
+
+  ~ReadFileJob() override {
+    free(data_);
+    if (fd_ >= 0) CloseQuietly(fd_);
+  }
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ReadFileJob)
+  SET_SELF_SIZE(ReadFileJob)
+
+ private:
+  static constexpr size_t kUnknownSizeChunk = 64 * 1024;
+  static constexpr size_t kMaxReadChunk = 256 * 1024 * 1024;
+
+  ReadFileJob(Environment* env,
+              Local<Object> object,
+              std::string&& path,
+              int flags,
+              uint64_t limit,
+              bool track_fd)
+      : AsyncWrap(env, object, AsyncWrap::PROVIDER_FSREQCALLBACK),
+        ThreadPoolWork(env, "fs.readfile"),
+        path_(std::move(path)),
+        limit_(limit),
+        flags_(flags),
+        track_fd_(track_fd) {
+    MakeWeak();
+  }
+
+  void Fail(const char* syscall, int error) {
+    syscall_ = syscall;
+    error_ = error;
+  }
+
+  // The permission checks AsyncCheckOpenPermissions() performs for open(),
+  // producing the error object instead of rejecting a request wrap.
+  static MaybeLocal<Value> OpenPermissionError(Environment* env,
+                                               const BufferValue& path,
+                                               int flags) {
+    if (!env->permission()->enabled()) [[likely]]
+      return {};
+    const int rwflags =
+        flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR);
+    const int write_as_side_effect =
+        flags &
+        (UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_TRUNC | UV_FS_O_TEMPORARY);
+    const auto path_view = path.ToStringView();
+    auto denied = [&](permission::PermissionScope scope) -> MaybeLocal<Value> {
+      if (env->permission()->is_granted(env, scope, path_view) ||
+          env->permission()->warning_only()) {
+        return {};
+      }
+      Local<Value> err;
+      if (permission::CreateAccessDeniedError(env, scope, path_view)
+              .ToLocal(&err)) {
+        return err;
+      }
+      return Integer::New(env->isolate(), UV_EACCES);
+    };
+    if (rwflags != UV_FS_O_WRONLY) {
+      MaybeLocal<Value> err =
+          denied(permission::PermissionScope::kFileSystemRead);
+      if (!err.IsEmpty()) return err;
+    }
+    if (rwflags != UV_FS_O_RDONLY || write_as_side_effect) {
+      MaybeLocal<Value> err =
+          denied(permission::PermissionScope::kFileSystemWrite);
+      if (!err.IsEmpty()) return err;
+    }
+    return {};
+  }
+
+  static void CloseQuietly(int fd) {
+    uv_fs_t req;
+    uv_fs_close(nullptr, &req, fd, nullptr);
+    uv_fs_req_cleanup(&req);
+  }
+
+  // Inputs.
+  std::string path_;
+  uint64_t limit_;
+  int flags_;
+  bool track_fd_;
+  bool scheduled_ = false;
+  // Results (written on the thread pool thread, read on the loop thread).
+  uint64_t size_ = 0;
+  size_t len_ = 0;
+  char* data_ = nullptr;
+  const char* syscall_ = nullptr;
+  int error_ = 0;
+  int close_error_ = 0;
+  int fd_ = -1;
+};
 
 // Wrapper for readv(2).
 //
@@ -3364,10 +3709,11 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(isolate, args[0]);
-  static constexpr const char* const suffix = "XXXXXX";
-  const auto length = tmpl.length();
-  tmpl.AllocateSufficientStorage(length + strlen(suffix));
-  snprintf(tmpl.out() + length, tmpl.length(), "%s", suffix);
+  const auto prefix_length = tmpl.length();
+  static constexpr std::string_view suffix = "XXXXXX";
+  tmpl.AllocateSufficientStorage(prefix_length + suffix.size() + 1);
+  memcpy(tmpl.out() + prefix_length, suffix.data(), suffix.size());
+  tmpl.SetLengthAndZeroTerminate(prefix_length + suffix.size());
 
   CHECK_NOT_NULL(*tmpl);
 
@@ -4259,6 +4605,14 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
       Integer::New(isolate,
                    static_cast<int32_t>(FsStatsOffset::kFsStatsFieldsNumber)));
 
+  // Create FunctionTemplate for ReadFileJob
+  Local<FunctionTemplate> rfj = NewFunctionTemplate(isolate, ReadFileJob::New);
+  rfj->InstanceTemplate()->SetInternalFieldCount(
+      ReadFileJob::kInternalFieldCount);
+  rfj->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+  SetProtoMethod(isolate, rfj, "run", ReadFileJob::Run);
+  SetConstructorFunction(isolate, target, "ReadFileJob", rfj);
+
   // Create FunctionTemplate for FSReqCallback
   Local<FunctionTemplate> fst = NewFunctionTemplate(isolate, NewFSReqCallback);
   fst->InstanceTemplate()->SetInternalFieldCount(
@@ -4330,6 +4684,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Close);
   registry->Register(ExistsSync);
   registry->Register(Open);
+  registry->Register(ReadFileJob::New);
+  registry->Register(ReadFileJob::Run);
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadFileUtf8);

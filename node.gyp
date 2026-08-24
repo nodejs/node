@@ -178,16 +178,8 @@
       'src/node_worker.cc',
       'src/node_zlib.cc',
       'src/path.cc',
-      'src/permission/child_process_permission.cc',
-      'src/permission/openssl_store_permission.cc',
-      'src/permission/ffi_permission.cc',
       'src/permission/fs_permission.cc',
-      'src/permission/inspector_permission.cc',
       'src/permission/permission.cc',
-      'src/permission/wasi_permission.cc',
-      'src/permission/worker_permission.cc',
-      'src/permission/net_permission.cc',
-      'src/permission/addon_permission.cc',
       'src/pipe_wrap.cc',
       'src/process_wrap.cc',
       'src/signal_wrap.cc',
@@ -243,8 +235,6 @@
       'src/histogram-inl.h',
       'src/js_stream.h',
       'src/json_utils.h',
-      'src/large_pages/node_large_page.cc',
-      'src/large_pages/node_large_page.h',
       'src/memory_tracker.h',
       'src/memory_tracker-inl.h',
       'src/module_wrap.h',
@@ -315,16 +305,10 @@
       'src/node_watchdog.h',
       'src/node_worker.h',
       'src/path.h',
-      'src/permission/child_process_permission.h',
-      'src/permission/openssl_store_permission.h',
-      'src/permission/ffi_permission.h',
+      'src/permission/boolean_permission.h',
       'src/permission/fs_permission.h',
-      'src/permission/inspector_permission.h',
       'src/permission/permission.h',
-      'src/permission/wasi_permission.h',
-      'src/permission/worker_permission.h',
-      'src/permission/net_permission.h',
-      'src/permission/addon_permission.h',
+      'src/permission/permission_base.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
       'src/req_wrap-inl.h',
@@ -517,11 +501,6 @@
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
     'conditions': [
-      ['GENERATOR == "ninja"', {
-        'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
-      }, {
-        'node_text_start_object_path': 'node_text_start/src/large_pages/node_text_start.o'
-      }],
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
         'node_lib_type': 'shared_library',
@@ -599,19 +578,6 @@
   },
 
   'targets': [
-    {
-      'target_name': 'node_text_start',
-      'type': 'none',
-      'conditions': [
-        [ 'OS in "linux freebsd solaris openharmony" and '
-          'target_arch=="x64"', {
-          'type': 'static_library',
-          'sources': [
-            'src/large_pages/node_text_start.S'
-          ]
-        }],
-      ]
-    },
     {
       'target_name': '<(node_core_target_name)',
       'type': 'executable',
@@ -783,14 +749,6 @@
             },
           },
         }],
-        [ 'OS in "linux freebsd openharmony" and '
-          'target_arch=="x64"', {
-          'dependencies': [ 'node_text_start' ],
-          'ldflags+': [
-            '<(obj_dir)/<(node_text_start_object_path)'
-          ]
-        }],
-
         ['node_fipsinstall=="true"', {
           'variables': {
             'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
@@ -1026,11 +984,6 @@
           'defines': [
             'HAVE_DTLS=1',
           ],
-        }],
-        [ 'OS in "linux freebsd mac solaris openharmony" and '
-          'target_arch=="x64" and '
-          'node_target_type=="executable"', {
-          'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
         }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.

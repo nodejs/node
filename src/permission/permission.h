@@ -5,21 +5,10 @@
 
 #include "debug_utils.h"
 #include "node_diagnostics_channel.h"
-#include "node_options.h"
-#include "permission/addon_permission.h"
-#include "permission/child_process_permission.h"
-#include "permission/ffi_permission.h"
-#include "permission/fs_permission.h"
-#include "permission/inspector_permission.h"
-#include "permission/net_permission.h"
-#include "permission/openssl_store_permission.h"
 #include "permission/permission_base.h"
-#include "permission/wasi_permission.h"
-#include "permission/worker_permission.h"
-#include "v8.h"
 
+#include <array>
 #include <string_view>
-#include <unordered_map>
 
 namespace node {
 
@@ -100,8 +89,8 @@ class Permission {
   Permission();
 
   FORCE_INLINE bool is_granted(Environment* env,
-                               const PermissionScope permission,
-                               const std::string_view& res = "") const {
+                               PermissionScope permission,
+                               std::string_view res = "") const {
     if (!enabled_) [[likely]] {
       return true;
     }
@@ -112,49 +101,51 @@ class Permission {
 
   FORCE_INLINE bool warning_only() const { return warning_only_; }
 
-  static PermissionScope StringToPermission(const std::string& perm);
-  static const char* PermissionToString(PermissionScope perm);
+  static PermissionScope StringToPermission(std::string_view perm);
+  static v8::Local<v8::String> PermissionToString(Environment* env,
+                                                  PermissionScope perm);
   static void ThrowAccessDenied(Environment* env,
                                 PermissionScope perm,
-                                const std::string_view& res);
+                                std::string_view res);
   static void AsyncThrowAccessDenied(Environment* env,
                                      fs::FSReqBase* req_wrap,
                                      PermissionScope perm,
-                                     const std::string_view& res);
+                                     std::string_view res);
 
   // CLI Call
   void Apply(Environment* env,
-             const std::vector<std::string>& allow,
+             std::span<const std::string> allow,
              PermissionScope scope);
   // Runtime Call
-  void Drop(Environment* env,
-            PermissionScope scope,
-            const std::string_view& param = "");
+  void Drop(Environment* env, PermissionScope scope, std::string_view param);
   void EnablePermissions();
   void EnableWarningOnly();
 
  private:
   COLD_NOINLINE bool is_scope_granted(Environment* env,
-                                      const PermissionScope permission,
-                                      const std::string_view& res = "") const;
+                                      PermissionScope permission,
+                                      std::string_view res = "") const;
 
   BaseObjectPtr<diagnostics_channel::Channel> GetOrCreateChannel(
       Environment* env, PermissionScope scope) const;
 
-  std::unordered_map<PermissionScope, std::shared_ptr<PermissionBase>> nodes_;
+  static constexpr size_t kPermissionCount =
+      static_cast<size_t>(PermissionScope::kPermissionsCount);
+
+  std::array<std::shared_ptr<PermissionBase>, kPermissionCount> nodes_;
   bool enabled_;
   bool warning_only_;
   mutable bool publishing_ = false;
   // Weak refs: BindingData (via BaseObjectPtr) is the sole owner of Channels.
   // Using weak refs here avoids keeping Channels alive past Realm teardown.
-  mutable std::unordered_map<PermissionScope,
-                             BaseObjectWeakPtr<diagnostics_channel::Channel>>
+  mutable std::array<BaseObjectWeakPtr<diagnostics_channel::Channel>,
+                     kPermissionCount>
       channels_;
 };
 
 v8::MaybeLocal<v8::Value> CreateAccessDeniedError(Environment* env,
                                                   PermissionScope perm,
-                                                  const std::string_view& res);
+                                                  std::string_view res);
 
 }  // namespace permission
 

@@ -11,7 +11,6 @@ namespace node {
 
 using errors::TryCatchScope;
 
-using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -119,17 +118,14 @@ int JSStream::DoWrite(WriteWrap* w,
 
   int value_int = UV_EPROTO;
 
-  MaybeStackBuffer<Local<Value>, 16> bufs_arr(count);
+  MaybeStackBuffer<Value, 16> bufs_arr(env()->isolate(), count);
   for (size_t i = 0; i < count; i++) {
     if (!Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocal(&bufs_arr[i])) {
       return value_int;
     }
   }
 
-  Local<Value> argv[] = {
-    w->object(),
-    Array::New(env()->isolate(), bufs_arr.out(), count)
-  };
+  Local<Value> argv[] = {w->object(), bufs_arr.ToArray()};
 
   TryCatchScope try_catch(env());
   Local<Value> value;

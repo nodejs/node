@@ -4126,6 +4126,9 @@ and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64849
+    description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55718
     description: Runtime deprecation.
@@ -4136,11 +4139,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Instantiating classes without the `new` qualifier exported by the `node:zlib` module is deprecated.
-It is recommended to use the `new` qualifier instead. This applies to all Zlib classes, such as `Deflate`,
-`DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, and `Zlib`.
+Instantiating classes without the `new` qualifier exported by the `node:zlib` module is no longer
+supported. The `new` qualifier must be used instead. This applies to all Zlib classes, such as
+`Deflate`, `DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, `BrotliCompress`,
+`BrotliDecompress`, `ZstdCompress`, and `ZstdDecompress`.
 
 ### DEP0185: Instantiating `node:repl` classes without `new`
 
@@ -4713,6 +4717,85 @@ function that sets up the listening handle. It is kept only so that code
 replacing it keeps being called by [`server.listen()`][], and it will be
 removed in a future version of Node.js. Use [`server.listen()`][] instead of
 calling or overriding `_listen2`.
+
+### DEP0209: Using `AbortSignal` to dispose of resources
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64342
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Using `AbortSignal` to destroy long-lived resources is deprecated. Prefer
+`using` for resource cleanup.
+
+`AbortSignal` is still a good fit for canceling actions, propagating
+cancellation from the outside, and timeouts.
+
+```js
+// Deprecated
+async function example() {
+  const ac = new AbortController();
+  const server = http.createServer(handler);
+  server.listen({ port: 3000, signal: ac.signal });
+
+  await doWork();
+  ac.abort();
+}
+```
+
+```js
+// Use this instead
+async function example() {
+  await using server = http.createServer(handler);
+  server.listen(3000);
+
+  await doWork();
+}
+```
+
+```js
+// Deprecated
+async function example() {
+  const ac = new AbortController();
+  const stream = addAbortSignal(ac.signal, fs.createReadStream(file));
+
+  await consume(stream);
+  ac.abort();
+}
+```
+
+```js
+// Use this instead
+async function example() {
+  await using stream = fs.createReadStream(file);
+
+  await consume(stream);
+}
+```
+
+```js
+// Deprecated
+async function example() {
+  const ac = new AbortController();
+  const child = spawn(command, args, { signal: ac.signal });
+
+  await doWork();
+  ac.abort();
+}
+```
+
+```js
+// Use this instead
+async function example() {
+  using child = spawn(command, args);
+
+  await doWork();
+}
+```
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http

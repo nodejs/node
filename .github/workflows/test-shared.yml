@@ -44,6 +44,7 @@ on:
       - '!tools/nix/**'
       - '!tools/v8/**'
       - '!tools/v8_gypfiles/**'
+      - tools/nix/list-requisites.sh
       - typings/**
       - vcbuild.bat
       - .**
@@ -96,6 +97,7 @@ on:
       - '!tools/nix/**'
       - '!tools/v8/**'
       - '!tools/v8_gypfiles/**'
+      - tools/nix/list-requisites.sh
       - typings/**
       - vcbuild.bat
       - .**

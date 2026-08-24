@@ -1,0 +1,20 @@
+<!doctype html>
+<title>variables and functions crossing importScripts boundary, take 2</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+  var worker = new Worker('009.js');
+  var i = 0;
+  worker.onmessage = this.step_func(function(e) {
+    i++;
+    if (i == 1) {
+      assert_true(e.data);
+    } else {
+      assert_equals(e.data, 1);
+      this.done();
+    }
+  });
+});
+</script>

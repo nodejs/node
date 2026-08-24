@@ -12,7 +12,7 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const envSuffix = common.isWindows ? '-windows' : '';
 
-describe('node --run [command]', () => {
+describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('returns error on non-existent file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
@@ -283,6 +283,56 @@ describe('node --run [command]', () => {
       { cwd: fixtures.path('run-script/cannot-find-script') },
     );
     assert.match(child.stderr, /Can't find "scripts" field in/);
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 1);
+  });
+
+  it('escapes shell characters', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', `positional-args${envSuffix}`, '--', '%PAYLOAD%', '$PAYLOAD'],
+      { cwd: fixtures.path('run-script'), env: { ...process.env, PAYLOAD: 'env value' } },
+    );
+    assert.strictEqual(
+      child.stdout,
+      common.isWindows ?
+        `Raw '"^%PAYLOAD^%" "$PAYLOAD"'\r\nArguments: '%PAYLOAD% $PAYLOAD'\r\nThe total number of arguments is: 2\r\n` :
+        "Arguments: '%PAYLOAD% $PAYLOAD'\nThe total number of arguments is: 2\n");
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('lists available scripts when no command is given', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.match(child.stderr, /Available scripts are:/);
+    assert.match(child.stderr, /test: echo "Error: no test specified" && exit 1/);
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 9);
+  });
+
+  it('does not consume a following flag as the script name', async () => {
+    // `--run` followed by a flag lists scripts rather than treating the flag
+    // as a script name.
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', '--no-warnings'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.match(child.stderr, /Available scripts are:/);
+    assert.strictEqual(child.code, 9);
+  });
+
+  it('errors when listing scripts without a package.json', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run'],
+      { cwd: __dirname },
+    );
+    assert.match(child.stderr, /Can't find package\.json/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });

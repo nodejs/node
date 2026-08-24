@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ranges>
+#include <type_traits>
 #include "node_options.h"
 #include "util.h"
 
@@ -31,17 +32,19 @@ namespace options_parser {
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       bool Options::*field,
+                                       bool (*getter)(Options*),
+                                       void (*setter)(Options*, bool),
                                        OptionEnvvarSettings env_setting,
                                        bool default_is_true,
                                        OptionNamespaces namespace_id) {
-  options_.emplace(name,
-                   OptionInfo{kBoolean,
-                              std::make_shared<SimpleOptionField<bool>>(field),
-                              env_setting,
-                              help_text,
-                              default_is_true,
-                              NamespaceEnumToString(namespace_id)});
+  options_.emplace(
+      name,
+      OptionInfo{kBoolean,
+                 std::make_shared<BitFieldOptionField>(getter, setter),
+                 env_setting,
+                 help_text,
+                 default_is_true,
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -205,6 +208,13 @@ auto OptionsParser<Options>::Convert(
   struct AdaptedField : BaseOptionField {
     void* LookupImpl(Options* options) const override {
       return original->LookupImpl((options->*get_child)());
+    }
+
+    bool GetBool(Options* options) const override {
+      return original->GetBool((options->*get_child)());
+    }
+    void SetBool(Options* options, bool value) override {
+      original->SetBool((options->*get_child)(), value);
     }
 
     AdaptedField(
@@ -432,8 +442,8 @@ void OptionsParser<Options>::Parse(
                               if (value.type == kV8Option) {
                                 v8_args->push_back(value.name);
                               } else {
-                                *value.target_field->template Lookup<bool>(
-                                    options) = value.target_value;
+                                value.target_field->SetBool(options,
+                                                            value.target_value);
                               }
                             });
     }
@@ -453,18 +463,21 @@ void OptionsParser<Options>::Parse(
 
     std::string value;
     if (info.type != kBoolean && info.type != kNoOp && info.type != kV8Option) {
+      // `--run` may be passed without a script name to list available scripts,
+      // so an omitted value is not an error and must not swallow a later flag.
+      const bool optional_value = name == "--run";
       if (equals_index != std::string::npos) {
         value = arg.substr(equals_index + 1);
-        if (value.empty()) {
+        if (value.empty() && !optional_value) {
+          missing_argument();
+          break;
+        }
+      } else if (args.empty() || (optional_value && args.first()[0] == '-')) {
+        if (!optional_value) {
           missing_argument();
           break;
         }
       } else {
-        if (args.empty()) {
-          missing_argument();
-          break;
-        }
-
         value = args.pop_first();
 
         if (!value.empty() && value[0] == '-') {
@@ -479,7 +492,7 @@ void OptionsParser<Options>::Parse(
 
     switch (info.type) {
       case kBoolean:
-        *Lookup<bool>(info.field, options) = !is_negation;
+        info.field->SetBool(options, !is_negation);
         break;
       case kInteger: {
         // Special case to pass --stack-trace-limit down to V8.
@@ -511,6 +524,12 @@ void OptionsParser<Options>::Parse(
         break;
       default:
         UNREACHABLE();
+    }
+
+    // Record that `--run` was seen so an empty value can be distinguished from
+    // the option being absent. Guarded so it only compiles for the owning type.
+    if constexpr (std::is_same_v<Options, PerProcessOptions>) {
+      if (name == "--run") options->has_run = true;
     }
   }
   options->CheckOptions(errors, orig_args);

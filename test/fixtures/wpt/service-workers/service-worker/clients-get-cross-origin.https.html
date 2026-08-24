@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.get across origins</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var host_info = get_host_info();
+
+var scope = 'resources/clients-get-frame.html';
+var other_origin_iframe = host_info['HTTPS_REMOTE_ORIGIN'] + base_path() +
+                          'resources/clients-get-cross-origin-frame.html';
+// The ID of a client from the same origin as us.
+var my_origin_client_id;
+// This test asserts the behavior of the Client API in cases where the client
+// belongs to a foreign origin. It does this by creating an iframe with a
+// foreign origin which connects to a server worker in the current origin.
+promise_test(function(t) {
+    return service_worker_unregister_and_register(
+        t, 'resources/clients-get-worker.js', scope)
+      .then(function(registration) {
+          add_completion_callback(function() { registration.unregister(); });
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      // Create a same-origin client and use it to populate |my_origin_client_id|.
+      .then(function(frame1) {
+          add_completion_callback(function() { frame1.remove(); });
+          return new Promise(function(resolve, reject) {
+            function get_client_id(e) {
+              window.removeEventListener('message', get_client_id);
+              resolve(e.data.clientId);
+            }
+            window.addEventListener('message', get_client_id, false);
+          });
+        })
+      // Create a cross-origin client. We'll communicate with this client to
+      // test the cross-origin service worker's behavior.
+      .then(function(client_id) {
+          my_origin_client_id = client_id;
+          return with_iframe(other_origin_iframe);
+        })
+      // Post the 'getClientId' message to the cross-origin client. The client
+      // will then ask its service worker to look up |my_origin_client_id| via
+      // Clients#get. Since this client ID is for a different origin, we expect
+      // the client to not be found.
+      .then(function(frame2) {
+          add_completion_callback(function() { frame2.remove(); });
+
+          frame2.contentWindow.postMessage(
+            {clientId: my_origin_client_id, type: 'getClientId'},
+            host_info['HTTPS_REMOTE_ORIGIN']
+          );
+
+          return new Promise(function(resolve) {
+              window.addEventListener('message', function(e) {
+                  if (e.data && e.data.type === 'clientId') {
+                    resolve(e.data.value);
+                  }
+                });
+            });
+        })
+      .then(function(client_id) {
+          assert_equals(client_id, undefined, 'iframe client ID');
+        });
+  }, 'Test Clients.get() cross origin');
+</script>

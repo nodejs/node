@@ -105,6 +105,18 @@
 #define OPENSSL_WITH_EVP_MAC 0
 #endif
 
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 0)
+#define OPENSSL_WITH_AES_SIV 1
+#else
+#define OPENSSL_WITH_AES_SIV 0
+#endif
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 2)
+#define OPENSSL_WITH_AES_GCM_SIV 1
+#else
+#define OPENSSL_WITH_AES_GCM_SIV 0
+#endif
+
 #if defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_PREREQ(3, 2)
 #define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 1
 #else
@@ -437,9 +449,12 @@ class Cipher final {
 
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
-  Cipher(const Cipher&) = default;
-  Cipher& operator=(const Cipher&) = default;
+  Cipher(const Cipher& other);
+  Cipher& operator=(const Cipher& other);
   inline Cipher& operator=(const EVP_CIPHER* cipher) {
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+    fetched_cipher_.reset();
+#endif
     cipher_ = cipher;
     return *this;
   }
@@ -462,6 +477,8 @@ class Cipher final {
   bool isCtrMode() const;
   bool isCcmMode() const;
   bool isOcbMode() const;
+  bool isSivMode() const;
+  bool isGcmSivMode() const;
   bool isStreamMode() const;
   bool isChaCha20Poly1305() const;
 
@@ -533,6 +550,10 @@ class Cipher final {
 
  private:
   const EVP_CIPHER* cipher_ = nullptr;
+#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  explicit Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher);
+  DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched_cipher_;
+#endif
 };
 
 // ============================================================================
@@ -933,6 +954,8 @@ class CipherCtxPointer final {
   bool isOcbMode() const;
   bool isCcmMode() const;
   bool isWrapMode() const;
+  bool isSivMode() const;
+  bool isGcmSivMode() const;
   bool isChaCha20Poly1305() const;
 
   bool update(const Buffer<const unsigned char>& in,
@@ -1231,9 +1254,9 @@ class DHPointer final {
     UNABLE_TO_CHECK_GENERATOR = 0x04,
     NOT_SUITABLE_GENERATOR = 0x08,
     Q_NOT_PRIME = 0x10,
-#ifndef OPENSSL_IS_BORINGSSL
-    // Boringssl does not define the DH_CHECK_INVALID_[Q or J]_VALUE
     INVALID_Q = 0x20,
+#ifndef OPENSSL_IS_BORINGSSL
+    // BoringSSL does not define DH_CHECK_INVALID_J_VALUE.
     INVALID_J = 0x40,
     MODULUS_TOO_SMALL = 0x80,
     MODULUS_TOO_LARGE = 0x100,
@@ -1244,14 +1267,9 @@ class DHPointer final {
 
   enum class CheckPublicKeyResult {
     NONE,
-#ifndef OPENSSL_IS_BORINGSSL
-    // Boringssl does not define DH_R_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
-    TOO_SMALL = DH_R_CHECK_PUBKEY_TOO_SMALL,
-    TOO_LARGE = DH_R_CHECK_PUBKEY_TOO_LARGE,
-    INVALID = DH_R_CHECK_PUBKEY_INVALID,
-#else
-    INVALID = DH_R_INVALID_PUBKEY,
-#endif
+    TOO_SMALL,
+    TOO_LARGE,
+    INVALID,
     CHECK_FAILED = 512,
   };
   // Check to see if the given public key is suitable for this DH instance.
@@ -1345,9 +1363,6 @@ class SSLPointer final {
 
   bool setSession(const SSLSessionPointer& session);
   bool setSniContext(const SSLCtxPointer& ctx) const;
-
-  const char* getClientHelloAlpn() const;
-  const char* getClientHelloServerName() const;
 
   std::optional<const std::string_view> getServerName() const;
   X509View getCertificate() const;

@@ -814,14 +814,18 @@ collecting code coverage from tests for more details.
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
 .
-.It Fl -experimental-test-tag-filter Ns = Ns Ar <tag>
-Run only tests whose tag set contains \fB<tag>\fR. Tests declare tags via the
-\fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or \fBdescribe()\fR; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
-The flag may be specified more than once; tests must contain \fBevery\fR
-filter value to run. See Test tags for details on declaring and
-inheriting tags.
+.It Fl -experimental-test-tag-filter Ns = Ns Ar '<expr>'
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the \fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or
+\fBdescribe()\fR. Tags inherit from suites to nested tests by union.
+The expression supports boolean operators (\fBand\fR/\fB&&\fR, \fBor\fR/\fB||\fR,
+\fBnot\fR/\fB!\fR), parentheses for grouping, and \fB*\fR wildcards inside identifiers.
+Standard precedence applies: \fBnot\fR binds tighter than \fBand\fR, which binds
+tighter than \fBor\fR. See Test tags for the full grammar and behavior.
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 .
 .It Fl -experimental-vfs
 Enable the experimental \fBnode:vfs\fR module.
@@ -831,6 +835,9 @@ Enable experimental ES Module support in the \fBnode:vm\fR module.
 .
 .It Fl -experimental-wasi-unstable-preview1
 Enable experimental WebAssembly System Interface (WASI) support.
+.
+.It Fl -experimental-web-worker
+Enable experimental support for the Web Worker API.
 .
 .It Fl -experimental-worker-inspection
 Enable experimental support for the worker inspection with Chrome DevTools.
@@ -1103,9 +1110,6 @@ Legacy alias for \fB--no-require-module\fR.
 .It Fl -no-experimental-sqlite
 Disable the experimental \fBnode:sqlite\fR module.
 .
-.It Fl -no-experimental-websocket
-Disable exposition of \fB<WebSocket>\fR on the global scope.
-.
 .It Fl -no-experimental-webstorage
 Disable \fBWeb Storage\fR support.
 .
@@ -1325,6 +1329,13 @@ forked processes, or clustered processes.
 .It Fl -run
 This runs a specified command from a package.json's \fB"scripts"\fR object.
 If a missing \fB"command"\fR is provided, it will list the available scripts.
+Passing \fB--run\fR without a command lists the available scripts and exits
+with a non-zero exit code:
+.Bd -literal
+$ node --run
+Available scripts are:
+  test: node --test
+.Ed
 \fB--run\fR will traverse up to the root directory and finds a \fBpackage.json\fR
 file to run the command from.
 \fB--run\fR prepends \fB./node_modules/.bin\fR for each ancestor of
@@ -1684,19 +1695,17 @@ This is equivalent to setting the \fBNODE_USE_ENV_PROXY=1\fR environment variabl
 When both are set, \fB--use-env-proxy\fR takes precedence.
 .
 .It Fl -use-largepages Ns = Ns Ar mode
-Re-map the Node.js static code to large memory pages at startup. If supported on
-the target system, this will cause the Node.js static code to be moved onto 2
-MiB pages instead of 4 KiB pages.
-The following values are valid for \fBmode\fR:
+This option is no longer supported and a no-op. It used to re-map the Node.js
+static code to large memory pages at startup.
+It still accepts the following values for compatibility:
 .Bl -bullet
 .It
 \fBoff\fR: No mapping will be attempted. This is the default.
 .It
-\fBon\fR: If supported by the OS, mapping will be attempted. Failure to map will
-be ignored and a message will be printed to standard error.
+\fBon\fR: No mapping will be attempted and a message will be printed to
+standard error stating it's no longer supported.
 .It
-\fBsilent\fR: If supported by the OS, mapping will be attempted. Failure to map
-will be ignored and will not be reported.
+\fBsilent\fR: Same as \fBoff\fR.
 .El
 .
 .It Fl -use-system-ca
@@ -1855,8 +1864,13 @@ Enable the module compile cache for the Node.js instance. See the documentation 
 module compile cache for details.
 .
 .It Ev NODE_COMPILE_CACHE_PORTABLE Ar 1
-When set to 1, the module compile cache  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the module compile cache can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
+.
+.It Ev NODE_COMPILE_CACHE_READONLY Ar 1
+When set to 1, the module compile cache only reads existing entries from
+its directory: nothing is written to it and it is not created if missing.
 .
 .It Ev NODE_DEBUG Ar module[,…]
 \fB','\fR-separated list of core modules that should print debug information.
@@ -2000,6 +2014,8 @@ one is included in the list below.
 .It
 \fB--experimental-quic\fR
 .It
+\fB--experimental-repl-await\fR
+.It
 \fB--experimental-require-module\fR
 .It
 \fB--experimental-shadow-realm\fR
@@ -2017,6 +2033,10 @@ one is included in the list below.
 \fB--experimental-vm-modules\fR
 .It
 \fB--experimental-wasi-unstable-preview1\fR
+.It
+\fB--experimental-web-worker\fR
+.It
+\fB--experimental-websocket\fR
 .It
 \fB--force-context-aware\fR
 .It
@@ -2077,8 +2097,6 @@ one is included in the list below.
 \fB--no-experimental-sqlite\fR
 .It
 \fB--no-experimental-strip-types\fR
-.It
-\fB--no-experimental-websocket\fR
 .It
 \fB--no-experimental-webstorage\fR
 .It
@@ -2375,8 +2393,14 @@ environment variable is arbitrary.
 .It Ev OPENSSL_CONF Ar file
 Load an OpenSSL configuration file on startup. The file can be used as part of
 a FIPS mode configuration.
+If the variable is set to an empty value, Node.js starts without loading any
+OpenSSL configuration file. This is a way past a default configuration file
+that exists but cannot be read, for example when \fB/etc/ssl\fR is not accessible
+to the user Node.js runs as, which is otherwise fatal at startup. No
+configuration is applied in that case, including any FIPS mode setup the
+file would have performed.
 If the \fB--openssl-config\fR command-line option is used, the environment
-variable is ignored.
+variable is ignored, and an empty value has no effect.
 .
 .It Ev SSL_CERT_DIR Ar dir
 If \fB--use-openssl-ca\fR is enabled, or if \fB--use-system-ca\fR is enabled on

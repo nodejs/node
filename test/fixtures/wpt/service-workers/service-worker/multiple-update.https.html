@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!-- In Bug 1217367, we will try to merge update events for same registration
+     if possible. This testcase is used to make sure the optimization algorithm
+     doesn't go wrong. -->
+<title>Service Worker: Trigger multiple updates</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(function(t) {
+    var script = 'resources/update-nocookie-worker.py';
+    var scope = 'resources/scope/update';
+    var expected_url = normalizeURL(script);
+    var registration;
+
+    return service_worker_unregister_and_register(t, expected_url, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          // Test single update works before triggering multiple update events
+          return Promise.all([registration.update(),
+                              wait_for_update(t, registration)]);
+        })
+      .then(function() {
+          assert_equals(registration.installing.scriptURL, expected_url,
+                        'new installing should be set after update resolves.');
+          assert_equals(registration.waiting, null,
+                        'waiting should still be null after update resolves.');
+          assert_equals(registration.active.scriptURL, expected_url,
+                        'active should still exist after update found.');
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'installing should be null after installing.');
+          if (registration.waiting) {
+            assert_equals(registration.waiting.scriptURL, expected_url,
+                          'waiting should be set after installing.');
+            assert_equals(registration.active.scriptURL, expected_url,
+                          'active should still exist after installing.');
+            return wait_for_state(t, registration.waiting, 'activated');
+          }
+        })
+      .then(function() {
+          // Test triggering multiple update events at the same time.
+          var promiseList = [];
+          const burstUpdateCount = 10;
+          for (var i = 0; i < burstUpdateCount; i++) {
+            promiseList.push(registration.update());
+          }
+          promiseList.push(wait_for_update(t, registration));
+          return Promise.all(promiseList);
+        })
+      .then(function() {
+          assert_equals(registration.installing.scriptURL, expected_url,
+                        'new installing should be set after update resolves.');
+          assert_equals(registration.waiting, null,
+                        'waiting should still be null after update resolves.');
+          assert_equals(registration.active.scriptURL, expected_url,
+                        'active should still exist after update found.');
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'installing should be null after installing.');
+          if (registration.waiting) {
+            assert_equals(registration.waiting.scriptURL, expected_url,
+                          'waiting should be set after installing.');
+            assert_equals(registration.active.scriptURL, expected_url,
+                          'active should still exist after installing.');
+            return wait_for_state(t, registration.waiting, 'activated');
+          }
+        })
+      .then(function() {
+          // Test update still works after handling update event burst.
+          return Promise.all([registration.update(),
+                              wait_for_update(t, registration)]);
+        })
+      .then(function() {
+          assert_equals(registration.installing.scriptURL, expected_url,
+                        'new installing should be set after update resolves.');
+          assert_equals(registration.waiting, null,
+                        'waiting should be null after activated.');
+          assert_equals(registration.active.scriptURL, expected_url,
+                        'active should still exist after update found.');
+        });
+  }, 'Trigger multiple updates.');
+</script>

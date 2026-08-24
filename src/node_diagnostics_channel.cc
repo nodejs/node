@@ -127,10 +127,38 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+void BindingData::SetChannelStatusCallback(uint32_t index,
+                                           ChannelStatusCallback cb) {
+  channel_status_callbacks_[index] = std::move(cb);
+}
+
+void BindingData::NotifyChannelActive(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding = realm->GetBindingData<BindingData>();
+  if (binding == nullptr) return;
+  CHECK(args[0]->IsUint32());
+  uint32_t index = args[0].As<v8::Uint32>()->Value();
+  auto it = binding->channel_status_callbacks_.find(index);
+  if (it != binding->channel_status_callbacks_.end()) it->second(true);
+}
+
+void BindingData::NotifyChannelInactive(
+    const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding = realm->GetBindingData<BindingData>();
+  if (binding == nullptr) return;
+  CHECK(args[0]->IsUint32());
+  uint32_t index = args[0].As<v8::Uint32>()->Value();
+  auto it = binding->channel_status_callbacks_.find(index);
+  if (it != binding->channel_status_callbacks_.end()) it->second(false);
+}
+
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
   SetMethod(isolate, target, "linkNativeChannel", LinkNativeChannel);
+  SetMethod(isolate, target, "notifyChannelActive", NotifyChannelActive);
+  SetMethod(isolate, target, "notifyChannelInactive", NotifyChannelInactive);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -145,6 +173,8 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(LinkNativeChannel);
+  registry->Register(NotifyChannelActive);
+  registry->Register(NotifyChannelInactive);
 }
 
 Channel::Channel(Environment* env,
@@ -178,11 +208,11 @@ void Channel::Unlink() {
   publish_fn_.Reset();
 }
 
-Channel* Channel::Get(Environment* env, const char* name) {
+BaseObjectPtr<Channel> Channel::Get(Environment* env, std::string_view name) {
   Realm* realm = env->principal_realm();
   BindingData* binding = realm->GetBindingData<BindingData>();
   if (binding == nullptr) {
-    return nullptr;
+    return {};
   }
   uint32_t index = binding->GetOrCreateChannelIndex(std::string(name));
 
@@ -208,22 +238,24 @@ Channel* Channel::Get(Environment* env, const char* name) {
              .ToLocalChecked()
              ->NewInstance(context)
              .ToLocal(&wrap)) {
-      return nullptr;
+      return {};
     }
 
     binding->channels_[index] = MakeDetachedBaseObject<Channel>(
         env, wrap, binding, index, std::string(name));
   }
 
-  Channel* channel = binding->channels_[index].get();
+  auto& channel = binding->channels_[index];
 
   // Late-bind: link to the JS channel when the callback is available.
   if (!binding->link_callback_.IsEmpty() && !channel->IsLinked()) {
     Isolate* isolate = env->isolate();
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
-    Local<String> js_name = String::NewFromUtf8(isolate, name).ToLocalChecked();
-    Local<Value> argv[] = {js_name, Integer::NewFromUnsigned(isolate, index)};
+    Local<Value> argv[] = {
+        ToV8Value(context, name).ToLocalChecked(),
+        Integer::NewFromUnsigned(isolate, index),
+    };
     Local<Value> result;
     if (binding->link_callback_.Get(isolate)
             ->Call(context, v8::Undefined(isolate), arraysize(argv), argv)

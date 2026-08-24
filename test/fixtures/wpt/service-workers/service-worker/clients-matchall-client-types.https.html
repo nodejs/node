@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll with various clientTypes</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const scope = 'resources/clients-matchall-client-types';
+const iframe_url = scope + '-iframe.html';
+const shared_worker_url = scope + '-shared-worker.js';
+const dedicated_worker_url = scope + '-dedicated-worker.js';
+
+/* visibilityState, focused, url, type, frameType */
+const expected_only_window = [
+    ['visible', true, new URL(iframe_url, location).href, 'window', 'nested']
+];
+const expected_only_shared_worker = [
+    [undefined, undefined, new URL(shared_worker_url, location).href, 'sharedworker', 'none']
+];
+const expected_only_dedicated_worker = [
+    [undefined, undefined, new URL(dedicated_worker_url, location).href, 'worker', 'none']
+];
+
+// These are explicitly sorted by URL in the service worker script.
+const expected_all_clients = [
+    expected_only_dedicated_worker[0],
+    expected_only_window[0],
+    expected_only_shared_worker[0],
+];
+
+async function test_matchall(frame, expected, query_options) {
+  // Make sure the frame gets focus.
+  frame.focus();
+  const data = await new Promise(resolve => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = e => resolve(e.data);
+    frame.contentWindow.navigator.serviceWorker.controller.postMessage(
+        {port:channel.port2, options:query_options},
+        [channel.port2]);
+  });
+
+  if (typeof data === 'string') {
+    throw new Error(data);
+  }
+
+  assert_equals(data.length, expected.length, 'result count');
+
+  for (let i = 0; i < data.length; ++i) {
+    assert_array_equals(data[i], expected[i]);
+  }
+}
+
+promise_test(async t => {
+  const registration = await service_worker_unregister_and_register(
+      t, 'resources/clients-matchall-worker.js', scope);
+  t.add_cleanup(_ => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  const frame = await with_iframe(iframe_url);
+  t.add_cleanup(_ => frame.remove());
+  await test_matchall(frame, expected_only_window, {});
+  await test_matchall(frame, expected_only_window, {type:'window'});
+}, 'Verify matchAll() with window client type');
+
+promise_test(async t => {
+  const registration = await service_worker_unregister_and_register(
+      t, 'resources/clients-matchall-worker.js', scope);
+  t.add_cleanup(_ => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  const frame = await with_iframe(iframe_url);
+  t.add_cleanup(_ => frame.remove());
+
+  // Set up worker clients.
+  const shared_worker = await new Promise((resolve, reject) => {
+    const w = new SharedWorker(shared_worker_url);
+    w.onerror = e => reject(e.message);
+    w.port.onmessage = _ => resolve(w);
+  });
+  const dedicated_worker = await new Promise((resolve, reject) => {
+    const w = new Worker(dedicated_worker_url);
+    w.onerror = e => reject(e.message);
+    w.onmessage = _ => resolve(w);
+    w.postMessage('Start');
+  });
+
+  await test_matchall(frame, expected_only_window, {});
+  await test_matchall(frame, expected_only_window, {type:'window'});
+  await test_matchall(frame, expected_only_shared_worker,
+                      {type:'sharedworker'});
+  await test_matchall(frame, expected_only_dedicated_worker, {type:'worker'});
+  await test_matchall(frame, expected_all_clients, {type:'all'});
+}, 'Verify matchAll() with {window, sharedworker, worker} client types');
+
+</script>
