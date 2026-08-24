@@ -30,6 +30,7 @@ async function main() {
   ]);
   await session.waitForNotification('Debugger.paused');
   await session.send({ method: 'Debugger.resume' });
+  await session.disconnect();
 
   const { exitCode, signal } = await parent.expectShutdown();
   assert.strictEqual(signal, null);

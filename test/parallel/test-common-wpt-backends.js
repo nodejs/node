@@ -214,7 +214,7 @@ function checkInspectSelection() {
   runFailure([], /WPT_INSPECT requires a WPT test path/);
   runFailure(
     ['compression-bad-chunks.any.js'],
-    /WPT_INSPECT requires exactly one generated WPT test path; .* matched 2:\ncompression\/compression-bad-chunks\.any\.html\ncompression\/compression-bad-chunks\.any\.worker\.html/,
+    /WPT_INSPECT requires exactly one generated WPT test path; .* matched 2:\r?\ncompression\/compression-bad-chunks\.any\.html\r?\ncompression\/compression-bad-chunks\.any\.worker\.html/,
   );
   runFailure(
     ['compression/compression-bad-chunks.any.worker.html'],
