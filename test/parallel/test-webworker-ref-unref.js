@@ -5,17 +5,12 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
-for (const method of ['ref', 'unref']) {
-  assert.throws(() => Worker.prototype[method].call({}),
-                { code: 'ERR_INVALID_THIS' });
-}
-
 {
   // Both are no-ops on a worker whose script could not be loaded.
   const worker = new Worker(fixtures.fileURL('web-worker', 'nonexistent.js').href);
   worker.addEventListener('error', common.mustCall());
-  worker.unref();
-  worker.ref();
+  process.unref(worker);
+  process.ref(worker);
 }
 
 const worker = new Worker(fixtures.fileURL('web-worker', 'echo.js').href);
@@ -27,8 +22,8 @@ worker.addEventListener('message', common.mustCall(({ data }) => {
 }));
 
 process.once('beforeExit', common.mustCall(() => {
-  worker.ref();
+  process.ref(worker);
   worker.postMessage('hello');
 }));
 
-worker.unref();
+process.unref(worker);
