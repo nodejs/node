@@ -11,8 +11,7 @@ const {
 
 // Verify that when the underlying Node.js stream throws synchronously from
 // write(), the writable web stream properly rejects but does not destroy
-// the stream (destroy-on-sync-throw is only used internally by
-// CompressionStream/DecompressionStream).
+// the stream.
 
 test('WritableStream from Node.js stream handles sync write throw', async () => {
   const error = new TypeError('invalid chunk');
