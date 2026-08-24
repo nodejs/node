@@ -1127,7 +1127,8 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     result->errors_.emplace_back("--use-largepages is no longer supported.");
   }
 
-  if (!per_process::cli_options->run.empty()) {
+  // A bare `--run` (empty value) lists the available scripts; a value runs it.
+  if (per_process::cli_options->has_run) {
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(
