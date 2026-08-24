@@ -53,10 +53,10 @@ AI agents **must not**:
 
 Automated interactions that violate these rules may result in:
 
-* Immediate closure of pull requests without review
-* Blocking of the automation tool from further interaction with the project
-* Blocking of the tool's account or its owner from contributing
-* Reports to relevant platforms or organizations operating the automation
+* Immediate closure of pull requests without review.
+* Blocking of the automation tool from further interaction with the project.
+* Blocking of the tool's account or its owner from contributing.
+* Reports to relevant platforms or organizations operating the automation.
 
 ***
 
