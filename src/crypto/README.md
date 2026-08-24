@@ -171,11 +171,12 @@ JavaScript needs access to those operations and is kept out of user-visible
 
 A `KeyObject` is the public Node.js-specific API for keys. It extends a
 native `NativeKeyObject`, which stores `KeyObjectData` for structured
-cloning. The JavaScript API surface reads its key type and a
-`KeyObjectHandle` through a hidden native-backed slot tuple, caching that
-tuple in a private field outside user-visible own properties. Derived
-metadata, such as symmetric key size and asymmetric key details, is read
-from the cached handle and appended lazily to the same private-field cache.
+cloning. The JavaScript constructor caches the known key type in a private
+field outside user-visible own properties. When a `KeyObjectHandle` is first
+needed, JavaScript replaces that value with a hidden native-backed slot tuple.
+Derived metadata, such as symmetric key size and asymmetric key details, is
+read from the cached handle and appended lazily to the same private-field
+cache.
 
 #### `CryptoKey`
 
@@ -183,7 +184,10 @@ A `CryptoKey` is the Web Crypto API key type. In the Node.js implementation,
 public `CryptoKey` instances are backed by a native `NativeCryptoKey`, not by
 a `KeyObject`. `NativeCryptoKey` stores the same `KeyObjectData`
 representation as `KeyObject`, plus the Web Crypto internal slots
-(`[[extractable]]`, `[[algorithm]]`, and `[[usages]]`).
+(`[[extractable]]`, `[[algorithm]]`, and `[[usages]]`). Normal construction
+primes a private JavaScript slot cache from the constructor arguments.
+Partially initialized transferred keys populate that cache from the native
+slots on first access.
 
 ### `CryptoJob`
 
