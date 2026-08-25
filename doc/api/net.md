@@ -1669,7 +1669,11 @@ corresponding system default unchanged.
 
 `initialDelay` and `interval` are specified in milliseconds but the
 underlying socket options are configured in whole seconds; the values are
-divided by `1000` and rounded down before being applied.
+divided by `1000` and rounded down before being applied. Sub-second timings
+cannot be expressed, so a positive value below `1000` throws
+[`ERR_OUT_OF_RANGE`][] rather than leaving the corresponding system default in
+place. The largest delay the socket options can carry is `32767` seconds, and a
+value above that throws as well.
 
 Enabling the keep-alive functionality will set the following socket options:
 
@@ -1688,6 +1692,12 @@ those platforms.
 added:
  - v26.4.0
  - v24.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65528
+    description: A positive `initialDelay` or `interval` that cannot be applied
+                 as requested now throws `ERR_OUT_OF_RANGE` instead of being
+                 silently altered.
 -->
 
 * `options` {Object}
@@ -1709,6 +1719,11 @@ socket.setKeepAlive({ enable: true, initialDelay: 1000, interval: 1000, count: 1
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65528
+    description: A positive `initialDelay` or `interval` that cannot be applied
+                 as requested now throws `ERR_OUT_OF_RANGE` instead of being
+                 silently altered.
   - version:
      - v26.4.0
      - v24.19.0
@@ -2590,6 +2605,7 @@ console.log('listening on', server.address().port);
 [`'timeout'`]: #event-timeout
 [`BoundSocket`]: #class-netboundsocket
 [`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
+[`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
 [`ERR_SOCKET_HANDLE_ADOPTED`]: errors.md#err_socket_handle_adopted
 [`EventEmitter`]: events.md#class-eventemitter
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
