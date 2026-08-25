@@ -347,9 +347,10 @@ crypto::ClientHelloResult TLSContext::OnClientHello(
       // Selected already, but the Session has not been surfaced yet, so
       // the handshake must stay where it is.
       return crypto::ClientHelloResult::kRetry;
-    case EarlySelection::kComplete:
+    case EarlySelection::kComplete: {
       // Don't let HelloRetryRequests change SNI:
-      if (hello.servername() != tls_session.servername()) {
+      auto name = hello.servername();
+      if (!name.has_value() || *name != tls_session.servername()) {
         Debug(&session, "ClientHello changed the requested servername");
         hello.set_alert(SSL_AD_ILLEGAL_PARAMETER);
         return crypto::ClientHelloResult::kFail;
@@ -357,9 +358,17 @@ crypto::ClientHelloResult TLSContext::OnClientHello(
       // Everything else the TLS library needs from here on is cached on the
       // TLSSession, so just let the handshake run.
       return crypto::ClientHelloResult::kContinue;
+    }
   }
 
-  auto servername = hello.servername();
+  auto requested = hello.servername();
+  if (!requested.has_value()) {
+    Debug(&session, "Unusable servername in ClientHello");
+    hello.set_alert(SSL_AD_DECODE_ERROR);
+    return crypto::ClientHelloResult::kFail;
+  }
+  const std::string_view servername = *requested;
+
   auto* selected = tls_session.context().SelectSNIContext(servername);
   if (selected == nullptr) {
     Debug(&session, "No TLS context for servername %s", servername);

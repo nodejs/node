@@ -2824,7 +2824,7 @@ bool Session::ReadPacket(const uint8_t* data,
   return AfterNgtcp2Read(err);
 }
 
-bool Session::ResumeHandshake() {
+void Session::ResumeHandshake() {
   DCHECK(!is_destroyed());
   DCHECK(is_server());
   // From here on the ClientHello callback is a no-op, so the handshake
@@ -2836,8 +2836,8 @@ bool Session::ResumeHandshake() {
     NgTcp2CallbackScope callback_scope(this);
     err = ngtcp2_conn_continue_handshake(*this, uv_hrtime());
   }
-  if (is_destroyed()) return false;
-  return AfterNgtcp2Read(err);
+  if (is_destroyed()) return;
+  AfterNgtcp2Read(err);
 }
 
 bool Session::AfterNgtcp2Read(int err) {
@@ -2859,7 +2859,7 @@ bool Session::AfterNgtcp2Read(int err) {
         if (is_server() && tls_session().early_selection() ==
                                TLSSession::EarlySelection::kSelected) {
           endpoint().EmitNewSession(BaseObjectPtr<Session>(this));
-          return !is_destroyed() && ResumeHandshake();
+          if (!is_destroyed()) ResumeHandshake();
         }
       }
       return true;
@@ -3411,8 +3411,9 @@ void Session::CollectSessionTicketAppData(
 SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
   DCHECK(!is_destroyed());
+  // Renew, so the client stops offering a ticket that is never accepted.
   if (!has_application()) [[unlikely]] {
-    return SessionTicket::AppData::Status::TICKET_IGNORE;
+    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
   }
   return application().ExtractSessionTicketAppData(app_data, flag);
 }

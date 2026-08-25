@@ -621,7 +621,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // defined there to manage it.
   void set_wrapped();
 
-  bool ResumeHandshake();
+  void ResumeHandshake();
 
   void FlushPendingQlog();
 

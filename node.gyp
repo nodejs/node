@@ -391,6 +391,7 @@
       'src/crypto/crypto_sig.cc',
       'src/crypto/crypto_timing.cc',
       'src/crypto/crypto_cipher.cc',
+      'src/crypto/crypto_client_hello.cc',
       'src/crypto/crypto_context.cc',
       'src/crypto/crypto_tls_certificates.cc',
       'src/crypto/crypto_ec.cc',

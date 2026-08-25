@@ -195,9 +195,8 @@ void Session::Application::CollectSessionTicketAppData(
 SessionTicket::AppData::Status
 Session::Application::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
-  // CollectSessionTicketAppData writes just the application type byte, so by
-  // default all there is to check is that the ticket was issued by a session
-  // that negotiated this same application.
+  // CollectSessionTicketAppData writes just the type byte, so all this can
+  // check is that the ticket came from the same application type.
   auto data = app_data.Get();
   if (!data || data->len != 1 ||
       static_cast<uint8_t>(data->base[0]) != static_cast<uint8_t>(type())) {

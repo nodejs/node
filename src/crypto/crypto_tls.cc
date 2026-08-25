@@ -259,8 +259,10 @@ int SelectALPNCallback(
 
   if (alpn_protos.empty()) return SSL_TLSEXT_ERR_NOACK;
 
-  auto selected =
-      SelectNextProtocol({alpn_protos.data(), alpn_protos.size()}, {in, inlen});
+  const std::span<const uint8_t> supported{alpn_protos.data(),
+                                           alpn_protos.size()};
+  const std::span<const uint8_t> offered{in, inlen};
+  auto selected = SelectNextProtocol(supported, offered);
 
   // Previous versions of Node.js returned SSL_TLSEXT_ERR_NOACK if no protocol
   // match was found. This would neither cause a fatal alert nor would it result
