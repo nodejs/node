@@ -371,6 +371,9 @@ DECLARE_ASN1_ITEM(CMS_EncryptedContentInfo)
 DECLARE_ASN1_ITEM(CMS_IssuerAndSerialNumber)
 DECLARE_ASN1_ITEM(CMS_Attributes_Sign)
 DECLARE_ASN1_ITEM(CMS_Attributes_Verify)
+/* The authAttrs AAD encoding matches the signed-attributes one */
+#define CMS_Attributes_AadEncrypt_it CMS_Attributes_Sign_it
+#define CMS_Attributes_AadDecrypt_it CMS_Attributes_Verify_it
 DECLARE_ASN1_ITEM(CMS_RecipientInfo)
 DECLARE_ASN1_ITEM(CMS_PasswordRecipientInfo)
 DECLARE_ASN1_ALLOC_FUNCTIONS(CMS_IssuerAndSerialNumber)

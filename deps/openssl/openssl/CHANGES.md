@@ -28,6 +28,237 @@ OpenSSL Releases
 OpenSSL 3.5
 -----------
 
+### Changes between 3.5.7 and 3.5.8 [25 Aug 2026]
+
+ * Fixed QUIC server being able to trigger double free when processing `INITIAL`
+   packet.
+
+   Severity: Moderate
+
+   Issue summary: QUIC server may double free QRX (QUIC record layer RX) object
+   when channel creation fails for initial packet.
+
+   Impact summary: Double free leads to heap corruption, which typically results
+   in termination of QUIC server process, leading to a Denial of Service.
+   There is so far no evidence that this double free is exploitable for remote
+   code execution, thus it is considered highly improbable.
+
+   Reported by: Fuzz0x (ZKSC Institute of Security Research), Emilio Galle,
+   and Feng Xue (ThreatBoon).
+
+   ([CVE-2026-18798])
+
+   *Alexandr Nedvědický*
+
+ * Fixed heap buffer overflow in CMS key unwrapping.
+
+   Severity: Moderate
+
+   Issue summary: OpenSSL CMS decryption sizes the key-unwrap output buffer
+   based on querying the unwrapped key size, but the AES-WRAP-PAD unwrap
+   primitive can write and cleanse more bytes than that query reports, causing
+   an 8-byte out-of-bounds heap write.
+
+   Impact summary: An attacker who supplies a crafted CMS message can trigger
+   a deterministic 8-byte out-of-bounds heap write when the victim decrypts it
+   with `CMS_decrypt()`, corrupting the heap and typically resulting in a Denial
+   of Service.
+
+   Reported by: Bhabani Sankar Das and Filipe Casal (Trail of Bits).
+
+   ([CVE-2026-63072])
+
+   *Daniel Kubec*
+
+ * Fixed invalid pointer dereference in CMP server via crafted `protectionAlg`.
+
+   Severity: Moderate
+
+   Issue Summary: The OpenSSL Certificate Management Protocol (CMP)
+   password-based protection verification only checks whether
+   the `protectionAlg` parameter was not NULL and not its ASN.1 type,
+   before treating it as a `PBMParameter`.  A crafted message can contain
+   a parameter of a different type, which is then dereferenced as an invalid
+   pointer.
+
+   Impact summary: A remote, unauthenticated attacker can crash an application
+   acting as a CMP server that accepts PBM-protected messages, or a CMP client
+   talking to a malicious or intercepted CMP server, resulting in a Denial
+   of Service.
+
+   Reported by: Ying Dong and Bhabani Sankar Das.
+
+   ([CVE-2026-63076])
+
+   *Daniel Kubec*
+
+ * Fixed unbounded memory growth in QUIC server incoming channel queue.
+
+   Severity: Low
+
+   Issue summary: When an OpenSSL QUIC server (Listener SSL object) processes
+   valid QUIC Initial packets for unknown destination connection IDs, it can
+   allocate and queue new incoming channels without enforcing any limit.
+
+   Impact summary: A remote peer that can make many `INITIAL` packets reach
+   the server listener faster than the application accepts connections can
+   cause the memory allocated to store the per-channel state to grow
+   without any limits, potentially making the QUIC listener unavailable
+   and causing a Denial of Service.
+
+   Reported by: Filipe Casal (Trail of Bits) in collaboration with OpenAI.
+
+   ([CVE-2026-14456])
+   <!-- https://github.com/openssl/openssl/pull/32052 -->
+
+   *Filipe Casal*
+
+ * Fixed RPK server signature algorithm selection being able to dereference
+   a missing certificate.
+
+   Severity: Low
+
+   Issue summary: In a server or client configuration with [RFC 7250] Raw Public
+   Keys (RPKs) enabled, and only the private key (with no associated
+   certificate) configured locally, a NULL pointer dereference may occur
+   when the remote peer solicits raw public keys and also sends the typically
+   omitted `signature_algorithms_cert` TLS extension.
+
+   Impact summary: The impact is limited to a possible Denial of Service
+   as a result of an application abort, no data disclosure or remote command
+   execution are possible.
+
+   Reported by: Filipe Casal (Trail of Bits) in collaboration with OpenAI.
+
+   ([CVE-2026-14457])
+
+   *Viktor Dukhovni*
+
+ * Fixed excessive memory use buffering DTLS records for a future epoch.
+
+   Severity: Low
+
+   Issue summary: Receiving a DTLS record for a future epoch while a handshake
+   is in progress causes OpenSSL to buffer far more memory than the record
+   itself requires.
+
+   Impact summary: A peer can use a small amount of network traffic to make
+   an OpenSSL DTLS endpoint retain a disproportionately large amount of memory,
+   which may lead to a Denial of Service.
+
+   Reported by: Amazon Web Services.
+
+   ([CVE-2026-54874])
+
+   *Matt Caswell*
+
+ * Fixed untrusted Sender DN being used as a format string in CMP response
+   validation.
+
+   Severity: Low
+
+   Issue Summary: The OpenSSL Certificate Management Protocol (CMP) response
+   validation passed an unexpected response sender distinguished name directly
+   as the format string to `ERR_raise_data()`.
+
+   Impact summary: A malicious or intercepted CMP endpoint can crash a CMP
+   client that enforces an expected sender or uses a pinned server certificate
+   whose subject becomes the default expected sender.
+
+   Reported by: Filipe Casal (Trail of Bits) in collaboration with OpenAI,
+   Brandon Luo, and TrendAI Zero Day Initiative.
+
+   ([CVE-2026-63073])
+
+   *Filipe Casal*
+
+ * Fixed CMP indefinite cache growth of `extraCerts`.
+
+   Severity: Low
+
+   Issue Summary: The OpenSSL Certificate Management Protocol (CMP) caches
+   additional certificates (`extraCerts`) sent in a CMP message, but never
+   expunges them (for instance, if they are invalid).  If a server reuses
+   an `OSSL_CMP_CTX` object frequently, this cache of `extraCerts` may grow
+   unboundedly, and a malicious client may flood a CMP server with requests
+   driving this growth.
+
+   Impact Summary: Users utilizing a CMP server that reuses a single
+   `OSSL_CMP_CTX` object for the lifetime of a server process may observe
+   unbounded memory growth in the event a malicious client repeatedly sends
+   requests containing unique extra certificates, which may lead to OOM
+   conditions.
+
+   Reported by: Pavol Zacik (Red Hat).
+
+   ([CVE-2026-63074])
+
+   *Neil Horman*
+
+ * Fixed QUIC ACK-only packet retention being able to cause memory exhaustion.
+
+   Severity: Low
+
+   Issue Summary: When OpenSSL processes QUIC traffic from a peer
+   that repeatedly sends ACK-eliciting packets while not acknowledging ACK-only
+   responses, the QUIC stack can retain ACK-only packet metadata
+   for the lifetime of the connection.
+
+   Impact Summary: A remote peer that can complete a QUIC handshake can cause
+   connection-scoped memory growth, which may lead to a Denial of Service
+   through memory exhaustion, especially with sustained traffic or many
+   concurrent QUIC connections.
+
+   Reported by: Opal Wright (Trail of Bits).
+
+   ([CVE-2026-63075])
+
+   *Neil Horman*
+
+ * Fixed possibility of AEAD forgeries with empty ciphertext when using
+   `EVP_Cipher()`.
+
+   Severity: Low
+
+   Issue summary: ChaCha20-Poly1305 and AES-OCB decryption with an empty
+   ciphertext can report success without verifying the supplied authentication
+   tag when the operation is finalized by calling the `EVP_Cipher()` function.
+
+   Impact summary: Applications calling `EVP_Cipher()` on an empty ciphertext
+   and expecting the call to check the AEAD tag may accept forged messages.
+
+   Reported by: Billy Brumley (Rochester Institute of Technology).
+
+   ([CVE-2026-75803])
+   <!-- https://github.com/openssl/openssl/pull/32416 -->
+
+   *Billy Bob Brumley*
+
+ * Added `OPENSSL_armcap(3)` documentation page.
+   <!-- https://github.com/openssl/openssl/pull/31749 -->
+
+   *Paul Elliott*
+
+ * Added support for selecting assembly code paths for LLVM-based Intel's `icx`
+   compiler.
+   <!-- https://github.com/openssl/openssl/pull/31572 -->
+
+   *Wolfgang Beck*
+
+ * Updated compliance with TLS 1.3 session ticket lifetime requirements.
+   TLS 1.3 clients now cap `ticket_lifetime_hint` to 7 days (604800 seconds)
+   when processing new session ticket messages, in accordance
+   with [RFC 8446 Section 4.6.1].
+   <!-- https://github.com/openssl/openssl/pull/31174 -->
+
+   *Abel Thomas*
+
+ * Fixed checking of authentication tags for empty ciphertexts for AEAD ciphers
+   in CCM cipher mode.
+   <!-- https://github.com/openssl/openssl/pull/32427 -->
+
+   *Mounir IDRASSI*
+
 ### Changes between 3.5.6 and 3.5.7 [9 Jun 2026]
 
  * Fixed heap use-after-free in `PKCS7_verify()`.
@@ -305,6 +536,21 @@ OpenSSL 3.5
    ([CVE-2026-45446])
 
    *Dmitry Belyavskiy (Red Hat)*
+
+ * Fixed excessive allocation of the handshake message buffer (aka HollowByte).
+
+   Previously, we would allocate a buffer large enough to hold the full size of
+   an incoming handshake message as advertised by the peer. This could be quite
+   large (although it is bounded, e.g. for ClientHello this is approximately
+   128 KiB). If the peer then fails to send the full handshake message, then the
+   endpoint is left waiting for the remainder of the message to arrive and the
+   memory is still allocated (i.e. a Slowloris attack). To prevent this, we
+   incrementally grow the buffer as we receive the data.
+
+   This issue was reported by Okta Red Team.
+   <!-- https://github.com/openssl/openssl/pull/30793 -->
+
+   *Matt Caswell*
 
  * Fixed TLS 1.3 server not sending `NewSessionTicket` message
    after ciphersuite mismatch.
@@ -22260,6 +22506,9 @@ ndif
 [CVE-2026-2673]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-2673
 [CVE-2026-7383]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-7383
 [CVE-2026-9076]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-9076
+[CVE-2026-14456]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-14456
+[CVE-2026-14457]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-14457
+[CVE-2026-18798]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-18798
 [CVE-2026-22795]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-22795
 [CVE-2026-22796]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-22796
 [CVE-2026-28387]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-28387
@@ -22281,9 +22530,18 @@ ndif
 [CVE-2026-45445]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45445
 [CVE-2026-45446]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45446
 [CVE-2026-45447]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-45447
+[CVE-2026-54874]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-54874
+[CVE-2026-63072]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63072
+[CVE-2026-63073]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63073
+[CVE-2026-63074]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63074
+[CVE-2026-63075]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63075
+[CVE-2026-63076]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-63076
+[CVE-2026-75803]: https://openssl-library.org/news/vulnerabilities/#CVE-2026-75803
 [ESV]: https://csrc.nist.gov/Projects/cryptographic-module-validation-program/entropy-validations
 [RFC 2578 (STD 58), section 3.5]: https://datatracker.ietf.org/doc/html/rfc2578#section-3.5
 [RFC 3211]: https://datatracker.ietf.org/doc/html/rfc3211
 [RFC 5297]: https://datatracker.ietf.org/doc/html/rfc5297
+[RFC 7250]: https://datatracker.ietf.org/doc/html/rfc7250
 [RFC 8446]: https://datatracker.ietf.org/doc/html/rfc8446
+[RFC 8446 Section 4.6.1]: https://datatracker.ietf.org/doc/html/rfc8446#section-4.6.1
 [RFC 8452]: https://datatracker.ietf.org/doc/html/rfc8452

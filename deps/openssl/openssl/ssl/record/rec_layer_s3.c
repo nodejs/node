@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -150,7 +150,7 @@ static uint32_t ossl_get_max_early_data(SSL_CONNECTION *s)
 static int ossl_early_data_count_ok(SSL_CONNECTION *s, size_t length,
     size_t overhead, int send)
 {
-    uint32_t max_early_data;
+    uint64_t max_early_data;
 
     max_early_data = ossl_get_max_early_data(s);
 
