@@ -7,6 +7,7 @@ DEFAULT_BRANCH=main
 
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
+LACKS_SECOND_APPROVAL_LABEL="lacks-second-approval"
 
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
@@ -24,11 +25,43 @@ escape_code_block_or_line() {
   printf '%s%s%s%s%s\n' "$fence" "$sep" "$1" "$sep" "$fence"
 }
 
+edit_pr_labels() {
+  pr=$1
+  failure_mode=$2
+  shift 2
+  if gh -R "$GITHUB_REPOSITORY" pr edit "$pr" "$@"; then
+    return
+  fi
+  if [ "$failure_mode" = warn ]; then
+    echo "::warning::Failed to update labels for PR $pr"
+    return
+  fi
+  return 1
+}
+
+remove_labels_if_present() {
+  pr=$1
+  shift
+  labels=
+  for label in "$@"; do
+    if jq -e --arg label "$label" \
+        'map(.name) | index($label)' < labels.json > /dev/null; then
+      labels="${labels}${labels:+,}${label}"
+    fi
+  done
+
+  if [ -n "$labels" ]; then
+    edit_pr_labels "$pr" warn --remove-label "$labels"
+  fi
+}
+
 commit_queue_failed() {
   pr=$1
   reported_failure=${2:-}
 
-  gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
+  edit_pr_labels "$pr" required --add-label "$COMMIT_QUEUE_FAILED_LABEL" \
+    --remove-label "$COMMIT_QUEUE_LABEL"
+  remove_labels_if_present "$pr" "$LACKS_SECOND_APPROVAL_LABEL"
 
   last_output_line=$(awk 'NF { line = $0 } END { sub(/^[[:space:]]*/, "", line); print line }' output)
   # shellcheck disable=SC2016
@@ -145,8 +178,9 @@ for pr in "$@"; do
 
   [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh -R "$GITHUB_REPOSITORY" pr close "$pr"
 
-  # Delete the commit queue label (but ignore errors, it's no big deal if a closed PR still has the label)
-  gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
+  # Delete the commit queue labels (but ignore errors, it's no big deal if a closed PR still has them)
+  remove_labels_if_present "$pr" "$COMMIT_QUEUE_LABEL" \
+    "$LACKS_SECOND_APPROVAL_LABEL"
 done
 
 rm -f labels.json
