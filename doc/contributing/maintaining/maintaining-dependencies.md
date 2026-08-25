@@ -6,7 +6,7 @@ and are built together with the code under the `src` and `lib`
 directories to create the Node.js binaries.
 
 All dependencies are located within the `deps` directory.
-This a list of all the dependencies:
+This is a list of all the dependencies:
 
 * [acorn][]
 * [ada][]
