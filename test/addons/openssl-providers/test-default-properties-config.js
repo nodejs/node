@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../../common');
@@ -13,13 +14,14 @@ const {
   setFips,
 } = require('node:crypto');
 const { Worker } = require('node:worker_threads');
+const { getHashCache } = require('internal/crypto/util');
 const option = `--openssl-config=${fixtures.path(
   'openssl3-conf',
   'default_properties.cnf',
 )}`;
 
 if (!process.execArgv.includes(option)) {
-  const cp = fork(__filename, { execArgv: [option] });
+  const cp = fork(__filename, { execArgv: [...process.execArgv, option] });
   cp.on('exit', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
@@ -37,7 +39,34 @@ const md5 = 'd41d8cd98f00b204e9800998ecf8427e';
 assert.strictEqual(createHash('md5').update(input).digest('hex'), md5);
 assert.strictEqual(oneShotHash('md5', input), md5);
 
+const hashName = 'SHA256';
+const hashCache = getHashCache();
+const descriptor = Object.getOwnPropertyDescriptor(hashCache, hashName);
+assert(descriptor);
+const cacheId = descriptor.value;
+const sentinel = new Error('hash cache setter');
+const throwsSentinel = (err) => err === sentinel;
+
+function installThrowingHashCacheEntry(id) {
+  Object.defineProperty(hashCache, hashName, {
+    __proto__: null,
+    configurable: true,
+    enumerable: descriptor.enumerable,
+    get() { return id; },
+    set() { throw sentinel; },
+  });
+}
+
+installThrowingHashCacheEntry(-1);
+assert.throws(() => createHash(hashName), throwsSentinel);
+assert.throws(() => oneShotHash(hashName, input), throwsSentinel);
+Object.defineProperty(hashCache, hashName, descriptor);
+
+installThrowingHashCacheEntry(cacheId);
 setFips(true);
+assert.throws(() => createHash(hashName), throwsSentinel);
+assert.throws(() => oneShotHash(hashName, input), throwsSentinel);
+Object.defineProperty(hashCache, hashName, descriptor);
 assert.deepStrictEqual(getHashes(), []);
 assert.throws(
   () => createHash('md5'),

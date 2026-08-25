@@ -89,11 +89,13 @@ void ResetHashCache(Environment* env,
     Isolate* isolate = env->isolate();
     Local<Context> context = isolate->GetCurrentContext();
     for (const auto& entry : cache->aliases()) {
-      algorithm_cache
-          ->Set(context,
-                OneByteString(isolate, entry.first),
-                Int32::New(isolate, -1))
-          .Check();
+      if (algorithm_cache
+              ->Set(context,
+                    OneByteString(isolate, entry.first),
+                    Int32::New(isolate, -1))
+              .IsNothing()) {
+        return;
+      }
     }
   }
   cache->reset(generation);
@@ -135,6 +137,7 @@ MaybeCachedMD FetchAndMaybeCacheMD(
     Local<Object> algorithm_cache = Local<Object>(),
     const char* fetch_name = nullptr) {
   SynchronizeHashCache(env, algorithm_cache);
+  if (env->isolate()->HasPendingException()) return {};
   ncrypto::DigestCache* cache = env->provider_digest_cache.get();
   CHECK_NOT_NULL(cache);
   const uint64_t generation = env->hash_cache_generation;
@@ -320,6 +323,7 @@ const EVP_MD* GetDigestImplementation(
   if (cache_id != -1) {
     // Alias already cached, return the cached EVP_MD*.
     if (const EVP_MD* md = GetCachedMDByID(env, cache_id, cache)) return md;
+    if (env->isolate()->HasPendingException()) return nullptr;
   }
 
   // Only decode the algorithm when we don't have it cached to avoid
@@ -328,6 +332,7 @@ const EVP_MD* GetDigestImplementation(
   Utf8Value utf8(isolate, algorithm);
 
   auto result = FetchAndMaybeCacheMD(env, *utf8, cache);
+  if (env->isolate()->HasPendingException()) return nullptr;
   if (result.cache_id != -1) {
     // Add the alias to the JavaScript side to speed up the next lookup. The
     // native cache added it while inserting the implementation.
@@ -539,6 +544,7 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
               GetCachedMDByID(env, cache_id, args[2].As<Object>())) {
         return OneShotDigestWithMD(env, args, md, nullptr);
       }
+      if (env->isolate()->HasPendingException()) return;
     }
 #else
     Utf8Value utf8(env->isolate(), args[0]);
@@ -554,12 +560,14 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
     std::optional<ncrypto::Digest> digest_owner;
     const EVP_MD* md =
         GetDigestImplementation(env, args[0], args[1], args[2], digest_owner);
+    if (env->isolate()->HasPendingException()) return;
     return OneShotDigestWithMD(env, args, md, &options);
   }
 
   std::optional<ncrypto::Digest> digest_owner;
   const EVP_MD* md =
       GetDigestImplementation(env, args[0], args[1], args[2], digest_owner);
+  if (env->isolate()->HasPendingException()) return;
   OneShotDigestWithMD(env, args, md, nullptr);
 }
 
@@ -627,6 +635,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
         }
         return;
       }
+      if (env->isolate()->HasPendingException()) return;
     }
   }
 #endif
@@ -640,6 +649,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     md = orig->mdctx_.getDigest();
   } else {
     md = GetDigestImplementation(env, args[0], args[2], args[3], digest_owner);
+    if (env->isolate()->HasPendingException()) return;
   }
 
   Hash* hash = new Hash(env, args.This());
