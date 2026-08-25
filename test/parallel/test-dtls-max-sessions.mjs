@@ -6,6 +6,7 @@
 // nothing used to bound how many of them a peer could accumulate.
 
 import { hasCrypto, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
@@ -35,9 +36,7 @@ const ca = fixtures.readKey('ca1-cert.pem');
 // retransmit schedule.
 async function tryConnect(port, timeout = 1500) {
   const client = connect('127.0.0.1', port, { servername: 'agent1', ca: [ca] });
-  const timer = new Promise((resolve) => {
-    setTimeout(resolve, timeout).unref();
-  });
+  const timer = setTimeout(timeout, undefined, { ref: false });
   const opened = await Promise.race([
     client.opened.then(() => true, () => false),
     timer.then(() => false),
@@ -50,9 +49,7 @@ async function tryConnect(port, timeout = 1500) {
 async function waitForSessionCount(server, expected) {
   for (let i = 0; i < 100; i++) {
     if (getDTLSEndpointState(server).sessionCount === expected) return;
-    await new Promise((resolve) => {
-      setTimeout(resolve, 10).unref();
-    });
+    await setTimeout(10, undefined, { ref: false });
   }
   assert.strictEqual(getDTLSEndpointState(server).sessionCount, expected);
 }
