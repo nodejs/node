@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,10 +65,11 @@ static int write_pvk(struct key2ms_ctx_st *ctx, OSSL_CORE_BIO *cout,
     return ret;
 }
 
+static OSSL_FUNC_encoder_newctx_fn key2ms_newctx;
 static OSSL_FUNC_encoder_freectx_fn key2ms_freectx;
 static OSSL_FUNC_encoder_does_selection_fn key2ms_does_selection;
 
-static struct key2ms_ctx_st *key2ms_newctx(void *provctx)
+static void *key2ms_newctx(void *provctx)
 {
     struct key2ms_ctx_st *ctx = OPENSSL_zalloc(sizeof(*ctx));
 

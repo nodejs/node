@@ -59,6 +59,13 @@ if (!$avx512vaes && `$ENV{CC} -v 2>&1`
     }
 }
 
+if (!$avx512vaes && `$ENV{CC} -x c /dev/null -dM -E|grep __clang_major__`
+    =~ /#define __clang_major__.([0-9]+)/) {
+    if ($1) {
+        $avx512vaes = ($1>=11); #icx started with clang 11
+    }
+}
+
 open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
     or die "can't call $xlate: $!";
 *STDOUT=*OUT;

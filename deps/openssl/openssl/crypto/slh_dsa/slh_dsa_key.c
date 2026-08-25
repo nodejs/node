@@ -313,6 +313,12 @@ int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
     key->pub = p;
     return 1;
 err:
+    /*
+     * A private key of unexpected length may have been copied into |priv|
+     * before |has_priv| was set, in which case the reset below would not
+     * erase it, so cleanse unconditionally.
+     */
+    OPENSSL_cleanse(key->priv, sizeof(key->priv));
     ossl_slh_dsa_key_reset(key);
     return 0;
 }

@@ -61,7 +61,7 @@ static void slh_dsa_freectx(void *vctx)
 
     ossl_slh_dsa_hash_ctx_free(ctx->hash_ctx);
     OPENSSL_free(ctx->propq);
-    OPENSSL_cleanse(ctx->add_random, ctx->add_random_len);
+    OPENSSL_cleanse(ctx->add_random, sizeof(ctx->add_random));
     OPENSSL_free(ctx);
 }
 

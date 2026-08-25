@@ -811,7 +811,6 @@ static void *ed25519_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (!key || ((gctx->selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0))
         return key;
     if (ecd_fips140_pairwise_test(key, ECX_KEY_TYPE_ED25519, 1) != 1) {
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
         ossl_ecx_key_free(key);
         return NULL;
     }
@@ -844,7 +843,6 @@ static void *ed448_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (!key || ((gctx->selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0))
         return key;
     if (ecd_fips140_pairwise_test(key, ECX_KEY_TYPE_ED448, 1) != 1) {
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
         ossl_ecx_key_free(key);
         return NULL;
     }

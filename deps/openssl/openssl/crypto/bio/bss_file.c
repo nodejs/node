@@ -312,7 +312,13 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
         /* the ptr parameter is actually a FILE ** in this case. */
         if (ptr != NULL) {
             fpp = (FILE **)ptr;
-            *fpp = (FILE *)b->ptr;
+            if (BIO_FLAGS_UPLINK_INTERNAL == 0
+                || b->flags & BIO_FLAGS_UPLINK_INTERNAL) {
+                *fpp = (FILE *)b->ptr;
+            } else { /* avoid returning internal FILE * to the app */
+                *fpp = NULL;
+                ret = 0;
+            }
         }
         break;
     case BIO_CTRL_GET_CLOSE:
