@@ -1401,9 +1401,9 @@ Inside a worker, \[`worker_threads.parentPort`]\[] is the port behind
 `self.postMessage()` and the worker's `message` events, `isMainThread` is
 `false`, and `workerData` is `undefined`.
 
-Because that thread keeps the event loop alive, `Worker` instances can be
-mutated using the non-standard `process.ref(worker)` and `process.unref(worker)`
-methods.
+Web Workers, like `node:worker_threads` workers, keep the event loop alive by
+default. In Node.js, Web Workers implement the [Refable protocol][], and can be
+ref'd and unref'd using `process.ref(worker)` and `process.unref(worker)`.
 
 As a rule of thumb, use [`node:worker_threads`][] directly when a program
 needs `workerData`, a custom `env` or `execArgv`, resource limits, stdio
@@ -1460,6 +1460,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [ECMAScript module]: esm.md
 [HTML Standard]: https://html.spec.whatwg.org/multipage/workers.html
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
+[Refable protocol]: process.md#processrefmayberefable
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
