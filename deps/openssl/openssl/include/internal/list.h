@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -193,6 +193,35 @@
         if (list->omega == e)                                                                 \
             list->omega = elem;                                                               \
         list->num_elems++;                                                                    \
+    }                                                                                         \
+    static ossl_unused ossl_inline void                                                       \
+    ossl_list_##name##_join(OSSL_LIST(name) * lh, OSSL_LIST(name) * lt)                       \
+    {                                                                                         \
+        OSSL_LIST_DBG(type * _p); /* local variable '_p' when debug */                        \
+        if (lt == NULL || lh == NULL || lt->num_elems == 0 || lh == lt)                       \
+            return;                                                                           \
+        /*                                                                                    \
+         * let's be optimistic about size_t overflow here: it can not happen.                 \
+         */                                                                                   \
+        lh->num_elems += lt->num_elems;                                                       \
+        if (lh->omega == NULL) {                                                              \
+            assert(lh->alpha == NULL);                                                        \
+            lh->omega = lt->omega;                                                            \
+            lh->alpha = lt->alpha;                                                            \
+        } else {                                                                              \
+            if (lt->alpha != NULL)                                                            \
+                ((type *)lt->alpha)->ossl_list_##name.prev = lh->omega;                       \
+            ((type *)lh->omega)->ossl_list_##name.next = lt->alpha;                           \
+        }                                                                                     \
+        OSSL_LIST_DBG(for (_p = (type *)lt->alpha;                                            \
+                          assert(_p == NULL || _p->ossl_list_##name.list == lt), _p != NULL;  \
+                          _p = _p->ossl_list_##name.next)                                     \
+                          _p->ossl_list_##name.list                                           \
+            = lh);                                                                            \
+        lh->omega = lt->omega;                                                                \
+        lt->alpha = NULL;                                                                     \
+        lt->omega = NULL;                                                                     \
+        lt->num_elems = 0;                                                                    \
     }                                                                                         \
     struct ossl_list_st_##name
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <openssl/crypto.h>
 #include "ml_dsa_poly.h"
 
 struct vector_st {
@@ -153,6 +154,7 @@ vector_expand_mask(VECTOR *out, const uint8_t *rho_prime, size_t rho_prime_len,
         poly_expand_mask(out->poly + i, derived_seed, sizeof(derived_seed),
             gamma1, h_ctx, md);
     }
+    OPENSSL_cleanse(derived_seed, sizeof(derived_seed));
 }
 
 /* Scale back previously rounded value */

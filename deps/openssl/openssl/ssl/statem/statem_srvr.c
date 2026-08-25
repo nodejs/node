@@ -3921,8 +3921,10 @@ CON_FUNC_RETURN tls_construct_server_compressed_certificate(SSL_CONNECTION *sc, 
         || !WPACKET_put_bytes_u24(pkt, cc->orig_len)
         || !WPACKET_start_sub_packet_u24(pkt)
         || !WPACKET_memcpy(pkt, cc->data, cc->len)
-        || !WPACKET_close(pkt))
+        || !WPACKET_close(pkt)) {
+        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
+    }
 
     sc->s3.tmp.cert->cert_comp_used++;
     return 1;
@@ -4251,7 +4253,7 @@ CON_FUNC_RETURN tls_construct_new_session_ticket(SSL_CONNECTION *s, WPACKET *pkt
             SSL_SESSION *new_sess = ssl_session_dup(s->session, 0);
 
             if (new_sess == NULL) {
-                /* SSLfatal already called */
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_SSL_LIB);
                 goto err;
             }
 
