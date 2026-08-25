@@ -4486,26 +4486,40 @@ const Cipher Cipher::FromCtx(const CipherCtxPointer& ctx) {
 }
 
 const Cipher Cipher::EMPTY = Cipher();
-const Cipher Cipher::AES_128_CBC = Cipher::FromNid(NID_aes_128_cbc);
-const Cipher Cipher::AES_192_CBC = Cipher::FromNid(NID_aes_192_cbc);
-const Cipher Cipher::AES_256_CBC = Cipher::FromNid(NID_aes_256_cbc);
-const Cipher Cipher::AES_128_CTR = Cipher::FromNid(NID_aes_128_ctr);
-const Cipher Cipher::AES_192_CTR = Cipher::FromNid(NID_aes_192_ctr);
-const Cipher Cipher::AES_256_CTR = Cipher::FromNid(NID_aes_256_ctr);
-const Cipher Cipher::AES_128_GCM = Cipher::FromNid(NID_aes_128_gcm);
-const Cipher Cipher::AES_192_GCM = Cipher::FromNid(NID_aes_192_gcm);
-const Cipher Cipher::AES_256_GCM = Cipher::FromNid(NID_aes_256_gcm);
-const Cipher Cipher::AES_128_KW = Cipher::FromNid(NID_id_aes128_wrap);
-const Cipher Cipher::AES_192_KW = Cipher::FromNid(NID_id_aes192_wrap);
-const Cipher Cipher::AES_256_KW = Cipher::FromNid(NID_id_aes256_wrap);
+
+// The well-known ciphers are resolved lazily rather than in static
+// initializers: EVP_get_cipherbynid() triggers OPENSSL_init_crypto(), and
+// doing that while the executable is still being loaded adds the full cost
+// of OpenSSL initialization to every process startup, even when crypto is
+// never used.
+#define NCRYPTO_LAZY_CIPHER(name, nid)                                         \
+  const Cipher& Cipher::name() {                                               \
+    static const Cipher cipher = Cipher::FromNid(nid);                         \
+    return cipher;                                                             \
+  }
+
+NCRYPTO_LAZY_CIPHER(AES_128_CBC, NID_aes_128_cbc)
+NCRYPTO_LAZY_CIPHER(AES_192_CBC, NID_aes_192_cbc)
+NCRYPTO_LAZY_CIPHER(AES_256_CBC, NID_aes_256_cbc)
+NCRYPTO_LAZY_CIPHER(AES_128_CTR, NID_aes_128_ctr)
+NCRYPTO_LAZY_CIPHER(AES_192_CTR, NID_aes_192_ctr)
+NCRYPTO_LAZY_CIPHER(AES_256_CTR, NID_aes_256_ctr)
+NCRYPTO_LAZY_CIPHER(AES_128_GCM, NID_aes_128_gcm)
+NCRYPTO_LAZY_CIPHER(AES_192_GCM, NID_aes_192_gcm)
+NCRYPTO_LAZY_CIPHER(AES_256_GCM, NID_aes_256_gcm)
+NCRYPTO_LAZY_CIPHER(AES_128_KW, NID_id_aes128_wrap)
+NCRYPTO_LAZY_CIPHER(AES_192_KW, NID_id_aes192_wrap)
+NCRYPTO_LAZY_CIPHER(AES_256_KW, NID_id_aes256_wrap)
 
 #ifndef OPENSSL_IS_BORINGSSL
-const Cipher Cipher::AES_128_OCB = Cipher::FromNid(NID_aes_128_ocb);
-const Cipher Cipher::AES_192_OCB = Cipher::FromNid(NID_aes_192_ocb);
-const Cipher Cipher::AES_256_OCB = Cipher::FromNid(NID_aes_256_ocb);
+NCRYPTO_LAZY_CIPHER(AES_128_OCB, NID_aes_128_ocb)
+NCRYPTO_LAZY_CIPHER(AES_192_OCB, NID_aes_192_ocb)
+NCRYPTO_LAZY_CIPHER(AES_256_OCB, NID_aes_256_ocb)
 #endif
 
-const Cipher Cipher::CHACHA20_POLY1305 = Cipher::FromNid(NID_chacha20_poly1305);
+NCRYPTO_LAZY_CIPHER(CHACHA20_POLY1305, NID_chacha20_poly1305)
+
+#undef NCRYPTO_LAZY_CIPHER
 
 bool Cipher::isGcmMode() const {
   if (!cipher_) return false;

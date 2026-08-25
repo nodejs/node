@@ -533,7 +533,17 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   init_process_flags.store(flags);
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
-    atexit(ResetStdio);
+    // Arrange for ResetStdio() to run at exit. A function-local static with a
+    // destructor is used instead of atexit() because on macOS atexit() calls
+    // dladdr() to locate the image that owns the callback, which does a linear
+    // scan of the (very large) symbol table and costs about a millisecond of
+    // startup time. Static destructors and atexit() handlers are registered in
+    // the same list and run in reverse order of registration, so the ordering
+    // relative to other handlers is unchanged.
+    static const struct ResetStdioAtExit {
+      ~ResetStdioAtExit() { ResetStdio(); }
+    } reset_stdio_at_exit;
+    (void)reset_stdio_at_exit;
   }
 
 #ifdef __POSIX__
@@ -1214,7 +1224,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     OPENSSL_INIT_set_config_file_flags(settings,
                                        CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    // OPENSSL_INIT_NO_ATEXIT: do not let OpenSSL register OPENSSL_cleanup()
+    // with atexit(). Nothing needs OpenSSL to be torn down when the process
+    // exits, and on macOS atexit() itself is expensive: it calls dladdr(),
+    // which linearly scans the executable's (very large) symbol table and
+    // costs about a millisecond on every process start. This must be part of
+    // the first OPENSSL_init_crypto() call in the process to take effect.
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_NO_ATEXIT,
+                        settings);
     OPENSSL_INIT_free(settings);
 
     if (ERR_peek_error() != 0) {
