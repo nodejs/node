@@ -1523,6 +1523,10 @@ DEPEND[html/man3/MDC2_Init.html]=man3/MDC2_Init.pod
 GENERATE[html/man3/MDC2_Init.html]=man3/MDC2_Init.pod
 DEPEND[man/man3/MDC2_Init.3]=man3/MDC2_Init.pod
 GENERATE[man/man3/MDC2_Init.3]=man3/MDC2_Init.pod
+DEPEND[html/man3/NAME_CONSTRAINTS_check.html]=man3/NAME_CONSTRAINTS_check.pod
+GENERATE[html/man3/NAME_CONSTRAINTS_check.html]=man3/NAME_CONSTRAINTS_check.pod
+DEPEND[man/man3/NAME_CONSTRAINTS_check.3]=man3/NAME_CONSTRAINTS_check.pod
+GENERATE[man/man3/NAME_CONSTRAINTS_check.3]=man3/NAME_CONSTRAINTS_check.pod
 DEPEND[html/man3/NCONF_new_ex.html]=man3/NCONF_new_ex.pod
 GENERATE[html/man3/NCONF_new_ex.html]=man3/NCONF_new_ex.pod
 DEPEND[man/man3/NCONF_new_ex.3]=man3/NCONF_new_ex.pod
@@ -1571,6 +1575,10 @@ DEPEND[html/man3/OPENSSL_LH_stats.html]=man3/OPENSSL_LH_stats.pod
 GENERATE[html/man3/OPENSSL_LH_stats.html]=man3/OPENSSL_LH_stats.pod
 DEPEND[man/man3/OPENSSL_LH_stats.3]=man3/OPENSSL_LH_stats.pod
 GENERATE[man/man3/OPENSSL_LH_stats.3]=man3/OPENSSL_LH_stats.pod
+DEPEND[html/man3/OPENSSL_armcap.html]=man3/OPENSSL_armcap.pod
+GENERATE[html/man3/OPENSSL_armcap.html]=man3/OPENSSL_armcap.pod
+DEPEND[man/man3/OPENSSL_armcap.3]=man3/OPENSSL_armcap.pod
+GENERATE[man/man3/OPENSSL_armcap.3]=man3/OPENSSL_armcap.pod
 DEPEND[html/man3/OPENSSL_config.html]=man3/OPENSSL_config.pod
 GENERATE[html/man3/OPENSSL_config.html]=man3/OPENSSL_config.pod
 DEPEND[man/man3/OPENSSL_config.3]=man3/OPENSSL_config.pod
@@ -3446,6 +3454,7 @@ html/man3/GENERAL_NAME.html \
 html/man3/HMAC.html \
 html/man3/MD5.html \
 html/man3/MDC2_Init.html \
+html/man3/NAME_CONSTRAINTS_check.html \
 html/man3/NCONF_new_ex.html \
 html/man3/OBJ_nid2obj.html \
 html/man3/OCSP_REQUEST_new.html \
@@ -3458,6 +3467,7 @@ html/man3/OPENSSL_Applink.html \
 html/man3/OPENSSL_FILE.html \
 html/man3/OPENSSL_LH_COMPFUNC.html \
 html/man3/OPENSSL_LH_stats.html \
+html/man3/OPENSSL_armcap.html \
 html/man3/OPENSSL_config.html \
 html/man3/OPENSSL_fork_prepare.html \
 html/man3/OPENSSL_gmtime.html \
@@ -4123,6 +4133,7 @@ man/man3/GENERAL_NAME.3 \
 man/man3/HMAC.3 \
 man/man3/MD5.3 \
 man/man3/MDC2_Init.3 \
+man/man3/NAME_CONSTRAINTS_check.3 \
 man/man3/NCONF_new_ex.3 \
 man/man3/OBJ_nid2obj.3 \
 man/man3/OCSP_REQUEST_new.3 \
@@ -4135,6 +4146,7 @@ man/man3/OPENSSL_Applink.3 \
 man/man3/OPENSSL_FILE.3 \
 man/man3/OPENSSL_LH_COMPFUNC.3 \
 man/man3/OPENSSL_LH_stats.3 \
+man/man3/OPENSSL_armcap.3 \
 man/man3/OPENSSL_config.3 \
 man/man3/OPENSSL_fork_prepare.3 \
 man/man3/OPENSSL_gmtime.3 \

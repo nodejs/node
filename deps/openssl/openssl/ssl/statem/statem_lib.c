@@ -1071,7 +1071,7 @@ static int ssl_add_cert_chain(SSL_CONNECTION *s, WPACKET *pkt, CERT_PKEY *cpk, i
         /* Don't leave errors in the queue */
         ERR_clear_error();
         chain = X509_STORE_CTX_get0_chain(xs_ctx);
-        i = ssl_security_cert_chain(s, chain, NULL, 0);
+        i = ssl_security_cert_chain(s, chain, NULL);
         if (i != 1) {
 #if 0
             /* Dummy error calls so mkerr generates them */
@@ -1096,7 +1096,7 @@ static int ssl_add_cert_chain(SSL_CONNECTION *s, WPACKET *pkt, CERT_PKEY *cpk, i
         }
         X509_STORE_CTX_free(xs_ctx);
     } else {
-        i = ssl_security_cert_chain(s, extra_certs, x, 0);
+        i = ssl_security_cert_chain(s, extra_certs, x);
         if (i != 1) {
             if (!for_comp)
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, i);

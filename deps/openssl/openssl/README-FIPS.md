@@ -32,11 +32,15 @@ Installing the FIPS provider
 ============================
 
 In order to be FIPS compliant you must only use FIPS validated source code.
-Refer to <https://www.openssl.org/source/> for information related to
+Refer to <https://openssl-library.org/source/> for information related to
 which versions are FIPS validated. The instructions given below build OpenSSL
-just using the FIPS validated source code.  Any FIPS validated version may be
-used with any other openssl library.  Please see <https://www.openssl.org/source/>
-To determine which FIPS validated library version may be appropriate for you.
+just using the FIPS validated source code.  A FIPS provider built from any
+validated version may be used together with an OpenSSL library built from any
+supported release from OpenSSL 3.0 onwards; provider compatibility is
+maintained backward and forward across these releases, including future major
+release series, for as long as the module remains supported.  Please see
+<https://openssl-library.org/source/>
+to determine which FIPS validated library version may be appropriate for you.
 
 If you want to use a validated FIPS provider, but also want to use the latest
 OpenSSL release to build everything else, then refer to the next section.

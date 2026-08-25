@@ -168,6 +168,10 @@ QUIC_STREAM *ossl_quic_stream_map_alloc(QUIC_STREAM_MAP *qsm,
     s->send_final_size = UINT64_MAX;
 
     lh_QUIC_STREAM_insert(qsm->map, s);
+    if (lh_QUIC_STREAM_error(qsm->map)) {
+        OPENSSL_free(s);
+        return NULL;
+    }
     return s;
 }
 
