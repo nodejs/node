@@ -533,7 +533,17 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   init_process_flags.store(flags);
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
-    atexit(ResetStdio);
+    // Arrange for ResetStdio() to run at exit. A function-local static with a
+    // destructor is used instead of atexit() because on macOS atexit() calls
+    // dladdr() to locate the image that owns the callback, which does a linear
+    // scan of the (very large) symbol table and costs about a millisecond of
+    // startup time. Static destructors and atexit() handlers are registered in
+    // the same list and run in reverse order of registration, so the ordering
+    // relative to other handlers is unchanged.
+    static const struct ResetStdioAtExit {
+      ~ResetStdioAtExit() { ResetStdio(); }
+    } reset_stdio_at_exit;
+    (void)reset_stdio_at_exit;
   }
 
 #ifdef __POSIX__
