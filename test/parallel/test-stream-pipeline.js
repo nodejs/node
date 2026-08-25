@@ -271,9 +271,10 @@ tmpdir.refresh();
 {
   const server = http.createServer(common.mustCallAtLeast((req, res) => {
     pipeline(req, res, common.mustCall((err) => {
-      // The client destroys the request body source before EOF below, so the
-      // echoed response cannot finish successfully either.
-      assert.strictEqual(err?.code, 'ERR_STREAM_PREMATURE_CLOSE');
+      // The client destroys the request body source before EOF below. The
+      // request is framed as chunked, so it ends without its terminating
+      // chunk and the connection is reset rather than closed cleanly.
+      assert.strictEqual(err?.code, 'ECONNRESET');
     }));
   }));
 
