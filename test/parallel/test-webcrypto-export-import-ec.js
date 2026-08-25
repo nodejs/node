@@ -163,6 +163,12 @@ async function testImportPkcs8(
     assert.strictEqual(
       Buffer.from(pkcs8).toString('hex'),
       keyData[namedCurve].pkcs8.toString('hex'));
+
+    await assert.rejects(
+      subtle.exportKey('spki', key), {
+        message: 'Key must be a public key',
+        name: 'InvalidAccessError',
+      });
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
