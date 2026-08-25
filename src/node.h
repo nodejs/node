@@ -673,6 +673,13 @@ struct SnapshotConfig {
   // the snapshot builder can execute asynchronous operations as long as they
   // are run to completion when the snapshot is taken.
   std::optional<std::string> builder_script_path;
+
+  // A V8 startup blob (as produced by V8's mksnapshot) to build the snapshot
+  // on top of, instead of setting up the V8 heap from scratch. Needed when
+  // the V8 that Node.js is linked against can only deserialize (external
+  // startup data), and to keep the result on the same read-only heap lineage
+  // as the embedder's other isolates. Caller-owned; must outlive the setup.
+  const v8::StartupData* base_blob = nullptr;
 };
 
 struct InspectorParentHandle {

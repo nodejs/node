@@ -28,6 +28,52 @@ static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
                            const std::vector<std::string>& exec_args);
 
+// --create-v8-startup-blob <file>: a plain V8 startup blob (what V8's
+// mksnapshot produces), to test building the Node.js snapshot on top of one.
+static int CreateV8StartupBlob(MultiIsolatePlatform* platform,
+                               const std::string& path) {
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator = allocator.get();
+  uv_loop_t loop;
+  assert(uv_loop_init(&loop) == 0);
+  v8::Isolate* isolate = v8::Isolate::Allocate();
+  platform->RegisterIsolate(isolate, &loop);
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator(isolate, params);
+    {
+      v8::HandleScope handle_scope(isolate);
+      creator.SetDefaultContext(v8::Context::New(isolate));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+  bool platform_finished = false;
+  platform->AddIsolateFinishedCallback(
+      isolate,
+      [](void* data) {
+        bool* finished = static_cast<bool*>(data);
+        *finished = true;
+      },
+      &platform_finished);
+  platform->DisposeIsolate(isolate);
+  while (!platform_finished) uv_run(&loop, UV_RUN_ONCE);
+  uv_loop_close(&loop);
+  assert(blob.data != nullptr);
+  FILE* fp = fopen(path.c_str(), "wb");
+  assert(fp != nullptr);
+  size_t written = fwrite(blob.data, blob.raw_size, 1, fp);
+  assert(written == 1);
+  fclose(fp);
+  delete[] blob.data;
+  return 0;
+}
+
+static std::vector<char> base_blob_bytes;
+static v8::StartupData base_blob{nullptr, 0};
+
 NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   char** argv = nullptr;
   node::FixupMain(argc, raw_argv, &argv);
@@ -111,6 +157,27 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     } else if (arg == "--embedder-snapshot-blob") {
       assert(i + 1 < args.size());
       snapshot_blob_path = args[i + 1];
+      i++;
+    } else if (arg == "--create-v8-startup-blob") {
+      assert(i + 1 < args.size());
+      return CreateV8StartupBlob(platform, args[i + 1]);
+    } else if (arg == "--embedder-snapshot-base-blob") {
+      assert(i + 1 < args.size());
+      FILE* fp = fopen(args[i + 1].c_str(), "rb");
+      assert(fp != nullptr);
+      fseek(fp, 0, SEEK_END);
+      base_blob_bytes.resize(ftell(fp));
+      fseek(fp, 0, SEEK_SET);
+      size_t read =
+          fread(base_blob_bytes.data(), base_blob_bytes.size(), 1, fp);
+      assert(read == 1);
+      fclose(fp);
+      base_blob = {base_blob_bytes.data(),
+                   static_cast<int>(base_blob_bytes.size())};
+      if (!snapshot_config.has_value()) {
+        snapshot_config = node::SnapshotConfig{};
+      }
+      snapshot_config.value().base_blob = &base_blob;
       i++;
     } else {
       filtered_args.push_back(arg);
