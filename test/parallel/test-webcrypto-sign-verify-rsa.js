@@ -227,22 +227,26 @@ async function testSaltLength(keyLength, hash, hLen) {
 
   const signature = await subtle.sign(
     { name: 'RSA-PSS', saltLength: max }, privateKey, data);
-  await assert.rejects(
-    subtle.sign({ name: 'RSA-PSS', saltLength: max + 1 }, privateKey, data), (err) => {
-      assert.strictEqual(err.name, 'OperationError');
-      assert.strictEqual(err.cause?.code, 'ERR_OUT_OF_RANGE');
-      assert.strictEqual(err.cause?.message, `The value of "algorithm.saltLength" is out of range. It must be >= 0 && <= ${max}. Received ${max + 1}`);
-      return true;
-    });
-  await subtle.verify(
-    { name: 'RSA-PSS', saltLength: max }, publicKey, signature, data);
-  await assert.rejects(
-    subtle.verify({ name: 'RSA-PSS', saltLength: max + 1 }, publicKey, signature, data), (err) => {
-      assert.strictEqual(err.name, 'OperationError');
-      assert.strictEqual(err.cause?.code, 'ERR_OUT_OF_RANGE');
-      assert.strictEqual(err.cause?.message, `The value of "algorithm.saltLength" is out of range. It must be >= 0 && <= ${max}. Received ${max + 1}`);
-      return true;
-    });
+  assert.strictEqual(await subtle.verify(
+    { name: 'RSA-PSS', saltLength: max }, publicKey, signature, data), true);
+
+  for (const saltLength of [max + 1, 0x7fffffff]) {
+    await assert.rejects(
+      subtle.sign({ name: 'RSA-PSS', saltLength }, privateKey, data), {
+        name: 'OperationError',
+      });
+    assert.strictEqual(await subtle.verify(
+      { name: 'RSA-PSS', saltLength }, publicKey, signature, data), false);
+  }
+
+  for (const saltLength of [0x80000000, 0xffffffff]) {
+    await assert.rejects(
+      subtle.sign({ name: 'RSA-PSS', saltLength }, privateKey, data), {
+        name: 'OperationError',
+      });
+    assert.strictEqual(await subtle.verify(
+      { name: 'RSA-PSS', saltLength }, publicKey, signature, data), false);
+  }
 }
 
 (async function() {
