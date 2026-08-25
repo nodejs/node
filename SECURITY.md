@@ -156,10 +156,10 @@ missing security hardening.
 When triaging a report, the project classifies it into one of the following
 dispositions:
 
-* **Vulnerability**: Reachable through an element Node.js does not trust and
-  causes disclosure or loss of integrity or confidentiality of protected data,
-  arbitrary code execution, or runtime unavailability under the DoS criteria
-  described below.
+* **Vulnerability**: A Node.js defect that is exploitable across a
+  Node.js-owned security boundary and meets the criteria under
+  [What constitutes a vulnerability](#what-constitutes-a-vulnerability),
+  including any applicable DoS criteria.
 * **Security-interest bug**: A real Node.js defect, or an API behavior likely
   to cause security bugs in applications, that is not itself a vulnerability
   under this threat model. These are fixed as regular bugs and do not
