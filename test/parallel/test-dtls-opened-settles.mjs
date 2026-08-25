@@ -7,6 +7,7 @@
 // left anyone awaiting `opened` waiting forever, with no error and no timeout.
 
 import { hasCrypto, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
@@ -24,13 +25,18 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
+async function sleep(n) {
+  await setTimeout(1000);
+  return 'pending';
+}
+
 // Resolves to the promise's outcome, or 'pending' if it has not settled by
 // the time the microtask queue and a timer have both drained. Awaiting
 // `opened` directly would hang the test rather than fail it.
 function outcome(promise) {
   return Promise.race([
     promise.then(() => 'resolved', (err) => err),
-    new Promise((resolve) => setTimeout(() => resolve('pending'), 1000)),
+    sleep(1000),
   ]);
 }
 
@@ -173,12 +179,12 @@ function newClient() {
 {
   const endpoint = listen(() => {}, { cert, key, host: '127.0.0.1', port: 0 });
   const client = connect('127.0.0.1', endpoint.address.port, {
+    handshakeTimeout: 500,
     rejectUnauthorized: false,
   });
 
   // Before the handshake can finish.
   endpoint.destroy();
-
   await assert.rejects(client.opened, { name: 'Error' });
   await client.close();
 }

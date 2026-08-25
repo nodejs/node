@@ -10,6 +10,7 @@
 // which has to keep its own timing.
 
 import { hasCrypto, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import assert from 'node:assert';
 
 if (!hasCrypto) {
@@ -96,10 +97,10 @@ function serve(options = {}) {
     stalled.push(client);
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  await setTimeout(150);
   assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 3);
 
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await setTimeout(600);
   assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 0);
 
   // And the endpoint is usable again.
@@ -123,7 +124,7 @@ function serve(options = {}) {
   });
   await client.opened;
 
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await setTimeout(600);
   assert.strictEqual(getDTLSSessionState(client).destroyed, false);
 
   // Still usable well after the deadline would have passed.
@@ -149,7 +150,7 @@ function serve(options = {}) {
   const pending = Symbol('pending');
   const outcome = await Promise.race([
     client.opened.then(() => 'opened', () => 'failed'),
-    new Promise((resolve) => setTimeout(resolve, 500, pending)),
+    setTimeout(500, pending),
   ]);
   assert.strictEqual(outcome, pending);
 
@@ -167,7 +168,7 @@ function serve(options = {}) {
   const pending = Symbol('pending');
   const outcome = await Promise.race([
     client.opened.then(() => 'opened', () => 'failed'),
-    new Promise((resolve) => setTimeout(resolve, 500, pending)),
+    setTimeout(500, pending),
   ]);
   assert.strictEqual(outcome, pending);
 

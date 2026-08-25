@@ -8,6 +8,7 @@
 // connect and heard nothing at all.
 
 import { hasCrypto, mustCall, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
@@ -36,18 +37,10 @@ async function within(promise, what, ms = 5000) {
   const late = Symbol('late');
   // The timer has to be cleared: left pending it holds the loop open for its
   // full duration after the race is already decided.
-  let timer;
-  try {
-    const result = await Promise.race([
-      promise,
-      new Promise((resolve) => { timer = setTimeout(resolve, ms, late); }),
-    ]);
-    assert.notStrictEqual(result, late,
-                          `${what} did not happen within ${ms}ms`);
-    return result;
-  } finally {
-    clearTimeout(timer);
-  }
+  const result = await Promise.race([promise, setTimeout(ms, late, { ref: false })]);
+  assert.notStrictEqual(result, late,
+                        `${what} did not happen within ${ms}ms`);
+  return result;
 }
 const key = (name) => fixtures.readKey(name).toString();
 const cert = key('agent1-cert.pem');
@@ -137,7 +130,7 @@ const privateKey = key('agent1-key.pem');
   const pending = Symbol('pending');
   await Promise.race([
     client.opened.then(() => 'opened', () => 'failed'),
-    new Promise((resolve) => setTimeout(resolve, 300, pending)),
+    setTimeout(300, pending),
   ]);
 
   assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 0);
@@ -148,7 +141,7 @@ const privateKey = key('agent1-key.pem');
   });
   const outcome = await Promise.race([
     good.opened.then(() => 'opened', () => 'failed'),
-    new Promise((resolve) => setTimeout(resolve, 500, pending)),
+    setTimeout(500, pending),
   ]);
   assert.notStrictEqual(outcome, pending);
 

@@ -10,6 +10,7 @@
 // suspended DTLS handshake keeps retransmitting.
 
 import { hasCrypto, mustNotCall, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
@@ -30,20 +31,10 @@ const key = (name) => fixtures.readKey(name).toString();
 // until the runner gives up.
 async function within(promise, what, ms = 5000) {
   const late = Symbol('late');
-  // The timer has to be cleared: left pending it holds the loop open for its
-  // full duration after the race is already decided.
-  let timer;
-  try {
-    const result = await Promise.race([
-      promise,
-      new Promise((resolve) => { timer = setTimeout(resolve, ms, late); }),
-    ]);
-    assert.notStrictEqual(result, late,
-                          `${what} did not happen within ${ms}ms`);
-    return result;
-  } finally {
-    clearTimeout(timer);
-  }
+  const result = await Promise.race([promise, setTimeout(ms, late, { ref: false })]);
+  assert.notStrictEqual(result, late,
+                        `${what} did not happen within ${ms}ms`);
+  return result;
 }
 
 const agent1Cert = key('agent1-cert.pem');

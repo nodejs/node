@@ -7,6 +7,7 @@
 // mandatory to implement for CoAP.
 
 import { hasCrypto, mustCall, mustNotCall, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
@@ -119,7 +120,7 @@ function open(endpoint, options) {
   const stalled = Symbol('stalled');
   const outcome = await Promise.race([
     client.opened.then(() => 'opened', () => 'rejected'),
-    new Promise((resolve) => setTimeout(resolve, 200, stalled)),
+    setTimeout(200, stalled),
   ]);
   assert.strictEqual(outcome, stalled);
 
