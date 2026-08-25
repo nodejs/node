@@ -12,7 +12,7 @@ async_hooks.createHook({
   init: common.mustCall((id, type, triggerId, resource) => {
     assert.strictEqual(
       util.inspect(resource),
-      'MessagePort [EventTarget] { active: true, refed: false }');
+      'MessagePort { active: true, refed: false }');
   }, 2)
 }).enable();
 
