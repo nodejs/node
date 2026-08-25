@@ -1879,7 +1879,7 @@ The number of samples recorded by the histogram.
 ### `histogram.ccdf(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `value` {number} The value to query.
@@ -1892,7 +1892,7 @@ will exceed `value`. Equivalent to `1 - histogram.cdf(value)`.
 ### `histogram.cdf(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `value` {number} The value to query.
@@ -1906,7 +1906,7 @@ than or equal to `value`. This is the inverse operation of
 ### `histogram.cliffsD(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `other` {Histogram} The histogram to compare against.
@@ -1921,7 +1921,7 @@ opposite; 0 means no tendency in either direction.
 ### `histogram.cohensD(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `other` {Histogram} The histogram to compare against.
@@ -1936,7 +1936,7 @@ Both histograms must have at least 2 recorded values; otherwise returns 0.
 ### `histogram.countAt(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `value` {number} The value to query.
@@ -1972,7 +1972,7 @@ loop delay threshold.
 ### `histogram.ewmaMean`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {number}
@@ -1984,7 +1984,7 @@ Returns `0` when EWMA is disabled or no values have been recorded.
 ### `histogram.ewmaStddev`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {number}
@@ -1996,7 +1996,7 @@ when EWMA is disabled or no values have been recorded.
 ### `histogram.ewmaErrorRate`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {number}
@@ -2009,7 +2009,7 @@ recorded.
 ### `histogram.burnRate(sloTarget)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `sloTarget` {number} The SLO target as a fraction between 0 and 1
@@ -2040,7 +2040,7 @@ if (rate > 1) {
 ### `histogram.ksTest(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `other` {Histogram} The histogram to compare against.
@@ -2054,7 +2054,7 @@ detecting performance regressions by comparing before/after histograms.
 ### `histogram.kurtosis`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {number}
@@ -2067,7 +2067,7 @@ lighter tails.
 ### `histogram.linearBuckets(stepSize)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `stepSize` {number} The width of each linear bucket.
@@ -2079,7 +2079,7 @@ of `stepSize`. Useful for visualization and export.
 ### `histogram.logBuckets(firstBucket, base)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `firstBucket` {number} The value of the first bucket boundary.
@@ -2093,7 +2093,7 @@ Useful for visualization and export.
 ### `histogram.mannWhitneyTest(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `other` {Histogram} The histogram to compare against.
@@ -2189,7 +2189,7 @@ Returns the value at the given percentile.
 ### `histogram.percentileCI(percentile[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `percentile` {number} A percentile value in the range (0, 100].
@@ -2245,7 +2245,7 @@ Returns a `Map` object detailing the accumulated percentile distribution.
 ### `histogram.percentilesAt(percentiles)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `percentiles` {number\[]} An array of percentile values in the range (0, 100].
@@ -2267,7 +2267,7 @@ Resets the collected histogram data.
 ### `histogram.skewness`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {number}
@@ -2290,7 +2290,7 @@ The standard deviation of the recorded event loop delays.
 ### `histogram.welchTest(other[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `other` {Histogram} The histogram to compare against.
@@ -2406,7 +2406,7 @@ previous call to `recordDelta()` and records that amount in the histogram.
 ### `histogram.recordCorrected(val, expectedInterval)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `val` {number|bigint} The value to record.
@@ -2421,7 +2421,7 @@ latency.
 ### `histogram.subtract(other)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `other` {RecordableHistogram}

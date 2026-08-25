@@ -3554,7 +3554,7 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: v26.0.0
@@ -3636,7 +3636,7 @@ given IV will be.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: v26.0.0
@@ -5312,7 +5312,7 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/65073
     description: The `mgf1Hash` option was added.
   - version:
@@ -5460,7 +5460,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/65073
     description: The `mgf1Hash` option was added.
   - version: v15.0.0
