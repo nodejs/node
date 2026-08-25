@@ -47,28 +47,36 @@ jobs:
           AGENTSCAN_OUTCOME: ${{ needs.agentscan.outputs.scan_outcome }}
           AGENTSCAN_CLASSIFICATION: ${{ needs.agentscan.outputs.classification }}
           AGENTSCAN_COMMUNITY_FLAGGED: ${{ needs.agentscan.outputs.community_flagged }}
-          WELCOME_MESSAGE: |
-            Welcome to Node.js, and thank you for your first contribution!
+          WELCOME_MESSAGE: >2-
+              Welcome to Node.js, and thank you for your first contribution!
 
             Before review, please take a moment to read:
 
-            * the [guide for first-time contributors](https://github.com/nodejs/node/blob/HEAD/doc/contributing/first-contributions.md)
-            * the [contribution and automation policies](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md)
-            * the [pull request guide](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md)
-            * the [AI use policy](https://github.com/nodejs/node/blob/HEAD/doc/contributing/ai-guidelines.md)
-            * the [Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md)
+              * the [guide for first-time contributors](https://github.com/nodejs/node/blob/HEAD/doc/contributing/first-contributions.md)
+              * the [contribution and automation policies](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md)
+              * the [pull request guide](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md)
+              * the [AI use policy](https://github.com/nodejs/node/blob/HEAD/doc/contributing/ai-guidelines.md)
+              * the [Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md)
 
-            Please make sure every commit is [signed off](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#step-4-commit). For a first pull request, GitHub Actions require collaborator approval and Jenkins CI must be started by a collaborator or triager, so an initial wait is normal.
-          CAUTION_MESSAGE: |
+            Please make sure every commit is
+            [signed off](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#step-4-commit).
+            For a first pull request, GitHub Actions require collaborator
+            approval and Jenkins CI must be started by a collaborator or triager,
+            so an initial wait is normal.
+          CAUTION_MESSAGE: >-
             > [!CAUTION]
-            > **Maintainer note:** AgentScan found account activity patterns that may be consistent with automation.
-            > This is a heuristic, not proof that this pull request was opened by an agent or violates policy.
-            > AI-assisted contributions are permitted, but automated tooling must not open pull requests without
-            > advance approval, and contributors must personally understand, test, verify, and take responsibility
-            > for every submitted change. Review the [AgentScan analysis](https://agentscan.tools/user/${{ github.event.pull_request.user.login }}),
-            > [AI use policy](https://github.com/nodejs/node/blob/HEAD/doc/contributing/ai-guidelines.md), and
-            > [automation policy](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md#automation-and-bots)
-            > before acting.
+
+            > AgentScan found account activity patterns that may be consistent with
+            automation. This is a heuristic, not proof that this pull request was
+            opened by an agent or violates policy. AI-assisted contributions are
+            permitted, but automated tooling must not open pull requests without
+            advance approval, and contributors must personally understand, test,
+            verify, and take responsibility for every submitted change. See the
+            [AgentScan analysis](https://agentscan.tools/user/${{ github.event.pull_request.user.login }}),
+            [AI use policy](https://github.com/nodejs/node/blob/HEAD/doc/contributing/ai-guidelines.md),
+            and
+            [automation policy](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md#automation-and-bots)
+            for additional context.
         run: |
           add_caution=false
           if [[ "$AGENTSCAN_OUTCOME" == "success" ]]; then
