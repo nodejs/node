@@ -11,10 +11,9 @@
 // "SSL routines::record too small".
 
 import { hasCrypto, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import crypto from 'node:crypto';
-import dgram from 'node:dgram';
 
 if (!hasCrypto) {
   skip('missing crypto');
@@ -23,6 +22,9 @@ if (!hasCrypto) {
 if (!process.features.dtls) {
   skip('DTLS is not enabled');
 }
+
+const crypto = await import('node:crypto');
+const dgram = await import('node:dgram');
 
 const { connect, listen } = await import('node:dtls');
 
@@ -61,7 +63,7 @@ for (let i = 0; i < 32; i++) {
 }
 // Let the datagrams reach the endpoint and be processed before closing;
 // dgram.close() does not flush queued sends.
-await new Promise((resolve) => setTimeout(resolve, 200));
+await setTimeout(200);
 await new Promise((resolve) => socket.close(resolve));
 
 // An unrelated crypto failure must report its own cause. Before the error

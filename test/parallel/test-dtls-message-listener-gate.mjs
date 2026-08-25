@@ -14,6 +14,7 @@
 // drained.
 
 import { hasCrypto, skip } from '../common/index.mjs';
+import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
@@ -49,7 +50,7 @@ await session.opened;
 async function waitForMessages(count) {
   for (let i = 0; i < 100; i++) {
     if (session.stats.messagesReceived >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await setTimeout(20);
   }
   assert.fail(`only ${session.stats.messagesReceived} of ${count} messages ` +
               'were read; data is not being drained');

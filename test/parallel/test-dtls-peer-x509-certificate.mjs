@@ -10,7 +10,6 @@
 import { hasCrypto, skip } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import { X509Certificate } from 'node:crypto';
 
 if (!hasCrypto) {
   skip('missing crypto');
@@ -20,6 +19,7 @@ if (!process.features.dtls) {
   skip('DTLS is not enabled');
 }
 
+const { X509Certificate } = await import('node:crypto');
 const { connect, listen } = await import('node:dtls');
 
 // A leaf issued by an intermediate, so there is a real chain to walk. The

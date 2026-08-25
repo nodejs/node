@@ -12,7 +12,6 @@
 import { hasCrypto, skip } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import { randomBytes } from 'node:crypto';
 import { inspect } from 'node:util';
 
 if (!hasCrypto) {
@@ -23,8 +22,8 @@ if (!process.features.dtls) {
   skip('DTLS is not enabled');
 }
 
-const dtls = await import('node:dtls');
-const { connect, createSecureContext, listen } = dtls;
+const { randomBytes } = await import('node:crypto');
+const { connect, createSecureContext, listen } = await import('node:dtls');
 
 const key = (name) => fixtures.readKey(name).toString();
 const cert = key('agent1-cert.pem');
