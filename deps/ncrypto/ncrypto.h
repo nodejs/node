@@ -502,25 +502,26 @@ class Cipher final {
   // Utilities to get various ciphers by type. If the underlying
   // implementation does not support the requested cipher, then
   // the result will be an empty Cipher object whose bool operator
-  // will return false.
+  // will return false. The ciphers are looked up lazily on first use so
+  // that merely loading the library does not initialize OpenSSL.
 
   static const Cipher EMPTY;
-  static const Cipher AES_128_CBC;
-  static const Cipher AES_192_CBC;
-  static const Cipher AES_256_CBC;
-  static const Cipher AES_128_CTR;
-  static const Cipher AES_192_CTR;
-  static const Cipher AES_256_CTR;
-  static const Cipher AES_128_GCM;
-  static const Cipher AES_192_GCM;
-  static const Cipher AES_256_GCM;
-  static const Cipher AES_128_KW;
-  static const Cipher AES_192_KW;
-  static const Cipher AES_256_KW;
-  static const Cipher AES_128_OCB;
-  static const Cipher AES_192_OCB;
-  static const Cipher AES_256_OCB;
-  static const Cipher CHACHA20_POLY1305;
+  static const Cipher& AES_128_CBC();
+  static const Cipher& AES_192_CBC();
+  static const Cipher& AES_256_CBC();
+  static const Cipher& AES_128_CTR();
+  static const Cipher& AES_192_CTR();
+  static const Cipher& AES_256_CTR();
+  static const Cipher& AES_128_GCM();
+  static const Cipher& AES_192_GCM();
+  static const Cipher& AES_256_GCM();
+  static const Cipher& AES_128_KW();
+  static const Cipher& AES_192_KW();
+  static const Cipher& AES_256_KW();
+  static const Cipher& AES_128_OCB();
+  static const Cipher& AES_192_OCB();
+  static const Cipher& AES_256_OCB();
+  static const Cipher& CHACHA20_POLY1305();
 
   struct CipherParams {
     int padding;
