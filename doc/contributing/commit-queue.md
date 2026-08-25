@@ -8,8 +8,11 @@ landing process by automating it via GitHub Actions. With it, collaborators can
 queue pull requests for landing by adding the `commit-queue` label to a PR. The
 selector checks readiness with `@node-core/utils`. If the pull request is only
 blocked on a deferrable condition, currently wait time, the queue leaves the
-label in place and retries later. Other failures continue to the existing
-landing and failure-reporting path.
+label in place and retries later. For pull requests that are at least two days
+old and still waiting for a second approval, the queue adds the
+`lacks-second-approval` label. The queue removes that label when it removes the
+`commit-queue` label. Other failures continue to the existing landing and
+failure-reporting path.
 
 To make the Commit Queue squash all the commits of a pull request into the
 first one, add the `commit-queue-squash` label.
