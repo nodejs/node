@@ -496,13 +496,29 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
   });
 })().then(common.mustCall());
 
-// Regression test: JWK `key_ops` validation must recognize ML-KEM operations
-// (encapsulateKey, encapsulateBits, decapsulateKey, decapsulateBits) so that
-// duplicate entries are rejected
+// JWK key usage validation precedes `key_ops` validation.
 (async function() {
-  for (const op of ['encapsulateKey', 'encapsulateBits',
-                    'decapsulateKey', 'decapsulateBits']) {
-    const jwk = { ...keyData['ML-KEM-768'].jwk, key_ops: [op, op] };
+  const privateJwk = keyData['ML-KEM-768'].jwk;
+  const encapsulationOps = ['encapsulateKey', 'encapsulateBits'];
+  const decapsulationOps = ['decapsulateKey', 'decapsulateBits'];
+
+  for (const op of encapsulationOps) {
+    const jwk = { ...privateJwk, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'SyntaxError', message: /Unsupported key usage/ });
+  }
+
+  // Duplicate entries are still rejected when the requested usages are valid.
+  for (const op of encapsulationOps) {
+    const jwk = { ...privateJwk, priv: undefined, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'DataError', message: /Duplicate key operation/ });
+  }
+
+  for (const op of decapsulationOps) {
+    const jwk = { ...privateJwk, key_ops: [op, op] };
     await assert.rejects(
       subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
       { name: 'DataError', message: /Duplicate key operation/ });
