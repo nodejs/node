@@ -38,8 +38,9 @@ const echoServer = net.createServer(common.mustCall((connection) => {
   }, 1), common.platformTimeout(100));
   connection.setTimeout(0);
   assert.notStrictEqual(connection.setKeepAlive, undefined);
-  // Send a keepalive packet after 50 ms
-  connection.setKeepAlive(true, common.platformTimeout(50));
+  // Send a keepalive packet after 1 second. Values below 1000 ms are
+  // truncated to 0 seconds and would leave keep-alive unconfigured.
+  connection.setKeepAlive(true, 1000);
   connection.on('end', function() {
     connection.end();
   });
