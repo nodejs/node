@@ -174,7 +174,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.5.7",
+    "full_version" => "3.5.8",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -237,7 +237,7 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
-    "patch" => "7",
+    "patch" => "8",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -290,11 +290,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned char",
-    "release_date" => "9 Jun 2026",
+    "release_date" => "25 Aug 2026",
     "shlib_version" => "3",
     "sourcedir" => ".",
     "target" => "linux-ppc64le",
-    "version" => "3.5.7"
+    "version" => "3.5.8"
 );
 our %target = (
     "AR" => "ar",
@@ -3283,6 +3283,9 @@ our %unified_info = (
         "doc/html/man3/MDC2_Init.html" => [
             "doc/man3/MDC2_Init.pod"
         ],
+        "doc/html/man3/NAME_CONSTRAINTS_check.html" => [
+            "doc/man3/NAME_CONSTRAINTS_check.pod"
+        ],
         "doc/html/man3/NCONF_new_ex.html" => [
             "doc/man3/NCONF_new_ex.pod"
         ],
@@ -3318,6 +3321,9 @@ our %unified_info = (
         ],
         "doc/html/man3/OPENSSL_LH_stats.html" => [
             "doc/man3/OPENSSL_LH_stats.pod"
+        ],
+        "doc/html/man3/OPENSSL_armcap.html" => [
+            "doc/man3/OPENSSL_armcap.pod"
         ],
         "doc/html/man3/OPENSSL_config.html" => [
             "doc/man3/OPENSSL_config.pod"
@@ -5977,6 +5983,9 @@ our %unified_info = (
         "doc/man/man3/MDC2_Init.3" => [
             "doc/man3/MDC2_Init.pod"
         ],
+        "doc/man/man3/NAME_CONSTRAINTS_check.3" => [
+            "doc/man3/NAME_CONSTRAINTS_check.pod"
+        ],
         "doc/man/man3/NCONF_new_ex.3" => [
             "doc/man3/NCONF_new_ex.pod"
         ],
@@ -6012,6 +6021,9 @@ our %unified_info = (
         ],
         "doc/man/man3/OPENSSL_LH_stats.3" => [
             "doc/man3/OPENSSL_LH_stats.pod"
+        ],
+        "doc/man/man3/OPENSSL_armcap.3" => [
+            "doc/man3/OPENSSL_armcap.pod"
         ],
         "doc/man/man3/OPENSSL_config.3" => [
             "doc/man3/OPENSSL_config.pod"
@@ -13957,6 +13969,9 @@ our %unified_info = (
         "doc/html/man3/MDC2_Init.html" => [
             "doc/man3/MDC2_Init.pod"
         ],
+        "doc/html/man3/NAME_CONSTRAINTS_check.html" => [
+            "doc/man3/NAME_CONSTRAINTS_check.pod"
+        ],
         "doc/html/man3/NCONF_new_ex.html" => [
             "doc/man3/NCONF_new_ex.pod"
         ],
@@ -13992,6 +14007,9 @@ our %unified_info = (
         ],
         "doc/html/man3/OPENSSL_LH_stats.html" => [
             "doc/man3/OPENSSL_LH_stats.pod"
+        ],
+        "doc/html/man3/OPENSSL_armcap.html" => [
+            "doc/man3/OPENSSL_armcap.pod"
         ],
         "doc/html/man3/OPENSSL_config.html" => [
             "doc/man3/OPENSSL_config.pod"
@@ -16651,6 +16669,9 @@ our %unified_info = (
         "doc/man/man3/MDC2_Init.3" => [
             "doc/man3/MDC2_Init.pod"
         ],
+        "doc/man/man3/NAME_CONSTRAINTS_check.3" => [
+            "doc/man3/NAME_CONSTRAINTS_check.pod"
+        ],
         "doc/man/man3/NCONF_new_ex.3" => [
             "doc/man3/NCONF_new_ex.pod"
         ],
@@ -16686,6 +16707,9 @@ our %unified_info = (
         ],
         "doc/man/man3/OPENSSL_LH_stats.3" => [
             "doc/man3/OPENSSL_LH_stats.pod"
+        ],
+        "doc/man/man3/OPENSSL_armcap.3" => [
+            "doc/man3/OPENSSL_armcap.pod"
         ],
         "doc/man/man3/OPENSSL_config.3" => [
             "doc/man3/OPENSSL_config.pod"
@@ -19385,6 +19409,7 @@ our %unified_info = (
             "doc/html/man3/HMAC.html",
             "doc/html/man3/MD5.html",
             "doc/html/man3/MDC2_Init.html",
+            "doc/html/man3/NAME_CONSTRAINTS_check.html",
             "doc/html/man3/NCONF_new_ex.html",
             "doc/html/man3/OBJ_nid2obj.html",
             "doc/html/man3/OCSP_REQUEST_new.html",
@@ -19397,6 +19422,7 @@ our %unified_info = (
             "doc/html/man3/OPENSSL_FILE.html",
             "doc/html/man3/OPENSSL_LH_COMPFUNC.html",
             "doc/html/man3/OPENSSL_LH_stats.html",
+            "doc/html/man3/OPENSSL_armcap.html",
             "doc/html/man3/OPENSSL_config.html",
             "doc/html/man3/OPENSSL_fork_prepare.html",
             "doc/html/man3/OPENSSL_gmtime.html",
@@ -23025,6 +23051,7 @@ our %unified_info = (
             "doc/man/man3/HMAC.3",
             "doc/man/man3/MD5.3",
             "doc/man/man3/MDC2_Init.3",
+            "doc/man/man3/NAME_CONSTRAINTS_check.3",
             "doc/man/man3/NCONF_new_ex.3",
             "doc/man/man3/OBJ_nid2obj.3",
             "doc/man/man3/OCSP_REQUEST_new.3",
@@ -23037,6 +23064,7 @@ our %unified_info = (
             "doc/man/man3/OPENSSL_FILE.3",
             "doc/man/man3/OPENSSL_LH_COMPFUNC.3",
             "doc/man/man3/OPENSSL_LH_stats.3",
+            "doc/man/man3/OPENSSL_armcap.3",
             "doc/man/man3/OPENSSL_config.3",
             "doc/man/man3/OPENSSL_fork_prepare.3",
             "doc/man/man3/OPENSSL_gmtime.3",
