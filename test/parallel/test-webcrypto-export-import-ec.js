@@ -412,6 +412,42 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
   await Promise.all(tests);
 })().then(common.mustCall());
 
+// JWK key usage validation precedes `key_ops` validation.
+(async function() {
+  const jwk = keyData['P-256'].jwk;
+  const publicJwk = {
+    kty: jwk.kty,
+    crv: jwk.crv,
+    x: jwk.x,
+    y: jwk.y,
+  };
+
+  for (const { name, publicUsages, privateUsages } of testVectors) {
+    const invalidUsage = name === 'ECDH' ?
+      privateUsages[0] : publicUsages[0];
+    const invalidJwk = name === 'ECDH' ? publicJwk : jwk;
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...invalidJwk, key_ops: [invalidUsage, invalidUsage] },
+        { name, namedCurve: 'P-256' },
+        true,
+        [invalidUsage]),
+      { name: 'SyntaxError', message: /Unsupported key usage/ });
+
+    const validUsage = privateUsages[0];
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, key_ops: [validUsage, validUsage] },
+        { name, namedCurve: 'P-256' },
+        true,
+        [validUsage]),
+      { name: 'DataError', message: 'Duplicate key operation' });
+  }
+})().then(common.mustCall());
+
 
 // https://github.com/nodejs/node/issues/45859
 (async function() {
