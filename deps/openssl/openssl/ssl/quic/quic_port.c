@@ -93,6 +93,8 @@ typedef struct validation_token {
  */
 #define ENCRYPTED_TOKEN_MAX_LEN (MARSHALLED_TOKEN_MAX_LEN + 16 + 12)
 
+#define DEFAULT_MAX_PENDING_CONNS 256
+
 DEFINE_LIST_OF_IMPL(ch, QUIC_CHANNEL);
 DEFINE_LIST_OF_IMPL(incoming_ch, QUIC_CHANNEL);
 DEFINE_LIST_OF_IMPL(port, QUIC_PORT);
@@ -110,6 +112,7 @@ QUIC_PORT *ossl_quic_port_new(const QUIC_PORT_ARGS *args)
     port->validate_addr = args->do_addr_validation;
     port->get_conn_user_ssl = args->get_conn_user_ssl;
     port->user_ssl_arg = args->user_ssl_arg;
+    port->max_pending_channels = DEFAULT_MAX_PENDING_CONNS;
 
     if (!port_init(port)) {
         OPENSSL_free(port);
@@ -531,8 +534,10 @@ static QUIC_CHANNEL *port_make_channel(QUIC_PORT *port, SSL *tls, OSSL_QRX *qrx,
      * start by allocation and provisioning as much of the channel as we can
      */
     ch = ossl_quic_channel_alloc(&args);
-    if (ch == NULL)
+    if (ch == NULL) {
+        ossl_qrx_free(qrx);
         return NULL;
+    }
 
     /*
      * Fixup the channel tls connection here before we init the channel
@@ -1488,7 +1493,7 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
     QUIC_CHANNEL *ch = NULL, *new_ch = NULL;
     QUIC_CONN_ID odcid;
     uint8_t gen_new_token = 0;
-    OSSL_QRX *qrx = NULL;
+    OSSL_QRX *qrx = NULL, *qrx_ref;
     OSSL_QRX *qrx_src = NULL;
     OSSL_QRX_ARGS qrx_args = { 0 };
     uint64_t cause_flags = 0;
@@ -1579,6 +1584,9 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
      * connection.
      */
     if (hdr.type != QUIC_PKT_TYPE_INITIAL)
+        goto undesirable;
+
+    if (port->max_pending_channels > 0 && ossl_list_incoming_ch_num(&port->incoming_channel_list) >= port->max_pending_channels)
         goto undesirable;
 
     odcid.id_len = 0;
@@ -1678,8 +1686,22 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
         }
     }
 
+    qrx_ref = NULL;
+    if (qrx != NULL) {
+        /*
+         * if we are here, then client is validated via retry packet
+         * (client sent a valid token). In this case the qrx has valid
+         * secrets set for QUIC initial level encryption. We can pass
+         * reference to qrx to newly created channel.
+         *
+         * Note: port_bind_channel()/channel becomes owner of qrx_ref.
+         */
+        qrx_ref = ossl_qrx_newref(qrx);
+        if (qrx_ref == NULL)
+            goto undesirable;
+    }
     port_bind_channel(port, &e->peer, &hdr.dst_conn_id,
-        &odcid, qrx, &new_ch);
+        &odcid, qrx_ref, &new_ch);
 
     /*
      * if packet validates it gets moved to channel, we've just bound
@@ -1694,19 +1716,19 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
     if (gen_new_token == 1)
         generate_new_token(new_ch, &e->peer);
 
-    if (qrx != NULL) {
+    if (qrx_src != NULL) {
         /*
-         * The qrx belongs to channel now, so don't free it.
-         */
-        qrx = NULL;
-    } else {
-        /*
-         * We still need to salvage packets from almost forgotten qrx
-         * and pass them to channel.
+         * Time to reinject packets from qrx to channel before
+         * qrx will be destroyed here.
          */
         while (ossl_qrx_read_pkt(qrx_src, &qrx_pkt) == 1)
             ossl_quic_channel_inject_pkt(new_ch, qrx_pkt);
         ossl_qrx_update_pn_space(qrx_src, new_ch->qrx);
+        /*
+         * transfer ownership back to qrx;
+         */
+        qrx = qrx_src;
+        qrx_src = NULL;
     }
 
     /*
@@ -1723,7 +1745,7 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
      */
 
 undesirable:
-    ossl_qrx_free(qrx);
+    ossl_qrx_free(qrx); /* releases reference */
     ossl_qrx_free(qrx_src);
     ossl_quic_demux_release_urxe(port->demux, e);
 }
@@ -1759,4 +1781,14 @@ void ossl_quic_port_restore_err_state(const QUIC_PORT *port)
 {
     ERR_clear_error();
     OSSL_ERR_STATE_restore(port->err_state);
+}
+
+uint64_t ossl_quic_port_get_max_pending_channels(const QUIC_PORT *port)
+{
+    return port->max_pending_channels;
+}
+
+void ossl_quic_port_set_max_pending_channels(QUIC_PORT *port, uint64_t max_pending_channels)
+{
+    port->max_pending_channels = max_pending_channels;
 }

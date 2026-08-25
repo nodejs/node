@@ -55,7 +55,8 @@ unsigned char *PKCS12_pbe_crypt_ex(const X509_ALGOR *algor,
     if ((EVP_CIPHER_get_flags(EVP_CIPHER_CTX_get0_cipher(ctx))
             & EVP_CIPH_FLAG_CIPHER_WITH_MAC)
         != 0) {
-        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_TLS1_AAD, 0, &mac_len) < 0) {
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_TLS1_AAD, 0, &mac_len)
+            <= 0) {
             ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
             goto err;
         }
@@ -70,7 +71,7 @@ unsigned char *PKCS12_pbe_crypt_ex(const X509_ALGOR *algor,
             inlen -= mac_len;
             if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
                     (int)mac_len, (unsigned char *)in + inlen)
-                < 0) {
+                <= 0) {
                 ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
                 goto err;
             }

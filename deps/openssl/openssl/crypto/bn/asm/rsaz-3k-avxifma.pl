@@ -38,6 +38,13 @@ if (!$avxifma && `$ENV{CC} -v 2>&1`
     $avxifma = ($ver>=16.0);
 }
 
+if (!$avxifma && `$ENV{CC} -x c /dev/null -dM -E|grep __clang_major__`
+    =~ /#define __clang_major__.([0-9]+)/) {
+    if ($1) {
+        $avxifma = ($1>=16);
+    }
+}
+
 if ($win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
        `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?(rc[0-9]+)?/) {
     $avxifma = ($1>2.16) + ($1==2.16 && ((!defined($2) && !defined($3)) || (defined($2))));

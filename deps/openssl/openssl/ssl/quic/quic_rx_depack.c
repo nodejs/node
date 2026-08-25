@@ -125,8 +125,19 @@ static int depack_do_frame_ack(PACKET *pkt, QUIC_CHANNEL *ch,
     }
 
     if (!ossl_ackm_on_rx_ack_frame(ch->ackm, &ack,
-            packet_space, received))
-        goto malformed;
+            packet_space, received)) {
+        /*
+         * The ACK manager rejects the frame if it acknowledges a packet number
+         * we have not sent. RFC 9000 s. 13.1 recommends treating this as a
+         * PROTOCOL_VIOLATION connection error (distinct from a frame decoding
+         * error, which is handled at the malformed label below).
+         */
+        ossl_quic_channel_raise_protocol_error(ch,
+            OSSL_QUIC_ERR_PROTOCOL_VIOLATION,
+            frame_type,
+            "ACK for unsent packet number");
+        return 0;
+    }
 
     ++ch->diag_num_rx_ack;
     return 1;

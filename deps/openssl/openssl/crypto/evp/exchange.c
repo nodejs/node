@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -287,7 +287,9 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
          * iteration we're on.
          */
         EVP_KEYEXCH_free(exchange);
+        exchange = NULL;
         EVP_KEYMGMT_free(tmp_keymgmt);
+        tmp_keymgmt = NULL;
 
         switch (iter) {
         case 1:

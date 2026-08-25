@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -50,9 +50,11 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
         return 0;
 
 #ifdef OPENSSL_HMAC_S390X
-    rv = s390x_HMAC_init(ctx, key, len, impl);
-    if (rv >= 1)
-        return rv;
+    {
+        int ret = s390x_HMAC_init(ctx, key, len, impl);
+        if (ret != -1) /* -1 means SW fallback */
+            return ret;
+    }
 #endif
 
     if (key != NULL) {
