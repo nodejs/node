@@ -491,6 +491,40 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
   });
 })().then(common.mustCall());
 
+// JWK key usage validation precedes `key_ops` validation.
+(async function() {
+  const privateJwk = keyData['ML-DSA-65'].jwk;
+  const publicJwk = { ...privateJwk, priv: undefined };
+
+  for (const [jwk, usage] of [
+    [privateJwk, 'verify'],
+    [publicJwk, 'sign'],
+  ]) {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, key_ops: [usage, usage] },
+        'ML-DSA-65',
+        true,
+        [usage]),
+      { name: 'SyntaxError', message: /Unsupported key usage/ });
+  }
+
+  for (const [jwk, usage] of [
+    [privateJwk, 'sign'],
+    [publicJwk, 'verify'],
+  ]) {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, key_ops: [usage, usage] },
+        'ML-DSA-65',
+        true,
+        [usage]),
+      { name: 'DataError', message: /Duplicate key operation/ });
+  }
+})().then(common.mustCall());
+
 if (!process.features.openssl_is_boringssl) {
   (async function() {
     for (const { name, privateUsages } of testVectors) {
