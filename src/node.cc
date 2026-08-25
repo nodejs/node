@@ -1224,7 +1224,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     OPENSSL_INIT_set_config_file_flags(settings,
                                        CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    // OPENSSL_INIT_NO_ATEXIT: do not let OpenSSL register OPENSSL_cleanup()
+    // with atexit(). Nothing needs OpenSSL to be torn down when the process
+    // exits, and on macOS atexit() itself is expensive: it calls dladdr(),
+    // which linearly scans the executable's (very large) symbol table and
+    // costs about a millisecond on every process start. This must be part of
+    // the first OPENSSL_init_crypto() call in the process to take effect.
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_NO_ATEXIT,
+                        settings);
     OPENSSL_INIT_free(settings);
 
     if (ERR_peek_error() != 0) {
