@@ -1460,8 +1460,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [ECMAScript module]: esm.md
 [HTML Standard]: https://html.spec.whatwg.org/multipage/workers.html
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
-[Refable protocol]: process.md#processrefmayberefable
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
+[Refable protocol]: process.md#processrefmayberefable
 [Web Crypto API]: webcrypto.md
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
