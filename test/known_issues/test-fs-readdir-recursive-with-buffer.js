@@ -12,4 +12,4 @@ const { readdir } = require('node:fs');
 const { join } = require('node:path');
 
 const testDirPath = join(__dirname, '..', '..');
-readdir(Buffer.from(testDirPath), { recursive: true }, common.mustCall());
+readdir(Buffer.from(testDirPath), { recursive: true }, common.mustSucceed());
