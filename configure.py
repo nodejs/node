@@ -326,12 +326,6 @@ shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
     dest='shared_hdr_histogram_libpath',
     help='a directory to search for the shared HdrHistogram DLL')
 
-parser.add_argument('--experimental-http-parser',
-    action='store_true',
-    dest='experimental_http_parser',
-    default=None,
-    help='(no-op)')
-
 shared_optgroup.add_argument('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -1022,32 +1016,11 @@ parser.add_argument('--control-flow-guard',
     default=None,
     help='enable Control Flow Guard (CFG)')
 
-# Dummy option for backwards compatibility
-parser.add_argument('--without-report',
-    action='store_true',
-    dest='unused_without_report',
-    default=None,
-    help=argparse.SUPPRESS)
-
-parser.add_argument('--with-snapshot',
-    action='store_true',
-    dest='unused_with_snapshot',
-    default=None,
-    help=argparse.SUPPRESS)
-
-parser.add_argument('--without-snapshot',
-    action='store_true',
-    dest='unused_without_snapshot',
-    default=None,
-    help=argparse.SUPPRESS)
-
 parser.add_argument('--without-siphash',
     action='store_true',
     dest='without_siphash',
     default=None,
     help=argparse.SUPPRESS)
-
-# End dummy list.
 
 parser.add_argument('--without-ssl',
     action='store_true',
@@ -1906,8 +1879,6 @@ def configure_node(o):
                      else target_arch != host_arch)
   if cross_compiling:
     os.environ['GYP_CROSSCOMPILE'] = "1"
-  if options.unused_without_snapshot:
-    warn('building --without-snapshot is no longer possible')
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
