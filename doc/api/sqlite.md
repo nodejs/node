@@ -445,7 +445,7 @@ wrapper around [`sqlite3_create_function_v2()`][].
 <!-- YAML
 added: v24.10.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/65156
     description: Accessing the invoking database connection from the authorizer
                  callback now throws.
@@ -706,10 +706,10 @@ console.log(query.get());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62757
     description: Add the `persistent` option.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/65157
     description: Throw `ERR_INVALID_ARG_VALUE` if `sql` contains no statements.
 -->
@@ -1091,10 +1091,10 @@ bound. Binding any other value throws an `ERR_INVALID_ARG_TYPE` error.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1121,7 +1121,7 @@ the values in `namedParameters` and `anonymousParameters`. See
 ### `statement.close()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 Finalizes the prepared statement. An exception is thrown if the statement is
@@ -1179,10 +1179,10 @@ execution of this prepared statement. This property is a wrapper around
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1214,10 +1214,10 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1244,7 +1244,7 @@ the values in `namedParameters` and `anonymousParameters`. See
 ### `statement.resetStats()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 Resets every counter reported by [`statement.stat()`][] back to zero, except
@@ -1258,10 +1258,10 @@ executions of the same prepared statement.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1373,7 +1373,7 @@ wrapper around [`sqlite3_sql()`][].
 ### `statement[Symbol.dispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 Finalizes the prepared statement. If the prepared statement is already
@@ -1384,7 +1384,7 @@ this statement is currently executing, under the same conditions as
 ### `statement.stat(counter)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `counter` {string} The name of the counter to read. One of:
@@ -1442,10 +1442,10 @@ class execute synchronously.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1467,10 +1467,10 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1492,10 +1492,10 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1516,10 +1516,10 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->

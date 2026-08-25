@@ -99,7 +99,7 @@ Adds a rule to block the given IP address.
 ### `blockList.addAddresses(addresses[, type])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `addresses` {string\[]|net.SocketAddress\[]} An array of IPv4 or IPv6
@@ -114,7 +114,7 @@ are inserted under a single internal lock acquisition.
 ### `blockList.addCIDR(cidr)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `cidr` {string} An IPv4 or IPv6 subnet in CIDR notation (e.g.
@@ -128,7 +128,7 @@ the parsed network address, prefix length, and family.
 ### `blockList.addCIDRs(cidrs)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `cidrs` {string\[]} An array of IPv4 or IPv6 subnets in CIDR notation.
@@ -202,7 +202,7 @@ console.log(blockList.check('::ffff:123.123.123.123', 'ipv6')); // Prints: true
 ### `blockList.clear()`
 
 <!--
-added: REPLACEME
+added: v26.8.0
 -->
 
 Clears all rules from the `BlockList`.
@@ -245,7 +245,7 @@ added:
 ### `BlockList.PRIVATE_RANGES`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {string\[]}
@@ -277,7 +277,7 @@ console.log(blockList.check('8.8.8.8'));       // Prints: false
 ### `blockList.removeAddress(address[, type])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
@@ -290,7 +290,7 @@ specified address does not exist, this is a no-op.
 ### `blockList.removeCIDR(cidr)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `cidr` {string} An IPv4 or IPv6 subnet in CIDR notation (e.g.
@@ -304,7 +304,7 @@ and family. If the specified subnet does not exist, this is a no-op.
 ### `blockList.removeRange(start, end[, type])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `start` {string|net.SocketAddress} The starting IPv4 or IPv6 address in the
@@ -319,7 +319,7 @@ If the specified range does not exist, this is a no-op.
 ### `blockList.removeSubnet(net, prefix[, type])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
@@ -347,7 +347,7 @@ The list of rules added to the blocklist.
 ### `blockList.size`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 * Type: {number}

@@ -3589,11 +3589,11 @@ changes:
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63411
-    description: Ciphers in SIV and GCM-SIV modes are now supported.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
+  - version: v26.8.0
+    pr-url: https://github.com/nodejs/node/pull/63411
+    description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
@@ -3701,11 +3701,11 @@ changes:
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63411
-    description: Ciphers in SIV and GCM-SIV modes are now supported.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
+  - version: v26.8.0
+    pr-url: https://github.com/nodejs/node/pull/63411
+    description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
@@ -5507,11 +5507,11 @@ suitable for HMAC or PBKDF2.
 added: v0.11.14
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/65073
-    description: The `mgf1Hash` option was added.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `privateKey` is no longer supported.
+  - version: v26.8.0
+    pr-url: https://github.com/nodejs/node/pull/65073
+    description: The `mgf1Hash` option was added.
   - version:
       - v21.6.2
       - v20.11.1
@@ -5668,11 +5668,11 @@ be passed instead of a public key.
 added: v0.11.14
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/65073
-    description: The `mgf1Hash` option was added.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
+  - version: v26.8.0
+    pr-url: https://github.com/nodejs/node/pull/65073
+    description: The `mgf1Hash` option was added.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: Added string, ArrayBuffer, and CryptoKey as allowable key

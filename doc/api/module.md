@@ -511,7 +511,7 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/65302
     description: Add the `readOnly` option.
   - version:

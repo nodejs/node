@@ -3756,7 +3756,7 @@ and by any user (the cache subdirectory is not suffixed with the creating user's
 ### `NODE_COMPILE_CACHE_READONLY=1`
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 When set to 1, the [module compile cache][] only reads existing entries from

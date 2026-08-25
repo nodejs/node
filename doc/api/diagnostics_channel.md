@@ -238,7 +238,7 @@ added:
  - v19.9.0
  - v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/64525
     description: Marked as stable.
 -->
@@ -749,7 +749,7 @@ added:
  - v19.9.0
  - v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/64525
     description: Marked as stable.
 -->
@@ -1927,7 +1927,7 @@ Emitted when a new thread is created.
 #### SQLite
 
 <!-- YAML
-added: REPLACEME
+added: v26.8.0
 -->
 
 > Stability: 1 - Experimental

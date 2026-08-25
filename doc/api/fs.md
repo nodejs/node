@@ -1559,7 +1559,7 @@ link(2) documentation for more detail.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63143
     description: Accepts an additional `signal` option to allow aborting the
                  operation.
@@ -2105,7 +2105,7 @@ Removes files and directories (modeled on the standard POSIX `rm` utility).
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63143
     description: Accepts an additional `signal` option to allow aborting the
                  operation.
@@ -2975,7 +2975,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63851
     description: Add the `windowsHandle` option.
   - version: v16.10.0
@@ -3112,7 +3112,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63851
     description: Add the `windowsHandle` option.
   - version: v22.0.0
@@ -3468,7 +3468,7 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.95
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63143
     description: Accepts an additional `signal` option to allow aborting the
                  operation.
@@ -3846,7 +3846,7 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.30
 changes:
-  - version: REPLACEME
+  - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63143
     description: Accepts an additional `signal` option to allow aborting the
                  operation.
