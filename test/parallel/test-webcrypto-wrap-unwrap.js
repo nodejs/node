@@ -455,7 +455,7 @@ async function testNonByteLengthWrapUnwrap({
 // Test that wrapKey/unwrapKey validate the wrapping/unwrapping key's
 // algorithm and usage before proceeding.
 // Spec: https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
-// Steps 9-10 (wrapping key checks) must precede step 12 (exportKey).
+// Steps 9-10 (wrapping key checks) must precede step 13 (export operation).
 (async function() {
   const hmacKey = await subtle.generateKey(
     { name: 'HMAC', hash: 'SHA-256' },
@@ -500,7 +500,7 @@ async function testNonByteLengthWrapUnwrap({
     });
 
   // Correct wrapping key algorithm and usage results in the expected
-  // exportKey error (not the wrapping key validation error).
+  // export operation error (not the wrapping key validation error).
   const wrapKey = await subtle.generateKey(
     { name: 'AES-GCM', length: 128 },
     true,
@@ -512,8 +512,8 @@ async function testNonByteLengthWrapUnwrap({
       name: 'AES-GCM',
       iv: new Uint8Array(12),
     }), {
-      // exportKey('spki', privateKey) throws NotSupportedError
-      name: 'NotSupportedError',
+      message: 'Key must be a public key',
+      name: 'InvalidAccessError',
     });
 
   // --- unwrapKey validation tests ---
