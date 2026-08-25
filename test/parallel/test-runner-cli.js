@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const { join } = require('path');
 const fixtures = require('../common/fixtures');
 const testFixtures = fixtures.path('test-runner');
@@ -70,16 +71,14 @@ for (const isolation of ['none', 'process']) {
       const args = ['--test', '--test-reporter=tap',
                     '--no-experimental-strip-types',
                     `--test-isolation=${isolation}`, dir];
-      const child = spawnSync(process.execPath, args, { cwd: testFixtures });
-
-      assert.strictEqual(child.status, 0);
-      assert.strictEqual(child.signal, null);
-      assert.strictEqual(child.stderr.toString(), '');
-      const stdout = child.stdout.toString();
-
-      assert.match(stdout, /ok 1 - this should pass/);
-      assert.match(stdout, /ok 2 - this should pass/);
-      assert.match(stdout, /ok 3 - this should pass/);
+      spawnSyncAndAssert(process.execPath, args, { cwd: testFixtures }, {
+        stderr: '',
+        stdout(output) {
+          assert.match(output, /ok 1 - this should pass/);
+          assert.match(output, /ok 2 - this should pass/);
+          assert.match(output, /ok 3 - this should pass/);
+        },
+      });
     }
   }
 

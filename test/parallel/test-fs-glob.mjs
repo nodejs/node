@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
-import { spawnSync } from 'node:child_process';
+import { spawnSyncAndExitWithoutError } from '../common/child_process.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
 import {
@@ -992,11 +992,10 @@ describe('glob - seen cache', function() {
     `;
 
     const seenDir = tmpdir.resolve('glob-seen');
-    const child = spawnSync(
+    spawnSyncAndExitWithoutError(
       process.execPath,
       ['--expose-internals', '-e', script, seenDir],
       { encoding: 'utf8' },
     );
-    assert.strictEqual(child.status, 0, child.stderr || child.stdout);
   });
 });
