@@ -1319,6 +1319,10 @@ A browser-compatible implementation of {WebSocket}.
 
 <!-- YAML
 added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65323
+    description: This feature is now enabled by default.
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
