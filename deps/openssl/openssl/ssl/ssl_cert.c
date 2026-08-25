@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -306,7 +306,7 @@ int ssl_cert_set0_chain(SSL_CONNECTION *s, SSL_CTX *ctx, STACK_OF(X509) *chain)
     for (i = 0; i < sk_X509_num(chain); i++) {
         X509 *x = sk_X509_value(chain, i);
 
-        r = ssl_security_cert(s, ctx, x, 0, 0);
+        r = ssl_security_cert(s, ctx, x, 0);
         if (r != 1) {
             ERR_raise(ERR_LIB_SSL, r);
             return 0;
@@ -340,7 +340,7 @@ int ssl_cert_add0_chain_cert(SSL_CONNECTION *s, SSL_CTX *ctx, X509 *x)
 
     if (!cpk)
         return 0;
-    r = ssl_security_cert(s, ctx, x, 0, 0);
+    r = ssl_security_cert(s, ctx, x, 0);
     if (r != 1) {
         ERR_raise(ERR_LIB_SSL, r);
         return 0;
@@ -1149,7 +1149,7 @@ int ssl_build_cert_chain(SSL_CONNECTION *s, SSL_CTX *ctx, int flags)
      */
     for (i = 0; i < sk_X509_num(chain); i++) {
         x = sk_X509_value(chain, i);
-        rv = ssl_security_cert(s, ctx, x, 0, 0);
+        rv = ssl_security_cert(s, ctx, x, 0);
         if (rv != 1) {
             ERR_raise(ERR_LIB_SSL, rv);
             OSSL_STACK_OF_X509_free(chain);
