@@ -1,5 +1,6 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
+import { spawnSync } from 'node:child_process';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
 import {
@@ -16,7 +17,6 @@ import {
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { execFileSync } from 'node:child_process';
 import assert from 'node:assert';
 
 function assertDirents(dirents) {
@@ -706,6 +706,16 @@ test('glob forwards maxDepth', async () => {
   );
 });
 
+function runNodeScript(script) {
+  const child = spawnSync(
+    process.execPath,
+    ['--expose-internals', '-e', script],
+    { encoding: 'utf8' },
+  );
+  assert.strictEqual(child.status, 0, child.stderr || child.stdout);
+  return child.stdout;
+}
+
 test('async glob does not use synchronous path identity calls', () => {
   const script = `
       const fs = require('fs');
@@ -731,7 +741,7 @@ test('async glob does not use synchronous path identity calls', () => {
         process.exitCode = 1;
       });
     `;
-  execFileSync(process.execPath, ['--expose-internals', '-e', script]);
+  runNodeScript(script);
 });
 
 function assertDoesNotTraverse(sibling, cwd) {
@@ -754,12 +764,7 @@ function assertDoesNotTraverse(sibling, cwd) {
       });
       process.stdout.write(String(reads));
     `;
-  assert.strictEqual(
-    execFileSync(process.execPath, ['--expose-internals', '-e', script], {
-      encoding: 'utf8',
-    }),
-    '0',
-  );
+  assert.strictEqual(runNodeScript(script), '0');
 }
 
 describe('globSync - maxDepth traversal', function() {
