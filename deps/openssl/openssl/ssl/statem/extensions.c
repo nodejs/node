@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -605,6 +605,11 @@ int tls_collect_extensions(SSL_CONNECTION *s, PACKET *packet,
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_BAD_EXTENSION);
             goto err;
         }
+
+        /* The server must tolerate the unknown extension and complete. */
+        if (thisex == NULL)
+            continue;
+
         idx = thisex - raw_extensions;
         /*-
          * Check that we requested this extension (if appropriate). Requests can
@@ -635,17 +640,15 @@ int tls_collect_extensions(SSL_CONNECTION *s, PACKET *packet,
                 SSL_R_UNSOLICITED_EXTENSION);
             goto err;
         }
-        if (thisex != NULL) {
-            thisex->data = extension;
-            thisex->present = 1;
-            thisex->type = type;
-            thisex->received_order = i++;
-            if (s->ext.debug_cb)
-                s->ext.debug_cb(SSL_CONNECTION_GET_USER_SSL(s), !s->server,
-                    thisex->type, PACKET_data(&thisex->data),
-                    PACKET_remaining(&thisex->data),
-                    s->ext.debug_arg);
-        }
+        thisex->data = extension;
+        thisex->present = 1;
+        thisex->type = type;
+        thisex->received_order = i++;
+        if (s->ext.debug_cb)
+            s->ext.debug_cb(SSL_CONNECTION_GET_USER_SSL(s), !s->server,
+                thisex->type, PACKET_data(&thisex->data),
+                (int)PACKET_remaining(&thisex->data),
+                s->ext.debug_arg);
     }
 
     if (init) {

@@ -2441,6 +2441,7 @@ __owur int SSL_get_conn_close_info(SSL *ssl,
 #define SSL_VALUE_STREAM_WRITE_BUF_SIZE 7
 #define SSL_VALUE_STREAM_WRITE_BUF_USED 8
 #define SSL_VALUE_STREAM_WRITE_BUF_AVAIL 9
+#define SSL_VALUE_QUIC_MAX_PENDING_CONNS 16
 
 #define SSL_VALUE_EVENT_HANDLING_MODE_INHERIT 0
 #define SSL_VALUE_EVENT_HANDLING_MODE_IMPLICIT 1
@@ -2688,8 +2689,18 @@ const CTLOG_STORE *SSL_CTX_get0_ctlog_store(const SSL_CTX *ctx);
 #define SSL_SECOP_OTHER_SIGALG (5 << 16)
 #define SSL_SECOP_OTHER_CERT (6 << 16)
 
-/* Indicated operation refers to peer key or certificate */
+/*
+ * Unused values - these do nothing and are never set.
+ * They are retained because of API. They should
+ * be removed next major
+ */
 #define SSL_SECOP_PEER 0x1000
+/* Peer EE key in certificate */
+#define SSL_SECOP_PEER_EE_KEY (SSL_SECOP_EE_KEY | SSL_SECOP_PEER)
+/* Peer CA key in certificate */
+#define SSL_SECOP_PEER_CA_KEY (SSL_SECOP_CA_KEY | SSL_SECOP_PEER)
+/* Peer CA digest algorithm in certificate */
+#define SSL_SECOP_PEER_CA_MD (SSL_SECOP_CA_MD | SSL_SECOP_PEER)
 
 /* Values for "op" parameter in security callback */
 
@@ -2728,12 +2739,6 @@ const CTLOG_STORE *SSL_CTX_get0_ctlog_store(const SSL_CTX *ctx);
 #define SSL_SECOP_CA_KEY (17 | SSL_SECOP_OTHER_CERT)
 /* CA digest algorithm in certificate */
 #define SSL_SECOP_CA_MD (18 | SSL_SECOP_OTHER_CERT)
-/* Peer EE key in certificate */
-#define SSL_SECOP_PEER_EE_KEY (SSL_SECOP_EE_KEY | SSL_SECOP_PEER)
-/* Peer CA key in certificate */
-#define SSL_SECOP_PEER_CA_KEY (SSL_SECOP_CA_KEY | SSL_SECOP_PEER)
-/* Peer CA digest algorithm in certificate */
-#define SSL_SECOP_PEER_CA_MD (SSL_SECOP_CA_MD | SSL_SECOP_PEER)
 
 void SSL_set_security_level(SSL *s, int level);
 __owur int SSL_get_security_level(const SSL *s);

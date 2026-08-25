@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -613,6 +613,12 @@ static int nc_dn(const X509_NAME *nm, const X509_NAME *base)
         return X509_V_ERR_OUT_OF_MEM;
     if (base->canon_enclen > nm->canon_enclen)
         return X509_V_ERR_PERMITTED_VIOLATION;
+    /*
+     * An empty base Name has no canonical encoding (canon_enc == NULL) and is
+     * a prefix of every Name, so it matches unconditionally.
+     */
+    if (base->canon_enclen == 0)
+        return X509_V_OK;
     if (memcmp(base->canon_enc, nm->canon_enc, base->canon_enclen))
         return X509_V_ERR_PERMITTED_VIOLATION;
     return X509_V_OK;
@@ -789,6 +795,7 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
     if (scheme == NULL || *scheme == '\0') {
         ERR_raise_data(ERR_LIB_X509V3, X509_V_ERR_UNSUPPORTED_NAME_SYNTAX,
             "x509: missing scheme in URI: %s\n", uri_copy);
+        OPENSSL_free(scheme);
         OPENSSL_free(uri_copy);
         ret = X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
         goto end;

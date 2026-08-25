@@ -171,6 +171,8 @@ struct ossl_qrx_st {
     ossl_msg_cb msg_callback;
     void *msg_callback_arg;
     SSL *msg_callback_ssl;
+
+    uint32_t refcount;
 };
 
 static RXE *qrx_ensure_free_rxe(OSSL_QRX *qrx, size_t alloc_len);
@@ -212,6 +214,7 @@ OSSL_QRX *ossl_qrx_new(const OSSL_QRX_ARGS *args)
     qrx->short_conn_id_len = args->short_conn_id_len;
     qrx->init_key_phase_bit = args->init_key_phase_bit;
     qrx->max_deferred = args->max_deferred;
+    qrx->refcount = 1;
     return qrx;
 }
 
@@ -247,12 +250,9 @@ void ossl_qrx_update_pn_space(OSSL_QRX *src, OSSL_QRX *dst)
     return;
 }
 
-void ossl_qrx_free(OSSL_QRX *qrx)
+static void qrx_destroy(OSSL_QRX *qrx)
 {
     uint32_t i;
-
-    if (qrx == NULL)
-        return;
 
     /* Free RXE queue data. */
     qrx_cleanup_rxl(&qrx->rx_free);
@@ -265,6 +265,30 @@ void ossl_qrx_free(OSSL_QRX *qrx)
         ossl_qrl_enc_level_set_discard(&qrx->el_set, i);
 
     OPENSSL_free(qrx);
+}
+
+void ossl_qrx_free(OSSL_QRX *qrx)
+{
+    if (qrx == NULL)
+        return;
+
+    qrx->refcount--;
+    if (qrx->refcount == 0)
+        qrx_destroy(qrx);
+}
+
+OSSL_QRX *ossl_qrx_newref(OSSL_QRX *qrx)
+{
+    OSSL_QRX *rv_qrx;
+
+    if (qrx != NULL && qrx->refcount != (uint32_t)~0) {
+        qrx->refcount++;
+        rv_qrx = qrx;
+    } else {
+        rv_qrx = NULL;
+    }
+
+    return rv_qrx;
 }
 
 void ossl_qrx_inject_urxe(OSSL_QRX *qrx, QUIC_URXE *urxe)

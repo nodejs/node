@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -508,23 +508,22 @@ static const OSSL_PARAM *drbg_hash_gettable_ctx_params(ossl_unused void *vctx,
 
 static int drbg_fetch_digest_from_prov(const OSSL_PARAM params[],
     OSSL_LIB_CTX *libctx,
-    EVP_MD **digest)
+    EVP_MD **digest,
+    const char *propq)
 {
-    OSSL_PROVIDER *prov = NULL;
     const OSSL_PARAM *p;
     EVP_MD *md = NULL;
     int ret = 0;
+    const char *propquery = NULL;
+
+#ifndef FIPS_MODULE
+    if (propq == NULL)
+        propquery = "provider=default";
+    else
+        propquery = propq;
+#endif
 
     if (digest == NULL)
-        return 0;
-
-    if ((p = OSSL_PARAM_locate_const(params,
-             OSSL_PROV_PARAM_CORE_PROV_NAME))
-        == NULL)
-        return 0;
-    if (p->data_type != OSSL_PARAM_UTF8_STRING)
-        return 0;
-    if ((prov = ossl_provider_find(libctx, (const char *)p->data, 1)) == NULL)
         return 0;
 
     p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST);
@@ -536,15 +535,13 @@ static int drbg_fetch_digest_from_prov(const OSSL_PARAM params[],
     if (p->data_type != OSSL_PARAM_UTF8_STRING)
         goto done;
 
-    md = evp_digest_fetch_from_prov(prov, (const char *)p->data, NULL);
+    md = EVP_MD_fetch(libctx, p->data, propquery);
     if (md) {
         EVP_MD_free(*digest);
         *digest = md;
         ret = 1;
     }
-
 done:
-    ossl_provider_free(prov);
     return ret;
 }
 
@@ -556,15 +553,24 @@ static int drbg_hash_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[]
     EVP_MD *prov_md = NULL;
     const EVP_MD *md;
     int md_size;
+    const OSSL_PARAM *p;
 
     if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, params,
             OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK))
         return 0;
 
     /* try to fetch digest from provider */
+    p = OSSL_PARAM_locate_const(params, OSSL_DRBG_PARAM_PROPERTIES);
     (void)ERR_set_mark();
-    if (!drbg_fetch_digest_from_prov(params, libctx, &prov_md)) {
+    if (!drbg_fetch_digest_from_prov(params, libctx, &prov_md,
+            (p != NULL && p->data_type == OSSL_PARAM_UTF8_STRING) ? p->data : NULL)) {
         (void)ERR_pop_to_mark();
+        /*
+         * Its possible for drbg_fetch_digest_from_prov to return 0 after having set prov_md
+         * so we need to ensure we free it here
+         */
+        EVP_MD_free(prov_md);
+
         /* fall back to full implementation search */
         if (!ossl_prov_digest_load_from_params(&hash->digest, params, libctx))
             return 0;
