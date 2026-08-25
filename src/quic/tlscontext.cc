@@ -387,13 +387,6 @@ crypto::ClientHelloResult TLSContext::OnClientHello(
   if (params.has_value()) session.SetEarlyRemoteTransportParams(*params);
 
   const auto& supported = selected->options().alpn;
-  if (supported.empty()) {
-    // The server has no ALPN preference, so there is nothing to select and
-    // no Application to install. QUIC requires ALPN so this will fail later.
-    tls_session.set_early_selection(EarlySelection::kComplete);
-    return crypto::ClientHelloResult::kContinue;
-  }
-
   auto negotiated = crypto::SelectNextProtocol(
       {reinterpret_cast<const uint8_t*>(supported.data()), supported.size()},
       hello.alpn_protocols());
