@@ -3635,6 +3635,15 @@ subtests' status, not when its body begins executing; that moment is
         │
         ▼
    test:summary  ─►  stream ends
+
+
+  INTERRUPTION   (SIGINT, e.g. Ctrl+C, while tests are still running)
+  ────────────
+   test:interrupted   the innermost tests still running at that moment
+        │             (not emitted if none were running)
+        ▼
+   the run exits immediately — the buffered spine never flushes, so
+   neither the finale above nor those tests' own results are emitted
 ```
 
 ### Event: `'test:coverage'`
