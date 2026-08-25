@@ -4023,6 +4023,11 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
     std::string parent_name = use_templates ? "P" : parent->name();
 
     if (type->IsLayoutDefinedInCpp()) {
+      if (parent) {
+        if (std::optional<size_t> packed_size = parent->size().SingleValue()) {
+          return std::to_string(*packed_size);
+        }
+      }
       return "sizeof(" + parent_name + ")";
     }
 
@@ -4111,7 +4116,9 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
           << "::" << f.name_and_type.name << " in C++ do not match\");\n";
   }
   if (!type_->IsAbstract() && type_->HasStaticSize()) {
-    impl_ << "  static_assert(kSize == sizeof(" + name_ + "));\n";
+    impl_ << "  static_assert(kSize <= sizeof(" + name_ +
+                 ") && sizeof(" + name_ + ") < kSize + alignof(" + name_ +
+                 "));\n";
   }
 
   impl_ << "};\n\n";

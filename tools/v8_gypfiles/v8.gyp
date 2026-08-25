@@ -118,6 +118,7 @@
       'actions': [
         {
           'action_name': 'run_torque_action',
+          'msvs_quote_cmd': 0,
           'inputs': [  # Order matters.
             '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
             '<@(torque_files)',
