@@ -5,10 +5,6 @@
       'ncrypto.cc',
       'ncrypto.h',
     ],
-    'ncrypto_engine_sources': [
-      'engine.cc',
-      'ncrypto.h',
-    ],
     # OpenSSL may be configured with --api below 3.0. Keep 3.0 deprecation
     # checks where supported without exceeding its configured API level.
     'ncrypto_openssl3_api_compat':
@@ -16,11 +12,6 @@
     'ncrypto_strict_defines': [
       'OPENSSL_API_COMPAT=<(ncrypto_openssl3_api_compat)',
       'OPENSSL_NO_DEPRECATED',
-    ],
-    'ncrypto_engine_defines': [
-      'OPENSSL_API_COMPAT=<(ncrypto_openssl3_api_compat)',
-      'OPENSSL_SUPPRESS_DEPRECATED',
-      'NCRYPTO_ENGINE_COMPAT=1',
     ],
   },
   'targets': [
@@ -46,9 +37,6 @@
       'conditions': [
         ['openssl_is_boringssl=="false"', {
           'defines': [ '<@(ncrypto_strict_defines)' ],
-          'dependencies': [
-            'ncrypto_engine',
-          ],
         }],
         ['node_shared_openssl=="false"', {
           'dependencies': [
@@ -57,28 +45,5 @@
         }],
       ]
     },
-  ],
-  'conditions': [
-    ['openssl_is_boringssl=="false"', {
-      'targets': [
-        {
-          'target_name': 'ncrypto_engine',
-          'type': 'static_library',
-          'include_dirs': ['.'],
-          'defines': [
-            'NCRYPTO_BSSL_LIBDECREPIT_MISSING=<(ncrypto_bssl_libdecrepit_missing)',
-            '<@(ncrypto_engine_defines)',
-          ],
-          'sources': [ '<@(ncrypto_engine_sources)' ],
-          'conditions': [
-            ['node_shared_openssl=="false"', {
-              'dependencies': [
-                '../openssl/openssl.gyp:openssl'
-              ]
-            }],
-          ]
-        },
-      ],
-    }],
   ],
 }
