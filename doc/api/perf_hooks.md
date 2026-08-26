@@ -1091,6 +1091,55 @@ changes:
 The high resolution millisecond timestamp representing the time immediately
 before Node.js receives the first byte of the response from the server.
 
+### `performanceResourceTiming.finalResponseHeadersStart`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the first byte of the headers of the final response,
+as opposed to an interim response.
+
+### `performanceResourceTiming.firstInterimResponseStart`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the first byte of the first interim response, such as
+a `103 Early Hints` response. Node.js does not currently record interim
+responses, so the property always returns 0.
+
+### `performanceResourceTiming.responseStart`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65017
+    description: This property now returns `firstInterimResponseStart`
+                 when it is non-zero.
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
+-->
+
+* Type: {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the first byte of the response from the server. This
+is `firstInterimResponseStart` when it is non-zero, and
+`finalResponseHeadersStart` otherwise.
+
 ### `performanceResourceTiming.responseEnd`
 
 <!-- YAML
@@ -1165,6 +1214,43 @@ changes:
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the message body, after removing any applied
 content-codings.
+
+### `performanceResourceTiming.renderBlockingStatus`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The render blocking status of the resource. It is either `'blocking'` or
+`'non-blocking'`. Resources fetched by Node.js are never render blocking, so
+the property always returns `'non-blocking'`.
+
+### `performanceResourceTiming.contentType`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The minimized MIME type of the content of the fetched resource, or an empty
+string if it cannot be determined. Node.js does not currently populate this
+field, so the property returns an empty string.
+
+### `performanceResourceTiming.contentEncoding`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The content encoding, such as `'gzip'` or `'br'`, that was applied to the
+fetched resource, or an empty string if none was applied or it cannot be
+determined. Node.js does not currently populate this field, so the property
+returns an empty string.
 
 ### `performanceResourceTiming.toJSON()`
 
