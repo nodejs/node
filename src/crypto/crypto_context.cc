@@ -35,12 +35,8 @@ namespace node {
 using ncrypto::BIOPointer;
 using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;
-using ncrypto::CryptoErrorList;
 using ncrypto::DHPointer;
 using ncrypto::Digest;
-#ifndef OPENSSL_NO_ENGINE
-using ncrypto::EnginePointer;
-#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::EVPKeyPointer;
 using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
@@ -1352,11 +1348,6 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "getIssuer", GetCertificate<false>);
 
-#ifndef OPENSSL_NO_ENGINE
-    SetProtoMethod(isolate, tmpl, "setEngineKey", SetEngineKey);
-    SetProtoMethod(isolate, tmpl, "setClientCertEngine", SetClientCertEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
 #define SET_INTEGER_CONSTANTS(name, value)                                     \
   tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, name),                              \
             Integer::NewFromUnsigned(isolate, value));
@@ -1440,11 +1431,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(GetTicketKeys);
   registry->Register(GetCertificate<true>);
   registry->Register(GetCertificate<false>);
-
-#ifndef OPENSSL_NO_ENGINE
-  registry->Register(SetEngineKey);
-  registry->Register(SetClientCertEngine);
-#endif  // !OPENSSL_NO_ENGINE
 
   registry->Register(CtxGetter);
 
@@ -1716,54 +1702,6 @@ void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
   if (!SSL_CTX_set1_sigalgs_list(sc->ctx_.get(), *sigalgs))
     return ThrowCryptoError(env, ERR_get_error());
 }
-
-#ifndef OPENSSL_NO_ENGINE
-void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
-
-  CHECK_EQ(args.Length(), 2);
-
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CryptoErrorList errors;
-  Utf8Value engine_id(env->isolate(), args[1]);
-  auto engine = EnginePointer::getEngineByName(*engine_id, &errors);
-  if (!engine) {
-    Local<Value> exception;
-    if (errors.empty()) {
-      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
-                                          *engine_id));
-    }
-    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
-      env->isolate()->ThrowException(exception);
-    return;
-  }
-
-  if (!engine.init(true /* finish on exit*/)) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(
-        env, "Failure to initialize engine");
-  }
-
-  Utf8Value key_name(env->isolate(), args[0]);
-  auto key = engine.loadPrivateKey(*key_name);
-
-  if (!key)
-    return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
-
-  if (!SSL_CTX_use_PrivateKey(sc->ctx_.get(), key.get()))
-    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
-
-  sc->private_key_engine_ = std::move(engine);
-}
-#endif  // !OPENSSL_NO_ENGINE
 
 Maybe<void> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   ClearErrorOnReturn clear_error_on_return;
@@ -2297,53 +2235,6 @@ done:
     return env->ThrowError(str);
   }
 }
-
-#ifndef OPENSSL_NO_ENGINE
-void SecureContext::SetClientCertEngine(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsString());
-
-  SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
-
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  // SSL_CTX_set_client_cert_engine does not itself support multiple
-  // calls by cleaning up before overwriting the client_cert_engine
-  // internal context variable.
-  // Instead of trying to fix up this problem we in turn also do not
-  // support multiple calls to SetClientCertEngine.
-  CHECK(!sc->client_cert_engine_provided_);
-
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CryptoErrorList errors;
-  const Utf8Value engine_id(env->isolate(), args[0]);
-  auto engine = EnginePointer::getEngineByName(*engine_id, &errors);
-  if (!engine) {
-    Local<Value> exception;
-    if (errors.empty()) {
-      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
-                                          *engine_id));
-    }
-    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
-      env->isolate()->ThrowException(exception);
-    return;
-  }
-
-  // Note that this takes another reference to `engine`.
-  if (!engine.setClientCertEngine(sc->ctx_.get()))
-    return ThrowCryptoError(env, ERR_get_error());
-  sc->client_cert_engine_provided_ = true;
-}
-#endif  // !OPENSSL_NO_ENGINE
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;

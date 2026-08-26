@@ -50,7 +50,6 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
   V(ERR_CPU_PROFILE_NOT_STARTED, Error)                                        \
   V(ERR_CPU_PROFILE_TOO_MANY, Error)                                           \
-  V(ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED, Error)                             \
   V(ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS, Error)                                \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \

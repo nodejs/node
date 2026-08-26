@@ -6541,42 +6541,6 @@ added: v15.6.0
   * `utilization` {number} The calculated ratio of `used` to `total`
     allocated bytes.
 
-### `crypto.setEngine(engine[, flags])`
-
-<!-- YAML
-added: v0.11.11
-changes:
-  - version:
-    - v22.4.0
-    - v20.16.0
-    pr-url: https://github.com/nodejs/node/pull/53329
-    description: Custom engine support in OpenSSL 3 is deprecated.
--->
-
-* `engine` {string}
-* `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
-
-Load and set the `engine` for some or all OpenSSL functions (selected by flags).
-Support for custom engines in OpenSSL is deprecated from OpenSSL 3.
-
-`engine` could be either an id or a path to the engine's shared library.
-
-The optional `flags` argument uses `ENGINE_METHOD_ALL` by default. The `flags`
-is a bit field taking one of or a mix of the following flags (defined in
-`crypto.constants`):
-
-* `crypto.constants.ENGINE_METHOD_RSA`
-* `crypto.constants.ENGINE_METHOD_DSA`
-* `crypto.constants.ENGINE_METHOD_DH`
-* `crypto.constants.ENGINE_METHOD_RAND`
-* `crypto.constants.ENGINE_METHOD_EC`
-* `crypto.constants.ENGINE_METHOD_CIPHERS`
-* `crypto.constants.ENGINE_METHOD_DIGESTS`
-* `crypto.constants.ENGINE_METHOD_PKEY_METHS`
-* `crypto.constants.ENGINE_METHOD_PKEY_ASN1_METHS`
-* `crypto.constants.ENGINE_METHOD_ALL`
-* `crypto.constants.ENGINE_METHOD_NONE`
-
 ### `crypto.setFips(bool)`
 
 <!-- YAML
@@ -7400,59 +7364,6 @@ See the [list of SSL OP Flags][] for details.
   <tr>
     <td><code>SSL_OP_TLS_ROLLBACK_BUG</code></td>
     <td>Instructs OpenSSL to disable version rollback attack detection.</td>
-  </tr>
-</table>
-
-### OpenSSL engine constants
-
-<table>
-  <tr>
-    <th>Constant</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_RSA</code></td>
-    <td>Limit engine usage to RSA</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_DSA</code></td>
-    <td>Limit engine usage to DSA</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_DH</code></td>
-    <td>Limit engine usage to DH</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_RAND</code></td>
-    <td>Limit engine usage to RAND</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_EC</code></td>
-    <td>Limit engine usage to EC</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_CIPHERS</code></td>
-    <td>Limit engine usage to CIPHERS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_DIGESTS</code></td>
-    <td>Limit engine usage to DIGESTS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_PKEY_METHS</code></td>
-    <td>Limit engine usage to PKEY_METHS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_PKEY_ASN1_METHS</code></td>
-    <td>Limit engine usage to PKEY_ASN1_METHS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_ALL</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_NONE</code></td>
-    <td></td>
   </tr>
 </table>
 

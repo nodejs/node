@@ -38,9 +38,6 @@ using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
 using ncrypto::DataPointer;
-#ifndef OPENSSL_NO_ENGINE
-using ncrypto::EnginePointer;
-#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::SSLPointer;
 using v8::Array;
 using v8::ArrayBuffer;
@@ -561,10 +558,6 @@ void InitCryptoOnce() {
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
-
-#ifndef OPENSSL_NO_ENGINE
-  EnginePointer::initEnginesOnce();
-#endif  // !OPENSSL_NO_ENGINE
 }
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -1065,28 +1058,6 @@ void ThrowCryptoError(Environment* env,
   env->isolate()->ThrowException(exception);
 }
 
-#ifndef OPENSSL_NO_ENGINE
-void SetEngine(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CHECK(args.Length() >= 2 && args[0]->IsString());
-  uint32_t flags;
-  if (!args[1]->Uint32Value(env->context()).To(&flags)) return;
-
-  const node::Utf8Value engine_id(env->isolate(), args[0]);
-  // If the engine name is not known, calling setAsDefault on the
-  // empty engine pointer will be non-op that always returns false.
-  args.GetReturnValue().Set(
-      EnginePointer::getEngineByName(*engine_id).setAsDefault(flags));
-}
-#endif  // !OPENSSL_NO_ENGINE
-
 MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
   EscapableHandleScope scope(env->isolate());
   auto buf = BignumPointer::EncodePadded(bn, size);
@@ -1232,10 +1203,6 @@ void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
-#ifndef OPENSSL_NO_ENGINE
-  SetMethod(context, target, "setEngine", SetEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
   SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
   SetMethodNoSideEffect(
       context, target, "getFipsCryptoGeneration", GetFipsCryptoGeneration);
@@ -1255,10 +1222,6 @@ void Initialize(Environment* env, Local<Object> target) {
       context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-#ifndef OPENSSL_NO_ENGINE
-  registry->Register(SetEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
   registry->Register(GetFipsCrypto);
   registry->Register(GetFipsCryptoGeneration);
   registry->Register(SetupFipsIndicatorChannel);

@@ -22,11 +22,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-#if defined(NCRYPTO_ENGINE_COMPAT) && NCRYPTO_ENGINE_COMPAT &&                 \
-    !defined(OPENSSL_NO_ENGINE)
-#include <openssl/engine.h>
-#endif  // NCRYPTO_ENGINE_COMPAT && !OPENSSL_NO_ENGINE
-
 #ifndef OPENSSL_VERSION_PREREQ
 #define OPENSSL_VERSION_PREREQ(maj, min)                                       \
   (OPENSSL_VERSION_NUMBER >= (((maj) << 28) | ((min) << 20)))
@@ -1987,44 +1982,6 @@ class MacCache final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(MacCache)
 };
 #endif
-
-#ifndef OPENSSL_NO_ENGINE
-class EnginePointer final {
- public:
-  EnginePointer() = default;
-
-  explicit EnginePointer(void* engine_, bool finish_on_exit = false);
-  EnginePointer(EnginePointer&& other) noexcept;
-  EnginePointer& operator=(EnginePointer&& other) noexcept;
-  NCRYPTO_DISALLOW_COPY(EnginePointer)
-  ~EnginePointer();
-
-  inline operator bool() const { return engine != nullptr; }
-  inline void setFinishOnExit() { finish_on_exit = true; }
-
-  void reset(void* engine_ = nullptr, bool finish_on_exit_ = false);
-
-  bool setAsDefault(uint32_t flags, CryptoErrorList* errors = nullptr);
-  bool init(bool finish_on_exit = false);
-  EVPKeyPointer loadPrivateKey(const char* key_name);
-  bool setClientCertEngine(SSL_CTX* ctx);
-
-  void* release();
-
-  // Retrieve an OpenSSL Engine instance by name. If the name does not
-  // identify a valid named engine, the returned EnginePointer will be
-  // empty.
-  static EnginePointer getEngineByName(const char* name,
-                                       CryptoErrorList* errors = nullptr);
-
-  // Call once when initializing OpenSSL at startup for the process.
-  static void initEnginesOnce();
-
- private:
-  void* engine = nullptr;
-  bool finish_on_exit = false;
-};
-#endif  // !OPENSSL_NO_ENGINE
 
 // ============================================================================
 // FIPS
