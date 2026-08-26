@@ -6,13 +6,17 @@
 added: v0.3.7
 -->
 
-## The `Module` object
+The `node:module` module provides utilities for interacting with the module system in Node.js.
+It allows you to work with CommonJS and ECMAScript modules, manage module resolution,
+and access built-in modules. It can be accessed using:
 
-* Type: {Object}
+```mjs
+import module from 'node:module';
+```
 
-Provides general utility methods when interacting with instances of
-`Module`, the [`module`][] variable often seen in [CommonJS][] modules. Accessed
-via `import 'node:module'` or `require('node:module')`.
+```cjs
+const module = require('node:module');
+```
 
 ### `module.builtinModules`
 
@@ -2070,7 +2074,6 @@ returned object contains the following keys:
 [`module.getCompileCacheDir()`]: #modulegetcompilecachedir
 [`module.registerHooks()`]: #moduleregisterhooksoptions
 [`module.setSourceMapsSupport()`]: #modulesetsourcemapssupportenabled-options
-[`module`]: #the-module-object
 [`os.tmpdir()`]: os.md#ostmpdir
 [`register`]: #moduleregisterspecifier-parenturl-options
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
