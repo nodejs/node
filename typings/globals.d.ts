@@ -25,6 +25,7 @@ import { MessagingBinding } from './internalBinding/messaging';
 import { ModulesBinding } from './internalBinding/modules';
 import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
+import { PermissionBinding } from './internalBinding/permission';
 import { ProcessBinding } from './internalBinding/process';
 import { ProcessWrapBinding } from './internalBinding/process_wrap';
 import { ProfilerBinding } from './internalBinding/profiler';
@@ -73,6 +74,7 @@ interface InternalBindingMap {
   modules: ModulesBinding;
   options: OptionsBinding;
   os: OSBinding;
+  permission: PermissionBinding;
   process: ProcessBinding;
   process_wrap: ProcessWrapBinding;
   profiler: ProfilerBinding;
