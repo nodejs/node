@@ -30,8 +30,7 @@ const http2 = require('http2');
     let received = 0;
     req.on('data', (data) => {
       received += data.length;
-      // Bound the data that flows before teardown - bytes per data event vary
-      // by platform, and letting this run longer hangs on macOS.
+      // Use a byte threshold because data event chunking varies by platform.
       if (received >= 32 * 1024) rs.destroy();
     });
   }));
