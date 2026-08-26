@@ -81,7 +81,7 @@ assert.strictEqual(b.indexOf(Buffer.from('f'), 5), 5);
 assert.strictEqual(b.indexOf(Buffer.from('f'), -1), 5);
 assert.strictEqual(b.indexOf(Buffer.from('f'), 6), -1);
 
-assert.strictEqual(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), -1);
+assert.strictEqual(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), 1);
 
 // Test invalid and uppercase encoding
 assert.strictEqual(b.indexOf('b', 'utf8'), 1);
@@ -192,7 +192,7 @@ assert.strictEqual(Buffer.from('aaaa0').indexOf('30', 'hex'), 4);
 assert.strictEqual(Buffer.from('aaaa00a').indexOf('3030', 'hex'), 4);
 
 {
-  // Test usc2 and utf16le encoding
+  // Test ucs2 and utf16le encodings.
   ['ucs2', 'utf16le'].forEach((encoding) => {
     const twoByteString = Buffer.from(
       '\u039a\u0391\u03a3\u03a3\u0395', encoding);
@@ -309,6 +309,51 @@ assert.strictEqual(Buffer.from('aaaa').indexOf('你好', 'ucs2'), -1);
 assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 
 {
+  // Search UTF-16LE values at byte offsets that are not aligned to the start
+  // of the Buffer.
+  const value = '\u6881\u6882\u6881';
+  const valueBuffer = Buffer.from(value, 'utf16le');
+  assert.strictEqual(valueBuffer.indexOf('\u6881', 1, 'utf16le'), 4);
+  assert.strictEqual(valueBuffer.slice(1).indexOf('\u6881', 'utf16le'), 3);
+  assert.strictEqual(valueBuffer.indexOf('\u6881', -5, 'utf16le'), 4);
+  assert.strictEqual(valueBuffer.indexOf('\u6881', 1, 4, 'utf16le'), -1);
+  assert.strictEqual(valueBuffer.indexOf('\u6881', 1, 6, 'utf16le'), 4);
+
+  const prefixed = Buffer.alloc(7);
+  prefixed.write(value, 1, 'utf16le');
+  assert.strictEqual(prefixed.indexOf(value, 1, 'utf16le'), 1);
+
+  // UTF-16LE searches compare bytes at every offset, even when a match spans
+  // two code units. The same needle also occurs on a code unit boundary at 4.
+  const crossUnitBuffer = Buffer.from([
+    0x41, 0x00, 0x01, 0x00, 0x00, 0x01,
+  ]);
+  assert.strictEqual(crossUnitBuffer.indexOf('\u0100', 0, 'utf16le'), 1);
+
+  const oddIndexBuffer = Buffer.from('00aaaa', 'hex');
+  const oddIndexNeedle = Buffer.from('\uaaaa', 'utf16le');
+  assert.strictEqual(oddIndexBuffer.indexOf('\uaaaa', 0, 'utf16le'), 1);
+  assert.strictEqual(oddIndexBuffer.indexOf('\uaaaa', 0, 2, 'utf16le'), -1);
+  assert.strictEqual(oddIndexBuffer.indexOf('\uaaaa', 0, 3, 'utf16le'), 1);
+  assert.strictEqual(oddIndexBuffer.indexOf(
+    oddIndexNeedle, 0, 'utf16le'), 1);
+  assert.strictEqual(oddIndexBuffer.indexOf(
+    new Uint8Array(oddIndexNeedle), 0, 'utf16le'), 1);
+  assert.strictEqual(oddIndexBuffer.lastIndexOf(
+    '\uaaaa', 2, 3, 'utf16le'), 1);
+  assert.strictEqual(oddIndexBuffer.lastIndexOf(
+    oddIndexNeedle, 2, 3, 'utf16le'), 1);
+
+  // The encoding argument only applies to string needles. Buffer needles are
+  // compared byte-for-byte, so an odd-length needle includes its final byte.
+  const oddLengthNeedle = Buffer.from([0x61, 0x00, 0xff]);
+  assert.strictEqual(Buffer.from([0x61, 0x00, 0x62, 0x00])
+    .indexOf(oddLengthNeedle, 0, 'utf16le'), -1);
+  assert.strictEqual(Buffer.from([0x61, 0x00, 0xff, 0x00])
+    .indexOf(oddLengthNeedle, 0, 'utf16le'), 0);
+}
+
+{
   // Find substrings in Utf8.
   const lengths = [1, 3, 15];  // Single char, simple and complex.
   const indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
@@ -349,12 +394,18 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
 
       const patternBufferUcs2 =
           allCharsBufferUcs2.slice(index, index + length);
+      const expectedBufferIndex =
+          allCharsBufferUcs2.indexOf(patternBufferUcs2);
       assert.strictEqual(
-        index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
+        expectedBufferIndex,
+        allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
 
       const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
+      const expectedStringIndex = allCharsBufferUcs2.indexOf(
+        Buffer.from(patternStringUcs2, 'ucs2'));
       assert.strictEqual(
-        index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
+        expectedStringIndex,
+        allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
     }
   }
 }
@@ -748,7 +799,11 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   assert.strictEqual(buf.indexOf('', 0, 3), 0);
   assert.strictEqual(buf.indexOf('', 5, 3), 3);
   assert.strictEqual(buf.indexOf(Buffer.from(''), 5, 3), 3);
+  assert.strictEqual(buf.indexOf('', 5, 3, 'utf16le'), 3);
+  assert.strictEqual(buf.indexOf(Buffer.from(''), 5, 3, 'utf16le'), 3);
   assert.strictEqual(buf.indexOf('', 0, 0), 0);
   assert.strictEqual(buf.lastIndexOf('', 5, 3), 3);
   assert.strictEqual(buf.lastIndexOf(Buffer.from(''), 5, 3), 3);
+  assert.strictEqual(buf.lastIndexOf('', 5, 3, 'utf16le'), 3);
+  assert.strictEqual(buf.lastIndexOf(Buffer.from(''), 5, 3, 'utf16le'), 3);
 }
