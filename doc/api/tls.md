@@ -1989,6 +1989,11 @@ argument.
 added: v0.11.13
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64777
+    description: Using the `clientCertEngine`, `privateKeyEngine`, or
+                 `privateKeyIdentifier` option now throws
+                 `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine`, `privateKeyEngine` and
                  `privateKeyIdentifier` options are runtime deprecated.
@@ -2106,8 +2111,6 @@ changes:
     more information, see [Modifying the default TLS cipher suite][]. Permitted
     ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names must be
     uppercased in order for OpenSSL to accept them.
-  * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
-    client certificate. **Deprecated.**
   * `crl` {string|string\[]|Buffer|Buffer\[]} PEM formatted CRLs (Certificate
     Revocation Lists).
   * `dhparam` {string|Buffer} `'auto'` or custom Diffie-Hellman parameters,
@@ -2138,12 +2141,6 @@ changes:
     occur in an array. `object.passphrase` is optional. Encrypted keys will be
     decrypted with `object.passphrase` if provided, or `options.passphrase` if
     it is not.
-  * `privateKeyEngine` {string} Name of an OpenSSL engine to get private key
-    from. Should be used together with `privateKeyIdentifier`. **Deprecated.**
-  * `privateKeyIdentifier` {string} Identifier of a private key managed by
-    an OpenSSL engine. Should be used together with `privateKeyEngine`.
-    Should not be set together with `key`, because both options define a
-    private key in different ways. **Deprecated.**
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option; use one or the other.
@@ -2217,6 +2214,10 @@ permissible, use 2048 bits or larger for stronger security.
 added: v0.3.2
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64777
+    description: Using the `clientCertEngine` option now throws
+                 `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine` option is runtime deprecated.
   - version:
@@ -2269,8 +2270,6 @@ changes:
     If a string is returned that does not match one of the client's ALPN
     protocols, an error will be thrown. This option cannot be used with the
     `ALPNProtocols` option, and setting both options will throw an error.
-  * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
-    client certificate. **Deprecated.**
   * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be
     called on new connections. Tracing can be enabled after the secure
     connection is established, but this option must be used to trace the secure
