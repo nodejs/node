@@ -1965,10 +1965,6 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63966
-    description: The `clientCertEngine`, `privateKeyEngine` and
-                 `privateKeyIdentifier` options are runtime deprecated.
   - version:
      - v26.4.0
      - v24.19.0
@@ -2193,9 +2189,6 @@ permissible, use 2048 bits or larger for stronger security.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63966
-    description: The `clientCertEngine` option is runtime deprecated.
   - version:
     - v22.4.0
     - v20.16.0
