@@ -707,12 +707,11 @@ test('glob forwards maxDepth', async () => {
 });
 
 function runNodeScript(script) {
-  const child = spawnSync(
+  const { child } = spawnSyncAndExitWithoutError(
     process.execPath,
     ['--expose-internals', '-e', script],
     { encoding: 'utf8' },
   );
-  assert.strictEqual(child.status, 0, child.stderr || child.stdout);
   return child.stdout;
 }
 
