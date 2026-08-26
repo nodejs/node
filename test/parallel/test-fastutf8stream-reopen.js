@@ -43,9 +43,9 @@ function runTests(sync) {
       stream.reopen();
 
       stream.once('ready', common.mustCall(() => {
-        assert.ok(stream.write('after reopen\n'));
-
-        stream.once('drain', common.mustCall(() => {
+        // 'drain' can come from reopen() before this write completes. 'write'
+        // is emitted synchronously in sync mode, so attach before writing.
+        stream.once('write', common.mustCall(() => {
           readFile(after, 'utf8', common.mustSucceed((data) => {
             assert.strictEqual(data, 'hello world\nsomething else\n');
             readFile(dest, 'utf8', common.mustSucceed((data) => {
@@ -54,6 +54,8 @@ function runTests(sync) {
             }));
           }));
         }));
+
+        assert.ok(stream.write('after reopen\n'));
       }));
     }));
   }
@@ -85,9 +87,8 @@ function runTests(sync) {
       assert.strictEqual(stream.file, after);
 
       stream.once('ready', common.mustCall(() => {
-        assert.ok(stream.write('after reopen\n'));
-
-        stream.once('drain', common.mustCall(() => {
+        // As above: 'drain' can come from reopen() before the write completes.
+        stream.once('write', common.mustCall(() => {
           readFile(dest, 'utf8', common.mustSucceed((data) => {
             assert.strictEqual(data, 'hello world\nsomething else\n');
             readFile(after, 'utf8', common.mustSucceed((data) => {
@@ -96,6 +97,8 @@ function runTests(sync) {
             }));
           }));
         }));
+
+        assert.ok(stream.write('after reopen\n'));
       }));
     }));
   }
