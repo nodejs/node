@@ -151,6 +151,28 @@ are not part of the Node.js documented API surface, are not enabled by
 default in production builds, and may have incomplete implementations or
 missing security hardening.
 
+### Security triage dispositions
+
+When triaging a report, the project classifies it into one of the following
+dispositions:
+
+* **Vulnerability**: A Node.js defect that is exploitable across a
+  Node.js-owned security boundary and meets the criteria under
+  [What constitutes a vulnerability](#what-constitutes-a-vulnerability),
+  including any applicable DoS criteria.
+* **Security-interest bug**: A real Node.js defect, or an API behavior likely
+  to cause security bugs in applications, that is not itself a vulnerability
+  under this threat model. These are fixed as regular bugs and do not
+  automatically receive a CVE, but should still be reported privately first
+  when they affect a common security control such as protocol interpretation,
+  permission enforcement, or certificate/TLS decisions.
+* **Common bug**: A correctness, robustness, or crash issue without a
+  Node.js-owned security boundary or a realistic cross-boundary attacker benefit.
+* **Invalid / out of scope**: A bug report that meets one of these criteria:
+  * Cannot be reproduced
+  * Is not a Node.js defect (e.g., an application bug)
+  * Is excluded by policy (e.g., experimental features)
+
 ### What constitutes a vulnerability
 
 Being able to cause the following through control of the elements that Node.js
@@ -329,6 +351,19 @@ the community they pose.
 * Code is trusted by Node.js. Therefore any scenario that requires a malicious
   third-party module cannot result in a vulnerability in Node.js.
 
+#### Same-process self-harm
+
+* Node.js trusts the code it is asked to run. A defect that can only be
+  triggered by JavaScript, WASM, native, addon, FFI, or dependency code already
+  executing in the target process is not a Node.js vulnerability merely because
+  that code can crash, corrupt, or confuse the process it already controls.
+  This includes forging an internal handle, reflecting or overwriting an
+  internal `Symbol()`, installing a `Symbol.hasInstance` hook, or reaching into
+  an internal binding.
+* Such issues may still be fixed as common bugs. They become vulnerabilities
+  only if the same defect is reachable from an element Node.js does not trust
+  without relying on an application-created boundary.
+
 #### Prototype Pollution Attacks (CWE-1321)
 
 * Node.js trusts the inputs provided to it by application code.
@@ -445,6 +480,21 @@ resources a Node.js process may access. It is designed to reduce the blast
 radius of mistakes in trusted application code, **not** to act as a security
 boundary against intentional misuse or a compromised process.
 
+Permission Model reports are triaged in three lanes:
+
+* **Vulnerability**: An element Node.js does not trust crosses a Node.js-owned
+  permission check without trusted code already executing in the protected
+  process.
+* **Security-interest bug**: Trusted application code uses documented, stable
+  APIs as intended, but Node.js fails to enforce a documented permission
+  invariant consistently — for example, one API enforces a check that an
+  equivalent API omits. These are fixed as hardening and are not automatically
+  CVE-class, because the Permission Model is not a sandbox against malicious
+  same-process code.
+* **Excluded**: Intentional misuse by code already running in the process,
+  operator-selected flags, a modified `execArgv`/`env`, or any expectation that
+  the Permission Model sandboxes malicious same-process code.
+
 The following are **not** vulnerabilities in Node.js:
 
 * **Operator-controlled flags**: Behavior unlocked by flags the operator
@@ -465,9 +515,14 @@ The following are **not** vulnerabilities in Node.js:
   symlinks that resolve within the allowed list are similarly not considered
   permission model bypasses.
 
-* **`worker_threads` with modified `execArgv`**: Workers inherit the permission
-  restrictions of their parent process. Passing an empty or modified `execArgv`
-  to a worker does not grant it additional permissions.
+* **`worker_threads` and the permission model**: Creating a worker is gated by
+  `--allow-worker`. A worker started with a modified `execArgv` or `env` may
+  start without inheriting the parent's permission configuration, so the
+  permission model does not reliably propagate to such workers. Because worker
+  creation already requires `--allow-worker`, and the Permission Model is not a
+  sandbox against intentional misuse by trusted code, this is not considered a
+  vulnerability. Applications that rely on the Permission Model must not grant
+  `--allow-worker` to code they do not trust.
 
 #### Virtual File System (`node:vfs`)
 
