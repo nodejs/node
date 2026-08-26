@@ -15,7 +15,7 @@ OPTIONAL_FLAGS=$(nix-instantiate -I "nixpkgs=$BASE_DIR/tools/nix/pkgs.nix" --eva
 
 DRV=$(
   cd "$BASE_DIR"
-  # shellcheck disable=SC2086
+  # shellcheck disable=SC2016,SC2086
   nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
     $OPTIONAL_FLAGS \
     --arg sharedLibDeps '{
@@ -32,7 +32,20 @@ DRV=$(
       in
       (import ./tools/nix/devTools.nix { })
       ++ pkgs.lib.flatten (
-        with (pkgs.callPackage ./tools/nix/v8.nix { });
+        with (
+          let
+            # The pinned stdenv does not lazy-evaluates the src, making it complain about missing files (due to the sparse checkout).
+            # Since we are not building the derivation, only interested in its attributes, using a more modern stdenv should have no
+            # effect on the output (it adds some download and parse time, should be less than a non-sparse checkout).
+            repo = "https://github.com/NixOS/nixpkgs";
+            rev = "6062ba1a1b8b6281b12533c9075a2dbeb38f7e49";
+            nixpkgs_26_05 = import (builtins.fetchTarball {
+              url = "${repo}/archive/${rev}.tar.gz";
+              sha256 = "1dfmhgmairiq0k50vflzqfqaiz6v9dfvbf60yh6fhnkna312daiy";
+            }) { };
+          in
+          pkgs.callPackage ./tools/nix/v8.nix { inherit (nixpkgs_26_05) stdenv; }
+        );
         [
           # We do not want to build V8 here, but still want to list its requisites.
           buildInputs
