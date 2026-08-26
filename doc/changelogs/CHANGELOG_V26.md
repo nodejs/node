@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#26.8.1">26.8.1</a><br/>
 <a href="#26.8.0">26.8.0</a><br/>
 <a href="#26.7.0">26.7.0</a><br/>
 <a href="#26.6.0">26.6.0</a><br/>
@@ -50,6 +51,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="26.8.1"></a>
+
+## 2026-08-26, Version 26.8.1 (Current), @aduh95
+
+### Notable Changes
+
+Out-of-band release to fix `node --version` which was reporting an alpha version.
+
+### Commits
+
+* \[[`ebd35a9eec`](https://github.com/nodejs/node/commit/ebd35a9eec)] - **src**: revert accidental alpha designation (Antoine du Hamel) [#65568](https://github.com/nodejs/node/pull/65568)
+* \[[`0b0dd87fcc`](https://github.com/nodejs/node/commit/0b0dd87fcc)] - **tools**: fix `tools/nix/list-requisites.sh` (Antoine du Hamel) [#65560](https://github.com/nodejs/node/pull/65560)
 
 <a id="26.8.0"></a>
 
