@@ -885,9 +885,8 @@ Argon2 is not supported by the current version of OpenSSL being used.
 
 ### `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`
 
-An OpenSSL engine was requested (for example, through the `clientCertEngine` or
-`privateKeyEngine` TLS options) that is not supported by the version of OpenSSL
-being used, likely due to the compile-time flag `OPENSSL_NO_ENGINE`.
+An OpenSSL engine-based TLS or HTTPS option was used after support for custom
+engines reached End-of-Life in Node.js.
 
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 
@@ -903,13 +902,6 @@ class `getPublicKey()` method.
 An invalid value for the `key` argument has been passed to the
 `crypto.ECDH()` class `computeSecret()` method. It means that the public
 key lies outside of the elliptic curve.
-
-<a id="ERR_CRYPTO_ENGINE_UNKNOWN"></a>
-
-### `ERR_CRYPTO_ENGINE_UNKNOWN`
-
-An invalid crypto engine identifier was passed to
-[`require('node:crypto').setEngine()`][].
 
 <a id="ERR_CRYPTO_FIPS_FORCED"></a>
 
@@ -4761,7 +4753,6 @@ An error occurred trying to allocate memory. This should never happen.
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readable._read()`]: stream.md#readable_readsize
-[`require('node:crypto').setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`require()`]: modules.md#requireid
 [`server.close()`]: net.md#serverclosecallback
 [`server.listen()`]: net.md#serverlisten

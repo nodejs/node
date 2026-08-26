@@ -708,7 +708,6 @@ declare namespace InternalCryptoBinding {
     init(secureProtocol: string | undefined, minVersion: number, maxVersion: number): void;
     setKey(key: ByteSource, passphrase?: ByteSource): void;
     setSigalgs(sigalgs: string): void;
-    setEngineKey?(privateKeyIdentifier: string, privateKeyEngine: string): void;
     setCert(cert: ByteSource): void;
     setAllowPartialTrustChain(): void;
     addCACert(cert: ByteSource): void;
@@ -728,7 +727,6 @@ declare namespace InternalCryptoBinding {
     setCertificateCompression(algorithms: number): void;
     close(): void;
     loadPKCS12(pfx: ByteSource, passphrase?: ByteSource): void;
-    setClientCertEngine(clientCertEngine: string): void;
     getTicketKeys(): Buffer;
     setTicketKeys(keys: ByteSource): void;
     enableTicketKeyCallback(): void;
@@ -1028,7 +1026,6 @@ export interface CryptoBinding {
   resetRootCertStore(): void;
   secureBuffer(length: number): Uint8Array | undefined;
   secureHeapUsed(): bigint | undefined;
-  setEngine?(engine: string, flags: number): void;
   setupFipsIndicatorChannel(): void;
   setFipsCrypto(fips: boolean | number): void;
   startLoadingCertificatesOffThread(): void;
