@@ -4111,6 +4111,9 @@ that are shorter than the default authentication tag length (i.e., shorter than
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64777
+    description: End-of-Life.
   - version:
     - v22.4.0
     - v20.16.0
@@ -4118,13 +4121,15 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
-OpenSSL 3 has deprecated support for custom engines with a recommendation to
-switch to its new provider model. The `clientCertEngine` option for
-`https.request()`, [`tls.createSecureContext()`][], and [`tls.createServer()`][];
-the `privateKeyEngine` and `privateKeyIdentifier` for [`tls.createSecureContext()`][];
-and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
+The `crypto.setEngine()` API and the `crypto.constants.ENGINE_METHOD_*`
+constants have been removed. The `clientCertEngine` option for
+[`https.request()`][], [`tls.createSecureContext()`][], and
+[`tls.createServer()`][] and the `privateKeyEngine` and `privateKeyIdentifier`
+options for [`tls.createSecureContext()`][] now throw
+`ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED` when used. There is no direct
+replacement API in Node.js. OpenSSL's provider model replaces engines upstream.
 
 ### DEP0184: Instantiating `node:zlib` classes without `new`
 
@@ -4849,7 +4854,6 @@ async function example() {
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
-[`crypto.setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`dirent.parentPath`]: fs.md#direntparentpath
