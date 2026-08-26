@@ -73,25 +73,6 @@
 #define DH_NOT_SUITABLE_GENERATOR 0x08
 #endif
 #endif
-#ifndef OPENSSL_NO_ENGINE
-#ifndef OPENSSL_IS_BORINGSSL
-// Engine constants remain public API while engine implementation lives in the
-// dedicated compatibility target.
-#define ENGINE_METHOD_RSA (unsigned int)0x0001
-#define ENGINE_METHOD_DSA (unsigned int)0x0002
-#define ENGINE_METHOD_DH (unsigned int)0x0004
-#define ENGINE_METHOD_RAND (unsigned int)0x0008
-#define ENGINE_METHOD_CIPHERS (unsigned int)0x0040
-#define ENGINE_METHOD_DIGESTS (unsigned int)0x0080
-#define ENGINE_METHOD_PKEY_METHS (unsigned int)0x0200
-#define ENGINE_METHOD_PKEY_ASN1_METHS (unsigned int)0x0400
-#define ENGINE_METHOD_EC (unsigned int)0x0800
-#define ENGINE_METHOD_ALL (unsigned int)0xFFFF
-#define ENGINE_METHOD_NONE (unsigned int)0x0000
-#else
-#include <openssl/engine.h>
-#endif
-#endif  // !OPENSSL_NO_ENGINE
 #endif  // HAVE_OPENSSL
 
 #if defined(__POSIX__)
@@ -958,54 +939,6 @@ void DefineCryptoConstants(Local<Object> target) {
 #ifdef SSL_OP_TLS_ROLLBACK_BUG
     NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_ROLLBACK_BUG);
 #endif
-
-# ifndef OPENSSL_NO_ENGINE
-
-# ifdef ENGINE_METHOD_RSA
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RSA);
-# endif
-
-# ifdef ENGINE_METHOD_DSA
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
-# endif
-
-# ifdef ENGINE_METHOD_DH
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DH);
-# endif
-
-# ifdef ENGINE_METHOD_RAND
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
-# endif
-
-# ifdef ENGINE_METHOD_EC
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_EC);
-# endif
-
-# ifdef ENGINE_METHOD_CIPHERS
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_CIPHERS);
-# endif
-
-# ifdef ENGINE_METHOD_DIGESTS
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
-# endif
-
-# ifdef ENGINE_METHOD_PKEY_METHS
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_METHS);
-# endif
-
-# ifdef ENGINE_METHOD_PKEY_ASN1_METHS
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_ASN1_METHS);
-# endif
-
-# ifdef ENGINE_METHOD_ALL
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ALL);
-# endif
-
-# ifdef ENGINE_METHOD_NONE
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_NONE);
-# endif
-
-# endif  // !OPENSSL_NO_ENGINE
 
 #ifdef DH_CHECK_P_NOT_SAFE_PRIME
     NODE_DEFINE_CONSTANT(target, DH_CHECK_P_NOT_SAFE_PRIME);
