@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.3">22.23.3</a><br/>
 <a href="#22.23.2">22.23.2</a><br/>
 <a href="#22.23.1">22.23.1</a><br/>
 <a href="#22.23.0">22.23.0</a><br/>
@@ -73,6 +74,45 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.3"></a>
+
+## 2026-09-01, Version 22.23.3 'Jod' (LTS), @juanarbol
+
+### Notable Changes
+
+* \[[`fe2a6b2be8`](https://github.com/nodejs/node/commit/fe2a6b2be8)] - **crypto**: update root certificates to NSS 3.125 (Node.js GitHub Bot) [#64746](https://github.com/nodejs/node/pull/64746)
+* \[[`71feba6b69`](https://github.com/nodejs/node/commit/71feba6b69)] - **crypto**: update root certificates to NSS 3.123.1 (Node.js GitHub Bot) [#63527](https://github.com/nodejs/node/pull/63527)
+
+### Commits
+
+* \[[`44cf27b8fa`](https://github.com/nodejs/node/commit/44cf27b8fa)] - **build**: update binary-upload to use correct tarball name (Stewart X Addison) [#65282](https://github.com/nodejs/node/pull/65282)
+* \[[`fe2a6b2be8`](https://github.com/nodejs/node/commit/fe2a6b2be8)] - **crypto**: update root certificates to NSS 3.125 (Node.js GitHub Bot) [#64746](https://github.com/nodejs/node/pull/64746)
+* \[[`71feba6b69`](https://github.com/nodejs/node/commit/71feba6b69)] - **crypto**: update root certificates to NSS 3.123.1 (Node.js GitHub Bot) [#63527](https://github.com/nodejs/node/pull/63527)
+* \[[`3376e27de2`](https://github.com/nodejs/node/commit/3376e27de2)] - **deps**: V8: cherry-pick a6eaf7574109 (Camillo Bruni) [#65402](https://github.com/nodejs/node/pull/65402)
+* \[[`b816fc8958`](https://github.com/nodejs/node/commit/b816fc8958)] - **deps**: upgrade npm to 10.9.9 (npm team) [#64884](https://github.com/nodejs/node/pull/64884)
+* \[[`4e4bd1b104`](https://github.com/nodejs/node/commit/4e4bd1b104)] - **deps**: update timezone to 2026c (Node.js GitHub Bot) [#64588](https://github.com/nodejs/node/pull/64588)
+* \[[`7d82841b4e`](https://github.com/nodejs/node/commit/7d82841b4e)] - **deps**: update c-ares to 1.34.8 (Node.js GitHub Bot) [#64330](https://github.com/nodejs/node/pull/64330)
+* \[[`01855a19d3`](https://github.com/nodejs/node/commit/01855a19d3)] - **deps**: c-ares: cherry-pick 8ba37af8e3fb (René) [#64110](https://github.com/nodejs/node/pull/64110)
+* \[[`23fb398c3d`](https://github.com/nodejs/node/commit/23fb398c3d)] - **deps**: update corepack to 0.35.0 (Node.js GitHub Bot) [#63375](https://github.com/nodejs/node/pull/63375)
+* \[[`5286330365`](https://github.com/nodejs/node/commit/5286330365)] - **deps**: update corepack to 0.34.7 (Node.js GitHub Bot) [#62810](https://github.com/nodejs/node/pull/62810)
+* \[[`6d6c3c98b1`](https://github.com/nodejs/node/commit/6d6c3c98b1)] - **deps**: update timezone to 2026b (Node.js GitHub Bot) [#62962](https://github.com/nodejs/node/pull/62962)
+* \[[`e306521444`](https://github.com/nodejs/node/commit/e306521444)] - **deps**: update icu to 78.3 (Node.js GitHub Bot) [#62324](https://github.com/nodejs/node/pull/62324)
+* \[[`d9cb8468a3`](https://github.com/nodejs/node/commit/d9cb8468a3)] - **doc**: clarify `filter` option of `sqlite.database.applyChangeset` (Antoine du Hamel) [#63515](https://github.com/nodejs/node/pull/63515)
+* \[[`c9c5662d91`](https://github.com/nodejs/node/commit/c9c5662d91)] - **doc**: add sxa GPG key (ed25519) (Stewart X Addison) [#64193](https://github.com/nodejs/node/pull/64193)
+* \[[`7c2df5dd96`](https://github.com/nodejs/node/commit/7c2df5dd96)] - **http2**: avoid uaf while receiving and sending rst\_stream (esgor) [#64166](https://github.com/nodejs/node/pull/64166)
+* \[[`3909ff2c4a`](https://github.com/nodejs/node/commit/3909ff2c4a)] - **node-api**: support SharedArrayBuffer in napi\_create\_typedarray (Yilong Li) [#62710](https://github.com/nodejs/node/pull/62710)
+* \[[`66de6349ad`](https://github.com/nodejs/node/commit/66de6349ad)] - **node-api**: add napi\_create\_external\_sharedarraybuffer (Ben Noordhuis) [#62623](https://github.com/nodejs/node/pull/62623)
+* \[[`ce9139107f`](https://github.com/nodejs/node/commit/ce9139107f)] - **src**: escape Windows environment variables in task runner (Antoine du Hamel) [#65217](https://github.com/nodejs/node/pull/65217)
+* \[[`02cafc479f`](https://github.com/nodejs/node/commit/02cafc479f)] - **tools**: fix commit linter for semver-major release proposals (Antoine du Hamel) [#62993](https://github.com/nodejs/node/pull/62993)
+* \[[`6f6cd3768d`](https://github.com/nodejs/node/commit/6f6cd3768d)] - **tools**: sync mk-ca-bundle.pl with curl (Archkon) [#64753](https://github.com/nodejs/node/pull/64753)
+* \[[`bc5753d438`](https://github.com/nodejs/node/commit/bc5753d438)] - **tools**: remove `envinfo` from our workflows (Antoine du Hamel) [#64259](https://github.com/nodejs/node/pull/64259)
+* \[[`d68ee9f8a5`](https://github.com/nodejs/node/commit/d68ee9f8a5)] - **tools**: validate version number in release proposal commit message lint (Antoine du Hamel) [#64070](https://github.com/nodejs/node/pull/64070)
+* \[[`38ee2e895f`](https://github.com/nodejs/node/commit/38ee2e895f)] - **tools**: avoid test/fixtures/wpt/README.md conflicts (Filip Skokan) [#63938](https://github.com/nodejs/node/pull/63938)
+* \[[`fdc65e489f`](https://github.com/nodejs/node/commit/fdc65e489f)] - **tools**: use different branch for tool updates on staging branches (Antoine du Hamel) [#63110](https://github.com/nodejs/node/pull/63110)
+* \[[`e5a6fde002`](https://github.com/nodejs/node/commit/e5a6fde002)] - **tools**: update gyp-next to 0.22.1 (Node.js GitHub Bot) [#62961](https://github.com/nodejs/node/pull/62961)
+* \[[`5fbbad6e82`](https://github.com/nodejs/node/commit/5fbbad6e82)] - **url**: handle unparsable serialized URLs in setters (Matteo Collina) [#64651](https://github.com/nodejs/node/pull/64651)
+* \[[`ed019e4854`](https://github.com/nodejs/node/commit/ed019e4854)] - **util**: preserve function names without source map names (Hiroki Osame) [#65108](https://github.com/nodejs/node/pull/65108)
 
 <a id="22.23.2"></a>
 

@@ -27,6 +27,8 @@
 
 #include "ares_private.h"
 
+#include <limits.h>
+
 #ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
 #endif
@@ -170,8 +172,8 @@ static ares_status_t parse_sort(ares_buf_t *buf, struct apattern *pat)
 
     if (ares_str_isnum(maskstr)) {
       /* Numeric mask */
-      int mask = atoi(maskstr);
-      if (mask < 0 || mask > 128) {
+      unsigned int mask;
+      if (!ares_str_parse_uint(maskstr, 128, &mask)) {
         return ARES_EBADSTR;
       }
       if (pat->addr.family == AF_INET && mask > 32) {
@@ -340,12 +342,17 @@ static ares_status_t config_lookup(ares_sysconfig_t *sysconfig, ares_buf_t *buf,
     const char *value = lookups[i];
     char        ch;
 
+    /* AIX /etc/netsvc.conf uses address-family-suffixed tokens such as
+     * "bind4"/"bind6" and "local4"/"local6" in addition to the bare forms. */
     if (ares_strcaseeq(value, "dns") || ares_strcaseeq(value, "bind") ||
+        ares_strcaseeq(value, "bind4") || ares_strcaseeq(value, "bind6") ||
         ares_strcaseeq(value, "resolv") || ares_strcaseeq(value, "resolve")) {
       ch = 'b';
     } else if (ares_strcaseeq(value, "files") ||
                ares_strcaseeq(value, "file") ||
-               ares_strcaseeq(value, "local")) {
+               ares_strcaseeq(value, "local") ||
+               ares_strcaseeq(value, "local4") ||
+               ares_strcaseeq(value, "local6")) {
       ch = 'f';
     } else {
       continue;
@@ -401,20 +408,25 @@ static ares_status_t process_option(ares_sysconfig_t *sysconfig,
 
   key = kv[0];
   if (num == 2) {
-    val    = kv[1];
-    valint = (unsigned int)strtoul(val, NULL, 10);
+    val = kv[1];
+    if (!ares_str_parse_uint(val, UINT_MAX, &valint)) {
+      status = ARES_EBADSTR;
+      goto done;
+    }
   }
 
   if (ares_streq(key, "ndots")) {
     sysconfig->ndots = valint;
   } else if (ares_streq(key, "retrans") || ares_streq(key, "timeout")) {
     if (valint == 0) {
-      return ARES_EFORMERR;
+      status = ARES_EFORMERR;
+      goto done;
     }
     sysconfig->timeout_ms = valint * 1000;
   } else if (ares_streq(key, "retry") || ares_streq(key, "attempts")) {
     if (valint == 0) {
-      return ARES_EFORMERR;
+      status = ARES_EFORMERR;
+      goto done;
     }
     sysconfig->tries = valint;
   } else if (ares_streq(key, "rotate")) {
