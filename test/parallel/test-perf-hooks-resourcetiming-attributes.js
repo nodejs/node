@@ -8,7 +8,9 @@ const {
 } = require('perf_hooks');
 
 // Covers the IDL attributes finalResponseHeadersStart,
-// firstInterimResponseStart, renderBlockingStatus, contentType and contentEncoding.
+// firstInterimResponseStart, renderBlockingStatus, contentType and contentEncoding,
+// and the spec requirement that responseStart prefers a non-zero
+// firstInterimResponseStart over finalResponseHeadersStart.
 
 function createTimingInfo(overrides = {}) {
   return {
@@ -47,6 +49,7 @@ function markResourceTiming(timingInfo, bodyInfo) {
 
   assert.strictEqual(resource.finalResponseHeadersStart, 0);
   assert.strictEqual(resource.firstInterimResponseStart, 0);
+  assert.strictEqual(resource.responseStart, 0);
   assert.strictEqual(resource.renderBlockingStatus, 'non-blocking');
   assert.strictEqual(resource.contentType, '');
   assert.strictEqual(resource.contentEncoding, '');
@@ -67,6 +70,7 @@ function markResourceTiming(timingInfo, bodyInfo) {
 
   assert.strictEqual(resource.finalResponseHeadersStart, 123);
   assert.strictEqual(resource.firstInterimResponseStart, 45);
+  assert.strictEqual(resource.responseStart, 45);
   assert.strictEqual(resource.renderBlockingStatus, 'blocking');
   assert.strictEqual(resource.contentType, 'text/html');
   assert.strictEqual(resource.contentEncoding, 'gzip');
@@ -74,6 +78,7 @@ function markResourceTiming(timingInfo, bodyInfo) {
   const json = resource.toJSON();
   assert.strictEqual(json.finalResponseHeadersStart, 123);
   assert.strictEqual(json.firstInterimResponseStart, 45);
+  assert.strictEqual(json.responseStart, 45);
   assert.strictEqual(json.renderBlockingStatus, 'blocking');
   assert.strictEqual(json.contentType, 'text/html');
   assert.strictEqual(json.contentEncoding, 'gzip');
