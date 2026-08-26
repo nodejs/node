@@ -9,7 +9,6 @@ on:
       - tools/actions/**
       - tools/clang-format/**
       - tools/dep_updaters/**
-      - tools/nix/**
       - test/internet/**
       - '**.nix'
       - .github/**
@@ -28,7 +27,6 @@ on:
       - tools/actions/**
       - tools/clang-format/**
       - tools/dep_updaters/**
-      - tools/nix/**
       - test/internet/**
       - '**.nix'
       - .github/**
