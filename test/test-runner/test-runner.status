@@ -9,3 +9,9 @@ prefix test-runner
 # https://github.com/nodejs/node/pull/54888#issuecomment-2351128116
 # TODO(pmarchini): This test is failing when isolation is set to none and must be fixed.
 test-watch-create-isolation-none: SKIP
+
+[$system==macos && $arch==x64]
+# https://github.com/nodejs/node/issues/54534#issuecomment-5423551021
+test-run-watch-cwd-isolation-none: PASS, FLAKY
+test-run-watch-cwd-isolation-none-argv: PASS, FLAKY
+test-run-watch-emit-restarted: PASS, FLAKY
