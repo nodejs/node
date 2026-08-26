@@ -112,7 +112,6 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   V(DERIVING_BITS_FAILED, "Deriving bits failed")                              \
   V(ECDH_FAILED, "ECDH key agreement failed")                                  \
   V(ENCAPSULATION_FAILED, "Encapsulation failed")                              \
-  V(ENGINE_NOT_FOUND, "Engine \"%s\" was not found")                           \
   V(HKDF_FAILED, "HKDF derivation failed")                                     \
   V(INVALID_KEY_TYPE, "Invalid key type")                                      \
   V(KEY_GENERATION_JOB_FAILED, "Key generation job failed")                    \
