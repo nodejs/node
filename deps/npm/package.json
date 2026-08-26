@@ -1,5 +1,5 @@
 {
-  "version": "11.19.0",
+  "version": "11.19.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -81,7 +81,7 @@
     "libnpmexec": "^10.3.2",
     "libnpmfund": "^7.0.26",
     "libnpmorg": "^8.0.1",
-    "libnpmpack": "^9.1.12",
+    "libnpmpack": "^9.1.13",
     "libnpmpublish": "^11.2.0",
     "libnpmsearch": "^9.0.1",
     "libnpmteam": "^8.0.2",
@@ -110,7 +110,7 @@
     "spdx-expression-parse": "^4.0.0",
     "ssri": "^13.0.1",
     "supports-color": "^10.2.2",
-    "tar": "^7.5.19",
+    "tar": "^7.5.22",
     "text-table": "~0.2.0",
     "tiny-relative-date": "^2.0.2",
     "treeverse": "^3.0.0",
