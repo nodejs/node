@@ -227,7 +227,6 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(allow_openssl_store) = false;
   DEFINE_BOOL_FIELD(allow_worker_threads) = false;
   DEFINE_BOOL_FIELD(experimental_vm_modules) = EXPERIMENTALS_DEFAULT_VALUE;
-  DEFINE_BOOL_FIELD(async_context_frame) = true;
   DEFINE_BOOL_FIELD(expose_internals) = false;
   DEFINE_BOOL_FIELD(force_node_api_uncaught_exceptions_policy) = false;
   DEFINE_BOOL_FIELD(frozen_intrinsics) = false;

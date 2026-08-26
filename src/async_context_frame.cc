@@ -38,11 +38,6 @@ Local<Value> current(Isolate* isolate) {
 }
 
 void set(Isolate* isolate, Local<Value> value) {
-  auto env = Environment::GetCurrent(isolate);
-  if (!env->options()->async_context_frame) {
-    return;
-  }
-
   isolate->SetContinuationPreservedEmbedderDataV2(value);
 }
 
