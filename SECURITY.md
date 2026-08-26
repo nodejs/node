@@ -139,17 +139,12 @@ Node.js documented API surface.
 
 #### Runtime gated experimental features
 
-Experimental features behind runtime flags can fall into one of three categories:
+Experimental features behind runtime flags can fall into one of three
+[categories](https://github.com/nodejs/node/blob/main/doc/api/documentation.md?rgh-link-date=2026-08-21T20%3A28%3A33.000Z#stability-index):
 
-* 1.0 - Early development. Experimental features at this stage are unfinished
-  and subject to substantial change.
-* 1.1 - Active development. Experimental features at this stage are nearing
-  minimum viability.
-* 1.2 - Release candidate. Experimental features at this stage are hopefully
-  ready to become stable. No further breaking changes are anticipated but may
-  still occur in response to user feedback or the features' underlying
-  specification development. We encourage user testing and feedback so that
-  we can know that this feature is ready to be marked as stable.
+* 1.0 - Early development.
+* 1.1 - Active development.
+* 1.2 - Release candidate.
 
 Security vulnerabilities that only affect experimental features in either the
 1.0 or 1.1 stages, and that are gated with an `--experimental-*` runtime flag
