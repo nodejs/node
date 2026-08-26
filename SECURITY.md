@@ -150,7 +150,7 @@ Security vulnerabilities that only affect experimental features in either the
 1.0 or 1.1 stages, and that are gated with an `--experimental-*` runtime flag
 requiring explicit opt-in by the user to enable, will **not** be accepted as
 valid security issues unless the vulnerability can be exploited in a way that
-impacts the security of a stable feature when the associated `--experimental*`
+impacts the security of a stable feature when the associated `--experimental-*`
 flag is **not enabled**.
 
 Security vulnerabilities that affect experimental features in the 1.2 stage are
