@@ -62,9 +62,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
       cwd: tmpdir.path
     }, {
       stderr: '',
-      stdout(output) {
-        assert(output.includes(report));
-      },
+      stdout: new RegExp(RegExp.escape(report)),
     });
   });
 
@@ -80,9 +78,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
       cwd: tmpdir.path
     }, {
       stderr: '',
-      stdout(output) {
-        assertDefaultExclusions(output);
-      },
+      stdout: assertDefaultExclusions,
     });
   });
 
@@ -98,9 +94,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
       cwd: tmpdir.path
     }, {
       stderr: '',
-      stdout(output) {
-        assertDefaultExclusions(output);
-      },
+      stdout: assertDefaultExclusions,
     });
   });
 
