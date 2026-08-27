@@ -451,7 +451,7 @@ ParseResult ConfigReader::ParseConfigObject(
     }
   }
 
-  // Add implicit flags for namespaces (--test, --permission, --watch)
+  // Add implicit flags for namespaces (--bench, --test, --permission, --watch)
   // These flags are automatically enabled when their namespace is present
   for (const auto& ns : namespaces_with_implicit_flags) {
     std::string flag = "--" + ns;
