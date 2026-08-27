@@ -281,6 +281,55 @@ Error: Access to this API has been restricted
 }
 .Ed
 .
+.It Fl -bench
+Starts the Node.js command-line benchmark runner. At least one explicit file or
+glob pattern is required:
+.Bd -literal
+node --bench benchmark.mjs
+node --bench 'benchmarks/**/*.js'
+.Ed
+Quote glob patterns to prevent expansion by the shell. Matching files are
+sorted and executed serially. By default, each file runs in a separate child
+process. Benchmark files declare benchmarks using \fBnode:bench\fR; they must not
+call \fBrun()\fR themselves. See the benchmark runner documentation for more
+details.
+This flag cannot be combined with \fB--test\fR, \fB--watch\fR, \fB--watch-path\fR,
+\fB--check\fR, \fB--eval\fR, or \fB--interactive\fR.
+.
+.It Fl -bench-isolation Ns = Ns Ar mode
+Configures benchmark file isolation. When \fBmode\fR is \fB'process'\fR, each matching
+file runs in a separate child process. This is the default. Files are still run
+serially so their measured work does not overlap.
+When \fBmode\fR is \fB'none'\fR, all matching files and benchmarks run serially in the
+benchmark runner process. This reduces startup overhead but allows module,
+heap, and process state to carry between files. User writes to stdout or stderr
+also share destinations with benchmark reporters in this mode.
+.
+.It Fl -bench-name-pattern Ns = Ns Ar pattern
+Only runs benchmarks whose full hierarchical name matches the JavaScript
+regular expression \fBpattern\fR. Non-matching benchmarks are reported as skipped.
+.
+.It Fl -bench-reporter-destination Ns = Ns Ar destination
+Specifies the destination for the corresponding benchmark reporter. The value
+can be \fBstdout\fR, \fBstderr\fR, or a file path. A single reporter defaults to
+\fBstdout\fR when no destination is specified.
+.
+.It Fl -bench-reporter Ns = Ns Ar reporter
+Specifies a benchmark reporter. The built-in reporters are \fBspec\fR and \fBjson\fR.
+The \fBjson\fR reporter emits newline-delimited JSON. A custom reporter can be
+specified using a module specifier resolved from the current working directory.
+This option can be repeated. When multiple reporters are specified, each must
+have a corresponding \fB--bench-reporter-destination\fR. The default reporter is
+\fBspec\fR.
+.
+.It Fl -bench-samples Ns = Ns Ar count
+Overrides the number of measured callback invocations for every selected
+benchmark. \fBcount\fR must be an integer between \fB1\fR and \fB4294967295\fR.
+.
+.It Fl -bench-warmup Ns = Ns Ar count
+Overrides the number of unreported warmup callback invocations for every
+selected benchmark. \fBcount\fR must be an integer between \fB0\fR and \fB4294967295\fR.
+.
 .It Fl -build-sea Ns = Ns Ar config
 Generates a single executable application from a JSON
 configuration file. The argument must be a path to the configuration file. If
@@ -1975,6 +2024,18 @@ one is included in the list below.
 \fB--allow-wasi\fR
 .It
 \fB--allow-worker\fR
+.It
+\fB--bench-isolation\fR
+.It
+\fB--bench-name-pattern\fR
+.It
+\fB--bench-reporter-destination\fR
+.It
+\fB--bench-reporter\fR
+.It
+\fB--bench-samples\fR
+.It
+\fB--bench-warmup\fR
 .It
 \fB--conditions\fR, \fB-C\fR
 .It

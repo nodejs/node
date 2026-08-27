@@ -450,6 +450,109 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--bench`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Starts the Node.js command-line benchmark runner. At least one explicit file or
+glob pattern is required:
+
+```console
+node --bench benchmark.mjs
+node --bench 'benchmarks/**/*.js'
+```
+
+Quote glob patterns to prevent expansion by the shell. Matching files are
+sorted and executed serially. By default, each file runs in a separate child
+process. Benchmark files declare benchmarks using `node:bench`; they must not
+call `run()` themselves. See the [benchmark runner][] documentation for more
+details.
+
+This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
+`--check`, `--eval`, or `--interactive`.
+
+### `--bench-isolation=mode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Configures benchmark file isolation. When `mode` is `'process'`, each matching
+file runs in a separate child process. This is the default. Files are still run
+serially so their measured work does not overlap.
+
+When `mode` is `'none'`, all matching files and benchmarks run serially in the
+benchmark runner process. This reduces startup overhead but allows module,
+heap, and process state to carry between files. User writes to stdout or stderr
+also share destinations with benchmark reporters in this mode.
+
+### `--bench-name-pattern=pattern`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Only runs benchmarks whose full hierarchical name matches the JavaScript
+regular expression `pattern`. Non-matching benchmarks are reported as skipped.
+
+### `--bench-reporter-destination=destination`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Specifies the destination for the corresponding benchmark reporter. The value
+can be `stdout`, `stderr`, or a file path. A single reporter defaults to
+`stdout` when no destination is specified.
+
+### `--bench-reporter=reporter`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Specifies a benchmark reporter. The built-in reporters are `spec` and `json`.
+The `json` reporter emits newline-delimited JSON. A custom reporter can be
+specified using a module specifier resolved from the current working directory.
+
+This option can be repeated. When multiple reporters are specified, each must
+have a corresponding `--bench-reporter-destination`. The default reporter is
+`spec`.
+
+### `--bench-samples=count`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Overrides the number of measured callback invocations for every selected
+benchmark. `count` must be an integer between `1` and `4294967295`.
+
+### `--bench-warmup=count`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Overrides the number of unreported warmup callback invocations for every
+selected benchmark. `count` must be an integer between `0` and `4294967295`.
+
 ### `--build-sea=config`
 
 <!-- YAML
@@ -3912,6 +4015,12 @@ one is included in the list below.
 * `--allow-openssl-store`
 * `--allow-wasi`
 * `--allow-worker`
+* `--bench-isolation`
+* `--bench-name-pattern`
+* `--bench-reporter-destination`
+* `--bench-reporter`
+* `--bench-samples`
+* `--bench-warmup`
 * `--conditions`, `-C`
 * `--cpu-prof-dir`
 * `--cpu-prof-interval`
@@ -4620,6 +4729,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
+[benchmark runner]: bench.md#command-line-runner
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
 [conditional exports]: packages.md#conditional-exports
