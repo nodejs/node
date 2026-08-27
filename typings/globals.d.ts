@@ -23,6 +23,7 @@ import { MessagingBinding } from './internalBinding/messaging';
 import { ModulesBinding } from './internalBinding/modules';
 import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
+import { PerformanceBinding } from './internalBinding/performance';
 import { PermissionBinding } from './internalBinding/permission';
 import { ProcessBinding } from './internalBinding/process';
 import { ProcessWrapBinding } from './internalBinding/process_wrap';
@@ -68,6 +69,7 @@ interface InternalBindingMap {
   modules: ModulesBinding;
   options: OptionsBinding;
   os: OSBinding;
+  performance: PerformanceBinding;
   permission: PermissionBinding;
   process: ProcessBinding;
   process_wrap: ProcessWrapBinding;
