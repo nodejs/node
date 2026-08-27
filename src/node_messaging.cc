@@ -648,6 +648,32 @@ void MessagePortData::AddToIncomingQueue(std::shared_ptr<Message> message) {
   }
 }
 
+void MessagePortData::AddWorkerExitNotification(uint64_t thread_id,
+                                                ExitCode exit_code) {
+  Mutex::ScopedLock lock(mutex_);
+  worker_exit_notifications_.emplace_back(WorkerExitNotification{
+      thread_id,
+      exit_code,
+  });
+
+  if (owner_ != nullptr) {
+    Debug(owner_, "Adding worker-exit notification");
+    owner_->TriggerAsync();
+  }
+}
+
+bool MessagePortData::GetWorkerExitNotification(
+    WorkerExitNotification* notification) {
+  Mutex::ScopedLock lock(mutex_);
+
+  if (worker_exit_notifications_.empty()) return false;
+
+  *notification = worker_exit_notifications_.front();
+  worker_exit_notifications_.pop_front();
+
+  return true;
+}
+
 void MessagePortData::Entangle(MessagePortData* a, MessagePortData* b) {
   auto group = std::make_shared<SiblingGroup>();
   group->Entangle({a, b});
@@ -823,6 +849,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
   HandleScope handle_scope(env()->isolate());
   Local<Context> context =
       object(env()->isolate())->GetCreationContextChecked();
+  Local<Function> emit_message = PersistentToLocal::Strong(emit_message_fn_);
 
   size_t processing_limit;
   if (mode == MessageProcessingMode::kNormalOperation) {
@@ -850,9 +877,43 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
       return;
     }
 
+    MessagePortData::WorkerExitNotification worker_exit;
+
+    if (data_->GetWorkerExitNotification(&worker_exit)) {
+      Debug(this,
+            "Worker exited: thread_id=%" PRIu64 ", exit_code=%d",
+            worker_exit.thread_id,
+            static_cast<int>(worker_exit.exit_code));
+
+      Local<Object> exit_info = Object::New(env()->isolate());
+
+      exit_info
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(env()->isolate(), "threadId"),
+                v8::Number::New(env()->isolate(), worker_exit.thread_id))
+          .Check();
+
+      exit_info
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(env()->isolate(), "exitCode"),
+                v8::Integer::New(env()->isolate(),
+                                 static_cast<int>(worker_exit.exit_code)))
+          .Check();
+
+      Local<Value> argv[3];
+      argv[0] = exit_info;
+      argv[1] = Undefined(env()->isolate());
+      argv[2] = FIXED_ONE_BYTE_STRING(env()->isolate(), "workerexited");
+
+      if (MakeCallback(emit_message, arraysize(argv), argv).IsEmpty()) {
+        if (data_) TriggerAsync();
+        return;
+      }
+      continue;
+    }
+
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(context);
-    Local<Function> emit_message = PersistentToLocal::Strong(emit_message_fn_);
 
     Local<Value> payload;
     Local<Value> port_list = Undefined(env()->isolate());
@@ -901,6 +962,20 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
 void MessagePort::OnClose() {
   Debug(this, "MessagePort::OnClose()");
   if (data_) {
+    Environment* environment = env();
+    if (environment->is_stopping()) {
+      const uint64_t thread_id = environment->thread_id();
+      const ExitCode exit_code = environment->exit_code(ExitCode::kNoFailure);
+
+      Debug(this,
+            "Worker exiting: thread_id=%" PRIu64 ", exit_code=%d",
+            thread_id,
+            static_cast<int>(exit_code));
+
+      if (data_->group_) {
+        data_->group_->NotifyWorkerExit(data_.get(), thread_id, exit_code);
+      }
+    }
     // Detach() returns move(data_).
     Detach()->Disentangle();
   }
@@ -1585,6 +1660,18 @@ void SiblingGroup::Disentangle(MessagePortData* data) {
   // If this is an anonymous group and there's another port, close it.
   if (size() == 1 && name_.empty())
     (*(ports_.begin()))->AddToIncomingQueue(std::make_shared<Message>());
+}
+
+void SiblingGroup::NotifyWorkerExit(MessagePortData* exiting_port,
+                                    uint64_t thread_id,
+                                    ExitCode exit_code) {
+  RwLock::ScopedReadLock lock(group_mutex_);
+
+  for (MessagePortData* port : ports_) {
+    if (port == exiting_port) continue;
+
+    port->AddWorkerExitNotification(thread_id, exit_code);
+  }
 }
 
 SiblingGroup::Map SiblingGroup::groups_;
