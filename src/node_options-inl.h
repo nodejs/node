@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <ranges>
 #include <type_traits>
@@ -52,7 +53,8 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        uint64_t Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       OptionNamespaces namespace_id) {
+                                       OptionNamespaces namespace_id,
+                                       bool strict) {
   options_.emplace(
       name,
       OptionInfo{kUInteger,
@@ -60,7 +62,8 @@ void OptionsParser<Options>::AddOption(const char* name,
                  env_setting,
                  help_text,
                  false,
-                 NamespaceEnumToString(namespace_id)});
+                 NamespaceEnumToString(namespace_id),
+                 strict});
 }
 
 template <typename Options>
@@ -239,7 +242,8 @@ auto OptionsParser<Options>::Convert(
                     original.env_setting,
                     original.help_text,
                     original.default_is_true,
-                    original.namespace_id};
+                    original.namespace_id,
+                    original.strict};
 }
 
 template <typename Options>
@@ -502,10 +506,22 @@ void OptionsParser<Options>::Parse(
         *Lookup<int64_t>(info.field, options) = std::atoll(value.c_str());
         break;
       }
-      case kUInteger:
-        *Lookup<uint64_t>(info.field, options) =
-            std::strtoull(value.c_str(), nullptr, 10);
+      case kUInteger: {
+        if (!info.strict) {
+          *Lookup<uint64_t>(info.field, options) =
+              std::strtoull(value.c_str(), nullptr, 10);
+          break;
+        }
+        uint64_t parsed;
+        const char* end = value.data() + value.size();
+        const auto result = std::from_chars(value.data(), end, parsed);
+        if (result.ec != std::errc() || result.ptr != end) {
+          errors->push_back("invalid value for " + name);
+          break;
+        }
+        *Lookup<uint64_t>(info.field, options) = parsed;
         break;
+      }
       case kString:
         *Lookup<std::string>(info.field, options) = value;
         break;
