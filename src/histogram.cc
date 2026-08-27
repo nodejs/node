@@ -298,28 +298,29 @@ static double NormalCdf(double x) {
 
 // Student's t-distribution CDF: P(T <= t) for df degrees of freedom.
 static double StudentTCdf(double t, double df) {
-  double x = df / (df + t * t);
-  double ibeta = RegularizedIncompleteBeta(df / 2.0, 0.5, x);
-  if (t >= 0.0) {
-    return 1.0 - 0.5 * ibeta;
+  double squared = t * t;
+  double denominator = df + squared;
+  if (squared < df) {
+    double x = squared / denominator;
+    double ibeta = RegularizedIncompleteBeta(0.5, df / 2.0, x);
+    return t >= 0.0 ? 0.5 + 0.5 * ibeta : 0.5 - 0.5 * ibeta;
   }
-  return 0.5 * ibeta;
+
+  double x = df / denominator;
+  double ibeta = RegularizedIncompleteBeta(df / 2.0, 0.5, x);
+  return t >= 0.0 ? 1.0 - 0.5 * ibeta : 0.5 * ibeta;
 }
 
-// Student's t-distribution quantile (inverse CDF) using bisection.
-// Returns the value t such that P(T <= t) = p.
-static double StudentTQuantile(double p, double df) {
-  if (p <= 0.0) return -std::numeric_limits<double>::infinity();
-  if (p >= 1.0) return std::numeric_limits<double>::infinity();
-  if (p == 0.5) return 0.0;
+// Positive Student's t-distribution quantile for an upper-tail probability.
+// Using the lower tail avoids loss of precision for probabilities near 1.
+static double StudentTUpperQuantile(double p, double df) {
+  double lo = 0.0;
+  double hi = 1.0;
+  while (StudentTCdf(-hi, df) > p) hi *= 2.0;
 
-  // Bisection search. The range [-1e6, 1e6] is sufficient for any
-  // practical confidence level and degrees of freedom.
-  double lo = -1e6;
-  double hi = 1e6;
   for (int i = 0; i < 100; i++) {
     double mid = (lo + hi) / 2.0;
-    if (StudentTCdf(mid, df) < p) {
+    if (StudentTCdf(-mid, df) > p) {
       lo = mid;
     } else {
       hi = mid;
@@ -482,6 +483,30 @@ constexpr uint64_t kEwmaErrorRate = 3;
 constexpr uint64_t kEwmaThreshold = 4;
 }  // namespace
 
+Histogram::MeanCIResult Histogram::MeanCI(double confidence) const {
+  RwLock::ScopedReadLock lock(mutex_);
+  int64_t count = histogram_->total_count;
+  double mean = hdr_mean(histogram_.get());
+  if (count < 2) {
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    return {mean, nan, nan};
+  }
+
+  double stddev = hdr_stddev(histogram_.get());
+  if (stddev == 0.0) return {mean, mean, mean};
+
+  // HdrHistogram computes population stddev (divides by N). The confidence
+  // interval requires sample variance (divides by N-1).
+  double variance = stddev * stddev * static_cast<double>(count) /
+                    static_cast<double>(count - 1);
+  double standard_error = std::sqrt(variance / static_cast<double>(count));
+  double alpha = 1.0 - confidence;
+  double t_crit = StudentTUpperQuantile(
+      alpha / 2.0, static_cast<double>(count - 1));
+  double margin = t_crit * standard_error;
+  return {mean, mean - margin, mean + margin};
+}
+
 Histogram::WelchTestResult Histogram::WelchTest(const Histogram& other,
                                                 double confidence) const {
   auto do_welch = [&]() -> WelchTestResult {
@@ -517,7 +542,7 @@ Histogram::WelchTestResult Histogram::WelchTest(const Histogram& other,
 
     // Confidence interval on the difference of means.
     double alpha = 1.0 - confidence;
-    double t_crit = StudentTQuantile(1.0 - alpha / 2.0, df);
+    double t_crit = StudentTUpperQuantile(alpha / 2.0, df);
     double margin = t_crit * std::sqrt(se_sum);
     double diff = mean1 - mean2;
 
@@ -1133,6 +1158,7 @@ void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
   SetProtoMethodNoSideEffect(isolate, tmpl, "percentilesAt", GetPercentilesAt);
   SetProtoMethodNoSideEffect(isolate, tmpl, "linearBuckets", GetLinearBuckets);
   SetProtoMethodNoSideEffect(isolate, tmpl, "logBuckets", GetLogBuckets);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "meanCI", GetMeanCI);
   SetProtoMethodNoSideEffect(isolate, tmpl, "welchTest", GetWelchTest);
   SetProtoMethodNoSideEffect(
       isolate, tmpl, "mannWhitneyTest", GetMannWhitneyTest);
@@ -1187,6 +1213,7 @@ void HistogramImpl::RegisterExternalReferences(
   registry->Register(GetPercentilesAt);
   registry->Register(GetLinearBuckets);
   registry->Register(GetLogBuckets);
+  registry->Register(GetMeanCI);
   registry->Register(GetWelchTest);
   registry->Register(GetMannWhitneyTest);
   registry->Register(GetCohensD);
@@ -1893,6 +1920,21 @@ void HistogramImpl::GetKsTest(const FunctionCallbackInfo<Value>& args) {
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   HistogramImpl* other = HistogramImpl::FromJSObject(args[0]);
   args.GetReturnValue().Set((*histogram)->KsTest(*(other->histogram())));
+}
+
+void HistogramImpl::GetMeanCI(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
+  CHECK(args[0]->IsNumber());
+  double confidence = args[0].As<Number>()->Value();
+
+  auto result = (*histogram)->MeanCI(confidence);
+
+  Local<Value> values[] = {Number::New(isolate, result.mean),
+                           Number::New(isolate, result.lower),
+                           Number::New(isolate, result.upper)};
+  Local<Array> arr = Array::New(isolate, &values[0], arraysize(values));
+  args.GetReturnValue().Set(arr);
 }
 
 void HistogramImpl::GetWelchTest(const FunctionCallbackInfo<Value>& args) {
