@@ -149,6 +149,10 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
   void Entangle(std::initializer_list<MessagePortData*> data);
   void Disentangle(MessagePortData* data);
 
+  void NotifyWorkerExit(MessagePortData* exiting_port,
+                      uint64_t thread_id,
+                      ExitCode exit_code);
+
   const std::string& name() const { return name_; }
 
   size_t size() const { return ports_.size(); }
@@ -185,6 +189,9 @@ class MessagePortData : public TransferData {
   v8::Maybe<bool> Dispatch(
       std::shared_ptr<Message> message,
       std::string* error = nullptr);
+  
+  // Internal worker-exit notification.
+  void AddWorkerExitNotification(uint64_t thread_id, ExitCode exit_code);
 
   // Turns `a` and `b` into siblings, i.e. connects the sending side of one
   // to the receiving side of the other. This is not thread-safe.
@@ -213,6 +220,15 @@ class MessagePortData : public TransferData {
   // once that is available with C++17, because std::shared_ptr comes with
   // overhead that is only necessary for BroadcastChannel.
   std::deque<std::shared_ptr<Message>> incoming_messages_;
+  struct WorkerExitNotification {
+    uint64_t thread_id;
+    ExitCode exit_code;
+  };
+
+  bool GetWorkerExitNotification(WorkerExitNotification* notification);
+ 
+  std::deque<WorkerExitNotification> worker_exit_notifications_;
+  
   MessagePort* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
   friend class MessagePort;
