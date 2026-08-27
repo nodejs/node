@@ -5690,8 +5690,9 @@ since the extra bytes are not free.
 
 Because the address of a `Buffer`'s memory cannot be chosen directly, extra bytes
 have to be allocated or skipped to reach an aligned address.
-[`Buffer.allocUnsafeSlow()`][] over-allocates up to `alignment - 1` bytes and
-positions the returned `Buffer` at the first suitably aligned byte within them.
+[`Buffer.allocUnsafeSlow()`][] over-allocates `alignment` bytes, or 8 when
+`alignment` is smaller than that, and positions the returned `Buffer` at the
+first suitably aligned byte within them.
 [`Buffer.allocUnsafe()`][] instead pads its offset into the shared internal pool,
 whose start is always aligned to 64 bytes, and only falls back to an allocation
 of its own when `alignment` is larger than that. Either way,
