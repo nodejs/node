@@ -243,7 +243,8 @@ Registers a new aggregate function with the SQLite database. This method is a wr
     JavaScript numbers. **Default:** `false`.
   * `varargs` {boolean} If `true`, `options.step` and `options.inverse` may be invoked with any number of
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
-    `inverse` and `step` must be invoked with exactly `length` arguments.
+    `inverse` and `step` must be invoked with exactly `length` arguments, and
+    their `length` properties must be integers.
     **Default:** `false`.
   * `start` {number | string | null | Array | Object | Function} The identity
     value for the aggregation function. This value is used when the aggregation
@@ -430,7 +431,8 @@ added:
     JavaScript numbers. **Default:** `false`.
   * `varargs` {boolean} If `true`, `function` may be invoked with any number of
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
-    `function` must be invoked with exactly `function.length` arguments.
+    `function` must be invoked with exactly `function.length` arguments, which
+    must be an integer.
     **Default:** `false`.
 * `fn` {Function} The JavaScript function to call when the SQLite function is
   invoked. The return value of this function should be a valid SQLite data type:
