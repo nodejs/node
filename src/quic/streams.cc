@@ -1211,11 +1211,9 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   STAT_SET(Stats, max_offset, params->initial_max_data);
 }
 
-Stream::~Stream() {
-  // Make sure that Destroy() was called before Stream is actually destructed.
-  DCHECK_NE(stats()->destroyed_at, 0);
+Stream::~Stream() = default;
 
-  // Release arena slots back to the freelist.
+void Stream::ReleaseArenaSlots() {
   auto& binding = BindingData::Get(env());
   if (stats_slot_) {
     GetStreamStatsArena(binding).ReleaseSlot(stats_slot_);
@@ -1306,6 +1304,7 @@ bool Stream::is_pending() const {
 }
 
 bool Stream::is_destroyed() const {
+  if (!stats_slot_) return true;
   return stats()->destroyed_at != 0;
 }
 
@@ -1621,7 +1620,7 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 }
 
 void Stream::Destroy(QuicError error) {
-  if (stats()->destroyed_at != 0) return;
+  if (is_destroyed()) return;
 
   // Record the destroyed at timestamp before notifying the JavaScript side
   // that the stream is being destroyed.
@@ -1666,6 +1665,9 @@ void Stream::Destroy(QuicError error) {
   // handle.
   EmitClose(error);
 
+  stream_id id_to_remove = id();
+  ReleaseArenaSlots();
+
   auto session = session_;
   session_.reset();
   // EmitClose above triggers MakeCallback which can destroy the session
@@ -1673,7 +1675,7 @@ void Stream::Destroy(QuicError error) {
   // Session BaseObject can be kept alive by a BaseObjectPtr elsewhere,
   // e.g. OnTimeout's ref) even though impl_ has been reset. We must
   // check is_destroyed() to avoid dereferencing the null impl_.
-  if (session && !session->is_destroyed()) session->RemoveStream(id());
+  if (session && !session->is_destroyed()) session->RemoveStream(id_to_remove);
 
   // Critically, make sure that the RemoveStream call is the last thing
   // trying to use this stream object. Once that call is made, the stream

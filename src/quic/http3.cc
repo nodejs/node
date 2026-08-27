@@ -877,6 +877,10 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application received end of headers for stream %" PRIi64,
           id);
     stream->EmitHeaders();
+    // EmitHeaders() calls into JavaScript, which can synchronously destroy the
+    // stream. Its arena-backed state is released by Destroy(), so do not touch
+    // the stream again if that happened.
+    if (stream->is_destroyed()) return;
     if (fin) {
       // The stream is done. There's no more data to receive!
       Debug(&session(), "Headers are final for stream %" PRIi64, id);
@@ -919,6 +923,10 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application received end of trailers for stream %" PRIi64,
           id);
     stream->EmitHeaders();
+    // EmitHeaders() calls into JavaScript, which can synchronously destroy the
+    // stream. Its arena-backed state is released by Destroy(), so do not touch
+    // the stream again if that happened.
+    if (stream->is_destroyed()) return;
     if (fin) {
       Debug(&session(), "Trailers are final for stream %" PRIi64, id);
       Stream::ReceiveDataFlags flags{
