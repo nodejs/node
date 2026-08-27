@@ -31,7 +31,7 @@ size_t AddCACertificates(Environment* env,
                          X509_STORE** cache = nullptr);
 
 // Add every PEM CRL in |bio| to the context's certificate store and enable CRL
-// checking. Returns false if no CRL was read.
+// checking. Returns false unless every CRL in the bundle was read.
 bool AddCRL(Environment* env,
             SSL_CTX* ctx,
             const ncrypto::BIOPointer& bio,
