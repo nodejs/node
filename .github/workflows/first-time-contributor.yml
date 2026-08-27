@@ -7,22 +7,58 @@ on:
 permissions: {}
 
 jobs:
-  agentscan:
+  first_time_contributor:
+    name: Is first-time contributor
+    # GitHub can report first-time contributors as NONE in the event payload.
     if: >-
       github.run_attempt == 1 &&
       github.repository == 'nodejs/node' &&
       (github.event.pull_request.author_association == 'FIRST_TIMER' ||
-      github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR')
+      github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' ||
+      github.event.pull_request.author_association == 'NONE')
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: read
+    outputs:
+      eligible: >-
+        ${{
+          github.event.pull_request.author_association != 'NONE' ||
+          steps.recheck.outputs.eligible == 'true'
+        }}
+    steps:
+      - name: Recheck contributor eligibility
+        id: recheck
+        if: github.event.pull_request.author_association == 'NONE'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          association=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER" \
+            --jq '.author_association')
+          echo "Author association: $association"
+
+          case "$association" in
+            FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
+              echo 'eligible=true' >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo 'eligible=false' >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+  agentscan:
+    needs: first_time_contributor
+    if: needs.first_time_contributor.outputs.eligible == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      scan_outcome: ${{ steps.agentscan.outcome }}
-      classification: ${{ steps.agentscan.outputs.classification }}
-      community_flagged: ${{ steps.agentscan.outputs['community-flagged'] }}
+      scan_outcome: ${{ steps.scan.outcome }}
+      classification: ${{ steps.scan.outputs.classification }}
+      community_flagged: ${{ steps.scan.outputs['community-flagged'] }}
     steps:
       - name: Scan contributor activity
-        id: agentscan
+        id: scan
         # The welcome should still be posted if this advisory scan fails.
         continue-on-error: true
         uses: MatteoGabriele/agentscan-action@98202262c925c508d4c1424b1dfbe17ee35b0c02  # v2.4.0
@@ -35,7 +71,10 @@ jobs:
           honeypot: false
 
   comment:
-    needs: agentscan
+    needs:
+      - first_time_contributor
+      - agentscan
+    if: needs.first_time_contributor.outputs.eligible == 'true'
     runs-on: ubuntu-slim
     permissions:
       pull-requests: write
