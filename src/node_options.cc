@@ -39,6 +39,8 @@ using v8::Undefined;
 using v8::Value;
 namespace node {
 
+constexpr bool kStrictOptionParsing = true;
+
 namespace per_process {
 Mutex cli_options_mutex;
 std::shared_ptr<PerProcessOptions> cli_options{new PerProcessOptions()};
@@ -222,6 +224,38 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   if (!trace_require_module.empty() && trace_require_module != "all" &&
       trace_require_module != "no-node-modules") {
     errors->push_back("invalid value for --trace-require-module");
+  }
+
+  if (bench_runner && test_runner) {
+    errors->push_back("either --bench or --test can be used, not both");
+  }
+
+  if (bench_runner) {
+    if (bench_isolation == "none") {
+      debug_options_.allow_attaching_debugger = true;
+    } else {
+      if (bench_isolation != "process") {
+        errors->push_back("invalid value for --bench-isolation");
+      }
+
+      debug_options_.allow_attaching_debugger = false;
+    }
+    if (has_bench_samples && bench_samples == 0) {
+      errors->push_back("--bench-samples must be greater than 0");
+    }
+    if (syntax_check_only) {
+      errors->push_back("either --bench or --check can be used, not both");
+    }
+    if (has_eval_string) {
+      errors->push_back("either --bench or --eval can be used, not both");
+    }
+    if (force_repl) {
+      errors->push_back(
+          "either --bench or --interactive can be used, not both");
+    }
+    if (watch_mode || !watch_mode_paths.empty()) {
+      errors->push_back("either --bench or --watch can be used, not both");
+    }
   }
 
   if (test_runner) {
@@ -928,6 +962,49 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "use the specified file for package map resolution",
             &EnvironmentOptions::experimental_package_map_path,
             kAllowedInEnvvar);
+  AddOption("--bench",
+            "launch benchmark runner on startup",
+            BOOL_FIELD(bench_runner),
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kBenchRunnerNamespace);
+  AddOption("--bench-isolation",
+            "configures the type of benchmark isolation used in the benchmark "
+            "runner",
+            &EnvironmentOptions::bench_isolation,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace);
+  AddOption("--bench-name-pattern",
+            "run benchmarks whose name matches this regular expression",
+            &EnvironmentOptions::bench_name_pattern,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace);
+  AddOption("--bench-reporter",
+            "report benchmark output using the given reporter",
+            &EnvironmentOptions::bench_reporter,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace);
+  AddOption("--bench-reporter-destination",
+            "report the given benchmark reporter to the given destination",
+            &EnvironmentOptions::bench_reporter_destination,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace);
+  AddOption("[has_bench_samples]", "", BOOL_FIELD(has_bench_samples));
+  AddOption("--bench-samples",
+            "specify the number of measured benchmark samples",
+            &EnvironmentOptions::bench_samples,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace,
+            kStrictOptionParsing);
+  Implies("--bench-samples", "[has_bench_samples]");
+  AddOption("[has_bench_warmup]", "", BOOL_FIELD(has_bench_warmup));
+  AddOption("--bench-warmup",
+            "specify the number of unreported benchmark warmup samples",
+            &EnvironmentOptions::bench_warmup,
+            kAllowedInEnvvar,
+            OptionNamespaces::kBenchRunnerNamespace,
+            kStrictOptionParsing);
+  Implies("--bench-warmup", "[has_bench_warmup]");
   AddOption("--test",
             "launch test runner on startup",
             BOOL_FIELD(test_runner),
