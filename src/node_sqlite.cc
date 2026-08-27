@@ -1908,6 +1908,9 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
     argc = js_len.As<Int32>()->Value();
   }
 
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
   UserDefinedFunction* user_data = new UserDefinedFunction(
       env, fn, BaseObjectWeakPtr<DatabaseSync>(db), use_bigint_args);
   int text_rep = SQLITE_UTF8;
@@ -2070,6 +2073,12 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env,
+      db->IsInCallback(),
+      "database cannot be deserialized while in a callback");
+
   // sqlite3_malloc64 is required because SQLITE_DESERIALIZE_FREEONCLOSE
   // transfers ownership to SQLite, which calls sqlite3_free() on close.
   // See: https://www.sqlite.org/c3ref/deserialize.html
@@ -2228,6 +2237,9 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
 
     argc = std::max({argc, js_len.As<Int32>()->Value() - 1, 0});
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
 
   int text_rep = SQLITE_UTF8;
   if (direct_only) {
@@ -2440,6 +2452,8 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
       progressFunc = progress_v.As<Function>();
     }
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
