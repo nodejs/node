@@ -10,7 +10,20 @@
 
 namespace node {
 
-constexpr bool IsPathSeparator(const char c) noexcept;
+#ifdef _WIN32
+constexpr bool IsPathSeparator(const char c) noexcept {
+  return c == '\\' || c == '/';
+}
+#else   // POSIX
+constexpr bool IsPathSeparator(const char c) noexcept {
+  return c == '/';
+}
+#endif  // _WIN32
+
+// Not _WIN32-only: callers reason about windows-style paths from any host.
+constexpr bool IsWindowsDeviceRoot(const char c) noexcept {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
 
 std::string NormalizeString(const std::string_view path,
                             bool allowAboveRoot,
@@ -22,8 +35,10 @@ std::string NormalizeFileURLOrPath(Environment* env, std::string_view path);
 bool IsAbsoluteFilePath(std::string_view path);
 
 #ifdef _WIN32
-constexpr bool IsWindowsDeviceRoot(const char c) noexcept;
-constexpr bool IsWindowsDriveLetter(const std::string_view path) noexcept;
+constexpr bool IsWindowsDriveLetter(const std::string_view path) noexcept {
+  return path.size() > 2 && IsWindowsDeviceRoot(path[0]) &&
+         (path[1] == ':' && (path[2] == '/' || path[2] == '\\'));
+}
 #endif  // _WIN32
 
 void ToNamespacedPath(Environment* env, BufferValue* path);

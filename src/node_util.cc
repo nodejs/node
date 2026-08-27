@@ -44,15 +44,6 @@ using v8::String;
 using v8::Uint32;
 using v8::Value;
 
-// If a UTF-16 character is a low/trailing surrogate.
-CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
-
-// If a UTF-16 character is a surrogate.
-CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
-
-// If a UTF-16 surrogate is a low/trailing one.
-CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
-
 static void GetOwnNonIndexProperties(
     const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();

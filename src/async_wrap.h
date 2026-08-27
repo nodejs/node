@@ -41,6 +41,7 @@ namespace node {
   V(BLOBREADER)                                                                \
   V(FSEVENTWRAP)                                                               \
   V(FSREQCALLBACK)                                                             \
+  V(GLOBREQUEST)                                                               \
   V(FSREQPROMISE)                                                              \
   V(GETADDRINFOREQWRAP)                                                        \
   V(GETNAMEINFOREQWRAP)                                                        \
