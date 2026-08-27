@@ -11,6 +11,7 @@ const assert = require('assert');
 const { registerHooks } = require('module');
 
 const schemelessBlockList = new Set([
+  'bench',
   'sea',
   'test',
   'test/reporters',

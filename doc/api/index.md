@@ -9,6 +9,7 @@
 * [Assertion testing](assert.md)
 * [Asynchronous context tracking](async_context.md)
 * [Async hooks](async_hooks.md)
+* [Benchmark runner](bench.md)
 * [Buffer](buffer.md)
 * [C++ addons](addons.md)
 * [C/C++ addons with Node-API](n-api.md)
