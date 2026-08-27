@@ -687,15 +687,20 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_RISCV64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  static_assert(kLazyCompileTableSlotSize == 3 * kInstrSize);
+  static_assert(kLazyCompileTableSlotSize == 4 * kInstrSize);
   int64_t high_20 = (func_index + 0x800) >> 12;
   int64_t low_12 = int64_t(func_index) << 52 >> 52;
 
+  // The lazy compile target (a slot in the far jump table) can be farther away
+  // than the range of a single JAL for large modules. Use a checked AUIPC/JALR
+  // pair instead, so an out-of-range displacement cannot be silently truncated
+  // in release builds.
   int64_t target_offset = MacroAssembler::CalculateTargetOffset(
       lazy_compile_target, RelocInfo::NO_INFO,
       reinterpret_cast<uint8_t*>(pc_ + 2 * kInstrSize));
-  DCHECK(is_int21(target_offset));
-  DCHECK_EQ(target_offset & 0x1, 0);
+  CHECK(is_int32(target_offset));
+  int32_t hi20 = (static_cast<int32_t>(target_offset) + 0x800) >> 12;
+  int32_t lo12 = static_cast<int32_t>(target_offset) << 20 >> 20;
 
   const uint32_t inst[kLazyCompileTableSlotSize / 4] = {
       (RO_LUI | (kWasmCompileLazyFuncIndexRegister.code() << kRdShift) |
@@ -703,16 +708,16 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
       (RO_ADDI | (kWasmCompileLazyFuncIndexRegister.code() << kRdShift) |
        (kWasmCompileLazyFuncIndexRegister.code() << kRs1Shift) |
        int32_t(low_12 << kImm12Shift)),  // addi t0, t0, low_12
-      (RO_JAL | (zero_reg.code() << kRdShift) |
-       uint32_t(target_offset & 0xff000) |           // bits 19-12
-       uint32_t((target_offset & 0x800) << 9) |      // bit  11
-       uint32_t((target_offset & 0x7fe) << 20) |     // bits 10-1
-       uint32_t((target_offset & 0x100000) << 11)),  // bit  20 ),  // jal
+      (RO_AUIPC | (t6.code() << kRdShift) |
+       (uint32_t(hi20) << kImm20Shift)),  // auipc t6, hi20
+      (RO_JALR | (zero_reg.code() << kRdShift) | (t6.code() << kRs1Shift) |
+       (uint32_t(lo12) << kImm12Shift)),  // jalr x0, t6, lo12
   };
 
   emit<uint32_t>(inst[0]);
   emit<uint32_t>(inst[1]);
   emit<uint32_t>(inst[2]);
+  emit<uint32_t>(inst[3]);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -802,15 +807,19 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_RISCV32
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  static_assert(kLazyCompileTableSlotSize == 3 * kInstrSize);
+  static_assert(kLazyCompileTableSlotSize == 4 * kInstrSize);
   int64_t high_20 = (func_index + 0x800) >> 12;
   int64_t low_12 = int64_t(func_index) << 52 >> 52;
 
+  // See the RISC-V64 implementation: use a checked AUIPC/JALR pair instead of
+  // a range-limited JAL so an out-of-range displacement cannot be silently
+  // truncated in release builds.
   int64_t target_offset = MacroAssembler::CalculateTargetOffset(
       lazy_compile_target, RelocInfo::NO_INFO,
       reinterpret_cast<uint8_t*>(pc_ + 2 * kInstrSize));
-  DCHECK(is_int21(target_offset));
-  DCHECK_EQ(target_offset & 0x1, 0);
+  CHECK(is_int32(target_offset));
+  int32_t hi20 = (static_cast<int32_t>(target_offset) + 0x800) >> 12;
+  int32_t lo12 = static_cast<int32_t>(target_offset) << 20 >> 20;
 
   const uint32_t inst[kLazyCompileTableSlotSize / 4] = {
       (RO_LUI | (kWasmCompileLazyFuncIndexRegister.code() << kRdShift) |
@@ -818,16 +827,16 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
       (RO_ADDI | (kWasmCompileLazyFuncIndexRegister.code() << kRdShift) |
        (kWasmCompileLazyFuncIndexRegister.code() << kRs1Shift) |
        int32_t(low_12 << kImm12Shift)),  // addi t0, t0, low_12
-      (RO_JAL | (zero_reg.code() << kRdShift) |
-       uint32_t(target_offset & 0xff000) |           // bits 19-12
-       uint32_t((target_offset & 0x800) << 9) |      // bit  11
-       uint32_t((target_offset & 0x7fe) << 20) |     // bits 10-1
-       uint32_t((target_offset & 0x100000) << 11)),  // bit  20 ),  // jal
+      (RO_AUIPC | (t6.code() << kRdShift) |
+       (uint32_t(hi20) << kImm20Shift)),  // auipc t6, hi20
+      (RO_JALR | (zero_reg.code() << kRdShift) | (t6.code() << kRs1Shift) |
+       (uint32_t(lo12) << kImm12Shift)),  // jalr x0, t6, lo12
   };
 
   emit<uint32_t>(inst[0], kRelaxedStore);
   emit<uint32_t>(inst[1], kRelaxedStore);
   emit<uint32_t>(inst[2], kRelaxedStore);
+  emit<uint32_t>(inst[3], kRelaxedStore);
 }
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
   uint32_t high_20 = (int64_t(3 * kInstrSize + 0x800) >> 12);
