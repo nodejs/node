@@ -36,6 +36,7 @@ hook.deregister();
 // stripped for internal lookups should not get passed into the hooks.
 const schemelessBlockList = new Set([
   'bench',
+  'bench/reporters',
   'sea',
   'test',
   'test/reporters',

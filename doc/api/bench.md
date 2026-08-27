@@ -65,6 +65,66 @@ system load can all affect results. Keep raw samples when comparing results and
 investigate noisy or skewed distributions rather than treating a confidence
 interval as a pass/fail threshold.
 
+## Benchmark reporters
+
+The built-in reporters are available from the scheme-only
+`node:bench/reporters` module:
+
+```mjs
+import { json, spec } from 'node:bench/reporters';
+```
+
+```cjs
+const { json, spec } = require('node:bench/reporters');
+```
+
+Reporter values can be passed directly to `stream.compose()`:
+
+```mjs
+import { bench, run } from 'node:bench';
+import { spec } from 'node:bench/reporters';
+import process from 'node:process';
+
+bench('example', (b) => {
+  b.start();
+  doWork();
+  b.end(1);
+});
+
+run().compose(spec).pipe(process.stdout);
+```
+
+The `spec` reporter buffers results and outputs a concise table containing the
+sample count, mean rate, 95% confidence interval for the mean, median rate, and
+warnings. A coefficient of variation above 5% is reported as `noisy`, and an
+absolute skewness above 1 is reported as `skewed`. The exact human-readable
+format is subject to change.
+
+The `json` reporter emits every lifecycle record as newline-delimited JSON.
+BigInt values, including `duration_ns`, are encoded as decimal strings. Errors
+are represented using their `name`, `message`, `stack`, `code`, `cause`, and
+`errors` properties. As required by JSON, non-finite numbers are encoded as
+`null`.
+
+Custom reporters use the same composition contract. They can be transforms or
+functions accepted by `stream.compose()`. The composed readable can be piped to
+any writable destination:
+
+```mjs
+import { run } from 'node:bench';
+import process from 'node:process';
+
+async function* names(source) {
+  for await (const { type, data } of source) {
+    if (type === 'bench:complete') {
+      yield `${data.name}\n`;
+    }
+  }
+}
+
+run().compose(names).pipe(process.stdout);
+```
+
 ## `bench([name][, options], fn)`
 
 <!-- YAML
