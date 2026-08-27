@@ -80,7 +80,13 @@ class Histogram : public MemoryRetainer {
                      int64_t* values,
                      size_t length) const;
 
-  // Statistical hypothesis testing
+  // Statistical analysis
+  struct MeanCIResult {
+    double mean;
+    double lower;
+    double upper;
+  };
+
   struct WelchTestResult {
     double t_statistic;
     double degrees_of_freedom;
@@ -101,6 +107,7 @@ class Histogram : public MemoryRetainer {
     int64_t upper;
   };
 
+  MeanCIResult MeanCI(double confidence = 0.95) const;
   WelchTestResult WelchTest(const Histogram& other,
                             double confidence = 0.95) const;
   MannWhitneyResult MannWhitneyTest(const Histogram& other) const;
@@ -189,6 +196,7 @@ class HistogramImpl {
   static void GetPercentilesAt(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetLinearBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetLogBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMeanCI(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetWelchTest(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMannWhitneyTest(
       const v8::FunctionCallbackInfo<v8::Value>& args);
