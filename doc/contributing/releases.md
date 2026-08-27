@@ -429,7 +429,7 @@ already defined in `src/node_version.h`:
 #define NODE_MINOR_VERSION y
 #define NODE_PATCH_VERSION z
 
-// And for alpha releases:
+// And for alpha releases, where at least one must be non-zero:
 #define NODE_ALPHA_MAJOR_VERSION a
 #define NODE_ALPHA_MINOR_VERSION b
 #define NODE_ALPHA_PATCH_VERSION c

@@ -46,13 +46,14 @@
 
 #ifndef NODE_TAG
 #if NODE_VERSION_IS_RELEASE
-#ifdef NODE_ALPHA_MAJOR_VERSION
+#if NODE_ALPHA_MAJOR_VERSION || NODE_ALPHA_MINOR_VERSION ||                    \
+    NODE_ALPHA_PATCH_VERSION
 #define NODE_TAG                                                               \
   "-alpha." NODE_STRINGIFY(NODE_ALPHA_MAJOR_VERSION) "." NODE_STRINGIFY(       \
       NODE_ALPHA_MINOR_VERSION) "." NODE_STRINGIFY(NODE_ALPHA_PATCH_VERSION)
 #else
 #define NODE_TAG ""
-#endif  // NODE_ALPHA_MAJOR_VERSION
+#endif  // NODE_ALPHA_*_VERSION
 #else   // NODE_VERSION_IS_RELEASE
 #define NODE_TAG "-pre"
 #endif  // NODE_VERSION_IS_RELEASE
