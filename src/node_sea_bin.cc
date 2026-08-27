@@ -126,6 +126,16 @@ InjectOutput InjectIntoELF(const std::vector<uint8_t>& executable,
             {},
             SPrintF("Failed to create new ELF note %s", note_name)};
   }
+  // Left to itself LIEF moves a non-PIE executable's program headers into
+  // the largest gap between two PT_LOADs and extends the earlier one over it,
+  // which can leave that segment sharing a page with the next; kernels that
+  // map segments with MAP_FIXED_NOREPLACE (Linux < 5.4, RHEL 8) then refuse
+  // to run the file. After .bss every segment keeps its own pages.
+  if (binary->header().file_type() == LIEF::ELF::Header::FILE_TYPE::EXEC &&
+      binary->relocate_phdr_table(LIEF::ELF::Binary::PHDR_RELOC::BSS_END) ==
+          0) {
+    return {InjectResult::kError, {}, "Failed to relocate ELF program headers"};
+  }
   binary->add(*new_note);
 
   LIEF::ELF::Builder::config_t cfg;
