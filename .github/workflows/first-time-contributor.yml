@@ -1,0 +1,97 @@
+name: Welcome first-time contributors
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  agentscan:
+    if: >-
+      github.run_attempt == 1 &&
+      github.repository == 'nodejs/node' &&
+      (github.event.pull_request.author_association == 'FIRST_TIMER' ||
+      github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      scan_outcome: ${{ steps.agentscan.outcome }}
+      classification: ${{ steps.agentscan.outputs.classification }}
+      community_flagged: ${{ steps.agentscan.outputs['community-flagged'] }}
+    steps:
+      - name: Scan contributor activity
+        id: agentscan
+        # The welcome should still be posted if this advisory scan fails.
+        continue-on-error: true
+        uses: MatteoGabriele/agentscan-action@98202262c925c508d4c1424b1dfbe17ee35b0c02  # v2.4.0
+        with:
+          github-token: ${{ github.token }}
+          mode: silent
+          scan-pull-requests: true
+          scan-issues: false
+          auto-close: false
+          honeypot: false
+
+  comment:
+    needs: agentscan
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Welcome first-time contributor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          AGENTSCAN_OUTCOME: ${{ needs.agentscan.outputs.scan_outcome }}
+          AGENTSCAN_CLASSIFICATION: ${{ needs.agentscan.outputs.classification }}
+          AGENTSCAN_COMMUNITY_FLAGGED: ${{ needs.agentscan.outputs.community_flagged }}
+          WELCOME_MESSAGE: >2-
+              Welcome to Node.js, and thank you for your first contribution!
+
+            Before review, please take a moment to read:
+
+              * the [guide for first-time contributors](https://github.com/nodejs/node/blob/HEAD/doc/contributing/first-contributions.md)
+              * the [contribution and automation policies](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md)
+              * the [pull request guide](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md)
+              * the [AI use policy](https://github.com/nodejs/node/blob/HEAD/doc/contributing/ai-guidelines.md)
+              * the [Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md)
+
+            Please make sure every commit is
+            [signed off](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#step-4-commit).
+            For a first pull request, GitHub Actions require collaborator
+            approval and Jenkins CI must be started by a collaborator or triager,
+            so an initial wait is normal.
+          CAUTION_MESSAGE: >-
+            > [!CAUTION]
+
+            > AgentScan found account activity patterns that may be consistent with
+            automation. This is a heuristic, not proof that this pull request was
+            opened by an agent or violates policy. AI-assisted contributions are
+            permitted, but automated tooling must not open pull requests without
+            advance approval, and contributors must personally understand, test,
+            verify, and take responsibility for every submitted change. See the
+            [AgentScan analysis](https://agentscan.tools/user/${{ github.event.pull_request.user.login }}),
+            [AI use policy](https://github.com/nodejs/node/blob/HEAD/doc/contributing/ai-guidelines.md),
+            and
+            [automation policy](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md#automation-and-bots)
+            for additional context.
+        run: |
+          add_caution=false
+          if [[ "$AGENTSCAN_OUTCOME" == "success" ]]; then
+            case "$AGENTSCAN_CLASSIFICATION" in
+              mixed|automation)
+                add_caution=true
+                ;;
+            esac
+            if [[ "$AGENTSCAN_COMMUNITY_FLAGGED" == "true" ]]; then
+              add_caution=true
+            fi
+          fi
+
+          if [[ "$add_caution" == "true" ]]; then
+            printf '%s\n\n%s\n' "$WELCOME_MESSAGE" "$CAUTION_MESSAGE"
+          else
+            printf '%s\n' "$WELCOME_MESSAGE"
+          fi | gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
