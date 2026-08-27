@@ -36,15 +36,32 @@
 #include <regex>  // NOLINT(build/c++11)
 #endif            // _WIN32
 
-#define CHAR_TEST(bits, name, expr)                                           \
-  template <typename T>                                                       \
-  bool name(const T ch) {                                                     \
-    static_assert(sizeof(ch) >= (bits) / 8,                                   \
-                  "Character must be wider than " #bits " bits");             \
-    return (expr);                                                            \
+#define CHAR_TEST(bits, name, expr)                                            \
+  template <typename T>                                                        \
+  constexpr bool name(const T ch) {                                            \
+    static_assert(sizeof(ch) >= (bits) / 8,                                    \
+                  "Character must be wider than " #bits " bits");              \
+    return (expr);                                                             \
   }
 
 namespace node {
+
+// If a UTF-16 character is a high/leading surrogate.
+CHAR_TEST(16, IsUnicodeLead, (ch & 0xFC00) == 0xD800)
+
+// If a UTF-16 character is a low/trailing surrogate.
+CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
+
+// If a UTF-16 character is a surrogate.
+CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
+
+// If a UTF-16 surrogate is a low/trailing one.
+CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
+
+// The code point encoded by a valid surrogate pair.
+constexpr uint32_t CombineSurrogates(uint32_t lead, uint32_t trail) {
+  return 0x10000 + ((lead - 0xD800) << 10) + (trail - 0xDC00);
+}
 
 template <typename T>
 ListNode<T>::ListNode() : prev_(this), next_(this) {}

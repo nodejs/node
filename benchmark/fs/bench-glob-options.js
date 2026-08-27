@@ -14,19 +14,37 @@ const benchmarkDirectory = path.resolve(__dirname, '..', '..');
 const configs = {
   n: [1e3],
   dir: ['lib'],
-  pattern: ['**/*', '*.js', '**/*.js', '**/*.{js,json}'],
+  pattern: ['**/*.js'],
   mode: ['sync', 'promise', 'callback'],
-  maxDepth: ['default', '2'],
+  options: ['none', 'withFileTypes', 'exclude-pattern', 'exclude-callback'],
 };
 
 const bench = common.createBenchmark(main, configs);
 
-async function main(config) {
-  const { pattern, mode, n, maxDepth } = config;
+function buildOptions(config) {
   const options = { cwd: path.resolve(benchmarkDirectory, config.dir) };
-  if (maxDepth !== 'default') {
-    options.maxDepth = Number(maxDepth);
+  switch (config.options) {
+    case 'none':
+      break;
+    case 'withFileTypes':
+      options.withFileTypes = true;
+      break;
+    case 'exclude-pattern':
+      options.exclude = ['**/internal/**'];
+      break;
+    case 'exclude-callback':
+      // Excludes nothing: measures the per-entry callback overhead alone.
+      options.exclude = () => false;
+      break;
+    default:
+      throw new Error(`Unknown options: ${config.options}`);
   }
+  return options;
+}
+
+async function main(config) {
+  const { pattern, mode, n } = config;
+  const options = buildOptions(config);
 
   let noDead;
   bench.start();

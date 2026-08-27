@@ -11,6 +11,7 @@
 #include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
+#include "glob/node_glob.h"
 #include "node_blob.h"
 #include "node_builtins.h"
 #include "node_contextify.h"
