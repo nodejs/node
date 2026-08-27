@@ -1718,6 +1718,10 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Reading the options bag can run a getter that closes the connection.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
 
@@ -1908,6 +1912,7 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
     argc = js_len.As<Int32>()->Value();
   }
 
+  // Reading the options bag can run a getter that closes the connection.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
 
@@ -2073,6 +2078,7 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Reading the options bag can run a getter that closes the connection.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   THROW_AND_RETURN_ON_BAD_STATE(
       env,
@@ -2238,6 +2244,7 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
     argc = std::max({argc, js_len.As<Int32>()->Value() - 1, 0});
   }
 
+  // Reading the options bag can run a getter that closes the connection.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
 
@@ -2453,6 +2460,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Reading the options bag can run a getter that closes the connection.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   Local<Promise::Resolver> resolver;
@@ -2597,6 +2605,10 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       };
     }
   }
+
+  // Reading the options bag can run a getter that closes the connection.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
 
   // Keep the database alive during sqlite3changeset_apply(), which may
   // call conflict or filter callbacks that trigger JavaScript execution.
@@ -3980,6 +3992,12 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
     if (i < n_params) {
       sql += "?";
     }
+  }
+
+  // Reading the template parts can run a getter that closes the connection.
+  if (!session->database_->IsOpen()) {
+    THROW_ERR_INVALID_STATE(env, "database is not open");
+    return BaseObjectPtr<StatementSync>();
   }
 
   BaseObjectPtr<StatementSync> stmt = nullptr;

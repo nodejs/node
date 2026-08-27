@@ -66,6 +66,58 @@ test('deserialize() with a getter that closes the database', () => {
   }, closedError);
 });
 
+test('prepare() with a getter that closes the database', () => {
+  const db = new DatabaseSync(':memory:');
+  const options = {
+    get persistent() {
+      db.close();
+      return false;
+    },
+  };
+
+  assert.throws(() => {
+    db.prepare('SELECT 1', options);
+  }, closedError);
+});
+
+test('applyChangeset() with a getter that closes the database', () => {
+  const source = new DatabaseSync(':memory:');
+  source.exec('CREATE TABLE data (value INTEGER PRIMARY KEY)');
+  const session = source.createSession();
+  source.exec('INSERT INTO data VALUES (1)');
+  const changeset = session.changeset();
+  source.close();
+
+  const db = new DatabaseSync(':memory:');
+  db.exec('CREATE TABLE data (value INTEGER PRIMARY KEY)');
+  const options = {
+    get onConflict() {
+      db.close();
+      return undefined;
+    },
+  };
+
+  assert.throws(() => {
+    db.applyChangeset(changeset, options);
+  }, closedError);
+});
+
+test('tag store with a getter that closes the database', () => {
+  const db = new DatabaseSync(':memory:');
+  const sql = db.createTagStore(10);
+  const strings = ['SELECT ', ''];
+  Object.defineProperty(strings, 0, {
+    get() {
+      db.close();
+      return 'SELECT ';
+    },
+  });
+
+  assert.throws(() => {
+    sql.get(strings, 1);
+  }, closedError);
+});
+
 test('backup() with a getter that closes the database', () => {
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE data (value INTEGER)');
