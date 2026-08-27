@@ -88,6 +88,7 @@
   "LockManager": "worker_threads.html#class-lockmanager",
   "MessagePort": "worker_threads.html#class-messageport",
   "MIMEParams": "util.html#class-utilmimeparams",
+  "MIMEType": "util.html#class-utilmimetype",
   "MockModuleContext": "test.html#class-mockmodulecontext",
   "module": "modules.html#the-module-object",
   "ModuleRequest": "vm.html#type-modulerequest",
