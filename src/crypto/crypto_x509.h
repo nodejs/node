@@ -60,12 +60,12 @@ class X509Certificate final : public BaseObject {
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
       ncrypto::X509Pointer cert,
-      STACK_OF(X509) * issuer_chain = nullptr);
+      const STACK_OF(X509) * issuer_chain = nullptr);
 
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
       std::shared_ptr<ManagedX509> cert,
-      STACK_OF(X509)* issuer_chain = nullptr);
+      const STACK_OF(X509) * issuer_chain = nullptr);
 
   static v8::MaybeLocal<v8::Object> GetCert(Environment* env,
                                             const ncrypto::SSLPointer& ssl);
@@ -120,6 +120,13 @@ class X509Certificate final : public BaseObject {
                   v8::Local<v8::Object> object,
                   std::shared_ptr<ManagedX509> cert,
                   v8::Local<v8::Object> issuer_chain = v8::Local<v8::Object>());
+
+  // Like New(), but reads the issuer chain from issuer_chain[start] upward.
+  static v8::MaybeLocal<v8::Object> NewWithIssuers(
+      Environment* env,
+      std::shared_ptr<ManagedX509> cert,
+      const STACK_OF(X509) * issuer_chain,
+      int start);
 
   std::shared_ptr<ManagedX509> cert_;
   BaseObjectPtr<X509Certificate> issuer_cert_;
