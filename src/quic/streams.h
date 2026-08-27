@@ -408,6 +408,7 @@ class Stream final : public AsyncWrap,
 
   bool is_local_unidirectional() const;
   bool is_remote_unidirectional() const;
+  void ReleaseArenaSlots();
 
   // JavaScript callouts
 
