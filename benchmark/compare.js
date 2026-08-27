@@ -159,6 +159,27 @@ if (showProgress) {
   });
 })(kStartOfQueue);
 
+// Holm-Bonferroni step-down adjustment. Controls the probability of *any*
+// false positive across the whole comparison set, which is what a pass/fail
+// gate needs: an uncorrected suite of 169 comparisons at 5% has a 99.98%
+// chance of flagging something that is not there. Uniformly more powerful
+// than plain Bonferroni, and makes no assumption about independence.
+function holmAdjust(pValues) {
+  const order = pValues
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => a.p - b.p);
+  const m = order.length;
+  const adjusted = new Array(m);
+  let running = 0;
+  for (let k = 0; k < m; k++) {
+    // Step down, enforcing monotonicity so an adjusted value can never be
+    // smaller than one belonging to a more significant raw p-value.
+    running = Math.max(running, Math.min(1, (m - k) * order[k].p));
+    adjusted[order[k].i] = running;
+  }
+  return adjusted;
+}
+
 function printAnalysis(results, scale, maxRegression) {
   const { createHistogram } = require('node:perf_hooks');
 
@@ -217,6 +238,25 @@ function printAnalysis(results, scale, maxRegression) {
     if (name.length > maxNameLen) maxNameLen = name.length;
   }
 
+  // Adjust for the size of the comparison set. The raw p-value answers "is
+  // this one benchmark different", but a suite is read as a whole, so the
+  // relevant question is "is anything here different".
+  const adjusted = holmAdjust(rows.map((r) => r.pValue));
+  for (let i = 0; i < rows.length; i++) rows[i].pAdjusted = adjusted[i];
+
+  // A comparison can only rule out an effect it was able to resolve. Where no
+  // threshold has been given there is no definition of "worth detecting", so
+  // nothing is claimed. `maxRegression` is exactly such a declaration, so it
+  // is reused rather than inventing a second constant.
+  const resolution = maxRegression > 0 ? maxRegression : null;
+  let underpowered = 0;
+  for (const row of rows) {
+    row.inconclusive = resolution !== null &&
+                       row.stars.trim() === '' &&
+                       row.ci95 > resolution;
+    if (row.inconclusive) underpowered++;
+  }
+
   // Print header.
   const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
   const rpad = (s, n) => ' '.repeat(Math.max(0, n - s.length)) + s;
@@ -231,7 +271,8 @@ function printAnalysis(results, scale, maxRegression) {
       `  ${rpad(imp, 11)}` +
       `   ±${row.ci95.toFixed(2)}%` +
       `  ±${row.ci99.toFixed(2)}%` +
-      `  ±${row.ci999.toFixed(2)}%`,
+      `  ±${row.ci999.toFixed(2)}%` +
+      `${row.inconclusive ? '  (inconclusive)' : ''}`,
     );
   }
 
@@ -252,6 +293,7 @@ function printAnalysis(results, scale, maxRegression) {
     `Rates were scaled by ${scale}x into HdrHistogram (3 significant figures).\n` +
     `Use --scale to adjust precision if needed.\n`,
   );
+  const anyFamilyWise = rows.filter((r) => r.pAdjusted < 0.05).length;
   console.log(
     `Be aware that when doing many comparisons the risk of a false-positive\n` +
     `result increases. In this case, there are ${rows.length} comparisons, ` +
@@ -261,23 +303,56 @@ function printAnalysis(results, scale, maxRegression) {
     `  ${(rows.length * 0.01).toFixed(2)} false positives, when considering ` +
     `a   1% risk acceptance (**, ***),\n` +
     `  ${(rows.length * 0.001).toFixed(2)} false positives, when considering ` +
-    `a 0.1% risk acceptance (***)`,
+    `a 0.1% risk acceptance (***)\n` +
+    `\nThe stars above are per-benchmark and uncorrected. Adjusting for the ` +
+    `size of\nthis comparison set (Holm-Bonferroni), ${anyFamilyWise} ` +
+    `comparison${anyFamilyWise === 1 ? '' : 's'} remain${anyFamilyWise === 1 ? 's' : ''} ` +
+    `significant at 5%.\n--max-regression uses the corrected values.`,
   );
 
-  // Gate: exit with error if any significant regression exceeds the limit.
+  // Gate: exit with error if any regression is shown to exceed the limit.
   if (maxRegression > 0) {
+    if (underpowered > 0) {
+      console.log('');
+      console.log(
+        `Note: ${underpowered} of ${rows.length} comparison` +
+        `${rows.length === 1 ? '' : 's'} could not resolve an effect as ` +
+        `small as ${maxRegression}%, and are marked (inconclusive). They are ` +
+        `not\nevidence of no regression -- the samples are too noisy to tell. ` +
+        `Raise --runs,\nor pin cores with --set CPUSET, to narrow them.`,
+      );
+    }
+
+    // Two conditions, both required.
+    //
+    // The confidence interval must lie entirely beyond the threshold. A small
+    // p-value only says the effect is not exactly zero; claiming it exceeds
+    // `maxRegression` is a statement about magnitude, so the interval has to
+    // exclude that magnitude. Testing the point estimate instead systematically
+    // fires on the noisiest benchmarks, because a large point estimate is
+    // easiest to obtain when the interval is wide.
+    //
+    // The p-value must also survive adjustment for the size of the comparison
+    // set, so that a suite of hundreds of benchmarks does not fail purely
+    // because one of them drifted.
     const failures = rows.filter(
-      (r) => r.stars.trim() !== '' && r.improvement < -maxRegression,
+      (r) => r.pAdjusted < 0.05 && r.improvement + r.ci95 < -maxRegression,
     );
+
     if (failures.length > 0) {
       console.log('');
       console.log(
         `FAIL: ${failures.length} benchmark${failures.length === 1 ? '' : 's'}` +
-        ` showed a statistically significant regression exceeding` +
-        ` ${maxRegression}%:`,
+        ` regressed by more than ${maxRegression}%` +
+        ` (interval excludes the threshold,\n` +
+        `family-wise corrected across ${rows.length} comparisons):`,
       );
       for (const f of failures) {
-        console.log(`  ${f.name}  ${f.improvement.toFixed(2)}%`);
+        console.log(
+          `  ${f.name}  ${f.improvement.toFixed(2)}% ` +
+          `(95% CI up to ${(f.improvement + f.ci95).toFixed(2)}%, ` +
+          `adjusted p=${f.pAdjusted.toExponential(2)})`,
+        );
       }
       process.exitCode = 1;
     }
