@@ -19,6 +19,8 @@ struct ContextOptions {
   v8::Local<v8::Boolean> allow_code_gen_strings;
   v8::Local<v8::Boolean> allow_code_gen_wasm;
   std::unique_ptr<v8::MicrotaskQueue> own_microtask_queue;
+  std::shared_ptr<v8::MicrotaskQueue> shared_microtask_queue;
+  bool drain_after_evaluate = false;
   v8::Local<v8::Symbol> host_defined_options_id;
   bool vanilla = false;
 };
@@ -122,7 +124,9 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   }
 
   inline v8::MicrotaskQueue* microtask_queue() const {
-    return microtask_queue_.get();
+    if (!drain_after_evaluate_) return nullptr;
+    if (microtask_queue_) return microtask_queue_.get();
+    return shared_microtask_queue_.get();
   }
 
   template <typename T>
@@ -187,6 +191,36 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
 
   v8::TracedReference<v8::Context> context_;
   std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
+  std::shared_ptr<v8::MicrotaskQueue> shared_microtask_queue_;
+  bool drain_after_evaluate_ = false;
+};
+
+class ContextifyMicrotaskQueue final : CPPGC_MIXIN(ContextifyMicrotaskQueue) {
+ public:
+  SET_CPPGC_NAME(ContextifyMicrotaskQueue)
+  DEFAULT_CPPGC_TRACE()
+  SET_NO_MEMORY_INFO()
+
+  ContextifyMicrotaskQueue(Environment* env, v8::Local<v8::Object> object);
+  ~ContextifyMicrotaskQueue() override = default;
+
+  static ContextifyMicrotaskQueue* New(Environment* env,
+                                       v8::Local<v8::Object> object);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& value);
+  static void RunMicrotasks(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsMicrotaskQueue(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  inline std::shared_ptr<v8::MicrotaskQueue> microtask_queue() const {
+    return microtask_queue_;
+  }
+
+ private:
+  std::shared_ptr<v8::MicrotaskQueue> microtask_queue_;
 };
 
 class ContextifyScript final : CPPGC_MIXIN(ContextifyScript) {

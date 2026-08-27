@@ -1318,6 +1318,31 @@ added:
 
 A `ModuleRequest` represents the request to import a module with given import attributes and phase.
 
+## Class: `vm.MicrotaskQueue`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Represents an explicit microtask queue that can be shared across multiple
+`vm.Context` instances and synchronously drained by the embedder.
+
+### `new vm.MicrotaskQueue()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Creates a new `vm.MicrotaskQueue` instance.
+
+### `microtaskQueue.runMicrotasks()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Synchronously runs all microtasks currently queued in this microtask queue.
+
 ## `vm.compileFunction(code[, params[, options]])`
 
 <!-- YAML
@@ -1474,6 +1499,10 @@ changes:
     scheduled through `Promise`s and `async function`s) will be run immediately
     after a script has run through [`script.runInContext()`][].
     They are included in the `timeout` and `breakOnSigint` scopes in that case.
+  * `microtaskQueue` {vm.MicrotaskQueue} A microtask queue created with
+    [`new vm.MicrotaskQueue()`][] or [`vm.createMicrotaskQueue()`][]. If
+    specified, microtasks scheduled inside this context will be placed on this
+    queue, allowing multiple contexts to share the same microtask queue.
   * `importModuleDynamically`
     {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
     Used to specify the how the modules should be loaded when `import()` is
@@ -1554,6 +1583,28 @@ added: v0.11.7
 Returns `true` if the given `object` object has been [contextified][] using
 [`vm.createContext()`][], or if it's the global object of a context created
 using [`vm.constants.DONT_CONTEXTIFY`][].
+
+## `vm.createMicrotaskQueue()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {vm.MicrotaskQueue}
+
+Creates a new [`vm.MicrotaskQueue`][] instance. Shortcut to
+`new vm.MicrotaskQueue()`.
+
+## `vm.isMicrotaskQueue(object)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `object` {any}
+* Returns: {boolean}
+
+Returns `true` if the given `object` is an instance of [`vm.MicrotaskQueue`][].
 
 ## `vm.measureMemory([options])`
 
@@ -1823,6 +1874,10 @@ changes:
     scheduled through `Promise`s and `async function`s) will be run immediately
     after the script has run. They are included in the `timeout` and
     `breakOnSigint` scopes in that case.
+  * `microtaskQueue` {vm.MicrotaskQueue} A microtask queue created with
+    [`new vm.MicrotaskQueue()`][] or [`vm.createMicrotaskQueue()`][]. If
+    specified, microtasks scheduled inside the new context will be placed on
+    this queue.
 * Returns: {any} the result of the very last statement executed in the script.
 
 This method is a shortcut to
@@ -2594,3 +2649,6 @@ const { Script, SyntheticModule } = require('node:vm');
 [global object]: https://tc39.es/ecma262/#sec-global-object
 [indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
+[`new vm.MicrotaskQueue()`]: #new-vmmicrotaskqueue
+[`vm.MicrotaskQueue`]: #class-vmmicrotaskqueue
+[`vm.createMicrotaskQueue()`]: #vmcreatemicrotaskqueue
