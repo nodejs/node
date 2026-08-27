@@ -31,6 +31,10 @@ assert.throws(() => bench('name', { skip: 1 }, noop),
               { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => run({ namePattern: 1 }),
               { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => run({ samples: 0 }),
+              { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => run({ warmup: -1 }),
+              { code: 'ERR_OUT_OF_RANGE' });
 
 bench('valid', { samples: 1 }, (b) => {
   b.start();

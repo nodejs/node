@@ -384,6 +384,10 @@ MaybeLocal<Value> StartExecution(Environment* env,
     return StartExecution(env, "internal/main/check_syntax");
   }
 
+  if (env->options()->bench_runner) {
+    return StartExecution(env, "internal/main/bench_runner");
+  }
+
   if (env->options()->test_runner) {
     return StartExecution(env, "internal/main/test_runner");
   }

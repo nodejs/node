@@ -23,6 +23,10 @@ const { bench, suite } = require('node:bench');
 
 This module is only available under the `node:` scheme.
 
+## Example benchmark
+
+Save the following as `benchmark.mjs`:
+
 ```mjs
 import { bench, suite } from 'node:bench';
 
@@ -42,6 +46,12 @@ suite('URL', () => {
     b.end(operations);
   });
 });
+```
+
+Run the benchmark from the command line:
+
+```console
+node --bench benchmark.mjs
 ```
 
 Benchmarks are executed serially in declaration order. Declared benchmarks are
@@ -64,6 +74,31 @@ the process, JIT compilation, garbage collection, CPU frequency changes, and
 system load can all affect results. Keep raw samples when comparing results and
 investigate noisy or skewed distributions rather than treating a confidence
 interval as a pass/fail threshold.
+
+## Command-line runner
+
+The `--bench` flag runs one or more explicit benchmark files or glob patterns:
+
+```console
+node --bench benchmark.mjs
+node --bench --bench-reporter=json 'benchmarks/**/*.js'
+```
+
+Files are sorted and executed serially. The default
+`--bench-isolation=process` mode runs each file in a separate child process and
+emits one aggregate summary. Structured events are transferred to the parent
+without JSON conversion, preserving BigInt durations, errors, and parameter
+values. Child writes to stdout and stderr are emitted as diagnostic records so
+they do not corrupt reporter output.
+
+`--bench-isolation=none` imports all files into the runner process. This mode
+has lower startup overhead, but module, heap, and process state carry between
+files, and user writes share stdout and stderr with reporters.
+
+Benchmark files passed to `--bench` should declare benchmarks but must not call
+`run()`. The CLI supports `--bench-name-pattern`, `--bench-samples`,
+`--bench-warmup`, `--bench-reporter`, and `--bench-reporter-destination`. See
+the [command-line options documentation][] for details.
 
 ## Benchmark reporters
 
@@ -273,7 +308,11 @@ added: REPLACEME
   * `namePattern` {string|RegExp} Only runs benchmarks whose full hierarchical
     name matches the pattern. String values are interpreted as JavaScript
     regular expressions.
+  * `samples` {number} Overrides the number of measured callback invocations
+    for every benchmark. Must be a positive 32-bit unsigned integer.
   * `signal` {AbortSignal} Allows aborting in-progress benchmark execution.
+  * `warmup` {number} Overrides the number of unreported warmup callback
+    invocations for every benchmark. Must be a 32-bit unsigned integer.
 * Returns: {BenchmarksStream}
 
 Returns the object-mode event stream for the in-process benchmark run. Call
@@ -374,7 +413,9 @@ Every benchmark-scoped event contains `benchId` and `parentId`.
 additional `error` property and may contain samples recorded before the error.
 A skipped result has an additional `skip` property and an empty `samples`
 array. `'bench:diagnostic'` reports suite and hook errors. `'bench:summary'`
-contains overall `success`, `counts`, `duration_ns`, and `file` properties.
+contains overall `success`, `counts`, `duration_ns`, and `file` properties. The
+`file` is {string|null}; it is `null` when the summary aggregates multiple
+files.
 
 ## Sample result
 
@@ -412,3 +453,4 @@ A completed benchmark result contains:
   * `skewness` {number} The skewness of the scaled rate histogram.
 
 [benchmark result]: #benchmark-result
+[command-line options documentation]: cli.md#--bench
