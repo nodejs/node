@@ -993,10 +993,8 @@ From an already-unpacked ICU source archive:
 ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
 ```
 
-The directory passed to `--with-icu-source` must contain the extracted ICU
-source layout (for example, `source/data/in/icudt*l.dat`). A plain Git checkout
-of the ICU repository is not sufficient unless it has been prepared to match
-this layout.
+(Simply cloning the icu4c repository will not work here; the source directory
+must have been unpacked from the compiled `-sources` archive.)
 
 From a local ICU tarball:
 
@@ -1013,7 +1011,7 @@ From a tarball URL:
 #### Windows
 
 First unpack latest ICU to `deps/icu`
-[icu4c-**##.#**-src.tgz](https://icu.unicode.org/download) (or `.zip`)
+[icu4c-**##.#**-sources.tgz](https://icu.unicode.org/download) (or `.zip`)
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```powershell
