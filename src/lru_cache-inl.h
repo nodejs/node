@@ -41,6 +41,14 @@ class LRUCache {
     return it->second->second;
   }
 
+  // The entry for `key`, or nullptr when there is none.
+  value_t* GetIf(const key_t& key) {
+    auto it = lookup_map_.find(key);
+    if (it == lookup_map_.end()) return nullptr;
+    lru_list_.splice(lru_list_.begin(), lru_list_, it->second);
+    return &it->second->second;
+  }
+
   void Erase(const key_t& key) {
     auto it = lookup_map_.find(key);
     if (it != lookup_map_.end()) {

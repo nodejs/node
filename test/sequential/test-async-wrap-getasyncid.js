@@ -79,6 +79,9 @@ const { getSystemErrorName } = require('util');
     delete providers.DTLS_ENDPOINT;
     delete providers.DTLS_SESSION;
 
+    // TODO(avivkeller): Test for these
+    delete providers.GLOBREQUEST;
+
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
       process._rawDebug(objKeys);

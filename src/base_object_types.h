@@ -12,6 +12,7 @@ namespace node {
 #define SERIALIZABLE_BINDING_TYPES(V)                                          \
   V(diagnostics_channel_binding_data, diagnostics_channel::BindingData)        \
   V(encoding_binding_data, encoding_binding::BindingData)                      \
+  V(glob_binding_data, glob::BindingData)                                      \
   V(fs_binding_data, fs::BindingData)                                          \
   V(mksnapshot_binding_data, mksnapshot::BindingData)                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \
