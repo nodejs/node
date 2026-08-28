@@ -202,8 +202,8 @@ added: v26.1.0
 When using the [Permission Model][], the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an `ERR_ACCESS_DENIED`
 exception unless the user explicitly passes the `--allow-ffi` flag when
-starting Node.js. The [`node:ffi`][] module also requires the
-`--experimental-ffi` flag and is only available in builds with FFI support.
+starting Node.js. The [`node:ffi`][] module is only available in builds with
+FFI support.
 
 Example:
 
@@ -213,7 +213,7 @@ const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ```console
-$ node --permission --experimental-ffi index.js
+$ node --permission index.js
 Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
@@ -1265,18 +1265,6 @@ added:
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
-### `--experimental-ffi`
-
-<!-- YAML
-added: v26.1.0
--->
-
-> Stability: 1 - Experimental
-
-Enable the experimental [`node:ffi`][] module.
-
-This flag is only available in builds with FFI support.
-
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -2087,6 +2075,18 @@ changes:
 -->
 
 Disable using [syntax detection][] to determine module type.
+
+### `--no-experimental-ffi`
+
+<!-- YAML
+added: v26.1.0
+-->
+
+> Stability: 1 - Experimental
+
+Disable the experimental [`node:ffi`][] module.
+
+This flag is only available in builds with FFI support.
 
 ### `--no-experimental-global-navigator`
 
@@ -3892,7 +3892,6 @@ one is included in the list below.
 * `--experimental-detect-module`
 * `--experimental-dtls`
 * `--experimental-eventsource`
-* `--experimental-ffi`
 * `--experimental-import-meta-resolve`
 * `--experimental-import-text`
 * `--experimental-json-modules`
@@ -3938,6 +3937,7 @@ one is included in the list below.
 * `--no-addons`
 * `--no-async-context-frame`
 * `--no-deprecation`
+* `--no-experimental-ffi`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
 * `--no-experimental-sqlite`

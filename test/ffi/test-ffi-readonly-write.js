@@ -1,4 +1,3 @@
-// Flags: --experimental-ffi
 'use strict';
 const { skipIfFFIMissing, isWindows, skip } = require('../common');
 const assert = require('node:assert');
@@ -15,7 +14,6 @@ test('writing to readonly memory via buffer fails', () => {
   const symbols = JSON.stringify(fixtureSymbols);
   const libPath = JSON.stringify(libraryPath);
   const { stdout, status } = spawnSync(process.execPath, [
-    '--experimental-ffi',
     '-p',
     `
     const ffi = require('node:ffi');

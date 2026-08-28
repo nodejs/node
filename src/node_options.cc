@@ -593,7 +593,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:ffi module",
             BOOL_FIELD(experimental_ffi),
             kAllowedInEnvvar,
-            false);
+            HAVE_FFI);
 #endif  // HAVE_FFI
   AddOption("--experimental-web-worker",
             "experimental Web Worker API",

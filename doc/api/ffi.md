@@ -28,7 +28,7 @@ const ffi = require('node:ffi');
 ```
 
 This module is only available under the `node:` scheme in builds with FFI
-support and is gated by the `--experimental-ffi` flag.
+support. It can be disabled with the `--no-experimental-ffi` flag.
 
 Building Node.js with `node:ffi` support is available via the bundled `libffi` on
 platforms where `libffi` provides a compatible static backend, or via a

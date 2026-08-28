@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc
+// Flags: --expose-gc
 'use strict';
 const { skipIfFFIMissing } = require('../common');
 skipIfFFIMissing();
