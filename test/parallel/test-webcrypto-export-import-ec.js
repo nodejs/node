@@ -120,6 +120,12 @@ async function testImportSpki({ name, publicUsages }, namedCurve, extractable) {
     assert.strictEqual(
       Buffer.from(spki).toString('hex'),
       keyData[namedCurve].spki.toString('hex'));
+
+    await assert.rejects(
+      subtle.exportKey('pkcs8', key), {
+        message: 'Key must be a private key',
+        name: 'InvalidAccessError',
+      });
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
