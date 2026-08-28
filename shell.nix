@@ -68,6 +68,7 @@ let
     ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) sharedLibDeps.abseil
     ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) sharedLibDeps.highway
     ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) sharedLibDeps.perfetto
+    ++ pkgs.lib.optional (builtins.hasAttr "simdutf" sharedLibDeps) sharedLibDeps.simdutf
     ++ pkgs.lib.optional (withTemporal && useSharedTemporal) sharedLibDeps.temporal_capi;
 
   # Put here only the configure flags that affect the V8 build
@@ -83,6 +84,7 @@ let
   ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) "--shared-abseil"
   ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) "--shared-highway"
   ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) "--shared-perfetto"
+  ++ pkgs.lib.optional (builtins.hasAttr "simdutf" sharedLibDeps) "--shared-simdutf"
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
   ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
