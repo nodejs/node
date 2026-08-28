@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -236,7 +236,7 @@ for (const isolation of ['process', 'none']) {
                      fixtures.path('bench-runner/ipc.cjs'));
 }
 
-{
+if (common.hasInspector) {
   const result = spawnBench([
     '--inspect=0',
     '--bench-reporter=json',
