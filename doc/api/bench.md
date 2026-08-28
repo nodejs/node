@@ -81,6 +81,22 @@ Calling `context.done()` during a measured sample completes the benchmark after
 that sample. This allows a higher-level tool to treat `samples` as a maximum and
 implement a dynamic sampling policy.
 
+The number of operations can differ between samples. Summary statistics treat
+each sample's `rate` as one equally weighted observation. In particular,
+`summary.mean` is the arithmetic mean of the per-sample rates. It is not the
+pooled throughput calculated as:
+
+```text
+1_000_000_000 * sum(sample.operations) / sum(sample.duration_ns)
+```
+
+The two values can differ when sample durations vary because pooled throughput
+weights each per-sample rate by its duration. A higher-level tool that varies
+batch sizes should choose the aggregation that matches its analysis. It can
+calculate pooled throughput from the raw `samples`; operation counts should be
+summed as `bigint` values because their total can exceed
+`Number.MAX_SAFE_INTEGER` even though each count cannot.
+
 ## Reusable runners
 
 The module-level declaration functions use a shared runner and schedule it
@@ -621,7 +637,8 @@ A completed benchmark result contains:
 * `params` {Object} The canonical parameter metadata.
 * `samples` {Object\[]} The exact measured samples.
 * `summary` {Object}
-  * `mean` {number} The arithmetic mean of per-sample rates.
+  * `mean` {number} The equally weighted arithmetic mean of per-sample rates,
+    not pooled throughput across all operations and durations.
   * `median` {number} The median per-sample rate.
   * `min` {number} The minimum per-sample rate.
   * `max` {number} The maximum per-sample rate.
