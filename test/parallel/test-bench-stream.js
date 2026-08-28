@@ -28,7 +28,7 @@ async function testReadableBackpressure() {
   const iterator = stream[Symbol.asyncIterator]();
   const first = await iterator.next();
 
-  assert.strictEqual(first.value.type, 'bench:start');
+  assert.strictEqual(first.value.type, 'bench:plan');
   await setImmediate();
   assert(calls < sampleCount);
   assert(stream.readableLength <= stream.readableHighWaterMark);
@@ -43,7 +43,42 @@ async function testReadableBackpressure() {
   const result = await completion;
   assert.strictEqual(calls, sampleCount);
   assert.strictEqual(result.samples.length, sampleCount);
-  assert.strictEqual(records.length, sampleCount + 3);
+  assert.strictEqual(records[1].type, 'bench:start');
+  assert.strictEqual(records.length, sampleCount + 4);
+}
+
+async function testPlanBackpressure() {
+  const runner = createRunner({ yieldBetweenSamples: false });
+  const benchmarkCount = 32;
+  const completions = [];
+  let calls = 0;
+  for (let i = 0; i < benchmarkCount; i++) {
+    completions.push(runner.bench(`planned ${i}`, { samples: 1 }, (b) => {
+      calls++;
+      recordSample(b);
+    }));
+  }
+  const stream = runner.run();
+  const iterator = stream[Symbol.asyncIterator]();
+  const first = await iterator.next();
+
+  assert.strictEqual(first.value.type, 'bench:plan');
+  await setImmediate();
+  assert.strictEqual(calls, 0);
+  assert(stream.readableLength <= stream.readableHighWaterMark);
+  const records = [first.value];
+  for (;;) {
+    const next = await iterator.next();
+    if (next.done) break;
+    records.push(next.value);
+  }
+
+  await Promise.all(completions);
+  assert.strictEqual(calls, benchmarkCount);
+  assert.strictEqual(
+    records.slice(0, benchmarkCount).every(({ type }) => type === 'bench:plan'),
+    true,
+  );
 }
 
 async function testNamedEventsWithoutReading() {
@@ -65,7 +100,7 @@ async function testNamedEventsWithoutReading() {
   assert.strictEqual(calls, sampleCount);
   assert.strictEqual(result.samples.length, sampleCount);
   assert.strictEqual(summary.success, true);
-  assert.strictEqual(stream.readableLength, sampleCount + 3);
+  assert.strictEqual(stream.readableLength, sampleCount + 4);
   assert(stream.readableLength > stream.readableHighWaterMark);
   stream.destroy();
 }
@@ -283,6 +318,7 @@ async function testRecordOwnership() {
 
 (async () => {
   await testReadableBackpressure();
+  await testPlanBackpressure();
   await testNamedEventsWithoutReading();
   await testCancellationCompletesBenchmarks();
   await testDeliveryDoesNotConsumeTimeout();

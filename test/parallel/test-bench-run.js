@@ -65,7 +65,12 @@ const suiteCompletion = suite('group', { tags: ['Group'] }, async () => {
 });
 
 const records = [];
+const plans = [];
 const stream = run();
+stream.on('bench:plan', common.mustCall((plan) => {
+  assert.deepStrictEqual(calls, []);
+  plans.push(plan.name);
+}, 3));
 stream.on('data', (record) => records.push(record));
 stream.on('end', common.mustCall(() => {
   assert.strictEqual(active, false);
@@ -80,6 +85,7 @@ stream.on('end', common.mustCall(() => {
   assert.strictEqual(samples.length, 4);
   assert.strictEqual(completions.length, 3);
   assert.strictEqual(summaries.length, 1);
+  assert.deepStrictEqual(plans, ['sync', 'async', 'skipped']);
 
   const sync = completions.find(({ data }) => data.name === 'sync').data;
   assert.strictEqual(sync.error, undefined);

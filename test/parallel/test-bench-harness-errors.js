@@ -22,8 +22,14 @@ async function testSynchronousSuiteFailure() {
   });
   const records = await runner.run().toArray();
   await completion;
+  const plan = records.find(
+    ({ type }) => type === 'bench:plan').data;
   const result = records.find(
     ({ type }) => type === 'bench:complete').data;
+  assert.strictEqual(plan.name, 'blocked');
+  assert.strictEqual(plan.selected, true);
+  assert.strictEqual(
+    records.some(({ type }) => type === 'bench:start'), false);
   assert.strictEqual(result.name, 'blocked');
   assert.strictEqual(result.error.message, 'synchronous suite failure');
 }

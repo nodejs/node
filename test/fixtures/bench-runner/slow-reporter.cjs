@@ -9,6 +9,7 @@ module.exports = async function* slowReporter(source) {
     if (++emitted === source.readableHighWaterMark) resolve();
   };
   for (const type of [
+    'bench:plan',
     'bench:start',
     'bench:sample',
     'bench:complete',
