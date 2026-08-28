@@ -145,6 +145,25 @@ function parseOutput(output) {
   assert.strictEqual(records.at(-1).data.success, false);
 }
 
+{
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/recorded-detail.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  const records = parseRecords(result);
+  const completion = records.find(
+    ({ type }) => type === 'bench:complete').data;
+  assert.strictEqual(completion.samples.length, 1);
+  const { rate, ...sample } = completion.samples[0];
+  assert.deepStrictEqual(sample, {
+    detail: { index: 0, phase: 'measurement', value: '42' },
+    duration_ns: '4',
+    operations: 2,
+  });
+  assert(Math.abs(rate - 500_000_000) < 1);
+}
+
 for (const { file, status } of [
   { file: 'a.cjs', status: 0 },
   { file: 'error.cjs', status: 1 },

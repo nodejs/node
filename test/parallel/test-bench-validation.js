@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { bench, run } = require('node:bench');
+const { bench, createRunner, run } = require('node:bench');
 
 const noop = () => {};
 
@@ -35,6 +35,14 @@ assert.throws(() => run({ samples: 0 }),
               { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => run({ warmup: -1 }),
               { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => run({ yieldBetweenSamples: 1 }),
+              { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => createRunner(null),
+              { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => createRunner({ yieldBetweenSamples: 1 }),
+              { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => createRunner({ yieldBetweenSamples: null }),
+              { code: 'ERR_INVALID_ARG_TYPE' });
 
 bench('valid', { samples: 1 }, (b) => {
   b.start();
