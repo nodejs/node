@@ -128,6 +128,24 @@ calculate pooled throughput from the raw `samples`; operation counts should be
 summed as `bigint` values because their total can exceed
 `Number.MAX_SAFE_INTEGER` even though each count cannot.
 
+### Comparing benchmark results
+
+`node:bench` does not designate a benchmark as a baseline or produce a pass/fail
+comparison between runs. It exposes raw samples, stable benchmark identities,
+parameters, and tags so that comparison policy can remain in higher-level
+tools. A tool can use `benchId` to match the same declaration and parameters
+across compatible source layouts, and use a tag or its own metadata to identify
+a baseline.
+
+Comparison tools should retain the raw sample rates and verify that execution
+plans and relevant environment details are comparable. The appropriate analysis
+depends on the experimental design and distribution. For example, independent
+samples might use Welch's t-test or a rank-based test, while observations that
+were deliberately paired require paired analysis. Tools should also consider
+effect sizes, uncertainty, and correction when testing multiple benchmarks.
+The general-purpose {Histogram} statistics in `node:perf_hooks` can support such
+analysis, but the runner does not select a method or significance threshold.
+
 ## Reusable runners
 
 The module-level declaration functions use a shared runner and schedule it
