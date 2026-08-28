@@ -7,6 +7,7 @@ all: \
   ca4-cert.pem \
   ca5-cert.pem \
   ca6-cert.pem \
+  cert-without-key-fips.pfx \
   agent1-cert.pem \
   agent1-fips.pfx \
   agent1.pfx \
@@ -813,6 +814,18 @@ ec-fips.pfx: ec-cert.pem ec-key.pem
 		-in ec-cert.pem \
 		-inkey ec-key.pem \
 		-out ec-fips.pfx \
+		-password pass:password
+
+# A bundle of certificates with no private key. See agent1-fips.pfx for why the
+# FIPS fixture uses PBMAC1.
+cert-without-key-fips.pfx: ca1-cert.pem
+	openssl pkcs12 -export \
+		-nokeys \
+		-certpbe AES-256-CBC \
+		-iter 2048 \
+		-pbmac1_pbkdf2 \
+		-in ca1-cert.pem \
+		-out cert-without-key-fips.pfx \
 		-password pass:password
 
 dh512.pem:
