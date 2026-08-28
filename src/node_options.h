@@ -532,13 +532,12 @@ class OptionsParser {
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       bool default_is_true = false,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
-  void AddOption(
-      const char* name,
-      const char* help_text,
-      uint64_t Options::*field,
-      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
-      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace,
-      bool strict = false);
+  void AddOption(const char* name,
+                 const char* help_text,
+                 uint64_t Options::*field,
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace,
+                 bool strict = false);
   void AddOption(
       const char* name,
       const char* help_text,
