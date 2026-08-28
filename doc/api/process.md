@@ -669,7 +669,8 @@ process.on('SIGTERM', handle);
 * `'SIGTERM'` and `'SIGINT'` have default handlers on non-Windows platforms that
   reset the terminal mode before exiting with code `128 + signal number`. If one
   of these signals has a listener installed, its default behavior will be
-  removed (Node.js will no longer exit).
+  removed. Signal events are emitted asynchronously, so Node.js may exit before
+  the listener is called if the event loop is otherwise empty.
 * `'SIGPIPE'` is ignored by default. It can have a listener installed.
 * `'SIGHUP'` is generated on Windows when the console window is closed, and on
   other platforms under various similar conditions. See signal(7). It can have a
