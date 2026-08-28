@@ -38,12 +38,17 @@ suite('URL', () => {
     params: { input: 'short' },
   }, (b) => {
     const operations = 10_000;
+    let totalLength = 0;
 
     b.start();
     for (let i = 0; i < operations; i++) {
-      new URL(input);
+      totalLength += new URL(input).href.length;
     }
     b.end(operations);
+
+    if (totalLength !== operations * input.length) {
+      throw new Error('Unexpected URL result');
+    }
   });
 });
 ```
@@ -76,6 +81,32 @@ the process, JIT compilation, garbage collection, CPU frequency changes, and
 system load can all affect results. Keep raw samples when comparing results and
 investigate noisy or skewed distributions rather than treating a confidence
 interval as a pass/fail threshold.
+
+### Measurement integrity
+
+A statistically consistent result does not prove that a benchmark measured the
+intended work. An optimizing runtime can remove work whose result is unused or
+specialize it more narrowly than the workload being modeled. Framework and loop
+overhead can also dominate operations that are too short. To reduce these risks:
+
+* Make values produced by measured work observable outside the measured
+  interval, for example by validating an aggregate derived from every result.
+  Passing them only through unused local computations is insufficient.
+* Perform enough operations in each sample to amortize fixed timer reads and
+  calls to `context.start()` and `context.end()`. If loop bookkeeping is material
+  relative to one operation, batch multiple operations per iteration and report
+  the total operation count.
+* Inspect raw `samples` for trends that indicate insufficient warmup or
+  optimization tiering, pauses consistent with garbage collection, and
+  multimodal distributions.
+* Validate surprising results with an independent benchmark shape that performs
+  the same intended work differently.
+
+`node:bench` does not force a particular optimization state or infer whether an
+engine eliminated work. Such controls and diagnostics are runtime-specific and
+heuristic, and do not replace validating the benchmark workload.
+
+### Dynamic sampling and variable batches
 
 Calling `context.done()` during a measured sample completes the benchmark after
 that sample. This allows a higher-level tool to treat `samples` as a maximum and
@@ -635,7 +666,8 @@ A completed benchmark result contains:
 * `column` {number} The source column.
 * `tags` {string\[]} The inherited canonical tags.
 * `params` {Object} The canonical parameter metadata.
-* `samples` {Object\[]} The exact measured samples.
+* `samples` {Object\[]} The exact measured samples in measurement invocation
+  order.
 * `summary` {Object}
   * `mean` {number} The equally weighted arithmetic mean of per-sample rates,
     not pooled throughput across all operations and durations.
