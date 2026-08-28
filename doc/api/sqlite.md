@@ -1015,7 +1015,9 @@ wrapper around [`sqlite3session_delete()`][].
 added: v24.9.0
 -->
 
-Closes the session. If the session is already closed, does nothing.
+Closes the session. If the session is already closed, then this is a no-op. An
+[`ERR_INVALID_STATE`][] error is thrown if the session is currently generating
+a changeset or patchset, under the same conditions as [`session.close()`][].
 
 ## Class: `StatementSync`
 
@@ -1907,6 +1909,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`diagnostics_channel`]: diagnostics_channel.md
+[`session.close()`]: #sessionclose
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
