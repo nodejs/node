@@ -110,6 +110,19 @@ test('database.applyChangeset() - closed database results in exception', (t) => 
   });
 });
 
+test('database.applyChangeset() - error carries errcode and errstr', (t) => {
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE data (key INTEGER PRIMARY KEY)');
+  t.assert.throws(() => {
+    database.applyChangeset(Buffer.from([0xff, 0xff, 0xff]));
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    errcode: 11,
+    errstr: 'database disk image is malformed',
+  });
+  database.close();
+});
+
 test('database.createSession() - use table option to track specific table', (t) => {
   const database1 = new DatabaseSync(':memory:');
   const database2 = new DatabaseSync(':memory:');

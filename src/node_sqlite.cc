@@ -5,6 +5,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_buffer.h"
 #include "node_diagnostics_channel.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -354,16 +355,8 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
-  const char* errstr = sqlite3_errstr(errcode);
-
-  Environment* env = Environment::GetCurrent(isolate);
   Local<Object> error;
-  if (CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
-      error
-          ->Set(isolate->GetCurrentContext(),
-                env->errcode_string(),
-                Integer::New(isolate, errcode))
-          .IsJust()) {
+  if (CreateSQLiteError(isolate, errcode).ToLocal(&error)) {
     isolate->ThrowException(error);
   }
 }
@@ -1032,6 +1025,23 @@ void DatabaseSync::DeleteSessions() {
   }
 }
 
+int DatabaseSync::CloseBlobs() {
+  // Open blob handles hold a cursor into the database and must be closed
+  // before the connection is. https://www.sqlite.org/c3ref/blob_close.html
+  //
+  // Closing a read-write handle can commit the open transaction, so it can
+  // fail. Every handle is released regardless; the first error is returned so
+  // that an explicit close() can report a write that did not make it to disk.
+  int first_error = SQLITE_OK;
+  while (!blobs_.empty()) {
+    int r = (*blobs_.begin())->Delete();
+    if (r != SQLITE_OK && first_error == SQLITE_OK) {
+      first_error = r;
+    }
+  }
+  return first_error;
+}
+
 DatabaseSync::~DatabaseSync() {
   BindingData* binding =
       env()->principal_realm()->GetBindingData<BindingData>();
@@ -1042,6 +1052,7 @@ DatabaseSync::~DatabaseSync() {
   if (IsOpen()) {
     FinalizeStatements();
     DeleteSessions();
+    CloseBlobs();
     connection_.reset();
   }
 }
@@ -1588,17 +1599,24 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
       env, db->IsInCallback(), "database cannot be closed while in a callback");
   db->FinalizeStatements();
   db->DeleteSessions();
+  int blob_error = db->CloseBlobs();
   int r = sqlite3_close_v2(db->connection_.get());
+  if (r == SQLITE_OK && blob_error != SQLITE_OK) {
+    // Report the lost write rather than a success that dropped it. The
+    // connection is gone, so the error comes from the code alone.
+    db->connection_.release();
+    THROW_ERR_SQLITE_ERROR(env->isolate(), blob_error);
+    return;
+  }
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
 }
 
 void DatabaseSync::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch(args.GetIsolate());
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  if (!db->IsOpen()) return;
   Close(args);
-  if (try_catch.HasCaught()) {
-    CHECK(try_catch.CanContinue());
-  }
 }
 
 void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
@@ -2337,6 +2355,334 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   }
   wrapper_owns_session = true;
   args.GetReturnValue().Set(session->object());
+}
+
+namespace {
+
+// Converts a JavaScript number or BigInt to a 64-bit integer, throwing if the
+// value is not an integer that can be represented exactly.
+bool ToInt64(Environment* env,
+             Local<Value> value,
+             const char* name,
+             int64_t* result) {
+  if (value->IsNumber()) {
+    if (!IsSafeJsInt(value)) {
+      THROW_ERR_OUT_OF_RANGE(
+          env->isolate(), "The \"%s\" argument must be a safe integer.", name);
+      return false;
+    }
+    *result = static_cast<int64_t>(value.As<Number>()->Value());
+    return true;
+  }
+
+  if (value->IsBigInt()) {
+    bool lossless;
+    *result = value.As<BigInt>()->Int64Value(&lossless);
+    if (!lossless) {
+      THROW_ERR_OUT_OF_RANGE(env->isolate(),
+                             "The \"%s\" argument must be within the range of "
+                             "a signed 64-bit integer.",
+                             name);
+      return false;
+    }
+    return true;
+  }
+
+  THROW_ERR_INVALID_ARG_TYPE(
+      env->isolate(),
+      "The \"%s\" argument must be a number or a BigInt.",
+      name);
+  return false;
+}
+
+bool GetInt64Option(Environment* env,
+                    Local<Object> options,
+                    Local<String> key,
+                    const char* name,
+                    int64_t default_value,
+                    int64_t* result) {
+  Local<Value> value;
+  if (!options->Get(env->context(), key).ToLocal(&value)) {
+    return false;
+  }
+
+  if (value->IsUndefined()) {
+    *result = default_value;
+    return true;
+  }
+
+  return ToInt64(env, value, name, result);
+}
+
+bool GetStringOption(Environment* env,
+                     Local<Object> options,
+                     Local<String> key,
+                     const char* name,
+                     bool required,
+                     std::string* result) {
+  Local<Value> value;
+  if (!options->Get(env->context(), key).ToLocal(&value)) {
+    return false;
+  }
+
+  if (value->IsUndefined() && !required) {
+    return true;
+  }
+
+  if (!value->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"%s\" argument must be a string.", name);
+    return false;
+  }
+
+  *result = Utf8Value(env->isolate(), value).ToString();
+
+  // SQLite takes these as NUL-terminated C strings, so an embedded NUL would
+  // silently select a different identifier than the one that was passed.
+  if (result->find('\0') != std::string::npos) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env->isolate(),
+        "The \"%s\" argument must not contain null bytes.",
+        name);
+    return false;
+  }
+
+  return true;
+}
+
+bool GetBoolOption(Environment* env,
+                   Local<Object> options,
+                   Local<String> key,
+                   const char* name,
+                   bool* result) {
+  Local<Value> value;
+  if (!options->Get(env->context(), key).ToLocal(&value)) {
+    return false;
+  }
+
+  if (value->IsUndefined()) {
+    return true;
+  }
+
+  if (!value->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"%s\" argument must be a boolean.", name);
+    return false;
+  }
+
+  *result = value.As<Boolean>()->Value();
+  return true;
+}
+
+// Reads the { offset, length, position } options shared by BlobHandle's read()
+// and write().
+//
+// This is the only point at which a blob operation can re-enter JavaScript:
+// the options object may expose accessors, or be a Proxy, so reading a
+// property runs arbitrary user code. That code can detach or resize the
+// buffer, close the handle, or close the database. Nothing derived from the
+// buffer, the handle, or the connection may therefore be captured before this
+// returns -- see ValidateBlobRange().
+//
+// |length| is left empty when the caller did not specify one; it defaults to
+// the remainder of the buffer, which is not known yet.
+bool ReadBlobRangeOptions(Environment* env,
+                          const FunctionCallbackInfo<Value>& args,
+                          int64_t* offset,
+                          std::optional<int64_t>* length,
+                          int64_t* position) {
+  *offset = 0;
+  *length = std::nullopt;
+  *position = 0;
+
+  if (args.Length() <= 1 || args[1]->IsUndefined()) {
+    return true;
+  }
+
+  if (!args[1]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"options\" argument must be an object.");
+    return false;
+  }
+
+  Local<Object> options = args[1].As<Object>();
+  if (!GetInt64Option(
+          env, options, env->offset_string(), "options.offset", 0, offset)) {
+    return false;
+  }
+
+  Local<Value> length_value;
+  if (!options->Get(env->context(), env->length_string())
+           .ToLocal(&length_value)) {
+    return false;
+  }
+  if (!length_value->IsUndefined()) {
+    int64_t value;
+    if (!ToInt64(env, length_value, "options.length", &value)) {
+      return false;
+    }
+    *length = value;
+  }
+
+  return GetInt64Option(
+      env, options, env->position_string(), "options.position", 0, position);
+}
+
+// Validates a range read by ReadBlobRangeOptions() against the buffer and the
+// blob. Both sizes must be read *after* that call, never before.
+bool ValidateBlobRange(Environment* env,
+                       int64_t buffer_length,
+                       int64_t blob_length,
+                       int64_t offset,
+                       std::optional<int64_t> requested_length,
+                       int64_t position,
+                       int64_t* length) {
+  if (offset < 0 || offset > buffer_length) {
+    THROW_ERR_OUT_OF_RANGE(
+        env->isolate(),
+        "The \"options.offset\" argument must be >= 0 and <= %" PRId64 ".",
+        buffer_length);
+    return false;
+  }
+
+  const int64_t available = buffer_length - offset;
+  const int64_t len = requested_length.value_or(available);
+  if (len < 0 || len > available) {
+    THROW_ERR_OUT_OF_RANGE(
+        env->isolate(),
+        "The \"options.length\" argument must be >= 0 and <= %" PRId64 ".",
+        available);
+    return false;
+  }
+
+  if (position < 0) {
+    THROW_ERR_OUT_OF_RANGE(env->isolate(),
+                           "The \"options.position\" argument must be >= 0.");
+    return false;
+  }
+
+  // sqlite3_blob_read() and sqlite3_blob_write() take their length and offset
+  // as int. Every value SQLite can store fits, but a buffer need not, and the
+  // blob-relative checks below are skipped for an aborted handle.
+  constexpr int64_t kMaxRange = std::numeric_limits<int>::max();
+  if (len > kMaxRange || position > kMaxRange) {
+    THROW_ERR_OUT_OF_RANGE(env->isolate(),
+                           "The \"options.length\" and \"options.position\" "
+                           "arguments must be <= %" PRId64 ".",
+                           kMaxRange);
+    return false;
+  }
+
+  // sqlite3_blob_bytes() reports zero both for an empty value and for a handle
+  // that SQLite has aborted -- because the row was modified while the handle
+  // was open, or because reopen() failed. The two are indistinguishable here,
+  // so the remaining checks are skipped and SQLite is left to report
+  // SQLITE_ABORT rather than a range error that would name the wrong cause.
+  if (blob_length > 0) {
+    if (position > blob_length) {
+      THROW_ERR_OUT_OF_RANGE(
+          env->isolate(),
+          "The \"options.position\" argument must be >= 0 and <= %" PRId64 ".",
+          blob_length);
+      return false;
+    }
+
+    const int64_t remaining = blob_length - position;
+    if (len > remaining) {
+      THROW_ERR_OUT_OF_RANGE(env->isolate(),
+                             "The requested range extends past the end of the "
+                             "blob. The blob is %" PRId64 " bytes and %" PRId64
+                             " bytes were requested at position %" PRId64 ".",
+                             blob_length,
+                             len,
+                             position);
+      return false;
+    }
+  }
+
+  *length = len;
+  return true;
+}
+
+}  // namespace
+
+void DatabaseSync::OpenBlob(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  // sqlite3_blob_open() prepares and steps a statement internally, which an
+  // authorizer callback is not allowed to do on its own connection.
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
+  if (!args[0]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
+                               "The \"options\" argument must be an object.");
+    return;
+  }
+
+  Local<Object> options = args[0].As<Object>();
+  std::string table;
+  std::string column;
+  std::string db_name = "main";
+  bool read_only = false;
+  int64_t row;
+
+  if (!GetStringOption(
+          env, options, env->table_string(), "options.table", true, &table) ||
+      !GetStringOption(env,
+                       options,
+                       env->column_string(),
+                       "options.column",
+                       true,
+                       &column) ||
+      !GetStringOption(env,
+                       options,
+                       env->db_name_string(),
+                       "options.dbName",
+                       false,
+                       &db_name) ||
+      !GetBoolOption(env,
+                     options,
+                     env->read_only_string(),
+                     "options.readOnly",
+                     &read_only)) {
+    return;
+  }
+
+  Local<Value> row_value;
+  if (!options->Get(env->context(), env->row_string()).ToLocal(&row_value)) {
+    return;
+  }
+  if (!ToInt64(env, row_value, "options.row", &row)) {
+    return;
+  }
+
+  // Reading the options above can run user code -- the object may expose
+  // accessors, or be a Proxy -- and that code can close the database. The
+  // entry guards have to be repeated before the connection is used.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
+  sqlite3_blob* blob;
+  int r = sqlite3_blob_open(db->connection_.get(),
+                            db_name.c_str(),
+                            table.c_str(),
+                            column.c_str(),
+                            row,
+                            read_only ? 0 : 1,
+                            &blob);
+  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, void());
+
+  BaseObjectPtr<BlobHandle> handle =
+      BlobHandle::Create(env, BaseObjectPtr<DatabaseSync>(db), blob);
+  if (!handle) {
+    sqlite3_blob_close(blob);
+    return;
+  }
+
+  args.GetReturnValue().Set(handle->object());
 }
 
 void Backup(const FunctionCallbackInfo<Value>& args) {
@@ -4366,6 +4712,202 @@ void Session::Delete() {
   }
 }
 
+BlobHandle::BlobHandle(Environment* env,
+                       Local<Object> object,
+                       BaseObjectPtr<DatabaseSync> database,
+                       sqlite3_blob* blob)
+    : BaseObject(env, object), blob_(blob), database_(std::move(database)) {
+  database_->blobs_.insert(this);
+  MakeWeak();
+}
+
+BlobHandle::~BlobHandle() {
+  Delete();
+}
+
+BaseObjectPtr<BlobHandle> BlobHandle::Create(
+    Environment* env,
+    BaseObjectPtr<DatabaseSync> database,
+    sqlite3_blob* blob) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return MakeBaseObject<BlobHandle>(env, obj, std::move(database), blob);
+}
+
+Local<FunctionTemplate> BlobHandle::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->sqlite_blob_handle_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "BlobHandle"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        BlobHandle::kInternalFieldCount);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "byteLength"),
+                            BlobHandle::ByteLengthGetter);
+    SetProtoMethod(isolate, tmpl, "read", BlobHandle::Read);
+    SetProtoMethod(isolate, tmpl, "write", BlobHandle::Write);
+    SetProtoMethod(isolate, tmpl, "reopen", BlobHandle::Reopen);
+    SetProtoMethod(isolate, tmpl, "close", BlobHandle::Close);
+    SetProtoDispose(isolate, tmpl, BlobHandle::Dispose);
+    env->set_sqlite_blob_handle_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void BlobHandle::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("database", database_);
+}
+
+#define THROW_AND_RETURN_IF_BLOB_UNUSABLE(env, blob)                           \
+  do {                                                                         \
+    THROW_AND_RETURN_ON_BAD_STATE(                                             \
+        (env), !(blob)->database_->IsOpen(), "database is not open");          \
+    THROW_AND_RETURN_ON_BAD_STATE(                                             \
+        (env), (blob)->blob_ == nullptr, "blob handle is closed");             \
+  } while (0)
+
+void BlobHandle::ByteLengthGetter(const FunctionCallbackInfo<Value>& args) {
+  BlobHandle* blob;
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_IF_BLOB_UNUSABLE(env, blob);
+  // Not cached: reopen() can point the handle at a differently sized value.
+  args.GetReturnValue().Set(sqlite3_blob_bytes(blob->blob_));
+}
+
+void BlobHandle::Transfer(const FunctionCallbackInfo<Value>& args,
+                          bool is_write) {
+  BlobHandle* blob;
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_IF_BLOB_UNUSABLE(env, blob);
+
+  if (!args[0]->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"buffer\" argument must be a TypedArray or a DataView.");
+    return;
+  }
+
+  // Reading the options can run user code, so it happens before anything that
+  // that code could invalidate is captured.
+  int64_t offset;
+  std::optional<int64_t> requested_length;
+  int64_t position;
+  if (!ReadBlobRangeOptions(env, args, &offset, &requested_length, &position)) {
+    return;
+  }
+
+  // The handle and the database may have been closed while the options were
+  // being read, so the entry guards have to be repeated rather than trusted.
+  THROW_AND_RETURN_IF_BLOB_UNUSABLE(env, blob);
+  // A write modifies the connection, and even a read moves its cursor and
+  // error state, which SQLite forbids from inside an authorizer callback.
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, blob->database_.get());
+
+  // Likewise the buffer may have been detached or resized, so its size and its
+  // data pointer are read now and validated together.
+  int64_t length;
+  if (!ValidateBlobRange(env,
+                         static_cast<int64_t>(Buffer::Length(args[0])),
+                         sqlite3_blob_bytes(blob->blob_),
+                         offset,
+                         requested_length,
+                         position,
+                         &length)) {
+    return;
+  }
+
+  // SQLite validates the range, the aborted state and write permission even
+  // for a zero-length transfer, so the call is always made. A detached buffer
+  // has no data pointer, but it also has no bytes, so a dummy address is
+  // enough to keep those checks without dereferencing null.
+  char dummy;
+  char* data = length == 0 ? &dummy : Buffer::Data(args[0]) + offset;
+  int r = is_write ? sqlite3_blob_write(blob->blob_,
+                                        data,
+                                        static_cast<int>(length),
+                                        static_cast<int>(position))
+                   : sqlite3_blob_read(blob->blob_,
+                                       data,
+                                       static_cast<int>(length),
+                                       static_cast<int>(position));
+  blob->last_result_ = r;
+  CHECK_ERROR_OR_THROW(
+      env->isolate(), blob->database_.get(), r, SQLITE_OK, void());
+  args.GetReturnValue().Set(static_cast<double>(length));
+}
+
+void BlobHandle::Read(const FunctionCallbackInfo<Value>& args) {
+  Transfer(args, false);
+}
+
+void BlobHandle::Write(const FunctionCallbackInfo<Value>& args) {
+  Transfer(args, true);
+}
+
+void BlobHandle::Reopen(const FunctionCallbackInfo<Value>& args) {
+  BlobHandle* blob;
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_IF_BLOB_UNUSABLE(env, blob);
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, blob->database_.get());
+
+  int64_t row;
+  if (!ToInt64(env, args[0], "row", &row)) {
+    return;
+  }
+
+  int r = sqlite3_blob_reopen(blob->blob_, row);
+  blob->last_result_ = r;
+  CHECK_ERROR_OR_THROW(
+      env->isolate(), blob->database_.get(), r, SQLITE_OK, void());
+}
+
+void BlobHandle::Close(const FunctionCallbackInfo<Value>& args) {
+  BlobHandle* blob;
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_IF_BLOB_UNUSABLE(env, blob);
+  // Closing a read-write handle can commit the open transaction.
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, blob->database_.get());
+
+  // sqlite3_blob_close() can report an error deferred from an earlier write.
+  // The handle is released either way, so this is the only path that surfaces
+  // it; the implicit paths below cannot throw.
+  int r = blob->Delete();
+  CHECK_ERROR_OR_THROW(
+      env->isolate(), blob->database_.get(), r, SQLITE_OK, void());
+}
+
+void BlobHandle::Dispose(const FunctionCallbackInfo<Value>& args) {
+  BlobHandle* blob;
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
+  if (blob->blob_ == nullptr) return;
+  Close(args);
+}
+
+int BlobHandle::Delete() {
+  if (blob_ == nullptr) return SQLITE_OK;
+  sqlite3_blob* blob = blob_;
+  blob_ = nullptr;
+  if (database_) {
+    database_->blobs_.erase(this);
+  }
+
+  int r = sqlite3_blob_close(blob);
+  // Only a code the caller has not already been told about is worth raising.
+  return r == last_result_ ? SQLITE_OK : r;
+}
+
 void DefineConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
@@ -4471,6 +5013,7 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "aggregate", DatabaseSync::AggregateFunction);
   SetProtoMethod(
       isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
+  SetProtoMethod(isolate, db_tmpl, "openBlob", DatabaseSync::OpenBlob);
   SetProtoMethod(
       isolate, db_tmpl, "applyChangeset", DatabaseSync::ApplyChangeset);
   SetProtoMethod(isolate,
@@ -4511,6 +5054,8 @@ static void Initialize(Local<Object> target,
                          StatementSync::GetConstructorTemplate(env));
   SetConstructorFunction(
       context, target, "Session", Session::GetConstructorTemplate(env));
+  SetConstructorFunction(
+      context, target, "BlobHandle", BlobHandle::GetConstructorTemplate(env));
 
   target->Set(context, env->constants_string(), constants).Check();
 
