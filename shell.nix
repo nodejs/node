@@ -63,6 +63,7 @@ let
     ];
   buildInputs =
     pkgs.lib.optional useSharedICU icu
+    ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) sharedLibDeps.abseil
     ++ pkgs.lib.optional (withTemporal && useSharedTemporal) sharedLibDeps.temporal_capi;
 
   # Put here only the configure flags that affect the V8 build
@@ -75,6 +76,7 @@ let
     )
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
+  ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) "--shared-abseil"
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
   ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
@@ -132,6 +134,7 @@ pkgs.mkShell {
             builtins.attrNames (
               if (useSeparateDerivationForV8 != false) then
                 builtins.removeAttrs sharedLibDeps [
+                  "abseil"
                   "simdutf"
                   "temporal_capi"
                 ]
