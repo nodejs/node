@@ -594,6 +594,7 @@ both emitted as a named event and made available on the stream as
 
 The events are emitted in execution order:
 
+* `'bench:plan'`
 * `'bench:start'`
 * `'bench:sample'`
 * `'bench:complete'`
@@ -630,6 +631,33 @@ change between runs. `entryFile` identifies the top-level benchmark file whose
 loading caused the declaration, while `file` identifies the source location of
 the declaration itself. `parentId` is based on the containing suite's source
 file and hierarchical name path.
+
+After asynchronous suite declarations settle, an in-process runner emits one
+`'bench:plan'` event for every benchmark it collected, in declaration order.
+All plans from that runner are emitted before its suite hooks or benchmark
+callbacks run. With process isolation, files run in separate children, so plans
+for a later file are emitted after an earlier child has completed. With no
+isolation, all files share one runner and their plans are emitted before any
+benchmark executes. Plan data contains the benchmark-scoped identity, location,
+tags, and parameters described in [benchmark result][], together with:
+
+* `samples` {number} The effective maximum number of measured callback
+  invocations after run-level overrides.
+* `warmup` {number} The effective number of unreported warmup callback
+  invocations after run-level overrides.
+* `timeout` {number|null} The timeout in milliseconds, or `null` when no timeout
+  is configured.
+* `yieldBetweenSamples` {boolean} Whether an event loop turn is scheduled between
+  sample callbacks.
+* `selected` {boolean} Whether the benchmark is eligible to run after applying
+  `skip`, `only`, and `namePattern` selection. Execution can still be prevented
+  by a duplicate declaration, suite build, hook, abort, or other runtime failure.
+* `skip` {boolean|string} When `selected` is `false`, the explicit skip value or
+  the selection reason, such as `'only'` or `'name pattern'`.
+
+The plan contains execution settings known to the runner. Runtime version,
+operating system, processor, and other environment metadata are intentionally
+left for reporters and higher-level tools to collect.
 
 `'bench:complete'` data contains a [benchmark result][]. A failed result has an
 additional `error` property and may contain samples recorded before the error.
