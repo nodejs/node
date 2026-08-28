@@ -4350,12 +4350,17 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
   session->Delete();
 }
 
-void Session::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch(args.GetIsolate());
-  Close(args);
-  if (try_catch.HasCaught()) {
-    CHECK(try_catch.CanContinue());
+void Session::Dispose(const FunctionCallbackInfo<Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  if (session->session_ == nullptr) {
+    return;
   }
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, session->is_generating_changeset_, "session is currently in use");
+
+  session->Delete();
 }
 
 void Session::Delete() {

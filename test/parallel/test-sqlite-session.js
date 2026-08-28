@@ -612,26 +612,44 @@ test('session.close() - closing twice', (t) => {
   });
 });
 
-test('session.close() - while generating changes throws exception', (t) => {
-  for (const method of ['changeset', 'patchset']) {
-    const database = new DatabaseSync(':memory:');
-    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+test('session close and dispose - while generating changes throws exception', (t) => {
+  for (const close of ['close', Symbol.dispose]) {
+    for (const method of ['changeset', 'patchset']) {
+      const database = new DatabaseSync(':memory:');
+      database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
-    const session = database.createSession({ table: 'data' });
-    database.exec("INSERT INTO data VALUES (1, 'a'), (2, 'b'), (3, 'c')");
-    database.setAuthorizer(() => {
-      session.close();
-      return constants.SQLITE_OK;
-    });
+      const session = database.createSession({ table: 'data' });
+      database.exec("INSERT INTO data VALUES (1, 'a'), (2, 'b'), (3, 'c')");
+      database.setAuthorizer(() => {
+        session[close]();
+        return constants.SQLITE_OK;
+      });
 
-    t.assert.throws(() => session[method](), {
-      code: 'ERR_INVALID_STATE',
-      message: 'session is currently in use',
-    });
+      t.assert.throws(() => session[method](), {
+        code: 'ERR_INVALID_STATE',
+        message: 'session is currently in use',
+      });
 
-    database.setAuthorizer(null);
-    t.assert.notStrictEqual(session[method]().length, 0);
+      database.setAuthorizer(null);
+      t.assert.notStrictEqual(session[method]().length, 0);
+    }
   }
+});
+
+test('session[Symbol.dispose]() - closed session is a no-op', () => {
+  const database = new DatabaseSync(':memory:');
+  const session = database.createSession();
+  session.close();
+
+  session[Symbol.dispose]();
+});
+
+test('session[Symbol.dispose]() - after closing database is a no-op', () => {
+  const database = new DatabaseSync(':memory:');
+  const session = database.createSession();
+  database.close();
+
+  session[Symbol.dispose]();
 });
 
 test('session - keeps its database alive after the db handle is dropped', async (t) => {
