@@ -52,6 +52,7 @@ namespace crypto {
   V(NativeCryptoKey)                                                           \
   V(NativeKeyObject)                                                           \
   V(PBKDF2Job)                                                                 \
+  V(PKCS12Parser)                                                              \
   V(Random)                                                                    \
   V(RSAAlg)                                                                    \
   V(SecureContext)                                                             \
