@@ -2,9 +2,9 @@
 // This tests that SEA can load addons packaged as assets by writing them to disk
 // and loading them via process.dlopen().
 const common = require('../../common');
-const { generateSEA, skipIfSingleExecutableIsNotSupported } = require('../../common/sea');
+const { buildSEA, skipIfBuildSEAIsNotSupported } = require('../../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 const tmpdir = require('../../common/tmpdir');
 const { copyFileSync, rmSync, cpSync } = require('fs');
@@ -27,7 +27,7 @@ cpSync(fixtureDir, tmpdir.path, { recursive: true });
 copyFileSync(addonPath, copiedAddonPath);
 
 // Generate the SEA using the working directory directly (skip copy).
-const outputFile = generateSEA(tmpdir.path, tmpdir.path);
+const outputFile = buildSEA(tmpdir.path);
 
 // Remove the copied addon after it's been packaged into the SEA blob.
 rmSync(copiedAddonPath, { force: true });
