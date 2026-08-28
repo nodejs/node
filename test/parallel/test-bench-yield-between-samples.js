@@ -4,15 +4,15 @@
 const common = require('../common');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
+const { setImmediate } = require('timers/promises');
 
 async function observe(factoryOptions, runOptions) {
   const runner = createRunner(factoryOptions);
   const observed = [];
   let turnOccurred = false;
-  const turn = new Promise((resolve) => setImmediate(() => {
+  const turn = setImmediate().then(() => {
     turnOccurred = true;
-    resolve();
-  }));
+  });
 
   runner.bench('yielding', { samples: 2 }, (b) => {
     observed.push(turnOccurred);

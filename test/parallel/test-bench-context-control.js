@@ -82,5 +82,11 @@ const { createRunner } = require('node:bench');
                          { source: 'worker', value: 1n });
   assert.strictEqual(
     records.filter(({ type }) => type === 'bench:sample').length, 3);
+  assert.throws(() => closedContext.start(), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => closedContext.end(1), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => closedContext.record({
+    duration_ns: 1n,
+    operations: 1,
+  }), { code: 'ERR_INVALID_STATE' });
   assert.throws(() => closedContext.done(), { code: 'ERR_INVALID_STATE' });
 })().then(common.mustCall());
