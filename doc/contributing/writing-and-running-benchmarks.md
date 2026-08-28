@@ -17,6 +17,7 @@
     * [Using `--analyze` (no external tools needed)](#using---analyze-no-external-tools-needed)
     * [Using R scripts or node-benchmark-compare](#using-r-scripts-or-node-benchmark-compare)
   * [Comparing parameters](#comparing-parameters)
+  * [Evaluating `node:bench` ports](#evaluating-nodebench-ports)
   * [Running benchmarks on the CI](#running-benchmarks-on-the-ci)
 * [Creating a benchmark](#creating-a-benchmark)
   * [Basics of a benchmark](#basics-of-a-benchmark)
@@ -706,6 +707,41 @@ chunkLen     encoding      rate confidence.interval
 
 ![compare tool boxplot](doc_img/scatter-plot.png)
 
+### Evaluating `node:bench` ports
+
+The experimental `compare-node-bench.js` and `scatter-node-bench.js` tools are
+parallel versions of the existing tools for explicit `node:bench` files. They
+do not modify or replace the legacy benchmark framework. Each repeated
+observation for a benchmark identity uses one measured sample from a separate
+process invocation. Configurations declared in the same file still execute
+serially in that process, unlike the legacy framework's configuration-level
+process isolation, and can share runtime state.
+
+Both parallel tools support inline analysis. `scatter-node-bench.js --analyze`
+uses the same `--xaxis`, `--category`, and `--no-chart` interface described for
+`scatter.js`. `compare-node-bench.js --analyze` performs Welch's t-test, while
+`--max-regression N` adds a corrected regression gate. The gate requires both a
+Holm-Bonferroni-adjusted p-value below 0.05 and a 95% confidence interval lying
+entirely beyond `-N%`; the point estimate alone cannot fail the command.
+Scatter analysis reduces aggregated configurations to one value per outer
+process and uses disjoint process sets for consecutive Mann-Whitney comparisons
+so configurations sharing a process are not treated as independent samples.
+
+Underscore-prefixed ports are kept beside selected legacy benchmarks and are
+excluded from legacy discovery. For example:
+
+```console
+./node benchmark/scatter.js --runs 30 \
+  benchmark/crypto/create-hash.js > legacy.csv
+./node benchmark/scatter-node-bench.js --runs 30 -- \
+  benchmark/crypto/_create-hash.node-bench.js > node-bench.csv
+```
+
+The port uses the legacy relative filename as its benchmark name and preserves
+the same parameter names. The two CSV files can therefore be analyzed with the
+same scripts to check whether their rate distributions and measurement units
+agree. See [`benchmark/README.md`][] for compare and scatter examples.
+
 ### Running benchmarks on the CI
 
 To see the performance impact of a pull request by running benchmarks on
@@ -889,6 +925,7 @@ Supported options keys are:
 
 [Cliff's delta]: https://en.wikipedia.org/wiki/Effect_size#Effect_size_for_ordinal_data
 [Mann-Whitney U test]: https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test
+[`benchmark/README.md`]: ../../benchmark/README.md#nodebench-evaluation-tools
 [autocannon]: https://github.com/mcollina/autocannon
 [benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
 [git-for-windows]: https://git-scm.com/download/win
