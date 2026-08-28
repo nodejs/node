@@ -16,7 +16,6 @@
       'target_name': 'd8',
       'type': 'executable',
       'dependencies': [
-        'abseil.gyp:abseil',
         'v8.gyp:v8',
         'v8.gyp:v8_libbase',
         'v8.gyp:v8_libplatform',
@@ -76,6 +75,9 @@
               'AdditionalOptions': ['-fno-lto'],
             },
           },
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
     },

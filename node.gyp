@@ -15,6 +15,7 @@
     'node_lib_target_name%': 'libnode',
     'node_module_version%': '',
     'node_no_browser_globals%': 'false',
+    'node_shared_abseil%': 'false',
     'node_shared_brotli%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
@@ -901,7 +902,7 @@
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ],
         }],
-        [ 'node_use_bundled_v8!="false"', {
+        [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],
         }],
         [ 'node_shared_gtest=="false"', {
@@ -1369,7 +1370,7 @@
         [ 'node_shared_gtest=="true"', {
           'libraries': [ '-lgtest_main' ],
         }],
-        [ 'node_use_bundled_v8!="false"', {
+        [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],
         }],
         [ 'node_shared_hdr_histogram=="false"', {

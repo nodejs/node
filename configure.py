@@ -282,6 +282,28 @@ parser.add_argument('--openssl-system-ca-path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
+shared_optgroup.add_argument('--shared-abseil',
+    action='store_true',
+    dest='shared_abseil',
+    default=None,
+    help='link to a shared Abseil DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-abseil-includes',
+    action='store',
+    dest='shared_abseil_includes',
+    help='directory containing Abseil header files')
+
+shared_optgroup.add_argument('--shared-abseil-libname',
+    action='store',
+    dest='shared_abseil_libname',
+    default=None,
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-abseil-libpath',
+    action='store',
+    dest='shared_abseil_libpath',
+    help='a directory to search for the shared Abseil DLL')
+
 shared_optgroup.add_argument('--shared-gtest',
     action='store_true',
     dest='shared_gtest',
@@ -2814,6 +2836,71 @@ configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output, pkgname='libllhttp')
 configure_library('libuv', output)
+configure_library('abseil', output, pkgname=[
+  'absl_absl_check',
+  'absl_absl_log',
+  'absl_absl_vlog_is_on',
+  'absl_algorithm_container',
+  'absl_algorithm',
+  'absl_any_invocable',
+  'absl_base',
+  'absl_bind_front',
+  'absl_bits',
+  'absl_btree',
+  'absl_charset',
+  'absl_cleanup',
+  'absl_config',
+  'absl_cord',
+  'absl_core_headers',
+  'absl_die_if_null',
+  'absl_dynamic_annotations',
+  'absl_failure_signal_handler',
+  'absl_fast_type_id',
+  'absl_fixed_array',
+  'absl_flat_hash_map',
+  'absl_flat_hash_set',
+  'absl_function_ref',
+  'absl_has_ostream_operator',
+  'absl_hash_container_defaults',
+  'absl_hash',
+  'absl_inlined_vector',
+  'absl_int128',
+  'absl_layout',
+  'absl_leak_check',
+  'absl_linked_hash_map',
+  'absl_linked_hash_set',
+  'absl_log_entry',
+  'absl_log_globals',
+  'absl_log_initialize',
+  'absl_log_severity',
+  'absl_log_sink_registry',
+  'absl_log_sink',
+  'absl_memory',
+  'absl_no_destructor',
+  'absl_node_hash_map',
+  'absl_node_hash_set',
+  'absl_nullability',
+  'absl_optional',
+  'absl_overload',
+  'absl_prefetch',
+  'absl_random_bit_gen_ref',
+  'absl_random_distributions',
+  'absl_random_random',
+  'absl_raw_logging_internal',
+  'absl_span',
+  'absl_stacktrace',
+  'absl_status',
+  'absl_statusor',
+  'absl_str_format',
+  'absl_string_view',
+  'absl_strings',
+  'absl_symbolize',
+  'absl_synchronization',
+  'absl_time',
+  'absl_type_traits',
+  'absl_utility',
+  'absl_variant',
+])
 configure_library('ada', output)
 configure_library('simdjson', output)
 configure_library('simdutf', output)
