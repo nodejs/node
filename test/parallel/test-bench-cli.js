@@ -396,6 +396,7 @@ for (const isolation of ['process', 'none']) {
 }
 
 for (const { kind, message } of [
+  { kind: 'sequence', message: /valid record sequence/ },
   { kind: 'record', message: /not a valid benchmark record/ },
   { kind: 'identity', message: /not a valid benchmark record/ },
   { kind: 'summary', message: /not a valid benchmark summary/ },
@@ -559,6 +560,22 @@ if (common.hasInspector) {
   assert.strictEqual(report.samples, 30);
   assert.strictEqual(report.stdout,
                      Array.from({ length: 30 }, (_, i) => `${i}\n`).join(''));
+}
+
+{
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/acknowledged-records.mjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  assert.strictEqual(result.stderr, '');
+  const records = parseRecords(result);
+  const diagnostics = records.filter(
+    ({ type }) => type === 'bench:diagnostic');
+  assert.strictEqual(diagnostics.length, 32);
+  assert(diagnostics.every(
+    ({ data }) => /^acknowledged 10\d{3}$/.test(data.message)));
+  assert.strictEqual(records.at(-1).data.success, true);
 }
 
 {
