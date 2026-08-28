@@ -91,9 +91,12 @@ for (const { patterns, message } of [
   const result = spawnBench(['--bench-reporter=json', basicPattern]);
   assert.strictEqual(result.status, 0);
   const records = parseRecords(result);
+  const plans = records.filter(
+    ({ type }) => type === 'bench:plan').map(({ data }) => data);
   const completions = records.filter(
     ({ type }) => type === 'bench:complete');
 
+  assert.deepStrictEqual(plans.map(({ name }) => name), ['alpha', 'beta']);
   assert.deepStrictEqual(completions.map(({ data }) => data.name), [
     'alpha',
     'beta',
@@ -129,10 +132,20 @@ for (const isolation of ['process', 'none']) {
   ]);
   assert.strictEqual(result.status, 0);
   const records = parseRecords(result);
+  const plans = records.filter(
+    ({ type }) => type === 'bench:plan').map(({ data }) => data);
   const completions = records.filter(
     ({ type }) => type === 'bench:complete').map(({ data }) => data);
   const summary = records.at(-1).data;
 
+  assert.strictEqual(plans.length, 2);
+  for (const plan of plans) {
+    const planIndex = records.findIndex(({ type, data }) =>
+      type === 'bench:plan' && data.fileRunId === plan.fileRunId);
+    const startIndex = records.findIndex(({ type, data }) =>
+      type === 'bench:start' && data.fileRunId === plan.fileRunId);
+    assert(planIndex < startIndex);
+  }
   assert.strictEqual(completions.length, 2);
   assert.strictEqual(completions[0].benchId, completions[1].benchId);
   assert.strictEqual(completions[0].runId, completions[1].runId);
@@ -249,8 +262,38 @@ for (const isolation of ['process', 'none']) {
   ]);
   assert.strictEqual(result.status, 0);
   const records = parseRecords(result);
+  const plans = records.filter(
+    ({ type }) => type === 'bench:plan').map(({ data }) => data);
   const samples = records.filter(({ type }) => type === 'bench:sample');
   assert.deepStrictEqual(samples.map(({ data }) => data.operations), [4, 5]);
+  assert.deepStrictEqual(plans.map((plan) => ({
+    name: plan.name,
+    samples: plan.samples,
+    selected: plan.selected,
+    skip: plan.skip,
+    timeout: plan.timeout,
+    warmup: plan.warmup,
+    yieldBetweenSamples: plan.yieldBetweenSamples,
+  })), [
+    {
+      name: 'selected',
+      samples: 2,
+      selected: true,
+      skip: undefined,
+      timeout: null,
+      warmup: 3,
+      yieldBetweenSamples: true,
+    },
+    {
+      name: 'filtered out',
+      samples: 2,
+      selected: false,
+      skip: 'name pattern',
+      timeout: null,
+      warmup: 3,
+      yieldBetweenSamples: true,
+    },
+  ]);
 
   const completions = records.filter(
     ({ type }) => type === 'bench:complete');
@@ -302,6 +345,28 @@ for (const isolation of ['process', 'none']) {
     ({ type }) => type === 'bench:diagnostic').data;
   assert.strictEqual(diagnostic.message, 'null');
   assert.strictEqual(records.at(-1).data.success, false);
+}
+
+for (const isolation of ['process', 'none']) {
+  const result = spawnBench([
+    `--bench-isolation=${isolation}`,
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/load-error-after-declaration.cjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  assert(records.some(({ type, data }) =>
+    type === 'bench:diagnostic' &&
+    data.message === 'load failed after declaration'));
+  const plan = records.find(({ type }) => type === 'bench:plan').data;
+  const completion = records.find(
+    ({ type }) => type === 'bench:complete').data;
+  assert.strictEqual(plan.name, 'declared before load error');
+  assert.strictEqual(plan.selected, true);
+  assert.strictEqual(completion.name, plan.name);
+  assert.strictEqual(completion.error, undefined);
+  assert.strictEqual(completion.samples.length, 1);
+  assert.strictEqual(records.at(-1).data.counts.completed, 1);
 }
 
 {
@@ -399,6 +464,7 @@ for (const { kind, message } of [
   { kind: 'sequence', message: /valid record sequence/ },
   { kind: 'record', message: /not a valid benchmark record/ },
   { kind: 'identity', message: /not a valid benchmark record/ },
+  { kind: 'plan', message: /not a valid benchmark plan/ },
   { kind: 'summary', message: /not a valid benchmark summary/ },
 ]) {
   const result = spawnBench([
@@ -416,6 +482,20 @@ for (const { kind, message } of [
   const diagnostics = records.filter(
     ({ type }) => type === 'bench:diagnostic');
   assert(diagnostics.some(({ data }) => message.test(data.message)));
+  assert.strictEqual(records.at(-1).data.success, false);
+}
+
+{
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/malformed-plan-order.mjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostics = records.filter(
+    ({ type }) => type === 'bench:diagnostic');
+  assert(diagnostics.some(
+    ({ data }) => /valid lifecycle sequence/.test(data.message)));
   assert.strictEqual(records.at(-1).data.success, false);
 }
 
