@@ -50,6 +50,11 @@
 #if HAVE_OPENSSL
 #include "ncrypto.h"
 #include "node_crypto.h"
+#if OPENSSL_VERSION_MAJOR >= 3 && !defined(CONF_MFLAGS_IGNORE_MISSING_FILE)
+// OpenSSL hides this deprecated macro under OPENSSL_NO_DEPRECATED, but the
+// non-deprecated OPENSSL_INIT settings API still accepts the flag value.
+#define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
+#endif
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -75,8 +80,6 @@
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
-
-#include "large_pages/node_large_page.h"
 
 #if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
 #define NODE_USE_V8_WASM_TRAP_HANDLER 1
@@ -754,13 +757,6 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     return ExitCode::kInvalidCommandLineArgument2;
   }
 
-  // TODO(aduh95): remove this when the harmony-import-attributes flag
-  // is removed in V8.
-  if (std::ranges::find(v8_args, "--no-harmony-import-attributes") ==
-      v8_args.end()) {
-    v8_args.emplace_back("--harmony-import-attributes");
-  }
-
   if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
            .empty()) {
     v8_args.emplace_back(
@@ -1120,15 +1116,12 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoUseLargePages) &&
-      (per_process::cli_options->use_largepages == "on" ||
-       per_process::cli_options->use_largepages == "silent")) {
-    int lp_result = node::MapStaticCodeToLargePages();
-    if (per_process::cli_options->use_largepages == "on" && lp_result != 0) {
-      result->errors_.emplace_back(node::LargePagesError(lp_result));
-    }
+      (per_process::cli_options->use_largepages == "on")) {
+    result->errors_.emplace_back("--use-largepages is no longer supported.");
   }
 
-  if (!per_process::cli_options->run.empty()) {
+  // A bare `--run` (empty value) lists the available scripts; a value runs it.
+  if (per_process::cli_options->has_run) {
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(
@@ -1163,6 +1156,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
 #if HAVE_OPENSSL
 #ifndef OPENSSL_IS_BORINGSSL
+#if OPENSSL_VERSION_MAJOR >= 3
     auto GetOpenSSLErrorString = []() -> std::string {
       std::string ret;
       ERR_print_errors_cb(
@@ -1178,7 +1172,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
-#if OPENSSL_VERSION_MAJOR >= 3
     // Call OPENSSL_init_crypto to initialize OPENSSL_INIT_LOAD_CONFIG to
     // avoid the default behavior where errors raised during the parsing of the
     // OpenSSL configuration file are not propagated and cannot be detected.
@@ -1216,6 +1209,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    CHECK_NOT_NULL(settings);
     OPENSSL_INIT_set_config_filename(settings, conf_file);
     OPENSSL_INIT_set_config_appname(settings, conf_section_name);
     OPENSSL_INIT_set_config_file_flags(settings,
@@ -1239,12 +1233,10 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       OPENSSL_init();
     }
 #endif
-    if (!crypto::ProcessFipsOptions()) {
+    if (auto fips_error = crypto::ProcessFipsOptions()) {
       result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
-      result->errors_.emplace_back(
-          "OpenSSL error when trying to enable FIPS:\n" +
-          GetOpenSSLErrorString());
+      result->errors_.emplace_back(std::move(*fips_error));
       return result;
     }
 
@@ -1628,7 +1620,14 @@ static ExitCode StartInternal(int argc, char** argv) {
 
 int Start(int argc, char** argv) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv);
+  std::vector<std::string> errors;
+  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv, &errors);
+  if (!errors.empty()) {
+    for (const std::string& error : errors) {
+      FPrintF(stderr, "%s: %s\n", argv[0], error);
+    }
+    return static_cast<int>(ExitCode::kInvalidCommandLineArgument);
+  }
 #endif
   return static_cast<int>(StartInternal(argc, argv));
 }

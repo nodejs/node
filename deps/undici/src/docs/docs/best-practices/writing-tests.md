@@ -1,5 +1,7 @@
 # Writing tests
 
+<!--type=misc-->
+
 Undici is tuned for a production use case and its default will keep
 a socket open for a few seconds after an HTTP request is completed to
 remove the overhead of opening up a new socket. These settings that makes

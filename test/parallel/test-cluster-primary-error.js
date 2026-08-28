@@ -29,7 +29,7 @@ const totalWorkers = 2;
 // Cluster setup
 if (cluster.isWorker) {
   const http = require('http');
-  http.Server(() => {}).listen(0, '127.0.0.1');
+  new http.Server(() => {}).listen(0, '127.0.0.1');
 } else if (process.argv[2] === 'cluster') {
   // Send PID to testcase process
   let forkNum = 0;

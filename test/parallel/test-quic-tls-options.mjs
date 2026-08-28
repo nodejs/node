@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, ok } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,15 +16,15 @@ if (!hasQuic) {
 const { listen, connect, constants } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // Custom ciphers. Use a specific TLS 1.3 cipher suite.
 {
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     const info = await serverSession.opened;
-    strictEqual(typeof info.cipher, 'string');
-    ok(info.cipher.includes('AES_256_GCM'));
+    assert.strictEqual(typeof info.cipher, 'string');
+    assert.ok(info.cipher.includes('AES_256_GCM'));
     serverSession.close();
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
@@ -43,8 +40,8 @@ const cert = readKey('agent1-cert.pem');
   });
 
   const info = await clientSession.opened;
-  ok(info.cipher.includes('AES_256_GCM'));
-  strictEqual(info.cipherVersion, 'TLSv1.3');
+  assert.ok(info.cipher.includes('AES_256_GCM'));
+  assert.strictEqual(info.cipherVersion, 'TLSv1.3');
 
   await clientSession.closed;
   await serverEndpoint.close();
@@ -78,8 +75,8 @@ const cert = readKey('agent1-cert.pem');
 
 // Default ciphers/groups are non-empty strings from constants.
 {
-  strictEqual(typeof constants.DEFAULT_CIPHERS, 'string');
-  ok(constants.DEFAULT_CIPHERS.length > 0);
-  strictEqual(typeof constants.DEFAULT_GROUPS, 'string');
-  ok(constants.DEFAULT_GROUPS.length > 0);
+  assert.strictEqual(typeof constants.DEFAULT_CIPHERS, 'string');
+  assert.ok(constants.DEFAULT_CIPHERS.length > 0);
+  assert.strictEqual(typeof constants.DEFAULT_GROUPS, 'string');
+  assert.ok(constants.DEFAULT_GROUPS.length > 0);
 }

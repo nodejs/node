@@ -31,8 +31,10 @@ uint8_t nghttp2_extpri_to_uint8(const nghttp2_extpri *extpri) {
 }
 
 void nghttp2_extpri_from_uint8(nghttp2_extpri *extpri, uint8_t u8extpri) {
-  extpri->urgency = nghttp2_extpri_uint8_urgency(u8extpri);
-  extpri->inc = nghttp2_extpri_uint8_inc(u8extpri);
+  *extpri = (nghttp2_extpri){
+    .urgency = nghttp2_extpri_uint8_urgency(u8extpri),
+    .inc = nghttp2_extpri_uint8_inc(u8extpri),
+  };
 }
 
 int nghttp2_extpri_parse_priority(nghttp2_extpri *extpri, const uint8_t *value,

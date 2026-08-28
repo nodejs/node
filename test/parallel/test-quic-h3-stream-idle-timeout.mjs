@@ -13,9 +13,6 @@ import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import { text } from 'node:stream/iter';
 
-const { rejects, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -23,8 +20,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const encoder = new TextEncoder();
 
@@ -36,7 +33,7 @@ const encoder = new TextEncoder();
     serverSession.onstream = mustCall(async (stream) => {
       // Don't read — let the stream sit idle after the initial headers.
       // The stream idle timeout should destroy it, rejecting stream.closed.
-      await rejects(stream.closed, {
+      await assert.rejects(stream.closed, {
         code: 'ERR_QUIC_TRANSPORT_ERROR',
       });
       streamDestroyed.resolve();
@@ -77,7 +74,7 @@ const encoder = new TextEncoder();
   // The server sent STOP_SENDING / RESET_STREAM when it destroyed the
   // idle stream. ShutdownStream maps the transport error to the H3
   // internal error code (0x102) on the wire.
-  await rejects(stream.closed, {
+  await assert.rejects(stream.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
   });
 
@@ -92,7 +89,7 @@ const encoder = new TextEncoder();
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const data = await text(stream);
-      strictEqual(data, 'xy');
+      assert.strictEqual(data, 'xy');
       serverGotData.resolve();
       await serverSession.close();
     });
@@ -100,7 +97,7 @@ const encoder = new TextEncoder();
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 500,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':method'], 'POST');
+      assert.strictEqual(headers[':method'], 'POST');
       // Send response headers so the stream is fully established.
       this.sendHeaders({ ':status': '200' }, { terminal: true });
     }),
@@ -142,7 +139,7 @@ const encoder = new TextEncoder();
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const data = await text(stream);
-      strictEqual(data, 'xy');
+      assert.strictEqual(data, 'xy');
       streamSurvived.resolve();
     });
 

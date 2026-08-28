@@ -4,7 +4,7 @@ Welcome. You've found your way to the Node.js native crypto subsystem.
 
 Do not be afraid.
 
-While crypto may be a dark, mysterious, and forboding subject; and while
+While crypto may be a dark, mysterious, and foreboding subject; and while
 this directory may be filled with many `*.h` and `*.cc` files, finding
 your way around is not too difficult. And I can promise you that a Gru
 will not jump out of the shadows and eat you (well, "promise" may be a
@@ -30,27 +30,27 @@ throughout the rest of the code.
 The rest of the files are structured by their function, as detailed in the
 following table:
 
-| File (\*.h/\*.cc)    | Description                                                                |
-| -------------------- | -------------------------------------------------------------------------- |
-| `crypto_aes`         | AES Cipher support.                                                        |
-| `crypto_argon2`      | Argon2 key / bit generation implementation.                                |
-| `crypto_cipher`      | General Encryption/Decryption utilities.                                   |
-| `crypto_clienthello` | TLS/SSL client hello parser implementation. Used during SSL/TLS handshake. |
-| `crypto_context`     | Implementation of the `SecureContext` object.                              |
-| `crypto_dh`          | Diffie-Hellman Key Agreement implementation.                               |
-| `crypto_dsa`         | DSA (Digital Signature) Key Generation functions.                          |
-| `crypto_ec`          | Elliptic-curve cryptography implementation.                                |
-| `crypto_hash`        | Basic hash (e.g. SHA-256) functions.                                       |
-| `crypto_hkdf`        | HKDF (Key derivation) implementation.                                      |
-| `crypto_hmac`        | HMAC implementations.                                                      |
-| `crypto_keys`        | Utilities for using and generating secret, private, and public keys.       |
-| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation.                                |
-| `crypto_rsa`         | RSA Key Generation functions.                                              |
-| `crypto_scrypt`      | Scrypt key / bit generation implementation.                                |
-| `crypto_sig`         | General digital signature and verification utilities.                      |
-| `crypto_spkac`       | Netscape SPKAC certificate utilities.                                      |
-| `crypto_ssl`         | Implementation of the `SSLWrap` object.                                    |
-| `crypto_timing`      | Implementation of the TimingSafeEqual.                                     |
+| File (\*.h/\*.cc) | Description                                                          |
+| ----------------- | -------------------------------------------------------------------- |
+| `crypto_aes`      | AES Cipher support.                                                  |
+| `crypto_argon2`   | Argon2 key / bit generation implementation.                          |
+| `crypto_cipher`   | General Encryption/Decryption utilities.                             |
+| `crypto_context`  | Implementation of the `SecureContext` object.                        |
+| `crypto_dh`       | Diffie-Hellman Key Agreement implementation.                         |
+| `crypto_dsa`      | DSA (Digital Signature) Key Generation functions.                    |
+| `crypto_ec`       | Elliptic-curve cryptography implementation.                          |
+| `crypto_hash`     | Basic hash (e.g. SHA-256) functions.                                 |
+| `crypto_hkdf`     | HKDF (Key derivation) implementation.                                |
+| `crypto_hmac`     | HMAC implementations.                                                |
+| `crypto_keys`     | Utilities for using and generating secret, private, and public keys. |
+| `crypto_pbkdf2`   | PBKDF2 key / bit generation implementation.                          |
+| `crypto_rsa`      | RSA Key Generation functions.                                        |
+| `crypto_scrypt`   | Scrypt key / bit generation implementation.                          |
+| `crypto_sig`      | General digital signature and verification utilities.                |
+| `crypto_spkac`    | Netscape SPKAC certificate utilities.                                |
+| `crypto_ssl`      | Implementation of the `SSLWrap` object.                              |
+| `crypto_timing`   | Implementation of the TimingSafeEqual.                               |
+| `crypto_x509`     | X.509 certificate parsing and validation.                            |
 
 When new crypto protocols are added, they will be added into their own
 `crypto_` `*.h` and `*.cc` files.
@@ -172,11 +172,12 @@ JavaScript needs access to those operations and is kept out of user-visible
 
 A `KeyObject` is the public Node.js-specific API for keys. It extends a
 native `NativeKeyObject`, which stores `KeyObjectData` for structured
-cloning. The JavaScript API surface reads its key type and a
-`KeyObjectHandle` through a hidden native-backed slot tuple, caching that
-tuple in a private field outside user-visible own properties. Derived
-metadata, such as symmetric key size and asymmetric key details, is read
-from the cached handle and appended lazily to the same private-field cache.
+cloning. The JavaScript constructor caches the known key type in a private
+field outside user-visible own properties. When a `KeyObjectHandle` is first
+needed, JavaScript replaces that value with a hidden native-backed slot tuple.
+Derived metadata, such as symmetric key size and asymmetric key details, is
+read from the cached handle and appended lazily to the same private-field
+cache.
 
 #### `CryptoKey`
 
@@ -184,7 +185,18 @@ A `CryptoKey` is the Web Crypto API key type. In the Node.js implementation,
 public `CryptoKey` instances are backed by a native `NativeCryptoKey`, not by
 a `KeyObject`. `NativeCryptoKey` stores the same `KeyObjectData`
 representation as `KeyObject`, plus the Web Crypto internal slots
-(`[[extractable]]`, `[[algorithm]]`, and `[[usages]]`).
+(`[[extractable]]`, `[[algorithm]]`, and `[[usages]]`). Normal construction
+primes a private JavaScript slot cache from the constructor arguments.
+Partially initialized transferred keys populate that cache from the native
+slots on first access.
+
+### X.509 certificates
+
+The public `X509Certificate` is backed directly by the native
+`X509Certificate` object. JavaScript caches derived certificate properties in
+a private array whose final entry is a bitmask of populated slots. Certificates
+from another realm use the same cache layout through a private `WeakMap` after
+passing the native brand check.
 
 ### `CryptoJob`
 

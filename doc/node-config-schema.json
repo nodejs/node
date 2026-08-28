@@ -103,6 +103,10 @@
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
             },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
+            },
             "allow-wasi": {
               "type": "boolean",
               "description": "allow wasi when any permissions are set"
@@ -243,10 +247,6 @@
             "experimental-print-required-tla": {
               "type": "boolean",
               "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to find and print top-level await in the graph"
-            },
-            "experimental-repl-await": {
-              "type": "boolean",
-              "description": "experimental await keyword support in REPL"
             },
             "experimental-require-module": {
               "type": "boolean",
@@ -754,7 +754,7 @@
             },
             "use-largepages": {
               "type": "string",
-              "description": "Map the Node.js static code to large pages. Options are 'off' (the default value, meaning do not map), 'on' (map and ignore failure, reporting it to stderr), or 'silent' (map and silently ignore failure)"
+              "description": "This option is no longer supported and a no-op. Options are 'off' (default), 'on' (report a warning to stderr), or 'silent' (same as 'off')."
             },
             "use-openssl-ca": {
               "type": "boolean",
@@ -867,6 +867,10 @@
             "allow-net": {
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
+            },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
             },
             "allow-wasi": {
               "type": "boolean",

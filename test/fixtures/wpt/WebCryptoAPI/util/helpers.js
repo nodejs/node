@@ -40,6 +40,21 @@ var registeredAlgorithmNames = [
     "KMAC256",
 ];
 
+var allKeyUsages = [
+    "encrypt",
+    "decrypt",
+    "sign",
+    "verify",
+    "wrapKey",
+    "unwrapKey",
+    "deriveKey",
+    "deriveBits",
+    "encapsulateKey",
+    "encapsulateBits",
+    "decapsulateKey",
+    "decapsulateBits",
+];
+
 
 // Treats an array as a set, and generates an array of all non-empty
 // subsets (which are themselves arrays).
@@ -84,6 +99,35 @@ function objectToString(obj) {
     } else {
         return obj.toString();
     }
+}
+
+function mismatchedCryptoKeyAlgorithmMembers(keyAlgorithm, algorithm, registeredAlgorithmName) {
+    const mismatches = [];
+
+    if (["HMAC", "RSASSA-PKCS1-v1_5", "RSA-PSS", "RSA-OAEP"].includes(registeredAlgorithmName)) {
+        const expectedHash = typeof algorithm.hash === "string" ?
+            algorithm.hash : algorithm.hash.name;
+        if (keyAlgorithm.hash.name.toUpperCase() !== expectedHash.toUpperCase()) {
+            mismatches.push("hash");
+        }
+    }
+
+    if (algorithm.namedCurve !== undefined &&
+        keyAlgorithm.namedCurve !== algorithm.namedCurve) {
+        mismatches.push("namedCurve");
+    }
+
+    if (algorithm.modulusLength !== undefined &&
+        keyAlgorithm.modulusLength !== algorithm.modulusLength) {
+        mismatches.push("modulusLength");
+    }
+
+    if (algorithm.publicExponent !== undefined &&
+        !equalBuffers(keyAlgorithm.publicExponent, algorithm.publicExponent)) {
+        mismatches.push("publicExponent");
+    }
+
+    return mismatches;
 }
 
 // Is key a CryptoKey object with correct algorithm, extractable, and usages?
@@ -132,9 +176,13 @@ function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
     } else {
         assert_equals(key.algorithm.length, algorithm.length, "Correct length");
     }
-    if (["HMAC", "RSASSA-PKCS1-v1_5", "RSA-PSS"].includes(registeredAlgorithmName)) {
-        assert_equals(key.algorithm.hash.name.toUpperCase(), algorithm.hash.toUpperCase(), "Correct hash function");
-    }
+    assert_array_equals(
+        mismatchedCryptoKeyAlgorithmMembers(
+            key.algorithm,
+            algorithm,
+            registeredAlgorithmName),
+        [],
+        "Algorithm members are correct");
 
     if (/^(?:Ed|X)(?:25519|448)$/.test(key.algorithm.name)) {
         assert_false('namedCurve' in key.algorithm, "Does not have a namedCurve property");
@@ -164,12 +212,9 @@ function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
 
     // The usages parameter could have repeats, but the usages
     // property of the result should not.
-    var usageCount = 0;
-    key.usages.forEach(function(usage) {
-        usageCount += 1;
-        assert_in_array(usage, correctUsages, "Has " + usage + " usage");
-    });
-    assert_equals(key.usages.length, usageCount, "usages property is correct");
+    const expectedUsages = unique(correctUsages).sort();
+    const actualUsages = [...key.usages].sort();
+    assert_array_equals(actualUsages, expectedUsages, "usages property is correct");
     assert_equals(key[Symbol.toStringTag], 'CryptoKey', "has the expected Symbol.toStringTag");
 }
 
@@ -287,7 +332,7 @@ function bytesToHexString(bytes)
     if (!bytes)
         return null;
 
-    bytes = new Uint8Array(bytes);
+    bytes = byteView(bytes);
     var hexBytes = [];
 
     for (var i = 0; i < bytes.length; ++i) {
@@ -302,18 +347,25 @@ function bytesToHexString(bytes)
 
 function hexStringToUint8Array(hexString)
 {
-    if (hexString.length % 2 != 0)
-        throw "Invalid hexString";
-    var arrayBuffer = new Uint8Array(hexString.length / 2);
-
-    for (var i = 0; i < hexString.length; i += 2) {
-        var byteValue = parseInt(hexString.substr(i, 2), 16);
-        if (byteValue == NaN)
-            throw "Invalid hexString";
-        arrayBuffer[i/2] = byteValue;
+    if (hexString.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hexString)) {
+        throw new TypeError("Invalid hexadecimal string");
     }
 
-    return arrayBuffer;
+    const result = new Uint8Array(hexString.length / 2);
+
+    for (let i = 0; i < hexString.length; i += 2) {
+        result[i / 2] = parseInt(hexString.slice(i, i + 2), 16);
+    }
+
+    return result;
+}
+
+function byteView(source) {
+    if (ArrayBuffer.isView(source)) {
+        return new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
+    }
+
+    return new Uint8Array(source);
 }
 
 // Compares two ArrayBuffer or ArrayBufferView objects. If bitCount is
@@ -321,44 +373,39 @@ function hexStringToUint8Array(hexString)
 // in every byte. If bitCount is included, only that leading number of bits
 // have to match.
 function equalBuffers(a, b, bitCount) {
-    var remainder;
+    const aBytes = byteView(a);
+    const bBytes = byteView(b);
 
-    if (typeof bitCount === "undefined" && a.byteLength !== b.byteLength) {
+    if (typeof bitCount === "undefined") {
+        if (aBytes.byteLength !== bBytes.byteLength) {
+            return false;
+        }
+        bitCount = aBytes.byteLength * 8;
+    } else if (!Number.isInteger(bitCount) || bitCount < 0 ||
+               bitCount > aBytes.byteLength * 8 ||
+               bitCount > bBytes.byteLength * 8) {
         return false;
     }
 
-    var aBytes = new Uint8Array(a);
-    var bBytes = new Uint8Array(b);
-
-    var length = a.byteLength;
-    if (typeof bitCount !== "undefined") {
-        length = Math.floor(bitCount / 8);
-    }
-
-    for (var i=0; i<length; i++) {
+    const length = Math.floor(bitCount / 8);
+    for (let i = 0; i < length; i++) {
         if (aBytes[i] !== bBytes[i]) {
             return false;
         }
     }
 
-    if (typeof bitCount !== "undefined") {
-        remainder = bitCount % 8;
-        return aBytes[length] >> (8 - remainder) === bBytes[length] >> (8 - remainder);
+    const remainder = bitCount % 8;
+    if (remainder === 0) {
+        return true;
     }
 
-    return true;
+    const mask = 0xff << (8 - remainder);
+    return (aBytes[length] & mask) === (bBytes[length] & mask);
 }
 
 // Returns a copy of the sourceBuffer it is sent.
 function copyBuffer(sourceBuffer) {
-    var source = new Uint8Array(sourceBuffer);
-    var copy = new Uint8Array(sourceBuffer.byteLength)
-
-    for (var i=0; i<source.byteLength; i++) {
-        copy[i] = source[i];
-    }
-
-    return copy;
+    return new Uint8Array(byteView(sourceBuffer));
 }
 
 // Are two Jwk objects "the same"? That is, does the object returned include

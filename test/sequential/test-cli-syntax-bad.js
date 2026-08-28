@@ -21,6 +21,9 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
   'syntax/bad_syntax',
   'syntax/bad_syntax_shebang.js',
   'syntax/bad_syntax_shebang',
+  // A `.js` file with no `"type"` in the nearest package.json, whose module
+  // syntax makes it load as ESM. Refs: https://github.com/nodejs/node/issues/65202
+  'syntax/bad_syntax_esm_ambiguous.js',
 ].forEach((file) => {
   const path = fixtures.path(file);
 

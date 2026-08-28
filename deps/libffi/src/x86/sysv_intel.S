@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   sysv.S - Copyright (c) 2017, 2022  Anthony Green
+   sysv.S - Copyright (c) 2017, 2022, 2026  Anthony Green
           - Copyright (c) 2013  The Written Word, Inc.
           - Copyright (c) 1996,1998,2001-2003,2005,2008,2010  Red Hat, Inc.
 
@@ -992,7 +992,7 @@ L(EFDE9):
 #endif /* ifndef _MSC_VER */
 #endif /* ifndef __x86_64__ */
 
-#if defined __ELF__ && defined __linux__
+#if defined __ELF__ && (defined __linux__ || defined __FreeBSD__)
 	.section	.note.GNU-stack,"",@progbits
 #endif
 #endif

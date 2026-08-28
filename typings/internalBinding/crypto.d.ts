@@ -1,6 +1,8 @@
 declare namespace InternalCryptoBinding {
   type Buffer = Uint8Array;
-  type ByteSource = string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
+  type BufferSource = ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
+  type OptionalBufferSource = BufferSource | undefined;
+  type ByteSource = string | BufferSource;
   type OptionalByteSource = ByteSource | undefined;
   type JwkKey = Record<string, string | string[] | boolean | undefined>;
   type KeyFormatDER = 0;
@@ -9,6 +11,7 @@ declare namespace InternalCryptoBinding {
   type KeyFormatRawPublic = 3;
   type KeyFormatRawPrivate = 4;
   type KeyFormatRawSeed = 5;
+  type KeyFormatStore = 6;
   type PublicKeyFormat =
     KeyFormatDER | KeyFormatPEM | KeyFormatJWK | KeyFormatRawPublic | undefined;
   type PrivateKeyFormat =
@@ -18,7 +21,12 @@ declare namespace InternalCryptoBinding {
   type KeyEncoding = string | number | null | undefined;
   type KeyPassphrase = ByteSource | null | undefined;
   type NamedCurve = string | null | undefined;
-  type PreparedAsymmetricKeyData = KeyObjectHandle | ByteSource | JwkKey;
+  interface StorePrivateKeyData {
+    uri: string;
+    properties: string | null;
+  }
+  type PreparedAsymmetricKeyData =
+    KeyObjectHandle | ByteSource | JwkKey | StorePrivateKeyData;
   type PreparedSecretKeyData = KeyObjectHandle | ByteSource;
   type CryptoJobAsyncMode = 0;
   type CryptoJobSyncMode = 1;
@@ -126,7 +134,7 @@ declare namespace InternalCryptoBinding {
 
   type PreparedAsymmetricKeyArgs = [
     keyData: PreparedAsymmetricKeyData,
-    keyFormat: KeyFormat,
+    keyFormat: KeyFormat | KeyFormatStore,
     keyType: KeyEncoding,
     keyPassphrase: KeyPassphrase,
     keyNamedCurve: NamedCurve,
@@ -294,6 +302,8 @@ declare namespace InternalCryptoBinding {
       algorithm: string,
       data: ByteSource,
       outputLength?: number,
+      functionName?: OptionalBufferSource,
+      customization?: OptionalBufferSource,
     ): CryptoJobForMode<M, ArrayBuffer>;
   }
 
@@ -745,6 +755,27 @@ declare namespace InternalCryptoBinding {
     toLegacy(): object;
   }
 
+  interface NativeX509CertificateConstructor {
+    readonly prototype: X509CertificateHandle;
+    new(value: X509CertificateHandle | ArrayBufferView): X509CertificateHandle;
+  }
+
+  interface X509CertificateConstructor {
+    readonly prototype: object;
+    new(buffer: string | ArrayBufferView): object;
+  }
+
+  interface InternalX509CertificateConstructor {
+    readonly prototype: object;
+    new(value: X509CertificateHandle | ArrayBufferView): object;
+  }
+
+  type CreateX509CertificateClassCallback =
+    (NativeX509Certificate: NativeX509CertificateConstructor) => [
+      X509Certificate: X509CertificateConstructor,
+      InternalX509Certificate: InternalX509CertificateConstructor,
+    ];
+
   interface CipherInfo {
     name: string;
     nid: number;
@@ -761,6 +792,7 @@ declare namespace InternalCryptoBinding {
       padding: number,
       oaepHash: string | undefined,
       oaepLabel: OptionalByteSource,
+      mgf1Hash: string | undefined,
     ]
   ) => Buffer;
 }
@@ -799,6 +831,8 @@ export interface CryptoBinding {
     credential: InternalCryptoBinding.PreparedSecretKeyData,
     iv: InternalCryptoBinding.ByteSource | null,
     authTagLength?: number,
+    ctsMode?: 'CS1' | 'CS2' | 'CS3',
+    xtsStandard?: 'GB' | 'IEEE',
   ) => InternalCryptoBinding.CipherBaseHandle;
   DiffieHellman: new (
     sizeOrKey: number | InternalCryptoBinding.ByteSource,
@@ -811,6 +845,8 @@ export interface CryptoBinding {
     xofLen?: number,
     algorithmId?: number,
     algorithmCache?: Record<string, number>,
+    functionName?: InternalCryptoBinding.OptionalBufferSource,
+    customization?: InternalCryptoBinding.OptionalBufferSource,
   ) => InternalCryptoBinding.HashHandle;
   Hmac: new () => InternalCryptoBinding.HmacHandle;
   KeyObjectHandle: new () => InternalCryptoBinding.KeyObjectHandle;
@@ -862,6 +898,7 @@ export interface CryptoBinding {
   kKeyFormatRawPrivate: InternalCryptoBinding.KeyFormatRawPrivate;
   kKeyFormatRawPublic: InternalCryptoBinding.KeyFormatRawPublic;
   kKeyFormatRawSeed: InternalCryptoBinding.KeyFormatRawSeed;
+  kKeyFormatStore: InternalCryptoBinding.KeyFormatStore;
   kKeyTypePrivate: number;
   kKeyTypePublic: number;
   kKeyTypeSecret: number;
@@ -918,6 +955,12 @@ export interface CryptoBinding {
     PublicKeyObject: InternalCryptoBinding.KeyObjectSubtypeConstructor,
     PrivateKeyObject: InternalCryptoBinding.KeyObjectSubtypeConstructor,
   ];
+  createX509CertificateClass(
+    callback: InternalCryptoBinding.CreateX509CertificateClassCallback,
+  ): [
+    X509Certificate: InternalCryptoBinding.X509CertificateConstructor,
+    InternalX509Certificate: InternalCryptoBinding.InternalX509CertificateConstructor,
+  ];
   getBundledRootCertificates(): string[];
   getCachedAliases(): Record<string, number>;
   getCertificateCompressionAlgorithms(): string[];
@@ -931,7 +974,11 @@ export interface CryptoBinding {
   getCurves(): string[];
   getExtraCACertificates(): string[];
   getFipsCrypto(): 0 | 1;
+  getFipsCryptoGeneration(): bigint;
   getHashes(): string[];
+  isCryptoKey(key: unknown): boolean;
+  isKeyObject(key: unknown): boolean;
+  isX509Certificate(value: unknown): boolean;
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;
   getOpenSSLSecLevelCrypto(): number | undefined;
   getSSLCiphers(): string[];
@@ -945,6 +992,8 @@ export interface CryptoBinding {
     outputEncoding: string,
     outputEncodingId?: number,
     outputLength?: number,
+    functionName?: InternalCryptoBinding.OptionalBufferSource,
+    customization?: InternalCryptoBinding.OptionalBufferSource,
   ): string | InternalCryptoBinding.Buffer;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
   privateDecrypt: InternalCryptoBinding.PublicKeyCipher;

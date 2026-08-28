@@ -1360,36 +1360,54 @@ void FastSwap64(Local<Value> receiver,
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
 
+static bool ValidateUtf8(Local<Value> value) {
+  ArrayBufferViewContents<char> abv(value);
+  return abv.length() == 0 || simdutf::validate_utf8(abv.data(), abv.length());
+}
+
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
-    return node::THROW_ERR_INVALID_STATE(
-        env, "Cannot validate on a detached buffer");
-  }
+  args.GetReturnValue().Set(ValidateUtf8(args[0]));
+}
 
-  args.GetReturnValue().Set(simdutf::validate_utf8(abv.data(), abv.length()));
+static bool FastIsUtf8(Local<Value> receiver,
+                       Local<Value> value,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isUtf8");
+  HandleScope scope(options.isolate);
+  return ValidateUtf8(value);
+}
+
+static CFunction fast_is_utf8(CFunction::Make(FastIsUtf8));
+
+static bool ValidateAscii(Local<Value> value) {
+  ArrayBufferViewContents<char> abv(value);
+  return abv.length() == 0 ||
+         !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error;
 }
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
-    return node::THROW_ERR_INVALID_STATE(
-        env, "Cannot validate on a detached buffer");
-  }
-
-  args.GetReturnValue().Set(
-      !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error);
+  args.GetReturnValue().Set(ValidateAscii(args[0]));
 }
+
+static bool FastIsAscii(Local<Value> receiver,
+                        Local<Value> value,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isAscii");
+  HandleScope scope(options.isolate);
+  return ValidateAscii(value);
+}
+
+static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
@@ -1456,7 +1474,7 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
 // In case of error, a negative value is returned:
 // * -1 indicates a single character remained,
 // * -2 indicates an invalid character,
-// * -3 indicates a possible overflow (i.e., more than 2 GB output).
+// * -3 indicates an unrecognized simdutf error.
 static void Atob(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   Environment* env = Environment::GetCurrent(args);
@@ -1501,7 +1519,7 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(value);
   }
 
-  // Default value is: "possible overflow"
+  // Default value is: "unrecognized simdutf error"
   int32_t error_code = -3;
 
   if (result.error == simdutf::error_code::INVALID_BASE64_CHARACTER) {
@@ -1569,6 +1587,10 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t source_offset = args[3].As<Uint32>()->Value();
   size_t bytes_to_copy = args[4].As<Uint32>()->Value();
 
+  // Assert the offsets are within bounds before the subtractions below, which
+  // would otherwise underflow and defeat the bytes_to_copy bounds checks.
+  CHECK_LE(destination_offset, destination_byte_length);
+  CHECK_LE(source_offset, source_byte_length);
   CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
   CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
 
@@ -1593,6 +1615,32 @@ inline size_t CheckNumberToSize(Local<Value> number) {
   return size;
 }
 
+// Allocates an ArrayBuffer of `size` bytes. Its contents are left
+// uninitialized, unless zero-filling is required.
+MaybeLocal<ArrayBuffer> AllocateUnsafeArrayBuffer(Environment* env,
+                                                  size_t size) {
+  Isolate* isolate = env->isolate();
+
+  // 0-length, or zero-fill flag is set, or building snapshot
+  if (size == 0 || per_process::cli_options->zero_fill_all_buffers ||
+      env->isolate_data()->is_building_snapshot()) {
+    return ArrayBuffer::New(isolate, size);
+  }
+
+  std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+      isolate,
+      size,
+      BackingStoreInitializationMode::kUninitialized,
+      v8::BackingStoreOnFailureMode::kReturnNull);
+
+  if (!store) [[unlikely]] {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return MaybeLocal<ArrayBuffer>();
+  }
+
+  return ArrayBuffer::New(isolate, std::move(store));
+}
+
 void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() != 1) {
@@ -1602,30 +1650,49 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   size_t size = CheckNumberToSize(args[0]);
 
-  Isolate* isolate = env->isolate();
-
   Local<ArrayBuffer> buf;
+  if (AllocateUnsafeArrayBuffer(env, size).ToLocal(&buf)) {
+    args.GetReturnValue().Set(buf);
+  }
+}
 
-  // 0-length, or zero-fill flag is set, or building snapshot
-  if (size == 0 || per_process::cli_options->zero_fill_all_buffers ||
-      env->isolate_data()->is_building_snapshot()) {
-    buf = ArrayBuffer::New(isolate, size);
-  } else {
-    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-        isolate,
-        size,
-        BackingStoreInitializationMode::kUninitialized,
-        v8::BackingStoreOnFailureMode::kReturnNull);
+// arrayBufferAlignedOffset(arrayBuffer, alignment)
+//
+// Returns the offset of the first byte of `arrayBuffer` that is located at a
+// memory address which is a multiple of `alignment`. V8 does not let us choose
+// the address of a backing store, so an aligned view is obtained by
+// over-allocating `alignment - 1` bytes and skipping to that offset. The
+// backing store of a non-resizable ArrayBuffer never moves, so the offset stays
+// aligned for the lifetime of the ArrayBuffer.
+void ArrayBufferAlignedOffset(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsArrayBuffer());
+  Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
 
-    if (!store) [[unlikely]] {
-      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
-      return;
-    }
+  size_t alignment = CheckNumberToSize(args[1]);
 
-    buf = ArrayBuffer::New(isolate, std::move(store));
+  // Validated in JS land.
+  CHECK_GT(alignment, 0);
+  CHECK_EQ(alignment & (alignment - 1), 0);
+
+  // A backing store does not keep its address across snapshot serialization, so
+  // an offset computed here would not be aligned after deserialization anyway
+  // -- and worse, baking one in would make the snapshot depend on where this
+  // process happened to allocate, i.e. no longer reproducible. Report no
+  // padding instead. The buffer pool recreates itself in a deserialize
+  // callback, so it is properly aligned once the deserialized process runs.
+  if (env->isolate_data()->is_building_snapshot()) {
+    args.GetReturnValue().Set(0.0);
+    return;
   }
 
-  args.GetReturnValue().Set(buf);
+  uintptr_t start = reinterpret_cast<uintptr_t>(ab->Data());
+  size_t offset = (alignment - (start & (alignment - 1))) & (alignment - 1);
+  CHECK_EQ((start + offset) & (alignment - 1), 0);
+  CHECK_LE(offset, ab->ByteLength());
+
+  args.GetReturnValue().Set(static_cast<double>(offset));
 }
 
 template <encoding encoding>
@@ -1667,6 +1734,11 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
   size_t max_length = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &offset));
+  if (offset > ts_obj_length) {
+    return node::THROW_ERR_BUFFER_OUT_OF_BOUNDS(
+        env, "\"offset\" is outside of buffer bounds");
+  }
+
   THROW_AND_RETURN_IF_OOB(
       ParseArrayIndex(env, args[3], ts_obj_length - offset, &max_length));
 
@@ -1757,13 +1829,16 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
   SetMethodNoSideEffect(
       context, target, "createUnsafeArrayBuffer", CreateUnsafeArrayBuffer);
+  SetMethodNoSideEffect(
+      context, target, "arrayBufferAlignedOffset", ArrayBufferAlignedOffset);
 
   SetFastMethod(context, target, "swap16", Swap16, &fast_swap16);
   SetFastMethod(context, target, "swap32", Swap32, &fast_swap32);
   SetFastMethod(context, target, "swap64", Swap64, &fast_swap64);
 
-  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
-  SetMethodNoSideEffect(context, target, "isAscii", IsAscii);
+  SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
+  SetFastMethodNoSideEffect(
+      context, target, "isAscii", IsAscii, &fast_is_ascii);
 
   target
       ->Set(context,
@@ -1836,7 +1911,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_swap64);
 
   registry->Register(IsUtf8);
+  registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
+  registry->Register(fast_is_ascii);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
@@ -1862,6 +1939,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(CopyArrayBuffer);
   registry->Register(CreateUnsafeArrayBuffer);
+  registry->Register(ArrayBufferAlignedOffset);
 
   registry->Register(Atob);
   registry->Register(Btoa);

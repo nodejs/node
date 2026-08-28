@@ -28,7 +28,7 @@ const N = 8;
 
 const countdown = new Countdown(N, () => server.close());
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   res.writeHead(200);
   res.write('Working on it...');
   req.on('aborted', common.mustCall(() => countdown.dec()));

@@ -7,8 +7,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,9 +17,9 @@ const statusDone = Promise.withResolvers();
 
 // quic.session.receive.datagram.status fires with status.
 dc.subscribe('quic.session.receive.datagram.status', mustCall((msg) => {
-  ok(msg.session);
-  ok(msg.id);
-  strictEqual(msg?.status, 'acknowledged');
+  assert.ok(msg.session);
+  assert.ok(msg.id);
+  assert.strictEqual(msg?.status, 'acknowledged');
   statusDone.resolve();
 }));
 

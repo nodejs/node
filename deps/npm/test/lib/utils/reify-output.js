@@ -391,6 +391,25 @@ t.test('added packages should be looked up within returned tree', async t => {
 
     t.matchSnapshot(out)
   })
+
+  t.test('linked store package counted though absent from actualTree', async t => {
+    const out = await mockReify(t, {
+      actualTree: {
+        name: 'foo',
+        inventory: {
+          has: () => false,
+        },
+      },
+      diff: {
+        children: [
+          { action: 'ADD', ideal: { path: 'test/baz', name: 'baz', isInStore: true, isLink: false, package: { version: '1.0.0' } } },
+          { action: 'ADD', ideal: { path: 'test/baz-link', name: 'baz', isInStore: false, isLink: true, package: { version: '1.0.0' } } },
+        ],
+      },
+    })
+
+    t.matchSnapshot(out)
+  })
 })
 
 t.test('prints dedupe difference on dry-run', async t => {
@@ -480,11 +499,11 @@ t.test('prints unreviewed install scripts summary', async t => {
   ]
 
   const mock = await mockReifyWithExtras(t, baseReify, { unreviewedScripts })
-  const warn = mock.logs.warn.byTitle('allow-scripts').join('\n')
+  const warn = mock.logs.warn.byTitle('install-scripts').join('\n')
   t.match(warn, /2 packages have install scripts not yet covered/)
   t.match(warn, /canvas@2\.11\.0 \(install: node-gyp rebuild\)/)
   t.match(warn, /sharp@0\.33\.2 \(preinstall: pre; postinstall: post\)/)
-  t.match(warn, /npm approve-scripts --allow-scripts-pending/)
+  t.match(warn, /npm install-scripts ls/)
 })
 
 t.test('global install suggests --allow-scripts, not approve-scripts', async t => {
@@ -512,7 +531,7 @@ t.test('global install suggests --allow-scripts, not approve-scripts', async t =
   ]
 
   const mock = await mockReifyWithExtras(t, baseReify, { unreviewedScripts }, { global: true })
-  const warn = mock.logs.warn.byTitle('allow-scripts').join('\n')
+  const warn = mock.logs.warn.byTitle('install-scripts').join('\n')
   t.match(warn, /2 packages have install scripts not yet covered/)
   t.match(warn, /canvas@2\.11\.0 \(install: node-gyp rebuild\)/)
   t.match(warn, /npm install -g --allow-scripts=canvas,sharp/)
@@ -538,7 +557,7 @@ t.test('single unreviewed script uses singular wording', async t => {
       }],
     }
   )
-  t.match(mock.logs.warn.byTitle('allow-scripts').join('\n'), /1 package has install scripts/)
+  t.match(mock.logs.warn.byTitle('install-scripts').join('\n'), /1 package has install scripts/)
 })
 
 t.test('json output includes unreviewedScripts', async t => {
@@ -574,7 +593,7 @@ t.test('unreviewed script with node.name only (no packageName) still renders', a
     }],
   })
   mock.npm.finish()
-  t.match(mock.logs.warn.byTitle('allow-scripts').join('\n'), / fallback \(install: cmd\)/)
+  t.match(mock.logs.warn.byTitle('install-scripts').join('\n'), / fallback \(install: cmd\)/)
 })
 
 t.test('json output includes node.name when packageName is missing', async t => {

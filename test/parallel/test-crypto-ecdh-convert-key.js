@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 
 const { ECDH, createSign, getCurves } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 // A valid private key for the secp256k1 curve.
 const cafebabeKey = 'cafebabe'.repeat(8);
@@ -93,11 +94,17 @@ if (getCurves().includes('secp256k1')) {
 
   // Compare to getPublicKey.
   const ecdh1 = ECDH('secp256k1');
-  ecdh1.generateKeys();
-  ecdh1.setPrivateKey(cafebabeKey, 'hex');
-  assert.strictEqual(ecdh1.getPublicKey('hex', 'uncompressed'), uncompressed);
-  assert.strictEqual(ecdh1.getPublicKey('hex', 'compressed'), compressed);
-  assert.strictEqual(ecdh1.getPublicKey('hex', 'hybrid'), hybrid);
+  if (hasFIPS(3)) {
+    assert.throws(() => ecdh1.generateKeys(), {
+      code: 'ERR_CRYPTO_OPERATION_FAILED',
+    });
+  } else {
+    ecdh1.generateKeys();
+    ecdh1.setPrivateKey(cafebabeKey, 'hex');
+    assert.strictEqual(ecdh1.getPublicKey('hex', 'uncompressed'), uncompressed);
+    assert.strictEqual(ecdh1.getPublicKey('hex', 'compressed'), compressed);
+    assert.strictEqual(ecdh1.getPublicKey('hex', 'hybrid'), hybrid);
+  }
 }
 
 // See https://github.com/nodejs/node/issues/26133, failed ConvertKey

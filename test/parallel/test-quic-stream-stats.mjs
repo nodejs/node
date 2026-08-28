@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,19 +22,19 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const data = await bytes(stream);
-    strictEqual(data.byteLength, payloadLength);
+    assert.strictEqual(data.byteLength, payloadLength);
 
     // Stream stats should reflect received bytes.
-    strictEqual(stream.stats.bytesReceived, BigInt(payloadLength));
-    strictEqual(typeof stream.stats.createdAt, 'bigint');
-    strictEqual(typeof stream.stats.receivedAt, 'bigint');
+    assert.strictEqual(stream.stats.bytesReceived, BigInt(payloadLength));
+    assert.strictEqual(typeof stream.stats.createdAt, 'bigint');
+    assert.strictEqual(typeof stream.stats.receivedAt, 'bigint');
 
     // Send response.
     stream.setBody(encoder.encode('response'));
     await stream.closed;
 
     // After close, bytesSent should reflect response.
-    strictEqual(stream.stats.bytesSent, BigInt('response'.length));
+    assert.strictEqual(stream.stats.bytesSent, BigInt('response'.length));
 
     serverSession.close();
     serverDone.resolve();
@@ -51,23 +49,23 @@ const stream = await clientSession.createBidirectionalStream({
 });
 
 // Stats should have correct types before transfer completes.
-strictEqual(typeof stream.stats.createdAt, 'bigint');
-strictEqual(typeof stream.stats.bytesReceived, 'bigint');
-strictEqual(typeof stream.stats.bytesSent, 'bigint');
-strictEqual(typeof stream.stats.maxOffset, 'bigint');
+assert.strictEqual(typeof stream.stats.createdAt, 'bigint');
+assert.strictEqual(typeof stream.stats.bytesReceived, 'bigint');
+assert.strictEqual(typeof stream.stats.bytesSent, 'bigint');
+assert.strictEqual(typeof stream.stats.maxOffset, 'bigint');
 
 // Verify toJSON works.
 const json = stream.stats.toJSON();
-ok(json);
-strictEqual(typeof json.createdAt, 'string');
+assert.ok(json);
+assert.strictEqual(typeof json.createdAt, 'string');
 
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
 await stream.closed;
 await serverDone.promise;
 
 // After transfer, bytesSent should reflect the payload.
-strictEqual(stream.stats.bytesSent, BigInt(payloadLength));
-ok(stream.stats.bytesReceived > 0n);
+assert.strictEqual(stream.stats.bytesSent, BigInt(payloadLength));
+assert.ok(stream.stats.bytesReceived > 0n);
 
 await clientSession.closed;
 await serverEndpoint.close();

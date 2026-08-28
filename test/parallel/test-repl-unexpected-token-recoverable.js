@@ -5,6 +5,8 @@
 const common = require('../common');
 const assert = require('assert');
 
+common.skipIfInspectorDisabled();
+
 const spawn = require('child_process').spawn;
 // Use -i to force node into interactive mode, despite stdout not being a TTY
 const args = [ '-i' ];

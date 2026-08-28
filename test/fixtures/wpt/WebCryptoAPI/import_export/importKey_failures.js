@@ -1,8 +1,6 @@
 function run_test(algorithmNames) {
     var subtle = crypto.subtle; // Change to test prefixed implementations
 
-    setup({explicit_timeout: true});
-
 // These tests check that importKey and exportKey throw an error, and that
 // the error is of the right type, for a wide set of incorrect parameters.
 
@@ -79,16 +77,15 @@ function run_test(algorithmNames) {
         }, testTag + ": importKey" + parameterString(format, algorithm, extractable, usages, keyData));
     }
 
-    // Don't create an exhaustive list of all invalid usages,
-    // because there would usually be nearly 2**8 of them,
-    // way too many to test. Instead, create every singleton
+    // Don't create an exhaustive list of all invalid usages because
+    // there would be too many to test. Instead, create every singleton
     // of an illegal usage, and "poison" every valid usage
     // with an illegal one.
     function invalidUsages(validUsages, mandatoryUsages) {
         var results = [];
 
         var illegalUsages = [];
-        ["encrypt", "decrypt", "sign", "verify", "wrapKey", "unwrapKey", "deriveKey", "deriveBits"].forEach(function(usage) {
+        allKeyUsages.forEach(function(usage) {
             if (!validUsages.includes(usage)) {
                 illegalUsages.push(usage);
             }

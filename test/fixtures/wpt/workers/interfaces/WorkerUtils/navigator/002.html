@@ -1,0 +1,14 @@
+<!doctype html>
+<title>navigator.appName</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function() {
+  var worker = new Worker('002.js');
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, navigator.appName);
+    this.done();
+  });
+});
+</script>

@@ -8,9 +8,9 @@ agenda to ensure they are active and have the support they need.
 
 | Initiative             | Champion                         | Links                                         |
 | ---------------------- | -------------------------------- | --------------------------------------------- |
-| QUIC / HTTP3           | [James M Snell][jasnell]         | <https://github.com/nodejs/quic>              |
+| QUIC / HTTP3           | [James M Snell][jasnell]         | <https://github.com/nodejs/node>              |
+| Unified HTTP API       | [James M Snell][jasnell]         | <https://github.com/nodejs/node>              |
 | Shadow Realm           | [Chengzhong Wu][legendecas]      | <https://github.com/nodejs/node/issues/42528> |
-| V8 Currency            | [Michaël Zasso][targos]          |                                               |
 | Next-10                | [Jacob Smith][JakobJingleheimer] | <https://github.com/nodejs/next-10>           |
 | Single executable apps | [Darshan Sen][RaisinTen]         | <https://github.com/nodejs/single-executable> |
 | Performance            | [Rafael Gonzaga][RafaelGSS]      | <https://github.com/nodejs/performance>       |
@@ -46,4 +46,3 @@ agenda to ensure they are active and have the support they need.
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung
 [legendecas]: https://github.com/legendecas
-[targos]: https://github.com/targos

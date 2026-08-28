@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Test simple shared worker construction case.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+promise_test(t => {
+    let worker;
+
+    return new Promise(resolve => {
+        worker = new SharedWorker('support/SharedWorker-common.js', 'name');
+        worker.port.postMessage("ping");
+        worker.port.onmessage = resolve;
+    }).then(e => {
+        assert_equals(e.data, "PASS: Received ping message");
+    });
+});
+</script>

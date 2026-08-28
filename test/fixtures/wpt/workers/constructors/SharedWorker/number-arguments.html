@@ -1,0 +1,13 @@
+<!doctype html>
+<title>1 as arguments</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const worker = new SharedWorker(1, 1);
+  worker.port.onmessage = t.step_func_done(e => {
+    assert_equals(e.data[0], '1', 'first arg (script name)');
+    assert_equals(e.data[1], '1', 'second arg (worker name)');
+  });
+}, 'Test constructing a shared worker with 1');
+</script>

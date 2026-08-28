@@ -9,8 +9,10 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { kSupportedAlgorithms } = require('internal/crypto/util');
+const { hasFIPS } = require('../common/crypto');
 const { SubtleCrypto } = globalThis;
 const { subtle } = globalThis.crypto;
+const rejectsXCurves = hasFIPS(3, 5);
 
 const RSA_KEY_GEN = {
   modulusLength: 2048,
@@ -79,6 +81,15 @@ for (const name of Object.keys(kSupportedAlgorithms.exportKey)) {
   }
 
   assert.strictEqual(SubtleCrypto.supports('getPublicKey', name), true);
+
+  if (rejectsXCurves &&
+      (name === 'X25519' || name === 'X448')) {
+    await assert.rejects(
+      subtle.generateKey(test.algorithm, false, test.privateUsages),
+      (err) => err.name === 'OperationError' &&
+               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+    continue;
+  }
 
   const { privateKey } = await subtle.generateKey(
     test.algorithm, false, test.privateUsages);

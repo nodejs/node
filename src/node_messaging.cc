@@ -1093,7 +1093,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
                                        "MessagePort.postMessage");
   }
 
-  TransferList transfer_list;
+  TransferList transfer_list(env->isolate());
   if (!GetTransferList(env, context, args[1], &transfer_list)) {
     return;
   }
@@ -1607,7 +1607,7 @@ static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> value = args[0];
 
-  TransferList transfer_list;
+  TransferList transfer_list(isolate);
   Local<Object> options = args[1].As<Object>();
   Local<Value> transfer_list_v;
   if (!options->Get(context, env->transfer_string())

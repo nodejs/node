@@ -87,6 +87,17 @@ meet the following criteria:
 * Dependencies installed by the application.
 * The DNS resolution results provided by the operating system or configured
   resolvers.
+* The network environment in which the process runs, including any private or
+  internal networks it can reach, for the privacy of traffic on that network.
+  Deployments that require stronger isolation, monitoring, or egress controls
+  are responsible for providing them.
+* Any proxy server configured by the application, runtime, or environment.
+  Proxies are trusted network intermediaries and must be authorized by the
+  relevant network or deployment authority. Undici's proxy support is for
+  routing traffic through such proxies, for example to reach external networks
+  through a firewall; it is not intended to provide anonymity, hide traffic, or
+  bypass organizational, regulatory, or legal controls. Untrusted proxies are
+  outside the supported threat model.
 
 In other words, if untrusted data passing through undici to the application
 can trigger actions other than those documented for the APIs, there is likely
@@ -153,12 +164,34 @@ lead to a loss of confidentiality, integrity, or availability.
   calling `body.formData()` on untrusted responses is considered an application
   responsibility, not a vulnerability in undici.
 
+#### HTTP/1.1 keep-alive with untrusted servers
+
+* HTTP/1.1 responses on a reused connection are ordered, but they do not carry a
+  request identifier. Once a request has been written on a reused connection,
+  a well-formed response sent by the server is the response to that next request
+  from the client's point of view. Undici avoids immediate reuse of
+  non-pipelined HTTP/1.1 connections when callers are already waiting to send
+  more work, but applications that require per-request connection isolation for
+  untrusted or user-controlled servers should disable reuse by using
+  `pipelining: 0` or `maxRequestsPerClient: 1`, or use a protocol with response
+  correlation such as HTTP/2.
+
 #### Application Misconfiguration
 
 * Issues arising from incorrect or insecure use of undici APIs (such as
   disabling TLS verification, ignoring errors, or passing unsanitized user
   input to request options) are the application's responsibility, not
   vulnerabilities in undici.
+
+#### Unauthorized or untrusted proxy use
+
+* If an application configures undici to use a proxy that is untrusted,
+  malicious, or not authorized by the relevant network or deployment authority,
+  any resulting privacy loss, policy bypass, regulatory exposure, traffic
+  manipulation, or unavailability is the deployment's responsibility. Undici
+  cannot determine whether a proxy is authorized for a user's network or
+  jurisdiction, and preventing use of proxies to hide traffic or evade controls
+  is a non-goal.
 
 ## Receiving security updates
 

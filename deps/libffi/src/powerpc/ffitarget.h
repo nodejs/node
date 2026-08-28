@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------*-C-*-
-   ffitarget.h - Copyright (c) 2012  Anthony Green
+   ffitarget.h - Copyright (c) 2012, 2026  Anthony Green
                  Copyright (C) 2007, 2008, 2010 Free Software Foundation, Inc
                  Copyright (c) 1996-2003  Red Hat, Inc.
 

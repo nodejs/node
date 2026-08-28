@@ -45,7 +45,7 @@ const responseCountdown = new Countdown(total, common.mustCall(() => {
   server.close();
 }));
 
-const server = http.Server(function(req, res) {
+const server = new http.Server(function(req, res) {
   setTimeout(function() {
     res.writeHead(200, {
       'content-type': 'image/jpeg',

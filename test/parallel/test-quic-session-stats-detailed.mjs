@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -43,23 +41,23 @@ await Promise.all([stream.closed, serverDone.promise]);
 const stats = clientSession.stats;
 
 // RTT fields populated.
-ok(stats.smoothedRtt >= 0n, 'smoothedRtt should be >= 0');
-ok(stats.latestRtt >= 0n, 'latestRtt should be >= 0');
-ok(stats.minRtt >= 0n, 'minRtt should be >= 0');
-strictEqual(typeof stats.rttVar, 'bigint');
+assert.ok(stats.smoothedRtt >= 0n, 'smoothedRtt should be >= 0');
+assert.ok(stats.latestRtt >= 0n, 'latestRtt should be >= 0');
+assert.ok(stats.minRtt >= 0n, 'minRtt should be >= 0');
+assert.strictEqual(typeof stats.rttVar, 'bigint');
 
 // Congestion fields.
-ok(stats.cwnd > 0n, 'cwnd should be > 0');
-strictEqual(typeof stats.bytesInFlight, 'bigint');
-strictEqual(typeof stats.ssthresh, 'bigint');
+assert.ok(stats.cwnd > 0n, 'cwnd should be > 0');
+assert.strictEqual(typeof stats.bytesInFlight, 'bigint');
+assert.strictEqual(typeof stats.ssthresh, 'bigint');
 
 // V2 packet/byte fields.
-ok(stats.pktSent > 0n, 'pktSent should be > 0');
-ok(stats.pktRecv > 0n, 'pktRecv should be > 0');
-strictEqual(typeof stats.pktLost, 'bigint');
-ok(stats.bytesSent > 0n, 'bytesSent should be > 0');
-ok(stats.bytesRecv > 0n, 'bytesRecv should be > 0');
-strictEqual(typeof stats.bytesLost, 'bigint');
+assert.ok(stats.pktSent > 0n, 'pktSent should be > 0');
+assert.ok(stats.pktRecv > 0n, 'pktRecv should be > 0');
+assert.strictEqual(typeof stats.pktLost, 'bigint');
+assert.ok(stats.bytesSent > 0n, 'bytesSent should be > 0');
+assert.ok(stats.bytesRecv > 0n, 'bytesRecv should be > 0');
+assert.strictEqual(typeof stats.bytesLost, 'bigint');
 
 await clientSession.closed;
 await serverEndpoint.close();

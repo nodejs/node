@@ -21,7 +21,7 @@ If your first contribution is motivated by an issue you already encounter, but y
 is complex, introduces a new feature, breaks backward compatibility, or needs a significant refactor,
 it can be useful to open an issue to discuss whether the change or its design is acceptable before
 working out the implementation details. The issue can be opened before you send the pull request,
-or along side your pull request (in which case, it's better to keep the pull request in draft mode).
+or alongside your pull request (in which case, it's better to keep the pull request in draft mode).
 
 Straightforward or non-controversial changes, such as an obvious bug fix or a small refactor, don't
 usually benefit from discussions in a separate issue, and can be sent directly as a pull request.
@@ -167,6 +167,15 @@ It takes time for a volunteer to verify that the pull request does not contain m
 before approving the CI runs. Similar to the review process, be patient and respectful of
 the volunteers' time when you are asking for help to trigger the CI runs, this helps build
 trust to make future contributions smoother.
+
+### Q: The Jenkins CI failed, but when I clicked the CI link, it shows "Access Denied". What should I do?
+
+Read access to the Jenkins CI is restricted to a few teams in the Node.js organization. You will
+need to ask a member of these teams (for example, any of the collaborators) to show you the details
+of the failures. If after a day or so from a collaborator triggering a Jenkins CI your PR shows a
+failure in either the `node-test-pull-request` or `node-test-commit-*` checks it's worth adding a
+comment to the PR asking what tests are failed, as the collaborator may not realise that you cannot
+see the results directly.
 
 ### Q: The CI runs showed some failures that seem unrelated to my change. What should I do?
 

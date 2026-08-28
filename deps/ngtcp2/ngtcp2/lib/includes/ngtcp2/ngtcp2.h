@@ -3000,6 +3000,9 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  * The implementation of this callback should return 0 if it succeeds.
  * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
+ *
+ * .. seealso::
+ *   :type:`ngtcp2_stream_close2`
  */
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t flags,
                                    int64_t stream_id, uint64_t app_error_code,
@@ -3488,6 +3491,24 @@ typedef int (*ngtcp2_stream_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
 /**
  * @functypedef
  *
+ * :type:`ngtcp2_recv_stop_sending` is invoked when a STOP_SENDING frame
+ * is received from a remote endpoint for a stream identified by
+ * |stream_id|.  |app_error_code| is the application error code carried
+ * by the STOP_SENDING frame.  This callback is called at most
+ * once per stream.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
+                                        uint64_t app_error_code,
+                                        void *user_data,
+                                        void *stream_user_data);
+
+/**
+ * @functypedef
+ *
  * :type:`ngtcp2_version_negotiation` is invoked when the compatible
  * version negotiation takes place.  For client, it is called when it
  * sees a change in version field of a long header packet.  This
@@ -3623,10 +3644,87 @@ typedef int (*ngtcp2_get_path_challenge_data2)(ngtcp2_conn *conn,
                                                ngtcp2_path_challenge_data *data,
                                                void *user_data);
 
+/**
+ * @macrosection
+ *
+ * Stream close flags for :type:`ngtcp2_stream_close2` callback.
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_NONE` indicates no flag set.
+ *
+ * .. version-added:: 1.25.0
+ */
+#define NGTCP2_STREAM_CLOSE2_FLAG_NONE 0x00U
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET` indicates
+ * that rx_app_error_code parameter is set.
+ *
+ * .. version-added:: 1.25.0
+ */
+#define NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET 0x01U
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET` indicates
+ * that tx_app_error_code parameter is set.
+ *
+ * .. version-added:: 1.25.0
+ */
+#define NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET 0x02U
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_stream_close2` is invoked when a stream is closed.
+ * This callback is not called when QUIC connection is closed before
+ * existing streams are closed.  |flags| is the bitwise-OR of zero or
+ * more of :macro:`NGTCP2_STREAM_CLOSE2_FLAG_*
+ * <NGTCP2_STREAM_CLOSE2_FLAG_NONE>`.  |rx_app_error_code| indicates
+ * the error code that shut down the receiving side of the stream if
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET` is set in
+ * |flags|.  |tx_app_error_code| indicates the error code that shut
+ * down the sending side of the stream if
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET` is set in
+ * |flags|.
+ *
+ * Because QUIC can close the send and receive sides of a stream
+ * independently, this callback has 2 application error codes for both
+ * directions.  No error code means that its direction of a stream is
+ * closed cleanly.  For example, a client gets STOP_SENDING frame from
+ * a server, and it sends back RESET_STREAM frame with the error code
+ * included in STOP_SENDING frame.  This error code is reported as
+ * |tx_app_error_code| and
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET` is set in
+ * |flags|.  Meanwhile, the client receives the response body without
+ * any error.  Then
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET` is not set
+ * in |flags|.
+ *
+ * The implementation of this callback should return 0 if it succeeds.
+ * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
+ * call return immediately.
+ *
+ * .. version-added:: 1.25.0
+ */
+typedef int (*ngtcp2_stream_close2)(ngtcp2_conn *conn, uint32_t flags,
+                                    int64_t stream_id,
+                                    uint64_t rx_app_error_code,
+                                    uint64_t tx_app_error_code, void *user_data,
+                                    void *stream_user_data);
+
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_V2 2
 #define NGTCP2_CALLBACKS_V3 3
-#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V3
+#define NGTCP2_CALLBACKS_V4 4
+#define NGTCP2_CALLBACKS_V5 5
+#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V5
 
 /**
  * @struct
@@ -3707,6 +3805,9 @@ typedef struct ngtcp2_callbacks {
   /**
    * :member:`stream_close` is a callback function which is invoked
    * when a stream is closed.  This callback function is optional.
+   *
+   * .. seealso::
+   *   :member:`stream_close2`
    */
   ngtcp2_stream_close stream_close;
   /**
@@ -3964,6 +4065,27 @@ typedef struct ngtcp2_callbacks {
    * .. version-added:: 1.22.0
    */
   ngtcp2_get_path_challenge_data2 get_path_challenge_data2;
+  /* The following fields have been added since
+     NGTCP2_CALLBACKS_V4. */
+  /**
+   * :member:`recv_stop_sending` is a callback function which is invoked
+   * when a STOP_SENDING frame is received from a remote endpoint.  This
+   * callback function is optional.
+   *
+   * .. version-added:: 1.24.0
+   */
+  ngtcp2_recv_stop_sending recv_stop_sending;
+  /* The following fields have been added since
+     NGTCP2_CALLBACKS_V5. */
+  /**
+   * :member:`stream_close2` is a callback function which is invoked
+   * when a stream is closed.  This callback function is optional.  If
+   * both this field and :member:`stream_close` are specified, this
+   * field takes precedence.
+   *
+   * .. version-added:: 1.25.0
+   */
+  ngtcp2_stream_close2 stream_close2;
 } ngtcp2_callbacks;
 
 /**

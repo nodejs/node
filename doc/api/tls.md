@@ -468,34 +468,63 @@ to set the security level to 0 while using the default OpenSSL cipher list, you 
 
 ```mjs
 import { createServer, connect } from 'node:tls';
-const port = 443;
+import { readFileSync } from 'node:fs';
+const port = 8000;
 
-createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
+createServer({
+  key: readFileSync('server-key.pem'),
+  cert: readFileSync('server-cert.pem'),
+  ciphers: 'DEFAULT@SECLEVEL=0',
+  minVersion: 'TLSv1',
+}, function(socket) {
   console.log('Client connected with protocol:', socket.getProtocol());
   socket.end();
   this.close();
 })
 .listen(port, () => {
-  connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
+  connect(port, {
+    ciphers: 'DEFAULT@SECLEVEL=0',
+    minVersion: 'TLSv1',
+    maxVersion: 'TLSv1',
+    ca: [ readFileSync('server-cert.pem') ],
+  });
 });
 ```
 
 ```cjs
 const { createServer, connect } = require('node:tls');
-const port = 443;
+const { readFileSync } = require('node:fs');
+const port = 8000;
 
-createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
+createServer({
+  key: readFileSync('server-key.pem'),
+  cert: readFileSync('server-cert.pem'),
+  ciphers: 'DEFAULT@SECLEVEL=0',
+  minVersion: 'TLSv1',
+}, function(socket) {
   console.log('Client connected with protocol:', socket.getProtocol());
   socket.end();
   this.close();
 })
 .listen(port, () => {
-  connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
+  connect(port, {
+    ciphers: 'DEFAULT@SECLEVEL=0',
+    minVersion: 'TLSv1',
+    maxVersion: 'TLSv1',
+    ca: [ readFileSync('server-cert.pem') ],
+  });
 });
 ```
 
 This approach sets the security level to 0, allowing the use of legacy features while still
 leveraging the default OpenSSL ciphers.
+
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout server-key.pem -out server-cert.pem
+```
 
 ### Using [`--tls-cipher-list`][]
 
@@ -741,12 +770,9 @@ server. If `tlsSocket.authorized` is `false`, then `socket.authorizationError`
 is set to describe how authorization failed. Depending on the settings
 of the TLS server, unauthorized connections may still be accepted.
 
-The `tlsSocket.alpnProtocol` property is a string that contains the selected
-ALPN protocol. When ALPN has no selected protocol because the client or the
-server did not send an ALPN extension, `tlsSocket.alpnProtocol` equals `false`.
-
-The `tlsSocket.servername` property is a string containing the server name
-requested via SNI.
+The [`tls.TLSSocket.servername`][] and [`tls.TLSSocket.alpnProtocol`][]
+properties can be used to check which server name was requested, and which
+protocol was negotiated.
 
 ### Event: `'tlsClientError'`
 
@@ -1043,6 +1069,18 @@ Returns the bound `address`, the address `family` name, and `port` of the
 underlying socket as reported by the operating system:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
+### `tlsSocket.alpnProtocol`
+
+<!-- YAML
+added: v6.0.0
+-->
+
+* Type: {string|boolean|null}
+
+The negotiated ALPN protocol. This is `null` before the handshake completes.
+Once the handshake completes, it settles as either the negotiated protocol
+name, or `false` if the peers did not negotiate an ALPN protocol.
+
 ### `tlsSocket.authorizationError`
 
 <!-- YAML
@@ -1062,6 +1100,18 @@ added: v0.11.4
 
 This property is `true` if the peer certificate was signed by one of the CAs
 specified when creating the `tls.TLSSocket` instance, otherwise `false`.
+
+The peer certificate is only verified during a full TLS handshake. When a
+connection is established by resuming a previous session (see
+[Session Resumption][]), verification is not repeated. If the client
+presented a certificate in the original handshake, `authorized` and
+`authorizationError` carry the result stored with the session, including
+any verification error. On TLS 1.3, a client that sent no certificate at
+all can resume a session and report `authorized` as `true`, while
+[`tls.TLSSocket.getPeerCertificate()`][] returns an empty object. Servers
+that authorize clients manually with `rejectUnauthorized: false` should
+therefore also check [`tls.TLSSocket.isSessionReused()`][] and that a peer
+certificate is present.
 
 ### `tlsSocket.disableRenegotiation()`
 
@@ -1570,6 +1620,18 @@ When running as the server, the socket will be destroyed with an error after
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
 
+### `tlsSocket.servername`
+
+<!-- YAML
+added: v0.11.3
+-->
+
+* Type: {string|boolean|null}
+
+The SNI (Server Name Indication) host name associated with the socket. This is
+`null` before the handshake completes. Once the handshake completes it settles
+as either the host name string, or `false` if SNI was not used.
+
 ### `tlsSocket.setKeyCert(context)`
 
 <!-- YAML
@@ -1907,7 +1969,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine`, `privateKeyEngine` and
                  `privateKeyIdentifier` options are runtime deprecated.
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/62217
     description: The `certificateCompression` option has been added.
   - version:
@@ -2321,7 +2385,7 @@ The certificates will be deduplicated before being set as the default.
 
 This function only affects the current Node.js thread. Previous
 sessions cached by the HTTPS agent won't be affected by this change, so
-this method should be called before any unwanted cachable TLS connections are
+this method should be called before any unwanted cacheable TLS connections are
 made.
 
 To use system CA certificates as the default:
@@ -2409,7 +2473,9 @@ console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ## `tls.getCertificateCompressionAlgorithms()`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.19.0
 -->
 
 * Returns: {string\[]}
@@ -2553,11 +2619,14 @@ added: v0.11.3
 [`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version
 [`tls.Server`]: #class-tlsserver
+[`tls.TLSSocket.alpnProtocol`]: #tlssocketalpnprotocol
 [`tls.TLSSocket.enableTrace()`]: #tlssocketenabletrace
 [`tls.TLSSocket.getPeerCertificate()`]: #tlssocketgetpeercertificatedetailed
 [`tls.TLSSocket.getProtocol()`]: #tlssocketgetprotocol
 [`tls.TLSSocket.getSession()`]: #tlssocketgetsession
 [`tls.TLSSocket.getTLSTicket()`]: #tlssocketgettlsticket
+[`tls.TLSSocket.isSessionReused()`]: #tlssocketissessionreused
+[`tls.TLSSocket.servername`]: #tlssocketservername
 [`tls.TLSSocket`]: #class-tlstlssocket
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions

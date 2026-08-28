@@ -124,12 +124,12 @@ This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
 infrastructure as Tier 1 and Tier 2 platforms.
 
-### Experimental features behind compile-time flags and V8 flags
+### Experimental features behind compile-time flags, experimental runtime flags, and V8 flags
 
 Node.js includes certain experimental features that are only available when
-Node.js is compiled with specific flags. These features are intended for
-development, debugging, or testing purposes and are not enabled in official
-releases.
+Node.js is compiled with specific flags or that are only enabled with experimental
+runtime flags. These features are intended for development, debugging, or testing
+purposes and are not enabled or supported in official releases.
 
 Node.js may also expose V8 features that are controlled by V8 command-line flags
 (e.g., `--js-staging`, `--max_old_space_size`). These flags
@@ -137,8 +137,30 @@ enable or modify V8-level JavaScript engine behavior that is not part of the
 ECMAScript specification that Node.js implements and is not part of the
 Node.js documented API surface.
 
+#### Runtime gated experimental features
+
+Experimental features behind runtime flags can fall into one of three
+[categories](https://github.com/nodejs/node/blob/main/doc/api/documentation.md?rgh-link-date=2026-08-21T20%3A28%3A33.000Z#stability-index):
+
+* 1.0 - Early development.
+* 1.1 - Active development.
+* 1.2 - Release candidate.
+
+Security vulnerabilities that only affect experimental features in either the
+1.0 or 1.1 stages, and that are gated with an `--experimental-*` runtime flag
+requiring explicit opt-in by the user to enable, will **not** be accepted as
+valid security issues unless the vulnerability can be exploited in a way that
+impacts the security of a stable feature when the associated `--experimental-*`
+flag is **not enabled**.
+
+Security vulnerabilities that affect experimental features in the 1.2 stage are
+acceptable as valid security issues.
+
+#### Compile-time gated experimental features and V8 flags
+
 * Security vulnerabilities that only affect features behind compile-time flags
-  or V8 flags will **not** be accepted as valid security issues.
+  or V8 flags _that are not enabled by default_ will **not** be accepted as valid
+  security issues.
 * Any issues with these features will be treated as normal bugs.
 * No CVEs will be issued for issues that only affect compile-time flag or V8 flag features.
 * Bug bounty rewards are not available for compile-time flag or V8 flag feature issues.
@@ -150,6 +172,28 @@ for production use. Similarly, V8 flags expose internal V8 engine options that
 are not part of the Node.js documented API surface, are not enabled by
 default in production builds, and may have incomplete implementations or
 missing security hardening.
+
+### Security triage dispositions
+
+When triaging a report, the project classifies it into one of the following
+dispositions:
+
+* **Vulnerability**: A Node.js defect that is exploitable across a
+  Node.js-owned security boundary and meets the criteria under
+  [What constitutes a vulnerability](#what-constitutes-a-vulnerability),
+  including any applicable DoS criteria.
+* **Security-interest bug**: A real Node.js defect, or an API behavior likely
+  to cause security bugs in applications, that is not itself a vulnerability
+  under this threat model. These are fixed as regular bugs and do not
+  automatically receive a CVE, but should still be reported privately first
+  when they affect a common security control such as protocol interpretation,
+  permission enforcement, or certificate/TLS decisions.
+* **Common bug**: A correctness, robustness, or crash issue without a
+  Node.js-owned security boundary or a realistic cross-boundary attacker benefit.
+* **Invalid / out of scope**: A bug report that meets one of these criteria:
+  * Cannot be reproduced
+  * Is not a Node.js defect (e.g., an application bug)
+  * Is excluded by policy (e.g., experimental features)
 
 ### What constitutes a vulnerability
 
@@ -221,6 +265,16 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
 * The developers and infrastructure that run it.
 * The operating system that Node.js is running under and its configuration,
   along with anything under the control of the operating system.
+* The deployment network environment for the privacy of traffic and routing
+  decisions, including internal networks through which Node.js traffic passes
+  and configured HTTP(S) proxy servers. Built-in proxy support is intended to
+  route traffic through proxies authorized for the deployment, often because a
+  firewall requires one to access external networks. It is not intended to hide
+  traffic from network operators or authorities governing the deployment.
+  Untrusted or unauthorized proxies, as well as deployment policy or legal
+  compliance controls around proxy use, are the responsibility of the deployment
+  operator and are outside this threat model. This does not change that data
+  parsed from network protocol peers is untrusted as described above.
 * The code it is asked to run, including JavaScript, WASM and native code, even
   if said code is dynamically loaded, e.g., all dependencies installed from the
   npm registry or libraries loaded via `node:ffi`.
@@ -293,10 +347,44 @@ the community they pose.
 * Defense-in-depth issues are never treated as Node.js security vulnerabilities,
   do not receive CVEs, and are handled as regular bugs or hardening improvements.
 
+#### Malicious protocol peers
+
+* Node.js treats data from remote network peers as untrusted, and bugs in
+  parsers or protocol implementations may be security vulnerabilities.
+* Node.js treats data from HTTP/1.1 keep-alive connections as trusted, meaning that a Node.js
+  client consuming unsolicited or misordered responses within the same HTTP/1.1 connection
+  reuse lifecycle are generally not considered Node.js vulnerabilities.
+
+#### Unauthorized or untrusted HTTP proxy deployments
+
+* Built-in HTTP proxy support is intended for routing outbound requests through
+  a proxy authorized by the deployment, for example because a firewall requires
+  one to reach external networks. It is not an anonymity, traffic-hiding, or
+  policy-evasion feature.
+* Reports that depend on using an unauthorized proxy, expecting Node.js to
+  provide privacy from a configured proxy or internal network, or expecting
+  Node.js to enforce deployment-specific network policy or legal requirements
+  are not considered Node.js vulnerabilities. Deployment operators are
+  responsible for hardening such environments and controlling which proxy
+  settings are allowed.
+
 #### Malicious Third-Party Modules (CWE-1357)
 
 * Code is trusted by Node.js. Therefore any scenario that requires a malicious
   third-party module cannot result in a vulnerability in Node.js.
+
+#### Same-process self-harm
+
+* Node.js trusts the code it is asked to run. A defect that can only be
+  triggered by JavaScript, WASM, native, addon, FFI, or dependency code already
+  executing in the target process is not a Node.js vulnerability merely because
+  that code can crash, corrupt, or confuse the process it already controls.
+  This includes forging an internal handle, reflecting or overwriting an
+  internal `Symbol()`, installing a `Symbol.hasInstance` hook, or reaching into
+  an internal binding.
+* Such issues may still be fixed as common bugs. They become vulnerabilities
+  only if the same defect is reachable from an element Node.js does not trust
+  without relying on an application-created boundary.
 
 #### Prototype Pollution Attacks (CWE-1321)
 
@@ -414,6 +502,21 @@ resources a Node.js process may access. It is designed to reduce the blast
 radius of mistakes in trusted application code, **not** to act as a security
 boundary against intentional misuse or a compromised process.
 
+Permission Model reports are triaged in three lanes:
+
+* **Vulnerability**: An element Node.js does not trust crosses a Node.js-owned
+  permission check without trusted code already executing in the protected
+  process.
+* **Security-interest bug**: Trusted application code uses documented, stable
+  APIs as intended, but Node.js fails to enforce a documented permission
+  invariant consistently — for example, one API enforces a check that an
+  equivalent API omits. These are fixed as hardening and are not automatically
+  CVE-class, because the Permission Model is not a sandbox against malicious
+  same-process code.
+* **Excluded**: Intentional misuse by code already running in the process,
+  operator-selected flags, a modified `execArgv`/`env`, or any expectation that
+  the Permission Model sandboxes malicious same-process code.
+
 The following are **not** vulnerabilities in Node.js:
 
 * **Operator-controlled flags**: Behavior unlocked by flags the operator
@@ -434,9 +537,23 @@ The following are **not** vulnerabilities in Node.js:
   symlinks that resolve within the allowed list are similarly not considered
   permission model bypasses.
 
-* **`worker_threads` with modified `execArgv`**: Workers inherit the permission
-  restrictions of their parent process. Passing an empty or modified `execArgv`
-  to a worker does not grant it additional permissions.
+* **`worker_threads` and the permission model**: Creating a worker is gated by
+  `--allow-worker`. A worker started with a modified `execArgv` or `env` may
+  start without inheriting the parent's permission configuration, so the
+  permission model does not reliably propagate to such workers. Because worker
+  creation already requires `--allow-worker`, and the Permission Model is not a
+  sandbox against intentional misuse by trusted code, this is not considered a
+  vulnerability. Applications that rely on the Permission Model must not grant
+  `--allow-worker` to code they do not trust.
+
+#### QUIC and HTTP/3
+
+The experimental QUIC and HTTP/3 implementation in Node.js is a complex new
+protocol stack and API that is still under active development and should not be
+used for production workloads. Reports that only affect QUIC or HTTP/3 are not
+considered Node.js vulnerabilities at this time. It is expected that the QUIC
+and HTTP/3 implementation will continue to evolve, and security issues will be
+addressed as the implementation matures.
 
 #### Virtual File System (`node:vfs`)
 
@@ -473,12 +590,6 @@ the `link` value is an application-level misuse of the API, not a Node.js
 vulnerability. Node.js validates the structure of Early Hints per the HTTP spec
 but does not sanitize free-form application data passed to it; that is the
 application's responsibility.
-
-## Assessing experimental features reports
-
-Experimental features are eligible for security reports just like any other
-stable feature of Node.js. They may also receive the same severity score that a
-stable feature would.
 
 ## Receiving security updates
 

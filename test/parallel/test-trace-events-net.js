@@ -5,6 +5,8 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+common.skipIfPerfettoEnabled();
+
 const CODE = `
   const net = require('net');
   const socket = net.connect('${common.PIPE}');

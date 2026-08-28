@@ -49,7 +49,7 @@
       'ngtcp2/lib/ngtcp2_unreachable.c',
       'ngtcp2/lib/ngtcp2_vec.c',
       'ngtcp2/lib/ngtcp2_version.c',
-      'ngtcp2/lib/ngtcp2_window_filter.c',
+      'ngtcp2/lib/ngtcp2_wf.c',
       'ngtcp2/crypto/shared.c'
     ],
     'ngtcp2_sources_ossl': [

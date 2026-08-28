@@ -950,7 +950,9 @@ See [the package examples repository][] for details.
 ## Package maps
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.20.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with [`--experimental-package-map`][].

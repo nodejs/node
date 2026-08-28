@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - Copyright (c) 2012  Anthony Green
+   ffi.c - Copyright (c) 2012, 2026  Anthony Green
 	   Copyright (c) 1998, 2001, 2007, 2008  Red Hat, Inc.
 
    Alpha Foreign Function Interface

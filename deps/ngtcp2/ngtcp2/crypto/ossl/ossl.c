@@ -79,6 +79,60 @@ int ngtcp2_crypto_ossl_init(void) {
   return 0;
 }
 
+void ngtcp2_crypto_ossl_free(void) {
+  if (crypto_hkdf) {
+    EVP_KDF_free(crypto_hkdf);
+    crypto_hkdf = NULL;
+  }
+
+  if (crypto_sha384) {
+    EVP_MD_free(crypto_sha384);
+    crypto_sha384 = NULL;
+  }
+
+  if (crypto_sha256) {
+    EVP_MD_free(crypto_sha256);
+    crypto_sha256 = NULL;
+  }
+
+#ifndef NGTCP2_NO_CHACHA_POLY1305
+  if (crypto_chacha20) {
+    EVP_CIPHER_free(crypto_chacha20);
+    crypto_chacha20 = NULL;
+  }
+
+  if (crypto_chacha20_poly1305) {
+    EVP_CIPHER_free(crypto_chacha20_poly1305);
+    crypto_chacha20_poly1305 = NULL;
+  }
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
+
+  if (crypto_aes_256_ecb) {
+    EVP_CIPHER_free(crypto_aes_256_ecb);
+    crypto_aes_256_ecb = NULL;
+  }
+
+  if (crypto_aes_128_ecb) {
+    EVP_CIPHER_free(crypto_aes_128_ecb);
+    crypto_aes_128_ecb = NULL;
+  }
+
+  if (crypto_aes_128_ccm) {
+    EVP_CIPHER_free(crypto_aes_128_ccm);
+    crypto_aes_128_ccm = NULL;
+  }
+
+  if (crypto_aes_256_gcm) {
+    EVP_CIPHER_free(crypto_aes_256_gcm);
+    crypto_aes_256_gcm = NULL;
+  }
+
+  if (crypto_aes_128_gcm) {
+    EVP_CIPHER_free(crypto_aes_128_gcm);
+    crypto_aes_128_gcm = NULL;
+  }
+}
+
 static const EVP_CIPHER *crypto_aead_aes_128_gcm(void) {
   if (crypto_aes_128_gcm) {
     return crypto_aes_128_gcm;
@@ -676,8 +730,8 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *secret, size_t secretlen,
                                const uint8_t *salt, size_t saltlen) {
   const EVP_MD *prf = md->native_handle;
-  EVP_KDF *kdf = crypto_kdf_hkdf();
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  EVP_KDF *kdf;
+  EVP_KDF_CTX *kctx;
   int mode = EVP_KDF_HKDF_MODE_EXTRACT_ONLY;
   OSSL_PARAM params[] = {
     OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode),
@@ -691,13 +745,24 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
   };
   int rv = 0;
 
-  crypto_kdf_hkdf_free(kdf);
+  kdf = crypto_kdf_hkdf();
+  if (!kdf) {
+    return -1;
+  }
+
+  kctx = EVP_KDF_CTX_new(kdf);
+  if (!kctx) {
+    rv = -1;
+    goto fail_kdf_ctx_new;
+  }
 
   if (EVP_KDF_derive(kctx, dest, (size_t)EVP_MD_size(prf), params) <= 0) {
     rv = -1;
   }
 
   EVP_KDF_CTX_free(kctx);
+fail_kdf_ctx_new:
+  crypto_kdf_hkdf_free(kdf);
 
   return rv;
 }
@@ -707,8 +772,8 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
                               size_t secretlen, const uint8_t *info,
                               size_t infolen) {
   const EVP_MD *prf = md->native_handle;
-  EVP_KDF *kdf = crypto_kdf_hkdf();
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  EVP_KDF *kdf;
+  EVP_KDF_CTX *kctx;
   int mode = EVP_KDF_HKDF_MODE_EXPAND_ONLY;
   OSSL_PARAM params[] = {
     OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode),
@@ -722,13 +787,24 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   };
   int rv = 0;
 
-  crypto_kdf_hkdf_free(kdf);
+  kdf = crypto_kdf_hkdf();
+  if (!kdf) {
+    return -1;
+  }
+
+  kctx = EVP_KDF_CTX_new(kdf);
+  if (!kctx) {
+    rv = -1;
+    goto fail_kdf_ctx_new;
+  }
 
   if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
     rv = -1;
   }
 
   EVP_KDF_CTX_free(kctx);
+fail_kdf_ctx_new:
+  crypto_kdf_hkdf_free(kdf);
 
   return rv;
 }
@@ -738,8 +814,8 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
                        size_t secretlen, const uint8_t *salt, size_t saltlen,
                        const uint8_t *info, size_t infolen) {
   const EVP_MD *prf = md->native_handle;
-  EVP_KDF *kdf = crypto_kdf_hkdf();
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  EVP_KDF *kdf;
+  EVP_KDF_CTX *kctx;
   OSSL_PARAM params[] = {
     OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
                                      (char *)EVP_MD_get0_name(prf), 0),
@@ -753,13 +829,24 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
   };
   int rv = 0;
 
-  crypto_kdf_hkdf_free(kdf);
+  kdf = crypto_kdf_hkdf();
+  if (!kdf) {
+    return -1;
+  }
+
+  kctx = EVP_KDF_CTX_new(kdf);
+  if (!kctx) {
+    rv = -1;
+    goto fail_kdf_ctx_new;
+  }
 
   if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
     rv = -1;
   }
 
   EVP_KDF_CTX_free(kctx);
+fail_kdf_ctx_new:
+  crypto_kdf_hkdf_free(kdf);
 
   return rv;
 }

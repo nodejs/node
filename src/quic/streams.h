@@ -267,6 +267,9 @@ class Stream final : public AsyncWrap,
   // to be created.
   bool is_pending() const;
 
+  // True if the stream is already destroyed.
+  bool is_destroyed() const;
+
   // True if we've completely sent all outbound data for this stream.
   // Importantly, this does not necessarily mean that we are completely
   // done with the outbound data. We may still be waiting on outbound
@@ -341,6 +344,17 @@ class Stream final : public AsyncWrap,
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
 
+  // Sends a reset stream to the peer to tell it we will not be sending any
+  // more data for this stream. This has the effect of shutting down the
+  // writable side of the stream for this peer. Any data that is held in the
+  // outbound queue will be dropped. The stream may still be readable.
+  void DoStreamReset(error_code code);
+
+  // Tells the peer to stop sending data for this stream. This has the effect
+  // of shutting down the readable side of the stream for this peer. Any data
+  // that has already been received is still readable.
+  void SendStopSending(error_code code);
+
   // Currently, only HTTP/3 streams support headers. These methods are here
   // to support that. They are not used when using any other QUIC application.
 
@@ -381,6 +395,22 @@ class Stream final : public AsyncWrap,
   // inbound DataQueue as a single right-sized entry.
   void FlushAccumulation();
 
+  // Every byte ngtcp2 delivers is charged against both the stream-level and
+  // the connection-level receive window until we hand the credit back.
+  enum class CreditScope : uint8_t {
+    // The stream is still readable, so the peer may usefully send more on it.
+    STREAM_AND_CONNECTION,
+    // The stream is finished, so only the session-wide window is extended.
+    CONNECTION_ONLY,
+  };
+
+  // Returns `amount` bytes of inbound flow control credit to the peer.
+  void ReturnFlowControlCredit(uint64_t amount, CreditScope scope);
+
+  // Returns credit for bytes that have left our custody, either read by the
+  // consumer or dropped before reaching one.
+  void CreditConsumedBytes(uint64_t amount);
+
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
 
@@ -394,6 +424,7 @@ class Stream final : public AsyncWrap,
 
   bool is_local_unidirectional() const;
   bool is_remote_unidirectional() const;
+  void ReleaseArenaSlots();
 
   // JavaScript callouts
 
@@ -402,6 +433,9 @@ class Stream final : public AsyncWrap,
 
   // Notifies the JavaScript side that the stream has been reset.
   void EmitReset(const QuicError& error);
+
+  // Notifies the JavaScript side that the peer asked it to stop sending.
+  void EmitStopSending(const QuicError& error);
 
   // Notifies the JavaScript side that the application is ready to receive
   // trailing headers. Any trailing headers must be sent immediately, and
@@ -440,6 +474,14 @@ class Stream final : public AsyncWrap,
   std::shared_ptr<DataQueue> inbound_;
   BaseObjectWeakPtr<Blob::Reader> reader_;
   std::unique_ptr<RecvAccumulator> recv_accumulator_;
+
+  // Bytes delivered to ReceiveData() that still hold inbound flow control
+  // credit. Returned incrementally as the consumer reads them, and in bulk
+  // when the stream is destroyed -- otherwise abandoning a stream with unread
+  // data would permanently shrink the session's receive window. Data still
+  // buffered inside nghttp3 is deliberately not counted: nghttp3 returns that
+  // credit itself through its deferred_consume callback.
+  uint64_t uncredited_bytes_ = 0;
 
   // If the stream cannot be opened yet, it will be created in a pending state.
   // Once the owning session is able to, it will complete opening of the stream

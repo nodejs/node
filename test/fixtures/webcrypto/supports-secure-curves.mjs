@@ -19,6 +19,8 @@ export const vectors = {
     [!boringSSL, 'Ed448'],
     [!boringSSL, { name: 'Ed448', context: Buffer.alloc(0) }],
     [!boringSSL && supportsContext, { name: 'Ed448', context: Buffer.alloc(32) }],
+    [!boringSSL && supportsContext, { name: 'Ed448', context: Buffer.alloc(255) }],
+    [false, { name: 'Ed448', context: Buffer.alloc(256) }],
   ],
   'generateKey': [
     [!boringSSL, 'X448'],

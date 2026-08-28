@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>SharedWorker: runtime errors are not parse errors</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+promise_test(async t => {
+  const worker = new SharedWorker('support/shared-worker-eval-syntax-error.js');
+  worker.onerror = t.unreached_func(
+      'onerror should not be invoked for eval() runtime error');
+  const data = await new Promise(resolve => worker.port.onmessage = e => resolve(e.data));
+  assert_equals(data, 'onerror-fired',
+      'Error should have fired at the SharedWorkerGlobalScope');
+}, 'eval() with syntax error fires at global scope but not at SharedWorker');
+
+promise_test(async t => {
+  const worker = new SharedWorker('support/shared-worker-json-parse-error.js');
+  worker.onerror = t.unreached_func(
+      'onerror should not be invoked for JSON.parse() runtime error');
+  const data = await new Promise(resolve => worker.port.onmessage = e => resolve(e.data));
+  assert_equals(data, 'onerror-fired',
+      'Error should have fired at the SharedWorkerGlobalScope');
+}, 'JSON.parse() error fires at global scope but not at SharedWorker');
+
+promise_test(async () => {
+  const worker = new SharedWorker('modules/resources/syntax-error.js');
+  const event = await new Promise(resolve => {
+    worker.onerror = e => { e.preventDefault(); resolve(e); };
+  });
+  assert_equals(event.constructor, Event,
+      'Script parse error should dispatch Event, not ErrorEvent');
+  assert_false(event instanceof ErrorEvent,
+      'Script parse error should not be an ErrorEvent');
+}, 'Script parse error dispatches plain Event at SharedWorker');
+
+</script>

@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------
    ffi.c - Copyright (c) 1998, 2007, 2008, 2012 Red Hat, Inc.
 	   Copyright (c) 2000 Hewlett Packard Company
-	   Copyright (c) 2011 Anthony Green
+	   Copyright (c) 2011, 2026 Anthony Green
    
    IA64 Foreign Function Interface 
 

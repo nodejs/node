@@ -81,6 +81,14 @@ uint32_t LdrXSp(unsigned reg, unsigned offset) {
   return 0xf94003e0 | ((offset / 8) << 10) | reg;
 }
 
+uint32_t LdrbW(unsigned dst, unsigned base) {
+  return 0x39400000 | (base << 5) | dst;
+}
+
+uint32_t CbzW(unsigned reg, unsigned instruction_offset) {
+  return 0x34000000 | ((instruction_offset & 0x7ffff) << 5) | reg;
+}
+
 uint32_t MovzW(unsigned dst, uint16_t value) {
   // Load a small immediate into a W register. The buffer helper's argument
   // index is uint32_t, but current Fast API signatures are capped well below
@@ -136,7 +144,6 @@ uint32_t UxthW(unsigned reg) {
 // to the ABI width expected by the native target before the final call.
 bool EmitNarrow(uint32_t** cursor, FastFFIType type, unsigned reg) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kUint8:
       *(*cursor)++ = UxtbW(reg);
       return true;
@@ -214,14 +221,15 @@ bool ProtectCode(void* code, size_t code_size) {
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,
     node::ffi::FastFFITrampoline* out) {
   // Null inputs mean the caller cannot safely create executable code for this
   // signature. Report rejection so the generic FFI path can be used instead.
-  if (target == nullptr || out == nullptr) {
+  if (config.target == nullptr || config.closed == nullptr ||
+      config.isolate == nullptr || out == nullptr) {
     return false;
   }
 
@@ -275,6 +283,24 @@ extern "C" bool node_ffi_create_fast_trampoline(
   // Save frame pointer and link register so helper calls and the final target
   // call can return through this generated trampoline safely.
   *cursor++ = kStpFpLrPreIndex;
+
+  // Fast calls bypass DynamicLibrary::InvokeFunction, so check the stable
+  // FFIFunction::closed flag before touching the target address. The open
+  // branch is the hot path. On close, schedule the standard JS exception and
+  // return; V8 checks for pending exceptions after Fast API calls.
+  EmitLoadX16(&cursor, reinterpret_cast<uintptr_t>(config.closed));
+  *cursor++ = LdrbW(17, 16);
+  uint32_t* open_branch = cursor++;
+  EmitLoadX16(&cursor, reinterpret_cast<uintptr_t>(config.isolate));
+  *cursor++ = MovX(0, 16);
+  EmitLoadX16(
+      &cursor, reinterpret_cast<uintptr_t>(node_ffi_fast_library_closed));
+  *cursor++ = kBlrX16;
+  *cursor++ = MovX(0, 31);
+  *cursor++ = kLdpFpLrPostIndex;
+  *cursor++ = kRet;
+  *open_branch =
+      CbzW(17, static_cast<unsigned>(cursor - open_branch));
 
   if (has_buffer_args) {
     // Buffer conversion calls a C++ helper before the target call, so spill all
@@ -362,7 +388,7 @@ extern "C" bool node_ffi_create_fast_trampoline(
 
   // Tail of the trampoline: load the actual library symbol address and call it
   // with arguments now arranged according to the native ABI.
-  EmitLoadX16(&cursor, reinterpret_cast<uintptr_t>(target));
+  EmitLoadX16(&cursor, reinterpret_cast<uintptr_t>(config.target));
   *cursor++ = kBlrX16;
 
   if (has_buffer_args) {
@@ -415,7 +441,7 @@ extern "C" void node_ffi_free_fast_trampoline(
     !(defined(__riscv) && __riscv_xlen == 64) && !defined(__s390x__)
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,

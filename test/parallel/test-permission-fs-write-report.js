@@ -23,6 +23,7 @@ if (!process.permission) {
 }
 
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
@@ -73,3 +74,67 @@ spawnSyncAndExitWithoutError(
   ],
   { cwd: tmpdir.path }
 );
+
+{
+  const allowedDir = path.join(tmpdir.path, 'report-allowed');
+  const deniedDir = path.join(tmpdir.path, 'report-denied');
+  fs.mkdirSync(allowedDir);
+  fs.mkdirSync(deniedDir);
+
+  const deniedFile = path.join(deniedDir, 'report.json');
+  fs.writeFileSync(deniedFile, 'existing content');
+  spawnSyncAndExitWithoutError(
+    process.execPath,
+    [
+      '--permission',
+      '--allow-fs-read=*',
+      `--allow-fs-write=${allowedDir}`,
+      '-e',
+      `
+      const assert = require('assert');
+      process.report.directory = ${JSON.stringify(deniedDir)};
+      assert.throws(() => {
+        process.report.writeReport('report.json');
+      }, {
+        code: 'ERR_ACCESS_DENIED',
+        permission: 'FileSystemWrite',
+        resource: ${JSON.stringify(deniedFile)},
+      });
+      `,
+    ],
+    { cwd: allowedDir },
+  );
+  assert.strictEqual(fs.readFileSync(deniedFile, 'utf8'), 'existing content');
+}
+
+{
+  const allowedDir = path.join(tmpdir.path, 'report-filename-allowed');
+  const deniedDir = path.join(tmpdir.path, 'report-filename-denied');
+  fs.mkdirSync(allowedDir);
+  fs.mkdirSync(deniedDir);
+
+  const deniedFile = path.join(deniedDir, 'report.json');
+  spawnSyncAndExitWithoutError(
+    process.execPath,
+    [
+      '--permission',
+      '--allow-fs-read=*',
+      `--allow-fs-write=${allowedDir}`,
+      '-e',
+      `
+      const assert = require('assert');
+      process.report.directory = ${JSON.stringify(deniedDir)};
+      process.report.filename = 'report.json';
+      assert.throws(() => {
+        process.report.writeReport();
+      }, {
+        code: 'ERR_ACCESS_DENIED',
+        permission: 'FileSystemWrite',
+        resource: ${JSON.stringify(deniedFile)},
+      });
+      `,
+    ],
+    { cwd: allowedDir },
+  );
+  assert.strictEqual(fs.existsSync(deniedFile), false);
+}

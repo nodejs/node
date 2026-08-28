@@ -6,11 +6,22 @@ const { PassThrough } = require('node:stream');
 const { once } = require('node:events');
 const test = require('node:test');
 const { spawn } = require('node:child_process');
+const vm = require('node:vm');
+
+common.skipIfInspectorDisabled();
+
+function evaluate(code, context, filename, callback) {
+  try {
+    callback(null, vm.runInContext(code, context, { filename }));
+  } catch (err) {
+    callback(err);
+  }
+}
 
 function* generateCases() {
   for (const async of [false, true]) {
     for (const handleErrorReturn of ['ignore', 'print', 'unhandled', 'badvalue']) {
-      if (handleErrorReturn === 'badvalue' && async) {
+      if (handleErrorReturn === 'badvalue') {
         // Handled through a separate test using a child process
         continue;
       }
@@ -21,13 +32,12 @@ function* generateCases() {
 
 for (const { async, handleErrorReturn } of generateCases()) {
   test(`async: ${async}, handleErrorReturn: ${handleErrorReturn}`, async () => {
-    let err;
     const options = {
       input: new PassThrough(),
       output: new PassThrough().setEncoding('utf8'),
-      handleError: common.mustCall((e) => {
-        err = e;
-        queueMicrotask(() => repl.emit('handled-error'));
+      eval: evaluate,
+      handleError: common.mustCall((err) => {
+        queueMicrotask(() => repl.emit('handled-error', err));
         return handleErrorReturn;
       })
     };
@@ -39,19 +49,23 @@ for (const { async, handleErrorReturn } of generateCases()) {
     }
 
     const repl = start(options);
-    const inputString = async ?
-      'setImmediate(() => { throw new Error("testerror") })\n42\n' :
-      'throw new Error("testerror")\n42\n';
-    if (handleErrorReturn === 'badvalue') {
-      assert.throws(() => options.input.end(inputString), /ERR_INVALID_STATE/);
-      return;
-    }
-    options.input.end(inputString);
 
-    await once(repl, 'handled-error');
+    let outputString = '';
+    options.output.on('data', (chunk) => { outputString += chunk; });
+
+    const errorInput = async ?
+      'setImmediate(() => { throw new Error("testerror") })\n' :
+      'throw new Error("testerror")\n';
+    const handledErrorEvent = once(repl, 'handled-error');
+    options.input.write(errorInput);
+
+    const [err] = await handledErrorEvent;
     assert.strictEqual(err.message, 'testerror');
-    const outputString = options.output.read();
-    assert.match(outputString, /42/);
+    const exitEvent = once(repl, 'exit');
+    options.input.end('42\n');
+    while (!/42/.test(outputString)) {
+      await once(options.output, 'data');
+    }
 
     if (handleErrorReturn === 'print') {
       assert.match(outputString, /testerror/);
@@ -63,6 +77,7 @@ for (const { async, handleErrorReturn } of generateCases()) {
       const [uncaughtErr] = await uncaughtExceptionEvent;
       assert.strictEqual(uncaughtErr, err);
     }
+    await exitEvent;
   });
 }
 

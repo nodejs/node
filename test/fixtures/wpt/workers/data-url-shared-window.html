@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<head>
+<title>data URL shared worker</title>
+</head>
+<body>
+<script>
+onmessage = event => {
+  const port = event.ports[0];
+  // This shared worker counts the total number of connected documents and
+  // notifies the connector of it.
+  const kScript =
+      "onconnect = e => {" +
+      "  if (self.count === undefined)" +
+      "    self.count = 0;" +
+      "  self.count++;" +
+      "  e.ports[0].postMessage(self.count);" +
+      "};";
+  const worker = new SharedWorker('data:application/javascript,' + kScript);
+  worker.port.onmessage = e => port.postMessage(e.data);
+};
+
+window.opener.postMessage('LOADED', '*');
+</script>
+</body>
+</html>

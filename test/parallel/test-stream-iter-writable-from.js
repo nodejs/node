@@ -17,7 +17,7 @@ const {
 // =============================================================================
 
 async function testBasicWrite() {
-  const { writer, readable } = push({ backpressure: 'block' });
+  const { writer, readable } = push({ backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   writable.write('hello');
@@ -324,7 +324,7 @@ function testInvalidWriterThrows() {
 // =============================================================================
 
 async function testRoundTrip() {
-  const { writer, readable } = push({ backpressure: 'block' });
+  const { writer, readable } = push({ backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   const data = 'round trip test data';
@@ -340,7 +340,7 @@ async function testRoundTrip() {
 // =============================================================================
 
 async function testPushWriterBlockBackpressureNoDuplicate() {
-  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   await new Promise((resolve, reject) => {
@@ -362,7 +362,7 @@ async function testPushWriterBlockBackpressureNoDuplicate() {
 // =============================================================================
 
 async function testPushWriterBlockBackpressureWritevNoDuplicate() {
-  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   await new Promise((resolve, reject) => {
@@ -387,7 +387,7 @@ async function testPushWriterBlockBackpressureWritevNoDuplicate() {
 // =============================================================================
 
 async function testSequentialWrites() {
-  const { writer, readable } = push({ backpressure: 'block' });
+  const { writer, readable } = push({ backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
   for (let i = 0; i < 10; i++) {

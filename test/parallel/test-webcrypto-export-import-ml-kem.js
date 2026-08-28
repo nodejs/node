@@ -107,10 +107,8 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
   } catch (err) {
     if (process.features.openssl_is_boringssl) {
       assert.strictEqual(err.name, 'DataError');
-      // It should really only be ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED
-      // but BoringSSL is inconsistent between handling ML-KEM and ML-DSA
-      // Fixed in https://github.com/google/boringssl/commit/94c4c7f9e0eeeff72ea1ac6abf1aed5bd2a82c0c
-      assert.match(err.cause.code, /ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM|ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED/);
+      assert.strictEqual(err.cause.code,
+                         'ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED');
       common.printSkipMessage('Skipping unsupported private key format test');
       return;
     }
@@ -498,13 +496,29 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
   });
 })().then(common.mustCall());
 
-// Regression test: JWK `key_ops` validation must recognize ML-KEM operations
-// (encapsulateKey, encapsulateBits, decapsulateKey, decapsulateBits) so that
-// duplicate entries are rejected
+// JWK key usage validation precedes `key_ops` validation.
 (async function() {
-  for (const op of ['encapsulateKey', 'encapsulateBits',
-                    'decapsulateKey', 'decapsulateBits']) {
-    const jwk = { ...keyData['ML-KEM-768'].jwk, key_ops: [op, op] };
+  const privateJwk = keyData['ML-KEM-768'].jwk;
+  const encapsulationOps = ['encapsulateKey', 'encapsulateBits'];
+  const decapsulationOps = ['decapsulateKey', 'decapsulateBits'];
+
+  for (const op of encapsulationOps) {
+    const jwk = { ...privateJwk, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'SyntaxError', message: /Unsupported key usage/ });
+  }
+
+  // Duplicate entries are still rejected when the requested usages are valid.
+  for (const op of encapsulationOps) {
+    const jwk = { ...privateJwk, priv: undefined, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'DataError', message: /Duplicate key operation/ });
+  }
+
+  for (const op of decapsulationOps) {
+    const jwk = { ...privateJwk, key_ops: [op, op] };
     await assert.rejects(
       subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
       { name: 'DataError', message: /Duplicate key operation/ });

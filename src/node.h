@@ -223,7 +223,8 @@ enum Flags : uint32_t {
   kNoParseGlobalDebugVariables = 1 << 9,
   // Do not adjust OS resource limits for this process.
   kNoAdjustResourceLimits = 1 << 10,
-  // Do not map code segments into large pages for this process.
+  // Legacy flag for not mapping code segments into large pages for this
+  // process. The feature is no longer supported so this is just a no-op.
   kNoUseLargePages = 1 << 11,
   // Skip printing output for --help, --version, --v8-options.
   kNoPrintHelpOrVersionOutput = 1 << 12,
@@ -672,6 +673,13 @@ struct SnapshotConfig {
   // the snapshot builder can execute asynchronous operations as long as they
   // are run to completion when the snapshot is taken.
   std::optional<std::string> builder_script_path;
+
+  // A V8 startup blob (as produced by V8's mksnapshot) to build the snapshot
+  // on top of, instead of setting up the V8 heap from scratch. Needed when
+  // the V8 that Node.js is linked against can only deserialize (external
+  // startup data), and to keep the result on the same read-only heap lineage
+  // as the embedder's other isolates. Caller-owned; must outlive the setup.
+  const v8::StartupData* base_blob = nullptr;
 };
 
 struct InspectorParentHandle {
@@ -843,6 +851,16 @@ NODE_EXTERN void SetProcessExitHandler(
     Environment* env,
     std::function<void(Environment*, int)>&& handler);
 NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
+
+// Sets a process-global handler invoked when Node.js programmatically aborts.
+// Nullable strings representing the location and reason for the abort may or
+// may not be passed as a parameter to the handler. The handler should not
+// return, but node will ensure that the process exits after the handler is
+// called regardless of whether or not it returns. Passing nullptr restores the
+// default handler. This is process-global and may be invoked before any Isolate
+// or Environment exists.
+using AbortHandler = void (*)(const char* location, const char* message);
+NODE_EXTERN void SetAbortHandler(AbortHandler handler);
 
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);

@@ -60,7 +60,11 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
   }
 
 #ifdef _WIN32
-  if (file_.ends_with("cmd.exe")) {
+  static constexpr std::string_view cmd_exe = "cmd.exe";
+  if (file_.size() >= cmd_exe.size() &&
+      StringEqualNoCaseN(file_.data() + file_.size() - cmd_exe.size(),
+                         cmd_exe.data(),
+                         cmd_exe.size())) {
     // If the file is cmd.exe, use the following command line arguments:
     // "/c" Carries out the command and exit.
     // "/d" Disables execution of AutoRun commands.
@@ -123,7 +127,7 @@ void ProcessRunner::SetEnvironmentVariables() {
   // Add NODE_RUN_PACKAGE_JSON_PATH environment variable to the environment to
   // indicate which package.json is being processed.
   env_vars_.push_back("NODE_RUN_PACKAGE_JSON_PATH=" +
-                      package_json_path_.string());
+                      ConvertPathToUTF8(package_json_path_));
 
   env_ = std::unique_ptr<char*[]>(new char*[env_vars_.size() + 1]);
   options_.env = env_.get();
@@ -150,7 +154,7 @@ std::string EscapeShell(const std::string_view input) {
   }
 
   static constexpr std::string_view forbidden_characters =
-      "[\t\n\r \"#$&'()*;<>?\\\\`|~]";
+      "[\t\n\r \"#$&'()*;<>%?\\\\`|~]";
 
   // Check if input contains any forbidden characters
   // If it doesn't, return the input as is.
@@ -170,6 +174,7 @@ std::string EscapeShell(const std::string_view input) {
   static const std::regex tripleSingleQuote("\\\\\"\"\"");
   escaped = std::regex_replace(escaped, leadingQuotePairs, "");
   escaped = std::regex_replace(escaped, tripleSingleQuote, "\\\"");
+  escaped = std::regex_replace(escaped, std::regex("%"), "^%");
 #else
   // Replace single quotes("'") with `'"'"'` and wrap the result
   // in single quotes.
@@ -206,7 +211,7 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
-  cwd_ = package_json_path_.parent_path().string();
+  cwd_ = ConvertPathToUTF8(package_json_path_.parent_path());
   options_.cwd = cwd_.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
@@ -228,14 +233,14 @@ FindPackageJson(const std::filesystem::path& cwd) {
     // Append "path/node_modules/.bin" to the env var, if it is a directory.
     auto node_modules_bin = directory_path / "node_modules" / ".bin";
     if (std::filesystem::is_directory(node_modules_bin)) {
-      path_env_var += node_modules_bin.string() + env_var_separator;
+      path_env_var += ConvertPathToUTF8(node_modules_bin) + env_var_separator;
     }
 
     if (raw_content.empty()) {
       package_json_path = directory_path / "package.json";
       // This is required for Windows because std::filesystem::path::c_str()
       // returns wchar_t* on Windows, and char* on other platforms.
-      std::string contents = package_json_path.string();
+      std::string contents = ConvertPathToUTF8(package_json_path);
       USE(ReadFileSync(&raw_content, contents.c_str()) > 0);
     }
   }
@@ -249,6 +254,27 @@ FindPackageJson(const std::filesystem::path& cwd) {
   return {{package_json_path, raw_content, path_env_var}};
 }
 
+// Prints every "name: command" pair in the scripts object to the given stream.
+static void PrintScripts(FILE* out,
+                         simdjson::ondemand::object& scripts_object) {
+  // Reset the object to iterate from the beginning, in case it was read before.
+  scripts_object.reset();
+  simdjson::ondemand::value value;
+  for (auto field : scripts_object) {
+    std::string_view key_str;
+    std::string_view value_str;
+    if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
+        !value.get_string().get(value_str)) {
+      fprintf(out,
+              "  %.*s: %.*s\n",
+              static_cast<int>(key_str.size()),
+              key_str.data(),
+              static_cast<int>(value_str.size()),
+              value_str.data());
+    }
+  }
+}
+
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
@@ -258,7 +284,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
   if (!package_json.has_value()) {
     fprintf(stderr,
             "Can't find package.json for directory %s\n",
-            cwd.string().c_str());
+            ConvertPathToUTF8(cwd).c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -274,7 +300,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
   simdjson::ondemand::object main_object;
 
   if (json_parser.iterate(raw_json).get(document)) {
-    fprintf(stderr, "Can't parse %s\n", path.string().c_str());
+    fprintf(stderr, "Can't parse %s\n", ConvertPathToUTF8(path).c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -283,9 +309,9 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
     if (root_error == simdjson::error_code::INCORRECT_TYPE) {
       fprintf(stderr,
               "Root value unexpected not an object for %s\n\n",
-              path.string().c_str());
+              ConvertPathToUTF8(path).c_str());
     } else {
-      fprintf(stderr, "Can't parse %s\n", path.string().c_str());
+      fprintf(stderr, "Can't parse %s\n", ConvertPathToUTF8(path).c_str());
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
@@ -294,9 +320,20 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
   // If package_json object doesn't have "scripts" field, throw an error.
   simdjson::ondemand::object scripts_object;
   if (main_object["scripts"].get_object().get(scripts_object)) {
-    fprintf(
-        stderr, "Can't find \"scripts\" field in %s\n", path.string().c_str());
+    fprintf(stderr,
+            "Can't find \"scripts\" field in %s\n",
+            ConvertPathToUTF8(path).c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
+    return;
+  }
+
+  // With no command (e.g. bare `node --run`), list the available scripts but
+  // exit non-zero so a script invoking `node --run $CMD` with an unset
+  // variable still fails, as it did before bare `--run` was allowed.
+  if (command_id.empty()) {
+    fprintf(stderr, "Available scripts are:\n");
+    PrintScripts(stderr, scripts_object);
+    result->exit_code_ = ExitCode::kInvalidCommandLineArgument;
     return;
   }
 
@@ -309,31 +346,15 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
               "Script \"%.*s\" is unexpectedly not a string for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
-              path.string().c_str());
+              ConvertPathToUTF8(path).c_str());
     } else {
       fprintf(stderr,
               "Missing script: \"%.*s\" for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
-              path.string().c_str());
+              ConvertPathToUTF8(path).c_str());
       fprintf(stderr, "Available scripts are:\n");
-
-      // Reset the object to iterate over it again
-      scripts_object.reset();
-      simdjson::ondemand::value value;
-      for (auto field : scripts_object) {
-        std::string_view key_str;
-        std::string_view value_str;
-        if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-            !value.get_string().get(value_str)) {
-          fprintf(stderr,
-                  "  %.*s: %.*s\n",
-                  static_cast<int>(key_str.size()),
-                  key_str.data(),
-                  static_cast<int>(value_str.size()),
-                  value_str.data());
-        }
-      }
+      PrintScripts(stderr, scripts_object);
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;

@@ -150,6 +150,9 @@ class TransportParams final {
 
   operator bool() const;
 
+  uint64_t initial_max_streams_bidi() const;
+  uint64_t initial_max_streams_uni() const;
+
   // Returns a Store containing the encoded transport parameters.
   // If an error occurs during encoding, or if the parameters could
   // not be encoded, an empty Store will be returned.

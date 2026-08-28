@@ -49,7 +49,7 @@ function createPotentialCORSRequest (url, destination, corsAttributeState, sameO
     destination,
     mode,
     credentials: credentialsMode,
-    useCredentials: true
+    useURLCredentials: true
   })
 }
 

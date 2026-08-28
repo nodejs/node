@@ -1896,6 +1896,18 @@ console.log(JSON.stringify(myMIMES));
 // Prints: ["image/png", "image/gif"]
 ```
 
+### `MIMEType.parse(string)`
+
+<!--
+added: v26.8.0
+-->
+
+* `string` {string} The input MIME to parse
+* Returns: {MIMEType|null}
+
+Attempts to parse the given `string` as a MIMEType. If the string cannot be
+parsed, `null` is returned.
+
 ## Class: `util.MIMEParams`
 
 <!-- YAML

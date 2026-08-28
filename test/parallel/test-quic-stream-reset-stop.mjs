@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,15 +23,15 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall((stream) => {
     // The server's stream.closed will reject when the session is
     // gracefully closed after the peer's reset.
-    rejects(stream.closed, (error) => {
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+    assert.rejects(stream.closed, (error) => {
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
       return true;
     }).then(mustCall());
 
     stream.onreset = mustCall((error) => {
       // The error is the raw close tuple: [type, code, reason].
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-      ok(error.message.includes('42'));
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.ok(error.message.includes('42'));
       serverSession.close();
       serverDone.resolve();
     });
@@ -56,9 +54,9 @@ await serverDone.promise;
 // After the server closes (sending CONNECTION_CLOSE), the client
 // session enters draining and all streams are destroyed. The client's
 // stream.closed rejects with the reset code.
-await rejects(stream.closed, (error) => {
-  strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-  ok(error.message.includes('42'));
+await assert.rejects(stream.closed, (error) => {
+  assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+  assert.ok(error.message.includes('42'));
   return true;
 });
 await clientSession.closed;

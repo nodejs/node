@@ -22,10 +22,6 @@ const cert = fixtures.readKey('agent8-cert.pem', 'binary');
 const ca = fixtures.readKey('fake-startcom-root-cert.pem', 'binary');
 
 const server = createSecureServer({ key, cert });
-server.on('stream', (stream) => {
-  stream.respond();
-  stream.end('ok');
-});
 server.on('session', (session) => {
   let i = 0;
   const timer = setInterval(() => {
@@ -72,8 +68,6 @@ await new Promise((resolve) => {
   }));
   client.on('goaway', mustNotCall());
   client.on('close', resolve);
-
-  client.request().resume();
 });
 
 // Test non-default values
@@ -86,8 +80,6 @@ await Promise.all([-0, 9, 1.5].map((maxOriginSetSize) => new Promise((resolve) =
   }));
   client.on('goaway', mustNotCall());
   client.on('close', resolve);
-
-  client.request().resume();
 })));
 
 
@@ -103,8 +95,6 @@ await Promise.all([512, Infinity].map((maxOriginSetSize) => new Promise((resolve
   client.on('error', mustNotCall());
   client.on('goaway', mustNotCall());
   client.on('close', resolve);
-
-  client.request().resume();
 })));
 
 server.close();

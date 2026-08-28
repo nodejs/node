@@ -101,7 +101,7 @@ added: v0.6.1
 
 The `punycode.toUnicode()` method converts a string representing a domain name
 containing [Punycode][] encoded characters into Unicode. Only the [Punycode][]
-encoded parts of the domain name are be converted.
+encoded parts of the domain name are converted.
 
 ```js
 // decode domain names

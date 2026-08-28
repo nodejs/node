@@ -156,6 +156,7 @@ signatures as their [`node:fs`][] counterparts:
 * `linkSync(existingPath, newPath)`
 * `chmodSync(path, mode)`
 * `chownSync(path, uid, gid)`
+* `lchownSync(path, uid, gid)`
 * `utimesSync(path, atime, mtime)`
 * `lutimesSync(path, atime, mtime)`
 * `mkdtempSync(prefix)`
@@ -201,9 +202,6 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 added: v26.4.0
 -->
 
-The base class for all VFS providers. Subclasses implement the essential
-primitives (`open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
-`rename`, ...) and inherit default implementations of the derived
 The base class for all VFS providers. Subclasses implement the essential
 primitives (such as `open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
 `rename`, etc.) and inherit default implementations of the derived
@@ -322,6 +320,6 @@ fields use synthetic but stable values:
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
-[`fs.BigIntStats`]: fs.md#class-fsbigintstats
+[`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`node:fs`]: fs.md

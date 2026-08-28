@@ -12,14 +12,15 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
-
 #include "math.h"
 
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "openssl/provider.h"
+#endif
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #endif
 
 namespace node {
@@ -60,7 +61,127 @@ using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
 
+void MemoryRetainerTraits<crypto::ByteSource>::MemoryInfo(
+    MemoryTracker* tracker, const crypto::ByteSource& value) {
+  // Foreign ByteSources do not own the memory that they reference.
+  if (value.allocated_data_ != nullptr) {
+    tracker->TrackFieldWithSize("data", value.size_);
+  }
+}
+
+const char* MemoryRetainerTraits<crypto::ByteSource>::MemoryInfoName(
+    const crypto::ByteSource& value) {
+  return "ByteSource";
+}
+
+size_t MemoryRetainerTraits<crypto::ByteSource>::SelfSize(
+    const crypto::ByteSource& value) {
+  return sizeof(value);
+}
+
 namespace crypto {
+
+CShakeOptions::CShakeOptions(CShakeOptions&& other) noexcept
+    : function_name(std::move(other.function_name)),
+      customization(std::move(other.customization)),
+      flags(other.flags) {}
+
+CShakeOptions& CShakeOptions::operator=(CShakeOptions&& other) noexcept {
+  if (&other == this) return *this;
+  this->~CShakeOptions();
+  return *new (this) CShakeOptions(std::move(other));
+}
+
+void CShakeOptions::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("function_name", function_name.size());
+  tracker->TrackFieldWithSize("customization", customization.size());
+}
+
+bool CShakeOptions::Initialize(ncrypto::EVPMDCtxPointer* ctx,
+                               const EVP_MD* digest) const {
+  if (!ctx || !*ctx || digest == nullptr) return false;
+  if (empty()) return ctx->digestInit(digest);
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+  const bool is_cshake =
+      EVP_MD_is_a(digest, "CSHAKE-128") || EVP_MD_is_a(digest, "CSHAKE-256");
+  if (!is_cshake) return false;
+
+  OSSL_PARAM params[3];
+  size_t count = 0;
+  if (has(kFunctionName)) {
+    params[count++] = OSSL_PARAM_construct_utf8_string(
+        OSSL_DIGEST_PARAM_FUNCTION_NAME,
+        const_cast<char*>(function_name.c_str()),
+        function_name.size());
+  }
+  if (has(kCustomization)) {
+    params[count++] = OSSL_PARAM_construct_utf8_string(
+        OSSL_DIGEST_PARAM_CUSTOMIZATION,
+        const_cast<char*>(customization.c_str()),
+        customization.size());
+  }
+  params[count] = OSSL_PARAM_construct_end();
+  return ctx->digestInit(digest, params);
+#else
+  return false;
+#endif
+}
+
+namespace {
+bool ContainsNullByte(std::string_view value) {
+  return value.find('\0') != std::string_view::npos;
+}
+
+v8::Maybe<void> GetDigestStringOption(
+    Environment* env,
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    unsigned int offset,
+    CShakeOptions::Flag flag,
+    std::string* target,
+    CShakeOptions* options) {
+  if (args[offset]->IsUndefined()) return v8::JustVoid();
+  CHECK(IsAnyBufferSource(args[offset]));
+  ArrayBufferOrViewContents<char> value(args[offset]);
+  if (!value.CheckSizeInt32()) {
+    THROW_ERR_OUT_OF_RANGE(env, "digest option is too big");
+    return v8::Nothing<void>();
+  }
+  target->assign(value.data(), value.size());
+  if (ContainsNullByte(*target)) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "Digest options must not contain null bytes");
+    return v8::Nothing<void>();
+  }
+  options->flags |= flag;
+  return v8::JustVoid();
+}
+}  // namespace
+
+v8::Maybe<void> GetCShakeOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    unsigned int offset,
+    CShakeOptions* options) {
+  Environment* env = Environment::GetCurrent(args);
+  if (GetDigestStringOption(env,
+                            args,
+                            offset,
+                            CShakeOptions::kFunctionName,
+                            &options->function_name,
+                            options)
+          .IsNothing() ||
+      GetDigestStringOption(env,
+                            args,
+                            offset + 1,
+                            CShakeOptions::kCustomization,
+                            &options->customization,
+                            options)
+          .IsNothing()) {
+    return v8::Nothing<void>();
+  }
+
+  return v8::JustVoid();
+}
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   const ByteSource* passphrase = *static_cast<const ByteSource**>(u);
@@ -85,20 +206,36 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
-bool ProcessFipsOptions() {
-  /* Override FIPS settings in configuration file, if needed. */
-  if (per_process::cli_options->enable_fips_crypto ||
-      per_process::cli_options->force_fips_crypto) {
+std::optional<std::string> ProcessFipsOptions() {
+  const bool enable_fips = per_process::cli_options->enable_fips_crypto;
+  const bool force_fips = per_process::cli_options->force_fips_crypto;
+  if (!enable_fips && !force_fips) return std::nullopt;
+
 #if OPENSSL_VERSION_MAJOR >= 3
-    if (!ncrypto::testFipsEnabled()) return false;
-    return ncrypto::setFipsEnabled(true, nullptr);
-#else
-    // TODO(@jasnell): Remove this ifdef branch when openssl 1.1.1 is
-    // no longer supported.
-    if (FIPS_mode() == 0) return FIPS_mode_set(1);
-#endif
+  // Whether FIPS-approved implementations are reachable is decided by the
+  // OpenSSL configuration, not by Node.js. Refuse to start rather than
+  // restrict the default property query to a provider that is not there,
+  // which would leave every operation failing as unsupported.
+  if (!ncrypto::testFipsEnabled()) {
+    const std::string option = force_fips ? "--force-fips" : "--enable-fips";
+    return option + " requires an active OpenSSL provider named \"fips\". "
+                    "FIPS mode is configured through OpenSSL; see "
+                    "https://nodejs.org/api/crypto.html#fips-mode";
   }
-  return true;
+#endif
+
+  CryptoErrorList errors{CryptoErrorList::Option::NONE};
+  if (!ncrypto::setFipsEnabled(true, &errors)) {
+    std::string error = "OpenSSL error when trying to enable FIPS";
+    if (!errors.empty()) error += ':';
+    for (const auto& openssl_error : errors) {
+      error += '\n';
+      error += openssl_error;
+    }
+    return error;
+  }
+
+  return std::nullopt;
 }
 
 bool InitCryptoOnce(Isolate* isolate) {
@@ -116,11 +253,17 @@ bool InitCryptoOnce(Isolate* isolate) {
 // be part of a larger mutex for global OpenSSL state.
 static Mutex fips_mutex;
 
+bool IsFipsEnabled() {
+  Mutex::ScopedLock fips_lock(fips_mutex);
+  return ncrypto::isFipsEnabled();
+}
+
 void InitCryptoOnce() {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Mutex::ScopedLock fips_lock(fips_mutex);
 #ifndef OPENSSL_IS_BORINGSSL
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+  CHECK_NOT_NULL(settings);
 
 #if OPENSSL_VERSION_MAJOR < 3
   // --openssl-config=...
@@ -193,8 +336,12 @@ void InitCryptoOnce() {
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Mutex::ScopedLock fips_lock(fips_mutex);
-  args.GetReturnValue().Set(ncrypto::isFipsEnabled() ? 1 : 0);
+  args.GetReturnValue().Set(IsFipsEnabled() ? 1 : 0);
+}
+
+void GetFipsCryptoGeneration(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(
+      args.GetIsolate(), ncrypto::getFipsStateGeneration()));
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -253,7 +400,7 @@ MaybeLocal<Value> cryptoErrorListToException(Environment* env,
   // If there are no errors, it is likely a bug but we will return
   // an error anyway.
   if (errors.empty()) {
-    return Exception::Error(FIXED_ONE_BYTE_STRING(env->isolate(), "Ok"));
+    return Exception::Error(env->ok_string());
   }
 
   // The last error in the list is the one that will be used as the
@@ -544,7 +691,11 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const char* fs = nullptr;
+#else
   const char* fs = ERR_func_error_string(err);
+#endif
   const char* rs = ERR_reason_error_string(err);
 
   Isolate* isolate = env->isolate();
@@ -760,13 +911,9 @@ MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
   CHECK(domexception_ctor->IsFunction());
 
   Local<Object> options = Object::New(isolate);
-  if (options
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "name"),
-                FIXED_ONE_BYTE_STRING(isolate, "OperationError"))
+  if (options->Set(context, env->name_string(), env->operationerror_string())
           .IsNothing() ||
-      options->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cause"), cause)
-          .IsNothing()) {
+      options->Set(context, env->cause_string(), cause).IsNothing()) {
     return {};
   }
 
@@ -857,6 +1004,8 @@ void Initialize(Environment* env, Local<Object> target) {
 #endif  // !OPENSSL_NO_ENGINE
 
   SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
+  SetMethodNoSideEffect(
+      context, target, "getFipsCryptoGeneration", GetFipsCryptoGeneration);
   SetMethod(context, target, "setFipsCrypto", SetFipsCrypto);
   SetMethodNoSideEffect(context, target, "testFipsCrypto", TestFipsCrypto);
 
@@ -876,6 +1025,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #endif  // !OPENSSL_NO_ENGINE
 
   registry->Register(GetFipsCrypto);
+  registry->Register(GetFipsCryptoGeneration);
   registry->Register(SetFipsCrypto);
   registry->Register(TestFipsCrypto);
   registry->Register(SecureBuffer);

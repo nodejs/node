@@ -151,6 +151,11 @@ E(0b, FFI_TYPE_UINT128)
 E(0b, FFI_TYPE_SINT128)
 	movdqu	%xmm0, (%r8)
 	epilogue
+/* Win64 does not marshal vectors (ffi_prep_cif_core rejects them), but the
+   FFI_TYPE_SMALL_STRUCT_* codes are FFI_TYPE_LAST-relative, so this slot must
+   exist to keep the table contiguous and the small-struct entries aligned.  */
+E(0b, FFI_TYPE_VECTOR)
+	call	PLT(C(abort))
 E(0b, FFI_TYPE_SMALL_STRUCT_1B)
 	movb	%al, (%r8)
 	epilogue
@@ -255,6 +260,6 @@ C(ffi_closure_win64_alt):
 #endif
 #endif /* __x86_64__ */
 
-#if defined __ELF__ && defined __linux__
+#if defined __ELF__ && (defined __linux__ || defined __FreeBSD__)
 	.section	.note.GNU-stack,"",@progbits
 #endif

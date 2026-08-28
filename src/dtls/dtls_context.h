@@ -31,7 +31,7 @@ class DTLSContext final : public BaseObject {
 
   DTLSContext(Environment* env,
               v8::Local<v8::Object> wrap,
-              SSL_CTX* ctx,
+              ncrypto::SSLCtxPointer ctx,
               bool is_server);
 
   SSL_CTX* ssl_ctx() const { return ctx_.get(); }
@@ -56,6 +56,14 @@ class DTLSContext final : public BaseObject {
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadDefaultCAs(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Compute the address-and-time-window-bound cookie for |window| into |out|
+  // (which must have room for EVP_MAX_MD_SIZE bytes). Shared by the cookie
+  // generate/verify callbacks.
+  static bool ComputeCookie(SSL* ssl,
+                            uint64_t window,
+                            unsigned char* out,
+                            unsigned int* out_len);
 
   // Automatic DTLS cookie callbacks
   static int CookieGenerateCallback(SSL* ssl,

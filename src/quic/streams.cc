@@ -61,12 +61,14 @@ namespace quic {
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
+  /* Set when the stream has a stop sending event handler */                   \
+  V(WANTS_STOP_SENDING, wants_stop_sending, uint8_t)                           \
   /* Set when the stream has a trailers event handler */                       \
   V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
   /* True when 0-RTT early data was received */                                \
   V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
   V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
-  V(HIGH_WATER_MARK, high_water_mark, uint32_t)
+  V(BUDGET, budget, uint32_t)
 
 #define STREAM_STATS(V)                                                        \
   /* Marks the timestamp when the stream object was created. */                \
@@ -487,15 +489,7 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&unused);
     }
 
-    stream->EndReadable();
-
-    if (!stream->is_pending()) {
-      // If the stream is a local unidirectional there's nothing to do here.
-      if (stream->is_local_unidirectional()) return;
-      stream->NotifyReadableEnded(code);
-    } else {
-      stream->pending_close_read_code_ = code;
-    }
+    stream->SendStopSending(code);
   }
 
   // Sends a reset stream to the peer to tell it we will not be sending any
@@ -512,21 +506,7 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&lossless);
     }
 
-    if (stream->state()->reset == 1) return;
-
-    stream->EndWritable();
-    // We can release our outbound here now. Since the stream is being reset
-    // on the ngtcp2 side, we do not need to keep any of the data around
-    // waiting for acknowledgement that will never come.
-    stream->outbound_.reset();
-    stream->state()->reset = 1;
-
-    if (!stream->is_pending()) {
-      if (stream->is_remote_unidirectional()) return;
-      stream->NotifyWritableEnded(code);
-    } else {
-      stream->pending_close_write_code_ = code;
-    }
+    stream->DoStreamReset(code);
   }
 
   JS_METHOD(SetPriority) {
@@ -1231,11 +1211,9 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   STAT_SET(Stats, max_offset, params->initial_max_data);
 }
 
-Stream::~Stream() {
-  // Make sure that Destroy() was called before Stream is actually destructed.
-  DCHECK_NE(stats()->destroyed_at, 0);
+Stream::~Stream() = default;
 
-  // Release arena slots back to the freelist.
+void Stream::ReleaseArenaSlots() {
   auto& binding = BindingData::Get(env());
   if (stats_slot_) {
     GetStreamStatsArena(binding).ReleaseSlot(stats_slot_);
@@ -1284,7 +1262,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
-  // If the stream is not a local undirectional stream and is_readable is
+  // If the stream is not a local unidirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
     NotifyReadableEnded(pending_close_read_code_);
@@ -1323,6 +1301,11 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
 
 bool Stream::is_pending() const {
   return state()->pending;
+}
+
+bool Stream::is_destroyed() const {
+  if (!stats_slot_) return true;
+  return stats()->destroyed_at != 0;
 }
 
 stream_id Stream::id() const {
@@ -1515,13 +1498,37 @@ void Stream::EndWriting() {
   if (!is_pending()) session_->ResumeStream(id());
 }
 
+void Stream::ReturnFlowControlCredit(uint64_t amount, CreditScope scope) {
+  if (amount == 0) return;
+  // The stream can outlive a destroyed session (the JS side may still hold a
+  // reader over the inbound queue), leaving no window to extend.
+  if (!session_ || session_->is_destroyed()) return;
+  // Extending a window queues MAX_STREAM_DATA / MAX_DATA. The scope flushes
+  // them; inside an ngtcp2 callback the flush is a no-op and they go out with
+  // the next scheduled send instead.
+  Session::SendPendingDataScope send_scope(&session());
+  if (scope == CreditScope::STREAM_AND_CONNECTION) {
+    // Receiving data requires an id, so this should always hold.
+    DCHECK(!is_pending());
+    session().Consume(id(), amount);
+  } else {
+    session().ExtendOffset(amount);
+  }
+}
+
+void Stream::CreditConsumedBytes(uint64_t amount) {
+  // Clamped because Destroy() returns the outstanding credit in bulk and the
+  // flush that triggers can re-enter JS, which may then report some of those
+  // same bytes as read. Never give the peer more credit than we took.
+  amount = std::min(uncredited_bytes_, amount);
+  uncredited_bytes_ -= amount;
+  ReturnFlowControlCredit(amount, CreditScope::STREAM_AND_CONNECTION);
+}
+
 void Stream::EntryRead(size_t amount) {
   // Called when the JS consumer reads data from the inbound DataQueue.
   // Extend the flow control window so the sender can transmit more.
-  if (session().is_destroyed()) return;
-  Session::SendPendingDataScope send_scope(&session());
-  session().ExtendStreamOffset(id(), amount);
-  session().ExtendOffset(amount);
+  CreditConsumedBytes(amount);
 }
 
 void Stream::BeforePull() {
@@ -1534,16 +1541,26 @@ void Stream::BeforePull() {
 
 void Stream::FlushAccumulation() {
   if (!recv_accumulator_ || recv_accumulator_->available() == 0) return;
+  size_t flushed = recv_accumulator_->available();
   auto entry = recv_accumulator_->Flush(env());
-  if (entry) {
-    inbound_->append(std::move(entry));
+  // Flush() always drains the accumulator, so the stat is reset either way.
+  STAT_SET(Stats, bytes_accumulated, 0);
+  if (entry && inbound_->append(std::move(entry)).value_or(false)) {
     // Notify the reader that data is now available in the DataQueue.
     // This is the only place we notify — not on every ReceiveData call —
     // so the reader only wakes up when there is a well-sized entry to
     // consume.
     if (reader_) reader_->NotifyPull();
+    return;
   }
-  STAT_SET(Stats, bytes_accumulated, 0);
+  // Should be unreachable: append() only fails once the queue has been capped,
+  // EndReadable() flushes before capping, and ReceiveData() accumulates
+  // nothing once read_ended is set. Reaching here means received stream data
+  // is being dropped on the floor, so say so and at least do not also leak
+  // the flow control credit for it.
+  DCHECK(false);
+  Debug(this, "Inbound queue rejected %zu accumulated bytes", flushed);
+  CreditConsumedBytes(flushed);
 }
 
 int Stream::DoPull(bob::Next<ngtcp2_vec> next,
@@ -1638,7 +1655,7 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 }
 
 void Stream::Destroy(QuicError error) {
-  if (stats()->destroyed_at != 0) return;
+  if (is_destroyed()) return;
 
   // Record the destroyed at timestamp before notifying the JavaScript side
   // that the stream is being destroyed.
@@ -1669,6 +1686,16 @@ void Stream::Destroy(QuicError error) {
   // the ring buffer memory.
   recv_accumulator_.reset();
 
+  // Data that was received but never consumed still holds connection-level
+  // flow control credit, and EntryRead() will never fire for it once the
+  // listener is detached below. Leaking it would permanently shrink the
+  // session's shared receive window and, over enough streams, deadlock the
+  // connection. Zero the counter first: returning credit flushes packets,
+  // which can re-enter JS and report some of these bytes as read.
+  const uint64_t outstanding = uncredited_bytes_;
+  uncredited_bytes_ = 0;
+  ReturnFlowControlCredit(outstanding, CreditScope::CONNECTION_ONLY);
+
   // We reset the inbound here also. However, it's important to note that
   // the JavaScript side could still have a reader on the inbound DataQueue,
   // which may keep that data alive a bit longer.
@@ -1683,6 +1710,9 @@ void Stream::Destroy(QuicError error) {
   // handle.
   EmitClose(error);
 
+  stream_id id_to_remove = id();
+  ReleaseArenaSlots();
+
   auto session = session_;
   session_.reset();
   // EmitClose above triggers MakeCallback which can destroy the session
@@ -1690,7 +1720,7 @@ void Stream::Destroy(QuicError error) {
   // Session BaseObject can be kept alive by a BaseObjectPtr elsewhere,
   // e.g. OnTimeout's ref) even though impl_ has been reset. We must
   // check is_destroyed() to avoid dereferencing the null impl_.
-  if (session && !session->is_destroyed()) session->RemoveStream(id());
+  if (session && !session->is_destroyed()) session->RemoveStream(id_to_remove);
 
   // Critically, make sure that the RemoveStream call is the last thing
   // trying to use this stream object. Once that call is made, the stream
@@ -1708,6 +1738,13 @@ void Stream::ReceiveData(const uint8_t* data,
   Debug(this, "Receiving %zu bytes of data", len);
   if (state()->read_ended == 1 || len == 0) {
     if (flags.fin) EndReadable();
+    // Nothing will ever consume these bytes, so return the connection-level
+    // credit ngtcp2 charged for them. The stream window is deliberately left
+    // alone: there is no point inviting more data onto a stream we have
+    // stopped reading. Reachable when, for example, HTTP/3 replays DATA
+    // payload it had buffered for QPACK head-of-line blocking after the
+    // readable side was shut down.
+    ReturnFlowControlCredit(len, CreditScope::CONNECTION_ONLY);
     return;
   }
 
@@ -1715,6 +1752,9 @@ void Stream::ReceiveData(const uint8_t* data,
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_SET(Stats, max_offset_received, STAT_GET(Stats, bytes_received));
   STAT_RECORD_TIMESTAMP(Stats, received_at);
+
+  // These bytes now hold inbound flow control credit. See uncredited_bytes_.
+  uncredited_bytes_ += len;
 
   // Lazy-allocate the receive accumulation buffer on first data-carrying
   // call. Streams that never receive data (write-only, immediately reset)
@@ -1793,19 +1833,11 @@ void Stream::ReceiveData(const uint8_t* data,
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
-  // STOP_SENDING from the peer asks us to stop sending. Per RFC 9000
-  // §3.5 the receiver SHOULD respond with RESET_STREAM, which is what
-  // ngtcp2_conn_shutdown_stream_write below schedules. If our
-  // writable side has already been shut down (e.g. we already sent
-  // RESET_STREAM ourselves or finished sending with FIN) there is
-  // nothing more to do here. The previous guard checked
-  // `state()->read_ended` which is unrelated to the writable side and
-  // suppressed STOP_SENDING handling whenever a sibling RESET_STREAM
-  // frame had been processed first within the same packet.
-  if (state()->write_ended) return;
+  // STOP_SENDING from the peer asks us to stop sending. The required
+  // RESET_STREAM response is scheduled automatically.
   Debug(this, "Received stop sending with error %s", error);
-  ngtcp2_conn_shutdown_stream_write(session(), 0, id(), error.code());
   EndWritable();
+  EmitStopSending(error);
 }
 
 void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
@@ -1821,6 +1853,36 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
   state()->reset_code = error.code();
   EndReadable(final_size);
   EmitReset(error);
+}
+
+void Stream::DoStreamReset(error_code code) {
+  if (state()->reset == 1) return;
+
+  EndWritable();
+  // We can release our outbound here now. Since the stream is being reset
+  // on the ngtcp2 side, we do not need to keep any of the data around
+  // waiting for acknowledgement that will never come.
+  outbound_.reset();
+  state()->reset = 1;
+
+  if (!is_pending()) {
+    if (is_remote_unidirectional()) return;
+    NotifyWritableEnded(code);
+  } else {
+    pending_close_write_code_ = code;
+  }
+}
+
+void Stream::SendStopSending(error_code code) {
+  EndReadable();
+
+  if (!is_pending()) {
+    // If the stream is a local unidirectional there's nothing to do here.
+    if (is_local_unidirectional()) return;
+    NotifyReadableEnded(code);
+  } else {
+    pending_close_read_code_ = code;
+  }
 }
 
 // ============================================================================
@@ -1846,13 +1908,13 @@ void Stream::UpdateWriteDesiredSize() {
   if (!outbound_ || !outbound_->is_streaming()) return;
 
   uint64_t available;
-  uint64_t hwm = state()->high_water_mark;
+  uint64_t bgt = state()->budget;
 
   if (is_pending()) {
     // Pending streams don't have a stream ID yet, so ngtcp2 can't
-    // report their flow control window. Use the high water mark as
-    // the available capacity so writes can proceed while pending.
-    available = hwm > 0 ? hwm : std::numeric_limits<uint32_t>::max();
+    // report their flow control window. Use the budget as the
+    // available capacity so writes can proceed while pending.
+    available = bgt > 0 ? bgt : std::numeric_limits<uint32_t>::max();
   } else {
     // Calculate available capacity based on QUIC flow control.
     // The effective limit is the minimum of stream-level and
@@ -1862,9 +1924,9 @@ void Stream::UpdateWriteDesiredSize() {
     uint64_t conn_left = ngtcp2_conn_get_max_data_left(conn);
     available = std::min(stream_left, conn_left);
 
-    // Apply the high water mark as an additional ceiling.
-    if (hwm > 0) {
-      available = std::min(available, hwm);
+    // Apply the budget as an additional ceiling.
+    if (bgt > 0) {
+      available = std::min(available, bgt);
     }
   }
 
@@ -1945,6 +2007,17 @@ void Stream::EmitReset(const QuicError& error) {
   if (!error.ToV8Value(env()).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_reset_callback(), 1, &err);
+}
+
+void Stream::EmitStopSending(const QuicError& error) {
+  if (!env()->can_call_into_js() || !state()->wants_stop_sending) {
+    return;
+  }
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> err;
+  if (!error.ToV8Value(env()).ToLocal(&err)) return;
+
+  MakeCallback(BindingData::Get(env()).stream_stop_sending_callback(), 1, &err);
 }
 
 void Stream::EmitWantTrailers() {

@@ -100,6 +100,10 @@ changes:
 
     See [`Session Resumption`][] for information about TLS session reuse.
 
+Requests that specify a custom `checkServerIdentity` option are not eligible
+for connection reuse or TLS session reuse by an `https.Agent`, unless the
+`checkServerIdentity` option was specified when constructing the Agent.
+
 #### Event: `'keylog'`
 
 <!-- YAML
@@ -195,7 +199,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### `server.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
 See [`server.maxHeadersCount`][] in the `node:http` module.
 

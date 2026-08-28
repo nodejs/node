@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "node.h"
+#include "node_concepts.h"
 #include "node_exit_code.h"
 
 #include <climits>
@@ -40,6 +41,7 @@
 
 #include <array>
 #include <bit>
+#include <concepts>
 #include <filesystem>
 #include <limits>
 #include <memory>
@@ -99,7 +101,7 @@ inline char* Calloc(size_t n);
 inline char* UncheckedMalloc(size_t n);
 inline char* UncheckedCalloc(size_t n);
 
-template <typename T>
+template <std::integral T>
 inline T MultiplyWithOverflowCheck(T a, T b);
 
 namespace per_process {
@@ -126,6 +128,9 @@ void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
 void DumpNativeBacktrace(FILE* fp);
 void DumpJavaScriptBacktrace(FILE* fp);
 
+// Returns the currently installed abort handler which is never null.
+AbortHandler GetAbortHandler();
+
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
 #define ABORT_NO_BACKTRACE() _exit(static_cast<int>(node::ExitCode::kAbort))
@@ -138,13 +143,12 @@ void DumpJavaScriptBacktrace(FILE* fp);
 // when generating code for them the compiler can choose not to
 // maintain the frame pointers or link registers that are necessary for
 // correct backtracing.
-// `ABORT` must be a macro and not a [[noreturn]] function to make sure the
-// backtrace is correct.
-#define ABORT()                                                                \
+// `ABORT` and `ABORT_WITH_DETAILS` must be a macro and not a [[noreturn]]
+// function to make sure the backtrace is correct.
+#define ABORT() ABORT_WITH_DETAILS(__FILE__ ":" STRINGIFY(__LINE__), nullptr)
+#define ABORT_WITH_DETAILS(location, message)                                  \
   do {                                                                         \
-    node::DumpNativeBacktrace(stderr);                                         \
-    node::DumpJavaScriptBacktrace(stderr);                                     \
-    fflush(stderr);                                                            \
+    node::GetAbortHandler()(location, message);                                \
     ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
@@ -366,12 +370,12 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
-template <typename T>
+template <std::ranges::range T>
 inline std::string ToLower(const T& in);
 
 // toupper() is locale-sensitive.  Use ToUpper() instead.
 inline char ToUpper(char c);
-template <typename T>
+template <std::ranges::range T>
 inline std::string ToUpper(const T& in);
 
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
@@ -389,14 +393,6 @@ template <typename T, size_t N>
 constexpr size_t strsize(const T (&)[N]) {
   return N - 1;
 }
-
-// A type that has a valid std::char_traits specialization, as required by
-// std::basic_string and std::basic_string_view.
-template <typename T>
-concept standard_char_type =
-    std::is_same_v<T, char> || std::is_same_v<T, wchar_t> ||
-    std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> ||
-    std::is_same_v<T, char32_t>;
 
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
@@ -511,11 +507,11 @@ class MaybeStackBuffer {
       free(buf_);
   }
 
-  template <standard_char_type U = T>
+  template <StandardCharType U = T>
   inline std::basic_string<U> ToString() const {
     return {out(), length()};
   }
-  template <standard_char_type U = T>
+  template <StandardCharType U = T>
   inline std::basic_string_view<U> ToStringView() const {
     return {out(), length()};
   }
@@ -530,10 +526,90 @@ class MaybeStackBuffer {
   T buf_st_[kStackStorageSize];
 };
 
+template <V8Type T, size_t kStackStorageSize>
+class MaybeStackBuffer<T, kStackStorageSize> {
+ public:
+  using V = v8::Local<T>;
+
+  MaybeStackBuffer(const MaybeStackBuffer&) = delete;
+  MaybeStackBuffer& operator=(const MaybeStackBuffer& other) = delete;
+
+  const V* out() const { return buf_; }
+  V* out() { return buf_; }
+
+  // operator* for compatibility with `v8::String::(Utf8)Value`
+  V* operator*() { return buf_; }
+  const V* operator*() const { return buf_; }
+
+  V& operator[](size_t index) {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  const V& operator[](size_t index) const {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  size_t length() const { return length_; }
+
+  // Current maximum capacity of the buffer with which SetLength() can be used
+  // without first calling AllocateSufficientStorage().
+  size_t capacity() const { return capacity_; }
+
+  // Make sure enough space for `storage` entries is available.
+  // This method can be called multiple times throughout the lifetime of the
+  // buffer, but once this has been called Invalidate() cannot be used.
+  // Content of the buffer in the range [0, length()) is preserved.
+  void AllocateSufficientStorage(size_t storage);
+
+  void SetLength(size_t length) {
+    // capacity() returns how much memory is actually available.
+    CHECK_LE(length, capacity());
+    length_ = length;
+  }
+
+  // If the buffer is stored in a LocalVector rather than on the stack.
+  bool IsAllocated() const { return !IsInvalidated() && buf_ != buf_st_; }
+
+  // If Invalidate() has been called.
+  bool IsInvalidated() const { return buf_ == nullptr; }
+
+  explicit MaybeStackBuffer(v8::Isolate* isolate)
+      : isolate_(isolate),
+        length_(0),
+        capacity_(arraysize(buf_st_)),
+        buf_(buf_st_) {
+    // Default to a zero-length, null-terminated buffer.
+    buf_[0] = V();
+  }
+
+  MaybeStackBuffer(v8::Isolate* isolate, size_t storage)
+      : MaybeStackBuffer(isolate) {
+    AllocateSufficientStorage(storage);
+  }
+
+  // LocalVector (via optional) handles cleanup automatically.
+  ~MaybeStackBuffer() = default;
+
+  v8::Local<v8::Array> ToArray() const {
+    return v8::Array::New(isolate_, buf_, length_);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  size_t length_;
+  size_t capacity_;
+  V* buf_;
+  V buf_st_[kStackStorageSize];
+  std::optional<v8::LocalVector<T>> local_vector_;
+};
+
 // Provides access to an ArrayBufferView's storage, either the original,
 // or for small data, a copy of it. This object's lifetime is bound to the
 // original ArrayBufferView's lifetime.
 template <typename T, size_t kStackStorageSize = 64>
+  requires(sizeof(T) == 1)
 class ArrayBufferViewContents {
  public:
   ArrayBufferViewContents() = default;
@@ -610,7 +686,7 @@ class BufferValue : public MaybeStackBuffer<char> {
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
 
-template <typename Fn>
+template <std::invocable Fn>
 struct OnScopeLeaveImpl {
   Fn fn_;
   bool active_;
@@ -630,7 +706,7 @@ struct OnScopeLeaveImpl {
 // auto on_scope_leave = OnScopeLeave([&] {
 //   // ... run some code ...
 // });
-template <typename Fn>
+template <std::invocable Fn>
 inline MUST_USE_RESULT OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
   return OnScopeLeaveImpl<Fn>{std::move(fn)};
 }
@@ -676,11 +752,6 @@ struct MallocedBuffer {
   MallocedBuffer& operator=(const MallocedBuffer&) = delete;
 };
 
-// Test whether some value can be called with ().
-template <typename T>
-concept is_callable =
-    std::is_function<T>::value || requires { &T::operator(); };
-
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {
   void operator()(T* pointer) const { function(pointer); }
@@ -710,8 +781,7 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            v8_inspector::StringView str,
                                            v8::Isolate* isolate);
-template <typename T, typename test_for_number =
-    typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
+template <NumericValue T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const T& number,
                                            v8::Isolate* isolate = nullptr);
@@ -791,10 +861,13 @@ constexpr inline bool IsBigEndian() {
 static_assert(IsLittleEndian() || IsBigEndian(),
               "Node.js does not support mixed-endian systems");
 
-class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
+class SlicedArguments : public MaybeStackBuffer<v8::Value> {
  public:
   inline explicit SlicedArguments(
       const v8::FunctionCallbackInfo<v8::Value>& args, size_t start = 0);
+  inline SlicedArguments(v8::Isolate* isolate,
+                         const v8::FunctionCallbackInfo<v8::Value>& args,
+                         size_t start = 0);
 };
 
 // Convert a v8::PersistentBase, e.g. v8::Global, to a Local, with an extra
@@ -918,6 +991,12 @@ void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
 void SetFastMethodNoSideEffect(
     v8::Isolate* isolate,
     v8::Local<v8::Template> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods);
+void SetFastMethodNoSideEffect(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Object> that,
     const std::string_view name,
     v8::FunctionCallback slow_callback,
     const v8::MemorySpan<const v8::CFunction>& methods);

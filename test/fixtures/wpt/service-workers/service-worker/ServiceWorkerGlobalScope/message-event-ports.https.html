@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Service Worker GlobalScope onerror event</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<canvas id=canvas></canvas>
+<script>
+var registration;
+
+async function registerServiceWorker()
+{
+    const registration = await navigator.serviceWorker.register("message-event-ports-worker.js", { scope : "." });
+    let activeWorker = registration.active;
+    if (activeWorker)
+        return registration;
+    activeWorker = registration.installing;
+    return new Promise(resolve => {
+        activeWorker.addEventListener('statechange', () => {
+            if (activeWorker.state === "activated")
+                resolve(registration);
+        });
+    });
+}
+
+promise_test(async (test) => {
+    registration = await registerServiceWorker();
+
+    registration.active.postMessage("test");
+    let result = await new Promise(resolve => navigator.serviceWorker.onmessage = e => resolve(e.data));
+    assert_equals(result, "same ports array", "empty array");
+
+    const channel = new MessageChannel();;
+    const port = channel.port1;
+    registration.active.postMessage({ port }, [port]);
+    result = await new Promise(resolve => navigator.serviceWorker.onmessage = e => resolve(e.data));
+    assert_equals(result, "same ports array", "not empty array");
+}, "Verify MessageEvent.ports getter returns the same object");
+</script>
+</body>
+</html>

@@ -26,6 +26,20 @@
 #define NODE_OPENSSL_HAS_CERT_COMP 1
 #endif
 
+namespace node {
+namespace crypto {
+class ByteSource;
+}
+
+template <>
+struct MemoryRetainerTraits<crypto::ByteSource> {
+  static void MemoryInfo(MemoryTracker* tracker,
+                         const crypto::ByteSource& value);
+  static const char* MemoryInfoName(const crypto::ByteSource& value);
+  static size_t SelfSize(const crypto::ByteSource& value);
+};
+}  // namespace node
+
 namespace node::crypto {
 // Currently known sizes of commonly used OpenSSL struct sizes.
 // OpenSSL considers it's various structs to be opaque and the
@@ -48,7 +62,11 @@ constexpr T NumBitsToBytes(T bits) {
   return (bits / CHAR_BIT) + ((CHAR_BIT - 1 + (bits % CHAR_BIT)) / CHAR_BIT);
 }
 
-bool ProcessFipsOptions();
+// Applies the FIPS related command line options. Returns a description of
+// what went wrong, or std::nullopt when there was nothing to do or the
+// options were applied successfully.
+std::optional<std::string> ProcessFipsOptions();
+bool IsFipsEnabled();
 
 bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();
@@ -250,6 +268,7 @@ class ByteSource final {
       Environment* env, v8::Local<v8::Value> value);
 
  private:
+  friend struct node::MemoryRetainerTraits<ByteSource>;
   friend void TruncateToBitLength(size_t length_bits, ByteSource* bytes);
 
   const void* data_ = nullptr;
@@ -266,6 +285,35 @@ enum CryptoJobMode { kCryptoJobAsync, kCryptoJobSync, kCryptoJobWebCrypto };
 
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args);
 bool IsCryptoJobAsync(CryptoJobMode mode);
+
+struct CShakeOptions final : public MemoryRetainer {
+  enum Flag : uint8_t {
+    kFunctionName = 1 << 0,
+    kCustomization = 1 << 1,
+  };
+
+  std::string function_name;
+  std::string customization;
+  uint8_t flags = 0;
+
+  CShakeOptions() = default;
+  CShakeOptions(CShakeOptions&& other) noexcept;
+  CShakeOptions& operator=(CShakeOptions&& other) noexcept;
+
+  bool empty() const { return flags == 0; }
+  bool has(Flag flag) const { return (flags & flag) != 0; }
+
+  bool Initialize(ncrypto::EVPMDCtxPointer* ctx, const EVP_MD* digest) const;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(CShakeOptions)
+  SET_SELF_SIZE(CShakeOptions)
+};
+
+v8::Maybe<void> GetCShakeOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    unsigned int offset,
+    CShakeOptions* options);
 
 v8::MaybeLocal<v8::Value> CreateWebCryptoJobError(Environment* env,
                                                   v8::Local<v8::Value> cause);
@@ -462,7 +510,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     {
       node::errors::TryCatchScope try_catch(env);
       if (value->IsObject()) {
-        then_key = FIXED_ONE_BYTE_STRING(env->isolate(), "then");
+        then_key = env->then_string();
         v8::Local<v8::Object> object = value.As<v8::Object>();
         v8::Maybe<bool> has_own_then =
             object->HasOwnProperty(context, then_key);
@@ -610,7 +658,7 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
 
   SET_SELF_SIZE(DeriveBitsJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("out", out_.size());
+    tracker->TraitTrackInline(out_, "out");
     CryptoJob<DeriveBitsTraits>::MemoryInfo(tracker);
   }
 
@@ -714,8 +762,8 @@ class ArrayBufferOrViewContents final {
   }
 
   template <typename M>
+    requires(sizeof(M) == 1)
   void CopyTo(M* dest, size_t len) const {
-    static_assert(sizeof(M) == 1, "sizeof(M) must equal 1");
     len = std::min(len, size());
     if (len > 0 && data() != nullptr) {
       memcpy(dest, data(), len);

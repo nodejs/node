@@ -5,8 +5,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -36,7 +34,7 @@ const w = stream.writer;
 const signal = AbortSignal.abort(new Error('already aborted'));
 
 // write() with an already-aborted signal should reject immediately.
-await rejects(
+await assert.rejects(
   w.write(encoder.encode('data'), { signal }),
   { message: 'already aborted' },
 );

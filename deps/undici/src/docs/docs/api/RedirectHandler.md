@@ -1,101 +1,276 @@
-# Class: RedirectHandler
+# RedirectHandler
 
-A class that handles redirection logic for HTTP requests.
+<!--introduced_in=v4.0.0-->
+<!--type=module-->
+<!-- source_link=lib/handler/redirect-handler.js -->
 
-## `new RedirectHandler(dispatch, maxRedirections, opts, handler)`
+> Stability: 2 - Stable
 
-Arguments:
+A dispatch handler that follows HTTP redirects on behalf of another handler. It
+wraps a downstream `handler` and a `dispatch` function: when a redirectable
+response is received it transparently re-dispatches the request to the new
+location, forwarding the lifecycle callbacks to the wrapped `handler` only once a
+final (non-redirect) response is reached.
 
-- **dispatch** `function` - The dispatch function to be called after every retry.
-- **maxRedirections** `number` - Maximum number of redirections allowed.
-- **opts** `object` - Options for handling redirection. Supports `throwOnMaxRedirect`, `stripHeadersOnRedirect`, and `stripHeadersOnCrossOriginRedirect`.
-- **handler** `object` - An object containing handlers for different stages of the request lifecycle.
+Redirects are followed for the `300`, `301`, `302`, `303`, `307`, and `308`
+status codes, up to `maxRedirections` hops. Following the relevant HTTP
+specifications, the method is downgraded to `GET` for `301`/`302` `POST`
+responses and for `303` responses with any method other than `HEAD`, request
+bodies that have already been consumed are not replayed, and headers that refer
+to the original URL (such as `host`) are stripped on each hop, with additional
+credential headers removed on cross-origin redirects.
 
-Returns: `RedirectHandler`
+```mjs
+import { RedirectHandler } from 'undici'
+```
 
-### Parameters
+```cjs
+const { RedirectHandler } = require('undici')
+```
 
-- **dispatch** `(options: Dispatch.DispatchOptions, handlers: Dispatch.DispatchHandler) => Promise<Dispatch.DispatchResponse>` (required) - Dispatch function to be called after every redirection.
-- **maxRedirections** `number` (required) - Maximum number of redirections allowed.
-- **opts** `object` (required) - Options for handling redirection.
-  - **throwOnMaxRedirect** `boolean` - Throw when the maximum number of redirections is reached.
-  - **stripHeadersOnRedirect** `string[]` - Header names to remove from all redirected requests.
-  - **stripHeadersOnCrossOriginRedirect** `string[]` - Header names to remove from cross-origin redirected requests.
-- **handler** `object` (required) - Handlers for different stages of the request lifecycle.
+Most users do not construct `RedirectHandler` directly. The `maxRedirections`
+option on [`Dispatcher`][] methods and the higher-level clients use it
+internally.
 
-### Properties
+## Class: `RedirectHandler`
 
-- **location** `string` - The current redirection location.
-- **abort** `function` - The abort function.
-- **opts** `object` - The options for handling redirection.
-- **maxRedirections** `number` - Maximum number of redirections allowed.
-- **handler** `object` - Handlers for different stages of the request lifecycle.
-- **history** `Array` - An array representing the history of URLs during redirection.
+<!-- YAML
+added: v4.0.0
+-->
 
-### Methods
+* Extends: {DispatchHandler}
 
-#### `onRequestStart(controller, context)`
+Implements the [`DispatchHandler`][] interface, delegating every callback to the
+wrapped `handler` while intercepting redirect responses.
 
-Called when the request starts.
+### `new RedirectHandler(dispatch, maxRedirections, opts, handler)`
 
-Parameters:
+<!-- YAML
+added: v4.0.0
+-->
 
-- **controller** `DispatchController` - The request controller.
-- **context** `object` - The dispatch context.
+* `dispatch` {Function} The dispatch function used to issue the original request
+  and every subsequent redirect. Called as `dispatch(options, handler)`.
+* `maxRedirections` {number|null} The maximum number of redirects to follow. Must
+  be a non-negative integer or `null`. When `null` or `0`, no redirects are
+  followed and redirect responses are passed through to the wrapped `handler`.
+* `opts` {DispatchOptions} The dispatch options for the request. In addition to
+  the standard dispatch options, the following redirect-specific fields are
+  recognized:
+  * `throwOnMaxRedirect` {boolean} When `true`, an error is thrown once
+    `maxRedirections` is reached instead of returning the last redirect response.
+    **Default:** `false`.
+  * `stripHeadersOnRedirect` {string[]} Header names to remove from the request on
+    every redirect hop. **Default:** `null`.
+  * `stripHeadersOnCrossOriginRedirect` {string[]} Additional header names to
+    remove from the request when a redirect points to a different origin.
+    **Default:** `null`.
+* `handler` {DispatchHandler} The downstream handler that receives the lifecycle
+  callbacks for the final response.
 
-#### `onRequestUpgrade(controller, statusCode, headers, socket)`
+Throws an [`InvalidArgumentError`][] when `maxRedirections` is not a non-negative
+integer, when `throwOnMaxRedirect` is not a boolean, or when either
+`stripHeadersOnRedirect` or `stripHeadersOnCrossOriginRedirect` is not an array of
+header-name strings.
 
-Called when an upgrade is requested.
+```mjs
+import { Client, RedirectHandler } from 'undici'
 
-Parameters:
+const client = new Client('http://example.com')
+const dispatch = client.dispatch.bind(client)
 
-- **controller** `DispatchController` - The request controller.
-- **statusCode** `number` - The HTTP status code.
-- **headers** `object` - The headers received in the response.
-- **socket** `object` - The socket object.
+const handler = new RedirectHandler(dispatch, 5, {
+  method: 'GET',
+  path: '/',
+  origin: 'http://example.com',
+}, {
+  onRequestStart () {},
+  onResponseStart (controller, statusCode, headers) {
+    console.log(statusCode)
+  },
+  onResponseData (controller, chunk) {},
+  onResponseEnd () {},
+})
 
-#### `onResponseError(controller, error)`
+dispatch({ method: 'GET', path: '/', origin: 'http://example.com' }, handler)
+```
 
-Called when an error occurs.
+### Static method: `RedirectHandler.buildDispatch(dispatcher, maxRedirections)`
 
-Parameters:
+<!-- YAML
+added: v7.0.0
+-->
 
-- **controller** `DispatchController` - The request controller.
-- **error** `Error` - The error that occurred.
+* `dispatcher` {Dispatcher} The dispatcher whose `dispatch` method is wrapped.
+* `maxRedirections` {number|null} The maximum number of redirects to follow. Must
+  be a non-negative integer or `null`.
+* Returns: {Function} A `dispatch(options, handler)` function that wraps each call
+  in a `RedirectHandler` before delegating to `dispatcher`.
 
-#### `onResponseStart(controller, statusCode, headers, statusText)`
+Builds a redirect-aware dispatch function from an existing dispatcher. The
+returned function has the same shape as `dispatcher.dispatch` but follows
+redirects automatically. Throws an [`InvalidArgumentError`][] when
+`maxRedirections` is not a non-negative integer.
 
-Called when headers are received.
+```mjs
+import { Client, RedirectHandler } from 'undici'
 
-Parameters:
+const client = new Client('http://example.com')
+const dispatch = RedirectHandler.buildDispatch(client, 5)
 
-- **controller** `DispatchController` - The request controller.
-- **statusCode** `number` - The HTTP status code.
-- **headers** `object` - The headers received in the response.
-- **statusText** `string` - The status text.
+dispatch({ method: 'GET', path: '/', origin: 'http://example.com' }, {
+  onRequestStart () {},
+  onResponseStart (controller, statusCode) {
+    console.log(statusCode)
+  },
+  onResponseData () {},
+  onResponseEnd () {},
+})
+```
 
-#### `onResponseData(controller, chunk)`
+### `redirectHandler.onRequestStart(controller, context)`
 
-Called when data is received.
+<!-- YAML
+added: v7.0.0
+-->
 
-Parameters:
+* `controller` {DispatchController} The controller for the in-flight request.
+* `context` {Object} The dispatch context.
 
-- **controller** `DispatchController` - The request controller.
-- **chunk** `Buffer` - The data chunk received.
+Forwards the request-start event to the wrapped `handler`, augmenting `context`
+with the current redirect `history`.
 
-#### `onResponseEnd(controller, trailers)`
+### `redirectHandler.onRequestUpgrade(controller, statusCode, headers, socket)`
 
-Called when the request is complete.
+<!-- YAML
+added: v7.0.0
+-->
 
-Parameters:
+* `controller` {DispatchController} The controller for the in-flight request.
+* `statusCode` {number} The HTTP status code of the upgrade response.
+* `headers` {Object} The response headers.
+* `socket` {Duplex} The upgraded socket.
 
-- **controller** `DispatchController` - The request controller.
-- **trailers** `object` - The trailers received.
+Forwards a connection upgrade to the wrapped `handler`.
 
-#### `onBodySent(chunk)`
+### `redirectHandler.onResponseStart(controller, statusCode, headers, statusMessage)`
 
-Called when the request body is sent.
+<!-- YAML
+added: v7.0.0
+-->
 
-Parameters:
+* `controller` {DispatchController} The controller for the in-flight request.
+* `statusCode` {number} The HTTP status code of the response.
+* `headers` {Object} The response headers.
+* `statusMessage` {string} The HTTP status message.
 
-- **chunk** `Buffer` - The chunk of the request body sent.
+Inspects the response headers to decide whether to follow a redirect. When the
+status code is redirectable, the `maxRedirections` limit has not been reached, and
+the request body has not been consumed, the `location` property is set, the method
+and headers are adjusted for the next hop, and the response is not forwarded.
+Otherwise the event is forwarded to the wrapped `handler`.
+
+Throws when `throwOnMaxRedirect` is `true` and the number of recorded redirects
+has reached `maxRedirections`, and throws an [`InvalidArgumentError`][] if a
+redirect loop is detected (for example when a [`Client`][] or [`Pool`][] is used
+for a cross-origin redirect; use an [`Agent`][] instead).
+
+### `redirectHandler.onResponseData(controller, chunk)`
+
+<!-- YAML
+added: v7.0.0
+-->
+
+* `controller` {DispatchController} The controller for the in-flight request.
+* `chunk` {Buffer} A chunk of the response body.
+
+Forwards body data to the wrapped `handler`. While a redirect is pending
+(`location` is set), the `3xx` response body is ignored.
+
+### `redirectHandler.onResponseEnd(controller, trailers)`
+
+<!-- YAML
+added: v7.0.0
+-->
+
+* `controller` {DispatchController} The controller for the in-flight request.
+* `trailers` {Object} The response trailers.
+
+Completes the response. When a redirect is pending, the request is re-dispatched
+to the new `location`; otherwise the end event is forwarded to the wrapped
+`handler`.
+
+### `redirectHandler.onResponseError(controller, error)`
+
+<!-- YAML
+added: v7.0.0
+-->
+
+* `controller` {DispatchController} The controller for the in-flight request.
+* `error` {Error} The error that occurred.
+
+Forwards the error to the wrapped `handler`.
+
+### `redirectHandler.location`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* Type: {string|null}
+
+The `Location` header value of the redirect currently being followed, or `null`
+when no redirect is pending and the response is being passed through to the
+wrapped `handler`.
+
+### `redirectHandler.opts`
+
+<!-- YAML
+added: v7.12.0
+-->
+
+* Type: {DispatchOptions}
+
+A copy of the dispatch options for the next request. It excludes the redirect
+control fields (`maxRedirections`, `stripHeadersOnRedirect`, and
+`stripHeadersOnCrossOriginRedirect`) and is mutated on each hop to reflect the
+updated method, path, origin, and headers.
+
+### `redirectHandler.maxRedirections`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* Type: {number|null}
+
+The maximum number of redirects this handler will follow.
+
+### `redirectHandler.handler`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* Type: {DispatchHandler}
+
+The wrapped downstream handler that receives the lifecycle callbacks for the final
+response.
+
+### `redirectHandler.history`
+
+<!-- YAML
+added: v4.0.0
+-->
+
+* Type: {URL[]}
+
+The ordered list of URLs visited while following redirects. It is used to enforce
+`maxRedirections` and to detect redirect loops.
+
+[`Agent`]: Agent.md#class-agent
+[`Client`]: Client.md#class-client
+[`Dispatcher`]: Dispatcher.md#class-dispatcher
+[`DispatchHandler`]: Dispatcher.md#parameter-dispatchhandler
+[`InvalidArgumentError`]: Errors.md#class-invalidargumenterror
+[`Pool`]: Pool.md#class-pool

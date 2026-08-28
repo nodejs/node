@@ -7,7 +7,7 @@ const http = require('http');
 
 const durationBetweenIntervals = [];
 let timeoutTooShort = false;
-const TIMEOUT = common.platformTimeout(200);
+const TIMEOUT = common.platformTimeout(1000);
 const INTERVAL = Math.floor(TIMEOUT / 8);
 
 runTest(TIMEOUT);

@@ -26,11 +26,6 @@ test-build-sea*: SKIP
 test-single-executable-application*: PASS, FLAKY
 test-build-sea*: PASS, FLAKY
 
-[$system==win32]
-# https://github.com/nodejs/node/issues/49630
-test-single-executable-application-snapshot: PASS, FLAKY
-test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
-
 [$system==solaris || $system==aix]
 # Cannot compile LIEF on these platforms
 test-build-sea*: SKIP

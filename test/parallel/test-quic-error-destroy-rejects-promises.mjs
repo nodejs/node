@@ -8,8 +8,6 @@
 import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -35,8 +33,8 @@ const serverEndpoint = await listen(async (serverSession) => {
   clientSession.destroy(testError);
 
   // Both opened and closed should reject with the same error.
-  await rejects(clientSession.opened, testError);
-  await rejects(clientSession.closed, testError);
+  await assert.rejects(clientSession.opened, testError);
+  await assert.rejects(clientSession.closed, testError);
 }
 
 // Second client: destroy AFTER the handshake completes.
@@ -53,7 +51,7 @@ const serverEndpoint = await listen(async (serverSession) => {
   await clientSession.opened;
 
   // Closed rejects with the error.
-  await rejects(clientSession.closed, testError);
+  await assert.rejects(clientSession.closed, testError);
 }
 
 await serverEndpoint.close();

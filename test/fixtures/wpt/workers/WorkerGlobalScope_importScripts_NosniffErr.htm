@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<title> importScripts() with nosniff X-Content-Type-Options </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+fetch_tests_from_worker(new Worker('./support/ImportScriptsNosniffErr.js'));
+</script>

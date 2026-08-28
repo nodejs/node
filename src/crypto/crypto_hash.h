@@ -21,7 +21,10 @@ class Hash final : public BaseObject {
   SET_MEMORY_INFO_NAME(Hash)
   SET_SELF_SIZE(Hash)
 
-  bool HashInit(const EVP_MD* md, v8::Maybe<unsigned int> xof_md_len);
+  bool HashInit(const EVP_MD* digest, v8::Maybe<unsigned int> xof_md_len);
+  bool HashInit(const EVP_MD* digest,
+                const CShakeOptions& options,
+                v8::Maybe<unsigned int> xof_md_len);
   bool HashUpdate(const char* data, size_t len);
 
   static void GetHashes(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -42,9 +45,9 @@ class Hash final : public BaseObject {
 };
 
 struct HashConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   ByteSource in;
-  const EVP_MD* digest;
+  ncrypto::Digest digest;
+  std::optional<CShakeOptions> options;
   unsigned int length;
 
   HashConfig() = default;
@@ -108,7 +111,6 @@ struct CShakeParams final {
 bool DeriveCShakeBits(const CShakeParams& params, ByteSource* out);
 
 struct CShakeConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   ByteSource in;
   ByteSource function_name;
   ByteSource customization;

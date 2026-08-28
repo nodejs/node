@@ -3,7 +3,7 @@
 // considering the number of digits in the duration_ms is 9
 // the chances of having the same duration_ms are very low
 // but not impossible
-// In case of costant failures, consider increasing the number of tests
+// In case of constant failures, consider increasing the number of tests
 import '../common/index.mjs';
 import assert from 'node:assert';
 import { skipIfNoWatch, refreshForTestRunnerWatch, testRunnerWatch } from '../common/watch.js';

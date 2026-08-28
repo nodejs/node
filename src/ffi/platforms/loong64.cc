@@ -19,7 +19,6 @@ bool IsFloatType(FastFFIType type) {
 
 bool IsNarrowType(FastFFIType type) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kInt8:
     case FastFFIType::kUint8:
     case FastFFIType::kInt16:
@@ -75,12 +74,12 @@ void FreeCode(void* code, size_t code_size) {
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,
     node::ffi::FastFFITrampoline* out) {
-  if (target == nullptr || out == nullptr || IsNarrowType(result)) {
+  if (config.target == nullptr || out == nullptr || IsNarrowType(result)) {
     return false;
   }
 
@@ -127,7 +126,7 @@ extern "C" bool node_ffi_create_fast_trampoline(
   Emit32(&cursor, LdD(12, 12, 16));     // ld.d t0, t0, literal
   Emit32(&cursor, Jirl(0, 12, 0));      // jr t0
   Emit32(&cursor, Or(0, 0, 0));         // nop; align literal to 8 bytes
-  Emit64(&cursor, reinterpret_cast<uintptr_t>(target));
+  Emit64(&cursor, reinterpret_cast<uintptr_t>(config.target));
 
   const size_t written = reinterpret_cast<uint8_t*>(cursor) -
                          static_cast<uint8_t*>(code);

@@ -35,6 +35,11 @@ class SecureContext final : public BaseObject {
   using KeylogCb = void (*)(const SSL*, const char*);
   using NewSessionCb = int (*)(SSL*, SSL_SESSION*);
   using SelectSNIContextCb = int (*)(SSL*, int*, void*);
+#ifdef OPENSSL_IS_BORINGSSL
+  using ClientHelloCb = ssl_select_cert_result_t (*)(const SSL_CLIENT_HELLO*);
+#else
+  using ClientHelloCb = int (*)(SSL*, int*, void*);
+#endif
 
   ~SecureContext() override;
 
@@ -74,6 +79,7 @@ class SecureContext final : public BaseObject {
 
   ncrypto::SSLPointer CreateSSL();
 
+  void SetClientHelloCallback(ClientHelloCb cb);
   void SetGetSessionCallback(GetSessionCb cb);
   void SetKeylogCallback(KeylogCb cb);
   void SetNewSessionCallback(NewSessionCb cb);
@@ -158,14 +164,22 @@ class SecureContext final : public BaseObject {
                                unsigned char* name,
                                unsigned char* iv,
                                EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                               EVP_MAC_CTX* hctx,
+#else
                                HMAC_CTX* hctx,
+#endif
                                int enc);
 
   static int TicketCompatibilityCallback(SSL* ssl,
                                          unsigned char* name,
                                          unsigned char* iv,
                                          EVP_CIPHER_CTX* ectx,
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+                                         EVP_MAC_CTX* hctx,
+#else
                                          HMAC_CTX* hctx,
+#endif
                                          int enc);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap);
@@ -192,11 +206,6 @@ class SecureContext final : public BaseObject {
   std::vector<CompressedCertData> compressed_certs_;
 #endif
 };
-
-int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
-                                  ncrypto::BIOPointer&& in,
-                                  ncrypto::X509Pointer* cert,
-                                  ncrypto::X509Pointer* issuer);
 
 }  // namespace crypto
 }  // namespace node

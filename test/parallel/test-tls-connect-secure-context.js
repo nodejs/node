@@ -23,6 +23,9 @@ connect({
   return cleanup();
 }));
 
+// Invalid dhparam input is silently discarded for compatibility.
+tls.createSecureContext({ dhparam: fixtures.readKey('ec-key.pem') });
+
 connect({
   client: {
     servername: 'agent1',
