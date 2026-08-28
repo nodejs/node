@@ -1652,7 +1652,7 @@
           'libraries': [ '-framework CoreFoundation -framework Security' ],
         }],
         [ 'node_shared_simdutf=="false" and node_use_bundled_v8!="false"', {
-          'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf#host' ],
+          'dependencies': [ 'tools/v8_gypfiles/simdutf.gyp:simdutf#host' ],
         }],
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
