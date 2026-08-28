@@ -247,7 +247,7 @@
     }],
 
     [ 'node_shared_simdutf=="false" and node_use_bundled_v8!="false"', {
-        'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf' ],
+        'dependencies': [ 'tools/v8_gypfiles/simdutf.gyp:simdutf' ],
     }],
 
     [ 'node_shared_brotli=="false"', {
