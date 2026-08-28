@@ -323,8 +323,9 @@ have a corresponding \fB--bench-reporter-destination\fR. The default reporter is
 \fBspec\fR.
 .
 .It Fl -bench-samples Ns = Ns Ar count
-Overrides the number of measured callback invocations for every selected
-benchmark. \fBcount\fR must be an integer between \fB1\fR and \fB4294967295\fR.
+Overrides the maximum number of measured callback invocations for every
+selected benchmark. A benchmark may finish earlier by calling
+\fBcontext.done()\fR. \fBcount\fR must be an integer between \fB1\fR and \fB4294967295\fR.
 .
 .It Fl -bench-warmup Ns = Ns Ar count
 Overrides the number of unreported warmup callback invocations for every
