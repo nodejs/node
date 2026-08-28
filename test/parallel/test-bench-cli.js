@@ -121,6 +121,106 @@ for (const { patterns, message } of [
   });
 }
 
+for (const isolation of ['process', 'none']) {
+  const result = spawnBench([
+    `--bench-isolation=${isolation}`,
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/identity-entry-*.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  const records = parseRecords(result);
+  const completions = records.filter(
+    ({ type }) => type === 'bench:complete').map(({ data }) => data);
+  const summary = records.at(-1).data;
+
+  assert.strictEqual(completions.length, 2);
+  assert.strictEqual(completions[0].benchId, completions[1].benchId);
+  assert.strictEqual(completions[0].runId, completions[1].runId);
+  assert.strictEqual(completions[0].runId, summary.runId);
+  assert.notStrictEqual(
+    completions[0].fileRunId, completions[1].fileRunId);
+  assert.deepStrictEqual(completions.map(({ entryFile }) => entryFile), [
+    fixtures.path('bench-runner/identity-entry-a.cjs'),
+    fixtures.path('bench-runner/identity-entry-b.cjs'),
+  ]);
+  assert.deepStrictEqual(completions.map(({ namePath }) => namePath), [
+    ['shared suite', 'shared identity'],
+    ['shared suite', 'shared identity'],
+  ]);
+  assert.strictEqual(summary.fileRunId, null);
+  assert.strictEqual(summary.entryFile, null);
+}
+
+{
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/identity-suite.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  const records = parseRecords(result);
+  const completions = records.filter(
+    ({ type }) => type === 'bench:complete').map(({ data }) => data);
+  const parentId = JSON.stringify([
+    fixtures.path('bench-runner/identity-suite.cjs'),
+    ['cross-module suite'],
+  ]);
+
+  assert.deepStrictEqual(completions.map(({ name }) => name), [
+    'child a',
+    'child b',
+  ]);
+  assert(completions.every((completion) =>
+    completion.parentId === parentId));
+  assert.deepStrictEqual(completions.map(({ namePath }) => namePath), [
+    ['cross-module suite', 'child a'],
+    ['cross-module suite', 'child b'],
+  ]);
+  assert(completions.every(({ entryFile }) =>
+    entryFile === fixtures.path('bench-runner/identity-suite.cjs')));
+}
+
+for (const isolation of ['process', 'none']) {
+  const result = spawnBench([
+    '--require', fixtures.path('bench-runner/identity-preload.cjs'),
+    `--bench-isolation=${isolation}`,
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/identity-entry-*.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  const records = parseRecords(result);
+  const preloads = records.filter(
+    ({ type, data }) => type === 'bench:complete' &&
+      data.name === 'preload identity').map(({ data }) => data);
+  assert.strictEqual(preloads.length, isolation === 'process' ? 2 : 1);
+  assert.strictEqual(
+    new Set(preloads.map(({ fileRunId }) => fileRunId)).size,
+    preloads.length,
+  );
+  assert(preloads.every(({ entryFile }) => entryFile === null));
+  assert(preloads.every(
+    ({ runId }) => runId === records.at(-1).data.runId));
+}
+
+{
+  const result = spawnBench([
+    '--bench-isolation=none',
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/a.cjs'),
+    fixtures.path('bench-runner/identity-hook.cjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostic = records.find(
+    ({ type, data }) => type === 'bench:diagnostic' &&
+      data.message === 'scoped hook failed').data;
+  const completion = records.find(
+    ({ type, data }) => type === 'bench:complete' &&
+      data.name === 'scoped hook benchmark').data;
+  assert.strictEqual(diagnostic.entryFile,
+                     fixtures.path('bench-runner/identity-hook.cjs'));
+  assert.strictEqual(diagnostic.fileRunId, completion.fileRunId);
+}
+
 {
   const result = spawnBench([
     '--bench-reporter=json',
@@ -297,6 +397,7 @@ for (const isolation of ['process', 'none']) {
 
 for (const { kind, message } of [
   { kind: 'record', message: /not a valid benchmark record/ },
+  { kind: 'identity', message: /not a valid benchmark record/ },
   { kind: 'summary', message: /not a valid benchmark summary/ },
 ]) {
   const result = spawnBench([
