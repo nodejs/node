@@ -20,6 +20,8 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 test-snapshot-incompatible: SKIP
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/55154#issuecomment-5423571475
+test-runner-coverage: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59090
 test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59636
@@ -36,6 +38,8 @@ test-performance-function: PASS, FLAKY
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 
 [$system==linux && $arch==s390x]
+# https://github.com/nodejs/node/issues/55154#issuecomment-5423571475
+test-runner-coverage: PASS, FLAKY
 # https://github.com/nodejs/node/issues/58353
 test-http2-debug: PASS, FLAKY
 
@@ -97,6 +101,8 @@ test-fs-watch-ignore-mixed: SKIP
 test-fs-watch-ignore-regexp: SKIP
 
 [$system==aix]
+# https://github.com/nodejs/node/issues/55154#issuecomment-5423571475
+test-runner-coverage: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 
