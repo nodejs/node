@@ -512,6 +512,10 @@ benchmark runner process. This reduces startup overhead but allows module,
 heap, and process state to carry between files. User writes to stdout or stderr
 also share destinations with benchmark reporters in this mode.
 
+The supported modes are `'process'` and `'none'`. Worker-thread isolation is not
+a CLI mode. Higher-level tools can implement it using externally measured
+samples as described in the [benchmark runner][] documentation.
+
 ### `--bench-name-pattern=pattern`
 
 <!-- YAML
