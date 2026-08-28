@@ -17,7 +17,7 @@ const bench = common.createBenchmark(main, {
   scenario: scenarios,
   n: [5_000],
 }, {
-  test: { scenario: scenarios, n: 1 },
+  test: { scenario: 'first-after-generate', n: 1 },
 });
 
 function generateContext() {
