@@ -868,13 +868,19 @@ class FdEntry final : public EntryImpl {
   // the race
   //   condition described in the comment above.
  public:
-  static std::unique_ptr<FdEntry> Create(Environment* env, Local<Value> path) {
+  static std::unique_ptr<FdEntry> Create(Environment* env,
+                                         Local<Value> path,
+                                         int* status) {
     // We're only going to create the FdEntry if the file exists.
     uv_fs_t req = uv_fs_t();
     auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
 
     auto buf = std::make_shared<BufferValue>(env->isolate(), path);
-    if (uv_fs_stat(nullptr, &req, buf->out(), nullptr) < 0) return nullptr;
+    int err = uv_fs_stat(nullptr, &req, buf->out(), nullptr);
+    if (err < 0) {
+      if (status != nullptr) *status = err;
+      return nullptr;
+    }
 
     return std::make_unique<FdEntry>(
         env, std::move(buf), req.statbuf, 0, req.statbuf.st_size);
@@ -1183,8 +1189,9 @@ std::unique_ptr<DataQueue::Entry> DataQueue::CreateDataQueueEntry(
 }
 
 std::unique_ptr<DataQueue::Entry> DataQueue::CreateFdEntry(Environment* env,
-                                                           Local<Value> path) {
-  return FdEntry::Create(env, path);
+                                                           Local<Value> path,
+                                                           int* status) {
+  return FdEntry::Create(env, path, status);
 }
 
 void DataQueue::Initialize(Environment* env, v8::Local<v8::Object> target) {
