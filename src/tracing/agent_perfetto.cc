@@ -201,12 +201,11 @@ void PerfettoSessionReader::Read() {
 
 void PerfettoSessionReader::ReadTraceCallback(
     perfetto::TracingSession::ReadTraceCallbackArgs args) {
-  // On Perfetto internal thread.
-  {
-    Mutex::ScopedLock lock(chunks_mutex_);
-    if (args.size > 0)
-      pending_chunks_.emplace_back(args.data, args.data + args.size);
-  }
+  // On Perfetto internal thread. Signal under the lock so OnReadAsync() cannot
+  // free |this| while a callback is still running.
+  Mutex::ScopedLock lock(chunks_mutex_);
+  if (args.size > 0)
+    pending_chunks_.emplace_back(args.data, args.data + args.size);
   // A single ReadTrace() cycle can yield multiple callbacks; the last one has
   // has_more == false, which clears read_in_progress_ so the next timer tick
   // can start a new read.
@@ -215,6 +214,8 @@ void PerfettoSessionReader::ReadTraceCallback(
 }
 
 void PerfettoSessionReader::SessionStopCallback() {
+  // On Perfetto internal thread.
+  Mutex::ScopedLock lock(chunks_mutex_);
   stop_requested_ = true;
   uv_async_send(&read_async_);
 }
@@ -224,9 +225,12 @@ void PerfettoSessionReader::OnReadAsync(uv_async_t* async) {
   PerfettoSessionReader* reader =
       static_cast<PerfettoSessionReader*>(async->data);
   std::list<std::vector<char>> chunks_to_write;
+  // Shutdown requested and no read outstanding.
+  bool should_tear_down = false;
   {
     Mutex::ScopedLock lock(reader->chunks_mutex_);
     std::swap(chunks_to_write, reader->pending_chunks_);
+    should_tear_down = reader->stop_requested_ && !reader->read_in_progress_;
   }
 
   while (!chunks_to_write.empty()) {
@@ -235,16 +239,14 @@ void PerfettoSessionReader::OnReadAsync(uv_async_t* async) {
     chunks_to_write.pop_front();
   }
 
-  if (reader->stop_requested_ && reader->handles_pending_close_ == 0) {
-    reader->writer_->Flush(true);
+  if (!should_tear_down || reader->handles_pending_close_ != 0) return;
 
-    reader->handles_pending_close_ = 2;
-    uv_timer_stop(&reader->read_timer_);
-    uv_close(reinterpret_cast<uv_handle_t*>(&reader->read_async_),
-             OnHandleClose);
-    uv_close(reinterpret_cast<uv_handle_t*>(&reader->read_timer_),
-             OnHandleClose);
-  }
+  reader->writer_->Flush(true);
+
+  reader->handles_pending_close_ = 2;
+  uv_timer_stop(&reader->read_timer_);
+  uv_close(reinterpret_cast<uv_handle_t*>(&reader->read_async_), OnHandleClose);
+  uv_close(reinterpret_cast<uv_handle_t*>(&reader->read_timer_), OnHandleClose);
 }
 
 // static
