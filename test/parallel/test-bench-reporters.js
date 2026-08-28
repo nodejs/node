@@ -27,7 +27,9 @@ bench('json failed', { samples: 1 }, () => {
   const lines = chunks.join('').trim().split('\n');
   const records = lines.map((line) => JSON.parse(line));
 
-  assert.strictEqual(records.length, 6);
+  assert.strictEqual(records.length, 8);
+  const plans = records.filter(({ type }) => type === 'bench:plan');
+  assert.deepStrictEqual(plans.map(({ data }) => data.selected), [true, true]);
   const sample = records.find(({ type }) => type === 'bench:sample');
   assert.match(sample.data.duration_ns, /^\d+$/);
 
