@@ -226,8 +226,11 @@ class DataQueue : public MemoryRetainer {
   static std::unique_ptr<Entry> CreateDataQueueEntry(
       std::shared_ptr<DataQueue> data_queue);
 
+  // Returns nullptr if the file cannot be stat'd. When `status` is given, it
+  // is set to the libuv error code so callers can report why.
   static std::unique_ptr<Entry> CreateFdEntry(Environment* env,
-                                              v8::Local<v8::Value> path);
+                                              v8::Local<v8::Value> path,
+                                              int* status = nullptr);
 
   // Creates a Reader for the given queue. If the queue is idempotent,
   // any number of readers can be created, all of which are guaranteed
