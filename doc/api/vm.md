@@ -316,7 +316,19 @@ changes:
   * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
     scheduled through `Promise`s and `async function`s) will be run immediately
     after the script has run. They are included in the `timeout` and
-    `breakOnSigint` scopes in that case.
+    `breakOnSigint` scopes in that case. If `microtaskQueue` (or
+    `contextMicrotaskQueue`) is also specified, evaluating the script will
+    drain that shared microtask queue (including any microtasks queued from
+    other contexts sharing the queue). If `microtaskQueue` is not specified, a
+    private microtask queue is created exclusively for this context.
+  * `microtaskQueue` {vm.MicrotaskQueue} A microtask queue created with
+    [`new vm.MicrotaskQueue()`][] or [`vm.createMicrotaskQueue()`][]. If
+    specified, microtasks scheduled inside the new context will be placed on
+    this queue. By default, microtasks placed on this queue are not
+    automatically drained when script evaluation finishes; they remain queued
+    until explicitly drained using [`microtaskQueue.runMicrotasks()`][], unless
+    `microtaskMode: 'afterEvaluate'` is also specified. An alias for this
+    option is `contextMicrotaskQueue`.
 * Returns: {any} the result of the very last statement executed in the script.
 
 This method is a shortcut to `script.runInContext(vm.createContext(options), options)`.
@@ -1327,6 +1339,12 @@ added: REPLACEME
 Represents an explicit microtask queue that can be shared across multiple
 `vm.Context` instances and synchronously drained by the embedder.
 
+By default, passing a `vm.MicrotaskQueue` to [`vm.createContext()`][] attaches the
+context to that queue without automatically draining it after script evaluation;
+microtasks remain queued until explicitly drained using
+[`microtaskQueue.runMicrotasks()`][]. If automatic draining upon script completion
+is also desired, pass `microtaskMode: 'afterEvaluate'` alongside `microtaskQueue`.
+
 ### `new vm.MicrotaskQueue()`
 
 <!-- YAML
@@ -1499,10 +1517,19 @@ changes:
     scheduled through `Promise`s and `async function`s) will be run immediately
     after a script has run through [`script.runInContext()`][].
     They are included in the `timeout` and `breakOnSigint` scopes in that case.
+    If `microtaskQueue` is also specified, evaluating a script in this context
+    will drain that shared microtask queue (including any pending microtasks
+    scheduled by other contexts sharing the queue). If `microtaskQueue` is not
+    specified, a private microtask queue is created exclusively for this
+    context.
   * `microtaskQueue` {vm.MicrotaskQueue} A microtask queue created with
     [`new vm.MicrotaskQueue()`][] or [`vm.createMicrotaskQueue()`][]. If
     specified, microtasks scheduled inside this context will be placed on this
     queue, allowing multiple contexts to share the same microtask queue.
+    By default, microtasks placed on this queue are not automatically drained
+    when script evaluation finishes; they remain queued until explicitly drained
+    using [`microtaskQueue.runMicrotasks()`][], unless `microtaskMode: 'afterEvaluate'`
+    is also specified.
   * `importModuleDynamically`
     {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
     Used to specify the how the modules should be loaded when `import()` is
@@ -1873,11 +1900,18 @@ changes:
   * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
     scheduled through `Promise`s and `async function`s) will be run immediately
     after the script has run. They are included in the `timeout` and
-    `breakOnSigint` scopes in that case.
+    `breakOnSigint` scopes in that case. If `microtaskQueue` is also specified,
+    evaluating the script will drain that shared microtask queue (including any
+    pending microtasks scheduled by other contexts sharing the queue). If
+    `microtaskQueue` is not specified, a private microtask queue is created
+    exclusively for this context.
   * `microtaskQueue` {vm.MicrotaskQueue} A microtask queue created with
     [`new vm.MicrotaskQueue()`][] or [`vm.createMicrotaskQueue()`][]. If
     specified, microtasks scheduled inside the new context will be placed on
-    this queue.
+    this queue. By default, microtasks placed on this queue are not
+    automatically drained when script evaluation finishes; they must be
+    explicitly drained using [`microtaskQueue.runMicrotasks()`][], unless
+    `microtaskMode: 'afterEvaluate'` is also specified.
 * Returns: {any} the result of the very last statement executed in the script.
 
 This method is a shortcut to
@@ -2632,6 +2666,8 @@ const { Script, SyntheticModule } = require('node:vm');
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
+[`microtaskQueue.runMicrotasks()`]: #microtaskqueuerunmicrotasks
+[`new vm.MicrotaskQueue()`]: #new-vmmicrotaskqueue
 [`optionsExpression`]: https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
@@ -2639,9 +2675,11 @@ const { Script, SyntheticModule } = require('node:vm');
 [`sourceTextModule.linkRequests(modules)`]: #sourcetextmodulelinkrequestsmodules
 [`sourceTextModule.moduleRequests`]: #sourcetextmodulemodulerequests
 [`url.origin`]: url.md#urlorigin
+[`vm.MicrotaskQueue`]: #class-vmmicrotaskqueue
 [`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
 [`vm.constants.DONT_CONTEXTIFY`]: #vmconstantsdont_contextify
 [`vm.createContext()`]: #vmcreatecontextcontextobject-options
+[`vm.createMicrotaskQueue()`]: #vmcreatemicrotaskqueue
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
@@ -2649,6 +2687,3 @@ const { Script, SyntheticModule } = require('node:vm');
 [global object]: https://tc39.es/ecma262/#sec-global-object
 [indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
-[`new vm.MicrotaskQueue()`]: #new-vmmicrotaskqueue
-[`vm.MicrotaskQueue`]: #class-vmmicrotaskqueue
-[`vm.createMicrotaskQueue()`]: #vmcreatemicrotaskqueue

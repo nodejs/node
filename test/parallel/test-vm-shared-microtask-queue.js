@@ -30,8 +30,8 @@ const vm = require('vm');
   assert.throws(() => {
     queue1.runMicrotasks.call({});
   }, {
-    code: 'ERR_INVALID_THIS',
     name: 'TypeError',
+    message: 'Illegal invocation',
   });
 }
 
@@ -139,3 +139,28 @@ const vm = require('vm');
   queue.runMicrotasks();
   assert.deepStrictEqual(trace, ['A', 'B']);
 }
+
+// 5. runInNewContext and script.runInNewContext support microtaskQueue
+{
+  const queue = new vm.MicrotaskQueue();
+  const trace = [];
+  const record = (entry) => trace.push(entry);
+
+  vm.runInNewContext(`
+    Promise.resolve().then(() => record('runInNewContext'));
+  `, { record }, { microtaskQueue: queue });
+
+  assert.deepStrictEqual(trace, []);
+  queue.runMicrotasks();
+  assert.deepStrictEqual(trace, ['runInNewContext']);
+
+  const script = new vm.Script(`
+    Promise.resolve().then(() => record('script.runInNewContext'));
+  `);
+  script.runInNewContext({ record }, { contextMicrotaskQueue: queue });
+
+  assert.deepStrictEqual(trace, ['runInNewContext']);
+  queue.runMicrotasks();
+  assert.deepStrictEqual(trace, ['runInNewContext', 'script.runInNewContext']);
+}
+
