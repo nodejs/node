@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setImmediate } = require('timers/promises');
 const {
   after,
   afterEach,
@@ -37,7 +38,7 @@ suite('after failure', () => {
 });
 
 suite('build failure', async () => {
-  await new Promise((resolve) => setImmediate(resolve));
+  await setImmediate();
   throw new Error('build failure');
 });
 

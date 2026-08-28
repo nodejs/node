@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setImmediate } = require('timers/promises');
 const {
   after,
   afterEach,
@@ -23,7 +24,7 @@ beforeEach(() => calls.push('root beforeEach'));
 afterEach(() => calls.push('root afterEach'));
 
 const suiteCompletion = suite('group', { tags: ['Group'] }, async () => {
-  await new Promise((resolve) => setImmediate(resolve));
+  await setImmediate();
 
   before(() => calls.push('suite before'));
   after(() => calls.push('suite after'));
@@ -52,11 +53,11 @@ const suiteCompletion = suite('group', { tags: ['Group'] }, async () => {
     active = true;
     contexts.add(b);
     calls.push('async sample');
-    await new Promise((resolve) => setImmediate(resolve));
+    await setImmediate();
     b.start();
     process.hrtime.bigint();
     b.end(1);
-    await new Promise((resolve) => setImmediate(resolve));
+    await setImmediate();
     active = false;
   }, 2));
 
