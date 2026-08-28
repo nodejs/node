@@ -226,36 +226,31 @@ function run(script, args, options = undefined) {
 }
 
 {
+  const benchmark = path.resolve(
+    __dirname, '../../benchmark/buffers/buffer-compare-offset.js');
+  const nodeBenchmark = path.resolve(
+    __dirname, '../../benchmark/buffers/_buffer-compare-offset.node-bench.js');
   const legacy = run(legacyScatter, [
     '--runs', '1',
-    path.resolve(__dirname, '../../benchmark/crypto/create-hash.js'),
+    benchmark,
   ]);
   const modern = run(scatter, [
     '--runs', '1',
-    '--', path.resolve(
-      __dirname, '../../benchmark/crypto/_create-hash.node-bench.js'),
+    '--', nodeBenchmark,
   ]);
   assert.strictEqual(legacy.status, 0, legacy.stderr);
   assert.strictEqual(modern.status, 0, modern.stderr);
   const legacyLines = legacy.stdout.trim().split('\n');
   const modernLines = modern.stdout.trim().split('\n');
-  assert.strictEqual(legacyLines[0].replaceAll(' ', ''), modernLines[0]);
-  const name = path.join('crypto', 'create-hash.js');
+  assert.deepStrictEqual(
+    legacyLines[0].replaceAll(' ', '').split(',').sort(),
+    modernLines[0].split(',').sort(),
+  );
+  assert.strictEqual(modernLines[0],
+                     '"filename","method","n","size","rate","time"');
+  assert.strictEqual(legacyLines.length, 9);
+  assert.strictEqual(modernLines.length, 9);
+  const name = path.join('buffers', 'buffer-compare-offset.js');
   assert(legacyLines[1].startsWith(`"${name}",`));
   assert(modernLines[1].startsWith(`"${name}",`));
-}
-
-{
-  const result = run(scatter, [
-    '--runs', '1',
-    '--', path.resolve(
-      __dirname,
-      '../../benchmark/buffers/_buffer-compare-offset.node-bench.js',
-    ),
-  ]);
-  assert.strictEqual(result.status, 0, result.stderr);
-  const lines = result.stdout.trim().split('\n');
-  assert.strictEqual(lines[0],
-                     '"filename","method","n","size","rate","time"');
-  assert.strictEqual(lines.length, 9);
 }
