@@ -32,8 +32,20 @@ function rmSync(pathname, useSpawn) {
   }
 }
 
+// Under the permission model, fs.realpathSync() requires read access to the
+// path, which tests running with a restricted --allow-fs-read may not grant
+// for NODE_TEST_DIR.
+function resolveTestRoot(dir) {
+  try {
+    return fs.realpathSync(dir);
+  } catch (err) {
+    if (err.code !== 'ERR_ACCESS_DENIED') throw err;
+    return path.resolve(dir);
+  }
+}
+
 const testRoot = process.env.NODE_TEST_DIR ?
-  fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
+  resolveTestRoot(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
 
 // Using a `.` prefixed name, which is the convention for "hidden" on POSIX,
 // gets tools to ignore it by default or by simple rules, especially eslint.
