@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-internals --allow-natives-syntax
+// Flags: --expose-internals --allow-natives-syntax
 'use strict';
 
 const common = require('../common');

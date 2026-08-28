@@ -122,15 +122,15 @@ directly through the process arguments.
 When using the Permission Model, the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR
 exception unless the user explicitly passes the \fB--allow-ffi\fR flag when
-starting Node.js. The \fBnode:ffi\fR module also requires the
-\fB--experimental-ffi\fR flag and is only available in builds with FFI support.
+starting Node.js. The \fBnode:ffi\fR module is only available in builds with
+FFI support.
 Example:
 .Bd -literal
 const { DynamicLibrary, suffix } = require('node:ffi');
 const lib = new DynamicLibrary(`./mylib.${suffix}`);
 .Ed
 .Bd -literal
-$ node --permission --experimental-ffi index.js
+$ node --permission index.js
 Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
@@ -748,10 +748,6 @@ dtls documentation for details.
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
 .
-.It Fl -experimental-ffi
-Enable the experimental \fBnode:ffi\fR module.
-This flag is only available in builds with FFI support.
-.
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
 passing a second \fBparentURL\fR argument for contextual resolution.
@@ -1100,6 +1096,10 @@ Silence deprecation warnings.
 .
 .It Fl -no-experimental-detect-module
 Disable using syntax detection to determine module type.
+.
+.It Fl -no-experimental-ffi
+Disable the experimental \fBnode:ffi\fR module.
+This flag is only available in builds with FFI support.
 .
 .It Fl -no-experimental-global-navigator
 Disable exposition of Navigator API on the global scope.
@@ -2002,8 +2002,6 @@ one is included in the list below.
 .It
 \fB--experimental-eventsource\fR
 .It
-\fB--experimental-ffi\fR
-.It
 \fB--experimental-import-meta-resolve\fR
 .It
 \fB--experimental-import-text\fR
@@ -2093,6 +2091,8 @@ one is included in the list below.
 \fB--no-async-context-frame\fR
 .It
 \fB--no-deprecation\fR
+.It
+\fB--no-experimental-ffi\fR
 .It
 \fB--no-experimental-global-navigator\fR
 .It

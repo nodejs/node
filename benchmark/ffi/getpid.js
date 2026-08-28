@@ -5,8 +5,6 @@ const ffi = require('node:ffi');
 
 const bench = common.createBenchmark(main, {
   n: [1e7],
-}, {
-  flags: ['--experimental-ffi'],
 });
 
 const { lib, functions } = ffi.dlopen(null, {
