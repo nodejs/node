@@ -607,6 +607,33 @@ useful when a higher-level tool measures work in a worker and needs to exclude
 message transport from the duration. `record()` is mutually exclusive with
 `start()` and `end()` within one callback and must be called exactly once.
 
+### `context.diagnostic(message[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string} The diagnostic message.
+* `options` {Object}
+  * `level` {string} Either `'info'` or `'warning'`. **Default:** `'info'`.
+  * `detail` {any} Additional structured-cloneable diagnostic data. With CLI
+    process isolation, it must also be supported by advanced child process
+    serialization.
+* Returns: {undefined}
+
+Queues a diagnostic associated with the current benchmark, phase, and sample
+index. Multiple diagnostics preserve call order. They are emitted after the
+sample callback settles and before that sample's `'bench:sample'` event. Warmup
+diagnostics are emitted even though warmup samples are not. Diagnostics queued
+before a callback failure are emitted before the failed `'bench:complete'`
+event and do not themselves cause the benchmark to fail. If a timeout or abort
+wins before the callback settles, queued diagnostics might not be emitted.
+
+The message and options are validated, and detail is cloned, synchronously.
+Calling `diagnostic()` between `context.start()` and `context.end()` therefore
+includes that work in the measured duration. Invalid arguments or an
+uncloneable detail violate the sample contract.
+
 ### `context.done()`
 
 <!-- YAML
@@ -695,10 +722,13 @@ left for reporters and higher-level tools to collect.
 `'bench:complete'` data contains a [benchmark result][]. A failed result has an
 additional `error` property and may contain samples recorded before the error.
 A skipped result has an additional `skip` property and an empty `samples`
-array. `'bench:diagnostic'` reports suite and hook errors. `'bench:summary'`
-contains overall `runId`, `fileRunId`, `entryFile`, `success`, `counts`,
-`duration_ns`, and `file` properties. `fileRunId`, `entryFile`, and `file` are
-{string|null}; they are `null` when the summary aggregates multiple files.
+array. `'bench:diagnostic'` reports loading, suite, and hook errors as well as
+public context diagnostics. A context diagnostic contains the benchmark-scoped
+identity fields, `phase`, `index`, `message`, `level`, source location, and
+optional `detail`. `'bench:summary'` contains overall `runId`, `fileRunId`,
+`entryFile`, `success`, `counts`, `duration_ns`, and `file` properties.
+`fileRunId`, `entryFile`, and `file` are {string|null}; they are `null` when the
+summary aggregates multiple files.
 
 ## Sample result
 

@@ -59,11 +59,27 @@ runner.bench('reentrant record', { samples: 1 }, (b) => {
 runner.bench('uncloneable detail', { samples: 1 }, (b) => {
   b.record({ duration_ns: 1n, operations: 1, detail: () => {} });
 });
+runner.bench('invalid diagnostic message', { samples: 1 }, (b) => {
+  b.diagnostic(1);
+});
+runner.bench('invalid diagnostic level', { samples: 1 }, (b) => {
+  b.diagnostic('invalid', { level: 'error' });
+});
+runner.bench('uncloneable diagnostic detail', { samples: 1 }, (b) => {
+  b.diagnostic('invalid', { detail: () => {} });
+});
 runner.bench('caught contract violation', { samples: 1 },
              common.mustCall((b) => {
                b.start();
                assert.throws(() => b.start(), { code: 'ERR_INVALID_STATE' });
                b.end(1);
+             }));
+runner.bench('caught diagnostic violation', { samples: 1 },
+             common.mustCall((b) => {
+               assert.throws(() => b.diagnostic('invalid', {
+                 level: 'error',
+               }), { code: 'ERR_INVALID_ARG_VALUE' });
+               b.record({ duration_ns: 1n, operations: 1 });
              }));
 
 (async () => {
@@ -97,6 +113,14 @@ runner.bench('caught contract violation', { samples: 1 },
                      'ERR_INVALID_STATE');
   assert.strictEqual(byName.get('uncloneable detail').error.name,
                      'DataCloneError');
+  assert.strictEqual(byName.get('invalid diagnostic message').error.code,
+                     'ERR_INVALID_ARG_TYPE');
+  assert.strictEqual(byName.get('invalid diagnostic level').error.code,
+                     'ERR_INVALID_ARG_VALUE');
+  assert.strictEqual(byName.get('uncloneable diagnostic detail').error.name,
+                     'DataCloneError');
   assert.match(byName.get('caught contract violation').error.message,
-               /violated the start\(\)\/end\(\) contract/);
+               /violated the context method contract/);
+  assert.match(byName.get('caught diagnostic violation').error.message,
+               /violated the context method contract/);
 })().then(common.mustCall());
