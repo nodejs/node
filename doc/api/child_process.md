@@ -1084,7 +1084,12 @@ pipes between the parent and child. The value is one of the following:
    as it may result in undefined behavior or dropped callbacks if the stream
    encounters errors. Always ensure that `stdin` is used as readable and
    `stdout`/`stderr` as writable to maintain the intended flow of data between
-   the parent and child processes.
+   the parent and child processes. The stream passed in the `stdin` position
+   is the source from which the child process reads its input, and the
+   streams in the `stdout`/`stderr` positions receive the output the child
+   writes. This is the opposite of [`subprocess.stdin`][] (writable) and
+   [`subprocess.stdout`][] (readable), which are the parent's ends of the
+   pipes created by `'pipe'`.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared. Passing sockets
