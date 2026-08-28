@@ -553,6 +553,30 @@ The events are emitted in execution order:
 * `'bench:diagnostic'`
 * `'bench:summary'`
 
+Named event payloads, readable records, and benchmark completion values are
+independent snapshots. Mutating a value received through one delivery mechanism
+does not change values received through the others. As with other
+{EventEmitter} events, multiple listeners for the same named event receive the
+same event payload. Memory referenced through a {SharedArrayBuffer} remains
+shared, following structured clone semantics.
+
+Once a consumer starts reading, the runner honors the stream's object-mode
+high-water mark and waits between records when the consumer is slower than the
+producer. These waits occur after sample timing has ended, and records are not
+dropped. Snapshot creation and delivery waits are excluded from benchmark
+timeout accounting. Before readable consumption starts, records accumulate in
+the standard readable buffer and are included in `readableLength`. This keeps an
+unread stream and a consumer using only named events from deadlocking, but the
+buffer can grow without bound. A named-event-only consumer that does not need
+readable records should call `stream.resume()` to discard them. Destroying the
+stream stops readable delivery but does not cancel benchmark execution, so
+benchmark completion promises still settle. Automatically scheduled
+module-level runs drain their stream internally.
+
+With process isolation, each record sent by a child is acknowledged only after
+the parent has accepted it. A child sends no additional record until it receives
+that acknowledgement, bounding the IPC relay when a reporter is slow.
+
 Every benchmark-scoped event contains `runId`, `fileRunId`, `entryFile`,
 `benchId`, `parentId`, and `namePath`. `runId` and `fileRunId` are opaque and
 change between runs. `entryFile` identifies the top-level benchmark file whose

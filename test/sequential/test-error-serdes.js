@@ -39,6 +39,10 @@ assert.strictEqual(cycle(new ReferenceError('foo')).name, 'ReferenceError');
 assert.strictEqual(cycle(new URIError('foo')).name, 'URIError');
 assert.strictEqual(cycle(new EvalError('foo')).name, 'EvalError');
 assert.strictEqual(cycle(new SyntaxError('foo')).name, 'SyntaxError');
+const aggregate = cycle(new AggregateError([new Error('inner')], 'aggregate'));
+assert(aggregate instanceof AggregateError);
+assert.strictEqual(aggregate.message, 'aggregate');
+assert.strictEqual(aggregate.errors[0].message, 'inner');
 
 class SubError extends Error {}
 

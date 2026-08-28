@@ -3,6 +3,7 @@
 const common = require('../../common');
 
 const kind = process.env.NODE_BENCH_MALFORMED_RECORD;
+const id = kind === 'sequence' ? null : 0;
 const record = kind === 'summary' ? {
   type: 'bench:summary',
   data: {
@@ -22,5 +23,5 @@ const record = kind === 'summary' ? {
   },
 } : null;
 
-process.send?.({ type: 'node:bench:record', record });
+process.send?.({ id, type: 'node:bench:record', record });
 setTimeout(() => process.exit(2), common.platformTimeout(10_000));
