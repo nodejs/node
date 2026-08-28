@@ -288,7 +288,6 @@
         'v8_base_without_compiler',
         'v8_initializers',
         'v8_maybe_icu',
-        'abseil.gyp:abseil',
       ],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
@@ -298,6 +297,9 @@
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
     },  # v8_init
@@ -310,7 +312,6 @@
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
-        'abseil.gyp:abseil',
       ],
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)',
@@ -390,6 +391,9 @@
              '<(V8_ROOT)/src/builtins/builtins-intl-gen.cc',
            ],
          }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_initializers
     {
@@ -508,7 +512,6 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
-            'abseil.gyp:abseil',
           ]
         }, {
           'dependencies': [
@@ -521,8 +524,10 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
-            'abseil.gyp:abseil',
           ]
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
         ['OS=="win" and clang==1', {
           'actions': [
@@ -637,7 +642,6 @@
         'v8_libbase',
         'fp16',
         'highway',
-        'abseil.gyp:abseil',
       ],
       'direct_dependent_settings': {
         'sources': [
@@ -882,6 +886,11 @@
           }],
         ],
       },
+      'conditions': [
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
+      ],
     },  # v8_internal_headers
     {
       'target_name': 'v8_compiler_sources',
@@ -983,7 +992,6 @@
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_pch',
-        'abseil.gyp:abseil',
       ],
       'conditions': [
         ['v8_use_perfetto==1', {
@@ -1000,6 +1008,9 @@
           'dependencies': ['v8_compiler_sources'],
         }, {
           'sources': ['<(V8_ROOT)/src/compiler/turbofan-disabled.cc'],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
     },  # v8_compiler
@@ -1104,7 +1115,6 @@
         'v8_zlib',
         'v8_pch',
         'simdutf',
-        'abseil.gyp:abseil',
       ],
       'includes': ['inspector.gypi'],
       'direct_dependent_settings': {
@@ -1391,6 +1401,9 @@
             'libraries': ['-latomic', ],
           },
         }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_base_without_compiler
     {
@@ -1412,7 +1425,6 @@
       'dependencies': [
         'v8_shared_internal_headers',
         'v8_libbase',
-        'abseil.gyp:abseil',
       ],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
@@ -1437,6 +1449,9 @@
           'cflags': ['-O1'],
           'cflags!': ['-O3'],
           'sources': ['<(V8_ROOT)/src/torque/implementation-visitor.cc'],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
     },  # torque_base
@@ -1477,7 +1492,6 @@
 
       'dependencies': [
         'v8_headers',
-        'abseil.gyp:abseil',
       ],
 
       'conditions': [
@@ -1718,6 +1732,9 @@
           ],
         }
          ],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # v8_libbase
     {
@@ -1726,7 +1743,6 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_libbase',
-        'abseil.gyp:abseil',
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?sources = ")',
@@ -1760,6 +1776,9 @@
             '<(V8_ROOT)/src/libplatform/tracing/recorder.h',
             '<(V8_ROOT)/src/libplatform/tracing/recorder-mac.cc',
           ],
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
       'direct_dependent_settings': {
@@ -1801,6 +1820,9 @@
             },
           },
         }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1808,7 +1830,6 @@
       ],
       'dependencies': [
         'v8_libbase',
-        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1831,7 +1852,6 @@
         'v8_libplatform',
         'v8_maybe_icu',
         'v8_pch',
-        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1878,6 +1898,9 @@
             },
           },
         }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
+        }],
       ],
     },  # mksnapshot
     {
@@ -1885,7 +1908,6 @@
       'type': 'executable',
       'dependencies': [
         'torque_base',
-        'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
       'conditions': [
@@ -1905,6 +1927,9 @@
               'AdditionalOptions': ['-fno-lto'],
             },
           },
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
       'defines!': [
@@ -1983,7 +2008,6 @@
         'v8_libbase',
         # "build/win:default_exe_manifest",
         'v8_maybe_icu',
-        'abseil.gyp:abseil',
       ],
       'conditions': [
         ['want_separate_host_toolset', {
@@ -2002,6 +2026,9 @@
               'AdditionalOptions': ['-fno-lto'],
             },
           },
+        }],
+        ['node_shared_abseil=="false"', {
+          'dependencies': ['abseil.gyp:abseil'],
         }],
       ],
       'sources': [

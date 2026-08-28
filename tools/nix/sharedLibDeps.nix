@@ -21,6 +21,7 @@
     zlib
     zstd
     ;
+  abseil = pkgs.abseil-cpp;
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
