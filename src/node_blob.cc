@@ -110,9 +110,12 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
-  auto entry = DataQueue::CreateFdEntry(env, args[0]);
+  int status = 0;
+  auto entry = DataQueue::CreateFdEntry(env, args[0], &status);
   if (entry == nullptr) {
-    return THROW_ERR_INVALID_ARG_VALUE(env, "Unable to open file as blob");
+    // The file could not be stat'd. Report the libuv error so callers can tell
+    // ENOENT apart from any other reason the path could not be used.
+    return env->ThrowUVException(status, "stat", nullptr, *path);
   }
 
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
