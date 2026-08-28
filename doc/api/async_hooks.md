@@ -814,9 +814,9 @@ See the section on [promise execution tracking][].
 
 ```js
 const server = net.createServer((conn) => {
-  // The resource that caused (or triggered) this callback to be called
-  // was that of the new connection. Thus the return value of triggerAsyncId()
-  // is the asyncId of "conn".
+  // Returns the triggerAsyncId of the server, not of the new connection,
+  // because the callback runs in the execution scope of the server's
+  // MakeCallback().
   async_hooks.triggerAsyncId();
 
 }).listen(port, () => {
