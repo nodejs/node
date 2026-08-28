@@ -34,6 +34,14 @@ runner.bench('mixed timing', { samples: 1 }, (b) => {
   b.start();
   b.record({ duration_ns: 1n, operations: 1 });
 });
+runner.bench('start after record', { samples: 1 }, (b) => {
+  b.record({ duration_ns: 1n, operations: 1 });
+  b.start();
+});
+runner.bench('end after record', { samples: 1 }, (b) => {
+  b.record({ duration_ns: 1n, operations: 1 });
+  b.end(1);
+});
 runner.bench('duplicate record', { samples: 1 }, (b) => {
   b.record({ duration_ns: 1n, operations: 1 });
   b.record({ duration_ns: 1n, operations: 1 });
@@ -51,6 +59,12 @@ runner.bench('reentrant record', { samples: 1 }, (b) => {
 runner.bench('uncloneable detail', { samples: 1 }, (b) => {
   b.record({ duration_ns: 1n, operations: 1, detail: () => {} });
 });
+runner.bench('caught contract violation', { samples: 1 },
+             common.mustCall((b) => {
+               b.start();
+               assert.throws(() => b.start(), { code: 'ERR_INVALID_STATE' });
+               b.end(1);
+             }));
 
 (async () => {
   const records = await runner.run().toArray();
@@ -73,10 +87,16 @@ runner.bench('uncloneable detail', { samples: 1 }, (b) => {
                      'ERR_OUT_OF_RANGE');
   assert.strictEqual(byName.get('mixed timing').error.code,
                      'ERR_INVALID_STATE');
+  assert.strictEqual(byName.get('start after record').error.code,
+                     'ERR_INVALID_STATE');
+  assert.strictEqual(byName.get('end after record').error.code,
+                     'ERR_INVALID_STATE');
   assert.strictEqual(byName.get('duplicate record').error.code,
                      'ERR_INVALID_STATE');
   assert.strictEqual(byName.get('reentrant record').error.code,
                      'ERR_INVALID_STATE');
   assert.strictEqual(byName.get('uncloneable detail').error.name,
                      'DataCloneError');
+  assert.match(byName.get('caught contract violation').error.message,
+               /violated the start\(\)\/end\(\) contract/);
 })().then(common.mustCall());
