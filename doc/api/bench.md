@@ -137,6 +137,12 @@ Benchmark files passed to `--bench` should declare benchmarks but must not call
 `--bench-warmup`, `--bench-reporter`, and `--bench-reporter-destination`. See
 the [command-line options documentation][] for details.
 
+Preload modules passed through `--require` or `--import` should not declare
+benchmarks. Such declarations are not associated with an entry file and have
+an `entryFile` value of `null`. Their `fileRunId` identifies the runner or child
+execution in which they occurred. With process isolation, a preload is evaluated
+and its declarations run once for every benchmark child process.
+
 ## Benchmark reporters
 
 The built-in reporters are available from the scheme-only
@@ -262,9 +268,19 @@ benchmark. Later benchmarks continue to run.
 A timeout or abort cannot interrupt synchronous JavaScript and does not forcibly
 cancel asynchronous work that ignores `context.signal`.
 
-The stable `benchId` is based on the source file, hierarchical suite and
-benchmark names, and canonicalized parameters. Declaring the same identity
-more than once reports an error rather than merging the samples.
+The `benchId` is based on the declaration source file, hierarchical suite and
+benchmark names, and canonicalized parameters. It is stable for repeated runs
+from the same source location, but the embedded source value is not normalized
+across checkout roots, module formats, operating systems, or path casing.
+
+Execution scope is represented separately. A `runId` identifies one logical
+run, while `fileRunId` identifies a file runner or child execution within that
+run. The `entryFile` field records which entry-file import caused a declaration
+and is `null` for declarations made by preload modules.
+The same `benchId` can therefore occur under multiple `fileRunId` values when
+entry files use a shared declaration helper. Declaring the same `benchId` more
+than once within one file execution scope reports an error rather than merging
+the samples.
 
 ### `bench.skip([name][, options], fn)`
 
@@ -537,14 +553,20 @@ The events are emitted in execution order:
 * `'bench:diagnostic'`
 * `'bench:summary'`
 
-Every benchmark-scoped event contains `benchId` and `parentId`.
+Every benchmark-scoped event contains `runId`, `fileRunId`, `entryFile`,
+`benchId`, `parentId`, and `namePath`. `runId` and `fileRunId` are opaque and
+change between runs. `entryFile` identifies the top-level benchmark file whose
+loading caused the declaration, while `file` identifies the source location of
+the declaration itself. `parentId` is based on the containing suite's source
+file and hierarchical name path.
+
 `'bench:complete'` data contains a [benchmark result][]. A failed result has an
 additional `error` property and may contain samples recorded before the error.
 A skipped result has an additional `skip` property and an empty `samples`
 array. `'bench:diagnostic'` reports suite and hook errors. `'bench:summary'`
-contains overall `success`, `counts`, `duration_ns`, and `file` properties. The
-`file` is {string|null}; it is `null` when the summary aggregates multiple
-files.
+contains overall `runId`, `fileRunId`, `entryFile`, `success`, `counts`,
+`duration_ns`, and `file` properties. `fileRunId`, `entryFile`, and `file` are
+{string|null}; they are `null` when the summary aggregates multiple files.
 
 ## Sample result
 
@@ -560,10 +582,15 @@ Each measured sample has the following properties:
 
 A completed benchmark result contains:
 
-* `benchId` {string} The stable benchmark identity.
+* `runId` {string} The opaque logical run identity.
+* `fileRunId` {string} The opaque file runner or child execution identity.
+* `entryFile` {string|null} The top-level file that caused this declaration.
+* `benchId` {string} The stable declaration identity within the same source
+  layout.
 * `parentId` {string|null} The stable containing suite identity.
 * `name` {string} The benchmark name.
-* `file` {string} The source file.
+* `namePath` {string\[]} The hierarchical suite and benchmark names.
+* `file` {string} The declaration source file.
 * `line` {number} The source line.
 * `column` {number} The source column.
 * `tags` {string\[]} The inherited canonical tags.

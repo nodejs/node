@@ -54,6 +54,16 @@ const { setImmediate } = require('timers/promises');
   assert.strictEqual(secondResult.samples.length, 1);
   assert.strictEqual(firstResult.error, undefined);
   assert.strictEqual(secondResult.error, undefined);
+  assert.strictEqual(firstResult.benchId, secondResult.benchId);
+  assert.notStrictEqual(firstResult.runId, secondResult.runId);
+  assert.strictEqual(firstResult.fileRunId, firstResult.runId);
+  assert.strictEqual(secondResult.fileRunId, secondResult.runId);
+  assert.strictEqual(firstResult.entryFile, process.argv[1]);
+  assert.strictEqual(secondResult.entryFile, process.argv[1]);
+  assert.deepStrictEqual(firstResult.namePath, ['same name']);
+  assert.deepStrictEqual(secondResult.namePath, ['same name']);
+  assert(firstRecords.every(({ data }) => data.runId === firstResult.runId));
+  assert(secondRecords.every(({ data }) => data.runId === secondResult.runId));
   assert.strictEqual(
     firstRecords.filter(({ type }) => type === 'bench:summary').length, 1);
   assert.strictEqual(
