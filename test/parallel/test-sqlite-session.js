@@ -682,6 +682,50 @@ test('session - keeps its database alive after the db handle is dropped', async 
   session.close();
 });
 
+// SQLite runs "PRAGMA table_xinfo" from inside its pre-update hook, while it is
+// still walking the connection's session list. Session objects are weak, so a
+// GC during a callback that the PRAGMA triggers could collect a session that
+// JavaScript no longer references and free memory the walk is still using.
+test('session - survives GC during an authorizer callback', (t) => {
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+  database.createSession(); // Never referenced again, so it is collectable.
+
+  let ran = false;
+  database.setAuthorizer((actionCode, param1) => {
+    if (actionCode === constants.SQLITE_PRAGMA && param1 === 'table_xinfo') {
+      ran = true;
+      globalThis.gc();
+      globalThis.gc();
+    }
+    return constants.SQLITE_OK;
+  });
+
+  database.exec('INSERT INTO data VALUES (1)');
+  t.assert.ok(ran, 'the authorizer callback never ran');
+});
+
+test("session - survives GC during a 'sqlite.db.query' subscriber", (t) => {
+  const dc = require('node:diagnostics_channel');
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+  database.createSession(); // Never referenced again, so it is collectable.
+
+  let ran = false;
+  const handler = ({ sql }) => {
+    if (sql.includes('table_xinfo')) {
+      ran = true;
+      globalThis.gc();
+      globalThis.gc();
+    }
+  };
+  dc.subscribe('sqlite.db.query', handler);
+  t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+  database.exec('INSERT INTO data VALUES (1)');
+  t.assert.ok(ran, 'the subscriber never ran');
+});
+
 test('session supports ERM', (t) => {
   const database = new DatabaseSync(':memory:');
   let afterDisposeSession;
