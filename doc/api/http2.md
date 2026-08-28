@@ -1275,10 +1275,7 @@ destroyed.
 
 <!-- YAML
 added: v8.4.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63249
-    description: Documentation-only deprecation.
+deprecated: REPLACEME
 -->
 
 > Stability: 0 - Deprecated. Use `'close'` and `'error'` plus
@@ -1399,9 +1396,12 @@ option must be set for this event to be emitted.
 
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
 
 * Type: {boolean}
+
+> Stability: 0 - Deprecated
 
 `true` if the `Http2Stream` was closed while the writable side was
 still open. When set, the `'aborted'` event was emitted.
@@ -4220,7 +4220,10 @@ data.
 
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated
 
 The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance
 is closed while the underlying writable side is still open.
@@ -4238,9 +4241,12 @@ Just like `'end'`, this event occurs only once per response.
 
 <!-- YAML
 added: v10.1.0
+deprecated: REPLACEME
 -->
 
 * Type: {boolean}
+
+> Stability: 0 - Deprecated
 
 The `request.aborted` property will be `true` if the request has
 been aborted.
