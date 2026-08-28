@@ -501,8 +501,8 @@ Histogram::MeanCIResult Histogram::MeanCI(double confidence) const {
                     static_cast<double>(count - 1);
   double standard_error = std::sqrt(variance / static_cast<double>(count));
   double alpha = 1.0 - confidence;
-  double t_crit = StudentTUpperQuantile(
-      alpha / 2.0, static_cast<double>(count - 1));
+  double t_crit =
+      StudentTUpperQuantile(alpha / 2.0, static_cast<double>(count - 1));
   double margin = t_crit * standard_error;
   return {mean, mean - margin, mean + margin};
 }
