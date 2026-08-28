@@ -63,17 +63,54 @@ exit code is set to `1`.
 ## Measurement model
 
 Each warmup and measured sample invokes the benchmark function once with a
-fresh {BenchContext}. The function must call `context.start()` and
-`context.end(operations)` exactly once. Setup before `start()` and cleanup after
-`end()` are outside the measured region. Promise-returning functions are
-awaited.
+fresh {BenchContext}. The function must either call `context.start()` and
+`context.end(operations)` exactly once, or call `context.record(sample)` exactly
+once to provide an externally measured sample. Setup before `start()` and
+cleanup after `end()` are outside the measured region. Promise-returning
+functions are awaited.
 
-An event loop turn occurs between sample invocations. The runner executes
+By default, an event loop turn occurs between sample invocations. An embedded
+runner can disable this using `yieldBetweenSamples`. The runner executes
 benchmarks serially, but it does not provide process isolation. Other work in
 the process, JIT compilation, garbage collection, CPU frequency changes, and
 system load can all affect results. Keep raw samples when comparing results and
 investigate noisy or skewed distributions rather than treating a confidence
 interval as a pass/fail threshold.
+
+Calling `context.done()` during a measured sample completes the benchmark after
+that sample. This allows a higher-level tool to treat `samples` as a maximum and
+implement a dynamic sampling policy.
+
+## Reusable runners
+
+The module-level declaration functions use a shared runner and schedule it
+automatically. Higher-level tools can create isolated, explicitly started
+runners instead:
+
+```mjs
+import { createRunner } from 'node:bench';
+
+const runner = createRunner({ yieldBetweenSamples: false });
+
+runner.bench('example', { samples: 100 }, (b) => {
+  const operations = chooseOperationCount();
+  b.start();
+  runOperations(operations);
+  const sample = b.end(operations);
+
+  if (hasEnoughData(sample)) b.done();
+});
+
+for await (const record of runner.run()) {
+  // Consume structured benchmark records.
+}
+```
+
+Each runner has independent declarations, hooks, filtering, and output. Unlike
+the module-level declarations, creating a benchmark on an explicit runner does
+not schedule execution. This allows packages to collect declarations and start
+them later. Calling the explicit runner's `run()` function prevents additional
+declarations and a second call to `run()` is an error.
 
 ## Command-line runner
 
@@ -160,6 +197,29 @@ async function* names(source) {
 run().compose(names).pipe(process.stdout);
 ```
 
+## `createRunner([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `yieldBetweenSamples` {boolean} Schedule an event loop turn between sample
+    callbacks. Disabling this also prevents timer-based abort signals from
+    firing between synchronous callbacks. Benchmark timeouts continue to be
+    checked against a monotonic deadline. **Default:** `true`.
+* Returns: {Object} An isolated benchmark runner with bound `after`, `afterEach`,
+  `before`, `beforeEach`, `bench`, `describe`, `run`, and `suite` functions.
+
+Creates an explicitly started benchmark runner. Declarations made through one
+runner do not interact with declarations made through another runner or through
+the module-level functions. Call the returned `run()` function to start the
+runner and obtain its {BenchmarksStream}.
+
+Each runner can be started once. Its `run()` function accepts the same options
+as the module-level [`run()`][]. `run({ yieldBetweenSamples })` overrides the
+value passed to `createRunner()`.
+
 ## `bench([name][, options], fn)`
 
 <!-- YAML
@@ -175,8 +235,9 @@ added: REPLACEME
   * `params` {Object} String, finite number, or boolean metadata identifying
     this benchmark configuration. Parameter keys are sorted when constructing
     the stable benchmark identity. **Default:** An empty object.
-  * `samples` {number} The number of measured callback invocations. Must be a
-    positive 32-bit unsigned integer. **Default:** `30`.
+  * `samples` {number} The maximum number of measured callback invocations.
+    Must be a positive 32-bit unsigned integer. The benchmark may finish earlier
+    by calling `context.done()`. **Default:** `30`.
   * `signal` {AbortSignal} Allows aborting this benchmark.
   * `skip` {boolean|string} If truthy, the benchmark is skipped. A string is
     included in the result as the skip reason. **Default:** `false`.
@@ -283,7 +344,7 @@ added: REPLACEME
 
 Registers a hook that runs once before each complete logical benchmark in the
 current suite. It does not run before every sample. Per-sample setup belongs in
-the benchmark function before `context.start()`.
+the benchmark function before `context.start()` or `context.record()`.
 
 ## `afterEach(fn)`
 
@@ -296,7 +357,7 @@ added: REPLACEME
 
 Registers a hook that runs once after each complete logical benchmark in the
 current suite. It does not run after every sample. Per-sample cleanup belongs
-in the benchmark function after `context.end()`.
+in the benchmark function after `context.end()` or `context.record()`.
 
 ## `run([options])`
 
@@ -308,17 +369,21 @@ added: REPLACEME
   * `namePattern` {string|RegExp} Only runs benchmarks whose full hierarchical
     name matches the pattern. String values are interpreted as JavaScript
     regular expressions.
-  * `samples` {number} Overrides the number of measured callback invocations
-    for every benchmark. Must be a positive 32-bit unsigned integer.
+  * `samples` {number} Overrides the maximum number of measured callback
+    invocations for every benchmark. Must be a positive 32-bit unsigned integer.
   * `signal` {AbortSignal} Allows aborting in-progress benchmark execution.
   * `warmup` {number} Overrides the number of unreported warmup callback
     invocations for every benchmark. Must be a 32-bit unsigned integer.
+  * `yieldBetweenSamples` {boolean} Schedule an event loop turn between sample
+    callbacks. **Default:** `true`, or the value passed to `createRunner()` for
+    an explicit runner.
 * Returns: {BenchmarksStream}
 
 Returns the object-mode event stream for the in-process benchmark run. Call
 `run()` during the same turn in which benchmarks are declared, before automatic
 execution begins. Calling `run()` is optional when the returned stream is not
-needed.
+needed. An explicit runner created by `createRunner()` does not run
+automatically, so its `run()` function may be called later.
 
 ```mjs
 import { bench, run } from 'node:bench';
@@ -341,6 +406,17 @@ for await (const { type, data } of run()) {
 An instance of `BenchContext` is passed to every benchmark invocation. A new
 instance is created for every warmup and measured sample.
 
+### `context.index`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The zero-based invocation index within the current `context.phase`. Warmup and
+measured samples have separate index sequences.
+
 ### `context.name`
 
 <!-- YAML
@@ -360,6 +436,17 @@ added: REPLACEME
 * {Object}
 
 The benchmark's canonicalized parameter metadata.
+
+### `context.phase`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The current sample phase. It is `'warmup'` for an unreported warmup invocation
+and `'measurement'` for a measured invocation.
 
 ### `context.signal`
 
@@ -381,7 +468,7 @@ added: REPLACEME
 Starts the measured region using `process.hrtime.bigint()`. Calling `start()`
 more than once is an error.
 
-### `context.end(operations)`
+### `context.end(operations[, options])`
 
 <!-- YAML
 added: REPLACEME
@@ -389,10 +476,52 @@ added: REPLACEME
 
 * `operations` {number} The number of completed operations. Must be a positive
   safe integer.
+* `options` {Object}
+  * `detail` {any} Additional structured-cloneable sample data. With CLI process
+    isolation, it must also be supported by advanced child process
+    serialization.
+* Returns: {Object} The sample's `operations`, `duration_ns`, computed `rate`,
+  and optional cloned `detail`.
 
 Ends the measured region. The end timestamp is captured before `operations` is
 validated. Calling `end()` before `start()`, calling it more than once, or
-recording a zero-duration sample is an error.
+recording a zero-duration sample is an error. When provided, `detail` is cloned
+after the end timestamp is captured, so cloning time is outside the measured
+region.
+
+### `context.record(sample)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sample` {Object}
+  * `operations` {number} The number of completed operations. Must be a positive
+    safe integer.
+  * `duration_ns` {bigint} An externally measured positive duration in
+    nanoseconds no greater than `Number.MAX_SAFE_INTEGER`.
+  * `detail` {any} Additional structured-cloneable sample data. With CLI process
+    isolation, it must also be supported by advanced child process
+    serialization.
+* Returns: {Object} The normalized sample, including its computed `rate` and
+  optional cloned `detail`.
+
+Records a measurement made by another clock or execution environment. This is
+useful when a higher-level tool measures work in a worker and needs to exclude
+message transport from the duration. `record()` is mutually exclusive with
+`start()` and `end()` within one callback and must be called exactly once.
+
+### `context.done()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Requests successful benchmark completion after the current measured sample.
+The callback must still call either `start()` and `end()`, or `record()`.
+Calling `done()` during a warmup invocation is an error. The configured
+`samples` value remains the maximum number of measured invocations if `done()`
+is not called.
 
 ## Class: `BenchmarksStream`
 
@@ -422,9 +551,10 @@ files.
 Each measured sample has the following properties:
 
 * `operations` {number} The positive operation count passed to
-  `context.end()`.
+  `context.end()` or `context.record()`.
 * `duration_ns` {bigint} The measured duration in nanoseconds.
 * `rate` {number} Operations per second.
+* `detail` {any} The optional cloned sample detail.
 
 ## Benchmark result
 
@@ -452,5 +582,6 @@ A completed benchmark result contains:
     interval for the median rate, with `lower` and `upper` properties.
   * `skewness` {number} The skewness of the scaled rate histogram.
 
+[`run()`]: #runoptions
 [benchmark result]: #benchmark-result
 [command-line options documentation]: cli.md#--bench

@@ -539,8 +539,9 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Overrides the number of measured callback invocations for every selected
-benchmark. `count` must be an integer between `1` and `4294967295`.
+Overrides the maximum number of measured callback invocations for every
+selected benchmark. A benchmark may finish earlier by calling
+`context.done()`. `count` must be an integer between `1` and `4294967295`.
 
 ### `--bench-warmup=count`
 
