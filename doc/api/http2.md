@@ -669,9 +669,15 @@ added:
 
 * `windowSize` {number}
 
-Sets the local endpoint's window size.
+Sets the local endpoint's connection-level window size.
 The `windowSize` is the total window size to set, not
 the delta.
+
+Increases take effect immediately, but decreases only apply as the window
+already advertised to the peer is consumed, since a window that has been
+advertised cannot be retracted. To use a window smaller than the default from
+the start of the connection, set the `connectionWindowSize` option when
+creating the server or client session instead.
 
 ```mjs
 import { createServer } from 'node:http2';
@@ -2844,6 +2850,9 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65619
+    description: Added the `connectionWindowSize` option.
   - version:
      - v25.7.0
      - v24.15.0
@@ -2961,6 +2970,13 @@ changes:
     error that should tell the peer to not open any more streams, continuing
     to open streams is therefore regarded as a sign of a misbehaving peer.
     **Default:** `100`.
+  * `connectionWindowSize` {number} Sets the initial flow control window for
+    each session, in bytes. This is the total amount of data the remote peer
+    may send across all streams before it has to wait for a `WINDOW_UPDATE`.
+    The equivalent per-stream limit is `settings.initialWindowSize`. The
+    minimum allowed value is `1` and the maximum is 2<sup>31</sup>-1. Values
+    below 65535 will not take effect until the initial protocol-default
+    window of 65535 has been used.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `streamResetBurst` {number} and `streamResetRate` {number} Sets the rate
@@ -3072,6 +3088,9 @@ server.listen(8000);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65619
+    description: Added the `connectionWindowSize` option.
   - version:
      - v25.7.0
      - v24.15.0
@@ -3180,6 +3199,14 @@ changes:
     error that should tell the peer to not open any more streams, continuing
     to open streams is therefore regarded as a sign of a misbehaving peer.
     **Default:** `100`.
+  * `connectionWindowSize` {number} Sets the initial flow control window for
+    each session, in bytes. This is the total amount of data the remote peer
+    may send across all streams before it has to wait for a `WINDOW_UPDATE`.
+    The equivalent per-stream limit is `settings.initialWindowSize`. The
+    minimum allowed value is `1` and the maximum is 2<sup>31</sup>-1. Values
+    below 65535 will not take effect until the initial protocol-default
+    window of 65535 has been used.
+    **Default:** `33554432`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `streamResetBurst` {number} and `streamResetRate` {number} Sets the rate
@@ -3276,6 +3303,9 @@ server.listen(8443);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65619
+    description: Added the `connectionWindowSize` option.
   - version:
       - v15.10.0
       - v14.16.0
@@ -3363,6 +3393,14 @@ changes:
   * `protocol` {string} The protocol to connect with, if not set in the
     `authority`. Value may be either `'http:'` or `'https:'`. **Default:**
     `'https:'`
+  * `connectionWindowSize` {number} Sets the initial flow control window for
+    this session, in bytes. This is the total amount of data the remote peer
+    may send across all streams before it has to wait for a `WINDOW_UPDATE`.
+    The equivalent per-stream limit is `settings.initialWindowSize`. The
+    minimum allowed value is `1` and the maximum is 2<sup>31</sup>-1. Values
+    below 65535 will not take effect until the initial protocol-default
+    window of 65535 has been used.
+    **Default:** `33554432`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `remoteCustomSettings` {Array} The array of integer values determines the
@@ -3795,6 +3833,9 @@ properties.
 * `initialWindowSize` {number} Specifies the _sender's_ initial window size in
   bytes for stream-level flow control. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `4194304`.
+  This is a per-stream limit; the window for the connection as a whole is
+  configured separately with the `connectionWindowSize` option of
+  [`http2.createServer()`][] or [`http2.connect()`][].
 * `maxFrameSize` {number} Specifies the size in bytes of the largest frame
   payload. The minimum allowed value is 16,384. The maximum allowed value is
   2<sup>24</sup>-1. **Default:** `16384`.
@@ -5252,6 +5293,7 @@ you need to implement any fall-back behavior yourself.
 [`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
 [`http2.SecureServer`]: #class-http2secureserver
 [`http2.Server`]: #class-http2server
+[`http2.connect()`]: #http2connectauthority-options-listener
 [`http2.createSecureServer()`]: #http2createsecureserveroptions-onrequesthandler
 [`http2.createServer()`]: #http2createserveroptions-onrequesthandler
 [`http2stream.pushStream()`]: #http2streampushstreamheaders-options-callback
