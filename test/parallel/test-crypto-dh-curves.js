@@ -144,9 +144,15 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     ecdh4.setPrivateKey(ecdh1.getPrivateKey());
     ecdh4.setPublicKey(ecdh1.getPublicKey());
 
+    const ecdh4Secret = ecdh4.computeSecret(ecdh2.getPublicKey());
+    assert.deepStrictEqual(ecdh4.computeSecret(ecdh2.getPublicKey()),
+                           ecdh4Secret);
+
     assert.throws(() => {
       ecdh4.setPublicKey(ecdh3.getPublicKey());
     }, { message: 'Failed to convert Buffer to EC_POINT' });
+    assert.deepStrictEqual(ecdh4.computeSecret(ecdh2.getPublicKey()),
+                           ecdh4Secret);
 
     // Verify that we can use ECDH without having to use newly generated keys.
     const ecdh5 = crypto.createECDH('secp256k1');
@@ -189,6 +195,8 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
     assert.strictEqual(ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex'),
                        sharedSecret);
     assert.strictEqual(ecdh5.computeSecret(peerPubPtUnComp, 'hex', 'hex'),
+                       sharedSecret);
+    assert.strictEqual(ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex'),
                        sharedSecret);
 
     // Verify that we still have the same key pair as before the computation.
@@ -259,4 +267,32 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
     'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
     '-----END EC PRIVATE KEY-----';
   crypto.createSign('SHA256').sign(ecPrivateKey);
+}
+
+if (hasFIPS(3) && availableCurves.has('secp256k1')) {
+  const originalFips = crypto.getFips();
+
+  try {
+    crypto.setFips(0);
+    const local = crypto.createECDH('secp256k1');
+    const peer = crypto.createECDH('secp256k1');
+    local.generateKeys();
+    const peerPublicKey = peer.generateKeys();
+
+    local.computeSecret(peerPublicKey);
+    crypto.setFips(1);
+    assert.throws(() => local.computeSecret(peerPublicKey), {
+      code: 'ERR_CRYPTO_INVALID_KEYPAIR',
+      name: 'RangeError',
+    });
+
+    const installed = crypto.createECDH('secp256k1');
+    installed.setPrivateKey(Buffer.from('cafebabe'.repeat(8), 'hex'));
+    assert.throws(() => installed.computeSecret(peerPublicKey), {
+      code: 'ERR_CRYPTO_INVALID_KEYPAIR',
+      name: 'RangeError',
+    });
+  } finally {
+    crypto.setFips(originalFips);
+  }
 }
