@@ -6,6 +6,23 @@ const assert = require('assert');
 const { bench, createRunner, run } = require('node:bench');
 
 const noop = () => {};
+let functionOverloadCalls = 0;
+let objectOverloadCalls = 0;
+
+function functionOverload(b) {
+  functionOverloadCalls++;
+  b.start();
+  process.hrtime.bigint();
+  b.end(1);
+  b.done();
+}
+
+function objectOverload(b) {
+  objectOverloadCalls++;
+  b.start();
+  process.hrtime.bigint();
+  b.end(1);
+}
 
 assert.throws(() => bench('', noop), { code: 'ERR_INVALID_ARG_VALUE' });
 assert.throws(() => bench('name', null), { code: 'ERR_INVALID_ARG_TYPE' });
@@ -44,6 +61,9 @@ assert.throws(() => createRunner({ yieldBetweenSamples: 1 }),
 assert.throws(() => createRunner({ yieldBetweenSamples: null }),
               { code: 'ERR_INVALID_ARG_TYPE' });
 
+bench(functionOverload);
+bench({ samples: 1 }, objectOverload);
+
 bench('valid', { samples: 1 }, (b) => {
   b.start();
   process.hrtime.bigint();
@@ -53,5 +73,9 @@ bench('valid', { samples: 1 }, (b) => {
 const stream = run();
 stream.on('bench:start', common.mustCall(() => {
   assert.throws(() => bench('late', noop), { code: 'ERR_INVALID_STATE' });
+}, 3));
+stream.on('end', common.mustCall(() => {
+  assert.strictEqual(functionOverloadCalls, 1);
+  assert.strictEqual(objectOverloadCalls, 1);
 }));
 stream.resume();

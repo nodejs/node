@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { bench, run } = require('node:bench');
+const { setTimeout } = require('timers/promises');
 
 const options = { samples: 1 };
 
@@ -31,7 +32,7 @@ bench('timeout', { samples: 1, timeout: 10 }, async () => {
 });
 bench('late timeout', { samples: 1, timeout: 5 }, async (b) => {
   b.start();
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  await setTimeout(30);
   b.end(1);
 });
 
@@ -97,8 +98,8 @@ stream.on('end', common.mustCall(() => {
   assert.strictEqual(duplicates[0].error, undefined);
   assert.match(duplicates[1].error.message, /duplicate benchmark identity/);
   assert.strictEqual(byName.get('continues')[0].error, undefined);
-  setTimeout(common.mustCall(() => {
+  setTimeout(40).then(common.mustCall(() => {
     assert.strictEqual(sampleNames.includes('late timeout'), false);
-  }), 40);
+  }));
 }));
 stream.resume();

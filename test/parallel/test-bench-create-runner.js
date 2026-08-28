@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
+const { setImmediate } = require('timers/promises');
 
 (async () => {
   const first = createRunner({ yieldBetweenSamples: false });
@@ -29,7 +30,7 @@ const { createRunner } = require('node:bench');
       b.end(1);
     }));
 
-  await new Promise((resolve) => setImmediate(resolve));
+  await setImmediate();
   assert.strictEqual(firstCalls, 0);
   assert.strictEqual(secondCalls, 0);
 

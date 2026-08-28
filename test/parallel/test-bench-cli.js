@@ -8,15 +8,24 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
 const basicPattern = fixtures.path('bench-runner/[ab].*');
+const spawnTimeout = common.platformTimeout(30_000);
 
 tmpdir.refresh();
 
+function spawnNode(args, options = undefined) {
+  const result = spawnSync(process.execPath, args, {
+    __proto__: null,
+    encoding: 'utf8',
+    timeout: spawnTimeout,
+    ...options,
+  });
+  assert.ifError(result.error);
+  assert.strictEqual(result.signal, null);
+  return result;
+}
+
 function spawnBench(args, options = undefined) {
-  return spawnSync(process.execPath, [
-    '--no-warnings',
-    '--bench',
-    ...args,
-  ], { __proto__: null, encoding: 'utf8', ...options });
+  return spawnNode(['--no-warnings', '--bench', ...args], options);
 }
 
 function parseRecords(result) {
@@ -40,6 +49,42 @@ function parseOutput(output) {
   assert.strictEqual(result.status, 1);
   assert.strictEqual(result.stdout, '');
   assert.match(result.stderr, /^Could not find/);
+}
+
+if (common.canCreateSymLink()) {
+  const dangling = tmpdir.resolve('dangling.cjs');
+  fs.symlinkSync(tmpdir.resolve('missing.cjs'), dangling);
+  const result = spawnBench([dangling]);
+  assert.strictEqual(result.status, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /^Could not find/);
+}
+
+for (const { patterns, message } of [
+  {
+    patterns: [
+      fixtures.path('bench-runner/a.cjs'),
+      fixtures.path('bench-runner/b.mjs'),
+    ],
+    message: /benchmark child process requires exactly one file/,
+  },
+  {
+    patterns: [fixtures.path('bench-runner/missing.cjs')],
+    message: /^Could not find/,
+  },
+]) {
+  const result = spawnNode([
+    '--no-warnings',
+    '--require', fixtures.path('bench-runner/fake-ipc.cjs'),
+    '--bench',
+    ...patterns,
+  ], {
+    __proto__: null,
+    env: { __proto__: null, ...process.env, NODE_BENCH_CONTEXT: 'child' },
+  });
+  assert.strictEqual(result.status, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, message);
 }
 
 {
@@ -147,6 +192,20 @@ function parseOutput(output) {
 
 {
   const result = spawnBench([
+    '--bench-isolation=none',
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/throws-null.cjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostic = records.find(
+    ({ type }) => type === 'bench:diagnostic').data;
+  assert.strictEqual(diagnostic.message, 'null');
+  assert.strictEqual(records.at(-1).data.success, false);
+}
+
+{
+  const result = spawnBench([
     '--bench-reporter=json',
     fixtures.path('bench-runner/recorded-detail.cjs'),
   ]);
@@ -236,11 +295,89 @@ for (const isolation of ['process', 'none']) {
                      fixtures.path('bench-runner/ipc.cjs'));
 }
 
+for (const { kind, message } of [
+  { kind: 'record', message: /not a valid benchmark record/ },
+  { kind: 'summary', message: /not a valid benchmark summary/ },
+]) {
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/malformed-record.cjs'),
+  ], {
+    env: {
+      __proto__: null,
+      ...process.env,
+      NODE_BENCH_MALFORMED_RECORD: kind,
+    },
+  });
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostics = records.filter(
+    ({ type }) => type === 'bench:diagnostic');
+  assert(diagnostics.some(({ data }) => message.test(data.message)));
+  assert.strictEqual(records.at(-1).data.success, false);
+}
+
+for (const { mode, message } of [
+  { mode: 'code', message: /failed with exit code 2/ },
+  { mode: 'late', message: /failed with exit code 2/ },
+  ...common.isWindows ? [] : [
+    { mode: 'signal', message: /failed with signal SIGTERM/ },
+  ],
+]) {
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/abrupt-exit.cjs'),
+  ], {
+    env: {
+      __proto__: null,
+      ...process.env,
+      NODE_BENCH_EXIT_MODE: mode,
+    },
+  });
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostics = records.filter(
+    ({ type }) => type === 'bench:diagnostic');
+  assert(diagnostics.some(({ data }) => message.test(data.message)));
+}
+
+for (const mode of ['callback', 'throw']) {
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/send-error.cjs'),
+  ], {
+    env: {
+      __proto__: null,
+      ...process.env,
+      NODE_BENCH_SEND_ERROR: mode,
+    },
+  });
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostics = records.filter(
+    ({ type }) => type === 'bench:diagnostic');
+  const messages = diagnostics.map(({ data }) => data.message).join('');
+  assert.match(messages, /benchmark send/);
+}
+
+{
+  const result = spawnBench([
+    '--stack-trace-limit=17',
+    '--random-seed=17',
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/v8-option.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  const records = parseRecords(result);
+  assert.strictEqual(records.find(
+    ({ type }) => type === 'bench:complete').data.name, 'V8 option');
+}
+
 if (common.hasInspector) {
   const result = spawnBench([
     '--inspect=0',
     '--bench-reporter=json',
-    fixtures.path('bench-runner/a.cjs'),
+    fixtures.path('bench-runner/inspector.cjs'),
   ]);
   assert.strictEqual(result.status, 0);
   const records = parseRecords(result);
@@ -248,6 +385,9 @@ if (common.hasInspector) {
     ({ type }) => type === 'bench:diagnostic')
     .map(({ data }) => data.message).join('');
   assert.match(diagnostics, /Debugger listening on ws:\/\//);
+  const completion = records.find(
+    ({ type }) => type === 'bench:complete').data;
+  assert.strictEqual(completion.params.inspectPort, '--inspect-port=0');
 }
 
 {
@@ -309,6 +449,40 @@ if (common.hasInspector) {
 
 {
   const result = spawnBench([
+    `--bench-reporter=${fixtures.fileURL('bench-runner/slow-reporter.cjs')}`,
+    fixtures.path('bench-runner/many-records.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  assert.strictEqual(result.stderr, '');
+  const report = JSON.parse(result.stdout);
+  assert.strictEqual(report.samples, 30);
+  assert.strictEqual(report.stdout,
+                     Array.from({ length: 30 }, (_, i) => `${i}\n`).join(''));
+}
+
+{
+  const result = spawnBench([
+    `--bench-reporter=${fixtures.fileURL('bench-runner/destroying-reporter.cjs')}`,
+    fixtures.path('bench-runner/a.cjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  assert.match(result.stderr, /benchmark reporter closed the stream/);
+}
+
+{
+  const result = spawnBench([
+    '--bench-reporter=json',
+    '--bench-reporter-destination=stdout',
+    '--bench-reporter=data:text/javascript,export default 0',
+    '--bench-reporter-destination=stderr',
+    fixtures.path('bench-runner/a.cjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  assert.match(result.stderr, /is not a valid reporter/);
+}
+
+{
+  const result = spawnBench([
     '--bench-reporter=json',
     fixtures.path('bench-runner/exit-code.cjs'),
   ]);
@@ -318,11 +492,11 @@ if (common.hasInspector) {
 }
 
 {
-  const result = spawnSync(process.execPath, [
+  const result = spawnNode([
     '--no-warnings',
     `--experimental-config-file=${fixtures.path('bench-runner/node.config.json')}`,
     fixtures.path('bench-runner/a.cjs'),
-  ], { __proto__: null, encoding: 'utf8' });
+  ]);
   assert.strictEqual(result.status, 0);
   const records = parseRecords(result);
   assert.strictEqual(records.find(
@@ -384,6 +558,26 @@ for (const { args, message } of [
   {
     args: ['--bench-warmup=abc', 'unused.js'],
     message: /invalid value for --bench-warmup/,
+  },
+  {
+    args: ['--bench-name-pattern=[', 'unused.js'],
+    message: /invalid regular expression/,
+  },
+  {
+    args: ['--eval=1', 'unused.js'],
+    message: /either --bench or --eval can be used, not both/,
+  },
+  {
+    args: ['--interactive', 'unused.js'],
+    message: /either --bench or --interactive can be used, not both/,
+  },
+  {
+    args: ['--watch', 'unused.js'],
+    message: /either --bench or --watch can be used, not both/,
+  },
+  {
+    args: ['--watch-path=.', 'unused.js'],
+    message: /either --bench or --watch can be used, not both/,
   },
   {
     args: ['--check', 'unused.js'],

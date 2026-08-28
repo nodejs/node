@@ -111,4 +111,66 @@ bench('json failed', { samples: 1 }, () => {
                      'broken | 0 | - | - | - | error: boom\n' +
                      'diagnostic: suite problem\n\n' +
                      '1 completed, 1 failed, 1 skipped\n');
+
+  const circular = {};
+  circular.self = circular;
+  const aggregate = new AggregateError([1n], 'aggregate failure');
+  const jsonEdgeChunks = await Readable.from([{
+    type: 'bench:diagnostic',
+    data: { aggregate, circular },
+  }]).compose(json).toArray();
+  const jsonEdge = JSON.parse(jsonEdgeChunks.join(''));
+  assert.deepStrictEqual(jsonEdge.data.aggregate.errors, ['1']);
+  assert.strictEqual(jsonEdge.data.circular.self, '[Circular]');
+
+  async function* undefinedRecord() {
+    yield undefined;
+  }
+  const undefinedChunks = [];
+  for await (const chunk of json(undefinedRecord())) {
+    undefinedChunks.push(chunk);
+  }
+  assert.strictEqual(undefinedChunks.join(''), 'null\n');
+
+  function result(name, rate) {
+    return {
+      type: 'bench:complete',
+      data: {
+        name,
+        params: {},
+        samples: [{}],
+        summary: {
+          mean: rate,
+          median: rate,
+          coefficientOfVariation: 0,
+          confidenceInterval: { lower: rate, upper: rate },
+          skewness: 0,
+        },
+      },
+    };
+  }
+
+  const specEdgeChunks = await Readable.from([
+    result('giga', 1_500_000_000),
+    result('mega', 1_500_000),
+    result('fractional', 0.5),
+    {
+      type: 'bench:complete',
+      data: { name: 'skip', params: {}, samples: [], skip: true },
+    },
+    {
+      type: 'bench:complete',
+      data: { name: 'error', params: {}, samples: [], error: 'failure' },
+    },
+  ]).compose(spec).toArray();
+  const specEdgeOutput = specEdgeChunks.join('');
+  assert.match(specEdgeOutput, /giga \| 1 \| 1\.50G ops\/s/);
+  assert.match(specEdgeOutput, /mega \| 1 \| 1\.50M ops\/s/);
+  assert.match(specEdgeOutput, /fractional \| 1 \| 0\.500 ops\/s/);
+  assert.match(specEdgeOutput, /skip \| 0 \| - \| - \| - \| skipped\n/);
+  assert.match(specEdgeOutput,
+               /error \| 0 \| - \| - \| - \| error: failure/);
+
+  const emptySpecChunks = await Readable.from([]).compose(spec).toArray();
+  assert.deepStrictEqual(emptySpecChunks, []);
 })().then(common.mustCall());
