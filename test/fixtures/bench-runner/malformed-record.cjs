@@ -54,6 +54,15 @@ const record = kind === 'summary' ? {
     fileRunId: process.env.NODE_BENCH_FILE_RUN_ID,
     runId: process.env.NODE_BENCH_RUN_ID,
   },
+} : kind === 'diagnostic' || kind === 'diagnostic-order' ? {
+  type: 'bench:diagnostic',
+  data: {
+    ...benchmarkData,
+    index: 0,
+    level: kind === 'diagnostic' ? 'error' : 'warning',
+    message: 'invalid diagnostic',
+    phase: 'measurement',
+  },
 } : null;
 
 process.send?.({ id, type: 'node:bench:record', record });
