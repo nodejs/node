@@ -388,6 +388,27 @@ for (const isolation of ['process', 'none']) {
   assert(Math.abs(rate - 500_000_000) < 1);
 }
 
+{
+  const result = spawnBench([
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/diagnostic.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0);
+  const records = parseRecords(result);
+  const diagnostic = records.find(
+    ({ type }) => type === 'bench:diagnostic').data;
+  const completion = records.find(
+    ({ type }) => type === 'bench:complete').data;
+  assert.strictEqual(diagnostic.message, 'relayed warning');
+  assert.strictEqual(diagnostic.level, 'warning');
+  assert.strictEqual(diagnostic.phase, 'measurement');
+  assert.strictEqual(diagnostic.index, 0);
+  assert.deepStrictEqual(diagnostic.detail, { value: '42' });
+  assert.strictEqual(diagnostic.benchId, completion.benchId);
+  assert.strictEqual(diagnostic.fileRunId, completion.fileRunId);
+  assert.strictEqual(completion.error, undefined);
+}
+
 for (const { file, status } of [
   { file: 'a.cjs', status: 0 },
   { file: 'error.cjs', status: 1 },
@@ -465,6 +486,8 @@ for (const { kind, message } of [
   { kind: 'record', message: /not a valid benchmark record/ },
   { kind: 'identity', message: /not a valid benchmark record/ },
   { kind: 'plan', message: /not a valid benchmark plan/ },
+  { kind: 'diagnostic', message: /not a valid benchmark diagnostic/ },
+  { kind: 'diagnostic-order', message: /valid lifecycle sequence/ },
   { kind: 'summary', message: /not a valid benchmark summary/ },
 ]) {
   const result = spawnBench([
