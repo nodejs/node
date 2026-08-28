@@ -179,6 +179,21 @@ they do not corrupt reporter output.
 has lower startup overhead, but module, heap, and process state carry between
 files, and user writes share stdout and stderr with reporters.
 
+Worker-thread isolation is not a CLI mode. Each newly constructed {Worker} has a
+separate V8 isolate, JavaScript heap, and event loop, typically with lower
+startup cost than a child process. Reusing a worker preserves its module and heap
+state. Workers also share libuv's process-wide thread pool and can share
+process-global native or addon state, so they do not provide the same boundary
+as process isolation.
+
+Higher-level tools can experiment with worker isolation by loading benchmark
+code inside a worker, measuring there, transferring structured sample data, and
+passing it to [`context.record()`][]. The reported `duration_ns` can exclude
+message transport when the worker captures both timestamps. Tools should
+identify worker modules and workloads explicitly. They should not stringify
+arbitrary functions or closures to move them between isolates, because closures
+cannot be reconstructed with their original lexical environment.
+
 Benchmark files passed to `--bench` should declare benchmarks but must not call
 `run()`. The CLI supports `--bench-name-pattern`, `--bench-samples`,
 `--bench-warmup`, `--bench-reporter`, and `--bench-reporter-destination`. See
@@ -710,6 +725,7 @@ A completed benchmark result contains:
     interval for the median rate, with `lower` and `upper` properties.
   * `skewness` {number} The skewness of the scaled rate histogram.
 
+[`context.record()`]: #contextrecordsample
 [`run()`]: #runoptions
 [benchmark result]: #benchmark-result
 [command-line options documentation]: cli.md#--bench
