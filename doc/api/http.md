@@ -4615,7 +4615,7 @@ Proxy URLs can use either HTTP or HTTPS protocols:
 The `NO_PROXY` environment variable supports several formats:
 
 * `*` - Bypass proxy for all hosts
-* `example.com` - Exact host name match
+* `example.com` - Host and subdomain match (matches `sub.example.com`)
 * `.example.com` - Domain suffix match (matches `sub.example.com`)
 * `*.example.com` - Wildcard domain match
 * `192.168.1.100` - Exact IP address match
