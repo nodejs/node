@@ -33,6 +33,7 @@ on:
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
+      - deps/v8/third_party/abseil-cpp/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
@@ -86,6 +87,7 @@ on:
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
+      - deps/v8/third_party/abseil-cpp/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**

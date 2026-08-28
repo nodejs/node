@@ -1322,6 +1322,7 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/sqlite
 	$(RM) -r $(TARNAME)/deps/uv
 	$(RM) -r $(TARNAME)/deps/uvwasi
+	$(RM) -r $(TARNAME)/deps/v8/third_party/abseil-cpp
 	$(RM) -r $(TARNAME)/deps/zlib
 	$(RM) -r $(TARNAME)/deps/zstd
 else
