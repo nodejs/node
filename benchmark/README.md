@@ -10,6 +10,7 @@ directory, see [the guide on benchmarks](../doc/contributing/writing-and-running
 ## Table of Contents
 
 * [File tree structure](#file-tree-structure)
+* [`node:bench` evaluation tools](#nodebench-evaluation-tools)
 * [Common API](#common-api)
 
 ## File tree structure
@@ -44,6 +45,8 @@ directories.
 * `common.js`: see [Common API](#common-api).
 * `compare.js`: command line tool for comparing performance between different
   Node.js binaries.
+* `compare-node-bench.js`: parallel comparison tool for explicit `node:bench`
+  files. It does not change or invoke `compare.js`.
 * `compare.R`: R script for statistically analyzing the output of
   `compare.js`
 * `run.js`: command line tool for running individual benchmark suite(s).
@@ -51,8 +54,82 @@ directories.
   between different parameters in benchmark configurations,
   for example to analyze the time complexity. Pass `--analyze` to
   summarize the results without R.
+* `scatter-node-bench.js`: parallel scatter-data tool for an explicit
+  `node:bench` file. It does not change or invoke `scatter.js`.
 * `scatter.R`: R script for visualizing the output of `scatter.js` with
   scatter plots.
+
+## `node:bench` evaluation tools
+
+The `compare-node-bench.js` and `scatter-node-bench.js` tools run explicit
+`node:bench` files without changing the existing benchmark framework or its
+tools. Each repeated observation for a benchmark identity is collected by a
+separate process invocation with one measured sample. Benchmarks declared in
+the same file still execute serially in that process and can share JIT, garbage
+collector, heap, and cache state. This differs from legacy configuration-level
+process isolation and must be considered when comparing the frameworks.
+
+Compare two binaries and analyze the compatible CSV using `compare.R`:
+
+```console
+./node benchmark/compare-node-bench.js \
+  --old ./node-main --new ./node-pr --runs 30 -- \
+  benchmark/crypto/_create-hash.node-bench.js > compare-node-bench.csv
+Rscript benchmark/compare.R < compare-node-bench.csv
+```
+
+Pass `--analyze` to run the same Welch analysis inline. `--max-regression N`
+implies `--analyze` and makes the command fail only when the Holm-Bonferroni
+adjusted p-value is below 0.05 and the full 95% confidence interval is worse
+than `-N%`. Requiring both conditions prevents a noisy point estimate from
+failing a regression gate.
+
+```console
+./node benchmark/compare-node-bench.js \
+  --old ./node-main --new ./node-pr --runs 30 \
+  --max-regression 5 -- benchmark/crypto/_create-hash.node-bench.js
+```
+
+Collect parameter data for the parallel buffer benchmark and plot it using
+`scatter.R`:
+
+```console
+./node benchmark/scatter-node-bench.js --node ./node --runs 30 -- \
+  benchmark/buffers/_buffer-compare-offset.node-bench.js \
+  > scatter-node-bench.csv
+Rscript benchmark/scatter.R --xaxis size --category method \
+  --plot scatter-node-bench.png < scatter-node-bench.csv
+```
+
+Pass `--analyze` with an x-axis parameter to summarize the samples without R.
+The output includes mean and median confidence intervals, skew warnings, an
+optional bar chart, and Mann-Whitney U and Cliff's delta comparisons between
+consecutive x-axis values. Use `--category` for a second grouping parameter and
+`--no-chart` to omit the chart.
+
+Because configurations in one file share a process, inline analysis averages
+aggregated configurations into one value per outer process. Consecutive
+x-axis comparisons use alternating, disjoint process sets so the unpaired
+Mann-Whitney test does not treat correlated values as independent samples.
+
+```console
+./node benchmark/scatter-node-bench.js --runs 30 --analyze \
+  --xaxis size --category method -- \
+  benchmark/buffers/_buffer-compare-offset.node-bench.js
+```
+
+A file passed to `scatter-node-bench.js` must use one logical benchmark name.
+Parameter values distinguish its configurations. The tool rejects unstable
+identities and names or parameters that would merge unrelated CSV groups.
+
+The underscore-prefixed benchmark files are parallel ports used to compare the
+measurement frameworks. Legacy discovery ignores them, so the original files
+remain the source benchmarks for `run.js`, `compare.js`, and `scatter.js`. The
+ports use the platform-specific original relative filename as their benchmark
+name and preserve parameter column names to keep CSV grouping compatible. For
+a direct framework comparison, collect the same number of runs from an
+original benchmark with `scatter.js` and from its port with
+`scatter-node-bench.js`, then compare their rate distributions.
 
 ## Common API
 

@@ -6,7 +6,7 @@
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.0 - Early Development
 
 <!-- source_link=lib/bench.js -->
 
