@@ -10,6 +10,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const { backends, WPTRunner } = require('../common/wpt');
 
 const queueProbe = process.env.NODE_TEST_WPT_QUEUE_PROBE === '1';
@@ -106,12 +107,11 @@ async function compare(throws) {
 // End to end: the runner's own reporting has to match too. The webidl spec
 // reports an uncaught error whose name the status file matches on.
 function runDriver(driver, spec, backend) {
-  const { status, stdout, stderr } = spawnSync(
+  const { child: { stdout } } = spawnSyncAndExitWithoutError(
     process.execPath,
     [path.join(__dirname, '../wpt', driver), spec],
     { env: { ...process.env, WPT_BACKEND: backend }, encoding: 'utf8' },
   );
-  assert.strictEqual(status, 0, `${spec} failed on the ${backend} backend:\n${stdout}${stderr}`);
   // Specs run concurrently, so the lines arrive in an arbitrary order.
   return stdout.split('\n').filter((line) => line.startsWith('[')).sort();
 }
