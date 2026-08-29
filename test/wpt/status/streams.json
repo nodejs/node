@@ -8,6 +8,13 @@
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
   },
+  "readable-streams/from.any.js": {
+    "fail": {
+      "expected": [
+        "ReadableStream.from throws on invalid iterables; specifically a string"
+      ]
+    }
+  },
   "readable-streams/owning-type-message-port.tentative.any.js": {
     "fail": {
       "note": "Readable streams with type owning are not yet supported",
