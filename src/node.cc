@@ -1247,13 +1247,13 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       OPENSSL_init();
     }
 #endif
-    crypto::InstallFipsIndicatorCallback();
     if (auto fips_error = crypto::ProcessFipsOptions()) {
       result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
       result->errors_.emplace_back(std::move(*fips_error));
       return result;
     }
+    crypto::InstallFipsIndicatorCallback();
 
     // Ensure CSPRNG is properly seeded.
     CHECK(ncrypto::CSPRNG(nullptr, 0));

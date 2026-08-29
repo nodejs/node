@@ -10,10 +10,11 @@ if (process.features.openssl_is_boringssl)
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 const { internalBinding } = require('internal/test/binding');
 const { testFipsCrypto } = internalBinding('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasOpenSSL3 } = require('../common/crypto');
 
 const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;
@@ -93,6 +94,45 @@ testHelper(
   testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
   'require("crypto").getFips()',
   process.env);
+
+// Explicit provider mode should preserve the behavior of bare --force-fips.
+testHelper(
+  testFipsCrypto() ? 'stdout' : 'stderr',
+  ['--force-fips=provider'],
+  testFipsCrypto() ? kNoFailure : kGenericUserError,
+  testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+  'require("crypto").getFips()',
+  process.env);
+
+{
+  spawnSyncAndAssert(
+    process.execPath, ['--force-fips=invalid', '-e', '0'], {
+      status: 9,
+      stderr: /invalid value for --force-fips; expected 'provider' or 'strict'/,
+    });
+}
+
+if (hasOpenSSL(3, 4)) {
+  testHelper(
+    testFipsCrypto() ? 'stdout' : 'stderr',
+    ['--force-fips=strict'],
+    testFipsCrypto() ? kNoFailure : kGenericUserError,
+    testFipsCrypto() ? FIPS_ENABLED : FIPS_FORCE_ERROR_STRING,
+    'require("crypto").getFips()',
+    process.env);
+} else {
+  spawnSyncAndAssert(
+    process.execPath, ['--enable-fips-indicator-events', '-e', '0'], {
+      status: 9,
+      stderr: /--enable-fips-indicator-events requires OpenSSL 3\.4 or later/,
+    });
+
+  spawnSyncAndAssert(
+    process.execPath, ['--force-fips=strict', '-e', '0'], {
+      status: 9,
+      stderr: /--force-fips=strict requires OpenSSL 3\.4 or later/,
+    });
+}
 
 // By default FIPS should be off in both FIPS and non-FIPS builds
 // unless Node.js was configured using --shared-openssl in

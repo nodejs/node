@@ -7278,7 +7278,9 @@ startup. The following controls are also available:
 * [`--enable-fips`][] and [`--force-fips`][] enable the property query and
   additionally require the configured provider named `fips` to initialize and
   pass its self-test. Node.js exits if that check fails. `--force-fips` also
-  prevents FIPS mode from being disabled from script code.
+  prevents FIPS mode from being disabled from script code. With
+  `--force-fips=strict`, Node.js also rejects non-approved operations reported
+  through the OpenSSL FIPS indicator callback.
 * [`crypto.setFips()`][] changes the FIPS/property-query state. On OpenSSL 3, it
   does not install, load, initialize, or validate a provider. Implementations
   fetched before the call are not changed.
