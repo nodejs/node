@@ -1572,8 +1572,6 @@ passed to `console.error()`.
 
 #### Crypto
 
-> Stability: 1.1 - Active development
-
 ##### Event: `'crypto.fips.indicator'`
 
 <!-- YAML
