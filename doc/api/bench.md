@@ -504,7 +504,7 @@ for await (const { type, data } of run()) {
 added: REPLACEME
 -->
 
-* `path` {string} The absolute path of one benchmark module.
+* `path` {string|Buffer|URL} The path of one benchmark module.
 * `options` {Object}
   * `env` {Object} The child process environment. Property values must be
     strings or `undefined`. This replaces, rather than extends, the parent
@@ -518,18 +518,22 @@ added: REPLACEME
 * Returns: {BenchmarksStream}
 
 Runs exactly one benchmark module in a fresh child process and returns its
-object-mode event stream. `path` is not interpreted as a glob. Unless the signal
-is aborted or the stream is destroyed before startup, every call uses a new
-child. Input discovery, ordering, concurrency, retries, and multi-file
-scheduling remain the caller's responsibility.
+object-mode event stream. A relative `path` is resolved from the current working
+directory when `runFile()` is called. `path` is not interpreted as a glob.
+Unless the signal is aborted or the stream is destroyed before startup, every
+call uses a new child. Input discovery, ordering, concurrency, retries, and
+multi-file scheduling remain the caller's responsibility.
+
+When the Permission Model is enabled, the caller must have file system read
+access to `path` and permission to create child processes.
 
 Records use advanced child process serialization, preserving supported
 structured values such as `bigint` and errors. Child writes to stdout and stderr
-become `'bench:diagnostic'` records. A module loading error, abnormal child exit,
-or cancellation also emits an error diagnostic and produces a terminal
-`'bench:summary'` whose `success` property is `false`; these execution failures
-do not error the stream. If module evaluation fails after declaring benchmarks,
-those declarations still run before the unsuccessful summary.
+become `'bench:diagnostic'` records. A permission failure, module loading error,
+abnormal child exit, or cancellation also emits an error diagnostic and produces
+a terminal `'bench:summary'` whose `success` property is `false`; these execution
+failures do not error the stream. If module evaluation fails after declaring
+benchmarks, those declarations still run before the unsuccessful summary.
 
 `env`, effective inherited options, and an explicitly provided `execArgv` are
 copied when `runFile()` is called. The runner removes `NODE_OPTIONS`, replaces
