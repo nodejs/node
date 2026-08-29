@@ -1023,6 +1023,7 @@ export interface CryptoBinding {
   secureBuffer(length: number): Uint8Array | undefined;
   secureHeapUsed(): bigint | undefined;
   setEngine?(engine: string, flags: number): void;
+  setupFipsIndicatorChannel(): void;
   setFipsCrypto(fips: boolean | number): void;
   startLoadingCertificatesOffThread(): void;
   testFipsCrypto(): 0 | 1;
