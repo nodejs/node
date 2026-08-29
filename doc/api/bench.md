@@ -316,6 +316,9 @@ added: REPLACEME
 * `name` {string} The benchmark name. **Default:** The `name` property of `fn`,
   or `'<anonymous>'` when `fn` has no name.
 * `options` {Object}
+  * `diagnosticChannels` {Array} String diagnostics channel names, deduplicated
+    and inherited from containing suites by union. Symbol values in the array
+    are silently ignored. **Default:** `[]`.
   * `only` {boolean} When any benchmark or containing suite has `only` set,
     benchmarks without `only` in their hierarchy are skipped. **Default:**
     `false`.
@@ -345,6 +348,12 @@ Warmup invocations use the same callback and timing contract as measured
 samples, but their samples are discarded. An exception, rejection, timeout,
 abort, missing timing call, or duplicate timing call stops the current
 benchmark. Later benchmarks continue to run.
+
+For each warmup and measured callback, the runner subscribes to the configured
+diagnostics channels. Each publication queues a context diagnostic whose
+`message` is `{ name, message }`, containing the string channel name and the
+published message. Subscriptions are removed when the callback settles or is
+aborted.
 
 A timeout or abort cannot interrupt synchronous JavaScript and does not forcibly
 cancel asynchronous work that ignores `context.signal`.
@@ -388,6 +397,9 @@ added: REPLACEME
 * `name` {string} The suite name. **Default:** The `name` property of `fn`, or
   `'<anonymous>'` when `fn` has no name.
 * `options` {Object}
+  * `diagnosticChannels` {Array} String diagnostics channel names inherited by
+    nested suites and benchmarks. Symbol values in the array are silently
+    ignored. **Default:** `[]`.
   * `only` {boolean} Selects all benchmarks nested in this suite. **Default:**
     `false`.
   * `skip` {boolean|string} Skips all benchmarks nested in this suite.
@@ -663,7 +675,8 @@ message transport from the duration. `record()` is mutually exclusive with
 added: REPLACEME
 -->
 
-* `message` {string} The diagnostic message.
+* `message` {any} A structured-cloneable diagnostic value. With CLI process
+  isolation, it must also be supported by advanced child process serialization.
 * `options` {Object}
   * `level` {string} Either `'info'` or `'warning'`. **Default:** `'info'`.
   * `detail` {any} Additional structured-cloneable diagnostic data. With CLI
@@ -679,10 +692,10 @@ before a callback failure are emitted before the failed `'bench:complete'`
 event and do not themselves cause the benchmark to fail. If a timeout or abort
 wins before the callback settles, queued diagnostics might not be emitted.
 
-The message and options are validated, and detail is cloned, synchronously.
-Calling `diagnostic()` between `context.start()` and `context.end()` therefore
-includes that work in the measured duration. Invalid arguments or an
-uncloneable detail violate the sample contract.
+The message and detail are cloned synchronously. Options are also validated
+synchronously. Calling `diagnostic()` between `context.start()` and
+`context.end()` therefore includes that work in the measured duration. Invalid
+arguments or an uncloneable message or detail violate the sample contract.
 
 ### `context.done()`
 
@@ -751,6 +764,8 @@ isolation, all files share one runner and their plans are emitted before any
 benchmark executes. Plan data contains the benchmark-scoped identity, location,
 tags, and parameters described in [benchmark result][], together with:
 
+* `diagnosticChannels` {string\[]} The inherited string channel names
+  subscribed to during each callback.
 * `samples` {number} The effective maximum number of measured callback
   invocations after run-level overrides.
 * `warmup` {number} The effective number of unreported warmup callback

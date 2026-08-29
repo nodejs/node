@@ -1,11 +1,17 @@
 'use strict';
 
 const { bench } = require('node:bench');
+const { channel } = require('diagnostics_channel');
 
-bench('diagnostic relay', { samples: 1 }, (b) => {
-  b.diagnostic('relayed warning', {
-    detail: { value: 42n },
-    level: 'warning',
-  });
+const channelName = 'node:bench:test:diagnostic';
+const diagnosticChannel = channel(channelName);
+
+bench('diagnostic relay', {
+  diagnosticChannels: [channelName],
+  samples: 1,
+}, (b) => {
+  const message = { value: 42n };
+  diagnosticChannel.publish(message);
+  message.value = 0n;
   b.record({ duration_ns: 1n, operations: 1 });
 });

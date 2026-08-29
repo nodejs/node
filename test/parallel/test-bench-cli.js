@@ -399,11 +399,14 @@ for (const isolation of ['process', 'none']) {
     ({ type }) => type === 'bench:diagnostic').data;
   const completion = records.find(
     ({ type }) => type === 'bench:complete').data;
-  assert.strictEqual(diagnostic.message, 'relayed warning');
-  assert.strictEqual(diagnostic.level, 'warning');
+  assert.deepStrictEqual(diagnostic.message, {
+    name: 'node:bench:test:diagnostic',
+    message: { value: '42' },
+  });
+  assert.strictEqual(diagnostic.level, 'info');
   assert.strictEqual(diagnostic.phase, 'measurement');
   assert.strictEqual(diagnostic.index, 0);
-  assert.deepStrictEqual(diagnostic.detail, { value: '42' });
+  assert.strictEqual(diagnostic.detail, undefined);
   assert.strictEqual(diagnostic.benchId, completion.benchId);
   assert.strictEqual(diagnostic.fileRunId, completion.fileRunId);
   assert.strictEqual(completion.error, undefined);
