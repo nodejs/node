@@ -410,6 +410,7 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(use_openssl_ca) = false;
   DEFINE_BOOL_FIELD(use_bundled_ca) = false;
   DEFINE_BOOL_FIELD(enable_fips_crypto) = false;
+  DEFINE_BOOL_FIELD(enable_fips_indicator_events) = false;
   DEFINE_BOOL_FIELD(force_fips_crypto) = false;
 #endif  // HAVE_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3

@@ -6,16 +6,25 @@
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
 #include "node_buffer.h"
+#include "node_diagnostics_channel.h"
 #include "node_options-inl.h"
+#include "node_realm-inl.h"
 #include "string_bytes.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
+#include <atomic>
+#include <deque>
+#include <mutex>
 #include "math.h"
 
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "openssl/provider.h"
+#endif
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+#include <openssl/indicator.h>
 #endif
 
 #if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
@@ -41,6 +50,7 @@ using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -206,6 +216,227 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+namespace {
+
+constexpr size_t kMaxPendingFipsIndicatorEvents = 256;
+constexpr std::string_view kFipsIndicatorChannel = "crypto.fips.indicator";
+
+struct FipsIndicatorEvent {
+  std::string operation;
+  std::string reason;
+  bool blocked;
+  uint32_t count = 1;
+  uint32_t dropped = 0;
+};
+
+Local<DictionaryTemplate> GetFipsIndicatorEventTemplate(Environment* env) {
+  auto tmpl = env->fips_indicator_event_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "operation",
+        "reason",
+        "blocked",
+        "count",
+        "dropped",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_fips_indicator_event_template(tmpl);
+  }
+  return tmpl;
+}
+
+class FipsIndicatorState final {
+ public:
+  static FipsIndicatorState& Get() {
+    static FipsIndicatorState state;
+    return state;
+  }
+
+  void Install() {
+    std::call_once(install_once_, [this]() {
+      OSSL_INDICATOR_get_callback(nullptr, &previous_callback_);
+      OSSL_INDICATOR_set_callback(nullptr, OnOpenSSLIndicator);
+    });
+  }
+
+  void Setup(Environment* env) {
+    CHECK(env->owns_process_state());
+    auto channel =
+        diagnostics_channel::Channel::Get(env, kFipsIndicatorChannel);
+    if (!channel) return;
+
+    Realm* realm = env->principal_realm();
+    auto* binding = realm->GetBindingData<diagnostics_channel::BindingData>();
+    CHECK_NOT_NULL(binding);
+    const uint32_t index =
+        binding->GetOrCreateChannelIndex(std::string(kFipsIndicatorChannel));
+
+    {
+      Mutex::ScopedLock lock(mutex_);
+      CHECK_NULL(env_);
+      env_ = env;
+      channel_ = channel;
+    }
+    env->AddCleanupHook(Cleanup, this);
+    binding->SetChannelStatusCallback(
+        index, [this](bool active) { SetActive(active); });
+    SetActive(channel->HasSubscribers());
+  }
+
+ private:
+  void SetActive(bool active) {
+    subscription_generation_++;
+    active_.store(active, std::memory_order_release);
+    if (active) return;
+
+    {
+      Mutex::ScopedLock lock(mutex_);
+      events_.clear();
+      dropped_events_ = 0;
+    }
+  }
+
+  static int OnOpenSSLIndicator(const char* operation,
+                                const char* reason,
+                                const OSSL_PARAM* params) {
+    return Get().OnIndicator(operation, reason, params);
+  }
+
+  static void Cleanup(void* data) {
+    static_cast<FipsIndicatorState*>(data)->CleanupEnvironment();
+  }
+
+  int OnIndicator(const char* operation,
+                  const char* reason,
+                  const OSSL_PARAM* params) {
+    const int previous_result =
+        previous_callback_ == nullptr
+            ? 1
+            : previous_callback_(operation, reason, params);
+    if (!active_.load(std::memory_order_acquire)) return previous_result;
+
+    const bool blocked = previous_result == 0;
+    {
+      Mutex::ScopedLock lock(mutex_);
+      if (env_ != nullptr && active_.load(std::memory_order_relaxed)) {
+        const std::string operation_string =
+            operation == nullptr ? "" : operation;
+        const std::string reason_string = reason == nullptr ? "" : reason;
+        const auto existing = std::find_if(
+            events_.begin(),
+            events_.end(),
+            [&](const FipsIndicatorEvent& event) {
+              return event.operation == operation_string &&
+                     event.reason == reason_string && event.blocked == blocked;
+            });
+        if (existing == events_.end()) {
+          if (events_.size() < kMaxPendingFipsIndicatorEvents) {
+            events_.push_back({operation_string, reason_string, blocked});
+          } else if (dropped_events_ != UINT32_MAX) {
+            dropped_events_++;
+          }
+        } else if (existing->count != UINT32_MAX) {
+          existing->count++;
+        } else if (dropped_events_ != UINT32_MAX) {
+          dropped_events_++;
+        }
+        if (!dispatch_scheduled_) {
+          dispatch_scheduled_ = true;
+          env_->SetImmediateThreadsafe(
+              [](Environment* env) { Get().Drain(env); },
+              CallbackFlags::kUnrefed);
+        }
+      }
+    }
+    return previous_result;
+  }
+
+  void Drain(Environment* env) {
+    CHECK(env->owns_process_state());
+    std::deque<FipsIndicatorEvent> events;
+    {
+      Mutex::ScopedLock lock(mutex_);
+      if (env_ != env) return;
+      events.swap(events_);
+      if (!events.empty()) events.front().dropped = dropped_events_;
+      dropped_events_ = 0;
+      dispatch_scheduled_ = false;
+    }
+    if (events.empty() || !channel_ || !channel_->HasSubscribers()) return;
+
+    Isolate* isolate = env->isolate();
+    HandleScope handle_scope(isolate);
+    Local<Context> context = env->context();
+    const uint64_t subscription_generation = subscription_generation_;
+    for (const auto& event : events) {
+      if (subscription_generation_ != subscription_generation) return;
+      MaybeLocal<Value> values[] = {
+          OneByteString(isolate, event.operation),
+          OneByteString(isolate, event.reason),
+          v8::Boolean::New(isolate, event.blocked),
+          Uint32::New(isolate, event.count),
+          Uint32::New(isolate, event.dropped),
+      };
+      Local<Object> value;
+      if (!NewDictionaryInstance(
+               context, GetFipsIndicatorEventTemplate(env), values)
+               .ToLocal(&value)) {
+        return;
+      }
+      channel_->Publish(env, value);
+      if (subscription_generation_ != subscription_generation) return;
+    }
+  }
+
+  void CleanupEnvironment() {
+    subscription_generation_++;
+    active_.store(false, std::memory_order_release);
+    {
+      Mutex::ScopedLock lock(mutex_);
+      env_ = nullptr;
+      channel_.reset();
+      events_.clear();
+      dropped_events_ = 0;
+      dispatch_scheduled_ = false;
+    }
+  }
+
+  std::once_flag install_once_;
+  std::atomic<bool> active_{false};
+  OSSL_INDICATOR_CALLBACK* previous_callback_ = nullptr;
+  Mutex mutex_;
+  Environment* env_ = nullptr;
+  BaseObjectPtr<diagnostics_channel::Channel> channel_;
+  std::deque<FipsIndicatorEvent> events_;
+  uint32_t dropped_events_ = 0;
+  bool dispatch_scheduled_ = false;
+  uint64_t subscription_generation_ = 0;
+};
+
+}  // namespace
+#endif
+
+void InstallFipsIndicatorCallback() {
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+  if (per_process::cli_options->enable_fips_indicator_events) {
+    FipsIndicatorState::Get().Install();
+  }
+#endif
+}
+
+void SetupFipsIndicatorChannel(const FunctionCallbackInfo<Value>& args) {
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
+  Environment* env = Environment::GetCurrent(args);
+  if (env->owns_process_state() &&
+      per_process::cli_options->enable_fips_indicator_events) {
+    FipsIndicatorState::Get().Setup(env);
+  }
+#else
+  USE(args);
+#endif
+}
+
 std::optional<std::string> ProcessFipsOptions() {
   const bool enable_fips = per_process::cli_options->enable_fips_crypto;
   const bool force_fips = per_process::cli_options->force_fips_crypto;
@@ -284,6 +515,7 @@ void InitCryptoOnce() {
 #endif
 
   OPENSSL_init_ssl(0, settings);
+  InstallFipsIndicatorCallback();
 
 #if OPENSSL_WITH_OPENSSL_PQC
   // Configure all loaded providers to prefer seed-only format for ML-KEM and
@@ -1006,6 +1238,8 @@ void Initialize(Environment* env, Local<Object> target) {
   SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
   SetMethodNoSideEffect(
       context, target, "getFipsCryptoGeneration", GetFipsCryptoGeneration);
+  SetMethod(
+      context, target, "setupFipsIndicatorChannel", SetupFipsIndicatorChannel);
   SetMethod(context, target, "setFipsCrypto", SetFipsCrypto);
   SetMethodNoSideEffect(context, target, "testFipsCrypto", TestFipsCrypto);
 
@@ -1026,6 +1260,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(GetFipsCrypto);
   registry->Register(GetFipsCryptoGeneration);
+  registry->Register(SetupFipsIndicatorChannel);
   registry->Register(SetFipsCrypto);
   registry->Register(TestFipsCrypto);
   registry->Register(SecureBuffer);

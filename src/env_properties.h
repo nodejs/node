@@ -441,6 +441,7 @@
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
   V(ffi_function_constructor_template, v8::FunctionTemplate)                   \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(fips_indicator_event_template, v8::DictionaryTemplate)                     \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \

@@ -885,6 +885,17 @@ Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
 `fips` must be available and initialize successfully. With OpenSSL 1.1.1,
 Node.js must be built against a FIPS-capable OpenSSL.
 
+### `--enable-fips-indicator-events`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Publish OpenSSL FIPS indicator results to the
+[`'crypto.fips.indicator'`][] diagnostics channel. This option requires OpenSSL
+3.4 or later. It does not enable [FIPS mode][] or change whether an operation
+is permitted.
+
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -3883,6 +3894,7 @@ one is included in the list below.
 * `--disable-warning`
 * `--disable-wasm-trap-handler`
 * `--dns-result-order`
+* `--enable-fips-indicator-events`
 * `--enable-fips`
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
@@ -4521,6 +4533,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [`"type"`]: packages.md#type
+[`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read

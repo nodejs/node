@@ -1570,6 +1570,70 @@ passed to `console.warn()`.
 Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
+#### Crypto
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'crypto.fips.indicator'`
+
+* `operation` {string} The provider-defined operation type.
+* `reason` {string} The provider-defined description of why the operation is
+  not approved.
+* `blocked` {boolean} Whether a native indicator callback installed before
+  Node.js blocked the operation.
+* `count` {number} The number of matching pending indicator invocations
+  represented by this message.
+* `dropped` {number} The number of additional indicator invocations dropped
+  before this message was delivered.
+
+Emitted when the OpenSSL FIPS provider used by Node.js detects an operation that
+is not FIPS approved after the corresponding provider check was relaxed. Such
+operations are possible when the provider is configured for backwards
+compatibility. The `operation` and `reason` values come from the provider and
+should be treated as opaque strings rather than stable enumerations.
+
+Start Node.js with [`--enable-fips-indicator-events`][] to enable this channel.
+Without the option, subscribing does not install the OpenSSL callback and no
+messages are published.
+
+Subscribing to the channel is observation-only and never changes the result of
+an operation. Node.js preserves the result from any native indicator callback
+installed before Node.js initializes its crypto support.
+
+Messages are published asynchronously on the main thread because OpenSSL
+indicators can originate from Workers or other threads. Only subscriptions on
+the main thread receive messages. Delivery order relative to the originating
+operation is not defined, and a message cannot be correlated with a particular
+call or Worker.
+
+One cryptographic operation can invoke the OpenSSL indicator more than once.
+Matching pending invocations are coalesced and reflected in `count`, which does
+not necessarily represent a number of cryptographic operations. At most 256
+distinct messages are queued. Additional invocations are reported in `dropped`
+on the first queued message. Queued messages do not keep the event loop active,
+so this channel is best-effort diagnostics rather than an authoritative audit
+log.
+
+This channel observes the default OpenSSL library context used by Node.js. It
+does not observe native addons or other code that uses another `OSSL_LIB_CTX`
+or another copy of `libcrypto`. It is active with OpenSSL 3.4 and later and is
+not available with BoringSSL. A provider configured to reject a check directly,
+including a pedantic OpenSSL FIPS provider, can reject an operation without
+emitting an indicator. Receiving or not receiving a message does not establish
+that Node.js or a cryptographic operation is FIPS validated.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel';
+
+diagnosticsChannel.subscribe('crypto.fips.indicator', (message) => {
+  console.error('Non-approved cryptographic operation', message);
+});
+```
+
 #### HTTP
 
 > Stability: 1 - Experimental
@@ -1961,6 +2025,7 @@ statement, since both are still in use while the event is being delivered; see
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
 [`BoundedChannel`]: #class-boundedchannel
 [`DatabaseSync`]: sqlite.md#class-databasesync
 [`TracingChannel`]: #class-tracingchannel

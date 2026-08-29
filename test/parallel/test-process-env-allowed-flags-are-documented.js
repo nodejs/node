@@ -72,6 +72,7 @@ const conditionalOpts = [
         '--secure-heap',
         '--secure-heap-min',
         '--enable-fips',
+        '--enable-fips-indicator-events',
         '--force-fips',
       ].includes(opt);
     }
