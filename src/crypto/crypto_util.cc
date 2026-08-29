@@ -237,6 +237,10 @@ class FipsIndicatorState final {
   }
 
   void Install() {
+    reject_unapproved_.store(
+        per_process::cli_options->force_fips_crypto &&
+            per_process::cli_options->force_fips_crypto_policy == "strict",
+        std::memory_order_release);
     std::call_once(install_once_, [this]() {
       OSSL_INDICATOR_get_callback(nullptr, &previous_callback_);
       OSSL_INDICATOR_set_callback(nullptr, OnOpenSSLIndicator);
@@ -297,9 +301,12 @@ class FipsIndicatorState final {
         previous_callback_ == nullptr
             ? 1
             : previous_callback_(operation, reason, params);
-    if (!active_.load(std::memory_order_acquire)) return previous_result;
+    const int result = reject_unapproved_.load(std::memory_order_acquire)
+                           ? 0
+                           : previous_result;
+    if (!active_.load(std::memory_order_acquire)) return result;
 
-    const bool blocked = previous_result == 0;
+    const bool blocked = result == 0;
     {
       Mutex::ScopedLock lock(mutex_);
       if (env_ != nullptr && active_.load(std::memory_order_relaxed)) {
@@ -332,7 +339,7 @@ class FipsIndicatorState final {
         }
       }
     }
-    return previous_result;
+    return result;
   }
 
   void Drain(Environment* env) {
@@ -402,6 +409,7 @@ class FipsIndicatorState final {
 
   std::once_flag install_once_;
   std::atomic<bool> active_{false};
+  std::atomic<bool> reject_unapproved_{false};
   OSSL_INDICATOR_CALLBACK* previous_callback_ = nullptr;
   Mutex mutex_;
   Environment* env_ = nullptr;
@@ -417,7 +425,10 @@ class FipsIndicatorState final {
 
 void InstallFipsIndicatorCallback() {
 #if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 4)
-  if (per_process::cli_options->enable_fips_indicator_events) {
+  const auto& options = per_process::cli_options;
+  const bool strict = options->force_fips_crypto &&
+                      options->force_fips_crypto_policy == "strict";
+  if (options->enable_fips_indicator_events || strict) {
     FipsIndicatorState::Get().Install();
   }
 #endif

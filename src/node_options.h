@@ -411,6 +411,7 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(enable_fips_crypto) = false;
   DEFINE_BOOL_FIELD(enable_fips_indicator_events) = false;
   DEFINE_BOOL_FIELD(force_fips_crypto) = false;
+  std::string force_fips_crypto_policy = "provider";
 #endif  // HAVE_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
   DEFINE_BOOL_FIELD(openssl_legacy_provider) = false;

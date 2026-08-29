@@ -850,6 +850,20 @@ Disable loading native addons that are not context-aware.
 .It Fl -force-fips
 Enable FIPS mode at startup and prevent it from being disabled from script
 code. The same OpenSSL requirements as \fB--enable-fips\fR apply.
+An optional mode can be specified using \fB--force-fips=mode\fR:
+.Bl -bullet
+.It
+\fBprovider\fR: Preserve the OpenSSL FIPS provider's configured handling of
+non-approved operations. This is the current default when the mode is
+omitted.
+.It
+\fBstrict\fR: Reject non-approved operations reported through the OpenSSL FIPS
+indicator callback. This mode requires OpenSSL 3.4 or later.
+.El
+The \fBstrict\fR mode only covers operations reported through the callback for
+OpenSSL's default library context. It does not cover native addons that use
+another \fBOSSL_LIB_CTX\fR or another copy of \fBlibcrypto\fR, nor operation-specific
+indicators that do not invoke the callback.
 .
 .It Fl -force-node-api-uncaught-exceptions-policy
 Enforces \fBuncaughtException\fR event on Node-API asynchronous callbacks.
