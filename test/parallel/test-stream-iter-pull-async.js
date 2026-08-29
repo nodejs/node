@@ -170,6 +170,35 @@ async function testPullSignalAbortWhileSourceNextPending() {
   await assert.rejects(next, { name: 'AbortError' });
 }
 
+async function testPullReturnWhileSourceNextPending() {
+  let startNext;
+  const nextStarted = new Promise((resolve) => { startNext = resolve; });
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          startNext();
+          return new Promise(() => {});
+        },
+      };
+    },
+  };
+
+  const iter = pull(source)[Symbol.asyncIterator]();
+  const next = assert.rejects(iter.next(), { name: 'AbortError' });
+  await nextStarted;
+
+  const timeout = {};
+  const result = await Promise.race([
+    iter.return(),
+    new Promise((resolve) => setImmediate(resolve, timeout)),
+  ]);
+
+  assert.notStrictEqual(result, timeout);
+  assert.deepStrictEqual(result, { value: undefined, done: true });
+  await next;
+}
+
 async function testPullSignalAbortWithTransformWhileSourceNextPending() {
   const source = {
     [Symbol.asyncIterator]() {
@@ -417,6 +446,7 @@ async function testTransformOptionsNotShared() {
     testTapCallbackError(),
     testPullSignalAbortMidIteration(),
     testPullSignalAbortWhileSourceNextPending(),
+    testPullReturnWhileSourceNextPending(),
     testPullSignalAbortWithTransformWhileSourceNextPending(),
     testPullConsumerBreakCleanup(),
     testPullTransformReturnsPromise(),
