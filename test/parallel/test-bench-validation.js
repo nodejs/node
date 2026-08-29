@@ -34,6 +34,10 @@ assert.throws(() => bench('name', { timeout: -1 }, noop),
               { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => bench('name', { signal: {} }, noop),
               { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => bench('name', { diagnosticChannels: 'channel' }, noop),
+              { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => bench('name', { diagnosticChannels: [1] }, noop),
+              { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => bench('name', { tags: 'fast' }, noop),
               { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => bench('name', { tags: [''] }, noop),
