@@ -234,6 +234,9 @@
     # for ARM64.
     'v8_control_flow_integrity%': 0,
 
+    # Enable CppGC-based MicrotaskQueue.
+    'v8_cppgc_microtask_queue%': 1,
+
     # Enable the experimental V8 sandbox.
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
@@ -491,6 +494,9 @@
       }],
       ['v8_control_flow_integrity==1', {
         'defines': ['V8_ENABLE_CONTROL_FLOW_INTEGRITY',],
+      }],
+      ['v8_cppgc_microtask_queue==1', {
+        'defines': ['V8_CPPGC_MICROTASK_QUEUE',],
       }],
       ['v8_enable_cet_shadow_stack==1', {
         'defines': ['V8_ENABLE_CET_SHADOW_STACK',],

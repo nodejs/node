@@ -88,6 +88,7 @@
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
     'v8_use_perfetto%': 0,
+    'v8_cppgc_microtask_queue%': 1,
     'tsan%': 0,
 
     ##### end V8 defaults #####
@@ -542,6 +543,9 @@
       }],
       ['v8_enable_map_packing == 1', {
         'defines': ['V8_MAP_PACKING',],
+      }],
+      ['v8_cppgc_microtask_queue == 1', {
+        'defines': ['V8_CPPGC_MICROTASK_QUEUE',],
       }],
       ['tsan == 1', {
         'defines': ['V8_IS_TSAN',],
