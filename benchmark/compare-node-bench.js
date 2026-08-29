@@ -36,9 +36,10 @@ async function main() {
   const runs = parseInteger(cli.optional.runs, 30, '--runs', 1);
   const warmup = parseInteger(cli.optional.warmup, 0, '--warmup', 0);
   const scale = parseInteger(cli.optional.scale, 1000, '--scale', 1);
+  const hasMaxRegression = cli.optional['max-regression'] !== undefined;
   const maxRegression = parseNumber(
     cli.optional['max-regression'], 0, '--max-regression', 0);
-  const analyze = !!cli.optional.analyze || maxRegression > 0;
+  const analyze = !!cli.optional.analyze || hasMaxRegression;
   const options = {
     namePattern: cli.optional['name-pattern'],
     nodeArgs: cli.optional['node-arg'],
@@ -96,7 +97,8 @@ async function main() {
   }
 
   if (analyze) {
-    const result = analyzeCompare(rows, scale, maxRegression);
+    const result = analyzeCompare(
+      rows, scale, hasMaxRegression ? maxRegression : undefined);
     process.stdout.write(result.output);
     if (result.failed) process.exitCode = 1;
     return;
