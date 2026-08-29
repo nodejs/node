@@ -349,6 +349,11 @@ samples, but their samples are discarded. An exception, rejection, timeout,
 abort, missing timing call, or duplicate timing call stops the current
 benchmark. Later benchmarks continue to run.
 
+After a timeout or abort, the runner briefly waits for asynchronous benchmark
+work to settle before continuing. If it remains pending, all later benchmarks
+that were selected to run fail without running so that their measurements
+cannot overlap with that work.
+
 For each warmup and measured callback, the runner subscribes to the configured
 diagnostics channels. Each publication queues a context diagnostic whose
 `message` is `{ name, message }`, containing the string channel name and the
