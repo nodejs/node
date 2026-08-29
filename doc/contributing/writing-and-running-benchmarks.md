@@ -521,6 +521,124 @@ run `node benchmark/scatter.js`.
 node benchmark/scatter.js benchmark/string_decoder/string-decoder.js > scatter.csv
 ```
 
+#### Analyzing the results without R
+
+Pass `--analyze` to summarize the results directly, without generating a csv
+or installing R. It needs `--xaxis` to know which benchmark variable to
+summarize against, and takes an optional `--category` to break each point
+down by a second variable. Any remaining variable that is not constant is
+averaged over, and reported as an aggregated variable.
+
+```bash
+node benchmark/scatter.js --analyze --xaxis chunkLen --category encoding \
+    benchmark/string_decoder/string-decoder.js
+```
+
+```console
+chunkLen  encoding   samples          rate  confidence.interval        median    median.interval
+      16  'ascii'          6   2,248,111.0    61,570.3 (±2.74%)   2,241,996.7   [-3.75%, +4.47%]
+      16  'utf16le'        6   2,004,145.9    33,363.7 (±1.66%)   1,990,015.9   [-1.03%, +3.44%]
+      16  'utf8'           6   1,156,990.9    84,288.2 (±7.29%)   1,186,284.7  [-16.23%, +1.15%]  (!)
+     256  'ascii'          6  11,271,912.4   398,786.9 (±3.54%)  10,991,001.5   [-0.47%, +7.61%]
+     256  'utf16le'        6  10,243,336.8   792,495.2 (±7.74%)   9,908,838.3  [-4.73%, +17.25%]  (!)
+     256  'utf8'           6   8,247,482.7   316,510.5 (±3.84%)   8,282,009.5   [-5.80%, +3.19%]
+    1024  'ascii'          6  11,130,650.9   438,019.6 (±3.94%)  10,838,937.5   [-1.34%, +7.10%]
+    1024  'utf16le'        6   9,786,274.4   186,207.1 (±1.90%)   9,690,675.1   [-0.77%, +4.20%]
+    1024  'utf8'           6   8,479,690.1   405,762.8 (±4.79%)   8,525,516.7   [-9.01%, +4.06%]  (!)
+
+Rate in operations/second; longer is faster. │ marks the mean and the
+shaded band (░) is its 95% confidence interval, so bars whose bands
+overlap are not clearly different.
+
+                                  0                           11,670,699.3
+                                  +--------------------------------------+
+chunkLen=16 encoding='ascii'      ███████│                                   2,248,111.0
+chunkLen=16 encoding='utf16le'    ██████│                                    2,004,145.9
+chunkLen=16 encoding='utf8'       ███│                                       1,156,990.9
+
+chunkLen=256 encoding='ascii'     █████████████████████████████████████░│░  11,271,912.4
+chunkLen=256 encoding='utf16le'   ████████████████████████████████░░░│░░    10,243,336.8
+chunkLen=256 encoding='utf8'      ███████████████████████████░│              8,247,482.7
+
+chunkLen=1024 encoding='ascii'    █████████████████████████████████████░│░  11,130,650.9
+chunkLen=1024 encoding='utf16le'  █████████████████████████████████│         9,786,274.4
+chunkLen=1024 encoding='utf8'     ████████████████████████████░│             8,479,690.1
+
+Change between consecutive chunkLen values (Mann-Whitney U, Cliff's delta):
+
+  encoding='ascii'
+    16 -> 256    +401.39%  16.0x  exponent=+0.58  p=0.0039  delta=+1.000 (large)
+    256 -> 1024    -1.25%   4.0x  exponent=-0.01  p=0.3367  delta=-0.333 (medium)
+
+  encoding='utf16le'
+    16 -> 256    +411.11%  16.0x  exponent=+0.59  p=0.0039  delta=+1.000 (large)
+    256 -> 1024    -4.46%   4.0x  exponent=-0.03  p=0.1495  delta=-0.500 (large)
+
+  encoding='utf8'
+    16 -> 256    +612.84%  16.0x  exponent=+0.71  p=0.0039  delta=+1.000 (large)
+    256 -> 1024    +2.82%   4.0x  exponent=+0.02  p=0.2002  delta=+0.444 (medium)
+```
+
+The table gives, for each group, the mean rate with the 95% confidence
+interval of the mean, and the median with the 95% confidence interval of the
+median. The median interval is computed with the exact binomial method, which
+assumes nothing about the shape of the distribution, so it is the more
+trustworthy of the two when a benchmark is noisy.
+
+Rows marked `(!)` are exactly those cases: the median falls outside the mean's
+confidence interval, or the sample is strongly skewed. The mean is then being
+pulled by a few unusually slow or fast runs — commonly GC or JIT tiering — and
+more `--runs` will not necessarily fix it.
+
+The final section answers the question the sweep is usually asked to settle:
+whether the parameter changes the rate at all. It compares each x-axis value
+with the previous one using a [Mann-Whitney U test][] and [Cliff's delta][],
+holding the category fixed. Both are non-parametric, because a parameter sweep
+routinely changes the shape and spread of the distribution and not just its
+centre. Above, going from `chunkLen=16` to `256` is a large, unambiguous win
+for every encoding, while `256` to `1024` is negligible — the benchmark has
+already plateaued.
+
+When the x-axis is numeric, each comparison also reports how far the parameter
+moved and the resulting scaling exponent, which is the complexity question
+these sweeps are usually run to answer. Above, a 16× larger chunk yields an
+exponent near `+0.6` (strongly sublinear), and the next 4× yields `-0.01`
+(saturated). The exponent is reported per step rather than as a single fit
+across the whole sweep, because one exponent spanning a curve that changes
+regime describes neither part of it.
+
+A p-value has to be read against what the test was capable of producing. Below
+roughly six runs per group, the smallest p-value the Mann-Whitney test can
+return rises above the usual thresholds — at `--runs 2` the floor is `0.1213`,
+so no comparison can reach significance no matter how large the real effect
+is. `scatter.js` computes that floor and warns when a non-significant result
+therefore carries no information.
+
+Aggregated variables are reported with the share of within-group variance they
+account for. This matters more than it sounds: running the example above
+without `--set inLen=128` reports
+
+```console
+aggregating variable: inLen (explains >99% of within-group variance)
+
+Note: inLen explains most of the spread within each group, so the intervals
+below describe that variable rather than the benchmark's own noise, and more
+--runs will not narrow them. Pin it with --set inLen=<value>, or pass as
+--category, for intervals that can be acted on.
+```
+
+and the confidence intervals widen from around ±3% to over ±50%. That spread
+is a genuine effect of the averaged-over variable, not sampling noise, so
+increasing `--runs` cannot reduce it.
+
+Long or non-printable variable values are abbreviated in the output and listed
+in full under `Abbreviated values:` at the end.
+
+Pass `--no-chart` to omit the bar chart, and `--no-progress` to suppress the
+progress indicator.
+
+#### Analyzing the results with R
+
 After generating the csv, a comparison table can be created using the
 `scatter.R` tool. Even more useful it creates an actual scatter plot when using
 the `--plot filename` option.
@@ -561,7 +679,7 @@ afterwards using tools such as `sed` or `grep`. In the `sed` case be
 sure to keep the first line since that contains the header information.
 
 ```console
-$ cat scatter.csv | sed -E '1p;/([^,]+, ){3}128,/!d' | Rscript benchmark/scatter.R --xaxis chunkLen --category encoding --plot scatter-plot.png --log
+$ cat scatter.csv | sed -E '1p;/([^,]+,){3}128,/!d' | Rscript benchmark/scatter.R --xaxis chunkLen --category encoding --plot scatter-plot.png --log
 
 chunkLen     encoding      rate confidence.interval
       16        ascii 1302078.5            71692.27
@@ -769,6 +887,8 @@ Supported options keys are:
 * `benchmarker` - benchmarker to use, defaults to the first available http
   benchmarker
 
+[Cliff's delta]: https://en.wikipedia.org/wiki/Effect_size#Effect_size_for_ordinal_data
+[Mann-Whitney U test]: https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test
 [autocannon]: https://github.com/mcollina/autocannon
 [benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
 [git-for-windows]: https://git-scm.com/download/win
