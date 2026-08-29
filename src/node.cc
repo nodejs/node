@@ -784,6 +784,20 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     v8_args.emplace_back("--js-source-phase-imports");
   }
 
+  // V8 aborts the process when external memory grows by more than
+  // --external-memory-max-reasonable-size gigabytes in a single step. That
+  // limit is a Chromium-oriented sanity check; allocating a buffer larger
+  // than it is a legitimate thing to do in Node, and should raise a
+  // RangeError rather than crash. Disable the check unless the user asked
+  // for a specific limit.
+  // Refs: https://github.com/nodejs/node/issues/65534
+  if (std::ranges::none_of(v8_args, [](const std::string& arg) {
+        return arg.starts_with("--external-memory-max-reasonable-size") ||
+               arg.starts_with("--external_memory_max_reasonable_size");
+      })) {
+    v8_args.emplace_back("--external-memory-max-reasonable-size=0");
+  }
+
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
   // performance penalty of frequent EINTR wakeups when the profiler is running.
