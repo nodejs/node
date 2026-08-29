@@ -424,6 +424,20 @@ async function testConsumerReturnResolvesPendingRead() {
   assert.strictEqual(readResult.done, true);
 }
 
+async function testEndRejectsAfterConsumerReturn() {
+  const { writer, readable } = push();
+  writer.writeSync('data');
+  const iter = readable[Symbol.asyncIterator]();
+
+  await iter.return();
+
+  await assert.rejects(
+    writer.end({ signal: AbortSignal.timeout(common.platformTimeout(100)) }),
+    { code: 'ERR_INVALID_STATE' },
+  );
+  assert.strictEqual((await iter.next()).done, true);
+}
+
 // iterator.throw() rejects a pending read with the thrown error
 async function testConsumerThrowRejectsPendingRead() {
   const { readable } = push();
@@ -599,6 +613,7 @@ Promise.all([
   testFailRejectsFutureReadWithFalsyReason(),
   testFailRejectsPendingReadWithFalsyReason(),
   testConsumerReturnResolvesPendingRead(),
+  testEndRejectsAfterConsumerReturn(),
   testConsumerThrowRejectsPendingRead(),
   testEndRejectsPendingWrites(),
   testEndIdempotentWhenClosed(),
