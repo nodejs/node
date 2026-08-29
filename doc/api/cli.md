@@ -1580,14 +1580,31 @@ added: v12.12.0
 
 Disable loading native addons that are not [context-aware][].
 
-### `--force-fips`
+### `--force-fips[=mode]`
 
 <!-- YAML
 added: v6.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65645
+    description: Added the optional `provider` and `strict` modes.
 -->
 
 Enable [FIPS mode][] at startup and prevent it from being disabled from script
 code. The same OpenSSL requirements as [`--enable-fips`][] apply.
+
+An optional mode can be specified using `--force-fips=mode`:
+
+* `provider`: Preserve the OpenSSL FIPS provider's configured handling of
+  non-approved operations. This is the current default when the mode is
+  omitted.
+* `strict`: Reject non-approved operations reported through the OpenSSL FIPS
+  indicator callback. This mode requires OpenSSL 3.4 or later.
+
+The `strict` mode only covers operations reported through the callback for
+OpenSSL's default library context. It does not cover native addons that use
+another `OSSL_LIB_CTX` or another copy of `libcrypto`, nor operation-specific
+indicators that do not invoke the callback.
 
 ### `--force-node-api-uncaught-exceptions-policy`
 

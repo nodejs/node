@@ -1583,8 +1583,7 @@ added: REPLACEME
 * `operation` {string} The provider-defined operation type.
 * `reason` {string} The provider-defined description of why the operation is
   not approved.
-* `blocked` {boolean} Whether a native indicator callback installed before
-  Node.js blocked the operation.
+* `blocked` {boolean} Whether an indicator callback blocked the operation.
 * `count` {number} The number of matching pending indicator invocations
   represented by this message.
 * `dropped` {number} The number of additional indicator invocations dropped
@@ -1602,7 +1601,10 @@ messages are published.
 
 Subscribing to the channel is observation-only and never changes the result of
 an operation. Node.js preserves the result from any native indicator callback
-installed before Node.js initializes its crypto support.
+installed before Node.js initializes its crypto support. When
+[`--force-fips=strict`][] is used, Node.js rejects callback-indicated
+non-approved operations whether or not indicator events are enabled or the
+channel has subscribers.
 
 Messages are published asynchronously on the main thread because OpenSSL
 indicators can originate from Workers or other threads. Only subscriptions on
@@ -2026,6 +2028,7 @@ statement, since both are still in use while the event is being delivered; see
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
+[`--force-fips=strict`]: cli.md#--force-fips
 [`BoundedChannel`]: #class-boundedchannel
 [`DatabaseSync`]: sqlite.md#class-databasesync
 [`TracingChannel`]: #class-tracingchannel
