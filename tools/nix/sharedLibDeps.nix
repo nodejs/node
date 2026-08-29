@@ -25,6 +25,7 @@
   abseil = pkgs.abseil-cpp;
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
+  highway = pkgs.libhwy;
   http-parser = pkgs.llhttp;
 }
 // (pkgs.lib.optionalAttrs withLief {

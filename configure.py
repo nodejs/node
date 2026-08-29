@@ -348,6 +348,28 @@ shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
     dest='shared_hdr_histogram_libpath',
     help='a directory to search for the shared HdrHistogram DLL')
 
+shared_optgroup.add_argument('--shared-highway',
+    action='store_true',
+    dest='shared_highway',
+    default=None,
+    help='link to a shared Highway (hwy) DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-highway-includes',
+    action='store',
+    dest='shared_highway_includes',
+    help='directory containing Highway header files')
+
+shared_optgroup.add_argument('--shared-highway-libname',
+    action='store',
+    dest='shared_highway_libname',
+    default='hwy',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-highway-libpath',
+    action='store',
+    dest='shared_highway_libpath',
+    help='a directory to search for the shared Highway DLL')
+
 shared_optgroup.add_argument('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -2908,6 +2930,7 @@ configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('gtest', output)
 configure_library('hdr_histogram', output)
+configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
 configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
