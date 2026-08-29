@@ -50,6 +50,7 @@ using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -229,6 +230,22 @@ struct FipsIndicatorEvent {
   uint32_t dropped = 0;
 };
 
+Local<DictionaryTemplate> GetFipsIndicatorEventTemplate(Environment* env) {
+  auto tmpl = env->fips_indicator_event_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "operation",
+        "reason",
+        "blocked",
+        "count",
+        "dropped",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_fips_indicator_event_template(tmpl);
+  }
+  return tmpl;
+}
+
 class FipsIndicatorState final {
  public:
   static FipsIndicatorState& Get() {
@@ -361,32 +378,17 @@ class FipsIndicatorState final {
     const uint64_t subscription_generation = subscription_generation_;
     for (const auto& event : events) {
       if (subscription_generation_ != subscription_generation) return;
-      Local<Object> value = Object::New(isolate);
-      if (value
-              ->Set(context,
-                    OneByteString(isolate, "operation"),
-                    OneByteString(isolate, event.operation))
-              .IsNothing() ||
-          value
-              ->Set(context,
-                    OneByteString(isolate, "reason"),
-                    OneByteString(isolate, event.reason))
-              .IsNothing() ||
-          value
-              ->Set(context,
-                    OneByteString(isolate, "blocked"),
-                    v8::Boolean::New(isolate, event.blocked))
-              .IsNothing() ||
-          value
-              ->Set(context,
-                    OneByteString(isolate, "count"),
-                    Uint32::New(isolate, event.count))
-              .IsNothing() ||
-          value
-              ->Set(context,
-                    OneByteString(isolate, "dropped"),
-                    Uint32::New(isolate, event.dropped))
-              .IsNothing()) {
+      MaybeLocal<Value> values[] = {
+          OneByteString(isolate, event.operation),
+          OneByteString(isolate, event.reason),
+          v8::Boolean::New(isolate, event.blocked),
+          Uint32::New(isolate, event.count),
+          Uint32::New(isolate, event.dropped),
+      };
+      Local<Object> value;
+      if (!NewDictionaryInstance(
+               context, GetFipsIndicatorEventTemplate(env), values)
+               .ToLocal(&value)) {
         return;
       }
       channel_->Publish(env, value);
