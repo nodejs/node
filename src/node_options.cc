@@ -84,10 +84,20 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
                       "used, not both");
   }
 
+  if (force_fips_crypto_policy != "provider" &&
+      force_fips_crypto_policy != "strict") {
+    errors->push_back(
+        "invalid value for --force-fips; expected 'provider' or 'strict'");
+  }
+
 #if defined(OPENSSL_IS_BORINGSSL) || !OPENSSL_VERSION_PREREQ(3, 4)
   if (enable_fips_indicator_events) {
     errors->push_back(
         "--enable-fips-indicator-events requires OpenSSL 3.4 or later");
+  }
+
+  if (force_fips_crypto && force_fips_crypto_policy == "strict") {
+    errors->push_back("--force-fips=strict requires OpenSSL 3.4 or later");
   }
 #endif
 
@@ -1503,9 +1513,14 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             BOOL_FIELD(enable_fips_indicator_events),
             kAllowedInEnvvar);
   AddOption("--force-fips",
-            "force FIPS crypto (cannot be disabled)",
+            "force FIPS crypto (optional mode: provider or strict)",
             BOOL_FIELD(force_fips_crypto),
             kAllowedInEnvvar);
+  AddOption("[force_fips_crypto_policy]",
+            "",
+            &PerProcessOptions::force_fips_crypto_policy,
+            kAllowedInEnvvar);
+  AddAlias("--force-fips=", {"[force_fips_crypto_policy]", "--force-fips"});
 #ifndef V8_ENABLE_SANDBOX
   AddOption("--secure-heap",
             "total size of the OpenSSL secure heap",
@@ -2105,6 +2120,12 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
     switch (option_info.type) {
       case kBoolean: {
         bool current_value = field->GetBool(opts);
+#if HAVE_OPENSSL
+        if (option_name == "--force-fips" && current_value) {
+          flags.push_back(option_name + "=" + opts->force_fips_crypto_policy);
+          break;
+        }
+#endif
         // For boolean options with default_is_true, we want the opposite logic
         if (option_info.default_is_true) {
           if (!current_value) {
