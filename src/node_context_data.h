@@ -53,7 +53,7 @@ namespace node {
  * via v8::Context::SetAlignedPointerInEmbedderData() (for pointers) and
  * v8::Context::SetEmbedderData() (for v8::Values).
  *
- * There are five types of contexts in Node.js:
+ * There are four types of contexts in Node.js:
  * 1. Default V8 context, with nothing Node.js-specific. This is normally only
  *    created by the embedders that uses v8::Context APIs directly and is not
  *    available through the Node.js JS APIs. Its context snapshot in the
@@ -81,16 +81,10 @@ namespace node {
  *    the initialization code is in node::ContextifyContext::New().
  *    Its context snapshot in the built-in V8 startup snapshot is stored at
  *    node::SnapshotData::kNodeVMContextIndex.
- * 5. ShadowRealm context: When a JS ShadowRealm is created via new ShadowRealm,
- *    it gets its own v8::Context. It also shares the thread, the v8::Isolate
- *    and the node::Environment with the context where the ShadowRealm
- *    constructor is called.  The corresponding data structure is
- *    node::ShadowRealm and the initialization code is in
- *    node::ShadowRealm::New().
  */
 enum ContextEmbedderIndex {
   // Pointer to the node::Environment associated with the context. Only set for
-  // context type 2-5. Used by Environment::GetCurrent(context) to retrieve
+  // context type 2-4. Used by Environment::GetCurrent(context) to retrieve
   // the node::Environment associated with any Node.js context in the
   // V8 callbacks.
   kEnvironment = NODE_CONTEXT_EMBEDDER_DATA_INDEX,
@@ -100,13 +94,13 @@ enum ContextEmbedderIndex {
   kSandboxObject = NODE_CONTEXT_SANDBOX_OBJECT_INDEX,
   // A v8::Value indicating whether the context allows WebAssembly code
   // generation.
-  // Only set for context type 2-5, and for them the default is v8::True.
+  // Only set for context type 2-4, and for them the default is v8::True.
   // For context type 4 it's configurable via options.codeGeneration.wasm in the
   // vm APIs. Used in the default v8::AllowWasmCodeGenerationCallback.
   kAllowWasmCodeGeneration = NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX,
   // A v8::Value indicating whether the context allows code generation via
   // eval() or new Function().
-  // Only set for context type 2-5, and for them the default is v8::True.
+  // Only set for context type 2-4, and for them the default is v8::True.
   // For context type 4 it's configurable via options.codeGeneration.strings in
   // the
   // vm APIs. Used in the default v8::AllowCodeGenerationFromStringsCallback.
@@ -117,14 +111,14 @@ enum ContextEmbedderIndex {
   // to the ContextifyContext from the property interceptors.
   kContextifyContext = NODE_CONTEXT_CONTEXTIFY_CONTEXT_INDEX,
   // Pointer to the node::Realm associated with the context.
-  // Only set for context type 2-3 and 5. For context type 2-3, it points to a
-  // node::PrincipalRealm. For context type 5 it points to a node::ShadowRealm.
+  // Only set for context type 2-3. For those types it points to a
+  // node::PrincipalRealm.
   // Used by Realm::GetCurrent(context) to retrieve the associated node::Realm
   // with any Node.js context in the V8 callbacks.
   kRealm = NODE_CONTEXT_REALM_INDEX,
   // Pointer to a constant address which is
   // node::ContextEmbedderTag::kNodeContextTagPtr.
-  // Only set for context type 2-5. Used by ContextEmbedderTag::IsNodeContext()
+  // Only set for context type 2-4. Used by ContextEmbedderTag::IsNodeContext()
   // to check whether a context is a Node.js context.
   kContextTag = NODE_CONTEXT_TAG,
 };

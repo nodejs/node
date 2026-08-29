@@ -484,8 +484,6 @@ void AsyncWrap::CreatePerContextProperties(Local<Object> target,
 #undef FORCE_SET_TARGET_FIELD
 
   // TODO(legendecas): async hook functions are not realm-aware yet.
-  // This simply avoid overriding principal realm's functions when a
-  // ShadowRealm initializes the binding.
   realm->set_async_hooks_init_function(Local<Function>());
   realm->set_async_hooks_before_function(Local<Function>());
   realm->set_async_hooks_after_function(Local<Function>());

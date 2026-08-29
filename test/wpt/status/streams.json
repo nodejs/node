@@ -1,7 +1,4 @@
 {
-  "idlharness-shadowrealm.window.js": {
-    "skip": "ShadowRealm support is not enabled"
-  },
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
