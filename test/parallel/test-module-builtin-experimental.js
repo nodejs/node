@@ -5,7 +5,6 @@ const { spawnSyncAndAssert } = require('../common/child_process');
 
 const experimentalBuiltins = [
   ['dtls', '--experimental-dtls', common.hasDtls],
-  ['ffi', '--experimental-ffi', common.hasFFI],
   ['quic', '--experimental-quic', common.hasQuic],
   ['vfs', '--experimental-vfs', true],
 ].filter(([, , available]) => available);
@@ -23,7 +22,19 @@ for (const [id, flag] of experimentalBuiltins) {
   ], { status: 0 });
 }
 
+// node:ffi is enabled by default in builds with FFI support and can be
+// disabled with --no-experimental-ffi.
+if (common.hasFFI) {
+  spawnSyncAndAssert(process.execPath, [
+    '--no-experimental-ffi',
+    '-e', `const m = require('node:module'); if (m.builtinModules.includes('node:ffi')) process.exit(1); try { require('node:ffi'); } catch (e) { if (e.code === 'ERR_UNKNOWN_BUILTIN_MODULE') process.exit(0); } process.exit(1);`,
+  ], { status: 0 });
+}
+
 const schemeOnlyBuiltins = ['node:test', 'node:sea'];
+if (common.hasFFI) {
+  schemeOnlyBuiltins.push('node:ffi');
+}
 if (common.hasSQLite) {
   schemeOnlyBuiltins.push('node:sqlite');
 }
