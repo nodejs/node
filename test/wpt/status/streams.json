@@ -8,7 +8,7 @@
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
   },
-  "readable-streams/owning-type-message-port.any.js": {
+  "readable-streams/owning-type-message-port.tentative.any.js": {
     "fail": {
       "note": "Readable streams with type owning are not yet supported",
       "expected": [
@@ -17,10 +17,10 @@
       ]
     }
   },
-  "readable-streams/owning-type-video-frame.any.js": {
+  "readable-streams/owning-type-video-frame.tentative.any.js": {
     "skip": "Browser-specific test"
   },
-  "readable-streams/owning-type.any.js": {
+  "readable-streams/owning-type.tentative.any.js": {
     "fail": {
       "note": "Readable streams with type owning are not yet supported",
       "expected": [

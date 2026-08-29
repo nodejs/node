@@ -72,7 +72,7 @@
     "path": "service-workers"
   },
   "streams": {
-    "commit": "f8f26a372f357370846226ff64db1f9cc98a1edb",
+    "commit": "4832db47614f5f48cc57374cbf5c1f70937fad48",
     "path": "streams"
   },
   "url": {

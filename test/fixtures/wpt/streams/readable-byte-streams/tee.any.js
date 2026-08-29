@@ -1,4 +1,4 @@
-// META: global=window,worker,shadowrealm
+// META: global=window,worker
 // META: script=../resources/rs-utils.js
 // META: script=../resources/test-utils.js
 // META: script=../resources/recording-streams.js
@@ -350,6 +350,39 @@ promise_test(async () => {
   ]);
 
 }, 'ReadableStream teeing with byte source: canceling branch1 should finish when branch2 reads until end of stream');
+
+promise_test(async () => {
+
+  let controller;
+  const rs = new ReadableStream({
+    type: 'bytes',
+    start(c) {
+      controller = c;
+    }
+  });
+
+  const [branch1, branch2] = rs.tee();
+  const reader1 = branch1.getReader({ mode: 'byob' });
+  const reader2 = branch2.getReader({ mode: 'byob' });
+  const cancelPromise = reader1.cancel();
+
+  controller.enqueue(new Uint8Array([0x01]));
+
+  const read2 = await reader2.read(new Uint8Array(1));
+  assert_equals(read2.done, false, 'first read() from branch2 should not be done');
+  assert_typed_array_equals(read2.value, new Uint8Array([0x01]), 'first read() from branch2');
+
+  controller.close();
+
+  const read2b = await reader2.read(new Uint8Array(1));
+  assert_equals(read2b.done, true, 'second read() from branch2 should be done');
+
+  await Promise.all([
+    reader2.closed,
+    cancelPromise
+  ]);
+
+}, 'ReadableStream teeing with byte source: canceling branch1 should finish when branch2 reads with a BYOB reader until end of stream');
 
 promise_test(async t => {
 
