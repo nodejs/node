@@ -13,12 +13,8 @@ added: v23.8.0
 The 'node:quic' module provides an implementation of the QUIC protocol.
 To access it, start Node.js with the `--experimental-quic` option and:
 
-```mjs
+```js
 import quic from 'node:quic';
-```
-
-```cjs
-const quic = require('node:quic');
 ```
 
 The module is only available under the `node:` scheme.
@@ -201,7 +197,7 @@ occurs, so blocked packets consume no resources beyond the check itself.
 
 In **deny** mode (the default), packets from addresses in the list are dropped:
 
-```mjs
+```js
 import { BlockList } from 'node:net';
 import { listen } from 'node:quic';
 
@@ -220,7 +216,7 @@ const endpoint = await listen(onSession, {
 
 In **allow** mode, only packets from addresses in the list are accepted:
 
-```mjs
+```js
 const trusted = new BlockList();
 trusted.addSubnet('10.0.0.0', 8);
 
@@ -331,7 +327,7 @@ These two approaches are mutually exclusive for a given stream.
 Reading is done by iterating the stream as an async iterable. Each iteration
 yields a batch of `Uint8Array` chunks:
 
-```mjs
+```js
 for await (const chunks of stream) {
   for (const chunk of chunks) {
     // Process each Uint8Array chunk
@@ -473,7 +469,7 @@ added: v23.8.0
 
 Initiate a new client-side session.
 
-```mjs
+```js
 import { connect } from 'node:quic';
 import { Buffer } from 'node:buffer';
 
@@ -491,7 +487,7 @@ specify the exact local address to use, or to multiplex multiple
 QUIC sessions over a single local port, pass the `endpoint` option
 with either a `QuicEndpoint` or `EndpointOptions` as the argument.
 
-```mjs
+```js
 import { QuicEndpoint, connect } from 'node:quic';
 
 const endpoint = new QuicEndpoint({
@@ -515,7 +511,7 @@ Configures the endpoint to listen as a server. When a new session is initiated b
 a remote peer, the given `onsession` callback will be invoked with the created
 session.
 
-```mjs
+```js
 import { listen } from 'node:quic';
 
 const endpoint = await listen((session) => {
@@ -629,7 +625,7 @@ added: v23.8.0
 When `endpoint.busy` is set to true, the endpoint will temporarily reject
 new sessions from being created. Read/write.
 
-```mjs
+```js
 // Mark the endpoint busy. New sessions will be prevented.
 endpoint.busy = true;
 
@@ -757,7 +753,7 @@ changing the TLS identity (key/certificate) used for specific host names
 without restarting the endpoint. Existing sessions are unaffected — only
 new sessions will use the updated contexts.
 
-```mjs
+```js
 endpoint.setSNIContexts({
   'api.example.com': { keys: [newApiKey], certs: [newApiCert] },
 });
@@ -1827,12 +1823,8 @@ the implementation pick a generic fallback.
 
 The class is exported from `node:quic`:
 
-```mjs
+```js
 import { QuicError } from 'node:quic';
-```
-
-```cjs
-const { QuicError } = require('node:quic');
 ```
 
 When a `QuicError` is supplied to APIs that emit a wire frame
@@ -1875,7 +1867,7 @@ added:
     transport layer (RFC 9000). Stream resets always carry application
     codes, so the default is `'application'`.
 
-```mjs
+```js
 import { QuicError } from 'node:quic';
 
 const err = new QuicError('rejecting stream', { errorCode: 0x10cn });
@@ -2397,7 +2389,7 @@ Only one async iterator can be obtained per stream. A second call throws
 `ERR_INVALID_STATE`. Non-readable streams (outbound-only unidirectional
 or closed) return an immediately-finished iterator.
 
-```mjs
+```js
 for await (const chunks of stream) {
   for (const chunk of chunks) {
     // Process each Uint8Array chunk
@@ -2407,7 +2399,7 @@ for await (const chunks of stream) {
 
 Compatible with stream/iter utilities:
 
-```mjs
+```js
 import Stream from 'node:stream/iter';
 const body = await Stream.bytes(stream);
 const text = await Stream.text(stream);
@@ -3083,7 +3075,7 @@ added:
 
 Application-specific options.
 
-```mjs
+```js
 const { listen } = await import('node:quic');
 
 await listen((session) => { /* ... */ }, {
@@ -3490,7 +3482,7 @@ contain:
   from ORIGIN advertisements. Wildcard (`'*'`) entries are always
   excluded regardless of this setting.
 
-```mjs
+```js
 const endpoint = await listen(callback, {
   sni: {
     '*': { keys: [defaultKey], certs: [defaultCert] },
@@ -4114,7 +4106,7 @@ applications:
 
 ### Minimal HTTP/3 client
 
-```mjs
+```js
 import { connect } from 'node:quic';
 import process from 'node:process';
 
@@ -4165,7 +4157,7 @@ A few things to note:
 
 ### Minimal HTTP/3 server
 
-```mjs
+```js
 import { listen } from 'node:quic';
 
 const encoder = new TextEncoder();
@@ -4276,7 +4268,7 @@ Each entry provides:
 
 ### Example
 
-```mjs
+```js
 import { PerformanceObserver } from 'node:perf_hooks';
 
 const obs = new PerformanceObserver((list) => {

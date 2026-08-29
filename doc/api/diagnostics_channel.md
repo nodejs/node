@@ -23,12 +23,8 @@ to report arbitrary message data for diagnostics purposes.
 
 It can be accessed using:
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 ```
 
 It is intended that a module writer wanting to report diagnostics messages
@@ -49,33 +45,8 @@ other modules.
 
 Following is a simple overview of the public API.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-// Get a reusable channel object
-const channel = diagnostics_channel.channel('my-channel');
-
-function onMessage(message, name) {
-  // Received data
-}
-
-// Subscribe to the channel
-diagnostics_channel.subscribe('my-channel', onMessage);
-
-// Check if the channel has an active subscriber
-if (channel.hasSubscribers) {
-  // Publish data to the channel
-  channel.publish({
-    some: 'data',
-  });
-}
-
-// Unsubscribe from the channel
-diagnostics_channel.unsubscribe('my-channel', onMessage);
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 // Get a reusable channel object
 const channel = diagnostics_channel.channel('my-channel');
@@ -116,16 +87,8 @@ the message you want to send might be expensive to prepare.
 This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-if (diagnostics_channel.hasSubscribers('my-channel')) {
-  // There are subscribers, prepare and publish message
-}
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 if (diagnostics_channel.hasSubscribers('my-channel')) {
   // There are subscribers, prepare and publish message
@@ -147,14 +110,8 @@ This is the primary entry-point for anyone wanting to publish to a named
 channel. It produces a channel object which is optimized to reduce overhead at
 publish time as much as possible.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channel = diagnostics_channel.channel('my-channel');
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 ```
@@ -176,16 +133,8 @@ Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-diagnostics_channel.subscribe('my-channel', (message, name) => {
-  // Received data
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 diagnostics_channel.subscribe('my-channel', (message, name) => {
   // Received data
@@ -207,20 +156,8 @@ added:
 Remove a message handler previously registered to this channel with
 [`diagnostics_channel.subscribe(name, onMessage)`][].
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-function onMessage(message, name) {
-  // Received data
-}
-
-diagnostics_channel.subscribe('my-channel', onMessage);
-
-diagnostics_channel.unsubscribe('my-channel', onMessage);
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 function onMessage(message, name) {
   // Received data
@@ -254,24 +191,8 @@ Creates a [`TracingChannel`][] wrapper for the given
 channels will be created in the form of `tracing:${name}:${eventType}` where
 `eventType` corresponds to the types of [TracingChannel Channels][].
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channelsByName = diagnostics_channel.tracingChannel('my-channel');
-
-// or...
-
-const channelsByCollection = diagnostics_channel.tracingChannel({
-  start: diagnostics_channel.channel('tracing:my-channel:start'),
-  end: diagnostics_channel.channel('tracing:my-channel:end'),
-  asyncStart: diagnostics_channel.channel('tracing:my-channel:asyncStart'),
-  asyncEnd: diagnostics_channel.channel('tracing:my-channel:asyncEnd'),
-  error: diagnostics_channel.channel('tracing:my-channel:error'),
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channelsByName = diagnostics_channel.tracingChannel('my-channel');
 
@@ -307,21 +228,8 @@ traces synchronous operations. It only has `start` and `end` events, without
 `asyncStart`, `asyncEnd`, or `error` events, making it suitable for tracing
 operations that don't involve asynchronous continuations or error handling.
 
-```mjs
+```js
 import { boundedChannel, channel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-// or...
-
-const wc2 = boundedChannel({
-  start: channel('tracing:my-operation:start'),
-  end: channel('tracing:my-operation:end'),
-});
-```
-
-```cjs
-const { boundedChannel, channel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 
@@ -365,18 +273,8 @@ the message you want to send might be expensive to prepare.
 This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channel = diagnostics_channel.channel('my-channel');
-
-if (channel.hasSubscribers) {
-  // There are subscribers, prepare and publish message
-}
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -398,18 +296,8 @@ added:
 Publish a message to any subscribers to the channel. This will trigger
 message handlers synchronously so they will execute within the same context.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channel = diagnostics_channel.channel('my-channel');
-
-channel.publish({
-  some: 'message',
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -445,18 +333,8 @@ Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channel = diagnostics_channel.channel('my-channel');
-
-channel.subscribe((message, name) => {
-  // Received data
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -496,22 +374,8 @@ changes:
 Remove a message handler previously registered to this channel with
 [`channel.subscribe(onMessage)`][].
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channel = diagnostics_channel.channel('my-channel');
-
-function onMessage(message, name) {
-  // Received data
-}
-
-channel.subscribe(onMessage);
-
-channel.unsubscribe(onMessage);
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -543,22 +407,9 @@ bound the previous `transform` function will be replaced with the new one.
 The `transform` function may be omitted to set the given context data as the
 context directly.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-const store = new AsyncLocalStorage();
-
-const channel = diagnostics_channel.channel('my-channel');
-
-channel.bindStore(store, (data) => {
-  return { data };
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('node:async_hooks');
 
 const store = new AsyncLocalStorage();
 
@@ -585,21 +436,9 @@ added:
 Remove a message handler previously registered to this channel with
 [`channel.bindStore(store)`][].
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-const store = new AsyncLocalStorage();
-
-const channel = diagnostics_channel.channel('my-channel');
-
-channel.bindStore(store);
-channel.unbindStore(store);
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('node:async_hooks');
 
 const store = new AsyncLocalStorage();
 
@@ -637,26 +476,9 @@ The context applied to the store should be accessible in any async code which
 continues from execution which began during the given function, however
 there are some situations in which [context loss][] may occur.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-const store = new AsyncLocalStorage();
-
-const channel = diagnostics_channel.channel('my-channel');
-
-channel.bindStore(store, (message) => {
-  const parent = store.getStore();
-  return new Span(message, parent);
-});
-channel.runStores({ some: 'message' }, () => {
-  store.getStore(); // Span({ some: 'message' })
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('node:async_hooks');
 
 const store = new AsyncLocalStorage();
 
@@ -690,28 +512,9 @@ This method enables the use of JavaScript's explicit resource management
 (`using` syntax with `Symbol.dispose`) to manage store contexts without
 closure wrapping.
 
-```mjs
+```js
 import { channel } from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-const store = new AsyncLocalStorage();
-const ch = channel('my-channel');
-
-ch.bindStore(store, (message) => {
-  return { ...message, timestamp: Date.now() };
-});
-
-{
-  using scope = ch.withStoreScope({ request: 'data' });
-  // Store is entered, data is published
-  console.log(store.getStore()); // { request: 'data', timestamp: ... }
-}
-// Store is automatically restored on scope exit
-```
-
-```cjs
-const { channel } = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('node:async_hooks');
 
 const store = new AsyncLocalStorage();
 const ch = channel('my-channel');
@@ -783,32 +586,8 @@ Helper to subscribe a collection of functions to the corresponding channels.
 This is the same as calling [`channel.subscribe(onMessage)`][] on each channel
 individually.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-
-channels.subscribe({
-  start(message) {
-    // Handle start message
-  },
-  end(message) {
-    // Handle end message
-  },
-  asyncStart(message) {
-    // Handle asyncStart message
-  },
-  asyncEnd(message) {
-    // Handle asyncEnd message
-  },
-  error(message) {
-    // Handle error message
-  },
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 
@@ -852,32 +631,8 @@ Helper to unsubscribe a collection of functions from the corresponding channels.
 This is the same as calling [`channel.unsubscribe(onMessage)`][] on each channel
 individually.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-
-channels.unsubscribe({
-  start(message) {
-    // Handle start message
-  },
-  end(message) {
-    // Handle end message
-  },
-  asyncStart(message) {
-    // Handle asyncStart message
-  },
-  asyncEnd(message) {
-    // Handle asyncEnd message
-  },
-  error(message) {
-    // Handle error message
-  },
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 
@@ -925,20 +680,8 @@ if subscribers are present prior to starting the trace. Subscriptions which are
 added after the trace begins will not receive future events from that trace,
 only future traces will be seen.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-
-channels.traceSync(() => {
-  // Do something
-}, {
-  some: 'thing',
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 
@@ -993,20 +736,8 @@ if subscribers are present prior to starting the trace. Subscriptions which are
 added after the trace begins will not receive future events from that trace,
 only future traces will be seen.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-
-channels.tracePromise(async () => {
-  // Do something
-}, {
-  some: 'thing',
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 
@@ -1049,21 +780,8 @@ if subscribers are present prior to starting the trace. Subscriptions which are
 added after the trace begins will not receive future events from that trace,
 only future traces will be seen.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-
-channels.traceCallback((arg1, callback) => {
-  // Do something
-  callback(null, 'result');
-}, 1, {
-  some: 'thing',
-}, thisArg, arg1, callback);
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 
@@ -1078,30 +796,9 @@ channels.traceCallback((arg1, callback) => {
 The callback will also be run with [`channel.runStores(context, ...)`][] which
 enables context loss recovery in some cases.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-const myStore = new AsyncLocalStorage();
-
-// The start channel sets the initial store data to something
-// and stores that store data value on the trace context object
-channels.start.bindStore(myStore, (data) => {
-  const span = new Span(data);
-  data.span = span;
-  return span;
-});
-
-// Then asyncStart can restore from that data it stored previously
-channels.asyncStart.bindStore(myStore, (data) => {
-  return data.span;
-});
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('node:async_hooks');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 const myStore = new AsyncLocalStorage();
@@ -1135,18 +832,8 @@ This is a helper method available on a [`TracingChannel`][] instance to check if
 any of the [TracingChannel Channels][] have subscribers. A `true` is returned if
 any of them have at least one subscriber, a `false` is returned otherwise.
 
-```mjs
+```js
 import diagnostics_channel from 'node:diagnostics_channel';
-
-const channels = diagnostics_channel.tracingChannel('my-channel');
-
-if (channels.hasSubscribers) {
-  // Do something
-}
-```
-
-```cjs
-const diagnostics_channel = require('node:diagnostics_channel');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 
@@ -1184,18 +871,8 @@ added: v26.1.0
 
 Check if any of the `start` or `end` channels have subscribers.
 
-```mjs
+```js
 import { boundedChannel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-if (wc.hasSubscribers) {
-  // There are subscribers, perform traced operation
-}
-```
-
-```cjs
-const { boundedChannel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 
@@ -1217,23 +894,8 @@ added: v26.1.0
 Subscribe to the bounded channel events. This is equivalent to calling
 [`channel.subscribe(onMessage)`][] on each channel individually.
 
-```mjs
+```js
 import { boundedChannel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-wc.subscribe({
-  start(message) {
-    // Handle start
-  },
-  end(message) {
-    // Handle end
-  },
-});
-```
-
-```cjs
-const { boundedChannel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 
@@ -1262,22 +924,8 @@ added: v26.1.0
 Unsubscribe from the bounded channel events. This is equivalent to calling
 [`channel.unsubscribe(onMessage)`][] on each channel individually.
 
-```mjs
+```js
 import { boundedChannel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-const handlers = {
-  start(message) {},
-  end(message) {},
-};
-
-wc.subscribe(handlers);
-wc.unsubscribe(handlers);
-```
-
-```cjs
-const { boundedChannel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 
@@ -1307,19 +955,8 @@ event around the execution. This runs the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events have any bound stores set to match this trace context.
 
-```mjs
+```js
 import { boundedChannel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-const result = wc.run({ operationId: '123' }, () => {
-  // Perform operation
-  return 42;
-});
-```
-
-```cjs
-const { boundedChannel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 
@@ -1342,24 +979,8 @@ Create a disposable scope for tracing a synchronous operation using JavaScript's
 explicit resource management (`using` syntax). The scope automatically publishes
 `start` and `end` events, enters bound stores, and handles cleanup when disposed.
 
-```mjs
+```js
 import { boundedChannel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-const context = { operationId: '123' };
-{
-  using scope = wc.withScope(context);
-  // Stores are entered, start event is published
-
-  // Perform work and set result on context
-  context.result = 42;
-}
-// End event is published, stores are restored automatically
-```
-
-```cjs
-const { boundedChannel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 
@@ -1388,22 +1009,8 @@ operation, automatically publishing events and managing store contexts.
 
 The scope must be used with the `using` syntax to ensure proper disposal.
 
-```mjs
+```js
 import { boundedChannel } from 'node:diagnostics_channel';
-
-const wc = boundedChannel('my-operation');
-
-const context = {};
-{
-  using scope = wc.withScope(context);
-  // Start event is published, stores are entered
-  context.result = performOperation();
-  // End event is automatically published at end of block
-}
-```
-
-```cjs
-const { boundedChannel } = require('node:diagnostics_channel');
 
 const wc = boundedChannel('my-operation');
 

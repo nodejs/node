@@ -11,22 +11,14 @@ inspector.
 
 It can be accessed using:
 
-```mjs
+```js
 import * as inspector from 'node:inspector/promises';
-```
-
-```cjs
-const inspector = require('node:inspector/promises');
 ```
 
 or
 
-```mjs
+```js
 import * as inspector from 'node:inspector';
-```
-
-```cjs
-const inspector = require('node:inspector');
 ```
 
 ## Promises API
@@ -144,7 +136,7 @@ added: v19.0.0
 
 Posts a message to the inspector back-end.
 
-```mjs
+```js
 import { Session } from 'node:inspector/promises';
 try {
   const session = new Session();
@@ -174,7 +166,7 @@ protocol.
 
 Here's an example showing how to use the [CPU Profiler][]:
 
-```mjs
+```js
 import { Session } from 'node:inspector/promises';
 import fs from 'node:fs';
 const session = new Session();
@@ -195,7 +187,7 @@ fs.writeFileSync('./profile.cpuprofile', JSON.stringify(profile));
 
 Here's an example showing how to use the [Heap Profiler][]:
 
-```mjs
+```js
 import { Session } from 'node:inspector/promises';
 import fs from 'node:fs';
 const session = new Session();

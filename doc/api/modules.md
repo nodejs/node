@@ -219,12 +219,12 @@ directly.
 
 With the following ES Modules:
 
-```mjs
+```js
 // distance.mjs
 export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
 ```
 
-```mjs
+```js
 // point.mjs
 export default class Point {
   constructor(x, y) { this.x = x; this.y = y; }
@@ -233,7 +233,7 @@ export default class Point {
 
 A CommonJS module can load them with `require()`:
 
-```cjs
+```js
 const distance = require('./distance.mjs');
 console.log(distance);
 // [Module: null prototype] {
@@ -262,7 +262,7 @@ the default export in the `.default` property, similar to the results returned b
 To customize what should be returned by `require(esm)` directly, the ES Module can export the
 desired value using the string name `"module.exports"`.
 
-```mjs
+```js
 // point.mjs
 export default class Point {
   constructor(x, y) { this.x = x; this.y = y; }
@@ -276,7 +276,7 @@ export { Point as 'module.exports' };
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
 
-```cjs
+```js
 const Point = require('./point.mjs');
 console.log(Point); // [class Point]
 
@@ -291,7 +291,7 @@ named exports, the module can make sure that the default export is an object wit
 named exports attached to it as properties. For example with the example above,
 `distance` can be attached to the default export, the `Point` class, as a static method.
 
-```mjs
+```js
 export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
 
 export default class Point {
@@ -304,7 +304,7 @@ export { Point as 'module.exports' };
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
 
-```cjs
+```js
 const Point = require('./point.mjs');
 console.log(Point); // [class Point]
 

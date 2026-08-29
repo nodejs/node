@@ -296,7 +296,7 @@ returned Promises will be rejected with an `'AbortError'`.
 
 For `setImmediate()`:
 
-```mjs
+```js
 import { setImmediate as setImmediatePromise } from 'node:timers/promises';
 
 const ac = new AbortController();
@@ -313,47 +313,15 @@ setImmediatePromise('foobar', { signal })
 ac.abort();
 ```
 
-```cjs
-const { setImmediate: setImmediatePromise } = require('node:timers/promises');
-
-const ac = new AbortController();
-const signal = ac.signal;
-
-setImmediatePromise('foobar', { signal })
-  .then(console.log)
-  .catch((err) => {
-    if (err.name === 'AbortError')
-      console.error('The immediate was aborted');
-  });
-
-ac.abort();
-```
-
 For `setTimeout()`:
 
-```mjs
+```js
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 
 const ac = new AbortController();
 const signal = ac.signal;
 
 // We do not `await` the promise so `ac.abort()` is called concurrently.
-setTimeoutPromise(1000, 'foobar', { signal })
-  .then(console.log)
-  .catch((err) => {
-    if (err.name === 'AbortError')
-      console.error('The timeout was aborted');
-  });
-
-ac.abort();
-```
-
-```cjs
-const { setTimeout: setTimeoutPromise } = require('node:timers/promises');
-
-const ac = new AbortController();
-const signal = ac.signal;
-
 setTimeoutPromise(1000, 'foobar', { signal })
   .then(console.log)
   .catch((err) => {
@@ -411,20 +379,12 @@ The `timers/promises` API provides an alternative set of timer functions
 that return `Promise` objects. The API is accessible via
 `require('node:timers/promises')`.
 
-```mjs
+```js
 import {
   setTimeout,
   setImmediate,
   setInterval,
 } from 'node:timers/promises';
-```
-
-```cjs
-const {
-  setTimeout,
-  setImmediate,
-  setInterval,
-} = require('node:timers/promises');
 ```
 
 ### `timersPromises.setTimeout([delay[, value[, options]]])`
@@ -443,7 +403,7 @@ added: v15.0.0
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Timeout`.
 
-```mjs
+```js
 import {
   setTimeout,
 } from 'node:timers/promises';
@@ -451,16 +411,6 @@ import {
 const res = await setTimeout(100, 'result');
 
 console.log(res);  // Prints 'result'
-```
-
-```cjs
-const {
-  setTimeout,
-} = require('node:timers/promises');
-
-setTimeout(100, 'result').then((res) => {
-  console.log(res);  // Prints 'result'
-});
 ```
 
 ### `timersPromises.setImmediate([value[, options]])`
@@ -477,7 +427,7 @@ added: v15.0.0
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Immediate`.
 
-```mjs
+```js
 import {
   setImmediate,
 } from 'node:timers/promises';
@@ -485,16 +435,6 @@ import {
 const res = await setImmediate('result');
 
 console.log(res);  // Prints 'result'
-```
-
-```cjs
-const {
-  setImmediate,
-} = require('node:timers/promises');
-
-setImmediate('result').then((res) => {
-  console.log(res);  // Prints 'result'
-});
 ```
 
 ### `timersPromises.setInterval([delay[, value[, options]]])`
@@ -518,7 +458,7 @@ or implicitly to keep the event loop alive.
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Timeout` between operations.
 
-```mjs
+```js
 import {
   setInterval,
 } from 'node:timers/promises';
@@ -531,23 +471,6 @@ for await (const startTime of setInterval(interval, Date.now())) {
     break;
 }
 console.log(Date.now());
-```
-
-```cjs
-const {
-  setInterval,
-} = require('node:timers/promises');
-const interval = 100;
-
-(async function() {
-  for await (const startTime of setInterval(interval, Date.now())) {
-    const now = Date.now();
-    console.log(now);
-    if ((now - startTime) > 1000)
-      break;
-  }
-  console.log(Date.now());
-})();
 ```
 
 ### `timersPromises.scheduler.wait(delay[, options])`
@@ -576,7 +499,7 @@ being developed as a standard Web Platform API.
 Calling `timersPromises.scheduler.wait(delay, options)` is equivalent
 to calling `timersPromises.setTimeout(delay, undefined, options)`.
 
-```mjs
+```js
 import { scheduler } from 'node:timers/promises';
 
 await scheduler.wait(1000); // Wait one second before continuing

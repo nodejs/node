@@ -157,7 +157,7 @@ executable, users can retrieve the assets using the [`sea.getAsset()`][] and
 
 The single-executable application can access the assets as follows:
 
-```cjs
+```js
 const { getAsset, getAssetAsBlob, getRawAsset, getAssetKeys } = require('node:sea');
 // Get all asset keys.
 const keys = getAssetKeys();

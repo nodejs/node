@@ -16,12 +16,8 @@ need a self-contained file system without touching the actual file-system.
 
 To access it:
 
-```mjs
+```js
 import vfs from 'node:vfs';
-```
-
-```cjs
-const vfs = require('node:vfs');
 ```
 
 This module is only available under the `node:` scheme, and only when Node.js
@@ -45,7 +41,7 @@ boundary is required.
 
 ## Basic usage
 
-```cjs
+```js
 const vfs = require('node:vfs');
 
 const myVfs = vfs.create();
@@ -76,7 +72,7 @@ added: v26.4.0
 
 Convenience factory equivalent to `new VirtualFileSystem(provider, options)`.
 
-```cjs
+```js
 const vfs = require('node:vfs');
 
 // Default in-memory provider
@@ -178,7 +174,7 @@ callback `(err, ...result) => {}`.
 
 `vfs.promises` exposes the promise-based variants:
 
-```cjs
+```js
 const vfs = require('node:vfs');
 
 async function example() {
@@ -215,7 +211,7 @@ methods (such as `readFile`, `writeFile`, `exists`, `copyFile`, `access`, etc.).
 
 ### Creating custom providers
 
-```cjs
+```js
 const { VirtualProvider } = require('node:vfs');
 
 class StaticProvider extends VirtualProvider {
@@ -252,7 +248,7 @@ Locks the provider into read-only mode. Subsequent writes through any
 [`VirtualFileSystem`][] using this provider throw `EROFS`. There is no
 way to revert the provider to writable.
 
-```cjs
+```js
 const vfs = require('node:vfs');
 
 const provider = new vfs.MemoryProvider();
@@ -285,7 +281,7 @@ added: v26.4.0
 * `rootPath` {string} The absolute file-system path to use as the root.
   Must be a non-empty string.
 
-```cjs
+```js
 const vfs = require('node:vfs');
 
 const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));

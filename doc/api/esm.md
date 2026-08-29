@@ -587,7 +587,7 @@ analysis process.
 
 For example, consider a CommonJS module written:
 
-```cjs
+```js
 // cjs.cjs
 exports.name = 'exported';
 ```

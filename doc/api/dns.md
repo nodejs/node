@@ -15,17 +15,8 @@ facilities to perform name resolution. It may not need to perform any network
 communication. To perform name resolution the way other applications on the same
 system do, use [`dns.lookup()`][].
 
-```mjs
+```js
 import dns from 'node:dns';
-
-dns.lookup('example.org', (err, address, family) => {
-  console.log('address: %j family: IPv%s', address, family);
-});
-// address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
-```
-
-```cjs
-const dns = require('node:dns');
 
 dns.lookup('example.org', (err, address, family) => {
   console.log('address: %j family: IPv%s', address, family);
@@ -39,27 +30,8 @@ queries. These functions do not use the same set of configuration files used by
 [`dns.lookup()`][] (e.g. `/etc/hosts`). Use these functions to always perform
 DNS queries, bypassing other name-resolution facilities.
 
-```mjs
+```js
 import dns from 'node:dns';
-
-dns.resolve4('archive.org', (err, addresses) => {
-  if (err) throw err;
-
-  console.log(`addresses: ${JSON.stringify(addresses)}`);
-
-  addresses.forEach((a) => {
-    dns.reverse(a, (err, hostnames) => {
-      if (err) {
-        throw err;
-      }
-      console.log(`reverse for ${a}: ${JSON.stringify(hostnames)}`);
-    });
-  });
-});
-```
-
-```cjs
-const dns = require('node:dns');
 
 dns.resolve4('archive.org', (err, addresses) => {
   if (err) throw err;
@@ -92,19 +64,8 @@ the servers used for a resolver using
 [`resolver.setServers()`][`dns.setServers()`] does not affect
 other resolvers:
 
-```mjs
+```js
 import { Resolver } from 'node:dns';
-const resolver = new Resolver();
-resolver.setServers(['4.4.4.4']);
-
-// This request will use the server at 4.4.4.4, independent of global settings.
-resolver.resolve4('example.org', (err, addresses) => {
-  // ...
-});
-```
-
-```cjs
-const { Resolver } = require('node:dns');
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -308,25 +269,8 @@ time to consult the [Implementation considerations section][] before using
 
 Example usage:
 
-```mjs
+```js
 import dns from 'node:dns';
-const options = {
-  family: 6,
-  hints: dns.ADDRCONFIG | dns.V4MAPPED,
-};
-dns.lookup('example.org', options, (err, address, family) =>
-  console.log('address: %j family: IPv%s', address, family));
-// address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
-
-// When options.all is true, the result will be an Array.
-options.all = true;
-dns.lookup('example.org', options, (err, addresses) =>
-  console.log('addresses: %j', addresses));
-// addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
-```
-
-```cjs
-const dns = require('node:dns');
 const options = {
   family: 6,
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
@@ -396,16 +340,8 @@ will be thrown.
 
 On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
-```mjs
+```js
 import dns from 'node:dns';
-dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
-  console.log(hostname, service);
-  // Prints: localhost ssh
-});
-```
-
-```cjs
-const dns = require('node:dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
   // Prints: localhost ssh
@@ -1005,29 +941,13 @@ the servers used for a resolver using
 [`resolver.setServers()`][`dnsPromises.setServers()`] does not affect
 other resolvers:
 
-```mjs
+```js
 import { Resolver } from 'node:dns/promises';
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
 // This request will use the server at 4.4.4.4, independent of global settings.
 const addresses = await resolver.resolve4('example.org');
-```
-
-```cjs
-const { Resolver } = require('node:dns').promises;
-const resolver = new Resolver();
-resolver.setServers(['4.4.4.4']);
-
-// This request will use the server at 4.4.4.4, independent of global settings.
-resolver.resolve4('example.org').then((addresses) => {
-  // ...
-});
-
-// Alternatively, the same code can be written using async-await style.
-(async function() {
-  const addresses = await resolver.resolve4('example.org');
-})();
 ```
 
 The following methods from the `dnsPromises` API are available:
@@ -1144,7 +1064,7 @@ using `dnsPromises.lookup()`.
 
 Example usage:
 
-```mjs
+```js
 import dns from 'node:dns';
 const dnsPromises = dns.promises;
 const options = {
@@ -1160,27 +1080,6 @@ await dnsPromises.lookup('example.org', options).then((result) => {
 // When options.all is true, the result will be an Array.
 options.all = true;
 await dnsPromises.lookup('example.org', options).then((result) => {
-  console.log('addresses: %j', result);
-  // addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
-});
-```
-
-```cjs
-const dns = require('node:dns');
-const dnsPromises = dns.promises;
-const options = {
-  family: 6,
-  hints: dns.ADDRCONFIG | dns.V4MAPPED,
-};
-
-dnsPromises.lookup('example.org', options).then((result) => {
-  console.log('address: %j family: IPv%s', result.address, result.family);
-  // address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
-});
-
-// When options.all is true, the result will be an Array.
-options.all = true;
-dnsPromises.lookup('example.org', options).then((result) => {
   console.log('addresses: %j', result);
   // addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
 });
@@ -1205,19 +1104,11 @@ will be thrown.
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
 
-```mjs
+```js
 import dnsPromises from 'node:dns/promises';
 const result = await dnsPromises.lookupService('127.0.0.1', 22);
 
 console.log(result.hostname, result.service); // Prints: localhost ssh
-```
-
-```cjs
-const dnsPromises = require('node:dns').promises;
-dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
-  console.log(result.hostname, result.service);
-  // Prints: localhost ssh
-});
 ```
 
 ### `dnsPromises.resolve(hostname[, rrtype])`

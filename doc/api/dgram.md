@@ -10,31 +10,9 @@
 
 The `node:dgram` module provides an implementation of UDP datagram sockets.
 
-```mjs
+```js
 import dgram from 'node:dgram';
 
-const server = dgram.createSocket('udp4');
-
-server.on('error', (err) => {
-  console.error(`server error:\n${err.stack}`);
-  server.close();
-});
-
-server.on('message', (msg, rinfo) => {
-  console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
-});
-
-server.on('listening', () => {
-  const address = server.address();
-  console.log(`server listening ${address.address}:${address.port}`);
-});
-
-server.bind(41234);
-// Prints: server listening 0.0.0.0:41234
-```
-
-```cjs
-const dgram = require('node:dgram');
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
@@ -160,24 +138,9 @@ When sharing a UDP socket across multiple `cluster` workers, the
 `socket.addMembership()` function must be called only once or an
 `EADDRINUSE` error will occur:
 
-```mjs
+```js
 import cluster from 'node:cluster';
 import dgram from 'node:dgram';
-
-if (cluster.isPrimary) {
-  cluster.fork(); // Works ok.
-  cluster.fork(); // Fails with EADDRINUSE.
-} else {
-  const s = dgram.createSocket('udp4');
-  s.bind(1234, () => {
-    s.addMembership('224.0.0.114');
-  });
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
-const dgram = require('node:dgram');
 
 if (cluster.isPrimary) {
   cluster.fork(); // Works ok.
@@ -262,31 +225,9 @@ attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 Example of a UDP server listening on port 41234:
 
-```mjs
+```js
 import dgram from 'node:dgram';
 
-const server = dgram.createSocket('udp4');
-
-server.on('error', (err) => {
-  console.error(`server error:\n${err.stack}`);
-  server.close();
-});
-
-server.on('message', (msg, rinfo) => {
-  console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
-});
-
-server.on('listening', () => {
-  const address = server.address();
-  console.log(`server listening ${address.address}:${address.port}`);
-});
-
-server.bind(41234);
-// Prints: server listening 0.0.0.0:41234
-```
-
-```cjs
-const dgram = require('node:dgram');
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
@@ -696,20 +637,9 @@ This method throws [`ERR_SOCKET_BAD_PORT`][] if called on an unbound socket.
 
 Example of sending a UDP packet to a port on `localhost`;
 
-```mjs
+```js
 import dgram from 'node:dgram';
 import { Buffer } from 'node:buffer';
-
-const message = Buffer.from('Some bytes');
-const client = dgram.createSocket('udp4');
-client.send(message, 41234, 'localhost', (err) => {
-  client.close();
-});
-```
-
-```cjs
-const dgram = require('node:dgram');
-const { Buffer } = require('node:buffer');
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -721,21 +651,9 @@ client.send(message, 41234, 'localhost', (err) => {
 Example of sending a UDP packet composed of multiple buffers to a port on
 `127.0.0.1`;
 
-```mjs
+```js
 import dgram from 'node:dgram';
 import { Buffer } from 'node:buffer';
-
-const buf1 = Buffer.from('Some ');
-const buf2 = Buffer.from('bytes');
-const client = dgram.createSocket('udp4');
-client.send([buf1, buf2], 41234, (err) => {
-  client.close();
-});
-```
-
-```cjs
-const dgram = require('node:dgram');
-const { Buffer } = require('node:buffer');
 
 const buf1 = Buffer.from('Some ');
 const buf2 = Buffer.from('bytes');
@@ -753,22 +671,9 @@ however, sending multiple buffers is faster.
 Example of sending a UDP packet using a socket connected to a port on
 `localhost`:
 
-```mjs
+```js
 import dgram from 'node:dgram';
 import { Buffer } from 'node:buffer';
-
-const message = Buffer.from('Some bytes');
-const client = dgram.createSocket('udp4');
-client.connect(41234, 'localhost', (err) => {
-  client.send(message, (err) => {
-    client.close();
-  });
-});
-```
-
-```cjs
-const dgram = require('node:dgram');
-const { Buffer } = require('node:buffer');
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');

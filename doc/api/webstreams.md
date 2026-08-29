@@ -37,7 +37,7 @@ This example creates a simple `ReadableStream` that pushes the current
 `performance.now()` timestamp once every second forever. An async iterable
 is used to read the data from the stream.
 
-```mjs
+```js
 import {
   ReadableStream,
 } from 'node:stream/web';
@@ -61,34 +61,6 @@ const stream = new ReadableStream({
 
 for await (const value of stream)
   console.log(value);
-```
-
-```cjs
-const {
-  ReadableStream,
-} = require('node:stream/web');
-
-const {
-  setInterval: every,
-} = require('node:timers/promises');
-
-const {
-  performance,
-} = require('node:perf_hooks');
-
-const SECOND = 1000;
-
-const stream = new ReadableStream({
-  async start(controller) {
-    for await (const _ of every(SECOND))
-      controller.enqueue(performance.now());
-  },
-});
-
-(async () => {
-  for await (const value of stream)
-    console.log(value);
-})();
 ```
 
 ### Node.js streams interoperability
@@ -212,7 +184,7 @@ added: v16.5.0
   * `mode` {string} `'byob'` or `undefined`
 * Returns: {ReadableStreamDefaultReader|ReadableStreamBYOBReader}
 
-```mjs
+```js
 import { ReadableStream } from 'node:stream/web';
 
 const stream = new ReadableStream();
@@ -220,16 +192,6 @@ const stream = new ReadableStream();
 const reader = stream.getReader();
 
 console.log(await reader.read());
-```
-
-```cjs
-const { ReadableStream } = require('node:stream/web');
-
-const stream = new ReadableStream();
-
-const reader = stream.getReader();
-
-reader.read().then(console.log);
 ```
 
 Causes the `readableStream.locked` to be `true`.
@@ -267,7 +229,7 @@ pipeline is configured, `transform.readable` is returned.
 Causes the `readableStream.locked` to be `true` while the pipe operation
 is active.
 
-```mjs
+```js
 import {
   ReadableStream,
   TransformStream,
@@ -290,33 +252,6 @@ const transformedStream = stream.pipeThrough(transform);
 for await (const chunk of transformedStream)
   console.log(chunk);
   // Prints: A
-```
-
-```cjs
-const {
-  ReadableStream,
-  TransformStream,
-} = require('node:stream/web');
-
-const stream = new ReadableStream({
-  start(controller) {
-    controller.enqueue('a');
-  },
-});
-
-const transform = new TransformStream({
-  transform(chunk, controller) {
-    controller.enqueue(chunk.toUpperCase());
-  },
-});
-
-const transformedStream = stream.pipeThrough(transform);
-
-(async () => {
-  for await (const chunk of transformedStream)
-    console.log(chunk);
-    // Prints: A
-})();
 ```
 
 #### `readableStream.pipeTo(destination[, options])`
@@ -378,7 +313,7 @@ Creates and returns an async iterator usable for consuming this
 Causes the `readableStream.locked` to be `true` while the async iterator
 is active.
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 
 const stream = new ReadableStream(getSomeSource());
@@ -392,7 +327,7 @@ for await (const chunk of stream.values({ preventCancel: true }))
 The {ReadableStream} object supports the async iterator protocol using
 `for await` syntax.
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 
 const stream = new ReadableStream(getSomeSource());
@@ -441,7 +376,7 @@ added: v20.6.0
 
 A utility method that creates a new {ReadableStream} from an iterable.
 
-```mjs
+```js
 import { ReadableStream } from 'node:stream/web';
 
 async function* asyncIterableGenerator() {
@@ -456,27 +391,10 @@ for await (const chunk of stream)
   console.log(chunk); // Prints: 'a', 'b', 'c'
 ```
 
-```cjs
-const { ReadableStream } = require('node:stream/web');
-
-async function* asyncIterableGenerator() {
-  yield 'a';
-  yield 'b';
-  yield 'c';
-}
-
-(async () => {
-  const stream = ReadableStream.from(asyncIterableGenerator());
-
-  for await (const chunk of stream)
-    console.log(chunk); // Prints: 'a', 'b', 'c'
-})();
-```
-
 To pipe the resulting {ReadableStream} into a {WritableStream} the {Iterable}
 should yield a sequence of {Buffer}, {TypedArray}, or {DataView} objects.
 
-```mjs
+```js
 import { ReadableStream } from 'node:stream/web';
 import { Buffer } from 'node:buffer';
 
@@ -489,23 +407,6 @@ async function* asyncIterableGenerator() {
 const stream = ReadableStream.from(asyncIterableGenerator());
 
 await stream.pipeTo(createWritableStreamSomehow());
-```
-
-```cjs
-const { ReadableStream } = require('node:stream/web');
-const { Buffer } = require('node:buffer');
-
-async function* asyncIterableGenerator() {
-  yield Buffer.from('a');
-  yield Buffer.from('b');
-  yield Buffer.from('c');
-}
-
-const stream = ReadableStream.from(asyncIterableGenerator());
-
-(async () => {
-  await stream.pipeTo(createWritableStreamSomehow());
-})();
 ```
 
 ### Class: `ReadableStreamDefaultReader`
@@ -598,7 +499,7 @@ The `BYOB` is short for "bring your own buffer". This is a
 pattern that allows for more efficient reading of byte-oriented
 data that avoids extraneous copying.
 
-```mjs
+```js
 import {
   open,
 } from 'node:fs/promises';
@@ -907,7 +808,7 @@ changes:
 
 The `WritableStream` is a destination to which stream data is sent.
 
-```mjs
+```js
 import {
   WritableStream,
 } from 'node:stream/web';
@@ -1151,7 +1052,7 @@ are connected such that the data written to the `WritableStream` is received,
 and potentially transformed, before being pushed into the `ReadableStream`'s
 queue.
 
-```mjs
+```js
 import {
   TransformStream,
 } from 'node:stream/web';
@@ -1601,7 +1502,7 @@ streams.
 
 They are accessed using:
 
-```mjs
+```js
 import {
   arrayBuffer,
   blob,
@@ -1609,16 +1510,6 @@ import {
   json,
   text,
 } from 'node:stream/consumers';
-```
-
-```cjs
-const {
-  arrayBuffer,
-  blob,
-  buffer,
-  json,
-  text,
-} = require('node:stream/consumers');
 ```
 
 #### `streamConsumers.arrayBuffer(stream)`
@@ -1631,7 +1522,7 @@ added: v16.7.0
 * Returns: {Promise} Fulfills with an `ArrayBuffer` containing the full
   contents of the stream.
 
-```mjs
+```js
 import { arrayBuffer } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 import { TextEncoder } from 'node:util';
@@ -1645,20 +1536,6 @@ console.log(`from readable: ${data.byteLength}`);
 // Prints: from readable: 76
 ```
 
-```cjs
-const { arrayBuffer } = require('node:stream/consumers');
-const { Readable } = require('node:stream');
-const { TextEncoder } = require('node:util');
-
-const encoder = new TextEncoder();
-const dataArray = encoder.encode('hello world from consumers!');
-const readable = Readable.from(dataArray);
-arrayBuffer(readable).then((data) => {
-  console.log(`from readable: ${data.byteLength}`);
-  // Prints: from readable: 76
-});
-```
-
 #### `streamConsumers.blob(stream)`
 
 <!-- YAML
@@ -1669,7 +1546,7 @@ added: v16.7.0
 * Returns: {Promise} Fulfills with a {Blob} containing the full contents
   of the stream.
 
-```mjs
+```js
 import { blob } from 'node:stream/consumers';
 
 const dataBlob = new Blob(['hello world from consumers!']);
@@ -1678,18 +1555,6 @@ const readable = dataBlob.stream();
 const data = await blob(readable);
 console.log(`from readable: ${data.size}`);
 // Prints: from readable: 27
-```
-
-```cjs
-const { blob } = require('node:stream/consumers');
-
-const dataBlob = new Blob(['hello world from consumers!']);
-
-const readable = dataBlob.stream();
-blob(readable).then((data) => {
-  console.log(`from readable: ${data.size}`);
-  // Prints: from readable: 27
-});
 ```
 
 #### `streamConsumers.buffer(stream)`
@@ -1702,7 +1567,7 @@ added: v16.7.0
 * Returns: {Promise} Fulfills with a {Buffer} containing the full
   contents of the stream.
 
-```mjs
+```js
 import { buffer } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 import { Buffer } from 'node:buffer';
@@ -1713,20 +1578,6 @@ const readable = Readable.from(dataBuffer);
 const data = await buffer(readable);
 console.log(`from readable: ${data.length}`);
 // Prints: from readable: 27
-```
-
-```cjs
-const { buffer } = require('node:stream/consumers');
-const { Readable } = require('node:stream');
-const { Buffer } = require('node:buffer');
-
-const dataBuffer = Buffer.from('hello world from consumers!');
-
-const readable = Readable.from(dataBuffer);
-buffer(readable).then((data) => {
-  console.log(`from readable: ${data.length}`);
-  // Prints: from readable: 27
-});
 ```
 
 #### `streamConsumers.bytes(stream)`
@@ -1741,7 +1592,7 @@ added:
 * Returns: {Promise} Fulfills with a {Uint8Array} containing the full
   contents of the stream.
 
-```mjs
+```js
 import { bytes } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 import { Buffer } from 'node:buffer';
@@ -1754,20 +1605,6 @@ console.log(`from readable: ${data.length}`);
 // Prints: from readable: 27
 ```
 
-```cjs
-const { bytes } = require('node:stream/consumers');
-const { Readable } = require('node:stream');
-const { Buffer } = require('node:buffer');
-
-const dataBuffer = Buffer.from('hello world from consumers!');
-
-const readable = Readable.from(dataBuffer);
-bytes(readable).then((data) => {
-  console.log(`from readable: ${data.length}`);
-  // Prints: from readable: 27
-});
-```
-
 #### `streamConsumers.json(stream)`
 
 <!-- YAML
@@ -1778,7 +1615,7 @@ added: v16.7.0
 * Returns: {Promise} Fulfills with the contents of the stream parsed as a
   UTF-8 encoded string that is then passed through `JSON.parse()`.
 
-```mjs
+```js
 import { json } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 
@@ -1797,26 +1634,6 @@ console.log(`from readable: ${data.length}`);
 // Prints: from readable: 100
 ```
 
-```cjs
-const { json } = require('node:stream/consumers');
-const { Readable } = require('node:stream');
-
-const items = Array.from(
-  {
-    length: 100,
-  },
-  () => ({
-    message: 'hello world from consumers!',
-  }),
-);
-
-const readable = Readable.from(JSON.stringify(items));
-json(readable).then((data) => {
-  console.log(`from readable: ${data.length}`);
-  // Prints: from readable: 100
-});
-```
-
 #### `streamConsumers.text(stream)`
 
 <!-- YAML
@@ -1827,7 +1644,7 @@ added: v16.7.0
 * Returns: {Promise} Fulfills with the contents of the stream parsed as a
   UTF-8 encoded string.
 
-```mjs
+```js
 import { text } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 
@@ -1835,17 +1652,6 @@ const readable = Readable.from('Hello world from consumers!');
 const data = await text(readable);
 console.log(`from readable: ${data.length}`);
 // Prints: from readable: 27
-```
-
-```cjs
-const { text } = require('node:stream/consumers');
-const { Readable } = require('node:stream');
-
-const readable = Readable.from('Hello world from consumers!');
-text(readable).then((data) => {
-  console.log(`from readable: ${data.length}`);
-  // Prints: from readable: 27
-});
 ```
 
 [Streams]: stream.md

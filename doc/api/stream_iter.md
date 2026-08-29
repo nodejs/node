@@ -18,7 +18,7 @@ functions or objects with a `transform` method.
 Data flows in **batches** ({Uint8Array\[]} per iteration) to amortize the cost
 of async operations.
 
-```mjs
+```js
 import { from, pull, text } from 'node:stream/iter';
 import { compressGzip, decompressGzip } from 'node:zlib/iter';
 
@@ -28,21 +28,7 @@ const result = await text(pull(compressed, decompressGzip()));
 console.log(result); // 'Hello, world!'
 ```
 
-```cjs
-const { from, pull, text } = require('node:stream/iter');
-const { compressGzip, decompressGzip } = require('node:zlib/iter');
-
-async function run() {
-  // Compress and decompress a string
-  const compressed = pull(from('Hello, world!'), compressGzip());
-  const result = await text(pull(compressed, decompressGzip()));
-  console.log(result); // 'Hello, world!'
-}
-
-run().catch(console.error);
-```
-
-```mjs
+```js
 import { open } from 'node:fs/promises';
 import { text, pipeTo } from 'node:stream/iter';
 import { compressGzip, decompressGzip } from 'node:zlib/iter';
@@ -56,26 +42,6 @@ await src.close();
 // Read it back
 const gz = await open('output.gz', 'r');
 console.log(await text(gz.pull(decompressGzip(), { autoClose: true })));
-```
-
-```cjs
-const { open } = require('node:fs/promises');
-const { text, pipeTo } = require('node:stream/iter');
-const { compressGzip, decompressGzip } = require('node:zlib/iter');
-
-async function run() {
-  // Read a file, compress, write to another file
-  const src = await open('input.txt', 'r');
-  const dst = await open('output.gz', 'w');
-  await pipeTo(src.pull(), compressGzip(), dst.writer({ autoClose: true }));
-  await src.close();
-
-  // Read it back
-  const gz = await open('output.gz', 'r');
-  console.log(await text(gz.pull(decompressGzip(), { autoClose: true })));
-}
-
-run().catch(console.error);
 ```
 
 ## Concepts
@@ -94,20 +60,10 @@ Each iteration yields a **batch** -- an {Array} of {Uint8Array} chunks
 across multiple chunks. A consumer that processes one chunk at a time can
 simply iterate the inner array:
 
-```mjs
+```js
 for await (const batch of source) {
   for (const chunk of batch) {
     handle(chunk);
-  }
-}
-```
-
-```cjs
-async function run() {
-  for await (const batch of source) {
-    for (const chunk of batch) {
-      handle(chunk);
-    }
   }
 }
 ```
@@ -240,7 +196,7 @@ write at a time (yours), so you never hit the pending writes limit.
 Unawaited writes accumulate in the pending queue and throw once it
 overflows:
 
-```mjs
+```js
 import { push, text } from 'node:stream/iter';
 
 const { writer, readable } = push({ budget: 16384 });
@@ -256,28 +212,6 @@ for (const item of dataset) {
 }
 await writer.end();
 console.log(await consuming);
-```
-
-```cjs
-const { push, text } = require('node:stream/iter');
-
-async function run() {
-  const { writer, readable } = push({ budget: 16384 });
-
-  // Consumer must run concurrently -- without it, the first write
-  // that fills the buffer blocks the producer forever.
-  const consuming = text(readable);
-
-  // GOOD: awaited writes. The producer waits for the consumer to
-  // make room when the buffer is full.
-  for (const item of dataset) {
-    await writer.write(item);
-  }
-  await writer.end();
-  console.log(await consuming);
-}
-
-run().catch(console.error);
 ```
 
 Forgetting to `await` will eventually throw:
@@ -302,7 +236,7 @@ This is the mode that existing Node.js classic streams and Web Streams
 default to. Use it when you control the producer and know it awaits
 properly, or when migrating code from those APIs.
 
-```mjs
+```js
 import { push, text } from 'node:stream/iter';
 
 const { writer, readable } = push({
@@ -320,28 +254,6 @@ await writer.end();
 console.log(await consuming);
 ```
 
-```cjs
-const { push, text } = require('node:stream/iter');
-
-async function run() {
-  const { writer, readable } = push({
-    budget: 16384,
-    backpressure: 'unbounded',
-  });
-
-  const consuming = text(readable);
-
-  // Safe -- awaited writes block until the consumer reads.
-  for (const item of dataset) {
-    await writer.write(item);
-  }
-  await writer.end();
-  console.log(await consuming);
-}
-
-run().catch(console.error);
-```
-
 #### Drop-oldest
 
 Writes never wait. When the slots buffer is full, the oldest buffered
@@ -349,18 +261,8 @@ chunk is evicted to make room for the incoming write. The consumer
 always sees the most recent data. Useful for live feeds, telemetry, or
 any scenario where stale data is less valuable than current data.
 
-```mjs
+```js
 import { push } from 'node:stream/iter';
-
-// Keep only the most recent ~16 KB of readings
-const { writer, readable } = push({
-  budget: 16384,
-  backpressure: 'drop-oldest',
-});
-```
-
-```cjs
-const { push } = require('node:stream/iter');
 
 // Keep only the most recent ~16 KB of readings
 const { writer, readable } = push({
@@ -376,18 +278,8 @@ silently discarded. The consumer processes what is already buffered
 without being overwhelmed by new data. Useful for rate-limiting or
 shedding load under pressure.
 
-```mjs
+```js
 import { push } from 'node:stream/iter';
-
-// Accept up to 16 KB of buffered data; discard anything beyond that
-const { writer, readable } = push({
-  budget: 16384,
-  backpressure: 'drop-newest',
-});
-```
-
-```cjs
-const { push } = require('node:stream/iter');
 
 // Accept up to 16 KB of buffered data; discard anything beyond that
 const { writer, readable } = push({
@@ -406,7 +298,7 @@ try-fallback pattern: attempt the fast synchronous path first, and fall back
 to the async version only when the synchronous call indicates it could not
 complete:
 
-```mjs
+```js
 if (!writer.writeSync(chunk)) await writer.write(chunk);
 if (!writer.writevSync(chunks)) await writer.writev(chunks);
 if (writer.endSync() < 0) await writer.end();
@@ -442,7 +334,7 @@ Synchronous variant of `writer.end()`. A return value of `-1` means closing has
 started but requires asynchronous draining. Use the try-fallback pattern to
 await completion:
 
-```cjs
+```js
 const result = writer.endSync();
 if (result < 0) {
   writer.end();
@@ -499,17 +391,9 @@ Synchronous batch write.
 All functions are available both as named exports and as properties of the
 `Stream` namespace object:
 
-```mjs
+```js
 // Named exports
 import { from, pull, bytes, Stream } from 'node:stream/iter';
-
-// Namespace access
-Stream.from('hello');
-```
-
-```cjs
-// Named exports
-const { from, pull, bytes, Stream } = require('node:stream/iter');
 
 // Namespace access
 Stream.from('hello');
@@ -541,24 +425,12 @@ Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
 precedence over the iteration protocols (`Symbol.asyncIterator`,
 `Symbol.iterator`).
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { from, text } from 'node:stream/iter';
 
 console.log(await text(from('hello')));       // 'hello'
 console.log(await text(from(Buffer.from('hello')))); // 'hello'
-```
-
-```cjs
-const { Buffer } = require('node:buffer');
-const { from, text } = require('node:stream/iter');
-
-async function run() {
-  console.log(await text(from('hello')));       // 'hello'
-  console.log(await text(from(Buffer.from('hello')))); // 'hello'
-}
-
-run().catch(console.error);
 ```
 
 ### `fromSync(input)`
@@ -579,14 +451,8 @@ async iterables or promises. Objects implementing
 precedence over `Symbol.iterator`). The `toAsyncStreamable` protocol is
 ignored entirely.
 
-```mjs
+```js
 import { fromSync, textSync } from 'node:stream/iter';
-
-console.log(textSync(fromSync('hello'))); // 'hello'
-```
-
-```cjs
-const { fromSync, textSync } = require('node:stream/iter');
 
 console.log(textSync(fromSync('hello'))); // 'hello'
 ```
@@ -622,7 +488,7 @@ first as a fast path, and fall back to the async versions only when the sync
 methods indicate they cannot complete (e.g., backpressure or waiting for the
 next tick). `fail()` is always called synchronously.
 
-```mjs
+```js
 import { from, pipeTo } from 'node:stream/iter';
 import { compressGzip } from 'node:zlib/iter';
 import { open } from 'node:fs/promises';
@@ -633,23 +499,6 @@ const totalBytes = await pipeTo(
   compressGzip(),
   fh.writer({ autoClose: true }),
 );
-```
-
-```cjs
-const { from, pipeTo } = require('node:stream/iter');
-const { compressGzip } = require('node:zlib/iter');
-const { open } = require('node:fs/promises');
-
-async function run() {
-  const fh = await open('output.gz', 'w');
-  const totalBytes = await pipeTo(
-    from('Hello, world!'),
-    compressGzip(),
-    fh.writer({ autoClose: true }),
-  );
-}
-
-run().catch(console.error);
 ```
 
 ### `pipeToSync(source[, ...transforms], writer[, options])`
@@ -691,7 +540,7 @@ added:
 Create a lazy async pipeline. Data is not read from `source` until the
 returned iterable is consumed. Transforms are applied in order.
 
-```mjs
+```js
 import { from, pull, text } from 'node:stream/iter';
 
 const asciiUpper = (chunks) => {
@@ -708,39 +557,10 @@ const result = pull(from('hello'), asciiUpper);
 console.log(await text(result)); // 'HELLO'
 ```
 
-```cjs
-const { from, pull, text } = require('node:stream/iter');
-
-const asciiUpper = (chunks) => {
-  if (chunks === null) return null;
-  return chunks.map((c) => {
-    for (let i = 0; i < c.length; i++) {
-      c[i] -= (c[i] >= 97 && c[i] <= 122) * 32;
-    }
-    return c;
-  });
-};
-
-async function run() {
-  const result = pull(from('hello'), asciiUpper);
-  console.log(await text(result)); // 'HELLO'
-}
-
-run().catch(console.error);
-```
-
 Using an `AbortSignal`:
 
-```mjs
+```js
 import { pull } from 'node:stream/iter';
-
-const ac = new AbortController();
-const result = pull(source, transform, { signal: ac.signal });
-ac.abort(); // Pipeline throws AbortError on next iteration
-```
-
-```cjs
-const { pull } = require('node:stream/iter');
 
 const ac = new AbortController();
 const result = pull(source, transform, { signal: ac.signal });
@@ -787,7 +607,7 @@ added:
 Create a push stream with backpressure. The writer pushes data in; the
 readable side is consumed as an async iterable.
 
-```mjs
+```js
 import { push, text } from 'node:stream/iter';
 
 const { writer, readable } = push();
@@ -802,27 +622,6 @@ const producing = (async () => {
 
 console.log(await text(readable)); // 'hello world'
 await producing;
-```
-
-```cjs
-const { push, text } = require('node:stream/iter');
-
-async function run() {
-  const { writer, readable } = push();
-
-  // Producer and consumer must run concurrently. With strict backpressure
-  // (the default), awaited writes block until the consumer reads.
-  const producing = (async () => {
-    await writer.write('hello');
-    await writer.write(' world');
-    await writer.end();
-  })();
-
-  console.log(await text(readable)); // 'hello world'
-  await producing;
-}
-
-run().catch(console.error);
 ```
 
 The writer returned by `push()` conforms to the \[Writer interface]\[].
@@ -864,7 +663,7 @@ Each channel has:
 * `close()` — close this end of the channel (idempotent).
 * `[Symbol.asyncDispose]()` — async dispose support for `await using`.
 
-```mjs
+```js
 import { duplex, text } from 'node:stream/iter';
 
 const [client, server] = duplex();
@@ -881,29 +680,6 @@ await client.writer.end();
 
 console.log(await text(server.readable)); // handled by echo
 await serving;
-```
-
-```cjs
-const { duplex, text } = require('node:stream/iter');
-
-async function run() {
-  const [client, server] = duplex();
-
-  // Server echoes back
-  const serving = (async () => {
-    for await (const chunks of server.readable) {
-      await server.writer.writev(chunks);
-    }
-  })();
-
-  await client.writer.write('hello');
-  await client.writer.end();
-
-  console.log(await text(server.readable)); // handled by echo
-  await serving;
-}
-
-run().catch(console.error);
 ```
 
 ## Consumers
@@ -991,22 +767,11 @@ added:
 
 Collect all bytes from a stream into a single `Uint8Array`.
 
-```mjs
+```js
 import { from, bytes } from 'node:stream/iter';
 
 const data = await bytes(from('hello'));
 console.log(data); // Uint8Array(5) [ 104, 101, 108, 108, 111 ]
-```
-
-```cjs
-const { from, bytes } = require('node:stream/iter');
-
-async function run() {
-  const data = await bytes(from('hello'));
-  console.log(data); // Uint8Array(5) [ 104, 101, 108, 108, 111 ]
-}
-
-run().catch(console.error);
 ```
 
 ### `bytesSync(source[, options])`
@@ -1043,20 +808,10 @@ added:
 
 Collect all bytes and decode as text.
 
-```mjs
+```js
 import { from, text } from 'node:stream/iter';
 
 console.log(await text(from('hello'))); // 'hello'
-```
-
-```cjs
-const { from, text } = require('node:stream/iter');
-
-async function run() {
-  console.log(await text(from('hello'))); // 'hello'
-}
-
-run().catch(console.error);
 ```
 
 ### `textSync(source[, options])`
@@ -1093,7 +848,7 @@ Wait for a drainable writer's backpressure to clear. Returns `null` if
 the object does not implement the drainable protocol, or a promise that
 fulfills with `true` when the writer can accept more data.
 
-```mjs
+```js
 import { push, ondrain, text } from 'node:stream/iter';
 
 const { writer, readable } = push({ budget: 16384 });
@@ -1113,30 +868,6 @@ await writer.end();
 await consuming;
 ```
 
-```cjs
-const { push, ondrain, text } = require('node:stream/iter');
-
-async function run() {
-  const { writer, readable } = push({ budget: 16384 });
-  const chunk = new Uint8Array(8192);  // 8 KB
-  writer.writeSync(chunk);
-  writer.writeSync(chunk);  // 16 KB total -- buffer full
-
-  // Start consuming so the buffer can actually drain
-  const consuming = text(readable);
-
-  // Buffer is full -- wait for drain
-  const canWrite = await ondrain(writer);
-  if (canWrite) {
-    await writer.write('c');
-  }
-  await writer.end();
-  await consuming;
-}
-
-run().catch(console.error);
-```
-
 ### `merge(...sources[, options])`
 
 <!-- YAML
@@ -1154,22 +885,11 @@ Merge multiple async iterables by yielding batches in temporal order
 (whichever source produces data first). All sources are consumed
 concurrently.
 
-```mjs
+```js
 import { from, merge, text } from 'node:stream/iter';
 
 const merged = merge(from('hello '), from('world'));
 console.log(await text(merged)); // Order depends on timing
-```
-
-```cjs
-const { from, merge, text } = require('node:stream/iter');
-
-async function run() {
-  const merged = merge(from('hello '), from('world'));
-  console.log(await text(merged)); // Order depends on timing
-}
-
-run().catch(console.error);
 ```
 
 ### `tap(callback)`
@@ -1186,7 +906,7 @@ added:
 Create a pass-through transform that observes batches without modifying them.
 Useful for logging, metrics, or debugging.
 
-```mjs
+```js
 import { from, pull, text, tap } from 'node:stream/iter';
 
 const result = pull(
@@ -1194,20 +914,6 @@ const result = pull(
   tap((chunks) => console.log('Batch size:', chunks.length)),
 );
 console.log(await text(result));
-```
-
-```cjs
-const { from, pull, text, tap } = require('node:stream/iter');
-
-async function run() {
-  const result = pull(
-    from('hello'),
-    tap((chunks) => console.log('Batch size:', chunks.length)),
-  );
-  console.log(await text(result));
-}
-
-run().catch(console.error);
 ```
 
 `tap()` intentionally does not prevent in-place modification of the
@@ -1250,7 +956,7 @@ Create a push-model multi-consumer broadcast channel. A single writer pushes
 data to multiple consumers. Each consumer has an independent cursor into a
 shared buffer.
 
-```mjs
+```js
 import { broadcast, text } from 'node:stream/iter';
 
 const { writer, broadcast: bc } = broadcast();
@@ -1270,32 +976,6 @@ const [r1, r2] = await Promise.all([text(c1), text(c2)]);
 console.log(r1); // 'hello'
 console.log(r2); // 'hello'
 await producing;
-```
-
-```cjs
-const { broadcast, text } = require('node:stream/iter');
-
-async function run() {
-  const { writer, broadcast: bc } = broadcast();
-
-  // Create consumers before writing
-  const c1 = bc.push();  // Consumer 1
-  const c2 = bc.push();  // Consumer 2
-
-  // Producer and consumers must run concurrently. Awaited writes
-  // block when the buffer fills until consumers read.
-  const producing = (async () => {
-    await writer.write('hello');
-    await writer.end();
-  })();
-
-  const [r1, r2] = await Promise.all([text(c1), text(c2)]);
-  console.log(r1); // 'hello'
-  console.log(r2); // 'hello'
-  await producing;
-}
-
-run().catch(console.error);
 ```
 
 #### `broadcast.cancel([reason])`
@@ -1360,7 +1040,7 @@ Create a pull-model multi-consumer shared stream. Unlike `broadcast()`, the
 source is only read when a consumer pulls. Multiple consumers share a single
 buffer.
 
-```mjs
+```js
 import { from, share, text } from 'node:stream/iter';
 
 const shared = share(from('hello'));
@@ -1372,24 +1052,6 @@ const c2 = shared.pull();
 const [r1, r2] = await Promise.all([text(c1), text(c2)]);
 console.log(r1); // 'hello'
 console.log(r2); // 'hello'
-```
-
-```cjs
-const { from, share, text } = require('node:stream/iter');
-
-async function run() {
-  const shared = share(from('hello'));
-
-  const c1 = shared.pull();
-  const c2 = shared.pull();
-
-  // Consume concurrently to avoid deadlock with small buffers.
-  const [r1, r2] = await Promise.all([text(c1), text(c2)]);
-  console.log(r1); // 'hello'
-  console.log(r2); // 'hello'
-}
-
-run().catch(console.error);
 ```
 
 ### Class: `Share`
@@ -1551,7 +1213,7 @@ same stream returns the same iterable.
 For object-mode or encoded Readable streams, chunks are automatically
 normalized to `Uint8Array`.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { fromReadable, text } from 'node:stream/iter';
 
@@ -1561,21 +1223,6 @@ const readable = new Readable({
 
 const result = await text(fromReadable(readable));
 console.log(result); // 'hello world'
-```
-
-```cjs
-const { Readable } = require('node:stream');
-const { fromReadable, text } = require('node:stream/iter');
-
-const readable = new Readable({
-  read() { this.push('hello world'); this.push(null); },
-});
-
-async function run() {
-  const result = await text(fromReadable(readable));
-  console.log(result); // 'hello world'
-}
-run();
 ```
 
 ### `fromWritable(writable[, options])`
@@ -1618,7 +1265,7 @@ For duck-typed streams that do not expose `writableHighWaterMark`,
 Object-mode writables (if detectable) are rejected since the Writer
 interface is bytes-only.
 
-```mjs
+```js
 import { Writable } from 'node:stream';
 import { from, fromWritable, pipeTo } from 'node:stream/iter';
 
@@ -1628,21 +1275,6 @@ const writable = new Writable({
 
 await pipeTo(from('hello world'),
              fromWritable(writable, { backpressure: 'unbounded' }));
-```
-
-```cjs
-const { Writable } = require('node:stream');
-const { from, fromWritable, pipeTo } = require('node:stream/iter');
-
-async function run() {
-  const writable = new Writable({
-    write(chunk, encoding, cb) { console.log(chunk.toString()); cb(); },
-  });
-
-  await pipeTo(from('hello world'),
-               fromWritable(writable, { backpressure: 'unbounded' }));
-}
-run();
 ```
 
 ### `toReadable(source[, options])`
@@ -1667,21 +1299,10 @@ Creates a byte-mode [`stream.Readable`][] from the `source`
 (the native batch format used by the stream/iter API). Each `Uint8Array` in a
 yielded batch is pushed as a separate chunk into the Readable.
 
-```mjs
+```js
 import { createWriteStream } from 'node:fs';
 import { from, pull, toReadable } from 'node:stream/iter';
 import { compressGzip } from 'node:zlib/iter';
-
-const source = pull(from('hello world'), compressGzip());
-const readable = toReadable(source);
-
-readable.pipe(createWriteStream('output.gz'));
-```
-
-```cjs
-const { createWriteStream } = require('node:fs');
-const { from, pull, toReadable } = require('node:stream/iter');
-const { compressGzip } = require('node:zlib/iter');
 
 const source = pull(from('hello world'), compressGzip());
 const readable = toReadable(source);
@@ -1710,17 +1331,8 @@ Creates a byte-mode [`stream.Readable`][] from the `source`.
 The `_read()` method pulls from the iterator
 synchronously, so data is available immediately via `readable.read()`.
 
-```mjs
+```js
 import { fromSync, toReadableSync } from 'node:stream/iter';
-
-const source = fromSync('hello world');
-const readable = toReadableSync(source);
-
-console.log(readable.read().toString()); // 'hello world'
-```
-
-```cjs
-const { fromSync, toReadableSync } = require('node:stream/iter');
 
 const source = fromSync('hello world');
 const readable = toReadableSync(source);
@@ -1755,18 +1367,8 @@ The Writable's `highWaterMark` is set to `Number.MAX_SAFE_INTEGER` to
 effectively disable its internal buffering, allowing the underlying Writer
 to manage backpressure directly.
 
-```mjs
+```js
 import { push, toWritable } from 'node:stream/iter';
-
-const { writer, readable } = push();
-const writable = toWritable(writer);
-
-writable.write('hello');
-writable.end();
-```
-
-```cjs
-const { push, toWritable } = require('node:stream/iter');
 
 const { writer, readable } = push();
 const writable = toWritable(writer);
@@ -1789,7 +1391,7 @@ the options passed to `Broadcast.from()` and must return an object conforming
 to the {BroadcastChannel} interface. The implementation is fully custom -- it can
 manage consumers, buffering, and backpressure however it wants.
 
-```mjs
+```js
 import { Broadcast, text } from 'node:stream/iter';
 
 // This example defers to the built-in Broadcast, but a custom
@@ -1825,42 +1427,6 @@ bus.close();
 console.log(await text(consumer)); // 'hello'
 ```
 
-```cjs
-const { Broadcast, text } = require('node:stream/iter');
-
-// This example defers to the built-in Broadcast, but a custom
-// implementation could use any mechanism.
-class MessageBus {
-  #broadcast;
-  #writer;
-
-  constructor() {
-    const { writer, broadcast } = Broadcast();
-    this.#writer = writer;
-    this.#broadcast = broadcast;
-  }
-
-  [Symbol.for('Stream.broadcastProtocol')](options) {
-    return this.#broadcast;
-  }
-
-  send(data) {
-    this.#writer.write(new TextEncoder().encode(data));
-  }
-
-  close() {
-    this.#writer.end();
-  }
-}
-
-const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
-const consumer = broadcast.push();
-bus.send('hello');
-bus.close();
-text(consumer).then(console.log); // 'hello'
-```
-
 ### `Stream.drainableProtocol`
 
 * Value: `Symbol.for('Stream.drainableProtocol')`
@@ -1869,7 +1435,7 @@ Implement to make a writer compatible with `ondrain()`. The method should
 return `null` if no backpressure, or a promise that fulfills with a truthy value
 when backpressure clears.
 
-```mjs
+```js
 import { ondrain } from 'node:stream/iter';
 
 class CustomWriter {
@@ -1899,41 +1465,6 @@ const ready = ondrain(writer);
 console.log(ready); // Promise { true } -- no backpressure
 ```
 
-```cjs
-const { ondrain } = require('node:stream/iter');
-
-class CustomWriter {
-  #queue = [];
-  #drain = null;
-  #closed = false;
-
-  [Symbol.for('Stream.drainableProtocol')]() {
-    if (this.#closed) return null;
-    if (this.#queue.length < 3) return Promise.resolve(true);
-    this.#drain ??= Promise.withResolvers();
-    return this.#drain.promise;
-  }
-
-  write(chunk) {
-    this.#queue.push(chunk);
-  }
-
-  flush() {
-    this.#queue.length = 0;
-    this.#drain?.resolve(true);
-    this.#drain = null;
-  }
-
-  close() {
-    this.#closed = true;
-  }
-}
-
-const writer = new CustomWriter();
-const ready = ondrain(writer);
-console.log(ready); // Promise { true } -- no backpressure
-```
-
 ### `Stream.shareProtocol`
 
 * Value: `Symbol.for('Stream.shareProtocol')`
@@ -1943,7 +1474,7 @@ options passed to `Share.from()` and must return an object conforming to the
 {Share} interface. The implementation is fully custom -- it can manage the shared
 source, consumers, buffering, and backpressure however it wants.
 
-```mjs
+```js
 import { share, Share, text } from 'node:stream/iter';
 
 // This example defers to the built-in share(), but a custom
@@ -1971,34 +1502,6 @@ const consumer = shared.pull();
 console.log(await text(consumer)); // 'hello'
 ```
 
-```cjs
-const { share, Share, text } = require('node:stream/iter');
-
-// This example defers to the built-in share(), but a custom
-// implementation could use any mechanism.
-class DataPool {
-  #share;
-
-  constructor(source) {
-    this.#share = share(source);
-  }
-
-  [Symbol.for('Stream.shareProtocol')](options) {
-    return this.#share;
-  }
-}
-
-const pool = new DataPool(
-  (async function* () {
-    yield 'hello';
-  })(),
-);
-
-const shared = Share.from(pool);
-const consumer = shared.pull();
-text(consumer).then(console.log); // 'hello'
-```
-
 ### `Stream.shareSyncProtocol`
 
 * Value: `Symbol.for('Stream.shareSyncProtocol')`
@@ -2008,37 +1511,8 @@ the options passed to `SyncShare.fromSync()` and must return an object conformin
 to the {SyncShare} interface. The implementation is fully custom -- it can manage
 the shared source, consumers, and buffering however it wants.
 
-```mjs
+```js
 import { shareSync, SyncShare, textSync } from 'node:stream/iter';
-
-// This example defers to the built-in shareSync(), but a custom
-// implementation could use any mechanism.
-class SyncDataPool {
-  #share;
-
-  constructor(source) {
-    this.#share = shareSync(source);
-  }
-
-  [Symbol.for('Stream.shareSyncProtocol')](options) {
-    return this.#share;
-  }
-}
-
-const encoder = new TextEncoder();
-const pool = new SyncDataPool(
-  function* () {
-    yield [encoder.encode('hello')];
-  }(),
-);
-
-const shared = SyncShare.fromSync(pool);
-const consumer = shared.pull();
-console.log(textSync(consumer)); // 'hello'
-```
-
-```cjs
-const { shareSync, SyncShare, textSync } = require('node:stream/iter');
 
 // This example defers to the built-in shareSync(), but a custom
 // implementation could use any mechanism.
@@ -2077,7 +1551,7 @@ called to produce the actual data. It may return any value that resolves to:
 a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
 object.
 
-```mjs
+```js
 import { from, text } from 'node:stream/iter';
 
 class Greeting {
@@ -2096,25 +1570,6 @@ const stream = from(new Greeting('world'));
 console.log(await text(stream)); // 'hello world'
 ```
 
-```cjs
-const { from, text } = require('node:stream/iter');
-
-class Greeting {
-  #name;
-
-  constructor(name) {
-    this.#name = name;
-  }
-
-  [Symbol.for('Stream.toAsyncStreamable')]() {
-    return `hello ${this.#name}`;
-  }
-}
-
-const stream = from(new Greeting('world'));
-text(stream).then(console.log); // 'hello world'
-```
-
 ### `Stream.toStreamable`
 
 * Value: `Symbol.for('Stream.toStreamable')`
@@ -2125,27 +1580,8 @@ pipeline (as a source passed to `fromSync()`, or as a value returned from a
 sync transform), this method is called to produce the actual data. It must
 synchronously return a streamable value: a string, `Uint8Array`, or `Iterable`.
 
-```mjs
+```js
 import { fromSync, textSync } from 'node:stream/iter';
-
-class Greeting {
-  #name;
-
-  constructor(name) {
-    this.#name = name;
-  }
-
-  [Symbol.for('Stream.toStreamable')]() {
-    return `hello ${this.#name}`;
-  }
-}
-
-const stream = fromSync(new Greeting('world'));
-console.log(textSync(stream)); // 'hello world'
-```
-
-```cjs
-const { fromSync, textSync } = require('node:stream/iter');
 
 class Greeting {
   #name;

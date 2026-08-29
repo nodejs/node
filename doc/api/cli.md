@@ -113,7 +113,7 @@ user explicitly passes the `--allow-addons` flag when starting Node.js.
 
 Example:
 
-```cjs
+```js
 // Attempt to require an native addon
 require('nodejs-addon-example');
 ```
@@ -775,12 +775,8 @@ For example, the following script will not emit
 [DEP0025 `require('node:sys')`][DEP0025 warning] when executed with
 `node --disable-warning=DEP0025`:
 
-```mjs
+```js
 import sys from 'node:sys';
-```
-
-```cjs
-const sys = require('node:sys');
 ```
 
 For example, the following script will emit the
@@ -789,16 +785,9 @@ Warnings (such as
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature][]
 in <=v21) when executed with `node --disable-warning=ExperimentalWarning`:
 
-```mjs
+```js
 import sys from 'node:sys';
 import vm from 'node:vm';
-
-vm.measureMemory();
-```
-
-```cjs
-const sys = require('node:sys');
-const vm = require('node:vm');
 
 vm.measureMemory();
 ```

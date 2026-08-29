@@ -9,13 +9,13 @@
 The `process` object provides information about, and control over, the current
 Node.js process.
 
-```mjs
+```js
 import process from 'node:process';
 ```
 
 <!-- eslint-disable no-restricted-syntax -->
 
-```cjs
+```js
 const process = require('node:process');
 ```
 
@@ -44,26 +44,9 @@ termination, such as calling [`process.exit()`][] or uncaught exceptions.
 The `'beforeExit'` should _not_ be used as an alternative to the `'exit'` event
 unless the intention is to schedule additional work.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('beforeExit', (code) => {
-  console.log('Process beforeExit event with code: ', code);
-});
-
-process.on('exit', (code) => {
-  console.log('Process exit event with code: ', code);
-});
-
-console.log('This message is displayed first.');
-
-// Prints:
-// This message is displayed first.
-// Process beforeExit event with code: 0
-// Process exit event with code: 0
-```
-
-```cjs
 process.on('beforeExit', (code) => {
   console.log('Process beforeExit event with code: ', code);
 });
@@ -111,15 +94,9 @@ The listener callback function is invoked with the exit code specified either
 by the [`process.exitCode`][] property, or the `exitCode` argument passed to the
 [`process.exit()`][] method.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('exit', (code) => {
-  console.log(`About to exit with code: ${code}`);
-});
-```
-
-```cjs
 process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
 });
@@ -130,17 +107,9 @@ process will exit immediately after calling the `'exit'` event listeners
 causing any additional work still queued in the event loop to be abandoned.
 In the following example, for instance, the timeout will never occur:
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('exit', (code) => {
-  setTimeout(() => {
-    console.log('This will not run');
-  }, 0);
-});
-```
-
-```cjs
 process.on('exit', (code) => {
   setTimeout(() => {
     console.log('This will not run');
@@ -204,19 +173,9 @@ In asynchronous code, the `'unhandledRejection'` event is emitted when the list
 of unhandled rejections grows, and the `'rejectionHandled'` event is emitted
 when the list of unhandled rejections shrinks.
 
-```mjs
+```js
 import process from 'node:process';
 
-const unhandledRejections = new Map();
-process.on('unhandledRejection', (reason, promise) => {
-  unhandledRejections.set(promise, reason);
-});
-process.on('rejectionHandled', (promise) => {
-  unhandledRejections.delete(promise);
-});
-```
-
-```cjs
 const unhandledRejections = new Map();
 process.on('unhandledRejection', (reason, promise) => {
   unhandledRejections.set(promise, reason);
@@ -277,29 +236,9 @@ behavior. Alternatively, change the [`process.exitCode`][] in the
 provided exit code. Otherwise, in the presence of such handler the process will
 exit with 0.
 
-```mjs
+```js
 import process from 'node:process';
 import fs from 'node:fs';
-
-process.on('uncaughtException', (err, origin) => {
-  fs.writeSync(
-    process.stderr.fd,
-    `Caught exception: ${err}\n` +
-    `Exception origin: ${origin}\n`,
-  );
-});
-
-setTimeout(() => {
-  console.log('This will still run.');
-}, 500);
-
-// Intentionally cause an exception, but don't catch it.
-nonexistentFunc();
-console.log('This will not run.');
-```
-
-```cjs
-const fs = require('node:fs');
 
 process.on('uncaughtException', (err, origin) => {
   fs.writeSync(
@@ -374,19 +313,9 @@ Installing an `'uncaughtExceptionMonitor'` listener does not change the behavior
 once an `'uncaughtException'` event is emitted. The process will
 still crash if no `'uncaughtException'` listener is installed.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('uncaughtExceptionMonitor', (err, origin) => {
-  MyMonitoringTool.logSync(err, origin);
-});
-
-// Intentionally cause an exception, but don't catch it.
-nonexistentFunc();
-// Still crashes Node.js
-```
-
-```cjs
 process.on('uncaughtExceptionMonitor', (err, origin) => {
   MyMonitoringTool.logSync(err, origin);
 });
@@ -422,20 +351,9 @@ are propagated through a `Promise` chain. The `'unhandledRejection'` event is
 useful for detecting and keeping track of promises that were rejected whose
 rejections have not yet been handled.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Application specific logging, throwing an error, or other logic here
-});
-
-somePromise.then((res) => {
-  return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
-}); // No `.catch()` or `.then()`
-```
-
-```cjs
 process.on('unhandledRejection', (reason, promise) => {
   console.log('Unhandled Rejection at:', promise, 'reason:', reason);
   // Application specific logging, throwing an error, or other logic here
@@ -449,19 +367,9 @@ somePromise.then((res) => {
 The following will also trigger the `'unhandledRejection'` event to be
 emitted:
 
-```mjs
+```js
 import process from 'node:process';
 
-function SomeResource() {
-  // Initially set the loaded status to a rejected promise
-  this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
-}
-
-const resource = new SomeResource();
-// no .catch or .then on resource.loaded for at least a turn
-```
-
-```cjs
 function SomeResource() {
   // Initially set the loaded status to a rejected promise
   this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
@@ -502,17 +410,9 @@ are not part of the normal Node.js and JavaScript error handling flow.
 Node.js can emit warnings whenever it detects bad coding practices that could
 lead to sub-optimal application performance, bugs, or security vulnerabilities.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('warning', (warning) => {
-  console.warn(warning.name);    // Print the warning name
-  console.warn(warning.message); // Print the warning message
-  console.warn(warning.stack);   // Print the stack trace
-});
-```
-
-```cjs
 process.on('warning', (warning) => {
   console.warn(warning.name);    // Print the warning name
   console.warn(warning.message); // Print the warning message
@@ -628,26 +528,9 @@ The signal handler will receive the signal's name (`'SIGINT'`,
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
 
-```mjs
+```js
 import process from 'node:process';
 
-// Begin reading from stdin so the process does not exit.
-process.stdin.resume();
-
-process.on('SIGINT', () => {
-  console.log('Received SIGINT. Press Control-D to exit.');
-});
-
-// Using a single function to handle multiple signals
-function handle(signal) {
-  console.log(`Received ${signal}`);
-}
-
-process.on('SIGINT', handle);
-process.on('SIGTERM', handle);
-```
-
-```cjs
 // Begin reading from stdin so the process does not exit.
 process.stdin.resume();
 
@@ -741,16 +624,9 @@ multiple callbacks to be registered and does not conflict with the
 (most recent first). If a callback returns `true`, subsequent callbacks
 and the default uncaught exception handling are skipped.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.addUncaughtExceptionCaptureCallback((err) => {
-  console.error('Caught exception:', err.message);
-  return true; // Indicates exception was handled
-});
-```
-
-```cjs
 process.addUncaughtExceptionCaptureCallback((err) => {
   console.error('Caught exception:', err.message);
   return true; // Indicates exception was handled
@@ -790,19 +666,8 @@ appear only _once_; each will begin with one or more dashes. Flags
 passed through to V8 will contain underscores instead of non-leading
 dashes:
 
-```mjs
+```js
 import { allowedNodeEnvironmentFlags } from 'node:process';
-
-allowedNodeEnvironmentFlags.forEach((flag) => {
-  // -r
-  // --inspect-brk
-  // --abort_on_uncaught_exception
-  // ...
-});
-```
-
-```cjs
-const { allowedNodeEnvironmentFlags } = require('node:process');
 
 allowedNodeEnvironmentFlags.forEach((flag) => {
   // -r
@@ -832,14 +697,8 @@ The operating system CPU architecture for which the Node.js binary was compiled.
 Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`, `'mips'`,
 `'mipsel'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
 
-```mjs
+```js
 import { arch } from 'node:process';
-
-console.log(`This processor architecture is ${arch}`);
-```
-
-```cjs
-const { arch } = require('node:process');
 
 console.log(`This processor architecture is ${arch}`);
 ```
@@ -861,17 +720,8 @@ arguments.
 
 For example, assuming the following script for `process-args.js`:
 
-```mjs
+```js
 import { argv } from 'node:process';
-
-// print process.argv
-argv.forEach((val, index) => {
-  console.log(`${index}: ${val}`);
-});
-```
-
-```cjs
-const { argv } = require('node:process');
 
 // print process.argv
 argv.forEach((val, index) => {
@@ -991,20 +841,8 @@ The `process.chdir()` method changes the current working directory of the
 Node.js process or throws an exception if doing so fails (for instance, if
 the specified `directory` does not exist).
 
-```mjs
+```js
 import { chdir, cwd } from 'node:process';
-
-console.log(`Starting directory: ${cwd()}`);
-try {
-  chdir('/tmp');
-  console.log(`New directory: ${cwd()}`);
-} catch (err) {
-  console.error(`chdir: ${err}`);
-}
-```
-
-```cjs
-const { chdir, cwd } = require('node:process');
 
 console.log(`Starting directory: ${cwd()}`);
 try {
@@ -1130,22 +968,8 @@ actual elapsed time if multiple CPU cores are performing work for this process.
 The result of a previous call to `process.cpuUsage()` can be passed as the
 argument to the function, to get a diff reading.
 
-```mjs
+```js
 import { cpuUsage } from 'node:process';
-
-const startUsage = cpuUsage();
-// { user: 38579, system: 6986 }
-
-// spin the CPU for 500 milliseconds
-const now = Date.now();
-while (Date.now() - now < 500);
-
-console.log(cpuUsage(startUsage));
-// { user: 514883, system: 11226 }
-```
-
-```cjs
-const { cpuUsage } = require('node:process');
 
 const startUsage = cpuUsage();
 // { user: 38579, system: 6986 }
@@ -1169,14 +993,8 @@ added: v0.1.8
 The `process.cwd()` method returns the current working directory of the Node.js
 process.
 
-```mjs
+```js
 import { cwd } from 'node:process';
-
-console.log(`Current directory: ${cwd()}`);
-```
-
-```cjs
-const { cwd } = require('node:process');
 
 console.log(`Current directory: ${cwd()}`);
 ```
@@ -1191,13 +1009,9 @@ added: v0.7.2
 
 The port used by the Node.js debugger when enabled.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.debugPort = 5858;
-```
-
-```cjs
 process.debugPort = 5858;
 ```
 
@@ -1250,7 +1064,7 @@ that exports a `foo` function. All the symbols are loaded before
 the call returns, by passing the `RTLD_NOW` constant. In this example
 the constant is assumed to be available.
 
-```mjs
+```js
 import { dlopen } from 'node:process';
 import { constants } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -1258,16 +1072,6 @@ import { fileURLToPath } from 'node:url';
 const module = { exports: {} };
 dlopen(module, fileURLToPath(new URL('local.node', import.meta.url)),
        constants.dlopen.RTLD_NOW);
-module.exports.foo();
-```
-
-```cjs
-const { dlopen } = require('node:process');
-const { constants } = require('node:os');
-const { join } = require('node:path');
-
-const module = { exports: {} };
-dlopen(module, join(__dirname, 'local.node'), constants.dlopen.RTLD_NOW);
 module.exports.foo();
 ```
 
@@ -1291,21 +1095,8 @@ The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
 [`'warning'`][process_warning] event.
 
-```mjs
+```js
 import { emitWarning } from 'node:process';
-
-// Emit a warning with a code and additional detail.
-emitWarning('Something happened!', {
-  code: 'MY_WARNING',
-  detail: 'This is some additional information',
-});
-// Emits:
-// (node:56338) [MY_WARNING] Warning: Something happened!
-// This is some additional information
-```
-
-```cjs
-const { emitWarning } = require('node:process');
 
 // Emit a warning with a code and additional detail.
 emitWarning('Something happened!', {
@@ -1321,19 +1112,9 @@ In this example, an `Error` object is generated internally by
 `process.emitWarning()` and passed through to the
 [`'warning'`][process_warning] handler.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('warning', (warning) => {
-  console.warn(warning.name);    // 'Warning'
-  console.warn(warning.message); // 'Something happened!'
-  console.warn(warning.code);    // 'MY_WARNING'
-  console.warn(warning.stack);   // Stack trace
-  console.warn(warning.detail);  // 'This is some additional information'
-});
-```
-
-```cjs
 process.on('warning', (warning) => {
   console.warn(warning.name);    // 'Warning'
   console.warn(warning.message); // 'Something happened!'
@@ -1363,7 +1144,7 @@ The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
 [`'warning'`][process_warning] event.
 
-```mjs
+```js
 import { emitWarning } from 'node:process';
 
 // Emit a warning using a string.
@@ -1371,15 +1152,7 @@ emitWarning('Something happened!');
 // Emits: (node: 56338) Warning: Something happened!
 ```
 
-```cjs
-const { emitWarning } = require('node:process');
-
-// Emit a warning using a string.
-emitWarning('Something happened!');
-// Emits: (node: 56338) Warning: Something happened!
-```
-
-```mjs
+```js
 import { emitWarning } from 'node:process';
 
 // Emit a warning using a string and a type.
@@ -1387,25 +1160,10 @@ emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
 ```
 
-```cjs
-const { emitWarning } = require('node:process');
-
-// Emit a warning using a string and a type.
-emitWarning('Something Happened!', 'CustomWarning');
-// Emits: (node:56338) CustomWarning: Something Happened!
-```
-
-```mjs
+```js
 import { emitWarning } from 'node:process';
 
 emitWarning('Something happened!', 'CustomWarning', 'WARN001');
-// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
-```
-
-```cjs
-const { emitWarning } = require('node:process');
-
-process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
 // Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
@@ -1413,18 +1171,9 @@ In each of the previous examples, an `Error` object is generated internally by
 `process.emitWarning()` and passed through to the [`'warning'`][process_warning]
 handler.
 
-```mjs
+```js
 import process from 'node:process';
 
-process.on('warning', (warning) => {
-  console.warn(warning.name);
-  console.warn(warning.message);
-  console.warn(warning.code);
-  console.warn(warning.stack);
-});
-```
-
-```cjs
 process.on('warning', (warning) => {
   console.warn(warning.name);
   console.warn(warning.message);
@@ -1437,21 +1186,8 @@ If `warning` is passed as an `Error` object, it will be passed through to the
 `'warning'` event handler unmodified (and the optional `type`,
 `code` and `ctor` arguments will be ignored):
 
-```mjs
+```js
 import { emitWarning } from 'node:process';
-
-// Emit a warning using an Error object.
-const myWarning = new Error('Something happened!');
-// Use the Error name property to specify the type name
-myWarning.name = 'CustomWarning';
-myWarning.code = 'WARN001';
-
-emitWarning(myWarning);
-// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
-```
-
-```cjs
-const { emitWarning } = require('node:process');
 
 // Emit a warning using an Error object.
 const myWarning = new Error('Something happened!');
@@ -1484,23 +1220,8 @@ The following additional handling is implemented if the warning `type` is
 As a best practice, warnings should be emitted only once per process. To do
 so, place the `emitWarning()` behind a boolean.
 
-```mjs
+```js
 import { emitWarning } from 'node:process';
-
-function emitMyWarning() {
-  if (!emitMyWarning.warned) {
-    emitMyWarning.warned = true;
-    emitWarning('Only warn once!');
-  }
-}
-emitMyWarning();
-// Emits: (node: 56339) Warning: Only warn once!
-emitMyWarning();
-// Emits nothing
-```
-
-```cjs
-const { emitWarning } = require('node:process');
 
 function emitMyWarning() {
   if (!emitMyWarning.warned) {
@@ -1562,15 +1283,8 @@ node -e 'process.env.foo = "bar"' && echo $foo
 
 While the following will:
 
-```mjs
+```js
 import { env } from 'node:process';
-
-env.foo = 'bar';
-console.log(env.foo);
-```
-
-```cjs
-const { env } = require('node:process');
 
 env.foo = 'bar';
 console.log(env.foo);
@@ -1580,19 +1294,8 @@ Assigning a property on `process.env` will implicitly convert the value
 to a string. **This behavior is deprecated.** Future versions of Node.js may
 throw an error when the value is not a string, number, or boolean.
 
-```mjs
+```js
 import { env } from 'node:process';
-
-env.test = null;
-console.log(env.test);
-// => 'null'
-env.test = undefined;
-console.log(env.test);
-// => 'undefined'
-```
-
-```cjs
-const { env } = require('node:process');
 
 env.test = null;
 console.log(env.test);
@@ -1604,17 +1307,8 @@ console.log(env.test);
 
 Use `delete` to delete a property from `process.env`.
 
-```mjs
+```js
 import { env } from 'node:process';
-
-env.TEST = 1;
-delete env.TEST;
-console.log(env.TEST);
-// => undefined
-```
-
-```cjs
-const { env } = require('node:process');
 
 env.TEST = 1;
 delete env.TEST;
@@ -1624,16 +1318,8 @@ console.log(env.TEST);
 
 On Windows operating systems, environment variables are case-insensitive.
 
-```mjs
+```js
 import { env } from 'node:process';
-
-env.TEST = 1;
-console.log(env.test);
-// => 1
-```
-
-```cjs
-const { env } = require('node:process');
 
 env.TEST = 1;
 console.log(env.test);
@@ -1765,14 +1451,8 @@ called.
 
 To exit with a 'failure' code:
 
-```mjs
+```js
 import { exit } from 'node:process';
-
-exit(1);
-```
-
-```cjs
-const { exit } = require('node:process');
 
 exit(1);
 ```
@@ -1793,18 +1473,8 @@ For instance, the following example illustrates a _misuse_ of the
 `process.exit()` method that could lead to data printed to stdout being
 truncated and lost:
 
-```mjs
+```js
 import { exit } from 'node:process';
-
-// This is an example of what *not* to do:
-if (someConditionNotMet()) {
-  printUsageToStdout();
-  exit(1);
-}
-```
-
-```cjs
-const { exit } = require('node:process');
 
 // This is an example of what *not* to do:
 if (someConditionNotMet()) {
@@ -1822,18 +1492,9 @@ Rather than calling `process.exit()` directly, the code _should_ set the
 `process.exitCode` and allow the process to exit naturally by avoiding
 scheduling any additional work for the event loop:
 
-```mjs
+```js
 import process from 'node:process';
 
-// How to properly set the exit code while letting
-// the process exit gracefully.
-if (someConditionNotMet()) {
-  printUsageToStdout();
-  process.exitCode = 1;
-}
-```
-
-```cjs
 // How to properly set the exit code while letting
 // the process exit gracefully.
 if (someConditionNotMet()) {
@@ -2088,7 +1749,7 @@ Eg: you can register an object that contains a buffer, you want to make sure tha
 when the process exit, but if the object is garbage collected before the process exit, we no longer
 need to release the buffer, so in this case we just remove the callback from the finalization registry.
 
-```cjs
+```js
 const { finalization } = require('node:process');
 
 // Please make sure that the function passed to finalization.register()
@@ -2114,7 +1775,7 @@ function setup() {
 setup();
 ```
 
-```mjs
+```js
 import { finalization } from 'node:process';
 
 // Please make sure that the function passed to finalization.register()
@@ -2202,7 +1863,7 @@ added: v22.5.0
 This function remove the register of the object from the finalization
 registry, so the callback will not be called anymore.
 
-```cjs
+```js
 const { finalization } = require('node:process');
 
 // Please make sure that the function passed to finalization.register()
@@ -2233,7 +1894,7 @@ function setup() {
 setup();
 ```
 
-```mjs
+```js
 import { finalization } from 'node:process';
 
 // Please make sure that the function passed to finalization.register()
@@ -2291,7 +1952,7 @@ The `process.getActiveResourcesInfo()` method returns an array of strings
 containing the types of the active resources that are currently keeping the
 event loop alive.
 
-```mjs
+```js
 import { getActiveResourcesInfo } from 'node:process';
 import { setTimeout } from 'node:timers';
 
@@ -2301,18 +1962,6 @@ console.log('After:', getActiveResourcesInfo());
 // Prints:
 //   Before: [ 'CloseReq', 'TTYWrap', 'TTYWrap', 'TTYWrap' ]
 //   After: [ 'CloseReq', 'TTYWrap', 'TTYWrap', 'TTYWrap', 'Timeout' ]
-```
-
-```cjs
-const { getActiveResourcesInfo } = require('node:process');
-const { setTimeout } = require('node:timers');
-
-console.log('Before:', getActiveResourcesInfo());
-setTimeout(() => {}, 1000);
-console.log('After:', getActiveResourcesInfo());
-// Prints:
-//   Before: [ 'TTYWrap', 'TTYWrap', 'TTYWrap' ]
-//   After: [ 'TTYWrap', 'TTYWrap', 'TTYWrap', 'Timeout' ]
 ```
 
 ## `process.getBuiltinModule(id)`
@@ -2334,7 +1983,7 @@ error that can be thrown by `import` in a non-Node.js environment or
 having to use dynamic `import()` which either turns the module into
 an asynchronous module, or turns a synchronous API into an asynchronous one.
 
-```mjs
+```js
 if (globalThis.process?.getBuiltinModule) {
   // Run in Node.js, use the Node.js fs module.
   const fs = globalThis.process.getBuiltinModule('fs');
@@ -2366,15 +2015,9 @@ added: v2.0.0
 The `process.getegid()` method returns the numerical effective group identity
 of the Node.js process. (See getegid(2).)
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getegid) {
-  console.log(`Current gid: ${process.getegid()}`);
-}
-```
-
-```cjs
 if (process.getegid) {
   console.log(`Current gid: ${process.getegid()}`);
 }
@@ -2394,15 +2037,9 @@ added: v2.0.0
 The `process.geteuid()` method returns the numerical effective user identity of
 the process. (See geteuid(2).)
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.geteuid) {
-  console.log(`Current uid: ${process.geteuid()}`);
-}
-```
-
-```cjs
 if (process.geteuid) {
   console.log(`Current uid: ${process.geteuid()}`);
 }
@@ -2422,15 +2059,9 @@ added: v0.1.31
 The `process.getgid()` method returns the numerical group identity of the
 process. (See getgid(2).)
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getgid) {
-  console.log(`Current gid: ${process.getgid()}`);
-}
-```
-
-```cjs
 if (process.getgid) {
   console.log(`Current gid: ${process.getgid()}`);
 }
@@ -2451,15 +2082,9 @@ The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
 Node.js ensures it always is.
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getgroups) {
-  console.log(process.getgroups()); // [ 16, 21, 297 ]
-}
-```
-
-```cjs
 if (process.getgroups) {
   console.log(process.getgroups()); // [ 16, 21, 297 ]
 }
@@ -2479,15 +2104,9 @@ added: v0.1.28
 The `process.getuid()` method returns the numeric user identity of the process.
 (See getuid(2).)
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getuid) {
-  console.log(`Current uid: ${process.getuid()}`);
-}
-```
-
-```cjs
 if (process.getuid) {
   console.log(`Current uid: ${process.getuid()}`);
 }
@@ -2534,24 +2153,8 @@ These times are relative to an arbitrary time in the
 past, and not related to the time of day and therefore not subject to clock
 drift. The primary use is for measuring performance between intervals:
 
-```mjs
+```js
 import { hrtime } from 'node:process';
-
-const NS_PER_SEC = 1e9;
-const time = hrtime();
-// [ 1800216, 25 ]
-
-setTimeout(() => {
-  const diff = hrtime(time);
-  // [ 1, 552 ]
-
-  console.log(`Benchmark took ${diff[0] * NS_PER_SEC + diff[1]} nanoseconds`);
-  // Benchmark took 1000000552 nanoseconds
-}, 1000);
-```
-
-```cjs
-const { hrtime } = require('node:process');
 
 const NS_PER_SEC = 1e9;
 const time = hrtime();
@@ -2581,23 +2184,8 @@ Unlike [`process.hrtime()`][], it does not support an additional `time`
 argument since the difference can just be computed directly
 by subtraction of the two `bigint`s.
 
-```mjs
+```js
 import { hrtime } from 'node:process';
-
-const start = hrtime.bigint();
-// 191051479007711n
-
-setTimeout(() => {
-  const end = hrtime.bigint();
-  // 191052633396993n
-
-  console.log(`Benchmark took ${end - start} nanoseconds`);
-  // Benchmark took 1154389282 nanoseconds
-}, 1000);
-```
-
-```cjs
-const { hrtime } = require('node:process');
 
 const start = hrtime.bigint();
 // 191051479007711n
@@ -2627,18 +2215,8 @@ access or the `CAP_SETGID` capability.
 
 Use care when dropping privileges:
 
-```mjs
+```js
 import { getgroups, initgroups, setgid } from 'node:process';
-
-console.log(getgroups());         // [ 0 ]
-initgroups('nodeuser', 1000);     // switch user
-console.log(getgroups());         // [ 27, 30, 46, 1000, 0 ]
-setgid(1000);                     // drop root gid
-console.log(getgroups());         // [ 27, 30, 46, 1000 ]
-```
-
-```cjs
-const { getgroups, initgroups, setgid } = require('node:process');
 
 console.log(getgroups());         // [ 0 ]
 initgroups('nodeuser', 1000);     // switch user
@@ -2676,7 +2254,7 @@ Even though the name of this function is `process.kill()`, it is really just a
 signal sender, like the `kill` system call. The signal sent may do something
 other than kill the target process.
 
-```mjs
+```js
 import process, { kill } from 'node:process';
 
 process.on('SIGHUP', () => {
@@ -2689,19 +2267,6 @@ setTimeout(() => {
 }, 100);
 
 kill(process.pid, 'SIGHUP');
-```
-
-```cjs
-process.on('SIGHUP', () => {
-  console.log('Got SIGHUP signal.');
-});
-
-setTimeout(() => {
-  console.log('Exiting.');
-  process.exit(0);
-}, 100);
-
-process.kill(process.pid, 'SIGHUP');
 ```
 
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
@@ -2726,12 +2291,12 @@ changes:
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
 
-```cjs
+```js
 const { loadEnvFile } = require('node:process');
 loadEnvFile();
 ```
 
-```mjs
+```js
 import { loadEnvFile } from 'node:process';
 loadEnvFile();
 ```
@@ -2781,22 +2346,8 @@ changes:
 Returns an object describing the memory usage of the Node.js process measured in
 bytes.
 
-```mjs
+```js
 import { memoryUsage } from 'node:process';
-
-console.log(memoryUsage());
-// Prints:
-// {
-//  rss: 4935680,
-//  heapTotal: 1826816,
-//  heapUsed: 650472,
-//  external: 49879,
-//  arrayBuffers: 9386
-// }
-```
-
-```cjs
-const { memoryUsage } = require('node:process');
 
 console.log(memoryUsage());
 // Prints:
@@ -2855,15 +2406,8 @@ process, including all C++ and JavaScript objects and code.
 This is the same value as the `rss` property provided by `process.memoryUsage()`
 but `process.memoryUsage.rss()` is faster.
 
-```mjs
+```js
 import { memoryUsage } from 'node:process';
-
-console.log(memoryUsage.rss());
-// 35655680
-```
-
-```cjs
-const { memoryUsage } = require('node:process');
 
 console.log(memoryUsage.rss());
 // 35655680
@@ -2900,22 +2444,8 @@ completion and before the event loop is allowed to continue. It's possible to
 create an infinite loop if one were to recursively call `process.nextTick()`.
 See the [Event Loop][] guide for more background.
 
-```mjs
+```js
 import { nextTick } from 'node:process';
-
-console.log('start');
-nextTick(() => {
-  console.log('nextTick callback');
-});
-console.log('scheduled');
-// Output:
-// start
-// scheduled
-// nextTick callback
-```
-
-```cjs
-const { nextTick } = require('node:process');
 
 console.log('start');
 nextTick(() => {
@@ -2932,25 +2462,8 @@ This is important when developing APIs in order to give users the opportunity
 to assign event handlers _after_ an object has been constructed but before any
 I/O has occurred:
 
-```mjs
+```js
 import { nextTick } from 'node:process';
-
-function MyThing(options) {
-  this.setupOptions(options);
-
-  nextTick(() => {
-    this.startDoingStuff();
-  });
-}
-
-const thing = new MyThing();
-thing.getReadyForStuff();
-
-// thing.startDoingStuff() gets called now, not before.
-```
-
-```cjs
-const { nextTick } = require('node:process');
 
 function MyThing(options) {
   this.setupOptions(options);
@@ -2997,21 +2510,8 @@ It is not clear whether `foo()` or `bar()` will be called first.
 
 The following approach is much better:
 
-```mjs
+```js
 import { nextTick } from 'node:process';
-
-function definitelyAsync(arg, cb) {
-  if (arg) {
-    nextTick(cb);
-    return;
-  }
-
-  fs.stat('file', cb);
-}
-```
-
-```cjs
-const { nextTick } = require('node:process');
 
 function definitelyAsync(arg, cb) {
   if (arg) {
@@ -3037,7 +2537,7 @@ However since ESM modules are processed already as part of the microtask queue, 
 `queueMicrotask()` callbacks are always executed before `process.nextTick()` ones since Node.js
 is already in the process of draining the microtask queue.
 
-```mjs
+```js
 import { nextTick } from 'node:process';
 
 Promise.resolve().then(() => console.log('resolve'));
@@ -3047,18 +2547,6 @@ nextTick(() => console.log('nextTick'));
 // resolve
 // microtask
 // nextTick
-```
-
-```cjs
-const { nextTick } = require('node:process');
-
-Promise.resolve().then(() => console.log('resolve'));
-queueMicrotask(() => console.log('microtask'));
-nextTick(() => console.log('nextTick'));
-// Output:
-// nextTick
-// resolve
-// microtask
 ```
 
 For _most_ userland use cases, the `queueMicrotask()` API provides a portable
@@ -3250,14 +2738,8 @@ added: v0.1.15
 
 The `process.pid` property returns the PID of the process.
 
-```mjs
+```js
 import { pid } from 'node:process';
-
-console.log(`This process is pid ${pid}`);
-```
-
-```cjs
-const { pid } = require('node:process');
 
 console.log(`This process is pid ${pid}`);
 ```
@@ -3283,14 +2765,8 @@ Currently possible values are:
 * `'sunos'`
 * `'win32'`
 
-```mjs
+```js
 import { platform } from 'node:process';
-
-console.log(`This platform is ${platform}`);
-```
-
-```cjs
-const { platform } = require('node:process');
 
 console.log(`This platform is ${platform}`);
 ```
@@ -3313,14 +2789,8 @@ added:
 The `process.ppid` property returns the PID of the parent of the
 current process.
 
-```mjs
+```js
 import { ppid } from 'node:process';
-
-console.log(`The parent process is pid ${ppid}`);
-```
-
-```cjs
-const { ppid } = require('node:process');
 
 console.log(`The parent process is pid ${ppid}`);
 ```
@@ -3430,14 +2900,8 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Reports are compact? ${report.compact}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Reports are compact? ${report.compact}`);
 ```
@@ -3460,14 +2924,8 @@ Directory where the report is written. The default value is the empty string,
 indicating that reports are written to the current working directory of the
 Node.js process.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Report directory is ${report.directory}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Report directory is ${report.directory}`);
 ```
@@ -3493,14 +2951,8 @@ value is the empty string.
 If the value of `process.report.filename` is set to `'stdout'` or `'stderr'`,
 the report is written to the stdout or stderr of the process respectively.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Report filename is ${report.filename}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Report filename is ${report.filename}`);
 ```
@@ -3524,7 +2976,7 @@ Returns a JavaScript Object representation of a diagnostic report for the
 running process. The report's JavaScript stack trace is taken from `err`, if
 present.
 
-```mjs
+```js
 import { report } from 'node:process';
 import util from 'node:util';
 
@@ -3533,18 +2985,6 @@ console.log(data.header.nodejsVersion);
 
 // Similar to process.report.writeReport()
 import fs from 'node:fs';
-fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
-```
-
-```cjs
-const { report } = require('node:process');
-const util = require('node:util');
-
-const data = report.getReport();
-console.log(data.header.nodejsVersion);
-
-// Similar to process.report.writeReport()
-const fs = require('node:fs');
 fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
 ```
 
@@ -3567,14 +3007,8 @@ changes:
 If `true`, a diagnostic report is generated on fatal errors, such as out of
 memory errors or failed C++ assertions.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Report on fatal error: ${report.reportOnFatalError}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Report on fatal error: ${report.reportOnFatalError}`);
 ```
@@ -3596,14 +3030,8 @@ changes:
 If `true`, a diagnostic report is generated when the process receives the
 signal specified by `process.report.signal`.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Report on signal: ${report.reportOnSignal}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Report on signal: ${report.reportOnSignal}`);
 ```
@@ -3624,14 +3052,8 @@ changes:
 
 If `true`, a diagnostic report is generated on uncaught exception.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Report on exception: ${report.reportOnUncaughtException}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 ```
@@ -3665,14 +3087,8 @@ changes:
 The signal used to trigger the creation of a diagnostic report. Defaults to
 `'SIGUSR2'`.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-console.log(`Report signal: ${report.signal}`);
-```
-
-```cjs
-const { report } = require('node:process');
 
 console.log(`Report signal: ${report.signal}`);
 ```
@@ -3705,14 +3121,8 @@ JavaScript stack trace is taken from `err`, if present.
 If the value of `filename` is set to `'stdout'` or `'stderr'`, the report is
 written to the stdout or stderr of the process respectively.
 
-```mjs
+```js
 import { report } from 'node:process';
-
-report.writeReport();
-```
-
-```cjs
-const { report } = require('node:process');
 
 report.writeReport();
 ```
@@ -3768,35 +3178,8 @@ added: v12.6.0
     process becoming runnable or because the current process exceeded its
     time slice. This field is not supported on Windows.
 
-```mjs
+```js
 import { resourceUsage } from 'node:process';
-
-console.log(resourceUsage());
-/*
-  Will output:
-  {
-    userCPUTime: 82872,
-    systemCPUTime: 4143,
-    maxRSS: 33164,
-    sharedMemorySize: 0,
-    unsharedDataSize: 0,
-    unsharedStackSize: 0,
-    minorPageFault: 2469,
-    majorPageFault: 0,
-    swappedOut: 0,
-    fsRead: 0,
-    fsWrite: 8,
-    ipcSent: 0,
-    ipcReceived: 0,
-    signalsCount: 0,
-    voluntaryContextSwitches: 79,
-    involuntaryContextSwitches: 1
-  }
-*/
-```
-
-```cjs
-const { resourceUsage } = require('node:process');
 
 console.log(resourceUsage());
 /*
@@ -3861,21 +3244,9 @@ The `process.setegid()` method sets the effective group identity of the process.
 name string. If a group name is specified, this method blocks while resolving
 the associated a numeric ID.
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getegid && process.setegid) {
-  console.log(`Current gid: ${process.getegid()}`);
-  try {
-    process.setegid(501);
-    console.log(`New gid: ${process.getegid()}`);
-  } catch (err) {
-    console.error(`Failed to set gid: ${err}`);
-  }
-}
-```
-
-```cjs
 if (process.getegid && process.setegid) {
   console.log(`Current gid: ${process.getegid()}`);
   try {
@@ -3904,21 +3275,9 @@ The `process.seteuid()` method sets the effective user identity of the process.
 string. If a username is specified, the method blocks while resolving the
 associated numeric ID.
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.geteuid && process.seteuid) {
-  console.log(`Current uid: ${process.geteuid()}`);
-  try {
-    process.seteuid(501);
-    console.log(`New uid: ${process.geteuid()}`);
-  } catch (err) {
-    console.error(`Failed to set uid: ${err}`);
-  }
-}
-```
-
-```cjs
 if (process.geteuid && process.seteuid) {
   console.log(`Current uid: ${process.geteuid()}`);
   try {
@@ -3947,21 +3306,9 @@ setgid(2).) The `id` can be passed as either a numeric ID or a group name
 string. If a group name is specified, this method blocks while resolving the
 associated numeric ID.
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getgid && process.setgid) {
-  console.log(`Current gid: ${process.getgid()}`);
-  try {
-    process.setgid(501);
-    console.log(`New gid: ${process.getgid()}`);
-  } catch (err) {
-    console.error(`Failed to set gid: ${err}`);
-  }
-}
-```
-
-```cjs
 if (process.getgid && process.setgid) {
   console.log(`Current gid: ${process.getgid()}`);
   try {
@@ -3991,20 +3338,9 @@ process to have `root` or the `CAP_SETGID` capability.
 
 The `groups` array can contain numeric group IDs, group names, or both.
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getgroups && process.setgroups) {
-  try {
-    process.setgroups([501]);
-    console.log(process.getgroups()); // new groups
-  } catch (err) {
-    console.error(`Failed to set groups: ${err}`);
-  }
-}
-```
-
-```cjs
 if (process.getgroups && process.setgroups) {
   try {
     process.setgroups([501]);
@@ -4032,21 +3368,9 @@ setuid(2).) The `id` can be passed as either a numeric ID or a username string.
 If a username is specified, the method blocks while resolving the associated
 numeric ID.
 
-```mjs
+```js
 import process from 'node:process';
 
-if (process.getuid && process.setuid) {
-  console.log(`Current uid: ${process.getuid()}`);
-  try {
-    process.setuid(501);
-    console.log(`New uid: ${process.getuid()}`);
-  } catch (err) {
-    console.error(`Failed to set uid: ${err}`);
-  }
-}
-```
-
-```cjs
 if (process.getuid && process.setuid) {
   console.log(`Current uid: ${process.getuid()}`);
   try {
@@ -4191,14 +3515,8 @@ a [Writable][] stream.
 
 For example, to copy `process.stdin` to `process.stdout`:
 
-```mjs
+```js
 import { stdin, stdout } from 'node:process';
-
-stdin.pipe(stdout);
-```
-
-```cjs
-const { stdin, stdout } = require('node:process');
 
 stdin.pipe(stdout);
 ```
@@ -4407,18 +3725,8 @@ added: v0.1.19
 `process.umask(mask)` sets the Node.js process's file mode creation mask. Child
 processes inherit the mask from the parent process. Returns the previous mask.
 
-```mjs
+```js
 import { umask } from 'node:process';
-
-const newmask = 0o022;
-const oldmask = umask(newmask);
-console.log(
-  `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`,
-);
-```
-
-```cjs
-const { umask } = require('node:process');
 
 const newmask = 0o022;
 const oldmask = umask(newmask);
@@ -4474,15 +3782,8 @@ added: v0.1.3
 
 The `process.version` property contains the Node.js version string.
 
-```mjs
+```js
 import { version } from 'node:process';
-
-console.log(`Version: ${version}`);
-// Version: v14.8.0
-```
-
-```cjs
-const { version } = require('node:process');
 
 console.log(`Version: ${version}`);
 // Version: v14.8.0
@@ -4511,14 +3812,8 @@ Node.js and its dependencies. `process.versions.modules` indicates the current
 ABI version, which is increased whenever a C++ API changes. Node.js will refuse
 to load modules that were compiled against a different module ABI version.
 
-```mjs
+```js
 import { versions } from 'node:process';
-
-console.log(versions);
-```
-
-```cjs
-const { versions } = require('node:process');
 
 console.log(versions);
 ```

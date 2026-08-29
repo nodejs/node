@@ -451,7 +451,7 @@ both static `import` and dynamic `import()` to load binary addons.
 
 If we reuse the Hello World example from earlier, you could do:
 
-```mjs
+```js
 // hello.mjs
 import myAddon from './hello.node';
 // N.B.: import {hello} from './hello.node' would not work

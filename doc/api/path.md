@@ -9,11 +9,11 @@
 The `node:path` module provides utilities for working with file and directory
 paths. It can be accessed using:
 
-```cjs
+```js
 const path = require('node:path');
 ```
 
-```mjs
+```js
 import path from 'node:path';
 ```
 

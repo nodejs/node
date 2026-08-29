@@ -11,12 +11,8 @@ Gzip, Deflate/Inflate, Brotli, and Zstd.
 
 To access it:
 
-```mjs
+```js
 import zlib from 'node:zlib';
-```
-
-```cjs
-const zlib = require('node:zlib');
 ```
 
 Compression and decompression are built around the Node.js [Streams API][].
@@ -25,7 +21,7 @@ Compressing or decompressing a stream (such as a file) can be accomplished by
 piping the source stream through a `zlib` `Transform` stream into a destination
 stream:
 
-```mjs
+```js
 import {
   createReadStream,
   createWriteStream,
@@ -46,29 +42,9 @@ pipeline(source, gzip, destination, (err) => {
 });
 ```
 
-```cjs
-const {
-  createReadStream,
-  createWriteStream,
-} = require('node:fs');
-const { createGzip } = require('node:zlib');
-const { pipeline } = require('node:stream');
-
-const gzip = createGzip();
-const source = createReadStream('input.txt');
-const destination = createWriteStream('input.txt.gz');
-
-pipeline(source, gzip, destination, (err) => {
-  if (err) {
-    console.error('An error occurred:', err);
-    process.exitCode = 1;
-  }
-});
-```
-
 Or, using the promise `pipeline` API:
 
-```mjs
+```js
 import {
   createReadStream,
   createWriteStream,
@@ -86,31 +62,9 @@ async function do_gzip(input, output) {
 await do_gzip('input.txt', 'input.txt.gz');
 ```
 
-```cjs
-const {
-  createReadStream,
-  createWriteStream,
-} = require('node:fs');
-const { createGzip } = require('node:zlib');
-const { pipeline } = require('node:stream/promises');
-
-async function do_gzip(input, output) {
-  const gzip = createGzip();
-  const source = createReadStream(input);
-  const destination = createWriteStream(output);
-  await pipeline(source, gzip, destination);
-}
-
-do_gzip('input.txt', 'input.txt.gz')
-  .catch((err) => {
-    console.error('An error occurred:', err);
-    process.exitCode = 1;
-  });
-```
-
 It is also possible to compress or decompress data in a single step:
 
-```mjs
+```js
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import { deflate, unzip } from 'node:zlib';
@@ -142,40 +96,6 @@ const unzippedBuffer = await do_unzip(buffer);
 console.log(unzippedBuffer.toString());
 ```
 
-```cjs
-const { deflate, unzip } = require('node:zlib');
-
-const input = '.................................';
-deflate(input, (err, buffer) => {
-  if (err) {
-    console.error('An error occurred:', err);
-    process.exitCode = 1;
-  }
-  console.log(buffer.toString('base64'));
-});
-
-const buffer = Buffer.from('eJzT0yMAAGTvBe8=', 'base64');
-unzip(buffer, (err, buffer) => {
-  if (err) {
-    console.error('An error occurred:', err);
-    process.exitCode = 1;
-  }
-  console.log(buffer.toString());
-});
-
-// Or, Promisified
-
-const { promisify } = require('node:util');
-const do_unzip = promisify(unzip);
-
-do_unzip(buffer)
-  .then((buf) => console.log(buf.toString()))
-  .catch((err) => {
-    console.error('An error occurred:', err);
-    process.exitCode = 1;
-  });
-```
-
 ## Threadpool usage and performance considerations
 
 All `zlib` APIs, except those that are explicitly synchronous, use the Node.js
@@ -185,20 +105,9 @@ limitations in some applications.
 Creating and using a large number of zlib objects simultaneously can cause
 significant memory fragmentation.
 
-```mjs
+```js
 import zlib from 'node:zlib';
 import { Buffer } from 'node:buffer';
-
-const payload = Buffer.from('This is some data');
-
-// WARNING: DO NOT DO THIS!
-for (let i = 0; i < 30000; ++i) {
-  zlib.deflate(payload, (err, buffer) => {});
-}
-```
-
-```cjs
-const zlib = require('node:zlib');
 
 const payload = Buffer.from('This is some data');
 
@@ -231,7 +140,7 @@ Using `zlib` encoding can be expensive, and the results ought to be cached.
 See [Memory usage tuning][] for more information on the speed/memory/compression
 tradeoffs involved in `zlib` usage.
 
-```mjs
+```js
 // Client request example
 import fs from 'node:fs';
 import zlib from 'node:zlib';
@@ -274,49 +183,7 @@ request.on('response', (response) => {
 });
 ```
 
-```cjs
-// Client request example
-const zlib = require('node:zlib');
-const http = require('node:http');
-const fs = require('node:fs');
-const { pipeline } = require('node:stream');
-
-const request = http.get({ host: 'example.com',
-                           path: '/',
-                           port: 80,
-                           headers: { 'Accept-Encoding': 'br,gzip,deflate,zstd' } });
-request.on('response', (response) => {
-  const output = fs.createWriteStream('example.com_index.html');
-
-  const onError = (err) => {
-    if (err) {
-      console.error('An error occurred:', err);
-      process.exitCode = 1;
-    }
-  };
-
-  switch (response.headers['content-encoding']) {
-    case 'br':
-      pipeline(response, zlib.createBrotliDecompress(), output, onError);
-      break;
-    // Or, just use zlib.createUnzip() to handle both of the following cases:
-    case 'gzip':
-      pipeline(response, zlib.createGunzip(), output, onError);
-      break;
-    case 'deflate':
-      pipeline(response, zlib.createInflate(), output, onError);
-      break;
-    case 'zstd':
-      pipeline(response, zlib.createZstdDecompress(), output, onError);
-      break;
-    default:
-      pipeline(response, output, onError);
-      break;
-  }
-});
-```
-
-```mjs
+```js
 // server example
 // Running a gzip operation on every request is quite expensive.
 // It would be much more efficient to cache the compressed buffer.
@@ -324,54 +191,6 @@ import zlib from 'node:zlib';
 import http from 'node:http';
 import fs from 'node:fs';
 import { pipeline } from 'node:stream';
-
-http.createServer((request, response) => {
-  const raw = fs.createReadStream('index.html');
-  // Store both a compressed and an uncompressed version of the resource.
-  response.setHeader('Vary', 'Accept-Encoding');
-  const acceptEncoding = request.headers['accept-encoding'] || '';
-
-  const onError = (err) => {
-    if (err) {
-      // If an error occurs, there's not much we can do because
-      // the server has already sent the 200 response code and
-      // some amount of data has already been sent to the client.
-      // The best we can do is terminate the response immediately
-      // and log the error.
-      response.end();
-      console.error('An error occurred:', err);
-    }
-  };
-
-  // Note: This is not a conformant accept-encoding parser.
-  // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-  if (/\bdeflate\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'deflate' });
-    pipeline(raw, zlib.createDeflate(), response, onError);
-  } else if (/\bgzip\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'gzip' });
-    pipeline(raw, zlib.createGzip(), response, onError);
-  } else if (/\bbr\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'br' });
-    pipeline(raw, zlib.createBrotliCompress(), response, onError);
-  } else if (/\bzstd\b/.test(acceptEncoding)) {
-    response.writeHead(200, { 'Content-Encoding': 'zstd' });
-    pipeline(raw, zlib.createZstdCompress(), response, onError);
-  } else {
-    response.writeHead(200, {});
-    pipeline(raw, response, onError);
-  }
-}).listen(1337);
-```
-
-```cjs
-// server example
-// Running a gzip operation on every request is quite expensive.
-// It would be much more efficient to cache the compressed buffer.
-const zlib = require('node:zlib');
-const http = require('node:http');
-const fs = require('node:fs');
-const { pipeline } = require('node:stream');
 
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
@@ -516,46 +335,10 @@ quality, but can be useful when data needs to be available as soon as possible.
 In the following example, `flush()` is used to write a compressed partial
 HTTP response to the client:
 
-```mjs
+```js
 import zlib from 'node:zlib';
 import http from 'node:http';
 import { pipeline } from 'node:stream';
-
-http.createServer((request, response) => {
-  // For the sake of simplicity, the Accept-Encoding checks are omitted.
-  response.writeHead(200, { 'content-encoding': 'gzip' });
-  const output = zlib.createGzip();
-  let i;
-
-  pipeline(output, response, (err) => {
-    if (err) {
-      // If an error occurs, there's not much we can do because
-      // the server has already sent the 200 response code and
-      // some amount of data has already been sent to the client.
-      // The best we can do is terminate the response immediately
-      // and log the error.
-      clearInterval(i);
-      response.end();
-      console.error('An error occurred:', err);
-    }
-  });
-
-  i = setInterval(() => {
-    output.write(`The current time is ${Date()}\n`, () => {
-      // The data has been passed to zlib, but the compression algorithm may
-      // have decided to buffer the data for more efficient compression.
-      // Calling .flush() will make the data available as soon as the client
-      // is ready to receive it.
-      output.flush();
-    });
-  }, 1000);
-}).listen(1337);
-```
-
-```cjs
-const zlib = require('node:zlib');
-const http = require('node:http');
-const { pipeline } = require('node:stream');
 
 http.createServer((request, response) => {
   // For the sake of simplicity, the Accept-Encoding checks are omitted.
@@ -1050,7 +833,7 @@ JavaScript execution until the operation completes; use them only where
 synchronous execution is appropriate (for example, short-lived scripts or
 startup code), not in code that must stay responsive.
 
-```mjs
+```js
 import { ZipBuffer } from 'node:zlib';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Buffer } from 'node:buffer';
@@ -1062,22 +845,6 @@ for (const [name, entry] of zip) {
 await zip.add('hello.txt', Buffer.from('Hello, world!'));
 zip.delete('unwanted.txt');
 writeFileSync('archive.zip', await zip.toBuffer());
-```
-
-```cjs
-const { ZipBuffer } = require('node:zlib');
-const { readFileSync, writeFileSync } = require('node:fs');
-
-async function main() {
-  const zip = new ZipBuffer(readFileSync('archive.zip'));
-  for (const [name, entry] of zip) {
-    console.log(name, entry.size);
-  }
-  await zip.add('hello.txt', Buffer.from('Hello, world!'));
-  zip.delete('unwanted.txt');
-  writeFileSync('archive.zip', await zip.toBuffer());
-}
-main();
 ```
 
 ### `new zlib.ZipBuffer(buffer)`
@@ -1733,7 +1500,7 @@ if called while an asynchronous `add()`, `addEntry()`, `delete()`, or
 `close()` on the same `ZipFile` has not settled yet, since letting the two
 interleave could corrupt the archive.
 
-```mjs
+```js
 import { ZipFile } from 'node:zlib';
 import { Buffer } from 'node:buffer';
 
@@ -1749,26 +1516,6 @@ try {
 } finally {
   await zip.close();
 }
-```
-
-```cjs
-const { ZipFile } = require('node:zlib');
-
-async function main() {
-  const zip = await ZipFile.open('archive.zip', { writable: true });
-  try {
-    const entry = await zip.get('member.txt');
-    console.log((await entry.content()).toString());
-    for await (const chunk of await zip.stream('huge.bin')) {
-      // Process each chunk without buffering the whole member.
-    }
-    await zip.add('new.txt', Buffer.from('hello'));
-    await zip.delete('unwanted.txt');
-  } finally {
-    await zip.close();
-  }
-}
-main();
 ```
 
 ### Static method: `zlib.ZipFile.open(filename[, options])`
@@ -1914,7 +1661,7 @@ added: v26.8.0
 
 Does not modify the open file; pipe the result into a new one:
 
-```mjs
+```js
 import { createWriteStream } from 'node:fs';
 zip.compact().pipe(createWriteStream('compacted.zip'));
 ```
@@ -2317,20 +2064,9 @@ match the checksum produced by such a third-party library:
    `str.charCodeAt()`, on the Node.js side, convert the string into
    a buffer using `Buffer.from(str, 'utf16le')`.
 
-```mjs
+```js
 import zlib from 'node:zlib';
 import { Buffer } from 'node:buffer';
-
-let crc = zlib.crc32('hello');  // 907060870
-crc = zlib.crc32('world', crc);  // 4192936109
-
-crc = zlib.crc32(Buffer.from('hello', 'utf16le'));  // 1427272415
-crc = zlib.crc32(Buffer.from('world', 'utf16le'), crc);  // 4150509955
-```
-
-```cjs
-const zlib = require('node:zlib');
-const { Buffer } = require('node:buffer');
 
 let crc = zlib.crc32('hello');  // 907060870
 crc = zlib.crc32('world', crc);  // 4192936109
@@ -2490,7 +2226,7 @@ an archive can be released directly with `Symbol.dispose` / `Symbol.asyncDispose
 Throws an [`ERR_ZIP_ARCHIVE_TOO_LARGE`][] error if the archive comment
 exceeds 65,535 bytes when encoded as UTF-8.
 
-```mjs
+```js
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Buffer } from 'node:buffer';
@@ -2506,29 +2242,11 @@ await pipeline(
 );
 ```
 
-```cjs
-const { createWriteStream } = require('node:fs');
-const { pipeline } = require('node:stream/promises');
-const { ZipEntry, createZipArchive } = require('node:zlib');
-
-async function main() {
-  const entries = [
-    await ZipEntry.create('hello.txt', Buffer.from('Hello, world!')),
-    await ZipEntry.create('data/', Buffer.alloc(0)),
-  ];
-  await pipeline(
-    createZipArchive(entries, 'created by node:zlib'),
-    createWriteStream('archive.zip'),
-  );
-}
-main();
-```
-
 Passing `options.baseOffset` produces an archive that is valid immediately
 when placed after other content in the same file, without relying on a
 reader's self-extracting-archive detection to compensate for the shift:
 
-```mjs
+```js
 import { createWriteStream } from 'node:fs';
 import { Buffer } from 'node:buffer';
 import { ZipEntry, createZipArchive } from 'node:zlib';
@@ -2605,7 +2323,7 @@ archived as its target file; when it is `false` the link itself is stored as a
 symbolic-link entry whose content is the target path (see
 [`zlib.ZipEntry.createSymlink()`][]).
 
-```mjs
+```js
 import { zipFiles } from 'node:zlib';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
@@ -3116,7 +2834,7 @@ on the main thread.
 > and provide significantly faster compression with only a small reduction in
 > compression ratio. All defaults can be overridden via options.
 
-```mjs
+```js
 import { from, pull, bytes, text } from 'node:stream/iter';
 import { compressGzip, decompressGzip } from 'node:zlib/iter';
 
@@ -3126,33 +2844,11 @@ const original = await text(pull(from(compressed), decompressGzip()));
 console.log(original); // 'hello'
 ```
 
-```cjs
-const { from, pull, bytes, text } = require('node:stream/iter');
-const { compressGzip, decompressGzip } = require('node:zlib/iter');
-
-async function run() {
-  const compressed = await bytes(pull(from('hello'), compressGzip()));
-  const original = await text(pull(from(compressed), decompressGzip()));
-  console.log(original); // 'hello'
-}
-
-run().catch(console.error);
-```
-
-```mjs
+```js
 import { fromSync, pullSync, textSync } from 'node:stream/iter';
 import { compressGzipSync, decompressGzipSync } from 'node:zlib/iter';
 
 // Sync round-trip
-const compressed = pullSync(fromSync('hello'), compressGzipSync());
-const original = textSync(pullSync(compressed, decompressGzipSync()));
-console.log(original); // 'hello'
-```
-
-```cjs
-const { fromSync, pullSync, textSync } = require('node:stream/iter');
-const { compressGzipSync, decompressGzipSync } = require('node:zlib/iter');
-
 const compressed = pullSync(fromSync('hello'), compressGzipSync());
 const original = textSync(pullSync(compressed, decompressGzipSync()));
 console.log(original); // 'hello'

@@ -3461,7 +3461,7 @@ signal (such as [`subprocess.kill()`][]).
 [self-reference a package using its name][] and [define a custom subpath][] in
 the [`"exports"`][] field of the [`package.json`][] file.
 
-```mjs
+```js
 import './'; // unsupported
 import './index.js'; // supported
 import 'package-name'; // supported
@@ -3494,7 +3494,7 @@ importing or calling `import.meta.resolve()` with either:
   is not `file`.
 * a [relative URL][] from a module whose URL scheme is not a [special scheme][].
 
-```mjs
+```js
 try {
   // Trying to import the package 'bare-specifier' from a `data:` URL module:
   await import('data:text/javascript,import "bare-specifier"');

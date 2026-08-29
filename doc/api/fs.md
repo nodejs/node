@@ -13,22 +13,14 @@ way modeled on standard POSIX functions.
 
 To use the promise-based APIs:
 
-```mjs
+```js
 import * as fs from 'node:fs/promises';
-```
-
-```cjs
-const fs = require('node:fs/promises');
 ```
 
 To use the callback and sync APIs:
 
-```mjs
+```js
 import * as fs from 'node:fs';
-```
-
-```cjs
-const fs = require('node:fs');
 ```
 
 All file system operations have synchronous, callback, and promise-based
@@ -39,7 +31,7 @@ forms, and are accessible using both CommonJS syntax and ES6 Modules (ESM).
 Promise-based operations return a promise that is fulfilled when the
 asynchronous operation is complete.
 
-```mjs
+```js
 import { unlink } from 'node:fs/promises';
 
 try {
@@ -50,19 +42,6 @@ try {
 }
 ```
 
-```cjs
-const { unlink } = require('node:fs/promises');
-
-(async function(path) {
-  try {
-    await unlink(path);
-    console.log(`successfully deleted ${path}`);
-  } catch (error) {
-    console.error('there was an error:', error.message);
-  }
-})('/tmp/hello');
-```
-
 ## Callback example
 
 The callback form takes a completion callback function as its last
@@ -71,17 +50,8 @@ the completion callback depend on the method, but the first argument is always
 reserved for an exception. If the operation is completed successfully, then
 the first argument is `null` or `undefined`.
 
-```mjs
+```js
 import { unlink } from 'node:fs';
-
-unlink('/tmp/hello', (err) => {
-  if (err) throw err;
-  console.log('successfully deleted /tmp/hello');
-});
-```
-
-```cjs
-const { unlink } = require('node:fs');
 
 unlink('/tmp/hello', (err) => {
   if (err) throw err;
@@ -99,19 +69,8 @@ The synchronous APIs block the Node.js event loop and further JavaScript
 execution until the operation is complete. Exceptions are thrown immediately
 and can be handled using `try…catch`, or can be allowed to bubble up.
 
-```mjs
+```js
 import { unlinkSync } from 'node:fs';
-
-try {
-  unlinkSync('/tmp/hello');
-  console.log('successfully deleted /tmp/hello');
-} catch (err) {
-  // handle the error
-}
-```
-
-```cjs
-const { unlinkSync } = require('node:fs');
 
 try {
   unlinkSync('/tmp/hello');
@@ -242,7 +201,7 @@ added: v10.0.0
 Closes the file handle after waiting for any pending operation on the handle to
 complete.
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 let filehandle;
@@ -285,7 +244,7 @@ closing naturally.
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 const fd = await open('/dev/input/event0');
@@ -311,7 +270,7 @@ automatically.
 
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 const fd = await open('sample.txt');
@@ -418,7 +377,7 @@ when iteration completes, an error occurs, or the consumer breaks.
 This function is only available when the `--experimental-stream-iter` flag is
 enabled.
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 import { text } from 'node:stream/iter';
 import { compressGzip } from 'node:zlib/iter';
@@ -435,29 +394,6 @@ console.log(await text(fh2.pull({ start: 100, limit: 1024, autoClose: true })));
 // Read with compression
 const fh3 = await open('input.txt', 'r');
 const compressed = fh3.pull(compressGzip(), { autoClose: true });
-```
-
-```cjs
-const { open } = require('node:fs/promises');
-const { text } = require('node:stream/iter');
-const { compressGzip } = require('node:zlib/iter');
-
-async function run() {
-  const fh = await open('input.txt', 'r');
-
-  // Read as text
-  console.log(await text(fh.pull({ autoClose: true })));
-
-  // Read 1 KB starting at byte 100
-  const fh2 = await open('input.txt', 'r');
-  console.log(await text(fh2.pull({ start: 100, limit: 1024, autoClose: true })));
-
-  // Read with compression
-  const fh3 = await open('input.txt', 'r');
-  const compressed = fh3.pull(compressGzip(), { autoClose: true });
-}
-
-run().catch(console.error);
 ```
 
 #### `filehandle.pullSync([...transforms][, options])`
@@ -494,7 +430,7 @@ operations are synchronous.
 This function is only available when the `--experimental-stream-iter` flag is
 enabled.
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 import { textSync, pipeToSync } from 'node:stream/iter';
 import { compressGzipSync, decompressGzipSync } from 'node:zlib/iter';
@@ -508,29 +444,6 @@ console.log(textSync(fh.pullSync({ autoClose: true })));
 const src = await open('input.txt', 'r');
 const dst = await open('output.gz', 'w');
 pipeToSync(src.pullSync(compressGzipSync(), { autoClose: true }), dst.writer({ autoClose: true }));
-```
-
-```cjs
-const { open } = require('node:fs/promises');
-const { textSync, pipeToSync } = require('node:stream/iter');
-const { compressGzipSync, decompressGzipSync } = require('node:zlib/iter');
-
-async function run() {
-  const fh = await open('input.txt', 'r');
-
-  // Read as text (sync)
-  console.log(textSync(fh.pullSync({ autoClose: true })));
-
-  // Sync compress pipeline: file -> gzip -> file
-  const src = await open('input.txt', 'r');
-  const dst = await open('output.gz', 'w');
-  pipeToSync(
-    src.pullSync(compressGzipSync(), { autoClose: true }),
-    dst.writer({ autoClose: true }),
-  );
-}
-
-run().catch(console.error);
 ```
 
 #### `filehandle.read(buffer, offset, length, position)`
@@ -666,7 +579,7 @@ contents.
 An error will be thrown if this method is called more than once or is called
 after the `FileHandle` is closed or closing.
 
-```mjs
+```js
 import {
   open,
 } from 'node:fs/promises';
@@ -677,21 +590,6 @@ for await (const chunk of file.readableWebStream())
   console.log(chunk);
 
 await file.close();
-```
-
-```cjs
-const {
-  open,
-} = require('node:fs/promises');
-
-(async () => {
-  const file = await open('./some/file/to/read');
-
-  for await (const chunk of file.readableWebStream())
-    console.log(chunk);
-
-  await file.close();
-})();
 ```
 
 While the `ReadableStream` will read the file to completion, it will not
@@ -737,7 +635,7 @@ of the file.
 
 An example using the `buffer` option with a pre-allocated buffer:
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { open } from 'node:fs/promises';
 
@@ -753,7 +651,7 @@ try {
 
 An example using the `buffer` option with a function returning a buffer:
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { open } from 'node:fs/promises';
 
@@ -786,7 +684,7 @@ added: v18.11.0
 Convenience method to create a `readline` interface and stream over the file.
 See [`filehandle.createReadStream()`][] for the options.
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 const file = await open('./some/file/to/read');
@@ -794,18 +692,6 @@ const file = await open('./some/file/to/read');
 for await (const line of file.readLines()) {
   console.log(line);
 }
-```
-
-```cjs
-const { open } = require('node:fs/promises');
-
-(async () => {
-  const file = await open('./some/file/to/read');
-
-  for await (const line of file.readLines()) {
-    console.log(line);
-  }
-})();
 ```
 
 #### `filehandle.readv(buffers[, position])`
@@ -875,7 +761,7 @@ retained in the file.
 
 The following example retains only the first four bytes of the file:
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 let filehandle = null;
@@ -1142,7 +1028,7 @@ synchronously with zero promise overhead.
 This function is only available when the `--experimental-stream-iter` flag is
 enabled.
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 import { from, pipeTo } from 'node:stream/iter';
 import { compressGzip } from 'node:zlib/iter';
@@ -1158,28 +1044,6 @@ const w = dst.writer({ limit: 1024 * 1024 }); // Max 1 MB
 await pipeTo(src.pull({ autoClose: true }), w);
 await w.end();
 await dst.close();
-```
-
-```cjs
-const { open } = require('node:fs/promises');
-const { from, pipeTo } = require('node:stream/iter');
-const { compressGzip } = require('node:zlib/iter');
-
-async function run() {
-  // Async pipeline
-  const fh = await open('output.gz', 'w');
-  await pipeTo(from('Hello!'), compressGzip(), fh.writer({ autoClose: true }));
-
-  // Sync pipeline with limit
-  const src = await open('input.txt', 'r');
-  const dst = await open('output.txt', 'w');
-  const w = dst.writer({ limit: 1024 * 1024 }); // Max 1 MB
-  await pipeTo(src.pull({ autoClose: true }), w);
-  await w.end();
-  await dst.close();
-}
-
-run().catch(console.error);
 ```
 
 #### `filehandle[Symbol.asyncDispose]()`
@@ -1226,7 +1090,7 @@ value. If any of the accessibility checks fail, the promise is rejected
 with an {Error} object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
-```mjs
+```js
 import { access, constants } from 'node:fs/promises';
 
 try {
@@ -1345,7 +1209,7 @@ No guarantees are made about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, an attempt
 will be made to remove the destination.
 
-```mjs
+```js
 import { copyFile, constants } from 'node:fs/promises';
 
 try {
@@ -1473,20 +1337,11 @@ changes:
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
 
-```mjs
+```js
 import { glob } from 'node:fs/promises';
 
 for await (const entry of glob('**/*.js'))
   console.log(entry);
-```
-
-```cjs
-const { glob } = require('node:fs/promises');
-
-(async () => {
-  for await (const entry of glob('**/*.js'))
-    console.log(entry);
-})();
 ```
 
 ### `fsPromises.lchmod(path, mode)`
@@ -1604,7 +1459,7 @@ property indicating whether parent directories should be created. Calling
 `fsPromises.mkdir()` when `path` is a directory that exists results in a
 rejection only when `recursive` is false.
 
-```mjs
+```js
 import { mkdir } from 'node:fs/promises';
 
 try {
@@ -1615,21 +1470,6 @@ try {
 } catch (err) {
   console.error(err.message);
 }
-```
-
-```cjs
-const { mkdir } = require('node:fs/promises');
-const { join } = require('node:path');
-
-async function makeDirectory() {
-  const projectFolder = join(__dirname, 'test', 'project');
-  const dirCreation = await mkdir(projectFolder, { recursive: true });
-
-  console.log(dirCreation);
-  return dirCreation;
-}
-
-makeDirectory().catch(console.error);
 ```
 
 ### `fsPromises.mkdtemp(prefix[, options])`
@@ -1664,7 +1504,7 @@ replace trailing `X` characters in `prefix` with random characters.
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
-```mjs
+```js
 import { mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -1779,7 +1619,7 @@ directory and subsequent read operations.
 
 Example using async iteration:
 
-```mjs
+```js
 import { opendir } from 'node:fs/promises';
 
 try {
@@ -1829,7 +1669,7 @@ will be passed as {Buffer} objects.
 If `options.withFileTypes` is set to `true`, the returned array will contain
 {fs.Dirent} objects.
 
-```mjs
+```js
 import { readdir } from 'node:fs/promises';
 
 try {
@@ -1888,7 +1728,7 @@ returned.
 An example of reading a `package.json` file located in the same directory of the
 running code:
 
-```mjs
+```js
 import { readFile } from 'node:fs/promises';
 try {
   const filePath = new URL('./package.json', import.meta.url);
@@ -1899,25 +1739,10 @@ try {
 }
 ```
 
-```cjs
-const { readFile } = require('node:fs/promises');
-const { resolve } = require('node:path');
-async function logFile() {
-  try {
-    const filePath = resolve('./package.json');
-    const contents = await readFile(filePath, { encoding: 'utf8' });
-    console.log(contents);
-  } catch (err) {
-    console.error(err.message);
-  }
-}
-logFile();
-```
-
 It is possible to abort an ongoing `readFile` using an {AbortSignal}. If a
 request is aborted the promise returned is rejected with an `AbortError`:
 
-```mjs
+```js
 import { readFile } from 'node:fs/promises';
 
 try {
@@ -1942,7 +1767,7 @@ Any specified {FileHandle} has to support reading.
 
 An example using the `buffer` option with a pre-allocated buffer:
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 
@@ -1953,7 +1778,7 @@ console.log(contents); // A view over `buf` containing only the bytes read
 
 An example using the `buffer` option with a function returning a buffer:
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 
@@ -2345,7 +2170,7 @@ It is possible to use an {AbortSignal} to cancel an `fsPromises.writeFile()`.
 Cancelation is "best effort", and some amount of data is likely still
 to be written.
 
-```mjs
+```js
 import { writeFile } from 'node:fs/promises';
 import { Buffer } from 'node:buffer';
 
@@ -2442,7 +2267,7 @@ a possible error argument. If any of the accessibility checks fail, the error
 argument will be an `Error` object. The following examples check if
 `package.json` exists, and if it is readable or writable.
 
-```mjs
+```js
 import { access, constants } from 'node:fs';
 
 const file = 'package.json';
@@ -2476,7 +2301,7 @@ file directly and handle the error raised if the file is not accessible.
 
 **write (NOT RECOMMENDED)**
 
-```mjs
+```js
 import { access, open, close } from 'node:fs';
 
 access('myfile', (err) => {
@@ -2501,7 +2326,7 @@ access('myfile', (err) => {
 
 **write (RECOMMENDED)**
 
-```mjs
+```js
 import { open, close } from 'node:fs';
 
 open('myfile', 'wx', (err, fd) => {
@@ -2526,7 +2351,7 @@ open('myfile', 'wx', (err, fd) => {
 
 **read (NOT RECOMMENDED)**
 
-```mjs
+```js
 import { access, open, close } from 'node:fs';
 access('myfile', (err) => {
   if (err) {
@@ -2554,7 +2379,7 @@ access('myfile', (err) => {
 
 **read (RECOMMENDED)**
 
-```mjs
+```js
 import { open, close } from 'node:fs';
 
 open('myfile', 'r', (err, fd) => {
@@ -2638,7 +2463,7 @@ exist. `data` can be a string or a {Buffer}.
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
 
-```mjs
+```js
 import { appendFile } from 'node:fs';
 
 appendFile('message.txt', 'data to append', (err) => {
@@ -2649,7 +2474,7 @@ appendFile('message.txt', 'data to append', (err) => {
 
 If `options` is a string, then it specifies the encoding:
 
-```mjs
+```js
 import { appendFile } from 'node:fs';
 
 appendFile('message.txt', 'data to append', 'utf8', callback);
@@ -2659,7 +2484,7 @@ The `path` may be specified as a numeric file descriptor that has been opened
 for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
-```mjs
+```js
 import { open, close, appendFile } from 'node:fs';
 
 function closeFd(fd) {
@@ -2717,7 +2542,7 @@ possible exception are given to the completion callback.
 
 See the POSIX chmod(2) documentation for more detail.
 
-```mjs
+```js
 import { chmod } from 'node:fs';
 
 chmod('my_file.txt', 0o775, (err) => {
@@ -2894,7 +2719,7 @@ OR of two or more values (e.g.
   create a copy-on-write reflink. If the platform does not support
   copy-on-write, then the operation will fail.
 
-```mjs
+```js
 import { copyFile, constants } from 'node:fs';
 
 function callback(err) {
@@ -3071,7 +2896,7 @@ an override for `read` is required. If no `fd` is provided, an override for
 `open` is also required. If `autoClose` is `true`, an override for `close` is
 also required.
 
-```mjs
+```js
 import { createReadStream } from 'node:fs';
 
 // Create a stream from some character device.
@@ -3099,7 +2924,7 @@ file was created.
 
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
-```mjs
+```js
 import { createReadStream } from 'node:fs';
 
 createReadStream('sample.txt', { start: 90, end: 99 });
@@ -3245,7 +3070,7 @@ changes:
 Test whether or not the element at the given `path` exists by checking with the file system.
 Then call the `callback` argument with either true or false:
 
-```mjs
+```js
 import { exists } from 'node:fs';
 
 exists('/etc/passwd', (e) => {
@@ -3270,7 +3095,7 @@ file directly and handle the error raised if the file does not exist.
 
 **write (NOT RECOMMENDED)**
 
-```mjs
+```js
 import { exists, open, close } from 'node:fs';
 
 exists('myfile', (e) => {
@@ -3294,7 +3119,7 @@ exists('myfile', (e) => {
 
 **write (RECOMMENDED)**
 
-```mjs
+```js
 import { open, close } from 'node:fs';
 open('myfile', 'wx', (err, fd) => {
   if (err) {
@@ -3318,7 +3143,7 @@ open('myfile', 'wx', (err, fd) => {
 
 **read (NOT RECOMMENDED)**
 
-```mjs
+```js
 import { open, close, exists } from 'node:fs';
 
 exists('myfile', (e) => {
@@ -3342,7 +3167,7 @@ exists('myfile', (e) => {
 
 **read (RECOMMENDED)**
 
-```mjs
+```js
 import { open, close } from 'node:fs';
 
 open('myfile', 'r', (err, fd) => {
@@ -3570,7 +3395,7 @@ the first `len` bytes will be retained in the file.
 For example, the following program retains only the first four bytes of the
 file:
 
-```mjs
+```js
 import { open, close, ftruncate } from 'node:fs';
 
 function closeFd(fd) {
@@ -3687,17 +3512,8 @@ changes:
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
 
-```mjs
+```js
 import { glob } from 'node:fs';
-
-glob('**/*.js', (err, matches) => {
-  if (err) throw err;
-  console.log(matches);
-});
-```
-
-```cjs
-const { glob } = require('node:fs');
 
 glob('**/*.js', (err, matches) => {
   if (err) throw err;
@@ -3948,7 +3764,7 @@ property indicating whether parent directories should be created. Calling
 when `recursive` is false. If `recursive` is false and the directory exists,
 an `EEXIST` error occurs.
 
-```mjs
+```js
 import { mkdir } from 'node:fs';
 
 // Create ./tmp/a/apple, regardless of whether ./tmp and ./tmp/a exist.
@@ -3960,7 +3776,7 @@ mkdir('./tmp/a/apple', { recursive: true }, (err) => {
 On Windows, using `fs.mkdir()` on the root directory even with recursion will
 result in an error:
 
-```mjs
+```js
 import { mkdir } from 'node:fs';
 
 mkdir('/', { recursive: true }, (err) => {
@@ -4024,7 +3840,7 @@ parameter.
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
-```mjs
+```js
 import { mkdtemp } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -4042,7 +3858,7 @@ intention is to create a temporary directory _within_ `/tmp`, the `prefix`
 must end with a trailing platform-specific path separator
 (`require('node:path').sep`).
 
-```mjs
+```js
 import { tmpdir } from 'node:os';
 import { mkdtemp } from 'node:fs';
 
@@ -4139,22 +3955,12 @@ will cause reading the {Blob} data to fail with a `DOMException` error.
 Synchronous stat operations on the file when the `Blob` is created, and before
 each read in order to detect whether the file data has been modified on disk.
 
-```mjs
+```js
 import { openAsBlob } from 'node:fs';
 
 const blob = await openAsBlob('the.file.txt');
 const ab = await blob.arrayBuffer();
 blob.stream();
-```
-
-```cjs
-const { openAsBlob } = require('node:fs');
-
-(async () => {
-  const blob = await openAsBlob('the.file.txt');
-  const ab = await blob.arrayBuffer();
-  blob.stream();
-})();
 ```
 
 ### `fs.opendir(path[, options], callback)`
@@ -4449,7 +4255,7 @@ changes:
 
 Asynchronously reads the entire contents of a file.
 
-```mjs
+```js
 import { readFile } from 'node:fs';
 
 readFile('/etc/passwd', (err, data) => {
@@ -4470,7 +4276,7 @@ called with an error.
 
 If `options` is a string, then it specifies the encoding:
 
-```mjs
+```js
 import { readFile } from 'node:fs';
 
 readFile('/etc/passwd', 'utf8', callback);
@@ -4481,7 +4287,7 @@ When the path is a directory, the behavior of `fs.readFile()` and
 error will be returned. On FreeBSD, a representation of the directory's contents
 will be returned.
 
-```mjs
+```js
 import { readFile } from 'node:fs';
 
 // macOS, Linux, and Windows
@@ -4498,7 +4304,7 @@ readFile('<directory>', (err, data) => {
 It is possible to abort an ongoing request using an `AbortSignal`. If a
 request is aborted the callback is called with an `AbortError`:
 
-```mjs
+```js
 import { readFile } from 'node:fs';
 
 const controller = new AbortController();
@@ -4518,7 +4324,7 @@ system requests but rather the internal buffering `fs.readFile` performs.
 
 An example using the `buffer` option with a pre-allocated buffer:
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs';
 
@@ -4531,7 +4337,7 @@ readFile('/path/to/file', { buffer: buf }, (err, data) => {
 
 An example using the `buffer` option with a function returning a buffer:
 
-```mjs
+```js
 import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs';
 
@@ -4793,7 +4599,7 @@ given to the completion callback.
 
 See also: rename(2).
 
-```mjs
+```js
 import { rename } from 'node:fs';
 
 rename('oldFile.txt', 'newFile.txt', (err) => {
@@ -4979,7 +4785,7 @@ For example, given the following directory structure:
 
 The next program will check for the stats of the given paths:
 
-```mjs
+```js
 import { stat } from 'node:fs';
 
 const pathsToCheck = ['./txtDir', './txtDir/file.txt'];
@@ -5111,7 +4917,7 @@ points on NTFS volumes can only point to directories.
 
 Relative targets are relative to the link's parent directory.
 
-```mjs
+```js
 import { symlink } from 'node:fs';
 
 symlink('./mew', './mewtwo', callback);
@@ -5160,17 +4966,8 @@ Truncates the file. No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
-```mjs
+```js
 import { truncate } from 'node:fs';
-// Assuming that 'path/file.txt' is a regular file.
-truncate('path/file.txt', (err) => {
-  if (err) throw err;
-  console.log('path/file.txt was truncated');
-});
-```
-
-```cjs
-const { truncate } = require('node:fs');
 // Assuming that 'path/file.txt' is a regular file.
 truncate('path/file.txt', (err) => {
   if (err) throw err;
@@ -5214,7 +5011,7 @@ changes:
 Asynchronously removes a file or symbolic link. No arguments other than a
 possible exception are given to the completion callback.
 
-```mjs
+```js
 import { unlink } from 'node:fs';
 // Assuming that 'path/file.txt' is a regular file.
 unlink('path/file.txt', (err) => {
@@ -5429,7 +5226,7 @@ macOS, Windows, and AIX. Even on supported platforms, `filename` is not always
 guaranteed to be provided. Therefore, don't assume that `filename` argument is
 always provided in the callback, and have some fallback logic if it is `null`.
 
-```mjs
+```js
 import { watch } from 'node:fs';
 watch('somedir', (eventType, filename) => {
   console.log(`event type is: ${eventType}`);
@@ -5477,7 +5274,7 @@ target should be polled in milliseconds.
 The `listener` gets two arguments the current stat object and the previous
 stat object:
 
-```mjs
+```js
 import { watchFile } from 'node:fs';
 
 watchFile('message.text', (curr, prev) => {
@@ -5762,7 +5559,7 @@ The `encoding` option is ignored if `data` is a buffer.
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
 
-```mjs
+```js
 import { writeFile } from 'node:fs';
 import { Buffer } from 'node:buffer';
 
@@ -5775,7 +5572,7 @@ writeFile('message.txt', data, (err) => {
 
 If `options` is a string, then it specifies the encoding:
 
-```mjs
+```js
 import { writeFile } from 'node:fs';
 
 writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
@@ -5793,7 +5590,7 @@ It is possible to use an {AbortSignal} to cancel an `fs.writeFile()`.
 Cancelation is "best effort", and some amount of data is likely still
 to be written.
 
-```mjs
+```js
 import { writeFile } from 'node:fs';
 import { Buffer } from 'node:buffer';
 
@@ -5815,7 +5612,7 @@ system requests but rather the internal buffering `fs.writeFile` performs.
 When `file` is a file descriptor, the behavior is almost identical to directly
 calling `fs.write()` like:
 
-```mjs
+```js
 import { write } from 'node:fs';
 import { Buffer } from 'node:buffer';
 
@@ -5909,7 +5706,7 @@ possible values of `mode`.
 If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
 the method will return `undefined`.
 
-```mjs
+```js
 import { accessSync, constants } from 'node:fs';
 
 try {
@@ -5953,7 +5750,7 @@ exist. `data` can be a string or a {Buffer}.
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
 
-```mjs
+```js
 import { appendFileSync } from 'node:fs';
 
 try {
@@ -5966,7 +5763,7 @@ try {
 
 If `options` is a string, then it specifies the encoding:
 
-```mjs
+```js
 import { appendFileSync } from 'node:fs';
 
 appendFileSync('message.txt', 'data to append', 'utf8');
@@ -5976,7 +5773,7 @@ The `path` may be specified as a numeric file descriptor that has been opened
 for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
-```mjs
+```js
 import { openSync, closeSync, appendFileSync } from 'node:fs';
 
 let fd;
@@ -6084,7 +5881,7 @@ OR of two or more values (e.g.
   create a copy-on-write reflink. If the platform does not support
   copy-on-write, then the operation will fail.
 
-```mjs
+```js
 import { copyFileSync, constants } from 'node:fs';
 
 // destination.txt will be created or overwritten by default.
@@ -6171,7 +5968,7 @@ this API: [`fs.exists()`][].
 parameter to `fs.exists()` accepts parameters that are inconsistent with other
 Node.js callbacks. `fs.existsSync()` does not use a callback.
 
-```mjs
+```js
 import { existsSync } from 'node:fs';
 
 if (existsSync('/etc/passwd'))
@@ -6331,14 +6128,8 @@ changes:
 When `followSymlinks` is enabled, detected symbolic link cycles are not
 traversed recursively.
 
-```mjs
+```js
 import { globSync } from 'node:fs';
-
-console.log(globSync('**/*.js'));
-```
-
-```cjs
-const { globSync } = require('node:fs');
 
 console.log(globSync('**/*.js'));
 ```
@@ -6686,7 +6477,7 @@ thrown.
 Similar to [`fs.readFile()`][], when the path is a directory, the behavior of
 `fs.readFileSync()` is platform-specific.
 
-```mjs
+```js
 import { readFileSync } from 'node:fs';
 
 // macOS, Linux, and Windows
@@ -7247,7 +7038,7 @@ A class representing a directory stream.
 Created by [`fs.opendir()`][], [`fs.opendirSync()`][], or
 [`fsPromises.opendir()`][].
 
-```mjs
+```js
 import { opendir } from 'node:fs/promises';
 
 try {
@@ -7590,7 +7381,7 @@ support. If `filename` is provided, it will be provided as a {Buffer} if
 `fs.watch()` is called with its `encoding` option set to `'buffer'`, otherwise
 `filename` will be a UTF-8 string.
 
-```mjs
+```js
 import { watch } from 'node:fs';
 // Example when handled through fs.watch() listener
 watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
@@ -8254,22 +8045,12 @@ added:
 Free blocks available to unprivileged users. Multiply by [`statfs.bsize`][]
 to get the number of available bytes.
 
-```mjs
+```js
 import { statfs } from 'node:fs/promises';
 
 const stats = await statfs('/');
 const availableBytes = stats.bsize * stats.bavail;
 console.log(`Available space: ${availableBytes} bytes`);
-```
-
-```cjs
-const { statfs } = require('node:fs/promises');
-
-(async () => {
-  const stats = await statfs('/');
-  const availableBytes = stats.bsize * stats.bavail;
-  console.log(`Available space: ${availableBytes} bytes`);
-})();
 ```
 
 #### `statfs.bfree`
@@ -8285,22 +8066,12 @@ added:
 Free blocks in file system. Multiply by [`statfs.bsize`][] to get the number
 of free bytes.
 
-```mjs
+```js
 import { statfs } from 'node:fs/promises';
 
 const stats = await statfs('/');
 const freeBytes = stats.bsize * stats.bfree;
 console.log(`Free space: ${freeBytes} bytes`);
-```
-
-```cjs
-const { statfs } = require('node:fs/promises');
-
-(async () => {
-  const stats = await statfs('/');
-  const freeBytes = stats.bsize * stats.bfree;
-  console.log(`Free space: ${freeBytes} bytes`);
-})();
 ```
 
 #### `statfs.blocks`
@@ -8316,22 +8087,12 @@ added:
 Total data blocks in file system. Multiply by [`statfs.bsize`][] to get the
 total size in bytes.
 
-```mjs
+```js
 import { statfs } from 'node:fs/promises';
 
 const stats = await statfs('/');
 const totalBytes = stats.bsize * stats.blocks;
 console.log(`Total space: ${totalBytes} bytes`);
-```
-
-```cjs
-const { statfs } = require('node:fs/promises');
-
-(async () => {
-  const stats = await statfs('/');
-  const totalBytes = stats.bsize * stats.blocks;
-  console.log(`Total space: ${totalBytes} bytes`);
-})();
 ```
 
 #### `statfs.bsize`
@@ -8687,7 +8448,7 @@ To use more than one constant, use the bitwise OR `|` operator.
 
 Example:
 
-```mjs
+```js
 import { open, constants } from 'node:fs';
 
 const {
@@ -9027,7 +8788,7 @@ fs.stat('/tmp/world', (err, stats) => {
 It is important to correctly order the operations by awaiting the results
 of one before invoking the other:
 
-```mjs
+```js
 import { rename, stat } from 'node:fs/promises';
 
 const oldPath = '/tmp/hello';
@@ -9042,37 +8803,11 @@ try {
 }
 ```
 
-```cjs
-const { rename, stat } = require('node:fs/promises');
-
-(async function(oldPath, newPath) {
-  try {
-    await rename(oldPath, newPath);
-    const stats = await stat(newPath);
-    console.log(`stats: ${JSON.stringify(stats)}`);
-  } catch (error) {
-    console.error('there was an error:', error.message);
-  }
-})('/tmp/hello', '/tmp/world');
-```
-
 Or, when using the callback APIs, move the `fs.stat()` call into the callback
 of the `fs.rename()` operation:
 
-```mjs
+```js
 import { rename, stat } from 'node:fs';
-
-rename('/tmp/hello', '/tmp/world', (err) => {
-  if (err) throw err;
-  stat('/tmp/world', (err, stats) => {
-    if (err) throw err;
-    console.log(`stats: ${JSON.stringify(stats)}`);
-  });
-});
-```
-
-```cjs
-const { rename, stat } = require('node:fs');
 
 rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;
@@ -9096,7 +8831,7 @@ to the current working directory as determined by calling `process.cwd()`.
 
 Example using an absolute path on POSIX:
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 let fd;
@@ -9110,7 +8845,7 @@ try {
 
 Example using a relative path on POSIX (relative to `process.cwd()`):
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 let fd;
@@ -9131,7 +8866,7 @@ added: v7.6.0
 For most `node:fs` module functions, the `path` or `filename` argument may be
 passed as a {URL} object using the `file:` protocol.
 
-```mjs
+```js
 import { readFileSync } from 'node:fs';
 
 readFileSync(new URL('file:///tmp/hello'));
@@ -9145,7 +8880,7 @@ On Windows, `file:` {URL}s with a host name convert to UNC paths, while `file:`
 {URL}s with drive letters convert to local absolute paths. `file:` {URL}s
 with no host name and no drive letter will result in an error:
 
-```mjs
+```js
 import { readFileSync } from 'node:fs';
 // On Windows :
 
@@ -9169,7 +8904,7 @@ the drive letter. Using another separator will result in an error.
 On all other platforms, `file:` {URL}s with a host name are unsupported and
 will result in an error:
 
-```mjs
+```js
 import { readFileSync } from 'node:fs';
 // On other platforms:
 
@@ -9186,7 +8921,7 @@ readFileSync(new URL('file:///tmp/hello'));
 A `file:` {URL} having encoded slash characters will result in an error on all
 platforms:
 
-```mjs
+```js
 import { readFileSync } from 'node:fs';
 
 // On Windows
@@ -9204,7 +8939,7 @@ readFileSync(new URL('file:///p/a/t/h/%2f'));
 
 On Windows, `file:` {URL}s having encoded backslash will result in an error:
 
-```mjs
+```js
 import { readFileSync } from 'node:fs';
 
 // On Windows
@@ -9224,7 +8959,7 @@ be relative or absolute:
 
 Example using an absolute path on POSIX:
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 import { Buffer } from 'node:buffer';
 
@@ -9265,7 +9000,7 @@ at any given time so it is critical to close the descriptor when operations
 are completed. Failure to do so will result in a memory leak that will
 eventually cause an application to crash.
 
-```mjs
+```js
 import { open, close, fstat } from 'node:fs';
 
 function closeFd(fd) {
@@ -9299,7 +9034,7 @@ file descriptor. These objects are better managed by the system to ensure
 that resources are not leaked. However, it is still required that they are
 closed when operations are completed:
 
-```mjs
+```js
 import { open } from 'node:fs/promises';
 
 let file;

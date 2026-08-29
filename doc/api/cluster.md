@@ -14,41 +14,13 @@ allows running multiple application threads within a single Node.js instance.
 The cluster module allows easy creation of child processes that all share
 server ports.
 
-```mjs
+```js
 import cluster from 'node:cluster';
 import http from 'node:http';
 import { availableParallelism } from 'node:os';
 import process from 'node:process';
 
 const numCPUs = availableParallelism();
-
-if (cluster.isPrimary) {
-  console.log(`Primary ${process.pid} is running`);
-
-  // Fork workers.
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
-
-  cluster.on('exit', (worker, code, signal) => {
-    console.log(`worker ${worker.process.pid} died`);
-  });
-} else {
-  // Workers can share any TCP connection
-  // In this case it is an HTTP server
-  http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('hello world\n');
-  }).listen(8000);
-
-  console.log(`Worker ${process.pid} started`);
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
-const http = require('node:http');
-const numCPUs = require('node:os').availableParallelism();
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -193,25 +165,8 @@ added: v0.11.2
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
 
-```mjs
+```js
 import cluster from 'node:cluster';
-
-if (cluster.isPrimary) {
-  const worker = cluster.fork();
-  worker.on('exit', (code, signal) => {
-    if (signal) {
-      console.log(`worker was killed by signal: ${signal}`);
-    } else if (code !== 0) {
-      console.log(`worker exited with error code: ${code}`);
-    } else {
-      console.log('worker success!');
-    }
-  });
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
 
 if (cluster.isPrimary) {
   const worker = cluster.fork();
@@ -237,13 +192,7 @@ added: v0.7.0
 
 Similar to the `cluster.on('listening')` event, but specific to this worker.
 
-```mjs
-cluster.fork().on('listening', (address) => {
-  // Worker is listening
-});
-```
-
-```cjs
+```js
 cluster.fork().on('listening', (address) => {
   // Worker is listening
 });
@@ -269,7 +218,7 @@ See [`process` event: `'message'`][].
 Here is an example using the message system. It keeps a count in the primary
 process of the number of HTTP requests received by the workers:
 
-```mjs
+```js
 import cluster from 'node:cluster';
 import http from 'node:http';
 import { availableParallelism } from 'node:os';
@@ -292,48 +241,6 @@ if (cluster.isPrimary) {
 
   // Start workers and listen for messages containing notifyRequest
   const numCPUs = availableParallelism();
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
-
-  for (const id in cluster.workers) {
-    cluster.workers[id].on('message', messageHandler);
-  }
-
-} else {
-
-  // Worker processes have a http server.
-  http.Server((req, res) => {
-    res.writeHead(200);
-    res.end('hello world\n');
-
-    // Notify primary about the request
-    process.send({ cmd: 'notifyRequest' });
-  }).listen(8000);
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
-const http = require('node:http');
-const numCPUs = require('node:os').availableParallelism();
-
-if (cluster.isPrimary) {
-
-  // Keep track of http requests
-  let numReqs = 0;
-  setInterval(() => {
-    console.log(`numReqs = ${numReqs}`);
-  }, 1000);
-
-  // Count requests
-  function messageHandler(msg) {
-    if (msg.cmd && msg.cmd === 'notifyRequest') {
-      numReqs += 1;
-    }
-  }
-
-  // Start workers and listen for messages containing notifyRequest
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -502,43 +409,13 @@ added: v0.11.14
 This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
 
-```mjs
+```js
 import cluster from 'node:cluster';
 import http from 'node:http';
 import { availableParallelism } from 'node:os';
 import process from 'node:process';
 
 const numCPUs = availableParallelism();
-
-if (cluster.isPrimary) {
-  console.log(`Primary ${process.pid} is running`);
-
-  // Fork workers.
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
-
-  cluster.on('fork', (worker) => {
-    console.log('worker is dead:', worker.isDead());
-  });
-
-  cluster.on('exit', (worker, code, signal) => {
-    console.log('worker is dead:', worker.isDead());
-  });
-} else {
-  // Workers can share any TCP connection. In this case, it is an HTTP server.
-  http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end(`Current process\n ${process.pid}`);
-    process.kill(process.pid);
-  }).listen(8000);
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
-const http = require('node:http');
-const numCPUs = require('node:os').availableParallelism();
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -983,24 +860,8 @@ the `env` passed to [`.fork()`][].
 The defaults above apply to the first call only; the defaults for later
 calls are the current values at the time of `cluster.setupPrimary()` is called.
 
-```mjs
+```js
 import cluster from 'node:cluster';
-
-cluster.setupPrimary({
-  exec: 'worker.js',
-  args: ['--use', 'https'],
-  silent: true,
-});
-cluster.fork(); // https worker
-cluster.setupPrimary({
-  exec: 'worker.js',
-  args: ['--use', 'http'],
-});
-cluster.fork(); // http worker
-```
-
-```cjs
-const cluster = require('node:cluster');
 
 cluster.setupPrimary({
   exec: 'worker.js',
@@ -1027,20 +888,8 @@ added: v0.7.0
 
 A reference to the current worker object. Not available in the primary process.
 
-```mjs
+```js
 import cluster from 'node:cluster';
-
-if (cluster.isPrimary) {
-  console.log('I am primary');
-  cluster.fork();
-  cluster.fork();
-} else if (cluster.isWorker) {
-  console.log(`I am worker #${cluster.worker.id}`);
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
 
 if (cluster.isPrimary) {
   console.log('I am primary');
@@ -1068,16 +917,8 @@ _and_ exited. The order between these two events cannot be determined in
 advance. However, it is guaranteed that the removal from the `cluster.workers`
 list happens before the last `'disconnect'` or `'exit'` event is emitted.
 
-```mjs
+```js
 import cluster from 'node:cluster';
-
-for (const worker of Object.values(cluster.workers)) {
-  worker.send('big announcement to all workers');
-}
-```
-
-```cjs
-const cluster = require('node:cluster');
 
 for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');

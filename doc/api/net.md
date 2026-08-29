@@ -14,12 +14,8 @@ TCP or [IPC][] servers ([`net.createServer()`][]) and clients
 
 It can be accessed using:
 
-```mjs
+```js
 import net from 'node:net';
-```
-
-```cjs
-const net = require('node:net');
 ```
 
 ## IPC support
@@ -623,7 +619,7 @@ has finished awaiting, so connection handling should be dispatched to a separate
 async task rather than awaited inline. Otherwise connections are serialized:
 each one waits for the previous to be fully handled.
 
-```mjs
+```js
 import { createServer } from 'node:net';
 
 const server = createServer().listen(8124);
@@ -969,7 +965,7 @@ be attached to a live handle, must not be connecting or destroyed, and must not
 have started reading or have buffered data. Otherwise `postMessage()` throws
 `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. Only TCP sockets are supported.
 
-```cjs
+```js
 const net = require('node:net');
 const { Worker } = require('node:worker_threads');
 
@@ -1926,7 +1922,7 @@ issued synchronously, so [`socket.localAddress`][] is resolved once
 [`socket.connect()`][] returns. Connection failures are still reported via a
 deferred `'error'` event.
 
-```mjs
+```js
 import net from 'node:net';
 
 const bound = new net.BoundSocket();
@@ -2145,24 +2141,8 @@ Additional options:
 Following is an example of a client of the echo server described
 in the [`net.createServer()`][] section:
 
-```mjs
+```js
 import net from 'node:net';
-const client = net.createConnection({ port: 8124 }, () => {
-  // 'connect' listener.
-  console.log('connected to server!');
-  client.write('world!\r\n');
-});
-client.on('data', (data) => {
-  console.log(data.toString());
-  client.end();
-});
-client.on('end', () => {
-  console.log('disconnected from server');
-});
-```
-
-```cjs
-const net = require('node:net');
 const client = net.createConnection({ port: 8124 }, () => {
   // 'connect' listener.
   console.log('connected to server!');
@@ -2188,24 +2168,9 @@ option. In this case, the `onread` option will be only used to call
 `new net.Socket([options])` and the `port` option will be used to
 call `socket.connect(options[, connectListener])`.
 
-```mjs
+```js
 import net from 'node:net';
 import { Buffer } from 'node:buffer';
-net.createConnection({
-  port: 8124,
-  onread: {
-    // Reuses a 4KiB Buffer for every read from the socket.
-    buffer: Buffer.alloc(4 * 1024),
-    callback: function(nread, buf) {
-      // Received data is available in `buf` from 0 to `nread`.
-      console.log(buf.toString('utf8', 0, nread));
-    },
-  },
-});
-```
-
-```cjs
-const net = require('node:net');
 net.createConnection({
   port: 8124,
   onread: {
@@ -2335,27 +2300,8 @@ The server can be a TCP server or an [IPC][] server, depending on what it
 Here is an example of a TCP echo server which listens for connections
 on port 8124:
 
-```mjs
+```js
 import net from 'node:net';
-const server = net.createServer((c) => {
-  // 'connection' listener.
-  console.log('client connected');
-  c.on('end', () => {
-    console.log('client disconnected');
-  });
-  c.write('hello\r\n');
-  c.pipe(c);
-});
-server.on('error', (err) => {
-  throw err;
-});
-server.listen(8124, () => {
-  console.log('server bound');
-});
-```
-
-```cjs
-const net = require('node:net');
 const server = net.createServer((c) => {
   // 'connection' listener.
   console.log('client connected');
@@ -2541,7 +2487,7 @@ parallel [`netPromises.listen()`][]. It is not named `createConnection()`,
 because that name belongs to the socket-factory taxonomy of the callback API,
 which has no counterpart here.
 
-```mjs
+```js
 import { connect } from 'node:net/promises';
 
 const socket = await connect({ port: 8124 });
@@ -2573,7 +2519,7 @@ listening. When the promise rejects, the server is closed.
 The resolved server is async iterable, so incoming connections can be consumed
 with `for await...of` (see `server[Symbol.asyncIterator]()`).
 
-```mjs
+```js
 import { listen } from 'node:net/promises';
 
 const server = await listen({ port: 8124 });

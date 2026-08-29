@@ -15,7 +15,7 @@ The WASI API provides an implementation of the [WebAssembly System Interface][]
 specification. WASI gives WebAssembly applications access to the underlying
 operating system via a collection of POSIX-like functions.
 
-```mjs
+```js
 import { readFile } from 'node:fs/promises';
 import { WASI } from 'node:wasi';
 import { argv, env } from 'node:process';
@@ -35,31 +35,6 @@ const wasm = await WebAssembly.compile(
 const instance = await WebAssembly.instantiate(wasm, wasi.getImportObject());
 
 wasi.start(instance);
-```
-
-```cjs
-const { readFile } = require('node:fs/promises');
-const { WASI } = require('node:wasi');
-const { argv, env } = require('node:process');
-const { join } = require('node:path');
-
-const wasi = new WASI({
-  version: 'preview1',
-  args: argv,
-  env,
-  preopens: {
-    '/local': '/some/real/path/that/wasm/can/access',
-  },
-});
-
-(async () => {
-  const wasm = await WebAssembly.compile(
-    await readFile(join(__dirname, 'demo.wasm')),
-  );
-  const instance = await WebAssembly.instantiate(wasm, wasi.getImportObject());
-
-  wasi.start(instance);
-})();
 ```
 
 To run the above example, create a new WebAssembly text format file named

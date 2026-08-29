@@ -10,30 +10,15 @@ The `node:string_decoder` module provides an API for decoding `Buffer` objects
 into strings in a manner that preserves encoded multi-byte UTF-8 and UTF-16
 characters. It can be accessed using:
 
-```mjs
+```js
 import { StringDecoder } from 'node:string_decoder';
-```
-
-```cjs
-const { StringDecoder } = require('node:string_decoder');
 ```
 
 The following example shows the basic use of the `StringDecoder` class.
 
-```mjs
+```js
 import { StringDecoder } from 'node:string_decoder';
 import { Buffer } from 'node:buffer';
-const decoder = new StringDecoder('utf8');
-
-const cent = Buffer.from([0xC2, 0xA2]);
-console.log(decoder.write(cent)); // Prints: ¢
-
-const euro = Buffer.from([0xE2, 0x82, 0xAC]);
-console.log(decoder.write(euro)); // Prints: €
-```
-
-```cjs
-const { StringDecoder } = require('node:string_decoder');
 const decoder = new StringDecoder('utf8');
 
 const cent = Buffer.from([0xC2, 0xA2]);
@@ -51,18 +36,9 @@ next call to `stringDecoder.write()` or until `stringDecoder.end()` is called.
 In the following example, the three UTF-8 encoded bytes of the European Euro
 symbol (`€`) are written over three separate operations:
 
-```mjs
+```js
 import { StringDecoder } from 'node:string_decoder';
 import { Buffer } from 'node:buffer';
-const decoder = new StringDecoder('utf8');
-
-decoder.write(Buffer.from([0xE2]));
-decoder.write(Buffer.from([0x82]));
-console.log(decoder.end(Buffer.from([0xAC]))); // Prints: €
-```
-
-```cjs
-const { StringDecoder } = require('node:string_decoder');
 const decoder = new StringDecoder('utf8');
 
 decoder.write(Buffer.from([0xE2]));

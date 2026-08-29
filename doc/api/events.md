@@ -30,20 +30,8 @@ The following example shows a simple `EventEmitter` instance with a single
 listener. The `eventEmitter.on()` method is used to register listeners, while
 the `eventEmitter.emit()` method is used to trigger the event.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-
-class MyEmitter extends EventEmitter {}
-
-const myEmitter = new MyEmitter();
-myEmitter.on('event', () => {
-  console.log('an event occurred!');
-});
-myEmitter.emit('event');
-```
-
-```cjs
-const EventEmitter = require('node:events');
 
 class MyEmitter extends EventEmitter {}
 
@@ -62,26 +50,8 @@ an ordinary listener function is called, the standard `this` keyword
 is intentionally set to reference the `EventEmitter` instance to which the
 listener is attached.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-myEmitter.on('event', function(a, b) {
-  console.log(a, b, this, this === myEmitter);
-  // Prints:
-  //   a b MyEmitter {
-  //     _events: [Object: null prototype] { event: [Function (anonymous)] },
-  //     _eventsCount: 1,
-  //     _maxListeners: undefined,
-  //     Symbol(shapeMode): false,
-  //     Symbol(kCapture): false
-  //   } true
-});
-myEmitter.emit('event', 'a', 'b');
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', function(a, b) {
@@ -101,24 +71,13 @@ myEmitter.emit('event', 'a', 'b');
 It is possible to use ES6 Arrow Functions as listeners, however, when doing so,
 the `this` keyword will no longer reference the `EventEmitter` instance:
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
   // Prints: a b undefined
-});
-myEmitter.emit('event', 'a', 'b');
-```
-
-```cjs
-const EventEmitter = require('node:events');
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-myEmitter.on('event', (a, b) => {
-  console.log(a, b, this);
-  // Prints: a b {}
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -131,20 +90,8 @@ events and helps avoid race conditions and logic errors. When appropriate,
 listener functions can switch to an asynchronous mode of operation using
 the `setImmediate()` or `process.nextTick()` methods:
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-myEmitter.on('event', (a, b) => {
-  setImmediate(() => {
-    console.log('this happens asynchronously');
-  });
-});
-myEmitter.emit('event', 'a', 'b');
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
@@ -160,22 +107,8 @@ myEmitter.emit('event', 'a', 'b');
 When a listener is registered using the `eventEmitter.on()` method, that
 listener is invoked _every time_ the named event is emitted.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-let m = 0;
-myEmitter.on('event', () => {
-  console.log(++m);
-});
-myEmitter.emit('event');
-// Prints: 1
-myEmitter.emit('event');
-// Prints: 2
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 let m = 0;
@@ -192,22 +125,8 @@ Using the `eventEmitter.once()` method, it is possible to register a listener
 that is called at most once for a particular event. Once the event is emitted,
 the listener is unregistered and _then_ called.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-let m = 0;
-myEmitter.once('event', () => {
-  console.log(++m);
-});
-myEmitter.emit('event');
-// Prints: 1
-myEmitter.emit('event');
-// Ignored
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 let m = 0;
@@ -230,16 +149,8 @@ If an `EventEmitter` does _not_ have at least one listener registered for the
 `'error'` event, and an `'error'` event is emitted, the error is thrown, a
 stack trace is printed, and the Node.js process exits.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-myEmitter.emit('error', new Error('whoops!'));
-// Throws and crashes Node.js
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.emit('error', new Error('whoops!'));
@@ -251,19 +162,8 @@ used. (Note, however, that the `node:domain` module is deprecated.)
 
 As a best practice, listeners should always be added for the `'error'` events.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-myEmitter.on('error', (err) => {
-  console.error('whoops! there was an error');
-});
-myEmitter.emit('error', new Error('whoops!'));
-// Prints: whoops! there was an error
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('error', (err) => {
@@ -276,19 +176,8 @@ myEmitter.emit('error', new Error('whoops!'));
 It is possible to monitor `'error'` events without consuming the emitted error
 by installing a listener using the symbol `events.errorMonitor`.
 
-```mjs
+```js
 import { EventEmitter, errorMonitor } from 'node:events';
-
-const myEmitter = new EventEmitter();
-myEmitter.on(errorMonitor, (err) => {
-  MyMonitoringTool.log(err);
-});
-myEmitter.emit('error', new Error('whoops!'));
-// Still throws and crashes Node.js
-```
-
-```cjs
-const { EventEmitter, errorMonitor } = require('node:events');
 
 const myEmitter = new EventEmitter();
 myEmitter.on(errorMonitor, (err) => {
@@ -303,16 +192,8 @@ myEmitter.emit('error', new Error('whoops!'));
 Using `async` functions with event handlers is problematic, because it
 can lead to an unhandled rejection in case of a thrown exception:
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const ee = new EventEmitter();
-ee.on('something', async (value) => {
-  throw new Error('kaboom');
-});
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const ee = new EventEmitter();
 ee.on('something', async (value) => {
   throw new Error('kaboom');
@@ -325,25 +206,8 @@ handler on the `Promise`. This handler routes the exception
 asynchronously to the [`Symbol.for('nodejs.rejection')`][rejection] method
 if there is one, or to [`'error'`][error] event handler if there is none.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const ee1 = new EventEmitter({ captureRejections: true });
-ee1.on('something', async (value) => {
-  throw new Error('kaboom');
-});
-
-ee1.on('error', console.log);
-
-const ee2 = new EventEmitter({ captureRejections: true });
-ee2.on('something', async (value) => {
-  throw new Error('kaboom');
-});
-
-ee2[Symbol.for('nodejs.rejection')] = console.log;
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const ee1 = new EventEmitter({ captureRejections: true });
 ee1.on('something', async (value) => {
   throw new Error('kaboom');
@@ -362,22 +226,11 @@ ee2[Symbol.for('nodejs.rejection')] = console.log;
 Setting `events.captureRejections = true` will change the default for all
 new instances of `EventEmitter`.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
 
 EventEmitter.captureRejections = true;
 const ee1 = new EventEmitter();
-ee1.on('something', async (value) => {
-  throw new Error('kaboom');
-});
-
-ee1.on('error', console.log);
-```
-
-```cjs
-const events = require('node:events');
-events.captureRejections = true;
-const ee1 = new events.EventEmitter();
 ee1.on('something', async (value) => {
   throw new Error('kaboom');
 });
@@ -403,12 +256,8 @@ changes:
 
 The `EventEmitter` class is defined and exposed by the `node:events` module:
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-```
-
-```cjs
-const EventEmitter = require('node:events');
 ```
 
 All `EventEmitter`s emit the event `'newListener'` when new listeners are
@@ -440,31 +289,8 @@ but important side effect: any _additional_ listeners registered to the same
 `name` _within_ the `'newListener'` callback are inserted _before_ the
 listener that is in the process of being added.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-
-const myEmitter = new MyEmitter();
-// Only do this once so we don't loop forever
-myEmitter.once('newListener', (event, listener) => {
-  if (event === 'event') {
-    // Insert a new listener in front
-    myEmitter.on('event', () => {
-      console.log('B');
-    });
-  }
-});
-myEmitter.on('event', () => {
-  console.log('A');
-});
-myEmitter.emit('event');
-// Prints:
-//   B
-//   A
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 
 const myEmitter = new MyEmitter();
@@ -531,41 +357,8 @@ to each.
 
 Returns `true` if the event had listeners, `false` otherwise.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const myEmitter = new EventEmitter();
-
-// First listener
-myEmitter.on('event', function firstListener() {
-  console.log('Helloooo! first listener');
-});
-// Second listener
-myEmitter.on('event', function secondListener(arg1, arg2) {
-  console.log(`event with parameters ${arg1}, ${arg2} in second listener`);
-});
-// Third listener
-myEmitter.on('event', function thirdListener(...args) {
-  const parameters = args.join(', ');
-  console.log(`event with parameters ${parameters} in third listener`);
-});
-
-console.log(myEmitter.listeners('event'));
-
-myEmitter.emit('event', 1, 2, 3, 4, 5);
-
-// Prints:
-// [
-//   [Function: firstListener],
-//   [Function: secondListener],
-//   [Function: thirdListener]
-// ]
-// Helloooo! first listener
-// event with parameters 1, 2 in second listener
-// event with parameters 1, 2, 3, 4, 5 in third listener
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const myEmitter = new EventEmitter();
 
 // First listener
@@ -608,22 +401,8 @@ added: v6.0.0
 Returns an array listing the events for which the emitter has registered
 listeners.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-
-const myEE = new EventEmitter();
-myEE.on('foo', () => {});
-myEE.on('bar', () => {});
-
-const sym = Symbol('symbol');
-myEE.on(sym, () => {});
-
-console.log(myEE.eventNames());
-// Prints: [ 'foo', 'bar', Symbol(symbol) ]
-```
-
-```cjs
-const EventEmitter = require('node:events');
 
 const myEE = new EventEmitter();
 myEE.on('foo', () => {});
@@ -732,19 +511,8 @@ By default, event listeners are invoked in the order they are added. The
 `emitter.prependListener()` method can be used as an alternative to add the
 event listener to the beginning of the listeners array.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const myEE = new EventEmitter();
-myEE.on('foo', () => console.log('a'));
-myEE.prependListener('foo', () => console.log('b'));
-myEE.emit('foo');
-// Prints:
-//   b
-//   a
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const myEE = new EventEmitter();
 myEE.on('foo', () => console.log('a'));
 myEE.prependListener('foo', () => console.log('b'));
@@ -779,19 +547,8 @@ By default, event listeners are invoked in the order they are added. The
 `emitter.prependOnceListener()` method can be used as an alternative to add the
 event listener to the beginning of the listeners array.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const myEE = new EventEmitter();
-myEE.once('foo', () => console.log('a'));
-myEE.prependOnceListener('foo', () => console.log('b'));
-myEE.emit('foo');
-// Prints:
-//   b
-//   a
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const myEE = new EventEmitter();
 myEE.once('foo', () => console.log('a'));
 myEE.prependOnceListener('foo', () => console.log('b'));
@@ -897,40 +654,8 @@ time of emitting are called in order. This implies that any
 _before_ the last listener finishes execution will not remove them from
 `emit()` in progress. Subsequent events behave as expected.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-class MyEmitter extends EventEmitter {}
-const myEmitter = new MyEmitter();
-
-const callbackA = () => {
-  console.log('A');
-  myEmitter.removeListener('event', callbackB);
-};
-
-const callbackB = () => {
-  console.log('B');
-};
-
-myEmitter.on('event', callbackA);
-
-myEmitter.on('event', callbackB);
-
-// callbackA removes listener callbackB but it will still be called.
-// Internal listener array at time of emit [callbackA, callbackB]
-myEmitter.emit('event');
-// Prints:
-//   A
-//   B
-
-// callbackB is now removed.
-// Internal listener array [callbackA]
-myEmitter.emit('event');
-// Prints:
-//   A
-```
-
-```cjs
-const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 
@@ -972,24 +697,8 @@ event (as in the example below), `removeListener()` will remove the most
 recently added instance. In the example the `once('ping')`
 listener is removed:
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const ee = new EventEmitter();
-
-function pong() {
-  console.log('pong');
-}
-
-ee.on('ping', pong);
-ee.once('ping', pong);
-ee.removeListener('ping', pong);
-
-ee.emit('ping');
-ee.emit('ping');
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const ee = new EventEmitter();
 
 function pong() {
@@ -1035,33 +744,8 @@ added: v9.4.0
 Returns a copy of the array of listeners for the event named `eventName`,
 including any wrappers (such as those created by `.once()`).
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const emitter = new EventEmitter();
-emitter.once('log', () => console.log('log once'));
-
-// Returns a new Array with a function `onceWrapper` which has a property
-// `listener` which contains the original listener bound above
-const listeners = emitter.rawListeners('log');
-const logFnWrapper = listeners[0];
-
-// Logs "log once" to the console and does not unbind the `once` event
-logFnWrapper.listener();
-
-// Logs "log once" to the console and removes the listener
-logFnWrapper();
-
-emitter.on('log', () => console.log('log persistently'));
-// Will return a new Array with a single function bound by `.on()` above
-const newListeners = emitter.rawListeners('log');
-
-// Logs "log persistently" twice
-newListeners[0]();
-emitter.emit('log');
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const emitter = new EventEmitter();
 emitter.once('log', () => console.log('log once'));
 
@@ -1109,27 +793,8 @@ promise rejection happens when emitting an event and
 It is possible to use [`events.captureRejectionSymbol`][rejectionsymbol] in
 place of `Symbol.for('nodejs.rejection')`.
 
-```mjs
+```js
 import { EventEmitter, captureRejectionSymbol } from 'node:events';
-
-class MyClass extends EventEmitter {
-  constructor() {
-    super({ captureRejections: true });
-  }
-
-  [captureRejectionSymbol](err, event, ...args) {
-    console.log('rejection happened for', event, 'with', err, ...args);
-    this.destroy(err);
-  }
-
-  destroy(err) {
-    // Tear the resource down here.
-  }
-}
-```
-
-```cjs
-const { EventEmitter, captureRejectionSymbol } = require('node:events');
 
 class MyClass extends EventEmitter {
   constructor() {
@@ -1175,18 +840,8 @@ methods can be used to temporarily avoid this warning:
 still possible to use [`emitter.setMaxListeners(n)`][] to set a warning limit
 for individual `AbortSignal` instances, per default `AbortSignal` instances will not warn.
 
-```mjs
+```js
 import { EventEmitter } from 'node:events';
-const emitter = new EventEmitter();
-emitter.setMaxListeners(emitter.getMaxListeners() + 1);
-emitter.once('event', () => {
-  // do stuff
-  emitter.setMaxListeners(Math.max(emitter.getMaxListeners() - 1, 0));
-});
-```
-
-```cjs
-const EventEmitter = require('node:events');
 const emitter = new EventEmitter();
 emitter.setMaxListeners(emitter.getMaxListeners() + 1);
 emitter.once('event', () => {
@@ -1240,25 +895,8 @@ the emitter.
 For `EventTarget`s this is the only way to get the event listeners for the
 event target. This is useful for debugging and diagnostic purposes.
 
-```mjs
+```js
 import { getEventListeners, EventEmitter } from 'node:events';
-
-{
-  const ee = new EventEmitter();
-  const listener = () => console.log('Events are fun');
-  ee.on('foo', listener);
-  console.log(getEventListeners(ee, 'foo')); // [ [Function: listener] ]
-}
-{
-  const et = new EventTarget();
-  const listener = () => console.log('Events are fun');
-  et.addEventListener('foo', listener);
-  console.log(getEventListeners(et, 'foo')); // [ [Function: listener] ]
-}
-```
-
-```cjs
-const { getEventListeners, EventEmitter } = require('node:events');
 
 {
   const ee = new EventEmitter();
@@ -1294,25 +932,8 @@ For `EventTarget`s this is the only way to get the max event listeners for the
 event target. If the number of event handlers on a single EventTarget exceeds
 the max set, the EventTarget will print a warning.
 
-```mjs
+```js
 import { getMaxListeners, setMaxListeners, EventEmitter } from 'node:events';
-
-{
-  const ee = new EventEmitter();
-  console.log(getMaxListeners(ee)); // 10
-  setMaxListeners(11, ee);
-  console.log(getMaxListeners(ee)); // 11
-}
-{
-  const et = new EventTarget();
-  console.log(getMaxListeners(et)); // 10
-  setMaxListeners(11, et);
-  console.log(getMaxListeners(et)); // 11
-}
-```
-
-```cjs
-const { getMaxListeners, setMaxListeners, EventEmitter } = require('node:events');
 
 {
   const ee = new EventEmitter();
@@ -1355,7 +976,7 @@ This method is intentionally generic and works with the web platform
 [EventTarget][WHATWG-EventTarget] interface, which has no special
 `'error'` event semantics and does not listen to the `'error'` event.
 
-```mjs
+```js
 import { once, EventEmitter } from 'node:events';
 import process from 'node:process';
 
@@ -1380,55 +1001,13 @@ try {
 }
 ```
 
-```cjs
-const { once, EventEmitter } = require('node:events');
-
-async function run() {
-  const ee = new EventEmitter();
-
-  process.nextTick(() => {
-    ee.emit('myevent', 42);
-  });
-
-  const [value] = await once(ee, 'myevent');
-  console.log(value);
-
-  const err = new Error('kaboom');
-  process.nextTick(() => {
-    ee.emit('error', err);
-  });
-
-  try {
-    await once(ee, 'myevent');
-  } catch (err) {
-    console.error('error happened', err);
-  }
-}
-
-run();
-```
-
 The special handling of the `'error'` event is only used when `events.once()`
 is used to wait for another event. If `events.once()` is used to wait for the
 '`error'` event itself, then it is treated as any other kind of event without
 special handling:
 
-```mjs
+```js
 import { EventEmitter, once } from 'node:events';
-
-const ee = new EventEmitter();
-
-once(ee, 'error')
-  .then(([err]) => console.log('ok', err.message))
-  .catch((err) => console.error('error', err.message));
-
-ee.emit('error', new Error('boom'));
-
-// Prints: ok boom
-```
-
-```cjs
-const { EventEmitter, once } = require('node:events');
 
 const ee = new EventEmitter();
 
@@ -1443,31 +1022,8 @@ ee.emit('error', new Error('boom'));
 
 An {AbortSignal} can be used to cancel waiting for the event:
 
-```mjs
+```js
 import { EventEmitter, once } from 'node:events';
-
-const ee = new EventEmitter();
-const ac = new AbortController();
-
-async function foo(emitter, event, signal) {
-  try {
-    await once(emitter, event, { signal });
-    console.log('event emitted!');
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('Waiting for the event was canceled!');
-    } else {
-      console.error('There was an error', error.message);
-    }
-  }
-}
-
-foo(ee, 'foo', ac.signal);
-ac.abort(); // Prints: Waiting for the event was canceled!
-```
-
-```cjs
-const { EventEmitter, once } = require('node:events');
 
 const ee = new EventEmitter();
 const ac = new AbortController();
@@ -1509,32 +1065,9 @@ where more than one event is emitted during the same phase of the event loop.
 (The same is true when using `process.nextTick()` to emit events, because the
 tasks queued by `process.nextTick()` are executed before Promise tasks.)
 
-```mjs
+```js
 import { EventEmitter, once } from 'node:events';
 import process from 'node:process';
-
-const myEE = new EventEmitter();
-
-async function listen() {
-  await once(myEE, 'foo');
-  console.log('foo');
-
-  // This Promise will never resolve, because the 'bar' event will
-  // have already been emitted before the next line is executed.
-  await once(myEE, 'bar');
-  console.log('bar');
-}
-
-process.nextTick(() => {
-  myEE.emit('foo');
-  myEE.emit('bar');
-});
-
-listen().then(() => console.log('done'));
-```
-
-```cjs
-const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
@@ -1560,7 +1093,7 @@ To catch multiple events, create all of the Promises _before_ awaiting any of
 them. This is usually made easier by using `Promise.all()`, `Promise.race()`,
 or `Promise.allSettled()`:
 
-```mjs
+```js
 import { EventEmitter, once } from 'node:events';
 import process from 'node:process';
 
@@ -1570,27 +1103,6 @@ async function listen() {
   await Promise.all([
     once(myEE, 'foo'),
     once(myEE, 'bar'),
-  ]);
-  console.log('foo', 'bar');
-}
-
-process.nextTick(() => {
-  myEE.emit('foo');
-  myEE.emit('bar');
-});
-
-listen().then(() => console.log('done'));
-```
-
-```cjs
-const { EventEmitter, once } = require('node:events');
-
-const myEE = new EventEmitter();
-
-async function listen() {
-  await Promise.all([
-    once(myEE, 'bar'),
-    once(myEE, 'foo'),
   ]);
   console.log('foo', 'bar');
 }
@@ -1671,25 +1183,8 @@ on the emitter.
 For `EventTarget`s this is the only way to obtain the listener count. This can
 be useful for debugging and diagnostic purposes.
 
-```mjs
+```js
 import { EventEmitter, listenerCount } from 'node:events';
-
-{
-  const ee = new EventEmitter();
-  ee.on('event', () => {});
-  ee.on('event', () => {});
-  console.log(listenerCount(ee, 'event')); // 2
-}
-{
-  const et = new EventTarget();
-  et.addEventListener('event', () => {});
-  et.addEventListener('event', () => {});
-  console.log(listenerCount(et, 'event')); // 2
-}
-```
-
-```cjs
-const { EventEmitter, listenerCount } = require('node:events');
 
 {
   const ee = new EventEmitter();
@@ -1740,7 +1235,7 @@ changes:
     `pause()` and `resume()` methods.
 * Returns: {AsyncIterator} that iterates `eventName` events emitted by the `emitter`
 
-```mjs
+```js
 import { on, EventEmitter } from 'node:events';
 import process from 'node:process';
 
@@ -1761,28 +1256,6 @@ for await (const event of on(ee, 'foo')) {
 // Unreachable here
 ```
 
-```cjs
-const { on, EventEmitter } = require('node:events');
-
-(async () => {
-  const ee = new EventEmitter();
-
-  // Emit later on
-  process.nextTick(() => {
-    ee.emit('foo', 'bar');
-    ee.emit('foo', 42);
-  });
-
-  for await (const event of on(ee, 'foo')) {
-    // The execution of this inner block is synchronous and it
-    // processes one event at a time (even with await). Do not use
-    // if concurrent execution is required.
-    console.log(event); // prints ['bar'] [42]
-  }
-  // Unreachable here
-})();
-```
-
 Returns an `AsyncIterator` that iterates `eventName` events. It will throw
 if the `EventEmitter` emits `'error'`. It removes all listeners when
 exiting the loop. The `value` returned by each iteration is an array
@@ -1790,35 +1263,9 @@ composed of the emitted event arguments.
 
 An {AbortSignal} can be used to cancel waiting on events:
 
-```mjs
+```js
 import { on, EventEmitter } from 'node:events';
 import process from 'node:process';
-
-const ac = new AbortController();
-
-(async () => {
-  const ee = new EventEmitter();
-
-  // Emit later on
-  process.nextTick(() => {
-    ee.emit('foo', 'bar');
-    ee.emit('foo', 42);
-  });
-
-  for await (const event of on(ee, 'foo', { signal: ac.signal })) {
-    // The execution of this inner block is synchronous and it
-    // processes one event at a time (even with await). Do not use
-    // if concurrent execution is required.
-    console.log(event); // prints ['bar'] [42]
-  }
-  // Unreachable here
-})();
-
-process.nextTick(() => ac.abort());
-```
-
-```cjs
-const { on, EventEmitter } = require('node:events');
 
 const ac = new AbortController();
 
@@ -1855,20 +1302,8 @@ added: v15.4.0
   or {EventEmitter} instances. If none are specified, `n` is set as the default
   max for all newly created {EventTarget} and {EventEmitter} objects.
 
-```mjs
+```js
 import { setMaxListeners, EventEmitter } from 'node:events';
-
-const target = new EventTarget();
-const emitter = new EventEmitter();
-
-setMaxListeners(5, target, emitter);
-```
-
-```cjs
-const {
-  setMaxListeners,
-  EventEmitter,
-} = require('node:events');
 
 const target = new EventTarget();
 const emitter = new EventEmitter();
@@ -1908,7 +1343,7 @@ not prevent the listener from running.
 
 Returns a disposable so that it may be unsubscribed from more easily.
 
-```cjs
+```js
 const { addAbortListener } = require('node:events');
 
 function example(signal) {
@@ -1921,7 +1356,7 @@ function example(signal) {
 }
 ```
 
-```mjs
+```js
 import { addAbortListener } from 'node:events';
 
 function example(signal) {
@@ -1946,39 +1381,10 @@ Integrates `EventEmitter` with {AsyncResource} for `EventEmitter`s that
 require manual async tracking. Specifically, all events emitted by instances
 of `events.EventEmitterAsyncResource` will run within its [async context][].
 
-```mjs
+```js
 import { EventEmitterAsyncResource, EventEmitter } from 'node:events';
 import { notStrictEqual, strictEqual } from 'node:assert';
 import { executionAsyncId, triggerAsyncId } from 'node:async_hooks';
-
-// Async tracking tooling will identify this as 'Q'.
-const ee1 = new EventEmitterAsyncResource({ name: 'Q' });
-
-// 'foo' listeners will run in the EventEmitters async context.
-ee1.on('foo', () => {
-  strictEqual(executionAsyncId(), ee1.asyncId);
-  strictEqual(triggerAsyncId(), ee1.triggerAsyncId);
-});
-
-const ee2 = new EventEmitter();
-
-// 'foo' listeners on ordinary EventEmitters that do not track async
-// context, however, run in the same async context as the emit().
-ee2.on('foo', () => {
-  notStrictEqual(executionAsyncId(), ee2.asyncId);
-  notStrictEqual(triggerAsyncId(), ee2.triggerAsyncId);
-});
-
-Promise.resolve().then(() => {
-  ee1.emit('foo');
-  ee2.emit('foo');
-});
-```
-
-```cjs
-const { EventEmitterAsyncResource, EventEmitter } = require('node:events');
-const { notStrictEqual, strictEqual } = require('node:assert');
-const { executionAsyncId, triggerAsyncId } = require('node:async_hooks');
 
 // Async tracking tooling will identify this as 'Q'.
 const ee1 = new EventEmitterAsyncResource({ name: 'Q' });

@@ -10,12 +10,8 @@ The `node:tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
 The module can be accessed using:
 
-```mjs
+```js
 import tls from 'node:tls';
-```
-
-```cjs
-const tls = require('node:tls');
 ```
 
 ## Determining if crypto support is unavailable
@@ -26,7 +22,7 @@ calling `require('node:tls')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-```cjs
+```js
 let tls;
 try {
   tls = require('node:tls');
@@ -44,7 +40,7 @@ When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
 [`import()`][] function instead of the lexical `import` keyword:
 
-```mjs
+```js
 let tls;
 try {
   tls = await import('node:tls');
@@ -466,34 +462,9 @@ To adjust the security level in your Node.js application, you can include `@SECL
 within a cipher string, where `X` is the desired security level. For example,
 to set the security level to 0 while using the default OpenSSL cipher list, you could use:
 
-```mjs
+```js
 import { createServer, connect } from 'node:tls';
 import { readFileSync } from 'node:fs';
-const port = 8000;
-
-createServer({
-  key: readFileSync('server-key.pem'),
-  cert: readFileSync('server-cert.pem'),
-  ciphers: 'DEFAULT@SECLEVEL=0',
-  minVersion: 'TLSv1',
-}, function(socket) {
-  console.log('Client connected with protocol:', socket.getProtocol());
-  socket.end();
-  this.close();
-})
-.listen(port, () => {
-  connect(port, {
-    ciphers: 'DEFAULT@SECLEVEL=0',
-    minVersion: 'TLSv1',
-    maxVersion: 'TLSv1',
-    ca: [ readFileSync('server-cert.pem') ],
-  });
-});
-```
-
-```cjs
-const { createServer, connect } = require('node:tls');
-const { readFileSync } = require('node:fs');
 const port = 8000;
 
 createServer({
@@ -1847,7 +1818,7 @@ to `host`.
 The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
-```mjs
+```js
 // Assumes an echo server that is listening on port 8000.
 import { connect } from 'node:tls';
 import { readFileSync } from 'node:fs';
@@ -1870,38 +1841,6 @@ const socket = connect(8000, options, () => {
               socket.authorized ? 'authorized' : 'unauthorized');
   stdin.pipe(socket);
   stdin.resume();
-});
-socket.setEncoding('utf8');
-socket.on('data', (data) => {
-  console.log(data);
-});
-socket.on('end', () => {
-  console.log('server ends connection');
-});
-```
-
-```cjs
-// Assumes an echo server that is listening on port 8000.
-const { connect } = require('node:tls');
-const { readFileSync } = require('node:fs');
-
-const options = {
-  // Necessary only if the server requires client certificate authentication.
-  key: readFileSync('client-key.pem'),
-  cert: readFileSync('client-cert.pem'),
-
-  // Necessary only if the server uses a self-signed certificate.
-  ca: [ readFileSync('server-cert.pem') ],
-
-  // Necessary only if the server's cert isn't for "localhost".
-  checkServerIdentity: () => { return null; },
-};
-
-const socket = connect(8000, options, () => {
-  console.log('client connected',
-              socket.authorized ? 'authorized' : 'unauthorized');
-  process.stdin.pipe(socket);
-  process.stdin.resume();
 });
 socket.setEncoding('utf8');
 socket.on('data', (data) => {
@@ -2296,36 +2235,9 @@ workers.
 
 The following illustrates a simple echo server:
 
-```mjs
+```js
 import { createServer } from 'node:tls';
 import { readFileSync } from 'node:fs';
-
-const options = {
-  key: readFileSync('server-key.pem'),
-  cert: readFileSync('server-cert.pem'),
-
-  // This is necessary only if using client certificate authentication.
-  requestCert: true,
-
-  // This is necessary only if the client uses a self-signed certificate.
-  ca: [ readFileSync('client-cert.pem') ],
-};
-
-const server = createServer(options, (socket) => {
-  console.log('server connected',
-              socket.authorized ? 'authorized' : 'unauthorized');
-  socket.write('welcome!\n');
-  socket.setEncoding('utf8');
-  socket.pipe(socket);
-});
-server.listen(8000, () => {
-  console.log('server bound');
-});
-```
-
-```cjs
-const { createServer } = require('node:tls');
-const { readFileSync } = require('node:fs');
 
 const options = {
   key: readFileSync('server-key.pem'),
@@ -2390,12 +2302,12 @@ made.
 
 To use system CA certificates as the default:
 
-```cjs
+```js
 const tls = require('node:tls');
 tls.setDefaultCACertificates(tls.getCACertificates('system'));
 ```
 
-```mjs
+```js
 import tls from 'node:tls';
 tls.setDefaultCACertificates(tls.getCACertificates('system'));
 ```
@@ -2403,14 +2315,14 @@ tls.setDefaultCACertificates(tls.getCACertificates('system'));
 This function completely replaces the default CA certificate list. To add additional
 certificates to the existing defaults, get the current certificates and append to them:
 
-```cjs
+```js
 const tls = require('node:tls');
 const currentCerts = tls.getCACertificates('default');
 const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
 tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
 ```
 
-```mjs
+```js
 import tls from 'node:tls';
 const currentCerts = tls.getCACertificates('default');
 const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];

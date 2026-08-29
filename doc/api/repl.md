@@ -10,12 +10,8 @@ The `node:repl` module provides a Read-Eval-Print-Loop (REPL) implementation
 that is available both as a standalone program or includible in other
 applications. It can be accessed using:
 
-```mjs
+```js
 import repl from 'node:repl';
-```
-
-```cjs
-const repl = require('node:repl');
 ```
 
 ## Design and features
@@ -110,15 +106,8 @@ The default evaluator provides access to any variables that exist in the global
 scope. It is possible to expose a variable to the REPL explicitly by assigning
 it to the `context` object associated with each `REPLServer`:
 
-```mjs
+```js
 import repl from 'node:repl';
-const msg = 'message';
-
-repl.start('> ').context.m = msg;
-```
-
-```cjs
-const repl = require('node:repl');
 const msg = 'message';
 
 repl.start('> ').context.m = msg;
@@ -135,20 +124,8 @@ $ node repl_test.js
 Context properties are not read-only by default. To specify read-only globals,
 context properties must be defined using `Object.defineProperty()`:
 
-```mjs
+```js
 import repl from 'node:repl';
-const msg = 'message';
-
-const r = repl.start('> ');
-Object.defineProperty(r.context, 'm', {
-  configurable: false,
-  enumerable: true,
-  value: msg,
-});
-```
-
-```cjs
-const repl = require('node:repl');
 const msg = 'message';
 
 const r = repl.start('> ');
@@ -282,26 +259,8 @@ An evaluation function accepts the following four arguments:
 The following illustrates an example of a REPL that squares a given number, an error is instead printed
 if the provided input is not actually a number:
 
-```mjs
+```js
 import repl from 'node:repl';
-
-function byThePowerOfTwo(number) {
-  return number * number;
-}
-
-function myEval(code, context, replResourceName, callback) {
-  if (isNaN(code)) {
-    callback(new Error(`${code.trim()} is not a number`));
-  } else {
-    callback(null, byThePowerOfTwo(code));
-  }
-}
-
-repl.start({ prompt: 'Enter a number: ', eval: myEval });
-```
-
-```cjs
-const repl = require('node:repl');
 
 function byThePowerOfTwo(number) {
   return number * number;
@@ -376,22 +335,8 @@ To fully customize the output of a [`repl.REPLServer`][] instance pass in a new
 function for the `writer` option on construction. The following example, for
 instance, simply converts any input text to upper case:
 
-```mjs
+```js
 import repl from 'node:repl';
-
-const r = repl.start({ prompt: '> ', eval: myEval, writer: myWriter });
-
-function myEval(cmd, context, filename, callback) {
-  callback(null, cmd);
-}
-
-function myWriter(output) {
-  return output.toUpperCase();
-}
-```
-
-```cjs
-const repl = require('node:repl');
 
 const r = repl.start({ prompt: '> ', eval: myEval, writer: myWriter });
 
@@ -416,17 +361,8 @@ added: v0.1.91
 Instances of `repl.REPLServer` are created using the [`repl.start()`][] method
 or directly using the JavaScript `new` keyword.
 
-```mjs
+```js
 import repl from 'node:repl';
-
-const options = { useColors: true };
-
-const firstInstance = repl.start(options);
-const secondInstance = new repl.REPLServer(options);
-```
-
-```cjs
-const repl = require('node:repl');
 
 const options = { useColors: true };
 
@@ -472,21 +408,8 @@ reference to the `context` object as the only argument.
 This can be used primarily to re-initialize REPL context to some pre-defined
 state:
 
-```mjs
+```js
 import repl from 'node:repl';
-
-function initializeContext(context) {
-  context.m = 'test';
-}
-
-const r = repl.start({ prompt: '> ' });
-initializeContext(r.context);
-
-r.on('reset', initializeContext);
-```
-
-```cjs
-const repl = require('node:repl');
 
 function initializeContext(context) {
   context.m = 'test';
@@ -536,26 +459,8 @@ properties:
 
 The following example shows two new commands added to the REPL instance:
 
-```mjs
+```js
 import repl from 'node:repl';
-
-const replServer = repl.start({ prompt: '> ' });
-replServer.defineCommand('sayhello', {
-  help: 'Say hello',
-  action(name) {
-    this.clearBufferedCommand();
-    console.log(`Hello, ${name}!`);
-    this.displayPrompt();
-  },
-});
-replServer.defineCommand('saybye', function saybye() {
-  console.log('Goodbye!');
-  this.close();
-});
-```
-
-```cjs
-const repl = require('node:repl');
 
 const replServer = repl.start({ prompt: '> ' });
 replServer.defineCommand('sayhello', {
@@ -776,15 +681,8 @@ The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
 
 If `options` is a string, then it specifies the input prompt:
 
-```mjs
+```js
 import repl from 'node:repl';
-
-// a Unix style prompt
-repl.start('$ ');
-```
-
-```cjs
-const repl = require('node:repl');
 
 // a Unix style prompt
 repl.start('$ ');
@@ -855,55 +753,11 @@ the `useGlobal` option to `true`) but have separate I/O interfaces.
 The following example, for instance, provides separate REPLs on `stdin`, a Unix
 socket, and a TCP socket, all sharing the same `global` object:
 
-```mjs
+```js
 import net from 'node:net';
 import repl from 'node:repl';
 import process from 'node:process';
 import fs from 'node:fs';
-
-let connections = 0;
-
-repl.start({
-  prompt: 'Node.js via stdin> ',
-  useGlobal: true,
-  input: process.stdin,
-  output: process.stdout,
-});
-
-const unixSocketPath = '/tmp/node-repl-sock';
-
-// If the socket file already exists let's remove it
-fs.rmSync(unixSocketPath, { force: true });
-
-net.createServer((socket) => {
-  connections += 1;
-  repl.start({
-    prompt: 'Node.js via Unix socket> ',
-    useGlobal: true,
-    input: socket,
-    output: socket,
-  }).on('exit', () => {
-    socket.end();
-  });
-}).listen(unixSocketPath);
-
-net.createServer((socket) => {
-  connections += 1;
-  repl.start({
-    prompt: 'Node.js via TCP socket> ',
-    useGlobal: true,
-    input: socket,
-    output: socket,
-  }).on('exit', () => {
-    socket.end();
-  });
-}).listen(5001);
-```
-
-```cjs
-const net = require('node:net');
-const repl = require('node:repl');
-const fs = require('node:fs');
 
 let connections = 0;
 
@@ -962,7 +816,7 @@ This is an example on how to run a "full-featured" (terminal) REPL using
 The following script starts an HTTP server on port `1337` that allows
 clients to establish socket connections to its REPL instance.
 
-```mjs
+```js
 // repl-server.js
 import repl from 'node:repl';
 import net from 'node:net';
@@ -984,67 +838,13 @@ net
   .listen(1337);
 ```
 
-```cjs
-// repl-server.js
-const repl = require('node:repl');
-const net = require('node:net');
-
-net
-  .createServer((socket) => {
-    const r = repl.start({
-      prompt: `socket ${socket.remoteAddress}:${socket.remotePort}> `,
-      input: socket,
-      output: socket,
-      terminal: true,
-      useGlobal: false,
-    });
-    r.on('exit', () => {
-      socket.end();
-    });
-    r.context.socket = socket;
-  })
-  .listen(1337);
-```
-
 While the following implements a client that can create a socket connection
 with the above defined server over port `1337`.
 
-```mjs
+```js
 // repl-client.js
 import net from 'node:net';
 import process from 'node:process';
-
-const sock = net.connect(1337);
-
-process.stdin.pipe(sock);
-sock.pipe(process.stdout);
-
-sock.on('connect', () => {
-  process.stdin.resume();
-  process.stdin.setRawMode(true);
-});
-
-sock.on('close', () => {
-  process.stdin.setRawMode(false);
-  process.stdin.pause();
-  sock.removeListener('close', done);
-});
-
-process.stdin.on('end', () => {
-  sock.destroy();
-  console.log();
-});
-
-process.stdin.on('data', (b) => {
-  if (b.length === 1 && b[0] === 4) {
-    process.stdin.emit('end');
-  }
-});
-```
-
-```cjs
-// repl-client.js
-const net = require('node:net');
 
 const sock = net.connect(1337);
 
@@ -1086,29 +886,9 @@ This is an example on how to run a REPL instance over [`curl()`][]
 The following script starts an HTTP server on port `8000` that can accept
 a connection established via [`curl()`][].
 
-```mjs
+```js
 import http from 'node:http';
 import repl from 'node:repl';
-
-const server = http.createServer((req, res) => {
-  res.setHeader('content-type', 'multipart/octet-stream');
-
-  repl.start({
-    prompt: 'curl repl> ',
-    input: req,
-    output: res,
-    terminal: false,
-    useColors: true,
-    useGlobal: false,
-  });
-});
-
-server.listen(8000);
-```
-
-```cjs
-const http = require('node:http');
-const repl = require('node:repl');
 
 const server = http.createServer((req, res) => {
   res.setHeader('content-type', 'multipart/octet-stream');

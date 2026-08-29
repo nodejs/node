@@ -912,7 +912,7 @@ import { another } from 'a-package/m.mjs';
 Self-referencing is also available when using `require`, both in an ES module,
 and in a CommonJS one. For example, this code will also work:
 
-```cjs
+```js
 // ./a-module.js
 const { something } = require('a-package/foo.js'); // Loads from ./foo.js.
 ```
@@ -928,12 +928,12 @@ code will also work:
 }
 ```
 
-```cjs
+```js
 // ./index.js
 module.exports = 42;
 ```
 
-```cjs
+```js
 // ./other.js
 console.log(require('@my/package'));
 ```
@@ -1206,7 +1206,7 @@ The [`"exports"`][] field, if it exists, takes precedence over the
 It also defines the script that is used when the [package directory is loaded
 via `require()`](modules.md#folders-as-modules).
 
-```cjs
+```js
 // This resolves to ./path/to/directory/index.js.
 require('./path/to/directory');
 ```

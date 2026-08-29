@@ -453,7 +453,7 @@ This example derives a key from a password using Argon2, if available,
 or PBKDF2, otherwise; and then encrypts and decrypts some text with it
 using AES-OCB, if available, and AES-GCM, otherwise.
 
-```mjs
+```js
 const { SubtleCrypto, crypto } = globalThis;
 
 const password = 'correct horse battery staple';

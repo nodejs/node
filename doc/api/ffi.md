@@ -19,12 +19,8 @@ or corrupt memory.
 
 To access it:
 
-```mjs
+```js
 import ffi from 'node:ffi';
-```
-
-```cjs
-const ffi = require('node:ffi');
 ```
 
 This module is only available under the `node:` scheme in builds with FFI
@@ -200,7 +196,7 @@ The native shared library suffix for the current platform:
 
 This can be used to build portable library paths:
 
-```cjs
+```js
 const { suffix } = require('node:ffi');
 
 const path = `libsqlite3.${suffix}`;
@@ -233,7 +229,7 @@ The returned object also implements the explicit resource management protocol,
 so it can be used with the [`using`][] declaration. Disposing the returned
 object closes the library handle.
 
-```mjs
+```js
 import { dlopen, suffix } from 'node:ffi';
 
 {
@@ -244,19 +240,8 @@ import { dlopen, suffix } from 'node:ffi';
 } // handle.lib.close() is invoked automatically here.
 ```
 
-```mjs
+```js
 import { dlopen, suffix } from 'node:ffi';
-
-const { lib, functions } = dlopen(`./mylib.${suffix}`, {
-  add_i32: { arguments: ['int32', 'int32'], return: 'int32' },
-  string_length: { arguments: ['pointer'], return: 'uint64' },
-});
-
-console.log(functions.add_i32(20, 22));
-```
-
-```cjs
-const { dlopen, suffix } = require('node:ffi');
 
 const { lib, functions } = dlopen(`./mylib.${suffix}`, {
   add_i32: { arguments: ['int32', 'int32'], return: 'int32' },
@@ -309,7 +294,7 @@ Loads the dynamic library without resolving any functions eagerly.
 
 On Windows passing `null` is not supported.
 
-```cjs
+```js
 const { DynamicLibrary, suffix } = require('node:ffi');
 
 const lib = new DynamicLibrary(`./mylib.${suffix}`);
@@ -341,7 +326,7 @@ Closes the library handle.
 library instance can be managed with the [`using`][] declaration. Leaving the
 enclosing scope invokes `library.close()` automatically.
 
-```mjs
+```js
 import { DynamicLibrary, suffix } from 'node:ffi';
 
 {
@@ -397,7 +382,7 @@ If the same symbol has already been resolved, requesting it again with a
 different signature throws. Requesting it again with the same signature returns
 the same function, as does reading it from [`library.functions`][].
 
-```cjs
+```js
 const { DynamicLibrary, suffix } = require('node:ffi');
 
 const lib = new DynamicLibrary(`./mylib.${suffix}`);
@@ -447,7 +432,7 @@ When `signature` is omitted, the callback uses a default `void ()` signature.
 The return value is the callback pointer address as a `bigint`. It can be
 passed to native functions expecting a callback pointer.
 
-```cjs
+```js
 const { DynamicLibrary, suffix } = require('node:ffi');
 
 const lib = new DynamicLibrary(`./mylib.${suffix}`);
@@ -570,7 +555,7 @@ JavaScript value against the target native type before writing it into memory.
 For `setInt64()` and `setUint64()`, `bigint` values are accepted directly;
 numeric inputs must be integers within JavaScript's safe integer range.
 
-```cjs
+```js
 const {
   getInt32,
   setInt32,
@@ -604,7 +589,7 @@ a pointer to freed memory, or a pointer to bytes without a terminating NUL can
 read unrelated memory, crash the process, or produce truncated or garbled
 output.
 
-```cjs
+```js
 const { toString } = require('node:ffi');
 
 const value = toString(ptr);

@@ -10,12 +10,8 @@ The `node:util` module supports the needs of Node.js internal APIs. Many of the
 utilities are useful for application and module developers as well. To access
 it:
 
-```mjs
+```js
 import util from 'node:util';
-```
-
-```cjs
-const util = require('node:util');
 ```
 
 ## `util.callbackify(original)`
@@ -33,22 +29,8 @@ an `(err, value) => ...` callback as the last argument. In the callback, the
 first argument will be the rejection reason (or `null` if the `Promise`
 resolved), and the second argument will be the resolved value.
 
-```mjs
+```js
 import { callbackify } from 'node:util';
-
-async function fn() {
-  return 'hello world';
-}
-const callbackFunction = callbackify(fn);
-
-callbackFunction((err, ret) => {
-  if (err) throw err;
-  console.log(ret);
-});
-```
-
-```cjs
-const { callbackify } = require('node:util');
 
 async function fn() {
   return 'hello world';
@@ -76,23 +58,8 @@ wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
 
-```mjs
+```js
 import util from 'node:util';
-
-function fn() {
-  return Promise.reject(null);
-}
-const callbackFunction = util.callbackify(fn);
-
-callbackFunction((err, ret) => {
-  // When the Promise was rejected with `null` it is wrapped with an Error and
-  // the original value is stored in `reason`.
-  err && Object.hasOwn(err, 'reason') && err.reason === null;  // true
-});
-```
-
-```cjs
-const util = require('node:util');
 
 function fn() {
   return Promise.reject(null);
@@ -124,15 +91,8 @@ for a process terminated by a signal is calculated as `128 + signal number`.
 If `signal` is not a valid signal name, then an error will be thrown. See
 [`signal(7)`][] for a list of valid signals.
 
-```mjs
+```js
 import { convertProcessSignalToExitCode } from 'node:util';
-
-console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
-console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
-```
-
-```cjs
-const { convertProcessSignalToExitCode } = require('node:util');
 
 console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
 console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
@@ -159,15 +119,8 @@ environment variable. If the `section` name appears within the value of that
 environment variable, then the returned function operates similar to
 [`console.error()`][]. If not, then the returned function is a no-op.
 
-```mjs
+```js
 import { debuglog } from 'node:util';
-const log = debuglog('foo');
-
-log('hello from foo [%d]', 123);
-```
-
-```cjs
-const { debuglog } = require('node:util');
 const log = debuglog('foo');
 
 log('hello from foo [%d]', 123);
@@ -185,15 +138,8 @@ environment variable set, then it will not print anything.
 
 The `section` supports wildcard also:
 
-```mjs
+```js
 import { debuglog } from 'node:util';
-const log = debuglog('foo-bar');
-
-log('hi there, it\'s foo-bar [%d]', 2333);
-```
-
-```cjs
-const { debuglog } = require('node:util');
 const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
@@ -213,17 +159,8 @@ The optional `callback` argument can be used to replace the logging function
 with a different function that doesn't have any initialization or
 unnecessary wrapping.
 
-```mjs
+```js
 import { debuglog } from 'node:util';
-let log = debuglog('internals', (debug) => {
-  // Replace with a logging function that optimizes out
-  // testing if the section is enabled
-  log = debug;
-});
-```
-
-```cjs
-const { debuglog } = require('node:util');
 let log = debuglog('internals', (debug) => {
   // Replace with a logging function that optimizes out
   // testing if the section is enabled
@@ -245,16 +182,8 @@ If the `section` name appears within the value of that environment variable,
 then the returned value will be `true`. If not, then the returned value will be
 `false`.
 
-```mjs
+```js
 import { debuglog } from 'node:util';
-const enabled = debuglog('foo').enabled;
-if (enabled) {
-  console.log('hello from foo [%d]', 123);
-}
-```
-
-```cjs
-const { debuglog } = require('node:util');
 const enabled = debuglog('foo').enabled;
 if (enabled) {
   console.log('hello from foo [%d]', 123);
@@ -307,18 +236,10 @@ changes:
 The `util.deprecate()` method wraps `fn` (which may be a function or class) in
 such a way that it is marked as deprecated.
 
-```mjs
+```js
 import { deprecate } from 'node:util';
 
 export const obsoleteFunction = deprecate(() => {
-  // Do something here.
-}, 'obsoleteFunction() is deprecated. Use newShinyFunction() instead.');
-```
-
-```cjs
-const { deprecate } = require('node:util');
-
-exports.obsoleteFunction = deprecate(() => {
   // Do something here.
 }, 'obsoleteFunction() is deprecated. Use newShinyFunction() instead.');
 ```
@@ -332,7 +253,7 @@ emitting a warning.
 If the same optional `code` is supplied in multiple calls to `util.deprecate()`,
 the warning will be emitted only once for that `code`.
 
-```mjs
+```js
 import { deprecate } from 'node:util';
 
 const fn1 = deprecate(
@@ -342,27 +263,6 @@ const fn1 = deprecate(
 );
 const fn2 = deprecate(
   () => 'a  different value',
-  'other dep message',
-  'DEP0001',
-);
-fn1(); // Emits a deprecation warning with code DEP0001
-fn2(); // Does not emit a deprecation warning because it has the same code
-```
-
-```cjs
-const { deprecate } = require('node:util');
-
-const fn1 = deprecate(
-  function() {
-    return 'a value';
-  },
-  'deprecation message',
-  'DEP0001',
-);
-const fn2 = deprecate(
-  function() {
-    return 'a  different value';
-  },
   'other dep message',
   'DEP0001',
 );
@@ -621,45 +521,8 @@ the caller function.
 Unlike accessing an `error.stack`, the result returned from this API is not
 interfered with `Error.prepareStackTrace`.
 
-```mjs
+```js
 import { getCallSites } from 'node:util';
-
-function exampleFunction() {
-  const callSites = getCallSites();
-
-  console.log('Call Sites:');
-  callSites.forEach((callSite, index) => {
-    console.log(`CallSite ${index + 1}:`);
-    console.log(`Function Name: ${callSite.functionName}`);
-    console.log(`Script Name: ${callSite.scriptName}`);
-    console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.columnNumber}`);
-  });
-  // CallSite 1:
-  // Function Name: exampleFunction
-  // Script Name: /home/example.js
-  // Line Number: 5
-  // Column Number: 26
-
-  // CallSite 2:
-  // Function Name: anotherFunction
-  // Script Name: /home/example.js
-  // Line Number: 22
-  // Column Number: 3
-
-  // ...
-}
-
-// A function to simulate another stack layer
-function anotherFunction() {
-  exampleFunction();
-}
-
-anotherFunction();
-```
-
-```cjs
-const { getCallSites } = require('node:util');
 
 function exampleFunction() {
   const callSites = getCallSites();
@@ -721,7 +584,7 @@ const callSites = getCallSites({ sourceMap: true });
 // Column Number: 26
 ```
 
-```cjs
+```js
 const { getCallSites } = require('node:util');
 
 const callSites = getCallSites({ sourceMap: true });
@@ -870,25 +733,8 @@ stream.write('It works!'); // Received data: "It works!"
 
 ES6 example using `class` and `extends`:
 
-```mjs
+```js
 import EventEmitter from 'node:events';
-
-class MyStream extends EventEmitter {
-  write(data) {
-    this.emit('data', data);
-  }
-}
-
-const stream = new MyStream();
-
-stream.on('data', (data) => {
-  console.log(`Received data: "${data}"`);
-});
-stream.write('With ES6');
-```
-
-```cjs
-const EventEmitter = require('node:events');
 
 class MyStream extends EventEmitter {
   write(data) {
@@ -1075,24 +921,8 @@ util.inspect(baz);       // '[foo] {}'
 
 Circular references point to their anchor by using a reference index:
 
-```mjs
+```js
 import { inspect } from 'node:util';
-
-const obj = {};
-obj.a = [obj];
-obj.b = {};
-obj.b.inner = obj.b;
-obj.b.obj = obj;
-
-console.log(inspect(obj));
-// <ref *1> {
-//   a: [ [Circular *1] ],
-//   b: <ref *2> { inner: [Circular *2], obj: [Circular *1] }
-// }
-```
-
-```cjs
-const { inspect } = require('node:util');
 
 const obj = {};
 obj.a = [obj];
@@ -1109,72 +939,16 @@ console.log(inspect(obj));
 
 The following example inspects all properties of the `util` object:
 
-```mjs
+```js
 import util from 'node:util';
-
-console.log(util.inspect(util, { showHidden: true, depth: null }));
-```
-
-```cjs
-const util = require('node:util');
 
 console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
 
 The following example highlights the effect of the `compact` option:
 
-```mjs
+```js
 import { inspect } from 'node:util';
-
-const o = {
-  a: [1, 2, [[
-    'Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit, sed do ' +
-      'eiusmod \ntempor incididunt ut labore et dolore magna aliqua.',
-    'test',
-    'foo']], 4],
-  b: new Map([['za', 1], ['zb', 'test']]),
-};
-console.log(inspect(o, { compact: true, depth: 5, breakLength: 80 }));
-
-// { a:
-//   [ 1,
-//     2,
-//     [ [ 'Lorem ipsum dolor sit amet,\nconsectetur [...]', // A long line
-//           'test',
-//           'foo' ] ],
-//     4 ],
-//   b: Map(2) { 'za' => 1, 'zb' => 'test' } }
-
-// Setting `compact` to false or an integer creates more reader friendly output.
-console.log(inspect(o, { compact: false, depth: 5, breakLength: 80 }));
-
-// {
-//   a: [
-//     1,
-//     2,
-//     [
-//       [
-//         'Lorem ipsum dolor sit amet,\n' +
-//           'consectetur adipiscing elit, sed do eiusmod \n' +
-//           'tempor incididunt ut labore et dolore magna aliqua.',
-//         'test',
-//         'foo'
-//       ]
-//     ],
-//     4
-//   ],
-//   b: Map(2) {
-//     'za' => 1,
-//     'zb' => 'test'
-//   }
-// }
-
-// Setting `breakLength` to e.g. 150 will print the "Lorem ipsum" text in a
-// single line.
-```
-
-```cjs
-const { inspect } = require('node:util');
 
 const o = {
   a: [1, 2, [[
@@ -1229,19 +1003,8 @@ guarantee which entries are displayed. That means retrieving the same
 {WeakSet} entries twice may result in different output. Furthermore, entries
 with no remaining strong references may be garbage collected at any time.
 
-```mjs
+```js
 import { inspect } from 'node:util';
-
-const obj = { a: 1 };
-const obj2 = { b: 2 };
-const weakSet = new WeakSet([obj, obj2]);
-
-console.log(inspect(weakSet, { showHidden: true }));
-// WeakSet { { a: 1 }, { b: 2 } }
-```
-
-```cjs
-const { inspect } = require('node:util');
 
 const obj = { a: 1 };
 const obj2 = { b: 2 };
@@ -1254,34 +1017,9 @@ console.log(inspect(weakSet, { showHidden: true }));
 The `sorted` option ensures that an object's property insertion order does not
 impact the result of `util.inspect()`.
 
-```mjs
+```js
 import { inspect } from 'node:util';
 import assert from 'node:assert';
-
-const o1 = {
-  b: [2, 3, 1],
-  a: '`a` comes before `b`',
-  c: new Set([2, 3, 1]),
-};
-console.log(inspect(o1, { sorted: true }));
-// { a: '`a` comes before `b`', b: [ 2, 3, 1 ], c: Set(3) { 1, 2, 3 } }
-console.log(inspect(o1, { sorted: (a, b) => b.localeCompare(a) }));
-// { c: Set(3) { 3, 2, 1 }, b: [ 2, 3, 1 ], a: '`a` comes before `b`' }
-
-const o2 = {
-  c: new Set([2, 1, 3]),
-  a: '`a` comes before `b`',
-  b: [2, 3, 1],
-};
-assert.strict.equal(
-  inspect(o1, { sorted: true }),
-  inspect(o2, { sorted: true }),
-);
-```
-
-```cjs
-const { inspect } = require('node:util');
-const assert = require('node:assert');
 
 const o1 = {
   b: [2, 3, 1],
@@ -1307,26 +1045,8 @@ assert.strict.equal(
 The `numericSeparator` option adds an underscore every three digits to all
 numbers.
 
-```mjs
+```js
 import { inspect } from 'node:util';
-
-const thousand = 1000;
-const million = 1000000;
-const bigNumber = 123456789n;
-const bigDecimal = 1234.12345;
-
-console.log(inspect(thousand, { numericSeparator: true }));
-// 1_000
-console.log(inspect(million, { numericSeparator: true }));
-// 1_000_000
-console.log(inspect(bigNumber, { numericSeparator: true }));
-// 123_456_789n
-console.log(inspect(bigDecimal, { numericSeparator: true }));
-// 1_234.123_45
-```
-
-```cjs
-const { inspect } = require('node:util');
 
 const thousand = 1000;
 const million = 1000000;
@@ -1473,39 +1193,8 @@ Objects may also define their own
 which `util.inspect()` will invoke and use the result of when inspecting
 the object.
 
-```mjs
+```js
 import { inspect } from 'node:util';
-
-class Box {
-  constructor(value) {
-    this.value = value;
-  }
-
-  [inspect.custom](depth, options, inspect) {
-    if (depth < 0) {
-      return options.stylize('[Box]', 'special');
-    }
-
-    const newOptions = Object.assign({}, options, {
-      depth: options.depth === null ? null : options.depth - 1,
-    });
-
-    // Five space padding because that's the size of "Box< ".
-    const padding = ' '.repeat(5);
-    const inner = inspect(this.value, newOptions)
-                  .replace(/\n/g, `\n${padding}`);
-    return `${options.stylize('Box', 'special')}< ${inner} >`;
-  }
-}
-
-const box = new Box(true);
-
-console.log(inspect(box));
-// "Box< true >"
-```
-
-```cjs
-const { inspect } = require('node:util');
 
 class Box {
   constructor(value) {
@@ -1539,20 +1228,8 @@ Custom `[util.inspect.custom](depth, opts, inspect)` functions typically return
 a string but may return a value of any type that will be formatted accordingly
 by `util.inspect()`.
 
-```mjs
+```js
 import { inspect } from 'node:util';
-
-const obj = { foo: 'this will not show up in the inspect() output' };
-obj[inspect.custom] = (depth) => {
-  return { bar: 'baz' };
-};
-
-console.log(inspect(obj));
-// "{ bar: 'baz' }"
-```
-
-```cjs
-const { inspect } = require('node:util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
 obj[inspect.custom] = (depth) => {
@@ -1620,17 +1297,8 @@ The `defaultOptions` value allows customization of the default options used by
 object containing one or more valid [`util.inspect()`][] options. Setting
 option properties directly is also supported.
 
-```mjs
+```js
 import { inspect } from 'node:util';
-const arr = Array(156).fill(0);
-
-console.log(arr); // Logs the truncated array
-inspect.defaultOptions.maxArrayLength = null;
-console.log(arr); // logs the full array
-```
-
-```cjs
-const { inspect } = require('node:util');
 const arr = Array(156).fill(0);
 
 console.log(arr); // Logs the truncated array
@@ -1721,14 +1389,8 @@ properties for each of these components.
 
 Creates a new `MIMEType` object by parsing the `input`.
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const myMIME = new MIMEType('text/plain');
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const myMIME = new MIMEType('text/plain');
 ```
@@ -1737,15 +1399,8 @@ A `TypeError` will be thrown if the `input` is not a valid MIME. Note
 that an effort will be made to coerce the given values into strings. For
 instance:
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-const myMIME = new MIMEType({ toString: () => 'text/plain' });
-console.log(String(myMIME));
-// Prints: text/plain
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 const myMIME = new MIMEType({ toString: () => 'text/plain' });
 console.log(String(myMIME));
 // Prints: text/plain
@@ -1757,21 +1412,8 @@ console.log(String(myMIME));
 
 Gets and sets the type portion of the MIME.
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const myMIME = new MIMEType('text/javascript');
-console.log(myMIME.type);
-// Prints: text
-myMIME.type = 'application';
-console.log(myMIME.type);
-// Prints: application
-console.log(String(myMIME));
-// Prints: application/javascript
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const myMIME = new MIMEType('text/javascript');
 console.log(myMIME.type);
@@ -1789,21 +1431,8 @@ console.log(String(myMIME));
 
 Gets and sets the subtype portion of the MIME.
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const myMIME = new MIMEType('text/ecmascript');
-console.log(myMIME.subtype);
-// Prints: ecmascript
-myMIME.subtype = 'javascript';
-console.log(myMIME.subtype);
-// Prints: javascript
-console.log(String(myMIME));
-// Prints: text/javascript
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const myMIME = new MIMEType('text/ecmascript');
 console.log(myMIME.subtype);
@@ -1822,21 +1451,8 @@ console.log(String(myMIME));
 Gets the essence of the MIME. This property is read only.
 Use `mime.type` or `mime.subtype` to alter the MIME.
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const myMIME = new MIMEType('text/javascript;key=value');
-console.log(myMIME.essence);
-// Prints: text/javascript
-myMIME.type = 'application';
-console.log(myMIME.essence);
-// Prints: application/javascript
-console.log(String(myMIME));
-// Prints: application/javascript;key=value
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const myMIME = new MIMEType('text/javascript;key=value');
 console.log(myMIME.essence);
@@ -1874,19 +1490,8 @@ Alias for [`mime.toString()`][].
 This method is automatically called when an `MIMEType` object is serialized
 with [`JSON.stringify()`][].
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const myMIMES = [
-  new MIMEType('image/png'),
-  new MIMEType('image/gif'),
-];
-console.log(JSON.stringify(myMIMES));
-// Prints: ["image/png", "image/gif"]
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const myMIMES = [
   new MIMEType('image/png'),
@@ -1923,14 +1528,8 @@ The `MIMEParams` API provides read and write access to the parameters of a
 
 Creates a new `MIMEParams` object by with empty parameters
 
-```mjs
+```js
 import { MIMEParams } from 'node:util';
-
-const myParams = new MIMEParams();
-```
-
-```cjs
-const { MIMEParams } = require('node:util');
 
 const myParams = new MIMEParams();
 ```
@@ -1971,20 +1570,8 @@ Returns `true` if there is at least one name-value pair whose name is `name`.
 
 Returns an iterator over the names of each name-value pair.
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const { params } = new MIMEType('text/plain;foo=0;bar=1');
-for (const name of params.keys()) {
-  console.log(name);
-}
-// Prints:
-//   foo
-//   bar
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const { params } = new MIMEType('text/plain;foo=0;bar=1');
 for (const name of params.keys()) {
@@ -2004,18 +1591,8 @@ Sets the value in the `MIMEParams` object associated with `name` to
 `value`. If there are any pre-existing name-value pairs whose names are `name`,
 set the first such pair's value to `value`.
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const { params } = new MIMEType('text/plain;foo=0;bar=1');
-params.set('foo', 'def');
-params.set('baz', 'xyz');
-console.log(params.toString());
-// Prints: foo=def;bar=1;baz=xyz
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const { params } = new MIMEType('text/plain;foo=0;bar=1');
 params.set('foo', 'def');
@@ -2036,20 +1613,8 @@ Returns an iterator over the values of each name-value pair.
 
 Alias for [`mimeParams.entries()`][].
 
-```mjs
+```js
 import { MIMEType } from 'node:util';
-
-const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
-for (const [name, value] of params) {
-  console.log(name, value);
-}
-// Prints:
-//   foo bar
-//   xyz baz
-```
-
-```cjs
-const { MIMEType } = require('node:util');
 
 const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
 for (const [name, value] of params) {
@@ -2133,28 +1698,8 @@ Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
 and returns a structured object with the parsed options and positionals.
 
-```mjs
+```js
 import { parseArgs } from 'node:util';
-const args = ['-f', '--bar', 'b'];
-const options = {
-  foo: {
-    type: 'boolean',
-    short: 'f',
-  },
-  bar: {
-    type: 'string',
-  },
-};
-const {
-  values,
-  positionals,
-} = parseArgs({ args, options });
-console.log(values, positionals);
-// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
-```
-
-```cjs
-const { parseArgs } = require('node:util');
 const args = ['-f', '--bar', 'b'];
 const options = {
   foo: {
@@ -2203,40 +1748,8 @@ For example, to add support for a negated option like `--no-color` (which
 `allowNegative` supports when the option is of `boolean` type), the returned
 tokens can be reprocessed to change the value stored for the negated option.
 
-```mjs
+```js
 import { parseArgs } from 'node:util';
-
-const options = {
-  'color': { type: 'boolean' },
-  'no-color': { type: 'boolean' },
-  'logfile': { type: 'string' },
-  'no-logfile': { type: 'boolean' },
-};
-const { values, tokens } = parseArgs({ options, tokens: true });
-
-// Reprocess the option tokens and overwrite the returned values.
-tokens
-  .filter((token) => token.kind === 'option')
-  .forEach((token) => {
-    if (token.name.startsWith('no-')) {
-      // Store foo:false for --no-foo
-      const positiveName = token.name.slice(3);
-      values[positiveName] = false;
-      delete values[token.name];
-    } else {
-      // Resave value so last one wins if both --foo and --no-foo.
-      values[token.name] = token.value ?? true;
-    }
-  });
-
-const color = values.color;
-const logfile = values.logfile ?? 'default.log';
-
-console.log({ logfile, color });
-```
-
-```cjs
-const { parseArgs } = require('node:util');
 
 const options = {
   'color': { type: 'boolean' },
@@ -2303,14 +1816,14 @@ The raw contents of a `.env` file.
 
 Given an example `.env` file:
 
-```cjs
+```js
 const { parseEnv } = require('node:util');
 
 parseEnv('HELLO=world\nHELLO=oh my\n');
 // Returns: { HELLO: 'oh my' }
 ```
 
-```mjs
+```js
 import { parseEnv } from 'node:util';
 
 parseEnv('HELLO=world\nHELLO=oh my\n');
@@ -2335,21 +1848,9 @@ Takes a function following the common error-first callback style, i.e. taking
 an `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
-```mjs
+```js
 import { promisify } from 'node:util';
 import { stat } from 'node:fs';
-
-const promisifiedStat = promisify(stat);
-promisifiedStat('.').then((stats) => {
-  // Do something with `stats`
-}).catch((error) => {
-  // Handle the error.
-});
-```
-
-```cjs
-const { promisify } = require('node:util');
-const { stat } = require('node:fs');
 
 const promisifiedStat = promisify(stat);
 promisifiedStat('.').then((stats) => {
@@ -2361,23 +1862,9 @@ promisifiedStat('.').then((stats) => {
 
 Or, equivalently using `async function`s:
 
-```mjs
+```js
 import { promisify } from 'node:util';
 import { stat } from 'node:fs';
-
-const promisifiedStat = promisify(stat);
-
-async function callStat() {
-  const stats = await promisifiedStat('.');
-  console.log(`This directory is owned by ${stats.uid}`);
-}
-
-callStat();
-```
-
-```cjs
-const { promisify } = require('node:util');
-const { stat } = require('node:fs');
 
 const promisifiedStat = promisify(stat);
 
@@ -2401,33 +1888,8 @@ callback as its last argument.
 Using `promisify()` on class methods or other methods that use `this` may not
 work as expected unless handled specially:
 
-```mjs
+```js
 import { promisify } from 'node:util';
-
-class Foo {
-  constructor() {
-    this.a = 42;
-  }
-
-  bar(callback) {
-    callback(null, this.a);
-  }
-}
-
-const foo = new Foo();
-
-const naiveBar = promisify(foo.bar);
-// TypeError: Cannot read properties of undefined (reading 'a')
-// naiveBar().then(a => console.log(a));
-
-naiveBar.call(foo).then((a) => console.log(a)); // '42'
-
-const bindBar = naiveBar.bind(foo);
-bindBar().then((a) => console.log(a)); // '42'
-```
-
-```cjs
-const { promisify } = require('node:util');
 
 class Foo {
   constructor() {
@@ -2456,24 +1918,8 @@ bindBar().then((a) => console.log(a)); // '42'
 Using the `util.promisify.custom` symbol one can override the return value of
 [`util.promisify()`][]:
 
-```mjs
+```js
 import { promisify } from 'node:util';
-
-function doSomething(foo, callback) {
-  // ...
-}
-
-doSomething[promisify.custom] = (foo) => {
-  return getPromiseSomehow();
-};
-
-const promisified = promisify(doSomething);
-console.log(promisified === doSomething[promisify.custom]);
-// prints 'true'
-```
-
-```cjs
-const { promisify } = require('node:util');
 
 function doSomething(foo, callback) {
   // ...
@@ -2596,25 +2042,9 @@ for printing in a terminal. It is aware of the terminal's capabilities
 and acts according to the configuration set via `NO_COLOR`,
 `NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
-```mjs
+```js
 import { styleText } from 'node:util';
 import { stderr } from 'node:process';
-
-const successMessage = styleText('green', 'Success!');
-console.log(successMessage);
-
-const errorMessage = styleText(
-  'red',
-  'Error! Error!',
-  // Validate if process.stderr has TTY
-  { stream: stderr },
-);
-console.error(errorMessage);
-```
-
-```cjs
-const { styleText } = require('node:util');
-const { stderr } = require('node:process');
 
 const successMessage = styleText('green', 'Success!');
 console.log(successMessage);
@@ -2631,7 +2061,7 @@ console.error(errorMessage);
 `util.inspect.colors` also provides text formats such as `italic`, and
 `underline` and you can combine both:
 
-```cjs
+```js
 console.log(
   util.styleText(['underline', 'italic'], 'My italic underlined message'),
 );
@@ -2640,7 +2070,7 @@ console.log(
 When passing an array of formats, the order of the format applied
 is left to right so the following style might overwrite the previous one.
 
-```cjs
+```js
 console.log(
   util.styleText(['red', 'green'], 'text'), // green
 );
@@ -2652,18 +2082,8 @@ In addition to predefined color names, `util.styleText()` supports hex color
 strings using ANSI TrueColor (24-bit) escape sequences. Hex colors can be
 specified in either 3-digit (`#RGB`) or 6-digit (`#RRGGBB`) format:
 
-```mjs
+```js
 import { styleText } from 'node:util';
-
-// 6-digit hex color
-console.log(styleText('#ff5733', 'Orange text'));
-
-// 3-digit hex color (shorthand)
-console.log(styleText('#f00', 'Red text'));
-```
-
-```cjs
-const { styleText } = require('node:util');
 
 // 6-digit hex color
 console.log(styleText('#ff5733', 'Orange text'));
@@ -2948,7 +2368,7 @@ so if `resource` is garbage collected before the `signal` aborts,
 then returned promise shall remain pending.
 This prevents memory leaks in long-running or non-cancelable operations.
 
-```cjs
+```js
 const { aborted } = require('node:util');
 
 // Obtain an object with an abortable signal, like a custom resource or operation.
@@ -2968,7 +2388,7 @@ dependent.on('event', () => {
 });
 ```
 
-```mjs
+```js
 import { aborted } from 'node:util';
 
 // Obtain an object with an abortable signal, like a custom resource or operation.
@@ -3278,19 +2698,9 @@ DECLARE_NAPI_PROPERTY("myNapi", MyNapi)
 ...
 ```
 
-```mjs
+```js
 import native from 'napi_addon.node';
 import { types } from 'node:util';
-
-const data = native.myNapi();
-types.isExternal(data); // returns true
-types.isExternal(0); // returns false
-types.isExternal(new String('foo')); // returns false
-```
-
-```cjs
-const native = require('napi_addon.node');
-const { types } = require('node:util');
 
 const data = native.myNapi();
 types.isExternal(data); // returns true
@@ -3502,7 +2912,7 @@ added: v10.0.0
 
 Returns `true` if the value is an instance of a [Module Namespace Object][].
 
-```mjs
+```js
 import * as ns from './a.js';
 
 util.types.isModuleNamespaceObject(ns);  // Returns true
@@ -3544,19 +2954,9 @@ returning `true` for that value. `isNativeError()` returns `true` for errors
 which come from a different [realm][] while `instanceof Error` returns `false`
 for these errors:
 
-```mjs
+```js
 import { createContext, runInContext } from 'node:vm';
 import { types } from 'node:util';
-
-const context = createContext({});
-const myError = runInContext('new Error()', context);
-console.log(types.isNativeError(myError)); // true
-console.log(myError instanceof Error); // false
-```
-
-```cjs
-const { createContext, runInContext } = require('node:vm');
-const { types } = require('node:util');
 
 const context = createContext({});
 const myError = runInContext('new Error()', context);

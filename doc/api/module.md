@@ -35,16 +35,10 @@ if a module is maintained by a third party or not.
 `module` in this context isn't the same object that's provided
 by the [module wrapper][]. To access it, require the `Module` module:
 
-```mjs
+```js
 // module.mjs
 // In an ECMAScript module
 import { builtinModules as builtin } from 'node:module';
-```
-
-```cjs
-// module.cjs
-// In a CommonJS module
-const builtin = require('node:module').builtinModules;
 ```
 
 ### `module.createRequire(filename)`
@@ -58,7 +52,7 @@ added: v12.2.0
   string.
 * Returns: {require} Require function
 
-```mjs
+```js
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
@@ -111,7 +105,7 @@ added:
   └ package.json // name = '@foo'
 ```
 
-```mjs
+```js
 // /path/to/project/packages/bar/bar.js
 import { findPackageJSON } from 'node:module';
 
@@ -132,28 +126,6 @@ findPackageJSON('@foo/qux', import.meta.url);
 // '/path/to/project/packages/qux/package.json'
 ```
 
-```cjs
-// /path/to/project/packages/bar/bar.js
-const { findPackageJSON } = require('node:module');
-const { pathToFileURL } = require('node:url');
-const path = require('node:path');
-
-findPackageJSON('..', __filename);
-// '/path/to/project/package.json'
-// Same result when passing an absolute specifier instead:
-findPackageJSON(pathToFileURL(path.join(__dirname, '..')));
-
-findPackageJSON('some-package', __filename);
-// '/path/to/project/packages/bar/node_modules/some-package/package.json'
-// When passing an absolute specifier, you might get a different result if the
-// resolved module is inside a subfolder that has nested `package.json`.
-findPackageJSON(pathToFileURL(require.resolve('some-package')));
-// '/path/to/project/packages/bar/node_modules/some-package/some-subfolder/package.json'
-
-findPackageJSON('@foo/qux', __filename);
-// '/path/to/project/packages/qux/package.json'
-```
-
 ### `module.isBuiltin(moduleName)`
 
 <!-- YAML
@@ -165,7 +137,7 @@ added:
 * `moduleName` {string} name of the module
 * Returns: {boolean} returns true if the module is builtin else returns false
 
-```mjs
+```js
 import { isBuiltin } from 'node:module';
 isBuiltin('node:fs'); // true
 isBuiltin('fs'); // true
@@ -282,16 +254,8 @@ that require transformation, such as `enum`s. See [type-stripping][] for more in
 _WARNING_: The output of this function should not be considered stable across Node.js versions,
 due to changes in the TypeScript parser.
 
-```mjs
+```js
 import { stripTypeScriptTypes } from 'node:module';
-const code = 'const a: number = 1;';
-const strippedCode = stripTypeScriptTypes(code);
-console.log(strippedCode);
-// Prints: const a         = 1;
-```
-
-```cjs
-const { stripTypeScriptTypes } = require('node:module');
 const code = 'const a: number = 1;';
 const strippedCode = stripTypeScriptTypes(code);
 console.log(strippedCode);
@@ -300,16 +264,8 @@ console.log(strippedCode);
 
 If `sourceUrl` is provided, it will be used appended as a comment at the end of the output:
 
-```mjs
+```js
 import { stripTypeScriptTypes } from 'node:module';
-const code = 'const a: number = 1;';
-const strippedCode = stripTypeScriptTypes(code, { mode: 'strip', sourceUrl: 'source.ts' });
-console.log(strippedCode);
-// Prints: const a         = 1\n\n//# sourceURL=source.ts;
-```
-
-```cjs
-const { stripTypeScriptTypes } = require('node:module');
 const code = 'const a: number = 1;';
 const strippedCode = stripTypeScriptTypes(code, { mode: 'strip', sourceUrl: 'source.ts' });
 console.log(strippedCode);
@@ -669,18 +625,9 @@ for simplicity.
 To register synchronous customization hooks, use [`module.registerHooks()`][], which
 takes [synchronous hook functions][] directly in-line.
 
-```mjs
+```js
 // register-hooks.js
 import { registerHooks } from 'node:module';
-registerHooks({
-  resolve(specifier, context, nextResolve) { /* implementation */ },
-  load(url, context, nextLoad) { /* implementation */ },
-});
-```
-
-```cjs
-// register-hooks.js
-const { registerHooks } = require('node:module');
 registerHooks({
   resolve(specifier, context, nextResolve) { /* implementation */ },
   load(url, context, nextLoad) { /* implementation */ },
@@ -724,7 +671,7 @@ are evaluated before any code in the importer module is run, including the call 
 `registerHooks()`, regardless of where the static `import` statements appear in the importer
 module.
 
-```mjs
+```js
 import { registerHooks } from 'node:module';
 
 registerHooks({ /* implementation of synchronous hooks */ });
@@ -736,17 +683,6 @@ registerHooks({ /* implementation of synchronous hooks */ });
 
 // my-app.mjs must be loaded dynamically to ensure the hooks are applied.
 await import('./my-app.mjs');
-```
-
-```cjs
-const { registerHooks } = require('node:module');
-
-registerHooks({ /* implementation of synchronous hooks */ });
-
-import('./my-app.mjs');
-// Or, if my-app.mjs does not have top-level await or it's a CommonJS module,
-// require() can also be used:
-// require('./my-app.mjs');
 ```
 
 ##### Registering hooks before application code runs with a `data:` URL
@@ -769,20 +705,9 @@ the subsequent loader's hook (in LIFO order).
 
 It's possible to call `registerHooks()` more than once:
 
-```mjs
+```js
 // entrypoint.mjs
 import { registerHooks } from 'node:module';
-
-const hook1 = { /* implementation of hooks */ };
-const hook2 = { /* implementation of hooks */ };
-// hook2 runs before hook1.
-registerHooks(hook1);
-registerHooks(hook2);
-```
-
-```cjs
-// entrypoint.cjs
-const { registerHooks } = require('node:module');
 
 const hook1 = { /* implementation of hooks */ };
 const hook2 = { /* implementation of hooks */ };
@@ -818,7 +743,7 @@ will no longer be invoked during module resolution or loading.
 This is currently only available for synchronous hooks registered via `registerHooks()`, not for asynchronous
 hooks registered via `module.register()`.
 
-```mjs
+```js
 import { registerHooks } from 'node:module';
 
 const hooks = registerHooks({
@@ -842,30 +767,6 @@ hooks.deregister();
 await import('./another-module.mjs');
 ```
 
-```cjs
-const { registerHooks } = require('node:module');
-
-const hooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    console.log('resolve hook called for', specifier);
-    return nextResolve(specifier, context);
-  },
-  load(url, context, nextLoad) {
-    return nextLoad(url, context);
-  },
-});
-
-// At this point, the hooks are active and will be called for
-// any subsequent require() calls.
-require('./my-module.cjs');
-
-// Later, remove the hooks from the chain.
-hooks.deregister();
-
-// Subsequent loads will no longer trigger the hooks.
-require('./another-module.cjs');
-```
-
 #### Hook functions accepted by `module.registerHooks()`
 
 <!-- YAML
@@ -876,7 +777,7 @@ added:
 
 The `module.registerHooks()` method accepts the following synchronous hook functions.
 
-```mjs
+```js
 function resolve(specifier, context, nextResolve) {
   // Take an `import` or `require` specifier and resolve it to a URL.
 }
@@ -952,7 +853,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array passed to it _must_ include _all_ elements of the
 `context.conditions` array originally passed into the `resolve` hook.
 
-```mjs
+```js
 import { registerHooks } from 'node:module';
 
 function resolve(specifier, context, nextResolve) {
@@ -1021,7 +922,7 @@ source code of a resolved URL. This would allow a loader to potentially avoid
 reading files from disk. It could also be used to map an unrecognized format to
 a supported one, for example `yaml` to `module`.
 
-```mjs
+```js
 import { registerHooks } from 'node:module';
 import { Buffer } from 'node:buffer';
 
@@ -1117,7 +1018,7 @@ a path or URL to another module that exports the [asynchronous hook functions][]
 Similar to `registerHooks()`, `register()` can be called in a module preloaded by `--import` or
 `--require`, or called directly within the entry point.
 
-```mjs
+```js
 // Use module.register() to register asynchronous hooks in a dedicated thread.
 import { register } from 'node:module';
 register('./hooks.mjs', import.meta.url);
@@ -1130,18 +1031,9 @@ register('./hooks.mjs', import.meta.url);
 import('./my-app.mjs');
 ```
 
-```cjs
-const { register } = require('node:module');
-const { pathToFileURL } = require('node:url');
-// Use module.register() to register asynchronous hooks in a dedicated thread.
-register('./hooks.mjs', pathToFileURL(__filename));
-
-import('./my-app.mjs');
-```
-
 In `hooks.mjs`:
 
-```mjs
+```js
 // hooks.mjs
 export async function resolve(specifier, context, nextResolve) {
   /* implementation */
@@ -1154,7 +1046,7 @@ export async function load(url, context, nextLoad) {
 Unlike synchronous hooks, the asynchronous hooks would not run for these modules loaded in the file
 that calls `register()`:
 
-```mjs
+```js
 // register-hooks.js
 import { register, createRequire } from 'node:module';
 register('./hooks.mjs', import.meta.url);
@@ -1163,20 +1055,6 @@ register('./hooks.mjs', import.meta.url);
 // functions created by module.createRequire().
 const userRequire = createRequire(import.meta.filename);
 userRequire('./my-app-2.cjs');  // Hooks won't affect this
-```
-
-```cjs
-// register-hooks.js
-const { register, createRequire } = require('node:module');
-const { pathToFileURL } = require('node:url');
-register('./hooks.mjs', pathToFileURL(__filename));
-
-// Asynchronous hooks does not affect modules loaded via built-in require()
-// in the module calling `register()`
-require('./my-app-2.cjs');  // Hooks won't affect this
-// .. or custom require() functions created by module.createRequire().
-const userRequire = createRequire(__filename);
-userRequire('./my-app-3.cjs');  // Hooks won't affect this
 ```
 
 Asynchronous hooks can also be registered using a `data:` URL with the `--import` flag:
@@ -1192,24 +1070,13 @@ hooks are mixed, the synchronous hooks are always run first before the asynchron
 hooks start running, that is, in the last synchronous hook being run, its next
 hook includes invocation of the asynchronous hooks.
 
-```mjs
+```js
 // entrypoint.mjs
 import { register } from 'node:module';
 
 register('./foo.mjs', import.meta.url);
 register('./bar.mjs', import.meta.url);
 await import('./my-app.mjs');
-```
-
-```cjs
-// entrypoint.cjs
-const { register } = require('node:module');
-const { pathToFileURL } = require('node:url');
-
-const parentURL = pathToFileURL(__filename);
-register('./foo.mjs', parentURL);
-register('./bar.mjs', parentURL);
-import('./my-app.mjs');
 ```
 
 If `foo.mjs` and `bar.mjs` define a `resolve` hook, they will be called like so
@@ -1237,7 +1104,7 @@ between the threads.
 The `register` method can be used to pass data to an [`initialize`][] hook. The
 data passed to the hook may include transferable objects like ports.
 
-```mjs
+```js
 import { register } from 'node:module';
 import { MessageChannel } from 'node:worker_threads';
 
@@ -1252,27 +1119,6 @@ port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: import.meta.url,
-  data: { number: 1, port: port2 },
-  transferList: [port2],
-});
-```
-
-```cjs
-const { register } = require('node:module');
-const { pathToFileURL } = require('node:url');
-const { MessageChannel } = require('node:worker_threads');
-
-// This example showcases how a message channel can be used to
-// communicate with the hooks, by sending `port2` to the hooks.
-const { port1, port2 } = new MessageChannel();
-
-port1.on('message', (msg) => {
-  console.log(msg);
-});
-port1.unref();
-
-register('./my-hooks.mjs', {
-  parentURL: pathToFileURL(__filename),
   data: { number: 1, port: port2 },
   transferList: [port2],
 });
@@ -1304,7 +1150,7 @@ hooks. The hooks are functions that are called by Node.js to customize the
 module resolution and loading process. The exported functions must have specific
 names and signatures, and they must be exported as named exports.
 
-```mjs
+```js
 export async function initialize({ number, port }) {
   // Receives data from `register`.
 }
@@ -1349,7 +1195,7 @@ execution resumes.
 
 Module customization code:
 
-```mjs
+```js
 // path-to-my-hooks.js
 
 export async function initialize({ number, port }) {
@@ -1359,7 +1205,7 @@ export async function initialize({ number, port }) {
 
 Caller code:
 
-```mjs
+```js
 import assert from 'node:assert';
 import { register } from 'node:module';
 import { MessageChannel } from 'node:worker_threads';
@@ -1376,29 +1222,6 @@ port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
-  data: { number: 1, port: port2 },
-  transferList: [port2],
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { register } = require('node:module');
-const { pathToFileURL } = require('node:url');
-const { MessageChannel } = require('node:worker_threads');
-
-// This example showcases how a message channel can be used to communicate
-// between the main (application) thread and the hooks running on the hooks
-// thread, by sending `port2` to the `initialize` hook.
-const { port1, port2 } = new MessageChannel();
-
-port1.on('message', (msg) => {
-  assert.strictEqual(msg, 'increment: 2');
-});
-port1.unref();
-
-register('./path-to-my-hooks.js', {
-  parentURL: pathToFileURL(__filename),
   data: { number: 1, port: port2 },
   transferList: [port2],
 });
@@ -1469,7 +1292,7 @@ The asynchronous version works similarly to the synchronous version, only that t
 > `require.resolve()` and `require()` will use `"import"` export condition instead of
 > `"require"`, which may cause unexpected behaviors when loading dual packages.
 
-```mjs
+```js
 export async function resolve(specifier, context, nextResolve) {
   // When calling `defaultResolve`, the arguments can be modified. For example,
   // to change the specifier or add conditions.
@@ -1569,7 +1392,7 @@ last hook in the `load` chain, returns `null` for `source` when `format` is
 `'commonjs'` for backward compatibility. Here is an example hook that would
 opt-in to using the non-default behavior:
 
-```mjs
+```js
 import { readFile } from 'node:fs/promises';
 
 // Asynchronous version accepted by module.register(). This fix is not needed
@@ -1601,7 +1424,7 @@ functionality, there are substantial downsides to actually using these hooks:
 performance is much slower than loading files from disk, there is no caching,
 and there is no security.
 
-```mjs
+```js
 // https-hooks.mjs
 import { get } from 'node:https';
 
@@ -1630,7 +1453,7 @@ export function load(url, context, nextLoad) {
 }
 ```
 
-```mjs
+```js
 // main.mjs
 import { VERSION } from 'https://coffeescript.org/browser-compiler-modern/coffeescript.js';
 
@@ -1656,7 +1479,7 @@ transpiler hooks should only be used for development and testing purposes.
 
 ##### Asynchronous version
 
-```mjs
+```js
 // coffeescript-hooks.mjs
 import { readFile } from 'node:fs/promises';
 import { findPackageJSON } from 'node:module';
@@ -1706,7 +1529,7 @@ async function getPackageType(url) {
 
 ##### Synchronous version
 
-```mjs
+```js
 // coffeescript-sync-hooks.mjs
 import { readFileSync } from 'node:fs';
 import { registerHooks, findPackageJSON } from 'node:module';
@@ -1793,7 +1616,7 @@ implementation of a small subset of the "import maps" specification).
 
 ##### Asynchronous version
 
-```mjs
+```js
 // import-map-hooks.js
 import fs from 'node:fs/promises';
 
@@ -1810,7 +1633,7 @@ export async function resolve(specifier, context, nextResolve) {
 
 ##### Synchronous version
 
-```mjs
+```js
 // import-map-sync-hooks.js
 import fs from 'node:fs/promises';
 import module from 'node:module';
@@ -1832,7 +1655,7 @@ module.registerHooks({ resolve });
 
 With these files:
 
-```mjs
+```js
 // main.js
 import 'a-module';
 ```
@@ -1846,7 +1669,7 @@ import 'a-module';
 }
 ```
 
-```mjs
+```js
 // some-module.js
 console.log('some module!');
 ```
@@ -1877,16 +1700,10 @@ To enable source map parsing, Node.js must be run with the flag
 [`NODE_V8_COVERAGE=dir`][], or be enabled programmatically via
 [`module.setSourceMapsSupport()`][].
 
-```mjs
+```js
 // module.mjs
 // In an ECMAScript module
 import { findSourceMap, SourceMap } from 'node:module';
-```
-
-```cjs
-// module.cjs
-// In a CommonJS module
-const { findSourceMap, SourceMap } = require('node:module');
 ```
 
 ### `module.getSourceMapsSupport()`

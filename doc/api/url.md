@@ -9,12 +9,8 @@
 The `node:url` module provides utilities for URL resolution and parsing. It can
 be accessed using:
 
-```mjs
+```js
 import url from 'node:url';
-```
-
-```cjs
-const url = require('node:url');
 ```
 
 ## URL strings and URL objects
@@ -65,14 +61,8 @@ const myURL =
 
 Parsing the URL string using the legacy API:
 
-```mjs
+```js
 import url from 'node:url';
-const myURL =
-  url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
-```
-
-```cjs
-const url = require('node:url');
 const myURL =
   url.parse('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
@@ -155,13 +145,9 @@ const myURL = new URL('/foo', 'https://example.org/');
 The URL constructor is accessible as a property on the global object.
 It can also be imported from the built-in url module:
 
-```mjs
+```js
 import { URL } from 'node:url';
 console.log(URL === globalThis.URL); // Prints 'true'.
-```
-
-```cjs
-console.log(URL === require('node:url').URL); // Prints 'true'.
 ```
 
 A `TypeError` will be thrown if the `input` or `base` are not valid URLs. Note
@@ -1240,19 +1226,8 @@ invalid domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToUnicode()`][].
 
-```mjs
+```js
 import url from 'node:url';
-
-console.log(url.domainToASCII('español.com'));
-// Prints xn--espaol-zwa.com
-console.log(url.domainToASCII('中文.com'));
-// Prints xn--fiq228c.com
-console.log(url.domainToASCII('xn--iñvalid.com'));
-// Prints an empty string
-```
-
-```cjs
-const url = require('node:url');
 
 console.log(url.domainToASCII('español.com'));
 // Prints xn--espaol-zwa.com
@@ -1284,19 +1259,8 @@ domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToASCII()`][].
 
-```mjs
+```js
 import url from 'node:url';
-
-console.log(url.domainToUnicode('xn--espaol-zwa.com'));
-// Prints español.com
-console.log(url.domainToUnicode('xn--fiq228c.com'));
-// Prints 中文.com
-console.log(url.domainToUnicode('xn--iñvalid.com'));
-// Prints an empty string
-```
-
-```cjs
-const url = require('node:url');
 
 console.log(url.domainToUnicode('xn--espaol-zwa.com'));
 // Prints español.com
@@ -1343,26 +1307,11 @@ traversal attacks.** Always perform explicit path validation and security checks
 on the returned path value to ensure it remains within expected boundaries
 before using it for file system operations.
 
-```mjs
+```js
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 
-new URL('file:///C:/path/').pathname;      // Incorrect: /C:/path/
-fileURLToPath('file:///C:/path/');         // Correct:   C:\path\ (Windows)
-
-new URL('file://nas/foo.txt').pathname;    // Incorrect: /foo.txt
-fileURLToPath('file://nas/foo.txt');       // Correct:   \\nas\foo.txt (Windows)
-
-new URL('file:///你好.txt').pathname;      // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
-fileURLToPath('file:///你好.txt');         // Correct:   /你好.txt (POSIX)
-
-new URL('file:///hello world').pathname;   // Incorrect: /hello%20world
-fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
-```
-
-```cjs
-const { fileURLToPath } = require('node:url');
 new URL('file:///C:/path/').pathname;      // Incorrect: /C:/path/
 fileURLToPath('file:///C:/path/');         // Correct:   C:\path\ (Windows)
 
@@ -1434,22 +1383,8 @@ string serializations of the URL. These are not, however, customizable in
 any way. The `url.format(URL[, options])` method allows for basic customization
 of the output.
 
-```mjs
+```js
 import url from 'node:url';
-const myURL = new URL('https://a:b@測試?abc#foo');
-
-console.log(myURL.href);
-// Prints https://a:b@xn--g6w251d/?abc#foo
-
-console.log(myURL.toString());
-// Prints https://a:b@xn--g6w251d/?abc#foo
-
-console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
-// Prints 'https://測試/?abc'
-```
-
-```cjs
-const url = require('node:url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(myURL.href);
@@ -1486,22 +1421,8 @@ changes:
 This function ensures that `path` is resolved absolutely, and that the URL
 control characters are correctly encoded when converting into a File URL.
 
-```mjs
+```js
 import { pathToFileURL } from 'node:url';
-
-new URL('/foo#1', 'file:');           // Incorrect: file:///foo#1
-pathToFileURL('/foo#1');              // Correct:   file:///foo%231 (POSIX)
-
-new URL('/some/path%.c', 'file:');    // Incorrect: file:///some/path%.c
-pathToFileURL('/some/path%.c');       // Correct:   file:///some/path%25.c (POSIX)
-```
-
-```cjs
-const { pathToFileURL } = require('node:url');
-new URL(__filename);                  // Incorrect: throws (POSIX)
-new URL(__filename);                  // Incorrect: C:\... (Windows)
-pathToFileURL(__filename);            // Correct:   file:///... (POSIX)
-pathToFileURL(__filename);            // Correct:   file:///C:/... (Windows)
 
 new URL('/foo#1', 'file:');           // Incorrect: file:///foo#1
 pathToFileURL('/foo#1');              // Correct:   file:///foo%231 (POSIX)
@@ -1545,27 +1466,8 @@ changes:
 This utility function converts a URL object into an ordinary options object as
 expected by the [`http.request()`][] and [`https.request()`][] APIs.
 
-```mjs
+```js
 import { urlToHttpOptions } from 'node:url';
-const myURL = new URL('https://a:b@測試?abc#foo');
-
-console.log(urlToHttpOptions(myURL));
-/*
-{
-  protocol: 'https:',
-  hostname: 'xn--g6w251d',
-  hash: '#foo',
-  search: '?abc',
-  pathname: '/',
-  path: '/?abc',
-  href: 'https://a:b@xn--g6w251d/?abc#foo',
-  auth: 'a:b'
-}
-*/
-```
-
-```cjs
-const { urlToHttpOptions } = require('node:url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(urlToHttpOptions(myURL));
@@ -1848,17 +1750,8 @@ to `url.format()` is itself deprecated.
 Canonicalizing a URL string can be performed using the WHATWG URL API, by
 constructing a new URL object and calling [`url.toString()`][].
 
-```mjs
+```js
 import { URL } from 'node:url';
-
-const unformatted = 'http://[fe80:0:0:0:0:0:0:1]:/a/b?a=b#abc';
-const formatted = new URL(unformatted).toString();
-
-console.log(formatted); // Prints: http://[fe80::1]/a/b?a=b#abc
-```
-
-```cjs
-const { URL } = require('node:url');
 
 const unformatted = 'http://[fe80:0:0:0:0:0:0:1]:/a/b?a=b#abc';
 const formatted = new URL(unformatted).toString();

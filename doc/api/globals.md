@@ -558,7 +558,7 @@ changes:
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
-```mjs
+```js
 const res = await fetch('https://nodejs.org/api/documentation.json');
 if (res.ok) {
   const data = await res.json();
@@ -584,7 +584,7 @@ It is possible to change the global dispatcher in Node.js by installing `undici`
 the `setGlobalDispatcher()` method. Calling this method will affect both `undici` and
 Node.js.
 
-```mjs
+```js
 import { setGlobalDispatcher } from 'undici';
 setGlobalDispatcher(new MyAgent());
 ```
@@ -807,7 +807,7 @@ can be used to coordinate access to resources that may be shared across multiple
 threads within the same process. This global implementation matches the semantics
 of the [browser `LockManager`][] API.
 
-```mjs
+```js
 // Request an exclusive lock
 await navigator.locks.request('my_resource', async (lock) => {
   // The lock has been acquired.
@@ -819,25 +819,6 @@ await navigator.locks.request('my_resource', async (lock) => {
 await navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
   // Multiple shared locks can be held simultaneously
   console.log(`Shared lock acquired: ${lock.name}`);
-});
-```
-
-```cjs
-// Request an exclusive lock
-navigator.locks.request('my_resource', async (lock) => {
-  // The lock has been acquired.
-  console.log(`Lock acquired: ${lock.name}`);
-  // Lock is automatically released when the function returns
-}).then(() => {
-  console.log('Lock released');
-});
-
-// Request a shared lock
-navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
-  // Multiple shared locks can be held simultaneously
-  console.log(`Shared lock acquired: ${lock.name}`);
-}).then(() => {
-  console.log('Shared lock released');
 });
 ```
 

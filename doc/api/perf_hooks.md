@@ -17,7 +17,7 @@ Node.js supports the following [Web Performance APIs][]:
 * [User Timing][]
 * [Resource Timing][]
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
 
 const obs = new PerformanceObserver((items) => {
@@ -34,25 +34,6 @@ doSomeLongRunningProcess(() => {
   performance.mark('B');
   performance.measure('A to B', 'A', 'B');
 });
-```
-
-```cjs
-const { PerformanceObserver, performance } = require('node:perf_hooks');
-
-const obs = new PerformanceObserver((items) => {
-  console.log(items.getEntries()[0].duration);
-});
-obs.observe({ type: 'measure' });
-performance.measure('Start to Now');
-
-performance.mark('A');
-(async function doSomeLongRunningProcess() {
-  await new Promise((r) => setTimeout(r, 5000));
-  performance.measure('A to Now', 'A');
-
-  performance.mark('B');
-  performance.measure('A to B', 'A', 'B');
-})();
 ```
 
 ## `perf_hooks.performance`
@@ -866,7 +847,7 @@ It is recommended to use this property inside a function whose execution was
 scheduled using `setImmediate` to avoid collecting metrics before finishing all
 operations scheduled during the current loop iteration.
 
-```cjs
+```js
 const { performance } = require('node:perf_hooks');
 
 setImmediate(() => {
@@ -874,7 +855,7 @@ setImmediate(() => {
 });
 ```
 
-```mjs
+```js
 import { performance } from 'node:perf_hooks';
 
 setImmediate(() => {
@@ -1217,26 +1198,8 @@ changes:
 `PerformanceObserver` objects provide notifications when new
 `PerformanceEntry` instances have been added to the Performance Timeline.
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
-
-const obs = new PerformanceObserver((list, observer) => {
-  console.log(list.getEntries());
-
-  performance.clearMarks();
-  performance.clearMeasures();
-  observer.disconnect();
-});
-obs.observe({ entryTypes: ['mark'], buffered: true });
-
-performance.mark('test');
-```
-
-```cjs
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
   console.log(list.getEntries());
@@ -1298,23 +1261,8 @@ Subscribes the {PerformanceObserver} instance to notifications of new
 {PerformanceEntry} instances identified either by `options.entryTypes`
 or `options.type`:
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
-
-const obs = new PerformanceObserver((list, observer) => {
-  // Called once asynchronously. `list` contains three items.
-});
-obs.observe({ type: 'mark' });
-
-for (let n = 0; n < 3; n++)
-  performance.mark(`test${n}`);
-```
-
-```cjs
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
   // Called once asynchronously. `list` contains three items.
@@ -1354,45 +1302,8 @@ added: v8.5.0
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime`.
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
-
-const obs = new PerformanceObserver((perfObserverList, observer) => {
-  console.log(perfObserverList.getEntries());
-  /**
-   * [
-   *   PerformanceEntry {
-   *     name: 'test',
-   *     entryType: 'mark',
-   *     startTime: 81.465639,
-   *     duration: 0,
-   *     detail: null
-   *   },
-   *   PerformanceEntry {
-   *     name: 'meow',
-   *     entryType: 'mark',
-   *     startTime: 81.860064,
-   *     duration: 0,
-   *     detail: null
-   *   }
-   * ]
-   */
-
-  performance.clearMarks();
-  performance.clearMeasures();
-  observer.disconnect();
-});
-obs.observe({ type: 'mark' });
-
-performance.mark('test');
-performance.mark('meow');
-```
-
-```cjs
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntries());
@@ -1440,53 +1351,8 @@ with respect to `performanceEntry.startTime` whose `performanceEntry.name` is
 equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 `type`.
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
-
-const obs = new PerformanceObserver((perfObserverList, observer) => {
-  console.log(perfObserverList.getEntriesByName('meow'));
-  /**
-   * [
-   *   PerformanceEntry {
-   *     name: 'meow',
-   *     entryType: 'mark',
-   *     startTime: 98.545991,
-   *     duration: 0,
-   *     detail: null
-   *   }
-   * ]
-   */
-  console.log(perfObserverList.getEntriesByName('nope')); // []
-
-  console.log(perfObserverList.getEntriesByName('test', 'mark'));
-  /**
-   * [
-   *   PerformanceEntry {
-   *     name: 'test',
-   *     entryType: 'mark',
-   *     startTime: 63.518931,
-   *     duration: 0,
-   *     detail: null
-   *   }
-   * ]
-   */
-  console.log(perfObserverList.getEntriesByName('test', 'measure')); // []
-
-  performance.clearMarks();
-  performance.clearMeasures();
-  observer.disconnect();
-});
-obs.observe({ entryTypes: ['mark', 'measure'] });
-
-performance.mark('test');
-performance.mark('meow');
-```
-
-```cjs
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntriesByName('meow'));
@@ -1540,44 +1406,8 @@ Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
 is equal to `type`.
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
-
-const obs = new PerformanceObserver((perfObserverList, observer) => {
-  console.log(perfObserverList.getEntriesByType('mark'));
-  /**
-   * [
-   *   PerformanceEntry {
-   *     name: 'test',
-   *     entryType: 'mark',
-   *     startTime: 55.897834,
-   *     duration: 0,
-   *     detail: null
-   *   },
-   *   PerformanceEntry {
-   *     name: 'meow',
-   *     entryType: 'mark',
-   *     startTime: 56.350146,
-   *     duration: 0,
-   *     detail: null
-   *   }
-   * ]
-   */
-  performance.clearMarks();
-  performance.clearMeasures();
-  observer.disconnect();
-});
-obs.observe({ type: 'mark' });
-
-performance.mark('test');
-performance.mark('meow');
-```
-
-```cjs
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntriesByType('mark'));
@@ -1710,20 +1540,9 @@ loop has spent outside the event loop's event provider (e.g. `epoll_wait`).
 No other CPU idle time is taken into consideration. The following is an example
 of how a mostly idle process will have a high ELU.
 
-```mjs
+```js
 import { eventLoopUtilization } from 'node:perf_hooks';
 import { spawnSync } from 'node:child_process';
-
-setImmediate(() => {
-  const elu = eventLoopUtilization();
-  spawnSync('sleep', ['5']);
-  console.log(eventLoopUtilization(elu).utilization);
-});
-```
-
-```cjs
-const { eventLoopUtilization } = require('node:perf_hooks');
-const { spawnSync } = require('node:child_process');
 
 setImmediate(() => {
   const elu = eventLoopUtilization();
@@ -1773,24 +1592,9 @@ the application is idle.
 The two sampling modes produce significantly different results and should not
 be compared directly.
 
-```mjs
+```js
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 
-const h = monitorEventLoopDelay({ resolution: 20 });
-h.enable();
-// Do something.
-h.disable();
-console.log(h.min);
-console.log(h.max);
-console.log(h.mean);
-console.log(h.stddev);
-console.log(h.percentiles);
-console.log(h.percentile(50));
-console.log(h.percentile(99));
-```
-
-```cjs
-const { monitorEventLoopDelay } = require('node:perf_hooks');
 const h = monitorEventLoopDelay({ resolution: 20 });
 h.enable();
 // Do something.
@@ -1824,34 +1628,8 @@ Wraps a function within a new function that measures the running time of the
 wrapped function. A `PerformanceObserver` must be subscribed to the `'function'`
 event type in order for the timing details to be accessed.
 
-```mjs
+```js
 import { timerify, performance, PerformanceObserver } from 'node:perf_hooks';
-
-function someFunction() {
-  console.log('hello world');
-}
-
-const wrapped = timerify(someFunction);
-
-const obs = new PerformanceObserver((list) => {
-  console.log(list.getEntries()[0].duration);
-
-  performance.clearMarks();
-  performance.clearMeasures();
-  obs.disconnect();
-});
-obs.observe({ entryTypes: ['function'] });
-
-// A performance timeline entry will be created
-wrapped();
-```
-
-```cjs
-const {
-  timerify,
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
 
 function someFunction() {
   console.log('hello world');
@@ -2665,7 +2443,7 @@ The following example uses the [Async Hooks][] and Performance APIs to measure
 the actual duration of a Timeout operation (including the amount of time it took
 to execute the callback).
 
-```mjs
+```js
 import { createHook } from 'node:async_hooks';
 import { performance, PerformanceObserver } from 'node:perf_hooks';
 
@@ -2700,50 +2478,12 @@ obs.observe({ entryTypes: ['measure'], buffered: true });
 setTimeout(() => {}, 1000);
 ```
 
-```cjs
-const async_hooks = require('node:async_hooks');
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
-
-const set = new Set();
-const hook = async_hooks.createHook({
-  init(id, type) {
-    if (type === 'Timeout') {
-      performance.mark(`Timeout-${id}-Init`);
-      set.add(id);
-    }
-  },
-  destroy(id) {
-    if (set.has(id)) {
-      set.delete(id);
-      performance.mark(`Timeout-${id}-Destroy`);
-      performance.measure(`Timeout-${id}`,
-                          `Timeout-${id}-Init`,
-                          `Timeout-${id}-Destroy`);
-    }
-  },
-});
-hook.enable();
-
-const obs = new PerformanceObserver((list, observer) => {
-  console.log(list.getEntries()[0]);
-  performance.clearMarks();
-  performance.clearMeasures();
-  observer.disconnect();
-});
-obs.observe({ entryTypes: ['measure'] });
-
-setTimeout(() => {}, 1000);
-```
-
 ### Measuring how long it takes to load dependencies
 
 The following example measures the duration of `require()` operations to load
 dependencies:
 
-```mjs
+```js
 import { performance, PerformanceObserver } from 'node:perf_hooks';
 
 // Activate the observer
@@ -2767,7 +2507,7 @@ await timedImport('some-module');
 
 <!-- eslint-disable no-global-assign -->
 
-```cjs
+```js
 const {
   performance,
   PerformanceObserver,
@@ -2802,7 +2542,7 @@ it means the time interval between starting the request and receiving the
 response, and for HTTP request, it means the time interval between receiving
 the request and sending the response:
 
-```mjs
+```js
 import { PerformanceObserver } from 'node:perf_hooks';
 import { createServer, get } from 'node:http';
 
@@ -2823,30 +2563,9 @@ createServer((req, res) => {
 });
 ```
 
-```cjs
-const { PerformanceObserver } = require('node:perf_hooks');
-const http = require('node:http');
-
-const obs = new PerformanceObserver((items) => {
-  items.getEntries().forEach((item) => {
-    console.log(item);
-  });
-});
-
-obs.observe({ entryTypes: ['http'] });
-
-const PORT = 8080;
-
-http.createServer((req, res) => {
-  res.end('ok');
-}).listen(PORT, () => {
-  http.get(`http://127.0.0.1:${PORT}`);
-});
-```
-
 ### Measuring how long the `net.connect` (only for TCP) takes when the connection is successful
 
-```mjs
+```js
 import { PerformanceObserver } from 'node:perf_hooks';
 import { connect, createServer } from 'node:net';
 
@@ -2864,26 +2583,9 @@ createServer((socket) => {
 });
 ```
 
-```cjs
-const { PerformanceObserver } = require('node:perf_hooks');
-const net = require('node:net');
-const obs = new PerformanceObserver((items) => {
-  items.getEntries().forEach((item) => {
-    console.log(item);
-  });
-});
-obs.observe({ entryTypes: ['net'] });
-const PORT = 8080;
-net.createServer((socket) => {
-  socket.destroy();
-}).listen(PORT, () => {
-  net.connect(PORT);
-});
-```
-
 ### Measuring how long the DNS takes when the request is successful
 
-```mjs
+```js
 import { PerformanceObserver } from 'node:perf_hooks';
 import { lookup, promises } from 'node:dns';
 
@@ -2895,19 +2597,6 @@ const obs = new PerformanceObserver((items) => {
 obs.observe({ entryTypes: ['dns'] });
 lookup('localhost', () => {});
 promises.resolve('localhost');
-```
-
-```cjs
-const { PerformanceObserver } = require('node:perf_hooks');
-const dns = require('node:dns');
-const obs = new PerformanceObserver((items) => {
-  items.getEntries().forEach((item) => {
-    console.log(item);
-  });
-});
-obs.observe({ entryTypes: ['dns'] });
-dns.lookup('localhost', () => {});
-dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md

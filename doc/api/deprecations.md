@@ -4470,7 +4470,7 @@ terminate the process.
 Please ensure that all `fs.Dir` objects are explicitly closed using
 `Dir.prototype.close()` or `using` keyword:
 
-```mjs
+```js
 import { opendir } from 'node:fs/promises';
 
 {
@@ -4536,23 +4536,12 @@ The `Http1IncomingMessage` and `Http1ServerResponse` options of
 deprecated. Use `http1Options.IncomingMessage` and
 `http1Options.ServerResponse` instead.
 
-```cjs
+```js
 // Deprecated
 const server = http2.createSecureServer({
   allowHTTP1: true,
   Http1IncomingMessage: MyIncomingMessage,
   Http1ServerResponse: MyServerResponse,
-});
-```
-
-```cjs
-// Use this instead
-const server = http2.createSecureServer({
-  allowHTTP1: true,
-  http1Options: {
-    IncomingMessage: MyIncomingMessage,
-    ServerResponse: MyServerResponse,
-  },
 });
 ```
 
@@ -4666,7 +4655,7 @@ cancelled while we still had writes in flight) are detectable from
 `'close'` by checking `writableFinished`. Parallels [DEP0156][] for
 `http`.
 
-```cjs
+```js
 // Deprecated
 server.on('stream', (stream) => {
   stream.on('aborted', () => {
@@ -4675,7 +4664,7 @@ server.on('stream', (stream) => {
 });
 ```
 
-```cjs
+```js
 // Use this instead
 server.on('stream', (stream) => {
   // Read-side abort: peer cancelled before sending END_STREAM.

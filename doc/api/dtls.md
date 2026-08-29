@@ -23,12 +23,8 @@ To use this module, it must be enabled at build time with the
 node --experimental-dtls app.mjs
 ```
 
-```mjs
+```js
 import { listen, connect } from 'node:dtls';
-```
-
-```cjs
-const { listen, connect } = require('node:dtls');
 ```
 
 ## Permission model
@@ -89,7 +85,7 @@ added: REPLACEME
 Creates a DTLS server bound to the specified address and port. The server
 uses automatic HMAC-based cookie exchange for DoS protection.
 
-```mjs
+```js
 import { listen } from 'node:dtls';
 import { readFileSync } from 'node:fs';
 
@@ -142,7 +138,7 @@ added: REPLACEME
 Connects to a DTLS server. Returns a `DTLSSession` whose `opened` property
 is a `Promise` that resolves when the handshake completes.
 
-```mjs
+```js
 import { connect } from 'node:dtls';
 import { readFileSync } from 'node:fs';
 
@@ -527,7 +523,7 @@ Equivalent to calling `session.close()`.
 DTLS-SRTP is used by WebRTC for media encryption. The DTLS handshake
 negotiates the SRTP protection profile and provides keying material.
 
-```mjs
+```js
 import { listen, connect } from 'node:dtls';
 import { readFileSync } from 'node:fs';
 
@@ -567,7 +563,7 @@ virtually all network paths but may be suboptimal for local networks.
 
 The MTU can be configured via the `mtu` option:
 
-```mjs
+```js
 // For a local network where you know the path MTU
 const endpoint = listen(callback, {
   // ...

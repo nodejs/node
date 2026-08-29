@@ -17,7 +17,7 @@ calling `require('node:https')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-```cjs
+```js
 let https;
 try {
   https = require('node:https');
@@ -35,7 +35,7 @@ When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
 [`import()`][] function instead of the lexical `import` keyword:
 
-```mjs
+```js
 let https;
 try {
   https = await import('node:https');
@@ -265,7 +265,7 @@ added: v0.3.4
 * `requestListener` {Function} A listener to be added to the `'request'` event.
 * Returns: {https.Server}
 
-```mjs
+```js
 // curl -k https://localhost:8000/
 import { createServer } from 'node:https';
 import { readFileSync } from 'node:fs';
@@ -281,25 +281,9 @@ createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
-```cjs
-// curl -k https://localhost:8000/
-const https = require('node:https');
-const fs = require('node:fs');
-
-const options = {
-  key: fs.readFileSync('private-key.pem'),
-  cert: fs.readFileSync('certificate.pem'),
-};
-
-https.createServer(options, (req, res) => {
-  res.writeHead(200);
-  res.end('hello world\n');
-}).listen(8000);
-```
-
 Or
 
-```mjs
+```js
 import { createServer } from 'node:https';
 import { readFileSync } from 'node:fs';
 
@@ -309,21 +293,6 @@ const options = {
 };
 
 createServer(options, (req, res) => {
-  res.writeHead(200);
-  res.end('hello world\n');
-}).listen(8000);
-```
-
-```cjs
-const https = require('node:https');
-const fs = require('node:fs');
-
-const options = {
-  pfx: fs.readFileSync('test_cert.pfx'),
-  passphrase: 'sample',
-};
-
-https.createServer(options, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
 }).listen(8000);
@@ -371,27 +340,11 @@ Like [`http.get()`][] but for HTTPS.
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
-```mjs
+```js
 import { get } from 'node:https';
 import process from 'node:process';
 
 get('https://encrypted.google.com/', (res) => {
-  console.log('statusCode:', res.statusCode);
-  console.log('headers:', res.headers);
-
-  res.on('data', (d) => {
-    process.stdout.write(d);
-  });
-
-}).on('error', (e) => {
-  console.error(e);
-});
-```
-
-```cjs
-const https = require('node:https');
-
-https.get('https://encrypted.google.com/', (res) => {
   console.log('statusCode:', res.statusCode);
   console.log('headers:', res.headers);
 
@@ -484,7 +437,7 @@ object, it will be automatically converted to an ordinary `options` object.
 class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
-```mjs
+```js
 import { request } from 'node:https';
 import process from 'node:process';
 
@@ -496,31 +449,6 @@ const options = {
 };
 
 const req = request(options, (res) => {
-  console.log('statusCode:', res.statusCode);
-  console.log('headers:', res.headers);
-
-  res.on('data', (d) => {
-    process.stdout.write(d);
-  });
-});
-
-req.on('error', (e) => {
-  console.error(e);
-});
-req.end();
-```
-
-```cjs
-const https = require('node:https');
-
-const options = {
-  hostname: 'encrypted.google.com',
-  port: 443,
-  path: '/',
-  method: 'GET',
-};
-
-const req = https.request(options, (res) => {
   console.log('statusCode:', res.statusCode);
   console.log('headers:', res.headers);
 
@@ -584,7 +512,7 @@ const req = https.request(options, (res) => {
 Example pinning on certificate fingerprint, or the public key (similar to
 `pin-sha256`):
 
-```mjs
+```js
 import { checkServerIdentity } from 'node:tls';
 import { Agent, request } from 'node:https';
 import { createHash } from 'node:crypto';
@@ -645,78 +573,6 @@ const options = {
 
 options.agent = new Agent(options);
 const req = request(options, (res) => {
-  console.log('All OK. Server matched our pinned cert or public key');
-  console.log('statusCode:', res.statusCode);
-
-  res.on('data', (d) => {});
-});
-
-req.on('error', (e) => {
-  console.error(e.message);
-});
-req.end();
-```
-
-```cjs
-const tls = require('node:tls');
-const https = require('node:https');
-const crypto = require('node:crypto');
-
-function sha256(s) {
-  return crypto.createHash('sha256').update(s).digest('base64');
-}
-const options = {
-  hostname: 'github.com',
-  port: 443,
-  path: '/',
-  method: 'GET',
-  checkServerIdentity: function(host, cert) {
-    // Make sure the certificate is issued to the host we are connected to
-    const err = tls.checkServerIdentity(host, cert);
-    if (err) {
-      return err;
-    }
-
-    // Pin the public key, similar to HPKP pin-sha256 pinning
-    const pubkey256 = 'SIXvRyDmBJSgatgTQRGbInBaAK+hZOQ18UmrSwnDlK8=';
-    if (sha256(cert.pubkey) !== pubkey256) {
-      const msg = 'Certificate verification error: ' +
-        `The public key of '${cert.subject.CN}' ` +
-        'does not match our pinned fingerprint';
-      return new Error(msg);
-    }
-
-    // Pin the exact certificate, rather than the pub key
-    const cert256 = 'FD:6E:9B:0E:F3:98:BC:D9:04:C3:B2:EC:16:7A:7B:' +
-      '0F:DA:72:01:C9:03:C5:3A:6A:6A:E5:D0:41:43:63:EF:65';
-    if (cert.fingerprint256 !== cert256) {
-      const msg = 'Certificate verification error: ' +
-        `The certificate of '${cert.subject.CN}' ` +
-        'does not match our pinned fingerprint';
-      return new Error(msg);
-    }
-
-    // This loop is informational only.
-    // Print the certificate and public key fingerprints of all certs in the
-    // chain. Its common to pin the public key of the issuer on the public
-    // internet, while pinning the public key of the service in sensitive
-    // environments.
-    do {
-      console.log('Subject Common Name:', cert.subject.CN);
-      console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
-
-      hash = crypto.createHash('sha256');
-      console.log('  Public key ping-sha256:', sha256(cert.pubkey));
-
-      lastprint256 = cert.fingerprint256;
-      cert = cert.issuerCertificate;
-    } while (cert.fingerprint256 !== lastprint256);
-
-  },
-};
-
-options.agent = new https.Agent(options);
-const req = https.request(options, (res) => {
   console.log('All OK. Server matched our pinned cert or public key');
   console.log('statusCode:', res.statusCode);
 

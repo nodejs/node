@@ -19,12 +19,8 @@ changes:
 The `node:test` module facilitates the creation of JavaScript tests.
 To access it:
 
-```mjs
+```js
 import test from 'node:test';
-```
-
-```cjs
-const test = require('node:test');
 ```
 
 This module is only available under the `node:` scheme.
@@ -191,12 +187,8 @@ describe('A thing', () => {
 
 `describe()` and `it()` are imported from the `node:test` module.
 
-```mjs
+```js
 import { describe, it } from 'node:test';
-```
-
-```cjs
-const { describe, it } = require('node:test');
 ```
 
 ## Skipping tests
@@ -505,18 +497,8 @@ Tags inherit from a suite to its child tests by union—a test inside a
 suite tagged `['db']` that declares its own `tags: ['integration']`
 effectively has both tags.
 
-```mjs
+```js
 import { describe, it } from 'node:test';
-
-describe('database', { tags: ['db'] }, () => {
-  it('reads a row');                                            // tags: ['db']
-  it('writes a row', { tags: ['integration'] });                // tags: ['db', 'integration']
-  it('reconnects after disconnect', { tags: ['flaky'] });       // tags: ['db', 'flaky']
-});
-```
-
-```cjs
-const { describe, it } = require('node:test');
 
 describe('database', { tags: ['db'] }, () => {
   it('reads a row');                                            // tags: ['db']
@@ -684,7 +666,7 @@ This module can export any of the following:
 
 The module is specified using the `--test-global-setup` flag when running tests from the command line.
 
-```cjs
+```js
 // setup-module.js
 async function globalSetup() {
   // Setup shared resources, state, or environment
@@ -701,7 +683,7 @@ async function globalTeardown() {
 module.exports = { globalSetup, globalTeardown };
 ```
 
-```mjs
+```js
 // setup-module.mjs
 export async function globalSetup() {
   // Setup shared resources, state, or environment
@@ -798,19 +780,8 @@ instead of randomizing it.
 
 Example: this runs sequentially and is **not** randomized.
 
-```mjs
+```js
 import test from 'node:test';
-
-test('math', async (t) => {
-  for (const name of ['adds', 'subtracts', 'multiplies']) {
-    // Sequentially awaiting each subtest preserves declaration order.
-    await t.test(name, async () => {});
-  }
-});
-```
-
-```cjs
-const test = require('node:test');
 
 test('math', async (t) => {
   for (const name of ['adds', 'subtracts', 'multiplies']) {
@@ -825,18 +796,8 @@ still allows randomization, because sibling tests are enqueued together.
 
 Example: this remains eligible for randomization.
 
-```mjs
+```js
 import { describe, it } from 'node:test';
-
-describe('math', () => {
-  it('adds', () => {});
-  it('subtracts', () => {});
-  it('multiplies', () => {});
-});
-```
-
-```cjs
-const { describe, it } = require('node:test');
 
 describe('math', () => {
   it('adds', () => {});
@@ -961,32 +922,9 @@ object. The following example creates a spy on a function that adds two numbers
 together. The spy is then used to assert that the function was called as
 expected.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { mock, test } from 'node:test';
-
-test('spies on a function', () => {
-  const sum = mock.fn((a, b) => {
-    return a + b;
-  });
-
-  assert.strictEqual(sum.mock.callCount(), 0);
-  assert.strictEqual(sum(3, 4), 7);
-  assert.strictEqual(sum.mock.callCount(), 1);
-
-  const call = sum.mock.calls[0];
-  assert.deepStrictEqual(call.arguments, [3, 4]);
-  assert.strictEqual(call.result, 7);
-  assert.strictEqual(call.error, undefined);
-
-  // Reset the globally tracked mocks.
-  mock.reset();
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { mock, test } = require('node:test');
 
 test('spies on a function', () => {
   const sum = mock.fn((a, b) => {
@@ -1057,33 +995,9 @@ as well as from the Node.js global context.
 `import { setTimeout } from 'node:timers'`
 is currently not supported by this API.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { mock, test } from 'node:test';
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', () => {
-  const fn = mock.fn();
-
-  // Optionally choose what to mock
-  mock.timers.enable({ apis: ['setTimeout'] });
-  setTimeout(fn, 9999);
-  assert.strictEqual(fn.mock.callCount(), 0);
-
-  // Advance in time
-  mock.timers.tick(9999);
-  assert.strictEqual(fn.mock.callCount(), 1);
-
-  // Reset the globally tracked mocks.
-  mock.timers.reset();
-
-  // If you call reset mock instance, it will also reset timers instance
-  mock.reset();
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { mock, test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', () => {
   const fn = mock.fn();
@@ -1110,27 +1024,9 @@ of each test. The benefit of mocking via the test context is
 that the test runner will automatically restore all mocked timers
 functionality once the test finishes.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
-  const fn = context.mock.fn();
-
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['setTimeout'] });
-  setTimeout(fn, 9999);
-  assert.strictEqual(fn.mock.callCount(), 0);
-
-  // Advance in time
-  context.mock.timers.tick(9999);
-  assert.strictEqual(fn.mock.callCount(), 1);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
@@ -1162,25 +1058,9 @@ also advance the mocked date as they simulate a single internal clock.
 The example below show how to mock the `Date` object and obtain the current
 `Date.now()` value.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('mocks the Date object', (context) => {
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['Date'] });
-  // If not specified, the initial date will be based on 0 in the UNIX epoch
-  assert.strictEqual(Date.now(), 0);
-
-  // Advance in time will also advance the date
-  context.mock.timers.tick(9999);
-  assert.strictEqual(Date.now(), 9999);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('mocks the Date object', (context) => {
   // Optionally choose what to mock
@@ -1200,24 +1080,9 @@ by passing a `now` property to the `.enable()` method. This value will be used
 as the initial date for the mocked `Date` object. It can either be a positive
 integer, or another Date object.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('mocks the Date object with initial time', (context) => {
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['Date'], now: 100 });
-  assert.strictEqual(Date.now(), 100);
-
-  // Advance in time will also advance the date
-  context.mock.timers.tick(200);
-  assert.strictEqual(Date.now(), 300);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('mocks the Date object with initial time', (context) => {
   // Optionally choose what to mock
@@ -1238,25 +1103,9 @@ from the new time.
 
 In the below example we are setting a new time for the mocked date.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('sets the time of a date object', (context) => {
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['Date'], now: 100 });
-  assert.strictEqual(Date.now(), 100);
-
-  // Advance in time will also advance the date
-  context.mock.timers.setTime(1000);
-  context.mock.timers.tick(200);
-  assert.strictEqual(Date.now(), 1200);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('sets the time of a date object', (context) => {
   // Optionally choose what to mock
@@ -1273,34 +1122,9 @@ test('sets the time of a date object', (context) => {
 Timers scheduled in the past will **not** run when you call `setTime()`. To execute those timers, you can use
 the `.tick()` method to move forward from the new time.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('setTime does not execute timers', (context) => {
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const fn = context.mock.fn();
-  setTimeout(fn, 1000);
-
-  context.mock.timers.setTime(800);
-  // Timer is not executed as the time is not yet reached
-  assert.strictEqual(fn.mock.callCount(), 0);
-  assert.strictEqual(Date.now(), 800);
-
-  context.mock.timers.setTime(1200);
-  // Timer is still not executed
-  assert.strictEqual(fn.mock.callCount(), 0);
-  // Advance in time to execute the timer
-  context.mock.timers.tick(0);
-  assert.strictEqual(fn.mock.callCount(), 1);
-  assert.strictEqual(Date.now(), 1200);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
@@ -1327,28 +1151,9 @@ Using `.runAll()` will execute all timers that are currently in the queue. This
 will also advance the mocked date to the time of the last timer that was
 executed as if the time has passed.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('runs timers as setTime passes ticks', (context) => {
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const fn = context.mock.fn();
-  setTimeout(fn, 1000);
-  setTimeout(fn, 2000);
-  setTimeout(fn, 3000);
-
-  context.mock.timers.runAll();
-  // All timers are executed as the time is now reached
-  assert.strictEqual(fn.mock.callCount(), 3);
-  assert.strictEqual(Date.now(), 3000);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('runs timers as setTime passes ticks', (context) => {
   // Optionally choose what to mock
@@ -1474,12 +1279,8 @@ to the test runner's output is required, use the events emitted by the
 
 The reporters are available via the `node:test/reporters` module:
 
-```mjs
+```js
 import { tap, spec, dot, junit, lcov } from 'node:test/reporters';
-```
-
-```cjs
-const { tap, spec, dot, junit, lcov } = require('node:test/reporters');
 ```
 
 ### Custom reporters
@@ -1491,7 +1292,7 @@ Reporters should transform events emitted by a {TestsStream}
 
 Example of a custom reporter using {stream.Transform}:
 
-```mjs
+```js
 import { Transform } from 'node:stream';
 
 const customReporter = new Transform({
@@ -1539,57 +1340,9 @@ const customReporter = new Transform({
 export default customReporter;
 ```
 
-```cjs
-const { Transform } = require('node:stream');
-
-const customReporter = new Transform({
-  writableObjectMode: true,
-  transform(event, encoding, callback) {
-    switch (event.type) {
-      case 'test:dequeue':
-        callback(null, `test ${event.data.name} dequeued`);
-        break;
-      case 'test:enqueue':
-        callback(null, `test ${event.data.name} enqueued`);
-        break;
-      case 'test:watch:drained':
-        callback(null, 'test watch queue drained');
-        break;
-      case 'test:watch:restarted':
-        callback(null, 'test watch restarted due to file change');
-        break;
-      case 'test:start':
-        callback(null, `test ${event.data.name} started`);
-        break;
-      case 'test:pass':
-        callback(null, `test ${event.data.name} passed`);
-        break;
-      case 'test:fail':
-        callback(null, `test ${event.data.name} failed`);
-        break;
-      case 'test:plan':
-        callback(null, 'test plan');
-        break;
-      case 'test:diagnostic':
-      case 'test:stderr':
-      case 'test:stdout':
-        callback(null, event.data.message);
-        break;
-      case 'test:coverage': {
-        const { totalLineCount } = event.data.summary.totals;
-        callback(null, `total line count: ${totalLineCount}\n`);
-        break;
-      }
-    }
-  },
-});
-
-module.exports = customReporter;
-```
-
 Example of a custom reporter using a generator function:
 
-```mjs
+```js
 export default async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
@@ -1630,49 +1383,6 @@ export default async function * customReporter(source) {
     }
   }
 }
-```
-
-```cjs
-module.exports = async function * customReporter(source) {
-  for await (const event of source) {
-    switch (event.type) {
-      case 'test:dequeue':
-        yield `test ${event.data.name} dequeued\n`;
-        break;
-      case 'test:enqueue':
-        yield `test ${event.data.name} enqueued\n`;
-        break;
-      case 'test:watch:drained':
-        yield 'test watch queue drained\n';
-        break;
-      case 'test:watch:restarted':
-        yield 'test watch restarted due to file change\n';
-        break;
-      case 'test:start':
-        yield `test ${event.data.name} started\n`;
-        break;
-      case 'test:pass':
-        yield `test ${event.data.name} passed\n`;
-        break;
-      case 'test:fail':
-        yield `test ${event.data.name} failed\n`;
-        break;
-      case 'test:plan':
-        yield 'test plan\n';
-        break;
-      case 'test:diagnostic':
-      case 'test:stderr':
-      case 'test:stdout':
-        yield `${event.data.message}\n`;
-        break;
-      case 'test:coverage': {
-        const { totalLineCount } = event.data.summary.totals;
-        yield `total line count: ${totalLineCount}\n`;
-        break;
-      }
-    }
-  }
-};
 ```
 
 The value provided to `--test-reporter` should be a string like one used in an
@@ -1866,24 +1576,11 @@ machines or processes, ideal for large-scale executions across varied
 environments. It's incompatible with `watch` mode, tailored for rapid
 code iteration by automatically rerunning tests on file changes.
 
-```mjs
+```js
 import { tap } from 'node:test/reporters';
 import { run } from 'node:test';
 import process from 'node:process';
 import path from 'node:path';
-
-run({ files: [path.resolve('./tests/test.js')] })
- .on('test:fail', () => {
-   process.exitCode = 1;
- })
- .compose(tap)
- .pipe(process.stdout);
-```
-
-```cjs
-const { tap } = require('node:test/reporters');
-const { run } = require('node:test');
-const path = require('node:path');
 
 run({ files: [path.resolve('./tests/test.js')] })
  .on('test:fail', () => {
@@ -2956,13 +2653,8 @@ as they use the same internal clock.
 
 Example usage without setting initial time:
 
-```mjs
+```js
 import { mock } from 'node:test';
-mock.timers.enable({ apis: ['setInterval'] });
-```
-
-```cjs
-const { mock } = require('node:test');
 mock.timers.enable({ apis: ['setInterval'] });
 ```
 
@@ -2974,25 +2666,15 @@ and `clearInterval` functions from [node:timers](./timers.md),
 
 Example usage with initial time set
 
-```mjs
+```js
 import { mock } from 'node:test';
-mock.timers.enable({ apis: ['Date'], now: 1000 });
-```
-
-```cjs
-const { mock } = require('node:test');
 mock.timers.enable({ apis: ['Date'], now: 1000 });
 ```
 
 Example usage with initial Date object as time set
 
-```mjs
+```js
 import { mock } from 'node:test';
-mock.timers.enable({ apis: ['Date'], now: new Date() });
-```
-
-```cjs
-const { mock } = require('node:test');
 mock.timers.enable({ apis: ['Date'], now: new Date() });
 ```
 
@@ -3019,13 +2701,8 @@ from the  `MockTracker` instance.
 **Note:** After each test completes, this function is called on
 the test context's  `MockTracker`.
 
-```mjs
+```js
 import { mock } from 'node:test';
-mock.timers.reset();
-```
-
-```cjs
-const { mock } = require('node:test');
 mock.timers.reset();
 ```
 
@@ -3054,7 +2731,7 @@ The following example mocks a `setTimeout` function and
 by using `.tick` advances in
 time triggering all pending timers.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
 
@@ -3065,24 +2742,6 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
   setTimeout(fn, 9999);
 
-  assert.strictEqual(fn.mock.callCount(), 0);
-
-  // Advance in time
-  context.mock.timers.tick(9999);
-
-  assert.strictEqual(fn.mock.callCount(), 1);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
-  const fn = context.mock.fn();
-  context.mock.timers.enable({ apis: ['setTimeout'] });
-
-  setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
@@ -3094,28 +2753,9 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
 Alternatively, the `.tick` function can be called many times
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
-  const fn = context.mock.fn();
-  context.mock.timers.enable({ apis: ['setTimeout'] });
-  const nineSecs = 9000;
-  setTimeout(fn, nineSecs);
-
-  const threeSeconds = 3000;
-  context.mock.timers.tick(threeSeconds);
-  context.mock.timers.tick(threeSeconds);
-  context.mock.timers.tick(threeSeconds);
-
-  assert.strictEqual(fn.mock.callCount(), 1);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
@@ -3135,7 +2775,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 Advancing time using `.tick` will also advance the time for any `Date` object
 created after the mock was enabled (if `Date` was also set to be mocked).
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
 
@@ -3145,25 +2785,6 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   setTimeout(fn, 9999);
 
-  assert.strictEqual(fn.mock.callCount(), 0);
-  assert.strictEqual(Date.now(), 0);
-
-  // Advance in time
-  context.mock.timers.tick(9999);
-  assert.strictEqual(fn.mock.callCount(), 1);
-  assert.strictEqual(Date.now(), 9999);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
-  const fn = context.mock.fn();
-  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-
-  setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
   assert.strictEqual(Date.now(), 0);
 
@@ -3179,29 +2800,9 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 As mentioned, all clear functions from timers (`clearTimeout`, `clearInterval`,and
 `clearImmediate`) are implicitly mocked. Take a look at this example using `setTimeout`:
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
-  const fn = context.mock.fn();
-
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['setTimeout'] });
-  const id = setTimeout(fn, 9999);
-
-  // Implicitly mocked as well
-  clearTimeout(id);
-  context.mock.timers.tick(9999);
-
-  // As that setTimeout was cleared the mock function will never be called
-  assert.strictEqual(fn.mock.callCount(), 0);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
@@ -3229,7 +2830,7 @@ and timers from the Node.js global context are enabled:
 `import { setTimeout } from 'node:timers'` is currently
 not supported by this API.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
 import nodeTimers from 'node:timers';
@@ -3256,72 +2857,13 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
-const nodeTimers = require('node:timers');
-const nodeTimersPromises = require('node:timers/promises');
-
-test('mocks setTimeout to be executed synchronously without having to actually wait for it', async (context) => {
-  const globalTimeoutObjectSpy = context.mock.fn();
-  const nodeTimerSpy = context.mock.fn();
-  const nodeTimerPromiseSpy = context.mock.fn();
-
-  // Optionally choose what to mock
-  context.mock.timers.enable({ apis: ['setTimeout'] });
-  setTimeout(globalTimeoutObjectSpy, 9999);
-  nodeTimers.setTimeout(nodeTimerSpy, 9999);
-
-  const promise = nodeTimersPromises.setTimeout(9999).then(nodeTimerPromiseSpy);
-
-  // Advance in time
-  context.mock.timers.tick(9999);
-  assert.strictEqual(globalTimeoutObjectSpy.mock.callCount(), 1);
-  assert.strictEqual(nodeTimerSpy.mock.callCount(), 1);
-  await promise;
-  assert.strictEqual(nodeTimerPromiseSpy.mock.callCount(), 1);
-});
-```
-
 In Node.js, `setInterval` from [node:timers/promises](./timers.md#timers-promises-api)
 is an `AsyncGenerator` and is also supported by this API:
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
 import nodeTimersPromises from 'node:timers/promises';
-test('should tick five times testing a real use case', async (context) => {
-  context.mock.timers.enable({ apis: ['setInterval'] });
-
-  const expectedIterations = 3;
-  const interval = 1000;
-  const startedAt = Date.now();
-  async function run() {
-    const times = [];
-    for await (const time of nodeTimersPromises.setInterval(interval, startedAt)) {
-      times.push(time);
-      if (times.length === expectedIterations) break;
-    }
-    return times;
-  }
-
-  const r = run();
-  context.mock.timers.tick(interval);
-  context.mock.timers.tick(interval);
-  context.mock.timers.tick(interval);
-
-  const timeResults = await r;
-  assert.strictEqual(timeResults.length, expectedIterations);
-  for (let it = 1; it < expectedIterations; it++) {
-    assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
-  }
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
-const nodeTimersPromises = require('node:timers/promises');
 test('should tick five times testing a real use case', async (context) => {
   context.mock.timers.enable({ apis: ['setInterval'] });
 
@@ -3364,32 +2906,9 @@ mocked, it will also advance the `Date` object to the furthest timer's time.
 The example below triggers all pending timers immediately,
 causing them to execute without any delay.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('runAll functions following the given order', (context) => {
-  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const results = [];
-  setTimeout(() => results.push(1), 9999);
-
-  // Notice that if both timers have the same timeout,
-  // the order of execution is guaranteed
-  setTimeout(() => results.push(3), 8888);
-  setTimeout(() => results.push(2), 8888);
-
-  assert.deepStrictEqual(results, []);
-
-  context.mock.timers.runAll();
-  assert.deepStrictEqual(results, [3, 2, 1]);
-  // The Date object is also advanced to the furthest timer's time
-  assert.strictEqual(Date.now(), 9999);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('runAll functions following the given order', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
@@ -3426,28 +2945,11 @@ added:
 Sets the current Unix timestamp that will be used as reference for any mocked
 `Date` objects.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
 
 test('runAll functions following the given order', (context) => {
-  const now = Date.now();
-  const setTime = 1000;
-  // Date.now is not mocked
-  assert.deepStrictEqual(Date.now(), now);
-
-  context.mock.timers.enable({ apis: ['Date'] });
-  context.mock.timers.setTime(setTime);
-  // Date.now is now 1000
-  assert.strictEqual(Date.now(), setTime);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
-
-test('setTime replaces current time', (context) => {
   const now = Date.now();
   const setTime = 1000;
   // Date.now is not mocked
@@ -3468,26 +2970,9 @@ pass the current time to the mocked `Date` object, the set timers with
 
 However, the `tick` method **will** advance the mocked `Date` object.
 
-```mjs
+```js
 import assert from 'node:assert';
 import { test } from 'node:test';
-
-test('runAll functions following the given order', (context) => {
-  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
-  const results = [];
-  setTimeout(() => results.push(1), 9999);
-
-  assert.deepStrictEqual(results, []);
-  context.mock.timers.setTime(12000);
-  assert.deepStrictEqual(results, []);
-  // The date is advanced but the timers don't tick
-  assert.strictEqual(Date.now(), 12000);
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const { test } = require('node:test');
 
 test('runAll functions following the given order', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
@@ -4093,7 +3578,7 @@ currently executing test or suite, or `undefined` if called outside of a test or
 suite. This function can be used to access context information from within the
 test or suite function or any async operations within them.
 
-```mjs
+```js
 import { getTestContext } from 'node:test';
 
 test('example test', async () => {
@@ -4177,7 +3662,7 @@ The tracing channel can be used to propagate context through test execution by
 binding an `AsyncLocalStorage` instance. This allows context to be automatically
 available in the test function and all async operations within the test.
 
-```mjs
+```js
 import dc from 'node:diagnostics_channel';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -4582,7 +4067,7 @@ not running in a test context.
 This property is useful for splitting resources (like database connections or
 server ports) across concurrent test files:
 
-```mjs
+```js
 import { test } from 'node:test';
 import { process } from 'node:process';
 

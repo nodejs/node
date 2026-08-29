@@ -101,7 +101,7 @@ changes:
     **Default:** `true`.
 * Returns: {Promise} Fulfills when the pipeline is complete.
 
-```cjs
+```js
 const { pipeline } = require('node:stream/promises');
 const fs = require('node:fs');
 const zlib = require('node:zlib');
@@ -118,7 +118,7 @@ async function run() {
 run().catch(console.error);
 ```
 
-```mjs
+```js
 import { pipeline } from 'node:stream/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
@@ -135,7 +135,7 @@ To use an `AbortSignal`, pass it inside an options object, as the last argument.
 When the signal is aborted, `destroy` will be called on the underlying pipeline,
 with an `AbortError`.
 
-```cjs
+```js
 const { pipeline } = require('node:stream/promises');
 const fs = require('node:fs');
 const zlib = require('node:zlib');
@@ -156,7 +156,7 @@ async function run() {
 run().catch(console.error); // AbortError
 ```
 
-```mjs
+```js
 import { pipeline } from 'node:stream/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
@@ -178,7 +178,7 @@ try {
 
 The `pipeline` API also supports async generators:
 
-```cjs
+```js
 const { pipeline } = require('node:stream/promises');
 const fs = require('node:fs');
 
@@ -199,7 +199,7 @@ async function run() {
 run().catch(console.error);
 ```
 
-```mjs
+```js
 import { pipeline } from 'node:stream/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 
@@ -220,7 +220,7 @@ Remember to handle the `signal` argument passed into the async generator.
 Especially in the case where the async generator is the source for the
 pipeline (i.e. first argument) or the pipeline will never complete.
 
-```cjs
+```js
 const { pipeline } = require('node:stream/promises');
 const fs = require('node:fs');
 
@@ -238,7 +238,7 @@ async function run() {
 run().catch(console.error);
 ```
 
-```mjs
+```js
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
 await pipeline(
@@ -282,7 +282,7 @@ changes:
 * Returns: {Promise} Fulfills when the stream is no
   longer readable or writable.
 
-```cjs
+```js
 const { finished } = require('node:stream/promises');
 const fs = require('node:fs');
 
@@ -297,7 +297,7 @@ run().catch(console.error);
 rs.resume(); // Drain the stream.
 ```
 
-```mjs
+```js
 import { finished } from 'node:stream/promises';
 import { createReadStream } from 'node:fs';
 
@@ -321,7 +321,7 @@ events (due to incorrect stream implementations) do not cause unexpected
 crashes. If this is unwanted behavior then `options.cleanup` should be set to
 `true`:
 
-```mjs
+```js
 await finished(rs, { cleanup: true });
 ```
 
@@ -697,7 +697,7 @@ This is a destructive and immediate way to destroy a stream. Previous calls to
 Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
 
-```cjs
+```js
 const { Writable } = require('node:stream');
 
 const myStream = new Writable();
@@ -707,16 +707,7 @@ myStream.destroy(fooErr);
 myStream.on('error', (fooErr) => console.error(fooErr.message)); // foo error
 ```
 
-```cjs
-const { Writable } = require('node:stream');
-
-const myStream = new Writable();
-
-myStream.destroy();
-myStream.on('error', function wontHappen() {});
-```
-
-```cjs
+```js
 const { Writable } = require('node:stream');
 
 const myStream = new Writable();
@@ -752,7 +743,7 @@ added: v8.0.0
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
-```cjs
+```js
 const { Writable } = require('node:stream');
 
 const myStream = new Writable();
@@ -2031,7 +2022,7 @@ before batching.
 The returned iterator is tagged as a validated source, so [`from()`][stream-iter-from]
 passes it through without additional normalization.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { text, from } from 'node:stream/iter';
 
@@ -2041,21 +2032,6 @@ const readable = new Readable({
 
 // Readable is automatically consumed via toAsyncStreamable
 console.log(await text(from(readable))); // 'hello'
-```
-
-```cjs
-const { Readable } = require('node:stream');
-const { text, from } = require('node:stream/iter');
-
-async function run() {
-  const readable = new Readable({
-    read() { this.push('hello'); this.push(null); },
-  });
-
-  console.log(await text(from(readable))); // 'hello'
-}
-
-run().catch(console.error);
 ```
 
 Without the `--experimental-stream-iter` flag, calling this method throws
@@ -2096,7 +2072,7 @@ changes:
     aborted.
 * Returns: {Duplex} a stream composed with the stream `stream`.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 
 async function* splitToWords(source) {
@@ -2215,7 +2191,7 @@ This method allows mapping over the stream. The `fn` function will be called
 for every chunk in the stream. If the `fn` function returns a promise - that
 promise will be `await`ed before being passed to the result stream.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { Resolver } from 'node:dns/promises';
 
@@ -2270,7 +2246,7 @@ function will be called and if it returns a truthy value, the chunk will be
 passed to the result stream. If the `fn` function returns a promise - that
 promise will be `await`ed.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { Resolver } from 'node:dns/promises';
 
@@ -2330,7 +2306,7 @@ This method is different from listening to the [`'data'`][] event in that it
 uses the [`readable`][] event in the underlying machinery and can limit the
 number of concurrent `fn` calls.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { Resolver } from 'node:dns/promises';
 
@@ -2377,7 +2353,7 @@ As this method reads the entire stream into memory, it negates the benefits of
 streams. It's intended for interoperability and convenience, not as the primary
 way to consume streams.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { Resolver } from 'node:dns/promises';
 
@@ -2427,7 +2403,7 @@ destroyed and the promise is fulfilled with `true`. If none of the `fn`
 calls on the chunks return a truthy value, the promise is fulfilled with
 `false`.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { stat } from 'node:fs/promises';
 
@@ -2478,7 +2454,7 @@ fulfilled with value for which `fn` returned a truthy value. If all of the
 `fn` calls on the chunks return a falsy value, the promise is fulfilled with
 `undefined`.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { stat } from 'node:fs/promises';
 
@@ -2529,7 +2505,7 @@ Once an `fn` call on a chunk awaited return value is falsy, the stream is
 destroyed and the promise is fulfilled with `false`. If all of the `fn` calls
 on the chunks return a truthy value, the promise is fulfilled with `true`.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { stat } from 'node:fs/promises';
 
@@ -2581,7 +2557,7 @@ It is possible to return a stream or another iterable or async iterable from
 `fn` and the result streams will be merged (flattened) into the returned
 stream.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { createReadStream } from 'node:fs';
 
@@ -2620,7 +2596,7 @@ added:
 
 This method returns a new stream with the first `limit` chunks dropped.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
@@ -2644,7 +2620,7 @@ added:
 
 This method returns a new stream with the first `limit` chunks.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
@@ -2682,7 +2658,7 @@ If no `initial` value is supplied the first chunk of the stream is used as the
 initial value. If the stream is empty, the promise is rejected with a
 `TypeError` with the `ERR_INVALID_ARGS` code property.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -2703,7 +2679,7 @@ The reducer function iterates the stream element-by-element which means that
 there is no `concurrency` parameter or parallelism. To perform a `reduce`
 concurrently, you can extract the async function to [`readable.map`][] method.
 
-```mjs
+```js
 import { Readable } from 'node:stream';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -3056,7 +3032,7 @@ circuit.
 If passed a `Function` it must be a factory method taking a `source`
 `Iterable`.
 
-```mjs
+```js
 import { compose, Transform } from 'node:stream';
 
 const removeSpaces = new Transform({
@@ -3090,7 +3066,7 @@ functions into streams.
 * `AsyncFunction` converts into a writable `Duplex`. Must return
   either `null` or `undefined`.
 
-```mjs
+```js
 import { compose } from 'node:stream';
 import { finished } from 'node:stream/promises';
 
@@ -3414,7 +3390,7 @@ changes:
   * `signal` {AbortSignal}
 * Returns: {stream.Duplex}
 
-```mjs
+```js
 import { Duplex } from 'node:stream';
 import {
   ReadableStream,
@@ -3444,35 +3420,6 @@ duplex.write('hello');
 for await (const chunk of duplex) {
   console.log('readable', chunk);
 }
-```
-
-```cjs
-const { Duplex } = require('node:stream');
-const {
-  ReadableStream,
-  WritableStream,
-} = require('node:stream/web');
-
-const readable = new ReadableStream({
-  start(controller) {
-    controller.enqueue('world');
-  },
-});
-
-const writable = new WritableStream({
-  write(chunk) {
-    console.log('writable', chunk);
-  },
-});
-
-const pair = {
-  readable,
-  writable,
-};
-const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
-
-duplex.write('hello');
-duplex.once('readable', () => console.log('readable', duplex.read()));
 ```
 
 ### `stream.Duplex.toWeb(streamDuplex[, options])`
@@ -3507,7 +3454,7 @@ changes:
   * `readable` {ReadableStream}
   * `writable` {WritableStream}
 
-```mjs
+```js
 import { Duplex } from 'node:stream';
 
 const duplex = Duplex({
@@ -3527,29 +3474,6 @@ writable.getWriter().write('hello');
 
 const { value } = await readable.getReader().read();
 console.log('readable', value);
-```
-
-```cjs
-const { Duplex } = require('node:stream');
-
-const duplex = Duplex({
-  objectMode: true,
-  read() {
-    this.push('world');
-    this.push(null);
-  },
-  write(chunk, encoding, callback) {
-    console.log('writable', chunk);
-    callback();
-  },
-});
-
-const { readable, writable } = Duplex.toWeb(duplex);
-writable.getWriter().write('hello');
-
-readable.getReader().read().then((result) => {
-  console.log('readable', result.value);
-});
 ```
 
 ### `stream.addAbortSignal(signal, stream)`
@@ -3827,7 +3751,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 
-```cjs
+```js
 const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
@@ -3841,7 +3765,7 @@ class MyWritable extends Writable {
 
 <!-- eslint-disable no-useless-constructor -->
 
-```mjs
+```js
 import { Writable } from 'node:stream';
 
 class MyWritable extends Writable {
@@ -4518,7 +4442,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 
-```cjs
+```js
 const { Duplex } = require('node:stream');
 
 class MyDuplex extends Duplex {
@@ -4531,7 +4455,7 @@ class MyDuplex extends Duplex {
 
 <!-- eslint-disable no-useless-constructor -->
 
-```mjs
+```js
 import { Duplex } from 'node:stream';
 
 class MyDuplex extends Duplex {
@@ -4714,7 +4638,7 @@ output on the `Readable` side is not consumed.
 
 <!-- eslint-disable no-useless-constructor -->
 
-```cjs
+```js
 const { Transform } = require('node:stream');
 
 class MyTransform extends Transform {
@@ -4727,7 +4651,7 @@ class MyTransform extends Transform {
 
 <!-- eslint-disable no-useless-constructor -->
 
-```mjs
+```js
 import { Transform } from 'node:stream';
 
 class MyTransform extends Transform {
