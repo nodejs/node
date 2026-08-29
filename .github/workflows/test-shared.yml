@@ -34,6 +34,7 @@ on:
       - deps/uv/**
       - deps/uvwasi/**
       - deps/v8/third_party/abseil-cpp/**
+      - deps/v8/third_party/highway/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
@@ -88,6 +89,7 @@ on:
       - deps/uv/**
       - deps/uvwasi/**
       - deps/v8/third_party/abseil-cpp/**
+      - deps/v8/third_party/highway/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**

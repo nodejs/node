@@ -20,6 +20,7 @@
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
     'node_shared_hdr_histogram%': 'false',
+    'node_shared_highway%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_lief%': 'false',
