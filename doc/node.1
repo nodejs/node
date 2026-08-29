@@ -304,6 +304,7 @@ When \fBmode\fR is \fB'none'\fR, all matching files and benchmarks run serially 
 benchmark runner process. This reduces startup overhead but allows module,
 heap, and process state to carry between files. User writes to stdout or stderr
 also share destinations with benchmark reporters in this mode.
+The supported modes are \fB'process'\fR and \fB'none'\fR.
 .
 .It Fl -bench-name-pattern Ns = Ns Ar pattern
 Only runs benchmarks whose full hierarchical name matches the JavaScript

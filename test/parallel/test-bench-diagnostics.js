@@ -99,12 +99,14 @@ async function testAfterEachFailurePrecedence() {
   }, common.mustCall((b) => {
     finalContext = b;
     const detail = { index: b.index };
+    const message = { index: b.index, phase: b.phase };
     const level = b.phase === 'warmup' ? 'info' : 'warning';
-    assert.strictEqual(b.diagnostic(`${b.phase} ${b.index}`, {
+    assert.strictEqual(b.diagnostic(message, {
       detail,
       level,
     }), undefined);
     detail.index = -1;
+    message.index = -1;
     recordSample(b);
   }, 3));
   const expectedError = new Error('benchmark failed');
@@ -135,9 +137,9 @@ async function testAfterEachFailurePrecedence() {
   assert.strictEqual(diagnostics.length, 4);
   assert.strictEqual(namedDiagnostics.length, diagnostics.length);
   assert.deepStrictEqual(diagnostics.map(({ message }) => message), [
-    'warmup 0',
-    'measurement 0',
-    'measurement 1',
+    { index: 0, phase: 'warmup' },
+    { index: 0, phase: 'measurement' },
+    { index: 1, phase: 'measurement' },
     'before failure',
   ]);
   assert.deepStrictEqual(diagnostics.map(({ phase, index, level }) => ({
