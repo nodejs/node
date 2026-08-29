@@ -6541,6 +6541,20 @@ with the [`using`][] syntax.
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
+### `fs.openAsBlobSync(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `type` {string} An optional mime type for the blob.
+* Returns: {Blob}
+
+For detailed information, see the documentation of the Promise-returning
+version of this API: [`fs.openAsBlob()`][].
+
 ### `fs.opendirSync(path[, options])`
 
 <!-- YAML
@@ -9449,6 +9463,7 @@ the file contents.
 [`fs.mkdir()`]: #fsmkdirpath-options-callback
 [`fs.mkdtemp()`]: #fsmkdtempprefix-options-callback
 [`fs.open()`]: #fsopenpath-flags-mode-callback
+[`fs.openAsBlob()`]: #fsopenasblobpath-options
 [`fs.opendir()`]: #fsopendirpath-options-callback
 [`fs.opendirSync()`]: #fsopendirsyncpath-options
 [`fs.read()`]: #fsreadfd-buffer-offset-length-position-callback
