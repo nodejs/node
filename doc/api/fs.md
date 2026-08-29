@@ -8455,7 +8455,6 @@ of bytes written is passed as the first argument to the event handler.
     * `writeBufferLen` {number}
     * `remainingBufferLen`: {number}
   * `sync`: {boolean} Perform writes synchronously.
-* Returns: {fs.Utf8Stream}
 
 #### `utf8Stream.append`
 
