@@ -80,9 +80,9 @@ Rscript benchmark/compare.R < compare-node-bench.csv
 
 Pass `--analyze` to run the same Welch analysis inline. `--max-regression N`
 implies `--analyze` and makes the command fail only when the Holm-Bonferroni
-adjusted p-value is below 0.05 and the full 95% confidence interval is worse
-than `-N%`. Requiring both conditions prevents a noisy point estimate from
-failing a regression gate.
+adjusted one-sided p-value against the `N%` threshold is below 0.05 and the full
+95% confidence interval is worse than `-N%`. Requiring both conditions prevents
+a noisy point estimate from failing a regression gate.
 
 ```console
 ./node benchmark/compare-node-bench.js \

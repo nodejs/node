@@ -27,14 +27,21 @@ bench('invalid operations', options, (b) => {
 bench('throws', options, () => {
   throw new Error('benchmark failure');
 });
-bench('timeout', { samples: 1, timeout: 10 }, async () => {
-  await new Promise(() => {});
-});
+let lateTimeoutActive = false;
 bench('late timeout', { samples: 1, timeout: 5 }, async (b) => {
-  b.start();
-  await setTimeout(30);
-  b.end(1);
+  lateTimeoutActive = true;
+  try {
+    b.start();
+    await setTimeout(30);
+    b.end(1);
+  } finally {
+    lateTimeoutActive = false;
+  }
 });
+bench('after late timeout', options, common.mustCall((b) => {
+  assert.strictEqual(lateTimeoutActive, false);
+  complete(b);
+}));
 
 const signal = AbortSignal.abort(new Error('stop'));
 bench('aborted', { samples: 1, signal }, () => {});
@@ -48,6 +55,11 @@ function complete(b) {
 bench('duplicate', { samples: 1, params: { value: 1 } }, complete);
 bench('duplicate', { samples: 1, params: { value: 1 } }, complete);
 bench('continues', options, complete);
+bench('timeout', { samples: 1, timeout: 10 }, async () => {
+  await new Promise(() => {});
+});
+bench('after unsettled timeout', options, common.mustNotCall());
+bench.skip('skipped after unsettled timeout', options, common.mustNotCall());
 
 const completions = [];
 const sampleNames = [];
@@ -57,13 +69,13 @@ stream.on('bench:complete', (result) => completions.push(result));
 stream.on('bench:sample', (sample) => sampleNames.push(sample.name));
 stream.on('bench:summary', (result) => { summary = result; });
 stream.on('end', common.mustCall(() => {
-  assert.strictEqual(completions.length, 13);
+  assert.strictEqual(completions.length, 16);
   assert.deepStrictEqual(summary.counts, {
     __proto__: null,
-    completed: 2,
-    failed: 11,
-    skipped: 0,
-    total: 13,
+    completed: 3,
+    failed: 12,
+    skipped: 1,
+    total: 16,
   });
   assert.strictEqual(summary.success, false);
 
@@ -92,12 +104,18 @@ stream.on('end', common.mustCall(() => {
                      'ERR_OPERATION_FAILED');
   assert.strictEqual(byName.get('late timeout')[0].error.code,
                      'ERR_OPERATION_FAILED');
+  assert.strictEqual(byName.get('after late timeout')[0].error, undefined);
   assert.strictEqual(byName.get('aborted')[0].error.code, 'ABORT_ERR');
 
   const duplicates = byName.get('duplicate');
   assert.strictEqual(duplicates[0].error, undefined);
   assert.match(duplicates[1].error.message, /duplicate benchmark identity/);
   assert.strictEqual(byName.get('continues')[0].error, undefined);
+  const unsettled = byName.get('after unsettled timeout')[0].error;
+  assert.strictEqual(unsettled.code, 'ABORT_ERR');
+  assert.strictEqual(unsettled.cause.code, 'ERR_OPERATION_FAILED');
+  assert.strictEqual(
+    byName.get('skipped after unsettled timeout')[0].skip, true);
   setTimeout(40).then(common.mustCall(() => {
     assert.strictEqual(sampleNames.includes('late timeout'), false);
   }));
