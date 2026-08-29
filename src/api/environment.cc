@@ -14,7 +14,6 @@
 #include "node_options-inl.h"
 #include "node_platform.h"
 #include "node_realm-inl.h"
-#include "node_shadow_realm.h"
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_wasm_web_api.h"
@@ -269,13 +268,6 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
       modify_code_generation_from_strings_callback);
 
   isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
-
-  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
-  if (per_process::cli_options->get_per_isolate_options()
-          ->experimental_shadow_realm) {
-    isolate->SetHostCreateShadowRealmContextCallback(
-        shadow_realm::HostCreateShadowRealmContextCallback);
-  }
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?

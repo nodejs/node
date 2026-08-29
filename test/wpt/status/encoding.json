@@ -39,9 +39,6 @@
   "idlharness.any.js": {
     "requires": ["small-icu"]
   },
-  "idlharness-shadowrealm.window.js": {
-    "skip": "ShadowRealm support is not enabled"
-  },
   "replacement-encodings.any.js": {
     "skip": "decoding-helpers.js needs XMLHttpRequest"
   },

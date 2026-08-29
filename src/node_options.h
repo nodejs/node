@@ -325,7 +325,6 @@ class PerIsolateOptions : public Options {
   DEFINE_BOOL_FIELD(track_heap_objects) = false;
   DEFINE_BOOL_FIELD(report_uncaught_exception) = false;
   DEFINE_BOOL_FIELD(report_on_signal) = false;
-  DEFINE_BOOL_FIELD(experimental_shadow_realm) = false;
   DEFINE_BOOL_FIELD(build_snapshot) = false;
 
   inline EnvironmentOptions* get_per_env_options();

@@ -286,8 +286,7 @@ V8 refers to each of these global objects and their associated builtins as a
 
 Currently, in Node.js there is one main `Context` associated with the
 principal [`Realm`][] of an [`Environment`][] instance, and a number of
-subsidiary `Context`s that are created with `vm.Context` or associated with
-[`ShadowRealm`][].
+subsidiary `Context`s that are created with `vm.Context`.
 
 Most Node.js features will only work inside a context associated with a
 `Realm`. The only exception at the time of writing are [`MessagePort`][]
@@ -358,14 +357,11 @@ Each ECMAScript realm comes with a global object and a set of intrinsic
 objects. An ECMAScript realm has a `[[HostDefined]]` field, which represents
 the Node.js [`Realm`][] object.
 
-Every `Realm` instance is created for a particular [`Context`][]. A `Realm`
-can be a principal realm or a synthetic realm. A principal realm is created
-for each `Environment`'s main [`Context`][]. A synthetic realm is created
-for the [`Context`][] of each [`ShadowRealm`][] constructed from the JS API. No
-`Realm` is created for the [`Context`][] of a `vm.Context`.
+Every `Realm` instance is created for a particular [`Context`][]. A principal
+realm is created for each `Environment`'s main [`Context`][]. No `Realm` is
+created for the [`Context`][] of a `vm.Context`.
 
-Native bindings and built-in modules can be evaluated in either a principal
-realm or a synthetic realm.
+Native bindings and built-in modules are evaluated in the principal realm.
 
 The `Realm` class contains a large number of different fields for
 different built-in modules, for example the memory for a `Uint32Array` that
@@ -861,10 +857,8 @@ and requests are cancelled if possible.
 
 #### Cleanup realms and BaseObjects
 
-Realm cleanup depends on the realm types. All realms are destroyed when the
-[`Environment`][] is destroyed with the cleanup hook. A [`ShadowRealm`][] can
-also be destroyed by the garbage collection when there is no strong reference
-to it.
+All realms are destroyed when the [`Environment`][] is destroyed with the
+cleanup hook.
 
 Every [`BaseObject`][] is tracked with its creation realm and will be destroyed
 when the realm is tearing down.
@@ -1493,7 +1487,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`MessagePort`]: https://nodejs.org/api/worker_threads.html#worker_threads_class_messageport
 [`Realm`]: #realm
 [`ReqWrap`]: #reqwrap
-[`ShadowRealm`]: https://github.com/tc39/proposal-shadowrealm
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
