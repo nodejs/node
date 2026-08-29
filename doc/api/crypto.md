@@ -7620,8 +7620,8 @@ See the [list of SSL OP Flags][] for details.
 [XTS mode]: #xts-mode
 [`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
-[`--enable-fips`]: cli.md#--enable-fips
 [`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
+[`--enable-fips`]: cli.md#--enable-fips
 [`--force-fips`]: cli.md#--force-fips
 [`--openssl-config`]: cli.md#--openssl-configfile
 [`--openssl-shared-config`]: cli.md#--openssl-shared-config

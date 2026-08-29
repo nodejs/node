@@ -1,7 +1,5 @@
 'use strict';
 
-// Flags: --enable-fips-indicator-events
-
 const common = require('../common');
 
 if (!common.hasCrypto) {
@@ -9,6 +7,7 @@ if (!common.hasCrypto) {
 }
 
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 const diagnosticsChannel = require('node:diagnostics_channel');
 const { once } = require('node:events');
 const { Worker } = require('node:worker_threads');
@@ -26,6 +25,15 @@ if (!hasOpenSSL(3, 4)) {
   common.skip('OpenSSL 3.4 or later is required');
 } else if (!hasFIPS(3, 4)) {
   common.skip('an active OpenSSL 3.4+ FIPS provider is required');
+} else if (!process.execArgv.includes('--enable-fips-indicator-events')) {
+  const child = spawnSync(
+    process.execPath,
+    ['--enable-fips-indicator-events', __filename],
+    { encoding: 'utf8' });
+  assert.strictEqual(
+    child.status,
+    0,
+    `stdout: ${child.stdout}\nstderr: ${child.stderr}`);
 } else {
   run().then(common.mustCall());
 }

@@ -9,7 +9,7 @@
 #include "node_sea.h"
 #include "uv.h"
 #if HAVE_OPENSSL
-#include "openssl/opensslv.h"
+#include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
 #include "quic/guard.h"
 #endif
 
