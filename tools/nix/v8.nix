@@ -24,6 +24,7 @@
 
 let
   useSharedAbseil = builtins.elem "--shared-abseil" configureFlags;
+  useSharedHighway = builtins.elem "--shared-highway" configureFlags;
   src =
     let
       inherit (lib) fileset;
@@ -45,6 +46,7 @@ let
         ../../tools/v8_gypfiles/v8.gyp
       ]
       ++ lib.optional (!useSharedAbseil) ../../tools/v8_gypfiles/abseil.gyp
+      ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
       ++ lib.optionals (builtins.elem "--with-perfetto" configureFlags) [
         ../../deps/perfetto
       ]
@@ -72,6 +74,7 @@ let
             ../../deps/v8/third_party/ittapi
           ]
           ++ lib.optional useSharedAbseil ../../deps/v8/third_party/abseil-cpp
+          ++ lib.optional useSharedHighway ../../deps/v8/third_party/highway
         ));
       trackedFiles =
         ({
