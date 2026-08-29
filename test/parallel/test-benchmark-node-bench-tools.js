@@ -9,6 +9,7 @@ const path = require('path');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const {
+  analyzeCompare,
   analyzeScatter,
   holmAdjust,
   isRegressionFailure,
@@ -27,18 +28,51 @@ assert.deepStrictEqual(holmAdjust([0.01, 0.03, 0.04]), [0.03, 0.06, 0.06]);
 assert.strictEqual(isRegressionFailure({
   ci95: 3,
   improvement: -12,
-  pAdjusted: 0.01,
+  pThresholdAdjusted: 0.01,
 }, 10), false);
 assert.strictEqual(isRegressionFailure({
   ci95: 1,
   improvement: -12,
-  pAdjusted: 0.06,
+  pThresholdAdjusted: 0.06,
 }, 10), false);
 assert.strictEqual(isRegressionFailure({
   ci95: 1,
   improvement: -12,
-  pAdjusted: 0.01,
+  pThresholdAdjusted: 0.01,
 }, 10), true);
+
+function comparisonSamples(oldRates, newRates) {
+  const create = (binary, rate) => ({
+    binary,
+    configuration: '',
+    identity: 'comparison',
+    name: 'comparison',
+    rate,
+  });
+  return [
+    ...oldRates.map((rate) => create('old', rate)),
+    ...newRates.map((rate) => create('new', rate)),
+  ];
+}
+
+{
+  const result = analyzeCompare(comparisonSamples(
+    [98, 99, 100, 100, 101, 102],
+    [48, 49, 50, 50, 51, 52],
+  ), 1000, 0);
+  assert.strictEqual(result.failed, true);
+  assert.strictEqual(result.rows[0].pThresholdAdjusted < 0.05, true);
+}
+
+{
+  const result = analyzeCompare(comparisonSamples(
+    [98, 99, 100, 100, 101, 102],
+    [93, 94, 95, 95, 96, 97],
+  ), 1000, 10);
+  assert.strictEqual(result.rows[0].pAdjusted < 0.05, true);
+  assert.strictEqual(result.rows[0].pThresholdAdjusted > 0.05, true);
+  assert.strictEqual(result.failed, false);
+}
 assert.throws(
   () => analyzeScatter([{
     observation: 0,
@@ -221,7 +255,22 @@ function run(script, args, options = undefined) {
   assert.strictEqual(result.stderr, '');
   assert.match(result.stdout, /confidence\s+improvement\s+accuracy/);
   assert.match(result.stdout, /Holm-Bonferroni correction/);
-  assert.match(result.stdout, /--max-regression uses the corrected values/);
+  assert.match(result.stdout, /one-sided p-values against the 100% threshold/);
+  assert.doesNotMatch(result.stdout, /"binary","filename"/);
+}
+
+{
+  const result = run(compare, [
+    '--old', process.execPath,
+    '--new', process.execPath,
+    '--runs', '1',
+    '--max-regression', '0',
+    '--', fixtures.path('bench-runner/tools-no-params.cjs'),
+  ]);
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /confidence\s+improvement\s+accuracy/);
+  assert.match(result.stdout, /one-sided p-values against the 0% threshold/);
   assert.doesNotMatch(result.stdout, /"binary","filename"/);
 }
 

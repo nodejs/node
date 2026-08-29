@@ -31,8 +31,19 @@ function holmAdjust(pValues) {
   return adjusted;
 }
 
+function thresholdPValue(oldRates, newHistogram, scale, maxRegression) {
+  const factor = 1 - maxRegression / 100;
+  if (factor <= 0) return 1;
+  const thresholdHistogram = createRateHistogram(
+    oldRates.map((rate) => rate * factor), scale, 3);
+  const result = thresholdHistogram.welchTest(newHistogram);
+  if (Number.isNaN(result.pValue)) return 1;
+  return result.tStatistic > 0 ?
+    result.pValue / 2 : 1 - result.pValue / 2;
+}
+
 function isRegressionFailure(row, maxRegression) {
-  return row.pAdjusted < 0.05 &&
+  return row.pThresholdAdjusted < 0.05 &&
          row.improvement + row.ci95 < -maxRegression;
 }
 
@@ -80,7 +91,7 @@ function analyzeCompare(samples, scale, maxRegression) {
                     result.confidenceInterval.lower) / 2;
       return (half / (oldMean * scale)) * 100;
     };
-    rows.push({
+    const row = {
       ci95: ciPercent(w95),
       ci99: ciPercent(w99),
       ci999: ciPercent(w999),
@@ -88,14 +99,24 @@ function analyzeCompare(samples, scale, maxRegression) {
       name,
       pValue: Number.isNaN(w95.pValue) ? 1 : w95.pValue,
       stars,
-    });
+    };
+    if (maxRegression !== undefined) {
+      row.pThreshold = thresholdPValue(
+        oldRates, newHistogram, scale, maxRegression);
+    }
+    rows.push(row);
   }
 
   const adjusted = holmAdjust(rows.map(({ pValue }) => pValue));
+  const thresholdAdjusted = maxRegression === undefined ? null :
+    holmAdjust(rows.map(({ pThreshold }) => pThreshold));
   let underpowered = 0;
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
     row.pAdjusted = adjusted[index];
+    if (thresholdAdjusted !== null) {
+      row.pThresholdAdjusted = thresholdAdjusted[index];
+    }
     row.inconclusive = maxRegression > 0 &&
                        row.stars.trim() === '' &&
                        row.ci95 > maxRegression;
@@ -146,8 +167,13 @@ function analyzeCompare(samples, scale, maxRegression) {
     `After Holm-Bonferroni correction across ${rows.length} comparison` +
     `${rows.length === 1 ? '' : 's'}, ${significant} remain` +
     `${significant === 1 ? 's' : ''} significant at 5%.`,
-    '--max-regression uses the corrected values.',
   );
+  if (maxRegression !== undefined) {
+    output.push(
+      `For --max-regression, one-sided p-values against the ` +
+      `${maxRegression}% threshold were corrected separately.`,
+    );
+  }
 
   if (maxRegression > 0 && underpowered > 0) {
     output.push('');
@@ -159,21 +185,22 @@ function analyzeCompare(samples, scale, maxRegression) {
     );
   }
 
-  const failures = maxRegression > 0 ?
+  const failures = maxRegression !== undefined ?
     rows.filter((row) => isRegressionFailure(row, maxRegression)) : [];
   if (failures.length > 0) {
     output.push('');
     output.push(
       `FAIL: ${failures.length} benchmark${failures.length === 1 ? '' : 's'}` +
       ` regressed by more than ${maxRegression}% (the 95% interval excludes ` +
-      `the threshold and significance is family-wise corrected across ` +
+      `the threshold and its one-sided test is family-wise corrected across ` +
       `${rows.length} comparisons):`,
     );
     for (const failure of failures) {
       output.push(
         `  ${failure.name}  ${failure.improvement.toFixed(2)}% ` +
         `(95% CI up to ${(failure.improvement + failure.ci95).toFixed(2)}%, ` +
-        `adjusted p=${failure.pAdjusted.toExponential(2)})`,
+        `adjusted threshold p=` +
+        `${failure.pThresholdAdjusted.toExponential(2)})`,
       );
     }
   }
