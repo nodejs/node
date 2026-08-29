@@ -1572,11 +1572,13 @@ passed to `console.error()`.
 
 #### Crypto
 
-##### Event: `'crypto.fips.indicator'`
-
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
+
+##### Event: `'crypto.fips.indicator'`
 
 * `operation` {string} The provider-defined operation type.
 * `reason` {string} The provider-defined description of why the operation is
