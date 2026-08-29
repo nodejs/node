@@ -709,6 +709,8 @@ if (common.hasInspector) {
   ]);
   assert.strictEqual(result.status, 1);
   const records = parseRecords(result);
+  assert(records.some(({ type, data }) =>
+    type === 'bench:diagnostic' && /set exit code/.test(data.message)));
   assert.strictEqual(records.at(-1).data.success, false);
 }
 
