@@ -7284,6 +7284,10 @@ startup. The following controls are also available:
   fetched before the call are not changed.
 * [`crypto.getFips()`][] reports the FIPS/property-query state. On OpenSSL 3, a
   return value of `1` does not prove that a FIPS provider is loaded or validated.
+* With [`--enable-fips-indicator-events`][], the
+  [`'crypto.fips.indicator'`][] diagnostics channel reports non-approved
+  operations permitted by an OpenSSL 3.4 or later FIPS provider configured for
+  backwards compatibility.
 
 With OpenSSL 1.1.1, these controls use the library's FIPS mode support and
 require a FIPS-capable OpenSSL build.
@@ -7612,8 +7616,10 @@ See the [list of SSL OP Flags][] for details.
 [SIV and GCM-SIV modes]: #siv-and-gcm-siv-modes
 [Web Crypto API documentation]: webcrypto.md
 [XTS mode]: #xts-mode
+[`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--enable-fips`]: cli.md#--enable-fips
+[`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
 [`--force-fips`]: cli.md#--force-fips
 [`--openssl-config`]: cli.md#--openssl-configfile
 [`--openssl-shared-config`]: cli.md#--openssl-shared-config

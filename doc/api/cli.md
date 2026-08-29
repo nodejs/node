@@ -888,6 +888,17 @@ Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
 `fips` must be available and initialize successfully. With OpenSSL 1.1.1,
 Node.js must be built against a FIPS-capable OpenSSL.
 
+### `--enable-fips-indicator-events`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Publish OpenSSL FIPS indicator results to the
+[`'crypto.fips.indicator'`][] diagnostics channel. This option requires OpenSSL
+3.4 or later. It does not enable [FIPS mode][] or change whether an operation
+is permitted.
+
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -3895,6 +3906,7 @@ one is included in the list below.
 * `--disable-warning`
 * `--disable-wasm-trap-handler`
 * `--dns-result-order`
+* `--enable-fips-indicator-events`
 * `--enable-fips`
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
@@ -4546,6 +4558,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--enable-fips`]: #--enable-fips
+[`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs

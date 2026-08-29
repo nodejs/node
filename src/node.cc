@@ -1233,6 +1233,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       OPENSSL_init();
     }
 #endif
+    crypto::InstallFipsIndicatorCallback();
     if (auto fips_error = crypto::ProcessFipsOptions()) {
       result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
