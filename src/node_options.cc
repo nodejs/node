@@ -9,7 +9,7 @@
 #include "node_sea.h"
 #include "uv.h"
 #if HAVE_OPENSSL
-#include "openssl/opensslv.h"
+#include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
 #include "quic/guard.h"
 #endif
 
@@ -83,6 +83,13 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
                       "used, not both");
   }
+
+#if defined(OPENSSL_IS_BORINGSSL) || !OPENSSL_VERSION_PREREQ(3, 4)
+  if (enable_fips_indicator_events) {
+    errors->push_back(
+        "--enable-fips-indicator-events requires OpenSSL 3.4 or later");
+  }
+#endif
 
   // Any value less than 2 disables use of the secure heap.
 #ifndef V8_ENABLE_SANDBOX
@@ -1489,6 +1496,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--enable-fips",
             "enable FIPS crypto at startup",
             BOOL_FIELD(enable_fips_crypto),
+            kAllowedInEnvvar);
+  AddOption("--enable-fips-indicator-events",
+            "publish FIPS indicator results to the "
+            "crypto.fips.indicator diagnostics channel",
+            BOOL_FIELD(enable_fips_indicator_events),
             kAllowedInEnvvar);
   AddOption("--force-fips",
             "force FIPS crypto (cannot be disabled)",
