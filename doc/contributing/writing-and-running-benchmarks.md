@@ -721,8 +721,9 @@ Both parallel tools support inline analysis. `scatter-node-bench.js --analyze`
 uses the same `--xaxis`, `--category`, and `--no-chart` interface described for
 `scatter.js`. `compare-node-bench.js --analyze` performs Welch's t-test, while
 `--max-regression N` adds a corrected regression gate. The gate requires both a
-Holm-Bonferroni-adjusted p-value below 0.05 and a 95% confidence interval lying
-entirely beyond `-N%`; the point estimate alone cannot fail the command.
+Holm-Bonferroni-adjusted one-sided p-value against the `N%` threshold below 0.05
+and a 95% confidence interval lying entirely beyond `-N%`; the point estimate
+alone cannot fail the command.
 Scatter analysis reduces aggregated configurations to one value per outer
 process and uses disjoint process sets for consecutive Mann-Whitney comparisons
 so configurations sharing a process are not treated as independent samples.
