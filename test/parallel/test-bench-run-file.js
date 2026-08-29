@@ -10,9 +10,9 @@ const path = require('path');
 const { runFile } = require('node:bench');
 
 const fixture = fixtures.path('bench-runner/run-file.cjs');
+const relativeFixture = path.relative(process.cwd(), fixture);
 
 assert.throws(() => runFile(null), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => runFile('relative.cjs'), { code: 'ERR_INVALID_ARG_VALUE' });
 assert.throws(() => runFile(fixture, null), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => runFile(fixture, { execArgv: null }), {
   code: 'ERR_INVALID_ARG_TYPE',
@@ -50,6 +50,9 @@ assert.throws(() => runFile(fixture, {
 assert.throws(() => runFile(`${fixture}\0`), {
   code: 'ERR_INVALID_ARG_VALUE',
 });
+assert.throws(() => runFile(Buffer.from(`${fixture}\0`)), {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 assert.throws(() => runFile(fixture, { env: null }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
@@ -79,7 +82,7 @@ async function testRunFile() {
     NODE_CHANNEL_FD: '999',
     NODE_CHANNEL_SERIALIZATION_MODE: 'json',
   };
-  const stream = runFile(fixture, { env, execArgv });
+  const stream = runFile(relativeFixture, { env, execArgv });
   execArgv.length = 0;
   env.NODE_BENCH_RUN_FILE = 'mutated';
   const records = await stream.toArray();
@@ -108,8 +111,11 @@ async function testRunFile() {
 
 async function testConcurrentCalls() {
   const [cjsRecords, esmRecords] = await Promise.all([
-    runFile(fixtures.path('bench-runner/a.cjs')).toArray(),
-    runFile(fixtures.path('bench-runner/b.mjs')).toArray(),
+    runFile(fixtures.fileURL('bench-runner/a.cjs')).toArray(),
+    runFile(Buffer.from(path.relative(
+      process.cwd(),
+      fixtures.path('bench-runner/b.mjs'),
+    ))).toArray(),
   ]);
   const cjsResult = cjsRecords.find(
     ({ type }) => type === 'bench:complete').data;
@@ -119,6 +125,14 @@ async function testConcurrentCalls() {
   assert.strictEqual(esmResult.name, 'beta');
   assert.notStrictEqual(cjsResult.params.pid, esmResult.params.pid);
   assert.notStrictEqual(cjsResult.runId, esmResult.runId);
+  assert.strictEqual(
+    cjsRecords.at(-1).data.file,
+    fixtures.path('bench-runner/a.cjs'),
+  );
+  assert.strictEqual(
+    esmRecords.at(-1).data.file,
+    fixtures.path('bench-runner/b.mjs'),
+  );
 }
 
 async function testLoadFailure() {
@@ -280,6 +294,74 @@ function testEvalParent() {
   assert.strictEqual(result.stdout, 'true\n');
 }
 
+function testPermissions() {
+  const fsReadScript = `
+    const assert = require('assert');
+    const { runFile } = require('node:bench');
+    const { pathToFileURL } = require('url');
+    const target = ${JSON.stringify(fixture)};
+    assert.strictEqual(process.permission.has('child'), true);
+    assert.strictEqual(process.permission.has('fs.read', target), false);
+    Promise.all([
+      target,
+      Buffer.from(target),
+      pathToFileURL(target),
+    ].map(async (input) => {
+      const records = await runFile(input).toArray();
+      const diagnostic = records.find(({ type, data }) =>
+        type === 'bench:diagnostic' &&
+        data.error?.code === 'ERR_ACCESS_DENIED');
+      assert.strictEqual(diagnostic.data.error.permission, 'FileSystemRead');
+      assert.strictEqual(diagnostic.data.error.resource, target);
+      assert.strictEqual(records.at(-1).type, 'bench:summary');
+      assert.strictEqual(records.at(-1).data.success, false);
+    })).catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+  `;
+  const result = spawnSync(process.execPath, [
+    '--no-warnings',
+    '--permission',
+    '--allow-child-process',
+    '-e',
+    fsReadScript,
+  ], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stderr);
+
+  const childProcessScript = `
+    const assert = require('assert');
+    const { runFile } = require('node:bench');
+    const target = ${JSON.stringify(fixture)};
+    assert.strictEqual(process.permission.has('fs.read', target), true);
+    assert.strictEqual(process.permission.has('child'), false);
+    runFile(target).toArray().then((records) => {
+      const diagnostic = records.find(({ type, data }) =>
+        type === 'bench:diagnostic' &&
+        data.error?.code === 'ERR_ACCESS_DENIED');
+      assert.strictEqual(diagnostic.data.error.permission, 'ChildProcess');
+      assert.strictEqual(diagnostic.data.error.resource, process.execPath);
+      assert.strictEqual(records.at(-1).type, 'bench:summary');
+      assert.strictEqual(records.at(-1).data.success, false);
+    }).catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+  `;
+  const childProcessResult = spawnSync(process.execPath, [
+    '--no-warnings',
+    '--permission',
+    `--allow-fs-read=${fixture}`,
+    '-e',
+    childProcessScript,
+  ], { encoding: 'utf8' });
+  assert.strictEqual(
+    childProcessResult.status,
+    0,
+    childProcessResult.stderr,
+  );
+}
+
 async function testPreAborted() {
   const records = await runFile(fixture, {
     signal: AbortSignal.abort(new Error('already cancelled')),
@@ -315,4 +397,5 @@ async function testDestroy() {
   await testPreAborted();
   await testDestroy();
   testEvalParent();
+  testPermissions();
 })().then(common.mustCall());
