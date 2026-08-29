@@ -24,6 +24,7 @@
   abseil = pkgs.abseil-cpp;
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
+  highway = pkgs.libhwy;
   http-parser = pkgs.llhttp;
   nghttp2 = pkgs.nghttp2.overrideAttrs {
     version = "1.69.0";
