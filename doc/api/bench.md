@@ -11,7 +11,8 @@ added: REPLACEME
 <!-- source_link=lib/bench.js -->
 
 The `node:bench` module supports defining and running JavaScript benchmarks in
-the current process. To access it:
+the current process, and running one benchmark file in a fresh child process.
+To access it:
 
 ```mjs
 import { bench, suite } from 'node:bench';
@@ -496,6 +497,51 @@ for await (const { type, data } of run()) {
   }
 }
 ```
+
+## `runFile(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string} The absolute path of one benchmark module.
+* `options` {Object}
+  * `env` {Object} The child process environment. Property values must be
+    strings or `undefined`. This replaces, rather than extends, the parent
+    environment. **Default:** A snapshot of `process.env`.
+  * `execArgv` {string\[]} Node.js command-line options for the child process.
+    This replaces, rather than extends, inherited options. Benchmark runner
+    options, positional arguments, and options that select another execution
+    mode are not allowed. **Default:** Compatible options inherited from the
+    current process.
+  * `signal` {AbortSignal} Terminates the child process when aborted.
+* Returns: {BenchmarksStream}
+
+Runs exactly one benchmark module in a fresh child process and returns its
+object-mode event stream. `path` is not interpreted as a glob. Unless the signal
+is aborted or the stream is destroyed before startup, every call uses a new
+child. Input discovery, ordering, concurrency, retries, and multi-file
+scheduling remain the caller's responsibility.
+
+Records use advanced child process serialization, preserving supported
+structured values such as `bigint` and errors. Child writes to stdout and stderr
+become `'bench:diagnostic'` records. A module loading error, abnormal child exit,
+or cancellation also emits an error diagnostic and produces a terminal
+`'bench:summary'` whose `success` property is `false`; these execution failures
+do not error the stream. If module evaluation fails after declaring benchmarks,
+those declarations still run before the unsuccessful summary.
+
+`env`, effective inherited options, and an explicitly provided `execArgv` are
+copied when `runFile()` is called. The runner removes `NODE_OPTIONS`, replaces
+IPC-related environment variables, and sets its private child-context, run
+identity, and file identity variables, overriding properties with those names
+in `env`. Pass child Node.js options through `execArgv`, not `NODE_OPTIONS`.
+Standard `child_process` environment propagation still applies, including
+`NODE_V8_COVERAGE`, permission-model options, and required z/OS variables.
+Aborting `signal` before the child starts produces an `AbortError` diagnostic
+without spawning it. Aborting during execution sends `SIGTERM` to the child and
+escalates to `SIGKILL` if it does not exit. Destroying the returned stream
+follows the same termination procedure.
 
 ## Class: `BenchContext`
 
