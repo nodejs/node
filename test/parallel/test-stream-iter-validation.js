@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const { Writable } = require('stream');
 const {
-  from, fromSync, pull, pullSync, pipeTo, fromWritable,
+  from, fromSync, pull, pullSync, pipeTo, fromReadable, fromWritable,
   push, duplex, broadcast, Broadcast, share, shareSync,
   Share, SyncShare,
   bytes, bytesSync, text, textSync,
@@ -189,6 +189,15 @@ assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG
 
 // Broadcast.from rejects non-streamable input
 assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
+
+assert.throws(
+  () => fromWritable({ write() {}, on() {} }),
+  { code: 'ERR_INVALID_ARG_TYPE' },
+);
+assert.throws(
+  () => fromReadable({ read() {}, on() {} }),
+  { code: 'ERR_INVALID_ARG_TYPE' },
+);
 
 // fromWritable Writer options.signal must be AbortSignal
 {
