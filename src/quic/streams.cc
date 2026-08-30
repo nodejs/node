@@ -1648,10 +1648,9 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
   FlushAccumulation();
   set_final_size(maybe_final_size.value_or(STAT_GET(Stats, bytes_received)));
   inbound_->cap(STAT_GET(Stats, final_size));
-  // Notify the JS reader so it can see EOS. Pass fin=true so the
-  // wakeup promise resolves with a value the iterator can check to
-  // avoid waiting for another wakeup that will never come.
-  if (reader_) reader_->NotifyPull(true);
+  // Notify the JS reader so it can see EOS. The subsequent pull observes
+  // the now-capped DataQueue and returns EOS.
+  if (reader_) reader_->NotifyPull();
 }
 
 void Stream::Destroy(QuicError error) {
