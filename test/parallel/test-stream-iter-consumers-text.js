@@ -143,17 +143,17 @@ function testTextSyncUnsupportedEncodingThrowsRangeError() {
   );
 }
 
-async function testTextNonStringEncodingThrowsTypeError() {
+async function testTextConvertedEncodingThrowsRangeError() {
   await assert.rejects(
     () => text(from('hello'), { encoding: 1 }),
-    { code: 'ERR_INVALID_ARG_TYPE' },
+    { code: 'ERR_INVALID_ARG_VALUE' },
   );
 }
 
-function testTextSyncNonStringEncodingThrowsTypeError() {
+function testTextSyncConvertedEncodingThrowsRangeError() {
   assert.throws(
     () => textSync(fromSync('hello'), { encoding: 1 }),
-    { code: 'ERR_INVALID_ARG_TYPE' },
+    { code: 'ERR_INVALID_ARG_VALUE' },
   );
 }
 
@@ -173,6 +173,6 @@ Promise.all([
   testTextSyncBOMStripped(),
   testTextUnsupportedEncodingThrowsRangeError(),
   testTextSyncUnsupportedEncodingThrowsRangeError(),
-  testTextNonStringEncodingThrowsTypeError(),
-  testTextSyncNonStringEncodingThrowsTypeError(),
+  testTextConvertedEncodingThrowsRangeError(),
+  testTextSyncConvertedEncodingThrowsRangeError(),
 ]).then(common.mustCall());
