@@ -99,16 +99,16 @@ assert.throws(() => duplex({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
   const [a, b] = duplex({ budget: Number.MAX_SAFE_INTEGER });
   assert.strictEqual(a.writer.canWrite, true);
   assert.strictEqual(b.writer.canWrite, true);
-  a.close();
-  b.close();
+  a.writer.endSync();
+  b.writer.endSync();
 }
 // Per-direction overrides
 {
   const [a, b] = duplex({ a: { budget: 16384 }, b: { budget: 32768 } });
   assert.strictEqual(a.writer.canWrite, true);
   assert.strictEqual(b.writer.canWrite, true);
-  a.close();
-  b.close();
+  a.writer.endSync();
+  b.writer.endSync();
 }
 
 assert.throws(() => duplex({ signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
@@ -397,8 +397,8 @@ async function testAsyncValidation() {
 // Duplex with valid options
 {
   const [a, b] = duplex({ budget: 16384 });
-  a.close();
-  b.close();
+  a.writer.endSync();
+  b.writer.endSync();
 }
 
 // Broadcast with valid options
