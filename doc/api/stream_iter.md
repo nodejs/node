@@ -619,7 +619,8 @@ added:
 * `...transforms` {Function|Object} Zero or more transforms to apply.
 * `writer` {Object} Destination with `write(chunk)` method.
 * `options` {Object}
-  * `signal` {AbortSignal} Abort the pipeline.
+  * `signal` {AbortSignal} Abort the pipeline. Aborting fails the destination
+    writer unless `preventFail` is `true`.
   * `preventClose` {boolean} If `true`, do not call `writer.end()` when
     the source ends. **Default:** `false`.
   * `preventFail` {boolean} If `true`, do not call `writer.fail()` on
