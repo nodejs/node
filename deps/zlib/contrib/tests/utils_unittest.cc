@@ -19,7 +19,16 @@
 #include "third_party/zlib/contrib/minizip/zip.h"
 #endif
 
+#include "compare256.h"
 #include "zlib.h"
+
+// Some tests are for little endian optimizations and should be skipped if
+// running on big endian.
+#if !defined(__BYTE_ORDER__) || __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define ZLIB_TEST_LITTLE_ENDIAN 1
+#else
+#define ZLIB_TEST_LITTLE_ENDIAN 0
+#endif
 
 void TestPayloads(size_t input_size, zlib_internal::WrapperType type,
                   const int compression_level = Z_DEFAULT_COMPRESSION) {
@@ -1473,6 +1482,34 @@ TEST(ZlibTest, Crbug500521311) {
   EXPECT_EQ(std::string(buf), "evil.exe");
   EXPECT_EQ(unzGoToNextFile(uzf), UNZ_END_OF_LIST_OF_FILE);
   EXPECT_EQ(unzClose(uzf), UNZ_OK);
+}
+
+// compare256() returns the number of equal leading bytes. The buffers are
+// exactly the 256 bytes it may read, so ASan traps any over-read.
+TEST(ZlibTest, Compare256) {
+  if (!ZLIB_TEST_LITTLE_ENDIAN) {
+    GTEST_SKIP() << "compare256() is little-endian only";
+  }
+  for (int equal = 0; equal <= 256; ++equal) {
+    std::vector<unsigned char> a(256, 'a'), b(256, 'a');
+    if (equal < 256)
+      b[equal] = 'b';
+    EXPECT_EQ(compare256(a.data(), b.data()), equal);
+  }
+}
+
+// longest_match() computes 2 + compare256(scan + 2, match + 2), the first two
+// bytes being known equal, so a match must still reach MAX_MATCH (258).
+TEST(ZlibTest, Compare256ReachesMaxMatch) {
+  if (!ZLIB_TEST_LITTLE_ENDIAN) {
+    GTEST_SKIP() << "compare256() is little-endian only";
+  }
+  for (int match_len = 250; match_len <= 258; ++match_len) {
+    std::vector<unsigned char> a(258, 'a'), b(258, 'a');
+    if (match_len < 258)
+      b[match_len] = 'b';
+    EXPECT_EQ(2 + compare256(a.data() + 2, b.data() + 2), match_len);
+  }
 }
 
 #endif
