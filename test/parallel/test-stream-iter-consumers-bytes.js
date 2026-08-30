@@ -101,6 +101,31 @@ async function testAsyncConsumersAbortPendingNormalization() {
   }
 }
 
+async function testAsyncConsumerSignalPreservesProtocolPrecedence() {
+  let protocolCalls = 0;
+  let iteratorCalls = 0;
+  const source = {
+    __proto__: null,
+    [toAsyncStreamable]() {
+      protocolCalls++;
+      return from('protocol');
+    },
+    async *[Symbol.asyncIterator]() {
+      iteratorCalls++;
+      yield 'iterator';
+    },
+  };
+
+  const result = await text(source, {
+    __proto__: null,
+    signal: new AbortController().signal,
+  });
+
+  assert.strictEqual(result, 'protocol');
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 0);
+}
+
 async function testBytesEmpty() {
   const data = await bytes(from([]));
   assert.ok(data instanceof Uint8Array);
@@ -255,6 +280,7 @@ Promise.all([
   testBytesAsyncAbort(),
   testAsyncConsumersAbortPendingNext(),
   testAsyncConsumersAbortPendingNormalization(),
+  testAsyncConsumerSignalPreservesProtocolPrecedence(),
   testBytesEmpty(),
   testArrayBufferSyncBasic(),
   testArrayBufferAsync(),
