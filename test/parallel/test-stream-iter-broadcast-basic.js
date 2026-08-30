@@ -350,6 +350,18 @@ async function testLateJoinerSeesBufferedData() {
   assert.strictEqual(result, 'before-join');
 }
 
+async function testLateJoinerAfterDetachSeesBufferedData() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const first = bc.push()[Symbol.asyncIterator]();
+
+  writer.writeSync('before-detach');
+  await first.return();
+
+  const second = bc.push();
+  writer.endSync();
+  assert.strictEqual(await text(second), 'before-detach');
+}
+
 async function testOverlappingNextKeepsEarlierRead() {
   const { writer, broadcast: bc } = broadcast();
   const it = bc.push()[Symbol.asyncIterator]();
@@ -403,5 +415,6 @@ Promise.all([
   testFailDetachesConsumers(),
   testWriterFailIdempotent(),
   testLateJoinerSeesBufferedData(),
+  testLateJoinerAfterDetachSeesBufferedData(),
   testOverlappingNextKeepsEarlierRead(),
 ]).then(common.mustCall());
