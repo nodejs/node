@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { broadcast, text } = require('stream/iter');
+const { broadcast, ondrain, text } = require('stream/iter');
 
 // =============================================================================
 // Backpressure policies
@@ -45,6 +45,36 @@ async function testDropNewest() {
 
   const data = await text(consumer);
   assert.strictEqual(data, 'K'.repeat(16384));
+}
+
+async function testDropPoliciesReportPhysicalCapacity() {
+  const chunk = new Uint8Array(16384);
+
+  for (const backpressure of ['drop-oldest', 'drop-newest']) {
+    const { writer, broadcast: bc } = broadcast({
+      budget: chunk.byteLength,
+      backpressure,
+    });
+    const iterator = bc.push()[Symbol.asyncIterator]();
+
+    assert.strictEqual(writer.writeSync(chunk), true);
+    assert.strictEqual(writer.canWrite, false);
+
+    let drained = false;
+    const drain = ondrain(writer);
+    drain.then(common.mustCall(() => { drained = true; }));
+
+    // Drop policies still accept writes despite having no physical capacity.
+    assert.strictEqual(writer.writeSync(chunk), true);
+    assert.strictEqual(writer.canWrite, false);
+    await new Promise(setImmediate);
+    assert.strictEqual(drained, false);
+
+    assert.strictEqual((await iterator.next()).done, false);
+    assert.strictEqual(await drain, true);
+    assert.strictEqual(writer.canWrite, true);
+    bc.cancel();
+  }
 }
 
 // =============================================================================
@@ -269,6 +299,7 @@ async function testEndSyncReturnValue() {
 Promise.all([
   testDropOldest(),
   testDropNewest(),
+  testDropPoliciesReportPhysicalCapacity(),
   testBlockBackpressure(),
   testBlockBackpressureContent(),
   testStrictBackpressureOverflow(),
