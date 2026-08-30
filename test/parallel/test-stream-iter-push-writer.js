@@ -324,6 +324,21 @@ async function testEndSignalAbortWhileDraining() {
   assert.strictEqual(await completedEnd, 5);
 }
 
+async function testFactorySignalAbortWhileDraining() {
+  const controller = new AbortController();
+  const reason = new Error('stream aborted while draining');
+  const { writer, readable } = push({ signal: controller.signal });
+
+  writer.writeSync('hello');
+  const end = writer.end();
+  const endRejected = assert.rejects(end, (error) => error === reason);
+  controller.abort(reason);
+
+  await endRejected;
+  await assert.rejects(text(readable), (error) => error === reason);
+  await assert.rejects(writer.end(), (error) => error === reason);
+}
+
 async function testEndAfterEndSyncWaitsForDrain() {
   const { writer, readable } = push();
   writer.writeSync('hello');
@@ -634,6 +649,7 @@ Promise.all([
   testEndAsyncReturnValue(),
   testEndWithPreAbortedSignal(),
   testEndSignalAbortWhileDraining(),
+  testFactorySignalAbortWhileDraining(),
   testEndAfterEndSyncWaitsForDrain(),
   testWriteUint8Array(),
   testOndrainWaitsForDrain(),
