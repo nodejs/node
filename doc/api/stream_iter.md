@@ -1583,8 +1583,9 @@ added:
 
 > Stability: 1 - Experimental
 
-* `readable` {stream.Readable|Object} A classic Readable stream or any object
-  with `read()`, `on()`, and `off()` methods.
+* `readable` {stream.Readable|Object} A classic Readable stream or a compatible
+  object with `read()`, `pipe()`, `destroy()`, `on()`, and `removeListener()`
+  methods.
 * Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
 Converts a classic Readable stream (or duck-typed equivalent) into a
@@ -1593,8 +1594,8 @@ stream/iter async iterable source that can be passed to [`from()`][],
 
 If the object implements the [`toAsyncStreamable`][] protocol (as
 `stream.Readable` does), that protocol is used. Otherwise, the function
-duck-types on `read()`, `on()`, and `off()` (EventEmitter) and wraps the
-stream with a batched async iterator.
+duck-types on `read()`, `pipe()`, `destroy()`, `on()`, and `removeListener()`
+(EventEmitter) and wraps the stream with a batched async iterator.
 
 The result is cached per instance -- calling `fromReadable()` twice with the
 same stream returns the same iterable.
@@ -1639,13 +1640,14 @@ added:
 
 > Stability: 1 - Experimental
 
-* `writable` {stream.Writable|Object} A classic Writable stream or any object
-  with `write()` and `on()` methods.
+* `writable` {stream.Writable|Object} A classic Writable stream or a compatible
+  object with `write()`, `end()`, `destroy()`, `on()`, and `removeListener()`
+  methods.
 * `options` {Object}
   * `backpressure` {string} Backpressure policy. **Default:** `'strict'`.
-    * `'strict'` -- writes are rejected when the buffer is full. Catches
-      callers that ignore backpressure.
-    * `'unbounded'` -- writes wait for drain when the buffer is full. Recommended
+    * `'strict'` -- one write may wait while the buffer is full. Further writes
+      are rejected until it is accepted or canceled.
+    * `'unbounded'` -- writes are queued while the buffer is full. Recommended
       for use with [`pipeTo()`][].
     * `'drop-newest'` -- writes are silently discarded when the buffer is full.
     * `'drop-oldest'` -- **not supported**. Throws `ERR_INVALID_ARG_VALUE`.
@@ -1657,8 +1659,9 @@ destination.
 
 Since all writes on a classic Writable are fundamentally asynchronous,
 the synchronous Writer methods (`writeSync`, `writevSync`, `endSync`) always
-return `false` or `-1`, deferring to the async path. The per-write
-`options.signal` parameter from the Writer interface is also ignored.
+return `false` or `-1`, deferring to the async path. A queued `write()` or
+`writev()` can be canceled with its `options.signal` before it reaches the
+classic Writable.
 
 If `writer.fail(reason)` receives a non-Error reason, the classic Writable is
 destroyed with an `ERR_FALSY_VALUE_REJECTION` or `ERR_OPERATION_FAILED` error.
@@ -1816,6 +1819,10 @@ Classic stream callbacks cannot represent arbitrary values as errors. A
 non-Error reason is wrapped in an `ERR_FALSY_VALUE_REJECTION` or
 `ERR_OPERATION_FAILED` error before it is passed to the callback. The error's
 `reason` property contains the original value.
+
+Destroying the Writable before successful completion calls `writer.fail()`.
+If `fail()` is unavailable, `Symbol.dispose` or `Symbol.asyncDispose` is used
+when implemented by the Writer.
 
 The Writable uses the default classic stream `highWaterMark`. Classic stream
 backpressure bounds writes waiting to reach the underlying Writer, while the
