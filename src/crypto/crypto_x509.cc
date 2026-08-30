@@ -13,6 +13,7 @@
 
 #include <array>
 #include <limits>
+#include <numeric>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -55,17 +56,94 @@ using v8::Value;
 
 namespace crypto {
 
-ManagedX509::ManagedX509(X509Pointer&& cert) : cert_(std::move(cert)) {}
+namespace {
 
-ManagedX509::ManagedX509(const ManagedX509& that) {
-  *this = that;
+std::optional<X509CertificateSnapshot::DER> EncodeCertificate(
+    const X509View& cert) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (!cert) return std::nullopt;
+
+  const int size = i2d_X509(cert.get(), nullptr);
+  if (size <= 0) return std::nullopt;
+
+  X509CertificateSnapshot::DER der(static_cast<size_t>(size));
+  unsigned char* cursor = der.data();
+  if (i2d_X509(cert.get(), &cursor) != size ||
+      cursor != der.data() + der.size()) {
+    return std::nullopt;
+  }
+  return der;
 }
 
-ManagedX509& ManagedX509::operator=(const ManagedX509& that) {
-  cert_.reset(that.get());
-  if (cert_) [[likely]]
-    X509_up_ref(cert_.get());
-  return *this;
+X509Pointer ParseCertificate(const X509CertificateSnapshot::DER& certificate) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  constexpr size_t kMaximumCertificateSize = static_cast<size_t>(
+      std::numeric_limits<long>::max());  // NOLINT(runtime/int)
+  if (certificate.empty() || certificate.size() > kMaximumCertificateSize) {
+    return {};
+  }
+
+  const unsigned char* cursor = certificate.data();
+  const unsigned char* const end = cursor + certificate.size();
+  X509Pointer cert(
+      d2i_X509(nullptr,
+               &cursor,
+               static_cast<long>(certificate.size())));  // NOLINT(runtime/int)
+  if (!cert || cursor != end) return {};
+  return cert;
+}
+
+}  // namespace
+
+ManagedX509::ManagedX509(X509Pointer cert) : cert_(std::move(cert)) {}
+
+std::shared_ptr<ManagedX509> ManagedX509::Adopt(X509Pointer cert) {
+  if (!cert) return {};
+  return std::shared_ptr<ManagedX509>(new ManagedX509(std::move(cert)));
+}
+
+X509CertificateSnapshot::X509CertificateSnapshot(std::vector<DER> certificates)
+    : certificates_(std::move(certificates)) {}
+
+std::shared_ptr<const X509CertificateSnapshot> X509CertificateSnapshot::Create(
+    X509View leaf,
+    const STACK_OF(X509) * issuer_chain,
+    OPENSSL_SIZE_T issuers_start) {
+  auto leaf_der = EncodeCertificate(leaf);
+  if (!leaf_der.has_value()) return {};
+
+  const OPENSSL_SIZE_T count =
+      issuer_chain == nullptr ? 0 : sk_X509_num(issuer_chain);
+  std::vector<DER> certificates;
+  certificates.reserve(static_cast<size_t>(count) + 1);
+  certificates.push_back(std::move(leaf_der.value()));
+  for (OPENSSL_SIZE_T i = issuers_start; i < count; i++) {
+    const X509View candidate(sk_X509_value(issuer_chain, i));
+    auto candidate_der = EncodeCertificate(candidate);
+    if (!candidate_der.has_value()) return {};
+    certificates.push_back(std::move(candidate_der.value()));
+  }
+
+  return std::shared_ptr<const X509CertificateSnapshot>(
+      new X509CertificateSnapshot(std::move(certificates)));
+}
+
+X509Pointer X509CertificateSnapshot::Parse(size_t index) const {
+  if (index >= certificates_.size()) return {};
+  return ParseCertificate(certificates_[index]);
+}
+
+size_t X509CertificateSnapshot::size_bytes() const {
+  return std::accumulate(certificates_.begin(),
+                         certificates_.end(),
+                         size_t{0},
+                         [](size_t total, const DER& certificate) {
+                           return total + certificate.size();
+                         });
+}
+
+void X509CertificateSnapshot::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("certificates", size_bytes());
 }
 
 void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
@@ -947,9 +1025,25 @@ void X509Certificate::NewFromHandle(const FunctionCallbackInfo<Value>& args) {
     if (!result.value) [[unlikely]] {
       return ThrowCryptoError(env, result.error.value_or(0));
     }
+
+    auto snapshot = X509CertificateSnapshot::Create(result.value.view());
+    if (!snapshot) [[unlikely]] {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to snapshot X.509 certificate");
+      return;
+    }
+
+    auto parsed = snapshot->Parse(0);
+    if (!parsed) [[unlikely]] {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Failed to parse X.509 certificate snapshot");
+      return;
+    }
     new X509Certificate(env,
                         args.This(),
-                        std::make_shared<ManagedX509>(std::move(result.value)));
+                        ManagedX509::Adopt(std::move(parsed)),
+                        std::move(snapshot),
+                        0);
     return;
   }
 
@@ -963,7 +1057,12 @@ void X509Certificate::NewFromHandle(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(handle);
   Local<Object> issuer;
   if (handle->issuer_cert_) issuer = handle->issuer_cert_->object();
-  new X509Certificate(env, args.This(), handle->cert_, issuer);
+  new X509Certificate(env,
+                      args.This(),
+                      handle->cert_,
+                      handle->snapshot_,
+                      handle->snapshot_index_,
+                      issuer);
 }
 
 void X509Certificate::CreateX509CertificateClass(
@@ -1002,50 +1101,95 @@ void X509Certificate::IsX509Certificate(
 
 MaybeLocal<Object> X509Certificate::New(Environment* env,
                                         X509Pointer cert,
-                                        const STACK_OF(X509) * issuer_chain) {
-  std::shared_ptr<ManagedX509> mcert(new ManagedX509(std::move(cert)));
-  return New(env, std::move(mcert), issuer_chain);
+                                        const STACK_OF(X509) * issuer_chain,
+                                        OPENSSL_SIZE_T issuers_start) {
+  if (!cert) return {};
+
+  auto snapshot =
+      X509CertificateSnapshot::Create(cert.view(), issuer_chain, issuers_start);
+  if (!snapshot) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                      "Failed to snapshot X.509 certificate");
+    return {};
+  }
+
+  // Keep the live certificate independent from the backend object that was
+  // serialized while creating the immutable snapshot. Some backends populate
+  // or invalidate lazy caches while encoding malformed-but-parseable input.
+  auto parsed = snapshot->Parse(0);
+  if (!parsed) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to parse X.509 certificate snapshot");
+    return {};
+  }
+  return New(env, ManagedX509::Adopt(std::move(parsed)), std::move(snapshot));
 }
 
-MaybeLocal<Object> X509Certificate::New(Environment* env,
-                                        std::shared_ptr<ManagedX509> cert,
-                                        const STACK_OF(X509) * issuer_chain) {
-  return NewWithIssuers(env, std::move(cert), issuer_chain, 0);
-}
-
-MaybeLocal<Object> X509Certificate::NewWithIssuers(
+MaybeLocal<Object> X509Certificate::New(
     Environment* env,
     std::shared_ptr<ManagedX509> cert,
-    const STACK_OF(X509) * issuer_chain,
-    int start) {
+    std::shared_ptr<const X509CertificateSnapshot> snapshot,
+    size_t snapshot_index) {
+  CHECK(cert);
+  CHECK(snapshot);
+  CHECK_LT(snapshot_index, snapshot->size());
+
   EscapableHandleScope scope(env->isolate());
+  Local<Context> context = env->context();
+  Local<Object> issuer;
+
+  for (size_t i = snapshot->size(); i > snapshot_index + 1; i--) {
+    const size_t index = i - 1;
+    auto parsed = snapshot->Parse(index);
+    if (!parsed) [[unlikely]] {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Failed to parse X.509 certificate snapshot");
+      return {};
+    }
+
+    Local<Object> issuer_object;
+    if (!GetConstructorTemplate(env)
+             ->InstanceTemplate()
+             ->NewInstance(context)
+             .ToLocal(&issuer_object)) {
+      return {};
+    }
+    new X509Certificate(env,
+                        issuer_object,
+                        ManagedX509::Adopt(std::move(parsed)),
+                        snapshot,
+                        index,
+                        issuer);
+    issuer = issuer_object;
+  }
+
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
-           ->NewInstance(env->context())
+           ->NewInstance(context)
            .ToLocal(&obj)) {
-    return MaybeLocal<Object>();
+    return {};
   }
-
-  Local<Object> issuer;
-  if (issuer_chain != nullptr &&
-      static_cast<OPENSSL_SIZE_T>(start) < sk_X509_num(issuer_chain)) {
-    X509Pointer issuer_cert =
-        X509View(sk_X509_value(issuer_chain, start)).clone();
-    if (!issuer_cert) [[unlikely]] {
-      return MaybeLocal<Object>();
-    }
-    if (!NewWithIssuers(env,
-                        std::make_shared<ManagedX509>(std::move(issuer_cert)),
-                        issuer_chain,
-                        start + 1)
-             .ToLocal(&issuer)) [[unlikely]] {
-      return MaybeLocal<Object>();
-    }
-  }
-
-  new X509Certificate(env, obj, std::move(cert), issuer);
+  new X509Certificate(
+      env, obj, std::move(cert), std::move(snapshot), snapshot_index, issuer);
   return scope.Escape(obj);
+}
+
+MaybeLocal<Object> X509Certificate::New(
+    Environment* env,
+    std::shared_ptr<const X509CertificateSnapshot> snapshot,
+    size_t snapshot_index) {
+  if (!snapshot || snapshot_index >= snapshot->size()) return {};
+  auto cert = snapshot->Parse(snapshot_index);
+  if (!cert) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to parse X.509 certificate snapshot");
+    return {};
+  }
+  return New(env,
+             ManagedX509::Adopt(std::move(cert)),
+             std::move(snapshot),
+             snapshot_index);
 }
 
 MaybeLocal<Object> X509Certificate::GetCert(Environment* env,
@@ -1064,26 +1208,25 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
   // The peer chain is owned by the SSL session and must not be modified. Its
   // first entry is the peer certificate on the client but not on the server.
   const STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(ssl.get());
-  int issuers_start = 0;
+  OPENSSL_SIZE_T issuers_start = 0;
 
   X509Pointer cert;
   if ((flag & GetPeerCertificateFlag::SERVER) ==
       GetPeerCertificateFlag::SERVER) {
     cert = X509Pointer::PeerFrom(ssl);
   }
+
+  if (!cert && (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0))
+    return MaybeLocal<Object>();
+
   if (!cert) {
-    if (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0)
-      return MaybeLocal<Object>();
-    cert = X509View(sk_X509_value(ssl_certs, 0)).clone();
-    if (!cert) [[unlikely]]
-      return MaybeLocal<Object>();
+    const X509* leaf = sk_X509_value(ssl_certs, 0);
+    if (leaf != nullptr) cert = X509View(leaf).clone();
     issuers_start = 1;
   }
 
-  return NewWithIssuers(env,
-                        std::make_shared<ManagedX509>(std::move(cert)),
-                        ssl_certs,
-                        issuers_start);
+  if (!cert) return {};
+  return New(env, std::move(cert), ssl_certs, issuers_start);
 }
 
 v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env) {
@@ -1097,11 +1240,17 @@ v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env,
   return X509ToObject(env, cert).FromMaybe(Local<Value>());
 }
 
-X509Certificate::X509Certificate(Environment* env,
-                                 Local<Object> object,
-                                 std::shared_ptr<ManagedX509> cert,
-                                 Local<Object> issuer_chain)
-    : BaseObject(env, object), cert_(std::move(cert)) {
+X509Certificate::X509Certificate(
+    Environment* env,
+    Local<Object> object,
+    std::shared_ptr<ManagedX509> cert,
+    std::shared_ptr<const X509CertificateSnapshot> snapshot,
+    size_t snapshot_index,
+    Local<Object> issuer_chain)
+    : BaseObject(env, object),
+      cert_(std::move(cert)),
+      snapshot_(std::move(snapshot)),
+      snapshot_index_(snapshot_index) {
   MakeWeak();
 
   if (!issuer_chain.IsEmpty()) {
@@ -1111,6 +1260,12 @@ X509Certificate::X509Certificate(Environment* env,
 
 void X509Certificate::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("cert", cert_);
+  tracker->TrackField("snapshot", snapshot_);
+}
+
+void X509Certificate::X509CertificateTransferData::MemoryInfo(
+    MemoryTracker* tracker) const {
+  tracker->TrackField("snapshot", snapshot_);
 }
 
 BaseObjectPtr<BaseObject>
@@ -1124,7 +1279,7 @@ X509Certificate::X509CertificateTransferData::Deserialize(
   }
 
   Local<Value> handle;
-  if (!X509Certificate::New(env, data_).ToLocal(&handle))
+  if (!X509Certificate::New(env, snapshot_, snapshot_index_).ToLocal(&handle))
     return {};
 
   Local<Value> module =
@@ -1157,7 +1312,8 @@ BaseObject::TransferMode X509Certificate::GetTransferMode() const {
 
 std::unique_ptr<worker::TransferData> X509Certificate::CloneForMessaging()
     const {
-  return std::make_unique<X509CertificateTransferData>(cert_);
+  return std::make_unique<X509CertificateTransferData>(snapshot_,
+                                                       snapshot_index_);
 }
 
 void X509Certificate::Initialize(Environment* env, Local<Object> target) {
