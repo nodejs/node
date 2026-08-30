@@ -20,10 +20,44 @@ const issuer = new X509Certificate(fixtures.readKey('ca3-cert.pem'));
 function assertChain(actual) {
   assert(actual instanceof X509Certificate);
   assert.deepStrictEqual(actual.raw, leaf.raw);
+  assertInspection(actual, leaf);
   assert.strictEqual(actual.issuerCertificate, actual.issuerCertificate);
   assert(actual.issuerCertificate instanceof X509Certificate);
   assert.deepStrictEqual(actual.issuerCertificate.raw, issuer.raw);
+  assertInspection(actual.issuerCertificate, issuer);
   assert.strictEqual(actual.issuerCertificate.issuerCertificate, undefined);
+}
+
+function assertInspection(actual, expected) {
+  assert.strictEqual(actual.version, expected.version);
+
+  const subjectName = actual.subjectName;
+  const issuerName = actual.issuerName;
+  const extensions = actual.extensions;
+  const tbs = actual.tbs;
+  const signature = actual.signature;
+
+  assert.deepStrictEqual(subjectName, expected.subjectName);
+  assert.deepStrictEqual(issuerName, expected.issuerName);
+  assert.deepStrictEqual(extensions, expected.extensions);
+  assert.deepStrictEqual(tbs, expected.tbs);
+  assert.deepStrictEqual(signature, expected.signature);
+
+  subjectName.raw.fill(0);
+  issuerName.raw.fill(0);
+  for (const extension of extensions) extension.value.fill(0);
+  subjectName.rdns.length = 0;
+  issuerName.rdns.length = 0;
+  extensions.length = 0;
+  tbs.fill(0);
+  signature.value.fill(0);
+  signature.algorithm.parameters?.fill(0);
+
+  assert.deepStrictEqual(actual.subjectName, expected.subjectName);
+  assert.deepStrictEqual(actual.issuerName, expected.issuerName);
+  assert.deepStrictEqual(actual.extensions, expected.extensions);
+  assert.deepStrictEqual(actual.tbs, expected.tbs);
+  assert.deepStrictEqual(actual.signature, expected.signature);
 }
 
 function legacyChainRaw(certificate) {
