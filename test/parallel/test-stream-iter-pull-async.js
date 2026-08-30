@@ -49,6 +49,19 @@ async function testPullStatefulTransform() {
   assert.strictEqual(data, 'data-ASYNC-END');
 }
 
+async function testPullStatefulTransformReceiver() {
+  const descriptor = {};
+  descriptor.transform = common.mustCall(
+    async function*(source) {
+      assert.strictEqual(this, descriptor);
+      for await (const chunks of source) {
+        yield chunks;
+      }
+    });
+
+  assert.strictEqual(await text(pull(from('receiver'), descriptor)), 'receiver');
+}
+
 async function testPullWithAbortSignal() {
   async function* gen() {
     yield [new Uint8Array([1])];
@@ -511,6 +524,7 @@ async function testTransformOptionsNotShared() {
     testPullIdentity(),
     testPullStatelessTransform(),
     testPullStatefulTransform(),
+    testPullStatefulTransformReceiver(),
     testPullWithAbortSignal(),
     testPullNormalizesSourceAtCallTime(),
     testPullPreAbortOrdering(),
