@@ -140,8 +140,7 @@ async function testMultiConsumerProtocolsSnapshotMethods() {
   const broadcastTarget = broadcast().broadcast;
   const broadcastFixture = protocolFixture(
     broadcastProtocol, broadcastTarget);
-  assert.strictEqual(
-    Broadcast.from(broadcastFixture.input).broadcast, broadcastTarget);
+  assert.strictEqual(Broadcast.from(broadcastFixture.input), broadcastTarget);
   assert.strictEqual(broadcastFixture.accesses, 1);
 
   const shareTarget = share('abc');
