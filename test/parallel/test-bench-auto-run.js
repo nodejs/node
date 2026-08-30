@@ -14,9 +14,7 @@ const child = spawnSync(process.execPath, [
 assert.strictEqual(child.status, 1);
 
 const completion = bench('automatic execution', common.mustCall((b) => {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
+  b.record({ duration_ns: 1n, operations: 1 });
 }, 30));
 
 completion.then(common.mustCall((result) => {
