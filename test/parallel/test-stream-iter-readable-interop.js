@@ -7,6 +7,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { Readable } = require('stream');
+const { setImmediate } = require('timers/promises');
 const {
   from,
   pull,
@@ -588,6 +589,38 @@ async function testAbortSignal() {
   assert.ok(chunks.length >= 2);
 }
 
+async function testReturnWhileReadIsPending() {
+  const readable = new Readable({ read() {} });
+  const iterator = from(readable)[Symbol.asyncIterator]();
+  const pending = iterator.next();
+  await setImmediate();
+
+  assert.deepStrictEqual(await iterator.return('stopped'), {
+    value: 'stopped',
+    done: true,
+  });
+  assert.deepStrictEqual(await pending, { value: undefined, done: true });
+  await setImmediate();
+  assert.strictEqual(readable.destroyed, true);
+  assert.strictEqual(readable.listenerCount('readable'), 0);
+}
+
+async function testAbortWhileReadIsPending() {
+  const readable = new Readable({ read() {} });
+  const controller = new AbortController();
+  const iterator = pull(readable, {
+    signal: controller.signal,
+  })[Symbol.asyncIterator]();
+  const pending = iterator.next();
+  await setImmediate();
+
+  controller.abort();
+  await assert.rejects(pending, { name: 'AbortError' });
+  await setImmediate();
+  assert.strictEqual(readable.destroyed, true);
+  assert.strictEqual(readable.listenerCount('readable'), 0);
+}
+
 // =============================================================================
 // kValidatedSource identity - from() returns same object for validated sources
 // =============================================================================
@@ -637,4 +670,6 @@ Promise.all([
   testDuplexStream(),
   testSetEncodingDynamic(),
   testAbortSignal(),
+  testReturnWhileReadIsPending(),
+  testAbortWhileReadIsPending(),
 ]).then(common.mustCall());
