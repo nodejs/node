@@ -24,7 +24,7 @@ The queue removes `lacks-second-approval` automatically when it removes
 `commit-queue`; collaborators do not need to remove it manually.
 
 Hard failures remove `commit-queue`, add `commit-queue-failed`, and post a
-comment with the actionable failure reason and retry instructions. Resolve the
+comment with the actionable failure reason and retry instructions. To resolve the
 failure, remove `commit-queue-failed`, and add `commit-queue` to retry.
 
 To make the Commit Queue squash all the commits of a pull request into the
