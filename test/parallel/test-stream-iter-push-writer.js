@@ -561,6 +561,23 @@ async function testAsyncDispose() {
   }
 }
 
+async function testAsyncDisposeWaitsAfterEndSync() {
+  const { writer, readable } = push({ budget: 16384 });
+  writer.writeSync('hello');
+  assert.strictEqual(writer.endSync(), -1);
+
+  let disposed = false;
+  const disposal = writer[Symbol.asyncDispose]().then(() => {
+    disposed = true;
+  });
+  await Promise.resolve();
+  assert.strictEqual(disposed, false);
+
+  assert.strictEqual(await text(readable), 'hello');
+  await disposal;
+  assert.strictEqual(disposed, true);
+}
+
 async function testSyncDispose() {
   const { writer, readable } = push({ budget: 16384 });
   writer.writeSync('hello');
@@ -666,5 +683,6 @@ Promise.all([
   testEndIdempotentWhenClosed(),
   testEndRejectsWhenErrored(),
   testAsyncDispose(),
+  testAsyncDisposeWaitsAfterEndSync(),
   testSyncDispose(),
 ]).then(common.mustCall());
