@@ -435,7 +435,11 @@ the write. Use [`ondrain()`][] to wait for capacity rather than polling.
     the pending `end()` call; it does not fail the writer itself.
 * Returns: {Promise} Fulfills with the total number of bytes written.
 
-Signals that no more data will be written and waits for buffered data to drain.
+Signals that no more data will be written. Writes already waiting for buffer
+space remain ordered before the end of the stream, while later writes fail. If
+data is outstanding, the returned promise fulfills after the consumer pulls
+`done: true` beyond the final batch. If no data is buffered or pending, the
+writer closes immediately.
 
 #### `writer.endSync()`
 

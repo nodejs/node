@@ -84,9 +84,9 @@ async function testWriteWithSignalRejects() {
   await assert.rejects(writePromise, { name: 'AbortError' });
 
   // Clean up
-  writer.end();
-  // eslint-disable-next-line no-unused-vars
-  for await (const _ of readable) { break; }
+  const end = writer.end();
+  await text(readable);
+  await end;
 }
 
 async function testWriteWithPreAbortedSignal() {
@@ -100,9 +100,10 @@ async function testWriteWithPreAbortedSignal() {
 
   // Writer should still be usable for other writes
   writer.write('ok');
-  writer.end();
+  const end = writer.end();
   const data = await text(readable);
   assert.strictEqual(data, 'ok');
+  await end;
 }
 
 async function testCancelledWriteRemovedFromQueue() {
@@ -127,7 +128,7 @@ async function testCancelledWriteRemovedFromQueue() {
   // The cancelled write should NOT occupy a pending slot.
   // A new write should succeed now that the buffer has room.
   await writer.write(kChunk);
-  writer.end();
+  const end = writer.end();
 
   const result = await iter.next();
   assert.ok(!result.done);
@@ -136,7 +137,8 @@ async function testCancelledWriteRemovedFromQueue() {
     totalBytes += chunk.byteLength;
   }
   assert.strictEqual(totalBytes, 16384);
-  await iter.return();
+  assert.strictEqual((await iter.next()).done, true);
+  await end;
 }
 
 async function testOndrainResolvesFalseOnConsumerBreak() {
@@ -505,28 +507,48 @@ async function testConsumerThrowRejectsPendingRead() {
   await readRejects;
 }
 
-// end() while writes are pending rejects those writes
-async function testEndRejectsPendingWrites() {
+// end() drains writes that were already pending, then waits for EOF to be read.
+async function testEndDrainsPendingWrites() {
   const kChunk = new Uint8Array(16384);
   const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   writer.writeSync(kChunk); // fill budget
 
   // This write blocks on backpressure
   const writePromise = writer.write(kChunk);
+  const endPromise = writer.end();
+  await assert.rejects(writer.write(kChunk), { code: 'ERR_INVALID_STATE' });
 
-  await new Promise(setImmediate);
+  let ended = false;
+  endPromise.then(common.mustCall(() => { ended = true; }));
+  const iterator = readable[Symbol.asyncIterator]();
 
-  // Ending should reject the pending write
-  writer.endSync();
+  assert.strictEqual((await iterator.next()).done, false);
+  await writePromise;
+  assert.strictEqual((await iterator.next()).done, false);
+  await Promise.resolve();
+  assert.strictEqual(ended, false);
 
-  await assert.rejects(
-    () => writePromise,
-    { code: 'ERR_INVALID_STATE' },
-  );
+  assert.strictEqual((await iterator.next()).done, true);
+  assert.strictEqual(await endPromise, kChunk.byteLength * 2);
+  assert.strictEqual(ended, true);
+}
 
-  // Clean up: drain the readable
-  // eslint-disable-next-line no-unused-vars
-  for await (const _ of readable) { break; }
+async function testEndWaitsForEofPull() {
+  const { writer, readable } = push();
+  writer.writeSync('hello');
+  const endPromise = writer.end();
+  let ended = false;
+  endPromise.then(common.mustCall(() => { ended = true; }));
+  const iterator = readable[Symbol.asyncIterator]();
+
+  const data = await iterator.next();
+  assert.strictEqual(data.done, false);
+  await Promise.resolve();
+  assert.strictEqual(ended, false);
+
+  assert.strictEqual((await iterator.next()).done, true);
+  await endPromise;
+  assert.strictEqual(ended, true);
 }
 
 async function testEndIdempotentWhenClosed() {
@@ -679,7 +701,8 @@ Promise.all([
   testConsumerReturnResolvesPendingRead(),
   testEndRejectsAfterConsumerReturn(),
   testConsumerThrowRejectsPendingRead(),
-  testEndRejectsPendingWrites(),
+  testEndDrainsPendingWrites(),
+  testEndWaitsForEofPull(),
   testEndIdempotentWhenClosed(),
   testEndRejectsWhenErrored(),
   testAsyncDispose(),
