@@ -783,7 +783,9 @@ added:
     **Default:** `16384`.
   * `backpressure` {string} Backpressure policy: `'strict'`, `'unbounded'`,
     `'drop-oldest'`, or `'drop-newest'`. **Default:** `'strict'`.
-  * `signal` {AbortSignal} Abort the stream.
+  * `signal` {AbortSignal} Abort the stream. The signal remains active while
+    buffered data drains after `writer.end()`; aborting during that time fails
+    the writer and rejects the pending `end()` promise.
 * Returns: {Object}
   * `writer` {Writable} The writer side.
   * `readable` {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
