@@ -57,6 +57,7 @@ constexpr size_t kSizeOf_EVP_PKEY_CTX = 80;
 constexpr size_t kSizeOf_HMAC_CTX = 32;
 constexpr size_t kSizeOf_SSL_CTX = 240;
 constexpr size_t kSizeOf_X509 = 128;
+constexpr size_t kSizeOf_X509_REQ = 128;
 
 template <typename T>
 constexpr T NumBitsToBytes(T bits) {
@@ -118,7 +119,10 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   V(KMAC_FAILED, "KMAC derivation failed")                                     \
   V(OK, "Ok")                                                                  \
   V(PBKDF2_FAILED, "PBKDF2 derivation failed")                                 \
-  V(SCRYPT_FAILED, "scrypt derivation failed")
+  V(SCRYPT_FAILED, "scrypt derivation failed")                                 \
+  V(X509_GENERATION_FAILED, "X.509 certificate generation failed")             \
+  V(X509_REQUEST_VERIFICATION_FAILED,                                          \
+    "Certificate request signature verification failed")
 
 enum class NodeCryptoError {
 #define V(CODE, DESCRIPTION) CODE,
