@@ -1817,9 +1817,9 @@ non-Error reason is wrapped in an `ERR_FALSY_VALUE_REJECTION` or
 `ERR_OPERATION_FAILED` error before it is passed to the callback. The error's
 `reason` property contains the original value.
 
-The Writable's `highWaterMark` is set to `Number.MAX_SAFE_INTEGER` to
-effectively disable its internal buffering, allowing the underlying Writer
-to manage backpressure directly.
+The Writable uses the default classic stream `highWaterMark`. Classic stream
+backpressure bounds writes waiting to reach the underlying Writer, while the
+Writer controls completion of the active `_write()` or `_writev()` operation.
 
 ```mjs
 import { push, toWritable } from 'node:stream/iter';
