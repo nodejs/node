@@ -462,6 +462,12 @@ or errored, this is a no-op. Unlike `write()` and `end()`, `fail()` is
 unconditionally synchronous because failing a writer is a pure state
 transition with no async work to perform.
 
+#### `writer[Symbol.asyncDispose]()`
+
+If the writer is open, calls `writer.fail()`. If the writer is closing after
+`end()` or `endSync()`, waits for buffered data to drain. If the writer is
+already closed or errored, resolves immediately.
+
 #### `writer.write(chunk[, options])`
 
 * `chunk` {Uint8Array|string}
