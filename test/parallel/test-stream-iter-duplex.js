@@ -14,32 +14,26 @@ async function testBasicDuplex() {
 
   // A writes, B reads
   await channelA.writer.write('hello from A');
-  await channelA.close();
-
+  const closing = channelA.close();
   const dataAtB = await text(channelB.readable);
+  await closing;
   assert.strictEqual(dataAtB, 'hello from A');
 }
 
 async function testBidirectional() {
   const [channelA, channelB] = duplex();
 
-  // A writes to B, B writes to A concurrently
-  const writeA = (async () => {
-    await channelA.writer.write('A to B');
-    await channelA.close();
-  })();
+  await channelA.writer.write('A to B');
+  await channelB.writer.write('B to A');
 
-  const writeB = (async () => {
-    await channelB.writer.write('B to A');
-    await channelB.close();
-  })();
-
-  const readAtB = text(channelB.readable);
-  const readAtA = text(channelA.readable);
-
-  await Promise.all([writeA, writeB]);
-
-  const [dataAtA, dataAtB] = await Promise.all([readAtA, readAtB]);
+  const endA = channelA.writer.end();
+  const endB = channelB.writer.end();
+  const [dataAtA, dataAtB] = await Promise.all([
+    text(channelA.readable),
+    text(channelB.readable),
+  ]);
+  await Promise.all([endA, endB]);
+  await Promise.all([channelA.close(), channelB.close()]);
 
   assert.strictEqual(dataAtB, 'A to B');
   assert.strictEqual(dataAtA, 'B to A');
@@ -51,19 +45,29 @@ async function testMultipleWrites() {
   await channelA.writer.write('one');
   await channelA.writer.write('two');
   await channelA.writer.write('three');
-  await channelA.close();
-
+  const closing = channelA.close();
   const data = await text(channelB.readable);
+  await closing;
   assert.strictEqual(data, 'onetwothree');
 }
 
 async function testChannelClose() {
   const [channelA, channelB] = duplex();
+  const iteratorA = channelA.readable[Symbol.asyncIterator]();
+  const otherIteratorA = channelA.readable[Symbol.asyncIterator]();
+  const pendingRead = iteratorA.next();
 
-  await channelA.close();
+  const closing = channelA.close();
+  assert.strictEqual(channelA.close(), closing);
+  await closing;
 
-  // Should be able to close twice without error
-  await channelA.close();
+  assert.strictEqual((await pendingRead).done, true);
+  assert.strictEqual((await otherIteratorA.next()).done, true);
+  assert.strictEqual(
+    (await channelA.readable[Symbol.asyncIterator]().next()).done, true);
+  await assert.rejects(channelB.writer.write('late'), {
+    code: 'ERR_INVALID_STATE',
+  });
 
   // B's readable should end (A -> B direction is closed)
   const batches = [];
@@ -80,9 +84,9 @@ async function testWithOptions() {
   });
 
   await channelA.writer.write('msg');
-  await channelA.close();
-
+  const closing = channelA.close();
   const data = await text(channelB.readable);
+  await closing;
   assert.strictEqual(data, 'msg');
 }
 
@@ -95,15 +99,17 @@ async function testPerChannelOptions() {
   // Channel A -> B direction uses A's options
   // Channel B -> A direction uses B's options
   await channelA.writer.write('from-a');
-  await channelA.close();
-
   await channelB.writer.write('from-b');
-  await channelB.close();
+
+  const endA = channelA.writer.end();
+  const endB = channelB.writer.end();
 
   const [dataAtA, dataAtB] = await Promise.all([
     text(channelA.readable),
     text(channelB.readable),
   ]);
+  await Promise.all([endA, endB]);
+  await Promise.all([channelA.close(), channelB.close()]);
 
   assert.strictEqual(dataAtB, 'from-a');
   assert.strictEqual(dataAtA, 'from-b');
@@ -146,15 +152,37 @@ async function testWriterEndWithPreAbortedSignal() {
 async function testEmptyDuplex() {
   const [channelA, channelB] = duplex();
 
-  // Close without writing
-  await channelA.close();
-  await channelB.close();
+  await channelA.writer.end();
+  await channelB.writer.end();
 
   const dataAtA = await bytes(channelA.readable);
   const dataAtB = await bytes(channelB.readable);
+  await Promise.all([channelA.close(), channelB.close()]);
 
   assert.strictEqual(dataAtA.byteLength, 0);
   assert.strictEqual(dataAtB.byteLength, 0);
+}
+
+async function testCloseWaitsForDrain() {
+  const [channelA, channelB] = duplex();
+  await channelA.writer.write('buffered');
+
+  let closed = false;
+  const closing = channelA.close().then(common.mustCall(() => {
+    closed = true;
+  }));
+  await new Promise(setImmediate);
+  assert.strictEqual(closed, false);
+
+  assert.strictEqual(await text(channelB.readable), 'buffered');
+  await closing;
+}
+
+async function testClosePropagatesWriterFailure() {
+  const [channelA] = duplex();
+  const reason = new Error('writer failed');
+  channelA.writer.fail(reason);
+  await assert.rejects(channelA.close(), (error) => error === reason);
 }
 
 // Channel fail propagation
@@ -200,6 +228,8 @@ Promise.all([
   testAbortSignal(),
   testWriterEndWithPreAbortedSignal(),
   testEmptyDuplex(),
+  testCloseWaitsForDrain(),
+  testClosePropagatesWriterFailure(),
   testChannelFail(),
   testAbortSignalBothChannels(),
 ]).then(common.mustCall());
