@@ -9,9 +9,7 @@ bench('selected', {
   warmup: 8,
 }, (b) => {
   invocations++;
-  b.start();
-  process.hrtime.bigint();
-  b.end(invocations);
+  b.record({ duration_ns: 1n, operations: invocations });
 });
 
 bench('filtered out', { samples: 1 }, () => {

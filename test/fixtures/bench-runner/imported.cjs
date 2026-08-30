@@ -6,7 +6,5 @@ bench('imported', {
   samples: 1,
   params: { imported: globalThis.benchImport },
 }, (b) => {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
+  b.record({ duration_ns: 1n, operations: 1 });
 });
