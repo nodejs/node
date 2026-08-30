@@ -1,33 +1,41 @@
 // Flags: --experimental-stream-iter
 'use strict';
 
-// Edge case tests for pipeToSync: endSync fallback, preventFail.
+// Edge case tests for pipeToSync close and failure behavior.
 
 const common = require('../common');
 const assert = require('assert');
 const { pipeToSync, fromSync } = require('stream/iter');
 
-// pipeToSync endSync returns negative → falls back to end()
-async function testPipeToSyncEndSyncFallback() {
+// pipeToSync cannot complete when endSync() requires async fallback.
+async function testPipeToSyncEndSyncFailure() {
   let endCalled = false;
   const writer = {
     writeSync() { return true; },
-    endSync() { return -1; }, // Negative → triggers end() fallback
+    endSync() { return -1; },
     end() { endCalled = true; },
   };
-  pipeToSync(fromSync('data'), writer);
-  assert.strictEqual(endCalled, true);
+  assert.throws(
+    () => pipeToSync(fromSync('data'), writer, { preventFail: true }),
+    { code: 'ERR_INVALID_STATE' },
+  );
+  assert.strictEqual(endCalled, false);
 }
 
-// pipeToSync endSync missing → falls back to end()
+// pipeToSync requires endSync() when closing is enabled.
 async function testPipeToSyncNoEndSync() {
+  let writeCalled = false;
   let endCalled = false;
   const writer = {
-    writeSync() { return true; },
+    writeSync() { writeCalled = true; return true; },
     end() { endCalled = true; },
   };
-  pipeToSync(fromSync('data'), writer);
-  assert.strictEqual(endCalled, true);
+  assert.throws(
+    () => pipeToSync(fromSync('data'), writer),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.strictEqual(writeCalled, false);
+  assert.strictEqual(endCalled, false);
 }
 
 // pipeToSync with preventFail: true — source error does NOT call fail()
@@ -61,7 +69,7 @@ async function testPipeToSyncPreventClose() {
 }
 
 Promise.all([
-  testPipeToSyncEndSyncFallback(),
+  testPipeToSyncEndSyncFailure(),
   testPipeToSyncNoEndSync(),
   testPipeToSyncPreventFail(),
   testPipeToSyncPreventClose(),
