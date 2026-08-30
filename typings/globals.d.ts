@@ -12,6 +12,7 @@ import { DiagnosticsChannelBinding } from './internalBinding/diagnostics_channel
 import { EncodingBinding } from './internalBinding/encoding_binding';
 import { FsBinding } from './internalBinding/fs';
 import { FsDirBinding } from './internalBinding/fs_dir';
+import { FsEventWrapBinding } from './internalBinding/fs_event_wrap';
 import { HeapUtilsBinding } from './internalBinding/heap_utils';
 import { HttpParserBinding } from './internalBinding/http_parser';
 import { ICUBinding } from './internalBinding/icu';
@@ -57,6 +58,7 @@ interface InternalBindingMap {
   encoding_binding: EncodingBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
+  fs_event_wrap: FsEventWrapBinding;
   heap_utils: HeapUtilsBinding;
   http_parser: HttpParserBinding;
   icu: ICUBinding;
