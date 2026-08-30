@@ -693,8 +693,10 @@ added: v25.9.0
   * `signal` {AbortSignal} Abort the pipeline.
 * Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
-Create a lazy async pipeline. Data is not read from `source` until the
-returned iterable is consumed. Transforms are applied in order.
+Create a lazy async pipeline. Source conversion and streamable protocol
+dispatch occur when `pull()` is called, but data is not read from `source`
+until the returned iterable is consumed. A signal that is already aborted is
+thrown synchronously after source conversion. Transforms are applied in order.
 
 ```mjs
 import { from, pull, text } from 'node:stream/iter';
@@ -762,7 +764,8 @@ added: v25.9.0
 * `...transforms` {Function|Object} Zero or more sync transforms.
 * Returns: {Iterable} whose chunks return {Uint8Array\[]}
 
-Synchronous version of [`pull()`][]. All transforms must be synchronous.
+Synchronous version of [`pull()`][]. Source conversion and streamable protocol
+dispatch occur when `pullSync()` is called. All transforms must be synchronous.
 
 ## Push streams
 
