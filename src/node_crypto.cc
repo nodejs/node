@@ -61,7 +61,9 @@ namespace crypto {
   V(Timing)                                                                    \
   V(Util)                                                                      \
   V(Verify)                                                                    \
-  V(X509Certificate)
+  V(X509Certificate)                                                           \
+  V(X509Generation)                                                            \
+  V(X509GenerateJob)
 
 #if OPENSSL_WITH_ARGON2
 #define ARGON2_NAMESPACE_LIST(V) V(Argon2)

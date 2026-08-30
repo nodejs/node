@@ -18,6 +18,9 @@
 namespace node {
 namespace crypto {
 
+v8::MaybeLocal<v8::Value> CreateRawX509Extensions(
+    Environment* env, const std::vector<ncrypto::X509RawExtension>& extensions);
+
 // ManagedX509 owns one isolate-local X509. Adopt makes the ownership transfer
 // explicit at each call site.
 class ManagedX509 final : public MemoryRetainer {

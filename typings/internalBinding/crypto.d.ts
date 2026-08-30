@@ -522,6 +522,59 @@ declare namespace InternalCryptoBinding {
     ): CryptoJobForMode<M, SignJobResult<S>>;
   }
 
+  type X509NameAttributeSpec = [
+    oid: string,
+    value: string,
+  ];
+  type X509NameSpec = X509NameAttributeSpec[][] | BufferSource;
+
+  type X509GeneralNameSpec = [
+    type: 0 | 1 | 2 | 4,
+    value: string,
+  ];
+
+  type X509ExtensionSpec =
+    | [type: 0, oid: string, critical: boolean, value: BufferSource]
+    | [type: 1, critical: boolean, ca: boolean, pathLength: number | undefined]
+    | [type: 2, critical: boolean, usages: number]
+    | [type: 3, critical: boolean, usages: string[]]
+    | [type: 4, critical: boolean, names: X509GeneralNameSpec[]]
+    | [type: 5 | 6, critical: false, identifier: BufferSource | undefined];
+
+  type X509GenerateCertificateArgs =
+    | [
+      csr: undefined,
+      subject: X509NameSpec,
+      ...publicKey: PreparedAsymmetricKeyArgs,
+    ]
+    | [
+      csr: BufferSource,
+      subject: undefined,
+      keyData: undefined,
+      keyFormat: undefined,
+      keyType: undefined,
+      keyPassphrase: undefined,
+      keyNamedCurve: undefined,
+    ];
+
+  interface X509GenerateJobConstructor {
+    new<M extends CryptoJobRegularMode>(
+      mode: M,
+      ...args: [
+        ...certificate: X509GenerateCertificateArgs,
+        issuer: X509CertificateHandle | undefined,
+        serialBytes: BufferSource,
+        notBefore: string,
+        notAfter: string,
+        extensions: X509ExtensionSpec[],
+        ...signingKey: PreparedAsymmetricKeyArgs,
+        digest: string | null,
+        saltLength: number | undefined,
+        padding: number | undefined,
+      ]
+    ): CryptoJobForMode<M, ArrayBuffer>;
+  }
+
   interface TurboShakeJobConstructor {
     new(
       mode: CryptoJobWebCryptoMode,
@@ -860,6 +913,7 @@ export interface CryptoBinding {
   SecretKeyGenJob: InternalCryptoBinding.SecretKeyGenJobConstructor;
   SignJob: InternalCryptoBinding.SignJobConstructor;
   TurboShakeJob: InternalCryptoBinding.TurboShakeJobConstructor;
+  X509GenerateJob: InternalCryptoBinding.X509GenerateJobConstructor;
 
   CipherBase: new (
     isEncrypt: boolean,
@@ -1032,6 +1086,12 @@ export interface CryptoBinding {
     passphrase?: InternalCryptoBinding.ByteSource,
   ): InternalCryptoBinding.PKCS12ParseResult;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
+  parseX509CertificateRequest(
+    data: InternalCryptoBinding.BufferSource,
+  ): [
+    der: InternalCryptoBinding.Buffer,
+    requestedExtensions: InternalCryptoBinding.X509RawExtension[],
+  ];
   parseX509Snapshot(
     snapshot: ArrayBufferView[],
   ): InternalCryptoBinding.X509CertificateHandle;
