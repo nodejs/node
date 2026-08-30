@@ -77,6 +77,20 @@ async function testChannelClose() {
   assert.strictEqual(batches.length, 0);
 }
 
+async function testConcurrentChannelClose() {
+  const [channelA, channelB] = duplex();
+
+  const results = await Promise.allSettled([
+    channelA.close(),
+    channelB.close(),
+  ]);
+
+  assert.deepStrictEqual(results, [
+    { status: 'fulfilled', value: undefined },
+    { status: 'fulfilled', value: undefined },
+  ]);
+}
+
 async function testWithOptions() {
   const [channelA, channelB] = duplex({
     budget: 16384,
@@ -223,6 +237,7 @@ Promise.all([
   testBidirectional(),
   testMultipleWrites(),
   testChannelClose(),
+  testConcurrentChannelClose(),
   testWithOptions(),
   testPerChannelOptions(),
   testAbortSignal(),
