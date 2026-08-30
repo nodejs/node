@@ -4647,7 +4647,7 @@ throwing an error. This behavior is inconsistent with `hash.digest()` and
 may lead to subtle bugs. Calling `hmac.digest()` on a finalized `Hmac` instance
 will throw an error in a future version.
 
-### DEP0207: `.aborted` property and `'aborted'` event in `http2`
+### DEP0207: `.aborted` property and `'aborted'` event in `node:http2`
 
 <!-- YAML
 changes:
