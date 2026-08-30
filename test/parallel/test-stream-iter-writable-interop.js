@@ -137,7 +137,9 @@ async function testErrorBeforeBackpressureIsStored() {
   });
   const writer = fromWritable(writable);
   const reason = new Error('early stream error');
-  const closed = new Promise((resolve) => writable.once('close', resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  writable.once('close', resolve);
+  const closed = promise;
 
   writable.destroy(reason);
   await assert.rejects(writer.write('late'), (error) => error === reason);
@@ -151,12 +153,13 @@ async function testAlreadyErroredWritablePreservesReason() {
     write(chunk, enc, cb) { cb(); },
   });
   const reason = new Error('existing stream error');
-  const closed = new Promise((resolve) => writable.once('close', resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  writable.once('close', resolve);
   writable.destroy(reason);
 
   const writer = fromWritable(writable);
   await assert.rejects(writer.write('late'), (error) => error === reason);
-  await closed;
+  await promise;
 }
 
 async function testCleanDestroyRejectsQueuedOperations() {
