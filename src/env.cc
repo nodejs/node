@@ -986,7 +986,12 @@ Environment::Environment(IsolateData* isolate_data,
     // spawn/worker nor use addons or enable inspector
     // unless explicitly allowed by the user
     if (!options_->allow_addons) {
-      options_->allow_native_addons = false;
+      // In audit mode addon loading must stay enabled: the denial is
+      // published through the diagnostics channel by the permission
+      // check in DLOpen() instead of being rejected upfront.
+      if (!options_->permission_audit) {
+        options_->allow_native_addons = false;
+      }
       permission()->Apply(this, args, permission::PermissionScope::kAddon);
     }
     if (!options_->allow_inspector) {
