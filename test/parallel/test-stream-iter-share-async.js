@@ -9,7 +9,7 @@ const {
   text,
 } = require('stream/iter');
 
-const { setTimeout } = require('timers/promises');
+const { setTimeout, setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Async share()
@@ -111,7 +111,7 @@ async function testShareCancelMidIteration() {
   assert.strictEqual(items.length, 1);
   assert.strictEqual(items[0], 'a');
 
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(sourceReturnCalled, true);
 }
 
@@ -185,7 +185,7 @@ async function testShareCancelWhileSourcePullPending() {
     const timedOut = { __proto__: null };
     const outcome = await Promise.race([
       read,
-      new Promise((resolve) => setImmediate(resolve, timedOut)),
+      setImmediate(timedOut),
     ]);
     assert.notStrictEqual(outcome, timedOut);
     if (reason === noReason) {
@@ -202,7 +202,7 @@ async function testShareCancelWhileSourcePullPending() {
       done: false,
       value: [Uint8Array.of(1)],
     });
-    await new Promise(setImmediate);
+    await setImmediate();
     assert.strictEqual(returnCalls, 1);
   }
 }
