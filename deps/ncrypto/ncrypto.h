@@ -344,10 +344,37 @@ class BIOPointer final {
 
   static int Write(BIOPointer* bio, std::string_view message);
 
+  // Writes the complete message and returns false if any bytes were not
+  // written.
+  static bool WriteAll(const BIOPointer& bio, std::string_view message);
+
+  // Returns the number of bytes written, or a negative value on error.
   template <typename... Args>
-  static void Printf(BIOPointer* bio, const char* format, Args... args) {
-    if (bio == nullptr || !*bio) return;
-    BIO_printf(bio->get(), format, std::forward<Args...>(args...));
+  static int Printf(BIOPointer* bio, const char* format, Args... args) {
+    if (bio == nullptr || !*bio) return -1;
+    return BIO_printf(bio->get(), format, std::forward<Args>(args)...);
+  }
+
+  // Formats and writes the complete message, returning false if formatting
+  // fails or any bytes were not written.
+  template <typename... Args>
+  static bool PrintfAll(const BIOPointer& bio,
+                        const char* format,
+                        Args... args) {
+    if (!bio) return false;
+
+    BIOPointer formatted = NewMem();
+    if (!formatted) return false;
+    int length =
+        BIO_printf(formatted.get(), format, std::forward<Args>(args)...);
+    if (length < 0) return false;
+
+    BUF_MEM* mem = formatted;
+    if (mem == nullptr || mem->length != static_cast<size_t>(length)) {
+      return false;
+    }
+    if (length == 0) return true;
+    return WriteAll(bio, std::string_view(mem->data, mem->length));
   }
 
  private:
@@ -760,13 +787,13 @@ class X509View final {
   BIOPointer toDER() const;
 
   BIOPointer getSubject() const;
-  BIOPointer getSubjectAltName() const;
+  BIOPointer getSubjectAltName(bool* has_extension = nullptr) const;
   BIOPointer getIssuer() const;
   BIOPointer getInfoAccess() const;
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
-  int64_t getValidFromTime() const;
-  int64_t getValidToTime() const;
+  std::optional<int64_t> getValidFromTime() const;
+  std::optional<int64_t> getValidToTime() const;
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
   StackOfASN1 getKeyUsage() const;
@@ -790,7 +817,7 @@ class X509View final {
                        int flags,
                        DataPointer* peerName = nullptr) const;
   CheckMatch checkEmail(const std::string_view email, int flags) const;
-  CheckMatch checkIp(const std::string_view ip, int flags) const;
+  CheckMatch checkIp(const Buffer<const unsigned char>& ip, int flags) const;
 
  private:
   const X509* cert_ = nullptr;
@@ -1009,8 +1036,9 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
-bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext);
-bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext);
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out,
+                                 const X509_EXTENSION* ext);
+bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext);
 
 // ============================================================================
 // SPKAC

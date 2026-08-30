@@ -548,6 +548,19 @@ enum class AltNameOption {
   UTF8,
 };
 
+std::optional<std::string> ObjectToText(const ASN1_OBJECT* object,
+                                        bool no_name) {
+  if (object == nullptr) return std::nullopt;
+  int length = OBJ_obj2txt(nullptr, 0, object, no_name);
+  if (length <= 0 || length == INT_MAX) return std::nullopt;
+
+  std::string text(static_cast<size_t>(length) + 1, '\0');
+  int actual = OBJ_obj2txt(text.data(), length + 1, object, no_name);
+  if (actual != length) return std::nullopt;
+  text.resize(static_cast<size_t>(length));
+  return text;
+}
+
 bool IsSafeAltName(const char* name, size_t length, AltNameOption option) {
   for (size_t i = 0; i < length; i++) {
     char c = name[i];
@@ -587,32 +600,36 @@ bool IsSafeAltName(const char* name, size_t length, AltNameOption option) {
   return true;
 }
 
-void PrintAltName(const BIOPointer& out,
-                  const char* name,
-                  size_t length,
-                  AltNameOption option = AltNameOption::NONE,
-                  const char* safe_prefix = nullptr) {
+[[nodiscard]] bool PrintAltName(const BIOPointer& out,
+                                const char* name,
+                                size_t length,
+                                AltNameOption option = AltNameOption::NONE,
+                                const char* safe_prefix = nullptr) {
+  if (!out || (name == nullptr && length != 0)) return false;
   if (IsSafeAltName(name, length, option)) {
     // For backward-compatibility, append "safe" names without any
     // modifications.
     if (safe_prefix != nullptr) {
-      BIO_printf(out.get(), "%s:", safe_prefix);
+      if (!BIOPointer::PrintfAll(out, "%s:", safe_prefix)) return false;
     }
-    BIO_write(out.get(), name, length);
+    if (length != 0 &&
+        !BIOPointer::WriteAll(out, std::string_view(name, length))) {
+      return false;
+    }
   } else {
     // If a name is not "safe", we cannot embed it without special
     // encoding. This does not usually happen, but we don't want to hide
     // it from the user either. We use JSON compatible escaping here.
-    BIO_write(out.get(), "\"", 1);
+    if (!BIOPointer::WriteAll(out, "\"")) return false;
     if (safe_prefix != nullptr) {
-      BIO_printf(out.get(), "%s:", safe_prefix);
+      if (!BIOPointer::PrintfAll(out, "%s:", safe_prefix)) return false;
     }
     for (size_t j = 0; j < length; j++) {
       char c = static_cast<char>(name[j]);
       if (c == '\\') {
-        BIO_write(out.get(), "\\\\", 2);
+        if (!BIOPointer::WriteAll(out, "\\\\")) return false;
       } else if (c == '"') {
-        BIO_write(out.get(), "\\\"", 2);
+        if (!BIOPointer::WriteAll(out, "\\\"")) return false;
       } else if ((c >= ' ' && c != ',' && c <= '~') ||
                  (option == AltNameOption::UTF8 && (c & 0x80))) {
         // Note that the above condition explicitly excludes commas, which means
@@ -621,42 +638,62 @@ void PrintAltName(const BIOPointer& out,
         // it correctly either way. We only do this to account for third-party
         // code that might be splitting the string at commas (as Node.js itself
         // used to do).
-        BIO_write(out.get(), &c, 1);
+        if (!BIOPointer::WriteAll(out, std::string_view(&c, 1))) return false;
       } else {
         // Control character or non-ASCII character. We treat everything as
         // Latin-1, which corresponds to the first 255 Unicode code points.
         const char hex[] = "0123456789abcdef";
         char u[] = {'\\', 'u', '0', '0', hex[(c & 0xf0) >> 4], hex[c & 0x0f]};
-        BIO_write(out.get(), u, sizeof(u));
+        if (!BIOPointer::WriteAll(out, std::string_view(u, sizeof(u)))) {
+          return false;
+        }
       }
     }
-    BIO_write(out.get(), "\"", 1);
+    if (!BIOPointer::WriteAll(out, "\"")) return false;
   }
+  return true;
 }
 
 // This function emulates the behavior of i2v_GENERAL_NAME in a safer and less
 // ambiguous way. "othername:" entries use the GENERAL_NAME_print format.
 bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
+  if (!out || gen == nullptr) return false;
   if (gen->type == GEN_DNS) {
     ASN1_IA5STRING* name = gen->d.dNSName;
-    BIO_write(out.get(), "DNS:", 4);
+    if (name == nullptr) return false;
+    if (!BIOPointer::WriteAll(out, "DNS:")) return false;
     // Note that the preferred name syntax (see RFCs 5280 and 1034) with
     // wildcards is a subset of what we consider "safe", so spec-compliant DNS
     // names will never need to be escaped.
-    PrintAltName(out, reinterpret_cast<const char*>(name->data), name->length);
+    int length = ASN1_STRING_length(name);
+    return length >= 0 && PrintAltName(out,
+                                       reinterpret_cast<const char*>(
+                                           ASN1_STRING_get0_data(name)),
+                                       static_cast<size_t>(length));
   } else if (gen->type == GEN_EMAIL) {
     ASN1_IA5STRING* name = gen->d.rfc822Name;
-    BIO_write(out.get(), "email:", 6);
-    PrintAltName(out, reinterpret_cast<const char*>(name->data), name->length);
+    if (name == nullptr) return false;
+    if (!BIOPointer::WriteAll(out, "email:")) return false;
+    int length = ASN1_STRING_length(name);
+    return length >= 0 && PrintAltName(out,
+                                       reinterpret_cast<const char*>(
+                                           ASN1_STRING_get0_data(name)),
+                                       static_cast<size_t>(length));
   } else if (gen->type == GEN_URI) {
     ASN1_IA5STRING* name = gen->d.uniformResourceIdentifier;
-    BIO_write(out.get(), "URI:", 4);
+    if (name == nullptr) return false;
+    if (!BIOPointer::WriteAll(out, "URI:")) return false;
     // The set of "safe" names was designed to include just about any URI,
     // with a few exceptions, most notably URIs that contains commas (see
     // RFC 2396). In other words, most legitimate URIs will not require
     // escaping.
-    PrintAltName(out, reinterpret_cast<const char*>(name->data), name->length);
+    int length = ASN1_STRING_length(name);
+    return length >= 0 && PrintAltName(out,
+                                       reinterpret_cast<const char*>(
+                                           ASN1_STRING_get0_data(name)),
+                                       static_cast<size_t>(length));
   } else if (gen->type == GEN_DIRNAME) {
+    if (gen->d.dirn == nullptr) return false;
     // Earlier versions of Node.js used X509_NAME_oneline to print the X509_NAME
     // object. The format was non standard and should be avoided. The use of
     // X509_NAME_oneline is discouraged by OpenSSL but was required for backward
@@ -669,9 +706,9 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // format may contain Unicode characters and it is likely to contain commas,
     // which require escaping. Fortunately, the recently safeguarded function
     // PrintAltName handles all of that safely.
-    BIO_printf(out.get(), "DirName:");
-    BIOPointer tmp(BIO_new(BIO_s_mem()));
-    NCRYPTO_ASSERT_TRUE(tmp);
+    if (!BIOPointer::WriteAll(out, "DirName:")) return false;
+    BIOPointer tmp = BIOPointer::NewMem();
+    if (!tmp) return false;
     if (X509_NAME_print_ex(
             tmp.get(), gen->d.dirn, 0, kX509NameFlagsRFC2253WithinUtf8JSON) <
         0) {
@@ -679,37 +716,46 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     }
     char* oline = nullptr;
     long n_bytes = BIO_get_mem_data(tmp.get(), &oline);  // NOLINT(runtime/int)
-    NCRYPTO_ASSERT_TRUE(n_bytes >= 0);
-    PrintAltName(out,
-                 oline,
-                 static_cast<size_t>(n_bytes),
-                 ncrypto::AltNameOption::UTF8,
-                 nullptr);
+    if (n_bytes < 0) return false;
+    return PrintAltName(out,
+                        oline,
+                        static_cast<size_t>(n_bytes),
+                        ncrypto::AltNameOption::UTF8,
+                        nullptr);
   } else if (gen->type == GEN_IPADD) {
-    BIO_printf(out.get(), "IP Address:");
+    if (!BIOPointer::WriteAll(out, "IP Address:")) return false;
     const ASN1_OCTET_STRING* ip = gen->d.ip;
-    const unsigned char* b = ip->data;
-    if (ip->length == 4) {
-      BIO_printf(out.get(), "%d.%d.%d.%d", b[0], b[1], b[2], b[3]);
-    } else if (ip->length == 16) {
+    if (ip == nullptr) return false;
+    const unsigned char* b = ASN1_STRING_get0_data(ip);
+    int ip_len = ASN1_STRING_length(ip);
+    if (ip_len < 0 || (b == nullptr && ip_len != 0)) return false;
+    if (ip_len == 4) {
+      return BIOPointer::PrintfAll(out, "%d.%d.%d.%d", b[0], b[1], b[2], b[3]);
+    } else if (ip_len == 16) {
       for (unsigned int j = 0; j < 8; j++) {
         uint16_t pair = (b[2 * j] << 8) | b[2 * j + 1];
-        BIO_printf(out.get(), (j == 0) ? "%X" : ":%X", pair);
+        if (!BIOPointer::PrintfAll(out, (j == 0) ? "%X" : ":%X", pair)) {
+          return false;
+        }
       }
     } else {
 #if OPENSSL_VERSION_MAJOR >= 3
-      BIO_printf(out.get(), "<invalid length=%d>", ip->length);
+      return BIOPointer::PrintfAll(out, "<invalid length=%d>", ip_len);
 #else
-      BIO_printf(out.get(), "<invalid>");
+      return BIOPointer::WriteAll(out, "<invalid>");
 #endif
     }
   } else if (gen->type == GEN_RID) {
     // Unlike OpenSSL's default implementation, never print the OID as text and
     // instead always print its numeric representation.
-    char oline[256];
-    OBJ_obj2txt(oline, sizeof(oline), gen->d.rid, true);
-    BIO_printf(out.get(), "Registered ID:%s", oline);
+    auto oid = ObjectToText(gen->d.rid, true);
+    return oid.has_value() && BIOPointer::WriteAll(out, "Registered ID:") &&
+           BIOPointer::WriteAll(out, oid.value());
   } else if (gen->type == GEN_OTHERNAME) {
+    if (gen->d.otherName == nullptr || gen->d.otherName->type_id == nullptr ||
+        gen->d.otherName->value == nullptr) {
+      return false;
+    }
     // The format that is used here is based on OpenSSL's implementation of
     // GENERAL_NAME_print (as of OpenSSL 3.0.1). Earlier versions of Node.js
     // instead produced the same format as i2v_GENERAL_NAME, which was somewhat
@@ -742,31 +788,37 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     int val_type = gen->d.otherName->value->type;
     if (prefix == nullptr || (unicode && val_type != V_ASN1_UTF8STRING) ||
         (!unicode && val_type != V_ASN1_IA5STRING)) {
-      BIO_printf(out.get(), "othername:<unsupported>");
+      return BIOPointer::WriteAll(out, "othername:<unsupported>");
     } else {
-      BIO_printf(out.get(), "othername:");
+      if (!BIOPointer::WriteAll(out, "othername:")) return false;
       if (unicode) {
         auto name = gen->d.otherName->value->value.utf8string;
-        PrintAltName(out,
-                     reinterpret_cast<const char*>(name->data),
-                     name->length,
-                     AltNameOption::UTF8,
-                     prefix);
+        if (name == nullptr) return false;
+        int length = ASN1_STRING_length(name);
+        return length >= 0 && PrintAltName(out,
+                                           reinterpret_cast<const char*>(
+                                               ASN1_STRING_get0_data(name)),
+                                           static_cast<size_t>(length),
+                                           AltNameOption::UTF8,
+                                           prefix);
       } else {
         auto name = gen->d.otherName->value->value.ia5string;
-        PrintAltName(out,
-                     reinterpret_cast<const char*>(name->data),
-                     name->length,
-                     AltNameOption::NONE,
-                     prefix);
+        if (name == nullptr) return false;
+        int length = ASN1_STRING_length(name);
+        return length >= 0 && PrintAltName(out,
+                                           reinterpret_cast<const char*>(
+                                               ASN1_STRING_get0_data(name)),
+                                           static_cast<size_t>(length),
+                                           AltNameOption::NONE,
+                                           prefix);
       }
     }
   } else if (gen->type == GEN_X400) {
     // TODO(tniessen): this is what OpenSSL does, implement properly instead
-    BIO_printf(out.get(), "X400Name:<unsupported>");
+    return BIOPointer::WriteAll(out, "X400Name:<unsupported>");
   } else if (gen->type == GEN_EDIPARTY) {
     // TODO(tniessen): this is what OpenSSL does, implement properly instead
-    BIO_printf(out.get(), "EdiPartyName:<unsupported>");
+    return BIOPointer::WriteAll(out, "EdiPartyName:<unsupported>");
   } else {
     // This is safe because X509V3_EXT_d2i would have returned nullptr in this
     // case already.
@@ -777,19 +829,30 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 }
 }  // namespace
 
-bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
-  NCRYPTO_ASSERT_EQUAL(ret, NID_subject_alt_name, "unexpected extension type");
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out,
+                                 const X509_EXTENSION* ext) {
+  if (!out || ext == nullptr) return false;
+  // const_cast needed for OpenSSL < 4.0 which lacks const-correctness
+  auto* mext = const_cast<X509_EXTENSION*>(ext);
+  const ASN1_OBJECT* object = X509_EXTENSION_get_object(mext);
+  if (object == nullptr || OBJ_obj2nid(object) != NID_subject_alt_name) {
+    return false;
+  }
 
-  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
+  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(mext));
   if (names == nullptr) return false;
 
-  bool ok = true;
+  const int count = sk_GENERAL_NAME_num(names);
+  bool ok = count > 0;
 
-  for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+  for (int i = 0; ok && i < count; i++) {
     GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
+    if (gen == nullptr) {
+      ok = false;
+      break;
+    }
 
-    if (i != 0) BIO_write(out.get(), ", ", 2);
+    if (i != 0 && !(ok = BIOPointer::WriteAll(out, ", "))) break;
 
     if (!(ok = ncrypto::PrintGeneralName(out, gen))) {
       break;
@@ -800,32 +863,44 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
   return ok;
 }
 
-bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
-  NCRYPTO_ASSERT_EQUAL(ret, NID_info_access, "unexpected extension type");
+bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext) {
+  if (!out || ext == nullptr) return false;
+  // const_cast needed for OpenSSL < 4.0 which lacks const-correctness
+  auto* mext = const_cast<X509_EXTENSION*>(ext);
+  const ASN1_OBJECT* object = X509_EXTENSION_get_object(mext);
+  if (object == nullptr || OBJ_obj2nid(object) != NID_info_access) return false;
 
   AUTHORITY_INFO_ACCESS* descs =
-      static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(ext));
+      static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(mext));
   if (descs == nullptr) return false;
 
-  bool ok = true;
+  const int count = sk_ACCESS_DESCRIPTION_num(descs);
+  bool ok = count > 0;
 
-  for (int i = 0; i < sk_ACCESS_DESCRIPTION_num(descs); i++) {
+  for (int i = 0; ok && i < count; i++) {
     ACCESS_DESCRIPTION* desc = sk_ACCESS_DESCRIPTION_value(descs, i);
+    if (desc == nullptr || desc->method == nullptr ||
+        desc->location == nullptr) {
+      ok = false;
+      break;
+    }
 
-    if (i != 0) BIO_write(out.get(), "\n", 1);
+    if (i != 0 && !(ok = BIOPointer::WriteAll(out, "\n"))) break;
 
-    char objtmp[80];
-    i2t_ASN1_OBJECT(objtmp, sizeof(objtmp), desc->method);
-    BIO_printf(out.get(), "%s - ", objtmp);
+    auto method = ObjectToText(desc->method, false);
+    if (!(ok = method.has_value() &&
+               BIOPointer::WriteAll(out, method.value()) &&
+               BIOPointer::WriteAll(out, " - "))) {
+      break;
+    }
     if (!(ok = ncrypto::PrintGeneralName(out, desc->location))) {
       break;
     }
   }
   sk_ACCESS_DESCRIPTION_pop_free(descs, ACCESS_DESCRIPTION_free);
 
-#if OPENSSL_VERSION_MAJOR < 3
-  BIO_write(out.get(), "\n", 1);
+#if defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_MAJOR < 3
+  if (ok && !BIOPointer::WriteAll(out, "\n")) return false;
 #endif
 
   return ok;
@@ -862,7 +937,7 @@ X509View X509Pointer::view() const {
 }
 
 BIOPointer X509View::toPEM() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -871,7 +946,7 @@ BIOPointer X509View::toPEM() const {
 }
 
 BIOPointer X509View::toDER() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -880,86 +955,136 @@ BIOPointer X509View::toDER() const {
 }
 
 BIOPointer X509View::getSubject() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  const X509_NAME* name = X509_get_subject_name(cert_);
+  if (name == nullptr) return {};
+  BIOPointer bio = BIOPointer::NewMem();
   if (!bio) return {};
-  if (X509_NAME_print_ex(bio.get(),
-                         X509_get_subject_name(cert_),
-                         0,
-                         kX509NameFlagsMultiline) <= 0) {
+  if (X509_NAME_print_ex(bio.get(), name, 0, kX509NameFlagsMultiline) < 0) {
     return {};
   }
   return bio;
 }
 
-BIOPointer X509View::getSubjectAltName() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+BIOPointer X509View::getSubjectAltName(bool* has_extension) const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (has_extension != nullptr) *has_extension = false;
   if (cert_ == nullptr) return {};
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-  if (!bio) return {};
   int index = X509_get_ext_by_NID(cert_, NID_subject_alt_name, -1);
-  if (index < 0 ||
-      !SafeX509SubjectAltNamePrint(bio, X509_get_ext(cert_, index))) {
+  if (index < 0) return {};
+  if (has_extension != nullptr) *has_extension = true;
+
+  const X509_EXTENSION* extension = X509_get_ext(cert_, index);
+  BIOPointer bio = BIOPointer::NewMem();
+  if (!bio || extension == nullptr ||
+      !SafeX509SubjectAltNamePrint(bio, extension)) {
     return {};
   }
   return bio;
 }
 
 BIOPointer X509View::getIssuer() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  const X509_NAME* name = X509_get_issuer_name(cert_);
+  if (name == nullptr) return {};
+  BIOPointer bio = BIOPointer::NewMem();
   if (!bio) return {};
-  if (X509_NAME_print_ex(
-          bio.get(), X509_get_issuer_name(cert_), 0, kX509NameFlagsMultiline) <=
-      0) {
+  if (X509_NAME_print_ex(bio.get(), name, 0, kX509NameFlagsMultiline) < 0) {
     return {};
   }
   return bio;
 }
 
 BIOPointer X509View::getInfoAccess() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  BIOPointer bio = BIOPointer::NewMem();
   if (!bio) return {};
   int index = X509_get_ext_by_NID(cert_, NID_info_access, -1);
   if (index < 0) return {};
-  if (!SafeX509InfoAccessPrint(bio, X509_get_ext(cert_, index))) {
+  const X509_EXTENSION* extension = X509_get_ext(cert_, index);
+  if (extension == nullptr || !SafeX509InfoAccessPrint(bio, extension)) {
     return {};
   }
   return bio;
 }
 
+namespace {
+bool IsX509TimePrintable(const ASN1_TIME* time) {
+#ifdef OPENSSL_IS_BORINGSSL
+  // BoringSSL's ASN1_TIME_check() accepts legacy timezone offsets that its
+  // ASN1_TIME_print() deliberately rejects. Use the same strict conversion
+  // path as its printer so the fallback is selected before writing output.
+  int64_t ignored{};
+  return ASN1_TIME_to_posix(time, &ignored) == 1;
+#else
+  return ASN1_TIME_check(time) == 1;
+#endif
+}
+}  // namespace
+
 BIOPointer X509View::getValidFrom() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  const ASN1_TIME* time = X509_get0_notBefore(cert_);
+  if (time == nullptr) return {};
+  BIOPointer bio = BIOPointer::NewMem();
   if (!bio) return {};
-  ASN1_TIME_print(bio.get(), X509_get_notBefore(cert_));
+  if (IsX509TimePrintable(time)) {
+    if (ASN1_TIME_print(bio.get(), time) <= 0) return {};
+  } else if (!BIOPointer::WriteAll(bio, "Bad time value")) {
+    return {};
+  }
   return bio;
 }
 
 BIOPointer X509View::getValidTo() const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return {};
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  const ASN1_TIME* time = X509_get0_notAfter(cert_);
+  if (time == nullptr) return {};
+  BIOPointer bio = BIOPointer::NewMem();
   if (!bio) return {};
-  ASN1_TIME_print(bio.get(), X509_get_notAfter(cert_));
+  if (IsX509TimePrintable(time)) {
+    if (ASN1_TIME_print(bio.get(), time) <= 0) return {};
+  } else if (!BIOPointer::WriteAll(bio, "Bad time value")) {
+    return {};
+  }
   return bio;
 }
 
-int64_t X509View::getValidToTime() const {
-  struct tm tp;
-  ASN1_TIME_to_tm(X509_get0_notAfter(cert_), &tp);
+std::optional<int64_t> X509View::getValidToTime() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr) return std::nullopt;
+  const ASN1_TIME* time = X509_get0_notAfter(cert_);
+  if (time == nullptr) return std::nullopt;
+#ifdef OPENSSL_IS_BORINGSSL
+  int64_t tp{};
+  if (ASN1_TIME_to_posix(time, &tp) != 1) return std::nullopt;
+  return tp;
+#else
+  struct tm tp {};
+  if (ASN1_TIME_to_tm(time, &tp) != 1) return std::nullopt;
   return PortableTimeGM(&tp);
+#endif
 }
 
-int64_t X509View::getValidFromTime() const {
-  struct tm tp;
-  ASN1_TIME_to_tm(X509_get0_notBefore(cert_), &tp);
+std::optional<int64_t> X509View::getValidFromTime() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (cert_ == nullptr) return std::nullopt;
+  const ASN1_TIME* time = X509_get0_notBefore(cert_);
+  if (time == nullptr) return std::nullopt;
+#ifdef OPENSSL_IS_BORINGSSL
+  int64_t tp{};
+  if (ASN1_TIME_to_posix(time, &tp) != 1) return std::nullopt;
+  return tp;
+#else
+  struct tm tp {};
+  if (ASN1_TIME_to_tm(time, &tp) != 1) return std::nullopt;
   return PortableTimeGM(&tp);
+#endif
 }
 
 DataPointer X509View::getSerialNumber() const {
@@ -1017,7 +1142,7 @@ bool X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
 X509View::CheckMatch X509View::checkHost(const std::string_view host,
                                          int flags,
                                          DataPointer* peerName) const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return CheckMatch::NO_MATCH;
   char* peername;
   switch (X509_check_host(
@@ -1040,7 +1165,7 @@ X509View::CheckMatch X509View::checkHost(const std::string_view host,
 
 X509View::CheckMatch X509View::checkEmail(const std::string_view email,
                                           int flags) const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return CheckMatch::NO_MATCH;
   switch (X509_check_email(
       const_cast<X509*>(cert_), email.data(), email.size(), flags)) {
@@ -1055,11 +1180,12 @@ X509View::CheckMatch X509View::checkEmail(const std::string_view email,
   }
 }
 
-X509View::CheckMatch X509View::checkIp(const std::string_view ip,
+X509View::CheckMatch X509View::checkIp(const Buffer<const unsigned char>& ip,
                                        int flags) const {
-  ClearErrorOnReturn clearErrorOnReturn;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   if (cert_ == nullptr) return CheckMatch::NO_MATCH;
-  switch (X509_check_ip_asc(const_cast<X509*>(cert_), ip.data(), flags)) {
+  if (ip.len != 4 && ip.len != 16) return CheckMatch::INVALID_NAME;
+  switch (X509_check_ip(const_cast<X509*>(cert_), ip.data, ip.len, flags)) {
     case 0:
       return CheckMatch::NO_MATCH;
     case 1:
@@ -1263,6 +1389,18 @@ BIOPointer BIOPointer::New(const BIGNUM* bn) {
 int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
   if (bio == nullptr || !*bio) return 0;
   return BIO_write(bio->get(), message.data(), message.size());
+}
+
+bool BIOPointer::WriteAll(const BIOPointer& bio, std::string_view message) {
+  if (!bio) return false;
+  while (!message.empty()) {
+    const size_t chunk_size =
+        std::min(message.size(), static_cast<size_t>(INT_MAX));
+    const int length = static_cast<int>(chunk_size);
+    if (BIO_write(bio.get(), message.data(), length) != length) return false;
+    message.remove_prefix(chunk_size);
+  }
+  return true;
 }
 
 // ============================================================================

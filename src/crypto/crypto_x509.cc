@@ -8,9 +8,13 @@
 #include "ncrypto.h"
 #include "node_errors.h"
 #include "util-inl.h"
+#include "uv.h"
 #include "v8.h"
 
+#include <array>
+#include <limits>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace node {
@@ -20,6 +24,7 @@ using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using ncrypto::ECKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfASN1;
 using ncrypto::X509Pointer;
@@ -63,12 +68,34 @@ ManagedX509& ManagedX509::operator=(const ManagedX509& that) {
 }
 
 void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
+  if (!cert_) return;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   // This is an approximation based on the der encoding size.
-  int size = i2d_X509(cert_.get(), nullptr);
-  tracker->TrackFieldWithSize("cert", size);
+  const int size = i2d_X509(cert_.get(), nullptr);
+  if (size > 0) tracker->TrackFieldWithSize("cert", size);
 }
 
 namespace {
+enum class MalformedSubjectAltNameMode {
+  kThrow,
+  kReturnLegacySentinel,
+};
+
+constexpr std::string_view kMalformedSubjectAltName = "DNS:";
+
+std::optional<std::string> ObjectToText(const ASN1_OBJECT* object,
+                                        bool no_name) {
+  if (object == nullptr) return std::nullopt;
+  int length = OBJ_obj2txt(nullptr, 0, object, no_name);
+  if (length <= 0 || length == INT_MAX) return std::nullopt;
+
+  std::string text(static_cast<size_t>(length) + 1, '\0');
+  int actual = OBJ_obj2txt(text.data(), length + 1, object, no_name);
+  if (actual != length) return std::nullopt;
+  text.resize(static_cast<size_t>(length));
+  return text;
+}
+
 MaybeLocal<Value> GetFingerprintDigest(Environment* env,
                                        const EVP_MD* method,
                                        const X509View& cert) {
@@ -110,18 +137,23 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const ASN1_OBJECT* obj) {
   // If OpenSSL knows the type, use the short name of the type as the key, and
   // the numeric representation of the type's OID otherwise.
   int nid = OBJ_obj2nid(obj);
-  char buf[80];
-  const char* str;
+  std::string text;
   if (nid != NID_undef) {
-    str = OBJ_nid2sn(nid);
-    CHECK_NOT_NULL(str);
+    const char* short_name = OBJ_nid2sn(nid);
+    if (short_name == nullptr) return {};
+    text = short_name;
   } else {
-    OBJ_obj2txt(buf, sizeof(buf), obj, true);
-    str = buf;
+    auto object_text = ObjectToText(obj, true);
+    if (!object_text.has_value()) return {};
+    text = std::move(object_text.value());
   }
 
   Local<Value> result;
-  if (!String::NewFromUtf8(context->GetIsolate(), str).ToLocal(&result)) {
+  if (!String::NewFromUtf8(context->GetIsolate(),
+                           text.data(),
+                           NewStringType::kNormal,
+                           static_cast<int>(text.size()))
+           .ToLocal(&result)) {
     return {};
   }
   return result;
@@ -133,12 +165,12 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const ASN1_STRING* str) {
   // values correctly though, leading to ambiguous and incorrect
   // representations. The new implementation only converts to Unicode and does
   // not escape anything.
-  unsigned char* value_str;
+  unsigned char* value_str = nullptr;
   int value_str_size = ASN1_STRING_to_UTF8(&value_str, str);
-  if (value_str_size < 0) {
-    return Undefined(context->GetIsolate());
-  }
-  DataPointer free_value_str(value_str, value_str_size);
+  DataPointer free_value_str(
+      value_str, value_str_size > 0 ? static_cast<size_t>(value_str_size) : 0);
+  if (value_str_size < 0) return {};
+  if (value_str_size > 0 && !free_value_str) return {};
 
   Local<Value> result;
   if (!String::NewFromUtf8(context->GetIsolate(),
@@ -190,11 +222,29 @@ MaybeLocal<Value> GetDer(Environment* env, const X509View& view) {
   return ret;
 }
 
-MaybeLocal<Value> GetSubjectAltNameString(Environment* env,
-                                          const X509View& view) {
+MaybeLocal<Value> GetSubjectAltNameString(
+    Environment* env,
+    const X509View& view,
+    MalformedSubjectAltNameMode malformed_name_mode) {
   Local<Value> ret;
-  auto bio = view.getSubjectAltName();
-  if (!bio) return Undefined(env->isolate());
+  bool has_extension = false;
+  auto bio = view.getSubjectAltName(&has_extension);
+  if (!bio) [[unlikely]] {
+    // An absent SAN maps to undefined. A malformed, present SAN throws for
+    // direct X509Certificate inspection, while the legacy TLS object uses a
+    // deliberately nonmatching value to prevent commonName fallback.
+    if (!has_extension) return Undefined(env->isolate());
+    if (malformed_name_mode ==
+        MalformedSubjectAltNameMode::kReturnLegacySentinel) {
+      // The legacy object is used by TLS hostname verification. Return an
+      // empty DNS name so verification cannot fall back to the common name,
+      // while keeping getPeerCertificate() usable for malformed certificates.
+      return OneByteString(env->isolate(), kMalformedSubjectAltName);
+    }
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to format subject alternative name");
+    return {};
+  }
   if (!ToV8Value(env->context(), bio).ToLocal(&ret)) return {};
   return ret;
 }
@@ -230,13 +280,19 @@ MaybeLocal<Value> GetValidTo(Environment* env, const X509View& view) {
 }
 
 MaybeLocal<Value> GetValidFromDate(Environment* env, const X509View& view) {
-  int64_t validFromTime = view.getValidFromTime();
-  return Date::New(env->context(), validFromTime * 1000.);
+  const auto valid_from_time = view.getValidFromTime();
+  const double milliseconds = valid_from_time.has_value()
+                                  ? valid_from_time.value() * 1000.
+                                  : std::numeric_limits<double>::quiet_NaN();
+  return Date::New(env->context(), milliseconds);
 }
 
 MaybeLocal<Value> GetValidToDate(Environment* env, const X509View& view) {
-  int64_t validToTime = view.getValidToTime();
-  return Date::New(env->context(), validToTime * 1000.);
+  const auto valid_to_time = view.getValidToTime();
+  const double milliseconds = valid_to_time.has_value()
+                                  ? valid_to_time.value() * 1000.
+                                  : std::numeric_limits<double>::quiet_NaN();
+  return Date::New(env->context(), milliseconds);
 }
 
 MaybeLocal<Value> GetSerialNumber(Environment* env, const X509View& view) {
@@ -248,19 +304,25 @@ MaybeLocal<Value> GetSerialNumber(Environment* env, const X509View& view) {
 }
 
 MaybeLocal<Value> GetKeyUsage(Environment* env, const X509View& cert) {
-  StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
-      X509_get_ext_d2i(cert.get(), NID_ext_key_usage, nullptr, nullptr)));
+  StackOfASN1 eku;
+  {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    eku.reset(static_cast<STACK_OF(ASN1_OBJECT)*>(
+        X509_get_ext_d2i(cert.get(), NID_ext_key_usage, nullptr, nullptr)));
+  }
   if (eku) {
     const int count = sk_ASN1_OBJECT_num(eku.get());
+    if (count < 0) return {};
     MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
-    char buf[256];
 
-    int j = 0;
     for (int i = 0; i < count; i++) {
-      if (OBJ_obj2txt(
-              buf, sizeof(buf), sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
-        ext_key_usage[j++] = OneByteString(env->isolate(), buf);
+      std::optional<std::string> usage;
+      {
+        MarkPopErrorOnReturn mark_pop_error_on_return;
+        usage = ObjectToText(sk_ASN1_OBJECT_value(eku.get(), i), true);
       }
+      if (!usage.has_value()) return {};
+      ext_key_usage[i] = OneByteString(env->isolate(), usage.value());
     }
 
     return Array::New(env->isolate(), ext_key_usage.out(), count);
@@ -304,7 +366,9 @@ void SubjectAltName(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetSubjectAltNameString(env, cert->view()).ToLocal(&ret)) {
+  if (GetSubjectAltNameString(
+          env, cert->view(), MalformedSubjectAltNameMode::kThrow)
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -517,7 +581,29 @@ void CheckIP(const FunctionCallbackInfo<Value>& args) {
   Utf8Value name(env->isolate(), args[0]);
   uint32_t flags = args[1].As<Uint32>()->Value();
 
-  switch (cert->view().checkIp(name.ToStringView(), flags)) {
+  const std::string_view subject = name.ToStringView();
+  X509View::CheckMatch result;
+  if (subject.find('\0') != std::string_view::npos ||
+      subject.find('%') != std::string_view::npos) {
+    result = X509View::CheckMatch::INVALID_NAME;
+  } else {
+    const std::string input(subject);
+    std::array<unsigned char, 16> address{};
+    size_t length = 0;
+    if (uv_inet_pton(AF_INET, input.c_str(), address.data()) == 0) {
+      length = 4;
+    } else if (uv_inet_pton(AF_INET6, input.c_str(), address.data()) == 0) {
+      length = 16;
+    } else {
+      result = X509View::CheckMatch::INVALID_NAME;
+    }
+    if (length != 0) {
+      result =
+          cert->view().checkIp({.data = address.data(), .len = length}, flags);
+    }
+  }
+
+  switch (result) {
     case X509View::CheckMatch::MATCH:  // Match!
       return args.GetReturnValue().Set(args[0]);
     case X509View::CheckMatch::NO_MATCH:  // No Match!
@@ -600,10 +686,16 @@ template <X509_NAME* get_name(const X509*)>
 static MaybeLocal<Value> GetX509NameObject(Environment* env,
                                            const X509View& cert) {
   X509_NAME* name = get_name(cert.get());
-  CHECK_NOT_NULL(name);
+  if (name == nullptr) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to inspect X509 name");
+    return {};
+  }
 
   int cnt = X509_NAME_entry_count(name);
-  CHECK_GE(cnt, 0);
+  if (cnt < 0) [[unlikely]] {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to inspect X509 name");
+    return {};
+  }
 
   Local<Value> v8_name;
   Local<Value> v8_value;
@@ -614,12 +706,41 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env,
 
   for (int i = 0; i < cnt; i++) {
     X509_NAME_ENTRY* entry = X509_NAME_get_entry(name, i);
-    CHECK_NOT_NULL(entry);
+    if (entry == nullptr) [[unlikely]] {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to inspect X509 name");
+      return {};
+    }
 
-    if (!ToV8Value(env->context(), X509_NAME_ENTRY_get_object(entry))
-             .ToLocal(&v8_name) ||
-        !ToV8Value(env->context(), X509_NAME_ENTRY_get_data(entry))
-             .ToLocal(&v8_value)) {
+    const ASN1_OBJECT* object = X509_NAME_ENTRY_get_object(entry);
+    const ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
+    if (object == nullptr || value == nullptr) [[unlikely]] {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to inspect X509 name");
+      return {};
+    }
+
+    switch (ASN1_STRING_type(value)) {
+      case V_ASN1_UTF8STRING:
+      case V_ASN1_NUMERICSTRING:
+      case V_ASN1_PRINTABLESTRING:
+      case V_ASN1_T61STRING:
+      case V_ASN1_IA5STRING:
+      case V_ASN1_UTCTIME:
+      case V_ASN1_GENERALIZEDTIME:
+      case V_ASN1_ISO64STRING:
+      case V_ASN1_UNIVERSALSTRING:
+      case V_ASN1_BMPSTRING:
+        break;
+      default:
+        // The legacy object can only represent string values. Preserve valid
+        // sibling attributes and omit values that cannot be converted.
+        continue;
+    }
+
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (!ToV8Value(env->context(), object).ToLocal(&v8_name) ||
+        !ToV8Value(env->context(), value).ToLocal(&v8_value)) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to convert X509 name to UTF-8");
       return {};
     }
 
@@ -664,40 +785,51 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env,
   return result;
 }
 
-MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
+MaybeLocal<Value> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
+  if (rsa == nullptr) return Undefined(env->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   int size = i2d_RSA_PUBKEY(rsa, nullptr);
-  CHECK_GE(size, 0);
+  if (size <= 0) return Undefined(env->isolate());
 
   std::unique_ptr<BackingStore> bs;
   {
     NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
     bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
   }
+  if (!bs) return Undefined(env->isolate());
 
   unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
-  CHECK_GE(i2d_RSA_PUBKEY(rsa, &serialized), 0);
+  if (i2d_RSA_PUBKEY(rsa, &serialized) != size) {
+    return Undefined(env->isolate());
+  }
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
   return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
 }
 
 MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
+  if (n == nullptr) return Undefined(env->isolate());
   auto bio = BIOPointer::New(n);
   if (!bio) return {};
   return ToV8Value(env->context(), bio);
 }
 
 MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
-  uint64_t exponent_word = static_cast<uint64_t>(BignumPointer::GetWord(e));
+  if (e == nullptr) return Undefined(env->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   auto bio = BIOPointer::NewMem();
-  if (!bio) return {};
-  BIO_printf(bio.get(), "0x%" PRIx64, exponent_word);
+  if (!bio) [[unlikely]]
+    return {};
+  if (!BIOPointer::WriteAll(bio, "0x") || BN_print(bio.get(), e) != 1) {
+    return {};
+  }
   return ToV8Value(env->context(), bio);
 }
 
 MaybeLocal<Value> GetECPubKey(Environment* env,
                               const EC_GROUP* group,
                               OSSL3_CONST EC_KEY* ec) {
+  if (group == nullptr || ec == nullptr) return Undefined(env->isolate());
   const auto pubkey = ECKeyPointer::GetPublicKey(ec);
   if (pubkey == nullptr) return Undefined(env->isolate());
 
@@ -716,10 +848,11 @@ MaybeLocal<Value> GetECGroupBits(Environment* env, const EC_GROUP* group) {
 
 template <const char* (*nid2string)(int nid)>
 MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
-  const char* name = nid2string(nid);
-  return name != nullptr
-             ? MaybeLocal<Value>(OneByteString(env->isolate(), name))
-             : MaybeLocal<Value>(Undefined(env->isolate()));
+  const char* const curve_name = nid2string(nid);
+  if (curve_name == nullptr) return Undefined(env->isolate());
+  const std::string_view name = curve_name;
+  return name.size() ? MaybeLocal<Value>(OneByteString(env->isolate(), name))
+                     : MaybeLocal<Value>(Undefined(env->isolate()));
 }
 
 MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
@@ -734,10 +867,12 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
                   info,
                   env->issuer_string(),
                   GetX509NameObject<X509_get_issuer_name>(env, cert)) ||
-      !Set<Value>(env,
-                  info,
-                  env->subjectaltname_string(),
-                  GetSubjectAltNameString(env, cert)) ||
+      !Set<Value>(
+          env,
+          info,
+          env->subjectaltname_string(),
+          GetSubjectAltNameString(
+              env, cert, MalformedSubjectAltNameMode::kReturnLegacySentinel)) ||
       !Set<Value>(env,
                   info,
                   env->infoaccess_string(),
@@ -749,63 +884,67 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
     return {};
   }
 
-  OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert.get());
+  OSSL3_CONST EVP_PKEY* pkey;
   OSSL3_CONST RSA* rsa = nullptr;
   OSSL3_CONST EC_KEY* ec = nullptr;
-  if (pkey != nullptr) {
-    switch (EVP_PKEY_id(pkey)) {
-      case EVP_PKEY_RSA:
-        rsa = EVP_PKEY_get0_RSA(pkey);
-        break;
-      case EVP_PKEY_EC:
-        ec = EVP_PKEY_get0_EC_KEY(pkey);
-        break;
+  {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    pkey = X509_get0_pubkey(cert.get());
+    if (pkey != nullptr) {
+      switch (EVP_PKEY_id(pkey)) {
+        case EVP_PKEY_RSA:
+        case EVP_PKEY_RSA_PSS:
+          rsa = EVP_PKEY_get0_RSA(pkey);
+          break;
+        case EVP_PKEY_EC:
+          ec = EVP_PKEY_get0_EC_KEY(pkey);
+          break;
+      }
     }
   }
 
   if (rsa) {
-    const BIGNUM* n;
-    const BIGNUM* e;
+    const BIGNUM* n = nullptr;
+    const BIGNUM* e = nullptr;
     RSA_get0_key(rsa, &n, &e, nullptr);
-    if (!Set<Value>(
-            env, info, env->modulus_string(), GetModulusString(env, n)) ||
-        !Set<Value>(
-            env,
-            info,
-            env->bits_string(),
-            Integer::New(env->isolate(), BignumPointer::GetBitCount(n))) ||
-        !Set<Value>(
-            env, info, env->exponent_string(), GetExponentString(env, e)) ||
-        !Set<Object>(env, info, env->pubkey_string(), GetPubKey(env, rsa))) {
-      return {};
+    if (n != nullptr && e != nullptr) {
+      if (!Set<Value>(
+              env, info, env->modulus_string(), GetModulusString(env, n)) ||
+          !Set<Value>(
+              env,
+              info,
+              env->bits_string(),
+              Integer::New(env->isolate(), BignumPointer::GetBitCount(n))) ||
+          !Set<Value>(
+              env, info, env->exponent_string(), GetExponentString(env, e)) ||
+          !Set<Value>(env, info, env->pubkey_string(), GetPubKey(env, rsa))) {
+        return {};
+      }
     }
   } else if (ec) {
     const auto group = ECKeyPointer::GetGroup(ec);
-
-    if (!Set<Value>(
-            env, info, env->bits_string(), GetECGroupBits(env, group)) ||
-        !Set<Value>(
-            env, info, env->pubkey_string(), GetECPubKey(env, group, ec))) {
-      return {};
-    }
-
-    const int nid = EC_GROUP_get_curve_name(group);
-    if (nid != 0) {
-      // Curve is well-known, get its OID and NIST nick-name (if it has one).
-
-      if (!Set<Value>(env,
-                      info,
-                      env->asn1curve_string(),
-                      GetCurveName<OBJ_nid2sn>(env, nid)) ||
-          !Set<Value>(env,
-                      info,
-                      env->nistcurve_string(),
-                      GetCurveName<EC_curve_nid2nist>(env, nid))) {
+    if (group != nullptr) {
+      if (!Set<Value>(
+              env, info, env->bits_string(), GetECGroupBits(env, group)) ||
+          !Set<Value>(
+              env, info, env->pubkey_string(), GetECPubKey(env, group, ec))) {
         return {};
       }
-    } else {
-      // Unnamed curves can be described by their mathematical properties,
-      // but aren't used much (at all?) with X.509/TLS. Support later if needed.
+
+      const int nid = EC_GROUP_get_curve_name(group);
+      if (nid != 0) {
+        // Curve is well-known, get its OID and NIST nick-name (if it has one).
+        if (!Set<Value>(env,
+                        info,
+                        env->asn1curve_string(),
+                        GetCurveName<OBJ_nid2sn>(env, nid)) ||
+            !Set<Value>(env,
+                        info,
+                        env->nistcurve_string(),
+                        GetCurveName<EC_curve_nid2nist>(env, nid))) {
+          return {};
+        }
+      }
     }
   }
 
