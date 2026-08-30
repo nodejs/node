@@ -181,6 +181,15 @@ async function testBroadcastFromSourceError() {
 // Protocol validation
 // =============================================================================
 
+function testBroadcastProtocolReturnsBroadcast() {
+  const { broadcast: expected } = broadcast();
+  const obj = {
+    [Symbol.for('Stream.broadcastProtocol')]() { return expected; },
+  };
+  assert.strictEqual(Broadcast.from(obj), expected);
+  expected.cancel();
+}
+
 function testBroadcastProtocolReturnsNull() {
   const obj = {
     [Symbol.for('Stream.broadcastProtocol')]() { return null; },
@@ -223,6 +232,7 @@ Promise.all([
   testAlreadyAbortedSignal(),
   testBroadcastFromCancelWhileBlocked(),
   testBroadcastFromSourceError(),
+  testBroadcastProtocolReturnsBroadcast(),
   testBroadcastProtocolReturnsNull(),
   testBroadcastProtocolReturnsString(),
   testBroadcastProtocolReturnsUndefined(),
