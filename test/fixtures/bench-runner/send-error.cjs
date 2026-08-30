@@ -11,7 +11,5 @@ if (process.env.NODE_BENCH_SEND_ERROR === 'callback') {
 const { bench } = require('node:bench');
 
 bench('send error', { samples: 1 }, (b) => {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
+  b.record({ duration_ns: 1n, operations: 1 });
 });
