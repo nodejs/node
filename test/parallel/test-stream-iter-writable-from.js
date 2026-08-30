@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { once } = require('events');
 const { setImmediate, setTimeout } = require('timers/promises');
 const {
   push,
@@ -603,18 +604,33 @@ async function testDestroyWithoutFail() {
 }
 
 // =============================================================================
-// Custom highWaterMark option
+// Classic Writable backpressure
 // =============================================================================
 
-function testHighWaterMarkIsMaxSafeInt() {
+function testUsesBoundedHighWaterMark() {
   const writer = {
     write(chunk) { return Promise.resolve(); },
   };
 
-  // HWM is set to MAX_SAFE_INTEGER to disable Writable's internal
-  // buffering. The underlying Writer manages backpressure directly.
   const writable = toWritable(writer);
-  assert.strictEqual(writable.writableHighWaterMark, Number.MAX_SAFE_INTEGER);
+  assert.ok(writable.writableHighWaterMark > 0);
+  assert.ok(writable.writableHighWaterMark < Number.MAX_SAFE_INTEGER);
+}
+
+async function testAppliesClassicBackpressure() {
+  let resolveWrite;
+  const writable = toWritable({
+    write: common.mustCall(() => new Promise((resolve) => {
+      resolveWrite = resolve;
+    })),
+  });
+  const chunk = Buffer.alloc(writable.writableHighWaterMark);
+
+  assert.strictEqual(writable.write(chunk), false);
+  const finished = once(writable, 'finish');
+  resolveWrite();
+  writable.end();
+  await finished;
 }
 
 // =============================================================================
@@ -700,10 +716,11 @@ async function testEndThrowsSyncPropagation() {
 
 testInvalidWriterThrows();
 testNoWritevWithoutWriterWritev();
-testHighWaterMarkIsMaxSafeInt();
+testUsesBoundedHighWaterMark();
 
 Promise.all([
   testBasicWrite(),
+  testAppliesClassicBackpressure(),
   testFalsyWriterRejectionBecomesClassicError(),
   testClassicWrapperReusePreservesErrorIdentity(),
   testWriteDelegatesToWriter(),
