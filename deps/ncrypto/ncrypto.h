@@ -917,10 +917,37 @@ class BIOPointer final {
 
   static int Write(BIOPointer* bio, std::string_view message);
 
+  // Writes the complete message and returns false if any bytes were not
+  // written.
+  static bool WriteAll(const BIOPointer& bio, std::string_view message);
+
+  // Returns the number of bytes written, or a negative value on error.
   template <typename... Args>
-  static void Printf(BIOPointer* bio, const char* format, Args... args) {
-    if (bio == nullptr || !*bio) return;
-    BIO_printf(bio->get(), format, std::forward<Args...>(args...));
+  static int Printf(BIOPointer* bio, const char* format, Args... args) {
+    if (bio == nullptr || !*bio) return -1;
+    return BIO_printf(bio->get(), format, std::forward<Args>(args)...);
+  }
+
+  // Formats and writes the complete message, returning false if formatting
+  // fails or any bytes were not written.
+  template <typename... Args>
+  static bool PrintfAll(const BIOPointer& bio,
+                        const char* format,
+                        Args... args) {
+    if (!bio) return false;
+
+    BIOPointer formatted = NewMem();
+    if (!formatted) return false;
+    int length =
+        BIO_printf(formatted.get(), format, std::forward<Args>(args)...);
+    if (length < 0) return false;
+
+    BUF_MEM* mem = formatted;
+    if (mem == nullptr || mem->length != static_cast<size_t>(length)) {
+      return false;
+    }
+    if (length == 0) return true;
+    return WriteAll(bio, std::string_view(mem->data, mem->length));
   }
 
  private:
@@ -1573,6 +1600,13 @@ class SSLPointer final {
 
 class X509Name final {
  public:
+  // A missing Entry means the name entry could not be inspected. A missing
+  // value marks an AttributeValue that the legacy UTF-8 view cannot represent.
+  struct Entry {
+    std::string key;
+    std::optional<std::string> value;
+  };
+
   X509Name();
   explicit X509Name(const X509_NAME* name);
   NCRYPTO_DISALLOW_COPY_AND_MOVE(X509Name)
@@ -1593,7 +1627,7 @@ class X509Name final {
     operator bool() const;
     bool operator==(const Iterator& other) const;
     bool operator!=(const Iterator& other) const;
-    std::pair<std::string, std::string> operator*() const;
+    std::optional<Entry> operator*() const;
 
    private:
     const X509Name& name_;
@@ -1632,15 +1666,15 @@ class X509View final {
   const X509Name getSubjectName() const;
   const X509Name getIssuerName() const;
   BIOPointer getSubject() const;
-  BIOPointer getSubjectAltName() const;
+  BIOPointer getSubjectAltName(bool* has_extension = nullptr) const;
   BIOPointer getIssuer() const;
   BIOPointer getInfoAccess() const;
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
   std::optional<std::string_view> getSignatureAlgorithm() const;
   std::optional<std::string> getSignatureAlgorithmOID() const;
-  int64_t getValidFromTime() const;
-  int64_t getValidToTime() const;
+  std::optional<int64_t> getValidFromTime() const;
+  std::optional<int64_t> getValidToTime() const;
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
   StackOfASN1 getKeyUsage() const;
@@ -1664,7 +1698,7 @@ class X509View final {
                        int flags,
                        DataPointer* peerName = nullptr) const;
   CheckMatch checkEmail(std::string_view email, int flags) const;
-  CheckMatch checkIp(std::string_view ip, int flags) const;
+  CheckMatch checkIp(const Buffer<const unsigned char>& ip, int flags) const;
 
   using UsageCallback = std::function<void(const char*)>;
   bool enumUsages(UsageCallback callback) const;

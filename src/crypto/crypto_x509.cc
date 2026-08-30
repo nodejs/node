@@ -8,9 +8,13 @@
 #include "ncrypto.h"
 #include "node_errors.h"
 #include "util-inl.h"
+#include "uv.h"
 #include "v8.h"
 
+#include <array>
+#include <limits>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace node {
@@ -20,6 +24,7 @@ using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
 using ncrypto::Digest;
+using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::X509Name;
 using ncrypto::X509Pointer;
@@ -65,12 +70,20 @@ ManagedX509& ManagedX509::operator=(const ManagedX509& that) {
 
 void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
   if (!cert_) return;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   // This is an approximation based on the der encoding size.
-  int size = i2d_X509(cert_.get(), nullptr);
-  tracker->TrackFieldWithSize("cert", size);
+  const int size = i2d_X509(cert_.get(), nullptr);
+  if (size > 0) tracker->TrackFieldWithSize("cert", size);
 }
 
 namespace {
+enum class MalformedSubjectAltNameMode {
+  kThrow,
+  kReturnLegacySentinel,
+};
+
+constexpr std::string_view kMalformedSubjectAltName = "DNS:";
+
 MaybeLocal<Value> GetFingerprintDigest(Environment* env,
                                        const Digest& method,
                                        const X509View& cert) {
@@ -167,12 +180,29 @@ MaybeLocal<Value> GetDer(Environment* env, const X509View& view) {
   return ret;
 }
 
-MaybeLocal<Value> GetSubjectAltNameString(Environment* env,
-                                          const X509View& view) {
+MaybeLocal<Value> GetSubjectAltNameString(
+    Environment* env,
+    const X509View& view,
+    MalformedSubjectAltNameMode malformed_name_mode) {
   Local<Value> ret;
-  auto bio = view.getSubjectAltName();
-  if (!bio) [[unlikely]]
-    return Undefined(env->isolate());
+  bool has_extension = false;
+  auto bio = view.getSubjectAltName(&has_extension);
+  if (!bio) [[unlikely]] {
+    // An absent SAN maps to undefined. A malformed, present SAN throws for
+    // direct X509Certificate inspection, while the legacy TLS object uses a
+    // deliberately nonmatching value to prevent commonName fallback.
+    if (!has_extension) return Undefined(env->isolate());
+    if (malformed_name_mode ==
+        MalformedSubjectAltNameMode::kReturnLegacySentinel) {
+      // The legacy object is used by TLS hostname verification. Return an
+      // empty DNS name so verification cannot fall back to the common name,
+      // while keeping getPeerCertificate() usable for malformed certificates.
+      return OneByteString(env->isolate(), kMalformedSubjectAltName);
+    }
+    THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to format subject alternative name");
+    return {};
+  }
   if (!ToV8Value(env->context(), bio).ToLocal(&ret)) return {};
   return ret;
 }
@@ -211,13 +241,19 @@ MaybeLocal<Value> GetValidTo(Environment* env, const X509View& view) {
 }
 
 MaybeLocal<Value> GetValidFromDate(Environment* env, const X509View& view) {
-  int64_t validFromTime = view.getValidFromTime();
-  return Date::New(env->context(), validFromTime * 1000.);
+  const auto valid_from_time = view.getValidFromTime();
+  const double milliseconds = valid_from_time.has_value()
+                                  ? valid_from_time.value() * 1000.
+                                  : std::numeric_limits<double>::quiet_NaN();
+  return Date::New(env->context(), milliseconds);
 }
 
 MaybeLocal<Value> GetValidToDate(Environment* env, const X509View& view) {
-  int64_t validToTime = view.getValidToTime();
-  return Date::New(env->context(), validToTime * 1000.);
+  const auto valid_to_time = view.getValidToTime();
+  const double milliseconds = valid_to_time.has_value()
+                                  ? valid_to_time.value() * 1000.
+                                  : std::numeric_limits<double>::quiet_NaN();
+  return Date::New(env->context(), milliseconds);
 }
 
 MaybeLocal<Value> GetSignatureAlgorithm(Environment* env,
@@ -296,7 +332,9 @@ void SubjectAltName(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetSubjectAltNameString(env, cert->view()).ToLocal(&ret)) {
+  if (GetSubjectAltNameString(
+          env, cert->view(), MalformedSubjectAltNameMode::kThrow)
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -517,11 +555,29 @@ void CheckEmail(const FunctionCallbackInfo<Value>& args) {
 }
 
 void CheckIP(const FunctionCallbackInfo<Value>& args) {
-  CheckX509Subject(args,
-                   [](X509View& cert,
-                      std::string_view subject,
-                      uint32_t flags,
-                      DataPointer*) { return cert.checkIp(subject, flags); });
+  CheckX509Subject(
+      args,
+      [](X509View& cert,
+         std::string_view subject,
+         uint32_t flags,
+         DataPointer*) {
+        if (subject.find('\0') != std::string_view::npos ||
+            subject.find('%') != std::string_view::npos) {
+          return X509View::CheckMatch::INVALID_NAME;
+        }
+
+        const std::string input(subject);
+        std::array<unsigned char, 16> address{};
+        size_t length = 0;
+        if (uv_inet_pton(AF_INET, input.c_str(), address.data()) == 0) {
+          length = 4;
+        } else if (uv_inet_pton(AF_INET6, input.c_str(), address.data()) == 0) {
+          length = 16;
+        } else {
+          return X509View::CheckMatch::INVALID_NAME;
+        }
+        return cert.checkIp({.data = address.data(), .len = length}, flags);
+      });
 }
 
 void GetIssuerCert(const FunctionCallbackInfo<Value>& args) {
@@ -606,9 +662,20 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env,
       Object::New(env->isolate(), Null(env->isolate()), nullptr, nullptr, 0);
   if (result.IsEmpty()) return {};
 
-  for (auto i : name) {
-    if (!ToV8Value(env, i.first).ToLocal(&v8_name) ||
-        !ToV8Value(env, i.second).ToLocal(&v8_value)) {
+  for (auto entry : name) {
+    if (!entry.has_value()) [[unlikely]] {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to convert X509 name to UTF-8");
+      return {};
+    }
+
+    const auto& [key, value] = *entry;
+    // The legacy object can only represent string values. Preserve valid
+    // sibling attributes and omit values that cannot be converted to UTF-8.
+    if (!value.has_value()) continue;
+
+    if (!ToV8Value(env, key).ToLocal(&v8_name) ||
+        !ToV8Value(env, *value).ToLocal(&v8_value)) {
       return {};
     }
 
@@ -669,11 +736,13 @@ MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
 
 MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
   if (e == nullptr) return Null(env->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   auto bio = BIOPointer::NewMem();
   if (!bio) [[unlikely]]
     return {};
-  BIO_puts(bio.get(), "0x");
-  BN_print(bio.get(), e);
+  if (!BIOPointer::WriteAll(bio, "0x") || BN_print(bio.get(), e) != 1) {
+    return {};
+  }
   return ToV8Value(env->context(), bio);
 }
 
@@ -699,7 +768,9 @@ MaybeLocal<Value> GetECGroupBits(Environment* env, const EC_GROUP* group) {
 
 template <const char* (*nid2string)(int nid)>
 MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
-  std::string_view name = nid2string(nid);
+  const char* const curve_name = nid2string(nid);
+  if (curve_name == nullptr) return Undefined(env->isolate());
+  const std::string_view name = curve_name;
   return name.size() ? MaybeLocal<Value>(OneByteString(env->isolate(), name))
                      : MaybeLocal<Value>(Undefined(env->isolate()));
 }
@@ -734,10 +805,21 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
     env->set_x509_dictionary_template(tmpl);
   }
 
+  Local<Value> subject;
+  if (!GetX509NameObject(env, cert.getSubjectName()).ToLocal(&subject)) {
+    return {};
+  }
+
+  Local<Value> issuer;
+  if (!GetX509NameObject(env, cert.getIssuerName()).ToLocal(&issuer)) {
+    return {};
+  }
+
   MaybeLocal<Value> values[] = {
-      GetX509NameObject(env, cert.getSubjectName()),
-      GetX509NameObject(env, cert.getIssuerName()),
-      GetSubjectAltNameString(env, cert),
+      subject,
+      issuer,
+      GetSubjectAltNameString(
+          env, cert, MalformedSubjectAltNameMode::kReturnLegacySentinel),
       GetInfoAccessString(env, cert),
       Boolean::New(env->isolate(), cert.isCA()),
       Undefined(env->isolate()),  // modulus
@@ -755,6 +837,19 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
       Undefined(env->isolate()),  // asn1curve
       Undefined(env->isolate()),  // nistcurve
   };
+
+  // X509_get0_pubkey() fails when the linked OpenSSL cannot decode the
+  // certificate's public key (e.g. an unsupported curve in FIPS builds).
+  // ifRsa()/ifEc() assume a decodable key, so leave the key-specific
+  // fields undefined in that case.
+  const bool has_public_key = [&] {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    return X509_get0_pubkey(cert.get()) != nullptr;
+  }();
+  if (!has_public_key) {
+    return scope.EscapeMaybe(
+        NewDictionaryInstance(env->context(), tmpl, values));
+  }
 
   cert.ifRsa([&](const ncrypto::Rsa& rsa) {
     auto pub_key = rsa.getPublicKey();
