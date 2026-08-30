@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { setTimeout } = require('timers/promises');
+const { setTimeout, setImmediate } = require('timers/promises');
 const { broadcast, text } = require('stream/iter');
 
 // =============================================================================
@@ -223,7 +223,7 @@ async function testCancelWithReason() {
   const resultPromise = text(consumer).catch((err) => err);
 
   // Give the consumer time to enter the waiting state
-  await new Promise((resolve) => setImmediate(resolve));
+  await setImmediate();
 
   bc.cancel(new Error('cancelled'));
 
