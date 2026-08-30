@@ -547,7 +547,8 @@ added:
 
 Create an async byte stream from the given input. Strings are UTF-8 encoded.
 `ArrayBuffer` and `ArrayBufferView` values are wrapped as `Uint8Array`. Arrays
-and iterables in `input` are recursively flattened and normalized.
+and iterables in `input` are recursively flattened and normalized. Flattened
+values may be split across implementation-defined bounded batches.
 
 Objects implementing `Symbol.for('Stream.toAsyncStreamable')` or
 `Symbol.for('Stream.toStreamable')` are converted via those protocols. The
