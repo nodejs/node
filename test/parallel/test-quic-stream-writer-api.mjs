@@ -16,7 +16,7 @@ const { bytes } = await import('stream/iter');
 
 const encoder = new TextEncoder();
 
-const totalStreams = 5;
+const totalStreams = 6;
 const serverResults = [];
 const allDone = Promise.withResolvers();
 
@@ -88,6 +88,25 @@ await clientSession.opened;
   await stream.closed;
 }
 
+// Web IDL Writer argument conversion
+{
+  const stream = await clientSession.createBidirectionalStream();
+  const w = stream.writer;
+  await w.write(42, null);
+  await w.writev(new Set([true, { toString: () => 'object' }]));
+  assert.throws(
+    () => w.write(Symbol('invalid')),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.throws(
+    () => w.write('invalid options', 1),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.strictEqual(w.endSync(), 12);
+  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await stream.closed;
+}
+
 {
   const stream = await clientSession.createBidirectionalStream();
   const w = stream.writer;
@@ -139,4 +158,5 @@ assert.strictEqual(decoder.decode(serverResults[0]), 'async write');
 assert.strictEqual(decoder.decode(serverResults[1]), 'hello writev');
 assert.strictEqual(decoder.decode(serverResults[2]), 'async writev');
 assert.strictEqual(decoder.decode(serverResults[3]), 'end async');
-assert.strictEqual(decoder.decode(serverResults[4]), 'capacity');
+assert.strictEqual(decoder.decode(serverResults[4]), '42trueobject');
+assert.strictEqual(decoder.decode(serverResults[5]), 'capacity');

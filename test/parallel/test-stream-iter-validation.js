@@ -22,7 +22,7 @@ const {
 // =============================================================================
 
 // Budget must be integer >= 16384
-assert.throws(() => push({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => push({ budget: 'bad' }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => push({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
 // Values < 16384 are rejected
 assert.throws(() => push({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
@@ -68,12 +68,11 @@ assert.throws(() => push('bad', {}), { code: 'ERR_INVALID_ARG_TYPE' });
   writer.endSync();
 }
 
-// Writer.write rejects non-string/non-Uint8Array
+// Writer chunks use the Web IDL (Uint8Array or USVString) conversion.
 {
   const { writer } = push();
-  assert.throws(() => writer.writeSync(42), { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => writer.writeSync({}), { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => writer.writeSync(true), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writeSync(Symbol()),
+                { code: 'ERR_INVALID_ARG_TYPE' });
   writer.endSync();
 }
 
@@ -87,7 +86,7 @@ assert.throws(() => duplex({ a: 42 }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => duplex({ b: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
 
 // Budget validation (cascades through to push())
-assert.throws(() => duplex({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => duplex({ budget: 'bad' }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => duplex({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => duplex({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
@@ -129,7 +128,7 @@ assert.throws(() => pullSync(fromSync('a'), 42), { code: 'ERR_INVALID_ARG_TYPE' 
 // broadcast() validation
 // =============================================================================
 
-assert.throws(() => broadcast({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => broadcast({ budget: 'bad' }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => broadcast({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => broadcast({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
@@ -214,7 +213,7 @@ assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
 // =============================================================================
 
 assert.throws(() => share(42), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => share(from('a'), { budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => share(from('a'), { budget: 'bad' }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => share(from('a'), { budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => share(from('a'), { budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
@@ -239,7 +238,7 @@ share(from('a'), { budget: Number.MAX_SAFE_INTEGER }).cancel();
 
 assert.throws(() => shareSync(42), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => shareSync(fromSync('a'), { budget: 'bad' }),
-              { code: 'ERR_INVALID_ARG_TYPE' });
+              { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => shareSync(fromSync('a'), { budget: 1.5 }),
               { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => shareSync(fromSync('a'), { budget: Number.MAX_SAFE_INTEGER + 1 }),
@@ -274,7 +273,7 @@ assert.throws(() => bytesSync(fromSync('a'), { limit: 'bad' }),
 assert.throws(() => bytesSync(fromSync('a'), { limit: -1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => textSync(fromSync('a'), { encoding: 42 }),
-              { code: 'ERR_INVALID_ARG_TYPE' });
+              { code: 'ERR_INVALID_ARG_VALUE' });
 assert.throws(() => textSync(fromSync('a'), { encoding: 'bogus' }),
               { code: 'ERR_INVALID_ARG_VALUE' });
 assert.throws(() => arrayBufferSync(fromSync('a'), { limit: 'bad' }),
@@ -318,7 +317,7 @@ async function testAsyncValidation() {
   await assert.rejects(
     () => bytes(from('a'), { limit: -1 }), { code: 'ERR_OUT_OF_RANGE' });
   await assert.rejects(
-    () => text(from('a'), { encoding: 42 }), { code: 'ERR_INVALID_ARG_TYPE' });
+    () => text(from('a'), { encoding: 42 }), { code: 'ERR_INVALID_ARG_VALUE' });
   await assert.rejects(
     () => text(from('a'), { encoding: 'not-a-real-encoding' }),
     { code: 'ERR_INVALID_ARG_VALUE' });
