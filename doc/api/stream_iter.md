@@ -452,9 +452,10 @@ writer closes immediately.
 * Returns: {number} Total bytes written, or `-1` if ending cannot complete
   synchronously.
 
-Synchronous variant of `writer.end()`. A return value of `-1` means closing has
-started but requires asynchronous draining. Use the try-fallback pattern to
-await completion:
+Synchronous variant of `writer.end()`. A return value of `-1` only indicates
+that the operation could not complete synchronously; no assumption can be made
+about whether closing has started or why it could not complete. Use the
+try-fallback pattern to await completion:
 
 ```cjs
 const result = writer.endSync();
@@ -517,8 +518,11 @@ Synchronous batch write.
 
 ## The `stream/iter` module
 
-All functions are available both as named exports and as properties of the
-`Stream` namespace object:
+Most functions are available both as named exports and as properties of the
+`Stream` namespace object. The classic stream adapters (`fromReadable()`,
+`fromWritable()`, `toReadable()`, `toReadableSync()`, and `toWritable()`) and
+the static helper objects (`Broadcast`, `Share`, and `SyncShare`) are named
+exports only.
 
 ```mjs
 // Named exports
@@ -892,12 +896,13 @@ const serving = (async () => {
   for await (const chunks of server.readable) {
     await server.writer.writev(chunks);
   }
+  await server.writer.end();
 })();
 
 await client.writer.write('hello');
 await client.writer.end();
 
-console.log(await text(server.readable)); // handled by echo
+console.log(await text(client.readable)); // 'hello'
 await serving;
 ```
 
@@ -912,12 +917,13 @@ async function run() {
     for await (const chunks of server.readable) {
       await server.writer.writev(chunks);
     }
+    await server.writer.end();
   })();
 
   await client.writer.write('hello');
   await client.writer.end();
 
-  console.log(await text(server.readable)); // handled by echo
+  console.log(await text(client.readable)); // 'hello'
   await serving;
 }
 
@@ -1180,7 +1186,8 @@ run().catch(console.error);
 added: v25.9.0
 -->
 
-* `callback` {Function} `(chunks) => void` Called with each batch.
+* `callback` {Function} `(chunks) => void` Called with each batch and with
+  `null` when the source ends.
 * Returns: {Function} A stateless transform.
 
 Create a pass-through transform that observes batches without modifying them.
@@ -1191,7 +1198,9 @@ import { from, pull, text, tap } from 'node:stream/iter';
 
 const result = pull(
   from('hello'),
-  tap((chunks) => console.log('Batch size:', chunks.length)),
+  tap((chunks) => {
+    if (chunks !== null) console.log('Batch size:', chunks.length);
+  }),
 );
 console.log(await text(result));
 ```
@@ -1202,7 +1211,9 @@ const { from, pull, text, tap } = require('node:stream/iter');
 async function run() {
   const result = pull(
     from('hello'),
-    tap((chunks) => console.log('Batch size:', chunks.length)),
+    tap((chunks) => {
+      if (chunks !== null) console.log('Batch size:', chunks.length);
+    }),
   );
   console.log(await text(result));
 }
@@ -1314,9 +1325,8 @@ The number of active consumers.
   * `signal` {AbortSignal}
 * Returns: {AsyncIterable} whose chunks fulfill with {Uint8Array\[]}
 
-Create a new consumer. Each consumer receives all data written to the
-broadcast from the point of subscription onward. Optional transforms are
-applied to this consumer's view of the data.
+Create a new consumer. Optional transforms are applied to this consumer's view
+of the data.
 
 #### `broadcast[Symbol.dispose]()`
 
@@ -1475,12 +1485,6 @@ added: v25.9.0
 * `options` {Object}
 * Returns: {SyncShare}
 
-#### `share.bufferSize`
-
-* {number}
-
-The number of chunks currently buffered.
-
 #### `share.cancel([reason])`
 
 * `reason` {any}
@@ -1494,11 +1498,9 @@ reason. If it is omitted, consumers complete normally.
 
 The number of active consumers.
 
-#### `share.pull([...transforms][, options])`
+#### `share.pull([...transforms])`
 
 * `...transforms` {Function|Object}
-* `options` {Object}
-  * `signal` {AbortSignal}
 * Returns: {Iterable} whose chunks return {Uint8Array\[]}
 
 Create a new consumer of the shared source.
@@ -1803,7 +1805,11 @@ to the {BroadcastChannel} interface. The implementation is fully custom -- it ca
 manage consumers, buffering, and backpressure however it wants.
 
 ```mjs
-import { Broadcast, text } from 'node:stream/iter';
+import {
+  broadcast as createBroadcast,
+  Broadcast,
+  text,
+} from 'node:stream/iter';
 
 // This example defers to the built-in Broadcast, but a custom
 // implementation could use any mechanism.
@@ -1812,7 +1818,7 @@ class MessageBus {
   #writer;
 
   constructor() {
-    const { writer, broadcast } = Broadcast();
+    const { writer, broadcast } = createBroadcast();
     this.#writer = writer;
     this.#broadcast = broadcast;
   }
@@ -1839,7 +1845,11 @@ console.log(await text(consumer)); // 'hello'
 ```
 
 ```cjs
-const { Broadcast, text } = require('node:stream/iter');
+const {
+  broadcast: createBroadcast,
+  Broadcast,
+  text,
+} = require('node:stream/iter');
 
 // This example defers to the built-in Broadcast, but a custom
 // implementation could use any mechanism.
@@ -1848,7 +1858,7 @@ class MessageBus {
   #writer;
 
   constructor() {
-    const { writer, broadcast } = Broadcast();
+    const { writer, broadcast } = createBroadcast();
     this.#writer = writer;
     this.#broadcast = broadcast;
   }
@@ -2084,11 +2094,9 @@ console.log(textSync(consumer)); // 'hello'
 * Value: `Symbol.for('Stream.toAsyncStreamable')`
 
 The value must be a function that converts the object into a streamable value.
-When the object is encountered anywhere in the streaming pipeline (as a source
-passed to `from()`, or as a value returned from a transform), this method is
-called to produce the actual data. It may return any value that resolves to:
-a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
-object.
+When the object is passed to `from()`, this method is called to produce the
+actual data. It may return any value that resolves to a string, `Uint8Array`,
+`AsyncIterable`, `Iterable`, or another streamable object.
 
 ```mjs
 import { from, text } from 'node:stream/iter';
@@ -2133,10 +2141,9 @@ text(stream).then(console.log); // 'hello world'
 * Value: `Symbol.for('Stream.toStreamable')`
 
 The value must be a function that synchronously converts the object into a
-streamable value. When the object is encountered anywhere in the streaming
-pipeline (as a source passed to `fromSync()`, or as a value returned from a
-sync transform), this method is called to produce the actual data. It must
-synchronously return a streamable value: a string, `Uint8Array`, or `Iterable`.
+streamable value. When the object is passed to `fromSync()`, this method is
+called to produce the actual data. It must synchronously return a streamable
+value: a string, `Uint8Array`, or `Iterable`.
 
 ```mjs
 import { fromSync, textSync } from 'node:stream/iter';
