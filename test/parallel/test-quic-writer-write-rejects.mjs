@@ -1,8 +1,6 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
-// Test: write() rejects when flow-controlled.
-// The async write() method rejects with ERR_INVALID_STATE when the
-// chunk exceeds capacity (canWrite is false).
+// Test: strict backpressure allows one pending write and rejects the next.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -41,16 +39,19 @@ assert.strictEqual(w.writeSync(new Uint8Array(1024)), true);
 // canWrite should now be false.
 assert.strictEqual(w.canWrite, false);
 
-// Async write() should reject when buffer is full.
+// The first async write waits for capacity.
+const pendingWrite = w.write(new Uint8Array(512));
+
+// A second pending write violates strict backpressure.
 await assert.rejects(
-  w.write(new Uint8Array(512)),
-  { code: 'ERR_INVALID_STATE' },
+  w.writev([new Uint8Array(512)]),
+  { code: 'ERR_INVALID_STATE', name: 'RangeError' },
 );
 
-// Wait for drain, then write should succeed.
+// The drain event admits the pending write.
 const drain = w[dp]();
 assert.ok(drain instanceof Promise);
-await drain;
+await Promise.all([drain, pendingWrite]);
 assert.ok(w.canWrite === true);
 
 // Now write succeeds.
