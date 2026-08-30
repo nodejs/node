@@ -18,6 +18,7 @@
 #include <climits>
 #include <cstring>
 #include <string_view>
+#include <vector>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/core_names.h>
 #include <openssl/params.h>
