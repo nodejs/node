@@ -5,11 +5,20 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __esm = (fn2, res) => function __init() {
-  return fn2 && (res = (0, fn2[__getOwnPropNames(fn2)[0]])(fn2 = 0)), res;
+var __esm = (fn2, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn2 && (res = (0, fn2[__getOwnPropNames(fn2)[0]])(fn2 = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
 };
 var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __export = (target, all) => {
   for (var name2 in all)
@@ -3240,32 +3249,44 @@ var require_semver = __commonJS({
     var { safeRe: re, t } = require_re();
     var parseOptions = require_parse_options();
     var { compareIdentifiers } = require_identifiers();
-    var SemVer3 = class _SemVer {
-      constructor(version2, options) {
-        options = parseOptions(options);
-        if (version2 instanceof _SemVer) {
-          if (version2.loose === !!options.loose && version2.includePrerelease === !!options.includePrerelease) {
-            return version2;
-          } else {
-            version2 = version2.version;
-          }
-        } else if (typeof version2 !== "string") {
-          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version2}".`);
+    var isPrereleaseIdentifier = (prerelease, identifier) => {
+      const identifiers = identifier.split(".");
+      if (identifiers.length > prerelease.length) {
+        return false;
+      }
+      for (let i = 0; i < identifiers.length; i++) {
+        if (compareIdentifiers(prerelease[i], identifiers[i]) !== 0) {
+          return false;
         }
-        if (version2.length > MAX_LENGTH) {
+      }
+      return true;
+    };
+    var SemVer3 = class _SemVer {
+      constructor(version, options) {
+        options = parseOptions(options);
+        if (version instanceof _SemVer) {
+          if (version.loose === !!options.loose && version.includePrerelease === !!options.includePrerelease) {
+            return version;
+          } else {
+            version = version.version;
+          }
+        } else if (typeof version !== "string") {
+          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`);
+        }
+        if (version.length > MAX_LENGTH) {
           throw new TypeError(
             `version is longer than ${MAX_LENGTH} characters`
           );
         }
-        debug("SemVer", version2, options);
+        debug("SemVer", version, options);
         this.options = options;
         this.loose = !!options.loose;
         this.includePrerelease = !!options.includePrerelease;
-        const m = version2.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
+        const m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
         if (!m) {
-          throw new TypeError(`Invalid Version: ${version2}`);
+          throw new TypeError(`Invalid Version: ${version}`);
         }
-        this.raw = version2;
+        this.raw = version;
         this.major = +m[1];
         this.minor = +m[2];
         this.patch = +m[3];
@@ -3486,8 +3507,9 @@ var require_semver = __commonJS({
               if (identifierBase === false) {
                 prerelease = [identifier];
               }
-              if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
-                if (isNaN(this.prerelease[1])) {
+              if (isPrereleaseIdentifier(this.prerelease, identifier)) {
+                const prereleaseBase = this.prerelease[identifier.split(".").length];
+                if (isNaN(prereleaseBase)) {
                   this.prerelease = prerelease;
                 }
               } else {
@@ -3535,12 +3557,12 @@ var require_parse = __commonJS({
   "node_modules/semver/functions/parse.js"(exports2, module2) {
     "use strict";
     var SemVer3 = require_semver();
-    var parse4 = (version2, options, throwErrors = false) => {
-      if (version2 instanceof SemVer3) {
-        return version2;
+    var parse4 = (version, options, throwErrors = false) => {
+      if (version instanceof SemVer3) {
+        return version;
       }
       try {
-        return new SemVer3(version2, options);
+        return new SemVer3(version, options);
       } catch (er) {
         if (!throwErrors) {
           return null;
@@ -3557,8 +3579,8 @@ var require_valid = __commonJS({
   "node_modules/semver/functions/valid.js"(exports2, module2) {
     "use strict";
     var parse4 = require_parse();
-    var valid = (version2, options) => {
-      const v = parse4(version2, options);
+    var valid = (version, options) => {
+      const v = parse4(version, options);
       return v ? v.version : null;
     };
     module2.exports = valid;
@@ -3762,19 +3784,19 @@ var require_comparator = __commonJS({
       toString() {
         return this.value;
       }
-      test(version2) {
-        debug("Comparator.test", version2, this.options.loose);
-        if (this.semver === ANY || version2 === ANY) {
+      test(version) {
+        debug("Comparator.test", version, this.options.loose);
+        if (this.semver === ANY || version === ANY) {
           return true;
         }
-        if (typeof version2 === "string") {
+        if (typeof version === "string") {
           try {
-            version2 = new SemVer3(version2, this.options);
+            version = new SemVer3(version, this.options);
           } catch (er) {
             return false;
           }
         }
-        return cmp(version2, this.operator, this.semver, this.options);
+        return cmp(version, this.operator, this.semver, this.options);
       }
       intersects(comp, options) {
         if (!(comp instanceof _Comparator)) {
@@ -3896,6 +3918,7 @@ var require_range = __commonJS({
         return this.range;
       }
       parseRange(range) {
+        range = range.replace(BUILDSTRIPRE, "");
         const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
         const memoKey = memoOpts + ":" + range;
         const cached = cache2.get(memoKey);
@@ -3950,19 +3973,19 @@ var require_range = __commonJS({
         });
       }
       // if ANY of the sets match ALL of its comparators, then pass
-      test(version2) {
-        if (!version2) {
+      test(version) {
+        if (!version) {
           return false;
         }
-        if (typeof version2 === "string") {
+        if (typeof version === "string") {
           try {
-            version2 = new SemVer3(version2, this.options);
+            version = new SemVer3(version, this.options);
           } catch (er) {
             return false;
           }
         }
         for (let i = 0; i < this.set.length; i++) {
-          if (testSet(this.set[i], version2, this.options)) {
+          if (testSet(this.set[i], version, this.options)) {
             return true;
           }
         }
@@ -3978,12 +4001,14 @@ var require_range = __commonJS({
     var SemVer3 = require_semver();
     var {
       safeRe: re,
+      src,
       t,
       comparatorTrimReplace,
       tildeTrimReplace,
       caretTrimReplace
     } = require_re();
     var { FLAG_INCLUDE_PRERELEASE, FLAG_LOOSE } = require_constants2();
+    var BUILDSTRIPRE = new RegExp(src[t.BUILD], "g");
     var isNullSet = (c) => c.value === "<0.0.0-0";
     var isAny = (c) => c.value === "";
     var isSatisfiable = (comparators, options) => {
@@ -4012,20 +4037,22 @@ var require_range = __commonJS({
       return comp;
     };
     var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
+    var invalidXRangeOrder = (M, m, p) => isX(M) && !isX(m) || isX(m) && p && !isX(p);
     var replaceTildes = (comp, options) => {
       return comp.trim().split(/\s+/).map((c) => replaceTilde(c, options)).join(" ");
     };
     var replaceTilde = (comp, options) => {
       const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE];
+      const z = options.includePrerelease ? "-0" : "";
       return comp.replace(r, (_, M, m, p, pr) => {
         debug("tilde", comp, _, M, m, p, pr);
         let ret;
         if (isX(M)) {
           ret = "";
         } else if (isX(m)) {
-          ret = `>=${M}.0.0 <${+M + 1}.0.0-0`;
+          ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`;
         } else if (isX(p)) {
-          ret = `>=${M}.${m}.0 <${M}.${+m + 1}.0-0`;
+          ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`;
         } else if (pr) {
           debug("replaceTilde pr", pr);
           ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
@@ -4071,9 +4098,9 @@ var require_range = __commonJS({
           debug("no pr");
           if (M === "0") {
             if (m === "0") {
-              ret = `>=${M}.${m}.${p}${z} <${M}.${m}.${+p + 1}-0`;
+              ret = `>=${M}.${m}.${p} <${M}.${m}.${+p + 1}-0`;
             } else {
-              ret = `>=${M}.${m}.${p}${z} <${M}.${+m + 1}.0-0`;
+              ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
             }
           } else {
             ret = `>=${M}.${m}.${p} <${+M + 1}.0.0-0`;
@@ -4092,6 +4119,9 @@ var require_range = __commonJS({
       const r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE];
       return comp.replace(r, (ret, gtlt, M, m, p, pr) => {
         debug("xRange", comp, ret, gtlt, M, m, p, pr);
+        if (invalidXRangeOrder(M, m, p)) {
+          return comp;
+        }
         const xM = isX(M);
         const xm = xM || isX(m);
         const xp = xm || isX(p);
@@ -4177,13 +4207,13 @@ var require_range = __commonJS({
       }
       return `${from} ${to}`.trim();
     };
-    var testSet = (set, version2, options) => {
+    var testSet = (set, version, options) => {
       for (let i = 0; i < set.length; i++) {
-        if (!set[i].test(version2)) {
+        if (!set[i].test(version)) {
           return false;
         }
       }
-      if (version2.prerelease.length && !options.includePrerelease) {
+      if (version.prerelease.length && !options.includePrerelease) {
         for (let i = 0; i < set.length; i++) {
           debug(set[i].semver);
           if (set[i].semver === Comparator.ANY) {
@@ -4191,7 +4221,7 @@ var require_range = __commonJS({
           }
           if (set[i].semver.prerelease.length > 0) {
             const allowed = set[i].semver;
-            if (allowed.major === version2.major && allowed.minor === version2.minor && allowed.patch === version2.patch) {
+            if (allowed.major === version.major && allowed.minor === version.minor && allowed.patch === version.patch) {
               return true;
             }
           }
@@ -4707,7 +4737,10 @@ function envForceColor() {
   if (env.FORCE_COLOR.length === 0) {
     return 1;
   }
-  const level = Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
+  if (!new RegExp("^\\d+$", "v").test(env.FORCE_COLOR)) {
+    return;
+  }
+  const level = Math.min(Number(env.FORCE_COLOR), 3);
   if (![0, 1, 2, 3].includes(level)) {
     return;
   }
@@ -4741,6 +4774,9 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
       return 2;
     }
   }
+  if (forceColor !== void 0 && new RegExp("^\\d+$", "v").test(env.FORCE_COLOR)) {
+    return forceColor;
+  }
   if ("TF_BUILD" in env && "AGENT_NAME" in env) {
     return 1;
   }
@@ -4759,16 +4795,16 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 1;
   }
   if ("CI" in env) {
-    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => key in env)) {
+    if (["GITHUB_ACTIONS", "GITEA_ACTIONS", "CIRCLECI"].some((key) => Object.hasOwn(env, key))) {
       return 3;
     }
-    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => sign in env) || env.CI_NAME === "codeship") {
+    if (["TRAVIS", "APPVEYOR", "GITLAB_CI", "BUILDKITE", "DRONE"].some((sign) => Object.hasOwn(env, sign)) || env.CI_NAME === "codeship") {
       return 1;
     }
     return min;
   }
   if ("TEAMCITY_VERSION" in env) {
-    return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+    return new RegExp("^(?:9\\.0*[1-9]\\d*\\.|\\d{2,}\\.)", "v").test(env.TEAMCITY_VERSION) ? 1 : 0;
   }
   if (env.COLORTERM === "truecolor") {
     return 3;
@@ -4783,20 +4819,20 @@ function _supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
     return 3;
   }
   if ("TERM_PROGRAM" in env) {
-    const version2 = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+    const version = Number((env.TERM_PROGRAM_VERSION || "").split(".", 1)[0]);
     switch (env.TERM_PROGRAM) {
       case "iTerm.app": {
-        return version2 >= 3 ? 3 : 2;
+        return version >= 3 ? 3 : 2;
       }
       case "Apple_Terminal": {
         return 2;
       }
     }
   }
-  if (/-256(color)?$/i.test(env.TERM)) {
+  if (new RegExp("-256(?:color)?$", "iv").test(env.TERM)) {
     return 2;
   }
-  if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+  if (new RegExp("^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux", "iv").test(env.TERM)) {
     return 1;
   }
   if ("COLORTERM" in env) {
@@ -6879,10 +6915,22 @@ var init_large_numbers = __esm({
 });
 
 // node_modules/tar/dist/esm/types.js
-var isCode, name, code;
+var isCode, normalFsTypes, name, code;
 var init_types = __esm({
   "node_modules/tar/dist/esm/types.js"() {
     isCode = (c) => name.has(c);
+    normalFsTypes = /* @__PURE__ */ new Set([
+      "0",
+      "",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "D"
+    ]);
     name = /* @__PURE__ */ new Map([
       ["0", "File"],
       // same as File
@@ -6927,12 +6975,13 @@ var init_types = __esm({
 });
 
 // node_modules/tar/dist/esm/header.js
-var import_node_path, Header, splitPrefix, decString, decDate, numToDate, decNumber, nanUndef, decSmallNumber, MAXNUM, encNumber, encSmallNumber, octalString, padOctal, encDate, NULLS, encString;
+var import_node_path, notNegative, Header, splitPrefix, decString, decDate, numToDate, decNumber, nanUndef, decSmallNumber, MAXNUM, encNumber, encSmallNumber, octalString, padOctal, encDate, NULLS, encString;
 var init_header = __esm({
   "node_modules/tar/dist/esm/header.js"() {
     import_node_path = require("node:path");
     init_large_numbers();
     init_types();
+    notNegative = (n) => n === void 0 || n < 0 ? void 0 : n;
     Header = class {
       cksumValid = false;
       needPax = false;
@@ -6969,18 +7018,21 @@ var init_header = __esm({
         if (!buf || !(buf.length >= off + 512)) {
           throw new Error("need 512 bytes for header");
         }
-        this.path = ex?.path ?? decString(buf, off, 100);
-        this.mode = ex?.mode ?? gex?.mode ?? decNumber(buf, off + 100, 8);
-        this.uid = ex?.uid ?? gex?.uid ?? decNumber(buf, off + 108, 8);
-        this.gid = ex?.gid ?? gex?.gid ?? decNumber(buf, off + 116, 8);
-        this.size = ex?.size ?? gex?.size ?? decNumber(buf, off + 124, 12);
-        this.mtime = ex?.mtime ?? gex?.mtime ?? decDate(buf, off + 136, 12);
-        this.cksum = decNumber(buf, off + 148, 12);
-        if (gex)
-          this.#slurp(gex, true);
-        if (ex)
-          this.#slurp(ex);
         const t = decString(buf, off + 156, 1);
+        const isNormalFS = normalFsTypes.has(t);
+        const exForFields = isNormalFS ? ex : void 0;
+        const gexForFields = isNormalFS ? gex : void 0;
+        this.path = exForFields?.path ?? decString(buf, off, 100);
+        this.mode = exForFields?.mode ?? gexForFields?.mode ?? decNumber(buf, off + 100, 8);
+        this.uid = exForFields?.uid ?? gexForFields?.uid ?? decNumber(buf, off + 108, 8);
+        this.gid = exForFields?.gid ?? gexForFields?.gid ?? decNumber(buf, off + 116, 8);
+        this.size = notNegative(exForFields?.size ?? gexForFields?.size ?? decNumber(buf, off + 124, 12));
+        this.mtime = exForFields?.mtime ?? gexForFields?.mtime ?? decDate(buf, off + 136, 12);
+        this.cksum = decNumber(buf, off + 148, 12);
+        if (gexForFields)
+          this.#slurp(gexForFields, true);
+        if (exForFields)
+          this.#slurp(exForFields);
         if (isCode(t)) {
           this.#type = t || "0";
         }
@@ -6992,10 +7044,10 @@ var init_header = __esm({
         }
         this.linkpath = decString(buf, off + 157, 100);
         if (buf.subarray(off + 257, off + 265).toString() === "ustar\x0000") {
-          this.uname = ex?.uname ?? gex?.uname ?? decString(buf, off + 265, 32);
-          this.gname = ex?.gname ?? gex?.gname ?? decString(buf, off + 297, 32);
-          this.devmaj = ex?.devmaj ?? gex?.devmaj ?? decNumber(buf, off + 329, 8) ?? 0;
-          this.devmin = ex?.devmin ?? gex?.devmin ?? decNumber(buf, off + 337, 8) ?? 0;
+          this.uname = exForFields?.uname ?? gexForFields?.uname ?? decString(buf, off + 265, 32);
+          this.gname = exForFields?.gname ?? gexForFields?.gname ?? decString(buf, off + 297, 32);
+          this.devmaj = exForFields?.devmaj ?? gexForFields?.devmaj ?? decNumber(buf, off + 329, 8) ?? 0;
+          this.devmin = exForFields?.devmin ?? gexForFields?.devmin ?? decNumber(buf, off + 337, 8) ?? 0;
           if (buf[off + 475] !== 0) {
             const prefix = decString(buf, off + 345, 155);
             this.path = prefix + "/" + this.path;
@@ -7022,7 +7074,7 @@ var init_header = __esm({
       }
       #slurp(ex, gex = false) {
         Object.assign(this, Object.fromEntries(Object.entries(ex).filter(([k, v]) => {
-          return !(v === null || v === void 0 || k === "path" && gex || k === "linkpath" && gex || k === "global");
+          return !(v === null || v === void 0 || k === "size" && Number(v) < 0 || k === "path" && gex || k === "linkpath" && gex || k === "global");
         })));
       }
       encode(buf, off = 0) {
@@ -7253,8 +7305,36 @@ var init_pax = __esm({
         return set;
       }
       const k = r.replace(/^SCHILY\.(dev|ino|nlink)/, "$1");
-      const v = kv.join("=");
-      set[k] = /^([A-Z]+\.)?([mac]|birth|creation)time$/.test(k) ? new Date(Number(v) * 1e3) : /^[0-9]+$/.test(v) ? +v : v;
+      const v = kv.join("=").replace(/\0.*/, "");
+      switch (k) {
+        case "path":
+        case "linkpath":
+        case "type":
+        case "charset":
+        case "comment":
+        case "gname":
+        case "uname":
+          set[k] = v;
+          break;
+        case "ctime":
+        case "atime":
+        case "mtime":
+          set[k] = new Date(Number(v) * 1e3);
+          break;
+        case "size":
+          const s = +v;
+          if (s >= 0)
+            set[k] = s;
+          break;
+        case "gid":
+        case "uid":
+        case "dev":
+        case "ino":
+        case "nlink":
+        case "mode":
+          set[k] = +v;
+          break;
+      }
       return set;
     };
   }
@@ -7265,7 +7345,7 @@ var platform, normalizeWindowsPath;
 var init_normalize_windows_path = __esm({
   "node_modules/tar/dist/esm/normalize-windows-path.js"() {
     platform = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform;
-    normalizeWindowsPath = platform !== "win32" ? (p) => p : (p) => p && p.replaceAll(/\\/g, "/");
+    normalizeWindowsPath = platform !== "win32" ? (p) => String(p) : (p) => String(p).replaceAll(/\\/g, "/");
   }
 });
 
@@ -7422,7 +7502,7 @@ var init_warn_method = __esm({
 });
 
 // node_modules/tar/dist/esm/parse.js
-var import_events3, maxMetaEntrySize, gzipHeader, zstdHeader, ZIP_HEADER_LEN, STATE, WRITEENTRY, READENTRY, NEXTENTRY, PROCESSENTRY, EX, GEX, META, EMITMETA, BUFFER2, QUEUE, ENDED, EMITTEDEND, EMIT, UNZIP, CONSUMECHUNK, CONSUMECHUNKSUB, CONSUMEBODY, CONSUMEMETA, CONSUMEHEADER, CONSUMING, BUFFERCONCAT, MAYBEEND, WRITING, ABORTED2, DONE, SAW_VALID_ENTRY, SAW_NULL_BLOCK, SAW_EOF, CLOSESTREAM, noop2, Parser;
+var import_events3, maxMetaEntrySize, gzipHeader, zstdHeader, ZIP_HEADER_LEN, STATE, WRITEENTRY, READENTRY, NEXTENTRY, PROCESSENTRY, EX, GEX, META, EMITMETA, BUFFER2, QUEUE, ENDED, EMITTEDEND, EMIT, UNZIP, CONSUMECHUNK, CONSUMECHUNKSUB, CONSUMEBODY, CONSUMEMETA, CONSUMEHEADER, CONSUMING, BUFFERCONCAT, MAYBEEND, WRITING, ABORTED2, DONE, SAW_VALID_ENTRY, SAW_NULL_BLOCK, SAW_EOF, CLOSESTREAM, MAX_DECOMPRESSION_RATIO, COMPRESSEDBYTESREAD, DECOMPRESSEDBYTESREAD, CHECKDECOMPRESSIONRATIO, noop2, Parser;
 var init_parse = __esm({
   "node_modules/tar/dist/esm/parse.js"() {
     import_events3 = require("events");
@@ -7465,6 +7545,10 @@ var init_parse = __esm({
     SAW_NULL_BLOCK = /* @__PURE__ */ Symbol("sawNullBlock");
     SAW_EOF = /* @__PURE__ */ Symbol("sawEOF");
     CLOSESTREAM = /* @__PURE__ */ Symbol("closeStream");
+    MAX_DECOMPRESSION_RATIO = 1e3;
+    COMPRESSEDBYTESREAD = /* @__PURE__ */ Symbol("compressedBytesRead");
+    DECOMPRESSEDBYTESREAD = /* @__PURE__ */ Symbol("decompressedBytesRead");
+    CHECKDECOMPRESSIONRATIO = /* @__PURE__ */ Symbol("checkDecompressionRatio");
     noop2 = () => true;
     Parser = class extends import_events3.EventEmitter {
       file;
@@ -7473,6 +7557,7 @@ var init_parse = __esm({
       filter;
       brotli;
       zstd;
+      maxDecompressionRatio;
       writable = true;
       readable = false;
       [QUEUE] = [];
@@ -7492,6 +7577,8 @@ var init_parse = __esm({
       [WRITING] = false;
       [CONSUMING] = false;
       [EMITTEDEND] = false;
+      [COMPRESSEDBYTESREAD] = 0;
+      [DECOMPRESSEDBYTESREAD] = 0;
       constructor(opt = {}) {
         super();
         this.file = opt.file || "";
@@ -7510,6 +7597,7 @@ var init_parse = __esm({
           });
         }
         this.strict = !!opt.strict;
+        this.maxDecompressionRatio = typeof opt.maxDecompressionRatio === "number" ? opt.maxDecompressionRatio : MAX_DECOMPRESSION_RATIO;
         this.maxMetaEntrySize = opt.maxMetaEntrySize || maxMetaEntrySize;
         this.filter = typeof opt.filter === "function" ? opt.filter : noop2;
         const isTBR = opt.file && (opt.file.endsWith(".tar.br") || opt.file.endsWith(".tbr"));
@@ -7710,9 +7798,28 @@ var init_parse = __esm({
         }
       }
       abort(error) {
+        if (this[ABORTED2]) {
+          return;
+        }
+        if (this[UNZIP]) {
+          const u = this[UNZIP];
+          u.write = () => true;
+          u.end = () => u;
+          u.emit = () => false;
+          u.destroy?.();
+        }
         this[ABORTED2] = true;
         this.emit("abort", error);
         this.warn("TAR_ABORT", error, { recoverable: false });
+      }
+      [CHECKDECOMPRESSIONRATIO](chunk) {
+        this[DECOMPRESSEDBYTESREAD] += chunk.length;
+        const ratio = this[DECOMPRESSEDBYTESREAD] / this[COMPRESSEDBYTESREAD];
+        if (ratio > this.maxDecompressionRatio) {
+          this.abort(new Error(`max decompression ratio exceeded: ${ratio.toFixed(2)} > ${this.maxDecompressionRatio}`));
+          return false;
+        }
+        return true;
       }
       write(chunk, encoding, cb) {
         if (typeof encoding === "function") {
@@ -7779,13 +7886,22 @@ var init_parse = __esm({
             const ended = this[ENDED];
             this[ENDED] = false;
             this[UNZIP] = this[UNZIP] === void 0 ? new Unzip({}) : isZstd ? new ZstdDecompress({}) : new BrotliDecompress({});
-            this[UNZIP].on("data", (chunk2) => this[CONSUMECHUNK](chunk2));
-            this[UNZIP].on("error", (er) => this.abort(er));
+            this[UNZIP].on("data", (chunk2) => {
+              if (this[CHECKDECOMPRESSIONRATIO](chunk2)) {
+                this[CONSUMECHUNK](chunk2);
+              }
+            });
+            this[UNZIP].on("error", (er) => {
+              if (!this[ABORTED2]) {
+                this.abort(er);
+              }
+            });
             this[UNZIP].on("end", () => {
               this[ENDED] = true;
               this[CONSUMECHUNK]();
             });
             this[WRITING] = true;
+            this[COMPRESSEDBYTESREAD] += chunk.length;
             const ret2 = !!this[UNZIP][ended ? "end" : "write"](chunk);
             this[WRITING] = false;
             cb?.();
@@ -7794,6 +7910,7 @@ var init_parse = __esm({
         }
         this[WRITING] = true;
         if (this[UNZIP]) {
+          this[COMPRESSEDBYTESREAD] += chunk.length;
           this[UNZIP].write(chunk);
         } else {
           this[CONSUMECHUNK](chunk);
@@ -7815,7 +7932,7 @@ var init_parse = __esm({
         if (this[ENDED] && !this[EMITTEDEND] && !this[ABORTED2] && !this[CONSUMING]) {
           this[EMITTEDEND] = true;
           const entry = this[WRITEENTRY];
-          if (entry && entry.blockRemain) {
+          if (entry?.blockRemain) {
             const have = this[BUFFER2] ? this[BUFFER2].length : 0;
             this.warn("TAR_BAD_ARCHIVE", `Truncated input (needed ${entry.blockRemain} more bytes, only ${have} available)`, { entry });
             if (this[BUFFER2]) {
@@ -7895,8 +8012,10 @@ var init_parse = __esm({
           this.once("finish", cb);
         if (!this[ABORTED2]) {
           if (this[UNZIP]) {
-            if (chunk)
+            if (chunk) {
+              this[COMPRESSEDBYTESREAD] += chunk.length;
               this[UNZIP].write(chunk);
+            }
             this[UNZIP].end();
           } else {
             this[ENDED] = true;
@@ -7954,14 +8073,19 @@ var init_list = __esm({
     filesFilter = (opt, files) => {
       const map = new Map(files.map((f) => [stripTrailingSlashes(f), true]));
       const filter = opt.filter;
-      const mapHas = (file, r = "") => {
+      const MAX2 = 100;
+      const mapHas = (file, r = "", depth = 0) => {
+        if (depth >= MAX2) {
+          map.set(file, false);
+          return false;
+        }
         const root = r || (0, import_path2.parse)(file).root || ".";
         let ret;
         if (file === root)
           ret = false;
         else {
           const m = map.get(file);
-          ret = m !== void 0 ? m : mapHas((0, import_path2.dirname)(file), root);
+          ret = m !== void 0 ? m : mapHas((0, import_path2.dirname)(file), root, depth + 1);
         }
         map.set(file, ret);
         return ret;
@@ -8660,7 +8784,7 @@ var init_unpack = __esm({
           this.gid = void 0;
           this.setOwner = false;
         }
-        this.preserveOwner = opt.preserveOwner === void 0 && typeof opt.uid !== "number" ? !!(process.getuid && process.getuid() === 0) : !!opt.preserveOwner;
+        this.preserveOwner = opt.preserveOwner === void 0 && typeof opt.uid !== "number" ? !!(process.getuid?.() === 0) : !!opt.preserveOwner;
         this.processUid = (this.preserveOwner || this.setOwner) && process.getuid ? process.getuid() : void 0;
         this.processGid = (this.preserveOwner || this.setOwner) && process.getgid ? process.getgid() : void 0;
         this.maxDepth = typeof opt.maxDepth === "number" ? opt.maxDepth : DEFAULT_MAX_DEPTH;
@@ -8819,7 +8943,7 @@ var init_unpack = __esm({
         }
       }
       [MKDIR](dir, mode, cb) {
-        mkdir(normalizeWindowsPath(dir), {
+        void mkdir(normalizeWindowsPath(dir), {
           uid: this.uid,
           gid: this.gid,
           processUid: this.processUid,
@@ -9574,8 +9698,8 @@ var require_v8_compile_cache = __commonJS({
       }
       const dirname2 = typeof process.getuid === "function" ? "v8-compile-cache-" + process.getuid() : "v8-compile-cache";
       const arch = process.arch;
-      const version2 = typeof process.versions.v8 === "string" ? process.versions.v8 : typeof process.versions.chakracore === "string" ? "chakracore-" + process.versions.chakracore : "node-" + process.version;
-      const cacheDir = path16.join(os3.tmpdir(), dirname2, arch, version2);
+      const version = typeof process.versions.v8 === "string" ? process.versions.v8 : typeof process.versions.chakracore === "string" ? "chakracore-" + process.versions.chakracore : "node-" + process.version;
+      const cacheDir = path16.join(os3.tmpdir(), dirname2, arch, version);
       return cacheDir;
     }
     function getMainName() {
@@ -9613,13 +9737,13 @@ var require_satisfies = __commonJS({
   "node_modules/semver/functions/satisfies.js"(exports2, module2) {
     "use strict";
     var Range3 = require_range();
-    var satisfies = (version2, range, options) => {
+    var satisfies = (version, range, options) => {
       try {
         range = new Range3(range, options);
       } catch (er) {
         return false;
       }
-      return range.test(version2);
+      return range.test(version);
     };
     module2.exports = satisfies;
   }
@@ -12003,7 +12127,6 @@ var init_pack = __esm({
     init_esm();
     init_esm3();
     init_esm5();
-    init_read_entry();
     init_warn_method();
     import_path10 = __toESM(require("path"), 1);
     init_normalize_windows_path();
@@ -12026,7 +12149,7 @@ var init_pack = __esm({
     ONSTAT = /* @__PURE__ */ Symbol("onStat");
     ENDED3 = /* @__PURE__ */ Symbol("ended");
     QUEUE2 = /* @__PURE__ */ Symbol("queue");
-    PENDINGLINKS = /* @__PURE__ */ Symbol("queue");
+    PENDINGLINKS = /* @__PURE__ */ Symbol("pendingLinks");
     CURRENT = /* @__PURE__ */ Symbol("current");
     PROCESS2 = /* @__PURE__ */ Symbol("process");
     PROCESSING = /* @__PURE__ */ Symbol("processing");
@@ -12175,10 +12298,10 @@ var init_pack = __esm({
         if (this[ENDED3]) {
           throw new Error("write after end");
         }
-        if (path16 instanceof ReadEntry) {
-          this[ADDTARENTRY](path16);
-        } else {
+        if (typeof path16 === "string") {
           this[ADDFSENTRY](path16);
+        } else {
+          this[ADDTARENTRY](path16);
         }
         return this.flowing;
       }
@@ -12563,7 +12686,99 @@ module.exports = __toCommonJS(lib_exports2);
 var import_clipanion17 = __toESM(require_advanced());
 
 // package.json
-var version = "0.35.0";
+var package_default = {
+  name: "corepack",
+  version: "0.36.0",
+  homepage: "https://github.com/nodejs/corepack#readme",
+  bugs: {
+    url: "https://github.com/nodejs/corepack/issues"
+  },
+  repository: {
+    type: "git",
+    url: "https://github.com/nodejs/corepack.git"
+  },
+  engines: {
+    node: "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  exports: {
+    "./package.json": "./package.json"
+  },
+  license: "MIT",
+  packageManager: "yarn@4.18.0+sha224.5707fce90df5d8720fae4e85a07ab55e90aa20fded8914893e2ba225",
+  devDependencies: {
+    "@types/debug": "^4.1.5",
+    "@types/node": "^22.0.0",
+    "@types/proxy-from-env": "^1",
+    "@types/semver": "^7.1.0",
+    "@types/which": "^3.0.0",
+    "@yarnpkg/eslint-config": "^3.1.1",
+    "@yarnpkg/fslib": "^3.0.0-rc.48",
+    "@zkochan/cmd-shim": "^6.0.0",
+    clipanion: "patch:clipanion@npm%3A3.2.1#~/.yarn/patches/clipanion-npm-3.2.1-fc9187f56c.patch",
+    debug: "^4.1.1",
+    esbuild: "^0.28.0",
+    eslint: "^10.8.1",
+    semver: "^7.6.3",
+    "supports-color": "^11.0.0",
+    tar: "^7.5.11",
+    typescript: "^5.7.3",
+    "v8-compile-cache": "^2.3.0",
+    vitest: "^4.0.5",
+    which: "^7.0.0"
+  },
+  dependenciesMeta: {
+    esbuild: {
+      built: true
+    }
+  },
+  scripts: {
+    build: "run clean && run build:bundle && node ./mkshims.ts",
+    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node22.22.2 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
+    clean: "run rimraf dist shims",
+    corepack: "node ./sources/_cli.ts",
+    lint: "eslint",
+    prepack: "yarn build",
+    postpack: "run clean",
+    rimraf: "node -e 'for(let i=2;i<process.argv.length;i++)fs.rmSync(process.argv[i],{recursive:true,force:true});'",
+    typecheck: "tsc --noEmit",
+    test: "vitest"
+  },
+  files: [
+    "dist",
+    "shims",
+    "LICENSE.md"
+  ],
+  publishConfig: {
+    bin: {
+      corepack: "./dist/corepack.js",
+      pnpm: "./dist/pnpm.js",
+      pnpx: "./dist/pnpx.js",
+      yarn: "./dist/yarn.js",
+      yarnpkg: "./dist/yarnpkg.js"
+    },
+    executableFiles: [
+      "./dist/npm.js",
+      "./dist/npx.js",
+      "./dist/pnpm.js",
+      "./dist/pnpx.js",
+      "./dist/yarn.js",
+      "./dist/yarnpkg.js",
+      "./dist/corepack.js",
+      "./shims/npm",
+      "./shims/npm.ps1",
+      "./shims/npx",
+      "./shims/npx.ps1",
+      "./shims/pnpm",
+      "./shims/pnpm.ps1",
+      "./shims/pnpx",
+      "./shims/pnpx.ps1",
+      "./shims/yarn",
+      "./shims/yarn.ps1",
+      "./shims/yarnpkg",
+      "./shims/yarnpkg.ps1"
+    ]
+  }
+};
 
 // sources/Engine.ts
 var import_clipanion5 = __toESM(require_advanced());
@@ -12578,7 +12793,7 @@ var import_valid4 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "11.14.1+sha1.4a6839650da0005f323fec6abd39d77ee24f842f",
+      default: "12.0.2+sha1.788d93dc8869000b1078e0395c60748a0aadc4f1",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -12615,7 +12830,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "11.1.2+sha1.ed39d701687311ce9345771c62376f9fe7286694",
+      default: "11.24.0+sha1.a042a648b5e519c43c5b2c3ff99901448190cd66",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -12696,7 +12911,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.14.1+sha224.88b7a7244bbd9040380c417f7eb556d85c67640b651f113cb4c72113",
+        default: "4.18.0+sha224.5707fce90df5d8720fae4e85a07ab55e90aa20fded8914893e2ba225",
         commands: [
           [
             "yarn",
@@ -12846,8 +13061,8 @@ var DEFAULT_HEADERS = {
   [`Accept`]: `application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8`
 };
 var DEFAULT_NPM_REGISTRY_URL = `https://registry.npmjs.org`;
-async function fetchAsJson2(packageName, version2) {
-  const npmRegistryUrl = process.env.COREPACK_NPM_REGISTRY || DEFAULT_NPM_REGISTRY_URL;
+async function fetchAsJson2(packageName, version) {
+  const npmRegistryUrl = (process.env.COREPACK_NPM_REGISTRY || DEFAULT_NPM_REGISTRY_URL).replace(/\/+$/, ``);
   if (process.env.COREPACK_ENABLE_NETWORK === `0`)
     throw new import_clipanion2.UsageError(`Network access disabled by the environment; can't reach npm repository ${npmRegistryUrl}`);
   const headers = { ...DEFAULT_HEADERS };
@@ -12857,9 +13072,13 @@ async function fetchAsJson2(packageName, version2) {
     const encodedCreds = Buffer.from(`${process.env.COREPACK_NPM_USERNAME}:${process.env.COREPACK_NPM_PASSWORD}`, `utf8`).toString(`base64`);
     headers.authorization = `Basic ${encodedCreds}`;
   }
-  return fetchAsJson(`${npmRegistryUrl}/${packageName}${version2 ? `/${version2}` : ``}`, { headers });
+  return fetchAsJson(`${npmRegistryUrl}/${packageName}${version ? `/${version}` : ``}`, { headers });
 }
-function verifySignature({ signatures, integrity, packageName, version: version2 }) {
+async function verifySignature({ signatures, integrity, packageName, version }) {
+  if (!Array.isArray(signatures) || !signatures.length) {
+    const rootMetadata = await fetchAsJson2(packageName);
+    signatures = rootMetadata.versions?.[version]?.dist?.signatures;
+  }
   if (!Array.isArray(signatures) || !signatures.length) throw new Error(`No compatible signature found in package metadata`);
   const { npm: trustedKeys } = process.env.COREPACK_INTEGRITY_KEYS ? JSON.parse(process.env.COREPACK_INTEGRITY_KEYS) : config_default.keys;
   let signature;
@@ -12873,7 +13092,7 @@ function verifySignature({ signatures, integrity, packageName, version: version2
   }
   if (signature?.sig == null) throw new import_clipanion2.UsageError(`The package was not signed by any trusted keys: ${JSON.stringify({ signatures, trustedKeys }, void 0, 2)}`);
   const verifier = (0, import_crypto.createVerify)(`SHA256`);
-  verifier.end(`${packageName}@${version2}:${integrity}`);
+  verifier.end(`${packageName}@${version}:${integrity}`);
   const valid = verifier.verify(
     `-----BEGIN PUBLIC KEY-----
 ${key}
@@ -12887,20 +13106,20 @@ ${key}
 }
 async function fetchLatestStableVersion(packageName) {
   const metadata = await fetchAsJson2(packageName, `latest`);
-  const { version: version2, dist: { integrity, signatures, shasum } } = metadata;
+  const { version, dist: { integrity, signatures, shasum } } = metadata;
   if (!shouldSkipIntegrityCheck()) {
     try {
-      verifySignature({
+      await verifySignature({
         packageName,
-        version: version2,
+        version,
         integrity,
         signatures
       });
     } catch (cause) {
-      throw new Error(`Corepack cannot download the latest stable version of ${packageName}; you can disable signature verification by setting COREPACK_INTEGRITY_CHECK to 0 in your env, or instruct Corepack to use the latest stable release known by this version of Corepack by setting COREPACK_USE_LATEST to 0`, { cause });
+      throw new Error(`Corepack cannot download the latest stable version of ${packageName}; you can disable signature verification by setting COREPACK_INTEGRITY_KEYS to 0 in your env, or instruct Corepack to use the latest stable release known by this version of Corepack by setting COREPACK_DEFAULT_TO_LATEST to 0`, { cause });
     }
   }
-  return `${version2}+${integrity ? `sha512.${Buffer.from(integrity.slice(7), `base64`).toString(`hex`)}` : `sha1.${shasum}`}`;
+  return `${version}+${integrity ? `sha512.${Buffer.from(integrity.slice(7), `base64`).toString(`hex`)}` : `sha1.${shasum}`}`;
 }
 async function fetchAvailableTags(packageName) {
   const metadata = await fetchAsJson2(packageName);
@@ -12910,11 +13129,11 @@ async function fetchAvailableVersions(packageName) {
   const metadata = await fetchAsJson2(packageName);
   return Object.keys(metadata.versions);
 }
-async function fetchTarballURLAndSignature(packageName, version2) {
-  const versionMetadata = await fetchAsJson2(packageName, version2);
+async function fetchTarballURLAndSignature(packageName, version) {
+  const versionMetadata = await fetchAsJson2(packageName, version);
   const { tarball, signatures, integrity } = versionMetadata.dist;
   if (tarball === void 0 || !tarball.startsWith(`http`))
-    throw new Error(`${packageName}@${version2} does not have a valid tarball.`);
+    throw new Error(`${packageName}@${version} does not have a valid tarball.`);
   return { tarball, signatures, integrity };
 }
 
@@ -13179,8 +13398,8 @@ async function download(installTarget, url, algo, binPath = null) {
 async function installVersion(installTarget, locator, { spec }) {
   const locatorIsASupportedPackageManager = isSupportedPackageManagerLocator(locator);
   const locatorReference = locatorIsASupportedPackageManager ? (0, import_parse3.default)(locator.reference) : parseURLReference(locator);
-  const { version: version2, build } = locatorReference;
-  const installFolder = import_path3.default.join(installTarget, locator.name, version2);
+  const { version, build } = locatorReference;
+  const installFolder = import_path3.default.join(installTarget, locator.name, version);
   try {
     const corepackFile = import_path3.default.join(installFolder, `.corepack`);
     const corepackContent = await import_fs4.default.promises.readFile(corepackFile, `utf8`);
@@ -13196,16 +13415,34 @@ async function installVersion(installTarget, locator, { spec }) {
       throw err;
     }
   }
+  const registry = getRegistryFromPackageManagerSpec(spec);
+  const canVerifySignature = registry.type === `npm` && !registry.bin && !shouldSkipIntegrityCheck();
+  if (!build[1]) {
+    const { COREPACK_ON_UNVERIFIED_DOWNLOAD } = process.env;
+    log(`No hash provided${canVerifySignature ? `` : `, and signature cannot be verified`}; checking COREPACK_ON_UNVERIFIED_DOWNLOAD, set to: ${COREPACK_ON_UNVERIFIED_DOWNLOAD}`);
+    const mode = COREPACK_ON_UNVERIFIED_DOWNLOAD?.toUpperCase();
+    const isStrict = mode === `STRICT-ERROR` || mode === `STRICT-WARN`;
+    if (isStrict || !canVerifySignature) {
+      const reason = canVerifySignature ? `is not pinned by a hash` : `could not be verified`;
+      switch (mode) {
+        case `ERROR`:
+        case `STRICT-ERROR`:
+          throw new Error(`Integrity of ${locator.name}@${version} ${reason}. Downloading unverified versions is disabled by the COREPACK_ON_UNVERIFIED_DOWNLOAD env variable. Please provide a hash.`);
+        case `WARN`:
+        case `STRICT-WARN`:
+          console.warn(`Integrity of ${locator.name}@${version} ${reason}. Consider providing a hash. Set COREPACK_ON_UNVERIFIED_DOWNLOAD to 'ignore' to remove this warning.`);
+      }
+    }
+  }
   let url;
   let signatures;
   let integrity;
   let binPath = null;
   if (locatorIsASupportedPackageManager) {
-    url = spec.url.replace(`{}`, version2);
+    url = spec.url.replace(`{}`, version);
     if (process.env.COREPACK_NPM_REGISTRY) {
-      const registry = getRegistryFromPackageManagerSpec(spec);
       if (registry.type === `npm`) {
-        ({ tarball: url, signatures, integrity } = await fetchTarballURLAndSignature(registry.package, version2));
+        ({ tarball: url, signatures, integrity } = await fetchTarballURLAndSignature(registry.package, version));
         if (registry.bin) {
           binPath = registry.bin;
         }
@@ -13216,7 +13453,7 @@ async function installVersion(installTarget, locator, { spec }) {
       );
     }
   } else {
-    url = decodeURIComponent(version2);
+    url = decodeURIComponent(version);
     if (process.env.COREPACK_NPM_REGISTRY && url.startsWith(DEFAULT_NPM_REGISTRY_URL)) {
       url = url.replace(
         DEFAULT_NPM_REGISTRY_URL,
@@ -13224,7 +13461,7 @@ async function installVersion(installTarget, locator, { spec }) {
       );
     }
   }
-  log(`Installing ${locator.name}@${version2} from ${url}`);
+  log(`Installing ${locator.name}@${version} from ${url}`);
   const algo = build[0] ?? `sha512`;
   const { tmpFolder, outputFile, hash: actualHash } = await download(installTarget, url, algo, binPath);
   let bin;
@@ -13249,17 +13486,16 @@ async function installVersion(installTarget, locator, { spec }) {
       }
     }
   }
-  if (!build[1]) {
-    const registry = getRegistryFromPackageManagerSpec(spec);
-    if (registry.type === `npm` && !registry.bin && !shouldSkipIntegrityCheck()) {
-      if (signatures == null || integrity == null)
-        ({ signatures, integrity } = await fetchTarballURLAndSignature(registry.package, version2));
-      verifySignature({ signatures, integrity, packageName: registry.package, version: version2 });
-      build[1] = Buffer.from(integrity.slice(`sha512-`.length), `base64`).toString(`hex`);
-    }
+  if (!build[1] && canVerifySignature && registry.type === `npm`) {
+    if (signatures == null || integrity == null)
+      ({ signatures, integrity } = await fetchTarballURLAndSignature(registry.package, version));
+    verifySignature({ signatures, integrity, packageName: registry.package, version });
+    build[1] = Buffer.from(integrity.slice(`sha512-`.length), `base64`).toString(`hex`);
   }
-  if (build[1] && actualHash !== build[1])
+  if (build[1] && actualHash !== build[1]) {
+    await import_fs4.default.promises.rm(tmpFolder, { recursive: true, force: true });
     throw new Error(`Mismatch hashes. Expected ${build[1]}, got ${actualHash}`);
+  }
   const serializedHash = `${algo}.${actualHash}`;
   await import_fs4.default.promises.writeFile(import_path3.default.join(tmpFolder, `.corepack`), JSON.stringify({
     locator,
@@ -13365,18 +13601,18 @@ function shouldSkipIntegrityCheck() {
 // sources/semverUtils.ts
 var import_range2 = __toESM(require_range());
 var import_semver2 = __toESM(require_semver());
-function satisfiesWithPrereleases(version2, range, loose = false) {
+function satisfiesWithPrereleases(version, range, loose = false) {
   let semverRange;
   try {
     semverRange = new import_range2.default(range, loose);
   } catch (err) {
     return false;
   }
-  if (!version2)
+  if (!version)
     return false;
   let semverVersion;
   try {
-    semverVersion = new import_semver2.default(version2, semverRange.loose);
+    semverVersion = new import_semver2.default(version, semverRange.loose);
     if (semverVersion.prerelease) {
       semverVersion.prerelease = [];
     }
@@ -13403,19 +13639,13 @@ var import_valid2 = __toESM(require_valid2());
 var import_util = require("util");
 
 // sources/types.ts
-var SupportedPackageManagers = /* @__PURE__ */ ((SupportedPackageManagers3) => {
-  SupportedPackageManagers3["Npm"] = `npm`;
-  SupportedPackageManagers3["Pnpm"] = `pnpm`;
-  SupportedPackageManagers3["Yarn"] = `yarn`;
-  return SupportedPackageManagers3;
-})(SupportedPackageManagers || {});
+var supportedPackageManagersList = [`npm`, `pnpm`, `yarn`];
 var SupportedPackageManagerSet = new Set(
-  Object.values(SupportedPackageManagers)
+  supportedPackageManagersList
 );
 var SupportedPackageManagerSetWithoutNpm = new Set(
-  Object.values(SupportedPackageManagers)
+  supportedPackageManagersList.filter((pm) => pm !== `npm`)
 );
-SupportedPackageManagerSetWithoutNpm.delete("npm" /* Npm */);
 function isSupportedPackageManager(value) {
   return SupportedPackageManagerSet.has(value);
 }
@@ -13454,6 +13684,9 @@ function parseSpec(raw2, source, { enforceExactVersion = true } = {}) {
     range
   };
 }
+function devEnginesToDescriptor({ name: name2, version }) {
+  return { name: name2, range: version ?? `*` };
+}
 function warnOrThrow(errorMessage, onFail) {
   switch (onFail) {
     case `ignore`:
@@ -13471,44 +13704,45 @@ function parsePackageJSON(packageJSONContent) {
     const { packageManager } = packageJSONContent.devEngines;
     if (typeof packageManager !== `object`) {
       console.warn(`! Corepack only supports objects as valid value for devEngines.packageManager. The current value (${JSON.stringify(packageManager)}) will be ignored.`);
-      return pm;
+      return { packageManagerField: pm };
     }
     if (Array.isArray(packageManager)) {
       console.warn(`! Corepack does not currently support array values for devEngines.packageManager`);
-      return pm;
+      return { packageManagerField: pm };
     }
-    const { name: name2, version: version2, onFail } = packageManager;
+    const { name: name2, version, onFail } = packageManager;
     if (typeof name2 !== `string` || name2.includes(`@`)) {
       warnOrThrow(`The value of devEngines.packageManager.name ${JSON.stringify(name2)} is not a supported string value`, onFail);
-      return pm;
+      return { packageManagerField: pm };
     }
-    if (version2 != null && (typeof version2 !== `string` || !(0, import_valid2.default)(version2))) {
-      warnOrThrow(`The value of devEngines.packageManager.version ${JSON.stringify(version2)} is not a valid semver range`, onFail);
-      return pm;
+    if (version != null && (typeof version !== `string` || !(0, import_valid2.default)(version))) {
+      warnOrThrow(`The value of devEngines.packageManager.version ${JSON.stringify(version)} is not a valid semver range`, onFail);
+      return { packageManagerField: pm };
     }
-    log(`devEngines.packageManager defines that ${name2}@${version2} is the local package manager`);
+    log(`devEngines.packageManager defines that ${name2}${version ? `@${version}` : ``} should be the local package manager`);
     if (pm) {
-      if (!pm.startsWith?.(`${name2}@`))
+      if (!pm.startsWith?.(`${name2}@`)) {
         warnOrThrow(`"packageManager" field is set to ${JSON.stringify(pm)} which does not match the "devEngines.packageManager" field set to ${JSON.stringify(name2)}`, onFail);
-      else if (version2 != null && !(0, import_satisfies.default)(pm.slice(packageManager.name.length + 1), version2))
-        warnOrThrow(`"packageManager" field is set to ${JSON.stringify(pm)} which does not match the value defined in "devEngines.packageManager" for ${JSON.stringify(name2)} of ${JSON.stringify(version2)}`, onFail);
-      return pm;
+      } else if (version != null && !(0, import_satisfies.default)(pm.slice(name2.length + 1), version)) {
+        warnOrThrow(`"packageManager" field is set to ${JSON.stringify(pm)} which does not match the value defined in "devEngines.packageManager" for ${JSON.stringify(name2)} of ${JSON.stringify(version)}`, onFail);
+      }
     }
-    return `${name2}@${version2 ?? `*`}`;
+    return { packageManagerField: pm, devEnginesPackageManager: { name: name2, version, onFail } };
   }
-  return pm;
+  return { packageManagerField: pm };
 }
 async function setLocalPackageManager(cwd, info) {
-  const lookup = await loadSpec(cwd);
-  const range = `range` in lookup && lookup.range;
-  if (range) {
-    if (info.locator.name !== range.name || !(0, import_satisfies.default)(info.locator.reference, range.range)) {
-      warnOrThrow(`The requested version of ${info.locator.name}@${info.locator.reference} does not match the devEngines specification (${range.name}@${range.range})`, range.onFail);
+  const lookup = await loadSpecAndEnv(cwd);
+  const projectFound = lookup.type !== `NoProject`;
+  const devEnginesValue = projectFound ? lookup.devEnginesValue : void 0;
+  if (devEnginesValue) {
+    if (info.locator.name !== devEnginesValue.name || devEnginesValue.version != null && !(0, import_satisfies.default)(info.locator.reference, devEnginesValue.version)) {
+      warnOrThrow(`The requested version of ${info.locator.name}@${info.locator.reference} does not match the devEngines specification (${devEnginesValue.name}@${devEnginesValue.version ?? `*`})`, devEnginesValue.onFail);
     }
   }
-  const content = lookup.type !== `NoProject` ? await import_fs5.default.promises.readFile(lookup.target, `utf8`) : ``;
+  const content = projectFound ? await import_fs5.default.promises.readFile(lookup.target, `utf8`) : ``;
   const { data, indent } = readPackageJson(content);
-  const previousPackageManager = data.packageManager ?? (range ? `${range.name}@${range.range}` : `unknown`);
+  const previousPackageManager = data.packageManager ?? (devEnginesValue ? `${devEnginesValue.name}@${devEnginesValue.version ?? `*`}` : `unknown`);
   data.packageManager = `${info.locator.name}@${info.locator.reference}`;
   const newContent = normalizeLineEndings(content, `${JSON.stringify(data, null, indent)}
 `);
@@ -13517,15 +13751,43 @@ async function setLocalPackageManager(cwd, info) {
     previousPackageManager
   };
 }
-async function loadSpec(initialCwd) {
+async function loadEnvFileIfExists(cwd) {
+  const envFilePath = import_path4.default.resolve(cwd, process.env.COREPACK_ENV_FILE ?? `.corepack.env`);
+  if (process.env.COREPACK_ENV_FILE == `0`) {
+    log(`Skipping env file as configured with COREPACK_ENV_FILE`);
+    return void 0;
+  }
+  log(`Checking ${envFilePath}`);
+  try {
+    const localEnv = {
+      ...Object.fromEntries(Object.entries((0, import_util.parseEnv)(await import_fs5.default.promises.readFile(envFilePath, `utf8`))).filter((e) => e[0].startsWith(`COREPACK_`))),
+      ...process.env
+    };
+    log(`Successfully loaded env file found at ${envFilePath}`);
+    return { env: localEnv, path: envFilePath };
+  } catch (err) {
+    if (err?.code !== `ENOENT`)
+      throw err;
+    log(`No env file found at ${envFilePath}`);
+  }
+  return void 0;
+}
+async function loadSpecAndEnv(initialCwd, { envOnly } = { envOnly: false }) {
   let nextCwd = initialCwd;
   let currCwd = ``;
   let selection = null;
+  let localEnv = void 0;
   while (nextCwd !== currCwd && (!selection || !selection.data.packageManager)) {
     currCwd = nextCwd;
     nextCwd = import_path4.default.dirname(currCwd);
     if (nodeModulesRegExp.test(currCwd))
       continue;
+    if (process.env.COREPACK_ENV_FILE !== `0` && !localEnv)
+      localEnv = await loadEnvFileIfExists(currCwd);
+    if (envOnly) {
+      if (localEnv) break;
+      continue;
+    }
     const manifestPath = import_path4.default.join(currCwd, `package.json`);
     log(`Checking ${manifestPath}`);
     let content;
@@ -13541,54 +13803,42 @@ async function loadSpec(initialCwd) {
     } catch {
     }
     if (typeof data !== `object` || data === null)
-      throw new import_clipanion4.UsageError(`Invalid package.json in ${import_path4.default.relative(initialCwd, manifestPath)}`);
-    let localEnv;
-    const envFilePath2 = import_path4.default.resolve(currCwd, process.env.COREPACK_ENV_FILE ?? `.corepack.env`);
-    if (process.env.COREPACK_ENV_FILE == `0`) {
-      log(`Skipping env file as configured with COREPACK_ENV_FILE`);
-      localEnv = process.env;
-    } else if (typeof import_util.parseEnv !== `function`) {
-      log(`Skipping env file as it is not supported by the current version of Node.js`);
-      localEnv = process.env;
-    } else {
-      log(`Checking ${envFilePath2}`);
-      try {
-        localEnv = {
-          ...Object.fromEntries(Object.entries((0, import_util.parseEnv)(await import_fs5.default.promises.readFile(envFilePath2, `utf8`))).filter((e) => e[0].startsWith(`COREPACK_`))),
-          ...process.env
-        };
-        log(`Successfully loaded env file found at ${envFilePath2}`);
-      } catch (err) {
-        if (err?.code !== `ENOENT`)
-          throw err;
-        log(`No env file found at ${envFilePath2}`);
-        localEnv = process.env;
-      }
-    }
-    selection = { data, manifestPath, localEnv, envFilePath: envFilePath2 };
+      throw new import_clipanion4.UsageError(`Invalid package.json in ${import_path4.default.relative(currCwd, manifestPath)}`);
+    selection = { data, manifestPath };
   }
+  if (localEnv)
+    process.env = localEnv.env;
   if (selection === null)
-    return { type: `NoProject`, target: import_path4.default.join(initialCwd, `package.json`) };
-  let envFilePath;
-  if (selection.localEnv !== process.env) {
-    envFilePath = selection.envFilePath;
-    process.env = selection.localEnv;
+    return { type: `NoProject`, target: import_path4.default.join(initialCwd, `package.json`), envFilePath: localEnv?.path };
+  const { packageManagerField, devEnginesPackageManager } = parsePackageJSON(selection.data);
+  if (devEnginesPackageManager != null && !packageManagerField) {
+    const { name: name2, version } = devEnginesPackageManager;
+    if (!version || !(0, import_valid.default)(version)) {
+      log(`${selection.manifestPath} defines ${name2} as local package manager using devEngines.packageManager, without an exact version`);
+      return { type: `NoSpec`, target: selection.manifestPath, envFilePath: localEnv?.path, devEnginesValue: devEnginesPackageManager };
+    }
+    log(`${selection.manifestPath} defines ${name2}@${version} as local package manager using devEngines.packageManager`);
+    return {
+      type: `Found`,
+      target: selection.manifestPath,
+      field: `devEngines.packageManager`,
+      envFilePath: localEnv?.path,
+      devEnginesValue: devEnginesPackageManager,
+      // Lazy-loading it so we do not throw errors on commands that do not need valid spec.
+      getSpec: ({ enforceExactVersion = true } = {}) => parseSpec(`${name2}@${version}`, import_path4.default.relative(initialCwd, selection.manifestPath), { enforceExactVersion })
+    };
   }
-  const rawPmSpec = parsePackageJSON(selection.data);
-  if (typeof rawPmSpec === `undefined`)
-    return { type: `NoSpec`, target: selection.manifestPath };
-  log(`${selection.manifestPath} defines ${rawPmSpec} as local package manager`);
+  if (packageManagerField === void 0)
+    return { type: `NoSpec`, target: selection.manifestPath, envFilePath: localEnv?.path };
+  log(`${selection.manifestPath} defines ${packageManagerField} as local package manager using the packageManager field`);
   return {
     type: `Found`,
     target: selection.manifestPath,
-    envFilePath,
-    range: selection.data.devEngines?.packageManager?.version && {
-      name: selection.data.devEngines.packageManager.name,
-      range: selection.data.devEngines.packageManager.version,
-      onFail: selection.data.devEngines.packageManager.onFail
-    },
+    field: `packageManager`,
+    envFilePath: localEnv?.path,
+    devEnginesValue: devEnginesPackageManager,
     // Lazy-loading it so we do not throw errors on commands that do not need valid spec.
-    getSpec: ({ enforceExactVersion = true } = {}) => parseSpec(rawPmSpec, import_path4.default.relative(initialCwd, selection.manifestPath), { enforceExactVersion })
+    getSpec: ({ enforceExactVersion = true } = {}) => parseSpec(packageManagerField, import_path4.default.relative(initialCwd, selection.manifestPath), { enforceExactVersion })
   };
 }
 
@@ -13652,10 +13902,10 @@ async function activatePackageManager(lastKnownGood, locator) {
   await createLastKnownGoodFile(lastKnownGood);
 }
 var Engine = class {
+  config;
   constructor(config = config_default) {
     this.config = config;
   }
-  config;
   getPackageManagerFor(binaryName) {
     for (const packageManager of SupportedPackageManagerSet) {
       for (const rangeDefinition of Object.values(this.config.definitions[packageManager].ranges)) {
@@ -13782,7 +14032,7 @@ var Engine = class {
     if (import_process3.default.env.COREPACK_ENABLE_STRICT === `0`)
       transparent = true;
     while (true) {
-      const result = await loadSpec(initialCwd);
+      const result = await loadSpecAndEnv(initialCwd);
       switch (result.type) {
         case `NoProject`: {
           if (typeof locator.reference === `function`)
@@ -13791,7 +14041,13 @@ var Engine = class {
           return fallbackDescriptor;
         }
         case `NoSpec`: {
-          if (typeof locator.reference === `function`)
+          const { devEnginesValue } = result;
+          const nameMatches = devEnginesValue != null && devEnginesValue.name === fallbackDescriptor.name;
+          if (devEnginesValue != null && !nameMatches && !transparent)
+            warnOrThrow(`This project is configured to use ${devEnginesValue.name} because ${result.target} has a "devEngines.packageManager" field`, devEnginesValue.onFail);
+          if (nameMatches && devEnginesValue.version)
+            fallbackDescriptor.range = devEnginesValue.version;
+          else if (typeof locator.reference === `function`)
             fallbackDescriptor.range = await locator.reference();
           if (import_process3.default.env.COREPACK_ENABLE_AUTO_PIN === `1`) {
             const resolved = await this.resolveDescriptor(fallbackDescriptor, { allowTags: true });
@@ -13815,7 +14071,7 @@ var Engine = class {
               log(`Falling back to ${fallbackDescriptor.name}@${fallbackDescriptor.range} in a ${spec.name}@${spec.range} project`);
               return fallbackDescriptor;
             } else {
-              throw new import_clipanion5.UsageError(`This project is configured to use ${spec.name} because ${result.target} has a "packageManager" field`);
+              throw new import_clipanion5.UsageError(`This project is configured to use ${spec.name} because ${result.target} has a "${result.field}" field`);
             }
           } else {
             log(`Using ${spec.name}@${spec.range} as defined in project manifest ${result.target}`);
@@ -13892,7 +14148,7 @@ var Engine = class {
       const packageManagerSpec = definition.ranges[range];
       const registry = getRegistryFromPackageManagerSpec(packageManagerSpec);
       const versions2 = await fetchAvailableVersions2(registry);
-      return versions2.filter((version2) => satisfiesWithPrereleases(version2, finalDescriptor.range));
+      return versions2.filter((version) => satisfiesWithPrereleases(version, finalDescriptor.range));
     }));
     const highestVersion = [...new Set(versions.flat())].sort(import_rcompare.default);
     if (highestVersion.length === 0)
@@ -14084,16 +14340,23 @@ var BaseCommand = class extends import_clipanion9.Command {
   async resolvePatternsToDescriptors({ patterns }) {
     const resolvedSpecs = patterns.map((pattern) => parseSpec(pattern, `CLI arguments`, { enforceExactVersion: false }));
     if (resolvedSpecs.length === 0) {
-      const lookup = await loadSpec(this.context.cwd);
+      const lookup = await loadSpecAndEnv(this.context.cwd);
       switch (lookup.type) {
         case `NoProject`:
           throw new import_clipanion9.UsageError(`Couldn't find a project in the local directory - please specify the package manager to pack, or run this command from a valid project`);
-        case `NoSpec`:
-          throw new import_clipanion9.UsageError(`The local project doesn't feature a 'packageManager' field nor a 'devEngines.packageManager' field - please specify the package manager to pack, or update the manifest to reference it`);
+        case `NoSpec`: {
+          const { devEnginesValue } = lookup;
+          if (devEnginesValue?.version)
+            return [devEnginesToDescriptor(devEnginesValue)];
+          throw new import_clipanion9.UsageError(`The local project doesn't feature a 'packageManager' field ${devEnginesValue ? `` : `nor a 'devEngines.packageManager' field `}- please specify the package manager to pack, or update the manifest to reference it`);
+        }
         default: {
-          return [lookup.range ?? lookup.getSpec()];
+          const { devEnginesValue } = lookup;
+          return [devEnginesValue?.version ? devEnginesToDescriptor(devEnginesValue) : lookup.getSpec()];
         }
       }
+    } else {
+      await loadSpecAndEnv(this.context.cwd, { envOnly: true });
     }
     return resolvedSpecs;
   }
@@ -14457,16 +14720,24 @@ var PrepareCommand = class extends import_clipanion16.Command {
     const specs = this.specs;
     const installLocations = [];
     if (specs.length === 0) {
-      const lookup = await loadSpec(this.context.cwd);
+      const lookup = await loadSpecAndEnv(this.context.cwd);
       switch (lookup.type) {
         case `NoProject`:
           throw new import_clipanion16.UsageError(`Couldn't find a project in the local directory - please specify the package manager to pack, or run this command from a valid project`);
-        case `NoSpec`:
-          throw new import_clipanion16.UsageError(`The local project doesn't feature a 'packageManager' field - please specify the package manager to pack, or update the manifest to reference it`);
+        case `NoSpec`: {
+          const { devEnginesValue } = lookup;
+          if (devEnginesValue?.version) {
+            specs.push(devEnginesToDescriptor(devEnginesValue));
+            break;
+          }
+          throw new import_clipanion16.UsageError(`The local project doesn't feature a 'packageManager' field ${devEnginesValue ? `` : `nor a 'devEngines.packageManager' field `}- please specify the package manager to pack, or update the manifest to reference it`);
+        }
         default: {
           specs.push(lookup.getSpec());
         }
       }
+    } else {
+      await loadSpecAndEnv(this.context.cwd, { envOnly: true });
     }
     for (const request of specs) {
       const spec = typeof request === `string` ? parseSpec(request, `CLI arguments`, { enforceExactVersion: false }) : request;
@@ -14512,6 +14783,7 @@ var PrepareCommand = class extends import_clipanion16.Command {
 };
 
 // sources/main.ts
+var { version: corepackVersion } = package_default;
 function getPackageManagerRequestFromCli(parameter, engine) {
   if (!parameter)
     return null;
@@ -14538,7 +14810,7 @@ async function runMain(argv) {
     const cli = new import_clipanion17.Cli({
       binaryLabel: `Corepack`,
       binaryName: `corepack`,
-      binaryVersion: version
+      binaryVersion: corepackVersion
     });
     cli.register(import_clipanion17.Builtins.HelpCommand);
     cli.register(import_clipanion17.Builtins.VersionCommand);
