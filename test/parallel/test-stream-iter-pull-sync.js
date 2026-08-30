@@ -74,6 +74,20 @@ function testPullSyncStatefulTransform() {
   assert.strictEqual(data, 'data-END');
 }
 
+function testPullSyncStatefulTransformReceiver() {
+  const descriptor = {};
+  descriptor.transform = common.mustCall(
+    function*(source) {
+      assert.strictEqual(this, descriptor);
+      yield* source;
+    });
+
+  assert.strictEqual(
+    new TextDecoder().decode(bytesSync(pullSync(fromSync('receiver'), descriptor))),
+    'receiver',
+  );
+}
+
 function testPullSyncChainedTransforms() {
   const addExcl = (chunks) => {
     if (chunks === null) return null;
@@ -210,6 +224,7 @@ Promise.all([
   testPullSyncNormalizesSourceAtCallTime(),
   testPullSyncStatelessTransform(),
   testPullSyncStatefulTransform(),
+  testPullSyncStatefulTransformReceiver(),
   testPullSyncChainedTransforms(),
   testPullSyncSourceError(),
   testPullSyncEmptySource(),

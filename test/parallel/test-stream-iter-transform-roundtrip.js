@@ -42,6 +42,18 @@ async function testGzipRoundTrip() {
   assert.strictEqual(result, input);
 }
 
+async function testValidatedTransformReceiver() {
+  const descriptor = compressGzip();
+  const transform = descriptor.transform;
+  descriptor.transform = common.mustCall(function(source, options) {
+    assert.strictEqual(this, descriptor);
+    return Reflect.apply(transform, this, [source, options]);
+  });
+
+  const result = await bytes(pull(from('receiver'), descriptor));
+  assert.ok(result.byteLength > 0);
+}
+
 async function testGzipLargeData() {
   // 100KB of repeated text - exercises multi-chunk path
   const input = 'gzip large data test. '.repeat(5000);
@@ -250,6 +262,7 @@ async function testGzipWithLevel() {
 (async () => {
   // Gzip
   await testGzipRoundTrip();
+  await testValidatedTransformReceiver();
   await testGzipLargeData();
   await testGzipActuallyCompresses();
 
