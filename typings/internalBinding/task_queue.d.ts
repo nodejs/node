@@ -4,10 +4,10 @@ export interface TaskQueueBinding {
   runMicrotasks(): void;
   tickInfo: Uint8Array;
   promiseRejectEvents: {
-    kPromiseRejectWithNoHandler: number;
-    kPromiseHandlerAddedAfterReject: number;
+    kPromiseRejectWithNoHandler: 0;
+    kPromiseHandlerAddedAfterReject: 1;
   };
   setPromiseRejectCallback(
-    callback: (type: number, promise: Promise<unknown>, value: unknown) => void,
+    callback: (type: 0 | 1, promise: Promise<unknown>, value: unknown) => void,
   ): void;
 }
