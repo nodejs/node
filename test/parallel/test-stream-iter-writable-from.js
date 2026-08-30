@@ -542,15 +542,30 @@ async function testMinimalWriter() {
   assert.strictEqual(Buffer.concat(chunks).toString(), 'minimal');
 }
 
+async function testNormalEndWithoutWriterEndDoesNotFail() {
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    fail: common.mustNotCall(),
+  });
+  const closed = once(writable, 'close');
+
+  writable.end();
+  await closed;
+}
+
 // =============================================================================
-// Destroy without error does not call fail()
+// Destroy without error calls fail()
 // =============================================================================
 
 async function testDestroyWithoutError() {
   let failCalled = false;
   const writer = {
     write(chunk) { return Promise.resolve(); },
-    fail() { failCalled = true; },
+    fail: common.mustCall(function(reason) {
+      assert.strictEqual(arguments.length, 0);
+      assert.strictEqual(reason, undefined);
+      failCalled = true;
+    }),
   };
 
   const writable = toWritable(writer);
@@ -558,7 +573,20 @@ async function testDestroyWithoutError() {
 
   await setTimeout(10);
 
-  assert.ok(!failCalled, 'fail should not be called on clean destroy');
+  assert.ok(failCalled, 'fail should be called on clean destroy');
+}
+
+async function testDestroyUsesDisposeFallback() {
+  let disposed = false;
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.dispose]() { disposed = true; },
+  });
+
+  writable.destroy();
+  await setTimeout(10);
+
+  assert.strictEqual(disposed, true);
 }
 
 // =============================================================================
@@ -733,6 +761,7 @@ Promise.all([
   testFinalDelegatesToEnd(),
   testDestroyDelegatesToFail(),
   testDestroyWithoutError(),
+  testDestroyUsesDisposeFallback(),
   testDestroyWithError(),
   testDestroyWithoutFail(),
   testWriteErrorPropagation(),
@@ -744,4 +773,5 @@ Promise.all([
   testSequentialWrites(),
   testSyncCallbackDeferred(),
   testMinimalWriter(),
+  testNormalEndWithoutWriterEndDoesNotFail(),
 ]).then(common.mustCall());
