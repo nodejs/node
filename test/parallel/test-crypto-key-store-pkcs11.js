@@ -30,8 +30,11 @@ const {
   createVerify,
   diffieHellman,
   generateKeyPairSync,
+  generateX509Certificate,
+  generateX509CertificateSync,
   sign,
   verify,
+  X509Certificate,
 } = require('crypto');
 const tmpdir = require('../common/tmpdir');
 const { spawnSyncAndExitWithoutError } = require('../common/child_process');
@@ -446,6 +449,48 @@ function assertInlineSignWithStoreUrl(privateKey) {
   assert.strictEqual(verify('sha256', kData, publicKey, signature), true);
 }
 
+async function assertX509Generation(privateKey, publicKey) {
+  const notBefore = new Date('2025-01-01T00:00:00Z');
+  const notAfter = new Date('2035-01-01T00:00:00Z');
+  const issuer = generateX509CertificateSync({
+    subject: [{ name: 'CN', value: 'Node.js PKCS#11 test CA' }],
+    publicKey,
+    serialNumber: 1n,
+    notBefore,
+    notAfter,
+    signature: { key: privateKey, digest: 'sha256' },
+  });
+  assert(issuer instanceof X509Certificate);
+  assert.strictEqual(issuer.verify(publicKey), true);
+
+  const { publicKey: leafPublicKey } = generateKeyPairSync(
+    'ec', { namedCurve: 'prime256v1' });
+  const leaf = await new Promise((resolve, reject) => {
+    generateX509Certificate({
+      subject: [{ name: 'CN', value: 'Node.js PKCS#11 test leaf' }],
+      publicKey: leafPublicKey,
+      issuer,
+      serialNumber: 2n,
+      notBefore,
+      notAfter,
+      signature: {
+        key: {
+          key: privateKeyUrl('node-rsa'),
+          passphrase: kPin,
+          properties: kProperties,
+        },
+        digest: 'sha256',
+      },
+    }, common.mustCall((err, certificate) => {
+      if (err) reject(err);
+      else resolve(certificate);
+    }));
+  });
+  assert(leaf instanceof X509Certificate);
+  assert.strictEqual(leaf.verify(publicKey), true);
+  assert.strictEqual(leaf.checkIssued(issuer), true);
+}
+
 async function testRsa() {
   const privateKey = loadPrivateKey('node-rsa');
   assertKeyDetails(privateKey, 'private', 'rsa');
@@ -460,6 +505,7 @@ async function testRsa() {
   await assertAsyncSignVerify('sha256', kData, privateKey);
   assertKeyObjectEquality(privateKey, 'node-rsa');
   assertInlineSignWithStoreUrl(privateKey);
+  await assertX509Generation(privateKey, publicKey);
   assertPublicExports(publicKey);
   assertPrivateExportsRejected(privateKey, 'rsa');
   await assertPrivateCryptoKeyExportsRejected(

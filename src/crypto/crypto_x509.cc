@@ -955,7 +955,8 @@ void CheckPrivateKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
   CHECK_EQ(key->Data().GetKeyType(), kKeyTypePrivate);
   args.GetReturnValue().Set(
-      cert->view().checkPrivateKey(key->Data().GetAsymmetricKey()));
+      cert->view().checkPrivateKey(key->Data().GetAsymmetricKey()) ==
+      X509View::CheckKeyResult::MATCH);
 }
 
 void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
@@ -1353,6 +1354,12 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
   return scope.EscapeMaybe(NewDictionaryInstance(env->context(), tmpl, values));
 }
 }  // namespace
+
+MaybeLocal<Value> CreateRawX509Extensions(
+    Environment* env,
+    const std::vector<ncrypto::X509RawExtension>& extensions) {
+  return CreateRawExtensions(env, extensions);
+}
 
 Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     Environment* env) {
