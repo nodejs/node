@@ -11,7 +11,7 @@ declare namespace InternalFsEventWrapBinding {
       filename: string | Uint8Array | null,
     ) => void;
     start(
-      filename: string,
+      filename: string | Uint8Array,
       persistent: boolean,
       recursive: boolean,
       encoding: string,
