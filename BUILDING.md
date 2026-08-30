@@ -977,7 +977,7 @@ that works for both your host and target environments.
 ### Build with a specific ICU
 
 You can find other ICU releases at
-[the ICU homepage](https://icu.unicode.org/download).
+[the ICU homepage](https://unicode-org.github.io/icu/download/).
 Download the source archive named something like
 `icu4c-**##.#**-sources.tgz` (or `.zip`).
 
@@ -1011,7 +1011,7 @@ From a tarball URL:
 #### Windows
 
 First unpack latest ICU to `deps/icu`
-[icu4c-**##.#**-sources.tgz](https://icu.unicode.org/download) (or `.zip`)
+[icu4c-**##.#**-sources.tgz](https://unicode-org.github.io/icu/download/) (or `.zip`)
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```powershell
