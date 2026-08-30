@@ -143,6 +143,70 @@ async function testShareCancelWithFalsyReason() {
   }
 }
 
+async function testShareCancelWhileSourcePullPending() {
+  const noReason = { __proto__: null };
+
+  for (const reason of [noReason, 0]) {
+    const sourceStarted = Promise.withResolvers();
+    const sourceNext = Promise.withResolvers();
+    let nextCalls = 0;
+    let returnCalls = 0;
+    const source = {
+      __proto__: null,
+      [Symbol.asyncIterator]() {
+        return {
+          __proto__: null,
+          next() {
+            nextCalls++;
+            sourceStarted.resolve();
+            return sourceNext.promise;
+          },
+          async return() {
+            returnCalls++;
+            return { __proto__: null, done: true, value: undefined };
+          },
+        };
+      },
+    };
+    const shared = share(source);
+    const iterator = shared.pull()[Symbol.asyncIterator]();
+    const read = iterator.next().then(
+      (value) => ({ __proto__: null, rejected: false, value }),
+      (error) => ({ __proto__: null, rejected: true, error }),
+    );
+
+    await sourceStarted.promise;
+    if (reason === noReason) {
+      shared.cancel();
+    } else {
+      shared.cancel(reason);
+    }
+
+    const timedOut = { __proto__: null };
+    const outcome = await Promise.race([
+      read,
+      new Promise((resolve) => setImmediate(resolve, timedOut)),
+    ]);
+    assert.notStrictEqual(outcome, timedOut);
+    if (reason === noReason) {
+      assert.strictEqual(outcome.rejected, false);
+      assert.strictEqual(outcome.value.done, true);
+    } else {
+      assert.strictEqual(outcome.rejected, true);
+      assert.strictEqual(outcome.error, reason);
+    }
+    assert.strictEqual(nextCalls, 1);
+
+    sourceNext.resolve({
+      __proto__: null,
+      done: false,
+      value: [Uint8Array.of(1)],
+    });
+    await new Promise(setImmediate);
+    assert.strictEqual(returnCalls, 1);
+  }
+}
+
 async function testShareAbortSignal() {
   const ac = new AbortController();
   const reason = new Error('share aborted');
@@ -272,6 +336,27 @@ async function testShareSourceError() {
   }, { message: 'share source boom' });
 }
 
+async function testShareSourceErrorFollowsBufferedData() {
+  const reason = new Error('share source boom');
+  async function* failingSource() {
+    yield [Uint8Array.of(1)];
+    throw reason;
+  }
+
+  const shared = share(failingSource());
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  const slow = shared.pull()[Symbol.asyncIterator]();
+  const returned = shared.pull()[Symbol.asyncIterator]();
+  await returned.return();
+
+  assert.deepStrictEqual((await fast.next()).value, [Uint8Array.of(1)]);
+  await assert.rejects(fast.next(), (error) => error === reason);
+
+  assert.deepStrictEqual((await slow.next()).value, [Uint8Array.of(1)]);
+  await assert.rejects(slow.next(), (error) => error === reason);
+  assert.strictEqual((await returned.next()).done, true);
+}
+
 async function testShareLateJoiningConsumer() {
   // A consumer that joins after some data has been consumed should only
   // see data remaining in the buffer (not items already trimmed).
@@ -380,12 +465,14 @@ Promise.all([
   testShareCancelMidIteration(),
   testShareCancelWithReason(),
   testShareCancelWithFalsyReason(),
+  testShareCancelWhileSourcePullPending(),
   testShareAbortSignal(),
   testShareAbortSignalWhileSourcePullPending(),
   testSharePullAbortSignalRejectsPendingNext(),
   testSharePullPreAbortedSignalDoesNotAddConsumer(),
   testShareAlreadyAborted(),
   testShareSourceError(),
+  testShareSourceErrorFollowsBufferedData(),
   testShareLateJoiningConsumer(),
   testShareConsumerBreak(),
   testShareMultipleConsumersConcurrentPull(),
