@@ -161,7 +161,8 @@ async function testPipeRejectsWriterResize() {
     fail: common.mustCall(),
   };
   assert.throws(
-    () => pipeToSync([new Uint8Array(syncBuffer)], syncWriter),
+    () => pipeToSync(
+      [new Uint8Array(syncBuffer)], syncWriter, { preventClose: true }),
     kResizeError,
   );
 }
