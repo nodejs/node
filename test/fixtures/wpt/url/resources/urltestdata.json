@@ -7581,6 +7581,18 @@
     "hash": ""
   },
   "# IPv6 tests",
+  "IPv4 pieces embedded in IPv6 addresses must not have leading zeroes",
+  {
+    "input": "https://[0:1:2:3:4:5:192.0.02.1]/",
+    "base": null,
+    "failure": true
+  },
+  "An embedded IPv4 address must end the IPv6 address",
+  {
+    "input": "https://[192.0.2.1::]/",
+    "base": null,
+    "failure": true
+  },
   {
     "input": "http://[1:0::]",
     "base": "http://example.net/",
