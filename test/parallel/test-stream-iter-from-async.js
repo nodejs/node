@@ -31,6 +31,30 @@ async function testFromAsyncGenerator() {
   assert.deepStrictEqual(batches[1][0], new Uint8Array([30, 40]));
 }
 
+async function testFromBoundsNestedAsyncIterable() {
+  let nestedClosed = false;
+  async function* nested() {
+    try {
+      let value = 0;
+      while (true) yield new Uint8Array([value++]);
+    } finally {
+      nestedClosed = true;
+    }
+  }
+
+  async function* source() {
+    yield nested();
+  }
+
+  const iterator = from(source())[Symbol.asyncIterator]();
+  const first = await iterator.next();
+  assert.strictEqual(first.done, false);
+  assert.strictEqual(first.value.length, 128);
+
+  await iterator.return();
+  assert.strictEqual(nestedClosed, true);
+}
+
 async function testFromSyncIterableAsAsync() {
   // Sync iterable passed to from() should work
   function* gen() {
@@ -274,6 +298,7 @@ function testFromUndefinedThrows() {
 Promise.all([
   testFromString(),
   testFromAsyncGenerator(),
+  testFromBoundsNestedAsyncIterable(),
   testFromSyncIterableAsAsync(),
   testFromSyncIterableAwaitsPromiseValues(),
   testFromSyncIterableRejectsNestedAsyncIterable(),
