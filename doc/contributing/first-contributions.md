@@ -146,8 +146,10 @@ for the technical how-tos. After a rebase, you will need a new approval from the
 Node.js uses two CI systems: [Jenkins](https://ci.nodejs.org/) and GitHub Actions. Jenkins is the primary
 CI system for testing pull requests, while GitHub Actions is used for quick checks and additional
 verifications. Pull requests that only touch documentation need to pass only the GitHub Actions
-checks. Pull requests that touch more than just documentation will be labeled `needs-ci` and will need
-to run the Jenkins CI before they can be merged.
+checks. Pull requests that affect the `node` binary also need to pass Jenkins CI before they can be
+merged. The automation determines this requirement from the changed files and may add the `needs-ci`
+label. The label describes the kind of CI required; it does not indicate that CI is still pending and
+remains applicable after a successful run. Removing it does not waive the CI requirement.
 
 ### Q: How do I trigger the CI runs?
 
@@ -194,9 +196,12 @@ for more details on how to get started.
 ### Q: My pull request has enough approvals and passed CI, but it still hasn't been merged. What should I do?
 
 Pull requests need to be merged by collaborators or triagers (normally by applying the `commit-queue`
-label). The [commit queue automation](../../.github/workflows/commit-queue.yml)
-will verify that the pull request meets all the requirements before merging it, but the
-triggering of the commit queue still requires human judgement and depends on volunteers.
+label). Once a pull request is author ready and its current CI has passed, a collaborator can add it
+to the queue without waiting for a second approval. The
+[commit queue automation](../../.github/workflows/commit-queue.yml) verifies the requirements and
+waits until the pull request has either two approvals and has been open for 48 hours, or one approval
+and has been open for seven days. Triggering the commit queue still requires human judgement and
+depends on volunteers.
 You can ask for help either in the pull request or in the Slack channel similar
 to how you ask for help to get reviews and trigger CI runs.
 
