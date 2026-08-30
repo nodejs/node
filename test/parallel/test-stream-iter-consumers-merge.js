@@ -447,6 +447,27 @@ async function testMergeBreakWithCleanupError() {
   );
 }
 
+async function testMergeMultiSourceBreakWithCleanupError() {
+  async function* failingReturnSource() {
+    try {
+      yield [new TextEncoder().encode('data')];
+    } finally {
+      await Promise.resolve();
+      throwInFinally('async cleanup on break');
+    }
+  }
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of merge(failingReturnSource(), from('other'))) {
+        break;
+      }
+    },
+    { message: 'async cleanup on break' },
+  );
+}
+
 Promise.all([
   testMergeTwoSources(),
   testMergeSingleSource(),
@@ -468,4 +489,5 @@ Promise.all([
   testMergeCleanupErrorOnly(),
   testMergePrimaryErrorPrecedesCleanupError(),
   testMergeBreakWithCleanupError(),
+  testMergeMultiSourceBreakWithCleanupError(),
 ]).then(common.mustCall());
