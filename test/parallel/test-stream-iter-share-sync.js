@@ -139,6 +139,39 @@ function testShareSyncSourceError() {
   }, { message: 'sync share boom' });
 }
 
+function testShareSyncRejectsUnbounded() {
+  assert.throws(
+    () => shareSync(fromSync('data'), { backpressure: 'unbounded' }),
+    { code: 'ERR_INVALID_ARG_VALUE' },
+  );
+}
+
+function testShareSyncDropNewest() {
+  let pulls = 0;
+  function* source() {
+    for (let i = 0; i < 3; i++) {
+      pulls++;
+      const chunk = new Uint8Array(16384);
+      chunk[0] = i;
+      yield [chunk];
+    }
+  }
+
+  const shared = shareSync(source(), {
+    budget: 16384,
+    backpressure: 'drop-newest',
+  });
+  const fast = shared.pull()[Symbol.iterator]();
+  const slow = shared.pull()[Symbol.iterator]();
+
+  assert.strictEqual(fast.next().value[0][0], 0);
+  assert.strictEqual(fast.next().done, true);
+  assert.strictEqual(pulls, 3);
+
+  assert.strictEqual(slow.next().value[0][0], 0);
+  assert.strictEqual(slow.next().done, true);
+}
+
 // shareSync() accepts string source directly (normalized via fromSync())
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
@@ -154,5 +187,7 @@ Promise.all([
   testShareSyncCancelWithReason(),
   testShareSyncCancelWithFalsyReason(),
   testShareSyncSourceError(),
+  testShareSyncRejectsUnbounded(),
+  testShareSyncDropNewest(),
   testShareSyncStringSource(),
 ]).then(common.mustCall());
