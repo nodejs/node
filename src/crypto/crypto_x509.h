@@ -11,22 +11,24 @@
 #include "node_worker.h"
 #include "v8.h"
 
+#include <memory>
+#include <optional>
+#include <vector>
+
 namespace node {
 namespace crypto {
 
-// The ManagedX509 class is essentially a smart pointer for
-// X509 objects that allows an X509Certificate instance to
-// be cloned at the JS level while pointing at the same
-// underlying X509 instance.
+// ManagedX509 owns one isolate-local X509. Adopt makes the ownership transfer
+// explicit at each call site.
 class ManagedX509 final : public MemoryRetainer {
  public:
-  ManagedX509() = default;
-  explicit ManagedX509(ncrypto::X509Pointer&& cert);
-  ManagedX509(const ManagedX509& that);
-  ManagedX509& operator=(const ManagedX509& that);
+  static std::shared_ptr<ManagedX509> Adopt(ncrypto::X509Pointer cert);
+
+  ManagedX509(const ManagedX509&) = delete;
+  ManagedX509& operator=(const ManagedX509&) = delete;
 
   inline operator bool() const { return !!cert_; }
-  inline X509* get() const { return cert_.get(); }
+  inline X509* get() { return cert_.get(); }
   inline ncrypto::X509View view() const { return cert_; }
   inline operator ncrypto::X509View() const { return cert_; }
 
@@ -35,7 +37,38 @@ class ManagedX509 final : public MemoryRetainer {
   SET_SELF_SIZE(ManagedX509)
 
  private:
+  explicit ManagedX509(ncrypto::X509Pointer cert);
+
   ncrypto::X509Pointer cert_;
+};
+
+// An immutable certificate-encoding snapshot. Certificate zero is the leaf and
+// all remaining certificates follow in the supplied order. Sharing this
+// snapshot between isolates is safe; the isolate-local X509 objects are always
+// reparsed from it.
+class X509CertificateSnapshot final : public MemoryRetainer {
+ public:
+  using DER = std::vector<unsigned char>;
+
+  static std::shared_ptr<const X509CertificateSnapshot> Create(
+      ncrypto::X509View leaf,
+      const STACK_OF(X509) * issuer_chain = nullptr,
+      OPENSSL_SIZE_T issuers_start = 0);
+
+  ncrypto::X509Pointer Parse(size_t index) const;
+
+  inline size_t size() const { return certificates_.size(); }
+  inline const DER& at(size_t index) const { return certificates_.at(index); }
+  size_t size_bytes() const;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(X509CertificateSnapshot)
+  SET_SELF_SIZE(X509CertificateSnapshot)
+
+ private:
+  explicit X509CertificateSnapshot(std::vector<DER> certificates);
+
+  const std::vector<DER> certificates_;
 };
 
 class X509Certificate final : public BaseObject {
@@ -60,12 +93,19 @@ class X509Certificate final : public BaseObject {
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
       ncrypto::X509Pointer cert,
-      const STACK_OF(X509) * issuer_chain = nullptr);
+      const STACK_OF(X509) * issuer_chain = nullptr,
+      OPENSSL_SIZE_T issuers_start = 0);
 
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
       std::shared_ptr<ManagedX509> cert,
-      const STACK_OF(X509) * issuer_chain = nullptr);
+      std::shared_ptr<const X509CertificateSnapshot> snapshot,
+      size_t snapshot_index = 0);
+
+  static v8::MaybeLocal<v8::Object> New(
+      Environment* env,
+      std::shared_ptr<const X509CertificateSnapshot> snapshot,
+      size_t snapshot_index = 0);
 
   static v8::MaybeLocal<v8::Object> GetCert(Environment* env,
                                             const ncrypto::SSLPointer& ssl);
@@ -96,20 +136,22 @@ class X509Certificate final : public BaseObject {
   class X509CertificateTransferData : public worker::TransferData {
    public:
     explicit X509CertificateTransferData(
-        const std::shared_ptr<ManagedX509>& data)
-        : data_(data) {}
+        std::shared_ptr<const X509CertificateSnapshot> snapshot,
+        size_t snapshot_index)
+        : snapshot_(std::move(snapshot)), snapshot_index_(snapshot_index) {}
 
     BaseObjectPtr<BaseObject> Deserialize(
         Environment* env,
         v8::Local<v8::Context> context,
         std::unique_ptr<worker::TransferData> self) override;
 
+    void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(X509CertificateTransferData)
     SET_SELF_SIZE(X509CertificateTransferData)
-    SET_NO_MEMORY_INFO()
 
    private:
-    std::shared_ptr<ManagedX509> data_;
+    std::shared_ptr<const X509CertificateSnapshot> snapshot_;
+    size_t snapshot_index_;
   };
 
   BaseObject::TransferMode GetTransferMode() const override;
@@ -119,16 +161,13 @@ class X509Certificate final : public BaseObject {
   X509Certificate(Environment* env,
                   v8::Local<v8::Object> object,
                   std::shared_ptr<ManagedX509> cert,
+                  std::shared_ptr<const X509CertificateSnapshot> snapshot,
+                  size_t snapshot_index,
                   v8::Local<v8::Object> issuer_chain = v8::Local<v8::Object>());
 
-  // Like New(), but reads the issuer chain from issuer_chain[start] upward.
-  static v8::MaybeLocal<v8::Object> NewWithIssuers(
-      Environment* env,
-      std::shared_ptr<ManagedX509> cert,
-      const STACK_OF(X509) * issuer_chain,
-      int start);
-
   std::shared_ptr<ManagedX509> cert_;
+  std::shared_ptr<const X509CertificateSnapshot> snapshot_;
+  size_t snapshot_index_ = 0;
   BaseObjectPtr<X509Certificate> issuer_cert_;
 };
 
