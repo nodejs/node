@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { Readable } = require('stream');
 const {
   Broadcast,
   Share,
@@ -21,13 +22,14 @@ const {
   shareProtocol,
   shareSync,
   shareSyncProtocol,
+  text,
+  textSync,
   toAsyncStreamable,
   toStreamable,
 } = require('stream/iter');
 
-function protocolFixture(symbol, result) {
+function protocolFixture(symbol, result, input = {}) {
   let accesses = 0;
-  const input = {};
   const method = common.mustCall(function() {
     assert.strictEqual(this, input);
     return result;
@@ -83,6 +85,38 @@ async function testFromSyncSnapshotsProtocolMethods() {
   assert.strictEqual(fixture.accesses, 1);
 }
 
+async function testArrayFastPathsHonorProtocols() {
+  const asyncInputs = [
+    protocolFixture(toAsyncStreamable, 'empty-async', []),
+    protocolFixture(toStreamable, 'batch-async', [new Uint8Array([0])]),
+  ];
+  for (const fixture of asyncInputs) {
+    assert.match(await text(from(fixture.input)), /-async$/);
+    assert.strictEqual(fixture.accesses, 1);
+  }
+
+  const syncInputs = [
+    protocolFixture(toStreamable, 'empty-sync', []),
+    protocolFixture(toStreamable, 'batch-sync', [new Uint8Array([0])]),
+  ];
+  for (const fixture of syncInputs) {
+    assert.match(textSync(fromSync(fixture.input)), /-sync$/);
+    assert.strictEqual(fixture.accesses, 1);
+  }
+}
+
+async function testValidatedSourceHonorsProtocol() {
+  const readable = Readable.from(['ignored']);
+  const validated = readable[toAsyncStreamable]();
+  assert.strictEqual(from(validated), validated);
+
+  const fixture = protocolFixture(
+    toAsyncStreamable, 'validated-protocol', validated);
+  assert.strictEqual(await text(from(fixture.input)), 'validated-protocol');
+  assert.strictEqual(fixture.accesses, 1);
+  readable.destroy();
+}
+
 async function testPullSnapshotsStatefulTransform() {
   const fixture = statefulTransformFixture();
   const controller = new AbortController();
@@ -136,6 +170,8 @@ async function testDrainableProtocolSnapshotMethod() {
 Promise.all([
   testFromSnapshotsProtocolMethods(),
   testFromSyncSnapshotsProtocolMethods(),
+  testArrayFastPathsHonorProtocols(),
+  testValidatedSourceHonorsProtocol(),
   testPullSnapshotsStatefulTransform(),
   testPullSyncSnapshotsStatefulTransform(),
   testMultiConsumerProtocolsSnapshotMethods(),
