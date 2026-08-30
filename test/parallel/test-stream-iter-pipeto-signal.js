@@ -9,6 +9,51 @@ const assert = require('assert');
 const { setTimeout } = require('timers/promises');
 const { pipeTo, from } = require('stream/iter');
 
+async function testPipeToPreAbortedSignalFailsWriter() {
+  const reason = new Error('already aborted');
+  let sourceTouched = false;
+  const source = {
+    [Symbol.asyncIterator]() {
+      sourceTouched = true;
+      return {};
+    },
+  };
+  const writer = {
+    write: common.mustNotCall(),
+    fail: common.mustCall((error) => assert.strictEqual(error, reason)),
+  };
+
+  await assert.rejects(
+    pipeTo(source, writer, { signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+  assert.strictEqual(sourceTouched, false);
+}
+
+async function testPipeToPreAbortedSignalPreventFail() {
+  const reason = new Error('already aborted');
+  let sourceTouched = false;
+  const source = {
+    [Symbol.asyncIterator]() {
+      sourceTouched = true;
+      return {};
+    },
+  };
+  const writer = {
+    write: common.mustNotCall(),
+    fail: common.mustNotCall(),
+  };
+
+  await assert.rejects(
+    pipeTo(source, writer, {
+      signal: AbortSignal.abort(reason),
+      preventFail: true,
+    }),
+    (error) => error === reason,
+  );
+  assert.strictEqual(sourceTouched, false);
+}
+
 // pipeTo with live signal, no transforms — abort mid-stream
 async function testPipeToLiveSignalNoTransforms() {
   const ac = new AbortController();
@@ -116,6 +161,8 @@ async function testPipeToLiveSignalWithTransformsCompletes() {
 }
 
 Promise.all([
+  testPipeToPreAbortedSignalFailsWriter(),
+  testPipeToPreAbortedSignalPreventFail(),
   testPipeToLiveSignalNoTransforms(),
   testPipeToLiveSignalNoTransformsPendingNext(),
   testPipeToLiveSignalWithTransforms(),
