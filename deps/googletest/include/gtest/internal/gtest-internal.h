@@ -39,7 +39,7 @@
 #ifndef GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_
 #define GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_
 
-#include "gtest/internal/gtest-port.h"
+#include "gtest/internal/gtest-port.h"  // IWYU pragma: export
 
 #ifdef GTEST_OS_LINUX
 #include <stdlib.h>
@@ -1516,8 +1516,9 @@ class [[nodiscard]] NeverThrown {
               parent_class>::GetSetUpCaseOrSuite(__FILE__, __LINE__),          \
           ::testing::internal::SuiteApiResolver<                               \
               parent_class>::GetTearDownCaseOrSuite(__FILE__, __LINE__),       \
-          new ::testing::internal::TestFactoryImpl<GTEST_TEST_CLASS_NAME_(     \
-              test_suite_name, test_name)>);                                   \
+          ::std::make_unique<::testing::internal::TestFactoryImpl<             \
+              GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)>>()           \
+              .release());                                                     \
   void GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)::TestBody()
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_

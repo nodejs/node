@@ -552,7 +552,7 @@ auto ConvertGenerator(Gen&& gen, Func&& f) {
 
 #define INSTANTIATE_TEST_SUITE_P(prefix, test_suite_name, ...)                \
   static ::testing::internal::ParamGenerator<test_suite_name::ParamType>      \
-      gtest_##prefix##test_suite_name##_EvalGenerator_() {                    \
+  gtest_##prefix##test_suite_name##_EvalGenerator_() {                        \
     return GTEST_EXPAND_(GTEST_GET_FIRST_(__VA_ARGS__, DUMMY_PARAM_));        \
   }                                                                           \
   static ::std::string gtest_##prefix##test_suite_name##_EvalGenerateName_(   \
@@ -562,7 +562,7 @@ auto ConvertGenerator(Gen&& gen, Func&& f) {
           __VA_ARGS__,                                                        \
           ::testing::internal::DefaultParamName<test_suite_name::ParamType>,  \
           DUMMY_PARAM_)));                                                    \
-      auto t = std::make_tuple(__VA_ARGS__);                                  \
+      const auto t = std::make_tuple(__VA_ARGS__);                            \
       static_assert(std::tuple_size<decltype(t)>::value <= 2,                 \
                     "Too Many Args!");                                        \
     }                                                                         \

@@ -500,6 +500,17 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #endif  // defined(_MSC_VER) || defined(__BORLANDC__)
 #endif  // GTEST_HAS_EXCEPTIONS
 
+// MSVC either defines wchar_t as a typedef of unsigned short, or as a native
+// type (in which case, it defines _NATIVE_WCHAR_T_DEFINED). When wchar_t is a
+// typedef, defining an overload for const wchar_t* would cause unsigned short*
+// be printed as a wide string, possibly causing invalid memory accesses, so we
+// omit wchar_t overloads in that case.
+#if defined(_MSC_VER) && !defined(_NATIVE_WCHAR_T_DEFINED)
+#define GTEST_HAS_NATIVE_WCHAR 0
+#else
+#define GTEST_HAS_NATIVE_WCHAR 1
+#endif
+
 // 1. Calculate default GTEST_HAS_STD_WSTRING values based on STL capabilities.
 #if defined(_MSVC_STL_VERSION)
 // Microsoft's STL implementation always supports ::std::wstring.
@@ -2185,7 +2196,13 @@ GTEST_DISABLE_DEPRECATED_PUSH_()
     !defined(GTEST_OS_WINDOWS_RT) && !defined(GTEST_OS_WINDOWS_GAMES) &&     \
     !defined(GTEST_OS_ESP8266) && !defined(GTEST_OS_XTENSA) &&               \
     !defined(GTEST_OS_QURT)
-inline int ChDir(const char* dir) { return chdir(dir); }
+inline int ChDir(const char* dir) {
+#ifdef GTEST_OS_WINDOWS
+  return _chdir(dir);
+#else
+  return chdir(dir);
+#endif
+}
 #endif
 inline FILE* FOpen(const char* path, const char* mode) {
 #if defined(GTEST_OS_WINDOWS) && !defined(GTEST_OS_WINDOWS_MINGW)
@@ -2202,17 +2219,37 @@ inline FILE* FOpen(const char* path, const char* mode) {
 inline FILE* FReopen(const char* path, const char* mode, FILE* stream) {
   return freopen(path, mode, stream);
 }
-inline FILE* FDOpen(int fd, const char* mode) { return fdopen(fd, mode); }
+inline FILE* FDOpen(int fd, const char* mode) {
+#ifdef GTEST_OS_WINDOWS
+  return _fdopen(fd, mode);
+#else
+  return fdopen(fd, mode);
+#endif
+}
 #endif  // !GTEST_OS_WINDOWS_MOBILE && !GTEST_OS_QURT
 inline int FClose(FILE* fp) { return fclose(fp); }
 #if !defined(GTEST_OS_WINDOWS_MOBILE) && !defined(GTEST_OS_QURT)
 inline int Read(int fd, void* buf, unsigned int count) {
+#ifdef GTEST_OS_WINDOWS
+  return static_cast<int>(_read(fd, buf, count));
+#else
   return static_cast<int>(read(fd, buf, count));
+#endif
 }
 inline int Write(int fd, const void* buf, unsigned int count) {
+#ifdef GTEST_OS_WINDOWS
+  return static_cast<int>(_write(fd, buf, count));
+#else
   return static_cast<int>(write(fd, buf, count));
+#endif
 }
-inline int Close(int fd) { return close(fd); }
+inline int Close(int fd) {
+#ifdef GTEST_OS_WINDOWS
+  return _close(fd);
+#else
+  return close(fd);
+#endif
+}
 #endif  // !GTEST_OS_WINDOWS_MOBILE && !GTEST_OS_QURT
 #endif  // GTEST_HAS_FILE_SYSTEM
 
