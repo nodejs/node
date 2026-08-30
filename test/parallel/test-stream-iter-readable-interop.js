@@ -7,7 +7,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { Readable } = require('stream');
-const { setImmediate } = require('timers/promises');
+const { setImmediate, setTimeout: wait } = require('timers/promises');
 const {
   from,
   pull,
@@ -381,7 +381,7 @@ async function testEarlyTermination() {
   assert.ok(batches.length >= 1);
   // Stream should be destroyed after consumer return
   // Give it a tick to clean up
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await wait(50);
   assert.ok(readable.destroyed);
 }
 
