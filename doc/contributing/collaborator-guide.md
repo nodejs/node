@@ -283,7 +283,8 @@ The `needs-ci` label identifies pull requests that require a full Jenkins CI
 run. It is a classification, not an indication that CI is still pending. Leave
 it in place after CI completes. Removing it does not waive the underlying CI
 requirement or make a pull request eligible to land without the required
-checks.
+checks. It does however make it harder for releasers to identify the scope of
+a change when working on a release proposal.
 
 <details>
 <summary>Changes that affect the `node` binary</summary>
