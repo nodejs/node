@@ -511,25 +511,18 @@ async function testAsyncDispose() {
 }
 
 // =============================================================================
-// write() validates chunk type
+// write() rejects values that cannot be converted to USVString
 // =============================================================================
 
-async function testWriteInvalidChunkType() {
+function testWriteInvalidChunkType() {
   const writable = new Writable({ write(chunk, enc, cb) { cb(); } });
   const writer = fromWritable(writable);
 
-  await assert.rejects(
-    writer.write(42),
+  assert.throws(
+    () => writer.write(Symbol('invalid')),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
-  await assert.rejects(
-    writer.write(null),
-    { code: 'ERR_INVALID_ARG_TYPE' },
-  );
-  await assert.rejects(
-    writer.write({}),
-    { code: 'ERR_INVALID_ARG_TYPE' },
-  );
+  writable.destroy();
 }
 
 // =============================================================================
@@ -559,7 +552,7 @@ function testWritevInvalidChunkUncorks() {
   const writer = fromWritable(writable);
 
   assert.throws(
-    () => writer.writev([new Uint8Array([1]), 42]),
+    () => writer.writev([new Uint8Array([1]), Symbol('invalid')]),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   assert.strictEqual(writable.writableCorked, 0);

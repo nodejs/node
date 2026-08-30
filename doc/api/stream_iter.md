@@ -401,6 +401,12 @@ const { writer, readable } = push({
 A writer is any object conforming to the Writer interface. Only `write()` is
 required; all other methods are optional.
 
+Writer arguments use Web IDL conversion semantics. A non-`Uint8Array` chunk is
+converted to a `USVString` and then UTF-8 encoded. `writev()` and
+`writevSync()` accept any iterable object whose values can be converted to
+chunks. Writer option dictionaries treat `null` as an empty dictionary and
+ignore unknown members.
+
 Each async method has a synchronous `*Sync` counterpart designed for a
 try-fallback pattern: attempt the fast synchronous path first, and fall back
 to the async version only when the synchronous call indicates it could not
@@ -492,7 +498,7 @@ Synchronous write. Does not block; returns `false` if backpressure is active.
 
 #### `writer.writev(chunks[, options])`
 
-* `chunks` {Uint8Array\[]|string\[]}
+* `chunks` {Iterable} of {Uint8Array|string} values
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
     only the pending `writev()` call; it does not fail the writer itself.
@@ -502,7 +508,7 @@ Write multiple chunks as a single batch.
 
 #### `writer.writevSync(chunks)`
 
-* `chunks` {Uint8Array\[]|string\[]}
+* `chunks` {Iterable} of {Uint8Array|string} values
 * Returns: {boolean} `true` if the write was accepted, `false` if the
   buffer is full.
 
@@ -520,6 +526,12 @@ import { from, pull, bytes, Stream } from 'node:stream/iter';
 // Namespace access
 Stream.from('hello');
 ```
+
+Options dictionaries defined by the Iterable Streams API use Web IDL
+conversion semantics. `null` is treated as an empty dictionary, unknown
+members are ignored, and known members are converted to their declared types
+before the operation runs. Conversion failures use Node.js error codes such as
+`ERR_INVALID_ARG_TYPE`, `ERR_INVALID_ARG_VALUE`, and `ERR_OUT_OF_RANGE`.
 
 ```cjs
 // Named exports
@@ -860,7 +872,7 @@ added:
 
 * `options` {Object}
   * `budget` {number} Buffer size in bytes for both directions.
-    **Default:** `16384`.
+    Must be >= 16384. **Default:** `16384`.
   * `backpressure` {string} Policy for both directions.
     **Default:** `'strict'`.
   * `signal` {AbortSignal} Cancellation signal for both channels.
@@ -1379,6 +1391,7 @@ added:
     **Default:** `65536`.
   * `backpressure` {string} `'strict'`, `'unbounded'`, `'drop-oldest'`, or
     `'drop-newest'`. **Default:** `'strict'`.
+  * `signal` {AbortSignal}
 * Returns: {Share}
 
 Create a pull-model multi-consumer shared stream. Unlike `broadcast()`, the

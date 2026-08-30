@@ -216,7 +216,7 @@ async function testWritevSyncInvalidChunkDoesNotQueue() {
   const { writer, readable } = push({ budget: 16384 });
 
   assert.throws(
-    () => writer.writevSync([1]),
+    () => writer.writevSync([Symbol('invalid')]),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
 
