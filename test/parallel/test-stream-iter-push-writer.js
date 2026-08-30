@@ -19,6 +19,36 @@ async function testOndrain() {
   assert.strictEqual(ondrain(writer), null);
 }
 
+async function testDropPoliciesReportPhysicalCapacity() {
+  const chunk = new Uint8Array(16384);
+
+  for (const backpressure of ['drop-oldest', 'drop-newest']) {
+    const { writer, readable } = push({
+      budget: chunk.byteLength,
+      backpressure,
+    });
+    const iterator = readable[Symbol.asyncIterator]();
+
+    assert.strictEqual(writer.writeSync(chunk), true);
+    assert.strictEqual(writer.canWrite, false);
+
+    let drained = false;
+    const drain = ondrain(writer);
+    drain.then(common.mustCall(() => { drained = true; }));
+
+    // Drop policies still accept writes despite having no physical capacity.
+    assert.strictEqual(writer.writeSync(chunk), true);
+    assert.strictEqual(writer.canWrite, false);
+    await new Promise(setImmediate);
+    assert.strictEqual(drained, false);
+
+    assert.strictEqual((await iterator.next()).done, false);
+    assert.strictEqual(await drain, true);
+    assert.strictEqual(writer.canWrite, true);
+    await iterator.return();
+  }
+}
+
 async function testOndrainNonDrainable() {
   // Non-drainable objects return null
   assert.strictEqual(ondrain(null), null);
@@ -586,6 +616,7 @@ async function testFailRejectsPendingReadWithFalsyReason() {
 
 Promise.all([
   testOndrain(),
+  testDropPoliciesReportPhysicalCapacity(),
   testOndrainNonDrainable(),
   testWriteWithSignalRejects(),
   testWriteWithPreAbortedSignal(),

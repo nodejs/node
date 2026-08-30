@@ -417,9 +417,13 @@ writer.fail(err);  // Always synchronous, no fallback needed
 
 * {boolean|null}
 
-Returns `true` if the next write is likely to be accepted (buffered data is
-below capacity), `false` if backpressure is active, or `null` if the writer
-is closed or the consumer has disconnected.
+Returns `true` if the slots buffer has physical capacity (buffered data is
+below the configured byte budget), `false` if the budget is exhausted, or
+`null` if the writer is closed or the consumer has disconnected.
+
+This reports physical capacity independently of the backpressure policy. With
+`'drop-oldest'` or `'drop-newest'`, writes still complete when this is `false`
+by evicting buffered data or discarding the incoming data, respectively.
 
 This is a hint, not a guarantee: the state can change between the check and
 the write. Use [`ondrain()`][] to wait for capacity rather than polling.
@@ -1089,9 +1093,13 @@ added:
 * `drainable` {Object} An object implementing the drainable protocol.
 * Returns: {Promise|null}
 
-Wait for a drainable writer's backpressure to clear. Returns `null` if
-the object does not implement the drainable protocol, or a promise that
-fulfills with `true` when the writer can accept more data.
+Wait for a drainable writer to regain physical buffer capacity. Returns `null`
+if the object does not implement the drainable protocol, or a promise that
+fulfills with `true` when buffered data falls below the byte budget.
+
+For writers using `'drop-oldest'` or `'drop-newest'`, this waits for physical
+capacity even though writes do not block. This allows producers to avoid data
+loss by waiting before writing.
 
 ```mjs
 import { push, ondrain, text } from 'node:stream/iter';
