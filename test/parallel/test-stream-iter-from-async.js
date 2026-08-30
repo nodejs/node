@@ -235,6 +235,20 @@ async function testFromTopLevelProtocolOverIterator() {
   assert.strictEqual(result, 'from-protocol');
 }
 
+async function testFromHandlesProtocolRejectionUntilIteration() {
+  const reason = new Error('protocol failed');
+  const iterable = from({
+    [Symbol.for('Stream.toAsyncStreamable')]: common.mustCall(
+      () => Promise.reject(reason)),
+  });
+
+  await new Promise(setImmediate);
+  await assert.rejects(
+    iterable[Symbol.asyncIterator]().next(),
+    (error) => error === reason,
+  );
+}
+
 // DataView input should be converted to Uint8Array (zero-copy)
 async function testFromDataView() {
   const buf = new ArrayBuffer(5);
@@ -279,5 +293,6 @@ Promise.all([
   testFromTopLevelToStreamable(),
   testFromTopLevelAsyncPrecedence(),
   testFromTopLevelProtocolOverIterator(),
+  testFromHandlesProtocolRejectionUntilIteration(),
   testFromDataView(),
 ]).then(common.mustCall());
