@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setImmediate, setTimeout } = require('timers/promises');
 const {
   push,
   text,
@@ -28,6 +29,79 @@ async function testBasicWrite() {
   assert.strictEqual(result, 'hello world');
 }
 
+async function testFalsyWriterRejectionBecomesClassicError() {
+  const nonCoercible = { __proto__: null };
+  const trapped = new Proxy({}, {
+    getPrototypeOf() { throw new Error('unexpected coercion'); },
+  });
+  for (const [reason, code] of [
+    [null, 'ERR_FALSY_VALUE_REJECTION'],
+    [nonCoercible, 'ERR_OPERATION_FAILED'],
+    [trapped, 'ERR_OPERATION_FAILED'],
+  ]) {
+    let failed = false;
+    let failReason;
+    const writable = toWritable({
+      __proto__: null,
+      write() { return Promise.reject(reason); },
+      fail(error) { failed = true; failReason = error; },
+    });
+    writable.on('error', common.mustCall());
+
+    const { promise, resolve, reject } = Promise.withResolvers();
+    writable.write('data', common.mustCall((error) => {
+      for (const symbol of Object.getOwnPropertySymbols(error)) {
+        delete error[symbol];
+      }
+      if (error) reject(error);
+      else resolve();
+    }));
+
+    await assert.rejects(promise, (error) => {
+      return error.code === code && error.reason === reason;
+    });
+    await setImmediate();
+    assert.strictEqual(failed, true);
+    assert.strictEqual(failReason, reason);
+  }
+}
+
+async function testClassicWrapperReusePreservesErrorIdentity() {
+  const first = toWritable({
+    __proto__: null,
+    write() { return Promise.reject(null); },
+    fail() {},
+  });
+  first.on('error', common.mustCall());
+  let wrapper;
+  {
+    const { promise, resolve } = Promise.withResolvers();
+    first.write('first', common.mustCall((error) => {
+      wrapper = error;
+      resolve();
+    }));
+    await promise;
+  }
+
+  let failReason;
+  const second = toWritable({
+    __proto__: null,
+    write() { return Promise.reject(wrapper); },
+    fail(reason) { failReason = reason; },
+  });
+  second.on('error', common.mustCall());
+  {
+    const { promise, resolve } = Promise.withResolvers();
+    second.write('second', common.mustCall((error) => {
+      assert.strictEqual(error, wrapper);
+      resolve();
+    }));
+    await promise;
+  }
+  await setImmediate();
+  assert.strictEqual(failReason, wrapper);
+}
+
 // =============================================================================
 // _write delegates to writer.write()
 // =============================================================================
@@ -46,12 +120,12 @@ async function testWriteDelegatesToWriter() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve, reject) => {
-    writable.write('hello', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('hello', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await promise;
 
   assert.strictEqual(Buffer.concat(chunks).toString(), 'hello');
 }
@@ -86,7 +160,9 @@ async function testWritevDelegation() {
   writable.write('c');
   writable.uncork();
 
-  await new Promise((resolve) => writable.end(resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
 
   // Writev should have been called with the batched chunks
   assert.ok(batches.length > 0, 'writev should have been called');
@@ -129,9 +205,9 @@ async function testWriteSyncFirst() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => {
-    writable.write('test', resolve);
-  });
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('test', resolve);
+  await promise;
 
   assert.ok(syncCalled, 'writeSync should have been called');
   assert.ok(!asyncCalled, 'write should not have been called');
@@ -160,9 +236,9 @@ async function testWriteSyncFallback() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => {
-    writable.write('test', resolve);
-  });
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('test', resolve);
+  await promise;
 
   assert.ok(syncCalled, 'writeSync should have been called');
   assert.ok(asyncCalled, 'write should have been called as fallback');
@@ -191,7 +267,9 @@ async function testEndSyncFirst() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => writable.end(resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
 
   assert.ok(endSyncCalled, 'endSync should have been called');
   assert.ok(!endAsyncCalled, 'end should not have been called');
@@ -220,7 +298,9 @@ async function testEndSyncFallback() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => writable.end(resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
 
   assert.ok(endSyncCalled, 'endSync should have been called');
   assert.ok(endAsyncCalled, 'end should have been called as fallback');
@@ -243,7 +323,9 @@ async function testFinalDelegatesToEnd() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => writable.end(resolve));
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(resolve);
+  await promise;
 
   assert.ok(endCalled, 'writer.end() should have been called');
 }
@@ -261,13 +343,13 @@ async function testDestroyDelegatesToFail() {
   };
 
   const writable = toWritable(writer);
-  writable.on('error', () => {});  // Prevent unhandled
+  writable.on('error', common.mustCall());
 
   const testErr = new Error('destroy test');
   writable.destroy(testErr);
 
   // Give a tick for destroy to propagate
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await setTimeout(10);
 
   assert.strictEqual(failReason, testErr);
 }
@@ -286,13 +368,14 @@ async function testWriteErrorPropagation() {
   };
 
   const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
 
-  await assert.rejects(new Promise((resolve, reject) => {
-    writable.write('data', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  }), { message: 'write failed' });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('data', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await assert.rejects(promise, { message: 'write failed' });
 }
 
 // =============================================================================
@@ -343,12 +426,12 @@ async function testPushWriterBlockBackpressureNoDuplicate() {
   const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
-  await new Promise((resolve, reject) => {
-    writable.write('a', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('a', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await promise;
 
   writable.write('b');
   writable.end();
@@ -365,12 +448,12 @@ async function testPushWriterBlockBackpressureWritevNoDuplicate() {
   const { writer, readable } = push({ budget: 16384, backpressure: 'unbounded' });
   const writable = toWritable(writer);
 
-  await new Promise((resolve, reject) => {
-    writable.write('a', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('a', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await promise;
 
   writable.cork();
   writable.write('b');
@@ -423,16 +506,14 @@ async function testSyncCallbackDeferred() {
 
   const writable = toWritable(writer);
 
-  const p = new Promise((resolve) => {
-    writable.write('test', () => {
-      callbackTick = true;
-      resolve();
-    });
-    // Callback should NOT have fired synchronously
-    assert.strictEqual(callbackTick, false);
-  });
-
-  await p;
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('test', common.mustCall(() => {
+    callbackTick = true;
+    resolve();
+  }));
+  // Callback should NOT have fired synchronously
+  assert.strictEqual(callbackTick, false);
+  await promise;
   assert.strictEqual(callbackTick, true);
 }
 
@@ -452,10 +533,10 @@ async function testMinimalWriter() {
 
   const writable = toWritable(writer);
 
-  await new Promise((resolve) => {
-    writable.write('minimal');
-    writable.end(resolve);
-  });
+  const { promise, resolve } = Promise.withResolvers();
+  writable.write('minimal');
+  writable.end(resolve);
+  await promise;
 
   assert.strictEqual(Buffer.concat(chunks).toString(), 'minimal');
 }
@@ -474,7 +555,7 @@ async function testDestroyWithoutError() {
   const writable = toWritable(writer);
   writable.destroy();
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await setTimeout(10);
 
   assert.ok(!failCalled, 'fail should not be called on clean destroy');
 }
@@ -491,12 +572,12 @@ async function testDestroyWithError() {
   };
 
   const writable = toWritable(writer);
-  writable.on('error', () => {});
+  writable.on('error', common.mustCall());
 
   const err = new Error('test');
   writable.destroy(err);
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await setTimeout(10);
 
   assert.strictEqual(failReason, err);
 }
@@ -512,12 +593,12 @@ async function testDestroyWithoutFail() {
   };
 
   const writable = toWritable(writer);
-  writable.on('error', () => {});
+  writable.on('error', common.mustCall());
 
   // Should not throw even though writer has no fail()
   writable.destroy(new Error('test'));
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await setTimeout(10);
   assert.ok(writable.destroyed);
 }
 
@@ -553,13 +634,14 @@ async function testWriteSyncThrowsPropagation() {
   };
 
   const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
 
-  await assert.rejects(new Promise((resolve, reject) => {
-    writable.write('test', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  }), { message: 'sync broken' });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('test', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+  await assert.rejects(promise, { message: 'sync broken' });
 }
 
 // =============================================================================
@@ -575,13 +657,15 @@ async function testWriteThrowsSyncPropagation() {
   };
 
   const writable = toWritable(writer);
+  writable.on('error', common.mustCall());
 
-  await assert.rejects(new Promise((resolve, reject) => {
-    writable.write('data', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  }), { message: 'sync throw from write' });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  writable.write('data', common.mustCall((err) => {
+    if (err) reject(err);
+    else resolve();
+  }));
+
+  await assert.rejects(promise, { message: 'sync throw from write' });
 }
 
 // =============================================================================
@@ -598,15 +682,16 @@ async function testEndThrowsSyncPropagation() {
   };
 
   const writable = toWritable(writer);
-  writable.on('error', () => {});
+  writable.on('error', common.mustCall());
 
-  await new Promise((resolve) => {
-    writable.end(common.mustCall((err) => {
-      assert.ok(err);
-      assert.strictEqual(err.message, 'sync throw from end');
-      resolve();
-    }));
-  });
+  const { promise, resolve } = Promise.withResolvers();
+  writable.end(common.mustCall((err) => {
+    assert.ok(err);
+    assert.strictEqual(err.message, 'sync throw from end');
+    resolve();
+  }));
+
+  await promise;
 }
 
 // =============================================================================
@@ -619,6 +704,8 @@ testHighWaterMarkIsMaxSafeInt();
 
 Promise.all([
   testBasicWrite(),
+  testFalsyWriterRejectionBecomesClassicError(),
+  testClassicWrapperReusePreservesErrorIdentity(),
   testWriteDelegatesToWriter(),
   testWritevDelegation(),
   testWriteSyncFirst(),

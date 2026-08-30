@@ -463,14 +463,15 @@ if (result < 0) {
 }
 ```
 
-#### `writer.fail(reason)`
+#### `writer.fail([reason])`
 
 * `reason` {any}
 
 Put the writer into a terminal error state. If the writer is already closed
 or errored, this is a no-op. Unlike `write()` and `end()`, `fail()` is
 unconditionally synchronous because failing a writer is a pure state
-transition with no async work to perform.
+transition with no async work to perform. The reason is stored and propagated
+without modification. If omitted, the reason is `undefined`.
 
 #### `writer[Symbol.asyncDispose]()`
 
@@ -1337,9 +1338,10 @@ run().catch(console.error);
 
 #### `broadcast.cancel([reason])`
 
-* `reason` {Error}
+* `reason` {any}
 
-Cancel the broadcast. All consumers receive an error.
+Cancel the broadcast. If `reason` is provided, all consumers reject with that
+exact reason. If it is omitted, consumers complete normally.
 
 #### `broadcast.consumerCount`
 
@@ -1447,9 +1449,10 @@ Create a {Share} from an existing source.
 
 #### `share.cancel([reason])`
 
-* `reason` {Error}
+* `reason` {any}
 
-Cancel the share. All consumers receive an error.
+Cancel the share. If `reason` is provided, all consumers reject with that exact
+reason. If it is omitted, consumers complete normally.
 
 #### `share.consumerCount`
 
@@ -1521,9 +1524,10 @@ The number of chunks currently buffered.
 
 #### `share.cancel([reason])`
 
-* `reason` {Error}
+* `reason` {any}
 
-Cancel the share. All consumers receive an error.
+Cancel the share. If `reason` is provided, all consumers throw that exact
+reason. If it is omitted, consumers complete normally.
 
 #### `share.consumerCount`
 
@@ -1647,6 +1651,11 @@ the synchronous Writer methods (`writeSync`, `writevSync`, `endSync`) always
 return `false` or `-1`, deferring to the async path. The per-write
 `options.signal` parameter from the Writer interface is also ignored.
 
+If `writer.fail(reason)` receives a non-Error reason, the classic Writable is
+destroyed with an `ERR_FALSY_VALUE_REJECTION` or `ERR_OPERATION_FAILED` error.
+Its `reason` property contains the original value, which remains the Writer's
+stored failure reason.
+
 The result is cached per instance and backpressure policy -- calling
 `fromWritable()` twice with the same stream and `backpressure` option returns
 the same Writer.
@@ -1704,6 +1713,11 @@ added:
 Creates a byte-mode [`stream.Readable`][] from the `source`
 (the native batch format used by the stream/iter API). Each `Uint8Array` in a
 yielded batch is pushed as a separate chunk into the Readable.
+
+Classic streams cannot represent arbitrary values as emitted errors. A
+non-Error reason is wrapped in an `ERR_FALSY_VALUE_REJECTION` or
+`ERR_OPERATION_FAILED` error whose `reason` property contains the original
+value.
 
 ```mjs
 import { createWriteStream } from 'node:fs';
@@ -1788,6 +1802,11 @@ first (`writeSync` / `writevSync`), falling back to the async method if the
 sync path returns `false`. Similarly, `_final()` tries `endSync()`
 before `end()`. When the sync path succeeds, the callback is deferred via
 `queueMicrotask` to preserve the async resolution contract.
+
+Classic stream callbacks cannot represent arbitrary values as errors. A
+non-Error reason is wrapped in an `ERR_FALSY_VALUE_REJECTION` or
+`ERR_OPERATION_FAILED` error before it is passed to the callback. The error's
+`reason` property contains the original value.
 
 The Writable's `highWaterMark` is set to `Number.MAX_SAFE_INTEGER` to
 effectively disable its internal buffering, allowing the underlying Writer

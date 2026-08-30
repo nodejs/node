@@ -88,32 +88,122 @@ async function testSyncIteratorThrow() {
   assert.strictEqual(shared.consumerCount, 0);
 }
 
-// Async source throws non-Error value → wrapError
+async function testCompletedSyncConsumerStaysCompleted() {
+  const reason = undefined;
+  const source = {
+    __proto__: null,
+    [Symbol.iterator]() {
+      return {
+        __proto__: null,
+        next() { throw reason; },
+      };
+    },
+  };
+  const shared = shareSync(source);
+  const completed = shared.pull()[Symbol.iterator]();
+  const active = shared.pull()[Symbol.iterator]();
+
+  completed.return();
+  let caught = false;
+  try {
+    active.next();
+  } catch (error) {
+    caught = true;
+    assert.strictEqual(error, reason);
+  }
+  assert.strictEqual(caught, true);
+  assert.deepStrictEqual(completed.next(), {
+    __proto__: null,
+    done: true,
+    value: undefined,
+  });
+}
+
+async function testSyncCancelIgnoresCleanupError() {
+  const reason = null;
+  const source = {
+    __proto__: null,
+    [Symbol.iterator]() {
+      let done = false;
+      return {
+        __proto__: null,
+        next() {
+          if (done) return { done: true, value: undefined };
+          done = true;
+          return { done: false, value: [Buffer.from('data')] };
+        },
+        get return() { throw new Error('cleanup failed'); },
+      };
+    },
+  };
+  const shared = shareSync(source);
+  const iterator = shared.pull()[Symbol.iterator]();
+
+  iterator.next();
+  shared.cancel(reason);
+
+  assert.strictEqual(shared.consumerCount, 0);
+  assert.throws(() => iterator.next(), (error) => error === reason);
+}
+
+async function testAsyncCancelIgnoresCleanupGetterError() {
+  const reason = null;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      let done = false;
+      return {
+        __proto__: null,
+        next() {
+          if (done) return Promise.resolve({ done: true, value: undefined });
+          done = true;
+          return Promise.resolve({
+            done: false,
+            value: [Buffer.from('data')],
+          });
+        },
+        get return() { throw new Error('cleanup failed'); },
+      };
+    },
+  };
+  const shared = share(source);
+  const iterator = shared.pull()[Symbol.asyncIterator]();
+
+  await iterator.next();
+  shared.cancel(reason);
+
+  assert.strictEqual(shared.consumerCount, 0);
+  await assert.rejects(iterator.next(), (error) => error === reason);
+}
+
+// Async source preserves a non-Error thrown value.
 async function testShareSourceThrowsNonError() {
+  const reason = 'not an error';
   async function* source() {
     yield [new TextEncoder().encode('ok')];
-    throw 'not an error'; // eslint-disable-line no-throw-literal
+    throw reason;
   }
   const shared = share(source());
   const consumer = shared.pull();
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
     for await (const batch of consumer) { /* consume */ }
-  }, { code: 'ERR_OPERATION_FAILED' });
+  }, (error) => error === reason);
 }
 
-// Sync source throws non-Error value → wrapError
+// Sync source preserves a non-Error thrown value.
 async function testSyncShareSourceThrowsNonError() {
+  const reason = 42;
   function* source() {
     yield [new TextEncoder().encode('ok')];
-    throw 42; // eslint-disable-line no-throw-literal
+    throw reason;
   }
   const shared = shareSync(source());
   const consumer = shared.pull();
   assert.throws(() => {
     // eslint-disable-next-line no-unused-vars
     for (const batch of consumer) { /* consume */ }
-  }, { code: 'ERR_OPERATION_FAILED' });
+  }, (error) => error === reason);
 }
 
 Promise.all([
@@ -123,6 +213,9 @@ Promise.all([
   testSyncShareDispose(),
   testAsyncIteratorThrow(),
   testSyncIteratorThrow(),
+  testCompletedSyncConsumerStaysCompleted(),
+  testSyncCancelIgnoresCleanupError(),
+  testAsyncCancelIgnoresCleanupGetterError(),
   testShareSourceThrowsNonError(),
   testSyncShareSourceThrowsNonError(),
 ]).then(common.mustCall());
