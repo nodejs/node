@@ -157,6 +157,30 @@ async function testFalsyThenableCleanupError() {
   assert.strictEqual(result.reason, reason);
 }
 
+async function testSynchronousIteratorReturn() {
+  let returnCalled = false;
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return {
+        __proto__: null,
+        next() { return kNeverResolves; },
+        return() {
+          returnCalled = true;
+          return { __proto__: null, done: true };
+        },
+      };
+    },
+  };
+  const readable = toReadable(source);
+  const { promise, resolve } = Promise.withResolvers();
+  readable.once('close', resolve);
+
+  readable.destroy();
+  await promise;
+  assert.strictEqual(returnCalled, true);
+}
+
 async function testFalsyCleanupGetterErrors() {
   for (const [symbol, create] of [
     [Symbol.asyncIterator, toReadable],
@@ -722,6 +746,7 @@ Promise.all([
   testErrorAsync(),
   testFalsyErrorAsync(),
   testFalsyThenableCleanupError(),
+  testSynchronousIteratorReturn(),
   testFalsyCleanupGetterErrors(),
   testEmptyAsync(),
   testEmptyBatchAsync(),
