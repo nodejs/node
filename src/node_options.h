@@ -219,6 +219,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(permission) = false;
   DEFINE_BOOL_FIELD(permission_audit) = false;
   DEFINE_BOOL_FIELD(allow_addons) = false;
+  DEFINE_BOOL_FIELD(allow_fs_vfs) = false;
   DEFINE_BOOL_FIELD(allow_inspector) = false;
   DEFINE_BOOL_FIELD(allow_child_process) = false;
   DEFINE_BOOL_FIELD(allow_net) = false;

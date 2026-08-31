@@ -704,6 +704,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::allow_fs_write,
             kAllowedInEnvvar,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-fs-vfs",
+            "allow mounting a virtual file system when any permissions are set",
+            BOOL_FIELD(allow_fs_vfs),
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-addons",
             "allow use of addons when any permissions are set",
             BOOL_FIELD(allow_addons),

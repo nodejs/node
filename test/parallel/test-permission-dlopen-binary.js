@@ -73,3 +73,41 @@ function run(...permissions) {
   assert.strictEqual(res.status, 0, res.stderr);
   assert.match(res.stdout, /LOADED world/);
 }
+
+// The same, reached the way a program actually gets here: an addon inside a
+// mounted VFS. Mounting one under the permission model needs --allow-fs-vfs.
+{
+  const mounted = `
+    const fs = require('fs');
+    const vfs = require('node:vfs');
+    const myVfs = vfs.create();
+    myVfs.writeFileSync('/binding.node',
+                        fs.readFileSync(${JSON.stringify(addonPath)}));
+    const mountPoint = myVfs.mount();
+    try {
+      console.log('LOADED', require(mountPoint + '/binding.node').hello());
+    } catch (err) {
+      console.log('DENIED', err.code, err.permission ?? '');
+    }
+  `;
+  const vfsRun = (...permissions) => spawnSync(
+    process.execPath,
+    ['--experimental-vfs', '--permission', '--allow-fs-read=*',
+     ...permissions, '-e', mounted],
+    { encoding: 'utf8' });
+
+  const ok = vfsRun('--allow-fs-vfs', '--allow-addons', '--allow-fs-write=*');
+  assert.strictEqual(ok.status, 0, ok.stderr);
+  assert.match(ok.stdout, /LOADED world/);
+
+  // Mounting itself is refused without --allow-fs-vfs.
+  const noVfs = vfsRun('--allow-addons', '--allow-fs-write=*');
+  assert.notStrictEqual(noVfs.status, 0);
+  assert.match(noVfs.stderr, /ERR_INVALID_STATE/);
+  assert.match(noVfs.stderr, /--allow-fs-vfs/);
+
+  // Mounted, addons allowed, but no write access: the addon is refused.
+  const noWrite = vfsRun('--allow-fs-vfs', '--allow-addons');
+  assert.strictEqual(noWrite.status, 0, noWrite.stderr);
+  assert.match(noWrite.stdout, /DENIED ERR_ACCESS_DENIED FileSystemWrite/);
+}

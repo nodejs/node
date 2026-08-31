@@ -268,6 +268,26 @@ process.permission.has('fs.read', 'custom-require.js'); // true
 process.permission.has('fs.read', 'custom-require-2.js'); // true
 ```
 
+### `--allow-fs-vfs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], a [virtual file system][] cannot be
+mounted by default: [`vfs.mount()`][] throws `ERR_INVALID_STATE` unless the
+user explicitly passes the `--allow-fs-vfs` flag when starting Node.js.
+
+A mounted VFS serves paths that the file system permissions do not describe,
+so mounting one is gated on its own flag rather than on `--allow-fs-read` or
+`--allow-fs-write`.
+
+```console
+$ node --experimental-vfs --permission --allow-fs-vfs app.js
+```
+
 ### `--allow-fs-write`
 
 <!-- YAML
@@ -3906,6 +3926,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-ffi`
 * `--allow-fs-read`
+* `--allow-fs-vfs`
 * `--allow-fs-write`
 * `--allow-inspector`
 * `--allow-net`
@@ -4619,6 +4640,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[`vfs.mount()`]: vfs.md#vfsmount
 [asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
@@ -4650,4 +4672,5 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [test runner execution model]: test.md#test-runner-execution-model
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
+[virtual file system]: vfs.md
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

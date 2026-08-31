@@ -166,6 +166,17 @@ process.permission.has('fs.read', 'custom-require.js'); // true
 process.permission.has('fs.read', 'custom-require-2.js'); // true
 .Ed
 .
+.It Fl -allow-fs-vfs
+When using the Permission Model, a virtual file system cannot be
+mounted by default: \fBvfs.mount()\fR throws \fBERR_INVALID_STATE\fR unless the
+user explicitly passes the \fB--allow-fs-vfs\fR flag when starting Node.js.
+A mounted VFS serves paths that the file system permissions do not describe,
+so mounting one is gated on its own flag rather than on \fB--allow-fs-read\fR or
+\fB--allow-fs-write\fR.
+.Bd -literal
+$ node --experimental-vfs --permission --allow-fs-vfs app.js
+.Ed
+.
 .It Fl -allow-fs-write
 This flag configures file system write permissions using
 the Permission Model.
@@ -1963,6 +1974,8 @@ one is included in the list below.
 \fB--allow-ffi\fR
 .It
 \fB--allow-fs-read\fR
+.It
+\fB--allow-fs-vfs\fR
 .It
 \fB--allow-fs-write\fR
 .It
