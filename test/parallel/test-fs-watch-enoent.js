@@ -17,6 +17,8 @@ const {
   UV_ENODEV,
   UV_ENOENT
 } = internalBinding('uv');
+const { FSWatcher: RecursiveFSWatcher } = require('internal/fs/recursive_watch');
+const { kFSWatchStart } = require('internal/fs/watchers');
 
 tmpdir.refresh();
 
@@ -62,6 +64,61 @@ tmpdir.refresh();
     );
   } else {
     const watcher = fs.watch(nonexistentFile, { throwIfNoEntry: false }, common.mustNotCall());
+    watcher.close();
+  }
+}
+
+{
+  assert.throws(
+    () => fs.watch(nonexistentFile, {
+      recursive: true,
+      throwIfNoEntry: true,
+    }, common.mustNotCall()),
+    {
+      path: nonexistentFile,
+      filename: nonexistentFile,
+      code: 'ENOENT',
+    },
+  );
+}
+
+{
+  const watcher = fs.watch(nonexistentFile, {
+    recursive: true,
+    throwIfNoEntry: false,
+  }, common.mustNotCall());
+  watcher.close();
+}
+
+{
+  const directory = tmpdir.resolve('recursive-watch-error');
+  const expected = new Error('recursive watcher failed');
+  const originalWatch = fs.watch;
+  const watcher = new RecursiveFSWatcher({ recursive: true });
+  const close = common.mustCall();
+  let calls = 0;
+
+  expected.code = 'ENOSPC';
+  fs.mkdirSync(directory);
+  fs.writeFileSync(`${directory}/file`, '');
+  fs.watch = common.mustCall(() => {
+    if (calls++ === 0) {
+      return { close };
+    }
+    throw expected;
+  }, 2);
+
+  try {
+    assert.throws(
+      () => watcher[kFSWatchStart](directory),
+      (error) => {
+        assert.strictEqual(error, expected);
+        assert.strictEqual(error.filename, directory);
+        return true;
+      },
+    );
+  } finally {
+    fs.watch = originalWatch;
     watcher.close();
   }
 }
