@@ -2097,7 +2097,7 @@ void Stream::EmitSessionid(stream_id session_id) {
 void Stream::EmitWTSessionClose(uint32_t wt_error_code,
                                 const uint8_t *msg,
                                 size_t msglen) {       
-  if (!env()->can_call_into_js()  || !state()->wants_wtsessionclose) return;
+  if (!env()->can_call_into_js()) return;
   CallbackScope<Stream> cb_scope(this);
   Local<Value> argv[] = {
       Integer::NewFromUnsigned(env()->isolate(),
