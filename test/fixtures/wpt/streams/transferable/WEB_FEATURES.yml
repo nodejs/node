@@ -1,3 +1,2 @@
-features:
-- name: transferable-streams
-  files: "**"
+rules:
+- "**": [transferable-streams]
