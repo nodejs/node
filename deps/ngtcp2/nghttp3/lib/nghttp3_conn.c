@@ -682,13 +682,14 @@ nghttp3_ssize nghttp3_conn_read_stream2(nghttp3_conn *conn, int64_t stream_id,
     return 0;
   }
 
+  if (fin) {
+    stream->flags |= NGHTTP3_STREAM_FLAG_READ_EOF;
+  }
+
   if (nghttp3_stream_uni(stream_id)) {
     return nghttp3_conn_read_uni(conn, stream, src, srclen, fin, ts);
   }
 
-  if (fin) {
-    stream->flags |= NGHTTP3_STREAM_FLAG_READ_EOF;
-  }
   return nghttp3_conn_read_bidi(conn, &bidi_nproc, stream, src, srclen, fin,
                                 ts);
 }
@@ -1835,13 +1836,14 @@ nghttp3_ssize nghttp3_conn_read_bidi(nghttp3_conn *conn, size_t *pnproc,
         /* rstate->left is Session ID */
         rv = nghttp3_conn_on_wt_stream(conn, stream, (int64_t)rstate->left);
         if (rv != 0) {
-          if (rv != NGHTTP3_ERR_WT_SESSION_GONE) {
+          if (!nghttp3_err_is_wt(rv)) {
             return rv;
           }
 
           stream->rstate.state = NGHTTP3_REQ_STREAM_STATE_IGN_REST;
 
-          rv = nghttp3_conn_abort_stream(conn, stream, NGHTTP3_WT_SESSION_GONE);
+          rv = nghttp3_conn_abort_stream(
+            conn, stream, nghttp3_err_infer_quic_app_error_code(rv));
           if (rv != 0) {
             return rv;
           }
@@ -1882,12 +1884,12 @@ nghttp3_ssize nghttp3_conn_read_bidi(nghttp3_conn *conn, size_t *pnproc,
       len = (size_t)nghttp3_min(rstate->left, (uint64_t)(end - p));
       nread = nghttp3_conn_on_data(conn, stream, p, len);
       if (nread < 0) {
-        if (nread != NGHTTP3_ERR_WT_SESSION_GONE) {
+        if (!nghttp3_err_is_wt((int)nread)) {
           return nread;
         }
 
-        rv = nghttp3_conn_shutdown_wt_session(conn, stream,
-                                              NGHTTP3_WT_SESSION_GONE);
+        rv = nghttp3_conn_shutdown_wt_session(
+          conn, stream, nghttp3_err_infer_quic_app_error_code((int)nread));
         if (rv != 0) {
           return rv;
         }
@@ -2310,6 +2312,12 @@ int nghttp3_conn_on_settings_entry_received(nghttp3_conn *conn,
       break;
     }
 
+#if SIZE_MAX < UINT64_MAX
+    if (ent->value > SIZE_MAX) {
+      return NGHTTP3_ERR_H3_SETTINGS_ERROR;
+    }
+#endif /* SIZE_MAX < UINT64_MAX */
+
     dest->qpack_max_dtable_capacity = (size_t)ent->value;
 
     nghttp3_qpack_encoder_set_max_dtable_capacity(&conn->qenc,
@@ -2323,6 +2331,12 @@ int nghttp3_conn_on_settings_entry_received(nghttp3_conn *conn,
     if (ent->value == 0) {
       break;
     }
+
+#if SIZE_MAX < UINT64_MAX
+    if (ent->value > SIZE_MAX) {
+      return NGHTTP3_ERR_H3_SETTINGS_ERROR;
+    }
+#endif /* SIZE_MAX < UINT64_MAX */
 
     dest->qpack_blocked_streams = (size_t)ent->value;
 
@@ -3528,14 +3542,8 @@ int nghttp3_conn_server_confirm_wt_session(nghttp3_conn *conn,
 }
 
 int nghttp3_conn_open_wt_session(nghttp3_conn *conn, nghttp3_stream *stream) {
-  int rv;
-
-  rv = nghttp3_wt_session_new(&stream->wt.session, stream->node.id, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  return 0;
+  return nghttp3_wt_session_new(&stream->wt.session, stream->node.id,
+                                conn->mem);
 }
 
 int nghttp3_conn_open_wt_data_stream(nghttp3_conn *conn, int64_t session_id,
@@ -3687,7 +3695,7 @@ int nghttp3_conn_close_wt_session(nghttp3_conn *conn, int64_t session_id,
     return NGHTTP3_ERR_STREAM_NOT_FOUND;
   }
 
-  if (!nghttp3_stream_wt_ctrl(stream)) {
+  if (!nghttp3_stream_wt_ctrl(stream) || msglen > 1024) {
     return NGHTTP3_ERR_INVALID_ARGUMENT;
   }
 
@@ -3765,7 +3773,21 @@ int nghttp3_conn_on_wt_stream(nghttp3_conn *conn, nghttp3_stream *stream,
   }
 
   wt_ctrl_stream = nghttp3_conn_find_stream(conn, session_id);
-  if (!wt_ctrl_stream) {
+  if (wt_ctrl_stream) {
+    if (conn->server) {
+      if ((wt_ctrl_stream->flags & NGHTTP3_STREAM_FLAG_RESP_SUBMITTED) &&
+          !wt_ctrl_stream->wt.session) {
+        /* Server has submitted the regular non-WebTransport response.
+           wt_ctrl_stream is not WebTransport session stream. */
+        return NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED;
+      }
+    } else if (!wt_ctrl_stream->wt.session) {
+      /* On client side, if it has not submitted the request with
+         nghttp3_conn_submit_wt_request, it is not WebTransport
+         session stream. */
+      return NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED;
+    }
+  } else {
     if (!conn->server) {
       /* On client's perspective, if session stream is not found, we are
          sure that session is gone. */
@@ -3906,13 +3928,14 @@ nghttp3_ssize nghttp3_conn_read_wt_stream_uni(nghttp3_conn *conn,
     /* rstate->left is Session ID */
     rv = nghttp3_conn_on_wt_stream(conn, stream, (int64_t)rstate->left);
     if (rv != 0) {
-      if (rv != NGHTTP3_ERR_WT_SESSION_GONE) {
+      if (!nghttp3_err_is_wt(rv)) {
         return rv;
       }
 
       stream->rstate.state = NGHTTP3_WT_STREAM_STATE_IGN_REST;
 
-      rv = nghttp3_conn_abort_stream(conn, stream, NGHTTP3_WT_SESSION_GONE);
+      rv = nghttp3_conn_abort_stream(conn, stream,
+                                     nghttp3_err_infer_quic_app_error_code(rv));
       if (rv != 0) {
         return rv;
       }
