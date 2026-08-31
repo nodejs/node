@@ -4207,6 +4207,10 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
         if (!success) {
           return false;
         }
+        if (preserve_timestamps &&
+            !CopyUtimes(entry_dir_path, dest_file_path, env)) {
+          return false;
+        }
       } else if (dir_entry.is_regular_file()) {
         std::filesystem::copy_file(
             dir_entry.path(), dest_file_path, file_copy_opts, error);
@@ -4231,7 +4235,9 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     return true;
   };
 
-  copy_dir_contents(src_path, dest_path);
+  if (copy_dir_contents(src_path, dest_path) && preserve_timestamps) {
+    CopyUtimes(src_path, dest_path, env);
+  }
 }
 
 BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
