@@ -141,6 +141,14 @@ pkgs.mkShell {
           )
     );
   }
+  // (
+    let
+      ruff = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "ruff") null devTools;
+    in
+    pkgs.lib.optionalAttrs (ruff != null) {
+      RUFF = pkgs.lib.getExe ruff;
+    }
+  )
   // pkgs.lib.optionalAttrs (!withSQLite) {
     NOSQLITE = "1";
   }
