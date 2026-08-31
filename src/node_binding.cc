@@ -494,6 +494,11 @@ class AddonImage {
   AddonImage(const AddonImage&) = delete;
   AddonImage& operator=(const AddonImage&) = delete;
 
+  // The directory a temporary image would be written to, with a trailing
+  // separator; empty when it cannot be determined. Names the resource for the
+  // file-system permission check.
+  static std::string TempDir();
+
   // On success sets path() to a real, loadable path for `data`.
   bool Materialize(const char* data, size_t len);
   const std::string& path() const { return path_; }
@@ -526,6 +531,20 @@ class AddonImage {
 // outlive the loaded DLLs and are removed once the process ends.
 Mutex g_retained_addon_handles_mutex;
 std::vector<HANDLE>* g_retained_addon_handles = nullptr;
+
+// static
+std::string AddonImage::TempDir() {
+  wchar_t dir[MAX_PATH + 1];
+  DWORD dir_len = GetTempPathW(MAX_PATH + 1, dir);
+  if (dir_len == 0 || dir_len > MAX_PATH) return std::string();
+  int size = WideCharToMultiByte(
+      CP_UTF8, 0, dir, dir_len, nullptr, 0, nullptr, nullptr);
+  if (size <= 0) return std::string();
+  std::string out(size, '\0');
+  WideCharToMultiByte(
+      CP_UTF8, 0, dir, dir_len, out.data(), size, nullptr, nullptr);
+  return out;
+}
 
 bool AddonImage::Materialize(const char* data, size_t len) {
   wchar_t dir[MAX_PATH + 1];
@@ -635,15 +654,20 @@ bool AddonImage::Materialize(const char* data, size_t len) {
   return MaterializeTempFile(data, len);
 }
 
-bool AddonImage::MaterializeTempFile(const char* data, size_t len) {
-  // A private 0700 directory (mkdtemp) so no other user can pre-create the path
-  // as a symlink or swap the file between the write and the load; O_EXCL and
-  // O_NOFOLLOW harden the create against a race inside it.
+// static
+std::string AddonImage::TempDir() {
   const char* env_tmp = getenv("TMPDIR");
   std::string tmpdir =
       (env_tmp != nullptr && *env_tmp != '\0') ? env_tmp : "/tmp";
   if (tmpdir.back() != '/') tmpdir.push_back('/');
-  std::string tmpl = tmpdir + "node-addon-XXXXXX";
+  return tmpdir;
+}
+
+bool AddonImage::MaterializeTempFile(const char* data, size_t len) {
+  // A private 0700 directory (mkdtemp) so no other user can pre-create the path
+  // as a symlink or swap the file between the write and the load; O_EXCL and
+  // O_NOFOLLOW harden the create against a race inside it.
+  std::string tmpl = TempDir() + "node-addon-XXXXXX";
   std::vector<char> buf(tmpl.begin(), tmpl.end());
   buf.push_back('\0');
   if (mkdtemp(buf.data()) == nullptr) {
@@ -767,6 +791,16 @@ static void DLOpenImpl(const FunctionCallbackInfo<Value>& args,
       return THROW_ERR_INVALID_ARG_TYPE(
           env, "binary must be a Buffer, TypedArray, or DataView");
     }
+    // Loading from bytes materializes them into an image in the temporary
+    // directory, so this needs write access there on top of the addon
+    // permission checked above. The check does not depend on whether the image
+    // actually reaches the file system on this platform (Linux uses an
+    // anonymous memfd): what a program must be granted should not vary by
+    // platform.
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kFileSystemWrite,
+        AddonImage::TempDir());
     ArrayBufferViewContents<char> binary(args[3]);
     if (!image.Materialize(binary.data(), binary.length())) {
       return THROW_ERR_DLOPEN_FAILED(
