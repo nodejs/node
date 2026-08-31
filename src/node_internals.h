@@ -380,7 +380,6 @@ class InitializationResultImpl final : public InitializationResult {
   MultiIsolatePlatform* platform_ = nullptr;
 };
 
-void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
 
