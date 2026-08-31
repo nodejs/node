@@ -15,6 +15,7 @@
     libuv
     merve
     nbytes
+    nghttp2
     simdjson
     simdutf
     uvwasi
@@ -24,13 +25,6 @@
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
-  nghttp2 = pkgs.nghttp2.overrideAttrs {
-    version = "1.69.0";
-    src = pkgs.fetchurl {
-      url = "https://github.com/nghttp2/nghttp2/releases/download/v1.69.0/nghttp2-1.69.0.tar.bz2";
-      hash = "sha256-PxhfWxw+d4heuc8/LE2ksan3OiS/WVe4KRg60Tf4Lcg=";
-    };
-  };
 }
 // (pkgs.lib.optionalAttrs withLief {
   inherit (pkgs) lief;
