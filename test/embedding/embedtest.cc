@@ -19,6 +19,7 @@ using node::MultiIsolatePlatform;
 using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Local;
 using v8::Locker;
 using v8::MaybeLocal;
 using v8::V8;
@@ -27,6 +28,11 @@ using v8::Value;
 static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
                            const std::vector<std::string>& exec_args);
+static int RunSnapshotWithIsolateSettings(
+    MultiIsolatePlatform* platform,
+    const node::EmbedderSnapshotData* snapshot,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args);
 
 // --create-v8-startup-blob <file>: a plain V8 startup blob (what V8's
 // mksnapshot produces), to test building the Node.js snapshot on top of one.
@@ -130,6 +136,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   // Running snapshot:
   // embedtest --embedder-snapshot-blob blob-path
   //           [--embedder-snapshot-as-file]
+  //           [--embedder-isolate-settings]
   //           arg1 arg2...
   // No snapshot:
   // embedtest arg1 arg2...
@@ -139,6 +146,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   std::vector<std::string> filtered_args;
   bool is_building_snapshot = false;
   bool snapshot_as_file = false;
+  bool with_isolate_settings = false;
   std::optional<node::SnapshotConfig> snapshot_config;
   std::string snapshot_blob_path;
   for (size_t i = 0; i < args.size(); ++i) {
@@ -147,6 +155,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       is_building_snapshot = true;
     } else if (arg == "--embedder-snapshot-as-file") {
       snapshot_as_file = true;
+    } else if (arg == "--embedder-isolate-settings") {
+      with_isolate_settings = true;
     } else if (arg == "--without-code-cache") {
       if (!snapshot_config.has_value()) {
         snapshot_config = node::SnapshotConfig{};
@@ -215,6 +225,11 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     // Insert an anonymous filename as process.argv[1].
     filtered_args.insert(filtered_args.begin() + 1,
                          node::GetAnonymousMainPath());
+  }
+
+  if (snapshot && with_isolate_settings) {
+    return RunSnapshotWithIsolateSettings(
+        platform, snapshot.get(), filtered_args, exec_args);
   }
 
   std::vector<std::string> errors;
@@ -297,6 +312,70 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   }
 
   node::Stop(env);
+
+  return exit_code;
+}
+
+// CommonEnvironmentSetup does not take IsolateSettings, so this goes through
+// NewIsolate()/CreateIsolateData()/CreateEnvironment() directly.
+static int RunSnapshotWithIsolateSettings(
+    MultiIsolatePlatform* platform,
+    const node::EmbedderSnapshotData* snapshot,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
+  uv_loop_t loop;
+  int ret = uv_loop_init(&loop);
+  assert(ret == 0);
+
+  std::shared_ptr<node::ArrayBufferAllocator> allocator =
+      node::ArrayBufferAllocator::Create();
+  node::IsolateSettings settings;
+  settings.prepare_stack_trace_callback = [](Local<Context> context,
+                                             Local<Value> exception,
+                                             Local<v8::Array> trace) {
+    return MaybeLocal<Value>(v8::String::NewFromUtf8Literal(
+        v8::Isolate::GetCurrent(), "stack trace prepared by the embedder"));
+  };
+  Isolate* isolate =
+      node::NewIsolate(allocator, &loop, platform, snapshot, settings);
+  assert(isolate != nullptr);
+
+  int exit_code = 1;
+  {
+    Locker locker(isolate);
+    Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
+
+    std::unique_ptr<node::IsolateData, decltype(&node::FreeIsolateData)>
+        isolate_data(node::CreateIsolateData(
+                         isolate, &loop, platform, allocator.get(), snapshot),
+                     node::FreeIsolateData);
+    std::unique_ptr<Environment, decltype(&node::FreeEnvironment)> env(
+        node::CreateEnvironment(
+            isolate_data.get(), Local<Context>(), args, exec_args),
+        node::FreeEnvironment);
+    assert(env);
+
+    Context::Scope context_scope(node::GetMainContext(env.get()));
+    if (!node::LoadEnvironment(env.get(), node::StartExecutionCallback{})
+             .IsEmpty()) {
+      exit_code = node::SpinEventLoop(env.get()).FromMaybe(1);
+    }
+    node::Stop(env.get());
+  }
+
+  bool platform_finished = false;
+  platform->AddIsolateFinishedCallback(
+      isolate,
+      [](void* data) {
+        bool* finished = static_cast<bool*>(data);
+        *finished = true;
+      },
+      &platform_finished);
+  platform->DisposeIsolate(isolate);
+  while (!platform_finished) uv_run(&loop, UV_RUN_ONCE);
+  ret = uv_loop_close(&loop);
+  assert(ret == 0);
 
   return exit_code;
 }
