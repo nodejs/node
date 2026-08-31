@@ -31,4 +31,10 @@
 
 #include <nghttp3/nghttp3.h>
 
+/*
+ * nghttp3_err_wt returns nonzero if |liberr| is one of WebTransport
+ * errors.
+ */
+int nghttp3_err_is_wt(int liberr);
+
 #endif /* !defined(NGHTTP3_ERR_H) */
