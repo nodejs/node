@@ -1,4 +1,4 @@
-// META: global=window,worker,shadowrealm
+// META: global=window,worker
 // META: script=../resources/test-utils.js
 // META: script=/common/gc.js
 'use strict';
