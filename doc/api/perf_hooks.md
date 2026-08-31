@@ -1100,7 +1100,7 @@ added: REPLACEME
 * Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
-after Node.js receives the first byte of the headers of the final response,
+after Node.js receives the first byte of the final response,
 as opposed to an interim response.
 
 ### `performanceResourceTiming.firstInterimResponseStart`
@@ -1113,8 +1113,8 @@ added: REPLACEME
 
 The high resolution millisecond timestamp representing the time immediately
 after Node.js receives the first byte of the first interim response, such as
-a `103 Early Hints` response. Node.js does not currently record interim
-responses, so the property always returns 0.
+a `103 Early Hints` response. For entries created by the built-in `fetch()`
+implementation, this is currently `0` because interim response timings are not recorded.
 
 ### `performanceResourceTiming.responseStart`
 
@@ -1224,8 +1224,8 @@ added: REPLACEME
 * Type: {string}
 
 The render blocking status of the resource. It is either `'blocking'` or
-`'non-blocking'`. Resources fetched by Node.js are never render blocking, so
-the property always returns `'non-blocking'`.
+`'non-blocking'`. Entries created by the built-in `fetch()` implementation
+return `'non-blocking'`.
 
 ### `performanceResourceTiming.contentType`
 
@@ -1236,8 +1236,8 @@ added: REPLACEME
 * Type: {string}
 
 The minimized MIME type of the content of the fetched resource, or an empty
-string if it cannot be determined. Node.js does not currently populate this
-field, so the property returns an empty string.
+string if it cannot be determined. Entries created by the built-in `fetch()`
+implementation currently return an empty string.
 
 ### `performanceResourceTiming.contentEncoding`
 
@@ -1249,8 +1249,8 @@ added: REPLACEME
 
 The content encoding, such as `'gzip'` or `'br'`, that was applied to the
 fetched resource, or an empty string if none was applied or it cannot be
-determined. Node.js does not currently populate this field, so the property
-returns an empty string.
+determined. Entries created by the built-in `fetch()` implementation currently
+return an empty string.
 
 ### `performanceResourceTiming.toJSON()`
 

@@ -42,8 +42,7 @@ function markResourceTiming(timingInfo, bodyInfo) {
   );
 }
 
-// Default values with an empty body info, mirroring what the fetch
-// implementation passes for a response with no body metadata.
+// Default values when no optional timing or body metadata is present.
 {
   const resource = markResourceTiming(createTimingInfo(), {});
 
@@ -53,6 +52,18 @@ function markResourceTiming(timingInfo, bodyInfo) {
   assert.strictEqual(resource.renderBlockingStatus, 'non-blocking');
   assert.strictEqual(resource.contentType, '');
   assert.strictEqual(resource.contentEncoding, '');
+}
+
+// responseStart falls back to the final response when no interim response timing was recorded.
+{
+  const resource = markResourceTiming(createTimingInfo({
+    finalNetworkResponseStartTime: 123,
+    firstInterimNetworkResponseStartTime: 0,
+  }), {});
+
+  assert.strictEqual(resource.finalResponseHeadersStart, 123);
+  assert.strictEqual(resource.firstInterimResponseStart, 0);
+  assert.strictEqual(resource.responseStart, 123);
 }
 
 // Values reflected from timing info and body info.
