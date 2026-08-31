@@ -28,10 +28,31 @@ function createDependentPromises(n) {
 }
 
 {
+  // Map works on empty streams with a synchronous mapper
+  const stream = Readable.from([]).map((x) => x);
+  (async () => {
+    assert.deepStrictEqual(await stream.toArray(), []);
+  })().then(common.mustCall());
+}
+
+{
   // Map works on synchronous streams with a synchronous mapper
-  const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x);
+  let mapperSignal;
+  const stream = Readable.from([1, 2, 3, 4, 5]).map((x, { signal }) => {
+    mapperSignal = signal;
+    return x + x;
+  });
   (async () => {
     assert.deepStrictEqual(await stream.toArray(), [2, 4, 6, 8, 10]);
+    assert.strictEqual(mapperSignal.aborted, true);
+  })().then(common.mustCall());
+}
+
+{
+  // Double Map works on synchronous streams with a synchronous mapper
+  const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x).map((x) => x + x);
+  (async () => {
+    assert.deepStrictEqual(await stream.toArray(), [4, 8, 12, 16, 20]);
   })().then(common.mustCall());
 }
 
@@ -47,6 +68,65 @@ function createDependentPromises(n) {
 }
 
 {
+  // Map awaits thenables exactly once and preserves their receiver.
+  (async () => {
+    let getterCalls = 0;
+    let thenCalls = 0;
+    const thenable = {
+      get then() {
+        getterCalls++;
+        return function(resolve) {
+          thenCalls++;
+          thenable.receiver = this;
+          resolve(2);
+        };
+      },
+    };
+
+    assert.deepStrictEqual(
+      await Readable.from([1]).map(() => thenable).toArray(),
+      [2],
+    );
+    assert.strictEqual(getterCalls, 1);
+    assert.strictEqual(thenCalls, 1);
+    assert.strictEqual(thenable.receiver, thenable);
+
+    const nonThenable = { then: null };
+    assert.deepStrictEqual(
+      await Readable.from([1]).map(() => nonThenable).toArray(),
+      [nonThenable],
+    );
+  })().then(common.mustCall());
+}
+
+{
+  // Undefined mapper results remain valid object-mode chunks, while null uses
+  // the standard stream null-value error.
+  (async () => {
+    assert.deepStrictEqual(
+      await Readable.from([1]).map(() => undefined).toArray(),
+      [undefined],
+    );
+  })().then(common.mustCall());
+
+  assert.rejects(
+    Readable.from([1]).map(() => null).toArray(),
+    { code: 'ERR_STREAM_NULL_VALUES' },
+  ).then(common.mustCall());
+}
+
+{
+  // Map works on synchronous streams with an asynchronous mapper
+  const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x).map(async (x) => {
+    await Promise.resolve();
+    return x + x;
+  });
+  (async () => {
+    assert.deepStrictEqual(await stream.toArray(), [4, 8, 12, 16, 20]);
+  })().then(common.mustCall());
+}
+
+{
   // Map works on asynchronous streams with a asynchronous mapper
   const stream = Readable.from([1, 2, 3, 4, 5]).map(async (x) => {
     return x + x;
@@ -57,7 +137,23 @@ function createDependentPromises(n) {
 }
 
 {
-  // Map works on an infinite stream
+  // Map works on an infinite stream - sync
+  const stream = Readable.from(async function* () {
+    while (true) yield 1;
+  }()).map(common.mustCall((x) => {
+    return x + x;
+  }, 5));
+  (async () => {
+    let i = 1;
+    for await (const item of stream) {
+      assert.strictEqual(item, 2);
+      if (++i === 5) break;
+    }
+  })().then(common.mustCall());
+}
+
+{
+  // Map works on an infinite stream - async
   const stream = Readable.from(async function* () {
     while (true) yield 1;
   }()).map(common.mustCall(async (x) => {
@@ -88,6 +184,29 @@ function createDependentPromises(n) {
     for await (const item of stream) {
       assert.strictEqual(item, result.shift());
     }
+  })().then(common.mustCall());
+}
+
+{
+  // Mapping a Readable subclass does not invoke its constructor internally.
+  const required = Symbol('required');
+  class CustomReadable extends Readable {
+    constructor(token) {
+      if (token !== required) {
+        throw new Error('CustomReadable requires its constructor token');
+      }
+      super({ objectMode: true });
+    }
+
+    _read() {
+      this.push(1);
+      this.push(null);
+    }
+  }
+
+  (async () => {
+    const stream = new CustomReadable(required).map((x) => x + 1);
+    assert.deepStrictEqual(await stream.toArray(), [2]);
   })().then(common.mustCall());
 }
 
@@ -123,6 +242,23 @@ function createDependentPromises(n) {
   assert.rejects(
     stream.map((x) => x + x).toArray(),
     /boom/,
+  ).then(common.mustCall());
+}
+
+{
+  // Errors from the source stream are propagated through the mapped stream.
+  const error = new Error('source boom');
+  const source = new Readable({
+    objectMode: true,
+    read() {
+      this.push(1);
+      this.destroy(error);
+    },
+  });
+
+  assert.rejects(
+    source.map((x) => x).toArray(),
+    error,
   ).then(common.mustCall());
 }
 
@@ -175,6 +311,18 @@ function createDependentPromises(n) {
   setImmediate(() => {
     ac.abort();
   });
+}
+
+{
+  // AbortSignal wakes a mapper waiting on an idle source.
+  const ac = new AbortController();
+  const source = new Readable({ read() {} });
+  const result = source.map(common.mustNotCall(), { signal: ac.signal }).toArray();
+
+  setImmediate(() => ac.abort());
+  assert.rejects(result, { name: 'AbortError' }).then(common.mustCall(() => {
+    assert.strictEqual(source.destroyed, true);
+  }));
 }
 
 {
@@ -349,6 +497,12 @@ function createDependentPromises(n) {
   }), /ERR_OUT_OF_RANGE/);
   assert.throws(() => Readable.from([1]).map((x) => x, {
     concurrency: -1
+  }), /ERR_OUT_OF_RANGE/);
+  assert.throws(() => Readable.from([1]).map((x) => x, {
+    highWaterMark: 'Foo'
+  }), /ERR_OUT_OF_RANGE/);
+  assert.throws(() => Readable.from([1]).map((x) => x, {
+    highWaterMark: -1
   }), /ERR_OUT_OF_RANGE/);
   assert.throws(() => Readable.from([1]).map((x) => x, 1), /ERR_INVALID_ARG_TYPE/);
   assert.throws(() => Readable.from([1]).map((x) => x, { signal: true }), /ERR_INVALID_ARG_TYPE/);
