@@ -1766,6 +1766,13 @@ void TLSWrap::GetPeerX509Certificate(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret);
 }
 
+void TLSWrap::HasPeerCertificate(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  bool has_peer_cert = static_cast<bool>(X509Pointer::PeerFrom(w->ssl_));
+  args.GetReturnValue().Set(has_peer_cert);
+}
+
 void TLSWrap::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -2290,6 +2297,8 @@ void TLSWrap::Initialize(
       isolate, t, "getPeerCertificate", GetPeerCertificate);
   SetProtoMethodNoSideEffect(
       isolate, t, "getPeerX509Certificate", GetPeerX509Certificate);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "hasPeerCertificate", HasPeerCertificate);
   SetProtoMethodNoSideEffect(isolate, t, "getPeerFinished", GetPeerFinished);
   SetProtoMethodNoSideEffect(isolate, t, "getProtocol", GetProtocol);
   SetProtoMethodNoSideEffect(isolate, t, "getSession", GetSession);
@@ -2349,6 +2358,7 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetFinished);
   registry->Register(GetPeerCertificate);
   registry->Register(GetPeerX509Certificate);
+  registry->Register(HasPeerCertificate);
   registry->Register(GetPeerFinished);
   registry->Register(GetProtocol);
   registry->Register(GetSession);
