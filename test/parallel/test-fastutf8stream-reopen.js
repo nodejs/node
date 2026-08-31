@@ -8,6 +8,7 @@ const {
   openSync,
   readFile,
   renameSync,
+  write,
 } = require('node:fs');
 const { Utf8Stream } = require('node:fs');
 const { join } = require('node:path');
@@ -26,6 +27,47 @@ function getTempFile() {
 
 runTests(false);
 runTests(true);
+
+// A write started by a 'ready' listener after reopen() must complete before
+// 'drain' is emitted. Deferring the reopened file's write by one setImmediate
+// makes the write land after the nextTick on which reopen() used to emit a
+// premature 'drain'. Async mode only: sync mode writes before 'ready'.
+{
+  const dest = getTempFile();
+  const after = dest + '-new';
+  const stream = new Utf8Stream({
+    dest,
+    minLength: 0,
+    sync: false,
+    fs: {
+      write(fd, buf, enc, cb) {
+        if (stream.file === after) {
+          setImmediate(() => write(fd, buf, enc, cb));
+          return;
+        }
+        return write(fd, buf, enc, cb);
+      },
+    },
+  });
+
+  assert.ok(stream.write('hello world\n'));
+
+  stream.once('drain', common.mustCall(() => {
+    stream.reopen(after);
+
+    stream.once('ready', common.mustCall(() => {
+      assert.ok(stream.write('after reopen\n'));
+
+      stream.once('drain', common.mustCall(() => {
+        assert.strictEqual(stream.writing, false);
+        readFile(after, 'utf8', common.mustSucceed((data) => {
+          assert.strictEqual(data, 'after reopen\n');
+          stream.end();
+        }));
+      }));
+    }));
+  }));
+}
 
 function runTests(sync) {
 
