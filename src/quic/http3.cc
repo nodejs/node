@@ -983,7 +983,7 @@ class Http3ApplicationImpl final : public Session::Application {
                           const uint8_t* msg,
                           size_t msglen) {
     auto* state = GetStreamState(stream);
-    if (!env()->can_call_into_js()  || !state->wants_wtsessionclose) return;
+    if (!env()->can_call_into_js()) return;
     CallbackScope<Stream> cb_scope(&stream);
     auto& binding = BindingData::Get(env());
     Local<Value> argv[] = {
