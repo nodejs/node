@@ -652,9 +652,8 @@ bool AddonImage::MaterializeTempFile(const char* data, size_t len) {
   }
   temp_dir_ = buf.data();
   std::string file = temp_dir_ + "/addon.node";
-  fd_ = open(file.c_str(),
-             O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
-             0600);
+  fd_ = open(
+      file.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
   if (fd_ == -1) {
     errmsg_ = "could not create a temporary file for the native addon";
     rmdir(temp_dir_.c_str());
