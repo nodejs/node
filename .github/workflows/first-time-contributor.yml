@@ -33,18 +33,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          association=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER" \
-            --jq '.author_association')
-          echo "Author association: $association"
+          started_at=$SECONDS
+          for delay in 15 30 60 120; do
+            sleep "$delay"
+            association=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER" \
+              --jq '.author_association')
+            elapsed=$((SECONDS - started_at))
+            echo "Author association after ${elapsed}s: $association"
 
-          case "$association" in
-            FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
-              echo 'eligible=true' >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo 'eligible=false' >> "$GITHUB_OUTPUT"
-              ;;
-          esac
+            case "$association" in
+              FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
+                echo 'eligible=true' >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+              NONE)
+                ;;
+              *)
+                echo 'eligible=false' >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          done
+
+          echo 'eligible=false' >> "$GITHUB_OUTPUT"
 
   agentscan:
     needs: first_time_contributor
