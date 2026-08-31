@@ -74,7 +74,7 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
       future.resolve();
       return { stdout, stderr };
     },
-    restart(timeout = 1000) {
+    restart(timeout = common.platformTimeout(10_000)) {
       if (!child) {
         run();
       }
@@ -113,7 +113,7 @@ try {
 
   // Update file with syntax error
   const syntaxErrorContent = `console.log('hello, wor`;
-  const failedRestart = restart(common.platformTimeout(10_000));
+  const failedRestart = restart();
   writeFileSync(file, syntaxErrorContent);
   await sleep(common.platformTimeout(1000));
   // Wait for the failed restart
@@ -125,7 +125,7 @@ try {
     `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
   ]);
 
-  const successfulRestart = restart(common.platformTimeout(10_000));
+  const successfulRestart = restart();
   writeFileSync(file, `console.log('hello again, world');`);
   await sleep(common.platformTimeout(1000));
   const { stderr: stderr3, stdout: stdout3 } = await successfulRestart;
