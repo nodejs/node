@@ -1113,8 +1113,7 @@ added: REPLACEME
 
 The high resolution millisecond timestamp representing the time immediately
 after Node.js receives the first byte of the first interim response, such as
-a `103 Early Hints` response. For entries created by the built-in `fetch()`
-implementation, this is currently `0` because interim response timings are not recorded.
+a `103 Early Hints` response.
 
 ### `performanceResourceTiming.responseStart`
 
@@ -1223,9 +1222,7 @@ added: REPLACEME
 
 * Type: {string}
 
-The render blocking status of the resource. It is either `'blocking'` or
-`'non-blocking'`. Entries created by the built-in `fetch()` implementation
-return `'non-blocking'`.
+The render blocking status of the resource. It is either `'blocking'` or `'non-blocking'`.
 
 ### `performanceResourceTiming.contentType`
 
@@ -1236,8 +1233,7 @@ added: REPLACEME
 * Type: {string}
 
 The minimized MIME type of the content of the fetched resource, or an empty
-string if it cannot be determined. Entries created by the built-in `fetch()`
-implementation currently return an empty string.
+string if it cannot be determined.
 
 ### `performanceResourceTiming.contentEncoding`
 
@@ -1247,10 +1243,7 @@ added: REPLACEME
 
 * Type: {string}
 
-The content encoding, such as `'gzip'` or `'br'`, that was applied to the
-fetched resource, or an empty string if none was applied or it cannot be
-determined. Entries created by the built-in `fetch()` implementation currently
-return an empty string.
+The content encoding of the fetched resource, such as `'gzip'` or `'br'`.
 
 ### `performanceResourceTiming.toJSON()`
 
