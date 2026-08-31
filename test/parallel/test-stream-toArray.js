@@ -55,6 +55,31 @@ const assert = require('assert');
 }
 
 {
+  // destroyOnReturn can preserve streams that do not auto-destroy.
+  const stream = new Readable({
+    objectMode: true,
+    autoDestroy: false,
+    read() {
+      this.push(1);
+      this.push(2);
+      this.push(null);
+    },
+  });
+
+  (async () => {
+    assert.deepStrictEqual(
+      await stream.toArray({ destroyOnReturn: false }),
+      [1, 2],
+    );
+    assert.strictEqual(stream.destroyed, false);
+    for (const event of ['end', 'finish', 'error', 'close']) {
+      assert.strictEqual(stream.listenerCount(event), 0);
+    }
+    stream.destroy();
+  })().then(common.mustCall());
+}
+
+{
   // Support for AbortSignal
   const ac = new AbortController();
   let stream;
@@ -74,6 +99,44 @@ const assert = require('assert');
   }));
   ac.abort();
 }
+
+{
+  // AbortSignal wakes toArray while its source is idle.
+  const ac = new AbortController();
+  const stream = new Readable({ read() {} });
+  const result = stream.toArray({ signal: ac.signal });
+
+  setImmediate(() => ac.abort());
+  assert.rejects(result, { name: 'AbortError' }).then(common.mustCall(() => {
+    assert.strictEqual(stream.listenerCount('readable'), 0);
+  }));
+}
+
+{
+  // A pre-aborted signal prevents the source from being read.
+  const stream = new Readable({
+    read: common.mustNotCall(),
+  });
+
+  assert.rejects(
+    stream.toArray({ signal: AbortSignal.abort() }),
+    { name: 'AbortError' },
+  ).then(common.mustCall());
+}
+
+{
+  // Source errors reject and remove the readable listener.
+  const error = new Error('boom');
+  const stream = new Readable({
+    read() {
+      this.destroy(error);
+    },
+  });
+
+  assert.rejects(stream.toArray(), error).then(common.mustCall(() => {
+    assert.strictEqual(stream.listenerCount('readable'), 0);
+  }));
+}
 {
   // Test result is a Promise
   const result = Readable.from([1, 2, 3, 4, 5]).toArray();
@@ -88,6 +151,12 @@ const assert = require('assert');
   assert.rejects(async () => {
     await Readable.from([1]).toArray({
       signal: true
+    });
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+
+  assert.rejects(async () => {
+    await Readable.from([1]).toArray({
+      destroyOnReturn: 'false'
     });
   }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
 }
