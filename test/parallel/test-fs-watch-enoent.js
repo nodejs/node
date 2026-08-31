@@ -99,8 +99,7 @@ tmpdir.refresh();
   let calls = 0;
 
   expected.code = 'ENOSPC';
-  fs.mkdirSync(directory);
-  fs.writeFileSync(`${directory}/file`, '');
+  fs.mkdirSync(`${directory}/subdirectory`, { recursive: true });
   fs.watch = common.mustCall(() => {
     if (calls++ === 0) {
       return { close };
