@@ -138,3 +138,8 @@ uint64_t nghttp3_err_infer_quic_app_error_code(int liberr) {
 }
 
 int nghttp3_err_is_fatal(int liberr) { return liberr < NGHTTP3_ERR_FATAL; }
+
+int nghttp3_err_is_wt(int liberr) {
+  return liberr == NGHTTP3_ERR_WT_SESSION_GONE ||
+         liberr == NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED;
+}
