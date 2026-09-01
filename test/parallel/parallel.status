@@ -106,7 +106,7 @@ test-runner-coverage: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 # https://github.com/nodejs/node/issues/65697
-fs-watch-recursive-delete-race: SKIP
+test-fs-watch-recursive-delete-race: SKIP
 
 [$system==ibmi]
 # https://github.com/nodejs/node/pull/30819
