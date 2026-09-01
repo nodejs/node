@@ -10,6 +10,7 @@ if (process.features.openssl_is_boringssl)
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 const { internalBinding } = require('internal/test/binding');
 const { testFipsCrypto } = internalBinding('crypto');
@@ -104,12 +105,11 @@ testHelper(
   process.env);
 
 {
-  const child = spawnSync(
-    process.execPath, ['--force-fips=invalid', '-e', '0']);
-  assert.strictEqual(child.status, 9);
-  assert.match(
-    child.stderr.toString(),
-    /invalid value for --force-fips; expected 'provider' or 'strict'/);
+  spawnSyncAndAssert(
+    process.execPath, ['--force-fips=invalid', '-e', '0'], {
+      status: 9,
+      stderr: /invalid value for --force-fips; expected 'provider' or 'strict'/,
+    });
 }
 
 if (hasOpenSSL(3, 4)) {
