@@ -8,7 +8,7 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const fs = require('fs');
-const { spawnSync } = require('child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 
 const tmpdir = require('../common/tmpdir');
 const {
@@ -22,7 +22,7 @@ const {
 {
   tmpdir.refresh();
   const dir = tmpdir.resolve('prof');
-  const output = spawnSync(process.execPath, [
+  const { child: output } = spawnSyncAndExitWithoutError(process.execPath, [
     '--cpu-prof',
     '--cpu-prof-interval',
     kCpuProfInterval,
@@ -33,10 +33,6 @@ const {
     cwd: tmpdir.path,
     env,
   });
-  if (output.status !== 0) {
-    console.log(output.stderr.toString());
-  }
-  assert.strictEqual(output.status, 0);
   assert(fs.existsSync(dir));
   const profiles = getCpuProfiles(dir);
   assert.strictEqual(profiles.length, 1);
