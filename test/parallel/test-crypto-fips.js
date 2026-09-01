@@ -121,19 +121,17 @@ if (hasOpenSSL(3, 4)) {
     'require("crypto").getFips()',
     process.env);
 } else {
-  const indicatorChild = spawnSync(
-    process.execPath, ['--enable-fips-indicator-events', '-e', '0']);
-  assert.strictEqual(indicatorChild.status, 9);
-  assert.match(
-    indicatorChild.stderr.toString(),
-    /--enable-fips-indicator-events requires OpenSSL 3\.4 or later/);
+  spawnSyncAndAssert(
+    process.execPath, ['--enable-fips-indicator-events', '-e', '0'], {
+      status: 9,
+      stderr: /--enable-fips-indicator-events requires OpenSSL 3\.4 or later/,
+    });
 
-  const strictChild = spawnSync(
-    process.execPath, ['--force-fips=strict', '-e', '0']);
-  assert.strictEqual(strictChild.status, 9);
-  assert.match(
-    strictChild.stderr.toString(),
-    /--force-fips=strict requires OpenSSL 3\.4 or later/);
+  spawnSyncAndAssert(
+    process.execPath, ['--force-fips=strict', '-e', '0'], {
+      status: 9,
+      stderr: /--force-fips=strict requires OpenSSL 3\.4 or later/,
+    });
 }
 
 // By default FIPS should be off in both FIPS and non-FIPS builds

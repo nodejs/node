@@ -11,11 +11,13 @@ if (process.features.openssl_is_boringssl) {
 }
 
 const assert = require('node:assert');
-const { spawnSync } = require('node:child_process');
 const diagnosticsChannel = require('node:diagnostics_channel');
 const { once } = require('node:events');
 const { createHmac, subtle } = require('node:crypto');
 const { Worker } = require('node:worker_threads');
+const {
+  spawnSyncAndExitWithoutError,
+} = require('../common/child_process');
 const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 const channelName = 'crypto.fips.indicator';
@@ -53,11 +55,8 @@ function assertSerializedMode(expected) {
 }
 
 function nextIndicator() {
-  let resolve;
   const keepAlive = setInterval(common.mustNotCall(), 10_000);
-  const promise = new Promise((fulfill) => {
-    resolve = fulfill;
-  });
+  const { promise, resolve } = Promise.withResolvers();
   const subscriber = common.mustCall((event, name) => {
     assert.strictEqual(name, channelName);
     clearInterval(keepAlive);
@@ -88,14 +87,10 @@ function runParent() {
       '--enable-fips-indicator-events',
     ], 'strict-events'],
   ]) {
-    const child = spawnSync(
+    spawnSyncAndExitWithoutError(
       process.execPath, [...args, '--expose-internals', __filename], {
         env: { ...process.env, NODE_TEST_FIPS_FORCE_MODE: childMode },
       });
-    assert.strictEqual(
-      child.status,
-      0,
-      `args: ${args.join(' ')}\nstdout: ${child.stdout}\nstderr: ${child.stderr}`);
   }
 }
 
