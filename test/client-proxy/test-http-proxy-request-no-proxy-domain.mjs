@@ -187,6 +187,7 @@ await once(proxy, 'listening');
   // The request should go through the proxy (not bypass it),
   // because badexample.com is not a subdomain of example.com.
   assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for badexample\.com/);
   assert.strictEqual(stderr.trim(), '');
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
@@ -206,6 +207,7 @@ await once(proxy, 'listening');
   // The request should go through the proxy (not bypass it),
   // because notexample.com is not a subdomain of example.com.
   assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for notexample\.com/);
   assert.strictEqual(stderr.trim(), '');
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
@@ -223,6 +225,7 @@ await once(proxy, 'listening');
   // The request should go through the proxy (not bypass it),
   // because badexample.com is not a subdomain of example.com.
   assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for badexample\.com/);
   assert.strictEqual(stderr.trim(), '');
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
