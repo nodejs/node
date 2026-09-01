@@ -460,7 +460,7 @@ Collect a formatted list of commits since the last release. Use
 [`changelog-maker`](https://github.com/nodejs/changelog-maker) to do this:
 
 ```bash
-changelog-maker --group --markdown
+changelog-maker --group --format=markdown
 ```
 
 `changelog-maker` counts commits since the last tag and if the last tag
@@ -468,7 +468,7 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```bash
-changelog-maker --group --markdown --filter-release --start-ref v1.2.2
+changelog-maker --group --format=markdown --filter-release --start-ref v1.2.2
 ```
 
 `--filter-release` will remove the release commit from the previous release.
