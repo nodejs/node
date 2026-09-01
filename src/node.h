@@ -838,6 +838,9 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     const ModuleData* entry_point,
     EmbedderPreloadCallback preload = nullptr);
 
+// Runs `env`'s event loop until its handles have closed, with JavaScript
+// execution disallowed on the isolate; see doc/api/embedding.md if that loop
+// is shared with other Environments.
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
