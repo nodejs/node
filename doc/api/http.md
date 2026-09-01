@@ -4562,8 +4562,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65617
-    description: Plain `NO_PROXY` entries now match subdomains, IP entries
-                 are matched exactly, and empty entries are ignored.
+    description: Plain domain entries in `NO_PROXY` now match subdomains.
 -->
 
 > Stability: 1.1 - Active development
@@ -4625,12 +4624,9 @@ The `NO_PROXY` environment variable supports several formats:
 * `*.example.com` - Wildcard domain match
 * `192.168.1.100` - Exact IP address match
 * `192.168.1.1-192.168.1.100` - IP address range
-* `example.com:8080` - Hostname with specific port (exact host match, no
-  subdomains)
+* `example.com:8080` - Hostname with specific port
 
-Multiple entries should be separated by commas; empty entries are ignored.
-A plain or leading-dot IP entry matches only that exact IP, and no domain
-entry can bypass a host that is an IP address literal.
+Multiple entries should be separated by commas.
 
 ### Example
 
