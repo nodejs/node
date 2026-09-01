@@ -71,7 +71,7 @@
 #include "gtest/gtest-typed-test.h"  // IWYU pragma: export
 #include "gtest/gtest_pred_impl.h"  // IWYU pragma: export
 #include "gtest/gtest_prod.h"  // IWYU pragma: export
-#include "gtest/internal/gtest-internal.h"
+#include "gtest/internal/gtest-internal.h"  // IWYU pragma: export
 #include "gtest/internal/gtest-string.h"
 
 GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
@@ -1514,6 +1514,8 @@ GTEST_API_ AssertionResult CmpHelperSTRCASENE(const char* s1_expression,
                                               const char* s2_expression,
                                               const char* s1, const char* s2);
 
+#if GTEST_HAS_STD_WSTRING
+
 // Helper function for *_STREQ on wide strings.
 //
 // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
@@ -1527,6 +1529,8 @@ GTEST_API_ AssertionResult CmpHelperSTREQ(const char* s1_expression,
 GTEST_API_ AssertionResult CmpHelperSTRNE(const char* s1_expression,
                                           const char* s2_expression,
                                           const wchar_t* s1, const wchar_t* s2);
+
+#endif  // GTEST_HAS_STD_WSTRING
 
 }  // namespace internal
 
@@ -1542,18 +1546,10 @@ GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
                                        const char* haystack_expr,
                                        const char* needle,
                                        const char* haystack);
-GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
-                                       const char* haystack_expr,
-                                       const wchar_t* needle,
-                                       const wchar_t* haystack);
 GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
                                           const char* haystack_expr,
                                           const char* needle,
                                           const char* haystack);
-GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
-                                          const char* haystack_expr,
-                                          const wchar_t* needle,
-                                          const wchar_t* haystack);
 GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
                                        const char* haystack_expr,
                                        const ::std::string& needle,
@@ -1564,6 +1560,14 @@ GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
                                           const ::std::string& haystack);
 
 #if GTEST_HAS_STD_WSTRING
+GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
+                                       const char* haystack_expr,
+                                       const wchar_t* needle,
+                                       const wchar_t* haystack);
+GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
+                                          const char* haystack_expr,
+                                          const wchar_t* needle,
+                                          const wchar_t* haystack);
 GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
                                        const char* haystack_expr,
                                        const ::std::wstring& needle,
