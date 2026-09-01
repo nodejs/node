@@ -5,8 +5,10 @@
 * [Issues and pull requests](#issues-and-pull-requests)
   * [Welcoming first-time contributors](#welcoming-first-time-contributors)
   * [Closing issues and pull requests](#closing-issues-and-pull-requests)
+  * [Stale issues and pull requests](#stale-issues-and-pull-requests)
   * [Author ready pull requests](#author-ready-pull-requests)
   * [Handling own pull requests](#handling-own-pull-requests)
+  * [Repository triage views](#repository-triage-views)
   * [Security issues](#managing-security-issues)
 * [Accepting modifications](#accepting-modifications)
   * [Code reviews](#code-reviews)
@@ -66,6 +68,18 @@ request open for several days to allow for discussion. Where this does not yield
 evidence that the issue or pull request has relevance, close it. Remember that
 issues and pull requests can always be re-opened if necessary.
 
+### Stale issues and pull requests
+
+The [stale workflow](../../.github/workflows/stale.yml) runs on all open issues
+and pull requests. It adds the `stale` label after 90 days without activity and
+closes the item after another 30 days without activity. New activity removes
+the `stale` label automatically.
+
+The `never-stale` label exempts both issues and pull requests from this
+automation. The `confirmed-bug` label also exempts issues. Reserve
+`never-stale` for items that need a permanent exemption. Otherwise, leave an
+update when an item remains relevant or close it when it does not.
+
 ### Author ready pull requests
 
 A pull request is _author ready_ when:
@@ -77,6 +91,11 @@ A pull request is _author ready_ when:
 Please always add the `author ready` label to the pull request in that case.
 Please always remove it again as soon as the conditions are not met anymore.
 
+When approving a pull request that qualifies, add `author ready` and, if a
+Jenkins CI run is required but has not started, `request-ci`. When the pull
+request author is not a collaborator, it is helpful to follow the CI run through
+completion and add `commit-queue` after the required CI is green.
+
 ### Handling own pull requests
 
 When you open a pull request, [start a CI](#testing-and-ci) right away. Later,
@@ -87,6 +106,28 @@ collaborators to focus on other pull requests. If your pull request is not ready
 to land but is [author ready](#author-ready-pull-requests), add the
 `author ready` label. If you wish to land the pull request yourself, use the
 "assign yourself" link to self-assign it.
+
+### Repository triage views
+
+The repository has several pinned
+[triage views](https://github.com/nodejs/node/issues/views) for managing pull
+requests:
+
+* [PR action queue](https://github.com/nodejs/node/issues/views/15196):
+  Non-stale, human-authored pull requests labeled `author ready` or
+  `review wanted` that are not yet in the commit queue.
+* [PR attention queue](https://github.com/nodejs/node/issues/views/15058):
+  Non-stale pull requests awaiting a second approval, requesting fast-track, or
+  addressing flaky tests.
+* [Bot PRs queue](https://github.com/nodejs/node/issues/views/15198): Open,
+  non-stale Node.js GitHub Bot and Dependabot pull requests that are not yet in
+  the commit queue.
+* [My Active PRs](https://github.com/nodejs/node/issues/views/15142): Open pull
+  requests authored by the signed-in viewer that are not yet in the commit
+  queue.
+
+Keep `author ready`, `review wanted`, `commit-queue`, and `stale` accurate so
+these views remain useful.
 
 ### Managing security issues
 
@@ -210,15 +251,18 @@ delay. For example:
   * Regressions that break the workflow (red CI or broken compilation).
   * Regressions that happen right before a release, or reported soon after.
 
-To propose fast-tracking a pull request, apply the `fast-track` label. Then a
-GitHub Actions workflow will add a comment that collaborators can upvote.
+To propose fast-tracking a pull request, apply the `fast-track` label. A GitHub
+Actions workflow then adds a comment. Collaborators approve the fast-track
+request by adding a 👍 reaction to that comment. Reactions elsewhere on the pull
+request do not count.
 
 If someone disagrees with the fast-tracking request, remove the label. Do not
 fast-track the pull request in that case.
 
 The pull request can be fast-tracked if two collaborators approve the
-fast-tracking request. To land, the pull request itself still needs two
-collaborator approvals and a passing CI.
+fast-tracking request. Fast-track approval is additional to code-review
+approval, not a replacement for it. To land, the pull request itself still
+needs two collaborator approvals and a passing CI.
 
 Collaborators can request fast-tracking of pull requests they did not author.
 In that case only, the request itself is also one fast-track approval. Upvote
@@ -234,6 +278,13 @@ A passing (green) GitHub Actions CI result is required. A passing (green or
 yellow) [Jenkins CI](https://ci.nodejs.org/) is also required if the pull
 request contains changes that will affect the `node` binary. This is because
 GitHub Actions CI does not cover all the environments supported by Node.js.
+
+The `needs-ci` label identifies pull requests that require a full Jenkins CI
+run. It is a classification, not an indication that CI is still pending. Leave
+it in place after CI completes. Removing it does not waive the underlying CI
+requirement or make a pull request eligible to land without the required
+checks. Removing it also makes it harder for releasers to identify the scope of
+a change when working on a release proposal.
 
 <details>
 <summary>Changes that affect the `node` binary</summary>
@@ -940,20 +991,29 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 ### General labels
 
 * `confirmed-bug`: Bugs you have verified
+* `commit-queue`: Pull requests queued for automated landing. See the
+  [commit queue guide][commit-queue.md]
 * `discuss`: Things that need larger discussion
 * `fast-track`: PRs that need to land faster - see
   [Waiting for approvals](#waiting-for-approvals)
 * `feature request`: Any issue that requests a new feature
 * `good first issue`: Issues suitable for newcomers to fix
+* `lacks-second-approval`: An automatically managed label for queued pull
+  requests awaiting another approval or completion of the required wait
 * `meta`: Governance, policies, procedures, etc.
+* `needs-ci`: Pull requests that require a full Jenkins CI run. See
+  [Testing and CI](#testing-and-ci)
+* `never-stale`: Issues and pull requests exempt from automatic stale handling
 * `request-ci`: When this label is added to a PR, CI will be started
   automatically. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
+* `stale`: Issues and pull requests with no activity for 90 days. See
+  [Stale issues and pull requests](#stale-issues-and-pull-requests)
 * `tsc-agenda`: Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda
 
 ***
 
-* `author-ready` - A pull request is _author ready_ when:
+* `author ready` - A pull request is _author ready_ when:
   * There is a CI run in progress or completed.
   * There is at least one collaborator approval (or two TSC approvals for
     semver-major pull requests).
