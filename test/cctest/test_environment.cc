@@ -60,6 +60,39 @@ TEST_F(EnvironmentTest, ManagedBufferCache) {
   (*env)->release_managed_buffer(buffer);
 }
 
+static int embedder_wasm_streaming_calls = 0;
+static void EmbedderWasmStreaming(const v8::FunctionCallbackInfo<v8::Value>&) {
+  embedder_wasm_streaming_calls++;
+}
+
+TEST_F(EnvironmentTest, KeepsEmbedderWasmStreamingCallbackWhenAsked) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  auto compile_streaming = [&]() {
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::Script::Compile(context,
+                        v8::String::NewFromUtf8Literal(
+                            isolate_, "WebAssembly.compileStreaming(0); 0"))
+        .ToLocalChecked()
+        ->Run(context)
+        .ToLocalChecked();
+    isolate_->PerformMicrotaskCheckpoint();
+  };
+
+  node::IsolateSettings settings;
+  settings.flags |= node::SHOULD_NOT_SET_WASM_STREAMING_CALLBACK;
+  isolate_->SetWasmStreamingCallback(EmbedderWasmStreaming);
+  node::SetIsolateUpForNode(isolate_, settings);
+  compile_streaming();
+  EXPECT_EQ(embedder_wasm_streaming_calls, 1);
+
+  node::SetIsolateUpForNode(isolate_);
+  compile_streaming();
+  EXPECT_EQ(embedder_wasm_streaming_calls, 1);
+}
+
 TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
