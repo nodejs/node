@@ -4559,6 +4559,11 @@ A browser-compatible implementation of {WebSocket}.
 added:
  - v24.5.0
  - v22.21.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65617
+    description: Plain `NO_PROXY` entries now match subdomains, IP entries
+                 are matched exactly, and empty entries are ignored.
 -->
 
 > Stability: 1.1 - Active development
@@ -4620,9 +4625,13 @@ The `NO_PROXY` environment variable supports several formats:
 * `*.example.com` - Wildcard domain match
 * `192.168.1.100` - Exact IP address match
 * `192.168.1.1-192.168.1.100` - IP address range
-* `example.com:8080` - Hostname with specific port
+* `example.com:8080` - Hostname with specific port (exact host match, no
+  subdomains)
 
-Multiple entries should be separated by commas.
+Multiple entries should be separated by commas; empty entries are ignored.
+IP addresses never participate in domain suffix matching: an IP entry only
+bypasses the exact same IP, and no domain entry can bypass a host that is
+an IP address literal.
 
 ### Example
 

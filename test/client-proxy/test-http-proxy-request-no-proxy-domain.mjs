@@ -10,7 +10,7 @@ import { runProxiedRequest } from '../common/proxy-server.js';
 const server = http.createServer(common.mustCall((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
-}, 7));
+}, 11));
 server.on('error', common.mustNotCall((err) => { console.error('Server error', err); }));
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
@@ -92,6 +92,83 @@ await once(proxy, 'listening');
   assert.match(stdout, /Status Code: 200/);
   assert.match(stdout, /Hello World/);
   assert.match(stdout, /Resolving lookup for test\.example\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  // Test NO_PROXY with a trailing comma still matching the real entries.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://test.example.com:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${proxy.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'test.example.com',
+    NO_PROXY: 'example.com,',
+  });
+
+  // The request should succeed and bypass proxy.
+  assert.match(stdout, /Status Code: 200/);
+  assert.match(stdout, /Hello World/);
+  assert.match(stdout, /Resolving lookup for test\.example\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  // Test NO_PROXY with an empty entry (trailing comma) should NOT match
+  // hostnames ending with a dot.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://evil.com.:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${server.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'evil.com.',
+    NO_PROXY: 'example.com,',
+  });
+
+  // The request should go through the proxy (not bypass it): the empty
+  // entry must not match, and evil.com. does not match example.com.
+  assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for evil\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  // Test NO_PROXY with a lone "." entry should NOT match hostnames ending
+  // with a dot.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://evil.com.:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${server.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'evil.com.',
+    NO_PROXY: '.',
+  });
+
+  // The request should go through the proxy (not bypass it).
+  assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for evil\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  // Test NO_PROXY with a bare "*." entry should NOT match hostnames ending
+  // with a dot.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://evil.com.:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${server.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'evil.com.',
+    NO_PROXY: '*.',
+  });
+
+  // The request should go through the proxy (not bypass it).
+  assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for evil\.com/);
   assert.strictEqual(stderr.trim(), '');
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
