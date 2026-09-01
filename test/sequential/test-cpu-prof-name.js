@@ -10,7 +10,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 
 const tmpdir = require('../common/tmpdir');
 const {
@@ -24,7 +24,7 @@ const {
 {
   tmpdir.refresh();
   const file = tmpdir.resolve('test.cpuprofile');
-  const output = spawnSync(process.execPath, [
+  const { child: output } = spawnSyncAndExitWithoutError(process.execPath, [
     '--cpu-prof',
     '--cpu-prof-interval',
     kCpuProfInterval,
@@ -35,10 +35,6 @@ const {
     cwd: tmpdir.path,
     env,
   });
-  if (output.status !== 0) {
-    console.log(output.stderr.toString());
-  }
-  assert.strictEqual(output.status, 0);
   const profiles = getCpuProfiles(tmpdir.path);
   assert.deepStrictEqual(profiles, [file]);
   verifyFrames(output, file, 'fibonacci.js');
@@ -51,7 +47,7 @@ const {
   const profName = 'CPU.${pid}.cpuprofile';
   const dir = tmpdir.path;
 
-  const output = spawnSync(process.execPath, [
+  const { child: output } = spawnSyncAndExitWithoutError(process.execPath, [
     '--cpu-prof',
     '--cpu-prof-interval',
     kCpuProfInterval,
@@ -62,12 +58,6 @@ const {
     cwd: dir,
     env,
   });
-
-  if (output.status !== 0) {
-    console.error(output.stderr.toString());
-  }
-
-  assert.strictEqual(output.status, 0);
 
   const expectedFile = path.join(dir, `CPU.${output.pid}.cpuprofile`);
   assert.ok(fs.existsSync(expectedFile), `Expected file ${expectedFile} not found.`);
