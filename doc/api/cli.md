@@ -1597,7 +1597,7 @@ added: v12.12.0
 
 Disable loading native addons that are not [context-aware][].
 
-### `--force-fips`
+### `--force-fips[=mode]`
 
 <!-- YAML
 added: v6.0.0
