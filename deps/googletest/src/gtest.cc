@@ -1876,11 +1876,13 @@ bool IsSubstringPred(const char* needle, const char* haystack) {
   return strstr(haystack, needle) != nullptr;
 }
 
+#if GTEST_HAS_STD_WSTRING
 bool IsSubstringPred(const wchar_t* needle, const wchar_t* haystack) {
   if (needle == nullptr || haystack == nullptr) return needle == haystack;
 
   return wcsstr(haystack, needle) != nullptr;
 }
+#endif  // GTEST_HAS_STD_WSTRING
 
 // StringType here can be either ::std::string or ::std::wstring.
 template <typename StringType>
@@ -1922,20 +1924,9 @@ AssertionResult IsSubstring(const char* needle_expr, const char* haystack_expr,
   return IsSubstringImpl(true, needle_expr, haystack_expr, needle, haystack);
 }
 
-AssertionResult IsSubstring(const char* needle_expr, const char* haystack_expr,
-                            const wchar_t* needle, const wchar_t* haystack) {
-  return IsSubstringImpl(true, needle_expr, haystack_expr, needle, haystack);
-}
-
 AssertionResult IsNotSubstring(const char* needle_expr,
                                const char* haystack_expr, const char* needle,
                                const char* haystack) {
-  return IsSubstringImpl(false, needle_expr, haystack_expr, needle, haystack);
-}
-
-AssertionResult IsNotSubstring(const char* needle_expr,
-                               const char* haystack_expr, const wchar_t* needle,
-                               const wchar_t* haystack) {
   return IsSubstringImpl(false, needle_expr, haystack_expr, needle, haystack);
 }
 
@@ -1953,6 +1944,17 @@ AssertionResult IsNotSubstring(const char* needle_expr,
 }
 
 #if GTEST_HAS_STD_WSTRING
+AssertionResult IsSubstring(const char* needle_expr, const char* haystack_expr,
+                            const wchar_t* needle, const wchar_t* haystack) {
+  return IsSubstringImpl(true, needle_expr, haystack_expr, needle, haystack);
+}
+
+AssertionResult IsNotSubstring(const char* needle_expr,
+                               const char* haystack_expr, const wchar_t* needle,
+                               const wchar_t* haystack) {
+  return IsSubstringImpl(false, needle_expr, haystack_expr, needle, haystack);
+}
+
 AssertionResult IsSubstring(const char* needle_expr, const char* haystack_expr,
                             const ::std::wstring& needle,
                             const ::std::wstring& haystack) {
@@ -2182,6 +2184,7 @@ bool String::WideCStringEquals(const wchar_t* lhs, const wchar_t* rhs) {
   return wcscmp(lhs, rhs) == 0;
 }
 
+#if GTEST_HAS_STD_WSTRING
 // Helper function for *_STREQ on wide strings.
 AssertionResult CmpHelperSTREQ(const char* lhs_expression,
                                const char* rhs_expression, const wchar_t* lhs,
@@ -2206,6 +2209,7 @@ AssertionResult CmpHelperSTRNE(const char* s1_expression,
          << "Expected: (" << s1_expression << ") != (" << s2_expression
          << "), actual: " << PrintToString(s1) << " vs " << PrintToString(s2);
 }
+#endif  // GTEST_HAS_STD_WSTRING
 
 // Compares two C strings, ignoring case.  Returns true if and only if they have
 // the same content.
