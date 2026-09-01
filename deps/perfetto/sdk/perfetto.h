@@ -64,6 +64,7 @@
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_TP_INSTRUMENTS() (0)
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_LOCAL_SYMBOLIZER() (0)
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZLIB() (1)
+#define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD() (1)
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_TRACED_PERF() (0)
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_HEAPPROFD() (0)
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_STDERR_CRASH_DUMP() (0)
@@ -104,6 +105,7 @@ static const struct PerfettoBuildFlag kPerfettoBuildFlags[] = {
     {"PERFETTO_TP_HTTPD", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_TP_HTTPD()},
     {"PERFETTO_TP_INSTRUMENTS", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_TP_INSTRUMENTS()},
     {"PERFETTO_ZLIB", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZLIB()},
+    {"PERFETTO_ZSTD", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD()},
     {"PERFETTO_TRACED_PERF", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_TRACED_PERF()},
     {"PERFETTO_HEAPPROFD", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_HEAPPROFD()},
     {"PERFETTO_STDERR_CRASH_DUMP", PERFETTO_BUILDFLAG_DEFINE_PERFETTO_STDERR_CRASH_DUMP()},
@@ -379,16 +381,29 @@ static const int kPerfettoBuildFlagsCount = sizeof(kPerfettoBuildFlags) / sizeof
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZLIB() 0
 #endif
 
+#undef PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD
+#if defined(PERFETTO_SDK_ENABLE_ZSTD) && (PERFETTO_SDK_ENABLE_ZSTD == 1)
+#define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD() 1
+#else
+#define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD() 0
+#endif
+
 #endif  // PERFETTO_BUILDFLAG(PERFETTO_AMALGAMATED_SDK)
 
-// Unlike PERFETTO_SDK_ENABLE_ZLIB above (amalgamated SDK opt-in), this is a
-// file-scope opt-out that applies to every build. Define it to compile out the
-// optional zlib compressor. Static libs like libperfetto_client_experimental
-// get linked into many binaries, so keeping the compressor out means those
-// binaries don't have to link libz. See tools/gen_android_bp.
+// Unlike the PERFETTO_SDK_ENABLE_* opt-ins above (amalgamated SDK), these are
+// file-scope opt-outs that apply to every build. Define them to compile out the
+// optional zlib/zstd compressors. Static libs like
+// libperfetto_client_experimental get linked into many binaries, so keeping a
+// compressor out means those binaries don't have to link libz/libzstd. See
+// tools/gen_android_bp.
 #if defined(PERFETTO_FORCE_DISABLE_ZLIB)
 #undef PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZLIB
 #define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZLIB() 0
+#endif
+
+#if defined(PERFETTO_FORCE_DISABLE_ZSTD)
+#undef PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD
+#define PERFETTO_BUILDFLAG_DEFINE_PERFETTO_ZSTD() 0
 #endif
 
 #endif  // INCLUDE_PERFETTO_BASE_BUILD_CONFIG_H_
@@ -670,23 +685,22 @@ inline void ignore_result(const T&...) {}
 
 // PERFETTO_SDK_EXPORT: Exports a symbol from the perfetto SDK shared library.
 //
-// This is controlled by two defines (that likely come from the compiler command
-// line):
-// * PERFETTO_SDK_DISABLE_SHLIB_EXPORT: If this is defined, no export
-//   annotations are added. This might be useful when static linking.
-// * PERFETTO_SDK_SHLIB_IMPLEMENTATION: This must be defined when compiling the
-//   shared library itself (in order to export the symbols), but must be
-//   undefined when compiling objects that use the shared library (in order to
-//   import the symbols).
-#if !defined(PERFETTO_SDK_DISABLE_SHLIB_EXPORT)
-#if defined(PERFETTO_SHLIB_SDK_IMPLEMENTATION)
+// The SDK is linked statically by default and PERFETTO_SDK_EXPORT expands to
+// nothing. This is controlled by two defines (that likely come from the
+// compiler command line):
+// * PERFETTO_SDK_SHLIB_IMPLEMENTATION: This must be defined when compiling
+//   objects that implement the SDK shared library (in order to export the
+//   symbols). This includes the case where those objects are linked into a
+//   larger shared library that re-exports the SDK ABI.
+// * PERFETTO_SDK_SHLIB: This must be defined when compiling objects that use
+//   the SDK as a shared library (in order to import the symbols).
+#if defined(PERFETTO_SDK_SHLIB_IMPLEMENTATION)
 #define PERFETTO_SDK_EXPORT PERFETTO_INTERNAL_DLL_EXPORT
-#else
+#elif defined(PERFETTO_SDK_SHLIB)
 #define PERFETTO_SDK_EXPORT PERFETTO_INTERNAL_DLL_IMPORT
-#endif
-#else  // defined(PERFETTO_SDK_DISABLE_SHLIB_EXPORT)
+#else
 #define PERFETTO_SDK_EXPORT
-#endif  // defined(PERFETTO_SDK_DISABLE_SHLIB_EXPORT)
+#endif
 
 #endif  // INCLUDE_PERFETTO_PUBLIC_ABI_EXPORT_H_
 /*
@@ -5453,8 +5467,8 @@ class LogMessage;
 class Screenshot;
 class SourceLocation;
 class TaskExecution;
-class TrackEvent_Callstack;
-class TrackEvent_Callstack_Frame;
+class TrackEvent_InlineCallstack;
+class TrackEvent_InlineCallstack_Frame;
 class TrackEvent_LegacyEvent;
 namespace perfetto_pbzero_enum_TrackEvent_LegacyEvent {
 enum FlowDirection : int32_t;
@@ -5790,7 +5804,7 @@ class TrackEventDefaults : public ::protozero::Message {
   }
 };
 
-class TrackEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/56> {
+class TrackEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/57> {
  public:
   TrackEvent_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit TrackEvent_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -5837,6 +5851,8 @@ class TrackEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=
   ::protozero::ConstBytes callstack() const { return at<55>().as_bytes(); }
   bool has_callstack_iid() const { return at<56>().valid(); }
   uint64_t callstack_iid() const { return at<56>().as_uint64(); }
+  bool has_callstack_weight() const { return at<57>().valid(); }
+  double callstack_weight() const { return at<57>().as_double(); }
   bool has_debug_annotations() const { return at<4>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> debug_annotations() const { return GetRepeated<::protozero::ConstBytes>(4); }
   bool has_task_execution() const { return at<5>().valid(); }
@@ -5918,6 +5934,7 @@ class TrackEvent : public ::protozero::Message {
     kCorrelationIdStrIidFieldNumber = 54,
     kCallstackFieldNumber = 55,
     kCallstackIidFieldNumber = 56,
+    kCallstackWeightFieldNumber = 57,
     kDebugAnnotationsFieldNumber = 4,
     kTaskExecutionFieldNumber = 5,
     kLogMessageFieldNumber = 21,
@@ -5948,7 +5965,7 @@ class TrackEvent : public ::protozero::Message {
   };
   static constexpr const char* GetName() { return ".perfetto.protos.TrackEvent"; }
 
-  using Callstack = ::perfetto::protos::pbzero::TrackEvent_Callstack;
+  using InlineCallstack = ::perfetto::protos::pbzero::TrackEvent_InlineCallstack;
   using LegacyEvent = ::perfetto::protos::pbzero::TrackEvent_LegacyEvent;
 
   using Type = ::perfetto::protos::pbzero::TrackEvent_Type;
@@ -6327,11 +6344,11 @@ class TrackEvent : public ::protozero::Message {
       55,
       ::protozero::proto_utils::RepetitionType::kNotRepeated,
       ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      TrackEvent_Callstack,
+      TrackEvent_InlineCallstack,
       TrackEvent>;
 
   static constexpr FieldMetadata_Callstack kCallstack{};
-  template <typename T = TrackEvent_Callstack> T* set_callstack() {
+  template <typename T = TrackEvent_InlineCallstack> T* set_callstack() {
     return BeginNestedMessage<T>(55);
   }
 
@@ -6351,6 +6368,24 @@ class TrackEvent : public ::protozero::Message {
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
       ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_CallstackWeight =
+    ::protozero::proto_utils::FieldMetadata<
+      57,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kDouble,
+      double,
+      TrackEvent>;
+
+  static constexpr FieldMetadata_CallstackWeight kCallstackWeight{};
+  void set_callstack_weight(double value) {
+    static constexpr uint32_t field_id = FieldMetadata_CallstackWeight::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kDouble>
         ::Append(*this, field_id, value);
   }
 
@@ -7137,45 +7172,45 @@ class TrackEvent_LegacyEvent : public ::protozero::Message {
   }
 };
 
-class TrackEvent_Callstack_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/1> {
+class TrackEvent_InlineCallstack_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/1> {
  public:
-  TrackEvent_Callstack_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit TrackEvent_Callstack_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit TrackEvent_Callstack_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  TrackEvent_InlineCallstack_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit TrackEvent_InlineCallstack_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit TrackEvent_InlineCallstack_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
   bool has_frames() const { return at<1>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> frames() const { return GetRepeated<::protozero::ConstBytes>(1); }
 };
 
-class TrackEvent_Callstack : public ::protozero::Message {
+class TrackEvent_InlineCallstack : public ::protozero::Message {
  public:
-  using Decoder = TrackEvent_Callstack_Decoder;
+  using Decoder = TrackEvent_InlineCallstack_Decoder;
   enum : int32_t {
     kFramesFieldNumber = 1,
   };
-  static constexpr const char* GetName() { return ".perfetto.protos.TrackEvent.Callstack"; }
+  static constexpr const char* GetName() { return ".perfetto.protos.TrackEvent.InlineCallstack"; }
 
-  using Frame = ::perfetto::protos::pbzero::TrackEvent_Callstack_Frame;
+  using Frame = ::perfetto::protos::pbzero::TrackEvent_InlineCallstack_Frame;
 
   using FieldMetadata_Frames =
     ::protozero::proto_utils::FieldMetadata<
       1,
       ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
       ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      TrackEvent_Callstack_Frame,
-      TrackEvent_Callstack>;
+      TrackEvent_InlineCallstack_Frame,
+      TrackEvent_InlineCallstack>;
 
   static constexpr FieldMetadata_Frames kFrames{};
-  template <typename T = TrackEvent_Callstack_Frame> T* add_frames() {
+  template <typename T = TrackEvent_InlineCallstack_Frame> T* add_frames() {
     return BeginNestedMessage<T>(1);
   }
 
 };
 
-class TrackEvent_Callstack_Frame_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
+class TrackEvent_InlineCallstack_Frame_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
  public:
-  TrackEvent_Callstack_Frame_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit TrackEvent_Callstack_Frame_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit TrackEvent_Callstack_Frame_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  TrackEvent_InlineCallstack_Frame_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit TrackEvent_InlineCallstack_Frame_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit TrackEvent_InlineCallstack_Frame_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
   bool has_function_name() const { return at<1>().valid(); }
   ::protozero::ConstChars function_name() const { return at<1>().as_string(); }
   bool has_source_file() const { return at<2>().valid(); }
@@ -7184,15 +7219,15 @@ class TrackEvent_Callstack_Frame_Decoder : public ::protozero::TypedProtoDecoder
   uint32_t line_number() const { return at<3>().as_uint32(); }
 };
 
-class TrackEvent_Callstack_Frame : public ::protozero::Message {
+class TrackEvent_InlineCallstack_Frame : public ::protozero::Message {
  public:
-  using Decoder = TrackEvent_Callstack_Frame_Decoder;
+  using Decoder = TrackEvent_InlineCallstack_Frame_Decoder;
   enum : int32_t {
     kFunctionNameFieldNumber = 1,
     kSourceFileFieldNumber = 2,
     kLineNumberFieldNumber = 3,
   };
-  static constexpr const char* GetName() { return ".perfetto.protos.TrackEvent.Callstack.Frame"; }
+  static constexpr const char* GetName() { return ".perfetto.protos.TrackEvent.InlineCallstack.Frame"; }
 
 
   using FieldMetadata_FunctionName =
@@ -7201,7 +7236,7 @@ class TrackEvent_Callstack_Frame : public ::protozero::Message {
       ::protozero::proto_utils::RepetitionType::kNotRepeated,
       ::protozero::proto_utils::ProtoSchemaType::kString,
       std::string,
-      TrackEvent_Callstack_Frame>;
+      TrackEvent_InlineCallstack_Frame>;
 
   static constexpr FieldMetadata_FunctionName kFunctionName{};
   void set_function_name(const char* data, size_t size) {
@@ -7225,7 +7260,7 @@ class TrackEvent_Callstack_Frame : public ::protozero::Message {
       ::protozero::proto_utils::RepetitionType::kNotRepeated,
       ::protozero::proto_utils::ProtoSchemaType::kString,
       std::string,
-      TrackEvent_Callstack_Frame>;
+      TrackEvent_InlineCallstack_Frame>;
 
   static constexpr FieldMetadata_SourceFile kSourceFile{};
   void set_source_file(const char* data, size_t size) {
@@ -7249,7 +7284,7 @@ class TrackEvent_Callstack_Frame : public ::protozero::Message {
       ::protozero::proto_utils::RepetitionType::kNotRepeated,
       ::protozero::proto_utils::ProtoSchemaType::kUint32,
       uint32_t,
-      TrackEvent_Callstack_Frame>;
+      TrackEvent_InlineCallstack_Frame>;
 
   static constexpr FieldMetadata_LineNumber kLineNumber{};
   void set_line_number(uint32_t value) {
@@ -7724,7 +7759,8 @@ namespace perfetto {
 namespace protos {
 namespace gen {
 class TraceConfig;
-class TraceConfig_Note;
+class TraceAttributes;
+class TraceAttributes_Attribute;
 class PriorityBoostConfig;
 class TraceConfig_SessionSemaphore;
 class TraceConfig_CmdTraceStartDelay;
@@ -7733,6 +7769,9 @@ class TraceConfig_TraceFilter;
 class TraceConfig_TraceFilter_StringFilterChain;
 class TraceConfig_TraceFilter_StringFilterRule;
 class TraceConfig_IncidentReportConfig;
+class TraceConfig_CompressionConfig;
+class TraceConfig_CompressionConfig_Zstd;
+class TraceConfig_CompressionConfig_Deflate;
 class TraceConfig_IncrementalStateConfig;
 class TraceConfig_TriggerConfig;
 class TraceConfig_TriggerConfig_Trigger;
@@ -7824,7 +7863,6 @@ enum TraceConfig_BufferConfig_FillPolicy : int {
 enum TraceConfig_BufferConfig_ExperimentalMode : int {
   TraceConfig_BufferConfig_ExperimentalMode_MODE_UNSPECIFIED = 0,
   TraceConfig_BufferConfig_ExperimentalMode_TRACE_BUFFER_V2 = 1,
-  TraceConfig_BufferConfig_ExperimentalMode_TRACE_BUFFER_V2_SHADOW_MODE = 2,
 };
 
 class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj {
@@ -7837,12 +7875,12 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
   using GuardrailOverrides = TraceConfig_GuardrailOverrides;
   using TriggerConfig = TraceConfig_TriggerConfig;
   using IncrementalStateConfig = TraceConfig_IncrementalStateConfig;
+  using CompressionConfig = TraceConfig_CompressionConfig;
   using IncidentReportConfig = TraceConfig_IncidentReportConfig;
   using TraceFilter = TraceConfig_TraceFilter;
   using AndroidReportConfig = TraceConfig_AndroidReportConfig;
   using CmdTraceStartDelay = TraceConfig_CmdTraceStartDelay;
   using SessionSemaphore = TraceConfig_SessionSemaphore;
-  using Note = TraceConfig_Note;
   using LockdownModeOperation = TraceConfig_LockdownModeOperation;
   static constexpr auto LOCKDOWN_UNCHANGED = TraceConfig_LockdownModeOperation_LOCKDOWN_UNCHANGED;
   static constexpr auto LOCKDOWN_CLEAR = TraceConfig_LockdownModeOperation_LOCKDOWN_CLEAR;
@@ -7901,6 +7939,7 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
     kAllowUserBuildTracingFieldNumber = 19,
     kUniqueSessionNameFieldNumber = 22,
     kCompressionTypeFieldNumber = 24,
+    kCompressionFieldNumber = 47,
     kIncidentReportConfigFieldNumber = 25,
     kStatsdLoggingFieldNumber = 31,
     kTraceUuidMsbFieldNumber = 27,
@@ -7914,7 +7953,7 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
     kWriteFlushModeFieldNumber = 44,
     kFflushPostWriteFieldNumber = 45,
     kTraceAllMachinesFieldNumber = 43,
-    kNotesFieldNumber = 46,
+    kTraceAttributesFieldNumber = 48,
   };
 
   TraceConfig();
@@ -8048,6 +8087,10 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
   TraceConfig_CompressionType compression_type() const { return compression_type_; }
   void set_compression_type(TraceConfig_CompressionType value) { compression_type_ = value; _has_field_.set(24); }
 
+  bool has_compression() const { return _has_field_[47]; }
+  const TraceConfig_CompressionConfig& compression() const { return *compression_; }
+  TraceConfig_CompressionConfig* mutable_compression() { _has_field_.set(47); return compression_.get(); }
+
   bool has_incident_report_config() const { return _has_field_[25]; }
   const TraceConfig_IncidentReportConfig& incident_report_config() const { return *incident_report_config_; }
   TraceConfig_IncidentReportConfig* mutable_incident_report_config() { _has_field_.set(25); return incident_report_config_.get(); }
@@ -8102,11 +8145,9 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
   bool trace_all_machines() const { return trace_all_machines_; }
   void set_trace_all_machines(bool value) { trace_all_machines_ = value; _has_field_.set(43); }
 
-  const std::vector<TraceConfig_Note>& notes() const { return notes_; }
-  std::vector<TraceConfig_Note>* mutable_notes() { return &notes_; }
-  int notes_size() const;
-  void clear_notes();
-  TraceConfig_Note* add_notes();
+  bool has_trace_attributes() const { return _has_field_[48]; }
+  const TraceAttributes& trace_attributes() const { return *trace_attributes_; }
+  TraceAttributes* mutable_trace_attributes() { _has_field_.set(48); return trace_attributes_.get(); }
 
  private:
   std::vector<TraceConfig_BufferConfig> buffers_;
@@ -8136,6 +8177,7 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
   bool allow_user_build_tracing_{};
   std::string unique_session_name_{};
   TraceConfig_CompressionType compression_type_{};
+  ::protozero::CopyablePtr<TraceConfig_CompressionConfig> compression_;
   ::protozero::CopyablePtr<TraceConfig_IncidentReportConfig> incident_report_config_;
   TraceConfig_StatsdLogging statsd_logging_{};
   int64_t trace_uuid_msb_{};
@@ -8149,54 +8191,13 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig : public ::protozero::CppMessageObj 
   TraceConfig_WriteFlushMode write_flush_mode_{};
   TraceConfig_FFlushMode fflush_post_write_{};
   bool trace_all_machines_{};
-  std::vector<TraceConfig_Note> notes_;
+  ::protozero::CopyablePtr<TraceAttributes> trace_attributes_;
 
   // Allows to preserve unknown protobuf fields for compatibility
   // with future versions of .proto files.
   std::string unknown_fields_;
 
-  std::bitset<47> _has_field_{};
-};
-
-
-class PERFETTO_EXPORT_COMPONENT TraceConfig_Note : public ::protozero::CppMessageObj {
- public:
-  enum FieldNumbers {
-    kKeyFieldNumber = 1,
-    kValueFieldNumber = 2,
-  };
-
-  TraceConfig_Note();
-  ~TraceConfig_Note() override;
-  TraceConfig_Note(TraceConfig_Note&&) noexcept;
-  TraceConfig_Note& operator=(TraceConfig_Note&&);
-  TraceConfig_Note(const TraceConfig_Note&);
-  TraceConfig_Note& operator=(const TraceConfig_Note&);
-  bool operator==(const TraceConfig_Note&) const;
-  bool operator!=(const TraceConfig_Note& other) const { return !(*this == other); }
-
-  bool ParseFromArray(const void*, size_t) override;
-  std::string SerializeAsString() const override;
-  std::vector<uint8_t> SerializeAsArray() const override;
-  void Serialize(::protozero::Message*) const;
-
-  bool has_key() const { return _has_field_[1]; }
-  const std::string& key() const { return key_; }
-  void set_key(const std::string& value) { key_ = value; _has_field_.set(1); }
-
-  bool has_value() const { return _has_field_[2]; }
-  const std::string& value() const { return value_; }
-  void set_value(const std::string& value) { value_ = value; _has_field_.set(2); }
-
- private:
-  std::string key_{};
-  std::string value_{};
-
-  // Allows to preserve unknown protobuf fields for compatibility
-  // with future versions of .proto files.
-  std::string unknown_fields_;
-
-  std::bitset<3> _has_field_{};
+  std::bitset<49> _has_field_{};
 };
 
 
@@ -8566,6 +8567,113 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig_IncidentReportConfig : public ::prot
 };
 
 
+class PERFETTO_EXPORT_COMPONENT TraceConfig_CompressionConfig : public ::protozero::CppMessageObj {
+ public:
+  using Deflate = TraceConfig_CompressionConfig_Deflate;
+  using Zstd = TraceConfig_CompressionConfig_Zstd;
+  enum FieldNumbers {
+    kDeflateFieldNumber = 1,
+    kZstdFieldNumber = 2,
+  };
+
+  TraceConfig_CompressionConfig();
+  ~TraceConfig_CompressionConfig() override;
+  TraceConfig_CompressionConfig(TraceConfig_CompressionConfig&&) noexcept;
+  TraceConfig_CompressionConfig& operator=(TraceConfig_CompressionConfig&&);
+  TraceConfig_CompressionConfig(const TraceConfig_CompressionConfig&);
+  TraceConfig_CompressionConfig& operator=(const TraceConfig_CompressionConfig&);
+  bool operator==(const TraceConfig_CompressionConfig&) const;
+  bool operator!=(const TraceConfig_CompressionConfig& other) const { return !(*this == other); }
+
+  bool ParseFromArray(const void*, size_t) override;
+  std::string SerializeAsString() const override;
+  std::vector<uint8_t> SerializeAsArray() const override;
+  void Serialize(::protozero::Message*) const;
+
+  bool has_deflate() const { return _has_field_[1]; }
+  const TraceConfig_CompressionConfig_Deflate& deflate() const { return *deflate_; }
+  TraceConfig_CompressionConfig_Deflate* mutable_deflate() { _has_field_.set(1); return deflate_.get(); }
+
+  bool has_zstd() const { return _has_field_[2]; }
+  const TraceConfig_CompressionConfig_Zstd& zstd() const { return *zstd_; }
+  TraceConfig_CompressionConfig_Zstd* mutable_zstd() { _has_field_.set(2); return zstd_.get(); }
+
+ private:
+  ::protozero::CopyablePtr<TraceConfig_CompressionConfig_Deflate> deflate_;
+  ::protozero::CopyablePtr<TraceConfig_CompressionConfig_Zstd> zstd_;
+
+  // Allows to preserve unknown protobuf fields for compatibility
+  // with future versions of .proto files.
+  std::string unknown_fields_;
+
+  std::bitset<3> _has_field_{};
+};
+
+
+class PERFETTO_EXPORT_COMPONENT TraceConfig_CompressionConfig_Zstd : public ::protozero::CppMessageObj {
+ public:
+  enum FieldNumbers {
+    kLevelFieldNumber = 1,
+  };
+
+  TraceConfig_CompressionConfig_Zstd();
+  ~TraceConfig_CompressionConfig_Zstd() override;
+  TraceConfig_CompressionConfig_Zstd(TraceConfig_CompressionConfig_Zstd&&) noexcept;
+  TraceConfig_CompressionConfig_Zstd& operator=(TraceConfig_CompressionConfig_Zstd&&);
+  TraceConfig_CompressionConfig_Zstd(const TraceConfig_CompressionConfig_Zstd&);
+  TraceConfig_CompressionConfig_Zstd& operator=(const TraceConfig_CompressionConfig_Zstd&);
+  bool operator==(const TraceConfig_CompressionConfig_Zstd&) const;
+  bool operator!=(const TraceConfig_CompressionConfig_Zstd& other) const { return !(*this == other); }
+
+  bool ParseFromArray(const void*, size_t) override;
+  std::string SerializeAsString() const override;
+  std::vector<uint8_t> SerializeAsArray() const override;
+  void Serialize(::protozero::Message*) const;
+
+  bool has_level() const { return _has_field_[1]; }
+  int32_t level() const { return level_; }
+  void set_level(int32_t value) { level_ = value; _has_field_.set(1); }
+
+ private:
+  int32_t level_{};
+
+  // Allows to preserve unknown protobuf fields for compatibility
+  // with future versions of .proto files.
+  std::string unknown_fields_;
+
+  std::bitset<2> _has_field_{};
+};
+
+
+class PERFETTO_EXPORT_COMPONENT TraceConfig_CompressionConfig_Deflate : public ::protozero::CppMessageObj {
+ public:
+  enum FieldNumbers {
+  };
+
+  TraceConfig_CompressionConfig_Deflate();
+  ~TraceConfig_CompressionConfig_Deflate() override;
+  TraceConfig_CompressionConfig_Deflate(TraceConfig_CompressionConfig_Deflate&&) noexcept;
+  TraceConfig_CompressionConfig_Deflate& operator=(TraceConfig_CompressionConfig_Deflate&&);
+  TraceConfig_CompressionConfig_Deflate(const TraceConfig_CompressionConfig_Deflate&);
+  TraceConfig_CompressionConfig_Deflate& operator=(const TraceConfig_CompressionConfig_Deflate&);
+  bool operator==(const TraceConfig_CompressionConfig_Deflate&) const;
+  bool operator!=(const TraceConfig_CompressionConfig_Deflate& other) const { return !(*this == other); }
+
+  bool ParseFromArray(const void*, size_t) override;
+  std::string SerializeAsString() const override;
+  std::vector<uint8_t> SerializeAsArray() const override;
+  void Serialize(::protozero::Message*) const;
+
+ private:
+
+  // Allows to preserve unknown protobuf fields for compatibility
+  // with future versions of .proto files.
+  std::string unknown_fields_;
+
+  std::bitset<2> _has_field_{};
+};
+
+
 class PERFETTO_EXPORT_COMPONENT TraceConfig_IncrementalStateConfig : public ::protozero::CppMessageObj {
  public:
   enum FieldNumbers {
@@ -8876,6 +8984,7 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig_BuiltinDataSource : public ::protoze
     kPreferSuspendClockForSnapshotFieldNumber = 7,
     kDisableChunkUsageHistogramsFieldNumber = 8,
     kDisableExtensionDescriptorsFieldNumber = 9,
+    kEnableConcurrentSessionEventsFieldNumber = 10,
   };
 
   TraceConfig_BuiltinDataSource();
@@ -8928,6 +9037,10 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig_BuiltinDataSource : public ::protoze
   bool disable_extension_descriptors() const { return disable_extension_descriptors_; }
   void set_disable_extension_descriptors(bool value) { disable_extension_descriptors_ = value; _has_field_.set(9); }
 
+  bool has_enable_concurrent_session_events() const { return _has_field_[10]; }
+  bool enable_concurrent_session_events() const { return enable_concurrent_session_events_; }
+  void set_enable_concurrent_session_events(bool value) { enable_concurrent_session_events_ = value; _has_field_.set(10); }
+
  private:
   bool disable_clock_snapshotting_{};
   bool disable_trace_config_{};
@@ -8938,12 +9051,13 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig_BuiltinDataSource : public ::protoze
   bool prefer_suspend_clock_for_snapshot_{};
   bool disable_chunk_usage_histograms_{};
   bool disable_extension_descriptors_{};
+  bool enable_concurrent_session_events_{};
 
   // Allows to preserve unknown protobuf fields for compatibility
   // with future versions of .proto files.
   std::string unknown_fields_;
 
-  std::bitset<10> _has_field_{};
+  std::bitset<11> _has_field_{};
 };
 
 
@@ -9020,9 +9134,8 @@ class PERFETTO_EXPORT_COMPONENT TraceConfig_BufferConfig : public ::protozero::C
   using ExperimentalMode = TraceConfig_BufferConfig_ExperimentalMode;
   static constexpr auto MODE_UNSPECIFIED = TraceConfig_BufferConfig_ExperimentalMode_MODE_UNSPECIFIED;
   static constexpr auto TRACE_BUFFER_V2 = TraceConfig_BufferConfig_ExperimentalMode_TRACE_BUFFER_V2;
-  static constexpr auto TRACE_BUFFER_V2_SHADOW_MODE = TraceConfig_BufferConfig_ExperimentalMode_TRACE_BUFFER_V2_SHADOW_MODE;
   static constexpr auto ExperimentalMode_MIN = TraceConfig_BufferConfig_ExperimentalMode_MODE_UNSPECIFIED;
-  static constexpr auto ExperimentalMode_MAX = TraceConfig_BufferConfig_ExperimentalMode_TRACE_BUFFER_V2_SHADOW_MODE;
+  static constexpr auto ExperimentalMode_MAX = TraceConfig_BufferConfig_ExperimentalMode_TRACE_BUFFER_V2;
   enum FieldNumbers {
     kSizeKbFieldNumber = 1,
     kFillPolicyFieldNumber = 4,
@@ -10642,7 +10755,8 @@ namespace internal {
 // So for each data source, for each instance, for each thread we keep one
 // TraceWriter.
 // The lookup is O(1): Given the TLS object, the TraceWriter is just tls[M][N].
-class TracingTLS : public Platform::ThreadLocalObject {
+class PERFETTO_EXPORT_COMPONENT TracingTLS
+    : public Platform::ThreadLocalObject {
  public:
   ~TracingTLS() override;
 
@@ -11171,8 +11285,6 @@ namespace perfetto {
 namespace protos {
 namespace pbzero {
 class AndroidAflags;
-class AndroidCameraFrameEvent;
-class AndroidCameraSessionStats;
 class AndroidEnergyEstimationBreakdown;
 class AndroidGameInterventionList;
 class AndroidLogPacket;
@@ -11185,13 +11297,13 @@ class ChromeEventBundle;
 class ChromeMetadataPacket;
 class ChromeTrigger;
 class ClockSnapshot;
+class ConcurrentSessionEvent;
 class CpuInfo;
 class CpuPerUidData;
 class DeobfuscationMapping;
 class EntityStateResidency;
 class EtwTraceEventBundle;
 class ExtensionDescriptor;
-class FrameTimelineEvent;
 class FtraceEventBundle;
 class FtraceStats;
 class GenericGpuFrequencyEvent;
@@ -11224,6 +11336,7 @@ class ProcessTree;
 class ProfilePacket;
 class RemoteClockSync;
 class SmapsPacket;
+class StackSample;
 class StatsdAtom;
 class StreamingAllocation;
 class StreamingFree;
@@ -11446,22 +11559,20 @@ class TracePacket_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID
   ::protozero::ConstBytes smaps_packet() const { return at<68>().as_bytes(); }
   bool has_service_event() const { return at<69>().valid(); }
   ::protozero::ConstBytes service_event() const { return at<69>().as_bytes(); }
+  bool has_concurrent_session_event() const { return at<134>().valid(); }
+  ::protozero::ConstBytes concurrent_session_event() const { return at<134>().as_bytes(); }
+  bool has_stack_sample() const { return at<135>().valid(); }
+  ::protozero::ConstBytes stack_sample() const { return at<135>().as_bytes(); }
   bool has_initial_display_state() const { return at<70>().valid(); }
   ::protozero::ConstBytes initial_display_state() const { return at<70>().as_bytes(); }
   bool has_gpu_mem_total_event() const { return at<71>().valid(); }
   ::protozero::ConstBytes gpu_mem_total_event() const { return at<71>().as_bytes(); }
   bool has_memory_tracker_snapshot() const { return at<73>().valid(); }
   ::protozero::ConstBytes memory_tracker_snapshot() const { return at<73>().as_bytes(); }
-  bool has_frame_timeline_event() const { return at<76>().valid(); }
-  ::protozero::ConstBytes frame_timeline_event() const { return at<76>().as_bytes(); }
   bool has_android_energy_estimation_breakdown() const { return at<77>().valid(); }
   ::protozero::ConstBytes android_energy_estimation_breakdown() const { return at<77>().as_bytes(); }
   bool has_ui_state() const { return at<78>().valid(); }
   ::protozero::ConstBytes ui_state() const { return at<78>().as_bytes(); }
-  bool has_android_camera_frame_event() const { return at<80>().valid(); }
-  ::protozero::ConstBytes android_camera_frame_event() const { return at<80>().as_bytes(); }
-  bool has_android_camera_session_stats() const { return at<81>().valid(); }
-  ::protozero::ConstBytes android_camera_session_stats() const { return at<81>().as_bytes(); }
   bool has_translation_table() const { return at<82>().valid(); }
   ::protozero::ConstBytes translation_table() const { return at<82>().as_bytes(); }
   bool has_android_game_intervention_list() const { return at<83>().valid(); }
@@ -11498,6 +11609,8 @@ class TracePacket_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID
   ::protozero::ConstBytes synchronization_marker() const { return at<36>().as_bytes(); }
   bool has_compressed_packets() const { return at<50>().valid(); }
   ::protozero::ConstBytes compressed_packets() const { return at<50>().as_bytes(); }
+  bool has_zstd_compressed_packets() const { return at<133>().valid(); }
+  ::protozero::ConstBytes zstd_compressed_packets() const { return at<133>().as_bytes(); }
   bool has_extension_descriptor() const { return at<72>().valid(); }
   ::protozero::ConstBytes extension_descriptor() const { return at<72>().as_bytes(); }
   bool has_etw_events() const { return at<95>().valid(); }
@@ -11601,14 +11714,13 @@ class TracePacket : public ::protozero::Message {
     kCpuInfoFieldNumber = 67,
     kSmapsPacketFieldNumber = 68,
     kServiceEventFieldNumber = 69,
+    kConcurrentSessionEventFieldNumber = 134,
+    kStackSampleFieldNumber = 135,
     kInitialDisplayStateFieldNumber = 70,
     kGpuMemTotalEventFieldNumber = 71,
     kMemoryTrackerSnapshotFieldNumber = 73,
-    kFrameTimelineEventFieldNumber = 76,
     kAndroidEnergyEstimationBreakdownFieldNumber = 77,
     kUiStateFieldNumber = 78,
-    kAndroidCameraFrameEventFieldNumber = 80,
-    kAndroidCameraSessionStatsFieldNumber = 81,
     kTranslationTableFieldNumber = 82,
     kAndroidGameInterventionListFieldNumber = 83,
     kStatsdAtomFieldNumber = 84,
@@ -11627,6 +11739,7 @@ class TracePacket : public ::protozero::Message {
     kFtraceEventsFieldNumber = 1,
     kSynchronizationMarkerFieldNumber = 36,
     kCompressedPacketsFieldNumber = 50,
+    kZstdCompressedPacketsFieldNumber = 133,
     kExtensionDescriptorFieldNumber = 72,
     kEtwEventsFieldNumber = 95,
     kV8JsCodeFieldNumber = 99,
@@ -12319,6 +12432,34 @@ class TracePacket : public ::protozero::Message {
   }
 
 
+  using FieldMetadata_ConcurrentSessionEvent =
+    ::protozero::proto_utils::FieldMetadata<
+      134,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      ConcurrentSessionEvent,
+      TracePacket>;
+
+  static constexpr FieldMetadata_ConcurrentSessionEvent kConcurrentSessionEvent{};
+  template <typename T = ConcurrentSessionEvent> T* set_concurrent_session_event() {
+    return BeginNestedMessage<T>(134);
+  }
+
+
+  using FieldMetadata_StackSample =
+    ::protozero::proto_utils::FieldMetadata<
+      135,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample,
+      TracePacket>;
+
+  static constexpr FieldMetadata_StackSample kStackSample{};
+  template <typename T = StackSample> T* set_stack_sample() {
+    return BeginNestedMessage<T>(135);
+  }
+
+
   using FieldMetadata_InitialDisplayState =
     ::protozero::proto_utils::FieldMetadata<
       70,
@@ -12361,20 +12502,6 @@ class TracePacket : public ::protozero::Message {
   }
 
 
-  using FieldMetadata_FrameTimelineEvent =
-    ::protozero::proto_utils::FieldMetadata<
-      76,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      FrameTimelineEvent,
-      TracePacket>;
-
-  static constexpr FieldMetadata_FrameTimelineEvent kFrameTimelineEvent{};
-  template <typename T = FrameTimelineEvent> T* set_frame_timeline_event() {
-    return BeginNestedMessage<T>(76);
-  }
-
-
   using FieldMetadata_AndroidEnergyEstimationBreakdown =
     ::protozero::proto_utils::FieldMetadata<
       77,
@@ -12400,34 +12527,6 @@ class TracePacket : public ::protozero::Message {
   static constexpr FieldMetadata_UiState kUiState{};
   template <typename T = UiState> T* set_ui_state() {
     return BeginNestedMessage<T>(78);
-  }
-
-
-  using FieldMetadata_AndroidCameraFrameEvent =
-    ::protozero::proto_utils::FieldMetadata<
-      80,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      AndroidCameraFrameEvent,
-      TracePacket>;
-
-  static constexpr FieldMetadata_AndroidCameraFrameEvent kAndroidCameraFrameEvent{};
-  template <typename T = AndroidCameraFrameEvent> T* set_android_camera_frame_event() {
-    return BeginNestedMessage<T>(80);
-  }
-
-
-  using FieldMetadata_AndroidCameraSessionStats =
-    ::protozero::proto_utils::FieldMetadata<
-      81,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      AndroidCameraSessionStats,
-      TracePacket>;
-
-  static constexpr FieldMetadata_AndroidCameraSessionStats kAndroidCameraSessionStats{};
-  template <typename T = AndroidCameraSessionStats> T* set_android_camera_session_stats() {
-    return BeginNestedMessage<T>(81);
   }
 
 
@@ -12696,6 +12795,30 @@ class TracePacket : public ::protozero::Message {
   }
   void set_compressed_packets(std::string value) {
     static constexpr uint32_t field_id = FieldMetadata_CompressedPackets::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kBytes>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_ZstdCompressedPackets =
+    ::protozero::proto_utils::FieldMetadata<
+      133,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kBytes,
+      std::string,
+      TracePacket>;
+
+  static constexpr FieldMetadata_ZstdCompressedPackets kZstdCompressedPackets{};
+  void set_zstd_compressed_packets(const uint8_t* data, size_t size) {
+    AppendBytes(FieldMetadata_ZstdCompressedPackets::kFieldId, data, size);
+  }
+  void set_zstd_compressed_packets(::protozero::ConstBytes bytes) {
+    AppendBytes(FieldMetadata_ZstdCompressedPackets::kFieldId, bytes.data, bytes.size);
+  }
+  void set_zstd_compressed_packets(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_ZstdCompressedPackets::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -16301,15 +16424,35 @@ class has_traced_value_support {
 
 }  // namespace internal
 
+// A type T is writable into a trace if one of the following is defined:
+// - T::WriteIntoTracedValue(TracedValue) const
+// - T::WriteIntoTrace(TracedValue) const
+// - perfetto::TraceFormatTraits<T>::WriteIntoTracedValue(TracedValue, const T&)
+// - perfetto::TraceFormatTraits<T>::WriteIntoTrace(TracedValue, const T&)
+// The member forms are preferred for code that can depend on perfetto directly;
+// the TraceFormatTraits forms are for types owned by code that cannot. See the
+// examples at the top of this file. Primitives, strings, pointers, STL
+// containers and protozero enums are supported out of the box.
+//
+// If the static_assert below fires, the most common causes are:
+// - No conversion is defined for T.
+// - The conversion method is not const, or does not take TracedValue by value.
+// - The method name is misspelled: only WriteIntoTrace and WriteIntoTracedValue
+//   are recognised.
+// - The TraceFormatTraits<T> specialisation is not in the perfetto namespace.
+// - The header defining the conversion is not included at the TRACE_EVENT call
+//   site.
+// - T is a pointer or smart pointer to a type that is itself not writable.
+// - T is a plain enum with no conversion (only protozero enums are automatic).
 template <typename T>
 void WriteIntoTracedValue(TracedValue context, T&& value) {
-  // TODO(altimin): Add a URL to documentation and a list of common failure
-  // patterns.
   static_assert(
       internal::has_traced_value_support<T>::value,
       "The provided type (passed to TRACE_EVENT argument / TracedArray::Append "
       "/ TracedDictionary::Add) does not support being written in a trace "
-      "format. Please see the comment in traced_value.h for more details.");
+      "format. Please see the comment above WriteIntoTracedValue in "
+      "traced_value.h for the list of supported conversions and common "
+      "failure patterns.");
 
   // Should be kept in sync with check_traced_value_support_t!
   internal::WriteImpl(base::priority_tag<internal::kMaxWriteImplPriority>(),
@@ -19572,6 +19715,10 @@ class InternedV8WasmScript;
 class LogMessageBody;
 class Mapping;
 class SourceLocation;
+class StackSample_AsyncContextDescriptor;
+class StackSample_CounterDescriptor;
+class StackSample_ExecutionContext;
+class StackSample_TaskContext;
 class UnsymbolizedSourceLocation;
 } // Namespace pbzero.
 } // Namespace protos.
@@ -19581,7 +19728,7 @@ namespace perfetto {
 namespace protos {
 namespace pbzero {
 
-class InternedData_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/47> {
+class InternedData_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/51> {
  public:
   InternedData_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit InternedData_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -19594,14 +19741,10 @@ class InternedData_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_I
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> debug_annotation_names() const { return GetRepeated<::protozero::ConstBytes>(3); }
   bool has_debug_annotation_value_type_names() const { return at<27>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> debug_annotation_value_type_names() const { return GetRepeated<::protozero::ConstBytes>(27); }
-  bool has_source_locations() const { return at<4>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> source_locations() const { return GetRepeated<::protozero::ConstBytes>(4); }
-  bool has_unsymbolized_source_locations() const { return at<28>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> unsymbolized_source_locations() const { return GetRepeated<::protozero::ConstBytes>(28); }
-  bool has_log_message_body() const { return at<20>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> log_message_body() const { return GetRepeated<::protozero::ConstBytes>(20); }
-  bool has_histogram_names() const { return at<25>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> histogram_names() const { return GetRepeated<::protozero::ConstBytes>(25); }
+  bool has_debug_annotation_string_values() const { return at<29>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> debug_annotation_string_values() const { return GetRepeated<::protozero::ConstBytes>(29); }
+  bool has_correlation_id_str() const { return at<43>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> correlation_id_str() const { return GetRepeated<::protozero::ConstBytes>(43); }
   bool has_build_ids() const { return at<16>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> build_ids() const { return GetRepeated<::protozero::ConstBytes>(16); }
   bool has_mapping_paths() const { return at<17>().valid(); }
@@ -19616,16 +19759,32 @@ class InternedData_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_I
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> frames() const { return GetRepeated<::protozero::ConstBytes>(6); }
   bool has_callstacks() const { return at<7>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> callstacks() const { return GetRepeated<::protozero::ConstBytes>(7); }
+  bool has_stack_sample_task_contexts() const { return at<48>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> stack_sample_task_contexts() const { return GetRepeated<::protozero::ConstBytes>(48); }
+  bool has_stack_sample_execution_contexts() const { return at<49>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> stack_sample_execution_contexts() const { return GetRepeated<::protozero::ConstBytes>(49); }
+  bool has_stack_sample_counter_descriptors() const { return at<50>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> stack_sample_counter_descriptors() const { return GetRepeated<::protozero::ConstBytes>(50); }
+  bool has_stack_sample_async_context_descriptors() const { return at<51>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> stack_sample_async_context_descriptors() const { return GetRepeated<::protozero::ConstBytes>(51); }
+  bool has_source_locations() const { return at<4>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> source_locations() const { return GetRepeated<::protozero::ConstBytes>(4); }
+  bool has_unsymbolized_source_locations() const { return at<28>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> unsymbolized_source_locations() const { return GetRepeated<::protozero::ConstBytes>(28); }
+  bool has_log_message_body() const { return at<20>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> log_message_body() const { return GetRepeated<::protozero::ConstBytes>(20); }
+  bool has_histogram_names() const { return at<25>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> histogram_names() const { return GetRepeated<::protozero::ConstBytes>(25); }
   bool has_vulkan_memory_keys() const { return at<22>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> vulkan_memory_keys() const { return GetRepeated<::protozero::ConstBytes>(22); }
   bool has_graphics_contexts() const { return at<23>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> graphics_contexts() const { return GetRepeated<::protozero::ConstBytes>(23); }
   bool has_gpu_specifications() const { return at<24>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> gpu_specifications() const { return GetRepeated<::protozero::ConstBytes>(24); }
+  bool has_gpu_counter_descriptors() const { return at<47>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> gpu_counter_descriptors() const { return GetRepeated<::protozero::ConstBytes>(47); }
   bool has_kernel_symbols() const { return at<26>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> kernel_symbols() const { return GetRepeated<::protozero::ConstBytes>(26); }
-  bool has_debug_annotation_string_values() const { return at<29>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> debug_annotation_string_values() const { return GetRepeated<::protozero::ConstBytes>(29); }
   bool has_v8_js_function_name() const { return at<31>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> v8_js_function_name() const { return GetRepeated<::protozero::ConstBytes>(31); }
   bool has_v8_js_function() const { return at<32>().valid(); }
@@ -19636,26 +19795,6 @@ class InternedData_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_I
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> v8_wasm_script() const { return GetRepeated<::protozero::ConstBytes>(34); }
   bool has_v8_isolate() const { return at<35>().valid(); }
   ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> v8_isolate() const { return GetRepeated<::protozero::ConstBytes>(35); }
-  bool has_protolog_string_args() const { return at<36>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> protolog_string_args() const { return GetRepeated<::protozero::ConstBytes>(36); }
-  bool has_protolog_stacktrace() const { return at<37>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> protolog_stacktrace() const { return GetRepeated<::protozero::ConstBytes>(37); }
-  bool has_viewcapture_package_name() const { return at<38>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> viewcapture_package_name() const { return GetRepeated<::protozero::ConstBytes>(38); }
-  bool has_viewcapture_window_name() const { return at<39>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> viewcapture_window_name() const { return GetRepeated<::protozero::ConstBytes>(39); }
-  bool has_viewcapture_view_id() const { return at<40>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> viewcapture_view_id() const { return GetRepeated<::protozero::ConstBytes>(40); }
-  bool has_viewcapture_class_name() const { return at<41>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> viewcapture_class_name() const { return GetRepeated<::protozero::ConstBytes>(41); }
-  bool has_viewcapture_content_description() const { return at<45>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> viewcapture_content_description() const { return GetRepeated<::protozero::ConstBytes>(45); }
-  bool has_viewcapture_text() const { return at<46>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> viewcapture_text() const { return GetRepeated<::protozero::ConstBytes>(46); }
-  bool has_correlation_id_str() const { return at<43>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> correlation_id_str() const { return GetRepeated<::protozero::ConstBytes>(43); }
-  bool has_gpu_counter_descriptors() const { return at<47>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> gpu_counter_descriptors() const { return GetRepeated<::protozero::ConstBytes>(47); }
 };
 
 class InternedData : public ::protozero::Message {
@@ -19666,10 +19805,8 @@ class InternedData : public ::protozero::Message {
     kEventNamesFieldNumber = 2,
     kDebugAnnotationNamesFieldNumber = 3,
     kDebugAnnotationValueTypeNamesFieldNumber = 27,
-    kSourceLocationsFieldNumber = 4,
-    kUnsymbolizedSourceLocationsFieldNumber = 28,
-    kLogMessageBodyFieldNumber = 20,
-    kHistogramNamesFieldNumber = 25,
+    kDebugAnnotationStringValuesFieldNumber = 29,
+    kCorrelationIdStrFieldNumber = 43,
     kBuildIdsFieldNumber = 16,
     kMappingPathsFieldNumber = 17,
     kSourcePathsFieldNumber = 18,
@@ -19677,26 +19814,24 @@ class InternedData : public ::protozero::Message {
     kMappingsFieldNumber = 19,
     kFramesFieldNumber = 6,
     kCallstacksFieldNumber = 7,
+    kStackSampleTaskContextsFieldNumber = 48,
+    kStackSampleExecutionContextsFieldNumber = 49,
+    kStackSampleCounterDescriptorsFieldNumber = 50,
+    kStackSampleAsyncContextDescriptorsFieldNumber = 51,
+    kSourceLocationsFieldNumber = 4,
+    kUnsymbolizedSourceLocationsFieldNumber = 28,
+    kLogMessageBodyFieldNumber = 20,
+    kHistogramNamesFieldNumber = 25,
     kVulkanMemoryKeysFieldNumber = 22,
     kGraphicsContextsFieldNumber = 23,
     kGpuSpecificationsFieldNumber = 24,
+    kGpuCounterDescriptorsFieldNumber = 47,
     kKernelSymbolsFieldNumber = 26,
-    kDebugAnnotationStringValuesFieldNumber = 29,
     kV8JsFunctionNameFieldNumber = 31,
     kV8JsFunctionFieldNumber = 32,
     kV8JsScriptFieldNumber = 33,
     kV8WasmScriptFieldNumber = 34,
     kV8IsolateFieldNumber = 35,
-    kProtologStringArgsFieldNumber = 36,
-    kProtologStacktraceFieldNumber = 37,
-    kViewcapturePackageNameFieldNumber = 38,
-    kViewcaptureWindowNameFieldNumber = 39,
-    kViewcaptureViewIdFieldNumber = 40,
-    kViewcaptureClassNameFieldNumber = 41,
-    kViewcaptureContentDescriptionFieldNumber = 45,
-    kViewcaptureTextFieldNumber = 46,
-    kCorrelationIdStrFieldNumber = 43,
-    kGpuCounterDescriptorsFieldNumber = 47,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.InternedData"; }
 
@@ -19757,59 +19892,31 @@ class InternedData : public ::protozero::Message {
   }
 
 
-  using FieldMetadata_SourceLocations =
+  using FieldMetadata_DebugAnnotationStringValues =
     ::protozero::proto_utils::FieldMetadata<
-      4,
+      29,
       ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
       ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      SourceLocation,
+      InternedString,
       InternedData>;
 
-  static constexpr FieldMetadata_SourceLocations kSourceLocations{};
-  template <typename T = SourceLocation> T* add_source_locations() {
-    return BeginNestedMessage<T>(4);
+  static constexpr FieldMetadata_DebugAnnotationStringValues kDebugAnnotationStringValues{};
+  template <typename T = InternedString> T* add_debug_annotation_string_values() {
+    return BeginNestedMessage<T>(29);
   }
 
 
-  using FieldMetadata_UnsymbolizedSourceLocations =
+  using FieldMetadata_CorrelationIdStr =
     ::protozero::proto_utils::FieldMetadata<
-      28,
+      43,
       ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
       ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      UnsymbolizedSourceLocation,
+      InternedString,
       InternedData>;
 
-  static constexpr FieldMetadata_UnsymbolizedSourceLocations kUnsymbolizedSourceLocations{};
-  template <typename T = UnsymbolizedSourceLocation> T* add_unsymbolized_source_locations() {
-    return BeginNestedMessage<T>(28);
-  }
-
-
-  using FieldMetadata_LogMessageBody =
-    ::protozero::proto_utils::FieldMetadata<
-      20,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      LogMessageBody,
-      InternedData>;
-
-  static constexpr FieldMetadata_LogMessageBody kLogMessageBody{};
-  template <typename T = LogMessageBody> T* add_log_message_body() {
-    return BeginNestedMessage<T>(20);
-  }
-
-
-  using FieldMetadata_HistogramNames =
-    ::protozero::proto_utils::FieldMetadata<
-      25,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      HistogramName,
-      InternedData>;
-
-  static constexpr FieldMetadata_HistogramNames kHistogramNames{};
-  template <typename T = HistogramName> T* add_histogram_names() {
-    return BeginNestedMessage<T>(25);
+  static constexpr FieldMetadata_CorrelationIdStr kCorrelationIdStr{};
+  template <typename T = InternedString> T* add_correlation_id_str() {
+    return BeginNestedMessage<T>(43);
   }
 
 
@@ -19911,6 +20018,118 @@ class InternedData : public ::protozero::Message {
   }
 
 
+  using FieldMetadata_StackSampleTaskContexts =
+    ::protozero::proto_utils::FieldMetadata<
+      48,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_TaskContext,
+      InternedData>;
+
+  static constexpr FieldMetadata_StackSampleTaskContexts kStackSampleTaskContexts{};
+  template <typename T = StackSample_TaskContext> T* add_stack_sample_task_contexts() {
+    return BeginNestedMessage<T>(48);
+  }
+
+
+  using FieldMetadata_StackSampleExecutionContexts =
+    ::protozero::proto_utils::FieldMetadata<
+      49,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_ExecutionContext,
+      InternedData>;
+
+  static constexpr FieldMetadata_StackSampleExecutionContexts kStackSampleExecutionContexts{};
+  template <typename T = StackSample_ExecutionContext> T* add_stack_sample_execution_contexts() {
+    return BeginNestedMessage<T>(49);
+  }
+
+
+  using FieldMetadata_StackSampleCounterDescriptors =
+    ::protozero::proto_utils::FieldMetadata<
+      50,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_CounterDescriptor,
+      InternedData>;
+
+  static constexpr FieldMetadata_StackSampleCounterDescriptors kStackSampleCounterDescriptors{};
+  template <typename T = StackSample_CounterDescriptor> T* add_stack_sample_counter_descriptors() {
+    return BeginNestedMessage<T>(50);
+  }
+
+
+  using FieldMetadata_StackSampleAsyncContextDescriptors =
+    ::protozero::proto_utils::FieldMetadata<
+      51,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_AsyncContextDescriptor,
+      InternedData>;
+
+  static constexpr FieldMetadata_StackSampleAsyncContextDescriptors kStackSampleAsyncContextDescriptors{};
+  template <typename T = StackSample_AsyncContextDescriptor> T* add_stack_sample_async_context_descriptors() {
+    return BeginNestedMessage<T>(51);
+  }
+
+
+  using FieldMetadata_SourceLocations =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      SourceLocation,
+      InternedData>;
+
+  static constexpr FieldMetadata_SourceLocations kSourceLocations{};
+  template <typename T = SourceLocation> T* add_source_locations() {
+    return BeginNestedMessage<T>(4);
+  }
+
+
+  using FieldMetadata_UnsymbolizedSourceLocations =
+    ::protozero::proto_utils::FieldMetadata<
+      28,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      UnsymbolizedSourceLocation,
+      InternedData>;
+
+  static constexpr FieldMetadata_UnsymbolizedSourceLocations kUnsymbolizedSourceLocations{};
+  template <typename T = UnsymbolizedSourceLocation> T* add_unsymbolized_source_locations() {
+    return BeginNestedMessage<T>(28);
+  }
+
+
+  using FieldMetadata_LogMessageBody =
+    ::protozero::proto_utils::FieldMetadata<
+      20,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      LogMessageBody,
+      InternedData>;
+
+  static constexpr FieldMetadata_LogMessageBody kLogMessageBody{};
+  template <typename T = LogMessageBody> T* add_log_message_body() {
+    return BeginNestedMessage<T>(20);
+  }
+
+
+  using FieldMetadata_HistogramNames =
+    ::protozero::proto_utils::FieldMetadata<
+      25,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      HistogramName,
+      InternedData>;
+
+  static constexpr FieldMetadata_HistogramNames kHistogramNames{};
+  template <typename T = HistogramName> T* add_histogram_names() {
+    return BeginNestedMessage<T>(25);
+  }
+
+
   using FieldMetadata_VulkanMemoryKeys =
     ::protozero::proto_utils::FieldMetadata<
       22,
@@ -19953,6 +20172,20 @@ class InternedData : public ::protozero::Message {
   }
 
 
+  using FieldMetadata_GpuCounterDescriptors =
+    ::protozero::proto_utils::FieldMetadata<
+      47,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      InternedGpuCounterDescriptor,
+      InternedData>;
+
+  static constexpr FieldMetadata_GpuCounterDescriptors kGpuCounterDescriptors{};
+  template <typename T = InternedGpuCounterDescriptor> T* add_gpu_counter_descriptors() {
+    return BeginNestedMessage<T>(47);
+  }
+
+
   using FieldMetadata_KernelSymbols =
     ::protozero::proto_utils::FieldMetadata<
       26,
@@ -19964,20 +20197,6 @@ class InternedData : public ::protozero::Message {
   static constexpr FieldMetadata_KernelSymbols kKernelSymbols{};
   template <typename T = InternedString> T* add_kernel_symbols() {
     return BeginNestedMessage<T>(26);
-  }
-
-
-  using FieldMetadata_DebugAnnotationStringValues =
-    ::protozero::proto_utils::FieldMetadata<
-      29,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_DebugAnnotationStringValues kDebugAnnotationStringValues{};
-  template <typename T = InternedString> T* add_debug_annotation_string_values() {
-    return BeginNestedMessage<T>(29);
   }
 
 
@@ -20048,146 +20267,6 @@ class InternedData : public ::protozero::Message {
   static constexpr FieldMetadata_V8Isolate kV8Isolate{};
   template <typename T = InternedV8Isolate> T* add_v8_isolate() {
     return BeginNestedMessage<T>(35);
-  }
-
-
-  using FieldMetadata_ProtologStringArgs =
-    ::protozero::proto_utils::FieldMetadata<
-      36,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ProtologStringArgs kProtologStringArgs{};
-  template <typename T = InternedString> T* add_protolog_string_args() {
-    return BeginNestedMessage<T>(36);
-  }
-
-
-  using FieldMetadata_ProtologStacktrace =
-    ::protozero::proto_utils::FieldMetadata<
-      37,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ProtologStacktrace kProtologStacktrace{};
-  template <typename T = InternedString> T* add_protolog_stacktrace() {
-    return BeginNestedMessage<T>(37);
-  }
-
-
-  using FieldMetadata_ViewcapturePackageName =
-    ::protozero::proto_utils::FieldMetadata<
-      38,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ViewcapturePackageName kViewcapturePackageName{};
-  template <typename T = InternedString> T* add_viewcapture_package_name() {
-    return BeginNestedMessage<T>(38);
-  }
-
-
-  using FieldMetadata_ViewcaptureWindowName =
-    ::protozero::proto_utils::FieldMetadata<
-      39,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ViewcaptureWindowName kViewcaptureWindowName{};
-  template <typename T = InternedString> T* add_viewcapture_window_name() {
-    return BeginNestedMessage<T>(39);
-  }
-
-
-  using FieldMetadata_ViewcaptureViewId =
-    ::protozero::proto_utils::FieldMetadata<
-      40,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ViewcaptureViewId kViewcaptureViewId{};
-  template <typename T = InternedString> T* add_viewcapture_view_id() {
-    return BeginNestedMessage<T>(40);
-  }
-
-
-  using FieldMetadata_ViewcaptureClassName =
-    ::protozero::proto_utils::FieldMetadata<
-      41,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ViewcaptureClassName kViewcaptureClassName{};
-  template <typename T = InternedString> T* add_viewcapture_class_name() {
-    return BeginNestedMessage<T>(41);
-  }
-
-
-  using FieldMetadata_ViewcaptureContentDescription =
-    ::protozero::proto_utils::FieldMetadata<
-      45,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ViewcaptureContentDescription kViewcaptureContentDescription{};
-  template <typename T = InternedString> T* add_viewcapture_content_description() {
-    return BeginNestedMessage<T>(45);
-  }
-
-
-  using FieldMetadata_ViewcaptureText =
-    ::protozero::proto_utils::FieldMetadata<
-      46,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_ViewcaptureText kViewcaptureText{};
-  template <typename T = InternedString> T* add_viewcapture_text() {
-    return BeginNestedMessage<T>(46);
-  }
-
-
-  using FieldMetadata_CorrelationIdStr =
-    ::protozero::proto_utils::FieldMetadata<
-      43,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedString,
-      InternedData>;
-
-  static constexpr FieldMetadata_CorrelationIdStr kCorrelationIdStr{};
-  template <typename T = InternedString> T* add_correlation_id_str() {
-    return BeginNestedMessage<T>(43);
-  }
-
-
-  using FieldMetadata_GpuCounterDescriptors =
-    ::protozero::proto_utils::FieldMetadata<
-      47,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      InternedGpuCounterDescriptor,
-      InternedData>;
-
-  static constexpr FieldMetadata_GpuCounterDescriptors kGpuCounterDescriptors{};
-  template <typename T = InternedGpuCounterDescriptor> T* add_gpu_counter_descriptors() {
-    return BeginNestedMessage<T>(47);
   }
 
 };
@@ -22482,6 +22561,9 @@ class StopArgsImpl : public DataSourceBase::StopArgs {
 // perfetto.protos.ClockSnapshot. However, custom clock IDs (>=64) are
 // reserved for internal use by the SDK for the time being.
 // The timestamp value should be in nanoseconds regardless of the clock domain.
+//
+// See the "Custom timestamps and clocks" section in
+// docs/instrumentation/track-events.md for a worked example.
 template <typename T>
 struct TraceTimestampTraits;
 
@@ -24191,10 +24273,11 @@ constexpr bool IsDynamicCategory(const ::perfetto::DynamicCategory&) {
 //     debug_annotation->set_string_value("value");
 //   });
 //
-//   |time_in_nanoseconds| should be an uint64_t by default. To support custom
-//   timestamp types,
-//   |perfetto::TraceTimestampTraits<T>::ConvertTimestampToTraceTimeNs|
-//   should be defined. See |ConvertTimestampToTraceTimeNs| for more details.
+//   |time_in_nanoseconds| is a uint64_t on the trace clock by default. To pass
+//   a custom timestamp type, or a timestamp on a different clock, specialize
+//   |perfetto::TraceTimestampTraits<T>| and define a static
+//   ConvertTimestampToTraceTimeNs in it. See the "Custom timestamps and clocks"
+//   section in docs/instrumentation/track-events.md for a full example.
 //
 // 3. Arbitrary number of debug annotations:
 //
@@ -29335,7 +29418,6 @@ class TraceStats;
 class TraceStats_FilterStats;
 class TraceStats_WriterStats;
 class TraceStats_BufferStats;
-class TraceStats_BufferStats_ShadowBufferStats;
 enum TraceStats_FinalFlushOutcome : int;
 }  // namespace perfetto
 }  // namespace protos
@@ -29630,7 +29712,6 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_WriterStats : public ::protozero::Cpp
 
 class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::CppMessageObj {
  public:
-  using ShadowBufferStats = TraceStats_BufferStats_ShadowBufferStats;
   enum FieldNumbers {
     kBufferSizeFieldNumber = 12,
     kBytesWrittenFieldNumber = 1,
@@ -29640,6 +29721,7 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::Cpp
     kPaddingBytesClearedFieldNumber = 16,
     kChunksWrittenFieldNumber = 2,
     kChunksRewrittenFieldNumber = 10,
+    kChunksRelocatedFieldNumber = 20,
     kChunksOverwrittenFieldNumber = 3,
     kChunksDiscardedFieldNumber = 18,
     kChunksReadFieldNumber = 17,
@@ -29651,7 +29733,6 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::Cpp
     kReadaheadsFailedFieldNumber = 8,
     kAbiViolationsFieldNumber = 9,
     kTraceWriterPacketLossFieldNumber = 19,
-    kShadowBufferStatsFieldNumber = 21,
   };
 
   TraceStats_BufferStats();
@@ -29700,6 +29781,10 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::Cpp
   uint64_t chunks_rewritten() const { return chunks_rewritten_; }
   void set_chunks_rewritten(uint64_t value) { chunks_rewritten_ = value; _has_field_.set(10); }
 
+  bool has_chunks_relocated() const { return _has_field_[20]; }
+  uint64_t chunks_relocated() const { return chunks_relocated_; }
+  void set_chunks_relocated(uint64_t value) { chunks_relocated_ = value; _has_field_.set(20); }
+
   bool has_chunks_overwritten() const { return _has_field_[3]; }
   uint64_t chunks_overwritten() const { return chunks_overwritten_; }
   void set_chunks_overwritten(uint64_t value) { chunks_overwritten_ = value; _has_field_.set(3); }
@@ -29744,10 +29829,6 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::Cpp
   uint64_t trace_writer_packet_loss() const { return trace_writer_packet_loss_; }
   void set_trace_writer_packet_loss(uint64_t value) { trace_writer_packet_loss_ = value; _has_field_.set(19); }
 
-  bool has_shadow_buffer_stats() const { return _has_field_[21]; }
-  const TraceStats_BufferStats_ShadowBufferStats& shadow_buffer_stats() const { return *shadow_buffer_stats_; }
-  TraceStats_BufferStats_ShadowBufferStats* mutable_shadow_buffer_stats() { _has_field_.set(21); return shadow_buffer_stats_.get(); }
-
  private:
   uint64_t buffer_size_{};
   uint64_t bytes_written_{};
@@ -29757,6 +29838,7 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::Cpp
   uint64_t padding_bytes_cleared_{};
   uint64_t chunks_written_{};
   uint64_t chunks_rewritten_{};
+  uint64_t chunks_relocated_{};
   uint64_t chunks_overwritten_{};
   uint64_t chunks_discarded_{};
   uint64_t chunks_read_{};
@@ -29768,90 +29850,12 @@ class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats : public ::protozero::Cpp
   uint64_t readaheads_failed_{};
   uint64_t abi_violations_{};
   uint64_t trace_writer_packet_loss_{};
-  ::protozero::CopyablePtr<TraceStats_BufferStats_ShadowBufferStats> shadow_buffer_stats_;
 
   // Allows to preserve unknown protobuf fields for compatibility
   // with future versions of .proto files.
   std::string unknown_fields_;
 
-  std::bitset<22> _has_field_{};
-};
-
-
-class PERFETTO_EXPORT_COMPONENT TraceStats_BufferStats_ShadowBufferStats : public ::protozero::CppMessageObj {
- public:
-  enum FieldNumbers {
-    kPacketsSeenFieldNumber = 1,
-    kPacketsInBothFieldNumber = 2,
-    kPacketsOnlyV1FieldNumber = 3,
-    kPacketsOnlyV2FieldNumber = 4,
-    kPatchesAttemptedFieldNumber = 5,
-    kV1PatchesSucceededFieldNumber = 6,
-    kV2PatchesSucceededFieldNumber = 7,
-    kStatsVersionFieldNumber = 8,
-  };
-
-  TraceStats_BufferStats_ShadowBufferStats();
-  ~TraceStats_BufferStats_ShadowBufferStats() override;
-  TraceStats_BufferStats_ShadowBufferStats(TraceStats_BufferStats_ShadowBufferStats&&) noexcept;
-  TraceStats_BufferStats_ShadowBufferStats& operator=(TraceStats_BufferStats_ShadowBufferStats&&);
-  TraceStats_BufferStats_ShadowBufferStats(const TraceStats_BufferStats_ShadowBufferStats&);
-  TraceStats_BufferStats_ShadowBufferStats& operator=(const TraceStats_BufferStats_ShadowBufferStats&);
-  bool operator==(const TraceStats_BufferStats_ShadowBufferStats&) const;
-  bool operator!=(const TraceStats_BufferStats_ShadowBufferStats& other) const { return !(*this == other); }
-
-  bool ParseFromArray(const void*, size_t) override;
-  std::string SerializeAsString() const override;
-  std::vector<uint8_t> SerializeAsArray() const override;
-  void Serialize(::protozero::Message*) const;
-
-  bool has_packets_seen() const { return _has_field_[1]; }
-  uint64_t packets_seen() const { return packets_seen_; }
-  void set_packets_seen(uint64_t value) { packets_seen_ = value; _has_field_.set(1); }
-
-  bool has_packets_in_both() const { return _has_field_[2]; }
-  uint64_t packets_in_both() const { return packets_in_both_; }
-  void set_packets_in_both(uint64_t value) { packets_in_both_ = value; _has_field_.set(2); }
-
-  bool has_packets_only_v1() const { return _has_field_[3]; }
-  uint64_t packets_only_v1() const { return packets_only_v1_; }
-  void set_packets_only_v1(uint64_t value) { packets_only_v1_ = value; _has_field_.set(3); }
-
-  bool has_packets_only_v2() const { return _has_field_[4]; }
-  uint64_t packets_only_v2() const { return packets_only_v2_; }
-  void set_packets_only_v2(uint64_t value) { packets_only_v2_ = value; _has_field_.set(4); }
-
-  bool has_patches_attempted() const { return _has_field_[5]; }
-  uint64_t patches_attempted() const { return patches_attempted_; }
-  void set_patches_attempted(uint64_t value) { patches_attempted_ = value; _has_field_.set(5); }
-
-  bool has_v1_patches_succeeded() const { return _has_field_[6]; }
-  uint64_t v1_patches_succeeded() const { return v1_patches_succeeded_; }
-  void set_v1_patches_succeeded(uint64_t value) { v1_patches_succeeded_ = value; _has_field_.set(6); }
-
-  bool has_v2_patches_succeeded() const { return _has_field_[7]; }
-  uint64_t v2_patches_succeeded() const { return v2_patches_succeeded_; }
-  void set_v2_patches_succeeded(uint64_t value) { v2_patches_succeeded_ = value; _has_field_.set(7); }
-
-  bool has_stats_version() const { return _has_field_[8]; }
-  uint32_t stats_version() const { return stats_version_; }
-  void set_stats_version(uint32_t value) { stats_version_ = value; _has_field_.set(8); }
-
- private:
-  uint64_t packets_seen_{};
-  uint64_t packets_in_both_{};
-  uint64_t packets_only_v1_{};
-  uint64_t packets_only_v2_{};
-  uint64_t patches_attempted_{};
-  uint64_t v1_patches_succeeded_{};
-  uint64_t v2_patches_succeeded_{};
-  uint32_t stats_version_{};
-
-  // Allows to preserve unknown protobuf fields for compatibility
-  // with future versions of .proto files.
-  std::string unknown_fields_;
-
-  std::bitset<9> _has_field_{};
+  std::bitset<21> _has_field_{};
 };
 
 }  // namespace perfetto
@@ -37624,7 +37628,6 @@ namespace perfetto {
 namespace protos {
 namespace pbzero {
 class TraceStats_BufferStats;
-class TraceStats_BufferStats_ShadowBufferStats;
 class TraceStats_FilterStats;
 class TraceStats_WriterStats;
 namespace perfetto_pbzero_enum_TraceStats {
@@ -38274,7 +38277,7 @@ class TraceStats_WriterStats : public ::protozero::Message {
   }
 };
 
-class TraceStats_BufferStats_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/21> {
+class TraceStats_BufferStats_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/20> {
  public:
   TraceStats_BufferStats_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit TraceStats_BufferStats_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -38295,6 +38298,8 @@ class TraceStats_BufferStats_Decoder : public ::protozero::TypedProtoDecoder</*M
   uint64_t chunks_written() const { return at<2>().as_uint64(); }
   bool has_chunks_rewritten() const { return at<10>().valid(); }
   uint64_t chunks_rewritten() const { return at<10>().as_uint64(); }
+  bool has_chunks_relocated() const { return at<20>().valid(); }
+  uint64_t chunks_relocated() const { return at<20>().as_uint64(); }
   bool has_chunks_overwritten() const { return at<3>().valid(); }
   uint64_t chunks_overwritten() const { return at<3>().as_uint64(); }
   bool has_chunks_discarded() const { return at<18>().valid(); }
@@ -38317,8 +38322,6 @@ class TraceStats_BufferStats_Decoder : public ::protozero::TypedProtoDecoder</*M
   uint64_t abi_violations() const { return at<9>().as_uint64(); }
   bool has_trace_writer_packet_loss() const { return at<19>().valid(); }
   uint64_t trace_writer_packet_loss() const { return at<19>().as_uint64(); }
-  bool has_shadow_buffer_stats() const { return at<21>().valid(); }
-  ::protozero::ConstBytes shadow_buffer_stats() const { return at<21>().as_bytes(); }
 };
 
 class TraceStats_BufferStats : public ::protozero::Message {
@@ -38333,6 +38336,7 @@ class TraceStats_BufferStats : public ::protozero::Message {
     kPaddingBytesClearedFieldNumber = 16,
     kChunksWrittenFieldNumber = 2,
     kChunksRewrittenFieldNumber = 10,
+    kChunksRelocatedFieldNumber = 20,
     kChunksOverwrittenFieldNumber = 3,
     kChunksDiscardedFieldNumber = 18,
     kChunksReadFieldNumber = 17,
@@ -38344,11 +38348,9 @@ class TraceStats_BufferStats : public ::protozero::Message {
     kReadaheadsFailedFieldNumber = 8,
     kAbiViolationsFieldNumber = 9,
     kTraceWriterPacketLossFieldNumber = 19,
-    kShadowBufferStatsFieldNumber = 21,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.TraceStats.BufferStats"; }
 
-  using ShadowBufferStats = ::perfetto::protos::pbzero::TraceStats_BufferStats_ShadowBufferStats;
 
   using FieldMetadata_BufferSize =
     ::protozero::proto_utils::FieldMetadata<
@@ -38487,6 +38489,24 @@ class TraceStats_BufferStats : public ::protozero::Message {
   static constexpr FieldMetadata_ChunksRewritten kChunksRewritten{};
   void set_chunks_rewritten(uint64_t value) {
     static constexpr uint32_t field_id = FieldMetadata_ChunksRewritten::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_ChunksRelocated =
+    ::protozero::proto_utils::FieldMetadata<
+      20,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      TraceStats_BufferStats>;
+
+  static constexpr FieldMetadata_ChunksRelocated kChunksRelocated{};
+  void set_chunks_relocated(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_ChunksRelocated::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -38689,204 +38709,6 @@ class TraceStats_BufferStats : public ::protozero::Message {
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
       ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_ShadowBufferStats =
-    ::protozero::proto_utils::FieldMetadata<
-      21,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      TraceStats_BufferStats_ShadowBufferStats,
-      TraceStats_BufferStats>;
-
-  static constexpr FieldMetadata_ShadowBufferStats kShadowBufferStats{};
-  template <typename T = TraceStats_BufferStats_ShadowBufferStats> T* set_shadow_buffer_stats() {
-    return BeginNestedMessage<T>(21);
-  }
-
-};
-
-class TraceStats_BufferStats_ShadowBufferStats_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/8> {
- public:
-  TraceStats_BufferStats_ShadowBufferStats_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit TraceStats_BufferStats_ShadowBufferStats_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit TraceStats_BufferStats_ShadowBufferStats_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_packets_seen() const { return at<1>().valid(); }
-  uint64_t packets_seen() const { return at<1>().as_uint64(); }
-  bool has_packets_in_both() const { return at<2>().valid(); }
-  uint64_t packets_in_both() const { return at<2>().as_uint64(); }
-  bool has_packets_only_v1() const { return at<3>().valid(); }
-  uint64_t packets_only_v1() const { return at<3>().as_uint64(); }
-  bool has_packets_only_v2() const { return at<4>().valid(); }
-  uint64_t packets_only_v2() const { return at<4>().as_uint64(); }
-  bool has_patches_attempted() const { return at<5>().valid(); }
-  uint64_t patches_attempted() const { return at<5>().as_uint64(); }
-  bool has_v1_patches_succeeded() const { return at<6>().valid(); }
-  uint64_t v1_patches_succeeded() const { return at<6>().as_uint64(); }
-  bool has_v2_patches_succeeded() const { return at<7>().valid(); }
-  uint64_t v2_patches_succeeded() const { return at<7>().as_uint64(); }
-  bool has_stats_version() const { return at<8>().valid(); }
-  uint32_t stats_version() const { return at<8>().as_uint32(); }
-};
-
-class TraceStats_BufferStats_ShadowBufferStats : public ::protozero::Message {
- public:
-  using Decoder = TraceStats_BufferStats_ShadowBufferStats_Decoder;
-  enum : int32_t {
-    kPacketsSeenFieldNumber = 1,
-    kPacketsInBothFieldNumber = 2,
-    kPacketsOnlyV1FieldNumber = 3,
-    kPacketsOnlyV2FieldNumber = 4,
-    kPatchesAttemptedFieldNumber = 5,
-    kV1PatchesSucceededFieldNumber = 6,
-    kV2PatchesSucceededFieldNumber = 7,
-    kStatsVersionFieldNumber = 8,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.TraceStats.BufferStats.ShadowBufferStats"; }
-
-
-  using FieldMetadata_PacketsSeen =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_PacketsSeen kPacketsSeen{};
-  void set_packets_seen(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_PacketsSeen::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PacketsInBoth =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_PacketsInBoth kPacketsInBoth{};
-  void set_packets_in_both(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_PacketsInBoth::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PacketsOnlyV1 =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_PacketsOnlyV1 kPacketsOnlyV1{};
-  void set_packets_only_v1(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_PacketsOnlyV1::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PacketsOnlyV2 =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_PacketsOnlyV2 kPacketsOnlyV2{};
-  void set_packets_only_v2(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_PacketsOnlyV2::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PatchesAttempted =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_PatchesAttempted kPatchesAttempted{};
-  void set_patches_attempted(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_PatchesAttempted::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_V1PatchesSucceeded =
-    ::protozero::proto_utils::FieldMetadata<
-      6,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_V1PatchesSucceeded kV1PatchesSucceeded{};
-  void set_v1_patches_succeeded(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_V1PatchesSucceeded::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_V2PatchesSucceeded =
-    ::protozero::proto_utils::FieldMetadata<
-      7,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_V2PatchesSucceeded kV2PatchesSucceeded{};
-  void set_v2_patches_succeeded(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_V2PatchesSucceeded::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_StatsVersion =
-    ::protozero::proto_utils::FieldMetadata<
-      8,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint32,
-      uint32_t,
-      TraceStats_BufferStats_ShadowBufferStats>;
-
-  static constexpr FieldMetadata_StatsVersion kStatsVersion{};
-  void set_stats_version(uint32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_StatsVersion::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint32>
         ::Append(*this, field_id, value);
   }
 };
@@ -40806,6 +40628,7 @@ class PERFETTO_EXPORT_COMPONENT DisplayVideoConfig : public ::protozero::CppMess
     kFormatFieldNumber = 2,
     kKeyFrameIntervalSecsFieldNumber = 3,
     kMaxStreamSizeBytesFieldNumber = 4,
+    kBitrateBpsFieldNumber = 5,
   };
 
   DisplayVideoConfig();
@@ -40838,17 +40661,22 @@ class PERFETTO_EXPORT_COMPONENT DisplayVideoConfig : public ::protozero::CppMess
   uint64_t max_stream_size_bytes() const { return max_stream_size_bytes_; }
   void set_max_stream_size_bytes(uint64_t value) { max_stream_size_bytes_ = value; _has_field_.set(4); }
 
+  bool has_bitrate_bps() const { return _has_field_[5]; }
+  uint32_t bitrate_bps() const { return bitrate_bps_; }
+  void set_bitrate_bps(uint32_t value) { bitrate_bps_ = value; _has_field_.set(5); }
+
  private:
   float scale_{};
   DisplayVideoConfig_Format format_{};
   uint32_t key_frame_interval_secs_{};
   uint64_t max_stream_size_bytes_{};
+  uint32_t bitrate_bps_{};
 
   // Allows to preserve unknown protobuf fields for compatibility
   // with future versions of .proto files.
   std::string unknown_fields_;
 
-  std::bitset<5> _has_field_{};
+  std::bitset<6> _has_field_{};
 };
 
 }  // namespace perfetto
@@ -43494,6 +43322,7 @@ class PERFETTO_EXPORT_COMPONENT ProcessStatsConfig : public ::protozero::CppMess
     kRecordProcessRuntimeFieldNumber = 12,
     kRecordProcessDmabufRssFieldNumber = 13,
     kResolveProcessFdsFieldNumber = 9,
+    kSkipMainThreadMessageFieldNumber = 14,
   };
 
   ProcessStatsConfig();
@@ -43553,6 +43382,10 @@ class PERFETTO_EXPORT_COMPONENT ProcessStatsConfig : public ::protozero::CppMess
   bool resolve_process_fds() const { return resolve_process_fds_; }
   void set_resolve_process_fds(bool value) { resolve_process_fds_ = value; _has_field_.set(9); }
 
+  bool has_skip_main_thread_message() const { return _has_field_[14]; }
+  bool skip_main_thread_message() const { return skip_main_thread_message_; }
+  void set_skip_main_thread_message(bool value) { skip_main_thread_message_ = value; _has_field_.set(14); }
+
  private:
   std::vector<ProcessStatsConfig_Quirks> quirks_;
   bool scan_all_processes_on_start_{};
@@ -43564,12 +43397,13 @@ class PERFETTO_EXPORT_COMPONENT ProcessStatsConfig : public ::protozero::CppMess
   bool record_process_runtime_{};
   bool record_process_dmabuf_rss_{};
   bool resolve_process_fds_{};
+  bool skip_main_thread_message_{};
 
   // Allows to preserve unknown protobuf fields for compatibility
   // with future versions of .proto files.
   std::string unknown_fields_;
 
-  std::bitset<14> _has_field_{};
+  std::bitset<15> _has_field_{};
 };
 
 }  // namespace perfetto
@@ -45537,14 +45371,400 @@ enum AtomId : int {
   ATOM_NOTIFICATION_MEMORY_USE = 10174,
   ATOM_HDR_CAPABILITIES = 10175,
   ATOM_WS_FAVOURITE_WATCH_FACE_LIST_SNAPSHOT = 10176,
-  ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED = 910,
-  ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED = 820,
-  ATOM_THERMAL_STATUS_CALLED = 772,
-  ATOM_THERMAL_HEADROOM_CALLED = 773,
-  ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED = 774,
-  ATOM_ADPF_HINT_SESSION_TID_CLEANUP = 839,
-  ATOM_THERMAL_HEADROOM_THRESHOLDS = 10201,
-  ATOM_ADPF_SESSION_SNAPSHOT = 10218,
+  ATOM_WIFI_AWARE_NDP_REPORTED = 638,
+  ATOM_WIFI_AWARE_ATTACH_REPORTED = 639,
+  ATOM_WIFI_SELF_RECOVERY_TRIGGERED = 661,
+  ATOM_SOFT_AP_STARTED = 680,
+  ATOM_SOFT_AP_STOPPED = 681,
+  ATOM_WIFI_LOCK_RELEASED = 687,
+  ATOM_WIFI_LOCK_DEACTIVATED = 688,
+  ATOM_WIFI_CONFIG_SAVED = 689,
+  ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED = 690,
+  ATOM_WIFI_AWARE_HAL_API_CALLED = 691,
+  ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED = 692,
+  ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED = 693,
+  ATOM_WIFI_THREAD_TASK_EXECUTED = 694,
+  ATOM_WIFI_STATE_CHANGED = 700,
+  ATOM_PNO_SCAN_STARTED = 719,
+  ATOM_PNO_SCAN_STOPPED = 720,
+  ATOM_WIFI_IS_UNUSABLE_REPORTED = 722,
+  ATOM_WIFI_AP_CAPABILITIES_REPORTED = 723,
+  ATOM_SOFT_AP_STATE_CHANGED = 805,
+  ATOM_SCORER_PREDICTION_RESULT_REPORTED = 884,
+  ATOM_WIFI_AWARE_CAPABILITIES = 10190,
+  ATOM_WIFI_MODULE_INFO = 10193,
+  ATOM_WIFI_SETTING_INFO = 10194,
+  ATOM_WIFI_COMPLEX_SETTING_INFO = 10195,
+  ATOM_WIFI_CONFIGURED_NETWORK_INFO = 10198,
+  ATOM_WEAR_POWER_MENU_OPENED = 731,
+  ATOM_WEAR_ASSISTANT_OPENED = 755,
+  ATOM_FIRST_OVERLAY_STATE_CHANGED = 917,
+  ATOM_WS_WEAR_TIME_SESSION = 610,
+  ATOM_WS_INCOMING_CALL_ACTION_REPORTED = 626,
+  ATOM_WS_CALL_DISCONNECTION_REPORTED = 627,
+  ATOM_WS_CALL_DURATION_REPORTED = 628,
+  ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED = 629,
+  ATOM_WS_CALL_INTERACTION_REPORTED = 630,
+  ATOM_WS_ON_BODY_STATE_CHANGED = 787,
+  ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED = 802,
+  ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED = 803,
+  ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED = 804,
+  ATOM_WS_REMOTE_EVENT_USAGE_REPORTED = 920,
+  ATOM_WS_NOTIFICATION_MANAGED_DISMISSAL_SYNC = 941,
+  ATOM_WS_BUGREPORT_EVENT_REPORTED = 964,
+  ATOM_WS_STANDALONE_MODE_SNAPSHOT = 10197,
+  ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT = 10206,
+  ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT = 10225,
+  ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT = 10227,
+  ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED = 619,
+  ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED = 620,
+  ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED = 621,
+  ATOM_WEAR_TIME_SYNC_REQUESTED = 911,
+  ATOM_WEAR_TIME_UPDATE_STARTED = 912,
+  ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED = 913,
+  ATOM_WEAR_TIME_CHANGED = 914,
+  ATOM_WEAR_SETUP_WIZARD_DEVICE_STATUS_REPORTED = 953,
+  ATOM_WEAR_SETUP_WIZARD_PAIRING_COMPLETED = 954,
+  ATOM_WEAR_SETUP_WIZARD_CONNECTION_ESTABLISHED = 955,
+  ATOM_WEAR_SETUP_WIZARD_CHECKIN_COMPLETED = 956,
+  ATOM_WEAR_SETUP_WIZARD_COMPANION_TIME_REPORTED = 957,
+  ATOM_WEAR_SETUP_WIZARD_STATUS_REPORTED = 958,
+  ATOM_WEAR_SETUP_WIZARD_HEARTBEAT_REPORTED = 959,
+  ATOM_WEAR_SETUP_WIZARD_FRP_TRIGGERED = 960,
+  ATOM_WEAR_SETUP_WIZARD_SYSTEM_UPDATE_TRIGGERED = 961,
+  ATOM_WEAR_SETUP_WIZARD_PHONE_SWITCH_TRIGGERED = 962,
+  ATOM_RENDERER_INITIALIZED = 736,
+  ATOM_SCHEMA_VERSION_RECEIVED = 737,
+  ATOM_LAYOUT_INSPECTED = 741,
+  ATOM_LAYOUT_EXPRESSION_INSPECTED = 742,
+  ATOM_LAYOUT_ANIMATIONS_INSPECTED = 743,
+  ATOM_MATERIAL_COMPONENTS_INSPECTED = 744,
+  ATOM_TILE_REQUESTED = 745,
+  ATOM_STATE_RESPONSE_RECEIVED = 746,
+  ATOM_TILE_RESPONSE_RECEIVED = 747,
+  ATOM_INFLATION_FINISHED = 748,
+  ATOM_INFLATION_FAILED = 749,
+  ATOM_IGNORED_INFLATION_FAILURES_REPORTED = 750,
+  ATOM_DRAWABLE_RENDERED = 751,
+  ATOM_WEAR_MODE_STATE_CHANGED = 715,
+  ATOM_MEDIA_ACTION_REPORTED = 608,
+  ATOM_MEDIA_CONTROLS_LAUNCHED = 609,
+  ATOM_MEDIA_SESSION_STATE_CHANGED = 677,
+  ATOM_MEDIA_CONTROL_API_USAGE_REPORTED = 966,
+  ATOM_MEDIA_SUBSCRIPTION_CHANGED = 990,
+  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY = 757,
+  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE = 758,
+  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT = 759,
+  ATOM_MEDIATOR_UPDATED = 721,
+  ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER = 10196,
+  ATOM_SYSPROXY_CONNECTION_UPDATED = 786,
+  ATOM_WEAR_COMPANION_CONNECTION_STATE = 921,
+  ATOM_SYSPROXY_SERVICE_STATE_UPDATED = 949,
+  ATOM_UWB_ACTIVITY_INFO = 10188,
+  ATOM_TEST_UPROBESTATS_ATOM_REPORTED = 915,
+  ATOM_TV_LOW_POWER_STANDBY_POLICY = 679,
+  ATOM_EXTERNAL_TV_INPUT_EVENT = 717,
+  ATOM_BOOT_INTEGRITY_INFO_REPORTED = 775,
+  ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED = 738,
+  ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED = 739,
+  ATOM_THREADNETWORK_DEVICE_INFO_REPORTED = 740,
+  ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED = 713,
+  ATOM_EMERGENCY_NUMBERS_INFO = 10180,
+  ATOM_DATA_NETWORK_VALIDATION = 10207,
+  ATOM_DATA_RAT_STATE_CHANGED = 854,
+  ATOM_CONNECTED_CHANNEL_CHANGED = 882,
+  ATOM_CELLULAR_IDENTIFIER_DISCLOSED = 800,
+  ATOM_SATELLITE_CONTROLLER = 10182,
+  ATOM_SATELLITE_SESSION = 10183,
+  ATOM_SATELLITE_INCOMING_DATAGRAM = 10184,
+  ATOM_SATELLITE_OUTGOING_DATAGRAM = 10185,
+  ATOM_SATELLITE_PROVISION = 10186,
+  ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER = 10187,
+  ATOM_CARRIER_ROAMING_SATELLITE_SESSION = 10211,
+  ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS = 10212,
+  ATOM_CONTROLLER_STATS_PER_PACKAGE = 10213,
+  ATOM_SATELLITE_ENTITLEMENT = 10214,
+  ATOM_SATELLITE_CONFIG_UPDATER = 10215,
+  ATOM_SATELLITE_ACCESS_CONTROLLER = 10219,
+  ATOM_QUALIFIED_RAT_LIST_CHANGED = 634,
+  ATOM_QNS_IMS_CALL_DROP_STATS = 635,
+  ATOM_QNS_FALLBACK_RESTRICTION_CHANGED = 636,
+  ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO = 10177,
+  ATOM_QNS_HANDOVER_TIME_MILLIS = 10178,
+  ATOM_QNS_HANDOVER_PINGPONG = 10179,
+  ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED = 923,
+  ATOM_EMERGENCY_NUMBER_DIALED = 637,
+  ATOM_CALL_STATS = 10221,
+  ATOM_CALL_AUDIO_ROUTE_STATS = 10222,
+  ATOM_TELECOM_API_STATS = 10223,
+  ATOM_TELECOM_ERROR_STATS = 10224,
+  ATOM_LOCKSCREEN_SHORTCUT_SELECTED = 611,
+  ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED = 612,
+  ATOM_LAUNCHER_IMPRESSION_EVENT_V2 = 716,
+  ATOM_DISPLAY_SWITCH_LATENCY_TRACKED = 753,
+  ATOM_NOTIFICATION_LISTENER_SERVICE = 829,
+  ATOM_NAV_HANDLE_TOUCH_POINTS = 869,
+  ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED = 908,
+  ATOM_PERIPHERAL_TUTORIAL_LAUNCHED = 942,
+  ATOM_CONTEXTUAL_EDUCATION_TRIGGERED = 971,
+  ATOM_COMMUNAL_HUB_SNAPSHOT = 10226,
+  ATOM_TEST_EXTENSION_ATOM_REPORTED = 660,
+  ATOM_TEST_RESTRICTED_ATOM_REPORTED = 672,
+  ATOM_STATS_SOCKET_LOSS_REPORTED = 752,
+  ATOM_SETTINGS_SPA_REPORTED = 622,
+  ATOM_SELINUX_AUDIT_LOG = 799,
+  ATOM_SANDBOX_API_CALLED = 488,
+  ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED = 735,
+  ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION = 796,
+  ATOM_SANDBOX_SDK_STORAGE = 10159,
+  ATOM_RKPD_POOL_STATS = 664,
+  ATOM_RKPD_CLIENT_OPERATION = 665,
+  ATOM_RANGING_SESSION_CONFIGURED = 993,
+  ATOM_RANGING_SESSION_STARTED = 994,
+  ATOM_RANGING_SESSION_CLOSED = 995,
+  ATOM_RANGING_TECHNOLOGY_STARTED = 996,
+  ATOM_RANGING_TECHNOLOGY_STOPPED = 997,
+  ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED = 784,
+  ATOM_BACKUP_SETUP_STATUS_REPORTED = 785,
+  ATOM_SCREEN_OFF_REPORTED = 776,
+  ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED = 836,
+  ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED = 837,
+  ATOM_SCREEN_DIM_REPORTED = 867,
+  ATOM_ATOM_9999 = 9999,
+  ATOM_ATOM_99999 = 99999,
+  ATOM_PHOTOPICKER_SESSION_INFO_REPORTED = 886,
+  ATOM_PHOTOPICKER_API_INFO_REPORTED = 887,
+  ATOM_PHOTOPICKER_UI_EVENT_LOGGED = 888,
+  ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED = 889,
+  ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED = 890,
+  ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED = 891,
+  ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED = 892,
+  ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED = 893,
+  ATOM_PHOTOPICKER_PAGE_INFO_LOGGED = 894,
+  ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED = 895,
+  ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED = 896,
+  ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED = 897,
+  ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED = 898,
+  ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED = 899,
+  ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED = 645,
+  ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED = 646,
+  ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION = 647,
+  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED = 648,
+  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED = 649,
+  ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED = 827,
+  ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED = 828,
+  ATOM_PRESSURE_STALL_INFORMATION = 10229,
+  ATOM_PDF_LOAD_REPORTED = 859,
+  ATOM_PDF_API_USAGE_REPORTED = 860,
+  ATOM_PDF_SEARCH_REPORTED = 861,
+  ATOM_COMPONENT_STATE_CHANGED_REPORTED = 863,
+  ATOM_ONDEVICEPERSONALIZATION_API_CALLED = 711,
+  ATOM_ONDEVICEPERSONALIZATION_TRACE_EVENT = 952,
+  ATOM_NFC_OBSERVE_MODE_STATE_CHANGED = 855,
+  ATOM_NFC_FIELD_CHANGED = 856,
+  ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED = 857,
+  ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED = 858,
+  ATOM_NFC_EXIT_FRAME_TABLE_CHANGED = 1036,
+  ATOM_NFC_AUTO_TRANSACT_REPORTED = 1038,
+  ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED = 901,
+  ATOM_MTE_STATE = 10181,
+  ATOM_ZRAM_MAINTENANCE_EXECUTED = 1015,
+  ATOM_ZRAM_SETUP_EXECUTED = 1029,
+  ATOM_ZRAM_MM_STAT_MMD = 10232,
+  ATOM_ZRAM_BD_STAT_MMD = 10233,
+  ATOM_MEDIA_EDITING_ENDED_REPORTED = 798,
+  ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED = 600,
+  ATOM_MEDIA_CODEC_STARTED = 641,
+  ATOM_MEDIA_CODEC_STOPPED = 642,
+  ATOM_MEDIA_CODEC_RENDERED = 684,
+  ATOM_EMERGENCY_STATE_CHANGED = 633,
+  ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED = 868,
+  ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED = 1002,
+  ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED = 1003,
+  ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED = 1004,
+  ATOM_KERNEL_OOM_KILL_OCCURRED = 754,
+  ATOM_KEYBOARD_CONFIGURED = 682,
+  ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED = 683,
+  ATOM_INPUTDEVICE_USAGE_REPORTED = 686,
+  ATOM_INPUT_EVENT_LATENCY_REPORTED = 932,
+  ATOM_TOUCHPAD_USAGE = 10191,
+  ATOM_IKE_SESSION_TERMINATED = 678,
+  ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED = 760,
+  ATOM_NEGOTIATED_SECURITY_ASSOCIATION = 821,
+  ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED = 761,
+  ATOM_HEALTH_CONNECT_UI_IMPRESSION = 623,
+  ATOM_HEALTH_CONNECT_UI_INTERACTION = 624,
+  ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED = 625,
+  ATOM_HEALTH_CONNECT_API_CALLED = 616,
+  ATOM_HEALTH_CONNECT_USAGE_STATS = 617,
+  ATOM_HEALTH_CONNECT_STORAGE_STATS = 618,
+  ATOM_HEALTH_CONNECT_API_INVOKED = 643,
+  ATOM_EXERCISE_ROUTE_API_CALLED = 654,
+  ATOM_HEALTH_CONNECT_EXPORT_INVOKED = 907,
+  ATOM_HEALTH_CONNECT_IMPORT_INVOKED = 918,
+  ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED = 919,
+  ATOM_HEALTH_CONNECT_PERMISSION_STATS = 963,
+  ATOM_HEALTH_CONNECT_PHR_API_INVOKED = 980,
+  ATOM_HEALTH_CONNECT_PHR_USAGE_STATS = 981,
+  ATOM_HEALTH_CONNECT_PHR_STORAGE_STATS = 984,
+  ATOM_HEALTH_CONNECT_RESTRICTED_ECOSYSTEM_STATS = 985,
+  ATOM_HEALTH_CONNECT_ECOSYSTEM_STATS = 986,
+  ATOM_HDMI_EARC_STATUS_REPORTED = 701,
+  ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED = 724,
+  ATOM_HDMI_POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST_TOGGLED = 991,
+  ATOM_BATTERY_HEALTH = 10220,
+  ATOM_BIOMETRIC_UNENROLLED = 944,
+  ATOM_BIOMETRIC_ENUMERATED = 945,
+  ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED = 584,
+  ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED = 816,
+  ATOM_FULL_SCREEN_INTENT_LAUNCHED = 631,
+  ATOM_BAL_ALLOWED = 632,
+  ATOM_IN_TASK_ACTIVITY_STARTED = 685,
+  ATOM_DEVICE_ORIENTATION_CHANGED = 906,
+  ATOM_CACHED_APPS_HIGH_WATERMARK = 10189,
+  ATOM_STYLUS_PREDICTION_METRICS_REPORTED = 718,
+  ATOM_USER_RISK_EVENT_REPORTED = 725,
+  ATOM_MEDIA_PROJECTION_STATE_CHANGED = 729,
+  ATOM_MEDIA_PROJECTION_TARGET_CHANGED = 730,
+  ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED = 853,
+  ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG = 10200,
+  ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE = 10204,
+  ATOM_BIOMETRIC_FRR_NOTIFICATION = 817,
+  ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION = 830,
+  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION = 831,
+  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED = 832,
+  ATOM_SENSITIVE_NOTIFICATION_REDACTION = 833,
+  ATOM_SENSITIVE_CONTENT_APP_PROTECTION = 835,
+  ATOM_APP_RESTRICTION_STATE_CHANGED = 866,
+  ATOM_BATTERY_USAGE_STATS_PER_UID = 10209,
+  ATOM_POSTGC_MEMORY_SNAPSHOT = 924,
+  ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED = 926,
+  ATOM_APP_OP_ACCESS_TRACKED = 931,
+  ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED = 933,
+  ATOM_DEVICE_IDLE_TEMP_ALLOWLIST_UPDATED = 940,
+  ATOM_APP_OP_NOTE_OP_OR_CHECK_OP_BINDER_API_CALLED = 943,
+  ATOM_FRAMEWORK_WAKELOCK_INFO = 10230,
+  ATOM_JANK_FRAME_COUNT_BY_WIDGET_REPORTED = 950,
+  ATOM_INTENT_CREATOR_TOKEN_ADDED = 978,
+  ATOM_NOTIFICATION_CHANNEL_CLASSIFICATION = 983,
+  ATOM_CAMERA_STATUS_FOR_COMPATIBILITY_CHANGED = 999,
+  ATOM_FEDERATED_COMPUTE_API_CALLED = 712,
+  ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED = 771,
+  ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED = 838,
+  ATOM_FEDERATED_COMPUTE_TRACE_EVENT_REPORTED = 992,
+  ATOM_EXPRESS_EVENT_REPORTED = 528,
+  ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED = 593,
+  ATOM_EXPRESS_UID_EVENT_REPORTED = 644,
+  ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED = 658,
+  ATOM_DREAM_SETTING_CHANGED = 705,
+  ATOM_DREAM_SETTING_SNAPSHOT = 10192,
+  ATOM_DND_STATE_CHANGED = 657,
+  ATOM_EXTERNAL_DISPLAY_STATE_CHANGED = 806,
+  ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED = 792,
+  ATOM_DEVICE_POLICY_MANAGEMENT_MODE = 10216,
+  ATOM_DEVICE_POLICY_STATE = 10217,
+  ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED = 726,
+  ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED = 727,
+  ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED = 728,
+  ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED = 789,
+  ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED = 790,
+  ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED = 791,
+  ATOM_DESKTOP_MODE_UI_CHANGED = 818,
+  ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE = 819,
+  ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED = 935,
+  ATOM_CRONET_ENGINE_CREATED = 703,
+  ATOM_CRONET_TRAFFIC_REPORTED = 704,
+  ATOM_CRONET_ENGINE_BUILDER_INITIALIZED = 762,
+  ATOM_CRONET_HTTP_FLAGS_INITIALIZED = 763,
+  ATOM_CRONET_INITIALIZED = 764,
+  ATOM_CREDENTIAL_MANAGER_API_CALLED = 585,
+  ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED = 651,
+  ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED = 652,
+  ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED = 653,
+  ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED = 667,
+  ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED = 668,
+  ATOM_CREDENTIAL_MANAGER_GET_REPORTED = 669,
+  ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED = 670,
+  ATOM_CREDENTIAL_MANAGER_APIV2_CALLED = 671,
+  ATOM_CPU_POLICY = 10199,
+  ATOM_VPN_CONNECTION_STATE_CHANGED = 850,
+  ATOM_VPN_CONNECTION_REPORTED = 851,
+  ATOM_IP_CLIENT_RA_INFO_REPORTED = 778,
+  ATOM_APF_SESSION_INFO_REPORTED = 777,
+  ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED = 979,
+  ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED = 783,
+  ATOM_DAILY_KEEPALIVE_INFO_REPORTED = 650,
+  ATOM_NETWORK_REQUEST_STATE_CHANGED = 779,
+  ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED = 925,
+  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_STATE_CHANGED = 972,
+  ATOM_HARDWARE_RENDERER_EVENT = 946,
+  ATOM_TEXTURE_VIEW_EVENT = 947,
+  ATOM_SURFACE_CONTROL_EVENT = 948,
+  ATOM_IMAGE_DECODED = 977,
+  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED = 934,
+  ATOM_CONSCRYPT_SERVICE_USED = 965,
+  ATOM_CERTIFICATE_TRANSPARENCY_VERIFICATION_REPORTED = 989,
+  ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT = 900,
+  ATOM_BROADCAST_SENT = 922,
+  ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED = 613,
+  ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION = 614,
+  ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION = 615,
+  ATOM_BLUETOOTH_LE_SESSION_CONNECTED = 656,
+  ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED = 666,
+  ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED = 696,
+  ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED = 781,
+  ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED = 782,
+  ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID = 862,
+  ATOM_LE_APP_SCAN_STATE_CHANGED = 870,
+  ATOM_LE_RADIO_SCAN_STOPPED = 871,
+  ATOM_LE_SCAN_RESULT_RECEIVED = 872,
+  ATOM_LE_SCAN_ABUSED = 873,
+  ATOM_LE_ADV_STATE_CHANGED = 874,
+  ATOM_LE_ADV_ERROR_REPORTED = 875,
+  ATOM_A2DP_SESSION_REPORTED = 904,
+  ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED = 916,
+  ATOM_BROADCAST_AUDIO_SESSION_REPORTED = 927,
+  ATOM_BROADCAST_AUDIO_SYNC_REPORTED = 928,
+  ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE = 982,
+  ATOM_BLUETOOTH_LE_CONNECTION = 988,
+  ATOM_HEARING_DEVICE_ACTIVE_EVENT_REPORTED = 1021,
+  ATOM_BACKPORTED_FIX_STATUS_REPORTED = 987,
+  ATOM_PLUGIN_INITIALIZED = 655,
+  ATOM_CAR_SYSTEM_UI_DATA_SUBSCRIPTION_EVENT_REPORTED = 974,
+  ATOM_CAR_SETTINGS_DATA_SUBSCRIPTION_EVENT_REPORTED = 975,
+  ATOM_CAR_QC_LIB_EVENT_REPORTED = 976,
+  ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED = 852,
+  ATOM_CAR_RECENTS_EVENT_REPORTED = 770,
+  ATOM_CAR_CALM_MODE_EVENT_REPORTED = 797,
+  ATOM_AUTOFILL_UI_EVENT_REPORTED = 603,
+  ATOM_AUTOFILL_FILL_REQUEST_REPORTED = 604,
+  ATOM_AUTOFILL_FILL_RESPONSE_REPORTED = 605,
+  ATOM_AUTOFILL_SAVE_EVENT_REPORTED = 606,
+  ATOM_AUTOFILL_SESSION_COMMITTED = 607,
+  ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED = 659,
+  ATOM_ODREFRESH_REPORTED = 366,
+  ATOM_ODSIGN_REPORTED = 548,
+  ATOM_BACKGROUND_DEXOPT_JOB_ENDED = 467,
+  ATOM_PREREBOOT_DEXOPT_JOB_ENDED = 883,
+  ATOM_ART_DATUM_REPORTED = 332,
+  ATOM_ART_DEVICE_DATUM_REPORTED = 550,
+  ATOM_ART_DATUM_DELTA_REPORTED = 565,
+  ATOM_ART_DEX2OAT_REPORTED = 929,
+  ATOM_ART_DEVICE_STATUS = 10205,
+  ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED = 385,
+  ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED = 579,
+  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED = 825,
+  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED = 826,
+  ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED = 909,
+  ATOM_APP_FUNCTIONS_REQUEST_REPORTED = 998,
+  ATOM_APEX_INSTALLATION_REQUESTED = 732,
+  ATOM_APEX_INSTALLATION_STAGED = 733,
+  ATOM_APEX_INSTALLATION_ENDED = 734,
+  ATOM_AI_WALLPAPERS_BUTTON_PRESSED = 706,
+  ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED = 707,
+  ATOM_AI_WALLPAPERS_TERM_SELECTED = 708,
+  ATOM_AI_WALLPAPERS_WALLPAPER_SET = 709,
+  ATOM_AI_WALLPAPERS_SESSION_SUMMARY = 710,
   ATOM_JSSCRIPTENGINE_LATENCY_REPORTED = 483,
   ATOM_AD_SERVICES_API_CALLED = 435,
   ATOM_AD_SERVICES_MESUREMENT_REPORTS_UPLOADED = 436,
@@ -45616,351 +45836,19 @@ enum AtomId : int {
   ATOM_AD_SERVICES_COBALT_PERIODIC_JOB_EVENT_REPORTED = 903,
   ATOM_UPDATE_SIGNALS_PROCESS_REPORTED = 905,
   ATOM_TOPICS_SCHEDULE_EPOCH_JOB_SETTING_REPORTED = 930,
-  ATOM_AI_WALLPAPERS_BUTTON_PRESSED = 706,
-  ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED = 707,
-  ATOM_AI_WALLPAPERS_TERM_SELECTED = 708,
-  ATOM_AI_WALLPAPERS_WALLPAPER_SET = 709,
-  ATOM_AI_WALLPAPERS_SESSION_SUMMARY = 710,
-  ATOM_APEX_INSTALLATION_REQUESTED = 732,
-  ATOM_APEX_INSTALLATION_STAGED = 733,
-  ATOM_APEX_INSTALLATION_ENDED = 734,
-  ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED = 385,
-  ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED = 579,
-  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED = 825,
-  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED = 826,
-  ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED = 909,
-  ATOM_ART_DATUM_REPORTED = 332,
-  ATOM_ART_DEVICE_DATUM_REPORTED = 550,
-  ATOM_ART_DATUM_DELTA_REPORTED = 565,
-  ATOM_ART_DEX2OAT_REPORTED = 929,
-  ATOM_ART_DEVICE_STATUS = 10205,
-  ATOM_BACKGROUND_DEXOPT_JOB_ENDED = 467,
-  ATOM_PREREBOOT_DEXOPT_JOB_ENDED = 883,
-  ATOM_ODREFRESH_REPORTED = 366,
-  ATOM_ODSIGN_REPORTED = 548,
-  ATOM_AUTOFILL_UI_EVENT_REPORTED = 603,
-  ATOM_AUTOFILL_FILL_REQUEST_REPORTED = 604,
-  ATOM_AUTOFILL_FILL_RESPONSE_REPORTED = 605,
-  ATOM_AUTOFILL_SAVE_EVENT_REPORTED = 606,
-  ATOM_AUTOFILL_SESSION_COMMITTED = 607,
-  ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED = 659,
-  ATOM_CAR_RECENTS_EVENT_REPORTED = 770,
-  ATOM_CAR_CALM_MODE_EVENT_REPORTED = 797,
-  ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED = 852,
-  ATOM_PLUGIN_INITIALIZED = 655,
-  ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED = 613,
-  ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION = 614,
-  ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION = 615,
-  ATOM_BLUETOOTH_LE_SESSION_CONNECTED = 656,
-  ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED = 666,
-  ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED = 696,
-  ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED = 781,
-  ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED = 782,
-  ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID = 862,
-  ATOM_LE_APP_SCAN_STATE_CHANGED = 870,
-  ATOM_LE_RADIO_SCAN_STOPPED = 871,
-  ATOM_LE_SCAN_RESULT_RECEIVED = 872,
-  ATOM_LE_SCAN_ABUSED = 873,
-  ATOM_LE_ADV_STATE_CHANGED = 874,
-  ATOM_LE_ADV_ERROR_REPORTED = 875,
-  ATOM_A2DP_SESSION_REPORTED = 904,
-  ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED = 916,
-  ATOM_BROADCAST_AUDIO_SESSION_REPORTED = 927,
-  ATOM_BROADCAST_AUDIO_SYNC_REPORTED = 928,
-  ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE = 982,
-  ATOM_BLUETOOTH_LE_CONNECTION = 988,
-  ATOM_BROADCAST_SENT = 922,
-  ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT = 900,
-  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED = 934,
-  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_FAILED = 972,
-  ATOM_DAILY_KEEPALIVE_INFO_REPORTED = 650,
-  ATOM_NETWORK_REQUEST_STATE_CHANGED = 779,
-  ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED = 925,
-  ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED = 783,
-  ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED = 979,
-  ATOM_APF_SESSION_INFO_REPORTED = 777,
-  ATOM_IP_CLIENT_RA_INFO_REPORTED = 778,
-  ATOM_VPN_CONNECTION_STATE_CHANGED = 850,
-  ATOM_VPN_CONNECTION_REPORTED = 851,
-  ATOM_CPU_POLICY = 10199,
-  ATOM_CREDENTIAL_MANAGER_API_CALLED = 585,
-  ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED = 651,
-  ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED = 652,
-  ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED = 653,
-  ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED = 667,
-  ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED = 668,
-  ATOM_CREDENTIAL_MANAGER_GET_REPORTED = 669,
-  ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED = 670,
-  ATOM_CREDENTIAL_MANAGER_APIV2_CALLED = 671,
-  ATOM_CRONET_ENGINE_CREATED = 703,
-  ATOM_CRONET_TRAFFIC_REPORTED = 704,
-  ATOM_CRONET_ENGINE_BUILDER_INITIALIZED = 762,
-  ATOM_CRONET_HTTP_FLAGS_INITIALIZED = 763,
-  ATOM_CRONET_INITIALIZED = 764,
-  ATOM_DESKTOP_MODE_UI_CHANGED = 818,
-  ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE = 819,
-  ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED = 935,
-  ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED = 726,
-  ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED = 727,
-  ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED = 728,
-  ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED = 789,
-  ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED = 790,
-  ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED = 791,
-  ATOM_DEVICE_POLICY_MANAGEMENT_MODE = 10216,
-  ATOM_DEVICE_POLICY_STATE = 10217,
-  ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED = 792,
-  ATOM_EXTERNAL_DISPLAY_STATE_CHANGED = 806,
-  ATOM_DND_STATE_CHANGED = 657,
-  ATOM_DREAM_SETTING_CHANGED = 705,
-  ATOM_DREAM_SETTING_SNAPSHOT = 10192,
-  ATOM_EXPRESS_EVENT_REPORTED = 528,
-  ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED = 593,
-  ATOM_EXPRESS_UID_EVENT_REPORTED = 644,
-  ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED = 658,
-  ATOM_FEDERATED_COMPUTE_API_CALLED = 712,
-  ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED = 771,
-  ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED = 838,
-  ATOM_FULL_SCREEN_INTENT_LAUNCHED = 631,
-  ATOM_BAL_ALLOWED = 632,
-  ATOM_IN_TASK_ACTIVITY_STARTED = 685,
-  ATOM_DEVICE_ORIENTATION_CHANGED = 906,
-  ATOM_CACHED_APPS_HIGH_WATERMARK = 10189,
-  ATOM_STYLUS_PREDICTION_METRICS_REPORTED = 718,
-  ATOM_USER_RISK_EVENT_REPORTED = 725,
-  ATOM_MEDIA_PROJECTION_STATE_CHANGED = 729,
-  ATOM_MEDIA_PROJECTION_TARGET_CHANGED = 730,
-  ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED = 853,
-  ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG = 10200,
-  ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE = 10204,
-  ATOM_BIOMETRIC_FRR_NOTIFICATION = 817,
-  ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION = 830,
-  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION = 831,
-  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED = 832,
-  ATOM_SENSITIVE_NOTIFICATION_REDACTION = 833,
-  ATOM_SENSITIVE_CONTENT_APP_PROTECTION = 835,
-  ATOM_APP_RESTRICTION_STATE_CHANGED = 866,
-  ATOM_BATTERY_USAGE_STATS_PER_UID = 10209,
-  ATOM_POSTGC_MEMORY_SNAPSHOT = 924,
-  ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED = 926,
-  ATOM_APP_OP_ACCESS_TRACKED = 931,
-  ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED = 933,
-  ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED = 584,
-  ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED = 816,
-  ATOM_BATTERY_HEALTH = 10220,
-  ATOM_HDMI_EARC_STATUS_REPORTED = 701,
-  ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED = 724,
-  ATOM_HEALTH_CONNECT_API_CALLED = 616,
-  ATOM_HEALTH_CONNECT_USAGE_STATS = 617,
-  ATOM_HEALTH_CONNECT_STORAGE_STATS = 618,
-  ATOM_HEALTH_CONNECT_API_INVOKED = 643,
-  ATOM_EXERCISE_ROUTE_API_CALLED = 654,
-  ATOM_HEALTH_CONNECT_EXPORT_INVOKED = 907,
-  ATOM_HEALTH_CONNECT_IMPORT_INVOKED = 918,
-  ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED = 919,
-  ATOM_HEALTH_CONNECT_UI_IMPRESSION = 623,
-  ATOM_HEALTH_CONNECT_UI_INTERACTION = 624,
-  ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED = 625,
-  ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED = 761,
-  ATOM_IKE_SESSION_TERMINATED = 678,
-  ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED = 760,
-  ATOM_NEGOTIATED_SECURITY_ASSOCIATION = 821,
-  ATOM_KEYBOARD_CONFIGURED = 682,
-  ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED = 683,
-  ATOM_INPUTDEVICE_USAGE_REPORTED = 686,
-  ATOM_INPUT_EVENT_LATENCY_REPORTED = 932,
-  ATOM_TOUCHPAD_USAGE = 10191,
-  ATOM_KERNEL_OOM_KILL_OCCURRED = 754,
-  ATOM_EMERGENCY_STATE_CHANGED = 633,
-  ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED = 868,
-  ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED = 1002,
-  ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED = 1003,
-  ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED = 1004,
-  ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED = 600,
-  ATOM_MEDIA_CODEC_STARTED = 641,
-  ATOM_MEDIA_CODEC_STOPPED = 642,
-  ATOM_MEDIA_CODEC_RENDERED = 684,
-  ATOM_MEDIA_EDITING_ENDED_REPORTED = 798,
-  ATOM_MTE_STATE = 10181,
-  ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED = 901,
-  ATOM_NFC_OBSERVE_MODE_STATE_CHANGED = 855,
-  ATOM_NFC_FIELD_CHANGED = 856,
-  ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED = 857,
-  ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED = 858,
-  ATOM_ONDEVICEPERSONALIZATION_API_CALLED = 711,
-  ATOM_COMPONENT_STATE_CHANGED_REPORTED = 863,
-  ATOM_PDF_LOAD_REPORTED = 859,
-  ATOM_PDF_API_USAGE_REPORTED = 860,
-  ATOM_PDF_SEARCH_REPORTED = 861,
-  ATOM_PRESSURE_STALL_INFORMATION = 10229,
-  ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED = 645,
-  ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED = 646,
-  ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION = 647,
-  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED = 648,
-  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED = 649,
-  ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED = 827,
-  ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED = 828,
-  ATOM_PHOTOPICKER_SESSION_INFO_REPORTED = 886,
-  ATOM_PHOTOPICKER_API_INFO_REPORTED = 887,
-  ATOM_PHOTOPICKER_UI_EVENT_LOGGED = 888,
-  ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED = 889,
-  ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED = 890,
-  ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED = 891,
-  ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED = 892,
-  ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED = 893,
-  ATOM_PHOTOPICKER_PAGE_INFO_LOGGED = 894,
-  ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED = 895,
-  ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED = 896,
-  ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED = 897,
-  ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED = 898,
-  ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED = 899,
-  ATOM_ATOM_9999 = 9999,
-  ATOM_ATOM_99999 = 99999,
-  ATOM_SCREEN_OFF_REPORTED = 776,
-  ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED = 836,
-  ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED = 837,
-  ATOM_SCREEN_DIM_REPORTED = 867,
-  ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED = 784,
-  ATOM_BACKUP_SETUP_STATUS_REPORTED = 785,
-  ATOM_RANGING_SESSION_CONFIGURED = 993,
-  ATOM_RANGING_SESSION_STARTED = 994,
-  ATOM_RANGING_SESSION_CLOSED = 995,
-  ATOM_RANGING_TECHNOLOGY_STARTED = 996,
-  ATOM_RANGING_TECHNOLOGY_STOPPED = 997,
-  ATOM_RKPD_POOL_STATS = 664,
-  ATOM_RKPD_CLIENT_OPERATION = 665,
-  ATOM_SANDBOX_API_CALLED = 488,
-  ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED = 735,
-  ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION = 796,
-  ATOM_SANDBOX_SDK_STORAGE = 10159,
-  ATOM_SELINUX_AUDIT_LOG = 799,
-  ATOM_SETTINGS_SPA_REPORTED = 622,
-  ATOM_TEST_EXTENSION_ATOM_REPORTED = 660,
-  ATOM_TEST_RESTRICTED_ATOM_REPORTED = 672,
-  ATOM_STATS_SOCKET_LOSS_REPORTED = 752,
-  ATOM_LOCKSCREEN_SHORTCUT_SELECTED = 611,
-  ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED = 612,
-  ATOM_LAUNCHER_IMPRESSION_EVENT_V2 = 716,
-  ATOM_DISPLAY_SWITCH_LATENCY_TRACKED = 753,
-  ATOM_NOTIFICATION_LISTENER_SERVICE = 829,
-  ATOM_NAV_HANDLE_TOUCH_POINTS = 869,
-  ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED = 908,
-  ATOM_COMMUNAL_HUB_SNAPSHOT = 10226,
-  ATOM_EMERGENCY_NUMBER_DIALED = 637,
-  ATOM_CALL_STATS = 10221,
-  ATOM_CALL_AUDIO_ROUTE_STATS = 10222,
-  ATOM_TELECOM_API_STATS = 10223,
-  ATOM_TELECOM_ERROR_STATS = 10224,
-  ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED = 713,
-  ATOM_EMERGENCY_NUMBERS_INFO = 10180,
-  ATOM_DATA_NETWORK_VALIDATION = 10207,
-  ATOM_DATA_RAT_STATE_CHANGED = 854,
-  ATOM_CONNECTED_CHANNEL_CHANGED = 882,
-  ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED = 923,
-  ATOM_QUALIFIED_RAT_LIST_CHANGED = 634,
-  ATOM_QNS_IMS_CALL_DROP_STATS = 635,
-  ATOM_QNS_FALLBACK_RESTRICTION_CHANGED = 636,
-  ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO = 10177,
-  ATOM_QNS_HANDOVER_TIME_MILLIS = 10178,
-  ATOM_QNS_HANDOVER_PINGPONG = 10179,
-  ATOM_SATELLITE_CONTROLLER = 10182,
-  ATOM_SATELLITE_SESSION = 10183,
-  ATOM_SATELLITE_INCOMING_DATAGRAM = 10184,
-  ATOM_SATELLITE_OUTGOING_DATAGRAM = 10185,
-  ATOM_SATELLITE_PROVISION = 10186,
-  ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER = 10187,
-  ATOM_CARRIER_ROAMING_SATELLITE_SESSION = 10211,
-  ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS = 10212,
-  ATOM_CONTROLLER_STATS_PER_PACKAGE = 10213,
-  ATOM_SATELLITE_ENTITLEMENT = 10214,
-  ATOM_SATELLITE_CONFIG_UPDATER = 10215,
-  ATOM_SATELLITE_ACCESS_CONTROLLER = 10219,
-  ATOM_CELLULAR_IDENTIFIER_DISCLOSED = 800,
-  ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED = 738,
-  ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED = 739,
-  ATOM_THREADNETWORK_DEVICE_INFO_REPORTED = 740,
-  ATOM_BOOT_INTEGRITY_INFO_REPORTED = 775,
-  ATOM_TV_LOW_POWER_STANDBY_POLICY = 679,
-  ATOM_EXTERNAL_TV_INPUT_EVENT = 717,
-  ATOM_TEST_UPROBESTATS_ATOM_REPORTED = 915,
-  ATOM_UWB_ACTIVITY_INFO = 10188,
-  ATOM_MEDIATOR_UPDATED = 721,
-  ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER = 10196,
-  ATOM_SYSPROXY_CONNECTION_UPDATED = 786,
-  ATOM_WEAR_COMPANION_CONNECTION_STATE = 921,
-  ATOM_MEDIA_ACTION_REPORTED = 608,
-  ATOM_MEDIA_CONTROLS_LAUNCHED = 609,
-  ATOM_MEDIA_SESSION_STATE_CHANGED = 677,
-  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY = 757,
-  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE = 758,
-  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT = 759,
-  ATOM_WEAR_MODE_STATE_CHANGED = 715,
-  ATOM_RENDERER_INITIALIZED = 736,
-  ATOM_SCHEMA_VERSION_RECEIVED = 737,
-  ATOM_LAYOUT_INSPECTED = 741,
-  ATOM_LAYOUT_EXPRESSION_INSPECTED = 742,
-  ATOM_LAYOUT_ANIMATIONS_INSPECTED = 743,
-  ATOM_MATERIAL_COMPONENTS_INSPECTED = 744,
-  ATOM_TILE_REQUESTED = 745,
-  ATOM_STATE_RESPONSE_RECEIVED = 746,
-  ATOM_TILE_RESPONSE_RECEIVED = 747,
-  ATOM_INFLATION_FINISHED = 748,
-  ATOM_INFLATION_FAILED = 749,
-  ATOM_IGNORED_INFLATION_FAILURES_REPORTED = 750,
-  ATOM_DRAWABLE_RENDERED = 751,
-  ATOM_WEAR_TIME_SYNC_REQUESTED = 911,
-  ATOM_WEAR_TIME_UPDATE_STARTED = 912,
-  ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED = 913,
-  ATOM_WEAR_TIME_CHANGED = 914,
-  ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED = 619,
-  ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED = 620,
-  ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED = 621,
-  ATOM_WS_WEAR_TIME_SESSION = 610,
-  ATOM_WS_INCOMING_CALL_ACTION_REPORTED = 626,
-  ATOM_WS_CALL_DISCONNECTION_REPORTED = 627,
-  ATOM_WS_CALL_DURATION_REPORTED = 628,
-  ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED = 629,
-  ATOM_WS_CALL_INTERACTION_REPORTED = 630,
-  ATOM_WS_ON_BODY_STATE_CHANGED = 787,
-  ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED = 802,
-  ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED = 803,
-  ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED = 804,
-  ATOM_WS_REMOTE_EVENT_USAGE_REPORTED = 920,
-  ATOM_WS_BUGREPORT_REQUESTED = 936,
-  ATOM_WS_BUGREPORT_TRIGGERED = 937,
-  ATOM_WS_BUGREPORT_FINISHED = 938,
-  ATOM_WS_BUGREPORT_RESULT_RECEIVED = 939,
-  ATOM_WS_STANDALONE_MODE_SNAPSHOT = 10197,
-  ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT = 10206,
-  ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT = 10225,
-  ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT = 10227,
-  ATOM_WEAR_POWER_MENU_OPENED = 731,
-  ATOM_WEAR_ASSISTANT_OPENED = 755,
-  ATOM_FIRST_OVERLAY_STATE_CHANGED = 917,
-  ATOM_WIFI_AWARE_NDP_REPORTED = 638,
-  ATOM_WIFI_AWARE_ATTACH_REPORTED = 639,
-  ATOM_WIFI_SELF_RECOVERY_TRIGGERED = 661,
-  ATOM_SOFT_AP_STARTED = 680,
-  ATOM_SOFT_AP_STOPPED = 681,
-  ATOM_WIFI_LOCK_RELEASED = 687,
-  ATOM_WIFI_LOCK_DEACTIVATED = 688,
-  ATOM_WIFI_CONFIG_SAVED = 689,
-  ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED = 690,
-  ATOM_WIFI_AWARE_HAL_API_CALLED = 691,
-  ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED = 692,
-  ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED = 693,
-  ATOM_WIFI_THREAD_TASK_EXECUTED = 694,
-  ATOM_WIFI_STATE_CHANGED = 700,
-  ATOM_PNO_SCAN_STARTED = 719,
-  ATOM_PNO_SCAN_STOPPED = 720,
-  ATOM_WIFI_IS_UNUSABLE_REPORTED = 722,
-  ATOM_WIFI_AP_CAPABILITIES_REPORTED = 723,
-  ATOM_SOFT_AP_STATE_CHANGED = 805,
-  ATOM_SCORER_PREDICTION_RESULT_REPORTED = 884,
-  ATOM_WIFI_AWARE_CAPABILITIES = 10190,
-  ATOM_WIFI_MODULE_INFO = 10193,
-  ATOM_WIFI_SETTING_INFO = 10194,
-  ATOM_WIFI_COMPLEX_SETTING_INFO = 10195,
-  ATOM_WIFI_CONFIGURED_NETWORK_INFO = 10198,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_SCHEDULE_ATTEMPTED = 967,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED = 968,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED_ATTEMPTED_FAILURE_REPORTED = 969,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_BACKGROUND_JOB_RAN = 970,
+  ATOM_THERMAL_STATUS_CALLED = 772,
+  ATOM_THERMAL_HEADROOM_CALLED = 773,
+  ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED = 774,
+  ATOM_ADPF_HINT_SESSION_TID_CLEANUP = 839,
+  ATOM_THERMAL_HEADROOM_THRESHOLDS = 10201,
+  ATOM_ADPF_SESSION_SNAPSHOT = 10218,
+  ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED = 820,
+  ATOM_ACCOUNT_MANAGER_EVENT = 951,
+  ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED = 910,
 };
 }  // namespace perfetto
 }  // namespace protos
@@ -46637,7 +46525,8 @@ class ChromeFieldTracingConfig;
 class ScenarioConfig;
 class NestedScenarioConfig;
 class TraceConfig;
-class TraceConfig_Note;
+class TraceAttributes;
+class TraceAttributes_Attribute;
 class PriorityBoostConfig;
 class TraceConfig_SessionSemaphore;
 class TraceConfig_CmdTraceStartDelay;
@@ -46646,6 +46535,9 @@ class TraceConfig_TraceFilter;
 class TraceConfig_TraceFilter_StringFilterChain;
 class TraceConfig_TraceFilter_StringFilterRule;
 class TraceConfig_IncidentReportConfig;
+class TraceConfig_CompressionConfig;
+class TraceConfig_CompressionConfig_Zstd;
+class TraceConfig_CompressionConfig_Deflate;
 class TraceConfig_IncrementalStateConfig;
 class TraceConfig_TriggerConfig;
 class TraceConfig_TriggerConfig_Trigger;
@@ -47464,7 +47356,8 @@ namespace gen {
 class StressTestConfig;
 class StressTestConfig_WriterTiming;
 class TraceConfig;
-class TraceConfig_Note;
+class TraceAttributes;
+class TraceAttributes_Attribute;
 class PriorityBoostConfig;
 class TraceConfig_SessionSemaphore;
 class TraceConfig_CmdTraceStartDelay;
@@ -47473,6 +47366,9 @@ class TraceConfig_TraceFilter;
 class TraceConfig_TraceFilter_StringFilterChain;
 class TraceConfig_TraceFilter_StringFilterRule;
 class TraceConfig_IncidentReportConfig;
+class TraceConfig_CompressionConfig;
+class TraceConfig_CompressionConfig_Zstd;
+class TraceConfig_CompressionConfig_Deflate;
 class TraceConfig_IncrementalStateConfig;
 class TraceConfig_TriggerConfig;
 class TraceConfig_TriggerConfig_Trigger;
@@ -49052,7 +48948,7 @@ const char* DisplayVideoConfig_Format_Name(::perfetto::protos::pbzero::DisplayVi
   return "PBZERO_UNKNOWN_ENUM_VALUE";
 }
 
-class DisplayVideoConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/4> {
+class DisplayVideoConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/5> {
  public:
   DisplayVideoConfig_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit DisplayVideoConfig_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -49065,6 +48961,8 @@ class DisplayVideoConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_F
   uint32_t key_frame_interval_secs() const { return at<3>().as_uint32(); }
   bool has_max_stream_size_bytes() const { return at<4>().valid(); }
   uint64_t max_stream_size_bytes() const { return at<4>().as_uint64(); }
+  bool has_bitrate_bps() const { return at<5>().valid(); }
+  uint32_t bitrate_bps() const { return at<5>().as_uint32(); }
 };
 
 class DisplayVideoConfig : public ::protozero::Message {
@@ -49075,6 +48973,7 @@ class DisplayVideoConfig : public ::protozero::Message {
     kFormatFieldNumber = 2,
     kKeyFrameIntervalSecsFieldNumber = 3,
     kMaxStreamSizeBytesFieldNumber = 4,
+    kBitrateBpsFieldNumber = 5,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.DisplayVideoConfig"; }
 
@@ -49156,6 +49055,24 @@ class DisplayVideoConfig : public ::protozero::Message {
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
       ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_BitrateBps =
+    ::protozero::proto_utils::FieldMetadata<
+      5,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      DisplayVideoConfig>;
+
+  static constexpr FieldMetadata_BitrateBps kBitrateBps{};
+  void set_bitrate_bps(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_BitrateBps::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
         ::Append(*this, field_id, value);
   }
 };
@@ -53448,7 +53365,7 @@ const char* ProcessStatsConfig_Quirks_Name(::perfetto::protos::pbzero::ProcessSt
   return "PBZERO_UNKNOWN_ENUM_VALUE";
 }
 
-class ProcessStatsConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/13> {
+class ProcessStatsConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/14> {
  public:
   ProcessStatsConfig_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit ProcessStatsConfig_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -53473,6 +53390,8 @@ class ProcessStatsConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_F
   bool record_process_dmabuf_rss() const { return at<13>().as_bool(); }
   bool has_resolve_process_fds() const { return at<9>().valid(); }
   bool resolve_process_fds() const { return at<9>().as_bool(); }
+  bool has_skip_main_thread_message() const { return at<14>().valid(); }
+  bool skip_main_thread_message() const { return at<14>().as_bool(); }
 };
 
 class ProcessStatsConfig : public ::protozero::Message {
@@ -53489,6 +53408,7 @@ class ProcessStatsConfig : public ::protozero::Message {
     kRecordProcessRuntimeFieldNumber = 12,
     kRecordProcessDmabufRssFieldNumber = 13,
     kResolveProcessFdsFieldNumber = 9,
+    kSkipMainThreadMessageFieldNumber = 14,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.ProcessStatsConfig"; }
 
@@ -53674,6 +53594,24 @@ class ProcessStatsConfig : public ::protozero::Message {
   static constexpr FieldMetadata_ResolveProcessFds kResolveProcessFds{};
   void set_resolve_process_fds(bool value) {
     static constexpr uint32_t field_id = FieldMetadata_ResolveProcessFds::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kBool>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_SkipMainThreadMessage =
+    ::protozero::proto_utils::FieldMetadata<
+      14,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kBool,
+      bool,
+      ProcessStatsConfig>;
+
+  static constexpr FieldMetadata_SkipMainThreadMessage kSkipMainThreadMessage{};
+  void set_skip_main_thread_message(bool value) {
+    static constexpr uint32_t field_id = FieldMetadata_SkipMainThreadMessage::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -56850,14 +56788,400 @@ enum AtomId : int32_t {
   ATOM_NOTIFICATION_MEMORY_USE = 10174,
   ATOM_HDR_CAPABILITIES = 10175,
   ATOM_WS_FAVOURITE_WATCH_FACE_LIST_SNAPSHOT = 10176,
-  ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED = 910,
-  ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED = 820,
-  ATOM_THERMAL_STATUS_CALLED = 772,
-  ATOM_THERMAL_HEADROOM_CALLED = 773,
-  ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED = 774,
-  ATOM_ADPF_HINT_SESSION_TID_CLEANUP = 839,
-  ATOM_THERMAL_HEADROOM_THRESHOLDS = 10201,
-  ATOM_ADPF_SESSION_SNAPSHOT = 10218,
+  ATOM_WIFI_AWARE_NDP_REPORTED = 638,
+  ATOM_WIFI_AWARE_ATTACH_REPORTED = 639,
+  ATOM_WIFI_SELF_RECOVERY_TRIGGERED = 661,
+  ATOM_SOFT_AP_STARTED = 680,
+  ATOM_SOFT_AP_STOPPED = 681,
+  ATOM_WIFI_LOCK_RELEASED = 687,
+  ATOM_WIFI_LOCK_DEACTIVATED = 688,
+  ATOM_WIFI_CONFIG_SAVED = 689,
+  ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED = 690,
+  ATOM_WIFI_AWARE_HAL_API_CALLED = 691,
+  ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED = 692,
+  ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED = 693,
+  ATOM_WIFI_THREAD_TASK_EXECUTED = 694,
+  ATOM_WIFI_STATE_CHANGED = 700,
+  ATOM_PNO_SCAN_STARTED = 719,
+  ATOM_PNO_SCAN_STOPPED = 720,
+  ATOM_WIFI_IS_UNUSABLE_REPORTED = 722,
+  ATOM_WIFI_AP_CAPABILITIES_REPORTED = 723,
+  ATOM_SOFT_AP_STATE_CHANGED = 805,
+  ATOM_SCORER_PREDICTION_RESULT_REPORTED = 884,
+  ATOM_WIFI_AWARE_CAPABILITIES = 10190,
+  ATOM_WIFI_MODULE_INFO = 10193,
+  ATOM_WIFI_SETTING_INFO = 10194,
+  ATOM_WIFI_COMPLEX_SETTING_INFO = 10195,
+  ATOM_WIFI_CONFIGURED_NETWORK_INFO = 10198,
+  ATOM_WEAR_POWER_MENU_OPENED = 731,
+  ATOM_WEAR_ASSISTANT_OPENED = 755,
+  ATOM_FIRST_OVERLAY_STATE_CHANGED = 917,
+  ATOM_WS_WEAR_TIME_SESSION = 610,
+  ATOM_WS_INCOMING_CALL_ACTION_REPORTED = 626,
+  ATOM_WS_CALL_DISCONNECTION_REPORTED = 627,
+  ATOM_WS_CALL_DURATION_REPORTED = 628,
+  ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED = 629,
+  ATOM_WS_CALL_INTERACTION_REPORTED = 630,
+  ATOM_WS_ON_BODY_STATE_CHANGED = 787,
+  ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED = 802,
+  ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED = 803,
+  ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED = 804,
+  ATOM_WS_REMOTE_EVENT_USAGE_REPORTED = 920,
+  ATOM_WS_NOTIFICATION_MANAGED_DISMISSAL_SYNC = 941,
+  ATOM_WS_BUGREPORT_EVENT_REPORTED = 964,
+  ATOM_WS_STANDALONE_MODE_SNAPSHOT = 10197,
+  ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT = 10206,
+  ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT = 10225,
+  ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT = 10227,
+  ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED = 619,
+  ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED = 620,
+  ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED = 621,
+  ATOM_WEAR_TIME_SYNC_REQUESTED = 911,
+  ATOM_WEAR_TIME_UPDATE_STARTED = 912,
+  ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED = 913,
+  ATOM_WEAR_TIME_CHANGED = 914,
+  ATOM_WEAR_SETUP_WIZARD_DEVICE_STATUS_REPORTED = 953,
+  ATOM_WEAR_SETUP_WIZARD_PAIRING_COMPLETED = 954,
+  ATOM_WEAR_SETUP_WIZARD_CONNECTION_ESTABLISHED = 955,
+  ATOM_WEAR_SETUP_WIZARD_CHECKIN_COMPLETED = 956,
+  ATOM_WEAR_SETUP_WIZARD_COMPANION_TIME_REPORTED = 957,
+  ATOM_WEAR_SETUP_WIZARD_STATUS_REPORTED = 958,
+  ATOM_WEAR_SETUP_WIZARD_HEARTBEAT_REPORTED = 959,
+  ATOM_WEAR_SETUP_WIZARD_FRP_TRIGGERED = 960,
+  ATOM_WEAR_SETUP_WIZARD_SYSTEM_UPDATE_TRIGGERED = 961,
+  ATOM_WEAR_SETUP_WIZARD_PHONE_SWITCH_TRIGGERED = 962,
+  ATOM_RENDERER_INITIALIZED = 736,
+  ATOM_SCHEMA_VERSION_RECEIVED = 737,
+  ATOM_LAYOUT_INSPECTED = 741,
+  ATOM_LAYOUT_EXPRESSION_INSPECTED = 742,
+  ATOM_LAYOUT_ANIMATIONS_INSPECTED = 743,
+  ATOM_MATERIAL_COMPONENTS_INSPECTED = 744,
+  ATOM_TILE_REQUESTED = 745,
+  ATOM_STATE_RESPONSE_RECEIVED = 746,
+  ATOM_TILE_RESPONSE_RECEIVED = 747,
+  ATOM_INFLATION_FINISHED = 748,
+  ATOM_INFLATION_FAILED = 749,
+  ATOM_IGNORED_INFLATION_FAILURES_REPORTED = 750,
+  ATOM_DRAWABLE_RENDERED = 751,
+  ATOM_WEAR_MODE_STATE_CHANGED = 715,
+  ATOM_MEDIA_ACTION_REPORTED = 608,
+  ATOM_MEDIA_CONTROLS_LAUNCHED = 609,
+  ATOM_MEDIA_SESSION_STATE_CHANGED = 677,
+  ATOM_MEDIA_CONTROL_API_USAGE_REPORTED = 966,
+  ATOM_MEDIA_SUBSCRIPTION_CHANGED = 990,
+  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY = 757,
+  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE = 758,
+  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT = 759,
+  ATOM_MEDIATOR_UPDATED = 721,
+  ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER = 10196,
+  ATOM_SYSPROXY_CONNECTION_UPDATED = 786,
+  ATOM_WEAR_COMPANION_CONNECTION_STATE = 921,
+  ATOM_SYSPROXY_SERVICE_STATE_UPDATED = 949,
+  ATOM_UWB_ACTIVITY_INFO = 10188,
+  ATOM_TEST_UPROBESTATS_ATOM_REPORTED = 915,
+  ATOM_TV_LOW_POWER_STANDBY_POLICY = 679,
+  ATOM_EXTERNAL_TV_INPUT_EVENT = 717,
+  ATOM_BOOT_INTEGRITY_INFO_REPORTED = 775,
+  ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED = 738,
+  ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED = 739,
+  ATOM_THREADNETWORK_DEVICE_INFO_REPORTED = 740,
+  ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED = 713,
+  ATOM_EMERGENCY_NUMBERS_INFO = 10180,
+  ATOM_DATA_NETWORK_VALIDATION = 10207,
+  ATOM_DATA_RAT_STATE_CHANGED = 854,
+  ATOM_CONNECTED_CHANNEL_CHANGED = 882,
+  ATOM_CELLULAR_IDENTIFIER_DISCLOSED = 800,
+  ATOM_SATELLITE_CONTROLLER = 10182,
+  ATOM_SATELLITE_SESSION = 10183,
+  ATOM_SATELLITE_INCOMING_DATAGRAM = 10184,
+  ATOM_SATELLITE_OUTGOING_DATAGRAM = 10185,
+  ATOM_SATELLITE_PROVISION = 10186,
+  ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER = 10187,
+  ATOM_CARRIER_ROAMING_SATELLITE_SESSION = 10211,
+  ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS = 10212,
+  ATOM_CONTROLLER_STATS_PER_PACKAGE = 10213,
+  ATOM_SATELLITE_ENTITLEMENT = 10214,
+  ATOM_SATELLITE_CONFIG_UPDATER = 10215,
+  ATOM_SATELLITE_ACCESS_CONTROLLER = 10219,
+  ATOM_QUALIFIED_RAT_LIST_CHANGED = 634,
+  ATOM_QNS_IMS_CALL_DROP_STATS = 635,
+  ATOM_QNS_FALLBACK_RESTRICTION_CHANGED = 636,
+  ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO = 10177,
+  ATOM_QNS_HANDOVER_TIME_MILLIS = 10178,
+  ATOM_QNS_HANDOVER_PINGPONG = 10179,
+  ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED = 923,
+  ATOM_EMERGENCY_NUMBER_DIALED = 637,
+  ATOM_CALL_STATS = 10221,
+  ATOM_CALL_AUDIO_ROUTE_STATS = 10222,
+  ATOM_TELECOM_API_STATS = 10223,
+  ATOM_TELECOM_ERROR_STATS = 10224,
+  ATOM_LOCKSCREEN_SHORTCUT_SELECTED = 611,
+  ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED = 612,
+  ATOM_LAUNCHER_IMPRESSION_EVENT_V2 = 716,
+  ATOM_DISPLAY_SWITCH_LATENCY_TRACKED = 753,
+  ATOM_NOTIFICATION_LISTENER_SERVICE = 829,
+  ATOM_NAV_HANDLE_TOUCH_POINTS = 869,
+  ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED = 908,
+  ATOM_PERIPHERAL_TUTORIAL_LAUNCHED = 942,
+  ATOM_CONTEXTUAL_EDUCATION_TRIGGERED = 971,
+  ATOM_COMMUNAL_HUB_SNAPSHOT = 10226,
+  ATOM_TEST_EXTENSION_ATOM_REPORTED = 660,
+  ATOM_TEST_RESTRICTED_ATOM_REPORTED = 672,
+  ATOM_STATS_SOCKET_LOSS_REPORTED = 752,
+  ATOM_SETTINGS_SPA_REPORTED = 622,
+  ATOM_SELINUX_AUDIT_LOG = 799,
+  ATOM_SANDBOX_API_CALLED = 488,
+  ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED = 735,
+  ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION = 796,
+  ATOM_SANDBOX_SDK_STORAGE = 10159,
+  ATOM_RKPD_POOL_STATS = 664,
+  ATOM_RKPD_CLIENT_OPERATION = 665,
+  ATOM_RANGING_SESSION_CONFIGURED = 993,
+  ATOM_RANGING_SESSION_STARTED = 994,
+  ATOM_RANGING_SESSION_CLOSED = 995,
+  ATOM_RANGING_TECHNOLOGY_STARTED = 996,
+  ATOM_RANGING_TECHNOLOGY_STOPPED = 997,
+  ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED = 784,
+  ATOM_BACKUP_SETUP_STATUS_REPORTED = 785,
+  ATOM_SCREEN_OFF_REPORTED = 776,
+  ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED = 836,
+  ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED = 837,
+  ATOM_SCREEN_DIM_REPORTED = 867,
+  ATOM_ATOM_9999 = 9999,
+  ATOM_ATOM_99999 = 99999,
+  ATOM_PHOTOPICKER_SESSION_INFO_REPORTED = 886,
+  ATOM_PHOTOPICKER_API_INFO_REPORTED = 887,
+  ATOM_PHOTOPICKER_UI_EVENT_LOGGED = 888,
+  ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED = 889,
+  ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED = 890,
+  ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED = 891,
+  ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED = 892,
+  ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED = 893,
+  ATOM_PHOTOPICKER_PAGE_INFO_LOGGED = 894,
+  ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED = 895,
+  ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED = 896,
+  ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED = 897,
+  ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED = 898,
+  ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED = 899,
+  ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED = 645,
+  ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED = 646,
+  ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION = 647,
+  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED = 648,
+  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED = 649,
+  ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED = 827,
+  ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED = 828,
+  ATOM_PRESSURE_STALL_INFORMATION = 10229,
+  ATOM_PDF_LOAD_REPORTED = 859,
+  ATOM_PDF_API_USAGE_REPORTED = 860,
+  ATOM_PDF_SEARCH_REPORTED = 861,
+  ATOM_COMPONENT_STATE_CHANGED_REPORTED = 863,
+  ATOM_ONDEVICEPERSONALIZATION_API_CALLED = 711,
+  ATOM_ONDEVICEPERSONALIZATION_TRACE_EVENT = 952,
+  ATOM_NFC_OBSERVE_MODE_STATE_CHANGED = 855,
+  ATOM_NFC_FIELD_CHANGED = 856,
+  ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED = 857,
+  ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED = 858,
+  ATOM_NFC_EXIT_FRAME_TABLE_CHANGED = 1036,
+  ATOM_NFC_AUTO_TRANSACT_REPORTED = 1038,
+  ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED = 901,
+  ATOM_MTE_STATE = 10181,
+  ATOM_ZRAM_MAINTENANCE_EXECUTED = 1015,
+  ATOM_ZRAM_SETUP_EXECUTED = 1029,
+  ATOM_ZRAM_MM_STAT_MMD = 10232,
+  ATOM_ZRAM_BD_STAT_MMD = 10233,
+  ATOM_MEDIA_EDITING_ENDED_REPORTED = 798,
+  ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED = 600,
+  ATOM_MEDIA_CODEC_STARTED = 641,
+  ATOM_MEDIA_CODEC_STOPPED = 642,
+  ATOM_MEDIA_CODEC_RENDERED = 684,
+  ATOM_EMERGENCY_STATE_CHANGED = 633,
+  ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED = 868,
+  ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED = 1002,
+  ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED = 1003,
+  ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED = 1004,
+  ATOM_KERNEL_OOM_KILL_OCCURRED = 754,
+  ATOM_KEYBOARD_CONFIGURED = 682,
+  ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED = 683,
+  ATOM_INPUTDEVICE_USAGE_REPORTED = 686,
+  ATOM_INPUT_EVENT_LATENCY_REPORTED = 932,
+  ATOM_TOUCHPAD_USAGE = 10191,
+  ATOM_IKE_SESSION_TERMINATED = 678,
+  ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED = 760,
+  ATOM_NEGOTIATED_SECURITY_ASSOCIATION = 821,
+  ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED = 761,
+  ATOM_HEALTH_CONNECT_UI_IMPRESSION = 623,
+  ATOM_HEALTH_CONNECT_UI_INTERACTION = 624,
+  ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED = 625,
+  ATOM_HEALTH_CONNECT_API_CALLED = 616,
+  ATOM_HEALTH_CONNECT_USAGE_STATS = 617,
+  ATOM_HEALTH_CONNECT_STORAGE_STATS = 618,
+  ATOM_HEALTH_CONNECT_API_INVOKED = 643,
+  ATOM_EXERCISE_ROUTE_API_CALLED = 654,
+  ATOM_HEALTH_CONNECT_EXPORT_INVOKED = 907,
+  ATOM_HEALTH_CONNECT_IMPORT_INVOKED = 918,
+  ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED = 919,
+  ATOM_HEALTH_CONNECT_PERMISSION_STATS = 963,
+  ATOM_HEALTH_CONNECT_PHR_API_INVOKED = 980,
+  ATOM_HEALTH_CONNECT_PHR_USAGE_STATS = 981,
+  ATOM_HEALTH_CONNECT_PHR_STORAGE_STATS = 984,
+  ATOM_HEALTH_CONNECT_RESTRICTED_ECOSYSTEM_STATS = 985,
+  ATOM_HEALTH_CONNECT_ECOSYSTEM_STATS = 986,
+  ATOM_HDMI_EARC_STATUS_REPORTED = 701,
+  ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED = 724,
+  ATOM_HDMI_POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST_TOGGLED = 991,
+  ATOM_BATTERY_HEALTH = 10220,
+  ATOM_BIOMETRIC_UNENROLLED = 944,
+  ATOM_BIOMETRIC_ENUMERATED = 945,
+  ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED = 584,
+  ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED = 816,
+  ATOM_FULL_SCREEN_INTENT_LAUNCHED = 631,
+  ATOM_BAL_ALLOWED = 632,
+  ATOM_IN_TASK_ACTIVITY_STARTED = 685,
+  ATOM_DEVICE_ORIENTATION_CHANGED = 906,
+  ATOM_CACHED_APPS_HIGH_WATERMARK = 10189,
+  ATOM_STYLUS_PREDICTION_METRICS_REPORTED = 718,
+  ATOM_USER_RISK_EVENT_REPORTED = 725,
+  ATOM_MEDIA_PROJECTION_STATE_CHANGED = 729,
+  ATOM_MEDIA_PROJECTION_TARGET_CHANGED = 730,
+  ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED = 853,
+  ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG = 10200,
+  ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE = 10204,
+  ATOM_BIOMETRIC_FRR_NOTIFICATION = 817,
+  ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION = 830,
+  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION = 831,
+  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED = 832,
+  ATOM_SENSITIVE_NOTIFICATION_REDACTION = 833,
+  ATOM_SENSITIVE_CONTENT_APP_PROTECTION = 835,
+  ATOM_APP_RESTRICTION_STATE_CHANGED = 866,
+  ATOM_BATTERY_USAGE_STATS_PER_UID = 10209,
+  ATOM_POSTGC_MEMORY_SNAPSHOT = 924,
+  ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED = 926,
+  ATOM_APP_OP_ACCESS_TRACKED = 931,
+  ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED = 933,
+  ATOM_DEVICE_IDLE_TEMP_ALLOWLIST_UPDATED = 940,
+  ATOM_APP_OP_NOTE_OP_OR_CHECK_OP_BINDER_API_CALLED = 943,
+  ATOM_FRAMEWORK_WAKELOCK_INFO = 10230,
+  ATOM_JANK_FRAME_COUNT_BY_WIDGET_REPORTED = 950,
+  ATOM_INTENT_CREATOR_TOKEN_ADDED = 978,
+  ATOM_NOTIFICATION_CHANNEL_CLASSIFICATION = 983,
+  ATOM_CAMERA_STATUS_FOR_COMPATIBILITY_CHANGED = 999,
+  ATOM_FEDERATED_COMPUTE_API_CALLED = 712,
+  ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED = 771,
+  ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED = 838,
+  ATOM_FEDERATED_COMPUTE_TRACE_EVENT_REPORTED = 992,
+  ATOM_EXPRESS_EVENT_REPORTED = 528,
+  ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED = 593,
+  ATOM_EXPRESS_UID_EVENT_REPORTED = 644,
+  ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED = 658,
+  ATOM_DREAM_SETTING_CHANGED = 705,
+  ATOM_DREAM_SETTING_SNAPSHOT = 10192,
+  ATOM_DND_STATE_CHANGED = 657,
+  ATOM_EXTERNAL_DISPLAY_STATE_CHANGED = 806,
+  ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED = 792,
+  ATOM_DEVICE_POLICY_MANAGEMENT_MODE = 10216,
+  ATOM_DEVICE_POLICY_STATE = 10217,
+  ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED = 726,
+  ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED = 727,
+  ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED = 728,
+  ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED = 789,
+  ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED = 790,
+  ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED = 791,
+  ATOM_DESKTOP_MODE_UI_CHANGED = 818,
+  ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE = 819,
+  ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED = 935,
+  ATOM_CRONET_ENGINE_CREATED = 703,
+  ATOM_CRONET_TRAFFIC_REPORTED = 704,
+  ATOM_CRONET_ENGINE_BUILDER_INITIALIZED = 762,
+  ATOM_CRONET_HTTP_FLAGS_INITIALIZED = 763,
+  ATOM_CRONET_INITIALIZED = 764,
+  ATOM_CREDENTIAL_MANAGER_API_CALLED = 585,
+  ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED = 651,
+  ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED = 652,
+  ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED = 653,
+  ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED = 667,
+  ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED = 668,
+  ATOM_CREDENTIAL_MANAGER_GET_REPORTED = 669,
+  ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED = 670,
+  ATOM_CREDENTIAL_MANAGER_APIV2_CALLED = 671,
+  ATOM_CPU_POLICY = 10199,
+  ATOM_VPN_CONNECTION_STATE_CHANGED = 850,
+  ATOM_VPN_CONNECTION_REPORTED = 851,
+  ATOM_IP_CLIENT_RA_INFO_REPORTED = 778,
+  ATOM_APF_SESSION_INFO_REPORTED = 777,
+  ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED = 979,
+  ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED = 783,
+  ATOM_DAILY_KEEPALIVE_INFO_REPORTED = 650,
+  ATOM_NETWORK_REQUEST_STATE_CHANGED = 779,
+  ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED = 925,
+  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_STATE_CHANGED = 972,
+  ATOM_HARDWARE_RENDERER_EVENT = 946,
+  ATOM_TEXTURE_VIEW_EVENT = 947,
+  ATOM_SURFACE_CONTROL_EVENT = 948,
+  ATOM_IMAGE_DECODED = 977,
+  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED = 934,
+  ATOM_CONSCRYPT_SERVICE_USED = 965,
+  ATOM_CERTIFICATE_TRANSPARENCY_VERIFICATION_REPORTED = 989,
+  ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT = 900,
+  ATOM_BROADCAST_SENT = 922,
+  ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED = 613,
+  ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION = 614,
+  ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION = 615,
+  ATOM_BLUETOOTH_LE_SESSION_CONNECTED = 656,
+  ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED = 666,
+  ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED = 696,
+  ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED = 781,
+  ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED = 782,
+  ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID = 862,
+  ATOM_LE_APP_SCAN_STATE_CHANGED = 870,
+  ATOM_LE_RADIO_SCAN_STOPPED = 871,
+  ATOM_LE_SCAN_RESULT_RECEIVED = 872,
+  ATOM_LE_SCAN_ABUSED = 873,
+  ATOM_LE_ADV_STATE_CHANGED = 874,
+  ATOM_LE_ADV_ERROR_REPORTED = 875,
+  ATOM_A2DP_SESSION_REPORTED = 904,
+  ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED = 916,
+  ATOM_BROADCAST_AUDIO_SESSION_REPORTED = 927,
+  ATOM_BROADCAST_AUDIO_SYNC_REPORTED = 928,
+  ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE = 982,
+  ATOM_BLUETOOTH_LE_CONNECTION = 988,
+  ATOM_HEARING_DEVICE_ACTIVE_EVENT_REPORTED = 1021,
+  ATOM_BACKPORTED_FIX_STATUS_REPORTED = 987,
+  ATOM_PLUGIN_INITIALIZED = 655,
+  ATOM_CAR_SYSTEM_UI_DATA_SUBSCRIPTION_EVENT_REPORTED = 974,
+  ATOM_CAR_SETTINGS_DATA_SUBSCRIPTION_EVENT_REPORTED = 975,
+  ATOM_CAR_QC_LIB_EVENT_REPORTED = 976,
+  ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED = 852,
+  ATOM_CAR_RECENTS_EVENT_REPORTED = 770,
+  ATOM_CAR_CALM_MODE_EVENT_REPORTED = 797,
+  ATOM_AUTOFILL_UI_EVENT_REPORTED = 603,
+  ATOM_AUTOFILL_FILL_REQUEST_REPORTED = 604,
+  ATOM_AUTOFILL_FILL_RESPONSE_REPORTED = 605,
+  ATOM_AUTOFILL_SAVE_EVENT_REPORTED = 606,
+  ATOM_AUTOFILL_SESSION_COMMITTED = 607,
+  ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED = 659,
+  ATOM_ODREFRESH_REPORTED = 366,
+  ATOM_ODSIGN_REPORTED = 548,
+  ATOM_BACKGROUND_DEXOPT_JOB_ENDED = 467,
+  ATOM_PREREBOOT_DEXOPT_JOB_ENDED = 883,
+  ATOM_ART_DATUM_REPORTED = 332,
+  ATOM_ART_DEVICE_DATUM_REPORTED = 550,
+  ATOM_ART_DATUM_DELTA_REPORTED = 565,
+  ATOM_ART_DEX2OAT_REPORTED = 929,
+  ATOM_ART_DEVICE_STATUS = 10205,
+  ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED = 385,
+  ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED = 579,
+  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED = 825,
+  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED = 826,
+  ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED = 909,
+  ATOM_APP_FUNCTIONS_REQUEST_REPORTED = 998,
+  ATOM_APEX_INSTALLATION_REQUESTED = 732,
+  ATOM_APEX_INSTALLATION_STAGED = 733,
+  ATOM_APEX_INSTALLATION_ENDED = 734,
+  ATOM_AI_WALLPAPERS_BUTTON_PRESSED = 706,
+  ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED = 707,
+  ATOM_AI_WALLPAPERS_TERM_SELECTED = 708,
+  ATOM_AI_WALLPAPERS_WALLPAPER_SET = 709,
+  ATOM_AI_WALLPAPERS_SESSION_SUMMARY = 710,
   ATOM_JSSCRIPTENGINE_LATENCY_REPORTED = 483,
   ATOM_AD_SERVICES_API_CALLED = 435,
   ATOM_AD_SERVICES_MESUREMENT_REPORTS_UPLOADED = 436,
@@ -56929,351 +57253,19 @@ enum AtomId : int32_t {
   ATOM_AD_SERVICES_COBALT_PERIODIC_JOB_EVENT_REPORTED = 903,
   ATOM_UPDATE_SIGNALS_PROCESS_REPORTED = 905,
   ATOM_TOPICS_SCHEDULE_EPOCH_JOB_SETTING_REPORTED = 930,
-  ATOM_AI_WALLPAPERS_BUTTON_PRESSED = 706,
-  ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED = 707,
-  ATOM_AI_WALLPAPERS_TERM_SELECTED = 708,
-  ATOM_AI_WALLPAPERS_WALLPAPER_SET = 709,
-  ATOM_AI_WALLPAPERS_SESSION_SUMMARY = 710,
-  ATOM_APEX_INSTALLATION_REQUESTED = 732,
-  ATOM_APEX_INSTALLATION_STAGED = 733,
-  ATOM_APEX_INSTALLATION_ENDED = 734,
-  ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED = 385,
-  ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED = 579,
-  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED = 825,
-  ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED = 826,
-  ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED = 909,
-  ATOM_ART_DATUM_REPORTED = 332,
-  ATOM_ART_DEVICE_DATUM_REPORTED = 550,
-  ATOM_ART_DATUM_DELTA_REPORTED = 565,
-  ATOM_ART_DEX2OAT_REPORTED = 929,
-  ATOM_ART_DEVICE_STATUS = 10205,
-  ATOM_BACKGROUND_DEXOPT_JOB_ENDED = 467,
-  ATOM_PREREBOOT_DEXOPT_JOB_ENDED = 883,
-  ATOM_ODREFRESH_REPORTED = 366,
-  ATOM_ODSIGN_REPORTED = 548,
-  ATOM_AUTOFILL_UI_EVENT_REPORTED = 603,
-  ATOM_AUTOFILL_FILL_REQUEST_REPORTED = 604,
-  ATOM_AUTOFILL_FILL_RESPONSE_REPORTED = 605,
-  ATOM_AUTOFILL_SAVE_EVENT_REPORTED = 606,
-  ATOM_AUTOFILL_SESSION_COMMITTED = 607,
-  ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED = 659,
-  ATOM_CAR_RECENTS_EVENT_REPORTED = 770,
-  ATOM_CAR_CALM_MODE_EVENT_REPORTED = 797,
-  ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED = 852,
-  ATOM_PLUGIN_INITIALIZED = 655,
-  ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED = 613,
-  ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION = 614,
-  ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION = 615,
-  ATOM_BLUETOOTH_LE_SESSION_CONNECTED = 656,
-  ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED = 666,
-  ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED = 696,
-  ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED = 781,
-  ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED = 782,
-  ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID = 862,
-  ATOM_LE_APP_SCAN_STATE_CHANGED = 870,
-  ATOM_LE_RADIO_SCAN_STOPPED = 871,
-  ATOM_LE_SCAN_RESULT_RECEIVED = 872,
-  ATOM_LE_SCAN_ABUSED = 873,
-  ATOM_LE_ADV_STATE_CHANGED = 874,
-  ATOM_LE_ADV_ERROR_REPORTED = 875,
-  ATOM_A2DP_SESSION_REPORTED = 904,
-  ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED = 916,
-  ATOM_BROADCAST_AUDIO_SESSION_REPORTED = 927,
-  ATOM_BROADCAST_AUDIO_SYNC_REPORTED = 928,
-  ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE = 982,
-  ATOM_BLUETOOTH_LE_CONNECTION = 988,
-  ATOM_BROADCAST_SENT = 922,
-  ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT = 900,
-  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED = 934,
-  ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_FAILED = 972,
-  ATOM_DAILY_KEEPALIVE_INFO_REPORTED = 650,
-  ATOM_NETWORK_REQUEST_STATE_CHANGED = 779,
-  ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED = 925,
-  ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED = 783,
-  ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED = 979,
-  ATOM_APF_SESSION_INFO_REPORTED = 777,
-  ATOM_IP_CLIENT_RA_INFO_REPORTED = 778,
-  ATOM_VPN_CONNECTION_STATE_CHANGED = 850,
-  ATOM_VPN_CONNECTION_REPORTED = 851,
-  ATOM_CPU_POLICY = 10199,
-  ATOM_CREDENTIAL_MANAGER_API_CALLED = 585,
-  ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED = 651,
-  ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED = 652,
-  ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED = 653,
-  ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED = 667,
-  ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED = 668,
-  ATOM_CREDENTIAL_MANAGER_GET_REPORTED = 669,
-  ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED = 670,
-  ATOM_CREDENTIAL_MANAGER_APIV2_CALLED = 671,
-  ATOM_CRONET_ENGINE_CREATED = 703,
-  ATOM_CRONET_TRAFFIC_REPORTED = 704,
-  ATOM_CRONET_ENGINE_BUILDER_INITIALIZED = 762,
-  ATOM_CRONET_HTTP_FLAGS_INITIALIZED = 763,
-  ATOM_CRONET_INITIALIZED = 764,
-  ATOM_DESKTOP_MODE_UI_CHANGED = 818,
-  ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE = 819,
-  ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED = 935,
-  ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED = 726,
-  ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED = 727,
-  ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED = 728,
-  ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED = 789,
-  ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED = 790,
-  ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED = 791,
-  ATOM_DEVICE_POLICY_MANAGEMENT_MODE = 10216,
-  ATOM_DEVICE_POLICY_STATE = 10217,
-  ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED = 792,
-  ATOM_EXTERNAL_DISPLAY_STATE_CHANGED = 806,
-  ATOM_DND_STATE_CHANGED = 657,
-  ATOM_DREAM_SETTING_CHANGED = 705,
-  ATOM_DREAM_SETTING_SNAPSHOT = 10192,
-  ATOM_EXPRESS_EVENT_REPORTED = 528,
-  ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED = 593,
-  ATOM_EXPRESS_UID_EVENT_REPORTED = 644,
-  ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED = 658,
-  ATOM_FEDERATED_COMPUTE_API_CALLED = 712,
-  ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED = 771,
-  ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED = 838,
-  ATOM_FULL_SCREEN_INTENT_LAUNCHED = 631,
-  ATOM_BAL_ALLOWED = 632,
-  ATOM_IN_TASK_ACTIVITY_STARTED = 685,
-  ATOM_DEVICE_ORIENTATION_CHANGED = 906,
-  ATOM_CACHED_APPS_HIGH_WATERMARK = 10189,
-  ATOM_STYLUS_PREDICTION_METRICS_REPORTED = 718,
-  ATOM_USER_RISK_EVENT_REPORTED = 725,
-  ATOM_MEDIA_PROJECTION_STATE_CHANGED = 729,
-  ATOM_MEDIA_PROJECTION_TARGET_CHANGED = 730,
-  ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED = 853,
-  ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG = 10200,
-  ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE = 10204,
-  ATOM_BIOMETRIC_FRR_NOTIFICATION = 817,
-  ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION = 830,
-  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION = 831,
-  ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED = 832,
-  ATOM_SENSITIVE_NOTIFICATION_REDACTION = 833,
-  ATOM_SENSITIVE_CONTENT_APP_PROTECTION = 835,
-  ATOM_APP_RESTRICTION_STATE_CHANGED = 866,
-  ATOM_BATTERY_USAGE_STATS_PER_UID = 10209,
-  ATOM_POSTGC_MEMORY_SNAPSHOT = 924,
-  ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED = 926,
-  ATOM_APP_OP_ACCESS_TRACKED = 931,
-  ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED = 933,
-  ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED = 584,
-  ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED = 816,
-  ATOM_BATTERY_HEALTH = 10220,
-  ATOM_HDMI_EARC_STATUS_REPORTED = 701,
-  ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED = 724,
-  ATOM_HEALTH_CONNECT_API_CALLED = 616,
-  ATOM_HEALTH_CONNECT_USAGE_STATS = 617,
-  ATOM_HEALTH_CONNECT_STORAGE_STATS = 618,
-  ATOM_HEALTH_CONNECT_API_INVOKED = 643,
-  ATOM_EXERCISE_ROUTE_API_CALLED = 654,
-  ATOM_HEALTH_CONNECT_EXPORT_INVOKED = 907,
-  ATOM_HEALTH_CONNECT_IMPORT_INVOKED = 918,
-  ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED = 919,
-  ATOM_HEALTH_CONNECT_UI_IMPRESSION = 623,
-  ATOM_HEALTH_CONNECT_UI_INTERACTION = 624,
-  ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED = 625,
-  ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED = 761,
-  ATOM_IKE_SESSION_TERMINATED = 678,
-  ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED = 760,
-  ATOM_NEGOTIATED_SECURITY_ASSOCIATION = 821,
-  ATOM_KEYBOARD_CONFIGURED = 682,
-  ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED = 683,
-  ATOM_INPUTDEVICE_USAGE_REPORTED = 686,
-  ATOM_INPUT_EVENT_LATENCY_REPORTED = 932,
-  ATOM_TOUCHPAD_USAGE = 10191,
-  ATOM_KERNEL_OOM_KILL_OCCURRED = 754,
-  ATOM_EMERGENCY_STATE_CHANGED = 633,
-  ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED = 868,
-  ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED = 1002,
-  ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED = 1003,
-  ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED = 1004,
-  ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED = 600,
-  ATOM_MEDIA_CODEC_STARTED = 641,
-  ATOM_MEDIA_CODEC_STOPPED = 642,
-  ATOM_MEDIA_CODEC_RENDERED = 684,
-  ATOM_MEDIA_EDITING_ENDED_REPORTED = 798,
-  ATOM_MTE_STATE = 10181,
-  ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED = 901,
-  ATOM_NFC_OBSERVE_MODE_STATE_CHANGED = 855,
-  ATOM_NFC_FIELD_CHANGED = 856,
-  ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED = 857,
-  ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED = 858,
-  ATOM_ONDEVICEPERSONALIZATION_API_CALLED = 711,
-  ATOM_COMPONENT_STATE_CHANGED_REPORTED = 863,
-  ATOM_PDF_LOAD_REPORTED = 859,
-  ATOM_PDF_API_USAGE_REPORTED = 860,
-  ATOM_PDF_SEARCH_REPORTED = 861,
-  ATOM_PRESSURE_STALL_INFORMATION = 10229,
-  ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED = 645,
-  ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED = 646,
-  ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION = 647,
-  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED = 648,
-  ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED = 649,
-  ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED = 827,
-  ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED = 828,
-  ATOM_PHOTOPICKER_SESSION_INFO_REPORTED = 886,
-  ATOM_PHOTOPICKER_API_INFO_REPORTED = 887,
-  ATOM_PHOTOPICKER_UI_EVENT_LOGGED = 888,
-  ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED = 889,
-  ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED = 890,
-  ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED = 891,
-  ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED = 892,
-  ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED = 893,
-  ATOM_PHOTOPICKER_PAGE_INFO_LOGGED = 894,
-  ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED = 895,
-  ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED = 896,
-  ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED = 897,
-  ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED = 898,
-  ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED = 899,
-  ATOM_ATOM_9999 = 9999,
-  ATOM_ATOM_99999 = 99999,
-  ATOM_SCREEN_OFF_REPORTED = 776,
-  ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED = 836,
-  ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED = 837,
-  ATOM_SCREEN_DIM_REPORTED = 867,
-  ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED = 784,
-  ATOM_BACKUP_SETUP_STATUS_REPORTED = 785,
-  ATOM_RANGING_SESSION_CONFIGURED = 993,
-  ATOM_RANGING_SESSION_STARTED = 994,
-  ATOM_RANGING_SESSION_CLOSED = 995,
-  ATOM_RANGING_TECHNOLOGY_STARTED = 996,
-  ATOM_RANGING_TECHNOLOGY_STOPPED = 997,
-  ATOM_RKPD_POOL_STATS = 664,
-  ATOM_RKPD_CLIENT_OPERATION = 665,
-  ATOM_SANDBOX_API_CALLED = 488,
-  ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED = 735,
-  ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION = 796,
-  ATOM_SANDBOX_SDK_STORAGE = 10159,
-  ATOM_SELINUX_AUDIT_LOG = 799,
-  ATOM_SETTINGS_SPA_REPORTED = 622,
-  ATOM_TEST_EXTENSION_ATOM_REPORTED = 660,
-  ATOM_TEST_RESTRICTED_ATOM_REPORTED = 672,
-  ATOM_STATS_SOCKET_LOSS_REPORTED = 752,
-  ATOM_LOCKSCREEN_SHORTCUT_SELECTED = 611,
-  ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED = 612,
-  ATOM_LAUNCHER_IMPRESSION_EVENT_V2 = 716,
-  ATOM_DISPLAY_SWITCH_LATENCY_TRACKED = 753,
-  ATOM_NOTIFICATION_LISTENER_SERVICE = 829,
-  ATOM_NAV_HANDLE_TOUCH_POINTS = 869,
-  ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED = 908,
-  ATOM_COMMUNAL_HUB_SNAPSHOT = 10226,
-  ATOM_EMERGENCY_NUMBER_DIALED = 637,
-  ATOM_CALL_STATS = 10221,
-  ATOM_CALL_AUDIO_ROUTE_STATS = 10222,
-  ATOM_TELECOM_API_STATS = 10223,
-  ATOM_TELECOM_ERROR_STATS = 10224,
-  ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED = 713,
-  ATOM_EMERGENCY_NUMBERS_INFO = 10180,
-  ATOM_DATA_NETWORK_VALIDATION = 10207,
-  ATOM_DATA_RAT_STATE_CHANGED = 854,
-  ATOM_CONNECTED_CHANNEL_CHANGED = 882,
-  ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED = 923,
-  ATOM_QUALIFIED_RAT_LIST_CHANGED = 634,
-  ATOM_QNS_IMS_CALL_DROP_STATS = 635,
-  ATOM_QNS_FALLBACK_RESTRICTION_CHANGED = 636,
-  ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO = 10177,
-  ATOM_QNS_HANDOVER_TIME_MILLIS = 10178,
-  ATOM_QNS_HANDOVER_PINGPONG = 10179,
-  ATOM_SATELLITE_CONTROLLER = 10182,
-  ATOM_SATELLITE_SESSION = 10183,
-  ATOM_SATELLITE_INCOMING_DATAGRAM = 10184,
-  ATOM_SATELLITE_OUTGOING_DATAGRAM = 10185,
-  ATOM_SATELLITE_PROVISION = 10186,
-  ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER = 10187,
-  ATOM_CARRIER_ROAMING_SATELLITE_SESSION = 10211,
-  ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS = 10212,
-  ATOM_CONTROLLER_STATS_PER_PACKAGE = 10213,
-  ATOM_SATELLITE_ENTITLEMENT = 10214,
-  ATOM_SATELLITE_CONFIG_UPDATER = 10215,
-  ATOM_SATELLITE_ACCESS_CONTROLLER = 10219,
-  ATOM_CELLULAR_IDENTIFIER_DISCLOSED = 800,
-  ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED = 738,
-  ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED = 739,
-  ATOM_THREADNETWORK_DEVICE_INFO_REPORTED = 740,
-  ATOM_BOOT_INTEGRITY_INFO_REPORTED = 775,
-  ATOM_TV_LOW_POWER_STANDBY_POLICY = 679,
-  ATOM_EXTERNAL_TV_INPUT_EVENT = 717,
-  ATOM_TEST_UPROBESTATS_ATOM_REPORTED = 915,
-  ATOM_UWB_ACTIVITY_INFO = 10188,
-  ATOM_MEDIATOR_UPDATED = 721,
-  ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER = 10196,
-  ATOM_SYSPROXY_CONNECTION_UPDATED = 786,
-  ATOM_WEAR_COMPANION_CONNECTION_STATE = 921,
-  ATOM_MEDIA_ACTION_REPORTED = 608,
-  ATOM_MEDIA_CONTROLS_LAUNCHED = 609,
-  ATOM_MEDIA_SESSION_STATE_CHANGED = 677,
-  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY = 757,
-  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE = 758,
-  ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT = 759,
-  ATOM_WEAR_MODE_STATE_CHANGED = 715,
-  ATOM_RENDERER_INITIALIZED = 736,
-  ATOM_SCHEMA_VERSION_RECEIVED = 737,
-  ATOM_LAYOUT_INSPECTED = 741,
-  ATOM_LAYOUT_EXPRESSION_INSPECTED = 742,
-  ATOM_LAYOUT_ANIMATIONS_INSPECTED = 743,
-  ATOM_MATERIAL_COMPONENTS_INSPECTED = 744,
-  ATOM_TILE_REQUESTED = 745,
-  ATOM_STATE_RESPONSE_RECEIVED = 746,
-  ATOM_TILE_RESPONSE_RECEIVED = 747,
-  ATOM_INFLATION_FINISHED = 748,
-  ATOM_INFLATION_FAILED = 749,
-  ATOM_IGNORED_INFLATION_FAILURES_REPORTED = 750,
-  ATOM_DRAWABLE_RENDERED = 751,
-  ATOM_WEAR_TIME_SYNC_REQUESTED = 911,
-  ATOM_WEAR_TIME_UPDATE_STARTED = 912,
-  ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED = 913,
-  ATOM_WEAR_TIME_CHANGED = 914,
-  ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED = 619,
-  ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED = 620,
-  ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED = 621,
-  ATOM_WS_WEAR_TIME_SESSION = 610,
-  ATOM_WS_INCOMING_CALL_ACTION_REPORTED = 626,
-  ATOM_WS_CALL_DISCONNECTION_REPORTED = 627,
-  ATOM_WS_CALL_DURATION_REPORTED = 628,
-  ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED = 629,
-  ATOM_WS_CALL_INTERACTION_REPORTED = 630,
-  ATOM_WS_ON_BODY_STATE_CHANGED = 787,
-  ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED = 802,
-  ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED = 803,
-  ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED = 804,
-  ATOM_WS_REMOTE_EVENT_USAGE_REPORTED = 920,
-  ATOM_WS_BUGREPORT_REQUESTED = 936,
-  ATOM_WS_BUGREPORT_TRIGGERED = 937,
-  ATOM_WS_BUGREPORT_FINISHED = 938,
-  ATOM_WS_BUGREPORT_RESULT_RECEIVED = 939,
-  ATOM_WS_STANDALONE_MODE_SNAPSHOT = 10197,
-  ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT = 10206,
-  ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT = 10225,
-  ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT = 10227,
-  ATOM_WEAR_POWER_MENU_OPENED = 731,
-  ATOM_WEAR_ASSISTANT_OPENED = 755,
-  ATOM_FIRST_OVERLAY_STATE_CHANGED = 917,
-  ATOM_WIFI_AWARE_NDP_REPORTED = 638,
-  ATOM_WIFI_AWARE_ATTACH_REPORTED = 639,
-  ATOM_WIFI_SELF_RECOVERY_TRIGGERED = 661,
-  ATOM_SOFT_AP_STARTED = 680,
-  ATOM_SOFT_AP_STOPPED = 681,
-  ATOM_WIFI_LOCK_RELEASED = 687,
-  ATOM_WIFI_LOCK_DEACTIVATED = 688,
-  ATOM_WIFI_CONFIG_SAVED = 689,
-  ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED = 690,
-  ATOM_WIFI_AWARE_HAL_API_CALLED = 691,
-  ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED = 692,
-  ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED = 693,
-  ATOM_WIFI_THREAD_TASK_EXECUTED = 694,
-  ATOM_WIFI_STATE_CHANGED = 700,
-  ATOM_PNO_SCAN_STARTED = 719,
-  ATOM_PNO_SCAN_STOPPED = 720,
-  ATOM_WIFI_IS_UNUSABLE_REPORTED = 722,
-  ATOM_WIFI_AP_CAPABILITIES_REPORTED = 723,
-  ATOM_SOFT_AP_STATE_CHANGED = 805,
-  ATOM_SCORER_PREDICTION_RESULT_REPORTED = 884,
-  ATOM_WIFI_AWARE_CAPABILITIES = 10190,
-  ATOM_WIFI_MODULE_INFO = 10193,
-  ATOM_WIFI_SETTING_INFO = 10194,
-  ATOM_WIFI_COMPLEX_SETTING_INFO = 10195,
-  ATOM_WIFI_CONFIGURED_NETWORK_INFO = 10198,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_SCHEDULE_ATTEMPTED = 967,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED = 968,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED_ATTEMPTED_FAILURE_REPORTED = 969,
+  ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_BACKGROUND_JOB_RAN = 970,
+  ATOM_THERMAL_STATUS_CALLED = 772,
+  ATOM_THERMAL_HEADROOM_CALLED = 773,
+  ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED = 774,
+  ATOM_ADPF_HINT_SESSION_TID_CLEANUP = 839,
+  ATOM_THERMAL_HEADROOM_THRESHOLDS = 10201,
+  ATOM_ADPF_SESSION_SNAPSHOT = 10218,
+  ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED = 820,
+  ATOM_ACCOUNT_MANAGER_EVENT = 951,
+  ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED = 910,
 };
 
 constexpr AtomId AtomId_MIN = AtomId::ATOM_UNSPECIFIED;
@@ -59470,29 +59462,1187 @@ const char* AtomId_Name(::perfetto::protos::pbzero::AtomId value) {
   case ::perfetto::protos::pbzero::AtomId::ATOM_WS_FAVOURITE_WATCH_FACE_LIST_SNAPSHOT:
     return "ATOM_WS_FAVOURITE_WATCH_FACE_LIST_SNAPSHOT";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED:
-    return "ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_NDP_REPORTED:
+    return "ATOM_WIFI_AWARE_NDP_REPORTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED:
-    return "ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_ATTACH_REPORTED:
+    return "ATOM_WIFI_AWARE_ATTACH_REPORTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_STATUS_CALLED:
-    return "ATOM_THERMAL_STATUS_CALLED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_SELF_RECOVERY_TRIGGERED:
+    return "ATOM_WIFI_SELF_RECOVERY_TRIGGERED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_HEADROOM_CALLED:
-    return "ATOM_THERMAL_HEADROOM_CALLED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SOFT_AP_STARTED:
+    return "ATOM_SOFT_AP_STARTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED:
-    return "ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SOFT_AP_STOPPED:
+    return "ATOM_SOFT_AP_STOPPED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ADPF_HINT_SESSION_TID_CLEANUP:
-    return "ATOM_ADPF_HINT_SESSION_TID_CLEANUP";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCK_RELEASED:
+    return "ATOM_WIFI_LOCK_RELEASED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_HEADROOM_THRESHOLDS:
-    return "ATOM_THERMAL_HEADROOM_THRESHOLDS";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCK_DEACTIVATED:
+    return "ATOM_WIFI_LOCK_DEACTIVATED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ADPF_SESSION_SNAPSHOT:
-    return "ATOM_ADPF_SESSION_SNAPSHOT";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_CONFIG_SAVED:
+    return "ATOM_WIFI_CONFIG_SAVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED:
+    return "ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_HAL_API_CALLED:
+    return "ATOM_WIFI_AWARE_HAL_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED:
+    return "ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED:
+    return "ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_THREAD_TASK_EXECUTED:
+    return "ATOM_WIFI_THREAD_TASK_EXECUTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_STATE_CHANGED:
+    return "ATOM_WIFI_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PNO_SCAN_STARTED:
+    return "ATOM_PNO_SCAN_STARTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PNO_SCAN_STOPPED:
+    return "ATOM_PNO_SCAN_STOPPED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_IS_UNUSABLE_REPORTED:
+    return "ATOM_WIFI_IS_UNUSABLE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AP_CAPABILITIES_REPORTED:
+    return "ATOM_WIFI_AP_CAPABILITIES_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SOFT_AP_STATE_CHANGED:
+    return "ATOM_SOFT_AP_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCORER_PREDICTION_RESULT_REPORTED:
+    return "ATOM_SCORER_PREDICTION_RESULT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_CAPABILITIES:
+    return "ATOM_WIFI_AWARE_CAPABILITIES";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_MODULE_INFO:
+    return "ATOM_WIFI_MODULE_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_SETTING_INFO:
+    return "ATOM_WIFI_SETTING_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_COMPLEX_SETTING_INFO:
+    return "ATOM_WIFI_COMPLEX_SETTING_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_CONFIGURED_NETWORK_INFO:
+    return "ATOM_WIFI_CONFIGURED_NETWORK_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_POWER_MENU_OPENED:
+    return "ATOM_WEAR_POWER_MENU_OPENED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_ASSISTANT_OPENED:
+    return "ATOM_WEAR_ASSISTANT_OPENED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_FIRST_OVERLAY_STATE_CHANGED:
+    return "ATOM_FIRST_OVERLAY_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WEAR_TIME_SESSION:
+    return "ATOM_WS_WEAR_TIME_SESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_INCOMING_CALL_ACTION_REPORTED:
+    return "ATOM_WS_INCOMING_CALL_ACTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_DISCONNECTION_REPORTED:
+    return "ATOM_WS_CALL_DISCONNECTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_DURATION_REPORTED:
+    return "ATOM_WS_CALL_DURATION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED:
+    return "ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_INTERACTION_REPORTED:
+    return "ATOM_WS_CALL_INTERACTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_ON_BODY_STATE_CHANGED:
+    return "ATOM_WS_ON_BODY_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED:
+    return "ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED:
+    return "ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED:
+    return "ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_REMOTE_EVENT_USAGE_REPORTED:
+    return "ATOM_WS_REMOTE_EVENT_USAGE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_NOTIFICATION_MANAGED_DISMISSAL_SYNC:
+    return "ATOM_WS_NOTIFICATION_MANAGED_DISMISSAL_SYNC";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_BUGREPORT_EVENT_REPORTED:
+    return "ATOM_WS_BUGREPORT_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_STANDALONE_MODE_SNAPSHOT:
+    return "ATOM_WS_STANDALONE_MODE_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT:
+    return "ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT:
+    return "ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT:
+    return "ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED:
+    return "ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED:
+    return "ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED:
+    return "ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_SYNC_REQUESTED:
+    return "ATOM_WEAR_TIME_SYNC_REQUESTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_UPDATE_STARTED:
+    return "ATOM_WEAR_TIME_UPDATE_STARTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED:
+    return "ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_CHANGED:
+    return "ATOM_WEAR_TIME_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_DEVICE_STATUS_REPORTED:
+    return "ATOM_WEAR_SETUP_WIZARD_DEVICE_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_PAIRING_COMPLETED:
+    return "ATOM_WEAR_SETUP_WIZARD_PAIRING_COMPLETED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_CONNECTION_ESTABLISHED:
+    return "ATOM_WEAR_SETUP_WIZARD_CONNECTION_ESTABLISHED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_CHECKIN_COMPLETED:
+    return "ATOM_WEAR_SETUP_WIZARD_CHECKIN_COMPLETED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_COMPANION_TIME_REPORTED:
+    return "ATOM_WEAR_SETUP_WIZARD_COMPANION_TIME_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_STATUS_REPORTED:
+    return "ATOM_WEAR_SETUP_WIZARD_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_HEARTBEAT_REPORTED:
+    return "ATOM_WEAR_SETUP_WIZARD_HEARTBEAT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_FRP_TRIGGERED:
+    return "ATOM_WEAR_SETUP_WIZARD_FRP_TRIGGERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_SYSTEM_UPDATE_TRIGGERED:
+    return "ATOM_WEAR_SETUP_WIZARD_SYSTEM_UPDATE_TRIGGERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_SETUP_WIZARD_PHONE_SWITCH_TRIGGERED:
+    return "ATOM_WEAR_SETUP_WIZARD_PHONE_SWITCH_TRIGGERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RENDERER_INITIALIZED:
+    return "ATOM_RENDERER_INITIALIZED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCHEMA_VERSION_RECEIVED:
+    return "ATOM_SCHEMA_VERSION_RECEIVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LAYOUT_INSPECTED:
+    return "ATOM_LAYOUT_INSPECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LAYOUT_EXPRESSION_INSPECTED:
+    return "ATOM_LAYOUT_EXPRESSION_INSPECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LAYOUT_ANIMATIONS_INSPECTED:
+    return "ATOM_LAYOUT_ANIMATIONS_INSPECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MATERIAL_COMPONENTS_INSPECTED:
+    return "ATOM_MATERIAL_COMPONENTS_INSPECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TILE_REQUESTED:
+    return "ATOM_TILE_REQUESTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_STATE_RESPONSE_RECEIVED:
+    return "ATOM_STATE_RESPONSE_RECEIVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TILE_RESPONSE_RECEIVED:
+    return "ATOM_TILE_RESPONSE_RECEIVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_INFLATION_FINISHED:
+    return "ATOM_INFLATION_FINISHED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_INFLATION_FAILED:
+    return "ATOM_INFLATION_FAILED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IGNORED_INFLATION_FAILURES_REPORTED:
+    return "ATOM_IGNORED_INFLATION_FAILURES_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DRAWABLE_RENDERED:
+    return "ATOM_DRAWABLE_RENDERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MODE_STATE_CHANGED:
+    return "ATOM_WEAR_MODE_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_ACTION_REPORTED:
+    return "ATOM_MEDIA_ACTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CONTROLS_LAUNCHED:
+    return "ATOM_MEDIA_CONTROLS_LAUNCHED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_SESSION_STATE_CHANGED:
+    return "ATOM_MEDIA_SESSION_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CONTROL_API_USAGE_REPORTED:
+    return "ATOM_MEDIA_CONTROL_API_USAGE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_SUBSCRIPTION_CHANGED:
+    return "ATOM_MEDIA_SUBSCRIPTION_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY:
+    return "ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE:
+    return "ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT:
+    return "ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIATOR_UPDATED:
+    return "ATOM_MEDIATOR_UPDATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER:
+    return "ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSPROXY_CONNECTION_UPDATED:
+    return "ATOM_SYSPROXY_CONNECTION_UPDATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_COMPANION_CONNECTION_STATE:
+    return "ATOM_WEAR_COMPANION_CONNECTION_STATE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSPROXY_SERVICE_STATE_UPDATED:
+    return "ATOM_SYSPROXY_SERVICE_STATE_UPDATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_UWB_ACTIVITY_INFO:
+    return "ATOM_UWB_ACTIVITY_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TEST_UPROBESTATS_ATOM_REPORTED:
+    return "ATOM_TEST_UPROBESTATS_ATOM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TV_LOW_POWER_STANDBY_POLICY:
+    return "ATOM_TV_LOW_POWER_STANDBY_POLICY";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXTERNAL_TV_INPUT_EVENT:
+    return "ATOM_EXTERNAL_TV_INPUT_EVENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BOOT_INTEGRITY_INFO_REPORTED:
+    return "ATOM_BOOT_INTEGRITY_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED:
+    return "ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED:
+    return "ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THREADNETWORK_DEVICE_INFO_REPORTED:
+    return "ATOM_THREADNETWORK_DEVICE_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED:
+    return "ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EMERGENCY_NUMBERS_INFO:
+    return "ATOM_EMERGENCY_NUMBERS_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DATA_NETWORK_VALIDATION:
+    return "ATOM_DATA_NETWORK_VALIDATION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DATA_RAT_STATE_CHANGED:
+    return "ATOM_DATA_RAT_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CONNECTED_CHANNEL_CHANGED:
+    return "ATOM_CONNECTED_CHANNEL_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CELLULAR_IDENTIFIER_DISCLOSED:
+    return "ATOM_CELLULAR_IDENTIFIER_DISCLOSED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_CONTROLLER:
+    return "ATOM_SATELLITE_CONTROLLER";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_SESSION:
+    return "ATOM_SATELLITE_SESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_INCOMING_DATAGRAM:
+    return "ATOM_SATELLITE_INCOMING_DATAGRAM";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_OUTGOING_DATAGRAM:
+    return "ATOM_SATELLITE_OUTGOING_DATAGRAM";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_PROVISION:
+    return "ATOM_SATELLITE_PROVISION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER:
+    return "ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CARRIER_ROAMING_SATELLITE_SESSION:
+    return "ATOM_CARRIER_ROAMING_SATELLITE_SESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS:
+    return "ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CONTROLLER_STATS_PER_PACKAGE:
+    return "ATOM_CONTROLLER_STATS_PER_PACKAGE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_ENTITLEMENT:
+    return "ATOM_SATELLITE_ENTITLEMENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_CONFIG_UPDATER:
+    return "ATOM_SATELLITE_CONFIG_UPDATER";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_ACCESS_CONTROLLER:
+    return "ATOM_SATELLITE_ACCESS_CONTROLLER";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_QUALIFIED_RAT_LIST_CHANGED:
+    return "ATOM_QUALIFIED_RAT_LIST_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_IMS_CALL_DROP_STATS:
+    return "ATOM_QNS_IMS_CALL_DROP_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_FALLBACK_RESTRICTION_CHANGED:
+    return "ATOM_QNS_FALLBACK_RESTRICTION_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO:
+    return "ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_HANDOVER_TIME_MILLIS:
+    return "ATOM_QNS_HANDOVER_TIME_MILLIS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_HANDOVER_PINGPONG:
+    return "ATOM_QNS_HANDOVER_PINGPONG";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED:
+    return "ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EMERGENCY_NUMBER_DIALED:
+    return "ATOM_EMERGENCY_NUMBER_DIALED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CALL_STATS:
+    return "ATOM_CALL_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CALL_AUDIO_ROUTE_STATS:
+    return "ATOM_CALL_AUDIO_ROUTE_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TELECOM_API_STATS:
+    return "ATOM_TELECOM_API_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TELECOM_ERROR_STATS:
+    return "ATOM_TELECOM_ERROR_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LOCKSCREEN_SHORTCUT_SELECTED:
+    return "ATOM_LOCKSCREEN_SHORTCUT_SELECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED:
+    return "ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LAUNCHER_IMPRESSION_EVENT_V2:
+    return "ATOM_LAUNCHER_IMPRESSION_EVENT_V2";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DISPLAY_SWITCH_LATENCY_TRACKED:
+    return "ATOM_DISPLAY_SWITCH_LATENCY_TRACKED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NOTIFICATION_LISTENER_SERVICE:
+    return "ATOM_NOTIFICATION_LISTENER_SERVICE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NAV_HANDLE_TOUCH_POINTS:
+    return "ATOM_NAV_HANDLE_TOUCH_POINTS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED:
+    return "ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PERIPHERAL_TUTORIAL_LAUNCHED:
+    return "ATOM_PERIPHERAL_TUTORIAL_LAUNCHED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CONTEXTUAL_EDUCATION_TRIGGERED:
+    return "ATOM_CONTEXTUAL_EDUCATION_TRIGGERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_COMMUNAL_HUB_SNAPSHOT:
+    return "ATOM_COMMUNAL_HUB_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TEST_EXTENSION_ATOM_REPORTED:
+    return "ATOM_TEST_EXTENSION_ATOM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TEST_RESTRICTED_ATOM_REPORTED:
+    return "ATOM_TEST_RESTRICTED_ATOM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_STATS_SOCKET_LOSS_REPORTED:
+    return "ATOM_STATS_SOCKET_LOSS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SETTINGS_SPA_REPORTED:
+    return "ATOM_SETTINGS_SPA_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SELINUX_AUDIT_LOG:
+    return "ATOM_SELINUX_AUDIT_LOG";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SANDBOX_API_CALLED:
+    return "ATOM_SANDBOX_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED:
+    return "ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION:
+    return "ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SANDBOX_SDK_STORAGE:
+    return "ATOM_SANDBOX_SDK_STORAGE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RKPD_POOL_STATS:
+    return "ATOM_RKPD_POOL_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RKPD_CLIENT_OPERATION:
+    return "ATOM_RKPD_CLIENT_OPERATION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_SESSION_CONFIGURED:
+    return "ATOM_RANGING_SESSION_CONFIGURED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_SESSION_STARTED:
+    return "ATOM_RANGING_SESSION_STARTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_SESSION_CLOSED:
+    return "ATOM_RANGING_SESSION_CLOSED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_TECHNOLOGY_STARTED:
+    return "ATOM_RANGING_TECHNOLOGY_STARTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_TECHNOLOGY_STOPPED:
+    return "ATOM_RANGING_TECHNOLOGY_STOPPED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED:
+    return "ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BACKUP_SETUP_STATUS_REPORTED:
+    return "ATOM_BACKUP_SETUP_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_OFF_REPORTED:
+    return "ATOM_SCREEN_OFF_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED:
+    return "ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED:
+    return "ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_DIM_REPORTED:
+    return "ATOM_SCREEN_DIM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ATOM_9999:
+    return "ATOM_ATOM_9999";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ATOM_99999:
+    return "ATOM_ATOM_99999";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_SESSION_INFO_REPORTED:
+    return "ATOM_PHOTOPICKER_SESSION_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_API_INFO_REPORTED:
+    return "ATOM_PHOTOPICKER_API_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_UI_EVENT_LOGGED:
+    return "ATOM_PHOTOPICKER_UI_EVENT_LOGGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED:
+    return "ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED:
+    return "ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED:
+    return "ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED:
+    return "ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED:
+    return "ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_PAGE_INFO_LOGGED:
+    return "ATOM_PHOTOPICKER_PAGE_INFO_LOGGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED:
+    return "ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED:
+    return "ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED:
+    return "ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED:
+    return "ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED:
+    return "ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED:
+    return "ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED:
+    return "ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION:
+    return "ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED:
+    return "ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED:
+    return "ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED:
+    return "ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED:
+    return "ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PRESSURE_STALL_INFORMATION:
+    return "ATOM_PRESSURE_STALL_INFORMATION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PDF_LOAD_REPORTED:
+    return "ATOM_PDF_LOAD_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PDF_API_USAGE_REPORTED:
+    return "ATOM_PDF_API_USAGE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PDF_SEARCH_REPORTED:
+    return "ATOM_PDF_SEARCH_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_COMPONENT_STATE_CHANGED_REPORTED:
+    return "ATOM_COMPONENT_STATE_CHANGED_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ONDEVICEPERSONALIZATION_API_CALLED:
+    return "ATOM_ONDEVICEPERSONALIZATION_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ONDEVICEPERSONALIZATION_TRACE_EVENT:
+    return "ATOM_ONDEVICEPERSONALIZATION_TRACE_EVENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_OBSERVE_MODE_STATE_CHANGED:
+    return "ATOM_NFC_OBSERVE_MODE_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_FIELD_CHANGED:
+    return "ATOM_NFC_FIELD_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED:
+    return "ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED:
+    return "ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_EXIT_FRAME_TABLE_CHANGED:
+    return "ATOM_NFC_EXIT_FRAME_TABLE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_AUTO_TRANSACT_REPORTED:
+    return "ATOM_NFC_AUTO_TRANSACT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED:
+    return "ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MTE_STATE:
+    return "ATOM_MTE_STATE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ZRAM_MAINTENANCE_EXECUTED:
+    return "ATOM_ZRAM_MAINTENANCE_EXECUTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ZRAM_SETUP_EXECUTED:
+    return "ATOM_ZRAM_SETUP_EXECUTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ZRAM_MM_STAT_MMD:
+    return "ATOM_ZRAM_MM_STAT_MMD";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ZRAM_BD_STAT_MMD:
+    return "ATOM_ZRAM_BD_STAT_MMD";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_EDITING_ENDED_REPORTED:
+    return "ATOM_MEDIA_EDITING_ENDED_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED:
+    return "ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_STARTED:
+    return "ATOM_MEDIA_CODEC_STARTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_STOPPED:
+    return "ATOM_MEDIA_CODEC_STOPPED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_RENDERED:
+    return "ATOM_MEDIA_CODEC_RENDERED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EMERGENCY_STATE_CHANGED:
+    return "ATOM_EMERGENCY_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED:
+    return "ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED:
+    return "ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED:
+    return "ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED:
+    return "ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_KERNEL_OOM_KILL_OCCURRED:
+    return "ATOM_KERNEL_OOM_KILL_OCCURRED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_KEYBOARD_CONFIGURED:
+    return "ATOM_KEYBOARD_CONFIGURED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED:
+    return "ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_INPUTDEVICE_USAGE_REPORTED:
+    return "ATOM_INPUTDEVICE_USAGE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_INPUT_EVENT_LATENCY_REPORTED:
+    return "ATOM_INPUT_EVENT_LATENCY_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TOUCHPAD_USAGE:
+    return "ATOM_TOUCHPAD_USAGE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IKE_SESSION_TERMINATED:
+    return "ATOM_IKE_SESSION_TERMINATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED:
+    return "ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NEGOTIATED_SECURITY_ASSOCIATION:
+    return "ATOM_NEGOTIATED_SECURITY_ASSOCIATION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED:
+    return "ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_UI_IMPRESSION:
+    return "ATOM_HEALTH_CONNECT_UI_IMPRESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_UI_INTERACTION:
+    return "ATOM_HEALTH_CONNECT_UI_INTERACTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED:
+    return "ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_API_CALLED:
+    return "ATOM_HEALTH_CONNECT_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_USAGE_STATS:
+    return "ATOM_HEALTH_CONNECT_USAGE_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_STORAGE_STATS:
+    return "ATOM_HEALTH_CONNECT_STORAGE_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_API_INVOKED:
+    return "ATOM_HEALTH_CONNECT_API_INVOKED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXERCISE_ROUTE_API_CALLED:
+    return "ATOM_EXERCISE_ROUTE_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_EXPORT_INVOKED:
+    return "ATOM_HEALTH_CONNECT_EXPORT_INVOKED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_IMPORT_INVOKED:
+    return "ATOM_HEALTH_CONNECT_IMPORT_INVOKED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED:
+    return "ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_PERMISSION_STATS:
+    return "ATOM_HEALTH_CONNECT_PERMISSION_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_PHR_API_INVOKED:
+    return "ATOM_HEALTH_CONNECT_PHR_API_INVOKED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_PHR_USAGE_STATS:
+    return "ATOM_HEALTH_CONNECT_PHR_USAGE_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_PHR_STORAGE_STATS:
+    return "ATOM_HEALTH_CONNECT_PHR_STORAGE_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_RESTRICTED_ECOSYSTEM_STATS:
+    return "ATOM_HEALTH_CONNECT_RESTRICTED_ECOSYSTEM_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_ECOSYSTEM_STATS:
+    return "ATOM_HEALTH_CONNECT_ECOSYSTEM_STATS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HDMI_EARC_STATUS_REPORTED:
+    return "ATOM_HDMI_EARC_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED:
+    return "ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HDMI_POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST_TOGGLED:
+    return "ATOM_HDMI_POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST_TOGGLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BATTERY_HEALTH:
+    return "ATOM_BATTERY_HEALTH";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BIOMETRIC_UNENROLLED:
+    return "ATOM_BIOMETRIC_UNENROLLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BIOMETRIC_ENUMERATED:
+    return "ATOM_BIOMETRIC_ENUMERATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED:
+    return "ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED:
+    return "ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_FULL_SCREEN_INTENT_LAUNCHED:
+    return "ATOM_FULL_SCREEN_INTENT_LAUNCHED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BAL_ALLOWED:
+    return "ATOM_BAL_ALLOWED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IN_TASK_ACTIVITY_STARTED:
+    return "ATOM_IN_TASK_ACTIVITY_STARTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_ORIENTATION_CHANGED:
+    return "ATOM_DEVICE_ORIENTATION_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CACHED_APPS_HIGH_WATERMARK:
+    return "ATOM_CACHED_APPS_HIGH_WATERMARK";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_STYLUS_PREDICTION_METRICS_REPORTED:
+    return "ATOM_STYLUS_PREDICTION_METRICS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_USER_RISK_EVENT_REPORTED:
+    return "ATOM_USER_RISK_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_PROJECTION_STATE_CHANGED:
+    return "ATOM_MEDIA_PROJECTION_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_PROJECTION_TARGET_CHANGED:
+    return "ATOM_MEDIA_PROJECTION_TARGET_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED:
+    return "ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG:
+    return "ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE:
+    return "ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BIOMETRIC_FRR_NOTIFICATION:
+    return "ATOM_BIOMETRIC_FRR_NOTIFICATION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION:
+    return "ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION:
+    return "ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED:
+    return "ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_NOTIFICATION_REDACTION:
+    return "ATOM_SENSITIVE_NOTIFICATION_REDACTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_CONTENT_APP_PROTECTION:
+    return "ATOM_SENSITIVE_CONTENT_APP_PROTECTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_RESTRICTION_STATE_CHANGED:
+    return "ATOM_APP_RESTRICTION_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BATTERY_USAGE_STATS_PER_UID:
+    return "ATOM_BATTERY_USAGE_STATS_PER_UID";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_POSTGC_MEMORY_SNAPSHOT:
+    return "ATOM_POSTGC_MEMORY_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED:
+    return "ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_OP_ACCESS_TRACKED:
+    return "ATOM_APP_OP_ACCESS_TRACKED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED:
+    return "ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_IDLE_TEMP_ALLOWLIST_UPDATED:
+    return "ATOM_DEVICE_IDLE_TEMP_ALLOWLIST_UPDATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_OP_NOTE_OP_OR_CHECK_OP_BINDER_API_CALLED:
+    return "ATOM_APP_OP_NOTE_OP_OR_CHECK_OP_BINDER_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_FRAMEWORK_WAKELOCK_INFO:
+    return "ATOM_FRAMEWORK_WAKELOCK_INFO";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_JANK_FRAME_COUNT_BY_WIDGET_REPORTED:
+    return "ATOM_JANK_FRAME_COUNT_BY_WIDGET_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_INTENT_CREATOR_TOKEN_ADDED:
+    return "ATOM_INTENT_CREATOR_TOKEN_ADDED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NOTIFICATION_CHANNEL_CLASSIFICATION:
+    return "ATOM_NOTIFICATION_CHANNEL_CLASSIFICATION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAMERA_STATUS_FOR_COMPATIBILITY_CHANGED:
+    return "ATOM_CAMERA_STATUS_FOR_COMPATIBILITY_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_FEDERATED_COMPUTE_API_CALLED:
+    return "ATOM_FEDERATED_COMPUTE_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED:
+    return "ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED:
+    return "ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_FEDERATED_COMPUTE_TRACE_EVENT_REPORTED:
+    return "ATOM_FEDERATED_COMPUTE_TRACE_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_EVENT_REPORTED:
+    return "ATOM_EXPRESS_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED:
+    return "ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_UID_EVENT_REPORTED:
+    return "ATOM_EXPRESS_UID_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED:
+    return "ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DREAM_SETTING_CHANGED:
+    return "ATOM_DREAM_SETTING_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DREAM_SETTING_SNAPSHOT:
+    return "ATOM_DREAM_SETTING_SNAPSHOT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DND_STATE_CHANGED:
+    return "ATOM_DND_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_EXTERNAL_DISPLAY_STATE_CHANGED:
+    return "ATOM_EXTERNAL_DISPLAY_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED:
+    return "ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_POLICY_MANAGEMENT_MODE:
+    return "ATOM_DEVICE_POLICY_MANAGEMENT_MODE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_POLICY_STATE:
+    return "ATOM_DEVICE_POLICY_STATE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED:
+    return "ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED:
+    return "ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED:
+    return "ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED:
+    return "ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED:
+    return "ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED:
+    return "ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DESKTOP_MODE_UI_CHANGED:
+    return "ATOM_DESKTOP_MODE_UI_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE:
+    return "ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED:
+    return "ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_ENGINE_CREATED:
+    return "ATOM_CRONET_ENGINE_CREATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_TRAFFIC_REPORTED:
+    return "ATOM_CRONET_TRAFFIC_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_ENGINE_BUILDER_INITIALIZED:
+    return "ATOM_CRONET_ENGINE_BUILDER_INITIALIZED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_HTTP_FLAGS_INITIALIZED:
+    return "ATOM_CRONET_HTTP_FLAGS_INITIALIZED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_INITIALIZED:
+    return "ATOM_CRONET_INITIALIZED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_API_CALLED:
+    return "ATOM_CREDENTIAL_MANAGER_API_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_GET_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_GET_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED:
+    return "ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_APIV2_CALLED:
+    return "ATOM_CREDENTIAL_MANAGER_APIV2_CALLED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CPU_POLICY:
+    return "ATOM_CPU_POLICY";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_VPN_CONNECTION_STATE_CHANGED:
+    return "ATOM_VPN_CONNECTION_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_VPN_CONNECTION_REPORTED:
+    return "ATOM_VPN_CONNECTION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IP_CLIENT_RA_INFO_REPORTED:
+    return "ATOM_IP_CLIENT_RA_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APF_SESSION_INFO_REPORTED:
+    return "ATOM_APF_SESSION_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED:
+    return "ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED:
+    return "ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_DAILY_KEEPALIVE_INFO_REPORTED:
+    return "ATOM_DAILY_KEEPALIVE_INFO_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_NETWORK_REQUEST_STATE_CHANGED:
+    return "ATOM_NETWORK_REQUEST_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED:
+    return "ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_STATE_CHANGED:
+    return "ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HARDWARE_RENDERER_EVENT:
+    return "ATOM_HARDWARE_RENDERER_EVENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_TEXTURE_VIEW_EVENT:
+    return "ATOM_TEXTURE_VIEW_EVENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SURFACE_CONTROL_EVENT:
+    return "ATOM_SURFACE_CONTROL_EVENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_IMAGE_DECODED:
+    return "ATOM_IMAGE_DECODED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED:
+    return "ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CONSCRYPT_SERVICE_USED:
+    return "ATOM_CONSCRYPT_SERVICE_USED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CERTIFICATE_TRANSPARENCY_VERIFICATION_REPORTED:
+    return "ATOM_CERTIFICATE_TRANSPARENCY_VERIFICATION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT:
+    return "ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BROADCAST_SENT:
+    return "ATOM_BROADCAST_SENT";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED:
+    return "ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION:
+    return "ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION:
+    return "ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_LE_SESSION_CONNECTED:
+    return "ATOM_BLUETOOTH_LE_SESSION_CONNECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED:
+    return "ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED:
+    return "ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED:
+    return "ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED:
+    return "ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID:
+    return "ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_APP_SCAN_STATE_CHANGED:
+    return "ATOM_LE_APP_SCAN_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_RADIO_SCAN_STOPPED:
+    return "ATOM_LE_RADIO_SCAN_STOPPED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_SCAN_RESULT_RECEIVED:
+    return "ATOM_LE_SCAN_RESULT_RECEIVED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_SCAN_ABUSED:
+    return "ATOM_LE_SCAN_ABUSED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_ADV_STATE_CHANGED:
+    return "ATOM_LE_ADV_STATE_CHANGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_ADV_ERROR_REPORTED:
+    return "ATOM_LE_ADV_ERROR_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_A2DP_SESSION_REPORTED:
+    return "ATOM_A2DP_SESSION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED:
+    return "ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BROADCAST_AUDIO_SESSION_REPORTED:
+    return "ATOM_BROADCAST_AUDIO_SESSION_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BROADCAST_AUDIO_SYNC_REPORTED:
+    return "ATOM_BROADCAST_AUDIO_SYNC_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE:
+    return "ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_LE_CONNECTION:
+    return "ATOM_BLUETOOTH_LE_CONNECTION";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_HEARING_DEVICE_ACTIVE_EVENT_REPORTED:
+    return "ATOM_HEARING_DEVICE_ACTIVE_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BACKPORTED_FIX_STATUS_REPORTED:
+    return "ATOM_BACKPORTED_FIX_STATUS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PLUGIN_INITIALIZED:
+    return "ATOM_PLUGIN_INITIALIZED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_SYSTEM_UI_DATA_SUBSCRIPTION_EVENT_REPORTED:
+    return "ATOM_CAR_SYSTEM_UI_DATA_SUBSCRIPTION_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_SETTINGS_DATA_SUBSCRIPTION_EVENT_REPORTED:
+    return "ATOM_CAR_SETTINGS_DATA_SUBSCRIPTION_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_QC_LIB_EVENT_REPORTED:
+    return "ATOM_CAR_QC_LIB_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED:
+    return "ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_RECENTS_EVENT_REPORTED:
+    return "ATOM_CAR_RECENTS_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_CALM_MODE_EVENT_REPORTED:
+    return "ATOM_CAR_CALM_MODE_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_UI_EVENT_REPORTED:
+    return "ATOM_AUTOFILL_UI_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_FILL_REQUEST_REPORTED:
+    return "ATOM_AUTOFILL_FILL_REQUEST_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_FILL_RESPONSE_REPORTED:
+    return "ATOM_AUTOFILL_FILL_RESPONSE_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_SAVE_EVENT_REPORTED:
+    return "ATOM_AUTOFILL_SAVE_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_SESSION_COMMITTED:
+    return "ATOM_AUTOFILL_SESSION_COMMITTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED:
+    return "ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ODREFRESH_REPORTED:
+    return "ATOM_ODREFRESH_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ODSIGN_REPORTED:
+    return "ATOM_ODSIGN_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_BACKGROUND_DEXOPT_JOB_ENDED:
+    return "ATOM_BACKGROUND_DEXOPT_JOB_ENDED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_PREREBOOT_DEXOPT_JOB_ENDED:
+    return "ATOM_PREREBOOT_DEXOPT_JOB_ENDED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DATUM_REPORTED:
+    return "ATOM_ART_DATUM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DEVICE_DATUM_REPORTED:
+    return "ATOM_ART_DEVICE_DATUM_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DATUM_DELTA_REPORTED:
+    return "ATOM_ART_DATUM_DELTA_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DEX2OAT_REPORTED:
+    return "ATOM_ART_DEX2OAT_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DEVICE_STATUS:
+    return "ATOM_ART_DEVICE_STATUS";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED:
+    return "ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED:
+    return "ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED:
+    return "ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED:
+    return "ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED:
+    return "ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_FUNCTIONS_REQUEST_REPORTED:
+    return "ATOM_APP_FUNCTIONS_REQUEST_REPORTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APEX_INSTALLATION_REQUESTED:
+    return "ATOM_APEX_INSTALLATION_REQUESTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APEX_INSTALLATION_STAGED:
+    return "ATOM_APEX_INSTALLATION_STAGED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_APEX_INSTALLATION_ENDED:
+    return "ATOM_APEX_INSTALLATION_ENDED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_BUTTON_PRESSED:
+    return "ATOM_AI_WALLPAPERS_BUTTON_PRESSED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED:
+    return "ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_TERM_SELECTED:
+    return "ATOM_AI_WALLPAPERS_TERM_SELECTED";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_WALLPAPER_SET:
+    return "ATOM_AI_WALLPAPERS_WALLPAPER_SET";
+
+  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_SESSION_SUMMARY:
+    return "ATOM_AI_WALLPAPERS_SESSION_SUMMARY";
 
   case ::perfetto::protos::pbzero::AtomId::ATOM_JSSCRIPTENGINE_LATENCY_REPORTED:
     return "ATOM_JSSCRIPTENGINE_LATENCY_REPORTED";
@@ -59707,1040 +60857,44 @@ const char* AtomId_Name(::perfetto::protos::pbzero::AtomId value) {
   case ::perfetto::protos::pbzero::AtomId::ATOM_TOPICS_SCHEDULE_EPOCH_JOB_SETTING_REPORTED:
     return "ATOM_TOPICS_SCHEDULE_EPOCH_JOB_SETTING_REPORTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_BUTTON_PRESSED:
-    return "ATOM_AI_WALLPAPERS_BUTTON_PRESSED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_SCHEDULE_ATTEMPTED:
+    return "ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_SCHEDULE_ATTEMPTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED:
-    return "ATOM_AI_WALLPAPERS_TEMPLATE_SELECTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED:
+    return "ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_TERM_SELECTED:
-    return "ATOM_AI_WALLPAPERS_TERM_SELECTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED_ATTEMPTED_FAILURE_REPORTED:
+    return "ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_PERFORMED_ATTEMPTED_FAILURE_REPORTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_WALLPAPER_SET:
-    return "ATOM_AI_WALLPAPERS_WALLPAPER_SET";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_BACKGROUND_JOB_RAN:
+    return "ATOM_SCHEDULED_CUSTOM_AUDIENCE_UPDATE_BACKGROUND_JOB_RAN";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AI_WALLPAPERS_SESSION_SUMMARY:
-    return "ATOM_AI_WALLPAPERS_SESSION_SUMMARY";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_STATUS_CALLED:
+    return "ATOM_THERMAL_STATUS_CALLED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APEX_INSTALLATION_REQUESTED:
-    return "ATOM_APEX_INSTALLATION_REQUESTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_HEADROOM_CALLED:
+    return "ATOM_THERMAL_HEADROOM_CALLED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APEX_INSTALLATION_STAGED:
-    return "ATOM_APEX_INSTALLATION_STAGED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED:
+    return "ATOM_THERMAL_HEADROOM_THRESHOLDS_CALLED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APEX_INSTALLATION_ENDED:
-    return "ATOM_APEX_INSTALLATION_ENDED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ADPF_HINT_SESSION_TID_CLEANUP:
+    return "ATOM_ADPF_HINT_SESSION_TID_CLEANUP";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED:
-    return "ATOM_APP_SEARCH_SET_SCHEMA_STATS_REPORTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_THERMAL_HEADROOM_THRESHOLDS:
+    return "ATOM_THERMAL_HEADROOM_THRESHOLDS";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED:
-    return "ATOM_APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ADPF_SESSION_SNAPSHOT:
+    return "ATOM_ADPF_SESSION_SNAPSHOT";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED:
-    return "ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED:
+    return "ATOM_ADAPTIVE_AUTH_UNLOCK_AFTER_LOCK_REPORTED";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED:
-    return "ATOM_APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ACCOUNT_MANAGER_EVENT:
+    return "ATOM_ACCOUNT_MANAGER_EVENT";
 
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED:
-    return "ATOM_APP_SEARCH_APPS_INDEXER_STATS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DATUM_REPORTED:
-    return "ATOM_ART_DATUM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DEVICE_DATUM_REPORTED:
-    return "ATOM_ART_DEVICE_DATUM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DATUM_DELTA_REPORTED:
-    return "ATOM_ART_DATUM_DELTA_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DEX2OAT_REPORTED:
-    return "ATOM_ART_DEX2OAT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ART_DEVICE_STATUS:
-    return "ATOM_ART_DEVICE_STATUS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BACKGROUND_DEXOPT_JOB_ENDED:
-    return "ATOM_BACKGROUND_DEXOPT_JOB_ENDED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PREREBOOT_DEXOPT_JOB_ENDED:
-    return "ATOM_PREREBOOT_DEXOPT_JOB_ENDED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ODREFRESH_REPORTED:
-    return "ATOM_ODREFRESH_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ODSIGN_REPORTED:
-    return "ATOM_ODSIGN_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_UI_EVENT_REPORTED:
-    return "ATOM_AUTOFILL_UI_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_FILL_REQUEST_REPORTED:
-    return "ATOM_AUTOFILL_FILL_REQUEST_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_FILL_RESPONSE_REPORTED:
-    return "ATOM_AUTOFILL_FILL_RESPONSE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_SAVE_EVENT_REPORTED:
-    return "ATOM_AUTOFILL_SAVE_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_SESSION_COMMITTED:
-    return "ATOM_AUTOFILL_SESSION_COMMITTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED:
-    return "ATOM_AUTOFILL_FIELD_CLASSIFICATION_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_RECENTS_EVENT_REPORTED:
-    return "ATOM_CAR_RECENTS_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_CALM_MODE_EVENT_REPORTED:
-    return "ATOM_CAR_CALM_MODE_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED:
-    return "ATOM_CAR_WAKEUP_FROM_SUSPEND_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PLUGIN_INITIALIZED:
-    return "ATOM_PLUGIN_INITIALIZED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED:
-    return "ATOM_BLUETOOTH_HASHED_DEVICE_NAME_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION:
-    return "ATOM_BLUETOOTH_L2CAP_COC_CLIENT_CONNECTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION:
-    return "ATOM_BLUETOOTH_L2CAP_COC_SERVER_CONNECTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_LE_SESSION_CONNECTED:
-    return "ATOM_BLUETOOTH_LE_SESSION_CONNECTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED:
-    return "ATOM_RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED:
-    return "ATOM_BLUETOOTH_PROFILE_CONNECTION_ATTEMPTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED:
-    return "ATOM_BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED:
-    return "ATOM_BLUETOOTH_RFCOMM_CONNECTION_ATTEMPTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID:
-    return "ATOM_REMOTE_DEVICE_INFORMATION_WITH_METRIC_ID";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_APP_SCAN_STATE_CHANGED:
-    return "ATOM_LE_APP_SCAN_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_RADIO_SCAN_STOPPED:
-    return "ATOM_LE_RADIO_SCAN_STOPPED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_SCAN_RESULT_RECEIVED:
-    return "ATOM_LE_SCAN_RESULT_RECEIVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_SCAN_ABUSED:
-    return "ATOM_LE_SCAN_ABUSED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_ADV_STATE_CHANGED:
-    return "ATOM_LE_ADV_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LE_ADV_ERROR_REPORTED:
-    return "ATOM_LE_ADV_ERROR_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_A2DP_SESSION_REPORTED:
-    return "ATOM_A2DP_SESSION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED:
-    return "ATOM_BLUETOOTH_CROSS_LAYER_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BROADCAST_AUDIO_SESSION_REPORTED:
-    return "ATOM_BROADCAST_AUDIO_SESSION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BROADCAST_AUDIO_SYNC_REPORTED:
-    return "ATOM_BROADCAST_AUDIO_SYNC_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE:
-    return "ATOM_BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BLUETOOTH_LE_CONNECTION:
-    return "ATOM_BLUETOOTH_LE_CONNECTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BROADCAST_SENT:
-    return "ATOM_BROADCAST_SENT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT:
-    return "ATOM_CAMERA_FEATURE_COMBINATION_QUERY_EVENT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED:
-    return "ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_FAILED:
-    return "ATOM_CERTIFICATE_TRANSPARENCY_LOG_LIST_UPDATE_FAILED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DAILY_KEEPALIVE_INFO_REPORTED:
-    return "ATOM_DAILY_KEEPALIVE_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NETWORK_REQUEST_STATE_CHANGED:
-    return "ATOM_NETWORK_REQUEST_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED:
-    return "ATOM_TETHERING_ACTIVE_SESSIONS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED:
-    return "ATOM_NETWORK_STATS_RECORDER_FILE_OPERATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED:
-    return "ATOM_CORE_NETWORKING_TERRIBLE_ERROR_OCCURRED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APF_SESSION_INFO_REPORTED:
-    return "ATOM_APF_SESSION_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_IP_CLIENT_RA_INFO_REPORTED:
-    return "ATOM_IP_CLIENT_RA_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_VPN_CONNECTION_STATE_CHANGED:
-    return "ATOM_VPN_CONNECTION_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_VPN_CONNECTION_REPORTED:
-    return "ATOM_VPN_CONNECTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CPU_POLICY:
-    return "ATOM_CPU_POLICY";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_API_CALLED:
-    return "ATOM_CREDENTIAL_MANAGER_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_INIT_PHASE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_CANDIDATE_PHASE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_FINAL_PHASE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_TOTAL_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_FINALNOUID_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_GET_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_GET_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED:
-    return "ATOM_CREDENTIAL_MANAGER_AUTH_CLICK_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CREDENTIAL_MANAGER_APIV2_CALLED:
-    return "ATOM_CREDENTIAL_MANAGER_APIV2_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_ENGINE_CREATED:
-    return "ATOM_CRONET_ENGINE_CREATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_TRAFFIC_REPORTED:
-    return "ATOM_CRONET_TRAFFIC_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_ENGINE_BUILDER_INITIALIZED:
-    return "ATOM_CRONET_ENGINE_BUILDER_INITIALIZED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_HTTP_FLAGS_INITIALIZED:
-    return "ATOM_CRONET_HTTP_FLAGS_INITIALIZED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CRONET_INITIALIZED:
-    return "ATOM_CRONET_INITIALIZED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DESKTOP_MODE_UI_CHANGED:
-    return "ATOM_DESKTOP_MODE_UI_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE:
-    return "ATOM_DESKTOP_MODE_SESSION_TASK_UPDATE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED:
-    return "ATOM_DESKTOP_MODE_TASK_SIZE_UPDATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED:
-    return "ATOM_DEVICE_LOCK_CHECK_IN_REQUEST_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED:
-    return "ATOM_DEVICE_LOCK_PROVISIONING_COMPLETE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED:
-    return "ATOM_DEVICE_LOCK_KIOSK_APP_REQUEST_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED:
-    return "ATOM_DEVICE_LOCK_CHECK_IN_RETRY_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED:
-    return "ATOM_DEVICE_LOCK_PROVISION_FAILURE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED:
-    return "ATOM_DEVICE_LOCK_LOCK_UNLOCK_DEVICE_FAILURE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_POLICY_MANAGEMENT_MODE:
-    return "ATOM_DEVICE_POLICY_MANAGEMENT_MODE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_POLICY_STATE:
-    return "ATOM_DEVICE_POLICY_STATE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED:
-    return "ATOM_DISPLAY_MODE_DIRECTOR_VOTE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXTERNAL_DISPLAY_STATE_CHANGED:
-    return "ATOM_EXTERNAL_DISPLAY_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DND_STATE_CHANGED:
-    return "ATOM_DND_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DREAM_SETTING_CHANGED:
-    return "ATOM_DREAM_SETTING_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DREAM_SETTING_SNAPSHOT:
-    return "ATOM_DREAM_SETTING_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_EVENT_REPORTED:
-    return "ATOM_EXPRESS_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED:
-    return "ATOM_EXPRESS_HISTOGRAM_SAMPLE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_UID_EVENT_REPORTED:
-    return "ATOM_EXPRESS_UID_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED:
-    return "ATOM_EXPRESS_UID_HISTOGRAM_SAMPLE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_FEDERATED_COMPUTE_API_CALLED:
-    return "ATOM_FEDERATED_COMPUTE_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED:
-    return "ATOM_FEDERATED_COMPUTE_TRAINING_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED:
-    return "ATOM_EXAMPLE_ITERATOR_NEXT_LATENCY_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_FULL_SCREEN_INTENT_LAUNCHED:
-    return "ATOM_FULL_SCREEN_INTENT_LAUNCHED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BAL_ALLOWED:
-    return "ATOM_BAL_ALLOWED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_IN_TASK_ACTIVITY_STARTED:
-    return "ATOM_IN_TASK_ACTIVITY_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DEVICE_ORIENTATION_CHANGED:
-    return "ATOM_DEVICE_ORIENTATION_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CACHED_APPS_HIGH_WATERMARK:
-    return "ATOM_CACHED_APPS_HIGH_WATERMARK";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_STYLUS_PREDICTION_METRICS_REPORTED:
-    return "ATOM_STYLUS_PREDICTION_METRICS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_USER_RISK_EVENT_REPORTED:
-    return "ATOM_USER_RISK_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_PROJECTION_STATE_CHANGED:
-    return "ATOM_MEDIA_PROJECTION_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_PROJECTION_TARGET_CHANGED:
-    return "ATOM_MEDIA_PROJECTION_TARGET_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED:
-    return "ATOM_EXCESSIVE_BINDER_PROXY_COUNT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG:
-    return "ATOM_PROXY_BYTES_TRANSFER_BY_FG_BG";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE:
-    return "ATOM_MOBILE_BYTES_TRANSFER_BY_PROC_STATE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BIOMETRIC_FRR_NOTIFICATION:
-    return "ATOM_BIOMETRIC_FRR_NOTIFICATION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION:
-    return "ATOM_SENSITIVE_CONTENT_MEDIA_PROJECTION_SESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION:
-    return "ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_SESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED:
-    return "ATOM_SENSITIVE_NOTIFICATION_APP_PROTECTION_APPLIED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_NOTIFICATION_REDACTION:
-    return "ATOM_SENSITIVE_NOTIFICATION_REDACTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SENSITIVE_CONTENT_APP_PROTECTION:
-    return "ATOM_SENSITIVE_CONTENT_APP_PROTECTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_RESTRICTION_STATE_CHANGED:
-    return "ATOM_APP_RESTRICTION_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BATTERY_USAGE_STATS_PER_UID:
-    return "ATOM_BATTERY_USAGE_STATS_PER_UID";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_POSTGC_MEMORY_SNAPSHOT:
-    return "ATOM_POSTGC_MEMORY_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED:
-    return "ATOM_POWER_SAVE_TEMP_ALLOWLIST_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_OP_ACCESS_TRACKED:
-    return "ATOM_APP_OP_ACCESS_TRACKED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED:
-    return "ATOM_CONTENT_OR_FILE_URI_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED:
-    return "ATOM_APPLICATION_GRAMMATICAL_INFLECTION_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED:
-    return "ATOM_SYSTEM_GRAMMATICAL_INFLECTION_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BATTERY_HEALTH:
-    return "ATOM_BATTERY_HEALTH";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HDMI_EARC_STATUS_REPORTED:
-    return "ATOM_HDMI_EARC_STATUS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED:
-    return "ATOM_HDMI_SOUNDBAR_MODE_STATUS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_API_CALLED:
-    return "ATOM_HEALTH_CONNECT_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_USAGE_STATS:
-    return "ATOM_HEALTH_CONNECT_USAGE_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_STORAGE_STATS:
-    return "ATOM_HEALTH_CONNECT_STORAGE_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_API_INVOKED:
-    return "ATOM_HEALTH_CONNECT_API_INVOKED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXERCISE_ROUTE_API_CALLED:
-    return "ATOM_EXERCISE_ROUTE_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_EXPORT_INVOKED:
-    return "ATOM_HEALTH_CONNECT_EXPORT_INVOKED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_IMPORT_INVOKED:
-    return "ATOM_HEALTH_CONNECT_IMPORT_INVOKED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED:
-    return "ATOM_HEALTH_CONNECT_EXPORT_IMPORT_STATS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_UI_IMPRESSION:
-    return "ATOM_HEALTH_CONNECT_UI_IMPRESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_UI_INTERACTION:
-    return "ATOM_HEALTH_CONNECT_UI_INTERACTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED:
-    return "ATOM_HEALTH_CONNECT_APP_OPENED_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED:
-    return "ATOM_HOTWORD_EGRESS_SIZE_ATOM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_IKE_SESSION_TERMINATED:
-    return "ATOM_IKE_SESSION_TERMINATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED:
-    return "ATOM_IKE_LIVENESS_CHECK_SESSION_VALIDATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NEGOTIATED_SECURITY_ASSOCIATION:
-    return "ATOM_NEGOTIATED_SECURITY_ASSOCIATION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_KEYBOARD_CONFIGURED:
-    return "ATOM_KEYBOARD_CONFIGURED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED:
-    return "ATOM_KEYBOARD_SYSTEMS_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_INPUTDEVICE_USAGE_REPORTED:
-    return "ATOM_INPUTDEVICE_USAGE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_INPUT_EVENT_LATENCY_REPORTED:
-    return "ATOM_INPUT_EVENT_LATENCY_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TOUCHPAD_USAGE:
-    return "ATOM_TOUCHPAD_USAGE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_KERNEL_OOM_KILL_OCCURRED:
-    return "ATOM_KERNEL_OOM_KILL_OCCURRED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EMERGENCY_STATE_CHANGED:
-    return "ATOM_EMERGENCY_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED:
-    return "ATOM_CHRE_SIGNIFICANT_MOTION_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED:
-    return "ATOM_POPULATION_DENSITY_PROVIDER_LOADING_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED:
-    return "ATOM_DENSITY_BASED_COARSE_LOCATIONS_USAGE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED:
-    return "ATOM_DENSITY_BASED_COARSE_LOCATIONS_PROVIDER_QUERY_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED:
-    return "ATOM_MEDIA_CODEC_RECLAIM_REQUEST_COMPLETED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_STARTED:
-    return "ATOM_MEDIA_CODEC_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_STOPPED:
-    return "ATOM_MEDIA_CODEC_STOPPED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CODEC_RENDERED:
-    return "ATOM_MEDIA_CODEC_RENDERED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_EDITING_ENDED_REPORTED:
-    return "ATOM_MEDIA_EDITING_ENDED_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MTE_STATE:
-    return "ATOM_MTE_STATE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED:
-    return "ATOM_MICROXR_DEVICE_BOOT_COMPLETE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_OBSERVE_MODE_STATE_CHANGED:
-    return "ATOM_NFC_OBSERVE_MODE_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_FIELD_CHANGED:
-    return "ATOM_NFC_FIELD_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED:
-    return "ATOM_NFC_POLLING_LOOP_NOTIFICATION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED:
-    return "ATOM_NFC_PROPRIETARY_CAPABILITIES_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ONDEVICEPERSONALIZATION_API_CALLED:
-    return "ATOM_ONDEVICEPERSONALIZATION_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_COMPONENT_STATE_CHANGED_REPORTED:
-    return "ATOM_COMPONENT_STATE_CHANGED_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PDF_LOAD_REPORTED:
-    return "ATOM_PDF_LOAD_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PDF_API_USAGE_REPORTED:
-    return "ATOM_PDF_API_USAGE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PDF_SEARCH_REPORTED:
-    return "ATOM_PDF_SEARCH_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PRESSURE_STALL_INFORMATION:
-    return "ATOM_PRESSURE_STALL_INFORMATION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED:
-    return "ATOM_PERMISSION_RATIONALE_DIALOG_VIEWED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED:
-    return "ATOM_PERMISSION_RATIONALE_DIALOG_ACTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION:
-    return "ATOM_APP_DATA_SHARING_UPDATES_NOTIFICATION_INTERACTION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED:
-    return "ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_VIEWED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED:
-    return "ATOM_APP_DATA_SHARING_UPDATES_FRAGMENT_ACTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED:
-    return "ATOM_ENHANCED_CONFIRMATION_DIALOG_RESULT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED:
-    return "ATOM_ENHANCED_CONFIRMATION_RESTRICTION_CLEARED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_SESSION_INFO_REPORTED:
-    return "ATOM_PHOTOPICKER_SESSION_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_API_INFO_REPORTED:
-    return "ATOM_PHOTOPICKER_API_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_UI_EVENT_LOGGED:
-    return "ATOM_PHOTOPICKER_UI_EVENT_LOGGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED:
-    return "ATOM_PHOTOPICKER_MEDIA_ITEM_STATUS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED:
-    return "ATOM_PHOTOPICKER_PREVIEW_INFO_LOGGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED:
-    return "ATOM_PHOTOPICKER_MENU_INTERACTION_LOGGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED:
-    return "ATOM_PHOTOPICKER_BANNER_INTERACTION_LOGGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED:
-    return "ATOM_PHOTOPICKER_MEDIA_LIBRARY_INFO_LOGGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_PAGE_INFO_LOGGED:
-    return "ATOM_PHOTOPICKER_PAGE_INFO_LOGGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED:
-    return "ATOM_PHOTOPICKER_MEDIA_GRID_SYNC_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED:
-    return "ATOM_PHOTOPICKER_ALBUM_SYNC_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED:
-    return "ATOM_PHOTOPICKER_SEARCH_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED:
-    return "ATOM_SEARCH_DATA_EXTRACTION_DETAILS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED:
-    return "ATOM_EMBEDDED_PHOTOPICKER_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ATOM_9999:
-    return "ATOM_ATOM_9999";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_ATOM_99999:
-    return "ATOM_ATOM_99999";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_OFF_REPORTED:
-    return "ATOM_SCREEN_OFF_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED:
-    return "ATOM_SCREEN_TIMEOUT_OVERRIDE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED:
-    return "ATOM_SCREEN_INTERACTIVE_SESSION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SCREEN_DIM_REPORTED:
-    return "ATOM_SCREEN_DIM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED:
-    return "ATOM_MEDIA_PROVIDER_DATABASE_ROLLBACK_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BACKUP_SETUP_STATUS_REPORTED:
-    return "ATOM_BACKUP_SETUP_STATUS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_SESSION_CONFIGURED:
-    return "ATOM_RANGING_SESSION_CONFIGURED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_SESSION_STARTED:
-    return "ATOM_RANGING_SESSION_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_SESSION_CLOSED:
-    return "ATOM_RANGING_SESSION_CLOSED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_TECHNOLOGY_STARTED:
-    return "ATOM_RANGING_TECHNOLOGY_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RANGING_TECHNOLOGY_STOPPED:
-    return "ATOM_RANGING_TECHNOLOGY_STOPPED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RKPD_POOL_STATS:
-    return "ATOM_RKPD_POOL_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RKPD_CLIENT_OPERATION:
-    return "ATOM_RKPD_CLIENT_OPERATION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SANDBOX_API_CALLED:
-    return "ATOM_SANDBOX_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED:
-    return "ATOM_SANDBOX_ACTIVITY_EVENT_OCCURRED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION:
-    return "ATOM_SDK_SANDBOX_RESTRICTED_ACCESS_IN_SESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SANDBOX_SDK_STORAGE:
-    return "ATOM_SANDBOX_SDK_STORAGE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SELINUX_AUDIT_LOG:
-    return "ATOM_SELINUX_AUDIT_LOG";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SETTINGS_SPA_REPORTED:
-    return "ATOM_SETTINGS_SPA_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TEST_EXTENSION_ATOM_REPORTED:
-    return "ATOM_TEST_EXTENSION_ATOM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TEST_RESTRICTED_ATOM_REPORTED:
-    return "ATOM_TEST_RESTRICTED_ATOM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_STATS_SOCKET_LOSS_REPORTED:
-    return "ATOM_STATS_SOCKET_LOSS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LOCKSCREEN_SHORTCUT_SELECTED:
-    return "ATOM_LOCKSCREEN_SHORTCUT_SELECTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED:
-    return "ATOM_LOCKSCREEN_SHORTCUT_TRIGGERED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LAUNCHER_IMPRESSION_EVENT_V2:
-    return "ATOM_LAUNCHER_IMPRESSION_EVENT_V2";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DISPLAY_SWITCH_LATENCY_TRACKED:
-    return "ATOM_DISPLAY_SWITCH_LATENCY_TRACKED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NOTIFICATION_LISTENER_SERVICE:
-    return "ATOM_NOTIFICATION_LISTENER_SERVICE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_NAV_HANDLE_TOUCH_POINTS:
-    return "ATOM_NAV_HANDLE_TOUCH_POINTS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED:
-    return "ATOM_COMMUNAL_HUB_WIDGET_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_COMMUNAL_HUB_SNAPSHOT:
-    return "ATOM_COMMUNAL_HUB_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EMERGENCY_NUMBER_DIALED:
-    return "ATOM_EMERGENCY_NUMBER_DIALED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CALL_STATS:
-    return "ATOM_CALL_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CALL_AUDIO_ROUTE_STATS:
-    return "ATOM_CALL_AUDIO_ROUTE_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TELECOM_API_STATS:
-    return "ATOM_TELECOM_API_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TELECOM_ERROR_STATS:
-    return "ATOM_TELECOM_ERROR_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED:
-    return "ATOM_CELLULAR_RADIO_POWER_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EMERGENCY_NUMBERS_INFO:
-    return "ATOM_EMERGENCY_NUMBERS_INFO";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DATA_NETWORK_VALIDATION:
-    return "ATOM_DATA_NETWORK_VALIDATION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DATA_RAT_STATE_CHANGED:
-    return "ATOM_DATA_RAT_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CONNECTED_CHANNEL_CHANGED:
-    return "ATOM_CONNECTED_CHANNEL_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED:
-    return "ATOM_IWLAN_UNDERLYING_NETWORK_VALIDATION_RESULT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_QUALIFIED_RAT_LIST_CHANGED:
-    return "ATOM_QUALIFIED_RAT_LIST_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_IMS_CALL_DROP_STATS:
-    return "ATOM_QNS_IMS_CALL_DROP_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_FALLBACK_RESTRICTION_CHANGED:
-    return "ATOM_QNS_FALLBACK_RESTRICTION_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO:
-    return "ATOM_QNS_RAT_PREFERENCE_MISMATCH_INFO";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_HANDOVER_TIME_MILLIS:
-    return "ATOM_QNS_HANDOVER_TIME_MILLIS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_QNS_HANDOVER_PINGPONG:
-    return "ATOM_QNS_HANDOVER_PINGPONG";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_CONTROLLER:
-    return "ATOM_SATELLITE_CONTROLLER";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_SESSION:
-    return "ATOM_SATELLITE_SESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_INCOMING_DATAGRAM:
-    return "ATOM_SATELLITE_INCOMING_DATAGRAM";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_OUTGOING_DATAGRAM:
-    return "ATOM_SATELLITE_OUTGOING_DATAGRAM";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_PROVISION:
-    return "ATOM_SATELLITE_PROVISION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER:
-    return "ATOM_SATELLITE_SOS_MESSAGE_RECOMMENDER";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CARRIER_ROAMING_SATELLITE_SESSION:
-    return "ATOM_CARRIER_ROAMING_SATELLITE_SESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS:
-    return "ATOM_CARRIER_ROAMING_SATELLITE_CONTROLLER_STATS";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CONTROLLER_STATS_PER_PACKAGE:
-    return "ATOM_CONTROLLER_STATS_PER_PACKAGE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_ENTITLEMENT:
-    return "ATOM_SATELLITE_ENTITLEMENT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_CONFIG_UPDATER:
-    return "ATOM_SATELLITE_CONFIG_UPDATER";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SATELLITE_ACCESS_CONTROLLER:
-    return "ATOM_SATELLITE_ACCESS_CONTROLLER";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_CELLULAR_IDENTIFIER_DISCLOSED:
-    return "ATOM_CELLULAR_IDENTIFIER_DISCLOSED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED:
-    return "ATOM_THREADNETWORK_TELEMETRY_DATA_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED:
-    return "ATOM_THREADNETWORK_TOPO_ENTRY_REPEATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_THREADNETWORK_DEVICE_INFO_REPORTED:
-    return "ATOM_THREADNETWORK_DEVICE_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_BOOT_INTEGRITY_INFO_REPORTED:
-    return "ATOM_BOOT_INTEGRITY_INFO_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TV_LOW_POWER_STANDBY_POLICY:
-    return "ATOM_TV_LOW_POWER_STANDBY_POLICY";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_EXTERNAL_TV_INPUT_EVENT:
-    return "ATOM_EXTERNAL_TV_INPUT_EVENT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TEST_UPROBESTATS_ATOM_REPORTED:
-    return "ATOM_TEST_UPROBESTATS_ATOM_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_UWB_ACTIVITY_INFO:
-    return "ATOM_UWB_ACTIVITY_INFO";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIATOR_UPDATED:
-    return "ATOM_MEDIATOR_UPDATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER:
-    return "ATOM_SYSPROXY_BLUETOOTH_BYTES_TRANSFER";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SYSPROXY_CONNECTION_UPDATED:
-    return "ATOM_SYSPROXY_CONNECTION_UPDATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_COMPANION_CONNECTION_STATE:
-    return "ATOM_WEAR_COMPANION_CONNECTION_STATE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_ACTION_REPORTED:
-    return "ATOM_MEDIA_ACTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_CONTROLS_LAUNCHED:
-    return "ATOM_MEDIA_CONTROLS_LAUNCHED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MEDIA_SESSION_STATE_CHANGED:
-    return "ATOM_MEDIA_SESSION_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY:
-    return "ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_DEVICE_SCAN_API_LATENCY";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE:
-    return "ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_SASS_DEVICE_UNAVAILABLE";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT:
-    return "ATOM_WEAR_MEDIA_OUTPUT_SWITCHER_FASTPAIR_API_TIMEOUT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_MODE_STATE_CHANGED:
-    return "ATOM_WEAR_MODE_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_RENDERER_INITIALIZED:
-    return "ATOM_RENDERER_INITIALIZED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SCHEMA_VERSION_RECEIVED:
-    return "ATOM_SCHEMA_VERSION_RECEIVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LAYOUT_INSPECTED:
-    return "ATOM_LAYOUT_INSPECTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LAYOUT_EXPRESSION_INSPECTED:
-    return "ATOM_LAYOUT_EXPRESSION_INSPECTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_LAYOUT_ANIMATIONS_INSPECTED:
-    return "ATOM_LAYOUT_ANIMATIONS_INSPECTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_MATERIAL_COMPONENTS_INSPECTED:
-    return "ATOM_MATERIAL_COMPONENTS_INSPECTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TILE_REQUESTED:
-    return "ATOM_TILE_REQUESTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_STATE_RESPONSE_RECEIVED:
-    return "ATOM_STATE_RESPONSE_RECEIVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_TILE_RESPONSE_RECEIVED:
-    return "ATOM_TILE_RESPONSE_RECEIVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_INFLATION_FINISHED:
-    return "ATOM_INFLATION_FINISHED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_INFLATION_FAILED:
-    return "ATOM_INFLATION_FAILED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_IGNORED_INFLATION_FAILURES_REPORTED:
-    return "ATOM_IGNORED_INFLATION_FAILURES_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_DRAWABLE_RENDERED:
-    return "ATOM_DRAWABLE_RENDERED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_SYNC_REQUESTED:
-    return "ATOM_WEAR_TIME_SYNC_REQUESTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_UPDATE_STARTED:
-    return "ATOM_WEAR_TIME_UPDATE_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED:
-    return "ATOM_WEAR_TIME_SYNC_ATTEMPT_COMPLETED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_TIME_CHANGED:
-    return "ATOM_WEAR_TIME_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED:
-    return "ATOM_WEAR_ADAPTIVE_SUSPEND_STATS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED:
-    return "ATOM_WEAR_POWER_ANOMALY_SERVICE_OPERATIONAL_STATS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED:
-    return "ATOM_WEAR_POWER_ANOMALY_SERVICE_EVENT_STATS_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WEAR_TIME_SESSION:
-    return "ATOM_WS_WEAR_TIME_SESSION";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_INCOMING_CALL_ACTION_REPORTED:
-    return "ATOM_WS_INCOMING_CALL_ACTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_DISCONNECTION_REPORTED:
-    return "ATOM_WS_CALL_DISCONNECTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_DURATION_REPORTED:
-    return "ATOM_WS_CALL_DURATION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED:
-    return "ATOM_WS_CALL_USER_EXPERIENCE_LATENCY_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_CALL_INTERACTION_REPORTED:
-    return "ATOM_WS_CALL_INTERACTION_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_ON_BODY_STATE_CHANGED:
-    return "ATOM_WS_ON_BODY_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED:
-    return "ATOM_WS_WATCH_FACE_RESTRICTED_COMPLICATIONS_IMPACTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED:
-    return "ATOM_WS_WATCH_FACE_DEFAULT_RESTRICTED_COMPLICATIONS_REMOVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED:
-    return "ATOM_WS_COMPLICATIONS_IMPACTED_NOTIFICATION_EVENT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_REMOTE_EVENT_USAGE_REPORTED:
-    return "ATOM_WS_REMOTE_EVENT_USAGE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_BUGREPORT_REQUESTED:
-    return "ATOM_WS_BUGREPORT_REQUESTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_BUGREPORT_TRIGGERED:
-    return "ATOM_WS_BUGREPORT_TRIGGERED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_BUGREPORT_FINISHED:
-    return "ATOM_WS_BUGREPORT_FINISHED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_BUGREPORT_RESULT_RECEIVED:
-    return "ATOM_WS_BUGREPORT_RESULT_RECEIVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_STANDALONE_MODE_SNAPSHOT:
-    return "ATOM_WS_STANDALONE_MODE_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT:
-    return "ATOM_WS_FAVORITE_WATCH_FACE_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT:
-    return "ATOM_WS_PHOTOS_WATCH_FACE_FEATURE_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT:
-    return "ATOM_WS_WATCH_FACE_CUSTOMIZATION_SNAPSHOT";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_POWER_MENU_OPENED:
-    return "ATOM_WEAR_POWER_MENU_OPENED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WEAR_ASSISTANT_OPENED:
-    return "ATOM_WEAR_ASSISTANT_OPENED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_FIRST_OVERLAY_STATE_CHANGED:
-    return "ATOM_FIRST_OVERLAY_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_NDP_REPORTED:
-    return "ATOM_WIFI_AWARE_NDP_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_ATTACH_REPORTED:
-    return "ATOM_WIFI_AWARE_ATTACH_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_SELF_RECOVERY_TRIGGERED:
-    return "ATOM_WIFI_SELF_RECOVERY_TRIGGERED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SOFT_AP_STARTED:
-    return "ATOM_SOFT_AP_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SOFT_AP_STOPPED:
-    return "ATOM_SOFT_AP_STOPPED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCK_RELEASED:
-    return "ATOM_WIFI_LOCK_RELEASED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCK_DEACTIVATED:
-    return "ATOM_WIFI_LOCK_DEACTIVATED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_CONFIG_SAVED:
-    return "ATOM_WIFI_CONFIG_SAVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED:
-    return "ATOM_WIFI_AWARE_RESOURCE_USING_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_HAL_API_CALLED:
-    return "ATOM_WIFI_AWARE_HAL_API_CALLED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED:
-    return "ATOM_WIFI_LOCAL_ONLY_REQUEST_RECEIVED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED:
-    return "ATOM_WIFI_LOCAL_ONLY_REQUEST_SCAN_TRIGGERED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_THREAD_TASK_EXECUTED:
-    return "ATOM_WIFI_THREAD_TASK_EXECUTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_STATE_CHANGED:
-    return "ATOM_WIFI_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PNO_SCAN_STARTED:
-    return "ATOM_PNO_SCAN_STARTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_PNO_SCAN_STOPPED:
-    return "ATOM_PNO_SCAN_STOPPED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_IS_UNUSABLE_REPORTED:
-    return "ATOM_WIFI_IS_UNUSABLE_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AP_CAPABILITIES_REPORTED:
-    return "ATOM_WIFI_AP_CAPABILITIES_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SOFT_AP_STATE_CHANGED:
-    return "ATOM_SOFT_AP_STATE_CHANGED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_SCORER_PREDICTION_RESULT_REPORTED:
-    return "ATOM_SCORER_PREDICTION_RESULT_REPORTED";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_AWARE_CAPABILITIES:
-    return "ATOM_WIFI_AWARE_CAPABILITIES";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_MODULE_INFO:
-    return "ATOM_WIFI_MODULE_INFO";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_SETTING_INFO:
-    return "ATOM_WIFI_SETTING_INFO";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_COMPLEX_SETTING_INFO:
-    return "ATOM_WIFI_COMPLEX_SETTING_INFO";
-
-  case ::perfetto::protos::pbzero::AtomId::ATOM_WIFI_CONFIGURED_NETWORK_INFO:
-    return "ATOM_WIFI_CONFIGURED_NETWORK_INFO";
+  case ::perfetto::protos::pbzero::AtomId::ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED:
+    return "ATOM_ACCESSIBILITY_CHECK_RESULT_REPORTED";
   }
   return "PBZERO_UNKNOWN_ENUM_VALUE";
 }
@@ -65571,15 +65725,18 @@ namespace protos {
 namespace pbzero {
 class DataSourceConfig;
 class PriorityBoostConfig;
+class TraceAttributes;
 class TraceConfig_AndroidReportConfig;
 class TraceConfig_BufferConfig;
 class TraceConfig_BuiltinDataSource;
 class TraceConfig_CmdTraceStartDelay;
+class TraceConfig_CompressionConfig;
+class TraceConfig_CompressionConfig_Deflate;
+class TraceConfig_CompressionConfig_Zstd;
 class TraceConfig_DataSource;
 class TraceConfig_GuardrailOverrides;
 class TraceConfig_IncidentReportConfig;
 class TraceConfig_IncrementalStateConfig;
-class TraceConfig_Note;
 class TraceConfig_ProducerConfig;
 class TraceConfig_SessionSemaphore;
 class TraceConfig_StatsdMetadata;
@@ -65886,14 +66043,13 @@ namespace perfetto_pbzero_enum_TraceConfig_BufferConfig {
 enum ExperimentalMode : int32_t {
   MODE_UNSPECIFIED = 0,
   TRACE_BUFFER_V2 = 1,
-  TRACE_BUFFER_V2_SHADOW_MODE = 2,
 };
 } // namespace perfetto_pbzero_enum_TraceConfig_BufferConfig
 using TraceConfig_BufferConfig_ExperimentalMode = perfetto_pbzero_enum_TraceConfig_BufferConfig::ExperimentalMode;
 
 
 constexpr TraceConfig_BufferConfig_ExperimentalMode TraceConfig_BufferConfig_ExperimentalMode_MIN = TraceConfig_BufferConfig_ExperimentalMode::MODE_UNSPECIFIED;
-constexpr TraceConfig_BufferConfig_ExperimentalMode TraceConfig_BufferConfig_ExperimentalMode_MAX = TraceConfig_BufferConfig_ExperimentalMode::TRACE_BUFFER_V2_SHADOW_MODE;
+constexpr TraceConfig_BufferConfig_ExperimentalMode TraceConfig_BufferConfig_ExperimentalMode_MAX = TraceConfig_BufferConfig_ExperimentalMode::TRACE_BUFFER_V2;
 
 
 PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
@@ -65904,14 +66060,11 @@ const char* TraceConfig_BufferConfig_ExperimentalMode_Name(::perfetto::protos::p
 
   case ::perfetto::protos::pbzero::TraceConfig_BufferConfig_ExperimentalMode::TRACE_BUFFER_V2:
     return "TRACE_BUFFER_V2";
-
-  case ::perfetto::protos::pbzero::TraceConfig_BufferConfig_ExperimentalMode::TRACE_BUFFER_V2_SHADOW_MODE:
-    return "TRACE_BUFFER_V2_SHADOW_MODE";
   }
   return "PBZERO_UNKNOWN_ENUM_VALUE";
 }
 
-class TraceConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/46> {
+class TraceConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/48> {
  public:
   TraceConfig_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit TraceConfig_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -65970,6 +66123,8 @@ class TraceConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID
   ::protozero::ConstChars unique_session_name() const { return at<22>().as_string(); }
   bool has_compression_type() const { return at<24>().valid(); }
   int32_t compression_type() const { return at<24>().as_int32(); }
+  bool has_compression() const { return at<47>().valid(); }
+  ::protozero::ConstBytes compression() const { return at<47>().as_bytes(); }
   bool has_incident_report_config() const { return at<25>().valid(); }
   ::protozero::ConstBytes incident_report_config() const { return at<25>().as_bytes(); }
   bool has_statsd_logging() const { return at<31>().valid(); }
@@ -65996,8 +66151,8 @@ class TraceConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID
   int32_t fflush_post_write() const { return at<45>().as_int32(); }
   bool has_trace_all_machines() const { return at<43>().valid(); }
   bool trace_all_machines() const { return at<43>().as_bool(); }
-  bool has_notes() const { return at<46>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> notes() const { return GetRepeated<::protozero::ConstBytes>(46); }
+  bool has_trace_attributes() const { return at<48>().valid(); }
+  ::protozero::ConstBytes trace_attributes() const { return at<48>().as_bytes(); }
 };
 
 class TraceConfig : public ::protozero::Message {
@@ -66031,6 +66186,7 @@ class TraceConfig : public ::protozero::Message {
     kAllowUserBuildTracingFieldNumber = 19,
     kUniqueSessionNameFieldNumber = 22,
     kCompressionTypeFieldNumber = 24,
+    kCompressionFieldNumber = 47,
     kIncidentReportConfigFieldNumber = 25,
     kStatsdLoggingFieldNumber = 31,
     kTraceUuidMsbFieldNumber = 27,
@@ -66044,7 +66200,7 @@ class TraceConfig : public ::protozero::Message {
     kWriteFlushModeFieldNumber = 44,
     kFflushPostWriteFieldNumber = 45,
     kTraceAllMachinesFieldNumber = 43,
-    kNotesFieldNumber = 46,
+    kTraceAttributesFieldNumber = 48,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.TraceConfig"; }
 
@@ -66056,12 +66212,12 @@ class TraceConfig : public ::protozero::Message {
   using GuardrailOverrides = ::perfetto::protos::pbzero::TraceConfig_GuardrailOverrides;
   using TriggerConfig = ::perfetto::protos::pbzero::TraceConfig_TriggerConfig;
   using IncrementalStateConfig = ::perfetto::protos::pbzero::TraceConfig_IncrementalStateConfig;
+  using CompressionConfig = ::perfetto::protos::pbzero::TraceConfig_CompressionConfig;
   using IncidentReportConfig = ::perfetto::protos::pbzero::TraceConfig_IncidentReportConfig;
   using TraceFilter = ::perfetto::protos::pbzero::TraceConfig_TraceFilter;
   using AndroidReportConfig = ::perfetto::protos::pbzero::TraceConfig_AndroidReportConfig;
   using CmdTraceStartDelay = ::perfetto::protos::pbzero::TraceConfig_CmdTraceStartDelay;
   using SessionSemaphore = ::perfetto::protos::pbzero::TraceConfig_SessionSemaphore;
-  using Note = ::perfetto::protos::pbzero::TraceConfig_Note;
 
   using LockdownModeOperation = ::perfetto::protos::pbzero::TraceConfig_LockdownModeOperation;
   static inline const char* LockdownModeOperation_Name(LockdownModeOperation value) {
@@ -66581,6 +66737,20 @@ class TraceConfig : public ::protozero::Message {
         ::Append(*this, field_id, value);
   }
 
+  using FieldMetadata_Compression =
+    ::protozero::proto_utils::FieldMetadata<
+      47,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      TraceConfig_CompressionConfig,
+      TraceConfig>;
+
+  static constexpr FieldMetadata_Compression kCompression{};
+  template <typename T = TraceConfig_CompressionConfig> T* set_compression() {
+    return BeginNestedMessage<T>(47);
+  }
+
+
   using FieldMetadata_IncidentReportConfig =
     ::protozero::proto_utils::FieldMetadata<
       25,
@@ -66791,89 +66961,19 @@ class TraceConfig : public ::protozero::Message {
         ::Append(*this, field_id, value);
   }
 
-  using FieldMetadata_Notes =
+  using FieldMetadata_TraceAttributes =
     ::protozero::proto_utils::FieldMetadata<
-      46,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      48,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
       ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      TraceConfig_Note,
+      TraceAttributes,
       TraceConfig>;
 
-  static constexpr FieldMetadata_Notes kNotes{};
-  template <typename T = TraceConfig_Note> T* add_notes() {
-    return BeginNestedMessage<T>(46);
+  static constexpr FieldMetadata_TraceAttributes kTraceAttributes{};
+  template <typename T = TraceAttributes> T* set_trace_attributes() {
+    return BeginNestedMessage<T>(48);
   }
 
-};
-
-class TraceConfig_Note_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/2> {
- public:
-  TraceConfig_Note_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit TraceConfig_Note_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit TraceConfig_Note_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_key() const { return at<1>().valid(); }
-  ::protozero::ConstChars key() const { return at<1>().as_string(); }
-  bool has_value() const { return at<2>().valid(); }
-  ::protozero::ConstChars value() const { return at<2>().as_string(); }
-};
-
-class TraceConfig_Note : public ::protozero::Message {
- public:
-  using Decoder = TraceConfig_Note_Decoder;
-  enum : int32_t {
-    kKeyFieldNumber = 1,
-    kValueFieldNumber = 2,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.TraceConfig.Note"; }
-
-
-  using FieldMetadata_Key =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kString,
-      std::string,
-      TraceConfig_Note>;
-
-  static constexpr FieldMetadata_Key kKey{};
-  void set_key(const char* data, size_t size) {
-    AppendBytes(FieldMetadata_Key::kFieldId, data, size);
-  }
-  void set_key(::protozero::ConstChars chars) {
-    AppendBytes(FieldMetadata_Key::kFieldId, chars.data, chars.size);
-  }
-  void set_key(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_Key::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kString>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Value =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kString,
-      std::string,
-      TraceConfig_Note>;
-
-  static constexpr FieldMetadata_Value kValue{};
-  void set_value(const char* data, size_t size) {
-    AppendBytes(FieldMetadata_Value::kFieldId, data, size);
-  }
-  void set_value(::protozero::ConstChars chars) {
-    AppendBytes(FieldMetadata_Value::kFieldId, chars.data, chars.size);
-  }
-  void set_value(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_Value::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kString>
-        ::Append(*this, field_id, value);
-  }
 };
 
 class TraceConfig_SessionSemaphore_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/2> {
@@ -67559,6 +67659,109 @@ class TraceConfig_IncidentReportConfig : public ::protozero::Message {
   }
 };
 
+class TraceConfig_CompressionConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/2> {
+ public:
+  TraceConfig_CompressionConfig_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit TraceConfig_CompressionConfig_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit TraceConfig_CompressionConfig_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_deflate() const { return at<1>().valid(); }
+  ::protozero::ConstBytes deflate() const { return at<1>().as_bytes(); }
+  bool has_zstd() const { return at<2>().valid(); }
+  ::protozero::ConstBytes zstd() const { return at<2>().as_bytes(); }
+};
+
+class TraceConfig_CompressionConfig : public ::protozero::Message {
+ public:
+  using Decoder = TraceConfig_CompressionConfig_Decoder;
+  enum : int32_t {
+    kDeflateFieldNumber = 1,
+    kZstdFieldNumber = 2,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.TraceConfig.CompressionConfig"; }
+
+  using Deflate = ::perfetto::protos::pbzero::TraceConfig_CompressionConfig_Deflate;
+  using Zstd = ::perfetto::protos::pbzero::TraceConfig_CompressionConfig_Zstd;
+
+  using FieldMetadata_Deflate =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      TraceConfig_CompressionConfig_Deflate,
+      TraceConfig_CompressionConfig>;
+
+  static constexpr FieldMetadata_Deflate kDeflate{};
+  template <typename T = TraceConfig_CompressionConfig_Deflate> T* set_deflate() {
+    return BeginNestedMessage<T>(1);
+  }
+
+
+  using FieldMetadata_Zstd =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      TraceConfig_CompressionConfig_Zstd,
+      TraceConfig_CompressionConfig>;
+
+  static constexpr FieldMetadata_Zstd kZstd{};
+  template <typename T = TraceConfig_CompressionConfig_Zstd> T* set_zstd() {
+    return BeginNestedMessage<T>(2);
+  }
+
+};
+
+class TraceConfig_CompressionConfig_Zstd_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/1> {
+ public:
+  TraceConfig_CompressionConfig_Zstd_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit TraceConfig_CompressionConfig_Zstd_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit TraceConfig_CompressionConfig_Zstd_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_level() const { return at<1>().valid(); }
+  int32_t level() const { return at<1>().as_int32(); }
+};
+
+class TraceConfig_CompressionConfig_Zstd : public ::protozero::Message {
+ public:
+  using Decoder = TraceConfig_CompressionConfig_Zstd_Decoder;
+  enum : int32_t {
+    kLevelFieldNumber = 1,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.TraceConfig.CompressionConfig.Zstd"; }
+
+
+  using FieldMetadata_Level =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kInt32,
+      int32_t,
+      TraceConfig_CompressionConfig_Zstd>;
+
+  static constexpr FieldMetadata_Level kLevel{};
+  void set_level(int32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Level::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kInt32>
+        ::Append(*this, field_id, value);
+  }
+};
+
+class TraceConfig_CompressionConfig_Deflate_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/0> {
+ public:
+  TraceConfig_CompressionConfig_Deflate_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit TraceConfig_CompressionConfig_Deflate_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit TraceConfig_CompressionConfig_Deflate_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+};
+
+class TraceConfig_CompressionConfig_Deflate : public ::protozero::Message {
+ public:
+  using Decoder = TraceConfig_CompressionConfig_Deflate_Decoder;
+  static constexpr const char* GetName() { return ".perfetto.protos.TraceConfig.CompressionConfig.Deflate"; }
+
+};
+
 class TraceConfig_IncrementalStateConfig_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/1> {
  public:
   TraceConfig_IncrementalStateConfig_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
@@ -68078,7 +68281,7 @@ class TraceConfig_ProducerConfig : public ::protozero::Message {
   }
 };
 
-class TraceConfig_BuiltinDataSource_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/9> {
+class TraceConfig_BuiltinDataSource_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/10> {
  public:
   TraceConfig_BuiltinDataSource_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit TraceConfig_BuiltinDataSource_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -68101,6 +68304,8 @@ class TraceConfig_BuiltinDataSource_Decoder : public ::protozero::TypedProtoDeco
   bool disable_chunk_usage_histograms() const { return at<8>().as_bool(); }
   bool has_disable_extension_descriptors() const { return at<9>().valid(); }
   bool disable_extension_descriptors() const { return at<9>().as_bool(); }
+  bool has_enable_concurrent_session_events() const { return at<10>().valid(); }
+  bool enable_concurrent_session_events() const { return at<10>().as_bool(); }
 };
 
 class TraceConfig_BuiltinDataSource : public ::protozero::Message {
@@ -68116,6 +68321,7 @@ class TraceConfig_BuiltinDataSource : public ::protozero::Message {
     kPreferSuspendClockForSnapshotFieldNumber = 7,
     kDisableChunkUsageHistogramsFieldNumber = 8,
     kDisableExtensionDescriptorsFieldNumber = 9,
+    kEnableConcurrentSessionEventsFieldNumber = 10,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.TraceConfig.BuiltinDataSource"; }
 
@@ -68275,6 +68481,24 @@ class TraceConfig_BuiltinDataSource : public ::protozero::Message {
   static constexpr FieldMetadata_DisableExtensionDescriptors kDisableExtensionDescriptors{};
   void set_disable_extension_descriptors(bool value) {
     static constexpr uint32_t field_id = FieldMetadata_DisableExtensionDescriptors::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kBool>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_EnableConcurrentSessionEvents =
+    ::protozero::proto_utils::FieldMetadata<
+      10,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kBool,
+      bool,
+      TraceConfig_BuiltinDataSource>;
+
+  static constexpr FieldMetadata_EnableConcurrentSessionEvents kEnableConcurrentSessionEvents{};
+  void set_enable_concurrent_session_events(bool value) {
+    static constexpr uint32_t field_id = FieldMetadata_EnableConcurrentSessionEvents::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -68444,7 +68668,6 @@ class TraceConfig_BufferConfig : public ::protozero::Message {
   static inline const FillPolicy DISCARD = FillPolicy::DISCARD;
   static inline const ExperimentalMode MODE_UNSPECIFIED = ExperimentalMode::MODE_UNSPECIFIED;
   static inline const ExperimentalMode TRACE_BUFFER_V2 = ExperimentalMode::TRACE_BUFFER_V2;
-  static inline const ExperimentalMode TRACE_BUFFER_V2_SHADOW_MODE = ExperimentalMode::TRACE_BUFFER_V2_SHADOW_MODE;
 
   using FieldMetadata_SizeKb =
     ::protozero::proto_utils::FieldMetadata<
@@ -70498,933 +70721,6 @@ class AndroidSystemProperty_PropertyValue : public ::protozero::Message {
 } // Namespace.
 } // Namespace.
 #endif  // Include guard.
-// gen_amalgamated begin header: gen/protos/perfetto/trace/android/camera_event.pbzero.h
-// Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
-
-#ifndef PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_ANDROID_CAMERA_EVENT_PROTO_H_
-#define PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_ANDROID_CAMERA_EVENT_PROTO_H_
-
-#include <stddef.h>
-#include <stdint.h>
-
-// gen_amalgamated expanded: #include "perfetto/protozero/field_writer.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
-
-namespace perfetto {
-namespace protos {
-namespace pbzero {
-class AndroidCameraFrameEvent_CameraNodeProcessingDetails;
-class AndroidCameraSessionStats_CameraGraph;
-class AndroidCameraSessionStats_CameraGraph_CameraEdge;
-class AndroidCameraSessionStats_CameraGraph_CameraNode;
-namespace perfetto_pbzero_enum_AndroidCameraFrameEvent {
-enum CaptureResultStatus : int32_t;
-}  // namespace perfetto_pbzero_enum_AndroidCameraFrameEvent
-using AndroidCameraFrameEvent_CaptureResultStatus = perfetto_pbzero_enum_AndroidCameraFrameEvent::CaptureResultStatus;
-} // Namespace pbzero.
-} // Namespace protos.
-} // Namespace perfetto.
-
-namespace perfetto {
-namespace protos {
-namespace pbzero {
-
-namespace perfetto_pbzero_enum_AndroidCameraFrameEvent {
-enum CaptureResultStatus : int32_t {
-  STATUS_UNSPECIFIED = 0,
-  STATUS_OK = 1,
-  STATUS_EARLY_METADATA_ERROR = 2,
-  STATUS_FINAL_METADATA_ERROR = 3,
-  STATUS_BUFFER_ERROR = 4,
-  STATUS_FLUSH_ERROR = 5,
-};
-} // namespace perfetto_pbzero_enum_AndroidCameraFrameEvent
-using AndroidCameraFrameEvent_CaptureResultStatus = perfetto_pbzero_enum_AndroidCameraFrameEvent::CaptureResultStatus;
-
-
-constexpr AndroidCameraFrameEvent_CaptureResultStatus AndroidCameraFrameEvent_CaptureResultStatus_MIN = AndroidCameraFrameEvent_CaptureResultStatus::STATUS_UNSPECIFIED;
-constexpr AndroidCameraFrameEvent_CaptureResultStatus AndroidCameraFrameEvent_CaptureResultStatus_MAX = AndroidCameraFrameEvent_CaptureResultStatus::STATUS_FLUSH_ERROR;
-
-
-PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
-const char* AndroidCameraFrameEvent_CaptureResultStatus_Name(::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus value) {
-  switch (value) {
-  case ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus::STATUS_UNSPECIFIED:
-    return "STATUS_UNSPECIFIED";
-
-  case ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus::STATUS_OK:
-    return "STATUS_OK";
-
-  case ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus::STATUS_EARLY_METADATA_ERROR:
-    return "STATUS_EARLY_METADATA_ERROR";
-
-  case ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus::STATUS_FINAL_METADATA_ERROR:
-    return "STATUS_FINAL_METADATA_ERROR";
-
-  case ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus::STATUS_BUFFER_ERROR:
-    return "STATUS_BUFFER_ERROR";
-
-  case ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus::STATUS_FLUSH_ERROR:
-    return "STATUS_FLUSH_ERROR";
-  }
-  return "PBZERO_UNKNOWN_ENUM_VALUE";
-}
-
-class AndroidCameraSessionStats_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/2> {
- public:
-  AndroidCameraSessionStats_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit AndroidCameraSessionStats_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit AndroidCameraSessionStats_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_session_id() const { return at<1>().valid(); }
-  uint64_t session_id() const { return at<1>().as_uint64(); }
-  bool has_graph() const { return at<2>().valid(); }
-  ::protozero::ConstBytes graph() const { return at<2>().as_bytes(); }
-};
-
-class AndroidCameraSessionStats : public ::protozero::Message {
- public:
-  using Decoder = AndroidCameraSessionStats_Decoder;
-  enum : int32_t {
-    kSessionIdFieldNumber = 1,
-    kGraphFieldNumber = 2,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.AndroidCameraSessionStats"; }
-
-  using CameraGraph = ::perfetto::protos::pbzero::AndroidCameraSessionStats_CameraGraph;
-
-  using FieldMetadata_SessionId =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      AndroidCameraSessionStats>;
-
-  static constexpr FieldMetadata_SessionId kSessionId{};
-  void set_session_id(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_SessionId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Graph =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      AndroidCameraSessionStats_CameraGraph,
-      AndroidCameraSessionStats>;
-
-  static constexpr FieldMetadata_Graph kGraph{};
-  template <typename T = AndroidCameraSessionStats_CameraGraph> T* set_graph() {
-    return BeginNestedMessage<T>(2);
-  }
-
-};
-
-class AndroidCameraSessionStats_CameraGraph_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/2> {
- public:
-  AndroidCameraSessionStats_CameraGraph_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit AndroidCameraSessionStats_CameraGraph_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit AndroidCameraSessionStats_CameraGraph_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_nodes() const { return at<1>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> nodes() const { return GetRepeated<::protozero::ConstBytes>(1); }
-  bool has_edges() const { return at<2>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> edges() const { return GetRepeated<::protozero::ConstBytes>(2); }
-};
-
-class AndroidCameraSessionStats_CameraGraph : public ::protozero::Message {
- public:
-  using Decoder = AndroidCameraSessionStats_CameraGraph_Decoder;
-  enum : int32_t {
-    kNodesFieldNumber = 1,
-    kEdgesFieldNumber = 2,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.AndroidCameraSessionStats.CameraGraph"; }
-
-  using CameraNode = ::perfetto::protos::pbzero::AndroidCameraSessionStats_CameraGraph_CameraNode;
-  using CameraEdge = ::perfetto::protos::pbzero::AndroidCameraSessionStats_CameraGraph_CameraEdge;
-
-  using FieldMetadata_Nodes =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      AndroidCameraSessionStats_CameraGraph_CameraNode,
-      AndroidCameraSessionStats_CameraGraph>;
-
-  static constexpr FieldMetadata_Nodes kNodes{};
-  template <typename T = AndroidCameraSessionStats_CameraGraph_CameraNode> T* add_nodes() {
-    return BeginNestedMessage<T>(1);
-  }
-
-
-  using FieldMetadata_Edges =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge,
-      AndroidCameraSessionStats_CameraGraph>;
-
-  static constexpr FieldMetadata_Edges kEdges{};
-  template <typename T = AndroidCameraSessionStats_CameraGraph_CameraEdge> T* add_edges() {
-    return BeginNestedMessage<T>(2);
-  }
-
-};
-
-class AndroidCameraSessionStats_CameraGraph_CameraEdge_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/6> {
- public:
-  AndroidCameraSessionStats_CameraGraph_CameraEdge_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit AndroidCameraSessionStats_CameraGraph_CameraEdge_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit AndroidCameraSessionStats_CameraGraph_CameraEdge_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_output_node_id() const { return at<1>().valid(); }
-  int64_t output_node_id() const { return at<1>().as_int64(); }
-  bool has_output_id() const { return at<2>().valid(); }
-  int64_t output_id() const { return at<2>().as_int64(); }
-  bool has_input_node_id() const { return at<3>().valid(); }
-  int64_t input_node_id() const { return at<3>().as_int64(); }
-  bool has_input_id() const { return at<4>().valid(); }
-  int64_t input_id() const { return at<4>().as_int64(); }
-  bool has_vendor_data_version() const { return at<5>().valid(); }
-  int32_t vendor_data_version() const { return at<5>().as_int32(); }
-  bool has_vendor_data() const { return at<6>().valid(); }
-  ::protozero::ConstBytes vendor_data() const { return at<6>().as_bytes(); }
-};
-
-class AndroidCameraSessionStats_CameraGraph_CameraEdge : public ::protozero::Message {
- public:
-  using Decoder = AndroidCameraSessionStats_CameraGraph_CameraEdge_Decoder;
-  enum : int32_t {
-    kOutputNodeIdFieldNumber = 1,
-    kOutputIdFieldNumber = 2,
-    kInputNodeIdFieldNumber = 3,
-    kInputIdFieldNumber = 4,
-    kVendorDataVersionFieldNumber = 5,
-    kVendorDataFieldNumber = 6,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.AndroidCameraSessionStats.CameraGraph.CameraEdge"; }
-
-
-  using FieldMetadata_OutputNodeId =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge>;
-
-  static constexpr FieldMetadata_OutputNodeId kOutputNodeId{};
-  void set_output_node_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_OutputNodeId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_OutputId =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge>;
-
-  static constexpr FieldMetadata_OutputId kOutputId{};
-  void set_output_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_OutputId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_InputNodeId =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge>;
-
-  static constexpr FieldMetadata_InputNodeId kInputNodeId{};
-  void set_input_node_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_InputNodeId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_InputId =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge>;
-
-  static constexpr FieldMetadata_InputId kInputId{};
-  void set_input_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_InputId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_VendorDataVersion =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge>;
-
-  static constexpr FieldMetadata_VendorDataVersion kVendorDataVersion{};
-  void set_vendor_data_version(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_VendorDataVersion::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_VendorData =
-    ::protozero::proto_utils::FieldMetadata<
-      6,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBytes,
-      std::string,
-      AndroidCameraSessionStats_CameraGraph_CameraEdge>;
-
-  static constexpr FieldMetadata_VendorData kVendorData{};
-  void set_vendor_data(const uint8_t* data, size_t size) {
-    AppendBytes(FieldMetadata_VendorData::kFieldId, data, size);
-  }
-  void set_vendor_data(::protozero::ConstBytes bytes) {
-    AppendBytes(FieldMetadata_VendorData::kFieldId, bytes.data, bytes.size);
-  }
-  void set_vendor_data(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_VendorData::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBytes>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class AndroidCameraSessionStats_CameraGraph_CameraNode_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/5> {
- public:
-  AndroidCameraSessionStats_CameraGraph_CameraNode_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit AndroidCameraSessionStats_CameraGraph_CameraNode_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit AndroidCameraSessionStats_CameraGraph_CameraNode_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_node_id() const { return at<1>().valid(); }
-  int64_t node_id() const { return at<1>().as_int64(); }
-  bool has_input_ids() const { return at<2>().valid(); }
-  ::protozero::RepeatedFieldIterator<int64_t> input_ids() const { return GetRepeated<int64_t>(2); }
-  bool has_output_ids() const { return at<3>().valid(); }
-  ::protozero::RepeatedFieldIterator<int64_t> output_ids() const { return GetRepeated<int64_t>(3); }
-  bool has_vendor_data_version() const { return at<4>().valid(); }
-  int32_t vendor_data_version() const { return at<4>().as_int32(); }
-  bool has_vendor_data() const { return at<5>().valid(); }
-  ::protozero::ConstBytes vendor_data() const { return at<5>().as_bytes(); }
-};
-
-class AndroidCameraSessionStats_CameraGraph_CameraNode : public ::protozero::Message {
- public:
-  using Decoder = AndroidCameraSessionStats_CameraGraph_CameraNode_Decoder;
-  enum : int32_t {
-    kNodeIdFieldNumber = 1,
-    kInputIdsFieldNumber = 2,
-    kOutputIdsFieldNumber = 3,
-    kVendorDataVersionFieldNumber = 4,
-    kVendorDataFieldNumber = 5,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.AndroidCameraSessionStats.CameraGraph.CameraNode"; }
-
-
-  using FieldMetadata_NodeId =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraNode>;
-
-  static constexpr FieldMetadata_NodeId kNodeId{};
-  void set_node_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_NodeId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_InputIds =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraNode>;
-
-  static constexpr FieldMetadata_InputIds kInputIds{};
-  void add_input_ids(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_InputIds::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_OutputIds =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraSessionStats_CameraGraph_CameraNode>;
-
-  static constexpr FieldMetadata_OutputIds kOutputIds{};
-  void add_output_ids(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_OutputIds::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_VendorDataVersion =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      AndroidCameraSessionStats_CameraGraph_CameraNode>;
-
-  static constexpr FieldMetadata_VendorDataVersion kVendorDataVersion{};
-  void set_vendor_data_version(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_VendorDataVersion::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_VendorData =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBytes,
-      std::string,
-      AndroidCameraSessionStats_CameraGraph_CameraNode>;
-
-  static constexpr FieldMetadata_VendorData kVendorData{};
-  void set_vendor_data(const uint8_t* data, size_t size) {
-    AppendBytes(FieldMetadata_VendorData::kFieldId, data, size);
-  }
-  void set_vendor_data(::protozero::ConstBytes bytes) {
-    AppendBytes(FieldMetadata_VendorData::kFieldId, bytes.data, bytes.size);
-  }
-  void set_vendor_data(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_VendorData::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBytes>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class AndroidCameraFrameEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/16> {
- public:
-  AndroidCameraFrameEvent_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit AndroidCameraFrameEvent_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit AndroidCameraFrameEvent_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_session_id() const { return at<1>().valid(); }
-  uint64_t session_id() const { return at<1>().as_uint64(); }
-  bool has_camera_id() const { return at<2>().valid(); }
-  uint32_t camera_id() const { return at<2>().as_uint32(); }
-  bool has_frame_number() const { return at<3>().valid(); }
-  int64_t frame_number() const { return at<3>().as_int64(); }
-  bool has_request_id() const { return at<4>().valid(); }
-  int64_t request_id() const { return at<4>().as_int64(); }
-  bool has_request_received_ns() const { return at<5>().valid(); }
-  int64_t request_received_ns() const { return at<5>().as_int64(); }
-  bool has_request_processing_started_ns() const { return at<6>().valid(); }
-  int64_t request_processing_started_ns() const { return at<6>().as_int64(); }
-  bool has_start_of_exposure_ns() const { return at<7>().valid(); }
-  int64_t start_of_exposure_ns() const { return at<7>().as_int64(); }
-  bool has_start_of_frame_ns() const { return at<8>().valid(); }
-  int64_t start_of_frame_ns() const { return at<8>().as_int64(); }
-  bool has_responses_all_sent_ns() const { return at<9>().valid(); }
-  int64_t responses_all_sent_ns() const { return at<9>().as_int64(); }
-  bool has_capture_result_status() const { return at<10>().valid(); }
-  int32_t capture_result_status() const { return at<10>().as_int32(); }
-  bool has_skipped_sensor_frames() const { return at<11>().valid(); }
-  int32_t skipped_sensor_frames() const { return at<11>().as_int32(); }
-  bool has_capture_intent() const { return at<12>().valid(); }
-  int32_t capture_intent() const { return at<12>().as_int32(); }
-  bool has_num_streams() const { return at<13>().valid(); }
-  int32_t num_streams() const { return at<13>().as_int32(); }
-  bool has_node_processing_details() const { return at<14>().valid(); }
-  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> node_processing_details() const { return GetRepeated<::protozero::ConstBytes>(14); }
-  bool has_vendor_data_version() const { return at<15>().valid(); }
-  int32_t vendor_data_version() const { return at<15>().as_int32(); }
-  bool has_vendor_data() const { return at<16>().valid(); }
-  ::protozero::ConstBytes vendor_data() const { return at<16>().as_bytes(); }
-};
-
-class AndroidCameraFrameEvent : public ::protozero::Message {
- public:
-  using Decoder = AndroidCameraFrameEvent_Decoder;
-  enum : int32_t {
-    kSessionIdFieldNumber = 1,
-    kCameraIdFieldNumber = 2,
-    kFrameNumberFieldNumber = 3,
-    kRequestIdFieldNumber = 4,
-    kRequestReceivedNsFieldNumber = 5,
-    kRequestProcessingStartedNsFieldNumber = 6,
-    kStartOfExposureNsFieldNumber = 7,
-    kStartOfFrameNsFieldNumber = 8,
-    kResponsesAllSentNsFieldNumber = 9,
-    kCaptureResultStatusFieldNumber = 10,
-    kSkippedSensorFramesFieldNumber = 11,
-    kCaptureIntentFieldNumber = 12,
-    kNumStreamsFieldNumber = 13,
-    kNodeProcessingDetailsFieldNumber = 14,
-    kVendorDataVersionFieldNumber = 15,
-    kVendorDataFieldNumber = 16,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.AndroidCameraFrameEvent"; }
-
-  using CameraNodeProcessingDetails = ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CameraNodeProcessingDetails;
-
-  using CaptureResultStatus = ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus;
-  static inline const char* CaptureResultStatus_Name(CaptureResultStatus value) {
-    return ::perfetto::protos::pbzero::AndroidCameraFrameEvent_CaptureResultStatus_Name(value);
-  }
-  static inline const CaptureResultStatus STATUS_UNSPECIFIED = CaptureResultStatus::STATUS_UNSPECIFIED;
-  static inline const CaptureResultStatus STATUS_OK = CaptureResultStatus::STATUS_OK;
-  static inline const CaptureResultStatus STATUS_EARLY_METADATA_ERROR = CaptureResultStatus::STATUS_EARLY_METADATA_ERROR;
-  static inline const CaptureResultStatus STATUS_FINAL_METADATA_ERROR = CaptureResultStatus::STATUS_FINAL_METADATA_ERROR;
-  static inline const CaptureResultStatus STATUS_BUFFER_ERROR = CaptureResultStatus::STATUS_BUFFER_ERROR;
-  static inline const CaptureResultStatus STATUS_FLUSH_ERROR = CaptureResultStatus::STATUS_FLUSH_ERROR;
-
-  using FieldMetadata_SessionId =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint64,
-      uint64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_SessionId kSessionId{};
-  void set_session_id(uint64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_SessionId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_CameraId =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kUint32,
-      uint32_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_CameraId kCameraId{};
-  void set_camera_id(uint32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_CameraId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kUint32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_FrameNumber =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_FrameNumber kFrameNumber{};
-  void set_frame_number(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_FrameNumber::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_RequestId =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_RequestId kRequestId{};
-  void set_request_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_RequestId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_RequestReceivedNs =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_RequestReceivedNs kRequestReceivedNs{};
-  void set_request_received_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_RequestReceivedNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_RequestProcessingStartedNs =
-    ::protozero::proto_utils::FieldMetadata<
-      6,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_RequestProcessingStartedNs kRequestProcessingStartedNs{};
-  void set_request_processing_started_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_RequestProcessingStartedNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_StartOfExposureNs =
-    ::protozero::proto_utils::FieldMetadata<
-      7,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_StartOfExposureNs kStartOfExposureNs{};
-  void set_start_of_exposure_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_StartOfExposureNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_StartOfFrameNs =
-    ::protozero::proto_utils::FieldMetadata<
-      8,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_StartOfFrameNs kStartOfFrameNs{};
-  void set_start_of_frame_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_StartOfFrameNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_ResponsesAllSentNs =
-    ::protozero::proto_utils::FieldMetadata<
-      9,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_ResponsesAllSentNs kResponsesAllSentNs{};
-  void set_responses_all_sent_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_ResponsesAllSentNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_CaptureResultStatus =
-    ::protozero::proto_utils::FieldMetadata<
-      10,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      AndroidCameraFrameEvent_CaptureResultStatus,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_CaptureResultStatus kCaptureResultStatus{};
-  void set_capture_result_status(AndroidCameraFrameEvent_CaptureResultStatus value) {
-    static constexpr uint32_t field_id = FieldMetadata_CaptureResultStatus::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_SkippedSensorFrames =
-    ::protozero::proto_utils::FieldMetadata<
-      11,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_SkippedSensorFrames kSkippedSensorFrames{};
-  void set_skipped_sensor_frames(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_SkippedSensorFrames::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_CaptureIntent =
-    ::protozero::proto_utils::FieldMetadata<
-      12,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_CaptureIntent kCaptureIntent{};
-  void set_capture_intent(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_CaptureIntent::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_NumStreams =
-    ::protozero::proto_utils::FieldMetadata<
-      13,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_NumStreams kNumStreams{};
-  void set_num_streams(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_NumStreams::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_NodeProcessingDetails =
-    ::protozero::proto_utils::FieldMetadata<
-      14,
-      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      AndroidCameraFrameEvent_CameraNodeProcessingDetails,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_NodeProcessingDetails kNodeProcessingDetails{};
-  template <typename T = AndroidCameraFrameEvent_CameraNodeProcessingDetails> T* add_node_processing_details() {
-    return BeginNestedMessage<T>(14);
-  }
-
-
-  using FieldMetadata_VendorDataVersion =
-    ::protozero::proto_utils::FieldMetadata<
-      15,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_VendorDataVersion kVendorDataVersion{};
-  void set_vendor_data_version(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_VendorDataVersion::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_VendorData =
-    ::protozero::proto_utils::FieldMetadata<
-      16,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBytes,
-      std::string,
-      AndroidCameraFrameEvent>;
-
-  static constexpr FieldMetadata_VendorData kVendorData{};
-  void set_vendor_data(const uint8_t* data, size_t size) {
-    AppendBytes(FieldMetadata_VendorData::kFieldId, data, size);
-  }
-  void set_vendor_data(::protozero::ConstBytes bytes) {
-    AppendBytes(FieldMetadata_VendorData::kFieldId, bytes.data, bytes.size);
-  }
-  void set_vendor_data(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_VendorData::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBytes>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class AndroidCameraFrameEvent_CameraNodeProcessingDetails_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/4> {
- public:
-  AndroidCameraFrameEvent_CameraNodeProcessingDetails_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit AndroidCameraFrameEvent_CameraNodeProcessingDetails_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit AndroidCameraFrameEvent_CameraNodeProcessingDetails_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_node_id() const { return at<1>().valid(); }
-  int64_t node_id() const { return at<1>().as_int64(); }
-  bool has_start_processing_ns() const { return at<2>().valid(); }
-  int64_t start_processing_ns() const { return at<2>().as_int64(); }
-  bool has_end_processing_ns() const { return at<3>().valid(); }
-  int64_t end_processing_ns() const { return at<3>().as_int64(); }
-  bool has_scheduling_latency_ns() const { return at<4>().valid(); }
-  int64_t scheduling_latency_ns() const { return at<4>().as_int64(); }
-};
-
-class AndroidCameraFrameEvent_CameraNodeProcessingDetails : public ::protozero::Message {
- public:
-  using Decoder = AndroidCameraFrameEvent_CameraNodeProcessingDetails_Decoder;
-  enum : int32_t {
-    kNodeIdFieldNumber = 1,
-    kStartProcessingNsFieldNumber = 2,
-    kEndProcessingNsFieldNumber = 3,
-    kSchedulingLatencyNsFieldNumber = 4,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.AndroidCameraFrameEvent.CameraNodeProcessingDetails"; }
-
-
-  using FieldMetadata_NodeId =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent_CameraNodeProcessingDetails>;
-
-  static constexpr FieldMetadata_NodeId kNodeId{};
-  void set_node_id(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_NodeId::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_StartProcessingNs =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent_CameraNodeProcessingDetails>;
-
-  static constexpr FieldMetadata_StartProcessingNs kStartProcessingNs{};
-  void set_start_processing_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_StartProcessingNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_EndProcessingNs =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent_CameraNodeProcessingDetails>;
-
-  static constexpr FieldMetadata_EndProcessingNs kEndProcessingNs{};
-  void set_end_processing_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_EndProcessingNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_SchedulingLatencyNs =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      AndroidCameraFrameEvent_CameraNodeProcessingDetails>;
-
-  static constexpr FieldMetadata_SchedulingLatencyNs kSchedulingLatencyNs{};
-  void set_scheduling_latency_ns(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_SchedulingLatencyNs::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-};
-
-} // Namespace.
-} // Namespace.
-} // Namespace.
-#endif  // Include guard.
 // gen_amalgamated begin header: gen/protos/perfetto/trace/android/cpu_per_uid_data.pbzero.h
 // Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
 
@@ -71513,1485 +70809,6 @@ class CpuPerUidData : public ::protozero::Message {
   void set_total_time_ms(const ::protozero::PackedVarInt& packed_buffer) {
     AppendBytes(FieldMetadata_TotalTimeMs::kFieldId, packed_buffer.data(),
                 packed_buffer.size());
-  }
-};
-
-} // Namespace.
-} // Namespace.
-} // Namespace.
-#endif  // Include guard.
-// gen_amalgamated begin header: gen/protos/perfetto/trace/android/frame_timeline_event.pbzero.h
-// Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
-
-#ifndef PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_ANDROID_FRAME_TIMELINE_EVENT_PROTO_H_
-#define PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_ANDROID_FRAME_TIMELINE_EVENT_PROTO_H_
-
-#include <stddef.h>
-#include <stdint.h>
-
-// gen_amalgamated expanded: #include "perfetto/protozero/field_writer.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
-// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
-
-namespace perfetto {
-namespace protos {
-namespace pbzero {
-class FrameTimelineEvent_ActualDisplayFrameStart;
-class FrameTimelineEvent_ActualSurfaceFrameStart;
-class FrameTimelineEvent_ExpectedDisplayFrameStart;
-class FrameTimelineEvent_ExpectedSurfaceFrameStart;
-class FrameTimelineEvent_FrameEnd;
-namespace perfetto_pbzero_enum_FrameTimelineEvent_ActualSurfaceFrameStart {
-enum LatchedFenceState : int32_t;
-}  // namespace perfetto_pbzero_enum_FrameTimelineEvent_ActualSurfaceFrameStart
-using FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState = perfetto_pbzero_enum_FrameTimelineEvent_ActualSurfaceFrameStart::LatchedFenceState;
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum JankSeverityType : int32_t;
-}  // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_JankSeverityType = perfetto_pbzero_enum_FrameTimelineEvent::JankSeverityType;
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum PredictionType : int32_t;
-}  // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_PredictionType = perfetto_pbzero_enum_FrameTimelineEvent::PredictionType;
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum PresentType : int32_t;
-}  // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_PresentType = perfetto_pbzero_enum_FrameTimelineEvent::PresentType;
-} // Namespace pbzero.
-} // Namespace protos.
-} // Namespace perfetto.
-
-namespace perfetto {
-namespace protos {
-namespace pbzero {
-
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum JankType : int32_t {
-  JANK_UNSPECIFIED = 0,
-  JANK_NONE = 1,
-  JANK_SF_SCHEDULING = 2,
-  JANK_PREDICTION_ERROR = 4,
-  JANK_DISPLAY_HAL = 8,
-  JANK_SF_CPU_DEADLINE_MISSED = 16,
-  JANK_SF_GPU_DEADLINE_MISSED = 32,
-  JANK_APP_DEADLINE_MISSED = 64,
-  JANK_BUFFER_STUFFING = 128,
-  JANK_UNKNOWN = 256,
-  JANK_SF_STUFFING = 512,
-  JANK_DROPPED = 1024,
-  JANK_NON_ANIMATING = 2048,
-  JANK_APP_RESYNCED_JITTER = 4096,
-  JANK_DISPLAY_NOT_ON = 8192,
-  JANK_DISPLAY_MODE_CHANGE_IN_PROGRESS = 16384,
-  JANK_DISPLAY_POWER_MODE_CHANGE_IN_PROGRESS = 32768,
-};
-} // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_JankType = perfetto_pbzero_enum_FrameTimelineEvent::JankType;
-
-
-constexpr FrameTimelineEvent_JankType FrameTimelineEvent_JankType_MIN = FrameTimelineEvent_JankType::JANK_UNSPECIFIED;
-constexpr FrameTimelineEvent_JankType FrameTimelineEvent_JankType_MAX = FrameTimelineEvent_JankType::JANK_DISPLAY_POWER_MODE_CHANGE_IN_PROGRESS;
-
-
-PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
-const char* FrameTimelineEvent_JankType_Name(::perfetto::protos::pbzero::FrameTimelineEvent_JankType value) {
-  switch (value) {
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_UNSPECIFIED:
-    return "JANK_UNSPECIFIED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_NONE:
-    return "JANK_NONE";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_SF_SCHEDULING:
-    return "JANK_SF_SCHEDULING";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_PREDICTION_ERROR:
-    return "JANK_PREDICTION_ERROR";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_DISPLAY_HAL:
-    return "JANK_DISPLAY_HAL";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_SF_CPU_DEADLINE_MISSED:
-    return "JANK_SF_CPU_DEADLINE_MISSED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_SF_GPU_DEADLINE_MISSED:
-    return "JANK_SF_GPU_DEADLINE_MISSED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_APP_DEADLINE_MISSED:
-    return "JANK_APP_DEADLINE_MISSED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_BUFFER_STUFFING:
-    return "JANK_BUFFER_STUFFING";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_UNKNOWN:
-    return "JANK_UNKNOWN";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_SF_STUFFING:
-    return "JANK_SF_STUFFING";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_DROPPED:
-    return "JANK_DROPPED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_NON_ANIMATING:
-    return "JANK_NON_ANIMATING";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_APP_RESYNCED_JITTER:
-    return "JANK_APP_RESYNCED_JITTER";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_DISPLAY_NOT_ON:
-    return "JANK_DISPLAY_NOT_ON";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_DISPLAY_MODE_CHANGE_IN_PROGRESS:
-    return "JANK_DISPLAY_MODE_CHANGE_IN_PROGRESS";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankType::JANK_DISPLAY_POWER_MODE_CHANGE_IN_PROGRESS:
-    return "JANK_DISPLAY_POWER_MODE_CHANGE_IN_PROGRESS";
-  }
-  return "PBZERO_UNKNOWN_ENUM_VALUE";
-}
-
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum JankSeverityType : int32_t {
-  SEVERITY_UNKNOWN = 0,
-  SEVERITY_NONE = 1,
-  SEVERITY_PARTIAL = 2,
-  SEVERITY_FULL = 3,
-};
-} // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_JankSeverityType = perfetto_pbzero_enum_FrameTimelineEvent::JankSeverityType;
-
-
-constexpr FrameTimelineEvent_JankSeverityType FrameTimelineEvent_JankSeverityType_MIN = FrameTimelineEvent_JankSeverityType::SEVERITY_UNKNOWN;
-constexpr FrameTimelineEvent_JankSeverityType FrameTimelineEvent_JankSeverityType_MAX = FrameTimelineEvent_JankSeverityType::SEVERITY_FULL;
-
-
-PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
-const char* FrameTimelineEvent_JankSeverityType_Name(::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType value) {
-  switch (value) {
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType::SEVERITY_UNKNOWN:
-    return "SEVERITY_UNKNOWN";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType::SEVERITY_NONE:
-    return "SEVERITY_NONE";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType::SEVERITY_PARTIAL:
-    return "SEVERITY_PARTIAL";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType::SEVERITY_FULL:
-    return "SEVERITY_FULL";
-  }
-  return "PBZERO_UNKNOWN_ENUM_VALUE";
-}
-
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum PresentType : int32_t {
-  PRESENT_UNSPECIFIED = 0,
-  PRESENT_ON_TIME = 1,
-  PRESENT_LATE = 2,
-  PRESENT_EARLY = 3,
-  PRESENT_DROPPED = 4,
-  PRESENT_UNKNOWN = 5,
-};
-} // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_PresentType = perfetto_pbzero_enum_FrameTimelineEvent::PresentType;
-
-
-constexpr FrameTimelineEvent_PresentType FrameTimelineEvent_PresentType_MIN = FrameTimelineEvent_PresentType::PRESENT_UNSPECIFIED;
-constexpr FrameTimelineEvent_PresentType FrameTimelineEvent_PresentType_MAX = FrameTimelineEvent_PresentType::PRESENT_UNKNOWN;
-
-
-PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
-const char* FrameTimelineEvent_PresentType_Name(::perfetto::protos::pbzero::FrameTimelineEvent_PresentType value) {
-  switch (value) {
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType::PRESENT_UNSPECIFIED:
-    return "PRESENT_UNSPECIFIED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType::PRESENT_ON_TIME:
-    return "PRESENT_ON_TIME";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType::PRESENT_LATE:
-    return "PRESENT_LATE";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType::PRESENT_EARLY:
-    return "PRESENT_EARLY";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType::PRESENT_DROPPED:
-    return "PRESENT_DROPPED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType::PRESENT_UNKNOWN:
-    return "PRESENT_UNKNOWN";
-  }
-  return "PBZERO_UNKNOWN_ENUM_VALUE";
-}
-
-namespace perfetto_pbzero_enum_FrameTimelineEvent {
-enum PredictionType : int32_t {
-  PREDICTION_UNSPECIFIED = 0,
-  PREDICTION_VALID = 1,
-  PREDICTION_EXPIRED = 2,
-  PREDICTION_UNKNOWN = 3,
-};
-} // namespace perfetto_pbzero_enum_FrameTimelineEvent
-using FrameTimelineEvent_PredictionType = perfetto_pbzero_enum_FrameTimelineEvent::PredictionType;
-
-
-constexpr FrameTimelineEvent_PredictionType FrameTimelineEvent_PredictionType_MIN = FrameTimelineEvent_PredictionType::PREDICTION_UNSPECIFIED;
-constexpr FrameTimelineEvent_PredictionType FrameTimelineEvent_PredictionType_MAX = FrameTimelineEvent_PredictionType::PREDICTION_UNKNOWN;
-
-
-PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
-const char* FrameTimelineEvent_PredictionType_Name(::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType value) {
-  switch (value) {
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType::PREDICTION_UNSPECIFIED:
-    return "PREDICTION_UNSPECIFIED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType::PREDICTION_VALID:
-    return "PREDICTION_VALID";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType::PREDICTION_EXPIRED:
-    return "PREDICTION_EXPIRED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType::PREDICTION_UNKNOWN:
-    return "PREDICTION_UNKNOWN";
-  }
-  return "PBZERO_UNKNOWN_ENUM_VALUE";
-}
-
-namespace perfetto_pbzero_enum_FrameTimelineEvent_ActualSurfaceFrameStart {
-enum LatchedFenceState : int32_t {
-  LATCHED_UNKNOWN = 0,
-  LATCHED_SIGNALED = 1,
-  LATCHED_UNSIGNALED = 2,
-  LATCHED_DELAYED_LATCH_UNSIGNALED = 3,
-};
-} // namespace perfetto_pbzero_enum_FrameTimelineEvent_ActualSurfaceFrameStart
-using FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState = perfetto_pbzero_enum_FrameTimelineEvent_ActualSurfaceFrameStart::LatchedFenceState;
-
-
-constexpr FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState_MIN = FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState::LATCHED_UNKNOWN;
-constexpr FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState_MAX = FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState::LATCHED_DELAYED_LATCH_UNSIGNALED;
-
-
-PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
-const char* FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState_Name(::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState value) {
-  switch (value) {
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState::LATCHED_UNKNOWN:
-    return "LATCHED_UNKNOWN";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState::LATCHED_SIGNALED:
-    return "LATCHED_SIGNALED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState::LATCHED_UNSIGNALED:
-    return "LATCHED_UNSIGNALED";
-
-  case ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState::LATCHED_DELAYED_LATCH_UNSIGNALED:
-    return "LATCHED_DELAYED_LATCH_UNSIGNALED";
-  }
-  return "PBZERO_UNKNOWN_ENUM_VALUE";
-}
-
-class FrameTimelineEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/5> {
- public:
-  FrameTimelineEvent_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit FrameTimelineEvent_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit FrameTimelineEvent_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_expected_display_frame_start() const { return at<1>().valid(); }
-  ::protozero::ConstBytes expected_display_frame_start() const { return at<1>().as_bytes(); }
-  bool has_actual_display_frame_start() const { return at<2>().valid(); }
-  ::protozero::ConstBytes actual_display_frame_start() const { return at<2>().as_bytes(); }
-  bool has_expected_surface_frame_start() const { return at<3>().valid(); }
-  ::protozero::ConstBytes expected_surface_frame_start() const { return at<3>().as_bytes(); }
-  bool has_actual_surface_frame_start() const { return at<4>().valid(); }
-  ::protozero::ConstBytes actual_surface_frame_start() const { return at<4>().as_bytes(); }
-  bool has_frame_end() const { return at<5>().valid(); }
-  ::protozero::ConstBytes frame_end() const { return at<5>().as_bytes(); }
-};
-
-class FrameTimelineEvent : public ::protozero::Message {
- public:
-  using Decoder = FrameTimelineEvent_Decoder;
-  enum : int32_t {
-    kExpectedDisplayFrameStartFieldNumber = 1,
-    kActualDisplayFrameStartFieldNumber = 2,
-    kExpectedSurfaceFrameStartFieldNumber = 3,
-    kActualSurfaceFrameStartFieldNumber = 4,
-    kFrameEndFieldNumber = 5,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.FrameTimelineEvent"; }
-
-  using ExpectedSurfaceFrameStart = ::perfetto::protos::pbzero::FrameTimelineEvent_ExpectedSurfaceFrameStart;
-  using ActualSurfaceFrameStart = ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart;
-  using ExpectedDisplayFrameStart = ::perfetto::protos::pbzero::FrameTimelineEvent_ExpectedDisplayFrameStart;
-  using ActualDisplayFrameStart = ::perfetto::protos::pbzero::FrameTimelineEvent_ActualDisplayFrameStart;
-  using FrameEnd = ::perfetto::protos::pbzero::FrameTimelineEvent_FrameEnd;
-
-  using JankType = ::perfetto::protos::pbzero::FrameTimelineEvent_JankType;
-  static inline const char* JankType_Name(JankType value) {
-    return ::perfetto::protos::pbzero::FrameTimelineEvent_JankType_Name(value);
-  }
-
-  using JankSeverityType = ::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType;
-  static inline const char* JankSeverityType_Name(JankSeverityType value) {
-    return ::perfetto::protos::pbzero::FrameTimelineEvent_JankSeverityType_Name(value);
-  }
-
-  using PresentType = ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType;
-  static inline const char* PresentType_Name(PresentType value) {
-    return ::perfetto::protos::pbzero::FrameTimelineEvent_PresentType_Name(value);
-  }
-
-  using PredictionType = ::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType;
-  static inline const char* PredictionType_Name(PredictionType value) {
-    return ::perfetto::protos::pbzero::FrameTimelineEvent_PredictionType_Name(value);
-  }
-  static inline const JankType JANK_UNSPECIFIED = JankType::JANK_UNSPECIFIED;
-  static inline const JankType JANK_NONE = JankType::JANK_NONE;
-  static inline const JankType JANK_SF_SCHEDULING = JankType::JANK_SF_SCHEDULING;
-  static inline const JankType JANK_PREDICTION_ERROR = JankType::JANK_PREDICTION_ERROR;
-  static inline const JankType JANK_DISPLAY_HAL = JankType::JANK_DISPLAY_HAL;
-  static inline const JankType JANK_SF_CPU_DEADLINE_MISSED = JankType::JANK_SF_CPU_DEADLINE_MISSED;
-  static inline const JankType JANK_SF_GPU_DEADLINE_MISSED = JankType::JANK_SF_GPU_DEADLINE_MISSED;
-  static inline const JankType JANK_APP_DEADLINE_MISSED = JankType::JANK_APP_DEADLINE_MISSED;
-  static inline const JankType JANK_BUFFER_STUFFING = JankType::JANK_BUFFER_STUFFING;
-  static inline const JankType JANK_UNKNOWN = JankType::JANK_UNKNOWN;
-  static inline const JankType JANK_SF_STUFFING = JankType::JANK_SF_STUFFING;
-  static inline const JankType JANK_DROPPED = JankType::JANK_DROPPED;
-  static inline const JankType JANK_NON_ANIMATING = JankType::JANK_NON_ANIMATING;
-  static inline const JankType JANK_APP_RESYNCED_JITTER = JankType::JANK_APP_RESYNCED_JITTER;
-  static inline const JankType JANK_DISPLAY_NOT_ON = JankType::JANK_DISPLAY_NOT_ON;
-  static inline const JankType JANK_DISPLAY_MODE_CHANGE_IN_PROGRESS = JankType::JANK_DISPLAY_MODE_CHANGE_IN_PROGRESS;
-  static inline const JankType JANK_DISPLAY_POWER_MODE_CHANGE_IN_PROGRESS = JankType::JANK_DISPLAY_POWER_MODE_CHANGE_IN_PROGRESS;
-  static inline const JankSeverityType SEVERITY_UNKNOWN = JankSeverityType::SEVERITY_UNKNOWN;
-  static inline const JankSeverityType SEVERITY_NONE = JankSeverityType::SEVERITY_NONE;
-  static inline const JankSeverityType SEVERITY_PARTIAL = JankSeverityType::SEVERITY_PARTIAL;
-  static inline const JankSeverityType SEVERITY_FULL = JankSeverityType::SEVERITY_FULL;
-  static inline const PresentType PRESENT_UNSPECIFIED = PresentType::PRESENT_UNSPECIFIED;
-  static inline const PresentType PRESENT_ON_TIME = PresentType::PRESENT_ON_TIME;
-  static inline const PresentType PRESENT_LATE = PresentType::PRESENT_LATE;
-  static inline const PresentType PRESENT_EARLY = PresentType::PRESENT_EARLY;
-  static inline const PresentType PRESENT_DROPPED = PresentType::PRESENT_DROPPED;
-  static inline const PresentType PRESENT_UNKNOWN = PresentType::PRESENT_UNKNOWN;
-  static inline const PredictionType PREDICTION_UNSPECIFIED = PredictionType::PREDICTION_UNSPECIFIED;
-  static inline const PredictionType PREDICTION_VALID = PredictionType::PREDICTION_VALID;
-  static inline const PredictionType PREDICTION_EXPIRED = PredictionType::PREDICTION_EXPIRED;
-  static inline const PredictionType PREDICTION_UNKNOWN = PredictionType::PREDICTION_UNKNOWN;
-
-  using FieldMetadata_ExpectedDisplayFrameStart =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      FrameTimelineEvent_ExpectedDisplayFrameStart,
-      FrameTimelineEvent>;
-
-  static constexpr FieldMetadata_ExpectedDisplayFrameStart kExpectedDisplayFrameStart{};
-  template <typename T = FrameTimelineEvent_ExpectedDisplayFrameStart> T* set_expected_display_frame_start() {
-    return BeginNestedMessage<T>(1);
-  }
-
-
-  using FieldMetadata_ActualDisplayFrameStart =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      FrameTimelineEvent_ActualDisplayFrameStart,
-      FrameTimelineEvent>;
-
-  static constexpr FieldMetadata_ActualDisplayFrameStart kActualDisplayFrameStart{};
-  template <typename T = FrameTimelineEvent_ActualDisplayFrameStart> T* set_actual_display_frame_start() {
-    return BeginNestedMessage<T>(2);
-  }
-
-
-  using FieldMetadata_ExpectedSurfaceFrameStart =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      FrameTimelineEvent_ExpectedSurfaceFrameStart,
-      FrameTimelineEvent>;
-
-  static constexpr FieldMetadata_ExpectedSurfaceFrameStart kExpectedSurfaceFrameStart{};
-  template <typename T = FrameTimelineEvent_ExpectedSurfaceFrameStart> T* set_expected_surface_frame_start() {
-    return BeginNestedMessage<T>(3);
-  }
-
-
-  using FieldMetadata_ActualSurfaceFrameStart =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      FrameTimelineEvent_ActualSurfaceFrameStart,
-      FrameTimelineEvent>;
-
-  static constexpr FieldMetadata_ActualSurfaceFrameStart kActualSurfaceFrameStart{};
-  template <typename T = FrameTimelineEvent_ActualSurfaceFrameStart> T* set_actual_surface_frame_start() {
-    return BeginNestedMessage<T>(4);
-  }
-
-
-  using FieldMetadata_FrameEnd =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kMessage,
-      FrameTimelineEvent_FrameEnd,
-      FrameTimelineEvent>;
-
-  static constexpr FieldMetadata_FrameEnd kFrameEnd{};
-  template <typename T = FrameTimelineEvent_FrameEnd> T* set_frame_end() {
-    return BeginNestedMessage<T>(5);
-  }
-
-};
-
-class FrameTimelineEvent_FrameEnd_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/1> {
- public:
-  FrameTimelineEvent_FrameEnd_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit FrameTimelineEvent_FrameEnd_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit FrameTimelineEvent_FrameEnd_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_cookie() const { return at<1>().valid(); }
-  int64_t cookie() const { return at<1>().as_int64(); }
-};
-
-class FrameTimelineEvent_FrameEnd : public ::protozero::Message {
- public:
-  using Decoder = FrameTimelineEvent_FrameEnd_Decoder;
-  enum : int32_t {
-    kCookieFieldNumber = 1,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.FrameTimelineEvent.FrameEnd"; }
-
-
-  using FieldMetadata_Cookie =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_FrameEnd>;
-
-  static constexpr FieldMetadata_Cookie kCookie{};
-  void set_cookie(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Cookie::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class FrameTimelineEvent_ActualDisplayFrameStart_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/16> {
- public:
-  FrameTimelineEvent_ActualDisplayFrameStart_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit FrameTimelineEvent_ActualDisplayFrameStart_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit FrameTimelineEvent_ActualDisplayFrameStart_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_cookie() const { return at<1>().valid(); }
-  int64_t cookie() const { return at<1>().as_int64(); }
-  bool has_token() const { return at<2>().valid(); }
-  int64_t token() const { return at<2>().as_int64(); }
-  bool has_pid() const { return at<3>().valid(); }
-  int32_t pid() const { return at<3>().as_int32(); }
-  bool has_present_type() const { return at<4>().valid(); }
-  int32_t present_type() const { return at<4>().as_int32(); }
-  bool has_on_time_finish() const { return at<5>().valid(); }
-  bool on_time_finish() const { return at<5>().as_bool(); }
-  bool has_gpu_composition() const { return at<6>().valid(); }
-  bool gpu_composition() const { return at<6>().as_bool(); }
-  bool has_jank_type() const { return at<7>().valid(); }
-  int32_t jank_type() const { return at<7>().as_int32(); }
-  bool has_prediction_type() const { return at<8>().valid(); }
-  int32_t prediction_type() const { return at<8>().as_int32(); }
-  bool has_jank_severity_type() const { return at<9>().valid(); }
-  int32_t jank_severity_type() const { return at<9>().as_int32(); }
-  bool has_present_delay_millis() const { return at<10>().valid(); }
-  float present_delay_millis() const { return at<10>().as_float(); }
-  bool has_jank_severity_score() const { return at<11>().valid(); }
-  float jank_severity_score() const { return at<11>().as_float(); }
-  bool has_jank_type_experimental() const { return at<12>().valid(); }
-  int32_t jank_type_experimental() const { return at<12>().as_int32(); }
-  bool has_present_type_experimental() const { return at<13>().valid(); }
-  int32_t present_type_experimental() const { return at<13>().as_int32(); }
-  bool has_jank_debug_metadata() const { return at<14>().valid(); }
-  float jank_debug_metadata() const { return at<14>().as_float(); }
-  bool has_latched_unsignaled_count() const { return at<15>().valid(); }
-  int64_t latched_unsignaled_count() const { return at<15>().as_int64(); }
-  bool has_addressable_unsignaled_latch_count() const { return at<16>().valid(); }
-  int64_t addressable_unsignaled_latch_count() const { return at<16>().as_int64(); }
-};
-
-class FrameTimelineEvent_ActualDisplayFrameStart : public ::protozero::Message {
- public:
-  using Decoder = FrameTimelineEvent_ActualDisplayFrameStart_Decoder;
-  enum : int32_t {
-    kCookieFieldNumber = 1,
-    kTokenFieldNumber = 2,
-    kPidFieldNumber = 3,
-    kPresentTypeFieldNumber = 4,
-    kOnTimeFinishFieldNumber = 5,
-    kGpuCompositionFieldNumber = 6,
-    kJankTypeFieldNumber = 7,
-    kPredictionTypeFieldNumber = 8,
-    kJankSeverityTypeFieldNumber = 9,
-    kPresentDelayMillisFieldNumber = 10,
-    kJankSeverityScoreFieldNumber = 11,
-    kJankTypeExperimentalFieldNumber = 12,
-    kPresentTypeExperimentalFieldNumber = 13,
-    kJankDebugMetadataFieldNumber = 14,
-    kLatchedUnsignaledCountFieldNumber = 15,
-    kAddressableUnsignaledLatchCountFieldNumber = 16,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.FrameTimelineEvent.ActualDisplayFrameStart"; }
-
-
-  using FieldMetadata_Cookie =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_Cookie kCookie{};
-  void set_cookie(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Cookie::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Token =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_Token kToken{};
-  void set_token(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Token::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Pid =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_Pid kPid{};
-  void set_pid(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Pid::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PresentType =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_PresentType,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_PresentType kPresentType{};
-  void set_present_type(FrameTimelineEvent_PresentType value) {
-    static constexpr uint32_t field_id = FieldMetadata_PresentType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_OnTimeFinish =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBool,
-      bool,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_OnTimeFinish kOnTimeFinish{};
-  void set_on_time_finish(bool value) {
-    static constexpr uint32_t field_id = FieldMetadata_OnTimeFinish::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBool>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_GpuComposition =
-    ::protozero::proto_utils::FieldMetadata<
-      6,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBool,
-      bool,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_GpuComposition kGpuComposition{};
-  void set_gpu_composition(bool value) {
-    static constexpr uint32_t field_id = FieldMetadata_GpuComposition::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBool>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankType =
-    ::protozero::proto_utils::FieldMetadata<
-      7,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_JankType kJankType{};
-  void set_jank_type(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PredictionType =
-    ::protozero::proto_utils::FieldMetadata<
-      8,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_PredictionType,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_PredictionType kPredictionType{};
-  void set_prediction_type(FrameTimelineEvent_PredictionType value) {
-    static constexpr uint32_t field_id = FieldMetadata_PredictionType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankSeverityType =
-    ::protozero::proto_utils::FieldMetadata<
-      9,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_JankSeverityType,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_JankSeverityType kJankSeverityType{};
-  void set_jank_severity_type(FrameTimelineEvent_JankSeverityType value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankSeverityType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PresentDelayMillis =
-    ::protozero::proto_utils::FieldMetadata<
-      10,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_PresentDelayMillis kPresentDelayMillis{};
-  void set_present_delay_millis(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_PresentDelayMillis::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankSeverityScore =
-    ::protozero::proto_utils::FieldMetadata<
-      11,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_JankSeverityScore kJankSeverityScore{};
-  void set_jank_severity_score(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankSeverityScore::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankTypeExperimental =
-    ::protozero::proto_utils::FieldMetadata<
-      12,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_JankTypeExperimental kJankTypeExperimental{};
-  void set_jank_type_experimental(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankTypeExperimental::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PresentTypeExperimental =
-    ::protozero::proto_utils::FieldMetadata<
-      13,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_PresentType,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_PresentTypeExperimental kPresentTypeExperimental{};
-  void set_present_type_experimental(FrameTimelineEvent_PresentType value) {
-    static constexpr uint32_t field_id = FieldMetadata_PresentTypeExperimental::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankDebugMetadata =
-    ::protozero::proto_utils::FieldMetadata<
-      14,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_JankDebugMetadata kJankDebugMetadata{};
-  void set_jank_debug_metadata(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankDebugMetadata::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_LatchedUnsignaledCount =
-    ::protozero::proto_utils::FieldMetadata<
-      15,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_LatchedUnsignaledCount kLatchedUnsignaledCount{};
-  void set_latched_unsignaled_count(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_LatchedUnsignaledCount::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_AddressableUnsignaledLatchCount =
-    ::protozero::proto_utils::FieldMetadata<
-      16,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualDisplayFrameStart>;
-
-  static constexpr FieldMetadata_AddressableUnsignaledLatchCount kAddressableUnsignaledLatchCount{};
-  void set_addressable_unsignaled_latch_count(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_AddressableUnsignaledLatchCount::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class FrameTimelineEvent_ExpectedDisplayFrameStart_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
- public:
-  FrameTimelineEvent_ExpectedDisplayFrameStart_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit FrameTimelineEvent_ExpectedDisplayFrameStart_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit FrameTimelineEvent_ExpectedDisplayFrameStart_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_cookie() const { return at<1>().valid(); }
-  int64_t cookie() const { return at<1>().as_int64(); }
-  bool has_token() const { return at<2>().valid(); }
-  int64_t token() const { return at<2>().as_int64(); }
-  bool has_pid() const { return at<3>().valid(); }
-  int32_t pid() const { return at<3>().as_int32(); }
-};
-
-class FrameTimelineEvent_ExpectedDisplayFrameStart : public ::protozero::Message {
- public:
-  using Decoder = FrameTimelineEvent_ExpectedDisplayFrameStart_Decoder;
-  enum : int32_t {
-    kCookieFieldNumber = 1,
-    kTokenFieldNumber = 2,
-    kPidFieldNumber = 3,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.FrameTimelineEvent.ExpectedDisplayFrameStart"; }
-
-
-  using FieldMetadata_Cookie =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ExpectedDisplayFrameStart>;
-
-  static constexpr FieldMetadata_Cookie kCookie{};
-  void set_cookie(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Cookie::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Token =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ExpectedDisplayFrameStart>;
-
-  static constexpr FieldMetadata_Token kToken{};
-  void set_token(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Token::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Pid =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ExpectedDisplayFrameStart>;
-
-  static constexpr FieldMetadata_Pid kPid{};
-  void set_pid(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Pid::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class FrameTimelineEvent_ActualSurfaceFrameStart_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/20> {
- public:
-  FrameTimelineEvent_ActualSurfaceFrameStart_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit FrameTimelineEvent_ActualSurfaceFrameStart_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit FrameTimelineEvent_ActualSurfaceFrameStart_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_cookie() const { return at<1>().valid(); }
-  int64_t cookie() const { return at<1>().as_int64(); }
-  bool has_token() const { return at<2>().valid(); }
-  int64_t token() const { return at<2>().as_int64(); }
-  bool has_display_frame_token() const { return at<3>().valid(); }
-  int64_t display_frame_token() const { return at<3>().as_int64(); }
-  bool has_pid() const { return at<4>().valid(); }
-  int32_t pid() const { return at<4>().as_int32(); }
-  bool has_layer_name() const { return at<5>().valid(); }
-  ::protozero::ConstChars layer_name() const { return at<5>().as_string(); }
-  bool has_present_type() const { return at<6>().valid(); }
-  int32_t present_type() const { return at<6>().as_int32(); }
-  bool has_on_time_finish() const { return at<7>().valid(); }
-  bool on_time_finish() const { return at<7>().as_bool(); }
-  bool has_gpu_composition() const { return at<8>().valid(); }
-  bool gpu_composition() const { return at<8>().as_bool(); }
-  bool has_jank_type() const { return at<9>().valid(); }
-  int32_t jank_type() const { return at<9>().as_int32(); }
-  bool has_prediction_type() const { return at<10>().valid(); }
-  int32_t prediction_type() const { return at<10>().as_int32(); }
-  bool has_is_buffer() const { return at<11>().valid(); }
-  bool is_buffer() const { return at<11>().as_bool(); }
-  bool has_jank_severity_type() const { return at<12>().valid(); }
-  int32_t jank_severity_type() const { return at<12>().as_int32(); }
-  bool has_present_delay_millis() const { return at<13>().valid(); }
-  float present_delay_millis() const { return at<13>().as_float(); }
-  bool has_vsync_resynced_jitter_millis() const { return at<14>().valid(); }
-  float vsync_resynced_jitter_millis() const { return at<14>().as_float(); }
-  bool has_jank_severity_score() const { return at<15>().valid(); }
-  float jank_severity_score() const { return at<15>().as_float(); }
-  bool has_jank_type_experimental() const { return at<16>().valid(); }
-  int32_t jank_type_experimental() const { return at<16>().as_int32(); }
-  bool has_present_type_experimental() const { return at<17>().valid(); }
-  int32_t present_type_experimental() const { return at<17>().as_int32(); }
-  bool has_jank_debug_metadata() const { return at<18>().valid(); }
-  float jank_debug_metadata() const { return at<18>().as_float(); }
-  bool has_latched_fence_state() const { return at<19>().valid(); }
-  int32_t latched_fence_state() const { return at<19>().as_int32(); }
-  bool has_animation_time_millis() const { return at<20>().valid(); }
-  float animation_time_millis() const { return at<20>().as_float(); }
-};
-
-class FrameTimelineEvent_ActualSurfaceFrameStart : public ::protozero::Message {
- public:
-  using Decoder = FrameTimelineEvent_ActualSurfaceFrameStart_Decoder;
-  enum : int32_t {
-    kCookieFieldNumber = 1,
-    kTokenFieldNumber = 2,
-    kDisplayFrameTokenFieldNumber = 3,
-    kPidFieldNumber = 4,
-    kLayerNameFieldNumber = 5,
-    kPresentTypeFieldNumber = 6,
-    kOnTimeFinishFieldNumber = 7,
-    kGpuCompositionFieldNumber = 8,
-    kJankTypeFieldNumber = 9,
-    kPredictionTypeFieldNumber = 10,
-    kIsBufferFieldNumber = 11,
-    kJankSeverityTypeFieldNumber = 12,
-    kPresentDelayMillisFieldNumber = 13,
-    kVsyncResyncedJitterMillisFieldNumber = 14,
-    kJankSeverityScoreFieldNumber = 15,
-    kJankTypeExperimentalFieldNumber = 16,
-    kPresentTypeExperimentalFieldNumber = 17,
-    kJankDebugMetadataFieldNumber = 18,
-    kLatchedFenceStateFieldNumber = 19,
-    kAnimationTimeMillisFieldNumber = 20,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.FrameTimelineEvent.ActualSurfaceFrameStart"; }
-
-
-  using LatchedFenceState = ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState;
-  static inline const char* LatchedFenceState_Name(LatchedFenceState value) {
-    return ::perfetto::protos::pbzero::FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState_Name(value);
-  }
-  static inline const LatchedFenceState LATCHED_UNKNOWN = LatchedFenceState::LATCHED_UNKNOWN;
-  static inline const LatchedFenceState LATCHED_SIGNALED = LatchedFenceState::LATCHED_SIGNALED;
-  static inline const LatchedFenceState LATCHED_UNSIGNALED = LatchedFenceState::LATCHED_UNSIGNALED;
-  static inline const LatchedFenceState LATCHED_DELAYED_LATCH_UNSIGNALED = LatchedFenceState::LATCHED_DELAYED_LATCH_UNSIGNALED;
-
-  using FieldMetadata_Cookie =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_Cookie kCookie{};
-  void set_cookie(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Cookie::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Token =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_Token kToken{};
-  void set_token(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Token::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_DisplayFrameToken =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_DisplayFrameToken kDisplayFrameToken{};
-  void set_display_frame_token(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_DisplayFrameToken::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Pid =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_Pid kPid{};
-  void set_pid(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Pid::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_LayerName =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kString,
-      std::string,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_LayerName kLayerName{};
-  void set_layer_name(const char* data, size_t size) {
-    AppendBytes(FieldMetadata_LayerName::kFieldId, data, size);
-  }
-  void set_layer_name(::protozero::ConstChars chars) {
-    AppendBytes(FieldMetadata_LayerName::kFieldId, chars.data, chars.size);
-  }
-  void set_layer_name(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_LayerName::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kString>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PresentType =
-    ::protozero::proto_utils::FieldMetadata<
-      6,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_PresentType,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_PresentType kPresentType{};
-  void set_present_type(FrameTimelineEvent_PresentType value) {
-    static constexpr uint32_t field_id = FieldMetadata_PresentType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_OnTimeFinish =
-    ::protozero::proto_utils::FieldMetadata<
-      7,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBool,
-      bool,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_OnTimeFinish kOnTimeFinish{};
-  void set_on_time_finish(bool value) {
-    static constexpr uint32_t field_id = FieldMetadata_OnTimeFinish::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBool>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_GpuComposition =
-    ::protozero::proto_utils::FieldMetadata<
-      8,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBool,
-      bool,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_GpuComposition kGpuComposition{};
-  void set_gpu_composition(bool value) {
-    static constexpr uint32_t field_id = FieldMetadata_GpuComposition::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBool>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankType =
-    ::protozero::proto_utils::FieldMetadata<
-      9,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_JankType kJankType{};
-  void set_jank_type(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PredictionType =
-    ::protozero::proto_utils::FieldMetadata<
-      10,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_PredictionType,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_PredictionType kPredictionType{};
-  void set_prediction_type(FrameTimelineEvent_PredictionType value) {
-    static constexpr uint32_t field_id = FieldMetadata_PredictionType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_IsBuffer =
-    ::protozero::proto_utils::FieldMetadata<
-      11,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kBool,
-      bool,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_IsBuffer kIsBuffer{};
-  void set_is_buffer(bool value) {
-    static constexpr uint32_t field_id = FieldMetadata_IsBuffer::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kBool>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankSeverityType =
-    ::protozero::proto_utils::FieldMetadata<
-      12,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_JankSeverityType,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_JankSeverityType kJankSeverityType{};
-  void set_jank_severity_type(FrameTimelineEvent_JankSeverityType value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankSeverityType::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PresentDelayMillis =
-    ::protozero::proto_utils::FieldMetadata<
-      13,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_PresentDelayMillis kPresentDelayMillis{};
-  void set_present_delay_millis(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_PresentDelayMillis::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_VsyncResyncedJitterMillis =
-    ::protozero::proto_utils::FieldMetadata<
-      14,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_VsyncResyncedJitterMillis kVsyncResyncedJitterMillis{};
-  void set_vsync_resynced_jitter_millis(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_VsyncResyncedJitterMillis::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankSeverityScore =
-    ::protozero::proto_utils::FieldMetadata<
-      15,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_JankSeverityScore kJankSeverityScore{};
-  void set_jank_severity_score(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankSeverityScore::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankTypeExperimental =
-    ::protozero::proto_utils::FieldMetadata<
-      16,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_JankTypeExperimental kJankTypeExperimental{};
-  void set_jank_type_experimental(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankTypeExperimental::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_PresentTypeExperimental =
-    ::protozero::proto_utils::FieldMetadata<
-      17,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_PresentType,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_PresentTypeExperimental kPresentTypeExperimental{};
-  void set_present_type_experimental(FrameTimelineEvent_PresentType value) {
-    static constexpr uint32_t field_id = FieldMetadata_PresentTypeExperimental::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_JankDebugMetadata =
-    ::protozero::proto_utils::FieldMetadata<
-      18,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_JankDebugMetadata kJankDebugMetadata{};
-  void set_jank_debug_metadata(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_JankDebugMetadata::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_LatchedFenceState =
-    ::protozero::proto_utils::FieldMetadata<
-      19,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kEnum,
-      FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_LatchedFenceState kLatchedFenceState{};
-  void set_latched_fence_state(FrameTimelineEvent_ActualSurfaceFrameStart_LatchedFenceState value) {
-    static constexpr uint32_t field_id = FieldMetadata_LatchedFenceState::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kEnum>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_AnimationTimeMillis =
-    ::protozero::proto_utils::FieldMetadata<
-      20,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kFloat,
-      float,
-      FrameTimelineEvent_ActualSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_AnimationTimeMillis kAnimationTimeMillis{};
-  void set_animation_time_millis(float value) {
-    static constexpr uint32_t field_id = FieldMetadata_AnimationTimeMillis::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kFloat>
-        ::Append(*this, field_id, value);
-  }
-};
-
-class FrameTimelineEvent_ExpectedSurfaceFrameStart_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/5> {
- public:
-  FrameTimelineEvent_ExpectedSurfaceFrameStart_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
-  explicit FrameTimelineEvent_ExpectedSurfaceFrameStart_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
-  explicit FrameTimelineEvent_ExpectedSurfaceFrameStart_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
-  bool has_cookie() const { return at<1>().valid(); }
-  int64_t cookie() const { return at<1>().as_int64(); }
-  bool has_token() const { return at<2>().valid(); }
-  int64_t token() const { return at<2>().as_int64(); }
-  bool has_display_frame_token() const { return at<3>().valid(); }
-  int64_t display_frame_token() const { return at<3>().as_int64(); }
-  bool has_pid() const { return at<4>().valid(); }
-  int32_t pid() const { return at<4>().as_int32(); }
-  bool has_layer_name() const { return at<5>().valid(); }
-  ::protozero::ConstChars layer_name() const { return at<5>().as_string(); }
-};
-
-class FrameTimelineEvent_ExpectedSurfaceFrameStart : public ::protozero::Message {
- public:
-  using Decoder = FrameTimelineEvent_ExpectedSurfaceFrameStart_Decoder;
-  enum : int32_t {
-    kCookieFieldNumber = 1,
-    kTokenFieldNumber = 2,
-    kDisplayFrameTokenFieldNumber = 3,
-    kPidFieldNumber = 4,
-    kLayerNameFieldNumber = 5,
-  };
-  static constexpr const char* GetName() { return ".perfetto.protos.FrameTimelineEvent.ExpectedSurfaceFrameStart"; }
-
-
-  using FieldMetadata_Cookie =
-    ::protozero::proto_utils::FieldMetadata<
-      1,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ExpectedSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_Cookie kCookie{};
-  void set_cookie(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Cookie::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Token =
-    ::protozero::proto_utils::FieldMetadata<
-      2,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ExpectedSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_Token kToken{};
-  void set_token(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Token::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_DisplayFrameToken =
-    ::protozero::proto_utils::FieldMetadata<
-      3,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt64,
-      int64_t,
-      FrameTimelineEvent_ExpectedSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_DisplayFrameToken kDisplayFrameToken{};
-  void set_display_frame_token(int64_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_DisplayFrameToken::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt64>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_Pid =
-    ::protozero::proto_utils::FieldMetadata<
-      4,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kInt32,
-      int32_t,
-      FrameTimelineEvent_ExpectedSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_Pid kPid{};
-  void set_pid(int32_t value) {
-    static constexpr uint32_t field_id = FieldMetadata_Pid::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kInt32>
-        ::Append(*this, field_id, value);
-  }
-
-  using FieldMetadata_LayerName =
-    ::protozero::proto_utils::FieldMetadata<
-      5,
-      ::protozero::proto_utils::RepetitionType::kNotRepeated,
-      ::protozero::proto_utils::ProtoSchemaType::kString,
-      std::string,
-      FrameTimelineEvent_ExpectedSurfaceFrameStart>;
-
-  static constexpr FieldMetadata_LayerName kLayerName{};
-  void set_layer_name(const char* data, size_t size) {
-    AppendBytes(FieldMetadata_LayerName::kFieldId, data, size);
-  }
-  void set_layer_name(::protozero::ConstChars chars) {
-    AppendBytes(FieldMetadata_LayerName::kFieldId, chars.data, chars.size);
-  }
-  void set_layer_name(std::string value) {
-    static constexpr uint32_t field_id = FieldMetadata_LayerName::kFieldId;
-    // Call the appropriate protozero::Message::Append(field_id, ...)
-    // method based on the type of the field.
-    ::protozero::internal::FieldWriter<
-      ::protozero::proto_utils::ProtoSchemaType::kString>
-        ::Append(*this, field_id, value);
   }
 };
 
@@ -153916,7 +151733,7 @@ class SdeSdePerfCalcCrtcFtraceEvent : public ::protozero::Message {
   }
 };
 
-class SdeSdeEvtlogFtraceEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
+class SdeSdeEvtlogFtraceEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/18> {
  public:
   SdeSdeEvtlogFtraceEvent_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit SdeSdeEvtlogFtraceEvent_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -153927,6 +151744,36 @@ class SdeSdeEvtlogFtraceEvent_Decoder : public ::protozero::TypedProtoDecoder</*
   int32_t pid() const { return at<2>().as_int32(); }
   bool has_tag_id() const { return at<3>().valid(); }
   uint32_t tag_id() const { return at<3>().as_uint32(); }
+  bool has_d00() const { return at<4>().valid(); }
+  uint32_t d00() const { return at<4>().as_uint32(); }
+  bool has_d01() const { return at<5>().valid(); }
+  uint32_t d01() const { return at<5>().as_uint32(); }
+  bool has_d02() const { return at<6>().valid(); }
+  uint32_t d02() const { return at<6>().as_uint32(); }
+  bool has_d03() const { return at<7>().valid(); }
+  uint32_t d03() const { return at<7>().as_uint32(); }
+  bool has_d04() const { return at<8>().valid(); }
+  uint32_t d04() const { return at<8>().as_uint32(); }
+  bool has_d05() const { return at<9>().valid(); }
+  uint32_t d05() const { return at<9>().as_uint32(); }
+  bool has_d06() const { return at<10>().valid(); }
+  uint32_t d06() const { return at<10>().as_uint32(); }
+  bool has_d07() const { return at<11>().valid(); }
+  uint32_t d07() const { return at<11>().as_uint32(); }
+  bool has_d08() const { return at<12>().valid(); }
+  uint32_t d08() const { return at<12>().as_uint32(); }
+  bool has_d09() const { return at<13>().valid(); }
+  uint32_t d09() const { return at<13>().as_uint32(); }
+  bool has_d10() const { return at<14>().valid(); }
+  uint32_t d10() const { return at<14>().as_uint32(); }
+  bool has_d11() const { return at<15>().valid(); }
+  uint32_t d11() const { return at<15>().as_uint32(); }
+  bool has_d12() const { return at<16>().valid(); }
+  uint32_t d12() const { return at<16>().as_uint32(); }
+  bool has_d13() const { return at<17>().valid(); }
+  uint32_t d13() const { return at<17>().as_uint32(); }
+  bool has_d14() const { return at<18>().valid(); }
+  uint32_t d14() const { return at<18>().as_uint32(); }
 };
 
 class SdeSdeEvtlogFtraceEvent : public ::protozero::Message {
@@ -153936,6 +151783,21 @@ class SdeSdeEvtlogFtraceEvent : public ::protozero::Message {
     kEvtlogTagFieldNumber = 1,
     kPidFieldNumber = 2,
     kTagIdFieldNumber = 3,
+    kD00FieldNumber = 4,
+    kD01FieldNumber = 5,
+    kD02FieldNumber = 6,
+    kD03FieldNumber = 7,
+    kD04FieldNumber = 8,
+    kD05FieldNumber = 9,
+    kD06FieldNumber = 10,
+    kD07FieldNumber = 11,
+    kD08FieldNumber = 12,
+    kD09FieldNumber = 13,
+    kD10FieldNumber = 14,
+    kD11FieldNumber = 15,
+    kD12FieldNumber = 16,
+    kD13FieldNumber = 17,
+    kD14FieldNumber = 18,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.SdeSdeEvtlogFtraceEvent"; }
 
@@ -153993,6 +151855,276 @@ class SdeSdeEvtlogFtraceEvent : public ::protozero::Message {
   static constexpr FieldMetadata_TagId kTagId{};
   void set_tag_id(uint32_t value) {
     static constexpr uint32_t field_id = FieldMetadata_TagId::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D00 =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D00 kD00{};
+  void set_d00(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D00::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D01 =
+    ::protozero::proto_utils::FieldMetadata<
+      5,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D01 kD01{};
+  void set_d01(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D01::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D02 =
+    ::protozero::proto_utils::FieldMetadata<
+      6,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D02 kD02{};
+  void set_d02(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D02::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D03 =
+    ::protozero::proto_utils::FieldMetadata<
+      7,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D03 kD03{};
+  void set_d03(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D03::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D04 =
+    ::protozero::proto_utils::FieldMetadata<
+      8,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D04 kD04{};
+  void set_d04(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D04::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D05 =
+    ::protozero::proto_utils::FieldMetadata<
+      9,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D05 kD05{};
+  void set_d05(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D05::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D06 =
+    ::protozero::proto_utils::FieldMetadata<
+      10,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D06 kD06{};
+  void set_d06(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D06::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D07 =
+    ::protozero::proto_utils::FieldMetadata<
+      11,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D07 kD07{};
+  void set_d07(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D07::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D08 =
+    ::protozero::proto_utils::FieldMetadata<
+      12,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D08 kD08{};
+  void set_d08(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D08::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D09 =
+    ::protozero::proto_utils::FieldMetadata<
+      13,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D09 kD09{};
+  void set_d09(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D09::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D10 =
+    ::protozero::proto_utils::FieldMetadata<
+      14,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D10 kD10{};
+  void set_d10(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D10::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D11 =
+    ::protozero::proto_utils::FieldMetadata<
+      15,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D11 kD11{};
+  void set_d11(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D11::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D12 =
+    ::protozero::proto_utils::FieldMetadata<
+      16,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D12 kD12{};
+  void set_d12(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D12::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D13 =
+    ::protozero::proto_utils::FieldMetadata<
+      17,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D13 kD13{};
+  void set_d13(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D13::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_D14 =
+    ::protozero::proto_utils::FieldMetadata<
+      18,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      SdeSdeEvtlogFtraceEvent>;
+
+  static constexpr FieldMetadata_D14 kD14{};
+  void set_d14(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_D14::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -166744,6 +164876,162 @@ class VulkanMemoryEventAnnotation : public ::protozero::Message {
 } // Namespace.
 } // Namespace.
 #endif  // Include guard.
+// gen_amalgamated begin header: gen/protos/perfetto/trace/profiling/inline_callstack.pbzero.h
+// Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
+
+#ifndef PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_PROFILING_INLINE_CALLSTACK_PROTO_H_
+#define PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_PROFILING_INLINE_CALLSTACK_PROTO_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+// gen_amalgamated expanded: #include "perfetto/protozero/field_writer.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+class InlineCallstack_Frame;
+} // Namespace pbzero.
+} // Namespace protos.
+} // Namespace perfetto.
+
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+
+class InlineCallstack_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/1> {
+ public:
+  InlineCallstack_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit InlineCallstack_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit InlineCallstack_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_frames() const { return at<1>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> frames() const { return GetRepeated<::protozero::ConstBytes>(1); }
+};
+
+class InlineCallstack : public ::protozero::Message {
+ public:
+  using Decoder = InlineCallstack_Decoder;
+  enum : int32_t {
+    kFramesFieldNumber = 1,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.InlineCallstack"; }
+
+  using Frame = ::perfetto::protos::pbzero::InlineCallstack_Frame;
+
+  using FieldMetadata_Frames =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      InlineCallstack_Frame,
+      InlineCallstack>;
+
+  static constexpr FieldMetadata_Frames kFrames{};
+  template <typename T = InlineCallstack_Frame> T* add_frames() {
+    return BeginNestedMessage<T>(1);
+  }
+
+};
+
+class InlineCallstack_Frame_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
+ public:
+  InlineCallstack_Frame_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit InlineCallstack_Frame_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit InlineCallstack_Frame_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_function_name() const { return at<1>().valid(); }
+  ::protozero::ConstChars function_name() const { return at<1>().as_string(); }
+  bool has_source_file() const { return at<2>().valid(); }
+  ::protozero::ConstChars source_file() const { return at<2>().as_string(); }
+  bool has_line_number() const { return at<3>().valid(); }
+  uint32_t line_number() const { return at<3>().as_uint32(); }
+};
+
+class InlineCallstack_Frame : public ::protozero::Message {
+ public:
+  using Decoder = InlineCallstack_Frame_Decoder;
+  enum : int32_t {
+    kFunctionNameFieldNumber = 1,
+    kSourceFileFieldNumber = 2,
+    kLineNumberFieldNumber = 3,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.InlineCallstack.Frame"; }
+
+
+  using FieldMetadata_FunctionName =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      InlineCallstack_Frame>;
+
+  static constexpr FieldMetadata_FunctionName kFunctionName{};
+  void set_function_name(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_FunctionName::kFieldId, data, size);
+  }
+  void set_function_name(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_FunctionName::kFieldId, chars.data, chars.size);
+  }
+  void set_function_name(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_FunctionName::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_SourceFile =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      InlineCallstack_Frame>;
+
+  static constexpr FieldMetadata_SourceFile kSourceFile{};
+  void set_source_file(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_SourceFile::kFieldId, data, size);
+  }
+  void set_source_file(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_SourceFile::kFieldId, chars.data, chars.size);
+  }
+  void set_source_file(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_SourceFile::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_LineNumber =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      InlineCallstack_Frame>;
+
+  static constexpr FieldMetadata_LineNumber kLineNumber{};
+  void set_line_number(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_LineNumber::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+};
+
+} // Namespace.
+} // Namespace.
+} // Namespace.
+#endif  // Include guard.
 // gen_amalgamated begin header: gen/protos/perfetto/trace/profiling/art_process_metadata.pbzero.h
 // Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
 
@@ -167510,6 +165798,10 @@ namespace protos {
 namespace pbzero {
 class AddressSymbols;
 class Line;
+namespace perfetto_pbzero_enum_Frame {
+enum Kind : int32_t;
+}  // namespace perfetto_pbzero_enum_Frame
+using Frame_Kind = perfetto_pbzero_enum_Frame::Kind;
 } // Namespace pbzero.
 } // Namespace protos.
 } // Namespace perfetto.
@@ -167517,6 +165809,51 @@ class Line;
 namespace perfetto {
 namespace protos {
 namespace pbzero {
+
+namespace perfetto_pbzero_enum_Frame {
+enum Kind : int32_t {
+  KIND_UNKNOWN = 0,
+  KIND_NATIVE = 1,
+  KIND_KERNEL = 2,
+  KIND_INTERPRETED = 3,
+  KIND_JIT = 4,
+  KIND_GC = 5,
+  KIND_RUNTIME = 6,
+};
+} // namespace perfetto_pbzero_enum_Frame
+using Frame_Kind = perfetto_pbzero_enum_Frame::Kind;
+
+
+constexpr Frame_Kind Frame_Kind_MIN = Frame_Kind::KIND_UNKNOWN;
+constexpr Frame_Kind Frame_Kind_MAX = Frame_Kind::KIND_RUNTIME;
+
+
+PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
+const char* Frame_Kind_Name(::perfetto::protos::pbzero::Frame_Kind value) {
+  switch (value) {
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_UNKNOWN:
+    return "KIND_UNKNOWN";
+
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_NATIVE:
+    return "KIND_NATIVE";
+
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_KERNEL:
+    return "KIND_KERNEL";
+
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_INTERPRETED:
+    return "KIND_INTERPRETED";
+
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_JIT:
+    return "KIND_JIT";
+
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_GC:
+    return "KIND_GC";
+
+  case ::perfetto::protos::pbzero::Frame_Kind::KIND_RUNTIME:
+    return "KIND_RUNTIME";
+  }
+  return "PBZERO_UNKNOWN_ENUM_VALUE";
+}
 
 class Callstack_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/2> {
  public:
@@ -167576,7 +165913,7 @@ class Callstack : public ::protozero::Message {
   }
 };
 
-class Frame_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/6> {
+class Frame_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/8> {
  public:
   Frame_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit Frame_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -167593,6 +165930,10 @@ class Frame_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/6> 
   uint64_t source_path_iid() const { return at<5>().as_uint64(); }
   bool has_line_number() const { return at<6>().valid(); }
   uint32_t line_number() const { return at<6>().as_uint32(); }
+  bool has_kind() const { return at<7>().valid(); }
+  int32_t kind() const { return at<7>().as_int32(); }
+  bool has_kind_str() const { return at<8>().valid(); }
+  ::protozero::ConstChars kind_str() const { return at<8>().as_string(); }
 };
 
 class Frame : public ::protozero::Message {
@@ -167605,9 +165946,23 @@ class Frame : public ::protozero::Message {
     kRelPcFieldNumber = 4,
     kSourcePathIidFieldNumber = 5,
     kLineNumberFieldNumber = 6,
+    kKindFieldNumber = 7,
+    kKindStrFieldNumber = 8,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.Frame"; }
 
+
+  using Kind = ::perfetto::protos::pbzero::Frame_Kind;
+  static inline const char* Kind_Name(Kind value) {
+    return ::perfetto::protos::pbzero::Frame_Kind_Name(value);
+  }
+  static inline const Kind KIND_UNKNOWN = Kind::KIND_UNKNOWN;
+  static inline const Kind KIND_NATIVE = Kind::KIND_NATIVE;
+  static inline const Kind KIND_KERNEL = Kind::KIND_KERNEL;
+  static inline const Kind KIND_INTERPRETED = Kind::KIND_INTERPRETED;
+  static inline const Kind KIND_JIT = Kind::KIND_JIT;
+  static inline const Kind KIND_GC = Kind::KIND_GC;
+  static inline const Kind KIND_RUNTIME = Kind::KIND_RUNTIME;
 
   using FieldMetadata_Iid =
     ::protozero::proto_utils::FieldMetadata<
@@ -167714,6 +166069,48 @@ class Frame : public ::protozero::Message {
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
       ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Kind =
+    ::protozero::proto_utils::FieldMetadata<
+      7,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kEnum,
+      Frame_Kind,
+      Frame>;
+
+  static constexpr FieldMetadata_Kind kKind{};
+  void set_kind(Frame_Kind value) {
+    static constexpr uint32_t field_id = FieldMetadata_Kind::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kEnum>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_KindStr =
+    ::protozero::proto_utils::FieldMetadata<
+      8,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      Frame>;
+
+  static constexpr FieldMetadata_KindStr kKindStr{};
+  void set_kind_str(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_KindStr::kFieldId, data, size);
+  }
+  void set_kind_str(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_KindStr::kFieldId, chars.data, chars.size);
+  }
+  void set_kind_str(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_KindStr::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
         ::Append(*this, field_id, value);
   }
 };
@@ -169356,7 +167753,7 @@ class ProfilePacket : public ::protozero::Message {
   }
 };
 
-class ProfilePacket_ProcessHeapSamples_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/14> {
+class ProfilePacket_ProcessHeapSamples_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/15> {
  public:
   ProfilePacket_ProcessHeapSamples_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit ProfilePacket_ProcessHeapSamples_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -169385,6 +167782,8 @@ class ProfilePacket_ProcessHeapSamples_Decoder : public ::protozero::TypedProtoD
   uint64_t orig_sampling_interval_bytes() const { return at<13>().as_uint64(); }
   bool has_timestamp() const { return at<9>().valid(); }
   uint64_t timestamp() const { return at<9>().as_uint64(); }
+  bool has_start_timestamp() const { return at<15>().valid(); }
+  uint64_t start_timestamp() const { return at<15>().as_uint64(); }
   bool has_stats() const { return at<5>().valid(); }
   ::protozero::ConstBytes stats() const { return at<5>().as_bytes(); }
   bool has_samples() const { return at<2>().valid(); }
@@ -169407,6 +167806,7 @@ class ProfilePacket_ProcessHeapSamples : public ::protozero::Message {
     kSamplingIntervalBytesFieldNumber = 12,
     kOrigSamplingIntervalBytesFieldNumber = 13,
     kTimestampFieldNumber = 9,
+    kStartTimestampFieldNumber = 15,
     kStatsFieldNumber = 5,
     kSamplesFieldNumber = 2,
   };
@@ -169636,6 +168036,24 @@ class ProfilePacket_ProcessHeapSamples : public ::protozero::Message {
   static constexpr FieldMetadata_Timestamp kTimestamp{};
   void set_timestamp(uint64_t value) {
     static constexpr uint32_t field_id = FieldMetadata_Timestamp::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_StartTimestamp =
+    ::protozero::proto_utils::FieldMetadata<
+      15,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      ProfilePacket_ProcessHeapSamples>;
+
+  static constexpr FieldMetadata_StartTimestamp kStartTimestamp{};
+  void set_start_timestamp(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_StartTimestamp::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -170905,6 +169323,1055 @@ class SmapsEntry : public ::protozero::Message {
   static constexpr FieldMetadata_ProportionalResidentKb kProportionalResidentKb{};
   void set_proportional_resident_kb(uint64_t value) {
     static constexpr uint32_t field_id = FieldMetadata_ProportionalResidentKb::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+};
+
+} // Namespace.
+} // Namespace.
+} // Namespace.
+#endif  // Include guard.
+// gen_amalgamated begin header: gen/protos/perfetto/trace/profiling/stack_sample.pbzero.h
+// Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
+
+#ifndef PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_PROFILING_STACK_SAMPLE_PROTO_H_
+#define PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_PROFILING_STACK_SAMPLE_PROTO_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+// gen_amalgamated expanded: #include "perfetto/protozero/field_writer.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+class InlineCallstack;
+class StackSample_AsyncContextDescriptor;
+class StackSample_CounterDescriptor;
+class StackSample_ExecutionContext;
+class StackSample_TaskContext;
+namespace perfetto_pbzero_enum_StackSample_CounterDescriptor {
+enum Scope : int32_t;
+}  // namespace perfetto_pbzero_enum_StackSample_CounterDescriptor
+using StackSample_CounterDescriptor_Scope = perfetto_pbzero_enum_StackSample_CounterDescriptor::Scope;
+namespace perfetto_pbzero_enum_StackSample {
+enum Mode : int32_t;
+}  // namespace perfetto_pbzero_enum_StackSample
+using StackSample_Mode = perfetto_pbzero_enum_StackSample::Mode;
+namespace perfetto_pbzero_enum_StackSample {
+enum Unit : int32_t;
+}  // namespace perfetto_pbzero_enum_StackSample
+using StackSample_Unit = perfetto_pbzero_enum_StackSample::Unit;
+} // Namespace pbzero.
+} // Namespace protos.
+} // Namespace perfetto.
+
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+
+namespace perfetto_pbzero_enum_StackSample {
+enum Mode : int32_t {
+  MODE_UNKNOWN = 0,
+  MODE_USER = 1,
+  MODE_KERNEL = 2,
+  MODE_HYPERVISOR = 3,
+  MODE_GUEST_USER = 4,
+  MODE_GUEST_KERNEL = 5,
+};
+} // namespace perfetto_pbzero_enum_StackSample
+using StackSample_Mode = perfetto_pbzero_enum_StackSample::Mode;
+
+
+constexpr StackSample_Mode StackSample_Mode_MIN = StackSample_Mode::MODE_UNKNOWN;
+constexpr StackSample_Mode StackSample_Mode_MAX = StackSample_Mode::MODE_GUEST_KERNEL;
+
+
+PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
+const char* StackSample_Mode_Name(::perfetto::protos::pbzero::StackSample_Mode value) {
+  switch (value) {
+  case ::perfetto::protos::pbzero::StackSample_Mode::MODE_UNKNOWN:
+    return "MODE_UNKNOWN";
+
+  case ::perfetto::protos::pbzero::StackSample_Mode::MODE_USER:
+    return "MODE_USER";
+
+  case ::perfetto::protos::pbzero::StackSample_Mode::MODE_KERNEL:
+    return "MODE_KERNEL";
+
+  case ::perfetto::protos::pbzero::StackSample_Mode::MODE_HYPERVISOR:
+    return "MODE_HYPERVISOR";
+
+  case ::perfetto::protos::pbzero::StackSample_Mode::MODE_GUEST_USER:
+    return "MODE_GUEST_USER";
+
+  case ::perfetto::protos::pbzero::StackSample_Mode::MODE_GUEST_KERNEL:
+    return "MODE_GUEST_KERNEL";
+  }
+  return "PBZERO_UNKNOWN_ENUM_VALUE";
+}
+
+namespace perfetto_pbzero_enum_StackSample {
+enum Unit : int32_t {
+  UNIT_UNSPECIFIED = 0,
+  UNIT_NANOSECONDS = 1,
+  UNIT_CPU_CYCLES = 2,
+  UNIT_INSTRUCTIONS = 3,
+  UNIT_BYTES = 4,
+  UNIT_PAGE_FAULTS = 5,
+  UNIT_CACHE_MISSES = 6,
+  UNIT_CACHE_REFERENCES = 7,
+  UNIT_BRANCH_MISSES = 8,
+  UNIT_COUNT = 9,
+};
+} // namespace perfetto_pbzero_enum_StackSample
+using StackSample_Unit = perfetto_pbzero_enum_StackSample::Unit;
+
+
+constexpr StackSample_Unit StackSample_Unit_MIN = StackSample_Unit::UNIT_UNSPECIFIED;
+constexpr StackSample_Unit StackSample_Unit_MAX = StackSample_Unit::UNIT_COUNT;
+
+
+PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
+const char* StackSample_Unit_Name(::perfetto::protos::pbzero::StackSample_Unit value) {
+  switch (value) {
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_UNSPECIFIED:
+    return "UNIT_UNSPECIFIED";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_NANOSECONDS:
+    return "UNIT_NANOSECONDS";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_CPU_CYCLES:
+    return "UNIT_CPU_CYCLES";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_INSTRUCTIONS:
+    return "UNIT_INSTRUCTIONS";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_BYTES:
+    return "UNIT_BYTES";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_PAGE_FAULTS:
+    return "UNIT_PAGE_FAULTS";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_CACHE_MISSES:
+    return "UNIT_CACHE_MISSES";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_CACHE_REFERENCES:
+    return "UNIT_CACHE_REFERENCES";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_BRANCH_MISSES:
+    return "UNIT_BRANCH_MISSES";
+
+  case ::perfetto::protos::pbzero::StackSample_Unit::UNIT_COUNT:
+    return "UNIT_COUNT";
+  }
+  return "PBZERO_UNKNOWN_ENUM_VALUE";
+}
+
+namespace perfetto_pbzero_enum_StackSample_CounterDescriptor {
+enum Scope : int32_t {
+  SCOPE_UNSPECIFIED = 0,
+  SCOPE_GLOBAL = 1,
+  SCOPE_CPU = 2,
+};
+} // namespace perfetto_pbzero_enum_StackSample_CounterDescriptor
+using StackSample_CounterDescriptor_Scope = perfetto_pbzero_enum_StackSample_CounterDescriptor::Scope;
+
+
+constexpr StackSample_CounterDescriptor_Scope StackSample_CounterDescriptor_Scope_MIN = StackSample_CounterDescriptor_Scope::SCOPE_UNSPECIFIED;
+constexpr StackSample_CounterDescriptor_Scope StackSample_CounterDescriptor_Scope_MAX = StackSample_CounterDescriptor_Scope::SCOPE_CPU;
+
+
+PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
+const char* StackSample_CounterDescriptor_Scope_Name(::perfetto::protos::pbzero::StackSample_CounterDescriptor_Scope value) {
+  switch (value) {
+  case ::perfetto::protos::pbzero::StackSample_CounterDescriptor_Scope::SCOPE_UNSPECIFIED:
+    return "SCOPE_UNSPECIFIED";
+
+  case ::perfetto::protos::pbzero::StackSample_CounterDescriptor_Scope::SCOPE_GLOBAL:
+    return "SCOPE_GLOBAL";
+
+  case ::perfetto::protos::pbzero::StackSample_CounterDescriptor_Scope::SCOPE_CPU:
+    return "SCOPE_CPU";
+  }
+  return "PBZERO_UNKNOWN_ENUM_VALUE";
+}
+
+class StackSampleDefaults_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
+ public:
+  StackSampleDefaults_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit StackSampleDefaults_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit StackSampleDefaults_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_source() const { return at<1>().valid(); }
+  ::protozero::ConstChars source() const { return at<1>().as_string(); }
+  bool has_primary_descriptor() const { return at<2>().valid(); }
+  ::protozero::ConstBytes primary_descriptor() const { return at<2>().as_bytes(); }
+  bool has_follower_descriptors() const { return at<3>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> follower_descriptors() const { return GetRepeated<::protozero::ConstBytes>(3); }
+};
+
+class StackSampleDefaults : public ::protozero::Message {
+ public:
+  using Decoder = StackSampleDefaults_Decoder;
+  enum : int32_t {
+    kSourceFieldNumber = 1,
+    kPrimaryDescriptorFieldNumber = 2,
+    kFollowerDescriptorsFieldNumber = 3,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.StackSampleDefaults"; }
+
+
+  using FieldMetadata_Source =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSampleDefaults>;
+
+  static constexpr FieldMetadata_Source kSource{};
+  void set_source(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_Source::kFieldId, data, size);
+  }
+  void set_source(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_Source::kFieldId, chars.data, chars.size);
+  }
+  void set_source(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_Source::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_PrimaryDescriptor =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_CounterDescriptor,
+      StackSampleDefaults>;
+
+  static constexpr FieldMetadata_PrimaryDescriptor kPrimaryDescriptor{};
+  template <typename T = StackSample_CounterDescriptor> T* set_primary_descriptor() {
+    return BeginNestedMessage<T>(2);
+  }
+
+
+  using FieldMetadata_FollowerDescriptors =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_CounterDescriptor,
+      StackSampleDefaults>;
+
+  static constexpr FieldMetadata_FollowerDescriptors kFollowerDescriptors{};
+  template <typename T = StackSample_CounterDescriptor> T* add_follower_descriptors() {
+    return BeginNestedMessage<T>(3);
+  }
+
+};
+
+class StackSample_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/14> {
+ public:
+  StackSample_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit StackSample_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit StackSample_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_task_context() const { return at<1>().valid(); }
+  ::protozero::ConstBytes task_context() const { return at<1>().as_bytes(); }
+  bool has_task_context_iid() const { return at<2>().valid(); }
+  uint64_t task_context_iid() const { return at<2>().as_uint64(); }
+  bool has_execution_context() const { return at<3>().valid(); }
+  ::protozero::ConstBytes execution_context() const { return at<3>().as_bytes(); }
+  bool has_execution_context_iid() const { return at<4>().valid(); }
+  uint64_t execution_context_iid() const { return at<4>().as_uint64(); }
+  bool has_callstack() const { return at<5>().valid(); }
+  ::protozero::ConstBytes callstack() const { return at<5>().as_bytes(); }
+  bool has_callstack_iid() const { return at<6>().valid(); }
+  uint64_t callstack_iid() const { return at<6>().as_uint64(); }
+  bool has_unwind_error() const { return at<7>().valid(); }
+  ::protozero::ConstChars unwind_error() const { return at<7>().as_string(); }
+  bool has_unwind_error_iid() const { return at<8>().valid(); }
+  uint64_t unwind_error_iid() const { return at<8>().as_uint64(); }
+  bool has_primary_descriptor() const { return at<9>().valid(); }
+  ::protozero::ConstBytes primary_descriptor() const { return at<9>().as_bytes(); }
+  bool has_primary_descriptor_iid() const { return at<10>().valid(); }
+  uint64_t primary_descriptor_iid() const { return at<10>().as_uint64(); }
+  bool has_primary_weight() const { return at<11>().valid(); }
+  uint64_t primary_weight() const { return at<11>().as_uint64(); }
+  bool has_follower_descriptors() const { return at<12>().valid(); }
+  ::protozero::RepeatedFieldIterator<::protozero::ConstBytes> follower_descriptors() const { return GetRepeated<::protozero::ConstBytes>(12); }
+  bool has_follower_descriptor_iids() const { return at<13>().valid(); }
+  ::protozero::PackedRepeatedFieldIterator<::protozero::proto_utils::ProtoWireType::kVarInt, uint64_t> follower_descriptor_iids(bool* parse_error_ptr) const { return GetPackedRepeated<::protozero::proto_utils::ProtoWireType::kVarInt, uint64_t>(13, parse_error_ptr); }
+  bool has_follower_weights() const { return at<14>().valid(); }
+  ::protozero::PackedRepeatedFieldIterator<::protozero::proto_utils::ProtoWireType::kVarInt, uint64_t> follower_weights(bool* parse_error_ptr) const { return GetPackedRepeated<::protozero::proto_utils::ProtoWireType::kVarInt, uint64_t>(14, parse_error_ptr); }
+};
+
+class StackSample : public ::protozero::Message {
+ public:
+  using Decoder = StackSample_Decoder;
+  enum : int32_t {
+    kTaskContextFieldNumber = 1,
+    kTaskContextIidFieldNumber = 2,
+    kExecutionContextFieldNumber = 3,
+    kExecutionContextIidFieldNumber = 4,
+    kCallstackFieldNumber = 5,
+    kCallstackIidFieldNumber = 6,
+    kUnwindErrorFieldNumber = 7,
+    kUnwindErrorIidFieldNumber = 8,
+    kPrimaryDescriptorFieldNumber = 9,
+    kPrimaryDescriptorIidFieldNumber = 10,
+    kPrimaryWeightFieldNumber = 11,
+    kFollowerDescriptorsFieldNumber = 12,
+    kFollowerDescriptorIidsFieldNumber = 13,
+    kFollowerWeightsFieldNumber = 14,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.StackSample"; }
+
+  using TaskContext = ::perfetto::protos::pbzero::StackSample_TaskContext;
+  using AsyncContextDescriptor = ::perfetto::protos::pbzero::StackSample_AsyncContextDescriptor;
+  using ExecutionContext = ::perfetto::protos::pbzero::StackSample_ExecutionContext;
+  using CounterDescriptor = ::perfetto::protos::pbzero::StackSample_CounterDescriptor;
+
+  using Mode = ::perfetto::protos::pbzero::StackSample_Mode;
+  static inline const char* Mode_Name(Mode value) {
+    return ::perfetto::protos::pbzero::StackSample_Mode_Name(value);
+  }
+
+  using Unit = ::perfetto::protos::pbzero::StackSample_Unit;
+  static inline const char* Unit_Name(Unit value) {
+    return ::perfetto::protos::pbzero::StackSample_Unit_Name(value);
+  }
+  static inline const Mode MODE_UNKNOWN = Mode::MODE_UNKNOWN;
+  static inline const Mode MODE_USER = Mode::MODE_USER;
+  static inline const Mode MODE_KERNEL = Mode::MODE_KERNEL;
+  static inline const Mode MODE_HYPERVISOR = Mode::MODE_HYPERVISOR;
+  static inline const Mode MODE_GUEST_USER = Mode::MODE_GUEST_USER;
+  static inline const Mode MODE_GUEST_KERNEL = Mode::MODE_GUEST_KERNEL;
+  static inline const Unit UNIT_UNSPECIFIED = Unit::UNIT_UNSPECIFIED;
+  static inline const Unit UNIT_NANOSECONDS = Unit::UNIT_NANOSECONDS;
+  static inline const Unit UNIT_CPU_CYCLES = Unit::UNIT_CPU_CYCLES;
+  static inline const Unit UNIT_INSTRUCTIONS = Unit::UNIT_INSTRUCTIONS;
+  static inline const Unit UNIT_BYTES = Unit::UNIT_BYTES;
+  static inline const Unit UNIT_PAGE_FAULTS = Unit::UNIT_PAGE_FAULTS;
+  static inline const Unit UNIT_CACHE_MISSES = Unit::UNIT_CACHE_MISSES;
+  static inline const Unit UNIT_CACHE_REFERENCES = Unit::UNIT_CACHE_REFERENCES;
+  static inline const Unit UNIT_BRANCH_MISSES = Unit::UNIT_BRANCH_MISSES;
+  static inline const Unit UNIT_COUNT = Unit::UNIT_COUNT;
+
+  using FieldMetadata_TaskContext =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_TaskContext,
+      StackSample>;
+
+  static constexpr FieldMetadata_TaskContext kTaskContext{};
+  template <typename T = StackSample_TaskContext> T* set_task_context() {
+    return BeginNestedMessage<T>(1);
+  }
+
+
+  using FieldMetadata_TaskContextIid =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_TaskContextIid kTaskContextIid{};
+  void set_task_context_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_TaskContextIid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_ExecutionContext =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_ExecutionContext,
+      StackSample>;
+
+  static constexpr FieldMetadata_ExecutionContext kExecutionContext{};
+  template <typename T = StackSample_ExecutionContext> T* set_execution_context() {
+    return BeginNestedMessage<T>(3);
+  }
+
+
+  using FieldMetadata_ExecutionContextIid =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_ExecutionContextIid kExecutionContextIid{};
+  void set_execution_context_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_ExecutionContextIid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Callstack =
+    ::protozero::proto_utils::FieldMetadata<
+      5,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      InlineCallstack,
+      StackSample>;
+
+  static constexpr FieldMetadata_Callstack kCallstack{};
+  template <typename T = InlineCallstack> T* set_callstack() {
+    return BeginNestedMessage<T>(5);
+  }
+
+
+  using FieldMetadata_CallstackIid =
+    ::protozero::proto_utils::FieldMetadata<
+      6,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_CallstackIid kCallstackIid{};
+  void set_callstack_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_CallstackIid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_UnwindError =
+    ::protozero::proto_utils::FieldMetadata<
+      7,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSample>;
+
+  static constexpr FieldMetadata_UnwindError kUnwindError{};
+  void set_unwind_error(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_UnwindError::kFieldId, data, size);
+  }
+  void set_unwind_error(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_UnwindError::kFieldId, chars.data, chars.size);
+  }
+  void set_unwind_error(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_UnwindError::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_UnwindErrorIid =
+    ::protozero::proto_utils::FieldMetadata<
+      8,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_UnwindErrorIid kUnwindErrorIid{};
+  void set_unwind_error_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_UnwindErrorIid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_PrimaryDescriptor =
+    ::protozero::proto_utils::FieldMetadata<
+      9,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_CounterDescriptor,
+      StackSample>;
+
+  static constexpr FieldMetadata_PrimaryDescriptor kPrimaryDescriptor{};
+  template <typename T = StackSample_CounterDescriptor> T* set_primary_descriptor() {
+    return BeginNestedMessage<T>(9);
+  }
+
+
+  using FieldMetadata_PrimaryDescriptorIid =
+    ::protozero::proto_utils::FieldMetadata<
+      10,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_PrimaryDescriptorIid kPrimaryDescriptorIid{};
+  void set_primary_descriptor_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_PrimaryDescriptorIid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_PrimaryWeight =
+    ::protozero::proto_utils::FieldMetadata<
+      11,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_PrimaryWeight kPrimaryWeight{};
+  void set_primary_weight(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_PrimaryWeight::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_FollowerDescriptors =
+    ::protozero::proto_utils::FieldMetadata<
+      12,
+      ::protozero::proto_utils::RepetitionType::kRepeatedNotPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSample_CounterDescriptor,
+      StackSample>;
+
+  static constexpr FieldMetadata_FollowerDescriptors kFollowerDescriptors{};
+  template <typename T = StackSample_CounterDescriptor> T* add_follower_descriptors() {
+    return BeginNestedMessage<T>(12);
+  }
+
+
+  using FieldMetadata_FollowerDescriptorIids =
+    ::protozero::proto_utils::FieldMetadata<
+      13,
+      ::protozero::proto_utils::RepetitionType::kRepeatedPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_FollowerDescriptorIids kFollowerDescriptorIids{};
+  void set_follower_descriptor_iids(const ::protozero::PackedVarInt& packed_buffer) {
+    AppendBytes(FieldMetadata_FollowerDescriptorIids::kFieldId, packed_buffer.data(),
+                packed_buffer.size());
+  }
+
+  using FieldMetadata_FollowerWeights =
+    ::protozero::proto_utils::FieldMetadata<
+      14,
+      ::protozero::proto_utils::RepetitionType::kRepeatedPacked,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample>;
+
+  static constexpr FieldMetadata_FollowerWeights kFollowerWeights{};
+  void set_follower_weights(const ::protozero::PackedVarInt& packed_buffer) {
+    AppendBytes(FieldMetadata_FollowerWeights::kFieldId, packed_buffer.data(),
+                packed_buffer.size());
+  }
+};
+
+class StackSample_CounterDescriptor_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/7> {
+ public:
+  StackSample_CounterDescriptor_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit StackSample_CounterDescriptor_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit StackSample_CounterDescriptor_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_iid() const { return at<1>().valid(); }
+  uint64_t iid() const { return at<1>().as_uint64(); }
+  bool has_name() const { return at<2>().valid(); }
+  ::protozero::ConstChars name() const { return at<2>().as_string(); }
+  bool has_unit() const { return at<3>().valid(); }
+  int32_t unit() const { return at<3>().as_int32(); }
+  bool has_unit_str() const { return at<4>().valid(); }
+  ::protozero::ConstChars unit_str() const { return at<4>().as_string(); }
+  bool has_unit_multiplier() const { return at<5>().valid(); }
+  uint64_t unit_multiplier() const { return at<5>().as_uint64(); }
+  bool has_description() const { return at<6>().valid(); }
+  ::protozero::ConstChars description() const { return at<6>().as_string(); }
+  bool has_scope() const { return at<7>().valid(); }
+  int32_t scope() const { return at<7>().as_int32(); }
+};
+
+class StackSample_CounterDescriptor : public ::protozero::Message {
+ public:
+  using Decoder = StackSample_CounterDescriptor_Decoder;
+  enum : int32_t {
+    kIidFieldNumber = 1,
+    kNameFieldNumber = 2,
+    kUnitFieldNumber = 3,
+    kUnitStrFieldNumber = 4,
+    kUnitMultiplierFieldNumber = 5,
+    kDescriptionFieldNumber = 6,
+    kScopeFieldNumber = 7,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.StackSample.CounterDescriptor"; }
+
+
+  using Scope = ::perfetto::protos::pbzero::StackSample_CounterDescriptor_Scope;
+  static inline const char* Scope_Name(Scope value) {
+    return ::perfetto::protos::pbzero::StackSample_CounterDescriptor_Scope_Name(value);
+  }
+  static inline const Scope SCOPE_UNSPECIFIED = Scope::SCOPE_UNSPECIFIED;
+  static inline const Scope SCOPE_GLOBAL = Scope::SCOPE_GLOBAL;
+  static inline const Scope SCOPE_CPU = Scope::SCOPE_CPU;
+
+  using FieldMetadata_Iid =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_Iid kIid{};
+  void set_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Iid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Name =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_Name kName{};
+  void set_name(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_Name::kFieldId, data, size);
+  }
+  void set_name(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_Name::kFieldId, chars.data, chars.size);
+  }
+  void set_name(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_Name::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Unit =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kEnum,
+      StackSample_Unit,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_Unit kUnit{};
+  void set_unit(StackSample_Unit value) {
+    static constexpr uint32_t field_id = FieldMetadata_Unit::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kEnum>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_UnitStr =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_UnitStr kUnitStr{};
+  void set_unit_str(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_UnitStr::kFieldId, data, size);
+  }
+  void set_unit_str(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_UnitStr::kFieldId, chars.data, chars.size);
+  }
+  void set_unit_str(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_UnitStr::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_UnitMultiplier =
+    ::protozero::proto_utils::FieldMetadata<
+      5,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_UnitMultiplier kUnitMultiplier{};
+  void set_unit_multiplier(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_UnitMultiplier::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Description =
+    ::protozero::proto_utils::FieldMetadata<
+      6,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_Description kDescription{};
+  void set_description(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_Description::kFieldId, data, size);
+  }
+  void set_description(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_Description::kFieldId, chars.data, chars.size);
+  }
+  void set_description(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_Description::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Scope =
+    ::protozero::proto_utils::FieldMetadata<
+      7,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kEnum,
+      StackSample_CounterDescriptor_Scope,
+      StackSample_CounterDescriptor>;
+
+  static constexpr FieldMetadata_Scope kScope{};
+  void set_scope(StackSample_CounterDescriptor_Scope value) {
+    static constexpr uint32_t field_id = FieldMetadata_Scope::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kEnum>
+        ::Append(*this, field_id, value);
+  }
+};
+
+class StackSample_ExecutionContext_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/3> {
+ public:
+  StackSample_ExecutionContext_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit StackSample_ExecutionContext_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit StackSample_ExecutionContext_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_iid() const { return at<1>().valid(); }
+  uint64_t iid() const { return at<1>().as_uint64(); }
+  bool has_cpu() const { return at<2>().valid(); }
+  uint32_t cpu() const { return at<2>().as_uint32(); }
+  bool has_mode() const { return at<3>().valid(); }
+  int32_t mode() const { return at<3>().as_int32(); }
+};
+
+class StackSample_ExecutionContext : public ::protozero::Message {
+ public:
+  using Decoder = StackSample_ExecutionContext_Decoder;
+  enum : int32_t {
+    kIidFieldNumber = 1,
+    kCpuFieldNumber = 2,
+    kModeFieldNumber = 3,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.StackSample.ExecutionContext"; }
+
+
+  using FieldMetadata_Iid =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_ExecutionContext>;
+
+  static constexpr FieldMetadata_Iid kIid{};
+  void set_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Iid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Cpu =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      StackSample_ExecutionContext>;
+
+  static constexpr FieldMetadata_Cpu kCpu{};
+  void set_cpu(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Cpu::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Mode =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kEnum,
+      StackSample_Mode,
+      StackSample_ExecutionContext>;
+
+  static constexpr FieldMetadata_Mode kMode{};
+  void set_mode(StackSample_Mode value) {
+    static constexpr uint32_t field_id = FieldMetadata_Mode::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kEnum>
+        ::Append(*this, field_id, value);
+  }
+};
+
+class StackSample_AsyncContextDescriptor_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/4> {
+ public:
+  StackSample_AsyncContextDescriptor_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit StackSample_AsyncContextDescriptor_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit StackSample_AsyncContextDescriptor_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_iid() const { return at<1>().valid(); }
+  uint64_t iid() const { return at<1>().as_uint64(); }
+  bool has_name() const { return at<2>().valid(); }
+  ::protozero::ConstChars name() const { return at<2>().as_string(); }
+  bool has_kind() const { return at<3>().valid(); }
+  ::protozero::ConstChars kind() const { return at<3>().as_string(); }
+  bool has_parent_iid() const { return at<4>().valid(); }
+  uint64_t parent_iid() const { return at<4>().as_uint64(); }
+};
+
+class StackSample_AsyncContextDescriptor : public ::protozero::Message {
+ public:
+  using Decoder = StackSample_AsyncContextDescriptor_Decoder;
+  enum : int32_t {
+    kIidFieldNumber = 1,
+    kNameFieldNumber = 2,
+    kKindFieldNumber = 3,
+    kParentIidFieldNumber = 4,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.StackSample.AsyncContextDescriptor"; }
+
+
+  using FieldMetadata_Iid =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_AsyncContextDescriptor>;
+
+  static constexpr FieldMetadata_Iid kIid{};
+  void set_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Iid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Name =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSample_AsyncContextDescriptor>;
+
+  static constexpr FieldMetadata_Name kName{};
+  void set_name(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_Name::kFieldId, data, size);
+  }
+  void set_name(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_Name::kFieldId, chars.data, chars.size);
+  }
+  void set_name(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_Name::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Kind =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      StackSample_AsyncContextDescriptor>;
+
+  static constexpr FieldMetadata_Kind kKind{};
+  void set_kind(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_Kind::kFieldId, data, size);
+  }
+  void set_kind(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_Kind::kFieldId, chars.data, chars.size);
+  }
+  void set_kind(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_Kind::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_ParentIid =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_AsyncContextDescriptor>;
+
+  static constexpr FieldMetadata_ParentIid kParentIid{};
+  void set_parent_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_ParentIid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+};
+
+class StackSample_TaskContext_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/4> {
+ public:
+  StackSample_TaskContext_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit StackSample_TaskContext_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit StackSample_TaskContext_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_iid() const { return at<1>().valid(); }
+  uint64_t iid() const { return at<1>().as_uint64(); }
+  bool has_pid() const { return at<2>().valid(); }
+  uint32_t pid() const { return at<2>().as_uint32(); }
+  bool has_tid() const { return at<3>().valid(); }
+  uint32_t tid() const { return at<3>().as_uint32(); }
+  bool has_async_id() const { return at<4>().valid(); }
+  uint64_t async_id() const { return at<4>().as_uint64(); }
+};
+
+class StackSample_TaskContext : public ::protozero::Message {
+ public:
+  using Decoder = StackSample_TaskContext_Decoder;
+  enum : int32_t {
+    kIidFieldNumber = 1,
+    kPidFieldNumber = 2,
+    kTidFieldNumber = 3,
+    kAsyncIdFieldNumber = 4,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.StackSample.TaskContext"; }
+
+
+  using FieldMetadata_Iid =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_TaskContext>;
+
+  static constexpr FieldMetadata_Iid kIid{};
+  void set_iid(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Iid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Pid =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      StackSample_TaskContext>;
+
+  static constexpr FieldMetadata_Pid kPid{};
+  void set_pid(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Pid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_Tid =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      StackSample_TaskContext>;
+
+  static constexpr FieldMetadata_Tid kTid{};
+  void set_tid(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_Tid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_AsyncId =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      StackSample_TaskContext>;
+
+  static constexpr FieldMetadata_AsyncId kAsyncId{};
+  void set_async_id(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_AsyncId::kFieldId;
     // Call the appropriate protozero::Message::Append(field_id, ...)
     // method based on the type of the field.
     ::protozero::internal::FieldWriter<
@@ -177679,6 +177146,219 @@ class SystemdJournaldEvent : public ::protozero::Message {
 } // Namespace.
 } // Namespace.
 #endif  // Include guard.
+// gen_amalgamated begin header: gen/protos/perfetto/trace/perfetto/concurrent_session_event.pbzero.h
+// Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
+
+#ifndef PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_PERFETTO_CONCURRENT_SESSION_EVENT_PROTO_H_
+#define PERFETTO_PROTOS_PROTOS_PERFETTO_TRACE_PERFETTO_CONCURRENT_SESSION_EVENT_PROTO_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+// gen_amalgamated expanded: #include "perfetto/protozero/field_writer.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/message.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/packed_repeated_fields.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_decoder.h"
+// gen_amalgamated expanded: #include "perfetto/protozero/proto_utils.h"
+
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+namespace perfetto_pbzero_enum_ConcurrentSessionEvent {
+enum State : int32_t;
+}  // namespace perfetto_pbzero_enum_ConcurrentSessionEvent
+using ConcurrentSessionEvent_State = perfetto_pbzero_enum_ConcurrentSessionEvent::State;
+} // Namespace pbzero.
+} // Namespace protos.
+} // Namespace perfetto.
+
+namespace perfetto {
+namespace protos {
+namespace pbzero {
+
+namespace perfetto_pbzero_enum_ConcurrentSessionEvent {
+enum State : int32_t {
+  STATE_UNSPECIFIED = 0,
+  STATE_DISABLED = 1,
+  STATE_CONFIGURED = 2,
+  STATE_STARTED = 3,
+  STATE_DISABLING_WAITING_STOP_ACKS = 4,
+  STATE_CLONED_READ_ONLY = 5,
+};
+} // namespace perfetto_pbzero_enum_ConcurrentSessionEvent
+using ConcurrentSessionEvent_State = perfetto_pbzero_enum_ConcurrentSessionEvent::State;
+
+
+constexpr ConcurrentSessionEvent_State ConcurrentSessionEvent_State_MIN = ConcurrentSessionEvent_State::STATE_UNSPECIFIED;
+constexpr ConcurrentSessionEvent_State ConcurrentSessionEvent_State_MAX = ConcurrentSessionEvent_State::STATE_CLONED_READ_ONLY;
+
+
+PERFETTO_PROTOZERO_CONSTEXPR14_OR_INLINE
+const char* ConcurrentSessionEvent_State_Name(::perfetto::protos::pbzero::ConcurrentSessionEvent_State value) {
+  switch (value) {
+  case ::perfetto::protos::pbzero::ConcurrentSessionEvent_State::STATE_UNSPECIFIED:
+    return "STATE_UNSPECIFIED";
+
+  case ::perfetto::protos::pbzero::ConcurrentSessionEvent_State::STATE_DISABLED:
+    return "STATE_DISABLED";
+
+  case ::perfetto::protos::pbzero::ConcurrentSessionEvent_State::STATE_CONFIGURED:
+    return "STATE_CONFIGURED";
+
+  case ::perfetto::protos::pbzero::ConcurrentSessionEvent_State::STATE_STARTED:
+    return "STATE_STARTED";
+
+  case ::perfetto::protos::pbzero::ConcurrentSessionEvent_State::STATE_DISABLING_WAITING_STOP_ACKS:
+    return "STATE_DISABLING_WAITING_STOP_ACKS";
+
+  case ::perfetto::protos::pbzero::ConcurrentSessionEvent_State::STATE_CLONED_READ_ONLY:
+    return "STATE_CLONED_READ_ONLY";
+  }
+  return "PBZERO_UNKNOWN_ENUM_VALUE";
+}
+
+class ConcurrentSessionEvent_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/5> {
+ public:
+  ConcurrentSessionEvent_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
+  explicit ConcurrentSessionEvent_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
+  explicit ConcurrentSessionEvent_Decoder(const ::protozero::ConstBytes& raw) : TypedProtoDecoder(raw.data, raw.size) {}
+  bool has_state() const { return at<1>().valid(); }
+  int32_t state() const { return at<1>().as_int32(); }
+  bool has_session_name() const { return at<2>().valid(); }
+  ::protozero::ConstChars session_name() const { return at<2>().as_string(); }
+  bool has_session_id() const { return at<3>().valid(); }
+  uint64_t session_id() const { return at<3>().as_uint64(); }
+  bool has_consumer_uid() const { return at<4>().valid(); }
+  int32_t consumer_uid() const { return at<4>().as_int32(); }
+  bool has_num_data_sources() const { return at<5>().valid(); }
+  uint32_t num_data_sources() const { return at<5>().as_uint32(); }
+};
+
+class ConcurrentSessionEvent : public ::protozero::Message {
+ public:
+  using Decoder = ConcurrentSessionEvent_Decoder;
+  enum : int32_t {
+    kStateFieldNumber = 1,
+    kSessionNameFieldNumber = 2,
+    kSessionIdFieldNumber = 3,
+    kConsumerUidFieldNumber = 4,
+    kNumDataSourcesFieldNumber = 5,
+  };
+  static constexpr const char* GetName() { return ".perfetto.protos.ConcurrentSessionEvent"; }
+
+
+  using State = ::perfetto::protos::pbzero::ConcurrentSessionEvent_State;
+  static inline const char* State_Name(State value) {
+    return ::perfetto::protos::pbzero::ConcurrentSessionEvent_State_Name(value);
+  }
+  static inline const State STATE_UNSPECIFIED = State::STATE_UNSPECIFIED;
+  static inline const State STATE_DISABLED = State::STATE_DISABLED;
+  static inline const State STATE_CONFIGURED = State::STATE_CONFIGURED;
+  static inline const State STATE_STARTED = State::STATE_STARTED;
+  static inline const State STATE_DISABLING_WAITING_STOP_ACKS = State::STATE_DISABLING_WAITING_STOP_ACKS;
+  static inline const State STATE_CLONED_READ_ONLY = State::STATE_CLONED_READ_ONLY;
+
+  using FieldMetadata_State =
+    ::protozero::proto_utils::FieldMetadata<
+      1,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kEnum,
+      ConcurrentSessionEvent_State,
+      ConcurrentSessionEvent>;
+
+  static constexpr FieldMetadata_State kState{};
+  void set_state(ConcurrentSessionEvent_State value) {
+    static constexpr uint32_t field_id = FieldMetadata_State::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kEnum>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_SessionName =
+    ::protozero::proto_utils::FieldMetadata<
+      2,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kString,
+      std::string,
+      ConcurrentSessionEvent>;
+
+  static constexpr FieldMetadata_SessionName kSessionName{};
+  void set_session_name(const char* data, size_t size) {
+    AppendBytes(FieldMetadata_SessionName::kFieldId, data, size);
+  }
+  void set_session_name(::protozero::ConstChars chars) {
+    AppendBytes(FieldMetadata_SessionName::kFieldId, chars.data, chars.size);
+  }
+  void set_session_name(std::string value) {
+    static constexpr uint32_t field_id = FieldMetadata_SessionName::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kString>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_SessionId =
+    ::protozero::proto_utils::FieldMetadata<
+      3,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint64,
+      uint64_t,
+      ConcurrentSessionEvent>;
+
+  static constexpr FieldMetadata_SessionId kSessionId{};
+  void set_session_id(uint64_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_SessionId::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint64>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_ConsumerUid =
+    ::protozero::proto_utils::FieldMetadata<
+      4,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kInt32,
+      int32_t,
+      ConcurrentSessionEvent>;
+
+  static constexpr FieldMetadata_ConsumerUid kConsumerUid{};
+  void set_consumer_uid(int32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_ConsumerUid::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kInt32>
+        ::Append(*this, field_id, value);
+  }
+
+  using FieldMetadata_NumDataSources =
+    ::protozero::proto_utils::FieldMetadata<
+      5,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kUint32,
+      uint32_t,
+      ConcurrentSessionEvent>;
+
+  static constexpr FieldMetadata_NumDataSources kNumDataSources{};
+  void set_num_data_sources(uint32_t value) {
+    static constexpr uint32_t field_id = FieldMetadata_NumDataSources::kFieldId;
+    // Call the appropriate protozero::Message::Append(field_id, ...)
+    // method based on the type of the field.
+    ::protozero::internal::FieldWriter<
+      ::protozero::proto_utils::ProtoSchemaType::kUint32>
+        ::Append(*this, field_id, value);
+  }
+};
+
+} // Namespace.
+} // Namespace.
+} // Namespace.
+#endif  // Include guard.
 // gen_amalgamated begin header: gen/protos/perfetto/trace/perfetto/perfetto_metatrace.pbzero.h
 // Autogenerated by the ProtoZero compiler plugin. DO NOT EDIT.
 
@@ -184176,6 +183856,7 @@ namespace perfetto {
 namespace protos {
 namespace pbzero {
 class PerfSampleDefaults;
+class StackSampleDefaults;
 class TrackEventDefaults;
 class V8CodeDefaults;
 } // Namespace pbzero.
@@ -184186,7 +183867,7 @@ namespace perfetto {
 namespace protos {
 namespace pbzero {
 
-class TracePacketDefaults_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/99> {
+class TracePacketDefaults_Decoder : public ::protozero::TypedProtoDecoder</*MAX_FIELD_ID=*/100> {
  public:
   TracePacketDefaults_Decoder(const uint8_t* data, size_t len) : TypedProtoDecoder(data, len) {}
   explicit TracePacketDefaults_Decoder(const std::string& raw) : TypedProtoDecoder(reinterpret_cast<const uint8_t*>(raw.data()), raw.size()) {}
@@ -184197,6 +183878,8 @@ class TracePacketDefaults_Decoder : public ::protozero::TypedProtoDecoder</*MAX_
   ::protozero::ConstBytes track_event_defaults() const { return at<11>().as_bytes(); }
   bool has_perf_sample_defaults() const { return at<12>().valid(); }
   ::protozero::ConstBytes perf_sample_defaults() const { return at<12>().as_bytes(); }
+  bool has_stack_sample_defaults() const { return at<100>().valid(); }
+  ::protozero::ConstBytes stack_sample_defaults() const { return at<100>().as_bytes(); }
   bool has_v8_code_defaults() const { return at<99>().valid(); }
   ::protozero::ConstBytes v8_code_defaults() const { return at<99>().as_bytes(); }
 };
@@ -184208,6 +183891,7 @@ class TracePacketDefaults : public ::protozero::Message {
     kTimestampClockIdFieldNumber = 58,
     kTrackEventDefaultsFieldNumber = 11,
     kPerfSampleDefaultsFieldNumber = 12,
+    kStackSampleDefaultsFieldNumber = 100,
     kV8CodeDefaultsFieldNumber = 99,
   };
   static constexpr const char* GetName() { return ".perfetto.protos.TracePacketDefaults"; }
@@ -184256,6 +183940,20 @@ class TracePacketDefaults : public ::protozero::Message {
   static constexpr FieldMetadata_PerfSampleDefaults kPerfSampleDefaults{};
   template <typename T = PerfSampleDefaults> T* set_perf_sample_defaults() {
     return BeginNestedMessage<T>(12);
+  }
+
+
+  using FieldMetadata_StackSampleDefaults =
+    ::protozero::proto_utils::FieldMetadata<
+      100,
+      ::protozero::proto_utils::RepetitionType::kNotRepeated,
+      ::protozero::proto_utils::ProtoSchemaType::kMessage,
+      StackSampleDefaults,
+      TracePacketDefaults>;
+
+  static constexpr FieldMetadata_StackSampleDefaults kStackSampleDefaults{};
+  template <typename T = StackSampleDefaults> T* set_stack_sample_defaults() {
+    return BeginNestedMessage<T>(100);
   }
 
 
@@ -189882,8 +189580,8 @@ class LogMessage;
 class TaskExecution;
 class DebugAnnotation;
 class DebugAnnotation_NestedValue;
-class TrackEvent_Callstack;
-class TrackEvent_Callstack_Frame;
+class TrackEvent_InlineCallstack;
+class TrackEvent_InlineCallstack_Frame;
 enum TrackEvent_Type : int;
 enum TrackEvent_LegacyEvent_FlowDirection : int;
 enum TrackEvent_LegacyEvent_InstantEventScope : int;
@@ -190078,7 +189776,7 @@ class PERFETTO_EXPORT_COMPONENT TrackEventDefaults : public ::protozero::CppMess
 
 class PERFETTO_EXPORT_COMPONENT TrackEvent : public ::protozero::CppMessageObj {
  public:
-  using Callstack = TrackEvent_Callstack;
+  using InlineCallstack = TrackEvent_InlineCallstack;
   using LegacyEvent = TrackEvent_LegacyEvent;
   using Type = TrackEvent_Type;
   static constexpr auto TYPE_UNSPECIFIED = TrackEvent_Type_TYPE_UNSPECIFIED;
@@ -190111,6 +189809,7 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent : public ::protozero::CppMessageObj {
     kCorrelationIdStrIidFieldNumber = 54,
     kCallstackFieldNumber = 55,
     kCallstackIidFieldNumber = 56,
+    kCallstackWeightFieldNumber = 57,
     kDebugAnnotationsFieldNumber = 4,
     kTaskExecutionFieldNumber = 5,
     kLogMessageFieldNumber = 21,
@@ -190261,12 +189960,16 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent : public ::protozero::CppMessageObj {
   void set_correlation_id_str_iid(uint64_t value) { correlation_id_str_iid_ = value; _has_field_.set(54); }
 
   bool has_callstack() const { return _has_field_[55]; }
-  const TrackEvent_Callstack& callstack() const { return *callstack_; }
-  TrackEvent_Callstack* mutable_callstack() { _has_field_.set(55); return callstack_.get(); }
+  const TrackEvent_InlineCallstack& callstack() const { return *callstack_; }
+  TrackEvent_InlineCallstack* mutable_callstack() { _has_field_.set(55); return callstack_.get(); }
 
   bool has_callstack_iid() const { return _has_field_[56]; }
   uint64_t callstack_iid() const { return callstack_iid_; }
   void set_callstack_iid(uint64_t value) { callstack_iid_ = value; _has_field_.set(56); }
+
+  bool has_callstack_weight() const { return _has_field_[57]; }
+  double callstack_weight() const { return callstack_weight_; }
+  void set_callstack_weight(double value) { callstack_weight_ = value; _has_field_.set(57); }
 
   const std::vector<DebugAnnotation>& debug_annotations() const { return debug_annotations_; }
   std::vector<DebugAnnotation>* mutable_debug_annotations() { return &debug_annotations_; }
@@ -190398,8 +190101,9 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent : public ::protozero::CppMessageObj {
   uint64_t correlation_id_{};
   std::string correlation_id_str_{};
   uint64_t correlation_id_str_iid_{};
-  ::protozero::CopyablePtr<TrackEvent_Callstack> callstack_;
+  ::protozero::CopyablePtr<TrackEvent_InlineCallstack> callstack_;
   uint64_t callstack_iid_{};
+  double callstack_weight_{};
   std::vector<DebugAnnotation> debug_annotations_;
   ::protozero::CopyablePtr<TaskExecution> task_execution_;
   ::protozero::CopyablePtr<LogMessage> log_message_;
@@ -190432,7 +190136,7 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent : public ::protozero::CppMessageObj {
   // with future versions of .proto files.
   std::string unknown_fields_;
 
-  std::bitset<57> _has_field_{};
+  std::bitset<58> _has_field_{};
 };
 
 
@@ -190575,35 +190279,35 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent_LegacyEvent : public ::protozero::Cpp
 };
 
 
-class PERFETTO_EXPORT_COMPONENT TrackEvent_Callstack : public ::protozero::CppMessageObj {
+class PERFETTO_EXPORT_COMPONENT TrackEvent_InlineCallstack : public ::protozero::CppMessageObj {
  public:
-  using Frame = TrackEvent_Callstack_Frame;
+  using Frame = TrackEvent_InlineCallstack_Frame;
   enum FieldNumbers {
     kFramesFieldNumber = 1,
   };
 
-  TrackEvent_Callstack();
-  ~TrackEvent_Callstack() override;
-  TrackEvent_Callstack(TrackEvent_Callstack&&) noexcept;
-  TrackEvent_Callstack& operator=(TrackEvent_Callstack&&);
-  TrackEvent_Callstack(const TrackEvent_Callstack&);
-  TrackEvent_Callstack& operator=(const TrackEvent_Callstack&);
-  bool operator==(const TrackEvent_Callstack&) const;
-  bool operator!=(const TrackEvent_Callstack& other) const { return !(*this == other); }
+  TrackEvent_InlineCallstack();
+  ~TrackEvent_InlineCallstack() override;
+  TrackEvent_InlineCallstack(TrackEvent_InlineCallstack&&) noexcept;
+  TrackEvent_InlineCallstack& operator=(TrackEvent_InlineCallstack&&);
+  TrackEvent_InlineCallstack(const TrackEvent_InlineCallstack&);
+  TrackEvent_InlineCallstack& operator=(const TrackEvent_InlineCallstack&);
+  bool operator==(const TrackEvent_InlineCallstack&) const;
+  bool operator!=(const TrackEvent_InlineCallstack& other) const { return !(*this == other); }
 
   bool ParseFromArray(const void*, size_t) override;
   std::string SerializeAsString() const override;
   std::vector<uint8_t> SerializeAsArray() const override;
   void Serialize(::protozero::Message*) const;
 
-  const std::vector<TrackEvent_Callstack_Frame>& frames() const { return frames_; }
-  std::vector<TrackEvent_Callstack_Frame>* mutable_frames() { return &frames_; }
+  const std::vector<TrackEvent_InlineCallstack_Frame>& frames() const { return frames_; }
+  std::vector<TrackEvent_InlineCallstack_Frame>* mutable_frames() { return &frames_; }
   int frames_size() const;
   void clear_frames();
-  TrackEvent_Callstack_Frame* add_frames();
+  TrackEvent_InlineCallstack_Frame* add_frames();
 
  private:
-  std::vector<TrackEvent_Callstack_Frame> frames_;
+  std::vector<TrackEvent_InlineCallstack_Frame> frames_;
 
   // Allows to preserve unknown protobuf fields for compatibility
   // with future versions of .proto files.
@@ -190613,7 +190317,7 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent_Callstack : public ::protozero::CppMe
 };
 
 
-class PERFETTO_EXPORT_COMPONENT TrackEvent_Callstack_Frame : public ::protozero::CppMessageObj {
+class PERFETTO_EXPORT_COMPONENT TrackEvent_InlineCallstack_Frame : public ::protozero::CppMessageObj {
  public:
   enum FieldNumbers {
     kFunctionNameFieldNumber = 1,
@@ -190621,14 +190325,14 @@ class PERFETTO_EXPORT_COMPONENT TrackEvent_Callstack_Frame : public ::protozero:
     kLineNumberFieldNumber = 3,
   };
 
-  TrackEvent_Callstack_Frame();
-  ~TrackEvent_Callstack_Frame() override;
-  TrackEvent_Callstack_Frame(TrackEvent_Callstack_Frame&&) noexcept;
-  TrackEvent_Callstack_Frame& operator=(TrackEvent_Callstack_Frame&&);
-  TrackEvent_Callstack_Frame(const TrackEvent_Callstack_Frame&);
-  TrackEvent_Callstack_Frame& operator=(const TrackEvent_Callstack_Frame&);
-  bool operator==(const TrackEvent_Callstack_Frame&) const;
-  bool operator!=(const TrackEvent_Callstack_Frame& other) const { return !(*this == other); }
+  TrackEvent_InlineCallstack_Frame();
+  ~TrackEvent_InlineCallstack_Frame() override;
+  TrackEvent_InlineCallstack_Frame(TrackEvent_InlineCallstack_Frame&&) noexcept;
+  TrackEvent_InlineCallstack_Frame& operator=(TrackEvent_InlineCallstack_Frame&&);
+  TrackEvent_InlineCallstack_Frame(const TrackEvent_InlineCallstack_Frame&);
+  TrackEvent_InlineCallstack_Frame& operator=(const TrackEvent_InlineCallstack_Frame&);
+  bool operator==(const TrackEvent_InlineCallstack_Frame&) const;
+  bool operator!=(const TrackEvent_InlineCallstack_Frame& other) const { return !(*this == other); }
 
   bool ParseFromArray(const void*, size_t) override;
   std::string SerializeAsString() const override;
@@ -190714,11 +190418,11 @@ class TraceStats;
 class TraceStats_FilterStats;
 class TraceStats_WriterStats;
 class TraceStats_BufferStats;
-class TraceStats_BufferStats_ShadowBufferStats;
 class GetTraceStatsRequest;
 class AttachResponse;
 class TraceConfig;
-class TraceConfig_Note;
+class TraceAttributes;
+class TraceAttributes_Attribute;
 class PriorityBoostConfig;
 class TraceConfig_SessionSemaphore;
 class TraceConfig_CmdTraceStartDelay;
@@ -190727,6 +190431,9 @@ class TraceConfig_TraceFilter;
 class TraceConfig_TraceFilter_StringFilterChain;
 class TraceConfig_TraceFilter_StringFilterRule;
 class TraceConfig_IncidentReportConfig;
+class TraceConfig_CompressionConfig;
+class TraceConfig_CompressionConfig_Zstd;
+class TraceConfig_CompressionConfig_Deflate;
 class TraceConfig_IncrementalStateConfig;
 class TraceConfig_TriggerConfig;
 class TraceConfig_TriggerConfig_Trigger;
