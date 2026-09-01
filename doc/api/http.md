@@ -4629,9 +4629,8 @@ The `NO_PROXY` environment variable supports several formats:
   subdomains)
 
 Multiple entries should be separated by commas; empty entries are ignored.
-IP addresses never participate in domain suffix matching: an IP entry only
-bypasses the exact same IP, and no domain entry can bypass a host that is
-an IP address literal.
+A plain or leading-dot IP entry matches only that exact IP, and no domain
+entry can bypass a host that is an IP address literal.
 
 ### Example
 
