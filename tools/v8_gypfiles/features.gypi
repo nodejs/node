@@ -565,6 +565,9 @@
     'defines': [
       'V8_GYP_BUILD',
       'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=<(v8_typed_array_max_size_in_heap)',
+      # See deps/v8/src/objects/instance-types-gen.h and
+      # https://github.com/nodejs/build/issues/4350
+      'V8_USE_METAGEN_INSTANCE_TYPES=0',
     ],  # defines
   },  # target_defaults
 }
