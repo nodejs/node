@@ -218,6 +218,7 @@ class ThreadSafeFunction {
                        node::Utf8Value(env_->isolate, name).ToStringView()),
         thread_count(thread_count_),
         state(kOpen),
+        resources_released(false),
         dispatch_state(kDispatchIdle),
         context(context_),
         max_queue_size(max_queue_size_),
@@ -320,17 +321,22 @@ class ThreadSafeFunction {
   }
 
   void MaybeDelete() {
+    bool delete_this;
     {
       node::Mutex::ScopedLock lock(this->mutex);
-      if (thread_count > 0) {
-        // At this point this TSFN is effectively done, but we need to keep
-        // it alive for other threads that still have pointers to it until
-        // they release them.
-        // But we already release all the resources that we can at this point
-        ReleaseResources();
-        return;
-      }
+      state = kResourceCleanup;
     }
+
+    ReleaseResources();
+
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
+      state = kClosed;
+      delete_this = thread_count == 0;
+    }
+
+    if (!delete_this) return;
+
     // Make sure to release lock before destroying
     delete this;
   }
@@ -384,8 +390,8 @@ class ThreadSafeFunction {
 
  protected:
   void ReleaseResources() {
-    if (state != kClosed) {
-      state = kClosed;
+    if (!resources_released) {
+      resources_released = true;
       ref.Reset();
       node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
       env->Unref();
@@ -553,7 +559,7 @@ class ThreadSafeFunction {
     using node::AsyncResource::CallbackScope;
   };
 
-  enum State : unsigned char { kOpen, kClosing, kClosed };
+  enum State : unsigned char { kOpen, kClosing, kResourceCleanup, kClosed };
 
   static const unsigned char kDispatchIdle = 0;
   static const unsigned char kDispatchRunning = 1 << 0;
@@ -570,6 +576,8 @@ class ThreadSafeFunction {
   uv_async_t async;
   size_t thread_count;
   State state;
+
+  bool resources_released;
   std::atomic_uchar dispatch_state;
 
   // These are variables set once, upon creation, and then never again, which
