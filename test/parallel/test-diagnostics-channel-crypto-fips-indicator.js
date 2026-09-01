@@ -37,11 +37,8 @@ if (!hasOpenSSL(3, 4)) {
 }
 
 function nextIndicator() {
-  let resolve;
   const keepAlive = setInterval(common.mustNotCall(), 10_000);
-  const promise = new Promise((fulfill) => {
-    resolve = fulfill;
-  });
+  const { promise, resolve } = Promise.withResolvers();
   const subscriber = common.mustCall((event, name) => {
     assert.strictEqual(name, channelName);
     clearInterval(keepAlive);
@@ -80,11 +77,8 @@ async function testNoStaleIndicator(key) {
 async function run() {
   const key = Buffer.alloc(13);
 
-  let resolveProbe;
   const keepAlive = setInterval(common.mustNotCall(), 10_000);
-  const probeEvent = new Promise((resolve) => {
-    resolveProbe = resolve;
-  });
+  const { promise, resolve: resolveProbe } = Promise.withResolvers();
   const probeSubscriber = (event) => {
     clearInterval(keepAlive);
     diagnosticsChannel.unsubscribe(channelName, probeSubscriber);
@@ -105,7 +99,7 @@ async function run() {
   }
 
   assert.strictEqual(output.byteLength, 32);
-  assert.deepStrictEqual(await probeEvent, {
+  assert.deepStrictEqual(await promise, {
     operation: 'HMAC',
     reason: 'keysize',
     blocked: false,
