@@ -31,6 +31,11 @@ const vfs = require('node:vfs');
   // statfs
   const sfs = await fsp.statfs(p('src/hello.txt'));
   assert.strictEqual(typeof sfs.bsize, 'number');
+  await assert.rejects(fsp.statfs(p('missing')), {
+    code: 'ENOENT',
+    syscall: 'statfs',
+    path: p('missing'),
+  });
 
   // Path-based writes
   await fsp.writeFile(p('src/pw.txt'), 'pdata');
