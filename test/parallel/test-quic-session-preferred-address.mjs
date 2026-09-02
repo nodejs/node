@@ -85,6 +85,8 @@ const clientSession = await connect(serverEndpoint.address, {
 const initialPath = clientSession.path;
 assertEqualAddress(initialPath.local, clientSession.endpoint.address);
 assertEqualAddress(initialPath.remote, serverEndpoint.address);
+// Freezing the cached object must not prevent internal address refreshes.
+Object.freeze(initialPath);
 await clientSession.opened;
 
 // Send two datagrams.
