@@ -436,6 +436,7 @@
   V(dtls_context_constructor_template, v8::FunctionTemplate)                   \
   V(dtls_endpoint_constructor_template, v8::FunctionTemplate)                  \
   V(dtls_session_constructor_template, v8::FunctionTemplate)                   \
+  V(glob_request_template, v8::FunctionTemplate)                               \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
