@@ -113,6 +113,25 @@ t.test('dry run', async t => {
   t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
+for (const allowDirectory of ['none', 'root']) {
+  t.test(`dry run with allow-directory=${allowDirectory}`, async t => {
+    const { npm, outputs } = await loadMockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'test-package',
+          version: '1.0.0',
+        }),
+      },
+      config: {
+        'allow-directory': allowDirectory,
+        'dry-run': true,
+      },
+    })
+    await npm.exec('pack', [])
+    t.strictSame(outputs, ['test-package-1.0.0.tgz'])
+  })
+}
+
 t.test('foreground-scripts defaults to true', async t => {
   const { npm, outputs, logs } = await loadMockNpm(t, {
     prefixDir: {
