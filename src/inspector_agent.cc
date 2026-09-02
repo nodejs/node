@@ -72,18 +72,17 @@ using v8_inspector::V8InspectorClient;
 #ifdef __POSIX__
 static uv_sem_t start_io_thread_semaphore;
 #endif  // __POSIX__
-static uv_async_t start_io_thread_async;
-// This is just an additional check to make sure start_io_thread_async
-// is not accidentally re-used or used when uninitialized.
-static std::atomic_bool start_io_thread_async_initialized { false };
-// Protects the Agent* stored in start_io_thread_async.data.
-static Mutex start_io_thread_async_mutex;
+// Agents that asked for the debug signal handler; SIGUSR1 (or the Windows
+// remote thread) starts the io thread of each. The mutex also guards the
+// once-per-process watchdog setup.
+static Mutex start_io_thread_agents_mutex;
+static std::vector<Agent*> start_io_thread_agents;
+static bool debug_signal_handler_started = false;
 
-// Called on the main thread.
-void StartIoThreadAsyncCallback(uv_async_t* handle) {
-  static_cast<Agent*>(handle->data)->StartIoThread();
+static void RequestIoThreadStartOnAgents() {
+  Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+  for (Agent* agent : start_io_thread_agents) agent->RequestIoThreadStart();
 }
-
 
 #ifdef __POSIX__
 static void StartIoThreadWakeup(int signo, siginfo_t* info, void* ucontext) {
@@ -94,16 +93,11 @@ inline void* StartIoThreadMain(void* unused) {
   uv_thread_setname("SignalInspector");
   for (;;) {
     uv_sem_wait(&start_io_thread_semaphore);
-    Mutex::ScopedLock lock(start_io_thread_async_mutex);
-
-    CHECK(start_io_thread_async_initialized);
-    Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
-    if (agent != nullptr)
-      agent->RequestIoThreadStart();
+    RequestIoThreadStartOnAgents();
   }
 }
 
-static int StartDebugSignalHandler() {
+static int StartWatchdogThread() {
   // Start a watchdog thread for calling v8::Debug::DebugBreak() because
   // it's not safe to call directly from the signal handler, it can
   // deadlock with the thread it interrupts.
@@ -138,14 +132,28 @@ static int StartDebugSignalHandler() {
     fprintf(stderr, "node[%u]: pthread_create: %s\n",
             uv_os_getpid(), strerror(err));
     fflush(stderr);
-    // Leave SIGUSR1 blocked.  We don't install a signal handler,
-    // receiving the signal would terminate the process.
+    uv_sem_destroy(&start_io_thread_semaphore);
     return -err;
   }
   RegisterSignalHandler(SIGUSR1, StartIoThreadWakeup);
   // Restore original mask
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
-  // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
+  return 0;
+}
+
+static int StartDebugSignalHandler() {
+  {
+    Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+    if (!debug_signal_handler_started) {
+      // Leave SIGUSR1 blocked on failure. We don't install a signal handler,
+      // receiving the signal would terminate the process.
+      if (int err = StartWatchdogThread()) return err;
+      debug_signal_handler_started = true;
+    }
+  }
+  // Unblock SIGUSR1 on this thread; PlatformInit() left it blocked. A pending
+  // SIGUSR1 signal will now be delivered.
+  sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
   CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
@@ -156,11 +164,7 @@ static int StartDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI StartIoThreadProc(void* arg) {
-  Mutex::ScopedLock lock(start_io_thread_async_mutex);
-  CHECK(start_io_thread_async_initialized);
-  Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
-  if (agent != nullptr)
-    agent->RequestIoThreadStart();
+  RequestIoThreadStartOnAgents();
   return 0;
 }
 
@@ -170,6 +174,9 @@ static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
 }
 
 static int StartDebugSignalHandler() {
+  Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+  if (debug_signal_handler_started) return 0;
+  debug_signal_handler_started = true;
   wchar_t mapping_name[32];
   HANDLE mapping_handle;
   DWORD pid;
@@ -845,7 +852,21 @@ Agent::Agent(Environment* env)
       debug_options_(env->options()->debug_options()),
       host_port_(env->inspector_host_port()) {}
 
-Agent::~Agent() = default;
+Agent::~Agent() {
+  StopAcceptingIoThreadStarts();
+}
+
+void Agent::StopAcceptingIoThreadStarts() {
+  if (start_io_thread_async_ == nullptr) return;
+  {
+    Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+    std::erase(start_io_thread_agents, this);
+  }
+  parent_env_->RemoveCleanupHook(StopAcceptingIoThreadStartsHook, this);
+  parent_env_->CloseHandle(start_io_thread_async_,
+                           [](uv_async_t* handle) { delete handle; });
+  start_io_thread_async_ = nullptr;
+}
 
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
@@ -857,33 +878,25 @@ bool Agent::Start(const std::string& path,
   host_port_ = host_port;
 
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
-  if (parent_env_->owns_inspector()) {
-    Mutex::ScopedLock lock(start_io_thread_async_mutex);
-    CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
-    CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
-                              &start_io_thread_async,
-                              StartIoThreadAsyncCallback));
-    uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
-    start_io_thread_async.data = this;
-    if (parent_env_->should_start_debug_signal_handler()) {
-      // Ignore failure, SIGUSR1 won't work, but that should not block node
-      // start.
-      StartDebugSignalHandler();
+  if (parent_env_->owns_inspector() &&
+      parent_env_->should_start_debug_signal_handler()) {
+    start_io_thread_async_ = new uv_async_t;
+    start_io_thread_async_->data = this;
+    CHECK_EQ(0,
+             uv_async_init(parent_env_->event_loop(),
+                           start_io_thread_async_,
+                           [](uv_async_t* handle) {
+                             static_cast<Agent*>(handle->data)->StartIoThread();
+                           }));
+    uv_unref(reinterpret_cast<uv_handle_t*>(start_io_thread_async_));
+    {
+      Mutex::ScopedLock lock(start_io_thread_agents_mutex);
+      start_io_thread_agents.push_back(this);
     }
-
-    parent_env_->AddCleanupHook([](void* data) {
-      Environment* env = static_cast<Environment*>(data);
-
-      {
-        Mutex::ScopedLock lock(start_io_thread_async_mutex);
-        start_io_thread_async.data = nullptr;
-      }
-
-      // This is global, will never get freed
-      env->CloseHandle(&start_io_thread_async, [](uv_async_t*) {
-        CHECK(start_io_thread_async_initialized.exchange(false));
-      });
-    }, parent_env_);
+    parent_env_->AddCleanupHook(StopAcceptingIoThreadStartsHook, this);
+    // Ignore failure, SIGUSR1 won't work, but that should not block node
+    // start.
+    StartDebugSignalHandler();
   }
 
   AtExit(parent_env_, [](void* env) {
@@ -1162,6 +1175,10 @@ void Agent::AllAsyncTasksCanceled() {
   client_->AllAsyncTasksCanceled();
 }
 
+void Agent::StopAcceptingIoThreadStartsHook(void* agent) {
+  static_cast<Agent*>(agent)->StopAcceptingIoThreadStarts();
+}
+
 void Agent::RequestIoThreadStart() {
   // We need to attempt to interrupt V8 flow (in case Node is running
   // continuous JS code) and to wake up libuv thread (in case Node is waiting
@@ -1169,14 +1186,10 @@ void Agent::RequestIoThreadStart() {
   if (!options().allow_attaching_debugger) {
     return;
   }
-  CHECK(start_io_thread_async_initialized);
-  uv_async_send(&start_io_thread_async);
   parent_env_->RequestInterrupt([this](Environment*) {
     StartIoThread();
   });
-
-  CHECK(start_io_thread_async_initialized);
-  uv_async_send(&start_io_thread_async);
+  uv_async_send(start_io_thread_async_);
 }
 
 void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {

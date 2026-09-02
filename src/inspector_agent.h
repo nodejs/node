@@ -8,6 +8,7 @@
 #endif
 
 #include "node_options.h"
+#include "uv.h"
 #include "v8.h"
 
 #include <cstddef>
@@ -117,7 +118,8 @@ class Agent {
   // Can only be called from the main thread.
   bool StartIoThread();
 
-  // Calls StartIoThread() from off the main thread.
+  // Calls StartIoThread() from off the main thread. Only valid while the
+  // Environment owns the inspector and has not started cleanup.
   void RequestIoThreadStart();
 
   const DebugOptions& options() { return debug_options_; }
@@ -155,6 +157,12 @@ class Agent {
   bool async_hook_wanted_ = false;
   bool async_hook_enabled_ = false;
   bool syncing_async_hook_state_ = false;
+
+  // Woken by the SIGUSR1 watchdog; closed by the cleanup hook or ~Agent(),
+  // whichever runs first, and freed by its close callback.
+  uv_async_t* start_io_thread_async_ = nullptr;
+  void StopAcceptingIoThreadStarts();
+  static void StopAcceptingIoThreadStartsHook(void* agent);
 
   bool network_tracking_enabled_ = false;
   bool pending_enable_network_tracking = false;
