@@ -897,6 +897,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 			-v $(VERSION) \
 			--index doc/api/index.md \
 			--type-map doc/type-map.json \
+			--index-redirect-url documentation.html \
 		) \
 	fi
 endif
