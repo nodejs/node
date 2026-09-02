@@ -1067,10 +1067,7 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
     // whose JS wrapper (and onread) is never installed.
     if (session->is_closing()) {
       nghttp2_submit_rst_stream(
-          session->session(),
-          NGHTTP2_FLAG_NONE,
-          id,
-          NGHTTP2_CANCEL);
+          session->session(), NGHTTP2_FLAG_NONE, id, NGHTTP2_REFUSED_STREAM);
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
     }
     if (!session->CanAddStream() ||
@@ -1535,16 +1532,6 @@ void Http2StreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     PassReadErrorToPreviousListener(nread);
     return;
   }
-
-  // Streams created after a deferred session close may never get a JS
-  // wrapper (handle.onread is only set in Http2Stream[kInit]). Drop the
-  // chunk instead of asserting in CallJSOnreadMethod.
-  Local<Value> onread =
-      stream->object()
-          ->GetInternalField(StreamBase::kOnReadFunctionField)
-          .As<Value>();
-  if (!onread->IsFunction())
-    return;
 
   Local<ArrayBuffer> ab;
   if (session->stream_buf_ab_.IsEmpty()) {
