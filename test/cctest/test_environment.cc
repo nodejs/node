@@ -367,6 +367,27 @@ TEST_F(EnvironmentTest, WorkerInEnvironmentWithoutSnapshot) {
   EXPECT_EQ(node::SpinEventLoop(*env).FromJust(), 0);
 }
 
+TEST_F(EnvironmentTest, StopFromExitHandlerDoesNotLeakIntoNextEnvironment) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  {
+    Env env{handle_scope, argv};
+    node::SetProcessExitHandler(
+        *env, [](node::Environment* env_, int) { node::Stop(env_); });
+    // The uncaught exception runs the exit handler from C++ and does not
+    // re-enter JS afterwards, so nothing consumes the termination request.
+    EXPECT_TRUE(
+        node::LoadEnvironment(*env, "throw new Error('uncaught')").IsEmpty());
+    EXPECT_TRUE(node::SpinEventLoop(*env).IsNothing());
+  }
+  {
+    Env env{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+    v8::Local<v8::Value> result =
+        node::LoadEnvironment(*env, "return 42;").ToLocalChecked();
+    EXPECT_EQ(result->Int32Value(env.context()).FromJust(), 42);
+  }
+}
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
