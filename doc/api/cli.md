@@ -3350,6 +3350,19 @@ added:
 Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking `process.exit()`.
 
+### `--trace-promises`
+
+<!-- YAML
+added:
+ - v21.5.0
+ - v20.12.0
+-->
+
+Prints a stack trace to stderr whenever a promise is created or resolved. Each
+promise is given an identifier, and the identifier of the parent promise is
+also printed when the promise is derived from another one. Promise `before` and
+`after` hook events are not traced, to reduce the amount of output.
+
 ### `--trace-require-module=mode`
 
 <!-- YAML
@@ -4023,6 +4036,7 @@ one is included in the list below.
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
 * `--trace-exit`
+* `--trace-promises`
 * `--trace-require-module`
 * `--trace-sigint`
 * `--trace-sync-io`

@@ -1619,6 +1619,12 @@ Enables the collection of trace event tracing information.
 Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking \fBprocess.exit()\fR.
 .
+.It Fl -trace-promises
+Prints a stack trace to stderr whenever a promise is created or resolved. Each
+promise is given an identifier, and the identifier of the parent promise is
+also printed when the promise is derived from another one. Promise \fBbefore\fR and
+\fBafter\fR hook events are not traced, to reduce the amount of output.
+.
 .It Fl -trace-require-module Ns = Ns Ar mode
 Prints information about usage of Loading ECMAScript modules using \fBrequire()\fR.
 When \fBmode\fR is \fBall\fR, all usage is printed. When \fBmode\fR is \fBno-node-modules\fR, usage
@@ -2233,6 +2239,8 @@ one is included in the list below.
 \fB--trace-events-enabled\fR
 .It
 \fB--trace-exit\fR
+.It
+\fB--trace-promises\fR
 .It
 \fB--trace-require-module\fR
 .It
