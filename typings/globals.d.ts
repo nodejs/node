@@ -10,6 +10,7 @@ import { CryptoBinding } from './internalBinding/crypto';
 import { DebugBinding } from './internalBinding/debug';
 import { DiagnosticsChannelBinding } from './internalBinding/diagnostics_channel';
 import { EncodingBinding } from './internalBinding/encoding_binding';
+import { FFIBinding } from './internalBinding/ffi';
 import { FsBinding } from './internalBinding/fs';
 import { FsDirBinding } from './internalBinding/fs_dir';
 import { HeapUtilsBinding } from './internalBinding/heap_utils';
@@ -55,6 +56,7 @@ interface InternalBindingMap {
   debug: DebugBinding;
   diagnostics_channel: DiagnosticsChannelBinding;
   encoding_binding: EncodingBinding;
+  ffi: FFIBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
   heap_utils: HeapUtilsBinding;
