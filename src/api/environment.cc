@@ -514,6 +514,9 @@ void FreeEnvironment(Environment* env) {
   Isolate* isolate = env->isolate();
   Isolate::DisallowJavascriptExecutionScope disallow_js(isolate,
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  // A termination requested by Stop() targets this Environment; if no JS ran
+  // since, it is still pending and must not hit the isolate's next user.
+  isolate->CancelTerminateExecution();
   {
     HandleScope handle_scope(isolate);  // For env->context().
     Context::Scope context_scope(env->context());
