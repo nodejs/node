@@ -341,9 +341,8 @@ TEST_F(EnvironmentTest, RemoveEnvironmentCleanupHookDuringCleanup) {
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
-  // Only one of the Environments can have default flags and own the inspector.
   Env env1 {handle_scope, argv};
-  Env env2 {handle_scope, argv, node::EnvironmentFlags::kNoFlags};
+  Env env2{handle_scope, argv};
 
   AtExit(*env1, at_exit_callback1, nullptr);
   AtExit(*env2, at_exit_callback2, nullptr);
