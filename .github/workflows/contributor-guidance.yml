@@ -73,6 +73,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      pull-requests: write
     outputs:
       scan_outcome: ${{ steps.scan.outcome }}
       classification: ${{ steps.scan.outputs.classification }}
@@ -92,7 +93,7 @@ jobs:
         uses: MatteoGabriele/agentscan-action@98202262c925c508d4c1424b1dfbe17ee35b0c02  # v2.4.0
         with:
           github-token: ${{ github.token }}
-          mode: silent
+          mode: labels
           scan-pull-requests: true
           scan-issues: false
           auto-close: false
