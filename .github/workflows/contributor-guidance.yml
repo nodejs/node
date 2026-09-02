@@ -1,4 +1,4 @@
-name: Welcome first-time contributors
+name: Contributor guidance
 
 on:
   pull_request_target:
@@ -10,31 +10,38 @@ jobs:
   first_time_contributor:
     name: Is first-time contributor
     # GitHub can report first-time contributors as NONE in the event payload.
+    # npm-cli-bot and nodejs-github-bot report MEMBER and are excluded below.
     if: >-
       github.run_attempt == 1 &&
       github.repository == 'nodejs/node' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
       (github.event.pull_request.author_association == 'FIRST_TIMER' ||
       github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' ||
       github.event.pull_request.author_association == 'NONE')
     runs-on: ubuntu-slim
-    permissions:
-      pull-requests: read
     outputs:
-      eligible: >-
+      is_first_time: >-
         ${{
           github.event.pull_request.author_association != 'NONE' ||
-          steps.recheck.outputs.eligible == 'true'
+          steps.recheck.outputs.is_first_time == 'true'
+        }}
+      resolved: >-
+        ${{
+          github.event.pull_request.author_association != 'NONE' ||
+          steps.recheck.outputs.resolved == 'true'
         }}
     steps:
       - name: Recheck contributor eligibility
         id: recheck
         if: github.event.pull_request.author_association == 'NONE'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           NUMBER: ${{ github.event.pull_request.number }}
         run: |
           started_at=$SECONDS
-          for delay in 15 30 60 120; do
+          # TODO: Remove the retries once privileged API requests are confirmed
+          # to return the association immediately.
+          for delay in 0 15 30 60; do
             sleep "$delay"
             association=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER" \
               --jq '.author_association')
@@ -43,23 +50,26 @@ jobs:
 
             case "$association" in
               FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
-                echo 'eligible=true' >> "$GITHUB_OUTPUT"
+                echo 'is_first_time=true' >> "$GITHUB_OUTPUT"
+                echo 'resolved=true' >> "$GITHUB_OUTPUT"
                 exit 0
                 ;;
               NONE)
                 ;;
               *)
-                echo 'eligible=false' >> "$GITHUB_OUTPUT"
+                echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
+                echo 'resolved=true' >> "$GITHUB_OUTPUT"
                 exit 0
                 ;;
             esac
           done
 
-          echo 'eligible=false' >> "$GITHUB_OUTPUT"
+          echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
+          echo 'resolved=false' >> "$GITHUB_OUTPUT"
 
   agentscan:
     needs: first_time_contributor
-    if: needs.first_time_contributor.outputs.eligible == 'true'
+    if: needs.first_time_contributor.outputs.resolved == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -67,6 +77,13 @@ jobs:
       scan_outcome: ${{ steps.scan.outcome }}
       classification: ${{ steps.scan.outputs.classification }}
       community_flagged: ${{ steps.scan.outputs['community-flagged'] }}
+      caution: >-
+        ${{
+          steps.scan.outcome == 'success' &&
+          (steps.scan.outputs.classification == 'mixed' ||
+          steps.scan.outputs.classification == 'automation' ||
+          steps.scan.outputs['community-flagged'] == 'true')
+        }}
     steps:
       - name: Scan contributor activity
         id: scan
@@ -85,18 +102,20 @@ jobs:
     needs:
       - first_time_contributor
       - agentscan
-    if: needs.first_time_contributor.outputs.eligible == 'true'
+    if: >-
+      needs.first_time_contributor.outputs.is_first_time == 'true' ||
+      (needs.first_time_contributor.outputs.resolved == 'true' &&
+      needs.agentscan.outputs.caution == 'true')
     runs-on: ubuntu-slim
     permissions:
       pull-requests: write
     steps:
-      - name: Welcome first-time contributor
+      - name: Comment with contributor guidance
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NUMBER: ${{ github.event.pull_request.number }}
-          AGENTSCAN_OUTCOME: ${{ needs.agentscan.outputs.scan_outcome }}
-          AGENTSCAN_CLASSIFICATION: ${{ needs.agentscan.outputs.classification }}
-          AGENTSCAN_COMMUNITY_FLAGGED: ${{ needs.agentscan.outputs.community_flagged }}
+          IS_FIRST_TIME: ${{ needs.first_time_contributor.outputs.is_first_time }}
+          ADD_CAUTION: ${{ needs.agentscan.outputs.caution }}
           WELCOME_MESSAGE: >2-
               Welcome to Node.js, and thank you for your first contribution!
 
@@ -128,20 +147,10 @@ jobs:
             [automation policy](https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md#automation-and-bots)
             for additional context.
         run: |
-          add_caution=false
-          if [[ "$AGENTSCAN_OUTCOME" == "success" ]]; then
-            case "$AGENTSCAN_CLASSIFICATION" in
-              mixed|automation)
-                add_caution=true
-                ;;
-            esac
-            if [[ "$AGENTSCAN_COMMUNITY_FLAGGED" == "true" ]]; then
-              add_caution=true
-            fi
-          fi
-
-          if [[ "$add_caution" == "true" ]]; then
+          if [[ "$IS_FIRST_TIME" == "true" && "$ADD_CAUTION" == "true" ]]; then
             printf '%s\n\n%s\n' "$WELCOME_MESSAGE" "$CAUTION_MESSAGE"
-          else
+          elif [[ "$IS_FIRST_TIME" == "true" ]]; then
             printf '%s\n' "$WELCOME_MESSAGE"
+          elif [[ "$ADD_CAUTION" == "true" ]]; then
+            printf '%s\n' "$CAUTION_MESSAGE"
           fi | gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
