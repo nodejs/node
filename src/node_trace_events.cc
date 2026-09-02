@@ -113,6 +113,10 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void HasAgent(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(tracing::Agent::GetInstance() != nullptr);
+}
+
 void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string categories =
@@ -162,6 +166,7 @@ void NodeCategorySet::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
+  SetMethod(context, target, "hasAgent", HasAgent);
   SetMethod(context, target, "getEnabledCategories", GetEnabledCategories);
   SetMethod(context,
             target,
@@ -203,6 +208,7 @@ void NodeCategorySet::Initialize(Local<Object> target,
 
 void NodeCategorySet::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  registry->Register(HasAgent);
   registry->Register(GetEnabledCategories);
   registry->Register(SetTraceCategoryStateUpdateHandler);
   registry->Register(GetCategoryEnabledBuffer);
