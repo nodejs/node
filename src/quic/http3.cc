@@ -486,21 +486,6 @@ class Http3ApplicationImpl final : public Session::Application {
                : SessionTicket::AppData::Status::TICKET_USE;
   }
 
-  bool ApplySessionTicketData(const PendingTicketAppData& data) override {
-    if (!std::holds_alternative<Http3TicketData>(data)) return false;
-    const auto& ticket = std::get<Http3TicketData>(data);
-    // Validate that current settings are >= stored settings.
-    return options_.max_field_section_size >= ticket.max_field_section_size &&
-           options_.qpack_max_dtable_capacity >=
-               ticket.qpack_max_dtable_capacity &&
-           options_.qpack_encoder_max_dtable_capacity >=
-               ticket.qpack_encoder_max_dtable_capacity &&
-           options_.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
-           (!ticket.enable_connect_protocol ||
-            options_.enable_connect_protocol) &&
-           (!ticket.enable_datagrams || options_.enable_datagrams);
-  }
-
   void ReceiveStreamClose(Stream* stream,
                           QuicError&& error = QuicError()) override {
     Debug(
@@ -1465,30 +1450,6 @@ class Http3ApplicationImpl final : public Session::Application {
       on_receive_settings,
       on_stream_close};
 };
-
-std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {
-  if (data.len != kSessionTicketAppDataSize) return std::nullopt;
-
-  const uint8_t* buf = reinterpret_cast<const uint8_t*>(data.base);
-
-  // buf[0] is the type byte (already checked by caller), buf[1] is version.
-  if (buf[1] != kSessionTicketAppDataVersion) return std::nullopt;
-
-  const uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
-  uint32_t stored_crc = ReadBE32(buf + 2);
-  uLong computed_crc = crc32(0L, Z_NULL, 0);
-  computed_crc = crc32(computed_crc, payload, kSessionTicketAppDataPayloadSize);
-  if (stored_crc != static_cast<uint32_t>(computed_crc)) return std::nullopt;
-
-  return Http3TicketData{
-      ReadBE64(payload),
-      ReadBE64(payload + 8),
-      ReadBE64(payload + 16),
-      ReadBE64(payload + 24),
-      payload[32] != 0,
-      payload[33] != 0,
-  };
-}
 
 std::unique_ptr<Session::Application> CreateHttp3Application(
     Session* session, const Session::Application_Options& options) {
