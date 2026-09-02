@@ -12,6 +12,11 @@ async function pack (spec = 'file:.', opts = {}) {
   // gets spec
   spec = npa(spec)
 
+  // An explicit directory is the package being packed, not a dependency fetch.
+  if (spec.type === 'directory') {
+    opts = { ...opts, allowDirectory: 'all' }
+  }
+
   const manifest = await pacote.manifest(spec, { ...opts, Arborist, _isRoot: true })
 
   const stdio = opts.foregroundScripts ? 'inherit' : 'pipe'
