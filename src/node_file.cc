@@ -4114,7 +4114,27 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
       auto dest_file_path = dest / dir_entry.path().filename();
       auto dest_str = ConvertPathToUTF8(dest);
 
-      if (dir_entry.is_symlink()) {
+      // With dereference, links that resolve to a directory or a regular file
+      // fall through to the branches below, which follow symlinks. A dangling
+      // link has no target to copy and is reported here.
+      const bool is_symlink = dir_entry.is_symlink();
+      const bool copy_as_symlink = is_symlink && !dereference;
+
+      if (is_symlink && dereference) {
+        std::error_code target_error;
+        if (!std::filesystem::exists(dir_entry.path(), target_error)) {
+          auto entry_str = ConvertPathToUTF8(dir_entry.path());
+          env->ThrowStdErrException(
+              target_error
+                  ? target_error
+                  : std::make_error_code(std::errc::no_such_file_or_directory),
+              "cp",
+              entry_str.c_str());
+          return false;
+        }
+      }
+
+      if (copy_as_symlink) {
         if (verbatim_symlinks) {
           std::filesystem::copy_symlink(
               dir_entry.path(), dest_file_path, error);
@@ -4202,12 +4222,66 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
         }
       } else if (dir_entry.is_directory()) {
         auto entry_dir_path = src / dir_entry.path().filename();
-        std::filesystem::create_directory(dest_file_path);
+        if (is_symlink && dereference) {
+          // Mirror the JavaScript walk: create the destination only when it
+          // does not exist, otherwise recurse into the existing path.
+          std::error_code dest_error;
+          const bool dest_exists =
+              std::filesystem::exists(dest_file_path, dest_error);
+          if (dest_error) {
+            env->ThrowStdErrException(dest_error, "cp", dest_str.c_str());
+            return false;
+          }
+          if (!dest_exists) {
+            std::filesystem::create_directory(dest_file_path, dest_error);
+            if (dest_error) {
+              env->ThrowStdErrException(dest_error, "cp", dest_str.c_str());
+              return false;
+            }
+          }
+        } else {
+          std::filesystem::create_directory(dest_file_path);
+        }
         auto success = copy_dir_contents(entry_dir_path, dest_file_path);
         if (!success) {
           return false;
         }
       } else if (dir_entry.is_regular_file()) {
+        if (is_symlink && dereference) {
+          // Only a dereferenced link reaches this branch as a link, so what an
+          // occupied destination means here is settled the way the JavaScript
+          // walk settles it: replaced under force, left untouched otherwise.
+          // Replacing an existing destination unlinks the entry first, which is
+          // what keeps an existing link there from being written through.
+          std::error_code dest_error;
+          const bool dest_exists =
+              std::filesystem::exists(dest_file_path, dest_error);
+          if (dest_error) {
+            env->ThrowStdErrException(dest_error, "cp", dest_str.c_str());
+            return false;
+          }
+
+          if (dest_exists) {
+            if (!force) {
+              if (error_on_exist) {
+                THROW_ERR_FS_CP_EEXIST(
+                    isolate,
+                    "[ERR_FS_CP_EEXIST]: Target already exists: "
+                    "cp returned EEXIST (%s already exists)",
+                    dest_file_path);
+                return false;
+              }
+              continue;
+            }
+
+            std::filesystem::remove(dest_file_path, dest_error);
+            if (dest_error) {
+              env->ThrowStdErrException(dest_error, "cp", dest_str.c_str());
+              return false;
+            }
+          }
+        }
+
         std::filesystem::copy_file(
             dir_entry.path(), dest_file_path, file_copy_opts, error);
         if (error) {
