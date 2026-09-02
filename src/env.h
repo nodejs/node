@@ -143,7 +143,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
       uv_loop_t* event_loop,
       MultiIsolatePlatform* platform = nullptr,
       ArrayBufferAllocator* node_allocator = nullptr,
-      const EmbedderSnapshotData* embedder_snapshot_data = nullptr,
+      const SnapshotData* snapshot_data = nullptr,
       std::shared_ptr<PerIsolateOptions> options = nullptr);
   ~IsolateData();
 
@@ -605,7 +605,6 @@ struct SnapshotData {
   static bool FromBlob(SnapshotData* out, std::string_view in);
   static const SnapshotData* FromEmbedderWrapper(
       const EmbedderSnapshotData* data);
-  EmbedderSnapshotData::Pointer AsEmbedderWrapper() const;
 
   ~SnapshotData();
 };
