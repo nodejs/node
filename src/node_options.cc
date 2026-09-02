@@ -1333,14 +1333,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
 
   AddOption("--experimental-top-level-await", "", NoOp{}, kAllowedInEnvvar);
 
-  AddOption("--experimental-shadow-realm",
-            "",
-            BOOL_FIELD(experimental_shadow_realm),
-            kAllowedInEnvvar);
-  AddOption("--harmony-shadow-realm", "", V8Option{});
-  Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
-  Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
-  ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
   AddOption("--build-snapshot",
             "Generate a snapshot blob when the process exits.",
             BOOL_FIELD(build_snapshot),

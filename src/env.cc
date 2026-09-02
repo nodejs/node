@@ -12,7 +12,6 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_process-inl.h"
-#include "node_shadow_realm.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
@@ -262,14 +261,6 @@ void Environment::UntrackContext(Local<Context> context) {
       break;
     }
   }
-}
-
-void Environment::TrackShadowRealm(shadow_realm::ShadowRealm* realm) {
-  shadow_realms_.insert(realm);
-}
-
-void Environment::UntrackShadowRealm(shadow_realm::ShadowRealm* realm) {
-  shadow_realms_.erase(realm);
 }
 
 AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
@@ -1122,8 +1113,6 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  // Sub-realms should have been cleared with Environment's cleanup.
-  DCHECK_EQ(shadow_realms_.size(), 0);
   principal_realm_.reset();
 
   if (trace_state_observer_) {
@@ -2337,7 +2326,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("timeout_info", timeout_info_);
   tracker->TrackField("tick_info", tick_info_);
   tracker->TrackField("principal_realm", principal_realm_);
-  tracker->TrackField("shadow_realms", shadow_realms_);
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these

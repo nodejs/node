@@ -252,10 +252,6 @@
               "type": "boolean",
               "description": "Legacy alias for --require-module"
             },
-            "experimental-shadow-realm": {
-              "type": "boolean",
-              "description": ""
-            },
             "experimental-sqlite": {
               "type": "boolean",
               "description": "experimental node:sqlite module"

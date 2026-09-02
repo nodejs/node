@@ -69,18 +69,14 @@ class CppgcWrapperList
  * with a global object and a set of intrinsic objects. An ECMAScript realm has
  * a [[HostDefined]] field, which contains the node::Realm object.
  *
- * Realm can be a principal realm or a synthetic realm. A principal realm is
- * created with an Environment as its principal global environment to evaluate
- * scripts. A synthetic realm is created with JS APIs like ShadowRealm.
- *
- * Native bindings and builtin modules can be evaluated in either a principal
- * realm or a synthetic realm.
+ * Each Environment has a principal realm used to evaluate scripts. Native
+ * bindings and builtin modules are evaluated in that realm. No Realm is
+ * created for the Context of a vm.Context.
  */
 class Realm : public MemoryRetainer {
  public:
   enum Kind {
     kPrincipal,
-    kShadowRealm,
   };
 
   static inline Realm* GetCurrent(v8::Isolate* isolate);
