@@ -116,8 +116,20 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   cppgc::InitializeProcess(platform->GetPageAllocator());
   V8::Initialize();
 
-  int ret =
-      RunNodeInstance(platform.get(), result->args(), result->exec_args());
+  // --embedder-run-twice: two sequential instances in one process, each
+  // loading (and freeing) its own copy of the snapshot.
+  std::vector<std::string> instance_args = result->args();
+  auto twice = std::find(
+      instance_args.begin(), instance_args.end(), "--embedder-run-twice");
+  int runs = 1;
+  if (twice != instance_args.end()) {
+    instance_args.erase(twice);
+    runs = 2;
+  }
+  int ret = 0;
+  for (int i = 0; i < runs && ret == 0; i++) {
+    ret = RunNodeInstance(platform.get(), instance_args, result->exec_args());
+  }
 
   V8::Dispose();
   V8::DisposePlatform();
