@@ -95,10 +95,9 @@ jobs:
         env:
           ADD_CAUTION: >-
             ${{
-              steps.agentscan.outcome == 'success' &&
-              (steps.agentscan.outputs.classification == 'mixed' ||
+              steps.agentscan.outputs.classification == 'mixed' ||
               steps.agentscan.outputs.classification == 'automation' ||
-              steps.agentscan.outputs['community-flagged'] == 'true')
+              steps.agentscan.outputs['community-flagged'] == 'true'
             }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_FIRST_TIME: ${{ needs.contributor.outputs.is_first_time }}
