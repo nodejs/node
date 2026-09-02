@@ -355,6 +355,66 @@ TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   EXPECT_TRUE(called_cb_2);
 }
 
+static int cleanup_hook_runs = 0;
+static void CountingCleanupHook(void* arg) {
+  cleanup_hook_runs++;
+}
+
+TEST_F(EnvironmentTest, SameCleanupHookInTwoEnvironmentsOnOneIsolate) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  cleanup_hook_runs = 0;
+  {
+    Env env1{handle_scope, argv};
+    {
+      Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+      {
+        v8::Context::Scope context_scope(env1.context());
+        node::AddEnvironmentCleanupHook(isolate_, CountingCleanupHook, nullptr);
+      }
+      node::AddEnvironmentCleanupHook(isolate_, CountingCleanupHook, nullptr);
+    }
+    EXPECT_EQ(cleanup_hook_runs, 1);
+  }
+  EXPECT_EQ(cleanup_hook_runs, 2);
+}
+
+TEST_F(EnvironmentTest, RemoveCleanupHookOfOtherEnvironmentOnSameIsolate) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  cleanup_hook_runs = 0;
+  int arg;
+  {
+    Env env1{handle_scope, argv};
+    node::AddEnvironmentCleanupHook(isolate_, CountingCleanupHook, &arg);
+    Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+    // env2's context is current; the hook belongs to env1.
+    node::RemoveEnvironmentCleanupHook(isolate_, CountingCleanupHook, &arg);
+  }
+  EXPECT_EQ(cleanup_hook_runs, 0);
+}
+
+struct SelfRemovingHook {
+  v8::Isolate* isolate;
+  bool ran = false;
+  static void Run(void* arg) {
+    SelfRemovingHook* self = static_cast<SelfRemovingHook*>(arg);
+    self->ran = true;
+    node::RemoveEnvironmentCleanupHook(self->isolate, Run, arg);
+  }
+};
+
+TEST_F(EnvironmentTest, CleanupHookRemovesItselfWhileRunning) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  SelfRemovingHook hook{isolate_};
+  {
+    Env env{handle_scope, argv};
+    node::AddEnvironmentCleanupHook(isolate_, SelfRemovingHook::Run, &hook);
+  }
+  EXPECT_TRUE(hook.ran);
+}
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
