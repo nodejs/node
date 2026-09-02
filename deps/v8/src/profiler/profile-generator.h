@@ -424,6 +424,7 @@ class CpuProfile {
     StateTag state_tag;
     EmbedderStateTag embedder_state_tag;
     const std::optional<uint64_t> trace_id;
+    void* sample_context;
   };
 
   V8_EXPORT_PRIVATE CpuProfile(
@@ -441,7 +442,8 @@ class CpuProfile {
                LineAndColumn src_pos, bool update_stats,
                base::TimeDelta sampling_interval, StateTag state,
                EmbedderStateTag embedder_state,
-               const std::optional<uint64_t> trace_id = std::nullopt);
+               const std::optional<uint64_t> trace_id = std::nullopt,
+               void* sample_context = nullptr);
   void FinishProfile();
 
   const char* title() const { return title_; }
@@ -588,7 +590,8 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
       EmbedderStateTag embedder_state_tag,
       Address native_context_address = kNullAddress,
       Address native_embedder_context_address = kNullAddress,
-      const std::optional<uint64_t> trace_id = std::nullopt);
+      const std::optional<uint64_t> trace_id = std::nullopt,
+      void* sample_context = nullptr);
 
   // Called from profile generator thread.
   void UpdateNativeContextAddressForCurrentProfiles(Address from, Address to);

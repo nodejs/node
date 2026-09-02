@@ -188,6 +188,14 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   virtual void SetSamplingInterval(base::TimeDelta) {}
 
+  using SampleContextExtractor = void* (*)(v8::Isolate*);
+  void set_sample_context_extractor(SampleContextExtractor fn) {
+    sample_context_extractor_.store(fn, std::memory_order_release);
+  }
+  SampleContextExtractor sample_context_extractor() const {
+    return sample_context_extractor_.load(std::memory_order_acquire);
+  }
+
  protected:
   ProfilerEventsProcessor(Isolate* isolate, Symbolizer* symbolizer,
                           ProfilerCodeObserver* code_observer,
@@ -214,6 +222,9 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
   Isolate* isolate_;
+
+ private:
+  std::atomic<SampleContextExtractor> sample_context_extractor_{nullptr};
 };
 
 class V8_EXPORT_PRIVATE SamplingEventsProcessor

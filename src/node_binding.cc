@@ -48,6 +48,7 @@
   V(config)                                                                    \
   V(constants)                                                                 \
   V(contextify)                                                                \
+  V(cpu_profiler)                                                              \
   V(credentials)                                                               \
   V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
