@@ -240,6 +240,7 @@ std::vector<char> ReadFileSync(FILE* fp) {
   CHECK_EQ(err, 0);
 
   std::vector<char> contents(size);
+  if (size == 0) return contents;
   size_t num_read = fread(contents.data(), size, 1, fp);
   CHECK_EQ(num_read, 1);
   return contents;
