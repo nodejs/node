@@ -110,6 +110,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/run_main',
   getFormatNativeModule,
   'NativeModule internal/trace_events',
+  'NativeModule internal/primordials_staging',
 ]);
 
 expected.atRunTime = new Set([
