@@ -695,6 +695,7 @@ changes:
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
+  * `execArgv` {string\[]} List of string arguments passed to the executable.
   * `stdio` {Array|string} Child's stdio configuration (see
     [`options.stdio`][`stdio`]).
   * `detached` {boolean} Prepare child process to run independently of
