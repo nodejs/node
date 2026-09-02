@@ -52,7 +52,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "a8392bd0210378dda13278eeccf2c2602278e214",
+    "commit": "3f15e5c09448b8e917c9128d3b07cc78f044c83a",
     "path": "interfaces"
   },
   "performance-timeline": {
@@ -104,7 +104,7 @@
     "path": "WebCryptoAPI"
   },
   "webidl": {
-    "commit": "63ca529a021fec15b2996db82fd7dd04c11abe85",
+    "commit": "65bbe07908e5c19e8a6c7ff8701cc2a722cd215e",
     "path": "webidl"
   },
   "webidl/ecmascript-binding/es-exceptions": {

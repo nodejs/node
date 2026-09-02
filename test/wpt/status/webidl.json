@@ -6,6 +6,18 @@
       ]
     }
   },
+  "ecmascript-binding/es-exceptions/DOMException-stack-accessor.any.js": {
+    "fail": {
+      "note": "needs a V8 update, see https://github.com/nodejs/node/issues/63579",
+      "expected": [
+        "DOMException instance does not have an own stack property",
+        "Error.prototype.stack is an accessor property with correct attributes",
+        "Error.prototype.stack getter works on DOMException instances",
+        "Error.prototype.stack setter installs own data property on DOMException instances",
+        "Error.prototype.stack setter ignores Error.prototype itself"
+      ]
+    }
+  },
   "ecmascript-binding/global-immutable-prototype.any.js": {
     "fail": {
       "expected": [
