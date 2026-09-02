@@ -3,6 +3,7 @@
 BUILDTYPE ?= Release
 PYTHON ?= python3
 RUFF ?= tools/pip/site-packages/bin/ruff
+YAMLLINT ?= tools/pip/site-packages/bin/yamllint
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
@@ -1719,14 +1720,15 @@ lint-yaml-build: ## Build resources needed to lint YAML files.
 		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
 
 .PHONY: lint-yaml
+ifneq ("","$(wildcard $(YAMLLINT))")
 lint-yaml: ## Lint the YAML files with yamllint.
-	@if [ -d "tools/pip/site-packages/yamllint" ]; then \
-			$(info Running YAML linter...) \
-			PYTHONPATH=tools/pip $(PYTHON) -m yamllint .; \
-	else \
-		echo 'YAML linting with yamllint is not available'; \
-		echo "Run 'make lint-yaml-build'"; \
-	fi
+	$(info Running YAML linter...)
+	$(YAMLLINT) .
+else
+lint-yaml:
+	$(warning YAML linting with yamllint is not available)
+	$(warning Run 'make lint-yaml-build')
+endif
 
 .PHONY: lint
 .PHONY: lint-ci
