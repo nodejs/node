@@ -697,7 +697,8 @@ bool SnapshotData::Check() const {
 
 SnapshotData::~SnapshotData() {
   if (data_ownership == DataOwnership::kOwned &&
-      v8_snapshot_blob_data.data != nullptr) {
+      v8_snapshot_blob_data.data != nullptr &&
+      !IsFirstSnapshotBlob(v8_snapshot_blob_data.data)) {
     delete[] v8_snapshot_blob_data.data;
   }
 }
