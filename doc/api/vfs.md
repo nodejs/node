@@ -38,10 +38,12 @@ Mounting a VFS only redirects supported [`node:fs`][] calls whose resolved paths
 are under the mount point. It does not prevent code from using other paths or
 other Node.js APIs to access resources available to the process.
 [`RealFSProvider`][] maps VFS paths under its configured root and rejects paths
-that resolve outside that root, but that check is not a security boundary. Do
-not rely on VFS to run untrusted code; use operating-system-level isolation,
-such as separate users, containers, or platform sandboxes, when a security
-boundary is required.
+that resolve outside that root, but that check is not a security boundary.
+[`ZipProvider`][] has no real file-system paths of its own to escape; its
+entries only ever exist within the archive's own namespace. Do not rely on VFS
+to run untrusted code; use operating-system-level isolation, such as separate
+users, containers, or platform sandboxes, when a security boundary is
+required.
 
 ## Basic usage
 
@@ -523,6 +525,55 @@ added: v26.4.0
 
 The resolved absolute path used as the root.
 
+## Class: `ZipProvider`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A provider that exposes the entries of a ZIP archive - either a
+[`zlib.ZipBuffer`][] (in memory) or a [`zlib.ZipFile`][] (on disk) - through
+the VFS API. `provider.readonly` reflects the archive's own
+[`zipFile.writable`][] flag: a `ZipBuffer` is always writable, and a
+`ZipFile` is writable only when opened with `{ writable: true }`.
+
+Directories are recognized both explicitly (an entry whose name ends in `/`)
+and implicitly (any entry name starting with `"<dir>/"`). `readdir()` does
+not support `{ recursive: true }`. Because a ZIP member cannot be edited or
+read in place - only fully written or fully decompressed - a file opened for
+writing only commits its content (as a new archive entry) when the handle is
+closed.
+
+Every method has a synchronous counterpart (`openSync()`, `statSync()`,
+`readdirSync()`, and so on), backed by the equally complete synchronous
+surface [`zlib.ZipBuffer`][]/[`zlib.ZipFile`][] expose. As with those, the
+synchronous methods here block the Node.js event loop and further JavaScript
+execution until the operation - including any deflate/inflate pass -
+completes.
+
+```cjs
+const vfs = require('node:vfs');
+const zlib = require('node:zlib');
+const { readFileSync } = require('node:fs');
+
+async function main() {
+  const zip = new zlib.ZipBuffer(readFileSync('archive.zip'));
+  const archiveVfs = vfs.create(new vfs.ZipProvider(zip));
+
+  console.log(await archiveVfs.promises.readdir('/'));
+  await archiveVfs.promises.writeFile('/new.txt', 'hello');
+}
+main();
+```
+
+### `new ZipProvider(source)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {zlib.ZipBuffer|zlib.ZipFile} An already-open archive.
+
 ## Implementation details
 
 ### `Stats` objects
@@ -544,6 +595,7 @@ fields use synthetic but stable values:
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
+[`ZipProvider`]: #class-zipprovider
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
@@ -555,5 +607,8 @@ fields use synthetic but stable values:
 [`vfs.mountPointURL`]: #vfsmountpointurl
 [`vfs.mountPoint`]: #vfsmountpoint
 [`vfs.unmount()`]: #vfsunmount
+[`zipFile.writable`]: zlib.md#zipfilewritable
+[`zlib.ZipBuffer`]: zlib.md#class-zlibzipbuffer
+[`zlib.ZipFile`]: zlib.md#class-zlibzipfile
 [loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
 [the global folders]: modules.md#loading-from-the-global-folders
