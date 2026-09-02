@@ -4029,7 +4029,6 @@ The created directory path is passed to the callback's second parameter. If
 {Buffer}. Otherwise, the path is passed as a {string} using the specified
 encoding.
 
-
 ```mjs
 import { mkdtemp } from 'node:fs';
 import { join } from 'node:path';
