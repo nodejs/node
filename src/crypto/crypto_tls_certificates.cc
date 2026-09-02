@@ -57,12 +57,12 @@ bool AddCRL(Environment* env,
             X509_STORE** cache) {
   if (!bio) return false;
 
-  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
-      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
-  if (!crl) return false;
-
   X509_STORE* cert_store = GetOrCreateOwnedCertStore(env, ctx, cache);
-  CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
+  while (X509_CRL* crl_raw =
+             PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+    DeleteFnPtr<X509_CRL, X509_CRL_free> crl(crl_raw);
+    CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
+  }
   CHECK_EQ(1,
            X509_STORE_set_flags(
                cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
