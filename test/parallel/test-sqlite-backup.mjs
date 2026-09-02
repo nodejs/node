@@ -1,5 +1,10 @@
 // Flags: --expose-gc
-import { isWindows, skipIfSQLiteMissing } from '../common/index.mjs';
+import {
+  isWindows,
+  skipIfSQLiteMissing,
+  spawnPromisified,
+} from '../common/index.mjs';
+import fixtures from '../common/fixtures.js';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -363,4 +368,14 @@ test('source database is kept alive while a backup is in flight', async (t) => {
   t.after(() => { backupDb.close(); });
   const rows = backupDb.prepare('SELECT COUNT(*) AS n FROM data').get();
   t.assert.strictEqual(rows.n, 500);
+});
+
+test('backup promise settles when the backup is the last active request', async (t) => {
+  const { code, signal, stderr } = await spawnPromisified(process.execPath, [
+    fixtures.path('sqlite', 'backup-last-request.mjs'),
+    nextDb(),
+  ]);
+
+  t.assert.strictEqual(signal, null);
+  t.assert.strictEqual(code, 0, stderr);
 });
