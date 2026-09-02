@@ -7,6 +7,7 @@
   pkgs.gh
   pkgs.git
   pkgs.jq
+  pkgs.ruff
   pkgs.shellcheck
 ]
 ++ (

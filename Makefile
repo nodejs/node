@@ -2,6 +2,7 @@
 
 BUILDTYPE ?= Release
 PYTHON ?= python3
+RUFF ?= tools/pip/site-packages/bin/ruff
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
@@ -1694,15 +1695,15 @@ lint-py-build: ## Build resources needed to lint python files.
 		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.13.1
 
 .PHONY: lint-py lint-py-fix lint-py-fix-unsafe
-ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
+ifneq ("","$(wildcard $(RUFF))")
 # Lint the Python code with ruff.
 lint-py:
 	$(info Running Python linter...)
-	tools/pip/site-packages/bin/ruff check .
+	$(RUFF) check .
 lint-py-fix:
-	tools/pip/site-packages/bin/ruff check . --fix
+	$(RUFF) check . --fix
 lint-py-fix-unsafe:
-	tools/pip/site-packages/bin/ruff check . --fix --unsafe-fixes
+	$(RUFF) check . --fix --unsafe-fixes
 else
 lint-py lint-py-fix lint-py-fix-unsafe:
 	$(warning Python linting with ruff is not available)
