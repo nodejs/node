@@ -1723,7 +1723,7 @@ lint-yaml-build: ## Build resources needed to lint YAML files.
 ifneq ("","$(wildcard $(YAMLLINT))")
 lint-yaml: ## Lint the YAML files with yamllint.
 	$(info Running YAML linter...)
-	$(YAMLLINT) .
+	PYTHONPATH=tools/pip $(YAMLLINT) .
 else
 lint-yaml:
 	$(warning YAML linting with yamllint is not available)
