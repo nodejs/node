@@ -47,8 +47,11 @@ struct InternalFieldInfoBase {
                       std::is_same_v<InternalFieldInfoBase, T>,
                   "Can only accept InternalFieldInfoBase subclasses");
     void* buf = ::operator new[](sizeof(T));
-    memset(buf, 0, sizeof(T));  // Make the padding reproducible.
     T* result = new (buf) T;
+    // Zero the padding to make the bytes handed to V8 reproducible. Must come
+    // after the placement new, or -flifetime-dse drops it as a dead store.
+    // https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fno-lifetime-dse
+    memset(static_cast<void*>(result), 0, sizeof(T));
     result->type = type;
     result->length = sizeof(T);
     return result;
