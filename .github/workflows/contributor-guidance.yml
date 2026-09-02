@@ -7,10 +7,10 @@ on:
 permissions: {}
 
 jobs:
-  first_time_contributor:
-    name: Is first-time contributor
+  contributor:
+    name: Resolve contributor status
     # GitHub can report first-time contributors as NONE in the event payload.
-    # npm-cli-bot and nodejs-github-bot report MEMBER and are excluded below.
+    # npm-cli-bot and nodejs-github-bot report MEMBER and are filtered here.
     if: >-
       github.run_attempt == 1 &&
       github.repository == 'nodejs/node' &&
@@ -20,24 +20,33 @@ jobs:
       github.event.pull_request.author_association == 'NONE')
     runs-on: ubuntu-slim
     outputs:
-      is_first_time: >-
-        ${{
-          github.event.pull_request.author_association != 'NONE' ||
-          steps.recheck.outputs.is_first_time == 'true'
-        }}
-      resolved: >-
-        ${{
-          github.event.pull_request.author_association != 'NONE' ||
-          steps.recheck.outputs.resolved == 'true'
-        }}
+      is_first_time: ${{ steps.resolve.outputs.is_first_time }}
+      should_scan: ${{ steps.resolve.outputs.should_scan }}
     steps:
-      - name: Recheck contributor eligibility
-        id: recheck
-        if: github.event.pull_request.author_association == 'NONE'
+      - name: Check author association
+        id: resolve
         env:
+          EVENT_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          echo "Author association from event: $EVENT_ASSOCIATION"
+
+          case "$EVENT_ASSOCIATION" in
+            FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
+              echo 'is_first_time=true' >> "$GITHUB_OUTPUT"
+              echo 'should_scan=true' >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+            NONE)
+              ;;
+            *)
+              echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
+              echo 'should_scan=false' >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
           started_at=$SECONDS
           # TODO: Remove the retries once privileged API requests are confirmed
           # to return the association immediately.
@@ -51,46 +60,36 @@ jobs:
             case "$association" in
               FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
                 echo 'is_first_time=true' >> "$GITHUB_OUTPUT"
-                echo 'resolved=true' >> "$GITHUB_OUTPUT"
+                echo 'should_scan=true' >> "$GITHUB_OUTPUT"
                 exit 0
                 ;;
               NONE)
                 ;;
               *)
                 echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
-                echo 'resolved=true' >> "$GITHUB_OUTPUT"
+                echo 'should_scan=true' >> "$GITHUB_OUTPUT"
                 exit 0
                 ;;
             esac
           done
 
           echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
-          echo 'resolved=false' >> "$GITHUB_OUTPUT"
+          echo 'should_scan=false' >> "$GITHUB_OUTPUT"
 
-  agentscan:
-    needs: first_time_contributor
-    if: needs.first_time_contributor.outputs.resolved == 'true'
+  guidance:
+    name: Apply contributor guidance
+    needs: contributor
+    if: needs.contributor.outputs.should_scan == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
       pull-requests: write
-    outputs:
-      scan_outcome: ${{ steps.scan.outcome }}
-      classification: ${{ steps.scan.outputs.classification }}
-      community_flagged: ${{ steps.scan.outputs['community-flagged'] }}
-      caution: >-
-        ${{
-          steps.scan.outcome == 'success' &&
-          (steps.scan.outputs.classification == 'mixed' ||
-          steps.scan.outputs.classification == 'automation' ||
-          steps.scan.outputs['community-flagged'] == 'true')
-        }}
     steps:
       - name: Scan contributor activity
-        id: scan
+        id: agentscan
         # The welcome should still be posted if this advisory scan fails.
         continue-on-error: true
-        uses: MatteoGabriele/agentscan-action@98202262c925c508d4c1424b1dfbe17ee35b0c02  # v2.4.0
+        uses: MatteoGabriele/agentscan-action@8112fb79b33fafb8506159df20129a34209ac410  # v2.5.0
         with:
           github-token: ${{ github.token }}
           mode: labels
@@ -99,24 +98,18 @@ jobs:
           auto-close: false
           honeypot: false
 
-  comment:
-    needs:
-      - first_time_contributor
-      - agentscan
-    if: >-
-      needs.first_time_contributor.outputs.is_first_time == 'true' ||
-      (needs.first_time_contributor.outputs.resolved == 'true' &&
-      needs.agentscan.outputs.caution == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      pull-requests: write
-    steps:
       - name: Comment with contributor guidance
         env:
+          ADD_CAUTION: >-
+            ${{
+              steps.agentscan.outcome == 'success' &&
+              (steps.agentscan.outputs.classification == 'mixed' ||
+              steps.agentscan.outputs.classification == 'automation' ||
+              steps.agentscan.outputs['community-flagged'] == 'true')
+            }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_FIRST_TIME: ${{ needs.contributor.outputs.is_first_time }}
           NUMBER: ${{ github.event.pull_request.number }}
-          IS_FIRST_TIME: ${{ needs.first_time_contributor.outputs.is_first_time }}
-          ADD_CAUTION: ${{ needs.agentscan.outputs.caution }}
           WELCOME_MESSAGE: >2-
               Welcome to Node.js, and thank you for your first contribution!
 
@@ -149,9 +142,14 @@ jobs:
             for additional context.
         run: |
           if [[ "$IS_FIRST_TIME" == "true" && "$ADD_CAUTION" == "true" ]]; then
-            printf '%s\n\n%s\n' "$WELCOME_MESSAGE" "$CAUTION_MESSAGE"
+            body="$WELCOME_MESSAGE"$'\n\n'"$CAUTION_MESSAGE"
           elif [[ "$IS_FIRST_TIME" == "true" ]]; then
-            printf '%s\n' "$WELCOME_MESSAGE"
+            body="$WELCOME_MESSAGE"
           elif [[ "$ADD_CAUTION" == "true" ]]; then
-            printf '%s\n' "$CAUTION_MESSAGE"
-          fi | gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+            body="$CAUTION_MESSAGE"
+          else
+            exit 0
+          fi
+
+          printf '%s\n' "$body" |
+            gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
