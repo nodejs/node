@@ -45,6 +45,7 @@ class Pack extends BaseCommand {
       ) ? { ...this.npm.flatOptions, before: null } : this.npm.flatOptions
       const manifest = await pacote.manifest(spec, {
         ...options,
+        ...(spec.type === 'directory' && { allowDirectory: 'all' }),
         Arborist,
         preferOnline: true,
         _isRoot: true,
