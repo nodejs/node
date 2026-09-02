@@ -19,6 +19,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 const allStatusDone = Promise.withResolvers();
 const serverGot = Promise.withResolvers();
 const serverPathValidated = Promise.withResolvers();
+const clientPathValidated = Promise.withResolvers();
 let statusCount = 0;
 
 const handleSession = mustCall(async (serverSession) => {
@@ -75,18 +76,30 @@ const clientSession = await connect(serverEndpoint.address, {
     assert.strictEqual(oldLocal, null);
     assert.strictEqual(oldRemote, null);
     assert.strictEqual(preferred, true);
+    clientPathValidated.resolve();
   }),
   maxDatagramSendAttempts: 100, // While the connection is restablished,
   // all the acknowledgement packets of ngtcp2 are counted as send attempts
   // so either this or a delay, or a change in ngtcp2 interfaces
 });
+const initialPath = clientSession.path;
+assertEqualAddress(initialPath.local, clientSession.endpoint.address);
+assertEqualAddress(initialPath.remote, serverEndpoint.address);
 await clientSession.opened;
 
 // Send two datagrams.
 await clientSession.sendDatagram(new Uint8Array([1]));
 await clientSession.sendDatagram(new Uint8Array([2]));
 
-await serverPathValidated.promise;
+await Promise.all([
+  serverPathValidated.promise,
+  clientPathValidated.promise,
+]);
+
+const migratedPath = clientSession.path;
+assert.strictEqual(migratedPath, initialPath);
+assertEqualAddress(migratedPath.local, clientSession.endpoint.address);
+assertEqualAddress(migratedPath.remote, preferredEndpoint.address);
 
 // Send more datagrams after the preferred address migration completes
 // To show that data is still flowing after we close the original
