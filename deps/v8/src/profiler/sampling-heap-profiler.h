@@ -12,6 +12,9 @@
 
 #include "include/v8-profiler.h"
 #include "src/heap/heap.h"
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+#include "src/profiler/label-intern-table.h"
+#endif
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {
@@ -101,12 +104,23 @@ class SamplingHeapProfiler {
 
   struct Sample {
     Sample(size_t size_, AllocationNode* owner_, Local<Value> local_,
-           SamplingHeapProfiler* profiler_, uint64_t sample_id)
+           SamplingHeapProfiler* profiler_, uint64_t sample_id
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+           ,
+           uint32_t label_id_ = 0
+#endif
+           )
         : size(size_),
           owner(owner_),
           global(reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_),
           profiler(profiler_),
-          sample_id(sample_id) {}
+          sample_id(sample_id)
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+          ,
+          label_id(label_id_)
+#endif
+    {
+    }
     Sample(const Sample&) = delete;
     Sample& operator=(const Sample&) = delete;
     const size_t size;
@@ -114,10 +128,20 @@ class SamplingHeapProfiler {
     Global<Value> global;
     SamplingHeapProfiler* const profiler;
     const uint64_t sample_id;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    // Released in OnWeakCallback, or in ~SamplingHeapProfiler for samples
+    // retained by the kSamplingIncludeObjectsCollectedBy*GC flags.
+    uint32_t label_id;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
   };
 
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
-                       int stack_depth, v8::HeapProfiler::SamplingFlags flags);
+                       int stack_depth, v8::HeapProfiler::SamplingFlags flags
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+                       ,
+                       LabelInternTable& label_intern_table
+#endif
+                       );
   ~SamplingHeapProfiler();
   SamplingHeapProfiler(const SamplingHeapProfiler&) = delete;
   SamplingHeapProfiler& operator=(const SamplingHeapProfiler&) = delete;
@@ -194,6 +218,12 @@ class SamplingHeapProfiler {
   const int stack_depth_;
   const uint64_t rate_;
   v8::HeapProfiler::SamplingFlags flags_;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // NODE-LOCAL PATCH: heap profile sample labels feature, do not remove on V8
+  // update. Owned by HeapProfiler, which outlives this object, so that a
+  // background ReleaseLabelValue() need not read sampling_heap_profiler_.
+  LabelInternTable& label_intern_table_;
+#endif
 };
 
 }  // namespace internal

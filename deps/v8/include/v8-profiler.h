@@ -11,6 +11,13 @@
 #include <unordered_set>
 #include <vector>
 
+// NODE-LOCAL PATCH: heap profile sample labels feature, do not remove on V8
+// update. The V8_HEAP_PROFILER_SAMPLE_LABELS blocks in this header, in
+// deps/v8/src/profiler/{sampling-heap-profiler,heap-profiler,
+// label-intern-table}.{h,cc} and in deps/v8/src/api/api.cc are a Node.js
+// floating patch on vendored V8, not legacy V8 code. See
+// doc/contributing/maintaining/maintaining-V8.md for the refloat workflow.
+
 #include "cppgc/common.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-message.h"            // NOLINT(build/include_directory)
@@ -836,6 +843,14 @@ class V8_EXPORT AllocationProfile {
      * been collected by GC.
      */
     bool is_live;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    /**
+     * Opaque id for the label captured at allocation time, or 0 for none.
+     * Resolve it with HeapProfiler::ResolveLabelValue, which returns empty
+     * once the profiler has been stopped.
+     */
+    uint32_t label_id;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
   };
 
   /**
@@ -986,6 +1001,7 @@ class QueryObjectPredicate {
   virtual ~QueryObjectPredicate() = default;
   virtual bool Filter(v8::Local<v8::Object> object) = 0;
 };
+
 
 /**
  * Interface for controlling heap profiling. Instance of the
@@ -1285,6 +1301,50 @@ class V8_EXPORT HeapProfiler {
                                         void* data);
 
   void SetGetDetachednessCallback(GetDetachednessCallback callback, void* data);
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  /**
+   * Sets the key under which each sample's label is looked up in the
+   * ContinuationPreservedEmbedderData Map when the sample is taken. Setting a
+   * key also enables label capture; passing an empty handle clears it. May be
+   * called at any time; changes take effect on subsequent samples.
+   */
+  void SetHeapProfileSampleLabelsKey(Local<Value> key);
+
+  /**
+   * Looks |cped| up as a Map under the key set by
+   * SetHeapProfileSampleLabelsKey. Allocation-free and GC-safe, so it is
+   * usable from sampling context. Returns empty if no key is set, |cped| is
+   * not a Map, or the key is absent.
+   */
+  MaybeLocal<Value> LookupAlsValue(Local<Value> cped);
+
+  /**
+   * Interns |value| and returns an id the embedder can store in place of a
+   * Global<Value>, or 0 if no sampling profiler is active or |value| cannot
+   * be interned. Interning the same value again returns the same id and
+   * increments its refcount, so every non-zero result must be balanced by a
+   * ReleaseLabelValue or the value stays pinned.
+   *
+   * Main thread only; ReleaseLabelValue is the only entry point here that
+   * background threads may call.
+   */
+  uint32_t InternLabelValue(Local<Value> value);
+
+  /**
+   * Decrements the refcount for |id|, letting the value be collected once it
+   * reaches zero. Safe to call from any thread, and safe after
+   * StopSamplingHeapProfiler, which leaves stale ids resolving to nothing.
+   */
+  void ReleaseLabelValue(uint32_t id);
+
+  /**
+   * Resolves |id| to the value that was interned under it, or empty if it has
+   * been released or the session that minted it has stopped. Main thread
+   * only, and the caller must hold a HandleScope.
+   */
+  MaybeLocal<Value> ResolveLabelValue(uint32_t id);
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
   /**
    * Returns whether the heap profiler is currently taking a snapshot.

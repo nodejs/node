@@ -14,6 +14,9 @@
 #include "src/debug/debug-interface.h"
 #include "src/heap/heap.h"
 #include "src/profiler/heap-snapshot-common.h"
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+#include "src/profiler/label-intern-table.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -78,6 +81,30 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   void StopSamplingHeapProfiler();
   bool is_sampling_allocations() { return !!sampling_heap_profiler_; }
   AllocationProfile* GetAllocationProfile();
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  void SetHeapProfileSampleLabelsKey(v8::Local<v8::Value> key) {
+    if (key.IsEmpty()) {
+      sample_labels_als_key_.Reset();
+    } else {
+      sample_labels_als_key_.Reset(
+          reinterpret_cast<v8::Isolate*>(isolate()), key);
+    }
+  }
+
+  const v8::Global<v8::Value>& sample_labels_als_key() const {
+    return sample_labels_als_key_;
+  }
+
+  v8::MaybeLocal<v8::Value> LookupAlsValue(v8::Local<v8::Value> cped);
+
+  // Entry points for embedder-side allocation trackers sharing the label
+  // table. Only ReleaseLabelValue may be called off the main thread; see
+  // include/v8-profiler.h for the full contract.
+  uint32_t InternLabelValue(v8::Local<v8::Value> value);
+  void ReleaseLabelValue(uint32_t id);
+  v8::MaybeLocal<v8::Value> ResolveLabelValue(uint32_t id);
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
   void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
@@ -168,6 +195,15 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   bool is_tracking_object_moves_;
   bool is_taking_snapshot_;
   base::Mutex profiler_mutex_;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // Main thread only: written by SetHeapProfileSampleLabelsKey(), read by
+  // SampleObject().
+  v8::Global<v8::Value> sample_labels_als_key_;
+  // Must stay declared before sampling_heap_profiler_. Members are destroyed
+  // in reverse declaration order, and ~SamplingHeapProfiler releases every
+  // retained sample's id into this table.
+  LabelInternTable label_intern_table_;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;

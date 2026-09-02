@@ -1999,6 +1999,12 @@ added:
 Starting a Heap profile then return a Promise that fulfills with an error
 or an `HeapProfileHandle` object. This API supports `await using` syntax.
 
+The `labels` option from [`v8.startHeapProfile()`][] is not supported
+when profiling a worker from the parent thread and throws
+`ERR_INVALID_ARG_VALUE`. To use labelled heap profiling inside a worker,
+call `v8.startHeapProfile({ labels: true })` from within the worker
+script itself.
+
 ```cjs
 const { Worker } = require('node:worker_threads');
 
@@ -2275,6 +2281,7 @@ thread spawned will spawn another until the application crashes.
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
 [`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
+[`v8.startHeapProfile()`]: v8.md#v8startheapprofileoptions
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #worker_threadsshare_env
 [`worker.on('message')`]: #event-message_1

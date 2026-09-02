@@ -4,6 +4,7 @@
 
 #include "src/profiler/sampling-heap-profiler.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <memory>
@@ -16,7 +17,43 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/profiler/strings-storage.h"
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+// label_id is appended after the pre-existing fields, so their offsets never
+// change on any ABI. sizeof(Sample) is unchanged too wherever the base struct
+// has tail padding to absorb the field; where it does not (i386 System V, see
+// kLabelIdFitsBasePadding below) the struct grows and an addon must define the
+// macro to match libnode. The asserts enforce this in code rather than only in
+// prose (see doc/api/v8.md, "Native addon ABI").
+namespace {
+constexpr size_t kSampleAlign = alignof(v8::AllocationProfile::Sample);
+constexpr size_t kSampleBaseEnd =
+    offsetof(v8::AllocationProfile::Sample, is_live) + sizeof(bool);
+constexpr size_t kSampleBaseSize =
+    (kSampleBaseEnd + kSampleAlign - 1) & ~(kSampleAlign - 1);
+// On ABIs where uint64_t is 8-aligned (LP64, MSVC, ARM32 AAPCS, ...) the base
+// struct carries enough tail padding to hold label_id without growing, so
+// sizeof(Sample) is unchanged and an addon built without the macro strides
+// GetSamples() correctly. On i386 System V, uint64_t is 4-aligned and only 3
+// tail bytes exist, so label_id grows the struct by 4; there the macro must be
+// defined by such an addon. Only assert the no-growth invariant where the
+// padding actually exists, so this does not break the i386 build.
+constexpr bool kLabelIdFitsBasePadding =
+    (kSampleBaseSize - kSampleBaseEnd) >= sizeof(uint32_t);
+static_assert(
+    !kLabelIdFitsBasePadding ||
+        sizeof(v8::AllocationProfile::Sample) == kSampleBaseSize,
+    "where the base struct has tail padding, label_id must occupy it so "
+    "sizeof(Sample) is unchanged by V8_HEAP_PROFILER_SAMPLE_LABELS");
+// Always true regardless of ABI: label_id is appended after every pre-existing
+// field, so none of their offsets shift.
+static_assert(offsetof(v8::AllocationProfile::Sample, label_id) >=
+                  kSampleBaseEnd,
+              "label_id must follow the pre-existing fields");
+}  // namespace
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
 namespace v8 {
 namespace internal {
@@ -53,7 +90,12 @@ v8::AllocationProfile::Allocation SamplingHeapProfiler::ScaleSample(
 
 SamplingHeapProfiler::SamplingHeapProfiler(
     Heap* heap, StringsStorage* names, uint64_t rate, int stack_depth,
-    v8::HeapProfiler::SamplingFlags flags)
+    v8::HeapProfiler::SamplingFlags flags
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    ,
+    LabelInternTable& label_intern_table
+#endif
+    )
     : isolate_(Isolate::FromHeap(heap)),
       heap_(heap),
       allocation_observer_(heap_, static_cast<intptr_t>(rate), rate, this,
@@ -63,7 +105,12 @@ SamplingHeapProfiler::SamplingHeapProfiler(
                     next_node_id()),
       stack_depth_(stack_depth),
       rate_(rate),
-      flags_(flags) {
+      flags_(flags)
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+      ,
+      label_intern_table_(label_intern_table)
+#endif
+{
   CHECK_GT(rate_, 0u);
   heap_->AddAllocationObserversToAllSpaces(&allocation_observer_,
                                            &allocation_observer_);
@@ -72,6 +119,18 @@ SamplingHeapProfiler::SamplingHeapProfiler(
 SamplingHeapProfiler::~SamplingHeapProfiler() {
   heap_->RemoveAllocationObserversFromAllSpaces(&allocation_observer_,
                                                 &allocation_observer_);
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // Retained samples (still live or kept by the include-collected flags) remain
+  // in samples_ at teardown. OnWeakCallback erases the samples it releases from
+  // samples_, so the destructor only visits unreleased samples. The guard skips
+  // samples that never carried a label.
+  for (auto& [ptr, sample] : samples_) {
+    if (sample->label_id != LabelInternTable::kNoLabelId) {
+      label_intern_table_.Release(sample->label_id);
+      sample->label_id = LabelInternTable::kNoLabelId;
+    }
+  }
+#endif
 }
 
 void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
@@ -95,8 +154,31 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 
   AllocationNode* node = AddStack();
   node->allocations_[size]++;
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // The CPED Map holds every ALS store, so intern only the value under our
+  // own key: that keeps the sample from pinning the whole map, and lets
+  // samples sharing an ALS value share one Global.
+  uint32_t label_id = LabelInternTable::kNoLabelId;
+  {
+    HeapProfiler* hp = isolate_->heap()->heap_profiler();
+    if (!hp->sample_labels_als_key().IsEmpty()) {
+      v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+      v8::Local<v8::Value> context =
+          v8_isolate->GetContinuationPreservedEmbedderDataV2().As<v8::Value>();
+      v8::Local<v8::Value> als_value;
+      if (hp->LookupAlsValue(context).ToLocal(&als_value)) {
+        label_id = label_intern_table_.Intern(als_value);
+      }
+    }
+  }
+  auto sample = std::make_unique<Sample>(size, node, loc, this,
+                                         next_sample_id(), label_id);
+#else
   auto sample =
       std::make_unique<Sample>(size, node, loc, this, next_sample_id());
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
   sample->global.SetWeak(sample.get(), OnWeakCallback,
                          WeakCallbackType::kParameter);
   samples_.emplace(sample.get(), std::move(sample));
@@ -116,8 +198,13 @@ void SamplingHeapProfiler::OnWeakCallback(
              v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC);
   if (should_keep_sample) {
     sample->global.Reset();
+    // Keep label_id: the sample stays in samples_, so a later
+    // GetAllocationProfile can still attribute the collected object.
     return;
   }
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  sample->profiler->label_intern_table_.Release(sample->label_id);
+#endif
   AllocationNode* node = sample->owner;
   DCHECK_GT(node->allocations_[sample->size], 0);
   node->allocations_[sample->size]--;
@@ -313,9 +400,15 @@ SamplingHeapProfiler::BuildSamples() const {
   for (const auto& it : samples_) {
     const Sample* sample = it.second.get();
     const bool is_live = !sample->global.IsEmpty();
-    samples.emplace_back(v8::AllocationProfile::Sample{
-        sample->owner->id_, sample->size, ScaleSample(sample->size, 1).count,
-        sample->sample_id, is_live});
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    samples.push_back({sample->owner->id_, sample->size,
+                       ScaleSample(sample->size, 1).count, sample->sample_id,
+                       is_live, sample->label_id});
+#else
+    samples.push_back({sample->owner->id_, sample->size,
+                       ScaleSample(sample->size, 1).count, sample->sample_id,
+                       is_live});
+#endif
   }
   return samples;
 }

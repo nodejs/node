@@ -12011,6 +12011,29 @@ void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
                                                                        data);
 }
 
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+void HeapProfiler::SetHeapProfileSampleLabelsKey(Local<Value> key) {
+  reinterpret_cast<i::HeapProfiler*>(this)
+      ->SetHeapProfileSampleLabelsKey(key);
+}
+
+MaybeLocal<Value> HeapProfiler::LookupAlsValue(Local<Value> cped) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->LookupAlsValue(cped);
+}
+
+uint32_t HeapProfiler::InternLabelValue(Local<Value> value) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->InternLabelValue(value);
+}
+
+void HeapProfiler::ReleaseLabelValue(uint32_t id) {
+  reinterpret_cast<i::HeapProfiler*>(this)->ReleaseLabelValue(id);
+}
+
+MaybeLocal<Value> HeapProfiler::ResolveLabelValue(uint32_t id) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->ResolveLabelValue(id);
+}
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
 bool HeapProfiler::IsTakingSnapshot() {
   return reinterpret_cast<i::HeapProfiler*>(this)->IsTakingSnapshot();
 }

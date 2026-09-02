@@ -1439,6 +1439,11 @@ config("features") {
   }
   if (v8_enable_continuation_preserved_embedder_data) {
     defines += [ "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA" ]
+
+    # Heap profile sample labels ride ContinuationPreservedEmbedderData, so
+    # they are gated on the same feature. Mirrors tools/v8_gypfiles/
+    # features.gypi so GN and GYP builds enable the feature identically.
+    defines += [ "V8_HEAP_PROFILER_SAMPLE_LABELS" ]
   }
   if (v8_enable_allocation_folding) {
     defines += [ "V8_ALLOCATION_FOLDING" ]
@@ -4454,6 +4459,7 @@ v8_header_set("v8_internal_headers") {
     "src/profiler/heap-snapshot-common.h",
     "src/profiler/heap-snapshot-generator-inl.h",
     "src/profiler/heap-snapshot-generator.h",
+    "src/profiler/label-intern-table.h",
     "src/profiler/output-stream-writer.h",
     "src/profiler/profile-generator-inl.h",
     "src/profiler/profile-generator.h",
@@ -6086,6 +6092,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/profiler/cpu-profiler.cc",
     "src/profiler/heap-profiler.cc",
     "src/profiler/heap-snapshot-generator.cc",
+    "src/profiler/label-intern-table.cc",
     "src/profiler/profile-generator.cc",
     "src/profiler/profiler-listener.cc",
     "src/profiler/profiler-stats.cc",
