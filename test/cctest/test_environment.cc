@@ -432,6 +432,27 @@ TEST_F(EnvironmentTest, SharedIsolateDataLoadsBindingsTwice) {
   EXPECT_EQ(node::SpinEventLoop(*env2).FromJust(), 0);
 }
 
+#if HAVE_INSPECTOR
+TEST_F(EnvironmentTest, WorkerConnectToMainThreadWithoutInspector) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+  node::LoadEnvironment(
+      *env,
+      "const { Worker } = require('worker_threads');"
+      "const w = new Worker(`"
+      "  const { Session } = require('inspector');"
+      "  try { new Session().connectToMainThread(); }"
+      "  catch (e) { process.exit(e.code === 'ERR_INSPECTOR_NOT_AVAILABLE' ?"
+      "    0 : 2); }"
+      "  process.exit(3);"
+      "`, { eval: true });"
+      "w.on('exit', (code) => { process.exitCode = code; });")
+      .ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env).FromJust(), 0);
+}
+#endif  // HAVE_INSPECTOR
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
