@@ -917,7 +917,7 @@ std::string LoadConfiguration::to_string() const {
 
   if (auto val = guard_flags(); val && *val != 0) {
     oss << format("{:{}} {}\n", "Guard Flags:", WIDTH,
-                  fmt::join(guard_cf_flags_list(), ","));
+                  fmt::to_string(fmt::join(guard_cf_flags_list(), ",")));
   }
 
   if (const CodeIntegrity* CI = code_integrity()) {
