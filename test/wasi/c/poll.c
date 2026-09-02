@@ -1,13 +1,24 @@
 #include <assert.h>
 #include <poll.h>
+#include <stdint.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define NANOS_PER_SECOND 1000000000LL
+// Timer granularity can make a timeout expire slightly early.
+#define TIMEOUT_TOLERANCE_NS 100000000LL
+
+static int64_t elapsed_nanoseconds(const struct timespec* before,
+                                   const struct timespec* after) {
+  return (after->tv_sec - before->tv_sec) * NANOS_PER_SECOND +
+         after->tv_nsec - before->tv_nsec;
+}
+
 int main(void) {
   struct pollfd fds[4];
-  time_t before, now;
+  struct timespec before, now;
   int ret;
   char* platform;
   int is_aix_or_os400;
@@ -18,18 +29,20 @@ int main(void) {
   is_win = platform != NULL && 0 == strcmp(platform, "win32");
 
   // Test sleep() behavior.
-  time(&before);
+  assert(clock_gettime(CLOCK_MONOTONIC, &before) == 0);
   sleep(1);
-  time(&now);
-  assert(now - before >= 1);
+  assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+  assert(elapsed_nanoseconds(&before, &now) >=
+         NANOS_PER_SECOND - TIMEOUT_TOLERANCE_NS);
 
   // Test poll() timeout behavior.
   fds[0] = (struct pollfd){.fd = -1, .events = 0, .revents = 0};
-  time(&before);
+  assert(clock_gettime(CLOCK_MONOTONIC, &before) == 0);
   ret = poll(fds, 1, 2000);
-  time(&now);
+  assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
   assert(ret == 0);
-  assert(now - before >= 2);
+  assert(elapsed_nanoseconds(&before, &now) >=
+         2 * NANOS_PER_SECOND - TIMEOUT_TOLERANCE_NS);
 
   // V8 has a bug that allows unsupported parts of this test to run,
   // causing the test to fail. poll_win.c is a workaround.
