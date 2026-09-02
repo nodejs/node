@@ -195,45 +195,16 @@ void Session::Application::CollectSessionTicketAppData(
 SessionTicket::AppData::Status
 Session::Application::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
-  // By default we do not have any application data to retrieve.
+  // CollectSessionTicketAppData writes just the type byte, so all this can
+  // check is that the ticket came from the same application type.
+  auto data = app_data.Get();
+  if (!data || data->len != 1 ||
+      static_cast<uint8_t>(data->base[0]) != static_cast<uint8_t>(type())) {
+    return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+  }
   return flag == Flag::STATUS_RENEW
              ? SessionTicket::AppData::Status::TICKET_USE_RENEW
              : SessionTicket::AppData::Status::TICKET_USE;
-}
-
-std::optional<PendingTicketAppData> Session::Application::ParseTicketData(
-    const uv_buf_t& data) {
-  if (data.len == 0 || data.base == nullptr) return std::nullopt;
-  auto app_type =
-      static_cast<Type>(reinterpret_cast<const uint8_t*>(data.base)[0]);
-  switch (app_type) {
-    case Type::DEFAULT:
-      return DefaultTicketData{};
-    case Type::HTTP3:
-      return ParseHttp3TicketData(data);
-    default:
-      return std::nullopt;
-  }
-}
-
-bool Session::Application::ValidateTicketData(
-    const PendingTicketAppData& data, const Application_Options& options) {
-  if (std::holds_alternative<Http3TicketData>(data)) {
-    // TODO(@jasnell): This validation probably belongs in http3.cc but keeping
-    // it here for now.
-    const auto& ticket = std::get<Http3TicketData>(data);
-    return options.max_field_section_size >= ticket.max_field_section_size &&
-           options.qpack_max_dtable_capacity >=
-               ticket.qpack_max_dtable_capacity &&
-           options.qpack_encoder_max_dtable_capacity >=
-               ticket.qpack_encoder_max_dtable_capacity &&
-           options.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
-           (!ticket.enable_connect_protocol ||
-            options.enable_connect_protocol) &&
-           (!ticket.enable_datagrams || options.enable_datagrams);
-  }
-  // DefaultTicketData always validates.
-  return true;
 }
 
 void Session::Application::ReceiveStreamClose(Stream* stream,
@@ -301,10 +272,6 @@ class DefaultApplication final : public Session::Application {
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }
-  }
-
-  bool ApplySessionTicketData(const PendingTicketAppData& data) override {
-    return std::holds_alternative<DefaultTicketData>(data);
   }
 
   bool ReceiveStreamOpen(stream_id id) override {

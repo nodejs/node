@@ -23,6 +23,7 @@
 #include <cstdio>
 #include "async_wrap-inl.h"
 #include "crypto/crypto_bio.h"
+#include "crypto/crypto_client_hello.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_context.h"
 #include "crypto/crypto_util.h"
@@ -104,40 +105,18 @@ SSL_SESSION* GetSessionCallback(
 // The TLS library invokes this before version negotiation and before session
 // or ticket resumption, which makes async session lookup possible. If required
 // the handshake is suspended here and resumed once JS has answered.
-#ifdef OPENSSL_IS_BORINGSSL
-ssl_select_cert_result_t EarlyClientHelloCallback(const SSL_CLIENT_HELLO* ch) {
-  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(ch->ssl));
-  if (!w->should_suspend_for_client_hello()) return ssl_select_cert_success;
+ClientHelloResult EarlyClientHelloCallback(const ClientHelloContext& hello) {
+  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(hello.ssl()));
+  if (!w->should_suspend_for_client_hello()) {
+    return ClientHelloResult::kContinue;
+  }
 
-  const uint8_t* ext;
-  size_t ext_len;
-  bool has_ticket = SSL_early_callback_ctx_extension_get(
-                        ch, TLSEXT_TYPE_session_ticket, &ext, &ext_len) &&
-                    ext_len > 0;
-
-  return w->OnEarlyClientHello(ch->session_id, ch->session_id_len, has_ticket)
-             ? ssl_select_cert_success
-             : ssl_select_cert_retry;
+  auto session_id = hello.session_id();
+  return w->OnEarlyClientHello(
+             session_id.data(), session_id.size(), hello.has_session_ticket())
+             ? ClientHelloResult::kContinue
+             : ClientHelloResult::kRetry;
 }
-#else
-int EarlyClientHelloCallback(SSL* s, int* al, void* arg) {
-  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
-  if (!w->should_suspend_for_client_hello()) return SSL_CLIENT_HELLO_SUCCESS;
-
-  const unsigned char* session_id;
-  size_t session_id_len = SSL_client_hello_get0_session_id(s, &session_id);
-
-  const unsigned char* ext;
-  size_t ext_len;
-  bool has_ticket = SSL_client_hello_get0_ext(
-                        s, TLSEXT_TYPE_session_ticket, &ext, &ext_len) == 1 &&
-                    ext_len > 0;
-
-  return w->OnEarlyClientHello(session_id, session_id_len, has_ticket)
-             ? SSL_CLIENT_HELLO_SUCCESS
-             : SSL_CLIENT_HELLO_RETRY;
-}
-#endif
 
 void KeylogCallback(const SSL* s, const char* line) {
   TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
@@ -265,11 +244,13 @@ int SelectALPNCallback(
 
     unsigned int result_int = callback_result.As<Number>()->Value();
 
-    // The callback returns an offset into the given buffer, for the selected
-    // protocol that should be returned. We then set outlen & out to point
-    // to the selected input length & value directly:
-    *outlen = *(in + result_int);
-    *out = (in + result_int + 1);
+    // The callback returns an offset into the given buffer, at which the
+    // selected protocol sits in ALPN wire format: a length byte followed by
+    // that many name bytes.
+    SetSelectedProtocol(
+        out,
+        outlen,
+        {reinterpret_cast<const char*>(in + result_int + 1), in[result_int]});
 
     return SSL_TLSEXT_ERR_OK;
   }
@@ -278,20 +259,20 @@ int SelectALPNCallback(
 
   if (alpn_protos.empty()) return SSL_TLSEXT_ERR_NOACK;
 
-  int status = SSL_select_next_proto(const_cast<unsigned char**>(out),
-                                     outlen,
-                                     alpn_protos.data(),
-                                     alpn_protos.size(),
-                                     in,
-                                     inlen);
+  const std::span<const uint8_t> supported{alpn_protos.data(),
+                                           alpn_protos.size()};
+  const std::span<const uint8_t> offered{in, inlen};
+  auto selected = SelectNextProtocol(supported, offered);
 
   // Previous versions of Node.js returned SSL_TLSEXT_ERR_NOACK if no protocol
   // match was found. This would neither cause a fatal alert nor would it result
   // in a useful ALPN response as part of the Server Hello message.
   // We now return SSL_TLSEXT_ERR_ALERT_FATAL in that case as per Section 3.2
   // of RFC 7301, which causes a fatal no_application_protocol alert.
-  return status == OPENSSL_NPN_NEGOTIATED ? SSL_TLSEXT_ERR_OK
-                                          : SSL_TLSEXT_ERR_ALERT_FATAL;
+  if (!selected.has_value()) return SSL_TLSEXT_ERR_ALERT_FATAL;
+
+  SetSelectedProtocol(out, outlen, *selected);
+  return SSL_TLSEXT_ERR_OK;
 }
 
 MaybeLocal<Value> GetSSLOCSPResponse(Environment* env, SSL* ssl) {
@@ -410,7 +391,7 @@ TLSWrap::TLSWrap(Environment* env,
   ssl_ = sc_->CreateSSL();
   CHECK(ssl_);
 
-  sc_->SetClientHelloCallback(EarlyClientHelloCallback);
+  SetClientHelloCallback<EarlyClientHelloCallback>(sc_->ctx().get());
   sc_->SetGetSessionCallback(GetSessionCallback);
   sc_->SetNewSessionCallback(NewSessionCallback);
 

@@ -1,6 +1,6 @@
 // Flags: --experimental-quic --no-warnings
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -44,3 +44,10 @@ const clientSession = await connect(serverEndpoint.address, {
 await Promise.all([serverOpened.promise, checkSession(clientSession)]);
 await clientSession.close();
 await serverEndpoint.close();
+
+// QUIC requires an application protocol, so a server that offers none is
+// rejected when the endpoint is configured rather than at handshake time.
+await assert.rejects(listen(mustNotCall(), {
+  sni: { '*': { keys: [key], certs: [cert] } },
+  alpn: [],
+}), { code: 'ERR_INVALID_ARG_VALUE' });

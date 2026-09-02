@@ -5,6 +5,7 @@
 
 #include <base_object-inl.h>
 #include <crypto/crypto_bio.h>
+#include <crypto/crypto_client_hello.h>
 #include <crypto/crypto_tls_certificates.h>
 #include <crypto/crypto_util.h>
 #include <env-inl.h>
@@ -430,17 +431,14 @@ int DTLSContext::ALPNSelectCallback(SSL* ssl,
     return SSL_TLSEXT_ERR_NOACK;
   }
 
-  int ret = SSL_select_next_proto(const_cast<unsigned char**>(out),
-                                  outlen,
-                                  ctx->alpn_protos_.data(),
-                                  ctx->alpn_protos_.size(),
-                                  in,
-                                  inlen);
+  auto selected = crypto::SelectNextProtocol(
+      {ctx->alpn_protos_.data(), ctx->alpn_protos_.size()}, {in, inlen});
 
-  if (ret != OPENSSL_NPN_NEGOTIATED) {
+  if (!selected.has_value()) {
     return SSL_TLSEXT_ERR_NOACK;
   }
 
+  crypto::SetSelectedProtocol(out, outlen, *selected);
   return SSL_TLSEXT_ERR_OK;
 }
 
