@@ -60,6 +60,7 @@ if (mode === 'ipc-denied') {
   const droppedSocket = dgram.createSocket('udp4');
   const sender = dgram.createSocket('udp4');
   droppedSocket.bind(0, '127.0.0.1', common.mustCall(() => {
+    const { port } = droppedSocket.address();
     const child = fork(__filename, ['ipc-drop'], {
       execArgv: [
         '--permission',
@@ -73,7 +74,10 @@ if (mode === 'ipc-denied') {
       if (message === 'ready') {
         child.send('socket', droppedSocket);
       } else if (message === 'receiving') {
-        const { port } = droppedSocket.address();
+        // Sending the socket over IPC keeps this copy open and receiving, so
+        // both ends compete for incoming datagrams. Stop receiving before the
+        // first one goes out.
+        droppedSocket.close();
         timer = setInterval(() => {
           sender.send('after-drop', port, '127.0.0.1');
         }, 10);
@@ -81,7 +85,6 @@ if (mode === 'ipc-denied') {
         assert.strictEqual(message, 'received');
         clearInterval(timer);
         sender.close();
-        droppedSocket.close();
         child.disconnect();
       }
     }, 3));
