@@ -570,9 +570,9 @@ for (const mode of ['callback', 'throw']) {
 
 {
   const result = spawnBench([
-    '--stack-trace-limit=17',
-    '--random-seed=17',
     '--bench-reporter=json',
+    '--random-seed=17',
+    '--stack-trace-limit=17',
     fixtures.path('bench-runner/v8-option.cjs'),
   ]);
   assert.strictEqual(result.status, 0);
