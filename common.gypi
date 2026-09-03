@@ -611,6 +611,10 @@
                 'cflags': [ '-m64', '-march=z14' ],
                 'ldflags': [ '-m64', '-march=z14' ],
               }],
+              [ 'host_arch=="riscv64" and OS=="linux"', {
+                'cflags': [ '-march=rv64gc' ],
+                'ldflags': [ '-march=rv64gc' ],
+              }],
             ],
           }],
           ['_toolset=="target"', {
@@ -635,6 +639,10 @@
               [ 'target_arch=="s390x" and OS=="linux"', {
                 'cflags': [ '-m64', '-march=z14' ],
                 'ldflags': [ '-m64', '-march=z14' ],
+              }],
+              [ 'target_arch=="riscv64" and OS=="linux"', {
+                'cflags': [ '-march=rv64gc' ],
+                'ldflags': [ '-march=rv64gc' ],
               }],
             ],
           }],
