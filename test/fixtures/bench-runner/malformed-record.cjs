@@ -41,11 +41,23 @@ const record = kind === 'summary' ? {
     runId: process.env.NODE_BENCH_RUN_ID,
     success: true,
   },
+} : kind === 'name-path' ? {
+  ...plan,
+  data: {
+    ...plan.data,
+    namePath: [1],
+  },
 } : kind === 'plan' ? {
   ...plan,
   data: {
     ...plan.data,
     samples: 0,
+  },
+} : kind === 'timeout' ? {
+  ...plan,
+  data: {
+    ...plan.data,
+    timeout: -1,
   },
 } : kind === 'identity' ? {
   type: 'bench:complete',
