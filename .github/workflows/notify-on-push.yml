@@ -32,6 +32,9 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   validateCommitMessage:
+    # If a commit is force-pushed out of the main branch, the `commits` array is
+    # empty and there are no checks to run.
+    if: github.event.commits[0]
     name: Notify on Push on `main` with invalid message
     # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
     runs-on: ubuntu-24.04-arm
