@@ -123,8 +123,10 @@ T Median(T* values, const size_t num_values) {
   if (num_values % 2) {
     return values[half];
   }
+  // For integers, round rather than truncate.
+  const T bias = hwy::IsInteger<T>() ? T{1} : T{0};
   // Even count: return average of middle two.
-  return (values[half] + values[half - 1] + 1) / 2;
+  return (values[half] + values[half - 1] + bias) / 2;
 }
 
 // Returns a robust measure of variability.

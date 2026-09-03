@@ -118,7 +118,7 @@ class SourcePosition final {
 
   static constexpr int MaxInliningId() { return InliningIdField::kMax; }
 
-  static const int kNotInlined = -1;
+  static constexpr int kNotInlined = -1;
   static_assert(kNoSourcePosition == -1);
 
   int64_t raw() const { return static_cast<int64_t>(value_); }

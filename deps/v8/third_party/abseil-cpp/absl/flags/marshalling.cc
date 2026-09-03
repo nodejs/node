@@ -257,7 +257,7 @@ bool AbslParseFlag(absl::string_view text, absl::LogSeverity* dst,
     *dst = absl::LogSeverity::kFatal;
     return true;
   }
-  std::underlying_type<absl::LogSeverity>::type numeric_value;
+  std::underlying_type_t<absl::LogSeverity> numeric_value;
   if (absl::ParseFlag(text, &numeric_value, err)) {
     *dst = static_cast<absl::LogSeverity>(numeric_value);
     return true;

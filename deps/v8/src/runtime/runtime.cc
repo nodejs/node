@@ -271,7 +271,10 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kGetFunctionForCurrentFrame:
     case Runtime::kGetCallable:
     case Runtime::kGetAbstractModuleSource:
+    case Runtime::kAssertNotPeeled:
+    case Runtime::kAssertPeeled:
     case Runtime::kTurbofanStaticAssert:
+    case Runtime::kAssertEscapeAnalysisElided:
     case Runtime::kClearFunctionFeedback:
     case Runtime::kStringIsFlat:
     case Runtime::kGetInitializerFunction:
@@ -299,14 +302,22 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       return v8_flags.hole_fuzzing;
 
     case Runtime::kGetBytecode:
-    case Runtime::kInstallBytecode:
-      // These are designed for sandbox fuzzing, specifically of the bytecode
-      // verifier. They are not safe to be used during regular fuzzing as
-      // * %GetBytecode exposes the objects in the BytecodeArray's constant
-      //   pool (which may be internal objects such as ScopeInfo) to the caller
-      // * %InstallBytecode allows installing manipulated bytecode that has
-      //   only been checked for sandbox safety, not general correctness.
+      // %GetBytecode is designed for sandbox fuzzing. It is not safe to be
+      // used during regular fuzzing as it exposes the objects in the
+      // BytecodeArray's constant pool (which may be internal objects such
+      // as ScopeInfo) to the caller.
       return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
+
+    case Runtime::kInstallBytecode:
+      // %InstallBytecode allows installing manipulated bytecode that has
+      // only been checked for sandbox safety, not general correctness.
+      // Therefore, it is restricted to sandbox fuzzing with full bytecode
+      // verification enabled, preventing trivial sandbox violation alarms.
+      return (v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing) &&
+             v8_flags.verify_bytecode_full;
+
+    case Runtime::kIsSmi:
+      return true;  // Enabled when not performing differential fuzzing.
 
     default:
       break;

@@ -1,0 +1,25 @@
+Test scope inspection of an implicit inline trap.
+
+Running test: test
+Instantiating.
+Calling trapping function.
+Paused at:
+--- 0 ---
+Script wasm://wasm/c24ede22 byte offset 58: Wasm opcode 0x28 (kExprI32LoadMem)
+ - scope (wasm-expression-stack):
+   stack: [42 (i32)]
+ - scope (local):
+ - scope (module):
+   instance: <module-scope>
+   module: <module-scope>
+   functions: <module-scope>
+   memories: <module-scope>
+--- 1 ---
+  try {
+    instance.exports.#trigger_oob_trap();
+  } catch (e) {
+
+--- 2 ---
+#call_trap()
+
+-------------

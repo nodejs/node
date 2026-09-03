@@ -128,7 +128,7 @@ impl<K, V> StoreIntoIterator<K, V> for VecWithDefaults<(K, V)> {
     // leave lm_extend_start as default
 }
 
-impl<A> std::iter::FromIterator<A> for VecWithDefaults<A> {
+impl<A> FromIterator<A> for VecWithDefaults<A> {
     fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
         Self(Vec::from_iter(iter))
     }

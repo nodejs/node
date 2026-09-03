@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let tableTypes = {
@@ -51,7 +49,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let creatorSig = builder.addType(makeSig([], [type]));
   let creatorAnySig = builder.addType(makeSig([], [kWasmAnyRef]));
   let struct = builder.addStruct([makeField(kWasmI32, false)]);
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addImportedTable("imports", "table", size, maxSize, type);
   builder.addFunction("tableSet",
@@ -177,7 +175,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     assertNotSame(table.get(6), table.get(7));
   }
 
-  // Set stringref.
+  // Set string.
   if (typeName == "anyref") {
     table.set(8, "TestString");
     assertEquals("TestString", wasm.tableGet(8));

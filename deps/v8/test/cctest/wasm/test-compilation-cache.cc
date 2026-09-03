@@ -4,14 +4,15 @@
 
 #include "src/api/api-inl.h"
 #include "src/init/v8.h"
-
+#include "src/objects/managed.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
-
+#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-result.h"
+#include "src/zone/zone.h"
 #include "test/cctest/cctest.h"
-
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -24,12 +25,12 @@ namespace {
 class TestResolver : public CompilationResultResolver {
  public:
   explicit TestResolver(std::atomic<int>* pending)
-      : native_module_(nullptr), pending_(pending) {}
+      : native_module_(), pending_(pending) {}
 
   void OnCompilationSucceeded(
       i::DirectHandle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
-      native_module_ = module->shared_native_module();
+      native_module_ = module->native_module();
       pending_->fetch_sub(1);
     }
   }
@@ -38,10 +39,12 @@ class TestResolver : public CompilationResultResolver {
     CHECK(false);
   }
 
-  std::shared_ptr<NativeModule> native_module() { return native_module_; }
+  NativeModule* native_module() V8_LIFETIME_BOUND {
+    return native_module_.raw();
+  }
 
  private:
-  std::shared_ptr<NativeModule> native_module_;
+  Managed<NativeModule>::Ptr native_module_;
   std::atomic<int>* pending_;
 };
 
@@ -52,7 +55,7 @@ class StreamTester {
     i::Isolate* i_isolate = CcTest::i_isolate();
 
     stream_ = GetWasmEngine()->StartStreamingCompilation(
-        WasmEnabledFeatures::All(), CompileTimeImports{},
+        WasmEnabledFeatures::FromIsolate(i_isolate), CompileTimeImports{},
         "WebAssembly.compileStreaming()", test_resolver_);
     stream_->InitializeIsolateSpecificInfo(i_isolate);
   }
@@ -82,7 +85,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
   return buffer;
 }
 
-std::shared_ptr<NativeModule> SyncCompile(base::Vector<const uint8_t> bytes) {
+Managed<NativeModule>::Ptr SyncCompile(base::Vector<const uint8_t> bytes) {
   ErrorThrower thrower(CcTest::i_isolate(), "Test");
   auto enabled_features = WasmEnabledFeatures::FromIsolate(CcTest::i_isolate());
   DirectHandle<WasmModuleObject> module =
@@ -91,7 +94,7 @@ std::shared_ptr<NativeModule> SyncCompile(base::Vector<const uint8_t> bytes) {
                         CompileTimeImports{}, &thrower,
                         base::OwnedCopyOf(bytes))
           .ToHandleChecked();
-  return module->shared_native_module();
+  return module->native_module();
 }
 
 // Shared prefix.
@@ -186,9 +189,9 @@ TEST(TestStreamingCache) {
                                   CcTest::isolate());
   }
 
-  std::shared_ptr<NativeModule> native_module_A1 = resolverA1->native_module();
-  std::shared_ptr<NativeModule> native_module_A2 = resolverA2->native_module();
-  std::shared_ptr<NativeModule> native_module_B = resolverB->native_module();
+  NativeModule* native_module_A1 = resolverA1->native_module();
+  NativeModule* native_module_A2 = resolverA2->native_module();
+  NativeModule* native_module_B = resolverB->native_module();
   CHECK_EQ(native_module_A1, native_module_A2);
   CHECK_NE(native_module_A1, native_module_B);
 }
@@ -208,7 +211,8 @@ TEST(TestStreamingAndSyncCache) {
       base::OwnedVector<uint8_t>::New(kPrefixSize + kFunctionSize);
   memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
   memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
-  auto native_module_sync = SyncCompile(full_bytes.as_vector());
+  Managed<NativeModule>::Ptr native_module_sync =
+      SyncCompile(full_bytes.as_vector());
 
   // Streaming compilation should just discard its native module now and use the
   // one inserted in the cache by sync compilation.
@@ -220,9 +224,8 @@ TEST(TestStreamingAndSyncCache) {
                                   CcTest::isolate());
   }
 
-  std::shared_ptr<NativeModule> native_module_streaming =
-      resolver->native_module();
-  CHECK_EQ(native_module_streaming, native_module_sync);
+  NativeModule* native_module_streaming = resolver->native_module();
+  CHECK_EQ(native_module_streaming, native_module_sync.raw());
 }
 
 void TestModuleSharingBetweenIsolates() {
@@ -250,14 +253,14 @@ void TestModuleSharingBetweenIsolates() {
         memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
         memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
         ErrorThrower thrower(i_isolate, "Test");
-        std::shared_ptr<NativeModule> native_module =
+        Managed<NativeModule>::Ptr native_module =
             GetWasmEngine()
                 ->SyncCompile(i_isolate, WasmEnabledFeatures::All(),
                               CompileTimeImports{}, &thrower,
                               std::move(full_bytes))
                 .ToHandleChecked()
-                ->shared_native_module();
-        register_module_(native_module);
+                ->native_module();
+        register_module_(native_module.as_shared_ptr());
         // Check that we can access the code (see https://crbug.com/1280451).
         WasmCodeRefScope code_ref_scope;
         uint8_t* code_start = native_module->GetCode(0)->instructions().begin();

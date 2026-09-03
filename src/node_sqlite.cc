@@ -877,7 +877,7 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.Holder(), Intercepted::kNo);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -904,13 +904,13 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
 Intercepted DatabaseSyncLimits::LimitsSetter(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& info) {
+    const PropertyCallbackInfo<Boolean>& info) {
   if (!property->IsString()) {
     return Intercepted::kNo;
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.Holder(), Intercepted::kNo);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -3367,9 +3367,9 @@ BaseObjectPtr<StatementSyncIterator> StatementExecutionHelper::Iterate(
   }
 
   if (iter->object()
-          ->GetPrototypeV2()
+          ->GetPrototype()
           .As<Object>()
-          ->SetPrototypeV2(context, js_iterator_prototype)
+          ->SetPrototype(context, js_iterator_prototype)
           .IsNothing()) {
     return BaseObjectPtr<StatementSyncIterator>();
   }

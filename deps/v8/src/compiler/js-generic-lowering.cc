@@ -4,12 +4,15 @@
 
 #include "src/compiler/js-generic-lowering.h"
 
+#include <vector>
+
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
@@ -86,6 +89,10 @@ REPLACE_STUB_CALL(RejectPromise)
 REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
 
+void JSGenericLowering::LowerJSAsyncFunctionAwait(Node* node) {
+  ReplaceWithBuiltinCall(node, Builtin::kAsyncFunctionAwait);
+}
+
 void JSGenericLowering::ReplaceWithBuiltinCall(Node* node, Builtin builtin) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = Builtins::CallableFor(isolate(), builtin);
@@ -150,7 +157,7 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()) ||
          (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())));
-  if (JSOperator::IsBinaryWithFeedback(node->opcode())) {
+  if (node->op()->ValueInputCount() > 2) {
     node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
   }
   ReplaceWithBuiltinCall(node, builtin_without_feedback);
@@ -189,6 +196,7 @@ DEF_BINARY_LOWERING(InstanceOf)
 DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThan)
 DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThanOrEqual)
 #undef DEF_BINARY_LOWERING
+#undef DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   // The === operator doesn't need the current context.

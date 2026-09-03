@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-compilation-hints --trace-wasm-inlining
+// Flags: --wasm-compilation-hints --trace-wasm-inlining
 // Flags: --allow-natives-syntax --liftoff
 
 // TODO(manoskouk): Remove the busy-waits from this test.

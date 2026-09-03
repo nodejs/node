@@ -2,12 +2,12 @@ diff --git a/third_party/zlib/contrib/minizip/iowin32.c b/third_party/zlib/contr
 index bbd7773e67146..3f6867fd7e40b 100644
 --- a/third_party/zlib/contrib/minizip/iowin32.c
 +++ b/third_party/zlib/contrib/minizip/iowin32.c
-@@ -30,19 +30,12 @@
+@@ -29,19 +29,12 @@
  #define _WIN32_WINNT 0x601
  #endif
- 
+
 -#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
--// see Include/shared/winapifamily.h in the Windows Kit
+-/* see Include/shared/winapifamily.h in the Windows Kit */
 -#if defined(WINAPI_FAMILY_PARTITION) && (!(defined(IOWIN32_USING_WINRT_API)))
 -
 -#if !defined(WINAPI_FAMILY_ONE_PARTITION)
@@ -22,6 +22,6 @@ index bbd7773e67146..3f6867fd7e40b 100644
  #endif
  #endif
 -#endif
- 
+
  typedef struct
  {

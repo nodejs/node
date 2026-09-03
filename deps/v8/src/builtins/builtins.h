@@ -5,6 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_H_
 #define V8_BUILTINS_BUILTINS_H_
 
+#include "src/base/bounds.h"
 #include "src/base/flags.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-definitions.h"
@@ -690,6 +691,46 @@ V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
           builtin_id == Builtin::kBaselineOutOfLinePrologueDeopt);
 }
 
+V8_INLINE constexpr bool IsMonomorphicLoadICHandler(Builtin builtin_id) {
+  static_assert(Builtin::kFirstLoadICHandler ==
+                Builtin::kLoadICUninitializedBaseline);
+  static_assert(Builtin::kLastLoadICHandler == Builtin::kLoadICGenericBaseline);
+  return builtin_id > Builtin::kFirstLoadICHandler &&
+         builtin_id < Builtin::kLastLoadICHandler;
+}
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define DEFINE_TYPED_OP_CHECKER(Name, LowerBound, UpperBound)           \
+  V8_INLINE constexpr bool IsTyped##Name##Builtin(Builtin builtin_id) { \
+    return base::IsInRange(builtin_id,                                  \
+                           Builtin::k##Name##_##LowerBound##_Baseline,  \
+                           Builtin::k##Name##_##UpperBound##_Baseline); \
+  }
+
+// The Lower/Upper bound macro arguments should match the definition order in
+// builtins-definitions.h.
+DEFINE_TYPED_OP_CHECKER(Equal, Any, None)
+DEFINE_TYPED_OP_CHECKER(StrictEqual, Any, None)
+DEFINE_TYPED_OP_CHECKER(LessThan, Number, None)
+DEFINE_TYPED_OP_CHECKER(GreaterThan, Number, None)
+DEFINE_TYPED_OP_CHECKER(LessThanOrEqual, Number, None)
+DEFINE_TYPED_OP_CHECKER(GreaterThanOrEqual, Number, None)
+// Binary op typed-stub families.
+DEFINE_TYPED_OP_CHECKER(Add, None, String)
+DEFINE_TYPED_OP_CHECKER(Subtract, None, Number)
+DEFINE_TYPED_OP_CHECKER(Multiply, None, Number)
+DEFINE_TYPED_OP_CHECKER(Divide, None, Number)
+DEFINE_TYPED_OP_CHECKER(Modulus, None, Number)
+DEFINE_TYPED_OP_CHECKER(Exponentiate, None, Number)
+DEFINE_TYPED_OP_CHECKER(BitwiseOr, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(BitwiseXor, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(BitwiseAnd, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(ShiftLeft, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(ShiftRight, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(ShiftRightLogical, None, SignedSmall)
+#undef DEFINE_TYPED_OP_CHECKER
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id);
 
@@ -701,18 +742,5 @@ bool BuiltinCanAllocate(Builtin builtin);
 
 }  // namespace internal
 }  // namespace v8
-
-// Helper while transitioning some functions to libm.
-#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
-#define SIN_IMPL(X)                                             \
-  v8_flags.use_libm_trig_functions ? base::ieee754::libm_sin(X) \
-                                   : base::ieee754::fdlibm_sin(X)
-#define COS_IMPL(X)                                             \
-  v8_flags.use_libm_trig_functions ? base::ieee754::libm_cos(X) \
-                                   : base::ieee754::fdlibm_cos(X)
-#else
-#define SIN_IMPL(X) base::ieee754::sin(X)
-#define COS_IMPL(X) base::ieee754::cos(X)
-#endif
 
 #endif  // V8_BUILTINS_BUILTINS_H_

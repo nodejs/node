@@ -42,7 +42,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.28',
+    'v8_embedder_string': '-node.11',
 
     ##### V8 defaults for Node.js #####
 
@@ -100,7 +100,7 @@
         'v8_base': '<(PRODUCT_DIR)/lib/libv8_snapshot.a',
       }, {
         'os_posix': 1,
-        'v8_postmortem_support%': 1,
+        'v8_postmortem_support%': 0,
       }],
       ['GENERATOR == "ninja"', {
         'obj_dir': '<(PRODUCT_DIR)/obj',

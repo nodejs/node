@@ -2139,6 +2139,8 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
   intptr_t wr_wait = 0;  // set to kMuWrWait if we wake a reader and a
                          // later writer could have acquired the lock
                          // (starvation avoidance)
+  // When non-null, clear its "woken_has_waiters" field before returning.
+  absl::base_internal::ThreadIdentity* clear_waking_des_waker = nullptr;
   ABSL_RAW_CHECK(waitp == nullptr || waitp->thread->waitp == nullptr ||
                      waitp->thread->suppress_fatal_errors,
                  "detected illegal recursion into Mutex code");
@@ -2382,6 +2384,13 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
         h->readers = 0;
         h->maybe_unlocking = false;  // finished unlocking
         nv |= wr_wait | kMuWait | reinterpret_cast<intptr_t>(h);
+
+        // Signal to any Scheduler that we are waking from Mutex Unlock
+        // and there are more waiters left, signaling possible contention.
+        ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
+        clear_waking_des_waker = GetOrCreateCurrentThreadIdentity();
+        ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
+        clear_waking_des_waker->scheduler_state.waking_designated_waker = true;
       }
 
       // release both spinlock & lock
@@ -2416,6 +2425,10 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
       submit_profile_data(total_wait_cycles);
       ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
     }
+  }
+
+  if (clear_waking_des_waker) {
+    clear_waking_des_waker->scheduler_state.waking_designated_waker = false;
   }
 }
 

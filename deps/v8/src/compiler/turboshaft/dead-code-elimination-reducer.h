@@ -114,6 +114,7 @@ struct ControlState {
       case Kind::kNotEliminatable:
         return lhs;
     }
+    UNREACHABLE();
   }
 
   Kind kind;
@@ -130,6 +131,7 @@ inline std::ostream& operator<<(std::ostream& stream,
     case ControlState::kUnreachable:
       return stream << "Unreachable";
   }
+  UNREACHABLE();
 }
 
 inline bool operator==(const ControlState& lhs, const ControlState& rhs) {
@@ -240,8 +242,9 @@ class DeadCodeAnalysis {
       }
       control_state = ControlState::LeastUpperBound(control_state, r);
     }
-    if constexpr (trace_analysis)
+    if constexpr (trace_analysis) {
       std::cout << "Combined: " << control_state << "\n";
+    }
 
     // If control_state == ControlState::Block(b), then the merge block b is
     // reachable through every path starting at the current block without any

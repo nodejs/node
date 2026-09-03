@@ -508,13 +508,13 @@ constexpr bool DoNotEscape(Char c);
 
 template <>
 constexpr bool DoNotEscape(uint8_t c) {
-  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  // https://tc39.es/ecma262/#table-json-single-character-escapes
   return JsonDoNotEscapeFlagTable[c];
 }
 
 template <>
 constexpr bool DoNotEscape(uint16_t c) {
-  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  // https://tc39.es/ecma262/#table-json-single-character-escapes
   return (c >= 0x20 && c <= 0x21) ||
          (c >= 0x23 && c != 0x5C && (c < 0xD800 || c > 0xDFFF));
 }
@@ -574,8 +574,8 @@ bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
   // If the no elements protector is intact, Array.prototype and
   // Object.prototype are guaranteed to not have elements in any native context.
   if (!Protectors::IsNoElementsIntact(isolate)) return false;
-  Tagged<Map> map = object->map(isolate);
-  Tagged<NativeContext> native_context = map->map(isolate)->native_context();
+  Tagged<Map> map = object->map();
+  Tagged<NativeContext> native_context = map->map()->native_context();
   Tagged<HeapObject> proto = map->prototype();
   return native_context->GetNoCell(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
          proto;
@@ -618,7 +618,7 @@ MaybeDirectHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
     CHECK(isolate_->has_exception());
     return MaybeDirectHandle<Object>();
   }
-  if (!IsUndefined(*gap, isolate_) && !InitializeGap(gap)) {
+  if (!IsUndefined(*gap) && !InitializeGap(gap)) {
     CHECK(isolate_->has_exception());
     return MaybeDirectHandle<Object>();
   }
@@ -963,15 +963,14 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
   if (interrupt_check.InterruptRequested() &&
-      IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
+      IsExceptionHole(isolate_->stack_guard()->HandleInterrupts())) {
     return EXCEPTION;
   }
 
   DirectHandle<JSAny> initial_value = object;
-  PtrComprCageBase cage_base(isolate_);
   if (!IsSmi(*object)) {
     InstanceType instance_type =
-        Cast<HeapObject>(*object)->map(cage_base)->instance_type();
+        Cast<HeapObject>(*object)->map()->instance_type();
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
          MayHaveInterestingProperties(isolate_, Cast<JSReceiver>(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
@@ -997,7 +996,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
   }
 
   InstanceType instance_type =
-      Cast<HeapObject>(*object)->map(cage_base)->instance_type();
+      Cast<HeapObject>(*object)->map()->instance_type();
   switch (instance_type) {
     case HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -1043,9 +1042,9 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
         if (raw_json_obj->HasInitialLayout(isolate_)) {
           // Fast path: the object returned by JSON.rawJSON has its initial map
           // intact.
-          raw_json = Cast<String>(handle(
-              raw_json_obj->InObjectPropertyAt(JSRawJson::kRawJsonInitialIndex),
-              isolate_));
+          raw_json = Cast<String>(
+              handle(raw_json_obj->InObjectPropertyAtOffset(sizeof(JSRawJson)),
+                     isolate_));
         } else {
           // Slow path: perform a property get for "rawJSON". Because raw JSON
           // objects are created frozen, it is still guaranteed that there will
@@ -1053,8 +1052,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
           // only change due to VM-internal operations like being optimized for
           // being used as a prototype.
           raw_json = Cast<String>(
-              JSObject::GetProperty(isolate_, raw_json_obj,
-                                    isolate_->factory()->raw_json_string())
+              JSReceiver::GetProperty(isolate_, raw_json_obj,
+                                      isolate_->factory()->raw_json_string())
                   .ToHandleChecked());
         }
         AppendString(raw_json);
@@ -1077,7 +1076,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
         // If we ever leak an internal object that is not a JSReceiver it could
         // end up here and lead to a type confusion.
         CHECK(IsJSReceiver(*object));
-        if (IsCallable(Cast<HeapObject>(*object), cage_base)) return UNCHANGED;
+        if (IsCallable(Cast<HeapObject>(*object))) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
@@ -1111,7 +1110,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
     return EXCEPTION;
   } else if (IsBoolean(raw)) {
-    if (IsTrue(raw, isolate_)) {
+    if (IsTrue(raw)) {
       AppendCStringLiteral("true");
     } else {
       AppendCStringLiteral("false");
@@ -1239,8 +1238,7 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
     DCHECK_LT(limit, kMaxAllowedFastPackedLength);
     limit = std::min(length, limit + kInterruptLength);
     if (interrupt_check.InterruptRequested() &&
-        IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(),
-                        isolate_)) {
+        IsExceptionHole(isolate_->stack_guard()->HandleInterrupts())) {
       return EXCEPTION;
     }
   }
@@ -1354,7 +1352,6 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
 
 JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> object, Handle<Object> key) {
-  PtrComprCageBase cage_base(isolate_);
   HandleScope handle_scope(isolate_);
 
   if (!property_list_.is_null() ||
@@ -1375,7 +1372,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
   DCHECK(!object->HasIndexedInterceptor());
   DCHECK(!object->HasNamedInterceptor());
 
-  DirectHandle<Map> map(object->map(cage_base), isolate_);
+  DirectHandle<Map> map(object->map(), isolate_);
   if (map->NumberOfOwnDescriptors() == 0) {
     AppendCStringLiteral("{}");
     return SUCCESS;
@@ -1391,18 +1388,17 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     PropertyDetails details = PropertyDetails::Empty();
     {
       DisallowGarbageCollection no_gc;
-      Tagged<DescriptorArray> descriptors =
-          map->instance_descriptors(cage_base);
+      Tagged<DescriptorArray> descriptors = map->instance_descriptors();
       Tagged<Name> name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
-      if (!IsString(name, cage_base)) continue;
+      if (!IsString(name)) continue;
       key_name = handle(Cast<String>(name), isolate_);
       details = descriptors->GetDetails(i);
     }
     if (details.IsDontEnum()) continue;
     Handle<JSAny> property;
     if (details.location() == PropertyLocation::kField &&
-        *map == object->map(cage_base)) {
+        *map == object->map()) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDetails(*map, details);
       if (replacer_function_.is_null()) {
@@ -1471,7 +1467,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   AppendCharacter('{');
   Indent();
   bool comma = false;
-  for (int i = 0; i < contents->length(); i++) {
+  uint32_t contents_len = contents->ulength().value();
+  for (uint32_t i = 0; i < contents_len; i++) {
     Handle<String> key(Cast<String>(contents->get(i)), isolate_);
     Handle<Object> property;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -2748,7 +2745,7 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
     SerializeDouble(Cast<HeapNumber>(raw)->value());
     return SUCCESS;
   } else if (IsBoolean(raw)) {
-    if (IsTrue(raw, isolate_)) {
+    if (IsTrue(raw)) {
       AppendCStringLiteral("true");
     } else {
       AppendCStringLiteral("false");
@@ -2797,7 +2794,6 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
     uint16_t nof_descriptors, uint8_t in_object_properties,
     uint8_t in_object_properties_start, Tagged<DescriptorArray> descriptors,
     bool comma, const DisallowGarbageCollection& no_gc) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
   InternalIndex::Range range{start_descriptor_idx, nof_descriptors};
   for (InternalIndex i : range) {
     // We don't deal with dictionary mode objects on the fast-path, so the index
@@ -2808,7 +2804,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
     const uint16_t descriptor_idx = static_cast<uint16_t>(i.as_uint32());
 
     Tagged<Name> name = descriptors->GetKey(i);
-    int property_index;
+    Tagged<JSAny> property;
     if constexpr (fast_iterable_state != FastIterableState::kJsonFast) {
       if (V8_UNLIKELY(IsSymbol(name))) {
         if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
@@ -2828,19 +2824,35 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         return SLOW_PATH;
       }
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      property_index = details.field_index();
+
+      // Load the property using the offset stored in the property details.
+      Tagged<HeapObject> storage = obj;
+      if (!details.is_in_object()) {
+        storage = obj->property_array();
+        DCHECK_LE(PropertyArray::OffsetInWordsToIndex(details.field_offset()),
+                  obj->property_array()->length().value());
+      }
+      int offset = details.field_offset() * kTaggedSize;
+      property = TaggedField<JSAny>::Relaxed_Load(storage, offset);
     } else {
-      DCHECK_EQ(descriptor_idx, descriptors->GetDetails(i).field_index());
-      property_index = descriptor_idx;
-    }
-    const bool is_inobject = property_index < in_object_properties;
-    Tagged<JSAny> property;
-    if (is_inobject) {
-      int offset = (in_object_properties_start + property_index) * kTaggedSize;
-      property = TaggedField<JSAny>::Relaxed_Load(cage_base, obj, offset);
-    } else {
-      property_index -= in_object_properties;
-      property = obj->property_array(cage_base)->get(cage_base, property_index);
+      // Load the property using the descriptor index as the property index,
+      // avoiding the need to read the property details.
+      int property_index = descriptor_idx;
+      const bool is_inobject = property_index < in_object_properties;
+      DCHECK_EQ(descriptors->GetDetails(i).is_in_object(), is_inobject);
+      if (is_inobject) {
+        int offset =
+            (in_object_properties_start + property_index) * kTaggedSize;
+        DCHECK_EQ(offset,
+                  descriptors->GetDetails(i).field_offset() * kTaggedSize);
+        property = TaggedField<JSAny>::Relaxed_Load(obj, offset);
+      } else {
+        property_index -= in_object_properties;
+        DCHECK_EQ(property_index,
+                  PropertyArray::OffsetInWordsToIndex(
+                      descriptors->GetDetails(i).field_offset()));
+        property = Cast<JSAny>(obj->property_array()->get(property_index));
+      }
     }
 
     DCHECK(IsInternalizedString(name));
@@ -3016,8 +3028,7 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
       AllowGarbageCollection allow_gc;
       if (interrupt_check.InterruptRequested() &&
           IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(
-                              StackGuard::InterruptLevel::kNoGC),
-                          isolate_)) {
+              StackGuard::InterruptLevel::kNoGC))) {
         return EXCEPTION;
       }
     }
@@ -3295,8 +3306,7 @@ FastJsonStringifier<Char>::HandleInterruptAndCheckCycle() {
     AllowGarbageCollection allow_gc;
     if (V8_UNLIKELY(interrupt_check.InterruptRequested() &&
                     IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(
-                                        StackGuard::InterruptLevel::kNoGC),
-                                    isolate_))) {
+                        StackGuard::InterruptLevel::kNoGC)))) {
       return EXCEPTION;
     }
   }
@@ -3316,8 +3326,9 @@ bool FastJsonStringifier<Char>::CheckCycle() {
   for (uint32_t i = 0; i < stack_.size(); i++) {
     ContinuationRecord rec = stack_[i];
     if (rec.type() == ContinuationRecord::kObjectKey ||
-        rec.type() == ContinuationRecord::kSimpleObject)
+        rec.type() == ContinuationRecord::kSimpleObject) {
       continue;
+    }
     Tagged<Object> obj = rec.object();
     if (V8_UNLIKELY(set.find(obj.ptr()) != set.end())) {
       return true;

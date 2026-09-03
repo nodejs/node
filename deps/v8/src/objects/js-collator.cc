@@ -8,6 +8,7 @@
 
 #include "src/objects/js-collator.h"
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-locale.h"
@@ -90,7 +91,7 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   DCHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;
@@ -168,7 +169,7 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
       // Search is disallowed as a collation value per spec. Let's
       // use `default`, instead.
       //
-      // https://tc39.github.io/ecma402/#sec-properties-of-intl-collator-instances
+      // https://tc39.es/ecma402/#sec-properties-of-intl-collator-instances
       collation = "default";
 
       // We clone the icu::Locale because we don't want the
@@ -269,6 +270,7 @@ UColAttributeValue ToUColAttributeValue(CaseFirst case_first) {
     case CaseFirst::kUndefined:
       return UCOL_OFF;
   }
+  UNREACHABLE();
 }
 
 void SetNumericOption(icu::Collator* icu_collator, bool numeric) {
@@ -370,7 +372,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   CaseFirst case_first = maybe_case_first.FromJust();
 
   // The relevant unicode extensions accepted by Collator as specified here:
-  // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
+  // https://tc39.es/ecma402/#sec-intl-collator-internal-slots
   //
   // 16. Let relevantExtensionKeys be %Collator%.[[RelevantExtensionKeys]].
 
@@ -409,7 +411,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   //
   // The Intl spec doesn't allow us to use "search" as an extension
   // value for collation as per:
-  // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
+  // https://tc39.es/ecma402/#sec-intl-collator-internal-slots
   //
   // But the only way to pass the value "search" for collation from
   // the options object to ICU is to use the 'co' extension keyword.

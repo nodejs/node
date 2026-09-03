@@ -53,11 +53,13 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
@@ -169,7 +171,7 @@ struct StringBtreeDefaultGreater {
 };
 
 // See below comments for checked_compare.
-template <typename Compare, bool is_class = std::is_class<Compare>::value>
+template <typename Compare, bool is_class = std::is_class_v<Compare>>
 struct checked_compare_base : Compare {
   using Compare::Compare;
   explicit checked_compare_base(Compare c) : Compare(std::move(c)) {}
@@ -230,11 +232,11 @@ struct key_compare_adapter {
     // Allow converting to Compare for use in key_comp()/value_comp().
     explicit operator Compare() const { return comp(); }
 
-    template <typename T, typename U,
-              absl::enable_if_t<
-                  std::is_same<bool, compare_result_t<Compare, T, U>>::value,
-                  int> = 0>
-    bool operator()(const T &lhs, const U &rhs) const {
+    template <
+        typename T, typename U,
+        std::enable_if_t<std::is_same_v<bool, compare_result_t<Compare, T, U>>,
+                         int> = 0>
+    bool operator()(const T& lhs, const U& rhs) const {
       // NOTE: if any of these assertions fail, then the comparator does not
       // establish a strict-weak-ordering (see
       // https://en.cppreference.com/w/cpp/named_req/Compare).
@@ -247,10 +249,10 @@ struct key_compare_adapter {
 
     template <
         typename T, typename U,
-        absl::enable_if_t<std::is_convertible<compare_result_t<Compare, T, U>,
-                                              absl::weak_ordering>::value,
-                          int> = 0>
-    absl::weak_ordering operator()(const T &lhs, const U &rhs) const {
+        std::enable_if_t<std::is_convertible_v<compare_result_t<Compare, T, U>,
+                                               absl::weak_ordering>,
+                         int> = 0>
+    absl::weak_ordering operator()(const T& lhs, const U& rhs) const {
       // NOTE: if any of these assertions fail, then the comparator does not
       // establish a strict-weak-ordering (see
       // https://en.cppreference.com/w/cpp/named_req/Compare).
@@ -270,8 +272,8 @@ struct key_compare_adapter {
       return lhs_comp_rhs;
     }
   };
-  using type = absl::conditional_t<
-      std::is_base_of<BtreeTestOnlyCheckedCompareOptOutBase, Compare>::value,
+  using type = std::conditional_t<
+      std::is_base_of_v<BtreeTestOnlyCheckedCompareOptOutBase, Compare>,
       Compare, checked_compare>;
 };
 
@@ -330,18 +332,18 @@ template <typename T, typename = void>
 struct prefers_linear_node_search : std::false_type {};
 template <typename T>
 struct has_linear_node_search_preference<
-    T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
+    T, std::void_t<typename T::absl_btree_prefer_linear_node_search>>
     : std::true_type {};
 template <typename T>
 struct prefers_linear_node_search<
-    T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
+    T, std::void_t<typename T::absl_btree_prefer_linear_node_search>>
     : T::absl_btree_prefer_linear_node_search {};
 
 template <typename Compare, typename Key>
 constexpr bool compare_has_valid_result_type() {
   using compare_result_type = compare_result_t<Compare, Key, Key>;
-  return std::is_same<compare_result_type, bool>::value ||
-         std::is_convertible<compare_result_type, absl::weak_ordering>::value;
+  return std::is_same_v<compare_result_type, bool> ||
+         std::is_convertible_v<compare_result_type, absl::weak_ordering>;
 }
 
 template <typename original_key_compare, typename value_type>
@@ -377,13 +379,13 @@ struct common_params : common_policy_traits<SlotPolicy> {
   // this, then there will be cascading compilation failures that are confusing
   // for users.
   using key_compare =
-      absl::conditional_t<!compare_has_valid_result_type<Compare, Key>(),
+      std::conditional_t<!compare_has_valid_result_type<Compare, Key>(),
                           Compare,
                           typename key_compare_adapter<Compare, Key>::type>;
 
   static constexpr bool kIsKeyCompareStringAdapted =
-      std::is_same<key_compare, StringBtreeDefaultLess>::value ||
-      std::is_same<key_compare, StringBtreeDefaultGreater>::value;
+      std::is_same_v<key_compare, StringBtreeDefaultLess> ||
+      std::is_same_v<key_compare, StringBtreeDefaultGreater>;
   static constexpr bool kIsKeyCompareTransparent =
       IsTransparent<original_key_compare>::value || kIsKeyCompareStringAdapted;
 
@@ -406,7 +408,7 @@ struct common_params : common_policy_traits<SlotPolicy> {
   using const_reference = const value_type &;
 
   using value_compare =
-      absl::conditional_t<IsMap,
+      std::conditional_t<IsMap,
                           map_value_compare<original_key_compare, value_type>,
                           original_key_compare>;
   using is_map_container = std::integral_constant<bool, IsMap>;
@@ -421,9 +423,9 @@ struct common_params : common_policy_traits<SlotPolicy> {
   //   that we know has the same equivalence classes for all lookup types.
   template <typename LookupKey>
   constexpr static bool can_have_multiple_equivalent_keys() {
-    return IsMulti || (IsTransparent<key_compare>::value &&
-                       !std::is_same<LookupKey, Key>::value &&
-                       !kIsKeyCompareStringAdapted);
+    return IsMulti ||
+           (IsTransparent<key_compare>::value &&
+            !std::is_same_v<LookupKey, Key> && !kIsKeyCompareStringAdapted);
   }
 
   enum {
@@ -438,7 +440,7 @@ struct common_params : common_policy_traits<SlotPolicy> {
   // This is an integral type large enough to hold as many slots as will fit a
   // node of TargetNodeSize bytes.
   using node_count_type =
-      absl::conditional_t<(kNodeSlotSpace / sizeof(slot_type) >
+      std::conditional_t<(kNodeSlotSpace / sizeof(slot_type) >
                            (std::numeric_limits<uint8_t>::max)()),
                           uint16_t, uint8_t>;  // NOLINT
 };
@@ -517,15 +519,14 @@ class btree_node {
   //   - Otherwise, choose binary.
   // TODO(ezb): Might make sense to add condition(s) based on node-size.
   using use_linear_search = std::integral_constant<
-      bool, has_linear_node_search_preference<original_key_compare>::value
-                ? prefers_linear_node_search<original_key_compare>::value
-            : has_linear_node_search_preference<key_type>::value
-                ? prefers_linear_node_search<key_type>::value
-                : std::is_arithmetic<key_type>::value &&
-                      (std::is_same<std::less<key_type>,
-                                    original_key_compare>::value ||
-                       std::is_same<std::greater<key_type>,
-                                    original_key_compare>::value)>;
+      bool,
+      has_linear_node_search_preference<original_key_compare>::value
+          ? prefers_linear_node_search<original_key_compare>::value
+      : has_linear_node_search_preference<key_type>::value
+          ? prefers_linear_node_search<key_type>::value
+          : std::is_arithmetic_v<key_type> &&
+                (std::is_same_v<std::less<key_type>, original_key_compare> ||
+                 std::is_same_v<std::greater<key_type>, original_key_compare>)>;
 
   // This class is organized by absl::container_internal::Layout as if it had
   // the following structure:
@@ -896,8 +897,7 @@ class btree_node {
   // the whole tree so that this is constant time.
   template <typename Compare>
   bool is_ordered_correctly(field_type i, const Compare &comp) const {
-    if (std::is_base_of<BtreeTestOnlyCheckedCompareOptOutBase,
-                        Compare>::value ||
+    if (std::is_base_of_v<BtreeTestOnlyCheckedCompareOptOutBase, Compare> ||
         params_type::kIsKeyCompareStringAdapted) {
       return true;
     }
@@ -1110,7 +1110,7 @@ class btree_iterator : private btree_iterator_generation_info {
   using is_map_container = typename params_type::is_map_container;
 
   using node_type = Node;
-  using normal_node = typename std::remove_const<Node>::type;
+  using normal_node = std::remove_const_t<Node>;
   using const_node = const Node;
   using normal_pointer = typename params_type::pointer;
   using normal_reference = typename params_type::reference;
@@ -1119,7 +1119,7 @@ class btree_iterator : private btree_iterator_generation_info {
   using slot_type = typename params_type::slot_type;
 
   // In sets, all iterators are const.
-  using iterator = absl::conditional_t<
+  using iterator = std::conditional_t<
       is_map_container::value,
       btree_iterator<normal_node, normal_reference, normal_pointer>,
       btree_iterator<normal_node, const_reference, const_pointer>>;
@@ -1145,11 +1145,11 @@ class btree_iterator : private btree_iterator_generation_info {
   // NOTE: this SFINAE allows for implicit conversions from iterator to
   // const_iterator, but it specifically avoids hiding the copy constructor so
   // that the trivial one will be used when possible.
-  template <typename N, typename R, typename P,
-            absl::enable_if_t<
-                std::is_same<btree_iterator<N, R, P>, iterator>::value &&
-                    std::is_same<btree_iterator, const_iterator>::value,
-                int> = 0>
+  template <
+      typename N, typename R, typename P,
+      std::enable_if_t<std::is_same_v<btree_iterator<N, R, P>, iterator> &&
+                           std::is_same_v<btree_iterator, const_iterator>,
+                       int> = 0>
   btree_iterator(const btree_iterator<N, R, P> other)  // NOLINT
       : btree_iterator_generation_info(other),
         node_(other.node_),
@@ -1200,12 +1200,16 @@ class btree_iterator : private btree_iterator_generation_info {
 
   // Accessors for the key/value the iterator is pointing at.
   reference operator*() const {
-    ABSL_HARDENING_ASSERT(node_ != nullptr);
+    absl::base_internal::HardeningAssertNonNull(node_);
     assert_valid_generation(node_);
-    ABSL_HARDENING_ASSERT(position_ >= node_->start());
+    absl::base_internal::HardeningAssertGE(position_,
+                                           static_cast<int>(node_->start()));
     if (position_ >= node_->finish()) {
-      ABSL_HARDENING_ASSERT(!IsEndIterator() && "Dereferencing end() iterator");
-      ABSL_HARDENING_ASSERT(position_ < node_->finish());
+      // If this assertion fails, we have tried to dereference an end()
+      // iterator.
+      absl::base_internal::HardeningAssert(!IsEndIterator());
+      absl::base_internal::HardeningAssertLT(position_,
+                                             static_cast<int>(node_->finish()));
     }
     return node_->value(static_cast<field_type>(position_));
   }
@@ -1252,20 +1256,21 @@ class btree_iterator : private btree_iterator_generation_info {
   // NOTE: the const_cast is safe because this constructor is only called by
   // non-const methods and the container owns the nodes.
   template <typename N, typename R, typename P,
-            absl::enable_if_t<
-                std::is_same<btree_iterator<N, R, P>, const_iterator>::value &&
-                    std::is_same<btree_iterator, iterator>::value,
+            std::enable_if_t<
+                std::is_same_v<btree_iterator<N, R, P>, const_iterator> &&
+                    std::is_same_v<btree_iterator, iterator>,
                 int> = 0>
   explicit btree_iterator(const btree_iterator<N, R, P> other)
       : btree_iterator_generation_info(other.generation()),
-        node_(const_cast<node_type *>(other.node_)),
+        node_(const_cast<node_type*>(other.node_)),
         position_(other.position_) {}
 
   bool Equals(const const_iterator other) const {
-    ABSL_HARDENING_ASSERT(((node_ == nullptr && other.node_ == nullptr) ||
-                           (node_ != nullptr && other.node_ != nullptr)) &&
-                          "Comparing default-constructed iterator with "
-                          "non-default-constructed iterator.");
+    absl::base_internal::HardeningAssert(
+        ((node_ == nullptr && other.node_ == nullptr) ||
+         (node_ != nullptr && other.node_ != nullptr)) &&
+        "Comparing default-constructed iterator with "
+        "non-default-constructed iterator.");
     // Note: we use assert instead of ABSL_HARDENING_ASSERT here because this
     // changes the complexity of Equals from O(1) to O(log(N) + log(M)) where
     // N/M are sizes of the containers containing node_/other.node_.
@@ -2221,7 +2226,7 @@ btree_iterator<N, R, P> &btree_iterator<N, R, P>::increment_n_slow(
           node = node->parent();
         }
         if (position == node->finish()) {
-          ABSL_HARDENING_ASSERT(n == 0);
+          absl::base_internal::HardeningAssert(n == 0);
           return *this = save;
         }
       }
@@ -2258,7 +2263,8 @@ btree_iterator<N, R, P> &btree_iterator<N, R, P>::decrement_n_slow(
           position = node->position() - 1;
           node = node->parent();
         }
-        ABSL_HARDENING_ASSERT(position >= node->start());
+        absl::base_internal::HardeningAssertGE(position,
+                                               static_cast<int>(node->start()));
       }
     } else {
       --n;
@@ -2280,9 +2286,9 @@ btree_iterator<N, R, P> &btree_iterator<N, R, P>::decrement_n_slow(
 template <typename P>
 template <typename Btree>
 void btree<P>::copy_or_move_values_in_order(Btree &other) {
-  static_assert(std::is_same<btree, Btree>::value ||
-                    std::is_same<const btree, Btree>::value,
-                "Btree type must be same or const.");
+  static_assert(
+      std::is_same_v<btree, Btree> || std::is_same_v<const btree, Btree>,
+      "Btree type must be same or const.");
   assert(empty());
 
   // We can avoid key comparisons because we know the order of the
@@ -2300,11 +2306,11 @@ void btree<P>::copy_or_move_values_in_order(Btree &other) {
 
 template <typename P>
 constexpr bool btree<P>::static_assert_validation() {
-  static_assert(std::is_nothrow_copy_constructible<key_compare>::value,
+  static_assert(std::is_nothrow_copy_constructible_v<key_compare>,
                 "Key comparison must be nothrow copy constructible");
-  static_assert(std::is_nothrow_copy_constructible<allocator_type>::value,
+  static_assert(std::is_nothrow_copy_constructible_v<allocator_type>,
                 "Allocator must be nothrow copy constructible");
-  static_assert(std::is_trivially_copyable<iterator>::value,
+  static_assert(std::is_trivially_copyable_v<iterator>,
                 "iterator not trivially copyable.");
 
   // Note: We assert that kTargetValues, which is computed from
@@ -2489,7 +2495,7 @@ auto btree<P>::operator=(const btree &other) -> btree & {
     clear();
 
     *mutable_key_comp() = other.key_comp();
-    if (absl::allocator_traits<
+    if (std::allocator_traits<
             allocator_type>::propagate_on_container_copy_assignment::value) {
       *mutable_allocator() = other.allocator();
     }
@@ -2505,7 +2511,7 @@ auto btree<P>::operator=(btree &&other) noexcept -> btree & {
     clear();
 
     using std::swap;
-    if (absl::allocator_traits<
+    if (std::allocator_traits<
             allocator_type>::propagate_on_container_move_assignment::value) {
       swap(root_, other.root_);
       // Note: `rightmost_` also contains the allocator and the key comparator.
@@ -2681,7 +2687,7 @@ void btree<P>::clear() {
 template <typename P>
 void btree<P>::swap(btree &other) {
   using std::swap;
-  if (absl::allocator_traits<
+  if (std::allocator_traits<
           allocator_type>::propagate_on_container_swap::value) {
     // Note: `rightmost_` also contains the allocator and the key comparator.
     swap(rightmost_, other.rightmost_);

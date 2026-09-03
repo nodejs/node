@@ -59,7 +59,7 @@ where
     }
 }
 
-/// Modified example from https://serde.rs/deserialize-map.html
+/// Modified example from <https://serde.rs/deserialize-map.html>
 #[expect(clippy::type_complexity)]
 struct LiteMapVisitor<K, V, R> {
     marker: PhantomData<fn() -> LiteMap<K, V, R>>,
@@ -224,7 +224,7 @@ mod test {
         assert_eq!(map, deserialized);
     }
 
-    /// Test that a LiteMap<_, _, Vec> is deserialized with an exact capacity
+    /// Test that a [`LiteMap<_, _, Vec>`] is deserialized with an exact capacity
     /// if the deserializer provides a size hint information, like postcard here.
     #[test]
     fn test_deserialize_capacity() {

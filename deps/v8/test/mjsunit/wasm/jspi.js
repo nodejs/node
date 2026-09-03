@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stack-switching
-// Flags: --allow-natives-syntax --experimental-wasm-type-reflection
+// Flags: --allow-natives-syntax
 // Flags: --expose-gc --wasm-stack-switching-stack-size=100
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -37,7 +36,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(()=> new WebAssembly.Suspending(instance.exports.forty2), TypeError,
       /Argument 0 must not be a WebAssembly function/);
 
-  let funcref = new WebAssembly.Function(
+  let funcref = new WebAssemblyFunction(
     {parameters: [], results: ['i32']},
       (() => 42));
 
@@ -350,9 +349,6 @@ function TestNestedSuspenders(suspend) {
   builder.addFunction("export", kSig_v_v).addBody([]).exportFunc();
   let instance = builder.instantiate();
   let export_wrapper = WebAssembly.promising(instance.exports.export);
-  let export_sig = export_wrapper.type();
-  assertEquals([], export_sig.parameters);
-  assertEquals(['externref'], export_sig.results);
 })();
 
 (function TestStackOverflow() {
@@ -380,7 +376,7 @@ function TestNestedSuspenders(suspend) {
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  let funcref = new WebAssembly.Function(
+  let funcref = new WebAssemblyFunction(
       {parameters: [], results: ['i32']},
         new WebAssembly.Suspending(() => Promise.resolve(42)));
   instance.exports.table.set(0, funcref);

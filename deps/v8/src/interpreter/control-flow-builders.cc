@@ -127,10 +127,13 @@ void SwitchBuilder::EmitJumpTableIfExists(
   builder()->SwitchOnSmiNoFeedback(jump_table_);
   fall_through_.Bind(builder());
   // Bind any uncovered cases.
-  for (int j = min_case; j <= max_case; ++j) {
+  for (int j = min_case;; ++j) {
     if (!covered_cases.contains(j)) {
       this->BindCaseTargetForJumpTable(j, nullptr);
     }
+    // Check for the exit condition here rather than the for in case
+    // `max_case == INT_MAX` and we can't go above it.
+    if (j >= max_case) break;
   }
 }
 
@@ -157,15 +160,21 @@ void TryCatchBuilder::BeginTry(Register context) {
   builder()->MarkTryBegin(handler_id_, context);
 }
 
-
-void TryCatchBuilder::EndTry() {
+void TryCatchBuilder::EndTry(bool emit_catch) {
   builder()->MarkTryEnd(handler_id_);
-  builder()->Jump(&exit_);
-  builder()->MarkHandler(handler_id_, catch_prediction_);
-
-  if (block_coverage_builder_ != nullptr) {
-    block_coverage_builder_->IncrementBlockCounter(statement_,
-                                                   SourceRangeKind::kCatch);
+  if (emit_catch) {
+    builder()->Jump(&exit_);
+    builder()->MarkHandler(handler_id_, catch_prediction_);
+    if (block_coverage_builder_ != nullptr) {
+      block_coverage_builder_->IncrementBlockCounter(statement_,
+                                                     SourceRangeKind::kCatch);
+    }
+  } else {
+    builder()->DropHandlerEntry(handler_id_);
+    if (block_coverage_builder_ != nullptr) {
+      block_coverage_builder_->AllocateBlockCoverageSlot(
+          statement_, SourceRangeKind::kCatch);
+    }
   }
 }
 

@@ -83,11 +83,11 @@ TEST(FunctionRefTest, NoExceptFunction) {
 TEST(FunctionRefTest, ForwardsArgs) {
   auto l = [](std::unique_ptr<int> i) { return *i; };
   FunctionRef<int(std::unique_ptr<int>)> ref(l);
-  EXPECT_EQ(42, ref(absl::make_unique<int>(42)));
+  EXPECT_EQ(42, ref(std::make_unique<int>(42)));
 }
 
 TEST(FunctionRef, ReturnMoveOnly) {
-  auto l = [] { return absl::make_unique<int>(29); };
+  auto l = [] { return std::make_unique<int>(29); };
   FunctionRef<std::unique_ptr<int>()> ref(l);
   EXPECT_EQ(29, *ref());
 }
@@ -255,31 +255,28 @@ TEST(FunctionRef, PassByValueTypes) {
     void* p[3];
   };
 
-  static_assert(std::is_same<Invoker<void, int>, void (*)(VoidPtr, int)>::value,
+  static_assert(std::is_same_v<Invoker<void, int>, void (*)(VoidPtr, int)>,
                 "Scalar types should be passed by value");
   static_assert(
-      std::is_same<Invoker<void, Trivial>, void (*)(VoidPtr, Trivial)>::value,
+      std::is_same_v<Invoker<void, Trivial>, void (*)(VoidPtr, Trivial)>,
       "Small trivial types should be passed by value");
-  static_assert(std::is_same<Invoker<void, LargeTrivial>,
-                             void (*)(VoidPtr, LargeTrivial&&)>::value,
+  static_assert(std::is_same_v<Invoker<void, LargeTrivial>,
+                               void (*)(VoidPtr, LargeTrivial&&)>,
                 "Large trivial types should be passed by rvalue reference");
   static_assert(
-      std::is_same<Invoker<void, CopyableMovableInstance>,
-                   void (*)(VoidPtr, CopyableMovableInstance&&)>::value,
+      std::is_same_v<Invoker<void, CopyableMovableInstance>,
+                     void (*)(VoidPtr, CopyableMovableInstance&&)>,
       "Types with copy/move ctor should be passed by rvalue reference");
 
   // References are passed as references.
-  static_assert(
-      std::is_same<Invoker<void, int&>, void (*)(VoidPtr, int&)>::value,
-      "Reference types should be preserved");
-  static_assert(
-      std::is_same<Invoker<void, CopyableMovableInstance&>,
-                   void (*)(VoidPtr, CopyableMovableInstance&)>::value,
-      "Reference types should be preserved");
-  static_assert(
-      std::is_same<Invoker<void, CopyableMovableInstance&&>,
-                   void (*)(VoidPtr, CopyableMovableInstance&&)>::value,
-      "Reference types should be preserved");
+  static_assert(std::is_same_v<Invoker<void, int&>, void (*)(VoidPtr, int&)>,
+                "Reference types should be preserved");
+  static_assert(std::is_same_v<Invoker<void, CopyableMovableInstance&>,
+                               void (*)(VoidPtr, CopyableMovableInstance&)>,
+                "Reference types should be preserved");
+  static_assert(std::is_same_v<Invoker<void, CopyableMovableInstance&&>,
+                               void (*)(VoidPtr, CopyableMovableInstance&&)>,
+                "Reference types should be preserved");
 
   // Make sure the address of an object received by reference is the same as the
   // address of the object passed by the caller.

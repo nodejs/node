@@ -174,7 +174,7 @@ void String16Builder::append(const char* characters, size_t length) {
 }
 
 void String16Builder::appendNumber(int number) {
-  constexpr int kBufferSize = 11;
+  constexpr int kBufferSize = 12;
   char buffer[kBufferSize];
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
   DCHECK_LE(0, chars);
@@ -182,7 +182,7 @@ void String16Builder::appendNumber(int number) {
 }
 
 void String16Builder::appendNumber(size_t number) {
-  constexpr int kBufferSize = 20;
+  constexpr int kBufferSize = 21;
   char buffer[kBufferSize];
 #if defined(V8_OS_WIN)
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);

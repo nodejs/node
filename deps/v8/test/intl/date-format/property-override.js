@@ -54,7 +54,7 @@ for (var prop in options) {
 }
 
 // In the order of Table 6 of
-// ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
 var expectedProperties = [
   'locale',
   'calendar',
