@@ -2,14 +2,16 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_realm-inl.h"
+#include "node_snapshot_builder.h"
 #include "node_url.h"
 #include "util.h"
 
-#include <string>
-#include "gtest/gtest.h"
-#include "node_test_fixture.h"
 #include <stdio.h>
 #include <cstdio>
+#include <string>
+#include <thread>  // NOLINT(build/c++11)
+#include "gtest/gtest.h"
+#include "node_test_fixture.h"
 
 using node::AtExit;
 using node::RunAtExit;
@@ -386,6 +388,27 @@ TEST_F(EnvironmentTest, StopFromExitHandlerDoesNotLeakIntoNextEnvironment) {
         node::LoadEnvironment(*env, "return 42;").ToLocalChecked();
     EXPECT_EQ(result->Int32Value(env.context()).FromJust(), 42);
   }
+}
+
+TEST_F(EnvironmentTest, CollectExternalReferencesFromSeveralThreads) {
+  constexpr int kThreads = 8;
+  const intptr_t* data[kThreads];
+  size_t sizes[kThreads];
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kThreads; i++) {
+    threads.emplace_back([&, i]() {
+      const std::vector<intptr_t>& references =
+          node::SnapshotBuilder::CollectExternalReferences();
+      data[i] = references.data();
+      sizes[i] = references.size();
+    });
+  }
+  for (std::thread& thread : threads) thread.join();
+  for (int i = 1; i < kThreads; i++) {
+    EXPECT_EQ(data[i], data[0]);
+    EXPECT_EQ(sizes[i], sizes[0]);
+  }
+  EXPECT_EQ(node::SnapshotBuilder::CollectExternalReferences().back(), 0);
 }
 
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
