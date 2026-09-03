@@ -5,9 +5,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasFIPS, modp2buf } = require('../common/crypto');
+const { hasFIPS, modp2buf, isBoringSSL } = require('../common/crypto');
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   common.skip('Skipping unsupported Diffie-Hellman tests');
 }
 

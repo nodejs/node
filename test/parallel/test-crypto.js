@@ -29,7 +29,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const isFips = hasFIPS(3);
 
 // Test Certificates
@@ -154,7 +154,7 @@ assert(crypto.getHashes().includes('sha1'));
 assert(crypto.getHashes().includes('sha256'));
 assert(!crypto.getHashes().includes('SHA1'));
 assert(!crypto.getHashes().includes('SHA256'));
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   assert(crypto.getHashes().includes('RSA-SHA1'));
   assert(!crypto.getHashes().includes('rsa-sha1'));
 }
@@ -230,7 +230,7 @@ assert.throws(() => {
     assert.throws(() => { throw err; }, {
       code: 'ERR_OSSL_INVALID_KEY_LENGTH',
     });
-  } else if (process.features.openssl_is_boringssl) {
+  } else if (isBoringSSL) {
     // BoringSSL rejects the tiny RSA key while decoding it, before signing.
     assert.throws(() => { throw err; }, {
       name: 'Error',
@@ -270,7 +270,7 @@ if (!hasOpenSSL(3)) {
   const sha1_privateKey = fixtures.readKey('rsa_private_pkcs8_bad.pem',
                                            'ascii');
 
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     // BoringSSL accepts the PKCS#8 payload despite the legacy PEM label.
     const signature = crypto.createSign('sha1').sign(sha1_privateKey);
     assert(Buffer.isBuffer(signature));

@@ -4,7 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const { isBoringSSL, hasOpenSSL } = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support FIPS');
 
 const assert = require('assert');
@@ -14,7 +16,6 @@ const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 const { internalBinding } = require('internal/test/binding');
 const { testFipsCrypto } = internalBinding('crypto');
-const { hasOpenSSL, hasOpenSSL3 } = require('../common/crypto');
 
 const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;
@@ -23,11 +24,11 @@ const FIPS_ERROR_STRING2 =
   '--force-fips at startup.';
 const FIPS_UNSUPPORTED_ERROR_STRING = 'fips mode not supported';
 const FIPS_ENABLE_ERROR_STRING =
-  hasOpenSSL3 ?
+  hasOpenSSL(3) ?
     '--enable-fips requires an active OpenSSL provider named "fips"' :
     'OpenSSL error when trying to enable FIPS:';
 const FIPS_FORCE_ERROR_STRING =
-  hasOpenSSL3 ?
+  hasOpenSSL(3) ?
     '--force-fips requires an active OpenSSL provider named "fips"' :
     'OpenSSL error when trying to enable FIPS:';
 
@@ -146,7 +147,7 @@ if (!sharedOpenSSL()) {
     'require("crypto").getFips()',
     { ...process.env, 'OPENSSL_CONF': ' ' });
 
-  if (hasOpenSSL3) {
+  if (hasOpenSSL(3)) {
     // Disabling FIPS mode should not throw after OpenSSL updates the default
     // property query.
     testHelper(
@@ -191,7 +192,7 @@ assert.ok(test_result === 1 || test_result === 0);
 // ("Error: Cannot set FIPS mode in a non-FIPS build.").
 // Due to this uncertainty the following tests are skipped when configured
 // with --shared-openssl.
-if (!sharedOpenSSL() && !hasOpenSSL3) {
+if (!sharedOpenSSL() && !hasOpenSSL(3)) {
   // OpenSSL config file should be able to turn on FIPS mode
   testHelper(
     'stdout',
@@ -224,7 +225,7 @@ if (!sharedOpenSSL() && !hasOpenSSL3) {
 // will not work as expected with that version.
 // TODO(danbev) Revisit these test once FIPS support is available in
 // OpenSSL 3.x.
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   testHelper(
     'stdout',
     [`--openssl-config=${CNF_FIPS_OFF}`],

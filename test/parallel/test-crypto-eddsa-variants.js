@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
 // RFC 8032 Section 7 test vectors for Ed25519, Ed25519ctx, and Ed448.
@@ -180,7 +181,7 @@ function createKeyPair(algorithm, secretKeyHex, publicKeyHex) {
 }
 
 for (const v of vectors) {
-  if (v.algorithm.startsWith('Ed448') && process.features.openssl_is_boringssl) continue;
+  if (v.algorithm.startsWith('Ed448') && isBoringSSL) continue;
   if (v.algorithm.endsWith('ctx') || v.context) {
     if (!hasOpenSSL(3, 2)) continue;
   }

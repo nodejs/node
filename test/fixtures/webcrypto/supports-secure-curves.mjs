@@ -1,10 +1,10 @@
-import { hasOpenSSL } from '../../common/crypto.js'
+import { hasOpenSSL, isBoringSSL } from '../../common/crypto.js'
 
 const supportsContext = hasOpenSSL(3, 2);
 
 const { subtle } = globalThis.crypto;
 
-const boringSSL = process.features.openssl_is_boringssl;
+const boringSSL = isBoringSSL;
 
 const X25519 = await subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']);
 let X448;

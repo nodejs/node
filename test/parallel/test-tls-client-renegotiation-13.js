@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const fixtures = require('../common/fixtures');
 
@@ -32,7 +32,7 @@ connect({
   assert.strictEqual(client.getProtocol(), 'TLSv1.3');
 
   const ok = client.renegotiate({}, common.mustCall((err) => {
-    if (process.features.openssl_is_boringssl) {
+    if (isBoringSSL) {
       assert.throws(() => { throw err; }, {
         message: 'TLS session renegotiation is unsupported by this TLS ' +
                  'implementation',
@@ -40,7 +40,7 @@ connect({
       });
     } else {
       assert.throws(() => { throw err; }, {
-        message: hasOpenSSL3 ?
+        message: hasOpenSSL(3) ?
           'error:0A00010A:SSL routines::wrong ssl version' :
           'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
         code: 'ERR_SSL_WRONG_SSL_VERSION',

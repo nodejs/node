@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 const rootDir = path.resolve(__dirname, '..', '..');
 const cliMd = path.join(rootDir, 'doc', 'api', 'cli.md');
@@ -44,7 +44,7 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
   }
 }
 
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   documented.delete('--openssl-legacy-provider');
   documented.delete('--openssl-shared-config');
 }
@@ -63,8 +63,8 @@ const conditionalOpts = [
     filter: (opt) => {
       return [
         '--openssl-config',
-        hasOpenSSL3 ? '--openssl-legacy-provider' : '',
-        hasOpenSSL3 ? '--openssl-shared-config' : '',
+        hasOpenSSL(3) ? '--openssl-legacy-provider' : '',
+        hasOpenSSL(3) ? '--openssl-shared-config' : '',
         '--tls-cipher-list',
         '--use-bundled-ca',
         '--use-openssl-ca',

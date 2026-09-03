@@ -29,7 +29,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const isFipsEnabled = crypto.getFips() === 1;
 const fips3 = hasFIPS(3);
@@ -834,7 +834,7 @@ if (fips3) {
     }), {
     code: 'ERR_OSSL_EVP_UNSUPPORTED',
   });
-} else if (!process.features.openssl_is_boringssl) {
+} else if (!isBoringSSL) {
   const key = Buffer.alloc(32);
   const iv = Buffer.alloc(12);
 
@@ -852,7 +852,7 @@ if (fips3) {
 
 // ChaCha20-Poly1305 should respect the authTagLength option and should not
 // require the authentication tag before calls to update() during decryption.
-if (!fips3 && !process.features.openssl_is_boringssl) {
+if (!fips3 && !isBoringSSL) {
   const key = Buffer.alloc(32);
   const iv = Buffer.alloc(12);
 
@@ -903,7 +903,7 @@ if (!fips3 && !process.features.openssl_is_boringssl) {
 // shorter tags as long as their length was valid according to NIST SP 800-38D.
 // For ChaCha20-Poly1305, we intentionally deviate from that because there are
 // no recommended or approved authentication tag lengths below 16 bytes.
-if (!fips3 && !process.features.openssl_is_boringssl) {
+if (!fips3 && !isBoringSSL) {
   const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
     return algo === 'chacha20-poly1305' && tampered === false;
   });
@@ -942,7 +942,7 @@ if (!fips3 && !process.features.openssl_is_boringssl) {
 }
 
 // https://github.com/nodejs/node/issues/45874
-if (!fips3 && !process.features.openssl_is_boringssl) {
+if (!fips3 && !isBoringSSL) {
   const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
     return algo === 'chacha20-poly1305' && tampered === false;
   });

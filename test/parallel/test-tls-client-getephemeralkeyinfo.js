@@ -3,13 +3,18 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl) {
+const {
+  isBoringSSL,
+  hasOpenSSL,
+  hasFIPS,
+} = require('../common/crypto');
+
+if (isBoringSSL) {
   require('../common/boringssl').testEphemeralKeyInfo();
   return;
 }
 
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 const assert = require('assert');
 const { X509Certificate } = require('crypto');

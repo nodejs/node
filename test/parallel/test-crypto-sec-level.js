@@ -2,6 +2,8 @@
 'use strict';
 
 const common = require('../common');
+
+const { isBoringSSL } = require('../common/crypto');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -15,7 +17,7 @@ const assert = require('assert');
 // This test simply validates that we can get some value for the secLevel
 // when needed by tests.
 const secLevel = require('internal/crypto/util').getOpenSSLSecLevel();
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   assert.strictEqual(secLevel, 0);
 } else {
   assert.ok(secLevel >= 0 && secLevel <= 5);

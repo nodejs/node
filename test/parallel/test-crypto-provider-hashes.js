@@ -26,9 +26,9 @@ const {
   sign,
   verify,
 } = require('node:crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL3 || process.features.openssl_is_boringssl) {
+if (!hasOpenSSL(3) || isBoringSSL) {
   common.skip('OpenSSL 3 provider support is required');
 }
 

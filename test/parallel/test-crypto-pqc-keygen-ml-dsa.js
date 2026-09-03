@@ -4,14 +4,14 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
 
-if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
+if (!hasOpenSSL(3, 5) && !isBoringSSL) {
   for (const asymmetricKeyType of ['ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87']) {
     assert.throws(() => generateKeyPair(asymmetricKeyType, common.mustNotCall()), {
       code: 'ERR_INVALID_ARG_VALUE',

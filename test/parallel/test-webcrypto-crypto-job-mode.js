@@ -7,7 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 const { types: { isCryptoKey } } = require('util');
 const { internalBinding } = require('internal/test/binding');
 const {
@@ -211,7 +211,7 @@ async function withObjectPrototypeSetters(names, fn) {
     }
   }
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     const pair = await subtle.generateKey(
       { name: 'ML-KEM-768' },
       true,

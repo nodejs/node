@@ -5,12 +5,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { buildSnapshot, runWithSnapshot } = require('../common/snapshot');
 
-if (!hasOpenSSL3)
+if (!hasOpenSSL(3))
   common.skip('this test requires OpenSSL 3.x');
 
 const entry = fixtures.path('snapshot', 'crypto-provider-cipher-cache.js');

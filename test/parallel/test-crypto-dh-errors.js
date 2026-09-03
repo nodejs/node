@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 // https://github.com/nodejs/node/issues/32738
 // XXX(bnoordhuis) validateInt32() throwing ERR_OUT_OF_RANGE and RangeError
@@ -25,7 +25,7 @@ assert.throws(() => crypto.createDiffieHellman('abcdef', 13.37), {
 });
 
 for (const bits of [-1, 0, 1]) {
-  if (hasOpenSSL3) {
+  if (hasOpenSSL(3)) {
     assert.throws(() => crypto.createDiffieHellman(bits), {
       code: 'ERR_OSSL_DH_MODULUS_TOO_SMALL',
       name: 'Error',

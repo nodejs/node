@@ -4,8 +4,8 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
-if (!hasOpenSSL3)
+const { hasOpenSSL } = require('../common/crypto');
+if (!hasOpenSSL(3))
   common.skip('requires OpenSSL 3.x');
 
 // Verifies the openssl.store permission: allowed when --allow-openssl-store is

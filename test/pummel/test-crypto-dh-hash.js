@@ -30,9 +30,9 @@ if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   common.skip('Too slow when dynamically linked against OpenSSL 1.1.1');
 }
 

@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
@@ -100,7 +100,7 @@ for (const [asymmetricKeyType, pubLen] of [
     }
   }
 
-  if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
+  if (!hasOpenSSL(3, 5) && !isBoringSSL) {
     assert.throws(() => createPublicKey(keys.public), {
       code: hasOpenSSL(3) ? 'ERR_OSSL_EVP_DECODE_ERROR' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
     });
@@ -120,7 +120,7 @@ for (const [asymmetricKeyType, pubLen] of [
         [keys.private_seed_only, true, true],
         [keys.private_priv_only, false, false],
       ]) {
-        if (process.features.openssl_is_boringssl && !seedOnly) {
+        if (isBoringSSL && !seedOnly) {
           common.printSkipMessage('Skipping unsupported private key format test');
           continue;
         }

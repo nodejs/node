@@ -29,6 +29,7 @@ const {
   hasOpenSSL,
   hasFIPS,
   opensslCli,
+  isBoringSSL,
 } = require('../common/crypto');
 
 if (!opensslCli) {
@@ -56,7 +57,7 @@ if (hasFIPS(3)) {
 }
 
 const server = tls.Server(serverOptions, null).listen(0, common.mustCall(() => {
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     let gotClientError = false;
     let gotServerError = false;
     function maybeClose() {
