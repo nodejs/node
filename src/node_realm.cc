@@ -10,8 +10,6 @@ namespace node {
 
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::GCCallbackFlags;
-using v8::GCType;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -25,26 +23,11 @@ Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
     : env_(env), isolate_(Isolate::GetCurrent()), kind_(kind) {
   context_.Reset(isolate_, context);
   env->AssignToContext(context, this, ContextInfo(""));
-  // The environment can also purge empty wrappers in the check callback,
-  // though that may be a bit excessive depending on usage patterns.
-  // For now using the GC epilogue is adequate.
-  isolate_->AddGCEpilogueCallback(PurgeEmptyCppgcWrappers, this);
 }
 
 Realm::~Realm() {
-  isolate_->RemoveGCEpilogueCallback(PurgeEmptyCppgcWrappers, this);
   CHECK_EQ(base_object_count_, 0);
-}
-
-void Realm::PurgeEmptyCppgcWrappers(Isolate* isolate,
-                                    GCType type,
-                                    GCCallbackFlags flags,
-                                    void* data) {
-  Realm* realm = static_cast<Realm*>(data);
-  if (realm->should_purge_empty_cppgc_wrappers_) {
-    realm->cppgc_wrapper_list_.PurgeEmpty();
-    realm->should_purge_empty_cppgc_wrappers_ = false;
-  }
+  CHECK(cppgc_wrapper_list_.IsEmpty());
 }
 
 void Realm::MemoryInfo(MemoryTracker* tracker) const {
