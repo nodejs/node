@@ -1661,9 +1661,9 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 // Returns the offset of the first byte of `arrayBuffer` that is located at a
 // memory address which is a multiple of `alignment`. V8 does not let us choose
 // the address of a backing store, so an aligned view is obtained by
-// over-allocating `alignment - 1` bytes and skipping to that offset. The
-// backing store of a non-resizable ArrayBuffer never moves, so the offset stays
-// aligned for the lifetime of the ArrayBuffer.
+// over-allocating and skipping to that offset. The backing store of a
+// non-resizable ArrayBuffer never moves, so the offset stays aligned for the
+// lifetime of the ArrayBuffer.
 void ArrayBufferAlignedOffset(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 2);
