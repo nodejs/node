@@ -104,20 +104,29 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
   assert.strictEqual(threw, undefined);
 }
 
-// Same with a nonzero stopSending code. The peer answers our STOP_SENDING with
-// a RESET_STREAM carrying it, which rejects closed - but the read is still our
-// own abort, so it is reported by policy rather than as that reset. This is
-// the one case where the read and closed facets deliberately disagree.
+// A nonzero stopSending code is an error this end raised, so it is reported
+// under either policy and carries that code. The peer answers our
+// STOP_SENDING with a RESET_STREAM echoing it, which is what rejects closed -
+// but the read reports our own abort rather than attributing it to the peer,
+// and does so whether or not that answer has arrived yet.
 for (const truncatedReads of ['error', 'allow']) {
-  const { received, threw, closedError } = await readStream(stall, {
-    clientOptions: { truncatedReads },
-    onFirstChunk: ({ stream }) => stream.stopSending(7n),
-  });
-  assert.ok(received > 0);
-  assert.strictEqual(threw?.code,
-                     truncatedReads === 'error' ? 'ERR_QUIC_STREAM_ABORTED' : undefined);
-  assert.strictEqual(closedError?.code, 'ERR_QUIC_APPLICATION_ERROR');
-  assert.strictEqual(closedError.errorCode, 7n);
+  for (const awaitEcho of [false, true]) {
+    const peerReset = Promise.withResolvers();
+    const { received, threw, closedError } = await readStream(stall, {
+      clientOptions: { truncatedReads },
+      beforeIterate: ({ stream }) => { stream.onreset = () => peerReset.resolve(); },
+      onFirstChunk: async ({ stream }) => {
+        stream.stopSending(7n);
+        // For the 2nd pass, wait until we receive the corresponding reset:
+        if (awaitEcho) await peerReset.promise;
+      },
+    });
+    assert.ok(received > 0);
+    assert.strictEqual(threw?.code, 'ERR_QUIC_STREAM_ABORTED');
+    assert.strictEqual(threw.errorCode, 7n);
+    assert.strictEqual(closedError?.code, 'ERR_QUIC_APPLICATION_ERROR');
+    assert.strictEqual(closedError.errorCode, 7n);
+  }
 }
 
 // A peer abruptly destroying its session truncates the read too. That

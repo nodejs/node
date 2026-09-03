@@ -3444,11 +3444,10 @@ selects how the stream's async iterator reports this:
 
 * `'allow'` - Truncated reads are allowed: only a stream or connection error
   is reported, and any clean abort/cancellation or similar simply ends the
-  stream. A non-zero peer reset still throws `ERR_QUIC_STREAM_RESET` and a
-  connection error still throws its real error, but a truncation that carried
-  no error (an idle timeout, a graceful close, a local `stopSending()`) ends
-  the read cleanly with the data received. This matches `stream.closed`,
-  which rejects only on an error.
+  stream. A non-zero peer reset, non-zero local stop-sending or connection
+  error still fails, but a truncation with no error at all (an idle timeout,
+  a graceful close, or a plain `stopSending()`) ends the read cleanly with the
+  data received. This matches `stream.closed`, which rejects only on an error.
 
 #### `sessionOptions.verifyPeer` (client only)
 
