@@ -27,16 +27,16 @@ using BindingDataStore =
                static_cast<size_t>(BindingDataType::kBindingDataTypeCount)>;
 
 /**
- * This is a wrapper around a weak persistent of CppgcMixin, used in the
- * CppgcWrapperList to avoid accessing already garbage collected CppgcMixins.
+ * Owned by a CppgcMixin and linked into its Realm's list until the Realm
+ * cleans up and clears `realm`. The Realm only calls into wrappers the GC
+ * still considers alive (the weak persistent); a collected wrapper whose
+ * destructor runs later sees `realm == nullptr` instead of a freed Realm.
  */
 class CppgcWrapperListNode {
  public:
-  explicit inline CppgcWrapperListNode(CppgcMixin* ptr);
-  inline explicit operator bool() const { return !persistent; }
-  inline CppgcMixin* operator->() const { return persistent.Get(); }
-  inline CppgcMixin* operator*() const { return persistent.Get(); }
+  inline CppgcWrapperListNode(Realm* realm, CppgcMixin* wrapper);
 
+  Realm* realm;
   cppgc::WeakPersistent<CppgcMixin> persistent;
   // Used by ContainerOf in the ListNode implementation for fast manipulation of
   // CppgcWrapperList.
@@ -53,7 +53,6 @@ class CppgcWrapperList
       public MemoryRetainer {
  public:
   void Cleanup();
-  void PurgeEmpty();
 
   SET_MEMORY_INFO_NAME(CppgcWrapperList)
   SET_SELF_SIZE(CppgcWrapperList)
@@ -148,7 +147,7 @@ class Realm : public MemoryRetainer {
   // Base object count created after the bootstrap of the realm.
   inline int64_t base_object_created_after_bootstrap() const;
 
-  inline void TrackCppgcWrapper(CppgcMixin* handle);
+  inline CppgcWrapperListNode* TrackCppgcWrapper(CppgcMixin* handle);
   inline CppgcWrapperList* cppgc_wrapper_list() { return &cppgc_wrapper_list_; }
 
 #define V(PropertyName, TypeName)                                              \
@@ -164,14 +163,6 @@ class Realm : public MemoryRetainer {
   // it's only used for tests.
   std::vector<std::string> builtins_in_snapshot;
 
-  // This used during the destruction of cppgc wrappers to inform a GC epilogue
-  // callback to clean up the weak persistents used to track cppgc wrappers if
-  // the wrappers are already garbage collected to prevent holding on to
-  // excessive useless persistents.
-  inline void set_should_purge_empty_cppgc_wrappers(bool value) {
-    should_purge_empty_cppgc_wrappers_ = value;
-  }
-
  protected:
   ~Realm();
 
@@ -181,16 +172,10 @@ class Realm : public MemoryRetainer {
   // Shorthand for isolate pointer.
   v8::Isolate* isolate_;
   v8::Global<v8::Context> context_;
-  bool should_purge_empty_cppgc_wrappers_ = false;
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName##_;
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
-
-  static void PurgeEmptyCppgcWrappers(v8::Isolate* isolate,
-                                      v8::GCType type,
-                                      v8::GCCallbackFlags flags,
-                                      void* data);
 
  private:
   void InitializeContext(v8::Local<v8::Context> context,
