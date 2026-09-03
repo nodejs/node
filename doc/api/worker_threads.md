@@ -978,6 +978,10 @@ added: v15.4.0
 
 ### `broadcastChannel.onworkerexited`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 * Type: {Function} Invoked when worker associated with the
   `BroadcastChannel` terminates.
 
