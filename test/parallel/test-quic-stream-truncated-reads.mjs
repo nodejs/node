@@ -25,7 +25,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { connect, readStream, stallingBody, writeAndAwaitAck } =
+const { connect, listen, readStream, stallingBody, writeAndAwaitAck } =
   await import('../common/quic.mjs');
 
 // Sends 1000 bytes, waits for them to land, then resets with the given code.
@@ -132,6 +132,41 @@ for (const truncatedReads of ['error', 'allow']) {
   });
   assert.strictEqual(received, 1000);
   assert.ok(threw);
+}
+
+// Check the option in the server case as well:
+{
+  const serverRead = Promise.withResolvers();
+  const serverEndpoint = await listen((session) => {
+    session.closed.catch(() => {});
+    session.onstream = async (stream) => {
+      stream.closed.catch(() => {});
+      let received = 0;
+      try {
+        for await (const chunk of stream) {
+          for (const c of chunk) received += c.byteLength;
+        }
+        serverRead.resolve({ received, threw: undefined });
+      } catch (err) {
+        serverRead.resolve({ received, threw: err });
+      }
+    };
+  }, { truncatedReads: 'allow' });
+
+  const session = await connect(serverEndpoint.address);
+  await session.opened;
+  session.closed.catch(() => {});
+
+  const stream = await session.createBidirectionalStream();
+  stream.closed.catch(() => {});
+  await writeAndAwaitAck(stream, 100);
+  stream.resetStream(0n);
+
+  const { threw } = await serverRead.promise;
+  assert.strictEqual(threw, undefined);
+
+  session.close();
+  await serverEndpoint.close();
 }
 
 // The option is validated.
