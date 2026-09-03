@@ -983,3 +983,31 @@ describe('glob - seen cache', function() {
     );
   });
 });
+
+// gh-58991: exclude patterns must apply the same case-sensitivity as include
+// patterns. On case-insensitive filesystems include patterns match entries
+// regardless of case, so literal exclude patterns must match that behavior.
+const skipCaseTests = { skip: !common.isWindows && !common.isMacOS };
+describe('glob - exclude case-insensitive consistency', skipCaseTests, function() {
+  test('literal exclude ignores case (sync)', () => {
+    assert.deepStrictEqual(
+      globSync('a/b', { cwd: fixtureDir, exclude: ['A/B'] }), []);
+  });
+  test('literal exclude matches differently-cased results (sync)', () => {
+    assert.deepStrictEqual(
+      globSync('A/b', { cwd: fixtureDir, exclude: ['a/b'] }), []);
+  });
+  test('literal exclude ignores case (async)', async () => {
+    const promisified = promisify(glob);
+    assert.deepStrictEqual(
+      await promisified('a/b', { cwd: fixtureDir, exclude: ['A/B'] }), []);
+  });
+  test('literal exclude ignores case (promise)', async () => {
+    const actual = [];
+    for await (const entry of asyncGlob(
+      'a/b', { cwd: fixtureDir, exclude: ['A/B'] })) {
+      actual.push(entry);
+    }
+    assert.deepStrictEqual(actual, []);
+  });
+});
