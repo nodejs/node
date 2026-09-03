@@ -81,6 +81,34 @@ async function testPlanBackpressure() {
   );
 }
 
+async function testDestroyWhileBlocked() {
+  const runner = createRunner({ yieldBetweenSamples: false });
+  const completions = [];
+  for (let i = 0; i < 32; i++) {
+    completions.push(runner.bench(`destroyed ${i}`, {
+      samples: 1,
+    }, recordSample));
+  }
+  const stream = runner.run();
+  const unblocked = stream.waitForDrain();
+  const iterator = stream[Symbol.asyncIterator]();
+  await iterator.next();
+  await unblocked;
+  for (let i = 0; i < 100 &&
+       stream.readableLength < stream.readableHighWaterMark; i++) {
+    await setImmediate();
+  }
+  assert.strictEqual(stream.readableLength, stream.readableHighWaterMark);
+
+  const draining = stream.waitForDrain();
+  const closed = new Promise((resolve) => stream.once('close', resolve));
+  stream.destroy();
+  await assert.rejects(draining, { code: 'ERR_INVALID_STATE' });
+  await assert.rejects(stream.waitForDrain(), { code: 'ERR_INVALID_STATE' });
+  await closed;
+  await Promise.all(completions);
+}
+
 async function testNamedEventsWithoutReading() {
   const runner = createRunner();
   const sampleCount = 64;
@@ -192,7 +220,13 @@ async function testRecordOwnership() {
   expectedError.context = {
     note: 'preserved',
     callback() {},
+    get accessor() { return 'value'; },
   };
+  expectedError.customContext = {
+    __proto__: {},
+    note: 'preserved',
+  };
+  expectedError.arrayPayload = [new WeakMap()];
   const innerError = new Error('inner failure');
   innerError.code = 'ERR_INNER';
   const aggregate = new AggregateError([innerError], 'aggregate failure');
@@ -216,6 +250,16 @@ async function testRecordOwnership() {
   });
   const caused = runner.bench('owned cause', { samples: 1 }, () => {
     throw causedError;
+  });
+  const throwingNameError = new Error('throwing name');
+  Object.defineProperty(throwingNameError, 'name', {
+    configurable: true,
+    get() { throw new Error('name getter'); },
+  });
+  const throwingName = runner.bench('throwing name', {
+    samples: 1,
+  }, () => {
+    throw throwingNameError;
   });
   const thrownValue = new WeakMap();
   const uncloneable = runner.bench('uncloneable error', {
@@ -265,6 +309,7 @@ async function testRecordOwnership() {
   const measuredResult = await measured;
   const failedResult = await failed;
   await caused;
+  const throwingNameResult = await throwingName;
   const uncloneableResult = await uncloneable;
   const trappedResult = await trapped;
   const afterTrapResult = await afterTrap;
@@ -278,6 +323,8 @@ async function testRecordOwnership() {
     ({ name }) => name === 'owned error');
   const streamCaused = streamResults.find(
     ({ name }) => name === 'owned cause');
+  const streamThrowingName = streamResults.find(
+    ({ name }) => name === 'throwing name');
   const streamSummary = records.find(
     ({ type }) => type === 'bench:summary').data;
 
@@ -299,12 +346,18 @@ async function testRecordOwnership() {
   assert.strictEqual(streamFailed.error.cause, streamFailed.error);
   assert.strictEqual(streamFailed.error.context.note, 'preserved');
   assert.strictEqual(streamFailed.error.context.callback, undefined);
+  assert.strictEqual(streamFailed.error.context.accessor, undefined);
+  assert.strictEqual(streamFailed.error.customContext.note, 'preserved');
+  assert.deepStrictEqual(streamFailed.error.arrayPayload, [undefined]);
   assert.strictEqual(failedResult.error, expectedError);
   assert.strictEqual(failedResult.error.code, 'ERR_EXPECTED');
   assert.strictEqual(failedResult.error.cause, failedResult.error);
   assert.strictEqual(uncloneableResult.error, thrownValue);
   assert.strictEqual(trappedResult.error, proxyError);
   assert.strictEqual(afterTrapResult.error, undefined);
+  assert.strictEqual(throwingNameResult.error, throwingNameError);
+  assert.strictEqual(streamThrowingName.error.name, 'Error');
+  assert.strictEqual(streamThrowingName.error.message, 'throwing name');
   assert(streamCaused.error.cause instanceof AggregateError);
   assert.strictEqual(streamCaused.error.cause.name, 'AggregateError');
   assert.strictEqual(streamCaused.error.cause.code, 'ERR_AGGREGATE');
@@ -313,12 +366,13 @@ async function testRecordOwnership() {
     streamCaused.error.references.get('self'), streamCaused.error);
   assert.strictEqual(streamCaused.error.members.has(streamCaused.error), true);
   assert.notStrictEqual(eventSummary, streamSummary);
-  assert.strictEqual(streamSummary.counts.total, 6);
+  assert.strictEqual(streamSummary.counts.total, 7);
 }
 
 (async () => {
   await testReadableBackpressure();
   await testPlanBackpressure();
+  await testDestroyWhileBlocked();
   await testNamedEventsWithoutReading();
   await testCancellationCompletesBenchmarks();
   await testDeliveryDoesNotConsumeTimeout();

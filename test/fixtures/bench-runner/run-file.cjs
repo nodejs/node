@@ -7,6 +7,7 @@ bench('run file', {
   params: {
     context: process.env.NODE_BENCH_CONTEXT,
     exposed: typeof globalThis.gc === 'function',
+    omitted: process.env.NODE_BENCH_OMITTED === undefined,
     value: process.env.NODE_BENCH_RUN_FILE ?? 'unset',
   },
 }, (b) => {

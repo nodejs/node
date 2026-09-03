@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { bench, run } = require('node:bench');
+const { bench, run, suite } = require('node:bench');
 const { setTimeout } = require('timers/promises');
 
 const options = { samples: 1 };
@@ -58,8 +58,11 @@ bench('continues', options, complete);
 bench('timeout', { samples: 1, timeout: 10 }, async () => {
   await new Promise(() => {});
 });
-bench('after unsettled timeout', options, common.mustNotCall());
-bench.skip('skipped after unsettled timeout', options, common.mustNotCall());
+const suiteCompletion = suite('after unsettled timeout suite', () => {
+  bench('after unsettled timeout', options, common.mustNotCall());
+  bench.skip('skipped after unsettled timeout', options, common.mustNotCall());
+});
+suiteCompletion.then(common.mustCall());
 
 const completions = [];
 const sampleNames = [];
