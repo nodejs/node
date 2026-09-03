@@ -9,12 +9,12 @@ permissions: {}
 jobs:
   contributor:
     name: Resolve contributor status
-    # Use the event only to exclude trusted associations and mannequins. Resolve
-    # every potentially external contributor with a privileged API request.
+    # Use the event only to exclude trusted associations, mannequins, and bots.
+    # Resolve every potentially external contributor with a privileged API request.
     if: >-
       github.run_attempt == 1 &&
       github.repository == 'nodejs/node' &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.user.type != 'Bot' &&
       (github.event.pull_request.author_association == 'CONTRIBUTOR' ||
       github.event.pull_request.author_association == 'FIRST_TIMER' ||
       github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' ||
