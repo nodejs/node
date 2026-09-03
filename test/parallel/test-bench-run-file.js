@@ -29,7 +29,13 @@ assert.throws(() => runFile(fixture, { execArgv: [fixture] }), {
 assert.throws(() => runFile(fixture, { execArgv: ['-e', '0'] }), {
   code: 'ERR_INVALID_ARG_VALUE',
 });
+assert.throws(() => runFile(fixture, { execArgv: ['-e0'] }), {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 assert.throws(() => runFile(fixture, { execArgv: ['--require'] }), {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
+assert.throws(() => runFile(fixture, { execArgv: ['--require', ''] }), {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 assert.throws(() => runFile(fixture, { execArgv: ['--require='] }), {
@@ -73,11 +79,12 @@ assert.throws(() => runFile(fixture, { signal: { aborted: false } }), {
 });
 
 async function testRunFile() {
-  const execArgv = ['--expose-gc', '-r', 'fs'];
+  const execArgv = ['--expose-gc', '--no-warnings', '-r', 'fs'];
   const env = {
     __proto__: null,
     ...process.env,
     NODE_BENCH_CONTEXT: 'not-a-child',
+    NODE_BENCH_OMITTED: undefined,
     NODE_BENCH_RUN_FILE: 'original',
     NODE_CHANNEL_FD: '999',
     NODE_CHANNEL_SERIALIZATION_MODE: 'json',
@@ -93,12 +100,14 @@ async function testRunFile() {
   assert.strictEqual(records.at(-1).type, 'bench:summary');
   assert.strictEqual(plan.params.context, 'child');
   assert.strictEqual(plan.params.exposed, true);
+  assert.strictEqual(plan.params.omitted, true);
   assert.strictEqual(plan.params.value, 'original');
   assert.strictEqual(result.error, undefined);
   assert.strictEqual(result.samples.length, 1);
   assert.strictEqual(typeof result.samples[0].duration_ns, 'bigint');
   assert.notStrictEqual(result.samples[0].detail.pid, process.pid);
   assert(result.samples[0].detail.execArgv.includes('--expose-gc'));
+  assert(result.samples[0].detail.execArgv.includes('--no-warnings'));
   assert(result.samples[0].detail.execArgv.includes('-r'));
   assert.strictEqual(summary.success, true);
   assert.strictEqual(summary.file, fixture);
@@ -258,13 +267,16 @@ async function testParentExitCode() {
 }
 
 async function testDefaultExecArgvSnapshot() {
-  const stream = runFile(fixture);
-  process.execArgv.push('--require=/does/not/exist.cjs');
+  const original = Array.from(process.execArgv);
   try {
+    process.execArgv.push('--bench', '--eval', 'throw new Error()');
+    const stream = runFile(fixture);
+    process.execArgv.push('--require=/does/not/exist.cjs');
     const records = await stream.toArray();
     assert.strictEqual(records.at(-1).data.success, true);
   } finally {
-    process.execArgv.pop();
+    process.execArgv.length = 0;
+    process.execArgv.push(...original);
   }
 }
 
@@ -278,6 +290,22 @@ async function testExecPathSnapshot() {
   } finally {
     process.execPath = execPath;
   }
+}
+
+async function testSpawnFailure() {
+  const execPath = process.execPath;
+  let stream;
+  try {
+    process.execPath = fixtures.path('does-not-exist-node');
+    stream = runFile(fixture);
+  } finally {
+    process.execPath = execPath;
+  }
+  const records = await stream.toArray();
+  const diagnostic = records.find(
+    ({ type }) => type === 'bench:diagnostic').data;
+  assert.strictEqual(diagnostic.error.code, 'ENOENT');
+  assert.strictEqual(records.at(-1).data.success, false);
 }
 
 function testEvalParent() {
@@ -394,6 +422,7 @@ async function testDestroy() {
   await testParentExitCode();
   await testDefaultExecArgvSnapshot();
   await testExecPathSnapshot();
+  await testSpawnFailure();
   await testPreAborted();
   await testDestroy();
   testEvalParent();

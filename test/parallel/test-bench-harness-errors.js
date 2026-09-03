@@ -62,17 +62,20 @@ async function testRunSignal() {
 async function testRunSignalAfterSample() {
   const runner = createRunner({ yieldBetweenSamples: false });
   const controller = new AbortController();
+  const reason = new Error('sample aborted');
   const completion = runner.bench('aborted after sample', {
-    samples: 1,
-  }, (b) => {
-    complete(b);
-    controller.abort(new Error('sample aborted'));
-  });
-  await runner.run({ signal: controller.signal }).toArray();
+    samples: 2,
+  }, complete);
+  const stream = runner.run({ signal: controller.signal });
+  stream.once('bench:sample', common.mustCall(() => {
+    controller.abort(reason);
+  }));
+  const records = await stream.toArray();
   const result = await completion;
-  await setImmediate();
   assert.strictEqual(result.error.code, 'ABORT_ERR');
-  assert.strictEqual(result.error.cause.message, 'sample aborted');
+  assert.strictEqual(result.error.cause, reason);
+  assert.strictEqual(result.samples.length, 1);
+  assert.strictEqual(records.at(-1).data.success, false);
 }
 
 async function testStringNamePattern() {
@@ -93,12 +96,15 @@ async function testStringNamePattern() {
 
 async function testTopLevelRecovery() {
   const runner = createRunner({ yieldBetweenSamples: false });
-  runner.bench('listener failure', { samples: 1 }, complete);
+  const suiteCompletion = runner.suite('nested', () => {
+    runner.bench('listener failure', { samples: 1 }, complete);
+  });
   const stream = runner.run();
   const failure = new Error();
   failure.message = undefined;
   stream.on('bench:start', common.mustCall(() => { throw failure; }));
   const records = await stream.toArray();
+  await suiteCompletion;
   const diagnostic = records.find(
     ({ type }) => type === 'bench:diagnostic').data;
   const summary = records.find(({ type }) => type === 'bench:summary').data;
@@ -110,10 +116,31 @@ async function testTopLevelRecovery() {
   assert.strictEqual(summary.success, false);
 }
 
+async function testRepeatedReportingFailure() {
+  const runner = createRunner({ yieldBetweenSamples: false });
+  const original = new Error('start listener failed');
+  const diagnostic = new Error('diagnostic listener failed');
+  const summary = new Error('summary listener failed');
+  const completion = runner.bench('reporting failures', {
+    samples: 1,
+  }, complete);
+  const stream = runner.run();
+  stream.on('bench:start', common.mustCall(() => { throw original; }));
+  stream.on('bench:diagnostic', common.mustCall(() => {
+    throw diagnostic;
+  }, 2));
+  stream.on('bench:summary', common.mustCall(() => { throw summary; }));
+  const ended = new Promise((resolve) => stream.once('end', resolve));
+  stream.resume();
+  await ended;
+  assert.strictEqual((await completion).error, original);
+}
+
 (async () => {
   await testSynchronousSuiteFailure();
   await testRunSignal();
   await testRunSignalAfterSample();
   await testStringNamePattern();
   await testTopLevelRecovery();
+  await testRepeatedReportingFailure();
 })().then(common.mustCall());
