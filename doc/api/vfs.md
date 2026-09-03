@@ -419,6 +419,37 @@ system, the callers are responsible for avoiding removal or
 invalidation of modules in the virtual file system while they are
 being loaded.
 
+## Use with Single Executable Applications
+
+When running as a [Single Executable Application][] built with
+`"useVfs": true` in the SEA configuration, the bundled assets are
+automatically mounted as a read-only virtual file system and the injected
+main script is executed from the root of the mount. No additional setup is
+required. Since the mount point is reserved and chosen at runtime, bundled
+code accesses the assets through `__dirname`-relative paths and relative
+`require()` calls rather than through a fixed path:
+
+```cjs
+// In the SEA main script, __dirname is the root of the mounted assets.
+const fs = require('node:fs');
+const path = require('node:path');
+
+const config = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+const template = fs.readFileSync(
+  path.join(__dirname, 'templates/index.html'), 'utf8');
+```
+
+ESM entry points (`"mainFormat": "module"`) are supported: the main module
+is loaded from inside the mount through the ESM loader, and
+`import.meta.dirname` points at the mount root.
+
+`"useVfs"` cannot be used together with `"useSnapshot"` or `"useCodeCache"`.
+The SEA configuration parser will error if either combination is detected.
+
+See the [Single Executable Application][] documentation for more information
+on creating SEA builds with assets.
+
 ## Class: `VirtualProvider`
 
 <!-- YAML
@@ -591,6 +622,7 @@ fields use synthetic but stable values:
 [CommonJS resolution algorithm]: modules.md#all-together
 [ES modules resolution algorithm]: esm.md#resolution-algorithm
 [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
+[Single Executable Application]: single-executable-applications.md
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
