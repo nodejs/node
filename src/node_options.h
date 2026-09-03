@@ -174,6 +174,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> watch_mode_paths;
   std::vector<std::string> preload_cjs_modules;
   std::vector<std::string> preload_esm_modules;
+  std::vector<std::string> vfs_mounts;
   std::vector<std::string> user_argv;
 
   int64_t heap_snapshot_near_heap_limit = 0;
@@ -207,6 +208,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_stream_iter) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_vfs) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(vfs_load) = false;
   DEFINE_BOOL_FIELD(webstorage) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_dtls) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_quic) = EXPERIMENTALS_DEFAULT_VALUE;

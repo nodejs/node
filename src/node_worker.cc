@@ -682,6 +682,11 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     per_isolate_opts = env->isolate_data()->options()->Clone();
   }
 
+  // --vfs-load selects the main thread's entry point; a worker always starts
+  // from its own entry (which may itself live inside a --vfs-mount), so the
+  // mounts are inherited but the load behavior must not be.
+  per_isolate_opts->per_env->vfs_load = false;
+
   // Internal workers should not wait for inspector frontend to connect or
   // break on the first line of internal scripts. Module loader threads are
   // essential to load user codes and must not be blocked by the inspector

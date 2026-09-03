@@ -392,7 +392,10 @@ MaybeLocal<Value> StartExecution(Environment* env,
     return StartExecution(env, "internal/main/watch_mode");
   }
 
-  if (!first_argv.empty() && first_argv != "-") {
+  // --vfs-load takes the entry point from the source it names, mounted in
+  // prepareExecution(), so route to run_main_module even with no positional
+  // argument rather than falling through to the REPL/stdin.
+  if ((!first_argv.empty() && first_argv != "-") || env->options()->vfs_load) {
     return StartExecution(env, "internal/main/run_main_module");
   }
 
@@ -1003,6 +1006,37 @@ static ExitCode InitializeNodeWithArgsInternal(
     exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
+  }
+
+  // Checked here rather than in EnvironmentOptions::CheckOptions(), which runs
+  // at the end of every parse: NODE_OPTIONS is parsed before the command line,
+  // so a check there would reject `NODE_OPTIONS=--vfs-mount=x node
+  // --experimental-vfs` for an --experimental-vfs it had not read yet. These
+  // options only make sense as a set, so they are validated once all of them
+  // are in.
+  {
+    auto* env_options = per_process::cli_options->per_isolate->per_env.get();
+    if (!env_options->experimental_vfs) {
+      if (!env_options->vfs_mounts.empty()) {
+        errors->push_back("--vfs-mount requires --experimental-vfs");
+      }
+      if (env_options->vfs_load) {
+        errors->push_back("--vfs-load requires --experimental-vfs");
+      }
+    }
+    // --vfs-load shares vfs_mounts with --vfs-mount, so the options themselves
+    // cannot say how often it was given; count it in the node options the
+    // command line yielded. A second one would silently win over the first.
+    if (env_options->vfs_load && exec_argv != nullptr) {
+      size_t seen = 0;
+      for (const std::string& arg : *exec_argv) {
+        if (arg == "--vfs-load" || arg.starts_with("--vfs-load=")) seen++;
+      }
+      if (seen > 1) {
+        errors->push_back("--vfs-load may only be given once");
+      }
+    }
+    if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
   }
 
   // Set the process.title immediately after processing argv if --title is set.
