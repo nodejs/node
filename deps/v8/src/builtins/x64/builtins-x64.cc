@@ -2018,15 +2018,16 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FrameScope inner_frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
       __ Push(new_target);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       // No need to SmiTag as dispatch handles always look like Smis.
       static_assert(kJSDispatchHandleShift > 0);
+      __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
       __ Push(kJavaScriptCallDispatchHandleRegister);
 #endif
       __ SmiTag(frame_size);
       __ Push(frame_size);
       __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       __ Pop(kJavaScriptCallDispatchHandleRegister);
 #endif
       __ Pop(new_target);
