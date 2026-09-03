@@ -4,6 +4,7 @@ const { dirname, join, resolve } = require('node:path')
 const crypto = require('node:crypto')
 const { mkdir } = require('node:fs/promises')
 const Arborist = require('@npmcli/arborist')
+const strictAllowScriptsPreflight = require('./strict-allow-scripts-preflight.js')
 const ciInfo = require('ci-info')
 const { log, input } = require('proc-log')
 const npa = require('npm-package-arg')
@@ -17,8 +18,6 @@ const noTTY = require('./no-tty.js')
 const runScript = require('./run-script.js')
 const isWindows = require('./is-windows.js')
 const withLock = require('./with-lock.js')
-
-const binPaths = []
 
 // when checking the local tree we look up manifests, cache those results by
 // spec.raw so we don't have to fetch again when we check npxCache
@@ -86,6 +85,9 @@ const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree, shallow }) 
   }
 }
 
+// Strict-mode pre-flight for `npm exec` / `npx` lives in
+// ./strict-allow-scripts-preflight.js
+
 // see if the package.json at `path` has an entry that matches `cmd`
 // the path is a known-local directory, not a user-supplied dep, so
 // allow-directory must not gate this introspection
@@ -108,6 +110,8 @@ const exec = async (opts) => {
     scriptShell = isWindows ? process.env.ComSpec || 'cmd' : 'sh',
     ...flatOptions
   } = opts
+
+  const binPaths = []
 
   let pkgPaths = opts.pkgPath
   if (typeof pkgPaths === 'string') {
@@ -192,7 +196,11 @@ const exec = async (opts) => {
   let commandManifest
   await Promise.all(packages.map(async (pkg, i) => {
     const spec = npa(pkg, path)
-    const { manifest, node } = await missingFromTree({ spec, tree: localTree, flatOptions })
+    const { manifest, node } = await missingFromTree({
+      spec,
+      tree: localTree,
+      flatOptions,
+    })
     if (manifest) {
       // Package does not exist in the local tree
       needInstall.push({ spec, manifest })
@@ -301,11 +309,16 @@ const exec = async (opts) => {
           }
         }
       }
-      await withLock(lockPath, () => npxArb.reify({
-        ...flatOptions,
-        save: true,
-        add,
-      }))
+      await withLock(lockPath, async () => {
+        // Hard-fail before reify if --strict-allow-scripts is set and
+        // any node has install scripts not covered by allowScripts.
+        await strictAllowScriptsPreflight(npxArb, { ...flatOptions, add })
+        await npxArb.reify({
+          ...flatOptions,
+          save: true,
+          add,
+        })
+      })
     }
     binPaths.push(resolve(installDir, 'node_modules/.bin'))
     const pkgJson = await PackageJson.load(installDir)

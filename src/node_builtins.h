@@ -125,7 +125,15 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       v8::Local<v8::Context> context,
       const std::vector<std::string>& lazy_builtins,
       std::vector<CodeCacheInfo>* out);
+  // Adds the given code cache entries, replacing existing entries with the
+  // same id. Can be called more than once (e.g. with the snapshot's code cache
+  // and then with caches an embedder built for further builtin ids).
   void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
+
+  // Whether builtins compiled without a cache serialize one for later
+  // consumers (worker threads copy it). See
+  // ProcessInitializationFlags::kNoHarvestBuiltinCodeCache.
+  static void SetHarvestCodeCache(bool on);
 
   void CopySourceAndCodeCacheReferenceFrom(const BuiltinLoader* other);
 
@@ -207,7 +215,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   const UnionBytes config_;
 
-  // If any bulitins should be eagerly compiled i.e. with inner functions
+  // If any builtins should be eagerly compiled i.e. with inner functions
   // compiled too, either use should_eager_compile_ to compile all builtins
   // eagerly, or use to_eager_compile_ to compile specific builtins eagerly.
   // Currently we set should_eager_compile_ to true when compiling primordials,

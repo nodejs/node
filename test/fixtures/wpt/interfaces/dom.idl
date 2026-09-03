@@ -328,7 +328,7 @@ interface DOMImplementation {
   [NewObject] XMLDocument createDocument(DOMString? namespace, [LegacyNullToEmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);
   [NewObject] Document createHTMLDocument(optional DOMString title);
 
-  boolean hasFeature(); // useless; always returns true
+  boolean hasFeature(); // historical; always returns true
 };
 
 [Exposed=Window]
@@ -347,9 +347,9 @@ interface DocumentFragment : Node {
 interface ShadowRoot : DocumentFragment {
   readonly attribute ShadowRootMode mode;
   readonly attribute boolean delegatesFocus;
+  readonly attribute boolean serializable;
   readonly attribute SlotAssignmentMode slotAssignment;
   readonly attribute boolean clonable;
-  readonly attribute boolean serializable;
   readonly attribute Element host;
 
   attribute EventHandler onslotchange;
@@ -409,9 +409,9 @@ interface Element : Node {
 dictionary ShadowRootInit {
   required ShadowRootMode mode;
   boolean delegatesFocus = false;
+  boolean serializable = false;
   SlotAssignmentMode slotAssignment = "named";
   boolean clonable = false;
-  boolean serializable = false;
   CustomElementRegistry? customElementRegistry;
 };
 
@@ -438,7 +438,7 @@ interface Attr : Node {
 
   readonly attribute Element? ownerElement;
 
-  readonly attribute boolean specified; // useless; always returns true
+  readonly attribute boolean specified; // historical; always returns true
 };
 [Exposed=Window]
 interface CharacterData : Node {
@@ -464,7 +464,17 @@ interface CDATASection : Text {
 };
 [Exposed=Window]
 interface ProcessingInstruction : CharacterData {
+  constructor(DOMString target, optional DOMString data = "");
+
   readonly attribute DOMString target;
+
+  boolean hasAttributes();
+  sequence<DOMString> getAttributeNames();
+  DOMString? getAttribute(DOMString name);
+  undefined setAttribute(DOMString name, DOMString value);
+  undefined removeAttribute(DOMString name);
+  boolean toggleAttribute(DOMString name, optional boolean force);
+  boolean hasAttribute(DOMString name);
 };
 [Exposed=Window]
 interface Comment : CharacterData {

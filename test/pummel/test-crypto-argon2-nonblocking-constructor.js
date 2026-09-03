@@ -4,10 +4,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3, 2))
   common.skip('requires OpenSSL >= 3.2');
+if (hasFIPS(3))
+  common.skip('Argon2 is not available in FIPS mode');
 
 // Regression test for https://github.com/nodejs/node/issues/62861.
 // `AdditionalConfig` used to invoke the full Argon2 KDF synchronously inside

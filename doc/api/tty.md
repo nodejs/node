@@ -69,12 +69,18 @@ A `boolean` that is always `true` for `tty.ReadStream` instances.
 
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: v26.8.0
+    pr-url: https://github.com/nodejs/node/pull/64140
+    description: The `mode` argument supports `'raw'` and `'io'`.
 -->
 
-* `mode` {boolean} If `true`, configures the `tty.ReadStream` to operate as a
-  raw device. If `false`, configures the `tty.ReadStream` to operate in its
-  default mode. The `readStream.isRaw` property will be set to the resulting
-  mode.
+* `mode` {boolean|string} If `true` or `'raw'`, configures the
+  `tty.ReadStream` to operate as a raw device. If `'io'`, configures the
+  `tty.ReadStream` to operate in binary-safe I/O mode. If `false`, configures
+  the `tty.ReadStream` to operate in its default mode. The `readStream.isRaw`
+  property will be set to whether the stream is in raw mode, and the
+  `readStream.rawMode` property will be set to the resulting mode.
 * Returns: {this} The read stream instance.
 
 Allows configuration of `tty.ReadStream` so that it operates as a raw device.
@@ -85,6 +91,27 @@ by the terminal is disabled, including echoing input
 characters. <kbd>Ctrl</kbd>+<kbd>C</kbd> will no longer cause a `SIGINT` when
 in this mode. This mode does not affect terminal output processing, such as
 newline translation on Unix terminals.
+
+On Windows, `setRawMode()` requires write permission to the console input
+buffer. When opening `"\\\\.\\CONIN$"` with the [`fs.open()`][] family of APIs
+(for passing into `new tty.ReadStream()`), be sure to use a read/write flag
+such as `'r+'`.
+
+When in binary-safe I/O mode, terminal output processing is also disabled.
+This corresponds to libuv's `UV_TTY_MODE_IO` mode and is not supported on
+Windows.
+
+### `readStream.rawMode`
+
+<!-- YAML
+added: v26.8.0
+-->
+
+* {boolean|string}
+
+The current raw mode for the `tty.ReadStream`. This is `false` when the stream
+is in its default mode, `'raw'` when raw input mode is enabled, and `'io'` when
+binary-safe I/O mode is enabled.
 
 ## Class: `tty.WriteStream`
 
@@ -342,6 +369,7 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
+[`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
 [`net.Socket` constructor]: net.md#new-netsocketoptions
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin

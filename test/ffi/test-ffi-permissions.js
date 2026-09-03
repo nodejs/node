@@ -1,4 +1,4 @@
-// Flags: --permission --experimental-ffi --allow-fs-read=*
+// Flags: --permission --allow-fs-read=*
 'use strict';
 const common = require('../common');
 const assert = require('node:assert');
@@ -68,6 +68,10 @@ test('permission model blocks ffi memory and helper APIs', () => {
 
   assert.throws(() => {
     ffi.getRawPointer(Buffer.alloc(0));
+  }, denied);
+
+  assert.throws(() => {
+    ffi.getCurrentEventLoop();
   }, denied);
 
   assert.throws(() => {

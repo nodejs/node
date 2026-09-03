@@ -6,6 +6,7 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
 if (!common.isLinux) common.skip();
+common.skipIfPerfettoEnabled();
 
 const CODE = `
   const net = require('net');

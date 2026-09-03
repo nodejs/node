@@ -98,25 +98,20 @@ StreamBase::StreamBase(Environment* env) : env_(env) {
   PushStreamListener(&default_listener_);
 }
 
-template <typename OtherBase>
+template <std::derived_from<AsyncWrap> OtherBase>
 SimpleShutdownWrap<OtherBase>::SimpleShutdownWrap(
-    StreamBase* stream,
-    v8::Local<v8::Object> req_wrap_obj)
-  : ShutdownWrap(stream, req_wrap_obj),
-    OtherBase(stream->stream_env(),
-              req_wrap_obj,
-              AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
-}
+    StreamBase* stream, v8::Local<v8::Object> req_wrap_obj)
+    : ShutdownWrap(stream, req_wrap_obj),
+      OtherBase(stream->stream_env(),
+                req_wrap_obj,
+                AsyncWrap::PROVIDER_SHUTDOWNWRAP) {}
 
-template <typename OtherBase>
-SimpleWriteWrap<OtherBase>::SimpleWriteWrap(
-    StreamBase* stream,
-    v8::Local<v8::Object> req_wrap_obj)
-  : WriteWrap(stream, req_wrap_obj),
-    OtherBase(stream->stream_env(),
-              req_wrap_obj,
-              AsyncWrap::PROVIDER_WRITEWRAP) {
-}
+template <std::derived_from<AsyncWrap> OtherBase>
+SimpleWriteWrap<OtherBase>::SimpleWriteWrap(StreamBase* stream,
+                                            v8::Local<v8::Object> req_wrap_obj)
+    : WriteWrap(stream, req_wrap_obj),
+      OtherBase(
+          stream->stream_env(), req_wrap_obj, AsyncWrap::PROVIDER_WRITEWRAP) {}
 
 void StreamBase::AttachToObject(v8::Local<v8::Object> obj) {
   obj->SetAlignedPointerInInternalField(

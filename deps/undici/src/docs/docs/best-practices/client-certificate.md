@@ -1,5 +1,7 @@
 # Client certificate
 
+<!--type=misc-->
+
 Client certificate authentication can be configured with the `Client`, the required options are passed along through the `connect` option.
 
 The client certificates must be signed by a trusted CA. The Node.js default is to trust the well-known CAs curated by Mozilla.

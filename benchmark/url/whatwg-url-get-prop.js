@@ -7,6 +7,10 @@ const assert = require('assert');
 const bench = common.createBenchmark(main, {
   type: common.urlDataTypes,
   e: [1],
+}, {
+  test: {
+    type: 'short',
+  },
 });
 
 function main({ type, e }) {

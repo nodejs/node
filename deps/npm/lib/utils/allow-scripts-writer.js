@@ -1,6 +1,9 @@
 const npa = require('npm-package-arg')
 const { log } = require('proc-log')
-const { getTrustedRegistryIdentity } = require('@npmcli/arborist/lib/script-allowed.js')
+const {
+  getTrustedRegistryIdentity,
+  resolvedSourceSpecs,
+} = require('@npmcli/arborist/lib/script-allowed.js')
 
 // Pure helpers that implement the RFC's pin-mismatch table for
 // `npm approve-scripts` and `npm deny-scripts`.
@@ -12,6 +15,8 @@ const { getTrustedRegistryIdentity } = require('@npmcli/arborist/lib/script-allo
 // Denying always writes `"<name>": false`, regardless of `--allow-scripts-pin`, per the
 // RFC's asymmetric-pin rule.
 
+const primaryResolvedSource = (node) => resolvedSourceSpecs(node)[0] || ''
+
 // Convert an arborist Node into the spec string used for a versioned policy
 // entry. Returns `null` if the node cannot be represented as a versioned key
 // derived from trusted sources (lockfile URL for registry, hosted shortcut
@@ -21,8 +26,7 @@ const versionedKeyFor = (node) => {
   if (!node) {
     return null
   }
-  /* istanbul ignore next: callers guarantee a string resolved */
-  const resolved = typeof node.resolved === 'string' ? node.resolved : ''
+  const resolved = primaryResolvedSource(node)
   if (resolved.startsWith('git')) {
     try {
       const parsed = npa(resolved)
@@ -46,7 +50,7 @@ const versionedKeyFor = (node) => {
     // parse (private-registry mirror, alternate CDN URL shape). Leave a
     // breadcrumb so users notice when policy keys are silently pruned.
     log.silly(
-      'allow-scripts',
+      'install-scripts',
       `unable to derive trusted versioned key for ${node.path || node.name || '<unknown>'} ` +
       `(resolved: ${resolved}); key will be pruned on next save`
     )
@@ -69,8 +73,7 @@ const nameKeyFor = (node) => {
   if (!node) {
     return null
   }
-  /* istanbul ignore next: callers guarantee a string resolved */
-  const resolved = typeof node.resolved === 'string' ? node.resolved : ''
+  const resolved = primaryResolvedSource(node)
   if (resolved.startsWith('git')) {
     try {
       const parsed = npa(resolved)
@@ -105,15 +108,15 @@ const isSingleVersionPin = (key) => {
 // an approval. Per RFC, a name-only deny ("pkg": false) is widest and
 // the only remediation is to remove the entry. A versioned deny
 // ("pkg@1.2.3": false or a disjunction) blocks only specific versions;
-// the user can either widen it via `npm deny-scripts <name>` or remove
-// it to approve the currently-installed version only.
+// the user can either widen it via `npm install-scripts deny <name>` or
+// remove it to approve the currently-installed version only.
 const denyWarning = (key, subject, name) => {
   if (isNameOnlyKey(key)) {
     return `${key} is denied; remove the entry from allowScripts to approve ${subject}.`
   }
   /* istanbul ignore next: name fallback is defensive; callers pass nameKeyFor(sample) */
   const widenTarget = name || 'this package'
-  return `${key} is a versioned deny; run \`npm deny-scripts ${widenTarget}\` ` +
+  return `${key} is a versioned deny; run \`npm install-scripts deny ${widenTarget}\` ` +
     `to widen the deny to all versions of ${widenTarget}, or remove the entry ` +
     `to approve ${subject}.`
 }
@@ -164,7 +167,8 @@ const keyTargetsNode = (key, node) => {
     case 'git': {
       let resolvedParsed
       try {
-        resolvedParsed = node.resolved ? npa(node.resolved) : null
+        const resolved = primaryResolvedSource(node)
+        resolvedParsed = resolved ? npa(resolved) : null
       } catch {
         /* istanbul ignore next */
         return false
@@ -176,7 +180,8 @@ const keyTargetsNode = (key, node) => {
     case 'file':
     case 'directory':
     case 'remote':
-      return node.resolved === parsed.saveSpec || node.resolved === parsed.fetchSpec
+      return resolvedSourceSpecs(node)
+        .some(resolved => resolved === parsed.saveSpec || resolved === parsed.fetchSpec)
     default:
       return false
   }
@@ -245,7 +250,41 @@ const applyApprovalForPackage = (existing, nodes, { pin = true } = {}) => {
   // package are removed. Per the RFC's pin-mismatch table, an existing
   // name-only entry (`pkg: true`) is replaced by `pkg@x.y.z: true` once
   // every installed version has a pin.
-  const installedKeys = new Set(nodes.map(versionedKeyFor).filter(Boolean))
+  const versionedKeys = nodes.map(versionedKeyFor)
+  const installedKeys = new Set(versionedKeys.filter(Boolean))
+
+  // A registry dep with no `resolved` URL in the lockfile has no trustable
+  // version (getTrustedRegistryIdentity won't trust the tarball's
+  // node.version), so versionedKeyFor returns null and a `pkg@x.y.z` pin can
+  // never match it (npm/cli#9558). When any installed version can't be
+  // pinned, approve the whole package by name and drop now-redundant pins.
+  if (name && versionedKeys.some(key => !key)) {
+    for (const key of Object.keys(allowScripts)) {
+      if (
+        keyTargetsNode(key, sample) &&
+        key !== name &&
+        isSingleVersionPin(key) &&
+        allowScripts[key] === true
+      ) {
+        delete allowScripts[key]
+        changes.push({ key, change: 'removed-pinned-allow' })
+      }
+    }
+    if (allowScripts[name] !== true) {
+      allowScripts[name] = true
+      changes.push({ key: name, change: 'added' })
+    }
+    return {
+      allowScripts,
+      changes,
+      warning: changes.length
+        ? `${name}: approved by name (all versions) because its ` +
+        `package-lock.json entry has no "resolved" URL, so npm can't pin a ` +
+        `specific version. Run \`npm install\` to refresh the lockfile and ` +
+        `enable pinning.`
+        : undefined,
+    }
+  }
 
   for (const key of Object.keys(allowScripts)) {
     if (

@@ -10,7 +10,6 @@ skipIfFFIMissing();
 test('permission audit does not deny ffi access', () => {
   const { stdout, stderr, status, signal } = spawnSync(process.execPath, [
     '--permission-audit',
-    '--experimental-ffi',
     '-e',
     'const ffi = require("node:ffi"); ' +
       'console.log(JSON.stringify({ ' +

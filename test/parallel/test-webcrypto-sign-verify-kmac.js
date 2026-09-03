@@ -5,22 +5,48 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3))
   common.skip('requires OpenSSL >= 3');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
+const fips = hasFIPS();
+const fips4 = hasFIPS(4);
 
 const vectors = require('../fixtures/crypto/kmac')();
 
+function isFipsProviderUnsupported(err) {
+  return err.name === 'OperationError' &&
+    err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED';
+}
+
+function usesNonFipsImplementation({ key, keyLength, outputLength }) {
+  const keyLengthInBits = keyLength ?? key.byteLength * 8;
+  return outputLength === 0 ||
+    outputLength % 8 !== 0 ||
+    keyLengthInBits < 32 ||
+    keyLengthInBits % 8 !== 0;
+}
+
+function isFips4Incompatible({ key, keyLength, outputLength }) {
+  const keyLengthInBits = keyLength ?? key.byteLength * 8;
+  return keyLengthInBits < 128 ||
+    keyLengthInBits % 8 !== 0 ||
+    outputLength % 8 !== 0;
+}
+
 async function testVerify({ algorithm,
                             key,
+                            keyLength,
                             data,
                             customization,
                             outputLength,
                             expected }) {
+  const importAlgorithm = keyLength === undefined ?
+    { name: algorithm } :
+    { name: algorithm, length: keyLength };
   const [
     verifyKey,
     noVerifyKey,
@@ -29,13 +55,13 @@ async function testVerify({ algorithm,
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify']),
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['sign']),
     subtle.generateKey(
@@ -119,10 +145,14 @@ async function testVerify({ algorithm,
 
 async function testSign({ algorithm,
                           key,
+                          keyLength,
                           data,
                           customization,
                           outputLength,
                           expected }) {
+  const importAlgorithm = keyLength === undefined ?
+    { name: algorithm } :
+    { name: algorithm, length: keyLength };
   const [
     signKey,
     noSignKey,
@@ -131,13 +161,13 @@ async function testSign({ algorithm,
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify', 'sign']),
     subtle.importKey(
       'raw-secret',
       key,
-      { name: algorithm },
+      importAlgorithm,
       false,
       ['verify']),
     subtle.generateKey(
@@ -185,9 +215,112 @@ async function testSign({ algorithm,
   const variations = [];
 
   for (const vector of vectors) {
-    variations.push(testVerify(vector));
-    variations.push(testSign(vector));
+    if (fips && usesNonFipsImplementation(vector)) continue;
+
+    if (fips4 && isFips4Incompatible(vector)) {
+      variations.push(assert.rejects(
+        testVerify(vector), isFipsProviderUnsupported));
+      variations.push(assert.rejects(
+        testSign(vector), isFipsProviderUnsupported));
+    } else {
+      variations.push(testVerify(vector));
+      variations.push(testSign(vector));
+    }
   }
 
   await Promise.all(variations);
+})().then(common.mustCall());
+
+(async function() {
+  const key = await subtle.importKey(
+    'raw-secret',
+    new Uint8Array(16),
+    { name: 'KMAC128' },
+    false,
+    ['sign', 'verify']);
+  const algorithm = {
+    name: 'KMAC128',
+    outputLength: fips ? 16 : 9,
+    customization: new Uint8Array(),
+  };
+  const data = new Uint8Array([1, 2, 3]);
+
+  const signature = await subtle.sign(algorithm, key, data);
+  assert.strictEqual(signature.byteLength, 2);
+  if (!fips)
+    assert.strictEqual(new Uint8Array(signature)[1] & 0b01111111, 0);
+  assert(await subtle.verify(algorithm, key, signature, data));
+
+  if (fips) {
+    const signature128 = await subtle.sign({
+      ...algorithm,
+      outputLength: 128,
+    }, key, data);
+    assert.strictEqual(signature128.byteLength, 16);
+    assert(await subtle.verify({
+      ...algorithm,
+      outputLength: 128,
+    }, key, signature128, data));
+  } else {
+    const signature16 = new Uint8Array(await subtle.sign({
+      ...algorithm,
+      outputLength: 16,
+    }, key, data));
+    signature16[1] &= 0b10000000;
+    assert.notDeepStrictEqual(new Uint8Array(signature), signature16);
+  }
+
+  const invalidSignature = new Uint8Array(signature);
+  if (fips)
+    invalidSignature[0] ^= 0b00000001;
+  else
+    invalidSignature[1] |= 0b00000001;
+  assert(!(await subtle.verify(algorithm, key, invalidSignature, data)));
+
+  if (!fips) {
+    const nonByteKey = await subtle.importKey(
+      'raw-secret',
+      new Uint8Array([0xff, 0xff, 0xff, 0xff]),
+      { name: 'KMAC128', length: 25 },
+      false,
+      ['sign', 'verify']);
+    const nonByteKeySignature = subtle.sign({
+      ...algorithm,
+      outputLength: 16,
+    }, nonByteKey, data);
+    const result = await nonByteKeySignature;
+    assert.strictEqual(result.byteLength, 2);
+    assert(await subtle.verify({
+      ...algorithm,
+      outputLength: 16,
+    }, nonByteKey, result, data));
+  }
+})().then(common.mustCall());
+
+(async function() {
+  if (fips) return;
+
+  const data = new Uint8Array([1, 2, 3]);
+
+  for (const name of ['KMAC128', 'KMAC256']) {
+    for (const keyData of [
+      new Uint8Array(),
+      new Uint8Array([1]),
+      new Uint8Array([1, 2, 3]),
+    ]) {
+      const key = await subtle.importKey(
+        'raw-secret',
+        keyData,
+        { name },
+        true,
+        ['sign', 'verify']);
+      assert.strictEqual(key.algorithm.length, keyData.byteLength * 8);
+
+      const algorithm = { name, outputLength: 256 };
+      const signature = subtle.sign(algorithm, key, data);
+      const result = await signature;
+      assert.strictEqual(result.byteLength, 32);
+      assert(await subtle.verify(algorithm, key, result, data));
+    }
+  }
 })().then(common.mustCall());

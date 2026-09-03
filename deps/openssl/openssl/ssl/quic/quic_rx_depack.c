@@ -125,8 +125,19 @@ static int depack_do_frame_ack(PACKET *pkt, QUIC_CHANNEL *ch,
     }
 
     if (!ossl_ackm_on_rx_ack_frame(ch->ackm, &ack,
-            packet_space, received))
-        goto malformed;
+            packet_space, received)) {
+        /*
+         * The ACK manager rejects the frame if it acknowledges a packet number
+         * we have not sent. RFC 9000 s. 13.1 recommends treating this as a
+         * PROTOCOL_VIOLATION connection error (distinct from a frame decoding
+         * error, which is handled at the malformed label below).
+         */
+        ossl_quic_channel_raise_protocol_error(ch,
+            OSSL_QUIC_ERR_PROTOCOL_VIOLATION,
+            frame_type,
+            "ACK for unsent packet number");
+        return 0;
+    }
 
     ++ch->diag_num_rx_ack;
     return 1;
@@ -931,6 +942,22 @@ static int depack_do_frame_retire_conn_id(PACKET *pkt,
 
 static void free_path_response(unsigned char *buf, size_t buf_len, void *arg)
 {
+    QUIC_CHANNEL *ch = (QUIC_CHANNEL *)arg;
+
+    assert(ch->path_response_limit > 0);
+
+    ch->path_response_limit--;
+
+    /*
+     * Assume path response frame is being freed on behalf of
+     * finished TX operation. This is for unit testing purposes
+     * only. The counter is also bumped when channel is being
+     * destroyed and CFQ (control frame queue) is freed.
+     * This currently does not matter for check_pc_flood
+     * in test/radix/quic_tests.c.
+     */
+    ch->path_response_tx++;
+
     OPENSSL_free(buf);
 }
 
@@ -951,33 +978,41 @@ static int depack_do_frame_path_challenge(PACKET *pkt,
         return 0;
     }
 
-    /*
-     * RFC 9000 s. 8.2.2: On receiving a PATH_CHALLENGE frame, an endpoint MUST
-     * respond by echoing the data contained in the PATH_CHALLENGE frame in a
-     * PATH_RESPONSE frame.
-     *
-     * TODO(QUIC FUTURE): We should try to avoid allocation here in the future.
-     */
-    encoded_len = sizeof(uint64_t) + 1;
-    if ((encoded = OPENSSL_malloc(encoded_len)) == NULL)
-        goto err;
+    if (ch->seen_path_challenge == 0
+        && ch->path_response_limit < QUIC_PATH_RESPONSE_QLEN) {
+        /*
+         * RFC 9000 s. 8.2.2: On receiving a PATH_CHALLENGE frame, an endpoint
+         * MUST respond by echoing the data contained in the PATH_CHALLENGE
+         * frame in a PATH_RESPONSE frame.
+         *
+         * TODO(QUIC FUTURE): We should try to avoid allocation here in the
+         * future.
+         */
+        encoded_len = sizeof(uint64_t) + 1;
+        if ((encoded = OPENSSL_malloc(encoded_len)) == NULL)
+            goto err;
 
-    if (!WPACKET_init_static_len(&wpkt, encoded, encoded_len, 0))
-        goto err;
+        if (!WPACKET_init_static_len(&wpkt, encoded, encoded_len, 0))
+            goto err;
 
-    if (!ossl_quic_wire_encode_frame_path_response(&wpkt, frame_data)) {
-        WPACKET_cleanup(&wpkt);
-        goto err;
+        if (!ossl_quic_wire_encode_frame_path_response(&wpkt, frame_data)) {
+            WPACKET_cleanup(&wpkt);
+            goto err;
+        }
+
+        WPACKET_finish(&wpkt);
+
+        if (!ossl_quic_cfq_add_frame(ch->cfq, 0, QUIC_PN_SPACE_APP,
+                OSSL_QUIC_FRAME_TYPE_PATH_RESPONSE,
+                QUIC_CFQ_ITEM_FLAG_UNRELIABLE,
+                encoded, encoded_len,
+                free_path_response, ch))
+            goto err;
+        ch->seen_path_challenge = 1;
+        ch->path_response_limit++;
     }
 
-    WPACKET_finish(&wpkt);
-
-    if (!ossl_quic_cfq_add_frame(ch->cfq, 0, QUIC_PN_SPACE_APP,
-            OSSL_QUIC_FRAME_TYPE_PATH_RESPONSE,
-            QUIC_CFQ_ITEM_FLAG_UNRELIABLE,
-            encoded, encoded_len,
-            free_path_response, NULL))
-        goto err;
+    ch->path_challenge_rx++;
 
     return 1;
 
@@ -1432,7 +1467,7 @@ int ossl_quic_handle_frames(QUIC_CHANNEL *ch, OSSL_QRX_PKT *qpacket)
     if (ch == NULL)
         return 0;
 
-    ch->did_crypto_frame = 0;
+    ossl_ch_reset_rx_state(ch);
 
     /* Initialize |ackm_data| (and reinitialize |ok|)*/
     memset(&ackm_data, 0, sizeof(ackm_data));

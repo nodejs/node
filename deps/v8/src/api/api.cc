@@ -1613,6 +1613,8 @@ i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
   obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
   obj->set_has_no_side_effect(flags & PropertyHandlerFlags::kHasNoSideEffect);
+  obj->set_has_dont_delete_property(
+      flags & PropertyHandlerFlags::kHasDontDeleteProperty);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -3739,14 +3741,6 @@ bool Value::IsTypedArray() const {
 TYPED_ARRAYS_BASE(VALUE_IS_TYPED_ARRAY)
 #undef VALUE_IS_TYPED_ARRAY
 
-bool Value::IsFloat16Array() const {
-  auto obj = *Utils::OpenDirectHandle(this);
-  return i::IsJSTypedArray(obj) &&
-         i::Cast<i::JSTypedArray>(obj)->type() == i::kExternalFloat16Array &&
-         Utils::ApiCheck(i::v8_flags.js_float16array, "Value::IsFloat16Array",
-                         "Float16Array is not supported");
-}
-
 bool Value::IsDataView() const {
   auto obj = *Utils::OpenDirectHandle(this);
   return IsJSDataView(obj) || IsJSRabGsabDataView(obj);
@@ -4221,6 +4215,44 @@ void* v8::SharedArrayBuffer::Data() const {
   return Utils::OpenDirectHandle(this)->backing_store();
 }
 
+template <bool is_shared>
+static size_t CopyArrayBufferBytesImpl(const void* source_buffer,
+                                       size_t source_start,
+                                       size_t source_length,
+                                       void* target_buffer, size_t target_start,
+                                       size_t target_length,
+                                       size_t bytes_to_copy) {
+  source_start = std::min(source_start, source_length);
+  target_start = std::min(target_start, target_length);
+  size_t source_size = source_length - source_start;
+  size_t target_size = target_length - target_start;
+  bytes_to_copy = std::min({bytes_to_copy, source_size, target_size});
+  if (bytes_to_copy == 0) return 0;
+  const char* src = static_cast<const char*>(source_buffer) + source_start;
+  char* dst = static_cast<char*>(target_buffer) + target_start;
+  if (is_shared) {
+    base::Relaxed_Memmove(reinterpret_cast<base::Atomic8*>(dst),
+                          reinterpret_cast<const base::Atomic8*>(src),
+                          bytes_to_copy);
+  } else {
+    std::memmove(dst, src, bytes_to_copy);
+  }
+  return bytes_to_copy;
+}
+
+size_t v8::SharedArrayBuffer::CopyArrayBufferBytes(
+    size_t source_start, size_t bytes_to_copy, Local<SharedArrayBuffer> target,
+    size_t target_start) const {
+  i::DisallowGarbageCollection no_gc;
+  auto self = Utils::OpenDirectHandle(this);
+  auto that = Utils::OpenDirectHandle(*target);
+  DCHECK(!that->is_immutable());
+  return CopyArrayBufferBytesImpl<true>(self->backing_store(), source_start,
+                                        self->GetByteLength(),
+                                        that->backing_store(), target_start,
+                                        that->GetByteLength(), bytes_to_copy);
+}
+
 void v8::ArrayBuffer::CheckCast(Value* that) {
   auto obj = *Utils::OpenDirectHandle(that);
   Utils::ApiCheck(
@@ -4251,16 +4283,6 @@ void v8::TypedArray::CheckCast(Value* that) {
 
 TYPED_ARRAYS_BASE(CHECK_TYPED_ARRAY_CAST)
 #undef CHECK_TYPED_ARRAY_CAST
-
-void v8::Float16Array::CheckCast(Value* that) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::Cast",
-                  "Float16Array is not supported");
-  auto obj = *Utils::OpenDirectHandle(that);
-  Utils::ApiCheck(
-      i::IsJSTypedArray(obj) &&
-          i::Cast<i::JSTypedArray>(obj)->type() == i::kExternalFloat16Array,
-      "v8::Float16Array::Cast()", "Value is not a Float16Array");
-}
 
 void v8::DataView::CheckCast(Value* that) {
   auto obj = *Utils::OpenDirectHandle(that);
@@ -8907,6 +8929,21 @@ bool v8::ArrayBuffer::IsImmutable() const {
   return Utils::OpenDirectHandle(this)->is_immutable();
 }
 
+size_t v8::ArrayBuffer::CopyArrayBufferBytes(size_t source_start,
+                                             size_t bytes_to_copy,
+                                             Local<ArrayBuffer> target,
+                                             size_t target_start) const {
+  i::DisallowGarbageCollection no_gc;
+  auto self = Utils::OpenDirectHandle(this);
+  auto that = Utils::OpenDirectHandle(*target);
+  if (self->was_detached()) return 0;
+  if (that->was_detached() || that->is_immutable()) return 0;
+  return CopyArrayBufferBytesImpl<false>(self->backing_store(), source_start,
+                                         self->GetByteLength(),
+                                         that->backing_store(), target_start,
+                                         that->GetByteLength(), bytes_to_copy);
+}
+
 namespace {
 std::shared_ptr<i::BackingStore> ToInternal(
     std::shared_ptr<i::BackingStoreBase> backing_store) {
@@ -9291,44 +9328,6 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
 
 TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
-
-Local<Float16Array> Float16Array::New(Local<ArrayBuffer> array_buffer,
-                                      size_t byte_offset, size_t length) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
-                  "Float16Array is not supported");
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  if (!Utils::ApiCheck(
-          length <= kMaxLength,
-          "v8::Float16Array::New(Local<ArrayBuffer>, size_t, size_t)",
-          "length exceeds max allowed value")) {
-    return {};
-  }
-  auto buffer = Utils::OpenDirectHandle(*array_buffer);
-  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
-      i::kExternalFloat16Array, buffer, byte_offset, length);
-  return Utils::ToLocalFloat16Array(obj);
-}
-Local<Float16Array> Float16Array::New(
-    Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
-    size_t length) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
-                  "Float16Array is not supported");
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  if (!Utils::ApiCheck(
-          length <= kMaxLength,
-          "v8::Float16Array::New(Local<SharedArrayBuffer>, size_t, size_t)",
-          "length exceeds max allowed value")) {
-    return {};
-  }
-  auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);
-  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
-      i::kExternalFloat16Array, buffer, byte_offset, length);
-  return Utils::ToLocalFloat16Array(obj);
-}
 
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
 Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,

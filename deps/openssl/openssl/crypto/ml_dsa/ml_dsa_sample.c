@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include <openssl/byteorder.h>
+#include <openssl/crypto.h>
 #include "ml_dsa_local.h"
 #include "ml_dsa_vector.h"
 #include "ml_dsa_matrix.h"
@@ -159,13 +160,14 @@ static int rej_bounded_poly(EVP_MD_CTX *h_ctx, const EVP_MD *md,
     COEFF_FROM_NIBBLE_FUNC *coef_from_nibble,
     const uint8_t *seed, size_t seed_len, POLY *out)
 {
+    int ret = 0;
     int j = 0;
     uint32_t z0, z1;
     uint8_t blocks[SHAKE256_BLOCKSIZE], *b, *end = blocks + sizeof(blocks);
 
     /* Instead of just squeezing 1 byte at a time, we grab a whole block */
     if (!shake_xof(h_ctx, md, seed, seed_len, blocks, sizeof(blocks)))
-        return 0;
+        goto err;
 
     while (1) {
         for (b = blocks; b < end; b++) {
@@ -173,15 +175,22 @@ static int rej_bounded_poly(EVP_MD_CTX *h_ctx, const EVP_MD *md,
             z1 = *b >> 4; /* high nibble of byte */
 
             if (coef_from_nibble(z0, &out->coeff[j])
-                && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
-                return 1;
+                && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS) {
+                ret = 1;
+                goto err;
+            }
             if (coef_from_nibble(z1, &out->coeff[j])
-                && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
-                return 1;
+                && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS) {
+                ret = 1;
+                goto err;
+            }
         }
         if (!EVP_DigestSqueeze(h_ctx, blocks, sizeof(blocks)))
-            return 0;
+            goto err;
     }
+err:
+    OPENSSL_cleanse(blocks, sizeof(blocks));
+    return ret;
 }
 
 /**
@@ -204,6 +213,13 @@ int ossl_ml_dsa_matrix_expand_A(EVP_MD_CTX *g_ctx, const EVP_MD *md,
     size_t i, j;
     uint8_t derived_seed[ML_DSA_RHO_BYTES + 2];
     POLY *poly = out->m_poly;
+
+    /*
+     * The seeds derived below and the sampling buffers in rej_ntt_poly() are
+     * not cleansed: per FIPS 204 section 3.6.3 the matrix A is easily
+     * computed from the public key and does not require any special
+     * protections.
+     */
 
     /* The seed used for each matrix element is rho + column_index + row_index */
     memcpy(derived_seed, rho, ML_DSA_RHO_BYTES);
@@ -274,6 +290,7 @@ int ossl_ml_dsa_vector_expand_S(EVP_MD_CTX *h_ctx, const EVP_MD *md, int eta,
     }
     ret = 1;
 err:
+    OPENSSL_cleanse(derived_seed, sizeof(derived_seed));
     return ret;
 }
 
@@ -284,9 +301,11 @@ int ossl_ml_dsa_poly_expand_mask(POLY *out, const uint8_t *seed, size_t seed_len
 {
     uint8_t buf[32 * 20];
     size_t buf_len = 32 * (gamma1 == ML_DSA_GAMMA1_TWO_POWER_19 ? 20 : 18);
-
-    return shake_xof(h_ctx, md, seed, seed_len, buf, buf_len)
+    int ret = shake_xof(h_ctx, md, seed, seed_len, buf, buf_len)
         && ossl_ml_dsa_poly_decode_expand_mask(out, buf, buf_len, gamma1);
+
+    OPENSSL_cleanse(buf, sizeof(buf));
+    return ret;
 }
 
 /*
@@ -311,13 +330,14 @@ int ossl_ml_dsa_poly_sample_in_ball(POLY *out_c, const uint8_t *seed, int seed_l
     uint64_t signs;
     int offset = 8;
     size_t end;
+    int ret = 0;
 
     /*
      * Rather than squeeze 8 bytes followed by lots of 1 byte squeezes
      * the SHAKE blocksize is squeezed each time and buffered into 'block'.
      */
     if (!shake_xof(h_ctx, md, seed, seed_len, block, sizeof(block)))
-        return 0;
+        goto err;
 
     /*
      * grab the first 64 bits - since tau < 64
@@ -336,7 +356,7 @@ int ossl_ml_dsa_poly_sample_in_ball(POLY *out_c, const uint8_t *seed, int seed_l
             if (offset == sizeof(block)) {
                 /* squeeze another block if the bytes from block have been used */
                 if (!EVP_DigestSqueeze(h_ctx, block, sizeof(block)))
-                    return 0;
+                    goto err;
                 offset = 0;
             }
 
@@ -354,5 +374,8 @@ int ossl_ml_dsa_poly_sample_in_ball(POLY *out_c, const uint8_t *seed, int seed_l
         out_c->coeff[index] = mod_sub(1, 2 * (signs & 1));
         signs >>= 1; /* grab the next random bit */
     }
-    return 1;
+    ret = 1;
+err:
+    OPENSSL_cleanse(block, sizeof(block));
+    return ret;
 }

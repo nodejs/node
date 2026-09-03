@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
   common.skip('requires OpenSSL >= 3.5 or BoringSSL');
@@ -30,19 +30,32 @@ if (process.features.openssl_is_boringssl) {
 // ciphers like RC2, the optional PBKDF2 keyLength INTEGER branch in
 // the EncryptedPrivateKeyInfo parser.
 const availableCiphers = new Set(getCiphers());
+const passphrase = 'top secret';
 const ciphers = [
   'aes-128-cbc', 'aes-192-cbc', 'aes-256-cbc',
   'des-ede3-cbc', 'rc2-cbc',
-].filter((c) => availableCiphers.has(c));
+].filter((cipher) => availableCiphers.has(cipher) &&
+                       (!hasFIPS(3) || cipher !== 'rc2-cbc'));
 
-const passphrase = 'top secret';
+if (hasFIPS(3)) {
+  const { privateKey } = generateKeyPairSync('ml-dsa-44');
+  assert.throws(() => privateKey.export({
+    type: 'pkcs8',
+    format: 'der',
+    cipher: 'rc2-cbc',
+    passphrase,
+  }), { code: 'ERR_OSSL_EVP_UNSUPPORTED' });
+}
+
+const wrongPassphrase = 'wrong password';
 const wrongPassphraseError =
   /bad decrypt|DECRYPTION_FAILED|BAD_DECRYPT|bad password|DECODE[ _]ERROR/i;
 // A wrong passphrase usually fails during cipher finalization, but CBC output
 // can have valid padding by chance. OpenSSL then parses the bad plaintext as
 // PKCS#8 and may report ASN.1 or decoder errors from the same failed import.
 function assertWrongPassphrase(fn) {
-  assert.throws(fn, (err) => wrongPassphraseError.test(err.message) ||
+  assert.throws(fn, (err) => err.code === 'ERR_OSSL_BAD_DECRYPT' ||
+                            wrongPassphraseError.test(err.message) ||
                             err.code?.startsWith('ERR_OSSL_ASN1_') ||
                             err.code === 'ERR_OSSL_UNSUPPORTED');
 }
@@ -79,7 +92,7 @@ for (const asymmetricKeyType of algorithms) {
         key: encrypted,
         format,
         type: 'pkcs8',
-        passphrase: 'wrong',
+        passphrase: wrongPassphrase,
       }));
     }
   }
@@ -128,7 +141,7 @@ for (const { alg, jwkFile, encBase } of fixtureCases) {
       key: encryptedFixture,
       format,
       type: 'pkcs8',
-      passphrase: 'wrong',
+      passphrase: wrongPassphrase,
     }));
   }
 }

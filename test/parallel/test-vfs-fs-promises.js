@@ -12,11 +12,10 @@ const path = require('path');
 const vfs = require('node:vfs');
 
 (async () => {
-  const mountPoint = path.resolve('/tmp/vfs-promises-' + process.pid);
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello world');
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount();
   const p = (s) => path.join(mountPoint, s);
 
   // Path-based reads
@@ -74,6 +73,16 @@ const vfs = require('node:vfs');
   await fsp.lchown(p('src/hello.txt'), uid, gid);
   await fsp.utimes(p('src/hello.txt'), now, now);
   await fsp.lutimes(p('src/hello.txt'), now, now);
+
+  await fsp.lchmod(p('src/plnk.txt'), 0o700);
+  assert.strictEqual(
+    (await fsp.lstat(p('src/hello.txt'))).mode & 0o777,
+    0o644,
+  );
+  assert.strictEqual(
+    (await fsp.lstat(p('src/plnk.txt'))).mode & 0o777,
+    0o700,
+  );
 
   // FileHandle via fsp.open
   const handle = await fsp.open(p('src/hello.txt'), 'r');

@@ -41,7 +41,7 @@ const cli = startCLI([script]);
   assert.match(
     cli.output,
     /> 3 name = 'Robin';/,
-    'marks the 3nd line');
+    'marks the 3rd line');
 
   await cli.stepCommand('cont');
   assert.ok(

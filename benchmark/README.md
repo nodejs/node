@@ -34,7 +34,7 @@ The actual benchmark scripts should be placed in their corresponding
 directories.
 
 * `_benchmark_progress.js`: implements the progress bar displayed
-  when running `compare.js`
+  when running `compare.js` and `scatter.js`
 * `_cli.js`: parses the command line arguments passed to `compare.js`,
   `run.js` and `scatter.js`
 * `_cli.R`: parses the command line arguments passed to `compare.R`
@@ -49,7 +49,8 @@ directories.
 * `run.js`: command line tool for running individual benchmark suite(s).
 * `scatter.js`: command line tool for comparing the performance
   between different parameters in benchmark configurations,
-  for example to analyze the time complexity.
+  for example to analyze the time complexity. Pass `--analyze` to
+  summarize the results without R.
 * `scatter.R`: R script for visualizing the output of `scatter.js` with
   scatter plots.
 

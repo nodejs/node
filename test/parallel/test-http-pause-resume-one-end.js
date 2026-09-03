@@ -24,7 +24,7 @@ const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
-const server = http.Server(function(req, res) {
+const server = new http.Server(function(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
   server.close();

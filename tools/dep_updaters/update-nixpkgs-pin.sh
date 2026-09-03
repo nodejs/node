@@ -1,10 +1,11 @@
 #!/bin/sh
 set -ex
 # Shell script to update Nixpkgs pin in the source tree to the most recent
-# version on the unstable channel.
+# version on the unstable channel, and the 26.05 one for Intel Mac support.
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
+NIXPKGS_COMPAT_PIN_FILE="$BASE_DIR/tools/nix/pkgs-26.05.nix"
 OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.nix"
 
 NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
@@ -19,12 +20,35 @@ NEW_VERSION=$(echo "$NEW_UPSTREAM_SHA1" | head -c 35)
 
 compare_dependency_version "nixpkgs-unstable" "$CURRENT_VERSION_SHA1" "$NEW_UPSTREAM_SHA1"
 
-CURRENT_TARBALL_HASH=$(grep 'sha256 =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
-NEW_TARBALL_HASH=$(nix-prefetch-url --unpack "$NIXPKGS_REPO/archive/$NEW_UPSTREAM_SHA1.tar.gz")
+update_pkgs_file() {
+  PIN_FILE=$1
+  PREVIOUS_SHA1=$2
+  UPSTREAM_SHA1=$3
 
-TMP_FILE=$(mktemp)
-sed "s/$CURRENT_VERSION_SHA1/$NEW_UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$NIXPKGS_PIN_FILE" > "$TMP_FILE"
-mv "$TMP_FILE" "$NIXPKGS_PIN_FILE"
+  CURRENT_TARBALL_HASH=$(grep 'sha256 =' "$PIN_FILE" | awk -F'"' '{ print $2 }')
+  NEW_TARBALL_HASH=$(nix-prefetch-url --unpack "$NIXPKGS_REPO/archive/$UPSTREAM_SHA1.tar.gz")
+
+  TMP_FILE=$(mktemp)
+  sed "s/$PREVIOUS_SHA1/$UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$PIN_FILE" > "$TMP_FILE"
+  mv "$TMP_FILE" "$PIN_FILE"
+}
+
+update_pkgs_file "$NIXPKGS_PIN_FILE" "$CURRENT_VERSION_SHA1" "$NEW_UPSTREAM_SHA1"
+
+# Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
+# to keep testing on that platform for a little longer.
+# TODO: remove this when 26.05 is EOL (end of 2026)
+COMPAT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_COMPAT_PIN_FILE" | awk -F'"' '{ print $2 }')
+COMPAT_UPSTREAM_SHA1=$(git ls-remote "$NIXPKGS_REPO.git" nixpkgs-26.05-darwin | awk '{print $1}')
+update_pkgs_file "$NIXPKGS_COMPAT_PIN_FILE" "$COMPAT_VERSION_SHA1" "$COMPAT_UPSTREAM_SHA1"
+
+# === Update openssl-matrix.nix ===
+# When bumping the pin, we want to update the openssl-matrix.nix file to keep the list in sync nixpkgs
+# i.e. add newly added release lines, remove newly dropped release lines), and make sure the "openssl"
+# attribute still refers to the same release line as the bundled version in deps/openssl/.
+
+OPENSSL_MAJOR=$(awk -F= '/^MAJOR=[0-9]+$/ { print $2; exit }' "$BASE_DIR/deps/openssl/openssl/VERSION.dat")
+OPENSSL_MINOR=$(awk -F= '/^MINOR=[0-9]+$/ { print $2; exit }' "$BASE_DIR/deps/openssl/openssl/VERSION.dat")
 
 nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
   let
@@ -33,29 +57,44 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
       (n: builtins.match \"openssl_[0-9]+(_[0-9]+)?\" n != null)
       (builtins.attrNames pkgs);
     extraMatrixAttrs = [ \"boringssl\" ];
+    default = builtins.head (builtins.filter (n:
+      let
+        inherit (pkgs.lib) versions;
+        t = builtins.tryEval pkgs.\${n};
+        v = if t.success then builtins.tryEval t.value.version else t;
+        majorVersion = pkgs.lib.optionalString v.success (versions.major v.value);
+        minorVersion = pkgs.lib.optionalString v.success (versions.minor v.value);
+      in
+        majorVersion == ''$OPENSSL_MAJOR'' && minorVersion == ''$OPENSSL_MINOR'') opensslAttrs);
     attrs = builtins.filter
       (n:
         let t = builtins.tryEval pkgs.\${n}; in
-        t.success && (builtins.tryEval t.value.version).success
+        n != default && t.success && (builtins.tryEval t.value.version).success
       )
       (opensslAttrs ++ extraMatrixAttrs);
   in
   {
-    inherit attrs;
+    inherit attrs default;
     permittedInsecurePackages = builtins.map (attr: pkgs.\${attr}.name) (
       builtins.filter (attr: (pkgs.\${attr}.meta.insecure)) attrs
     );
   }
 " | jq -r '"{
   pkgs ? import ./pkgs.nix {
-    config.permittedInsecurePackages = [ \(.permittedInsecurePackages | map(@json) | join(" ")) ];
+    config.permittedInsecurePackages = [ \(.permittedInsecurePackages | if length > 0 then "\(map(@json) | join(" ")) " else "" end)];
   },
 }:
 
 {
+  # \"default\" OpenSSL release line, should be kept in sync with the bundled version:
+  openssl = pkgs.\(.default);
+
+  # Other OpenSSL variants we want to test for:
   inherit (pkgs)
     \(.attrs | sort | join("\n    "))
     ;
+
+  openssl_fips = import ./openssl-fips.nix { };
 }"' > "$OPENSSL_MATRIX_FILE"
 
 cat -<<EOF

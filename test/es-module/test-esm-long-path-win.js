@@ -47,6 +47,24 @@ describe('long path on Windows', () => {
     tmpdir.refresh();
   });
 
+  it('runs an extended-length path as the entry point', async () => {
+    // The module loader resolves argv[1] through the JavaScript realpath
+    // implementation before executing it.
+    tmpdir.refresh();
+    const entry = tmpdir.resolve('extended-entry.js');
+    fs.writeFileSync(entry, 'console.log("hello world");');
+
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [path.toNamespacedPath(entry)],
+    );
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout.trim(), 'hello world');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
   it('check long path in LegacyMainResolve - 1', () => {
     // Module layout will be the following:
     //  package.json

@@ -18,6 +18,9 @@
 
 namespace node {
 
+// Helper macro for defining a 1-bit boolean field in a struct.
+#define DEFINE_BOOL_FIELD(field) bool field : 1
+
 class HostPort {
  public:
   HostPort(const std::string& host_name, int port)
@@ -53,8 +56,8 @@ class Options {
 };
 
 struct InspectPublishUid {
-  bool console;
-  bool http;
+  DEFINE_BOOL_FIELD(console);
+  DEFINE_BOOL_FIELD(http);
 };
 
 // These options are currently essentially per-Environment, but it can be nice
@@ -69,19 +72,20 @@ class DebugOptions : public Options {
   DebugOptions(DebugOptions&&) = default;
   DebugOptions& operator=(DebugOptions&&) = default;
 
-  bool allow_attaching_debugger = true;
-  // --inspect
-  bool inspector_enabled = false;
-  // --inspect-wait
-  bool inspect_wait = false;
-  // --debug
-  bool deprecated_debug = false;
-  // --inspect-brk
-  bool break_first_line = false;
-  // --inspect-brk-node
-  bool break_node_first_line = false;
   // --inspect-publish-uid
   std::string inspect_publish_uid_string = "stderr,http";
+
+  DEFINE_BOOL_FIELD(allow_attaching_debugger) = true;
+  // --inspect
+  DEFINE_BOOL_FIELD(inspector_enabled) = false;
+  // --inspect-wait
+  DEFINE_BOOL_FIELD(inspect_wait) = false;
+  // --debug
+  DEFINE_BOOL_FIELD(deprecated_debug) = false;
+  // --inspect-brk
+  DEFINE_BOOL_FIELD(break_first_line) = false;
+  // --inspect-brk-node
+  DEFINE_BOOL_FIELD(break_node_first_line) = false;
 
   InspectPublishUid inspect_publish_uid;
 
@@ -118,167 +122,181 @@ class DebugOptions : public Options {
 
 class EnvironmentOptions : public Options {
  public:
-  bool abort_on_uncaught_exception = false;
-  std::vector<std::string> conditions;
-  bool detect_module = true;
-  bool disable_sigusr1 = false;
-  bool print_required_tla = false;
-  bool require_module = true;
-  std::string dns_result_order;
-  bool enable_source_maps = false;
-  bool experimental_addon_modules = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_ffi = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_websocket = true;
-  bool experimental_sqlite = HAVE_SQLITE;
-  bool experimental_stream_iter = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_vfs = EXPERIMENTALS_DEFAULT_VALUE;
-  bool webstorage = HAVE_SQLITE;
-  bool experimental_dtls = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_quic = EXPERIMENTALS_DEFAULT_VALUE;
-  std::string localstorage_file;
-  bool experimental_global_navigator = true;
-  bool experimental_global_web_crypto = true;
-  bool experimental_import_meta_resolve = EXPERIMENTALS_DEFAULT_VALUE;
-  std::string input_type;  // Value of --input-type
-  bool entry_is_url = false;
-  bool permission = false;
-  bool permission_audit = false;
-  std::vector<std::string> allow_fs_read;
-  std::vector<std::string> allow_fs_write;
-  bool allow_addons = false;
-  bool allow_inspector = false;
-  bool allow_child_process = false;
-  bool allow_net = false;
-  bool allow_wasi = false;
-  bool allow_ffi = false;
-  bool allow_worker_threads = false;
-  bool experimental_repl_await = true;
-  bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
-  bool async_context_frame = true;
-  bool expose_internals = false;
-  bool force_node_api_uncaught_exceptions_policy = false;
-  bool frozen_intrinsics = false;
-  int64_t heap_snapshot_near_heap_limit = 0;
-  std::string heap_snapshot_signal;
-  bool network_family_autoselection = true;
-  uint64_t network_family_autoselection_attempt_timeout = 500;
-  uint64_t max_http_header_size = 16 * 1024;
-  bool deprecation = true;
-  bool force_async_hooks_checks = true;
-  bool allow_native_addons = true;
-  bool global_search_paths = true;
-  bool warnings = true;
-  std::vector<std::string> disable_warnings;
-  bool force_context_aware = false;
-  bool pending_deprecation = false;
-  bool preserve_symlinks = false;
-  bool preserve_symlinks_main = false;
-  bool prof_process = false;
 #if HAVE_INSPECTOR
-  std::string cpu_prof_dir;
-  static const uint64_t kDefaultCpuProfInterval = 1000;
-  uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
-  std::string cpu_prof_name;
-  bool cpu_prof = false;
-  bool experimental_network_inspection = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_worker_inspection = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_storage_inspection = EXPERIMENTALS_DEFAULT_VALUE;
-  bool experimental_inspector_network_resource = EXPERIMENTALS_DEFAULT_VALUE;
-  std::string heap_prof_dir;
-  std::string heap_prof_name;
-  static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
-  uint64_t heap_prof_interval = kDefaultHeapProfInterval;
-  bool heap_prof = false;
-#endif  // HAVE_INSPECTOR
-  std::string redirect_warnings;
-  std::string diagnostic_dir;
-  std::vector<std::string> env_file;
-  std::vector<std::string> optional_env_file;
-  bool has_env_file_string = false;
-  bool test_runner = false;
-  uint64_t test_runner_concurrency = 0;
-  uint64_t test_runner_timeout = 0;
-  bool test_runner_coverage = false;
-  bool test_runner_force_exit = false;
-  uint64_t test_coverage_branches = 0;
-  uint64_t test_coverage_functions = 0;
-  uint64_t test_coverage_lines = 0;
-  bool test_runner_module_mocks = false;
-  bool test_runner_update_snapshots = false;
-  std::vector<std::string> test_name_pattern;
-  std::vector<std::string> test_reporter;
-  std::string test_rerun_failures_path;
-  std::vector<std::string> test_reporter_destination;
-  std::string test_global_setup_path;
-  bool test_randomize = false;
-  bool has_test_random_seed = false;
-  uint64_t test_random_seed = 0;
-  bool test_only = false;
-  bool test_udp_no_try_send = false;
-  std::string test_isolation = "process";
-  std::string test_shard;
-  std::vector<std::string> test_skip_pattern;
-  std::vector<std::string> experimental_test_tag_filter;
-  std::vector<std::string> coverage_include_pattern;
-  std::vector<std::string> coverage_exclude_pattern;
-  bool throw_deprecation = false;
-  bool trace_deprecation = false;
-  bool trace_exit = false;
-  bool trace_sync_io = false;
-  bool trace_tls = false;
-  bool trace_uncaught = false;
-  bool trace_warnings = false;
-  bool trace_promises = false;
-  bool trace_env = false;
-  bool trace_env_js_stack = false;
-  bool trace_env_native_stack = false;
-  bool use_system_ca = false;
-  std::string trace_require_module;
-  bool extra_info_on_fatal_exception = true;
-  std::string unhandled_rejections;
-  std::vector<std::string> userland_loaders;
-  bool verify_base_objects =
+  static constexpr uint64_t kDefaultCpuProfInterval = 1000;
+  static constexpr uint64_t kDefaultHeapProfInterval = 512 * 1024;
+#endif
+  static constexpr bool IS_DEBUG =
 #ifdef DEBUG
       true;
 #else
       false;
 #endif  // DEBUG
 
-  bool watch_mode = false;
-  bool watch_mode_report_to_parent = false;
-  bool watch_mode_preserve_output = false;
+  std::string dns_result_order;
+  std::string localstorage_file;
+  std::string input_type;  // Value of --input-type
+  std::string heap_snapshot_signal;
+  std::string redirect_warnings;
+  std::string diagnostic_dir;
+  std::string test_rerun_failures_path;
+  std::string test_global_setup_path;
+  std::string test_isolation = "process";
+  std::string test_shard;
+  std::string trace_require_module;
+  std::string unhandled_rejections;
   std::string watch_mode_kill_signal = "SIGTERM";
-  std::vector<std::string> watch_mode_paths;
-
-  bool syntax_check_only = false;
-  bool has_eval_string = false;
   std::string eval_string;
-  bool print_eval = false;
-  bool force_repl = false;
-
-  bool insecure_http_parser = false;
-  bool use_env_proxy = false;
-
-  bool tls_min_v1_0 = false;
-  bool tls_min_v1_1 = false;
-  bool tls_min_v1_2 = false;
-  bool tls_min_v1_3 = false;
-  bool tls_max_v1_2 = false;
-  bool tls_max_v1_3 = false;
   std::string tls_keylog;
+  std::string experimental_config_file_path;
+  std::string experimental_package_map_path;
+#if HAVE_INSPECTOR
+  std::string cpu_prof_dir;
+  std::string cpu_prof_name;
+  std::string heap_prof_dir;
+  std::string heap_prof_name;
+#endif  // HAVE_INSPECTOR
 
+  std::vector<std::string> conditions;
+  std::vector<std::string> allow_fs_read;
+  std::vector<std::string> allow_fs_write;
+  std::vector<std::string> disable_warnings;
+  std::vector<std::string> env_file;
+  std::vector<std::string> optional_env_file;
+  std::vector<std::string> test_name_pattern;
+  std::vector<std::string> test_reporter;
+  std::vector<std::string> test_reporter_destination;
+  std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> experimental_test_tag_filter;
+  std::vector<std::string> coverage_include_pattern;
+  std::vector<std::string> coverage_exclude_pattern;
+  std::vector<std::string> userland_loaders;
+  std::vector<std::string> watch_mode_paths;
   std::vector<std::string> preload_cjs_modules;
-
   std::vector<std::string> preload_esm_modules;
-
-  bool strip_types = HAVE_AMARO;
-
   std::vector<std::string> user_argv;
 
-  bool report_exclude_env = false;
-  bool report_exclude_network = false;
-  std::string experimental_config_file_path;
+  int64_t heap_snapshot_near_heap_limit = 0;
+  uint64_t network_family_autoselection_attempt_timeout = 500;
+  uint64_t max_http_header_size = 16 * 1024;
+  uint64_t test_runner_concurrency = 0;
+  uint64_t test_runner_timeout = 0;
+  uint64_t test_coverage_branches = 0;
+  uint64_t test_coverage_functions = 0;
+  uint64_t test_coverage_lines = 0;
+  uint64_t test_random_seed = 0;
+#if HAVE_INSPECTOR
+  uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
+  uint64_t heap_prof_interval = kDefaultHeapProfInterval;
+#endif  // HAVE_INSPECTOR
+
+  // These are intentionally not bools. They are 1 bit packed flags in
+  // order to reduce the overall size of the struct.
+
+  DEFINE_BOOL_FIELD(abort_on_uncaught_exception) = false;
+  DEFINE_BOOL_FIELD(detect_module) = true;
+  DEFINE_BOOL_FIELD(disable_sigusr1) = false;
+  DEFINE_BOOL_FIELD(print_required_tla) = false;
+  DEFINE_BOOL_FIELD(require_module) = true;
+  DEFINE_BOOL_FIELD(enable_source_maps) = false;
+  DEFINE_BOOL_FIELD(experimental_addon_modules) = true;
+  DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_ffi) = HAVE_FFI;
+  DEFINE_BOOL_FIELD(experimental_web_worker) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_websocket) = true;
+  DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;
+  DEFINE_BOOL_FIELD(experimental_stream_iter) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_vfs) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(webstorage) = HAVE_SQLITE;
+  DEFINE_BOOL_FIELD(experimental_dtls) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_quic) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_global_navigator) = true;
+  DEFINE_BOOL_FIELD(experimental_global_web_crypto) = true;
+  DEFINE_BOOL_FIELD(experimental_import_text) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_import_meta_resolve) =
+      EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(entry_is_url) = false;
+  DEFINE_BOOL_FIELD(permission) = false;
+  DEFINE_BOOL_FIELD(permission_audit) = false;
+  DEFINE_BOOL_FIELD(allow_addons) = false;
+  DEFINE_BOOL_FIELD(allow_inspector) = false;
+  DEFINE_BOOL_FIELD(allow_child_process) = false;
+  DEFINE_BOOL_FIELD(allow_net) = false;
+  DEFINE_BOOL_FIELD(allow_wasi) = false;
+  DEFINE_BOOL_FIELD(allow_ffi) = false;
+  DEFINE_BOOL_FIELD(allow_openssl_store) = false;
+  DEFINE_BOOL_FIELD(allow_worker_threads) = false;
+  DEFINE_BOOL_FIELD(experimental_vm_modules) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(async_context_frame) = true;
+  DEFINE_BOOL_FIELD(expose_internals) = false;
+  DEFINE_BOOL_FIELD(force_node_api_uncaught_exceptions_policy) = false;
+  DEFINE_BOOL_FIELD(frozen_intrinsics) = false;
+  DEFINE_BOOL_FIELD(network_family_autoselection) = true;
+  DEFINE_BOOL_FIELD(deprecation) = true;
+  DEFINE_BOOL_FIELD(force_async_hooks_checks) = true;
+  DEFINE_BOOL_FIELD(allow_native_addons) = true;
+  DEFINE_BOOL_FIELD(global_search_paths) = true;
+  DEFINE_BOOL_FIELD(warnings) = true;
+  DEFINE_BOOL_FIELD(force_context_aware) = false;
+  DEFINE_BOOL_FIELD(pending_deprecation) = false;
+  DEFINE_BOOL_FIELD(preserve_symlinks) = false;
+  DEFINE_BOOL_FIELD(preserve_symlinks_main) = false;
+  DEFINE_BOOL_FIELD(prof_process) = false;
+  DEFINE_BOOL_FIELD(has_env_file_string) = false;
+  DEFINE_BOOL_FIELD(test_runner) = false;
+  DEFINE_BOOL_FIELD(test_runner_coverage) = false;
+  DEFINE_BOOL_FIELD(test_runner_force_exit) = false;
+  DEFINE_BOOL_FIELD(test_runner_module_mocks) = false;
+  DEFINE_BOOL_FIELD(test_runner_update_snapshots) = false;
+  DEFINE_BOOL_FIELD(test_randomize) = false;
+  DEFINE_BOOL_FIELD(has_test_random_seed) = false;
+  DEFINE_BOOL_FIELD(test_only) = false;
+  DEFINE_BOOL_FIELD(test_udp_no_try_send) = false;
+  DEFINE_BOOL_FIELD(coverage_include_all) = false;
+  DEFINE_BOOL_FIELD(throw_deprecation) = false;
+  DEFINE_BOOL_FIELD(trace_deprecation) = false;
+  DEFINE_BOOL_FIELD(trace_exit) = false;
+  DEFINE_BOOL_FIELD(trace_sync_io) = false;
+  DEFINE_BOOL_FIELD(trace_tls) = false;
+  DEFINE_BOOL_FIELD(trace_uncaught) = false;
+  DEFINE_BOOL_FIELD(trace_warnings) = false;
+  DEFINE_BOOL_FIELD(trace_promises) = false;
+  DEFINE_BOOL_FIELD(trace_env) = false;
+  DEFINE_BOOL_FIELD(trace_env_js_stack) = false;
+  DEFINE_BOOL_FIELD(trace_env_native_stack) = false;
+  DEFINE_BOOL_FIELD(use_system_ca) = false;
+  DEFINE_BOOL_FIELD(extra_info_on_fatal_exception) = true;
+  DEFINE_BOOL_FIELD(verify_base_objects) = IS_DEBUG;
+  DEFINE_BOOL_FIELD(watch_mode) = false;
+  DEFINE_BOOL_FIELD(watch_mode_report_to_parent) = false;
+  DEFINE_BOOL_FIELD(watch_mode_preserve_output) = false;
+  DEFINE_BOOL_FIELD(syntax_check_only) = false;
+  DEFINE_BOOL_FIELD(has_eval_string) = false;
+  DEFINE_BOOL_FIELD(print_eval) = false;
+  DEFINE_BOOL_FIELD(force_repl) = false;
+  DEFINE_BOOL_FIELD(insecure_http_parser) = false;
+  DEFINE_BOOL_FIELD(use_env_proxy) = false;
+  DEFINE_BOOL_FIELD(tls_min_v1_0) = false;
+  DEFINE_BOOL_FIELD(tls_min_v1_1) = false;
+  DEFINE_BOOL_FIELD(tls_min_v1_2) = false;
+  DEFINE_BOOL_FIELD(tls_min_v1_3) = false;
+  DEFINE_BOOL_FIELD(tls_max_v1_2) = false;
+  DEFINE_BOOL_FIELD(tls_max_v1_3) = false;
+  DEFINE_BOOL_FIELD(strip_types) = HAVE_AMARO;
+  DEFINE_BOOL_FIELD(report_exclude_env) = false;
+  DEFINE_BOOL_FIELD(report_exclude_network) = false;
+#if HAVE_INSPECTOR
+  DEFINE_BOOL_FIELD(cpu_prof) = false;
+  DEFINE_BOOL_FIELD(experimental_network_inspection) =
+      EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_worker_inspection) =
+      EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_storage_inspection) =
+      EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_inspector_network_resource) =
+      EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(heap_prof) = false;
+#endif  // HAVE_INSPECTOR
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
@@ -296,16 +314,20 @@ class PerIsolateOptions : public Options {
   PerIsolateOptions(PerIsolateOptions&&) = default;
 
   std::shared_ptr<EnvironmentOptions> per_env{new EnvironmentOptions()};
-  bool track_heap_objects = false;
-  bool report_uncaught_exception = false;
-  bool report_on_signal = false;
-  bool experimental_shadow_realm = false;
+
   std::string max_old_space_size_percentage;
   std::string max_old_space_size;
-  int64_t stack_trace_limit = 10;
   std::string report_signal = "SIGUSR2";
-  bool build_snapshot = false;
   std::string build_snapshot_config;
+
+  int64_t stack_trace_limit = 10;
+
+  DEFINE_BOOL_FIELD(track_heap_objects) = false;
+  DEFINE_BOOL_FIELD(report_uncaught_exception) = false;
+  DEFINE_BOOL_FIELD(report_on_signal) = false;
+  DEFINE_BOOL_FIELD(experimental_shadow_realm) = false;
+  DEFINE_BOOL_FIELD(build_snapshot) = false;
+
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
@@ -332,64 +354,77 @@ class PerProcessOptions : public Options {
 
   std::string title;
   std::string trace_event_categories;
+#if defined(V8_USE_PERFETTO)
+  std::string trace_event_file_pattern = "node_trace.${rotation}.pftrace";
+#else
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
-  int64_t v8_thread_pool_size = 4;
-  bool zero_fill_all_buffers = false;
-  bool debug_arraybuffer_allocations = false;
+#endif
   std::string disable_proto;
-  // We enable the shared read-only heap which currently requires that the
-  // snapshot used in different isolates in the same process to be the same.
-  // Therefore --node-snapshot is a per-process option.
-  bool node_snapshot = true;
   std::string snapshot_blob;
-
-  std::vector<std::string> security_reverts;
-  bool print_bash_completion = false;
-  bool print_help = false;
-  bool print_v8_help = false;
-  bool print_version = false;
   std::string experimental_sea_config;
   std::string run;
-
   std::string build_sea;
 #ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
 #endif
-
-  // Per-process because they affect singleton OpenSSL shared library state,
-  // or are used once during process initialization.
+// Per-process because they affect singleton OpenSSL shared library state,
+// or are used once during process initialization.
 #if HAVE_OPENSSL
   std::string openssl_config;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
-  int64_t secure_heap = 0;
-  int64_t secure_heap_min = 2;
-#ifdef NODE_OPENSSL_CERT_STORE
-  bool ssl_openssl_cert_store = true;
-#else
-  bool ssl_openssl_cert_store = false;
-#endif
-  bool use_openssl_ca = false;
-  bool use_bundled_ca = false;
-  bool enable_fips_crypto = false;
-  bool force_fips_crypto = false;
-#endif
-#if OPENSSL_VERSION_MAJOR >= 3
-  bool openssl_legacy_provider = false;
-  bool openssl_shared_config = false;
-#endif
-
-  bool disable_wasm_trap_handler = false;
-
-  // Per-process because reports can be triggered outside a known V8 context.
-  bool report_on_fatalerror = false;
-  bool report_compact = false;
+#endif  // HAVE_OPENSSL
   std::string report_directory;
   std::string report_filename;
-
   // TODO(addaleax): Some of these could probably be per-Environment.
   std::string use_largepages = "off";
-  bool trace_sigint = false;
+
+  std::vector<std::string> security_reverts;
   std::vector<std::string> cmdline;
+
+  int64_t v8_thread_pool_size = 4;
+#if HAVE_OPENSSL
+  int64_t secure_heap = 0;
+  int64_t secure_heap_min = 2;
+#endif  // HAVE_OPENSSL
+
+  DEFINE_BOOL_FIELD(zero_fill_all_buffers) = false;
+  DEFINE_BOOL_FIELD(debug_arraybuffer_allocations) = false;
+
+  // We enable the shared read-only heap which currently requires that the
+  // snapshot used in different isolates in the same process to be the same.
+  // Therefore --node-snapshot is a per-process option.
+  DEFINE_BOOL_FIELD(node_snapshot) = true;
+
+  DEFINE_BOOL_FIELD(print_bash_completion) = false;
+  DEFINE_BOOL_FIELD(print_help) = false;
+  DEFINE_BOOL_FIELD(print_v8_help) = false;
+  DEFINE_BOOL_FIELD(print_version) = false;
+
+#if HAVE_OPENSSL
+#ifdef NODE_OPENSSL_CERT_STORE
+  DEFINE_BOOL_FIELD(ssl_openssl_cert_store) = true;
+#else
+  DEFINE_BOOL_FIELD(ssl_openssl_cert_store) = false;
+#endif  // NODE_OPENSSL_CERT_STORE
+  DEFINE_BOOL_FIELD(use_openssl_ca) = false;
+  DEFINE_BOOL_FIELD(use_bundled_ca) = false;
+  DEFINE_BOOL_FIELD(enable_fips_crypto) = false;
+  DEFINE_BOOL_FIELD(enable_fips_indicator_events) = false;
+  DEFINE_BOOL_FIELD(force_fips_crypto) = false;
+  std::string force_fips_crypto_policy = "provider";
+#endif  // HAVE_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+  DEFINE_BOOL_FIELD(openssl_legacy_provider) = false;
+  DEFINE_BOOL_FIELD(openssl_shared_config) = false;
+#endif
+
+  DEFINE_BOOL_FIELD(disable_wasm_trap_handler) = false;
+  DEFINE_BOOL_FIELD(report_on_fatalerror) = false;
+  DEFINE_BOOL_FIELD(report_compact) = false;
+  DEFINE_BOOL_FIELD(trace_sigint) = false;
+  // Tracks whether `--run` was passed, since an empty `run` is ambiguous
+  // between "not passed" and "passed without a script name" (lists scripts).
+  DEFINE_BOOL_FIELD(has_run) = false;
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors,
@@ -482,7 +517,8 @@ class OptionsParser {
   void AddOption(
       const char* name,
       const char* help_text,
-      bool Options::*field,
+      bool (*getter)(Options*),
+      void (*setter)(Options*, bool),
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       bool default_is_true = false,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
@@ -586,6 +622,16 @@ class OptionsParser {
     virtual ~BaseOptionField() = default;
     virtual void* LookupImpl(Options* options) const = 0;
 
+    // For boolean bit-field options, we can't return a pointer so we
+    // use virtual getter/setter methods instead. The default
+    // implementations go through LookupImpl for non-bit-field types.
+    virtual bool GetBool(Options* options) const {
+      return *static_cast<bool*>(LookupImpl(options));
+    }
+    virtual void SetBool(Options* options, bool value) {
+      *static_cast<bool*>(LookupImpl(options)) = value;
+    }
+
     template <typename T>
     inline T* Lookup(Options* options) const {
       return static_cast<T*>(LookupImpl(options));
@@ -604,6 +650,28 @@ class OptionsParser {
 
    private:
     T Options::* field_;
+  };
+
+  // Represents a boolean bit-field within `Options`. Bit-fields cannot
+  // have their address taken, so we use getter/setter function pointers
+  // instead of a pointer-to-member.
+  class BitFieldOptionField : public BaseOptionField {
+   public:
+    using Getter = bool (*)(Options*);
+    using Setter = void (*)(Options*, bool);
+
+    BitFieldOptionField(Getter get, Setter set) : get_(get), set_(set) {}
+
+    void* LookupImpl(Options* options) const override { UNREACHABLE(); }
+
+    bool GetBool(Options* options) const override { return get_(options); }
+    void SetBool(Options* options, bool value) override {
+      set_(options, value);
+    }
+
+   private:
+    Getter get_;
+    Setter set_;
   };
 
   template <typename T>
@@ -683,6 +751,14 @@ void Parse(StringVector* const args,
 
 }  // namespace options_parser
 
+// Helper macro for passing bit-field members to AddOption(). Expands to a
+// getter and setter function pointer pair that can read/write the named
+// bit-field without requiring a pointer-to-member (which is illegal for
+// bit-fields).
+#define BOOL_FIELD(field)                                                      \
+  +[](TargetType* opts) -> bool { return opts->field; },                       \
+      +[](TargetType* opts, bool v) { opts->field = v; }
+
 namespace per_process {
 
 extern Mutex cli_options_mutex;
@@ -696,6 +772,8 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
 
 std::vector<std::string> ParseNodeOptionsEnvVar(
     const std::string& node_options, std::vector<std::string>* errors);
+
+#undef DEFINE_BOOL_FIELD
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

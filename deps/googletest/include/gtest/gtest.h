@@ -71,7 +71,7 @@
 #include "gtest/gtest-typed-test.h"  // IWYU pragma: export
 #include "gtest/gtest_pred_impl.h"  // IWYU pragma: export
 #include "gtest/gtest_prod.h"  // IWYU pragma: export
-#include "gtest/internal/gtest-internal.h"
+#include "gtest/internal/gtest-internal.h"  // IWYU pragma: export
 #include "gtest/internal/gtest-string.h"
 
 GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
@@ -1514,6 +1514,8 @@ GTEST_API_ AssertionResult CmpHelperSTRCASENE(const char* s1_expression,
                                               const char* s2_expression,
                                               const char* s1, const char* s2);
 
+#if GTEST_HAS_STD_WSTRING
+
 // Helper function for *_STREQ on wide strings.
 //
 // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
@@ -1527,6 +1529,8 @@ GTEST_API_ AssertionResult CmpHelperSTREQ(const char* s1_expression,
 GTEST_API_ AssertionResult CmpHelperSTRNE(const char* s1_expression,
                                           const char* s2_expression,
                                           const wchar_t* s1, const wchar_t* s2);
+
+#endif  // GTEST_HAS_STD_WSTRING
 
 }  // namespace internal
 
@@ -1542,18 +1546,10 @@ GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
                                        const char* haystack_expr,
                                        const char* needle,
                                        const char* haystack);
-GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
-                                       const char* haystack_expr,
-                                       const wchar_t* needle,
-                                       const wchar_t* haystack);
 GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
                                           const char* haystack_expr,
                                           const char* needle,
                                           const char* haystack);
-GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
-                                          const char* haystack_expr,
-                                          const wchar_t* needle,
-                                          const wchar_t* haystack);
 GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
                                        const char* haystack_expr,
                                        const ::std::string& needle,
@@ -1564,6 +1560,14 @@ GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
                                           const ::std::string& haystack);
 
 #if GTEST_HAS_STD_WSTRING
+GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
+                                       const char* haystack_expr,
+                                       const wchar_t* needle,
+                                       const wchar_t* haystack);
+GTEST_API_ AssertionResult IsNotSubstring(const char* needle_expr,
+                                          const char* haystack_expr,
+                                          const wchar_t* needle,
+                                          const wchar_t* haystack);
 GTEST_API_ AssertionResult IsSubstring(const char* needle_expr,
                                        const char* haystack_expr,
                                        const ::std::wstring& needle,
@@ -1818,14 +1822,13 @@ class [[nodiscard]] TestWithParam : public Test,
 #define GTEST_EXPECT_TRUE(condition)                      \
   GTEST_TEST_BOOLEAN_(condition, #condition, false, true, \
                       GTEST_NONFATAL_FAILURE_)
-#define GTEST_EXPECT_FALSE(condition)                        \
-  GTEST_TEST_BOOLEAN_(!(condition), #condition, true, false, \
+#define GTEST_EXPECT_FALSE(condition)                     \
+  GTEST_TEST_BOOLEAN_(condition, #condition, true, false, \
                       GTEST_NONFATAL_FAILURE_)
 #define GTEST_ASSERT_TRUE(condition) \
   GTEST_TEST_BOOLEAN_(condition, #condition, false, true, GTEST_FATAL_FAILURE_)
-#define GTEST_ASSERT_FALSE(condition)                        \
-  GTEST_TEST_BOOLEAN_(!(condition), #condition, true, false, \
-                      GTEST_FATAL_FAILURE_)
+#define GTEST_ASSERT_FALSE(condition) \
+  GTEST_TEST_BOOLEAN_(condition, #condition, true, false, GTEST_FATAL_FAILURE_)
 
 // Define these macros to 1 to omit the definition of the corresponding
 // EXPECT or ASSERT, which clashes with some users' own code.
@@ -2164,7 +2167,7 @@ class GTEST_API_ [[nodiscard]] ScopedTrace {
 // to cause a compiler error.
 template <typename T1, typename T2>
 constexpr bool StaticAssertTypeEq() noexcept {
-  static_assert(std::is_same<T1, T2>::value, "T1 and T2 are not the same type");
+  static_assert(std::is_same_v<T1, T2>, "T1 and T2 are not the same type");
   return true;
 }
 
@@ -2310,7 +2313,7 @@ template <int&... ExplicitParameterBarrier, typename Factory>
 TestInfo* RegisterTest(const char* test_suite_name, const char* test_name,
                        const char* type_param, const char* value_param,
                        const char* file, int line, Factory factory) {
-  using TestT = typename std::remove_pointer<decltype(factory())>::type;
+  using TestT = std::remove_pointer_t<decltype(factory())>;
 
   class FactoryImpl : public internal::TestFactoryBase {
    public:

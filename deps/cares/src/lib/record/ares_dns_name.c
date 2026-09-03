@@ -25,6 +25,18 @@
  */
 #include "ares_private.h"
 
+/* RFC 1035 3.1 limits a name to 255 octets.  We track presentation length
+ * (label octets plus one separator before each label after the first), which is
+ * up to ~2 octets looser than the strict wire limit and so never rejects a
+ * compliant name.  Shared by the read and write paths. */
+#define ARES_MAX_NAME_PRESENTATION_LEN 255
+
+/* A name of <= 255 octets holds at most 128 labels, so it can never legitimately
+ * require more than that many compression-pointer jumps.  Bounding the number of
+ * indirections stops a name built purely from pointers (which never adds label
+ * bytes, so the length cap never fires) from being walked without limit. */
+#define ARES_MAX_INDIRS 128
+
 typedef struct {
   char  *name;
   size_t name_len;
@@ -48,8 +60,16 @@ static ares_status_t ares_nameoffset_create(ares_llist_t **list,
   ares_nameoffset_t *off = NULL;
 
   if (list == NULL || name == NULL || ares_strlen(name) == 0 ||
-      ares_strlen(name) > 255) {
+      ares_strlen(name) > ARES_MAX_NAME_PRESENTATION_LEN) {
     return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
+  /* Don't record a name as a compression target if it can't be referenced by
+   * a pointer.  DNS name compression offsets are only 14 bits (RFC 1035
+   * 4.1.4), so a name positioned beyond 0x3FFF would have its offset
+   * truncated when written, producing a pointer to the wrong location. */
+  if (idx > 0x3FFF) {
+    return ARES_SUCCESS;
   }
 
   if (*list == NULL) {
@@ -65,7 +85,12 @@ static ares_status_t ares_nameoffset_create(ares_llist_t **list,
     return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
-  off->name     = ares_strdup(name);
+  off->name = ares_strdup(name);
+  if (off->name == NULL) {
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
   off->name_len = ares_strlen(off->name);
   off->idx      = idx;
 
@@ -335,7 +360,8 @@ static ares_status_t ares_split_dns_name(ares_array_t *labels,
   }
 
   /* Can't exceed maximum (unescaped) length */
-  if (ares_array_len(labels) && total_len + ares_array_len(labels) - 1 > 255) {
+  if (ares_array_len(labels) &&
+      total_len + ares_array_len(labels) - 1 > ARES_MAX_NAME_PRESENTATION_LEN) {
     status = ARES_EBADNAME;
     goto done;
   }
@@ -419,6 +445,9 @@ ares_status_t ares_dns_name_write(ares_buf_t *buf, ares_llist_t **list,
 
   /* Output name compression offset jump */
   if (off != NULL) {
+    /* off->idx is guaranteed to fit in 14 bits: ares_nameoffset_create()
+     * refuses to record offsets beyond 0x3FFF, so the mask below never
+     * actually truncates. */
     unsigned short u16 =
       (unsigned short)0xC000 | (unsigned short)(off->idx & 0x3FFF);
     status = ares_buf_append_be16(buf, u16);
@@ -531,13 +560,16 @@ fail:
 }
 
 ares_status_t ares_dns_name_parse(ares_buf_t *buf, char **name,
-                                  ares_bool_t is_hostname)
+                                  ares_bool_t is_hostname,
+                                  ares_bool_t allow_compression)
 {
   size_t        save_offset = 0;
   unsigned char c;
   ares_status_t status;
   ares_buf_t   *namebuf     = NULL;
   size_t        label_start = ares_buf_get_position(buf);
+  size_t        name_len    = 0;
+  size_t        indir       = 0;
 
   if (buf == NULL) {
     return ARES_EFORMERR;
@@ -588,6 +620,13 @@ ares_status_t ares_dns_name_parse(ares_buf_t *buf, char **name,
        */
       size_t offset = (size_t)((c & 0x3F) << 8);
 
+      /* Some RR types (e.g. SRV) do not permit name compression within their
+       * RDATA.  Reject a compression pointer when it is not allowed. */
+      if (!allow_compression) {
+        status = ARES_EBADNAME;
+        goto fail;
+      }
+
       /* Fetch second byte of the redirect length */
       status = ares_buf_fetch_bytes(buf, &c, 1);
       if (status != ARES_SUCCESS) {
@@ -605,6 +644,16 @@ ares_status_t ares_dns_name_parse(ares_buf_t *buf, char **name,
        * pointers.
        */
       if (offset >= label_start) {
+        status = ARES_EBADNAME;
+        goto fail;
+      }
+
+      /* Bound the number of indirections.  A name made purely of pointers never
+       * adds label bytes, so the length cap below can't stop it; the
+       * strictly-decreasing rule alone still allows thousands of jumps per name.
+       * No legitimate <= 255 octet name needs more than 128 labels/jumps. */
+      indir++;
+      if (indir > ARES_MAX_INDIRS) {
         status = ARES_EBADNAME;
         goto fail;
       }
@@ -631,6 +680,20 @@ ares_status_t ares_dns_name_parse(ares_buf_t *buf, char **name,
     }
 
     /* New label */
+
+    /* RFC 1035 3.1 limits a name to 255 octets.  Enforce it during
+     * decompression so labels reached through a chain of pointers can't expand a
+     * single name without bound.  Track the presentation length (label data plus
+     * the separator that precedes each label after the first), matching
+     * ares_split_dns_name() on the write side. */
+    if (name_len) {
+      name_len++;
+    }
+    name_len += c;
+    if (name_len > ARES_MAX_NAME_PRESENTATION_LEN) {
+      status = ARES_EBADNAME;
+      goto fail;
+    }
 
     /* Labels are separated by periods */
     if (ares_buf_len(namebuf) != 0 && name != NULL) {

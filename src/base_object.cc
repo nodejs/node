@@ -174,10 +174,18 @@ void BaseObjectList::Cleanup() {
   }
 }
 
-void BaseObjectList::MemoryInfo(node::MemoryTracker* tracker) const {
+void BaseObjectList::MemoryInfo(MemoryTracker* tracker) const {
   for (auto bo : *this) {
-    if (bo->IsDoneInitializing()) tracker->Track(bo);
+    if (bo->IsDoneInitializing()) {
+      // TODO(addaleax): Add weak edges instead of no edges once
+      // https://github.com/v8/v8/commit/e37cadf1143a8c5bbe44c0408186b5a26cc23863
+      // is available for us
+      tracker->Track(
+          bo, bo->persistent().IsWeak() ? MemoryTracker::kWeakEdge : nullptr);
+    }
   }
 }
+
+const char* const MemoryTracker::kWeakEdge = "<MemoryTracker::kWeakEdge>";
 
 }  // namespace node

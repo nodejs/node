@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,7 +56,6 @@ extern OSSL_FUNC_core_thread_start_fn *c_thread_start;
  */
 
 /* Functions provided by the core */
-static OSSL_FUNC_core_gettable_params_fn *c_gettable_params;
 static OSSL_FUNC_core_get_params_fn *c_get_params;
 OSSL_FUNC_core_thread_start_fn *c_thread_start;
 static OSSL_FUNC_core_new_error_fn *c_new_error;
@@ -541,7 +540,7 @@ static const OSSL_ALGORITHM fips_asym_kem[] = {
     { PROV_NAMES_ML_KEM_1024, FIPS_DEFAULT_PROPERTIES, ossl_ml_kem_asym_kem_functions },
 #if !defined(OPENSSL_NO_ECX)
     { "X25519MLKEM768", FIPS_DEFAULT_PROPERTIES, ossl_mlx_kem_asym_kem_functions },
-    { "X448MLKEM1024", FIPS_DEFAULT_PROPERTIES, ossl_mlx_kem_asym_kem_functions },
+    { "X448MLKEM1024", FIPS_UNAPPROVED_PROPERTIES, ossl_mlx_kem_asym_kem_functions },
 #endif
 #if !defined(OPENSSL_NO_EC)
     { "SecP256r1MLKEM768", FIPS_DEFAULT_PROPERTIES, ossl_mlx_kem_asym_kem_functions },
@@ -608,7 +607,7 @@ static const OSSL_ALGORITHM fips_keymgmt[] = {
 #if !defined(OPENSSL_NO_ECX)
     { PROV_NAMES_X25519MLKEM768, FIPS_DEFAULT_PROPERTIES, ossl_mlx_x25519_kem_kmgmt_functions,
         PROV_DESCS_X25519MLKEM768 },
-    { PROV_NAMES_X448MLKEM1024, FIPS_DEFAULT_PROPERTIES, ossl_mlx_x448_kem_kmgmt_functions,
+    { PROV_NAMES_X448MLKEM1024, FIPS_UNAPPROVED_PROPERTIES, ossl_mlx_x448_kem_kmgmt_functions,
         PROV_DESCS_X448MLKEM1024 },
 #endif
 #if !defined(OPENSSL_NO_EC)
@@ -770,9 +769,6 @@ int OSSL_provider_init_int(const OSSL_CORE_HANDLE *handle,
         switch (in->function_id) {
         case OSSL_FUNC_CORE_GET_LIBCTX:
             set_func(c_get_libctx, OSSL_FUNC_core_get_libctx(in));
-            break;
-        case OSSL_FUNC_CORE_GETTABLE_PARAMS:
-            set_func(c_gettable_params, OSSL_FUNC_core_gettable_params(in));
             break;
         case OSSL_FUNC_CORE_GET_PARAMS:
             set_func(c_get_params, OSSL_FUNC_core_get_params(in));

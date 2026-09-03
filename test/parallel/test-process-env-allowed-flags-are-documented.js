@@ -72,6 +72,7 @@ const conditionalOpts = [
         '--secure-heap',
         '--secure-heap-min',
         '--enable-fips',
+        '--enable-fips-indicator-events',
         '--force-fips',
       ].includes(opt);
     }
@@ -133,6 +134,7 @@ assert(undocumented.delete('--experimental-global-customevent'));
 assert(undocumented.delete('--experimental-global-webcrypto'));
 assert(undocumented.delete('--experimental-report'));
 assert(undocumented.delete('--experimental-worker'));
+assert(undocumented.delete('--napi-modules'));
 assert(undocumented.delete('--node-snapshot'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--loader'));

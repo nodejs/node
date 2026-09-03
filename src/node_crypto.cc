@@ -48,6 +48,7 @@ namespace crypto {
   V(Hmac)                                                                      \
   V(Keygen)                                                                    \
   V(Keys)                                                                      \
+  V(Mac)                                                                       \
   V(NativeCryptoKey)                                                           \
   V(NativeKeyObject)                                                           \
   V(PBKDF2Job)                                                                 \
@@ -73,11 +74,11 @@ namespace crypto {
 #define KEM_NAMESPACE_LIST(V)
 #endif
 
-#if OPENSSL_WITH_KMAC
+#if OPENSSL_WITH_EVP_MAC
 #define KMAC_NAMESPACE_LIST(V) V(Kmac)
 #else
 #define KMAC_NAMESPACE_LIST(V)
-#endif  // OPENSSL_WITH_KMAC
+#endif  // OPENSSL_WITH_EVP_MAC
 
 #define TURBOSHAKE_NAMESPACE_LIST(V) V(TurboShake)
 

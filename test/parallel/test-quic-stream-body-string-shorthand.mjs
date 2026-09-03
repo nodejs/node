@@ -6,8 +6,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,7 +22,7 @@ const decoder = new TextDecoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
-      strictEqual(decoder.decode(body), 'hello from string body');
+      assert.strictEqual(decoder.decode(body), 'hello from string body');
       stream.writer.writeSync(new TextEncoder().encode('ok'));
       stream.writer.endSync();
       await stream.closed;
@@ -42,7 +40,7 @@ const decoder = new TextDecoder();
   });
 
   const response = await bytes(stream);
-  strictEqual(decoder.decode(response), 'ok');
+  assert.strictEqual(decoder.decode(response), 'ok');
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
 }
@@ -54,7 +52,7 @@ const decoder = new TextDecoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
-      strictEqual(decoder.decode(body), 'setBody string');
+      assert.strictEqual(decoder.decode(body), 'setBody string');
       stream.writer.writeSync(new TextEncoder().encode('ok'));
       stream.writer.endSync();
       await stream.closed;
@@ -70,7 +68,7 @@ const decoder = new TextDecoder();
   stream.setBody('setBody string');
 
   const response = await bytes(stream);
-  strictEqual(decoder.decode(response), 'ok');
+  assert.strictEqual(decoder.decode(response), 'ok');
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
 }
@@ -83,7 +81,7 @@ const decoder = new TextDecoder();
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
-      strictEqual(decoder.decode(body), testString);
+      assert.strictEqual(decoder.decode(body), testString);
       stream.writer.writeSync(new TextEncoder().encode('ok'));
       stream.writer.endSync();
       await stream.closed;
@@ -100,7 +98,7 @@ const decoder = new TextDecoder();
   });
 
   const response = await bytes(stream);
-  strictEqual(decoder.decode(response), 'ok');
+  assert.strictEqual(decoder.decode(response), 'ok');
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
 }

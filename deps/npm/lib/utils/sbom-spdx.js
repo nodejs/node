@@ -109,7 +109,7 @@ const toSpdxItem = (node, { packageType }) => {
   // Calculate purl from package spec
   let spec = npa(node.pkgid)
   spec = (spec.type === 'alias') ? spec.subSpec : spec
-  const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${node.resolved}` : '')
+  const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${encodeURIComponent(node.resolved)}` : '')
 
   /* For workspace nodes, use the location from their linkNode */
   let location = node.location

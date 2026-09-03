@@ -1,6 +1,9 @@
 const { log, output } = require('proc-log')
+const npa = require('npm-package-arg')
+const semver = require('semver')
 const pkgJson = require('@npmcli/package-json')
 const { trustedDisplay } = require('@npmcli/arborist/lib/script-allowed.js')
+const getInstallScripts = require('@npmcli/arborist/lib/install-scripts.js')
 const checkAllowScripts = require('./check-allow-scripts.js')
 const resolveAllowScripts = require('./resolve-allow-scripts.js')
 const {
@@ -8,10 +11,34 @@ const {
   applyDenyForPackage,
   nameKeyFor,
 } = require('./allow-scripts-writer.js')
+const { classifyUnusedEntries } = require('./allow-scripts-prune.js')
 const BaseCommand = require('../base-cmd.js')
 
-// Shared implementation for `npm approve-scripts` and `npm deny-scripts`.
-// Subclasses set `verb` to `'approve'` or `'deny'`.
+// Parse a positional arg into a name and an optional version range. A bare
+// name matches every installed version; `pkg@1.2.3` or `pkg@^1` narrows by
+// semver. npm-package-arg handles dotted and scoped names; fall back to the
+// raw string as the name if it can't be parsed.
+const parsePositional = (arg) => {
+  let parsed
+  try {
+    parsed = npa(arg)
+  } catch {
+    return { name: arg, range: null }
+  }
+  const name = parsed.name || arg
+  if (parsed.type === 'version' || parsed.type === 'range') {
+    const spec = parsed.fetchSpec
+    const range = (!spec || spec === '*' || parsed.rawSpec === '' || parsed.rawSpec === '*')
+      ? null
+      : spec
+    return { name, range }
+  }
+  return { name, range: null }
+}
+
+// Shared implementation for `npm approve-scripts`, `npm deny-scripts`, and the `npm install-scripts` namespace.
+// `npm install-scripts` dispatches to `runMode('approve' | 'deny' | 'list', ...)`.
+// The standalone commands set `static verb` and run through the default `exec`.
 //
 // Extends `BaseCommand` rather than `ArboristCmd` on purpose. Per RFC,
 // `allowScripts` is read from the workspace root's `package.json` only;
@@ -24,13 +51,23 @@ class AllowScriptsCmd extends BaseCommand {
   static params = ['all', 'allow-scripts-pending', 'allow-scripts-pin', 'json']
   static ignoreImplicitWorkspace = false
 
-  // Subclasses set `static verb = 'approve' | 'deny'`.
+  // Mode of the current run, set by runMode.
+  // One of 'approve', 'deny', 'list', or 'prune'.
+  #mode = null
+
+  // verb drives the writers and summaries, which only run in the two write modes, so it is never read while listing.
   get verb () {
-    /* istanbul ignore next: every concrete subclass declares static verb */
-    return this.constructor.verb
+    return this.#mode
   }
 
+  // Standalone `npm approve-scripts` / `npm deny-scripts` pick their mode from `static verb`.
   async exec (args) {
+    return this.runMode(this.constructor.verb, args)
+  }
+
+  async runMode (mode, args) {
+    this.#mode = mode
+
     if (this.npm.global) {
       throw Object.assign(
         new Error(`\`npm ${this.constructor.name}\` does not work for global installs`),
@@ -38,19 +75,33 @@ class AllowScriptsCmd extends BaseCommand {
       )
     }
 
-    const pending = !!this.npm.config.get('allow-scripts-pending')
-    const all = !!this.npm.config.get('all')
+    // `prune` has its own flow: it reads the literal package.json#allowScripts
+    // map, not the resolved policy.
+    if (mode === 'prune') {
+      return this.runPrune(args)
+    }
 
-    if (pending && (args.length > 0 || all)) {
+    // `--allow-scripts-pending` is only honored by commands that declare it; the namespace lists via `ls` instead.
+    const pending = this.constructor.params.includes('allow-scripts-pending') &&
+      !!this.npm.config.get('allow-scripts-pending')
+    const all = !!this.npm.config.get('all')
+    // The `ls` subcommand lists, and so does `--allow-scripts-pending` on the write commands.
+    const list = mode === 'list' || pending
+
+    if (list && (args.length > 0 || all)) {
+      const what = mode === 'list' ? '`npm install-scripts ls`' : '`--allow-scripts-pending`'
       throw this.usageError(
-        '`--allow-scripts-pending` cannot be combined with positional arguments or `--all`.'
+        `${what} cannot be combined with positional arguments or \`--all\`.`
       )
     }
-    if (!pending && !all && args.length === 0) {
+    if (!list && !all && args.length === 0) {
       throw this.usageError()
     }
-    if (this.verb === 'deny' && pending) {
-      throw this.usageError('`npm deny-scripts --allow-scripts-pending` is not supported.')
+    if (mode === 'deny' && pending) {
+      throw this.usageError(
+        '`npm deny-scripts --allow-scripts-pending` is not supported; ' +
+        'run `npm install-scripts ls` to list unreviewed packages.'
+      )
     }
 
     const Arborist = require('@npmcli/arborist')
@@ -62,9 +113,12 @@ class AllowScriptsCmd extends BaseCommand {
     })
     await arb.loadActual()
 
-    const unreviewed = await checkAllowScripts({ arb, npm: this.npm })
+    // Keep listing unreviewed packages even with ignore-scripts set, so
+    // you can move from a blanket ignore-scripts to an allowlist. This
+    // only lists; nothing runs.
+    const unreviewed = await checkAllowScripts({ arb, npm: this.npm, includeWhenIgnored: true })
 
-    if (pending) {
+    if (list) {
       return this.runPending(unreviewed)
     }
 
@@ -76,6 +130,10 @@ class AllowScriptsCmd extends BaseCommand {
   }
 
   runPending (unreviewed) {
+    if (this.npm.flatOptions.json) {
+      output.buffer({ allowScripts: this.pendingSummary(unreviewed) })
+      return
+    }
     if (unreviewed.length === 0) {
       output.standard('No packages with unreviewed install scripts.')
       return
@@ -98,42 +156,56 @@ class AllowScriptsCmd extends BaseCommand {
     }
     output.standard('')
     output.standard(
-      'Run `npm approve-scripts <pkg>` to allow, or `npm deny-scripts <pkg>` to deny.'
+      'Run `npm install-scripts approve <pkg>` to allow, ' +
+      'or `npm install-scripts deny <pkg>` to deny.'
     )
+  }
+
+  // Build the same `{ name, changes }` shape printSummary uses for writes,
+  // but tag every entry as `pending` since nothing is written. Names and
+  // versions are derived exactly like the text listing above.
+  pendingSummary (unreviewed) {
+    const groups = new Map()
+    for (const { node } of unreviewed) {
+      const { name, version } = trustedDisplay(node)
+      /* istanbul ignore next: every test node has a name */
+      const display = name || '<unknown>'
+      const key = version ? `${display}@${version}` : display
+      if (!groups.has(display)) {
+        groups.set(display, [])
+      }
+      groups.get(display).push({ key, change: 'pending' })
+    }
+    return [...groups].map(([name, changes]) => ({ name, changes }))
   }
 
   async runAll (unreviewed) {
     if (unreviewed.length === 0) {
+      if (this.npm.flatOptions.json) {
+        output.buffer({ allowScripts: [] })
+        return
+      }
       output.standard('No packages with unreviewed install scripts.')
       return
     }
-    // Bundled dependencies cannot be allowlisted in Phase 1 (RFC defers
-    // this to a follow-up because matching by name@version from the
-    // bundled tarball would reintroduce manifest confusion). Exclude
-    // them from `--all` so we don't silently write a policy entry under
-    // attacker-controlled identity.
-    const candidates = unreviewed.filter(({ node }) => !node.inBundle)
-    const skipped = unreviewed.length - candidates.length
-    if (skipped > 0) {
-      /* istanbul ignore next: plural variant covered separately */
-      const noun = skipped === 1 ? 'dependency' : 'dependencies'
-      log.warn(
-        this.logTitle,
-        `Skipping ${skipped} bundled ${noun}; bundled deps with install ` +
-        'scripts cannot be allowlisted in this release.'
-      )
-    }
-    if (candidates.length === 0) {
-      output.standard('No packages eligible for approval.')
-      return
-    }
-    const groups = this.groupByPackage(candidates.map(({ node }) => node))
+    // Bundled dependencies never appear in `unreviewed` (checkAllowScripts
+    // skips them because they never run their install scripts and cannot
+    // be allowlisted), so there is nothing extra to filter here.
+    const groups = this.groupByPackage(unreviewed.map(({ node }) => node))
     await this.writePolicyChanges(groups)
   }
 
   async runPositional (args, arb) {
-    const matched = this.findNodesForArgs(args, arb)
+    const { matched, unmatched } = this.findNodesForArgs(args, arb)
+    if (unmatched.length > 0) {
+      throw Object.assign(
+        new Error(`No installed packages match: ${unmatched.join(', ')}`),
+        { code: 'ENOMATCH' }
+      )
+    }
     const groups = this.groupByPackage(matched)
+    /* istanbul ignore if: matched is non-empty here; groups only empties when a
+       matched node has no trusted key, which groupByPackage already warns on */
     if (Object.keys(groups).length === 0) {
       throw Object.assign(
         new Error(`No installed packages match: ${args.join(', ')}`),
@@ -144,22 +216,36 @@ class AllowScriptsCmd extends BaseCommand {
   }
 
   findNodesForArgs (args, arb) {
-    // Match positional args against each node's trusted name. Registry
-    // deps use the URL-derived name; non-registry deps fall back to the
-    // dependency edge name. Bundled deps are excluded for the same reason
-    // as --all.
-    const wanted = new Set(args)
+    // Match positional args against each node's trusted name. Registry deps
+    // use the URL-derived name; non-registry deps fall back to the dependency
+    // edge name. A version or range on the arg narrows the match to installed
+    // versions that satisfy it. Bundled deps are excluded for the same reason
+    // as --all. Args that match nothing are returned in `unmatched`.
     const matched = []
-    for (const node of arb.actualTree.inventory.values()) {
-      if (node.isProjectRoot || node.isWorkspace || node.inBundle) {
-        continue
+    const unmatched = []
+    for (const arg of args) {
+      const { name: wantName, range } = parsePositional(arg)
+      const found = []
+      for (const node of arb.actualTree.inventory.values()) {
+        if (node.isProjectRoot || node.isWorkspace || node.inBundle) {
+          continue
+        }
+        const { name, version } = trustedDisplay(node)
+        if (!name || name !== wantName) {
+          continue
+        }
+        if (range && (!version || !semver.satisfies(version, range, { loose: true }))) {
+          continue
+        }
+        found.push(node)
       }
-      const { name } = trustedDisplay(node)
-      if (name && wanted.has(name)) {
-        matched.push(node)
+      if (found.length === 0) {
+        unmatched.push(arg)
+      } else {
+        matched.push(...found)
       }
     }
-    return matched
+    return { matched, unmatched }
   }
 
   get logTitle () {
@@ -238,6 +324,78 @@ class AllowScriptsCmd extends BaseCommand {
     }
     if (touched === 0) {
       output.standard(`Nothing to ${this.verb}; allowScripts unchanged.`)
+    }
+  }
+
+  // `npm install-scripts prune`: drop package.json#allowScripts entries that no
+  // longer match an installed package with an install script. Edits only
+  // package.json (never `.npmrc`/CLI policy); `--dry-run` reports without writing.
+  async runPrune (args) {
+    const all = !!this.npm.config.get('all')
+    if (args.length > 0 || all) {
+      throw this.usageError(
+        '`npm install-scripts prune` cannot be combined with positional arguments or `--all`.'
+      )
+    }
+
+    const dryRun = !!this.npm.config.get('dry-run')
+    const pkg = await pkgJson.load(this.npm.prefix)
+    const existing = pkg.content.allowScripts && typeof pkg.content.allowScripts === 'object'
+      ? pkg.content.allowScripts
+      : {}
+
+    let removed = []
+    if (Object.keys(existing).length > 0) {
+      const Arborist = require('@npmcli/arborist')
+      const arb = new Arborist({
+        ...this.npm.flatOptions,
+        path: this.npm.prefix,
+      })
+      await arb.loadActual()
+
+      // Candidate install nodes (mirrors collectUnreviewedScripts), tagged with
+      // whether each has install scripts so the classifier can tell "gone" from
+      // "no longer has scripts".
+      const nodes = []
+      for (const node of arb.actualTree.inventory.values()) {
+        if (node.isProjectRoot || node.isWorkspace || node.isLink || node.inBundle || node.inert) {
+          continue
+        }
+        const scripts = await getInstallScripts(node)
+        nodes.push({ node, hasScripts: Object.keys(scripts).length > 0 })
+      }
+
+      const { remaining, removed: unused } = classifyUnusedEntries(existing, nodes)
+      removed = unused
+
+      if (removed.length > 0 && !dryRun) {
+        // Drop the field entirely when nothing is left rather than leaving `{}`.
+        pkg.update({
+          allowScripts: Object.keys(remaining).length > 0 ? remaining : undefined,
+        })
+        await pkg.save()
+      }
+    }
+
+    this.printPruneSummary({ removed, dryRun })
+  }
+
+  printPruneSummary ({ removed, dryRun }) {
+    if (this.npm.flatOptions.json) {
+      output.buffer({ allowScripts: { removed, dryRun } })
+      return
+    }
+    if (removed.length === 0) {
+      output.standard('No unused allowScripts entries.')
+      return
+    }
+    const entry = removed.length === 1 ? 'entry' : 'entries'
+    output.standard(
+      `${dryRun ? 'Would remove' : 'Removed'} ${removed.length} unused allowScripts ${entry}:`
+    )
+    for (const { key, reason } of removed) {
+      const text = reason === 'not-installed' ? 'package not installed' : 'no install scripts'
+      output.standard(`  ${key} (${text})`)
     }
   }
 }

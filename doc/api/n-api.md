@@ -194,9 +194,8 @@ the native addon.
 
 #### node-gyp
 
-[node-gyp][] is a build system based on the [gyp-next][] fork of
-Google's [GYP][] tool and comes bundled with npm. GYP, and therefore node-gyp,
-requires that Python be installed.
+[node-gyp][] is a build system based on the [gyp-next][] tool and comes bundled with npm.
+node-gyp requires that Python be installed.
 
 Historically, node-gyp has been the tool of choice for building native
 addons. It has widespread adoption and documentation. However, some
@@ -2786,7 +2785,9 @@ Language Specification.
 added: v8.0.0
 napiVersion: 1
 changes:
-  - version: v26.2.0
+  - version:
+    - v26.2.0
+    - v24.18.0
     pr-url: https://github.com/nodejs/node/pull/62710
     description: Added support for `SharedArrayBuffer`.
 -->
@@ -4327,7 +4328,7 @@ napi_status napi_strict_equals(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API represents the invocation of the Strict Equality algorithm as
-defined in [Section IsStrctEqual][] of the ECMAScript Language Specification.
+defined in [Section IsStrictlyEqual][] of the ECMAScript Language Specification.
 
 ### `napi_detach_arraybuffer`
 
@@ -4634,7 +4635,7 @@ They can be one or more of the following bit flags:
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
 * `napi_default_method`: Like a method in a JS class, the property is
-  configurable and writeable, but not enumerable.
+  configurable and writable, but not enumerable.
 * `napi_default_jsproperty`: Like a property set via assignment in JavaScript,
   the property is writable, enumerable, and configurable.
 
@@ -6960,7 +6961,7 @@ node_api_get_module_file_name(node_api_basic_env env, const char** result);
 `result` may be an empty string if the add-on loading process fails to establish
 the add-on's file name during loading.
 
-[ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
+[ABI Stability]: https://nodejs.org/learn/modules/abi-stability
 [AppVeyor]: https://www.appveyor.com
 [C++ Addons]: addons.md
 [CMake]: https://cmake.org
@@ -6968,7 +6969,6 @@ the add-on's file name during loading.
 [ECMAScript Language Specification]: https://tc39.es/ecma262/
 [Error handling]: #error-handling
 [GCC]: https://gcc.gnu.org
-[GYP]: https://gyp.gsrc.io
 [GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
 [LLVM]: https://llvm.org
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
@@ -6984,7 +6984,7 @@ the add-on's file name during loading.
 [Section DefineOwnProperty]: https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section Function objects]: https://tc39.es/ecma262/#sec-function-objects
 [Section IsArray]: https://tc39.es/ecma262/#sec-isarray
-[Section IsStrctEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
+[Section IsStrictlyEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
 [Section Promise objects]: https://tc39.es/ecma262/#sec-promise-objects
 [Section SharedArrayBuffer objects]: https://tc39.es/ecma262/#sec-sharedarraybuffer-objects
 [Section ToBoolean]: https://tc39.es/ecma262/#sec-toboolean

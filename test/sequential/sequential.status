@@ -14,8 +14,8 @@ test-watch-mode-inspect: PASS, FLAKY
 test-http2-large-file: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/47409
-test-http2-large-file: PASS, FLAKY
+# https://github.com/nodejs/node/issues/63212#issuecomment-5423558796
+test-debugger-pid: PASS, FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/54817

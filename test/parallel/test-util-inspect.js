@@ -107,7 +107,7 @@ assert.strictEqual(util.inspect({}), '{}');
 assert.strictEqual(util.inspect({ a: 1 }), '{ a: 1 }');
 assert.strictEqual(util.inspect({ a: function() {} }), '{ a: [Function: a] }');
 assert.strictEqual(util.inspect({ a: () => {} }), '{ a: [Function: a] }');
-// eslint-disable-next-line func-name-matching
+// eslint-disable-next-line node-core/func-name-matching
 assert.strictEqual(util.inspect({ a: async function abc() {} }),
                    '{ a: [AsyncFunction: abc] }');
 assert.strictEqual(util.inspect({ a: async () => {} }),
@@ -1475,11 +1475,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass(3) { 1, 2, 3 }');
+                     'SetSubclass(3) [Set] { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass(1) { 'foo' => 42 }");
+                     "MapSubclass(1) [Map] { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass { <pending> }');
+                     'PromiseSubclass [Promise] { <pending> }');
   assert.strictEqual(util.inspect(new SymbolNameClass()),
                      'Symbol(name) {}');
   assert.strictEqual(
@@ -1490,29 +1490,6 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
-
-  class MiddleErrorPart extends Error {}
-  assert(util.inspect(new MiddleErrorPart('foo')).includes('MiddleErrorPart: foo'));
-
-  class MapClass extends Map {}
-  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
-                     "MapClass(1) { 'key' => 'value' }");
-
-  class AbcMap extends Map {}
-  assert.strictEqual(util.inspect(new AbcMap([['key', 'value']])),
-                     "AbcMap(1) { 'key' => 'value' }");
-
-  class SetAbc extends Set {}
-  assert.strictEqual(util.inspect(new SetAbc([1, 2, 3])),
-                     'SetAbc(3) { 1, 2, 3 }');
-
-  class FooSet extends Set {}
-  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
-                     'FooSet(3) { 1, 2, 3 }');
-
-  class Settings extends Set {}
-  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
-                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
@@ -2596,6 +2573,15 @@ assert.strictEqual(
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
+// Getter returning a function.
+// https://github.com/nodejs/node/issues/64838
+{
+  const obj = { get foo() { return function bar() {}; } };
+  assert.strictEqual(
+    inspect(obj, { getters: true }),
+    '{ foo: [Getter] [Function: bar] }');
+}
+
 // Property getter throwing an error.
 {
   const error = new Error('Oops');
@@ -3419,6 +3405,21 @@ assert.strictEqual(
 }
 
 {
+  // A node_modules segment that is the last path component (no trailing
+  // separator after the module name) must not send markNodeModules into an
+  // infinite loop that exhausts the heap.
+  // https://github.com/nodejs/node/issues/64011
+  const err = new Error('boom');
+  err.stack = 'Error: boom\n    at /app/node_modules/foo.js:1:1';
+  const out = util.inspect(err, { colors: true });
+  assert.strictEqual(
+    out,
+    'Error: boom\n' +
+      '    at /app/node_modules/\x1B[4mfoo.js:1:1\x1B[24m',
+  );
+}
+
+{
   // Cross platform checks.
   const err = new Error('foo');
   util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
@@ -3509,16 +3510,14 @@ assert.strictEqual(
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 
-  assert.match(
+  assert.strictEqual(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
-    new RegExp('^' + RegExp.escape(
-      '<ref *1> Foo [Map] {\n' +
-      '  [constructor]: [class Bar extends Foo] {\n' +
+    '<ref *2> Foo [Map] {\n' +
+      '  [constructor]: <ref *1> [class Bar extends Foo] {\n' +
       '    [length]: 0,\n' +
       "    [name]: 'Bar',\n" +
-      '    [prototype]: [Circular *1],\n' +
-      '    [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
+      '    [prototype]: [Circular *2],\n' +
+      '    [Symbol(Symbol.species)]: [Getter] [Circular *1]\n' +
       '  },\n' +
       "  [xyz]: [Getter: 'YES!'],\n" +
       '  [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
@@ -3528,7 +3527,6 @@ assert.strictEqual(
       '  [abc]: [Getter: true],\n' +
       '  [def]: [Getter/Setter: false]\n' +
       '}'
-    ) + '$', 's')
   );
 
   assert.strictEqual(
@@ -3793,6 +3791,7 @@ assert.strictEqual(
   assert.strictEqual(util.inspect(NaN), 'NaN');
   assert.strictEqual(util.inspect(Infinity), 'Infinity');
   assert.strictEqual(util.inspect(-Infinity), '-Infinity');
+  assert.strictEqual(util.inspect(-0), '-0');
 
   assert.strictEqual(
     util.inspect(new Float64Array([100_000_000])),
@@ -3824,6 +3823,9 @@ assert.strictEqual(
     '-123_456_789.123_456_78'
   );
 
+  // -0 should be formatted as '-0' even with numericSeparator enabled
+  assert.strictEqual(util.inspect(-0, { numericSeparator: true }), '-0');
+
   // Regression test for https://github.com/nodejs/node/issues/59376
   // numericSeparator should work correctly for negative fractional numbers
   {
@@ -3844,6 +3846,12 @@ assert.strictEqual(
       '-0.123_45'
     );
   }
+
+  // Numbers in scientific notation should not get malformed separators
+  assert.strictEqual(util.inspect(1e-7, { numericSeparator: true }), '1e-7');
+  assert.strictEqual(util.inspect(1.5e-10, { numericSeparator: true }), '1.5e-10');
+  assert.strictEqual(util.inspect(1.23e-100, { numericSeparator: true }), '1.23e-100');
+  assert.strictEqual(util.inspect(1.23456789e-12, { numericSeparator: true }), '1.23456789e-12');
 }
 
 // Regression test for https://github.com/nodejs/node/issues/41244
@@ -4032,4 +4040,23 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
   assert.strictEqual(inspect(error), `[object Error] {\n  stack: [Getter/Setter],\n  name: [Getter],\n  cause: [Getter]\n}`);
   assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
   delete Error[Symbol.hasInstance];
+}
+
+{
+  const obj = { a: 'short string', b: [1, 2], c: { d: true } };
+  const expected = "{ a: 'short string', b: [ 1, 2 ], c: { d: true } }";
+  assert.strictEqual(util.inspect(obj, { breakLength: Infinity }), expected);
+}
+
+{
+  class Class {
+    get [Symbol.toStringTag]() {
+      return 'Namespaced.Class';
+    }
+  }
+
+  class DerivedClass extends Class {}
+
+  assert.strictEqual(inspect(new Class()), 'Namespaced.Class {}');
+  assert.strictEqual(inspect(new DerivedClass()), 'DerivedClass [Namespaced.Class] {}');
 }

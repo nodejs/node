@@ -317,15 +317,6 @@ class ThreadPoolWork {
   const char* type_;
 };
 
-#define TRACING_CATEGORY_NODE "node"
-#define TRACING_CATEGORY_NODE1(one)                                           \
-    TRACING_CATEGORY_NODE ","                                                 \
-    TRACING_CATEGORY_NODE "." #one
-#define TRACING_CATEGORY_NODE2(one, two)                                      \
-    TRACING_CATEGORY_NODE ","                                                 \
-    TRACING_CATEGORY_NODE "." #one ","                                        \
-    TRACING_CATEGORY_NODE "." #one "." #two
-
 // Functions defined in node.cc that are exposed via the bootstrapper object
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
@@ -389,7 +380,6 @@ class InitializationResultImpl final : public InitializationResult {
   MultiIsolatePlatform* platform_ = nullptr;
 };
 
-void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
 

@@ -2,7 +2,6 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const http2 = require('http2');
@@ -22,12 +21,10 @@ tmpdir.refresh();
 //    that the backing stream is still active and writing
 // 4) Our timer fires, we resume the socket and start at 1)
 
-const writeSize = 3000000;
+const writeSize = 33554432;
 const minReadSize = 500000;
 const serverTimeout = common.platformTimeout(500);
 let offsetTimeout = common.platformTimeout(100);
-let didReceiveData = false;
-
 const content = Buffer.alloc(writeSize, 0x44);
 const filepath = tmpdir.resolve('http2-large-write.tmp');
 fs.writeFileSync(filepath, content, 'binary');
@@ -47,9 +44,7 @@ server.on('stream', common.mustCall((stream) => {
   stream.end();
 }));
 server.setTimeout(serverTimeout);
-server.on('timeout', common.mustCallAtLeast(() => {
-  assert.ok(!didReceiveData, 'Should not timeout');
-}, 0));
+server.on('timeout', common.mustCallAtLeast(0));
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`,
@@ -63,13 +58,11 @@ server.listen(0, common.mustCall(() => {
   let firstReceivedAt;
   req.on('data', common.mustCallAtLeast((buf) => {
     if (receivedBufferLength === 0) {
-      didReceiveData = false;
       firstReceivedAt = Date.now();
     }
     receivedBufferLength += buf.length;
     if (receivedBufferLength >= minReadSize &&
         receivedBufferLength < writeSize) {
-      didReceiveData = true;
       receivedBufferLength = 0;
       req.pause();
       setTimeout(

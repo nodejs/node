@@ -242,6 +242,11 @@ can be used to specify the character encoding used to decode the stdout and
 stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
+> Using the `signal` option to destroy a long-lived child process as a resource
+> cleanup mechanism is deprecated. The `signal` option remains appropriate for
+> cancellation, externally propagated aborts, and timeouts. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
+
 ```cjs
 const { exec } = require('node:child_process');
 exec('cat *.js missing_file | wc -l', (error, stdout, stderr) => {
@@ -389,6 +394,11 @@ The `child_process.execFile()` function is similar to [`child_process.exec()`][]
 except that it does not spawn a shell by default. Rather, the specified
 executable `file` is spawned directly as a new process making it slightly more
 efficient than [`child_process.exec()`][].
+
+> Using the `signal` option to destroy a long-lived child process as a resource
+> cleanup mechanism is deprecated. The `signal` option remains appropriate for
+> cancellation, externally propagated aborts, and timeouts. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
 
 The same options as [`child_process.exec()`][] are supported. Since a shell is
 not spawned, behaviors such as I/O redirection and file globbing are not
@@ -585,6 +595,11 @@ current process.
 The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
+> Using the `signal` option to destroy a long-lived child process as a resource
+> cleanup mechanism is deprecated. The `signal` option remains appropriate for
+> cancellation, externally propagated aborts, and timeouts. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
+
 If the `signal` option is enabled, calling `.abort()` on the corresponding
 `AbortController` is similar to calling `.kill()` on the child process except
 the error passed to the callback will be an `AbortError`:
@@ -734,6 +749,11 @@ Use `env` to specify environment variables that will be visible to the new
 process, the default is [`process.env`][].
 
 `undefined` values in `env` will be ignored.
+
+> Using the `signal` option to destroy a long-lived child process as a resource
+> cleanup mechanism is deprecated. The `signal` option remains appropriate for
+> cancellation, externally propagated aborts, and timeouts. See
+> [DEP0209](deprecations.md#dep0209-using-abortsignal-to-dispose-of-resources).
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the
 exit code:
@@ -1064,7 +1084,12 @@ pipes between the parent and child. The value is one of the following:
    as it may result in undefined behavior or dropped callbacks if the stream
    encounters errors. Always ensure that `stdin` is used as readable and
    `stdout`/`stderr` as writable to maintain the intended flow of data between
-   the parent and child processes.
+   the parent and child processes. The stream passed in the `stdin` position
+   is the source from which the child process reads its input, and the
+   streams in the `stdout`/`stderr` positions receive the output the child
+   writes. This is the opposite of [`subprocess.stdin`][] (writable) and
+   [`subprocess.stdout`][] (readable), which are the parent's ends of the
+   pipes created by `'pipe'`.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared. Passing sockets
@@ -1179,7 +1204,8 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
-* Returns: {Buffer|string} The stdout from the command.
+* Returns: {Buffer|string|null} If `stdio` is `'pipe'`, the stdout from the
+  command, otherwise null.
 
 The `child_process.execFileSync()` method is generally identical to
 [`child_process.execFile()`][] with the exception that the method will not
@@ -1306,7 +1332,8 @@ changes:
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-* Returns: {Buffer|string} The stdout from the command.
+* Returns: {Buffer|string|null} If `stdio` is `'pipe'`, the stdout from the
+  command, otherwise null.
 
 The `child_process.execSync()` method is generally identical to
 [`child_process.exec()`][] with the exception that the method will not return
@@ -1390,8 +1417,10 @@ changes:
 * Returns: {Object}
   * `pid` {number} Pid of the child process.
   * `output` {Array} Array of results from stdio output.
-  * `stdout` {Buffer|string} The contents of `output[1]`.
-  * `stderr` {Buffer|string} The contents of `output[2]`.
+  * `stdout` {Buffer|string|null} If `stdio` is `'pipe'`, the contents of
+    `output[1]`, otherwise null.
+  * `stderr` {Buffer|string|null} If `stdio` is `'pipe'`, the contents of
+    `output[2]`, otherwise null.
   * `status` {number|null} The exit code of the subprocess, or `null` if the
     subprocess terminated due to a signal.
   * `signal` {string|null} The signal used to kill the subprocess, or `null` if
@@ -1714,10 +1743,14 @@ may not actually terminate the process.
 
 See kill(2) for reference.
 
-On Windows, where POSIX signals do not exist, the `signal` argument will be
-ignored except for `'SIGKILL'`, `'SIGTERM'`, `'SIGINT'` and `'SIGQUIT'`, and the
-process will always be killed forcefully and abruptly (similar to `'SIGKILL'`).
-See [Signal Events][] for more details.
+On Windows, where POSIX signals do not exist, signals are handled as follows.
+`'SIGKILL'`, `'SIGTERM'`, `'SIGINT'` and `'SIGQUIT'` terminate the process
+forcefully and abruptly (similar to `'SIGKILL'`); any other signal whose name is
+known on Windows (such as `'SIGHUP'`) does the same. `'SIGWINCH'` is not
+terminal and is not coerced: `subprocess.kill()` throws an `ENOSYS` error and
+the child keeps running. A signal name that does not exist on Windows (such as
+`'SIGSTOP'`) throws an `ERR_UNKNOWN_SIGNAL` error. See [Signal Events][] for more
+details.
 
 On Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
@@ -2390,7 +2423,7 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
-[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignalcode
+[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignal
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api

@@ -9,11 +9,10 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-readFileSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello world');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 // Default (buffer) result
 {
@@ -43,3 +42,28 @@ assert.strictEqual(
 }
 
 myVfs.unmount();
+
+// readFileSync via a RealFSProvider fd remains usable after the backing path
+// is renamed.
+{
+  const root = path.join('/tmp', 'vfs-real-readFileSync-' + process.pid);
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.mkdirSync(root, { recursive: true });
+
+  const realVfs = vfs.create(new vfs.RealFSProvider(root),
+                             { emitExperimentalWarning: false });
+  const realMountPoint = realVfs.mount();
+  try {
+    fs.writeFileSync(path.join(root, 'a.txt'), 'still readable');
+    const fd = fs.openSync(path.join(realMountPoint, 'a.txt'), 'r');
+    try {
+      fs.renameSync(path.join(root, 'a.txt'), path.join(root, 'b.txt'));
+      assert.strictEqual(fs.readFileSync(fd, 'utf8'), 'still readable');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } finally {
+    realVfs.unmount();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}

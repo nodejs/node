@@ -76,6 +76,19 @@ t.test('throws when unreviewed install scripts exist (idealTree path)', async t 
   )
 })
 
+t.test('passes when the only unreviewed node is inert (platform-incompatible optional dep)', async t => {
+  // An inert dep is in the ideal tree but removed before any script runs, so
+  // strict mode must not reject it (npm/cli#9562).
+  const inertNode = { ...node({ name: 'fsevents' }), inert: true }
+  const arb = makeArb({ ideal: tree([inertNode]) })
+  await preflight({
+    arb,
+    npm: { flatOptions: { strictAllowScripts: true } },
+    idealTreeOpts: {},
+  })
+  t.pass('no error thrown for inert node')
+})
+
 t.test('passes when all install-script nodes are explicitly approved', async t => {
   const arb = makeArb({
     ideal: tree([node({ name: 'canvas' })]),
@@ -187,5 +200,35 @@ t.test('error label falls back to node.name when package.version is missing', as
       idealTreeOpts: {},
     }),
     { message: /no-version-pkg \(install: node-gyp rebuild\)/ }
+  )
+})
+
+t.test('project-scoped error suggests install-scripts approve / deny', async t => {
+  const arb = makeArb({ ideal: tree([node({ name: 'canvas' })]) })
+  await t.rejects(
+    preflight({
+      arb,
+      npm: { flatOptions: { strictAllowScripts: true } },
+      idealTreeOpts: {},
+    }),
+    { message: /Approve them with `npm install-scripts approve`/ }
+  )
+})
+
+t.test('global error points at --allow-scripts, not approve-scripts', async t => {
+  const arb = makeArb({ ideal: tree([node({ name: 'canvas' })]) })
+  await t.rejects(
+    preflight({
+      arb,
+      npm: { global: true, flatOptions: { strictAllowScripts: true } },
+      idealTreeOpts: {},
+    }),
+    (err) => {
+      t.equal(err.code, 'ESTRICTALLOWSCRIPTS')
+      t.match(err.message, /--allow-scripts/)
+      t.match(err.message, /npm config set allow-scripts=canvas/)
+      t.notMatch(err.message, /approve-scripts/)
+      return true
+    }
   )
 })

@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,10 +16,10 @@ if (!hasQuic) {
 const { listen, connect, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key1 = createPrivateKey(readKey('agent1-key.pem'));
-const cert1 = readKey('agent1-cert.pem');
-const key2 = createPrivateKey(readKey('agent2-key.pem'));
-const cert2 = readKey('agent2-cert.pem');
+const key1 = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert1 = fixtures.readKey('agent1-cert.pem');
+const key2 = createPrivateKey(fixtures.readKey('agent2-key.pem'));
+const cert2 = fixtures.readKey('agent2-cert.pem');
 
 const endpoint = new QuicEndpoint();
 
@@ -46,7 +43,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     transportParams: { maxIdleTimeout: 2 },
   });
   const info = await cs.opened;
-  strictEqual(info.servername, 'localhost');
+  assert.strictEqual(info.servername, 'localhost');
   await cs.closed;
 }
 
@@ -63,7 +60,7 @@ endpoint.setSNIContexts(
     transportParams: { maxIdleTimeout: 2 },
   });
   const info = await cs.opened;
-  strictEqual(info.servername, 'localhost');
+  assert.strictEqual(info.servername, 'localhost');
   // The cert changed — we can verify by checking the connection succeeded
   // (if the old cert was still used and the new one was expected, the
   // handshake would still succeed since both are self-signed and

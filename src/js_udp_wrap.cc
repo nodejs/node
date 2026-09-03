@@ -11,7 +11,6 @@
 namespace node {
 
 using errors::TryCatchScope;
-using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -98,7 +97,7 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   int64_t value_int = JS_EXCEPTION_PENDING;
   size_t total_len = 0;
 
-  MaybeStackBuffer<Local<Value>, 16> buffers(nbufs);
+  MaybeStackBuffer<Value, 16> buffers(env()->isolate(), nbufs);
   for (size_t i = 0; i < nbufs; i++) {
     if (!Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocal(&buffers[i])) {
       return value_int;
@@ -110,9 +109,9 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   if (!AddressToJS(env(), addr).ToLocal(&address)) return value_int;
 
   Local<Value> args[] = {
-    listener()->CreateSendWrap(total_len)->object(),
-    Array::New(env()->isolate(), buffers.out(), nbufs),
-    address,
+      listener()->CreateSendWrap(total_len)->object(),
+      buffers.ToArray(),
+      address,
   };
 
   if (!MakeCallback(env()->onwrite_string(), arraysize(args), args)

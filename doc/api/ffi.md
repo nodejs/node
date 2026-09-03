@@ -28,7 +28,7 @@ const ffi = require('node:ffi');
 ```
 
 This module is only available under the `node:` scheme in builds with FFI
-support and is gated by the `--experimental-ffi` flag.
+support. It can be disabled with the `--no-experimental-ffi` flag.
 
 Building Node.js with `node:ffi` support is available via the bundled `libffi` on
 platforms where `libffi` provides a compatible static backend, or via a
@@ -62,21 +62,40 @@ FFI signatures use string type names.
 Supported type names:
 
 * `void`
-* `i8`, `int8`
-* `u8`, `uint8`, `bool`, `char`
-* `i16`, `int16`
-* `u16`, `uint16`
-* `i32`, `int32`
-* `u32`, `uint32`
-* `i64`, `int64`
-* `u64`, `uint64`
-* `f32`, `float`
-* `f64`, `double`
-* `pointer`, `ptr`
-* `string`, `str`
+* `char`
+* `int8`
+* `uint8`
+* `int16`
+* `uint16`
+* `int32`
+* `uint32`
+* `int64`
+* `uint64`
+* `float32`
+* `float64`
+* `pointer`
+* `string`
 * `buffer`
 * `arraybuffer`
 * `function`
+
+<details>
+<summary>Alternative spellings</summary>
+
+* `i8` for `int8`
+* `u8` and `bool` for `uint8`
+* `i16` for `int16`
+* `u16` for `uint16`
+* `i32` for `int32`
+* `u32` for `uint32`
+* `i64` for `int64`
+* `u64` for `uint64`
+* `f32` and `float` for `float32`
+* `f64` and `double` for `float64`
+* `ptr` for `pointer`
+* `str` for `string`
+
+</details>
 
 These type names are also exposed as constants on `ffi.types`:
 
@@ -115,10 +134,36 @@ through reentrant JavaScript such as FFI callbacks. Doing so may crash the
 process, produce incorrect output, or corrupt memory.
 
 The `char` type follows the platform C ABI. On platforms where plain C `char`
-is signed it behaves like `i8`; otherwise it behaves like `u8`.
+is signed it behaves like `int8`; otherwise it behaves like `uint8`.
 
 The `bool` type is marshaled as an 8-bit unsigned integer. Pass numeric values
 such as `0` and `1`; JavaScript `true` and `false` are not accepted.
+
+On optimized Fast FFI calls, `pointer` and `function` parameters accept raw
+pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
+strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are converted
+on the JavaScript side before calling the optimized native wrapper.
+
+Optimized Fast FFI calls fall back to the generic FFI call path when a
+function's arguments or return type do not fit the platform-specific fast
+trampoline. Fast FFI calls support at most 8 total arguments, and the
+register and argument limits differ per architecture:
+
+| Architecture               | Max integer/pointer args                  | Max floating-point args | Buffer-shaped args | Buffer-shaped + FP together | Narrow (8/16-bit) return |
+| -------------------------- | ----------------------------------------- | ----------------------- | ------------------ | --------------------------- | ------------------------ |
+| AArch64                    | 7 (6 when a buffer-shaped arg is present) | 8                       | Supported          | Not supported               | Supported                |
+| x86-64, Linux/macOS (SysV) | 6 (4 when a buffer-shaped arg is present) | 8                       | Supported          | Not supported               | Supported                |
+| x86-64, Windows (Win64)    | 3 (total arguments also capped at 3)      | 3                       | Not supported      | N/A                         | Supported                |
+| s390x                      | 4                                         | 4                       | Not supported      | N/A                         | Not supported            |
+| PPC64LE                    | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+| LoongArch64                | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+| RISC-V (64-bit)            | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+
+PPC64BE has no fast-call trampoline and always uses the generic call path.
+"Buffer-shaped args" means `Buffer`, typed array, `DataView`, or `ArrayBuffer`
+values passed as pointer-like arguments. Functions whose argument or return
+types exceed the limits for the current platform use the generic FFI call
+path instead.
 
 ## Signature objects
 
@@ -134,8 +179,8 @@ optional:
 
 ```js
 const signature = {
-  return: 'i32',
-  arguments: ['i32', 'i32'],
+  return: 'int32',
+  arguments: ['int32', 'int32'],
 };
 ```
 
@@ -189,33 +234,33 @@ so it can be used with the [`using`][] declaration. Disposing the returned
 object closes the library handle.
 
 ```mjs
-import { dlopen } from 'node:ffi';
+import { dlopen, suffix } from 'node:ffi';
 
 {
-  using handle = dlopen('./mylib.so', {
-    add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
+  using handle = dlopen(`./mylib.${suffix}`, {
+    add_i32: { arguments: ['int32', 'int32'], return: 'int32' },
   });
   console.log(handle.functions.add_i32(20, 22));
 } // handle.lib.close() is invoked automatically here.
 ```
 
 ```mjs
-import { dlopen } from 'node:ffi';
+import { dlopen, suffix } from 'node:ffi';
 
-const { lib, functions } = dlopen('./mylib.so', {
-  add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
-  string_length: { arguments: ['pointer'], return: 'u64' },
+const { lib, functions } = dlopen(`./mylib.${suffix}`, {
+  add_i32: { arguments: ['int32', 'int32'], return: 'int32' },
+  string_length: { arguments: ['pointer'], return: 'uint64' },
 });
 
 console.log(functions.add_i32(20, 22));
 ```
 
 ```cjs
-const { dlopen } = require('node:ffi');
+const { dlopen, suffix } = require('node:ffi');
 
-const { lib, functions } = dlopen('./mylib.so', {
-  add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
-  string_length: { arguments: ['pointer'], return: 'u64' },
+const { lib, functions } = dlopen(`./mylib.${suffix}`, {
+  add_i32: { arguments: ['int32', 'int32'], return: 'int32' },
+  string_length: { arguments: ['pointer'], return: 'uint64' },
 });
 
 console.log(functions.add_i32(20, 22));
@@ -265,9 +310,9 @@ Loads the dynamic library without resolving any functions eagerly.
 On Windows passing `null` is not supported.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ### `library.path`
@@ -297,10 +342,10 @@ library instance can be managed with the [`using`][] declaration. Leaving the
 enclosing scope invokes `library.close()` automatically.
 
 ```mjs
-import { DynamicLibrary } from 'node:ffi';
+import { DynamicLibrary, suffix } from 'node:ffi';
 
 {
-  using lib = new DynamicLibrary('./mylib.so');
+  using lib = new DynamicLibrary(`./mylib.${suffix}`);
   // Use `lib` here; `lib.close()` is called when the block exits.
 }
 ```
@@ -349,15 +394,16 @@ The returned function has a `.pointer` property containing the native function
 address as a `bigint`.
 
 If the same symbol has already been resolved, requesting it again with a
-different signature throws.
+different signature throws. Requesting it again with the same signature returns
+the same function, as does reading it from [`library.functions`][].
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 const add = lib.getFunction('add_i32', {
-  arguments: ['i32', 'i32'],
-  return: 'i32',
+  arguments: ['int32', 'int32'],
+  return: 'int32',
 });
 
 console.log(add(20, 22));
@@ -402,12 +448,12 @@ The return value is the callback pointer address as a `bigint`. It can be
 passed to native functions expecting a callback pointer.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 
 const callback = lib.registerCallback(
-  { arguments: ['i32'], return: 'i32' },
+  { arguments: ['int32'], return: 'int32' },
   (value) => value * 2,
 );
 ```
@@ -446,6 +492,10 @@ memory.
 
 Keeps the callback strongly referenced by JavaScript.
 
+Throws `ERR_INVALID_ARG_VALUE` if the callback function has already been
+garbage collected after a previous `library.unrefCallback(pointer)` call, since
+a collected function cannot be referenced again.
+
 ### `library.unrefCallback(pointer)`
 
 * `pointer` {bigint}
@@ -456,6 +506,9 @@ If the callback function is later garbage collected, subsequent native
 invocations become a no-op. Non-void return values are zero-initialized before
 returning to native code.
 
+Throws `ERR_INVALID_ARG_VALUE` if the callback function has already been
+garbage collected.
+
 ## Calling native functions
 
 Argument conversion depends on the declared FFI type.
@@ -463,7 +516,8 @@ Argument conversion depends on the declared FFI type.
 For 8-, 16-, and 32-bit integer types and for floating-point types, pass
 JavaScript `number` values that match the declared type.
 
-For 64-bit integer types (`i64` and `u64`), pass JavaScript `bigint` values.
+For 64-bit integer types (`int64` and `uint64`), pass JavaScript `bigint`
+values.
 
 For pointer-like arguments:
 
@@ -693,7 +747,7 @@ available storage. This function does not allocate memory on its own.
 added: v26.1.0
 -->
 
-* `source` {Buffer|ArrayBuffer|ArrayBufferView}
+* `source` {Buffer|ArrayBuffer|SharedArrayBuffer|ArrayBufferView}
 * Returns: {bigint}
 
 Returns the raw memory address of JavaScript-managed byte storage.
@@ -701,6 +755,25 @@ Returns the raw memory address of JavaScript-managed byte storage.
 This is unsafe and dangerous. The returned pointer can become invalid if the
 underlying memory is detached, resized, transferred, or otherwise invalidated.
 Using stale pointers can cause memory corruption or process crashes.
+
+## `ffi.getCurrentEventLoop()`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* Returns: {bigint}
+
+Returns the address of the current thread's `uv_loop_t` as a `bigint`.
+
+The returned address is for the current Node.js environment. In the main thread,
+this is the main thread event loop. In a worker thread, this is that worker's
+event loop.
+
+This is unsafe and dangerous. The returned pointer is only valid for the lifetime
+of the current environment. Using it after the environment exits, or from native
+code that assumes a different thread or lifetime, can crash the process or
+corrupt memory.
 
 ## Safety notes
 
@@ -726,5 +799,6 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
-[`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
+[`library.functions`]: #libraryfunctions
+[`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [type names]: #type-names

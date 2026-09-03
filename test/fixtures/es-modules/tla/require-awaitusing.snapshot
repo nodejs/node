@@ -1,0 +1,15 @@
+<project-root>/test/fixtures/es-modules/tla/awaitusing.mjs:3
+
+await using lock = {
+^
+
+Error [ERR_REQUIRE_ASYNC_MODULE]: require() cannot be used on an ESM graph with top-level await. Use import() instead.
+Required module: <project-root>/test/fixtures/es-modules/tla/awaitusing.mjs
+Require stack:
+- <project-root>/test/fixtures/es-modules/tla/require-awaitusing.js
+    at <node-internal-frames>
+    at <node-internal-frames> {
+  code: 'ERR_REQUIRE_ASYNC_MODULE'
+}
+
+Node.js <node-version>

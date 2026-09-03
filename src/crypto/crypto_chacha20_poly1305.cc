@@ -81,8 +81,7 @@ bool ValidateAdditionalData(Environment* env,
 
 ChaCha20Poly1305CipherConfig::ChaCha20Poly1305CipherConfig(
     ChaCha20Poly1305CipherConfig&& other) noexcept
-    : mode(other.mode),
-      cipher(other.cipher),
+    : cipher(other.cipher),
       iv(std::move(other.iv)),
       additional_data(std::move(other.additional_data)) {}
 
@@ -94,12 +93,8 @@ ChaCha20Poly1305CipherConfig& ChaCha20Poly1305CipherConfig::operator=(
 }
 
 void ChaCha20Poly1305CipherConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If mode is sync, then the data in each of these properties
-  // is not owned by the ChaCha20Poly1305CipherConfig, so we ignore it.
-  if (IsCryptoJobAsync(mode)) {
-    tracker->TrackFieldWithSize("iv", iv.size());
-    tracker->TrackFieldWithSize("additional_data", additional_data.size());
-  }
+  tracker->TraitTrackInline(iv, "iv");
+  tracker->TraitTrackInline(additional_data, "additional_data");
 }
 
 Maybe<void> ChaCha20Poly1305CipherTraits::AdditionalConfig(
@@ -110,8 +105,7 @@ Maybe<void> ChaCha20Poly1305CipherTraits::AdditionalConfig(
     ChaCha20Poly1305CipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
-  params->cipher = ncrypto::Cipher::CHACHA20_POLY1305;
+  params->cipher = ncrypto::Cipher::CHACHA20_POLY1305();
 
 #ifndef OPENSSL_IS_BORINGSSL
   // On BoringSSL, ChaCha20-Poly1305 is not exposed via the EVP_CIPHER registry
@@ -267,7 +261,17 @@ WebCryptoCipherStatus ChaCha20Poly1305CipherTraits::DoCipher(
   }
 
   size_t total = 0;
-  int buf_len = data_len + ctx.getBlockSize() + (encrypt ? tag_len : 0);
+  const int block_size = ctx.getBlockSize();
+  if (block_size < 0) {
+    return WebCryptoCipherStatus::FAILED;
+  }
+  int buf_len;
+  if (!TryGetIntCipherOutputLength(
+          data_len,
+          static_cast<size_t>(block_size) + (encrypt ? tag_len : 0),
+          &buf_len)) {
+    return WebCryptoCipherStatus::FAILED;
+  }
   int out_len;
 
   // Process additional authenticated data if present
@@ -297,7 +301,7 @@ WebCryptoCipherStatus ChaCha20Poly1305CipherTraits::DoCipher(
 
   total += out_len;
   CHECK_LE(out_len, buf_len);
-  out_len = ctx.getBlockSize();
+  out_len = block_size;
   if (!ctx.update({}, ptr + total, &out_len, true)) {
     return WebCryptoCipherStatus::FAILED;
   }

@@ -1,4 +1,7 @@
+import { getFips } from 'node:crypto';
+
 const { subtle } = globalThis.crypto;
+const RSA_MINIMUM_MODULUS_LENGTH = getFips() === 1 ? 2048 : 512;
 
 const RSA_KEY_GEN = {
   modulusLength: 2048,
@@ -62,10 +65,34 @@ export const vectors = {
     [true, 'Ed25519'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [true, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-PSS', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-OAEP', hash: 'SHA-256', ...RSA_KEY_GEN }],
+    [true, {
+      name: 'RSA-PSS',
+      hash: 'SHA-256',
+      modulusLength: RSA_MINIMUM_MODULUS_LENGTH,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    }],
+    [false, {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+      modulusLength: RSA_MINIMUM_MODULUS_LENGTH - 1,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    }],
+    [false, {
+      name: 'RSA-PSS',
+      hash: 'SHA-256',
+      ...RSA_KEY_GEN,
+      publicExponent: new Uint8Array([2]),
+    }],
+    [false, {
+      name: 'RSA-OAEP',
+      hash: 'SHA-256',
+      ...RSA_KEY_GEN,
+      publicExponent: new Uint8Array([1, 0, 0, 0, 1]),
+    }],
     [true, { name: 'ECDSA', namedCurve: 'P-256' }],
     [false, { name: 'ECDSA', namedCurve: 'X25519' }],
     [true, { name: 'AES-CTR', length: 128 }],
@@ -78,7 +105,7 @@ export const vectors = {
     [false, { name: 'AES-KW', length: 25 }],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 0 }],
   ],
   'deriveKey': [
@@ -121,7 +148,7 @@ export const vectors = {
     [false,
      { name: 'ECDH', public: ECDH.publicKey },
      { name: 'HMAC', hash: 'SHA-256' }],
-    [false,
+    [true,
      { name: 'ECDH', public: ECDH.publicKey },
      { name: 'HMAC', hash: 'SHA-256', length: 255 }],
     [true,
@@ -146,6 +173,8 @@ export const vectors = {
   'deriveBits': [
     [true, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 8],
     [true, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 0],
+    [true, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 65280],
+    [false, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 65288],
     [false, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, null],
     [false, { name: 'HKDF', hash: 'SHA-256', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 7],
     [false, { name: 'HKDF', hash: 'Invalid', salt: Buffer.alloc(0), info: Buffer.alloc(0) }, 8],
@@ -183,7 +212,7 @@ export const vectors = {
     [true, 'Ed25519'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [true, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-PSS', hash: 'SHA-256', ...RSA_KEY_GEN }],
     [true, { name: 'RSA-OAEP', hash: 'SHA-256', ...RSA_KEY_GEN }],
@@ -195,7 +224,7 @@ export const vectors = {
     [true, 'AES-KW'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
+    [true, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 0 }],
     [true, 'HKDF'],
     [true, 'PBKDF2'],
@@ -233,5 +262,8 @@ export const vectors = {
   ],
   'get key length': [
     [false, { name: 'HMAC', hash: 'SHA-256' }],
+  ],
+  'get shared key length': [
+    [false, 'ML-KEM-768'],
   ],
 };

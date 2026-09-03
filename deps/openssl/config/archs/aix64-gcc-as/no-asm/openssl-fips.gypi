@@ -333,6 +333,9 @@
       'NDEBUG',
       'B_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'FIPS_MODULE',
       'FIPS_MODULE',
     ],
@@ -342,7 +345,7 @@
       '-O',
     ],
     'openssl_ex_libs_aix64-gcc-as': [
-      '-pthread',
+      '-lm -pthread',
     ],
     'linker_script': ''
   },

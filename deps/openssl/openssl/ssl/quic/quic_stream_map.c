@@ -168,6 +168,10 @@ QUIC_STREAM *ossl_quic_stream_map_alloc(QUIC_STREAM_MAP *qsm,
     s->send_final_size = UINT64_MAX;
 
     lh_QUIC_STREAM_insert(qsm->map, s);
+    if (lh_QUIC_STREAM_error(qsm->map)) {
+        OPENSSL_free(s);
+        return NULL;
+    }
     return s;
 }
 
@@ -437,6 +441,13 @@ int ossl_quic_stream_map_notify_totally_acked(QUIC_STREAM_MAP *qsm,
 
     case QUIC_SSTREAM_STATE_DATA_SENT:
         qs->send_state = QUIC_SSTREAM_STATE_DATA_RECVD;
+        /*
+         * Remember final size in case  SSL_get_stream_write_state()
+         * gets called.
+         */
+        qs->have_final_size = ossl_quic_sstream_get_final_size(qs->sstream,
+            NULL);
+
         /* We no longer need a QUIC_SSTREAM in this state. */
         ossl_quic_sstream_free(qs->sstream);
         qs->sstream = NULL;

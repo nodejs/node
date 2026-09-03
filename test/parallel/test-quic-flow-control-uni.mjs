@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,7 +24,7 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     const received = await bytes(stream);
-    strictEqual(received.byteLength, expected.byteLength);
+    assert.strictEqual(received.byteLength, expected.byteLength);
     await stream.closed;
     serverSession.close();
     serverDone.resolve();
@@ -39,7 +37,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 const stream = await clientSession.createUnidirectionalStream({
-  highWaterMark: 512,
+  budget: 512,
 });
 const w = stream.writer;
 

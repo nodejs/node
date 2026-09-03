@@ -150,6 +150,37 @@ t.test('--no-audit and --ignore-scripts', async t => {
   t.match(joinedOutput(), 'added 1 package in', 'would fail if install script ran')
 })
 
+t.test('allow-remote=none blocks same-host tarball outside registry path', async t => {
+  const token = 'test-path-token'
+  const registryUrl = 'https://registry.example.com/npm/'
+  const evilTarball = 'https://registry.example.com/evil/abbrev-1.0.0.tgz'
+  const lock = JSON.parse(JSON.stringify(packageLock))
+  lock.packages['node_modules/abbrev'].resolved = evilTarball
+  lock.dependencies.abbrev.resolved = evilTarball
+
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      audit: false,
+      'allow-remote': 'none',
+      registry: registryUrl,
+      [`//registry.example.com/npm/:_authToken`]: token,
+    },
+    prefixDir: {
+      abbrev,
+      'package.json': JSON.stringify(packageJson),
+      'package-lock.json': JSON.stringify(lock),
+    },
+  })
+
+  await t.rejects(
+    npm.exec('ci', []),
+    { code: 'EALLOWREMOTE' },
+    'sibling-path tarball is blocked by allow-remote=none'
+  )
+  const nmAbbrev = path.join(npm.prefix, 'node_modules', 'abbrev')
+  t.equal(fs.existsSync(nmAbbrev), false, 'does not install tarball outside configured registry path')
+})
+
 t.test('lifecycle scripts', async t => {
   const scripts = []
   const { npm, registry } = await loadMockNpm(t, {

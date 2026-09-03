@@ -10,6 +10,8 @@ try {
   common.skip('missing trace events');
 }
 
+common.skipIfPerfettoEnabled();
+
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');

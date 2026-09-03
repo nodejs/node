@@ -1,8 +1,3 @@
-function run_test(algorithmNames) {
-    var subtle = crypto.subtle; // Change to test prefixed implementations
-
-    setup({explicit_timeout: true});
-
 // These tests check that generateKey throws an error, and that
 // the error is of the right type, for a wide set of incorrect parameters.
 //
@@ -21,135 +16,45 @@ function run_test(algorithmNames) {
 // helper functions that generate all possible test parameters for
 // different situations.
 
-    var allTestVectors = [ // Parameters that should work for generateKey
-        {name: "AES-CTR",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-CBC",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-GCM",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-OCB",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "ChaCha20-Poly1305",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-KW",   resultType: CryptoKey, usages: ["wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "HMAC",     resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
-        {name: "RSASSA-PKCS1-v1_5", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "RSA-PSS",  resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "RSA-OAEP", resultType: "CryptoKeyPair", usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: ["decrypt", "unwrapKey"]},
-        {name: "ECDSA",    resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ECDH",     resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
-        {name: "Ed25519",  resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "Ed448",    resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-DSA-44", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-DSA-65", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-DSA-87", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-KEM-512", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
-        {name: "ML-KEM-768", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
-        {name: "ML-KEM-1024", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
-        {name: "X25519",   resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
-        {name: "X448",     resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
-        {name: "KMAC128",  resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
-        {name: "KMAC256",  resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
-    ];
-
-    var testVectors = [];
-    if (algorithmNames && !Array.isArray(algorithmNames)) {
-        algorithmNames = [algorithmNames];
-    };
-    allTestVectors.forEach(function(vector) {
-        if (!algorithmNames || algorithmNames.includes(vector.name)) {
-            testVectors.push(vector);
-        }
-    });
-
-
-    function parameterString(algorithm, extractable, usages) {
-        if (typeof algorithm !== "object" && typeof algorithm !== "string") {
-            alert(algorithm);
-        }
-
-        var result = "(" +
-                        objectToString(algorithm) + ", " +
-                        objectToString(extractable) + ", " +
-                        objectToString(usages) +
-                     ")";
-
-        return result;
+function parameterString(algorithm, extractable, usages) {
+    if (typeof algorithm !== "object" && typeof algorithm !== "string") {
+        alert(algorithm);
     }
 
-    // Test that a given combination of parameters results in an error,
-    // AND that it is the correct kind of error.
-    //
-    // Expected error is either a number, tested against the error code,
-    // or a string, tested against the error name.
-    function testError(algorithm, extractable, usages, expectedError, testTag) {
-        promise_test(function(test) {
-            return crypto.subtle.generateKey(algorithm, extractable, usages)
-            .then(function(result) {
-                assert_unreached("Operation succeeded, but should not have");
-            }, function(err) {
-                if (typeof expectedError === "number") {
-                    assert_equals(err.code, expectedError, testTag + " not supported");
-                } else {
-                    assert_equals(err.name, expectedError, testTag + " not supported");
-                }
-            });
-        }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages));
-    }
+    var result = "(" +
+                    objectToString(algorithm) + ", " +
+                    objectToString(extractable) + ", " +
+                    objectToString(usages) +
+                 ")";
 
+    return result;
+}
 
-    // Given an algorithm name, create several invalid parameters.
-    function badAlgorithmPropertySpecifiersFor(algorithmName) {
-        var results = [];
-
-        if (algorithmName.toUpperCase().substring(0, 3) === "AES") {
-            // Specifier properties are name and length
-            [64, 127, 129, 255, 257, 512].forEach(function(length) {
-                results.push({name: algorithmName, length: length});
-            });
-        } else if (algorithmName.toUpperCase().substring(0, 3) === "RSA") {
-            [new Uint8Array([1]), new Uint8Array([1,0,0])].forEach(function(publicExponent) {
-                results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024, publicExponent: publicExponent});
-            });
-        } else if (algorithmName.toUpperCase().substring(0, 2) === "EC") {
-            ["P-512", "Curve25519"].forEach(function(curveName) {
-                results.push({name: algorithmName, namedCurve: curveName});
-            });
-        }
-
-        return results;
-    }
-
-
-    // Don't create an exhaustive list of all invalid usages,
-    // because there would usually be nearly 2**8 of them,
-    // way too many to test. Instead, create every singleton
-    // of an illegal usage, and "poison" every valid usage
-    // with an illegal one.
-    function invalidUsages(validUsages, mandatoryUsages) {
-        var results = [];
-
-        var illegalUsages = [];
-        ["encrypt", "decrypt", "sign", "verify", "wrapKey", "unwrapKey", "deriveKey", "deriveBits"].forEach(function(usage) {
-            if (!validUsages.includes(usage)) {
-                illegalUsages.push(usage);
+// Test that a given combination of parameters results in an error,
+// AND that it is the correct kind of error.
+//
+// Expected error is either a number, tested against the error code,
+// or a string, tested against the error name.
+function testError(algorithm, extractable, usages, expectedError, testTag) {
+    promise_test(function(test) {
+        return crypto.subtle.generateKey(algorithm, extractable, usages)
+        .then(function(result) {
+            assert_unreached("Operation succeeded, but should not have");
+        }, function(err) {
+            if (typeof expectedError === "number") {
+                assert_equals(err.code, expectedError, testTag + " not supported");
+            } else {
+                assert_equals(err.name, expectedError, testTag + " not supported");
             }
         });
-
-        var goodUsageCombinations = allValidUsages(validUsages, false, mandatoryUsages);
-
-        illegalUsages.forEach(function(illegalUsage) {
-            results.push([illegalUsage]);
-            goodUsageCombinations.forEach(function(usageCombination) {
-                results.push(usageCombination.concat([illegalUsage]));
-            });
-        });
-
-        return results;
-    }
+    }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages));
+}
 
 
-// Now test for properly handling errors
-// - Unsupported algorithm
-// - Bad usages for algorithm
-// - Bad key lengths
-
+// Algorithm normalization happens before generateKey looks at any other
+// argument, so these cases are independent of the algorithm under test and
+// only need to run once for the whole suite.
+function run_bad_algorithm_test() {
     // Algorithm normalization should fail with "Not supported"
     var badAlgorithmNames = [
         "AES",
@@ -183,7 +88,72 @@ function run_test(algorithmNames) {
                 testError({}, extractable, usages, "TypeError", "Empty algorithm");
             });
         });
+}
 
+
+function run_test(algorithmNames) {
+    var testVectors = getGenerateKeyTestVectors(algorithmNames);
+
+
+    // Given an algorithm name, create several invalid parameters.
+    function badAlgorithmPropertySpecifiersFor(algorithmName) {
+        var results = [];
+
+        if (algorithmName.toUpperCase().substring(0, 3) === "AES") {
+            // Specifier properties are name and length
+            [64, 127, 129, 255, 257, 512, 128 + 2**32, 128 - 2**32].forEach(function(length) {
+                results.push({name: algorithmName, length: length});
+            });
+        } else if (algorithmName.toUpperCase() === "HMAC") {
+            [128 + 2**32, 128 - 2**32].forEach(function(length) {
+                results.push({name: algorithmName, hash: "SHA-256", length: length});
+            });
+        } else if (algorithmName.toUpperCase().substring(0, 3) === "RSA") {
+            [new Uint8Array([1]), new Uint8Array([1,0,0])].forEach(function(publicExponent) {
+                results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024, publicExponent: publicExponent});
+            });
+            results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024 + 2 ** 32, publicExponent: new Uint8Array([1,0,1])});
+            results.push({name: algorithmName, hash: "SHA-256", modulusLength: 1024 - 2 ** 32, publicExponent: new Uint8Array([1,0,1])});
+        } else if (algorithmName.toUpperCase().substring(0, 2) === "EC") {
+            ["P-512", "Curve25519"].forEach(function(curveName) {
+                results.push({name: algorithmName, namedCurve: curveName});
+            });
+        }
+
+        return results;
+    }
+
+
+    // Don't create an exhaustive list of all invalid usages because
+    // there would be too many to test. Instead, create every singleton
+    // of an illegal usage, and "poison" every valid usage
+    // with an illegal one.
+    function invalidUsages(validUsages, mandatoryUsages) {
+        var results = [];
+
+        var illegalUsages = [];
+        allKeyUsages.forEach(function(usage) {
+            if (!validUsages.includes(usage)) {
+                illegalUsages.push(usage);
+            }
+        });
+
+        var goodUsageCombinations = allValidUsages(validUsages, false, mandatoryUsages);
+
+        illegalUsages.forEach(function(illegalUsage) {
+            results.push([illegalUsage]);
+            goodUsageCombinations.forEach(function(usageCombination) {
+                results.push(usageCombination.concat([illegalUsage]));
+            });
+        });
+
+        return results;
+    }
+
+
+// Now test for properly handling errors
+// - Bad usages for algorithm
+// - Bad key lengths
 
     // Algorithms normalize okay, but usages bad (though not empty).
     // It shouldn't matter what other extractable is. Should fail
@@ -213,6 +183,9 @@ function run_test(algorithmNames) {
                 [false, true].forEach(function(extractable) {
                     if (name.substring(0,2) === "EC") {
                         testError(algorithm, extractable, usages, "NotSupportedError", "Bad algorithm property");
+                    } else if (name.substring(0,3) === "RSA" && (algorithm.modulusLength < 0 || algorithm.modulusLength > 2**32) ||
+                        (name.substring(0,3) === "AES" || name === "HMAC") && (algorithm.length < 0 || algorithm.length > 2**32)) {
+                        testError(algorithm, extractable, usages, "TypeError", "Bad algorithm property");
                     } else {
                         testError(algorithm, extractable, usages, "OperationError", "Bad algorithm property");
                     }

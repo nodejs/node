@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>Service Worker: recovery by navigation update</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(function(t) {
+    var scope = 'resources/simple.txt';
+    var worker_url = 'resources/update-recovery-worker.py';
+    var expected_url = normalizeURL(worker_url);
+    var registration;
+
+    function with_bad_iframe(url) {
+      return new Promise(function(resolve, reject) {
+        var frame = document.createElement('iframe');
+
+        // There is no cross-browser event to listen for to detect an
+        // iframe that fails to load due to a bad interception.  Unfortunately
+        // we have to use a timeout.
+        var timeout = setTimeout(function() {
+          frame.remove();
+          resolve();
+        }, 5000);
+
+        // If we do get a load event, though, we know something went wrong.
+        frame.addEventListener('load', function() {
+          clearTimeout(timeout);
+          frame.remove();
+          reject('expected bad iframe should not fire a load event!');
+        });
+
+        frame.src = url;
+        document.body.appendChild(frame);
+      });
+    }
+
+    function with_update(t) {
+      return new Promise(function(resolve, reject) {
+        registration.addEventListener('updatefound', function onUpdate() {
+          registration.removeEventListener('updatefound', onUpdate);
+          wait_for_state(t, registration.installing, 'activated').then(function() {
+            resolve();
+          });
+        });
+      });
+    }
+
+    return service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return Promise.all([
+            with_update(t),
+            with_bad_iframe(scope)
+          ]);
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          assert_equals(frame.contentWindow.navigator.serviceWorker.controller.scriptURL,
+                        expected_url);
+          frame.remove();
+        });
+  }, 'Recover from a bad service worker by updating after a failed navigation.');
+</script>

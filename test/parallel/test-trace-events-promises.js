@@ -5,6 +5,8 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+common.skipIfPerfettoEnabled();
+
 if (process.argv[2] === 'child') {
   const p = Promise.reject(1);  // Handled later
   Promise.reject(2);  // Unhandled

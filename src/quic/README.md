@@ -77,7 +77,7 @@ data channels that carry application data.
 
 Every entry point that may generate outbound data creates a
 `SendPendingDataScope`. Scopes nest — an internal depth counter ensures
-`Application::SendPendingData()` is called exactly once, when the outermost
+`Session::SendPendingData()` is called exactly once, when the outermost
 scope exits:
 
 ```cpp
@@ -146,9 +146,9 @@ ALPN-specific behavior to. Two implementations exist:
   server push, and stream prioritization. Manages unidirectional control
   streams internally.
 
-The Application is selected during ALPN negotiation — immediately for
-clients (ALPN known upfront), during the `OnSelectAlpn` TLS callback for
-servers.
+The Application is selected as soon as the ALPN protocol is known:
+immediately for clients, and for servers from the `OnClientHello` TLS
+callback (see [Server handshake ordering](#server-handshake-ordering)).
 
 ### Thread-Local Allocator
 
@@ -183,8 +183,44 @@ succeed but memory tracking is silently skipped.
 
 **Server**: `Endpoint::Receive()` processes an Initial packet through
 address validation (retry tokens, LRU cache), then calls `Session::Create()`
-→ `ngtcp2_conn_server_new()`. The Application is selected later, during ALPN
-negotiation in the TLS handshake.
+→ `ngtcp2_conn_server_new()`. The Application is selected later, once the
+ClientHello names an ALPN protocol.
+
+### Server handshake ordering
+
+A server has to make several decisions from the ClientHello, and the order
+matters: the ALPN protocol depends on which identity SNI selected, the
+Application depends on the ALPN protocol, and JavaScript needs a
+`QuicSession` object before any 0-RTT request arrives on it. TLS is
+therefore stopped at the ClientHello, before the point where a session
+ticket could be accepted and early data could start flowing:
+
+```text
+ngtcp2_conn_read_pkt()
+ → SSL_do_handshake()
+    → TLSContext::OnClientHello()        // SSL_CTX_set_client_hello_cb
+       ├── SelectSNIContext() + SSL_set_SSL_CTX()
+       ├── crypto::SelectNextProtocol()  // against that identity's list
+       ├── Session::InstallApplicationForAlpn()
+       └── return SSL_CLIENT_HELLO_RETRY  // handshake suspended here
+    ← SSL_ERROR_WANT_CLIENT_HELLO_CB     // ngtcp2 treats this as "not done"
+ ← 0
+Session::AfterNgtcp2Read()
+ → Endpoint::EmitNewSession()            // JS sees the session, TLS paused
+ → Session::ResumeHandshake()
+    → ngtcp2_conn_continue_handshake()
+       → OnClientHello() again           // returns success immediately
+       → session ticket, 0-RTT keys, early data, ...
+```
+
+The later servername and ALPN callbacks do not repeat any of this; they
+only hand the cached result back to OpenSSL, which is what OpenSSL needs
+in order to emit the corresponding extensions.
+
+Because nothing application-level can happen before the resume, no event
+deferral is needed. The one exception is qlog: ngtcp2 writes it from the
+first inbound packet, so those chunks are buffered on the Session and
+flushed immediately after the new-session callback returns.
 
 ### The Receive Path
 
@@ -218,13 +254,13 @@ Session::Receive()
 
 ```text
 SendPendingDataScope::~SendPendingDataScope()
- → Application::SendPendingData()
+ → Session::SendPendingData()
     Loop (up to max_packet_count):
-     ├── GetStreamData()           // pull data from next stream
-     │   └── stream->Pull()        // bob pull from Outbound→DataQueue
-     ├── WriteVStream()            // ngtcp2_conn_writev_stream()
+     ├── application().GetStreamData()  // pull data from next stream
+     │   └── stream->Pull()             // bob pull from Outbound→DataQueue
+     ├── WriteVStream()                 // ngtcp2_conn_writev_stream()
      │                              encrypts, frames, paces
-     ├── if ndatalen > 0: StreamCommit()
+     ├── if ndatalen > 0: application().StreamCommit()
      │                              stream->Commit(datalen, fin)
      ├── if nwrite > 0:  Send()    // uv_udp_send()
      ├── if WRITE_MORE:  continue  // room for more in this packet
@@ -363,10 +399,10 @@ The `Http3ApplicationImpl` wraps `nghttp3_conn` and handles:
   CONNECT protocol, datagrams) are negotiated and enforced. Datagram
   support follows RFC 9297 — when the peer's SETTINGS disable datagrams,
   `sendDatagram()` is blocked.
-* **0-RTT**: Early data settings are validated during ticket extraction
-  (`ValidateTicketData` in `ExtractSessionTicketAppData`). If the server's
-  settings changed incompatibly, the ticket is rejected before TLS accepts
-  it.
+* **0-RTT**: Early data settings are validated in
+  `ExtractSessionTicketAppData`. If the server's settings changed
+  incompatibly, the ticket is rejected before TLS accepts it and the
+  connection falls back to a full 1-RTT handshake.
 
 ## Error Handling
 

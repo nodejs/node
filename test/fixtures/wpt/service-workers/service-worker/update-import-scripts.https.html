@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for importScripts: import scripts ignored error</title>
+<script src="/common/utils.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+// This file contains tests to check if imported scripts appropriately updated.
+
+const SCOPE = 'resources/simple.txt';
+
+// Create a service worker (update-worker-from-file.py), which is initially
+// |initial_worker| and |updated_worker| later.
+async function prepare_ready_update_worker_from_file(
+    t, initial_worker, updated_worker) {
+  const key = token();
+  const worker_url = `resources/update-worker-from-file.py?` +
+      `First=${initial_worker}&Second=${updated_worker}&Key=${key}`;
+  const expected_url = normalizeURL(worker_url);
+
+  const registration = await service_worker_unregister_and_register(
+      t, worker_url, SCOPE);
+  await wait_for_state(t, registration.installing, 'activated');
+  assert_equals(registration.installing, null,
+                'prepare_ready: installing');
+  assert_equals(registration.waiting, null,
+                'prepare_ready: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'prepare_ready: active');
+  return [registration, expected_url];
+}
+
+// Create a service worker using the script under resources/.
+async function prepare_ready_normal_worker(t, filename, additional_params='') {
+  const key = token();
+  const worker_url = `resources/${filename}?Key=${key}&${additional_params}`;
+  const expected_url = normalizeURL(worker_url);
+
+  const registration = await service_worker_unregister_and_register(
+      t, worker_url, SCOPE);
+  await wait_for_state(t, registration.installing, 'activated');
+  assert_equals(registration.installing, null,
+                'prepare_ready: installing');
+  assert_equals(registration.waiting, null,
+                'prepare_ready: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'prepare_ready: active');
+  return [registration, expected_url];
+}
+
+function assert_installing_and_active(registration, expected_url) {
+  assert_equals(registration.installing.scriptURL, expected_url,
+                'assert_installing_and_active: installing');
+  assert_equals(registration.waiting, null,
+                'assert_installing_and_active: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'assert_installing_and_active: active');
+}
+
+function assert_waiting_and_active(registration, expected_url) {
+  assert_equals(registration.installing, null,
+                'assert_waiting_and_active: installing');
+  assert_equals(registration.waiting.scriptURL, expected_url,
+                'assert_waiting_and_active: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'assert_waiting_and_active: active');
+}
+
+function assert_active_only(registration, expected_url) {
+  assert_equals(registration.installing, null,
+                'assert_active_only: installing');
+  assert_equals(registration.waiting, null,
+                'assert_active_only: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'assert_active_only: active');
+}
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_update_worker_from_file(
+          t, 'empty.js', 'import-scripts-404.js');
+  t.add_cleanup(() => registration.unregister());
+
+  await promise_rejects_js(t, TypeError, registration.update());
+  assert_active_only(registration, expected_url);
+}, 'update() should fail when a new worker imports an unavailable script.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_update_worker_from_file(
+          t, 'import-scripts-404-after-update.js', 'empty.js');
+  t.add_cleanup(() => registration.unregister());
+
+  await Promise.all([registration.update(), wait_for_update(t, registration)]);
+  assert_installing_and_active(registration, expected_url);
+
+  await wait_for_state(t, registration.installing, 'installed');
+  assert_waiting_and_active(registration, expected_url);
+
+  await wait_for_state(t, registration.waiting, 'activated');
+  assert_active_only(registration, expected_url);
+}, 'update() should succeed when the old imported script no longer exist but ' +
+   "the new worker doesn't import it.");
+
+promise_test(async t => {
+  const [registration, expected_url] = await prepare_ready_normal_worker(
+    t, 'import-scripts-404-after-update.js');
+  t.add_cleanup(() => registration.unregister());
+
+  await registration.update();
+  assert_active_only(registration, expected_url);
+}, 'update() should treat 404 on imported scripts as no change.');
+
+promise_test(async t => {
+  const [registration, expected_url] = await prepare_ready_normal_worker(
+    t, 'import-scripts-404-after-update-plus-update-worker.js',
+       `AdditionalKey=${token()}`);
+  t.add_cleanup(() => registration.unregister());
+
+  await promise_rejects_js(t, TypeError, registration.update());
+  assert_active_only(registration, expected_url);
+}, 'update() should find an update in an imported script but update() should ' +
+   'result in failure due to missing the other imported script.');
+
+promise_test(async t => {
+  const [registration, expected_url] = await prepare_ready_normal_worker(
+    t, 'import-scripts-cross-origin-worker.sub.js');
+  t.add_cleanup(() => registration.unregister());
+  await registration.update();
+  assert_installing_and_active(registration, expected_url);
+}, 'update() should work with cross-origin importScripts.');
+</script>
+</body>

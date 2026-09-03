@@ -262,6 +262,92 @@ This config cannot be used with: `expect-result-count`
 Tells to expect a specific number of results from the command.
 
 This config cannot be used with: `expect-results`
+
+#### `before`
+
+* Default: null
+* Type: null or Date
+
+If passed to `npm install`, will rebuild the npm tree such that only
+versions that were available **on or before** the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.
+
+If the requested version is a `dist-tag` and the given tag does not pass the
+`--before` filter, the most recent version less than or equal to that tag
+will be used. For example, `foo@latest` might install `foo@1.2` even though
+`latest` is `2.0`.
+
+If `before` and `min-release-age` are both set in the same source, `before`
+wins (an explicit absolute date overrides a relative window). Across
+sources, the standard precedence applies (cli > env > project > user >
+global), so a higher-priority source can always relax or override a
+lower-priority one.
+
+As with `min-release-age`, when this cutoff blocks a fix that `npm audit
+fix` would install, npm keeps the vulnerable version, warns, and exits with
+a non-zero code.
+
+Packages whose names match `min-release-age-exclude` are exempt from this
+filter.
+
+
+
+#### `min-release-age`
+
+* Default: null
+* Type: null or Number
+
+If set, npm will build the npm tree such that only versions that were
+available more than the given number of days ago will be installed. If there
+are no versions available for the current set of dependencies, the command
+will error.
+
+This flag is a complement to `before`, which accepts an exact date instead
+of a relative number of days. The two may coexist (e.g. `min-release-age` in
+your `.npmrc` is preserved when npm internally spawns a sub-process with
+`--before` while preparing a `git:` or `github:` dependency); when both
+apply, `before` wins within a single source and across sources the standard
+precedence rules apply.
+
+When this window stops `npm audit fix` from installing a patched version
+(because the fix was published too recently), npm keeps the package at its
+vulnerable version, warns that the fix was blocked, and exits with a
+non-zero code. To install the fix, add the package to
+`min-release-age-exclude`, or relax `min-release-age` or `before`.
+
+Packages whose names match `min-release-age-exclude` are exempt from this
+filter.
+
+This value is not exported to the environment for child processes.
+
+#### `min-release-age-exclude`
+
+* Default:
+* Type: String (can be set multiple times)
+
+A list of package names or `minimatch` glob patterns that are exempt from
+the `min-release-age` (and `before`) filter. A matching package can always
+resolve to its newest version, even when a release-age window is set.
+
+For example, to apply a release-age window to third-party dependencies while
+letting internally maintained packages update immediately:
+
+```
+min-release-age=7
+min-release-age-exclude[]=@myorg/*
+min-release-age-exclude[]=my-internal-pkg
+```
+
+Only the named package is exempt; its own dependencies still follow the
+release-age policy unless they also match a pattern. Patterns match against
+the package name, so `@myorg/*` matches `@myorg/shared-utils`.
+
+Excluding a package does not change which registry it is fetched from. You
+should own your private scope on the public registry so that nobody else can
+publish a package with the same name.
+
+This value is not exported to the environment for child processes.
 ## See Also
 
 * [dependency selectors](/using-npm/dependency-selectors)

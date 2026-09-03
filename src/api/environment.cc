@@ -225,7 +225,8 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
 #endif
 }
 
-void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+static void SetIsolateErrorHandlers(v8::Isolate* isolate,
+                                    const IsolateSettings& s) {
   if (s.flags & MESSAGE_LISTENER_WITH_ERROR_LEVEL)
     isolate->AddMessageListenerWithErrorLevel(
             errors::PerIsolateMessageListener,
@@ -350,16 +351,7 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
-
-  Isolate::Scope isolate_scope(isolate);
-
-  if (snapshot_data == nullptr) {
-    // If in deserialize mode, delay until after the deserialization is
-    // complete.
-    SetIsolateUpForNode(isolate, settings);
-  } else {
-    SetIsolateMiscHandlers(isolate, settings);
-  }
+  SetIsolateUpForNode(isolate, settings);
 
   return isolate;
 }
@@ -424,24 +416,6 @@ Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
-  return CreateEnvironment(isolate_data,
-                           context,
-                           args,
-                           exec_args,
-                           flags,
-                           thread_id,
-                           std::move(inspector_parent_handle),
-                           {});
-}
-
-Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    Local<Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
     std::string_view thread_name) {
   Isolate* isolate = isolate_data->isolate();
@@ -487,7 +461,6 @@ Environment* CreateEnvironment(
       FreeEnvironment(env);
       return nullptr;
     }
-    SetIsolateErrorHandlers(isolate, {});
   }
 
   Context::Scope context_scope(context);

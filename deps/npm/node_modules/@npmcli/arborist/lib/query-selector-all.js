@@ -9,6 +9,7 @@ const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const semver = require('semver')
 const npmFetch = require('npm-registry-fetch')
+const { isReleaseAgeExcluded } = require('./release-age-exclude.js')
 
 // handle results for parsed query asts, results are stored in a map that has a
 // key that points to each ast selector node and stores the resulting array of
@@ -797,7 +798,8 @@ const hasParent = (node, compareNodes) => {
     // Only match if the node has a link whose parent is the compareNode. Without this check, nodes deep in the store (linked strategy) would incorrectly match as children of root via their fsParent chain.
     if (node.isTop && (node.resolveParent === compareNode)) {
       for (const link of node.linksIn) {
-        if (link.parent === compareNode) {
+        // A store-backing node (linked strategy) is reached through its logical Link, which matches via edgesIn below, so the store node itself is never a direct child.
+        if (link.parent === compareNode && !node.isInStore) {
           return true
         }
       }
@@ -889,8 +891,9 @@ const getPackageVersions = async (name, opts) => {
   let candidates = Object.keys(packument.versions).sort(semver.compare)
 
   // if the packument has a time property, and the user passed a before flag, then
-  // we filter this list down to only those versions that existed before the specified date
-  if (packument.time && opts.before) {
+  // we filter this list down to only those versions that existed before the specified date.
+  // packages matching `min-release-age-exclude` are exempt from this filter.
+  if (packument.time && opts.before && !isReleaseAgeExcluded(name, opts.minReleaseAgeExclude)) {
     candidates = candidates.filter((version) => {
       // this version isn't found in the times at all, drop it
       if (!packument.time[version]) {

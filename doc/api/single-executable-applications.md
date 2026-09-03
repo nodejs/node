@@ -71,7 +71,7 @@ binary.
    * On macOS:
 
    ```bash
-   codesign --sign - hello
+   codesign --sign - sea
    ```
 
    * On Windows (optional):
@@ -80,7 +80,7 @@ binary.
    binary would still be runnable.
 
    ```powershell
-   signtool sign /fd SHA256 hello.exe
+   signtool sign /fd SHA256 sea.exe
    ```
 
 5. Run the binary:
@@ -88,14 +88,14 @@ binary.
    * On systems other than Windows
 
    ```console
-   $ ./hello world
+   $ ./sea world
    Hello, world!
    ```
 
    * On Windows
 
    ```console
-   $ .\hello.exe world
+   $ .\sea.exe world
    Hello, world!
    ```
 
@@ -116,6 +116,7 @@ The configuration currently reads the following top-level fields:
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
+  "useVfs": true, // Default: false
   "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
   "execArgvExtension": "env", // Default: "env", options: "none", "env", "cli"
   "assets": {  // Optional
@@ -174,6 +175,105 @@ const raw = getRawAsset('a.jpg');
 
 See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 [`sea.getRawAsset()`][] and [`sea.getAssetKeys()`][] APIs for more information.
+
+### Virtual file system (VFS) for assets
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+In addition to using the `node:sea` API to access individual assets, the
+bundled assets can be exposed as a read-only [virtual file system][] and
+accessed through standard `node:fs` APIs. To enable this, set
+`"useVfs": true` in the SEA configuration.
+
+A virtual file system never shadows the real file system: it is mounted at a
+reserved mount point that cannot exist on the real file system, and the mount
+point is chosen at runtime rather than being a fixed path. When `useVfs` is
+enabled, the injected main script itself is placed at the root of the mount
+and executed from there, so `__filename` and `__dirname` point inside the
+virtual file system instead of reflecting [`process.execPath`][]. Bundled
+code therefore reaches the assets through `__dirname`-relative paths and
+relative [`require()`][] calls, without having to know the mount point:
+
+```cjs
+const fs = require('node:fs');
+const path = require('node:path');
+
+// __dirname is the root of the virtual file system holding the assets.
+const rawConfig = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8');
+const data = fs.readFileSync(path.join(__dirname, 'data/file.txt'));
+
+// Directory operations work too.
+const files = fs.readdirSync(path.join(__dirname, 'assets'));
+
+// Check if a bundled file exists.
+if (fs.existsSync(path.join(__dirname, 'optional.json'))) {
+  // ...
+}
+```
+
+The VFS supports the `node:fs` operations for reading files and directories.
+Since the SEA VFS is read-only, write operations fail with `EROFS`. See the
+[VFS documentation][] for the full list of supported operations.
+
+#### Loading modules from the VFS in a SEA
+
+When `useVfs` is enabled, the main script is executed from inside the
+virtual file system, and `require()` uses the [module loader
+integration][] of the VFS to load modules from the bundled assets. This
+supports relative requires (e.g. `require('./helper.js')`) as well as
+`node_modules` package lookups, which are confined to the mount:
+
+```cjs
+// Require bundled modules using relative paths.
+const myModule = require('./lib/mymodule.js');
+
+// Packages bundled under the node_modules asset prefix also resolve.
+const dep = require('some-package');
+```
+
+#### ESM entry points
+
+`"useVfs": true` also supports `"mainFormat": "module"`. The ESM main
+script is loaded from inside the mount through the ESM loader, so
+`import.meta.url`, `import.meta.filename`, and `import.meta.dirname`
+reflect the location of the main script in the virtual file system, and
+static and dynamic imports resolve against the bundled assets:
+
+```mjs
+import fs from 'node:fs';
+import path from 'node:path';
+
+// import.meta.dirname is the root of the virtual file system.
+const data = fs.readFileSync(
+  path.join(import.meta.dirname, 'data/file.txt'));
+
+// Relative and bare specifier imports resolve inside the mount.
+import myModule from './lib/mymodule.mjs';
+const lazy = await import('./lib/lazy.mjs');
+```
+
+Module format detection works the same way as on the real file
+system: name bundled ES modules with the `.mjs` extension (or provide the
+relevant `package.json` files as assets) so they are interpreted as ESM.
+
+#### Snapshot and code caching limitations
+
+`"useVfs": true` cannot be used together with `"useSnapshot": true` or
+`"useCodeCache": true`. The code cache limitation is due to incomplete
+implementation, not a technical impossibility. Consider bundling the
+application if startup performance matters and do not rely on module loading
+from the VFS in that case.
+
+#### Native addon limitations
+
+Native addons (`.node` files) cannot be loaded directly from the VFS because
+`process.dlopen()` requires files on the real file system. To use native
+addons in a SEA with VFS, write the asset to a temporary file first. See
+[Using native addons in the injected main script][] for an example.
 
 ### Startup snapshot support
 
@@ -648,6 +748,8 @@ to help us document them.
 [Generating single executable preparation blobs]: #1-generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
+[Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
+[VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
@@ -660,8 +762,10 @@ to help us document them.
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
+[module loader integration]: vfs.md#module-loader-integration
 [postject]: https://github.com/nodejs/postject
 [postject-linux-arm64-issue]: https://github.com/nodejs/postject/issues/105
 [signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
 [single executable applications]: https://github.com/nodejs/single-executable
 [supported by Node.js]: https://github.com/nodejs/node/blob/main/BUILDING.md#platform-list
+[virtual file system]: vfs.md

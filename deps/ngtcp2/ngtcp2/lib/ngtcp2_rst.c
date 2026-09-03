@@ -35,12 +35,12 @@ void ngtcp2_rs_init(ngtcp2_rs *rs) {
   *rs = (ngtcp2_rs){
     .interval = UINT64_MAX,
     .prior_ts = UINT64_MAX,
-    .last_end_seq = -1,
+    .last_acked_pkt_id = -1,
   };
 }
 
 void ngtcp2_rst_init(ngtcp2_rst *rst) {
-  rst->last_seq = -1;
+  rst->pkt_id = -1;
   ngtcp2_rst_reset(rst);
 }
 
@@ -76,7 +76,7 @@ void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
   ent->rst.is_app_limited = rst->app_limited != 0;
   ent->rst.tx_in_flight = cstat->bytes_in_flight;
   ent->rst.lost = rst->lost;
-  ent->rst.end_seq = ++rst->last_seq;
+  ent->rst.pkt_id = ++rst->pkt_id;
 }
 
 void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
@@ -90,7 +90,7 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     return;
   }
 
-  rs->interval = ngtcp2_max_uint64(rs->send_elapsed, rs->ack_elapsed);
+  rs->interval = ngtcp2_max(rs->send_elapsed, rs->ack_elapsed);
 
   rs->delivered = rst->delivered - rs->prior_delivered;
 
@@ -106,7 +106,7 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
 }
 
 static int is_newest_pkt(const ngtcp2_rtb_entry *ent, const ngtcp2_rs *rs) {
-  return ent->rst.end_seq > rs->last_end_seq;
+  return ent->rst.pkt_id > rs->last_acked_pkt_id;
 }
 
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
@@ -122,7 +122,7 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
     rs->is_app_limited = ent->rst.is_app_limited;
     rs->send_elapsed = ent->ts - ent->rst.first_sent_ts;
     rs->ack_elapsed = rst->delivered_ts - ent->rst.delivered_ts;
-    rs->last_end_seq = ent->rst.end_seq;
+    rs->last_acked_pkt_id = ent->rst.pkt_id;
     rst->first_sent_ts = ent->ts;
   }
 }

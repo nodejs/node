@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -274,7 +274,7 @@ int ossl_ml_dsa_key_equal(const ML_DSA_KEY *key1, const ML_DSA_KEY *key2,
         if (!key_checked
             && (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
             if (key1->priv_encoding != NULL && key2->priv_encoding != NULL) {
-                if (memcmp(key1->priv_encoding, key2->priv_encoding,
+                if (CRYPTO_memcmp(key1->priv_encoding, key2->priv_encoding,
                         key1->params->sk_len)
                     != 0)
                     return 0;
@@ -346,10 +346,15 @@ static int public_from_private(const ML_DSA_KEY *key, EVP_MD_CTX *md_ctx,
     /* Compress t */
     vector_power2_round(&t, t1, t0);
 
-    /* Zeroize secret */
-    vector_zero(&s1_ntt);
     ret = 1;
 err:
+    /*
+     * The low bits of |t| are private and |s1_ntt| is secret, wipe both.
+     * The trailing |a_ntt| matrix is not wiped: per FIPS 204 section 3.6.3
+     * the matrix A is easily computed from the public key and does not
+     * require any special protections.
+     */
+    OPENSSL_cleanse(polys, (k + l) * sizeof(*polys));
     OPENSSL_free(polys);
     return ret;
 }
@@ -370,6 +375,7 @@ int ossl_ml_dsa_key_public_from_private(ML_DSA_KEY *key)
         && shake_xof(md_ctx, key->shake256_md,
             key->pub_encoding, key->params->pk_len,
             key->tr, sizeof(key->tr));
+    vector_zero(&t0);
     vector_free(&t0);
     EVP_MD_CTX_free(md_ctx);
     return ret;
@@ -401,7 +407,7 @@ int ossl_ml_dsa_key_pairwise_check(const ML_DSA_KEY *key)
     ret = vector_equal(&t1, &key->t1) && vector_equal(&t0, &key->t0);
 err:
     EVP_MD_CTX_free(md_ctx);
-    OPENSSL_free(polys);
+    OPENSSL_clear_free(polys, 2 * k * sizeof(*polys));
     return ret;
 }
 
@@ -489,7 +495,7 @@ int ossl_ml_dsa_generate_key(ML_DSA_KEY *out)
                 "explicit %s private key does not match seed",
                 out->params->alg);
         }
-        OPENSSL_free(sk);
+        OPENSSL_clear_free(sk, out->params->sk_len);
     }
     return ret;
 }

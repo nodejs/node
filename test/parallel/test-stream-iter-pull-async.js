@@ -3,7 +3,15 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pull, from, text, tap } = require('stream/iter');
+const {
+  broadcast,
+  from,
+  pull,
+  push,
+  share,
+  tap,
+  text,
+} = require('stream/iter');
 
 async function testPullIdentity() {
   const data = await text(pull(from('hello-async')));
@@ -153,6 +161,99 @@ async function testPullSignalAbortMidIteration() {
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
 }
 
+async function testPullSignalAbortWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(source, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
+async function testPullReturnWhileSourceNextPending() {
+  let startNext;
+  const nextStarted = new Promise((resolve) => { startNext = resolve; });
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          startNext();
+          return new Promise(() => {});
+        },
+      };
+    },
+  };
+
+  const iter = pull(source)[Symbol.asyncIterator]();
+  const next = assert.rejects(iter.next(), { name: 'AbortError' });
+  await nextStarted;
+
+  const timeout = {};
+  const result = await Promise.race([
+    iter.return(),
+    new Promise((resolve) => setImmediate(resolve, timeout)),
+  ]);
+
+  assert.notStrictEqual(result, timeout);
+  assert.deepStrictEqual(result, { value: undefined, done: true });
+  await next;
+}
+
+async function testTransformedConsumerReturnBeforeNext() {
+  const identity = (chunks) => chunks;
+  const pushed = push(identity);
+  const { broadcast: bc } = broadcast();
+  const broadcastConsumer = bc.push(identity);
+  const shared = share(from('shared'));
+  const sharedConsumer = shared.pull(identity);
+
+  assert.strictEqual(bc.consumerCount, 1);
+  assert.strictEqual(shared.consumerCount, 1);
+
+  const cases = [
+    [pushed.readable, common.mustCall(
+      () => assert.strictEqual(pushed.writer.canWrite, null))],
+    [broadcastConsumer, common.mustCall(
+      () => assert.strictEqual(bc.consumerCount, 0))],
+    [sharedConsumer, common.mustCall(
+      () => assert.strictEqual(shared.consumerCount, 0))],
+  ];
+
+  for (const [readable, verify] of cases) {
+    await readable[Symbol.asyncIterator]().return();
+    verify();
+  }
+}
+
+async function testPullSignalAbortWithTransformWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(
+    source,
+    (chunks) => chunks,
+    { signal: ac.signal },
+  )[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
 // Pull consumer break (return()) cleans up transform signal
 async function testPullConsumerBreakCleanup() {
   let signalAborted = false;
@@ -257,6 +358,23 @@ async function testPullStatelessTransformFlushError() {
   }, { message: 'async flush boom' });
 }
 
+// An abort during an async flush must not be swallowed when the flush resolves
+// to null and therefore produces no final batch.
+async function testPullSignalAbortDuringAsyncFlush() {
+  const ac = new AbortController();
+  const reason = new Error('aborted during flush');
+  const transform = async (chunks) => {
+    if (chunks !== null) return chunks;
+    ac.abort(reason);
+    return null;
+  };
+
+  await assert.rejects(
+    () => text(pull(from('x'), transform, { signal: ac.signal })),
+    (error) => error === reason,
+  );
+}
+
 // Pull with a sync iterable source (not async)
 async function testPullWithSyncSource() {
   function* gen() {
@@ -320,7 +438,7 @@ async function testTransformReturnsArrayBuffer() {
 // pipeTo() accepts a string source directly (normalized via from())
 async function testPipeToStringSource() {
   const { pipeTo, push: pushFn, text: textFn } = require('stream/iter');
-  const { writer, readable } = pushFn({ highWaterMark: 10 });
+  const { writer, readable } = pushFn({ budget: 16384 });
   const consume = (async () => textFn(readable))();
   await pipeTo('hello-pipe', writer);
   const data = await consume;
@@ -361,6 +479,10 @@ async function testTransformOptionsNotShared() {
     testPullSourceError(),
     testTapCallbackError(),
     testPullSignalAbortMidIteration(),
+    testPullSignalAbortWhileSourceNextPending(),
+    testPullReturnWhileSourceNextPending(),
+    testTransformedConsumerReturnBeforeNext(),
+    testPullSignalAbortWithTransformWhileSourceNextPending(),
     testPullConsumerBreakCleanup(),
     testPullTransformReturnsPromise(),
     testPullTransformYieldsStrings(),
@@ -369,6 +491,7 @@ async function testTransformOptionsNotShared() {
     testPullStatelessTransformFlush(),
     testPullConsecutiveStatelessTransformFlush(),
     testPullStatelessTransformFlushError(),
+    testPullSignalAbortDuringAsyncFlush(),
     testPullWithSyncSource(),
     testPullStringSource(),
     testTransformReturnsSingleUint8Array(),

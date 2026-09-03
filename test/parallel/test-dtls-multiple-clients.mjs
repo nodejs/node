@@ -6,9 +6,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,9 +16,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const serverCert = readKey('agent1-cert.pem');
-const serverKey = readKey('agent1-key.pem');
-const ca = readKey('ca1-cert.pem');
+const serverCert = fixtures.readKey('agent1-cert.pem');
+const serverKey = fixtures.readKey('agent1-key.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 const NUM_CLIENTS = 3;
 let sessionsAccepted = 0;
@@ -57,7 +54,7 @@ for (let i = 0; i < NUM_CLIENTS; i++) {
   });
 
   session.onmessage = mustCall((data) => {
-    strictEqual(data.toString(), `echo:client${i}`);
+    assert.strictEqual(data.toString(), `echo:client${i}`);
     received.resolve();
   });
 

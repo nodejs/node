@@ -1,10 +1,10 @@
 import '../common/index.mjs';
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert';
-import { spawnSync } from 'node:child_process';
 import { cp } from 'node:fs/promises';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
+import { spawnSyncAndAssert } from '../common/child_process.js';
 const skipIfNoInspector = {
   skip: !process.features.inspector ? 'inspector disabled' : false
 };
@@ -14,6 +14,16 @@ tmpdir.refresh();
 async function setupFixtures() {
   const fixtureDir = fixtures.path('test-runner', 'coverage-default-exclusion');
   await cp(fixtureDir, tmpdir.path, { recursive: true });
+}
+
+function assertDefaultExclusions(stdout) {
+  assert.match(stdout, /# start of coverage report/);
+  assert.doesNotMatch(stdout, /# file-test\.js\s+\|/);
+  assert.doesNotMatch(stdout, /# file\.test\.mjs\s+\|/);
+  assert.doesNotMatch(stdout, /# file\.test\.ts\s+\|/);
+  assert.doesNotMatch(stdout, /# test\.cjs\s+\|/);
+  assert.doesNotMatch(stdout, /#\s+not-matching-test-name\.js\s+\|/);
+  assert.match(stdout, /# end of coverage report/);
 }
 
 describe('test runner coverage default exclusion', skipIfNoInspector, () => {
@@ -47,71 +57,64 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
       '--test-reporter=tap',
       '--no-experimental-strip-types',
     ];
-    const result = spawnSync(process.execPath, args, {
+    spawnSyncAndAssert(process.execPath, args, {
       env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
       cwd: tmpdir.path
+    }, {
+      stderr: '',
+      stdout: new RegExp(RegExp.escape(report)),
     });
-
-    assert.strictEqual(result.stderr.toString(), '');
-    assert(result.stdout.toString().includes(report));
-    assert.strictEqual(result.status, 0);
   });
 
   it('should exclude test files from coverage by default', async () => {
-    const report = [
-      '# start of coverage report',
-      '# --------------------------------------------------------------',
-      '# file          | line % | branch % | funcs % | uncovered lines',
-      '# --------------------------------------------------------------',
-      '# logic-file.js |  66.67 |   100.00 |   50.00 | 5-7',
-      '# --------------------------------------------------------------',
-      '# all files     |  66.67 |   100.00 |   50.00 | ',
-      '# --------------------------------------------------------------',
-      '# end of coverage report',
-    ].join('\n');
-
     const args = [
       '--no-experimental-strip-types',
       '--test',
       '--experimental-test-coverage',
       '--test-reporter=tap',
     ];
-    const result = spawnSync(process.execPath, args, {
+    spawnSyncAndAssert(process.execPath, args, {
       env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
       cwd: tmpdir.path
+    }, {
+      stderr: '',
+      stdout: assertDefaultExclusions,
     });
-
-    assert.strictEqual(result.stderr.toString(), '');
-    assert(result.stdout.toString().includes(report));
-    assert.strictEqual(result.status, 0);
   });
 
   it('should exclude ts test files', async () => {
-    const report = [
-      '# start of coverage report',
-      '# --------------------------------------------------------------',
-      '# file          | line % | branch % | funcs % | uncovered lines',
-      '# --------------------------------------------------------------',
-      '# logic-file.js |  66.67 |   100.00 |   50.00 | 5-7',
-      '# --------------------------------------------------------------',
-      '# all files     |  66.67 |   100.00 |   50.00 | ',
-      '# --------------------------------------------------------------',
-      '# end of coverage report',
-    ].join('\n');
-
     const args = [
       '--test',
       '--experimental-test-coverage',
       '--disable-warning=ExperimentalWarning',
       '--test-reporter=tap',
     ];
-    const result = spawnSync(process.execPath, args, {
+    spawnSyncAndAssert(process.execPath, args, {
       env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
       cwd: tmpdir.path
+    }, {
+      stderr: '',
+      stdout: assertDefaultExclusions,
     });
+  });
 
-    assert.strictEqual(result.stderr.toString(), '');
-    assert(result.stdout.toString().includes(report));
-    assert.strictEqual(result.status, 0);
+  it('should exclude dotfile test files from coverage by default', async () => {
+    const args = [
+      '--no-experimental-strip-types',
+      '--test',
+      '--experimental-test-coverage',
+      '--test-reporter=tap',
+      'test/.dotfile.cjs',
+    ];
+    spawnSyncAndAssert(process.execPath, args, {
+      env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+      cwd: tmpdir.path
+    }, {
+      stderr: '',
+      stdout(output) {
+        assertDefaultExclusions(output);
+        assert.doesNotMatch(output, /#\s+\.dotfile\.cjs\s+\|/);
+      },
+    });
   });
 });

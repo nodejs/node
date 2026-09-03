@@ -1,0 +1,8 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Base URL in classic shared workers: XHR</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+fetch_tests_from_worker(new SharedWorker("../beta/xhr-worker.py"));
+</script>

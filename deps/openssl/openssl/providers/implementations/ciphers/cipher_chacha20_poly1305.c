@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,11 +30,11 @@ static OSSL_FUNC_cipher_get_params_fn chacha20_poly1305_get_params;
 static OSSL_FUNC_cipher_get_ctx_params_fn chacha20_poly1305_get_ctx_params;
 static OSSL_FUNC_cipher_set_ctx_params_fn chacha20_poly1305_set_ctx_params;
 static OSSL_FUNC_cipher_cipher_fn chacha20_poly1305_cipher;
+static OSSL_FUNC_cipher_update_fn chacha20_poly1305_update;
 static OSSL_FUNC_cipher_final_fn chacha20_poly1305_final;
 static OSSL_FUNC_cipher_gettable_ctx_params_fn chacha20_poly1305_gettable_ctx_params;
 static OSSL_FUNC_cipher_settable_ctx_params_fn chacha20_poly1305_settable_ctx_params;
 #define chacha20_poly1305_gettable_params ossl_cipher_generic_gettable_params
-#define chacha20_poly1305_update chacha20_poly1305_cipher
 
 static void *chacha20_poly1305_newctx(void *provctx)
 {
@@ -301,11 +301,6 @@ static int chacha20_poly1305_cipher(void *vctx, unsigned char *out,
     if (!ossl_prov_is_running())
         return 0;
 
-    if (inl == 0) {
-        *outl = 0;
-        return 1;
-    }
-
     if (outsize < inl) {
         ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);
         return 0;
@@ -315,6 +310,24 @@ static int chacha20_poly1305_cipher(void *vctx, unsigned char *out,
         return 0;
 
     return 1;
+}
+
+static int chacha20_poly1305_update(void *vctx, unsigned char *out,
+    size_t *outl, size_t outsize,
+    const unsigned char *in, size_t inl)
+{
+    /*
+     * A zero-length update is a no-op. Only EVP_Cipher() and Final produce or
+     * check the authentication tag.
+     */
+    if (inl == 0) {
+        if (!ossl_prov_is_running())
+            return 0;
+        *outl = 0;
+        return 1;
+    }
+
+    return chacha20_poly1305_cipher(vctx, out, outl, outsize, in, inl);
 }
 
 static int chacha20_poly1305_final(void *vctx, unsigned char *out, size_t *outl,

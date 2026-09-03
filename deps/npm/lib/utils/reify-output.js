@@ -16,6 +16,7 @@ const npmAuditReport = require('npm-audit-report')
 const { readTree: getFundingInfo } = require('libnpmfund')
 const { trustedDisplay } = require('@npmcli/arborist/lib/script-allowed.js')
 const auditError = require('./audit-error.js')
+const { configSetAllowScripts } = require('./allow-scripts-remediation.js')
 
 const reifyOutput = (npm, arb, extras = {}) => {
   const { diff, actualTree } = arb
@@ -65,7 +66,8 @@ const reifyOutput = (npm, arb, extras = {}) => {
             if (showDiff) {
               output.standard(`${chalk.green('add')} ${d.ideal.name} ${d.ideal.package.version}`)
             }
-            if (actualTree.inventory.has(d.ideal)) {
+            // Linked store packages live under .store, absent from the logical actualTree, so identity lookup misses them; count each store package node (non-link).
+            if (actualTree.inventory.has(d.ideal) || (d.ideal.isInStore && !d.ideal.isLink)) {
               summary.added++
               summary.add.push({
                 name: d.ideal.name,
@@ -243,10 +245,12 @@ const unreviewedScriptsMessage = (npm, unreviewedScripts) => {
   const pkg = count === 1 ? 'package has' : 'packages have'
   const header = `${count} ${pkg} install scripts not yet covered by allowScripts:`
 
+  const names = []
   const lines = unreviewedScripts.map(({ node, scripts }) => {
     const { name, version } = trustedDisplay(node)
     /* istanbul ignore next: every test node has a name */
     const display = name || '<unknown>'
+    names.push(display)
     const ver = version ? `@${version}` : ''
     const events = Object.entries(scripts)
       .map(([event, cmd]) => `${event}: ${cmd}`)
@@ -255,14 +259,33 @@ const unreviewedScriptsMessage = (npm, unreviewedScripts) => {
   })
 
   log.warn(
-    'allow-scripts',
+    'install-scripts',
     [
       header,
       ...lines,
       '',
-      'Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.',
+      ...remediationLines(npm, names),
     ].join('\n')
   )
+}
+
+// `npm install-scripts` writes to a project package.json, which doesn't
+// exist for global installs (it throws EGLOBAL). For those, point users at
+// the mechanism that does work globally: the `--allow-scripts` flag for a
+// one-off, or `npm config set allow-scripts` to persist it.
+const remediationLines = (npm, names) => {
+  if (npm.global) {
+    const list = names.join(',')
+    return [
+      `Run \`npm install -g --allow-scripts=${list}\` to allow these scripts ` +
+      `once, or \`${configSetAllowScripts(names)}\` to allow them for ` +
+      'all global installs.',
+    ]
+  }
+  return [
+    'Run `npm install-scripts ls` to review, ' +
+    'or `npm install-scripts approve <pkg>` to allow.',
+  ]
 }
 
 module.exports = reifyOutput

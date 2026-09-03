@@ -129,8 +129,8 @@ async function testWriteSyncAlwaysFails() {
 // backpressure. pipeTo must wait for drain, not retry the same write.
 async function assertPushWriterBlockPipeTo(source, expected, expectedTotal) {
   const { writer, readable } = push({
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
   });
 
   const pipe = pipeTo(source, writer);
@@ -152,6 +152,38 @@ async function testPushWriterBlockSyncFalseAccepted() {
     yield [new Uint8Array([97, 98])];
     yield [new Uint8Array([99]), new Uint8Array([100])];
   })(), 'abcd', 4);
+}
+
+async function testPipeToSyncPushWriterStrictFalseRejected() {
+  const kChunk = new Uint8Array(16384);
+  const { writer } = push({ budget: 16384 });
+
+  // Pre-fill the buffer so it's at capacity
+  writer.writeSync(kChunk);
+
+  // pipeToSync should throw when writeSync returns false (budget exhausted)
+  assert.throws(
+    () => pipeToSync([kChunk], writer,
+                     { preventClose: true, preventFail: true }),
+    { code: 'ERR_OUT_OF_RANGE' },
+  );
+}
+
+async function testPipeToSyncWritevFalseNotCounted() {
+  const writer = {
+    writevSync() { return false; },
+    writeSync: common.mustNotCall(),
+    endSync() { return 0; },
+  };
+  function* source() {
+    yield [new Uint8Array([1]), new Uint8Array([2])];
+  }
+
+  // pipeToSync throws when writevSync returns false (budget exhausted)
+  assert.throws(
+    () => pipeToSync(source(), writer),
+    { code: 'ERR_OUT_OF_RANGE' },
+  );
 }
 
 // pipeToSync with writevSync
@@ -215,6 +247,8 @@ Promise.all([
   testWriteSyncFailsMidBatch(),
   testWriteSyncAlwaysFails(),
   testPushWriterBlockSyncFalseAccepted(),
+  testPipeToSyncPushWriterStrictFalseRejected(),
+  testPipeToSyncWritevFalseNotCounted(),
   testPipeToSyncWritev(),
   testPipeToSyncPlainChunksWritev(),
   testPipeToSyncWriteFallback(),

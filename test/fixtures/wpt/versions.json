@@ -52,7 +52,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "a8392bd0210378dda13278eeccf2c2602278e214",
+    "commit": "3f15e5c09448b8e917c9128d3b07cc78f044c83a",
     "path": "interfaces"
   },
   "performance-timeline": {
@@ -67,16 +67,20 @@
     "commit": "6a2f32237615d7ea9c1eb1e30453066b5555c603",
     "path": "resources"
   },
+  "service-workers": {
+    "commit": "b7ed7c8dcd260f0f80879577752c68f042a7d054",
+    "path": "service-workers"
+  },
   "streams": {
-    "commit": "f8f26a372f357370846226ff64db1f9cc98a1edb",
+    "commit": "4832db47614f5f48cc57374cbf5c1f70937fad48",
     "path": "streams"
   },
   "url": {
-    "commit": "e4a4672e9e607fc2b28e7173b83ce4e38ef53071",
+    "commit": "c23755a1449cc9c5a9131378c13ecf073c0885c6",
     "path": "url"
   },
   "urlpattern": {
-    "commit": "f07c03cbede41ba677c3d26fd17ff3e02ba26783",
+    "commit": "4832db47614f5f48cc57374cbf5c1f70937fad48",
     "path": "urlpattern"
   },
   "user-timing": {
@@ -96,11 +100,11 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "0c413fb56b9da8bf27502c866a3d60f93981804d",
+    "commit": "e235e089b4e44a598f2d61e93732e0c4d9f03e04",
     "path": "WebCryptoAPI"
   },
   "webidl": {
-    "commit": "63ca529a021fec15b2996db82fd7dd04c11abe85",
+    "commit": "65bbe07908e5c19e8a6c7ff8701cc2a722cd215e",
     "path": "webidl"
   },
   "webidl/ecmascript-binding/es-exceptions": {
@@ -114,5 +118,9 @@
   "webstorage": {
     "commit": "1d2c5fb36a6e477c8f915bde7eca027be6abe792",
     "path": "webstorage"
+  },
+  "workers": {
+    "commit": "4832db47614f5f48cc57374cbf5c1f70937fad48",
+    "path": "workers"
   }
 }

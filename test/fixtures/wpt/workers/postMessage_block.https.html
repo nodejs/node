@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+const t = async_test('postMessage and block');
+
+const w = new Worker('support/postMessage_block_worker.js');
+
+w.onmessage = t.step_func_done(() => {
+  const a = new Int32Array(new SharedArrayBuffer(4));
+  w.postMessage(a);
+  while (Atomics.load(a, 0) === 0);
+  assert_equals(Atomics.load(a, 0), 1);
+});
+</script>
+</body>

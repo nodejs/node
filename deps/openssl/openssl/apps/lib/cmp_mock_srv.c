@@ -345,6 +345,7 @@ static OSSL_CMP_PKISI *process_cert_request(OSSL_CMP_SRV_CTX *srv_ctx,
             STACK_OF(ASN1_UTF8STRING) *strs;
             ASN1_UTF8STRING *str;
             const char *data;
+            int len;
 
             if (OBJ_obj2nid(obj) == NID_id_it_certProfile) {
                 if (!OSSL_CMP_ITAV_get0_certProfile(itav, &strs))
@@ -359,7 +360,8 @@ static OSSL_CMP_PKISI *process_cert_request(OSSL_CMP_SRV_CTX *srv_ctx,
                     ERR_raise(ERR_LIB_CMP, ERR_R_PASSED_INVALID_ARGUMENT);
                     return NULL;
                 }
-                if (strcmp(data, "profile1") != 0) {
+                if (((len = ASN1_STRING_length(str)) != (int)sizeof("profile1") - 1)
+                    || memcmp(data, "profile1", len) != 0) {
                     ERR_raise(ERR_LIB_CMP, CMP_R_UNEXPECTED_CERTPROFILE);
                     return NULL;
                 }

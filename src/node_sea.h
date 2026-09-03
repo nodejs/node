@@ -30,6 +30,7 @@ enum class SeaFlags : uint32_t {
   kUseCodeCache = 1 << 2,
   kIncludeAssets = 1 << 3,
   kIncludeExecArgv = 1 << 4,
+  kEnableVfs = 1 << 5,
 };
 
 enum class SeaExecArgvExtension : uint8_t {
@@ -70,7 +71,9 @@ struct SeaResource {
 bool IsSingleExecutable();
 std::string_view FindSingleExecutableBlob();
 SeaResource FindSingleExecutableResource();
-std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
+std::tuple<int, char**> FixupArgsForSEA(int argc,
+                                        char** argv,
+                                        std::vector<std::string>* errors);
 node::ExitCode WriteSingleExecutableBlob(
     const std::string& config_path,
     const std::vector<std::string>& args,

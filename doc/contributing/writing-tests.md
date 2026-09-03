@@ -345,7 +345,7 @@ when troubleshooting tests that timeout in CI. With no log statements, we have
 no idea where the test got hung up.
 
 There have been cases where tests fail without `console.log()`, and then pass
-when its added, so be cautious about its use, particularly in tests of the I/O
+when it's added, so be cautious about its use, particularly in tests of the I/O
 and streaming APIs.
 
 Excessive use of console output is discouraged as it can overwhelm the display,
@@ -430,19 +430,21 @@ static void at_exit_callback(void* arg) {
 }
 ```
 
-Next add the test to the `sources` in the `cctest` target in node.gyp:
+There is no need to list the file anywhere: `configure.py` collects every `.cc`
+and `.h` file under `test/cctest` into the `node_cctest_sources` variable that
+the `cctest` target in node.gyp builds.
 
-```console
-'sources': [
-  'test/cctest/test_env.cc',
-  ...
-],
-```
+If the test can only be built when a given feature is enabled, add it to the
+matching variable in node.gyp so that it is excluded from the build otherwise:
 
-The only sources that should be included in the cctest target are
-actual test or helper source files. There might be a need to include specific
-object files that are compiled by the `node` target and this can be done by
-adding them to the `libraries` section in the cctest target.
+* `node_cctest_openssl_sources` for tests that require crypto support
+* `node_cctest_quic_sources` for tests that require QUIC support
+* `node_cctest_inspector_sources` for tests that require the inspector
+
+The only sources that should be placed in `test/cctest` are actual test or
+helper source files. There might be a need to include specific object files
+that are compiled by the `node` target and this can be done by adding them to
+the `libraries` section in the cctest target.
 
 The test can be executed by running the `cctest` target:
 

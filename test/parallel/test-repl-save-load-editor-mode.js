@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,9 +11,7 @@ tmpdir.refresh();
 
 // Test for saving a REPL session in editor mode
 
-const { replServer, input } = startNewREPLServer();
-
-input.run(['.editor']);
+const { replServer, input, run, waitForIdle } = startNewREPLServer();
 
 const commands = [
   'function testSave() {',
@@ -21,15 +19,23 @@ const commands = [
   '}',
 ];
 
-input.run(commands);
-
-replServer.write('', { ctrl: true, name: 'd' });
-
 const filePath = path.resolve(tmpdir.path, 'test.save.js');
 
-input.run([`.save ${filePath}`]);
+async function main() {
+  await run(['.editor']);
 
-assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
-                   `${commands.join('\n')}\n`);
+  // Editor-mode lines are buffered synchronously; the evaluation is triggered
+  // only when editor mode ends (Ctrl+D), and that evaluation is asynchronous.
+  input.run(commands);
+  replServer.write('', { ctrl: true, name: 'd' });
+  await waitForIdle();
 
-replServer.close();
+  await run([`.save ${filePath}`]);
+
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
+                     `${commands.join('\n')}\n`);
+
+  replServer.close();
+}
+
+main().then(common.mustCall());

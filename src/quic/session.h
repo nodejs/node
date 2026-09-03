@@ -12,6 +12,7 @@
 #include <timer_wrap.h>
 #include <util.h>
 #include <optional>
+#include <span>
 #include "bindingdata.h"
 #include "cid.h"
 #include "data.h"
@@ -104,19 +105,25 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // of a QUIC Session.
   class Application;
 
-  // Decode the first ALPN protocol name from wire format (length-prefixed).
-  static std::string_view DecodeAlpn(std::string_view wire);
+  // A block of pending outbound stream data, passed between the application
+  // layer (which fills it via GetStreamData) and the send pump (which hands
+  // it to ngtcp2_conn_writev_stream and commits the accepted length).
+  struct StreamData final {
+    // The actual number of vectors in the struct, up to kMaxVectorCount.
+    size_t count = 0;
+    // The stream identifier. If this is a negative value then no stream is
+    // identified.
+    stream_id id = -1;
+    bool fin = false;
+    ngtcp2_vec data[kMaxVectorCount]{};
+    BaseObjectPtr<Stream> stream;
 
-  // Select the Application implementation based on the negotiated ALPN.
-  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
-  // to DefaultApplication. Sets the application_type state field.
-  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+    inline operator const ngtcp2_vec*() const { return data; }
+    inline operator ngtcp2_vec*() { return data; }
 
-  // Install the Application on the session. Called at construction for
-  // clients (ALPN known upfront) or from OnSelectAlpn for servers
-  // (ALPN negotiated during handshake). Must be called before any
-  // application data is received.
-  void SetApplication(std::unique_ptr<Application> app);
+    std::string ToString() const;
+  };
+
   // Controls which datagram to drop when the pending datagram queue is full.
   enum class DatagramDropPolicy : uint8_t {
     DROP_OLDEST = 0,  // Drop the oldest queued datagram (default).
@@ -412,10 +419,63 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                   const PacketInfo& pkt_info = PacketInfo(),
                   uint64_t ts = 0);
 
+  // Handles the result of an ngtcp2 call that drives inbound processing
+  // (ngtcp2_conn_read_pkt or ngtcp2_conn_continue_handshake).
+  bool AfterNgtcp2Read(int err);
+
+  // Decode the first ALPN protocol name from wire format (length-prefixed).
+  static std::string_view DecodeAlpn(std::string_view wire);
+
+  // Select the Application implementation based on the negotiated ALPN.
+  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
+  // to DefaultApplication. Sets the application_type state field.
+  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+
+  // Install the Application on the session. Called at construction for
+  // clients (ALPN known upfront) or from the ClientHello callback for
+  // servers (ALPN negotiated during handshake). Must be called before any
+  // application data is received.
+  void SetApplication(std::unique_ptr<Application> app);
+
+  void InstallApplicationForAlpn(std::string_view alpn);
+
+  // ngtcp2 ignores the duplicate when the TLS stack reports these again.
+  void SetEarlyRemoteTransportParams(std::span<const uint8_t> params);
+
   // Called by BindingData's flush callback to trigger SendPendingData
   // on this session. Encapsulates the application() access so that
   // bindingdata.cc doesn't need the full Application type definition.
   void FlushPendingData();
+
+  // The send pump: the primary driver for serializing outbound data.
+  // Loops through available stream data (pulled from the application
+  // layer via GetStreamData/StreamCommit) and pending datagrams,
+  // generating packets until there is no more data to send or the
+  // packet budget for this call is exhausted.
+  void SendPendingData();
+
+  Packet::Ptr CreateStreamDataPacket();
+
+  // Tries to pack a pending datagram into the current packet buffer.
+  // If a negative value is returned, it is either NGTCP2_ERR_WRITE_MORE or
+  // fatal error; the caller must check. If > 0 is returned, the packet is done
+  // and the value is the size of the finalized packet. If 0 is returned,
+  // the datagram is either congestion limited or was abandoned.
+  ssize_t TryWritePendingDatagram(PathStorage* path,
+                                  uint8_t* dest,
+                                  size_t destlen,
+                                  uint64_t ts);
+
+  // Write the given stream_data into the buffer. The PacketInfo out-param
+  // is populated by ngtcp2 with per-packet metadata (e.g., ECN codepoint)
+  // that should be applied when sending the packet.
+  ssize_t WriteVStream(PathStorage* path,
+                       PacketInfo* pi,
+                       uint8_t* buf,
+                       ssize_t* ndatalen,
+                       size_t max_packet_size,
+                       const StreamData& stream_data,
+                       uint64_t ts);
 
   // Send a batch of packets accumulated by SendPendingData. Uses
   // Endpoint::SendBatch (uv_udp_try_send2 / sendmmsg) for synchronous
@@ -486,6 +546,21 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void SetLastError(QuicError&& error);
   uint64_t max_data_left() const;
 
+  // Transport operations that protocol applications (e.g. HTTP/3) invoke on
+  // the session, encapsulating ngtcp2 transport details here.
+
+  // Open a unidirectional stream, setting *id on success, or returning false
+  bool OpenUnidirectionalStream(stream_id* id);
+
+  void ExtendMaxStreams(Direction direction, uint64_t max);
+
+  // Signal that we've consumed `len` bytes on stream `id` to update flow
+  // control
+  void Consume(stream_id id, size_t len);
+
+  // Record an application-level error on the connection without closing it.
+  void SetApplicationError(error_code app_error_code);
+
   PendingStream::PendingStreamQueue& pending_bidi_stream_queue() const;
   PendingStream::PendingStreamQueue& pending_uni_stream_queue() const;
 
@@ -536,10 +611,19 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // before the handshake completes.
   void PopulateEarlyTransportParamsState();
 
+  void set_hello_processed() { hello_processed_ = true; }
+
+  // True once the negotiated TLS parameters (SNI, ALPN) are final.
+  bool tls_info_ready() const;
+
   // It's a terrible name but "wrapped" here means that the Session has been
   // passed out to JavaScript and should be "wrapped" by whatever handler is
   // defined there to manage it.
   void set_wrapped();
+
+  void ResumeHandshake();
+
+  void FlushPendingQlog();
 
   enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
@@ -615,6 +699,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
+  void EmitApplication();
   void DatagramStatus(datagram_id datagramId, DatagramStatus status);
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
@@ -654,6 +739,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint8_t prefer_try_send : 1 = 0;
   };
   Flags flags_;
+
+  bool hello_processed_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;

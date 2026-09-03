@@ -243,12 +243,12 @@ tmpdir.refresh();
     pipeline(rs, res, () => {});
   }));
 
-  let cnt = 10;
+  let received = 0;
 
   const badSink = new Writable({
     write(data, enc, cb) {
-      cnt--;
-      if (cnt === 0) cb(new Error('kaboom'));
+      received += data.length;
+      if (received >= 50) cb(new Error('kaboom'));
       else cb();
     }
   });
@@ -270,7 +270,11 @@ tmpdir.refresh();
 
 {
   const server = http.createServer(common.mustCallAtLeast((req, res) => {
-    pipeline(req, res, common.mustSucceed());
+    pipeline(req, res, common.mustCall((err) => {
+      // The client destroys the request body source before EOF below, so the
+      // echoed response cannot finish successfully either.
+      assert.strictEqual(err?.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    }));
   }));
 
   server.listen(0, common.mustCall(() => {
@@ -578,7 +582,7 @@ tmpdir.refresh();
 }
 
 {
-  const server = http.Server(function(req, res) {
+  const server = new http.Server(function(req, res) {
     res.write('asd');
   });
   server.listen(0, common.mustCall(function() {

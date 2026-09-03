@@ -15,9 +15,23 @@ const buf = Buffer.from(content, 'hex');
 const decoder = createBrotliDecompress();
 decoder.end(buf);
 
-// We need to wait to verify that the libuv thread pool had time
-// to process the data and the buffer is not empty.
-setTimeout(common.mustCall(() => {
-  // There is only one chunk in the buffer
-  assert.strictEqual(decoder._readableState.buffer.length, getDefaultHighWaterMark() / (16 * 1024));
-}), common.platformTimeout(500));
+const expectedBufferedChunks = getDefaultHighWaterMark() / (16 * 1024);
+
+function waitForBackpressure() {
+  const bufferedChunks = decoder._readableState.buffer.length;
+
+  assert.ok(bufferedChunks <= expectedBufferedChunks);
+
+  if (bufferedChunks < expectedBufferedChunks) {
+    setImmediate(waitForBackpressure);
+    return;
+  }
+
+  // Verify that decompression stopped once the readable buffer filled up.
+  setTimeout(common.mustCall(() => {
+    assert.strictEqual(decoder._readableState.buffer.length,
+                       expectedBufferedChunks);
+  }), common.platformTimeout(500));
+}
+
+waitForBackpressure();

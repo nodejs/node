@@ -111,15 +111,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 # define NODE_DEPRECATED(message, declarator) declarator
 #else  // NODE_WANT_INTERNALS
-# if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __attribute__((deprecated(message))) declarator
-# elif defined(_MSC_VER)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __declspec(deprecated) declarator
-# else
-#  define NODE_DEPRECATED(message, declarator) declarator
-# endif
+#define NODE_DEPRECATED(message, declarator) [[deprecated(message)]] declarator
 #endif
 
 // Forward-declare libuv loop
@@ -231,7 +223,8 @@ enum Flags : uint32_t {
   kNoParseGlobalDebugVariables = 1 << 9,
   // Do not adjust OS resource limits for this process.
   kNoAdjustResourceLimits = 1 << 10,
-  // Do not map code segments into large pages for this process.
+  // Legacy flag for not mapping code segments into large pages for this
+  // process. The feature is no longer supported so this is just a no-op.
   kNoUseLargePages = 1 << 11,
   // Skip printing output for --help, --version, --v8-options.
   kNoPrintHelpOrVersionOutput = 1 << 12,
@@ -241,6 +234,11 @@ enum Flags : uint32_t {
   kNoInitializeCppgc = 1 << 13,
   // Initialize the process for predictable snapshot generation.
   kGeneratePredictableSnapshot = 1 << 14,
+  // Do not serialize a code cache for builtins that had to be compiled without
+  // one. By default such caches are kept so that worker threads created later
+  // start faster; an embedder that supplies an EmbedderBuiltinCodeCache or
+  // never creates workers only pays for the serialization.
+  kNoHarvestBuiltinCodeCache = 1 << 15,
 
   // Emulate the behavior of InitializeNodeWithArgs() when passing
   // a flags argument to the InitializeOncePerProcess() replacement
@@ -680,11 +678,55 @@ struct SnapshotConfig {
   // the snapshot builder can execute asynchronous operations as long as they
   // are run to completion when the snapshot is taken.
   std::optional<std::string> builder_script_path;
+
+  // A V8 startup blob (as produced by V8's mksnapshot) to build the snapshot
+  // on top of, instead of setting up the V8 heap from scratch. Needed when
+  // the V8 that Node.js is linked against can only deserialize (external
+  // startup data), and to keep the result on the same read-only heap lineage
+  // as the embedder's other isolates. Caller-owned; must outlive the setup.
+  const v8::StartupData* base_blob = nullptr;
 };
 
 struct InspectorParentHandle {
   virtual ~InspectorParentHandle() = default;
 };
+
+// Code cache for the built-in JavaScript of Environments that are bootstrapped
+// rather than deserialized from a snapshot; see SetBuiltinCodeCache().
+class NODE_EXTERN EmbedderBuiltinCodeCache {
+ public:
+  struct Entry {
+    std::string id;  // e.g. "internal/bootstrap/node"
+    std::unique_ptr<v8::ScriptCompiler::CachedData> data;
+  };
+  explicit EmbedderBuiltinCodeCache(std::vector<Entry> entries);
+  ~EmbedderBuiltinCodeCache();
+
+  // Compiles every built-in module in `context`, which must come from
+  // NewContext(), and returns their code caches; empty on failure.
+  static std::vector<Entry> Generate(v8::Local<v8::Context> context);
+
+  v8::ScriptCompiler::CachedData::CompatibilityCheckResult CompatibilityCheck(
+      v8::Isolate* isolate) const;
+
+  EmbedderBuiltinCodeCache(const EmbedderBuiltinCodeCache&) = delete;
+  EmbedderBuiltinCodeCache& operator=(const EmbedderBuiltinCodeCache&) = delete;
+
+  struct Impl;
+
+ private:
+  std::unique_ptr<Impl> impl_;
+  friend NODE_EXTERN v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+  SetBuiltinCodeCache(IsolateData*, const EmbedderBuiltinCodeCache*);
+};
+
+// Environments created from `isolate_data` afterwards start with `cache`'s
+// entries (they share its buffers; `cache` itself may be freed after the call);
+// nullptr clears it. Returns the result of `cache->CompatibilityCheck()` and
+// leaves `isolate_data` unchanged unless that is kSuccess.
+NODE_EXTERN v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+SetBuiltinCodeCache(IsolateData* isolate_data,
+                    const EmbedderBuiltinCodeCache* cache);
 
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
@@ -698,17 +740,8 @@ NODE_EXTERN Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
     ThreadId thread_id = {} /* allocates a thread id automatically */,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
-
-NODE_EXTERN Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    v8::Local<v8::Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
-    std::string_view thread_name);
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {},
+    std::string_view thread_name = {});
 
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.
@@ -860,6 +893,16 @@ NODE_EXTERN void SetProcessExitHandler(
     Environment* env,
     std::function<void(Environment*, int)>&& handler);
 NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
+
+// Sets a process-global handler invoked when Node.js programmatically aborts.
+// Nullable strings representing the location and reason for the abort may or
+// may not be passed as a parameter to the handler. The handler should not
+// return, but node will ensure that the process exits after the handler is
+// called regardless of whether or not it returns. Passing nullptr restores the
+// default handler. This is process-global and may be invoked before any Isolate
+// or Environment exists.
+using AbortHandler = void (*)(const char* location, const char* message);
+NODE_EXTERN void SetAbortHandler(AbortHandler handler);
 
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);

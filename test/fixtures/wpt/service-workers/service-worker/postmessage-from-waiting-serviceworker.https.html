@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>Service Worker: postMessage from waiting serviceworker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+function echo(worker, data) {
+  return new Promise(resolve => {
+    navigator.serviceWorker.addEventListener('message', function onMsg(evt) {
+      navigator.serviceWorker.removeEventListener('message', onMsg);
+      resolve(evt);
+    });
+    worker.postMessage(data);
+  });
+}
+
+promise_test(t => {
+  let script = 'resources/echo-message-to-source-worker.js';
+  let scope = 'resources/client-postmessage-from-wait-serviceworker';
+  let registration;
+  let frame;
+  return service_worker_unregister_and_register(t, script, scope)
+    .then(swr => {
+      t.add_cleanup(() => service_worker_unregister(t, scope));
+
+      registration = swr;
+      return wait_for_state(t, registration.installing, 'activated');
+    }).then(_ => {
+      return with_iframe(scope);
+    }).then(f => {
+      frame = f;
+      return navigator.serviceWorker.register(script + '?update', { scope: scope })
+    }).then(swr => {
+      assert_equals(swr, registration, 'should be same registration');
+      return wait_for_state(t, registration.installing, 'installed');
+    }).then(_ => {
+      return echo(registration.waiting, 'waiting');
+    }).then(evt => {
+      assert_equals(evt.source, registration.waiting,
+                    'message event source should be correct');
+      return echo(registration.active, 'active');
+    }).then(evt => {
+      assert_equals(evt.source, registration.active,
+                    'message event source should be correct');
+      frame.remove();
+    });
+}, 'Client.postMessage() from waiting serviceworker.');
+</script>

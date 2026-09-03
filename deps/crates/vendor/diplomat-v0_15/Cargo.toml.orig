@@ -1,0 +1,27 @@
+[package]
+name = "diplomat"
+description = "The diplomat FFI generation macro"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+readme = "../README.md"
+
+[lib]
+proc-macro = true
+path = "src/lib.rs"
+
+[dependencies]
+diplomat_core.workspace = true
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0.27"
+
+[dev-dependencies]
+insta = "1.7.1"
+tempfile = "3.2.0"
+prettyplease = "0.2.30"

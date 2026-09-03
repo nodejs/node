@@ -1,5 +1,8 @@
 // META: title=WebCryptoAPI: deriveKey() Using ECDH
 // META: script=../util/helpers.js
+// META: script=ecdh_fixtures.js
+// META: script=derive.js
+// META: script=ecdh.js
 // META: script=ecdh_keys.js
 
 // Define subtests from a `promise_test` to ensure the harness does not

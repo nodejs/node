@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -2026,6 +2026,19 @@ static int tls_early_post_process_client_hello(SSL_CONNECTION *s)
             s->peer_ciphers = ciphers;
             s->session->verify_result = X509_V_OK;
 
+            /*
+             * Per RFC 4851, Section 3.2.2:
+             * If the ClientHello contains both a Session ID and a PAC-Opaque in
+             * the SessionTicket extension, and the server resumes the session
+             * using the PAC-Opaque, it should echo the same Session ID in the
+             * ServerHello.
+             */
+            if (clienthello->session_id_len > 0) {
+                memcpy(s->session->session_id, clienthello->session_id,
+                    clienthello->session_id_len);
+                s->session->session_id_length = clienthello->session_id_len;
+            }
+
             ciphers = NULL;
 
             /* check if some cipher was preferred by call back */
@@ -3908,8 +3921,10 @@ CON_FUNC_RETURN tls_construct_server_compressed_certificate(SSL_CONNECTION *sc, 
         || !WPACKET_put_bytes_u24(pkt, cc->orig_len)
         || !WPACKET_start_sub_packet_u24(pkt)
         || !WPACKET_memcpy(pkt, cc->data, cc->len)
-        || !WPACKET_close(pkt))
+        || !WPACKET_close(pkt)) {
+        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
+    }
 
     sc->s3.tmp.cert->cert_comp_used++;
     return 1;
@@ -4238,7 +4253,7 @@ CON_FUNC_RETURN tls_construct_new_session_ticket(SSL_CONNECTION *s, WPACKET *pkt
             SSL_SESSION *new_sess = ssl_session_dup(s->session, 0);
 
             if (new_sess == NULL) {
-                /* SSLfatal already called */
+                SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_SSL_LIB);
                 goto err;
             }
 

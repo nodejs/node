@@ -673,6 +673,14 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }));
     });
 
+    it('should only allow object in options.env', () => {
+      [Symbol(), [], () => {}, 0, 1, 0n, 1n, '', '1', true, false]
+        .forEach((env) => assert.throws(() => run({ files: [], env }), {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "options\.env" property must be of type object\./
+        }));
+    });
+
     it('should not allow files and globPatterns used together', () => {
       assert.throws(() => run({ files: ['a.js'], globPatterns: ['*.js'] }), {
         code: 'ERR_INVALID_ARG_VALUE'
@@ -862,6 +870,48 @@ describe('forceExit', () => {
   });
 });
 
+describe('with isolation="none"', () => {
+  const isolationNoneFixture = fixtures.path('test-runner', 'test-runner-isolation-none.mjs');
+
+  it('should pass only to children', async () => {
+    const child = await common.spawnPromisified(process.execPath, [
+      isolationNoneFixture,
+      '--file', join(testFixtures, 'test_only.js'),
+      '--only',
+    ]);
+
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+    assert.match(child.stdout, /ok 1 - this should be executed/);
+    assert.match(child.stdout, /# tests 1/);
+  });
+
+  it('should skip tests not matching testNamePatterns - RegExp', async () => {
+    const child = await common.spawnPromisified(process.execPath, [
+      isolationNoneFixture,
+      '--file', join(testFixtures, 'default-behavior/test/skip_by_name.cjs'),
+      '--name-pattern', 'executed',
+    ]);
+
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+    assert.match(child.stdout, /ok 1 - this should be executed/);
+    assert.match(child.stdout, /# tests 1/);
+  });
+
+  it('should skip tests matching testSkipPatterns - RegExp', async () => {
+    const child = await common.spawnPromisified(process.execPath, [
+      isolationNoneFixture,
+      '--file', join(testFixtures, 'default-behavior/test/skip_by_name.cjs'),
+      '--skip-pattern', 'skipped',
+    ]);
+
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+    assert.match(child.stdout, /ok 1 - this should be executed/);
+    assert.match(child.stdout, /# tests 1/);
+  });
+});
 
 // exitHandler doesn't run until after the tests / after hooks finish.
 process.on('exit', () => {

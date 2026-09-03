@@ -29,6 +29,8 @@
 #  include <config.h>
 #endif // defined(HAVE_CONFIG_H)
 
+#include <filesystem>
+
 #include "tls_session_base_quictls.h"
 #include "shared.h"
 
@@ -48,7 +50,8 @@ public:
 
   bool get_early_data_accepted() const;
   bool get_ech_accepted() const;
-  std::expected<void, Error> write_ech_config_list(const char *path) const;
+  std::expected<void, Error>
+  write_ech_config_list(const std::filesystem::path &path) const;
 };
 
 #endif // !defined(TLS_CLIENT_SESSION_BORINGSSL_H)

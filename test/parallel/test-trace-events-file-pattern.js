@@ -5,6 +5,8 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+common.skipIfPerfettoEnabled();
+
 tmpdir.refresh();
 
 const CODE =

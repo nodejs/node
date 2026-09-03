@@ -9,7 +9,7 @@
 #include "node_sea.h"
 #include "uv.h"
 #if HAVE_OPENSSL
-#include "openssl/opensslv.h"
+#include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
 #include "quic/guard.h"
 #endif
 
@@ -83,6 +83,23 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
                       "used, not both");
   }
+
+  if (force_fips_crypto_policy != "provider" &&
+      force_fips_crypto_policy != "strict") {
+    errors->push_back(
+        "invalid value for --force-fips; expected 'provider' or 'strict'");
+  }
+
+#if defined(OPENSSL_IS_BORINGSSL) || !OPENSSL_VERSION_PREREQ(3, 4)
+  if (enable_fips_indicator_events) {
+    errors->push_back(
+        "--enable-fips-indicator-events requires OpenSSL 3.4 or later");
+  }
+
+  if (force_fips_crypto && force_fips_crypto_policy == "strict") {
+    errors->push_back("--force-fips=strict requires OpenSSL 3.4 or later");
+  }
+#endif
 
   // Any value less than 2 disables use of the secure heap.
 #ifndef V8_ENABLE_SANDBOX
@@ -474,30 +491,30 @@ DebugOptionsParser::DebugOptionsParser() {
 
   AddOption("--inspect",
             "activate inspector on host:port (default: 127.0.0.1:9229)",
-            &DebugOptions::inspector_enabled,
+            BOOL_FIELD(inspector_enabled),
             kAllowedInEnvvar);
   AddAlias("--inspect=", { "--inspect-port", "--inspect" });
 
-  AddOption("--debug", "", &DebugOptions::deprecated_debug);
+  AddOption("--debug", "", BOOL_FIELD(deprecated_debug));
   AddAlias("--debug=", "--debug");
-  AddOption("--debug-brk", "", &DebugOptions::deprecated_debug);
+  AddOption("--debug-brk", "", BOOL_FIELD(deprecated_debug));
   AddAlias("--debug-brk=", "--debug-brk");
 
   AddOption("--inspect-brk",
             "activate inspector on host:port and break at start of user script",
-            &DebugOptions::break_first_line,
+            BOOL_FIELD(break_first_line),
             kAllowedInEnvvar);
   Implies("--inspect-brk", "--inspect");
   AddAlias("--inspect-brk=", { "--inspect-port", "--inspect-brk" });
 
-  AddOption("--inspect-brk-node", "", &DebugOptions::break_node_first_line);
+  AddOption("--inspect-brk-node", "", BOOL_FIELD(break_node_first_line));
   Implies("--inspect-brk-node", "--inspect");
   AddAlias("--inspect-brk-node=", { "--inspect-port", "--inspect-brk-node" });
 
   AddOption(
       "--inspect-wait",
       "activate inspector on host:port and wait for debugger to be attached",
-      &DebugOptions::inspect_wait,
+      BOOL_FIELD(inspect_wait),
       kAllowedInEnvvar);
   Implies("--inspect-wait", "--inspect");
   AddAlias("--inspect-wait=", {"--inspect-port", "--inspect-wait"});
@@ -518,24 +535,24 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-detect-module",
             "when ambiguous modules fail to evaluate because they contain "
             "ES module syntax, try again to evaluate them as ES modules",
-            &EnvironmentOptions::detect_module,
+            BOOL_FIELD(detect_module),
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-print-required-tla",
             "Print pending top-level await. If --require-module "
             "is true, evaluate asynchronous graphs loaded by `require()` but "
-            "do not run the microtasks, in order to to find and print "
+            "do not run the microtasks, in order to find and print "
             "top-level await in the graph",
-            &EnvironmentOptions::print_required_tla,
+            BOOL_FIELD(print_required_tla),
             kAllowedInEnvvar);
   AddOption("--require-module",
             "Allow loading synchronous ES Modules in require().",
-            &EnvironmentOptions::require_module,
+            BOOL_FIELD(require_module),
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-require-module",
             "Legacy alias for --require-module",
-            &EnvironmentOptions::require_module,
+            BOOL_FIELD(require_module),
             kAllowedInEnvvar,
             true);
   Implies("--experimental-require-module", "--require-module");
@@ -546,7 +563,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--disable-sigusr1",
             "Disable inspector thread to be listening for SIGUSR1 signal",
-            &EnvironmentOptions::disable_sigusr1,
+            BOOL_FIELD(disable_sigusr1),
             kAllowedInEnvvar,
             false);
   AddOption("--dns-result-order",
@@ -559,7 +576,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--network-family-autoselection",
             "Disable network address family autodetection algorithm",
-            &EnvironmentOptions::network_family_autoselection,
+            BOOL_FIELD(network_family_autoselection),
             kAllowedInEnvvar,
             true);
   AddOption("--network-family-autoselection-attempt-timeout",
@@ -571,49 +588,50 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
            "--network-family-autoselection");
   AddOption("--enable-source-maps",
             "Source Map V3 support for stack traces",
-            &EnvironmentOptions::enable_source_maps,
+            BOOL_FIELD(enable_source_maps),
             kAllowedInEnvvar);
   AddOption("--entry-url",
             "Treat the entrypoint as a URL",
-            &EnvironmentOptions::entry_is_url,
+            BOOL_FIELD(entry_is_url),
             kAllowedInEnvvar);
   AddOption("--experimental-addon-modules",
             "experimental import support for addons",
-            &EnvironmentOptions::experimental_addon_modules,
+            BOOL_FIELD(experimental_addon_modules),
             kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-eventsource",
             "experimental EventSource API",
-            &EnvironmentOptions::experimental_eventsource,
+            BOOL_FIELD(experimental_eventsource),
             kAllowedInEnvvar,
             false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
 #if HAVE_FFI
   AddOption("--experimental-ffi",
             "experimental node:ffi module",
-            &EnvironmentOptions::experimental_ffi,
+            BOOL_FIELD(experimental_ffi),
+            kAllowedInEnvvar,
+            HAVE_FFI);
+#endif  // HAVE_FFI
+  AddOption("--experimental-web-worker",
+            "experimental Web Worker API",
+            BOOL_FIELD(experimental_web_worker),
             kAllowedInEnvvar,
             false);
-#endif  // HAVE_FFI
-  AddOption("--experimental-websocket",
-            "experimental WebSocket API",
-            &EnvironmentOptions::experimental_websocket,
-            kAllowedInEnvvar,
-            true);
+  AddOption("--experimental-websocket", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-sqlite",
             "experimental node:sqlite module",
-            &EnvironmentOptions::experimental_sqlite,
+            BOOL_FIELD(experimental_sqlite),
             kAllowedInEnvvar,
             HAVE_SQLITE);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
-            &EnvironmentOptions::experimental_stream_iter,
+            BOOL_FIELD(experimental_stream_iter),
             kAllowedInEnvvar);
   AddOption("--experimental-dtls",
 #if HAVE_DTLS
             "experimental DTLS support",
-            &EnvironmentOptions::experimental_dtls,
+            BOOL_FIELD(experimental_dtls),
 #else
             "" /* undocumented when no-op */,
             NoOp{},
@@ -621,12 +639,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--experimental-vfs",
             "experimental node:vfs module",
-            &EnvironmentOptions::experimental_vfs,
+            BOOL_FIELD(experimental_vfs),
             kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
-            &EnvironmentOptions::experimental_quic,
+            BOOL_FIELD(experimental_quic),
 #else
             "" /* undocumented when no-op */,
             NoOp{},
@@ -634,7 +652,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--experimental-webstorage",
             "experimental Web Storage API",
-            &EnvironmentOptions::webstorage,
+            BOOL_FIELD(webstorage),
             kAllowedInEnvvar,
             HAVE_SQLITE);
   AddAlias("--webstorage", "--experimental-webstorage");
@@ -644,7 +662,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--experimental-global-navigator",
             "expose experimental Navigator API on the global scope",
-            &EnvironmentOptions::experimental_global_navigator,
+            BOOL_FIELD(experimental_global_navigator),
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-global-webcrypto", "", NoOp{}, kAllowedInEnvvar);
@@ -656,19 +674,24 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-wasm-modules", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-import-text",
+            "experimental support for importing source as text with import "
+            "attributes",
+            BOOL_FIELD(experimental_import_text),
+            kAllowedInEnvvar);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() parentURL support",
-            &EnvironmentOptions::experimental_import_meta_resolve,
+            BOOL_FIELD(experimental_import_meta_resolve),
             kAllowedInEnvvar);
   AddOption("--permission",
             "enable the permission system",
-            &EnvironmentOptions::permission,
+            BOOL_FIELD(permission),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
   AddOption("--permission-audit",
             "enable audit only for the permission system",
-            &EnvironmentOptions::permission_audit,
+            BOOL_FIELD(permission_audit),
             kAllowedInEnvvar,
             false);
   AddOption("--allow-fs-read",
@@ -683,56 +706,58 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-addons",
             "allow use of addons when any permissions are set",
-            &EnvironmentOptions::allow_addons,
+            BOOL_FIELD(allow_addons),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
-            &EnvironmentOptions::allow_child_process,
+            BOOL_FIELD(allow_child_process),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
 #if HAVE_FFI
   AddOption("--allow-ffi",
             "allow use of FFI when any permissions are set",
-            &EnvironmentOptions::allow_ffi,
+            BOOL_FIELD(allow_ffi),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
 #endif  // HAVE_FFI
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
-            &EnvironmentOptions::allow_inspector,
+            BOOL_FIELD(allow_inspector),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-net",
             "allow use of network when any permissions are set",
-            &EnvironmentOptions::allow_net,
+            BOOL_FIELD(allow_net),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-wasi",
             "allow wasi when any permissions are set",
-            &EnvironmentOptions::allow_wasi,
+            BOOL_FIELD(allow_wasi),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-worker",
             "allow worker threads when any permissions are set",
-            &EnvironmentOptions::allow_worker_threads,
+            BOOL_FIELD(allow_worker_threads),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
-  AddOption("--experimental-repl-await",
-            "experimental await keyword support in REPL",
-            &EnvironmentOptions::experimental_repl_await,
+  AddOption("--allow-openssl-store",
+            "allow use of OpenSSL STORE loaders when any permissions are set",
+            BOOL_FIELD(allow_openssl_store),
             kAllowedInEnvvar,
-            true);
+            false,
+            OptionNamespaces::kPermissionNamespace);
+  AddOption("--experimental-repl-await", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
-            &EnvironmentOptions::experimental_vm_modules,
+            BOOL_FIELD(experimental_vm_modules),
             kAllowedInEnvvar);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvvar);
@@ -741,13 +766,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--expose-gc", "expose gc extension", V8Option{}, kAllowedInEnvvar);
   AddOption("--async-context-frame",
             "Improve AsyncLocalStorage performance with AsyncContextFrame",
-            &EnvironmentOptions::async_context_frame,
+            BOOL_FIELD(async_context_frame),
             kAllowedInEnvvar,
             true);
-  AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
+  AddOption("--expose-internals", "", BOOL_FIELD(expose_internals));
   AddOption("--frozen-intrinsics",
             "experimental frozen intrinsics support",
-            &EnvironmentOptions::frozen_intrinsics,
+            BOOL_FIELD(frozen_intrinsics),
             kAllowedInEnvvar);
   AddOption("--heapsnapshot-signal",
             "Generate heap snapshot on specified signal",
@@ -762,7 +787,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--http-parser", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--insecure-http-parser",
             "use an insecure HTTP parser that accepts invalid HTTP headers",
-            &EnvironmentOptions::insecure_http_parser,
+            BOOL_FIELD(insecure_http_parser),
             kAllowedInEnvvar);
   AddOption("--input-type",
             "set module type for string input",
@@ -774,33 +799,33 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
            "--experimental-specifier-resolution");
   AddOption("--deprecation",
             "silence deprecation warnings",
-            &EnvironmentOptions::deprecation,
+            BOOL_FIELD(deprecation),
             kAllowedInEnvvar,
             true);
   AddOption("--force-async-hooks-checks",
             "disable checks for async_hooks",
-            &EnvironmentOptions::force_async_hooks_checks,
+            BOOL_FIELD(force_async_hooks_checks),
             kAllowedInEnvvar,
             true);
   AddOption(
       "--force-node-api-uncaught-exceptions-policy",
       "enforces 'uncaughtException' event on Node API asynchronous callbacks",
-      &EnvironmentOptions::force_node_api_uncaught_exceptions_policy,
+      BOOL_FIELD(force_node_api_uncaught_exceptions_policy),
       kAllowedInEnvvar,
       false);
   AddOption("--addons",
             "disable loading native addons",
-            &EnvironmentOptions::allow_native_addons,
+            BOOL_FIELD(allow_native_addons),
             kAllowedInEnvvar,
             true);
   AddOption("--global-search-paths",
             "disable global module search paths",
-            &EnvironmentOptions::global_search_paths,
+            BOOL_FIELD(global_search_paths),
             kAllowedInEnvvar,
             true);
   AddOption("--warnings",
             "silence all process warnings",
-            &EnvironmentOptions::warnings,
+            BOOL_FIELD(warnings),
             kAllowedInEnvvar,
             true);
   AddOption("--disable-warning",
@@ -809,32 +834,32 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--force-context-aware",
             "disable loading non-context-aware addons",
-            &EnvironmentOptions::force_context_aware,
+            BOOL_FIELD(force_context_aware),
             kAllowedInEnvvar);
   AddOption("--pending-deprecation",
             "emit pending deprecation warnings",
-            &EnvironmentOptions::pending_deprecation,
+            BOOL_FIELD(pending_deprecation),
             kAllowedInEnvvar);
   AddOption("--use-env-proxy",
             "parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY"
             "environment variables and apply the setting in global HTTP/HTTPS "
             "clients",
-            &EnvironmentOptions::use_env_proxy,
+            BOOL_FIELD(use_env_proxy),
             kAllowedInEnvvar);
   AddOption("--preserve-symlinks",
             "preserve symbolic links when resolving",
-            &EnvironmentOptions::preserve_symlinks,
+            BOOL_FIELD(preserve_symlinks),
             kAllowedInEnvvar);
   AddOption("--preserve-symlinks-main",
             "preserve symbolic links when resolving the main module",
-            &EnvironmentOptions::preserve_symlinks_main,
+            BOOL_FIELD(preserve_symlinks_main),
             kAllowedInEnvvar);
   AddOption("--prof",
             "Generate V8 profiler output.",
             V8Option{});
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
-            &EnvironmentOptions::prof_process);
+            BOOL_FIELD(prof_process));
   // Options after --prof-process are passed through to the prof processor.
   AddAlias("--prof-process", {"--prof-process", "--"});
 #if HAVE_INSPECTOR
@@ -842,7 +867,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Start the V8 CPU profiler on start up, and write the CPU profile "
             "to disk before exit. If --cpu-prof-dir is not specified, write "
             "the profile to the current working directory.",
-            &EnvironmentOptions::cpu_prof,
+            BOOL_FIELD(cpu_prof),
             kAllowedInEnvvar);
   AddOption("--cpu-prof-name",
             "specified file name of the V8 CPU profile generated with "
@@ -861,22 +886,22 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--experimental-network-inspection",
             "experimental network inspection support",
-            &EnvironmentOptions::experimental_network_inspection);
+            BOOL_FIELD(experimental_network_inspection));
   AddOption("--experimental-storage-inspection",
             "experimental storage inspection support",
-            &EnvironmentOptions::experimental_storage_inspection);
+            BOOL_FIELD(experimental_storage_inspection));
   AddOption("--experimental-worker-inspection",
             "experimental worker inspection support",
-            &EnvironmentOptions::experimental_worker_inspection);
+            BOOL_FIELD(experimental_worker_inspection));
   AddOption("--experimental-inspector-network-resource",
             "experimental load network resources via the inspector",
-            &EnvironmentOptions::experimental_inspector_network_resource);
+            BOOL_FIELD(experimental_inspector_network_resource));
   AddOption(
       "--heap-prof",
       "Start the V8 heap profiler on start up, and write the heap profile "
       "to disk before exit. If --heap-prof-dir is not specified, write "
       "the profile to the current working directory.",
-      &EnvironmentOptions::heap_prof,
+      BOOL_FIELD(heap_prof),
       kAllowedInEnvvar);
   AddOption("--heap-prof-name",
             "specified file name of the V8 heap profile generated with "
@@ -902,8 +927,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,
             kAllowedInEnvvar);
-  AddOption(
-      "[has_env_file_string]", "", &EnvironmentOptions::has_env_file_string);
+  AddOption("[has_env_file_string]", "", BOOL_FIELD(has_env_file_string));
   AddOption("--env-file",
             "set environment variables from supplied file",
             &EnvironmentOptions::env_file);
@@ -917,9 +941,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_config_file_path,
             kDisallowedInEnvvar);
   AddAlias("--experimental-default-config-file", "--experimental-config-file");
+  AddOption("--experimental-package-map",
+            "use the specified file for package map resolution",
+            &EnvironmentOptions::experimental_package_map_path,
+            kAllowedInEnvvar);
   AddOption("--test",
             "launch test runner on startup",
-            &EnvironmentOptions::test_runner,
+            BOOL_FIELD(test_runner),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
@@ -930,7 +958,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-force-exit",
             "force test runner to exit upon completion",
-            &EnvironmentOptions::test_runner_force_exit,
+            BOOL_FIELD(test_runner_force_exit),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
@@ -941,13 +969,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-update-snapshots",
             "regenerate test snapshots",
-            &EnvironmentOptions::test_runner_update_snapshots,
+            BOOL_FIELD(test_runner_update_snapshots),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
-            &EnvironmentOptions::test_runner_coverage,
+            BOOL_FIELD(test_runner_coverage),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
@@ -975,7 +1003,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
             "enable module mocking in the test runner",
-            &EnvironmentOptions::test_runner_module_mocks,
+            BOOL_FIELD(test_runner_module_mocks),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
@@ -1001,7 +1029,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-only",
             "run tests with 'only' option set",
-            &EnvironmentOptions::test_only,
+            BOOL_FIELD(test_only),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
@@ -1025,6 +1053,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::coverage_include_pattern,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-coverage-include-all",
+            "include source files that were never loaded in the coverage "
+            "report",
+            BOOL_FIELD(coverage_include_all),
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,
@@ -1037,12 +1072,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-randomize",
             "run tests in a random order",
-            &EnvironmentOptions::test_randomize,
+            BOOL_FIELD(test_randomize),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
-  AddOption(
-      "[has_test_random_seed]", "", &EnvironmentOptions::has_test_random_seed);
+  AddOption("[has_test_random_seed]", "", BOOL_FIELD(has_test_random_seed));
   AddOption("--test-random-seed",
             "seed used to randomize test execution order",
             &EnvironmentOptions::test_random_seed,
@@ -1056,63 +1090,63 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-udp-no-try-send",
             "",  // For testing only.
-            &EnvironmentOptions::test_udp_no_try_send,
+            BOOL_FIELD(test_udp_no_try_send),
             kDisallowedInEnvvar);
   AddOption("--throw-deprecation",
             "throw an exception on deprecations",
-            &EnvironmentOptions::throw_deprecation,
+            BOOL_FIELD(throw_deprecation),
             kAllowedInEnvvar);
   AddOption("--trace-deprecation",
             "show stack traces on deprecations",
-            &EnvironmentOptions::trace_deprecation,
+            BOOL_FIELD(trace_deprecation),
             kAllowedInEnvvar);
   AddOption("--trace-exit",
             "show stack trace when an environment exits",
-            &EnvironmentOptions::trace_exit,
+            BOOL_FIELD(trace_exit),
             kAllowedInEnvvar);
   AddOption("--trace-sync-io",
             "show stack trace when use of sync IO is detected after the "
             "first tick",
-            &EnvironmentOptions::trace_sync_io,
+            BOOL_FIELD(trace_sync_io),
             kAllowedInEnvvar);
   AddOption("--trace-tls",
             "prints TLS packet trace information to stderr",
-            &EnvironmentOptions::trace_tls,
+            BOOL_FIELD(trace_tls),
             kAllowedInEnvvar);
   AddOption("--trace-uncaught",
             "show stack traces for the `throw` behind uncaught exceptions",
-            &EnvironmentOptions::trace_uncaught,
+            BOOL_FIELD(trace_uncaught),
             kAllowedInEnvvar);
   AddOption("--trace-warnings",
             "show stack traces on process warnings",
-            &EnvironmentOptions::trace_warnings,
+            BOOL_FIELD(trace_warnings),
             kAllowedInEnvvar);
   AddOption("--trace-promises",
             "show stack traces on promise initialization and resolution",
-            &EnvironmentOptions::trace_promises,
+            BOOL_FIELD(trace_promises),
             kAllowedInEnvvar);
 
   AddOption("--trace-env",
             "Print accesses to the environment variables",
-            &EnvironmentOptions::trace_env,
+            BOOL_FIELD(trace_env),
             kAllowedInEnvvar);
   Implies("--trace-env-js-stack", "--trace-env");
   Implies("--trace-env-native-stack", "--trace-env");
   AddOption("--trace-env-js-stack",
             "Print accesses to the environment variables and the JavaScript "
             "stack trace",
-            &EnvironmentOptions::trace_env_js_stack,
+            BOOL_FIELD(trace_env_js_stack),
             kAllowedInEnvvar);
   AddOption(
       "--trace-env-native-stack",
       "Print accesses to the environment variables and the native stack trace",
-      &EnvironmentOptions::trace_env_native_stack,
+      BOOL_FIELD(trace_env_native_stack),
       kAllowedInEnvvar);
 
 #if HAVE_OPENSSL
   AddOption("--use-system-ca",
             "use system's CA store",
-            &EnvironmentOptions::use_system_ca,
+            BOOL_FIELD(use_system_ca),
             kAllowedInEnvvar);
 #endif  // HAVE_OPENSSL
 
@@ -1125,7 +1159,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
   AddOption("--extra-info-on-fatal-exception",
             "hide extra information on fatal exception that causes exit",
-            &EnvironmentOptions::extra_info_on_fatal_exception,
+            BOOL_FIELD(extra_info_on_fatal_exception),
             kAllowedInEnvvar,
             true);
   AddOption("--unhandled-rejections",
@@ -1139,11 +1173,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--verify-base-objects",
             "", /* undocumented, only for debugging */
-            &EnvironmentOptions::verify_base_objects,
+            BOOL_FIELD(verify_base_objects),
             kAllowedInEnvvar);
   AddOption("--watch",
             "run in watch mode",
-            &EnvironmentOptions::watch_mode,
+            BOOL_FIELD(watch_mode),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kWatchNamespace);
@@ -1160,14 +1194,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             OptionNamespaces::kWatchNamespace);
   AddOption("--watch-preserve-output",
             "preserve outputs on watch mode restart",
-            &EnvironmentOptions::watch_mode_preserve_output,
+            BOOL_FIELD(watch_mode_preserve_output),
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kWatchNamespace);
   Implies("--watch-path", "--watch");
   AddOption("--check",
             "syntax check script without executing",
-            &EnvironmentOptions::syntax_check_only);
+            BOOL_FIELD(syntax_check_only));
   AddAlias("-c", "--check");
   // This option is only so that we can tell --eval with an empty string from
   // no eval at all. Having it not start with a dash makes it inaccessible
@@ -1175,12 +1209,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   // TODO(addaleax): When moving --help over to something generated from the
   // programmatic descriptions, this will need some special care.
   // (See also [ssl_openssl_cert_store] below.)
-  AddOption("[has_eval_string]", "", &EnvironmentOptions::has_eval_string);
+  AddOption("[has_eval_string]", "", BOOL_FIELD(has_eval_string));
   AddOption("--eval", "evaluate script", &EnvironmentOptions::eval_string);
   Implies("--eval", "[has_eval_string]");
-  AddOption("--print",
-            "evaluate script and print result",
-            &EnvironmentOptions::print_eval);
+  AddOption(
+      "--print", "evaluate script and print result", BOOL_FIELD(print_eval));
   AddAlias("-e", "--eval");
   AddAlias("--print <arg>", "-pe");
   AddAlias("-pe", { "--print", "--eval" });
@@ -1196,14 +1229,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--strip-types",
             "Type-stripping for TypeScript files.",
-            &EnvironmentOptions::strip_types,
+            BOOL_FIELD(strip_types),
             kAllowedInEnvvar,
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
-            &EnvironmentOptions::force_repl);
+            BOOL_FIELD(force_repl));
   AddAlias("-i", "--interactive");
 
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvvar);
@@ -1215,23 +1248,23 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
   AddOption("--tls-min-v1.0",
             "set default TLS minimum to TLSv1.0 (default: TLSv1.2)",
-            &EnvironmentOptions::tls_min_v1_0,
+            BOOL_FIELD(tls_min_v1_0),
             kAllowedInEnvvar);
   AddOption("--tls-min-v1.1",
             "set default TLS minimum to TLSv1.1 (default: TLSv1.2)",
-            &EnvironmentOptions::tls_min_v1_1,
+            BOOL_FIELD(tls_min_v1_1),
             kAllowedInEnvvar);
   AddOption("--tls-min-v1.2",
             "set default TLS minimum to TLSv1.2 (default: TLSv1.2)",
-            &EnvironmentOptions::tls_min_v1_2,
+            BOOL_FIELD(tls_min_v1_2),
             kAllowedInEnvvar);
   AddOption("--tls-min-v1.3",
             "set default TLS minimum to TLSv1.3 (default: TLSv1.2)",
-            &EnvironmentOptions::tls_min_v1_3,
+            BOOL_FIELD(tls_min_v1_3),
             kAllowedInEnvvar);
   AddOption("--tls-max-v1.2",
             "set default TLS maximum to TLSv1.2 (default: TLSv1.3)",
-            &EnvironmentOptions::tls_max_v1_2,
+            BOOL_FIELD(tls_max_v1_2),
             kAllowedInEnvvar);
   // Current plan is:
   // - 11.x and below: TLS1.3 is opt-in with --tls-max-v1.3
@@ -1239,18 +1272,18 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   // In either case, support both options they are uniformly available.
   AddOption("--tls-max-v1.3",
             "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
-            &EnvironmentOptions::tls_max_v1_3,
+            BOOL_FIELD(tls_max_v1_3),
             kAllowedInEnvvar);
 
   AddOption("--report-exclude-env",
             "Exclude environment variables when generating report"
             " (default: false)",
-            &EnvironmentOptions::report_exclude_env,
+            BOOL_FIELD(report_exclude_env),
             kAllowedInEnvvar);
   AddOption("--report-exclude-network",
             "exclude network interface diagnostics."
             " (default: false)",
-            &EnvironmentOptions::report_exclude_network,
+            BOOL_FIELD(report_exclude_network),
             kAllowedInEnvvar);
 }
 
@@ -1258,7 +1291,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   const EnvironmentOptionsParser& eop) {
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
-            &PerIsolateOptions::track_heap_objects,
+            BOOL_FIELD(track_heap_objects),
             kAllowedInEnvvar);
 
   // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.
@@ -1298,11 +1331,11 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             kAllowedInEnvvar);
   AddOption("--report-uncaught-exception",
             "generate diagnostic report on uncaught exceptions",
-            &PerIsolateOptions::report_uncaught_exception,
+            BOOL_FIELD(report_uncaught_exception),
             kAllowedInEnvvar);
   AddOption("--report-on-signal",
             "generate diagnostic report upon receiving signals",
-            &PerIsolateOptions::report_on_signal,
+            BOOL_FIELD(report_on_signal),
             kAllowedInEnvvar);
   AddOption("--report-signal",
             "causes diagnostic report to be produced on provided signal,"
@@ -1319,7 +1352,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
 
   AddOption("--experimental-shadow-realm",
             "",
-            &PerIsolateOptions::experimental_shadow_realm,
+            BOOL_FIELD(experimental_shadow_realm),
             kAllowedInEnvvar);
   AddOption("--harmony-shadow-realm", "", V8Option{});
   Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
@@ -1327,7 +1360,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
   AddOption("--build-snapshot",
             "Generate a snapshot blob when the process exits.",
-            &PerIsolateOptions::build_snapshot,
+            BOOL_FIELD(build_snapshot),
             kDisallowedInEnvvar);
   AddOption("--build-snapshot-config",
             "Generate a snapshot blob when the process exits using a"
@@ -1362,11 +1395,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
   AddOption("--zero-fill-buffers",
             "automatically zero-fill all newly allocated Buffer instances",
-            &PerProcessOptions::zero_fill_all_buffers,
+            BOOL_FIELD(zero_fill_all_buffers),
             kAllowedInEnvvar);
   AddOption("--debug-arraybuffer-allocations",
             "", /* undocumented, only for debugging */
-            &PerProcessOptions::debug_arraybuffer_allocations,
+            BOOL_FIELD(debug_arraybuffer_allocations),
             kAllowedInEnvvar);
   AddOption("--disable-proto",
             "disable Object.prototype.__proto__",
@@ -1374,7 +1407,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
   AddOption("--node-snapshot",
             "",  // It's a debug-only option.
-            &PerProcessOptions::node_snapshot,
+            BOOL_FIELD(node_snapshot),
             kAllowedInEnvvar);
   AddOption("--snapshot-blob",
             "Path to the snapshot blob that's either the result of snapshot"
@@ -1390,20 +1423,18 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddAlias("--security-reverts", "--security-revert");
   AddOption("--completion-bash",
             "print source-able bash completion script",
-            &PerProcessOptions::print_bash_completion);
-  AddOption("--help",
-            "print node command line options",
-            &PerProcessOptions::print_help);
-  AddAlias("-h", "--help");
+            BOOL_FIELD(print_bash_completion));
   AddOption(
-      "--version", "print Node.js version", &PerProcessOptions::print_version);
+      "--help", "print node command line options", BOOL_FIELD(print_help));
+  AddAlias("-h", "--help");
+  AddOption("--version", "print Node.js version", BOOL_FIELD(print_version));
   AddAlias("-v", "--version");
   AddOption("--v8-options",
             "print V8 command line options",
-            &PerProcessOptions::print_v8_help);
+            BOOL_FIELD(print_v8_help));
   AddOption("--report-compact",
             "output compact single-line JSON",
-            &PerProcessOptions::report_compact,
+            BOOL_FIELD(report_compact),
             kAllowedInEnvvar);
   AddOption("--report-dir",
             "define custom report pathname."
@@ -1418,7 +1449,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
   AddOption("--report-on-fatalerror",
             "generate diagnostic report on fatal (internal) errors",
-            &PerProcessOptions::report_on_fatalerror,
+            BOOL_FIELD(report_on_fatalerror),
             kAllowedInEnvvar);
 
 #ifdef NODE_HAVE_I18N_SUPPORT
@@ -1448,7 +1479,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             " (default)"
 #endif
             ,
-            &PerProcessOptions::use_openssl_ca,
+            BOOL_FIELD(use_openssl_ca),
             kAllowedInEnvvar);
   AddOption("--use-bundled-ca",
             "use bundled CA store"
@@ -1456,24 +1487,32 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             " (default)"
 #endif
             ,
-            &PerProcessOptions::use_bundled_ca,
+            BOOL_FIELD(use_bundled_ca),
             kAllowedInEnvvar);
   // Similar to [has_eval_string] above, except that the separation between
   // this and use_openssl_ca only exists for option validation after parsing.
   // This is not ideal.
-  AddOption("[ssl_openssl_cert_store]",
-            "",
-            &PerProcessOptions::ssl_openssl_cert_store);
+  AddOption("[ssl_openssl_cert_store]", "", BOOL_FIELD(ssl_openssl_cert_store));
   Implies("--use-openssl-ca", "[ssl_openssl_cert_store]");
   ImpliesNot("--use-bundled-ca", "[ssl_openssl_cert_store]");
   AddOption("--enable-fips",
             "enable FIPS crypto at startup",
-            &PerProcessOptions::enable_fips_crypto,
+            BOOL_FIELD(enable_fips_crypto),
+            kAllowedInEnvvar);
+  AddOption("--enable-fips-indicator-events",
+            "publish FIPS indicator results to the "
+            "crypto.fips.indicator diagnostics channel",
+            BOOL_FIELD(enable_fips_indicator_events),
             kAllowedInEnvvar);
   AddOption("--force-fips",
-            "force FIPS crypto (cannot be disabled)",
-            &PerProcessOptions::force_fips_crypto,
+            "force FIPS crypto (optional mode: provider or strict)",
+            BOOL_FIELD(force_fips_crypto),
             kAllowedInEnvvar);
+  AddOption("[force_fips_crypto_policy]",
+            "",
+            &PerProcessOptions::force_fips_crypto_policy,
+            kAllowedInEnvvar);
+  AddAlias("--force-fips=", {"[force_fips_crypto_policy]", "--force-fips"});
 #ifndef V8_ENABLE_SANDBOX
   AddOption("--secure-heap",
             "total size of the OpenSSL secure heap",
@@ -1488,25 +1527,24 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #if OPENSSL_VERSION_MAJOR >= 3
   AddOption("--openssl-legacy-provider",
             "enable OpenSSL 3.0 legacy provider",
-            &PerProcessOptions::openssl_legacy_provider,
+            BOOL_FIELD(openssl_legacy_provider),
             kAllowedInEnvvar);
   AddOption("--openssl-shared-config",
             "enable OpenSSL shared configuration",
-            &PerProcessOptions::openssl_shared_config,
+            BOOL_FIELD(openssl_shared_config),
             kAllowedInEnvvar);
 
 #endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",
-            "Map the Node.js static code to large pages. Options are "
-            "'off' (the default value, meaning do not map), "
-            "'on' (map and ignore failure, reporting it to stderr), "
-            "or 'silent' (map and silently ignore failure)",
+            "This option is no longer supported and a no-op. It still accepts"
+            " these values for compatibility: 'off' (default), 'on' (report a "
+            "warning to stderr), or 'silent' (same as 'off').",
             &PerProcessOptions::use_largepages,
             kAllowedInEnvvar);
 
   AddOption("--trace-sigint",
             "enable printing JavaScript stacktrace on SIGINT",
-            &PerProcessOptions::trace_sigint,
+            BOOL_FIELD(trace_sigint),
             kAllowedInEnvvar);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
@@ -1531,7 +1569,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
       "Disable trap-handler-based WebAssembly bound checks. V8 will insert "
       "inline bound checks when compiling WebAssembly which may slow down "
       "performance.",
-      &PerProcessOptions::disable_wasm_trap_handler,
+      BOOL_FIELD(disable_wasm_trap_handler),
       kAllowedInEnvvar);
 
   AddOption("--build-sea",
@@ -1756,7 +1794,7 @@ void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
         }
         break;
       case kBoolean: {
-        bool original_value = *_ppop_instance.Lookup<bool>(field, opts);
+        bool original_value = field->GetBool(opts);
         value = Boolean::New(isolate, original_value);
 
         // Add --no-* entries.
@@ -2073,7 +2111,13 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
 
     switch (option_info.type) {
       case kBoolean: {
-        bool current_value = *_ppop_instance.Lookup<bool>(field, opts);
+        bool current_value = field->GetBool(opts);
+#if HAVE_OPENSSL
+        if (option_name == "--force-fips" && current_value) {
+          flags.push_back(option_name + "=" + opts->force_fips_crypto_policy);
+          break;
+        }
+#endif
         // For boolean options with default_is_true, we want the opposite logic
         if (option_info.default_is_true) {
           if (!current_value) {

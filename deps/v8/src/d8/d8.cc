@@ -4575,11 +4575,6 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
 
 void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   if (options.ignore_unhandled_promises) return;
-  if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
-      data.GetEvent() == v8::kPromiseResolveAfterResolved) {
-    // Ignore reject/resolve after resolved.
-    return;
-  }
   v8::Local<v8::Promise> promise = data.GetPromise();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   PerIsolateData* isolate_data = PerIsolateData::Get(isolate);

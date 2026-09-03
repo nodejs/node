@@ -13,7 +13,8 @@ const cli = new CLI(`usage: ./node compare.js [options] [--] <category> ...
   Run each benchmark in the <category> directory many times using two different
   node versions. More than one <category> directory can be specified.
   The output is formatted as csv, which can be processed using for
-  example 'compare.R'.
+  example 'compare.R'. Use --analyze to perform statistical analysis
+  directly without R.
 
   --new      ./new-node-binary  new node binary (required)
   --old      ./old-node-binary  old node binary (required)
@@ -24,13 +25,21 @@ const cli = new CLI(`usage: ./node compare.js [options] [--] <category> ...
                                 repeated)
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
+  --analyze                     perform statistical analysis after benchmarks
+                                complete (Welch's t-test, effect size) instead
+                                of printing csv output
+  --scale    1000               rate-to-integer multiplier for histogram
+                                 precision when using --analyze (default: 1000)
+  --max-regression  N           exit with code 1 if any statistically
+                                 significant regression exceeds N% (implies
+                                 --analyze)
 
   Examples:
     --set CPUSET=0            Runs benchmarks on CPU core 0.
     --set CPUSET=0-2          Specifies that benchmarks should run on CPU cores 0 to 2.
 
   Note: The CPUSET format should match the specifications of the 'taskset' command
-`, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['no-progress'] });
+`, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['no-progress', 'analyze'] });
 
 if (!cli.optional.new || !cli.optional.old) {
   cli.abort(cli.usage);
@@ -38,6 +47,11 @@ if (!cli.optional.new || !cli.optional.old) {
 
 const binaries = ['old', 'new'];
 const runs = cli.optional.runs ? parseInt(cli.optional.runs, 10) : 30;
+const maxRegression = cli.optional['max-regression'] ?
+  parseFloat(cli.optional['max-regression']) :
+  0;
+const analyze = !!cli.optional.analyze || maxRegression > 0;
+const scale = cli.optional.scale ? parseInt(cli.optional.scale, 10) : 1000;
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
@@ -45,6 +59,9 @@ if (benchmarks.length === 0) {
   process.exitCode = 1;
   return;
 }
+
+// When --analyze is set, collect results for statistical analysis.
+const results = analyze ? new Map() : null;
 
 // Create queue from the benchmarks list such both node versions are tested
 // `runs` amount of times each.
@@ -61,15 +78,17 @@ for (const filename of benchmarks) {
 }
 // queue.length = binary.length * runs * benchmarks.length
 
-// Print csv header
-console.log('"binary","filename","configuration","rate","time"');
+// Print csv header (unless analyzing inline).
+if (!analyze) {
+  console.log('"binary","filename","configuration","rate","time"');
+}
 
 const kStartOfQueue = 0;
 
 const showProgress = !cli.optional['no-progress'];
 let progress;
 if (showProgress) {
-  progress = new BenchmarkProgress(queue, benchmarks);
+  progress = new BenchmarkProgress(queue, benchmarks, { analyze });
   progress.startQueue(kStartOfQueue);
 }
 
@@ -99,11 +118,20 @@ if (showProgress) {
         conf += ` ${key}=${inspect(data.conf[key])}`;
       }
       conf = conf.slice(1);
-      // Escape quotes (") for correct csv formatting
-      conf = conf.replace(/"/g, '""');
 
-      console.log(`"${job.binary}","${job.filename}","${conf}",` +
-                  `${data.rate},${data.time}`);
+      if (analyze) {
+        // Collect results for post-run analysis.
+        const name = `${job.filename} ${conf}`;
+        if (!results.has(name)) {
+          results.set(name, { old: [], new: [] });
+        }
+        results.get(name)[job.binary].push(data.rate);
+      } else {
+        // Escape quotes (") for correct csv formatting
+        conf = conf.replace(/"/g, '""');
+        console.log(`"${job.binary}","${job.filename}","${conf}",` +
+                    `${data.rate},${data.time}`);
+      }
       if (showProgress) {
         // One item in the subqueue has been completed.
         progress.completeConfig(data);
@@ -125,6 +153,274 @@ if (showProgress) {
     // If there are more benchmarks execute the next
     if (i + 1 < queue.length) {
       recursive(i + 1);
+    } else if (analyze) {
+      printAnalysis(results, scale, maxRegression);
     }
   });
 })(kStartOfQueue);
+
+// Holm-Bonferroni step-down adjustment. Controls the probability of *any*
+// false positive across the whole comparison set, which is what a pass/fail
+// gate needs: an uncorrected suite of 169 comparisons at 5% has a 99.98%
+// chance of flagging something that is not there. Uniformly more powerful
+// than plain Bonferroni, and makes no assumption about independence.
+function holmAdjust(pValues) {
+  const order = pValues
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => a.p - b.p);
+  const m = order.length;
+  const adjusted = new Array(m);
+  let running = 0;
+  for (let k = 0; k < m; k++) {
+    // Step down, enforcing monotonicity so an adjusted value can never be
+    // smaller than one belonging to a more significant raw p-value.
+    running = Math.max(running, Math.min(1, (m - k) * order[k].p));
+    adjusted[order[k].i] = running;
+  }
+  return adjusted;
+}
+
+function printAnalysis(results, scale, maxRegression) {
+  const { createHistogram } = require('node:perf_hooks');
+
+  // Build per-benchmark histograms and run statistical tests.
+  const rows = [];
+  let maxNameLen = 0;
+
+  let skipped = 0;
+
+  for (const [name, { old: oldRates, new: newRates }] of results) {
+    if (oldRates.length < 2 || newRates.length < 2) {
+      skipped++;
+      continue;
+    }
+
+    const hOld = createHistogram({ figures: 3 });
+    const hNew = createHistogram({ figures: 3 });
+
+    for (const r of oldRates) hOld.record(Math.max(1, Math.round(r * scale)));
+    for (const r of newRates) hNew.record(Math.max(1, Math.round(r * scale)));
+
+    const oldMean = oldRates.reduce((a, b) => a + b, 0) / oldRates.length;
+    const newMean = newRates.reduce((a, b) => a + b, 0) / newRates.length;
+    const improvement = ((newMean - oldMean) / oldMean) * 100;
+
+    // Query the three confidence levels. The p-value and t-statistic
+    // are the same regardless of the confidence level, so we extract
+    // them from the first result.
+    const w95 = hOld.welchTest(hNew, { confidence: 0.95 });
+    const w99 = hOld.welchTest(hNew, { confidence: 0.99 });
+    const w999 = hOld.welchTest(hNew, { confidence: 0.999 });
+
+    // Significance stars matching compare.R convention.
+    let stars = '';
+    if (w95.pValue < 0.001) stars = '***';
+    else if (w95.pValue < 0.01) stars = ' **';
+    else if (w95.pValue < 0.05) stars = '  *';
+
+    // Confidence intervals expressed as percentage of the old mean.
+    const ciPct = (w) => {
+      const half =
+        (w.confidenceInterval.upper - w.confidenceInterval.lower) / 2;
+      return (half / (oldMean * scale)) * 100;
+    };
+
+    rows.push({
+      name,
+      stars,
+      improvement,
+      ci95: ciPct(w95),
+      ci99: ciPct(w99),
+      ci999: ciPct(w999),
+      pValue: w95.pValue,
+    });
+
+    if (name.length > maxNameLen) maxNameLen = name.length;
+  }
+
+  // Adjust for the size of the comparison set. The raw p-value answers "is
+  // this one benchmark different", but a suite is read as a whole, so the
+  // relevant question is "is anything here different".
+  const adjusted = holmAdjust(rows.map((r) => r.pValue));
+  for (let i = 0; i < rows.length; i++) rows[i].pAdjusted = adjusted[i];
+
+  // A comparison can only rule out an effect it was able to resolve. Where no
+  // threshold has been given there is no definition of "worth detecting", so
+  // nothing is claimed. `maxRegression` is exactly such a declaration, so it
+  // is reused rather than inventing a second constant.
+  const resolution = maxRegression > 0 ? maxRegression : null;
+  let underpowered = 0;
+  for (const row of rows) {
+    row.inconclusive = resolution !== null &&
+                       row.stars.trim() === '' &&
+                       row.ci95 > resolution;
+    if (row.inconclusive) underpowered++;
+  }
+
+  // Print header.
+  const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
+  const rpad = (s, n) => ' '.repeat(Math.max(0, n - s.length)) + s;
+
+  console.log(`${pad('', maxNameLen)}  confidence` +
+              `   improvement   accuracy (*)    (**)   (***)`);
+
+  for (const row of rows) {
+    const imp = `${row.improvement >= 0 ? '+' : ''}${row.improvement.toFixed(2)} %`;
+    console.log(
+      `${pad(row.name, maxNameLen)}  ${pad(row.stars, 10)}` +
+      `  ${rpad(imp, 11)}` +
+      `   ±${row.ci95.toFixed(2)}%` +
+      `  ±${row.ci99.toFixed(2)}%` +
+      `  ±${row.ci999.toFixed(2)}%` +
+      `${row.inconclusive ? '  (inconclusive)' : ''}`,
+    );
+  }
+
+  if (skipped > 0) {
+    console.log('');
+    console.log(
+      `Note: ${skipped} configuration${skipped === 1 ? ' was' : 's were'}` +
+      ` skipped because Welch's t-test requires at least 2 samples per` +
+      ` binary. Use --runs 2 or higher.`,
+    );
+  }
+
+  // --- Bar chart visualization ---
+  printChart(rows, maxNameLen);
+
+  console.log('');
+  console.log(
+    `Rates were scaled by ${scale}x into HdrHistogram (3 significant figures).\n` +
+    `Use --scale to adjust precision if needed.\n`,
+  );
+  const anyFamilyWise = rows.filter((r) => r.pAdjusted < 0.05).length;
+  console.log(
+    `Be aware that when doing many comparisons the risk of a false-positive\n` +
+    `result increases. In this case, there are ${rows.length} comparisons, ` +
+    `you can thus\nexpect the following amount of false-positive results:\n` +
+    `  ${(rows.length * 0.05).toFixed(2)} false positives, when considering ` +
+    `a   5% risk acceptance (*, **, ***),\n` +
+    `  ${(rows.length * 0.01).toFixed(2)} false positives, when considering ` +
+    `a   1% risk acceptance (**, ***),\n` +
+    `  ${(rows.length * 0.001).toFixed(2)} false positives, when considering ` +
+    `a 0.1% risk acceptance (***)\n` +
+    `\nThe stars above are per-benchmark and uncorrected. Adjusting for the ` +
+    `size of\nthis comparison set (Holm-Bonferroni), ${anyFamilyWise} ` +
+    `comparison${anyFamilyWise === 1 ? '' : 's'} remain${anyFamilyWise === 1 ? 's' : ''} ` +
+    `significant at 5%.\n--max-regression uses the corrected values.`,
+  );
+
+  // Gate: exit with error if any regression is shown to exceed the limit.
+  if (maxRegression > 0) {
+    if (underpowered > 0) {
+      console.log('');
+      console.log(
+        `Note: ${underpowered} of ${rows.length} comparison` +
+        `${rows.length === 1 ? '' : 's'} could not resolve an effect as ` +
+        `small as ${maxRegression}%, and are marked (inconclusive). They are ` +
+        `not\nevidence of no regression -- the samples are too noisy to tell. ` +
+        `Raise --runs,\nor pin cores with --set CPUSET, to narrow them.`,
+      );
+    }
+
+    // Two conditions, both required.
+    //
+    // The confidence interval must lie entirely beyond the threshold. A small
+    // p-value only says the effect is not exactly zero; claiming it exceeds
+    // `maxRegression` is a statement about magnitude, so the interval has to
+    // exclude that magnitude. Testing the point estimate instead systematically
+    // fires on the noisiest benchmarks, because a large point estimate is
+    // easiest to obtain when the interval is wide.
+    //
+    // The p-value must also survive adjustment for the size of the comparison
+    // set, so that a suite of hundreds of benchmarks does not fail purely
+    // because one of them drifted.
+    const failures = rows.filter(
+      (r) => r.pAdjusted < 0.05 && r.improvement + r.ci95 < -maxRegression,
+    );
+
+    if (failures.length > 0) {
+      console.log('');
+      console.log(
+        `FAIL: ${failures.length} benchmark${failures.length === 1 ? '' : 's'}` +
+        ` regressed by more than ${maxRegression}%` +
+        ` (interval excludes the threshold,\n` +
+        `family-wise corrected across ${rows.length} comparisons):`,
+      );
+      for (const f of failures) {
+        console.log(
+          `  ${f.name}  ${f.improvement.toFixed(2)}% ` +
+          `(95% CI up to ${(f.improvement + f.ci95).toFixed(2)}%, ` +
+          `adjusted p=${f.pAdjusted.toExponential(2)})`,
+        );
+      }
+      process.exitCode = 1;
+    }
+  }
+}
+
+function printChart(rows, maxNameLen) {
+  if (rows.length === 0) return;
+
+  // Determine the chart scale from the data. The bar region covers
+  // the range [-maxAbs, +maxAbs] so the zero line sits in the center.
+  const barWidth = 40;
+  const halfWidth = barWidth / 2;
+  let maxAbs = 0;
+  for (const row of rows) {
+    const extent = Math.abs(row.improvement) + row.ci95;
+    if (extent > maxAbs) maxAbs = extent;
+  }
+  if (maxAbs === 0) maxAbs = 1;
+
+  const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
+
+  // Scale axis labels.
+  const axisLeft = `-${maxAbs.toFixed(1)}%`;
+  const axisRight = `+${maxAbs.toFixed(1)}%`;
+  const axisCenter = '0%';
+
+  // Print axis header.
+  const labelPad = maxNameLen + 5;
+  const leftLabel = ' '.repeat(labelPad) +
+    axisLeft +
+    ' '.repeat(Math.max(0, halfWidth - axisLeft.length - Math.floor(axisCenter.length / 2))) +
+    axisCenter +
+    ' '.repeat(Math.max(0, halfWidth - Math.ceil(axisCenter.length / 2) - axisRight.length)) +
+    axisRight;
+  console.log('');
+  console.log(leftLabel);
+
+  for (const row of rows) {
+    const imp = row.improvement;
+    const ci = row.ci95;
+
+    // Position of the improvement value in the bar region [0, barWidth].
+    const center = halfWidth;
+    const impPos = center + (imp / maxAbs) * halfWidth;
+
+    // CI extent in bar positions.
+    const ciLeft = center + ((imp - ci) / maxAbs) * halfWidth;
+    const ciRight = center + ((imp + ci) / maxAbs) * halfWidth;
+
+    // Build the bar character by character.
+    const chars = [];
+    for (let x = 0; x < barWidth; x++) {
+      const pos = x + 0.5; // Center of this character cell.
+      if (x === Math.floor(center)) {
+        chars.push('|');
+      } else if ((imp >= 0 && pos > center && pos <= impPos) ||
+                 (imp < 0 && pos < center && pos >= impPos)) {
+        chars.push(row.stars ? '\u2588' : '\u2593'); // solid or dark shade
+      } else if (pos >= ciLeft && pos <= ciRight) {
+        chars.push('\u2591'); // Light shade for CI region
+      } else {
+        chars.push(' ');
+      }
+    }
+
+    const label = `${row.improvement >= 0 ? '+' : ''}${row.improvement.toFixed(2)}%`;
+    const sig = row.stars.trim();
+    console.log(`${pad(row.name, maxNameLen)}  ${chars.join('')}  ${label} ${sig}`);
+  }
+}

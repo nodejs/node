@@ -4,6 +4,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 import * as assert from 'node:assert';
+import { hasFIPS } from '../common/crypto.js';
+
+if (hasFIPS(3))
+  common.skip('SubtleCrypto.supports() does not reflect FIPS provider availability');
+
 const { SubtleCrypto } = globalThis;
 
 const sources = [
@@ -61,21 +66,45 @@ function supportsRawSecret(alg) {
   return false;
 }
 
-function supports256RawSecret(alg) {
+function getSharedKeyLength(alg) {
+  switch (alg?.name?.toLowerCase?.() ?? alg?.toLowerCase?.()) {
+    case 'ml-kem-512':
+    case 'ml-kem-768':
+    case 'ml-kem-1024':
+      return 256;
+  }
+}
+
+function supportsEncapsulatedRawSecret(encapsulationAlgorithm, alg) {
   if (!supportsRawSecret(alg)) return false;
-  switch (alg?.name?.toLowerCase?.()) {
+
+  const sharedKeyLength = getSharedKeyLength(encapsulationAlgorithm);
+  const name = alg?.name?.toLowerCase?.() ?? alg?.toLowerCase?.();
+  if (name?.startsWith('aes')) {
+    return sharedKeyLength === 128 ||
+           sharedKeyLength === 192 ||
+           sharedKeyLength === 256;
+  }
+
+  switch (name) {
+    case 'chacha20-poly1305':
+      return sharedKeyLength === 256;
     case 'hmac':
+      if (sharedKeyLength === 0) return false;
+      // Fall through
     case 'kmac128':
     case 'kmac256':
-      return typeof alg.length !== 'number' || alg.length === 256;
+      return typeof alg !== 'object' ||
+             typeof alg.length !== 'number' ||
+             Math.ceil(alg.length / 8) * 8 === sharedKeyLength;
     default:
-      return true;
+      return sharedKeyLength !== undefined;
   }
 }
 
 for (const encap of vectors.encapsulateBits) {
   for (const imp of vectors.importKey) {
-    if (supports256RawSecret(imp[1])) {
+    if (supportsEncapsulatedRawSecret(encap[1], imp[1])) {
       vectors.encapsulateKey.push([encap[0] && imp[0], encap[1], imp[1]]);
     } else {
       vectors.encapsulateKey.push([false, encap[1], imp[1]]);
@@ -85,7 +114,7 @@ for (const encap of vectors.encapsulateBits) {
 
 for (const decap of vectors.decapsulateBits) {
   for (const imp of vectors.importKey) {
-    if (supports256RawSecret(imp[1])) {
+    if (supportsEncapsulatedRawSecret(decap[1], imp[1])) {
       vectors.decapsulateKey.push([decap[0] && imp[0], decap[1], imp[1]]);
     } else {
       vectors.decapsulateKey.push([false, decap[1], imp[1]]);

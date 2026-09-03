@@ -2,10 +2,13 @@
 // and setting it to a file that does not exist.
 #define NODE_OPENSSL_SYSTEM_CERT_PATH "/missing/ca.pem"
 
+#include "crypto/crypto_cipher.h"
 #include "crypto/crypto_context.h"
+#include "gtest/gtest.h"
 #include "node_options.h"
 #include "openssl/err.h"
-#include "gtest/gtest.h"
+
+#include <climits>
 
 /*
  * This test verifies that a call to NewRootCertDir with the build time
@@ -47,4 +50,18 @@ TEST(NodeCrypto, MemoryTrackingConstants) {
   EXPECT_EQ(node::crypto::kSizeOf_SSL_CTX, static_cast<size_t>(240));
   EXPECT_EQ(node::crypto::kSizeOf_X509, static_cast<size_t>(128));
   EXPECT_EQ(node::crypto::kSizeOf_EVP_MD_CTX, static_cast<size_t>(48));
+}
+
+TEST(NodeCrypto, TryGetIntCipherOutputLength) {
+  int output_len = 0;
+
+  EXPECT_TRUE(
+      node::crypto::TryGetIntCipherOutputLength(INT_MAX - 16, 16, &output_len));
+  EXPECT_EQ(output_len, INT_MAX);
+
+  EXPECT_FALSE(
+      node::crypto::TryGetIntCipherOutputLength(INT_MAX - 15, 16, &output_len));
+
+  EXPECT_FALSE(node::crypto::TryGetIntCipherOutputLength(
+      0, static_cast<size_t>(INT_MAX) + 1, &output_len));
 }

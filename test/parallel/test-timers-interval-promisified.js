@@ -30,7 +30,7 @@ const { setInterval } = timerPromises;
   const iterator = iterable[Symbol.asyncIterator]();
   const promise = iterator.next();
   promise.then((result) => {
-    assert.ok(!result.done, 'iterator was wronly marked as done');
+    assert.ok(!result.done, 'iterator was wrongly marked as done');
     assert.strictEqual(result.value, 'foobar');
     return iterator.return();
   }).then(common.mustCall());
@@ -42,7 +42,7 @@ const { setInterval } = timerPromises;
   const promise = iterator.next();
   promise
     .then((result) => {
-      assert.ok(!result.done, 'iterator was wronly marked as done');
+      assert.ok(!result.done, 'iterator was wrongly marked as done');
       assert.strictEqual(result.value, 'foobar');
       return iterator.next();
     })
@@ -245,12 +245,10 @@ const { setInterval } = timerPromises;
 
 (async () => {
   const signal = AbortSignal.abort('boom');
-  try {
+  await assert.rejects(async () => {
     const iterable = timerPromises.setInterval(2, undefined, { signal });
+
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of iterable) { }
-    assert.fail('should have failed');
-  } catch (err) {
-    assert.strictEqual(err.cause, 'boom');
-  }
+  }, { cause: 'boom' }, 'should have failed');
 })().then(common.mustCall());

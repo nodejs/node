@@ -232,6 +232,28 @@ module.exports = {
                    'which can be subject to prototype pollution',
         });
       },
+
+      'AssignmentPattern[right.type="ObjectExpression"]'(node) {
+        if (!node.right.properties.length) {
+          context.report({
+            node: node.right,
+            message: 'Use kEmptyObject instead of declaring a new empty object, or define a __proto__ property',
+          });
+          return;
+        }
+        const propertyIsIdentifier = (p) => p.key.type === 'Identifier';
+        if (node.left.type === 'ObjectPattern' &&
+            node.left.properties.every(propertyIsIdentifier) &&
+            node.right.properties.every(propertyIsIdentifier)) {
+          const rightNames = node.right.properties.map((p) => p.key.name);
+          if (node.left.properties.every((p) => rightNames.includes(p.key.name))) return;
+        }
+        if (node.right.properties.some((p) => p.key.name === '__proto__')) return;
+        context.report({
+          node: node.right,
+          message: `Add '__proto__: null' to avoid inheriting from Object.prototype, or '__proto__: ObjectPrototype' if inheritance is desirable`,
+        });
+      },
     };
   },
 };

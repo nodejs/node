@@ -80,7 +80,10 @@ t.test('deny-scripts --pending is rejected', async t => {
     prefixDir: setupProject({ withScripts: ['core-js'] }),
     config: { 'allow-scripts-pending': true },
   })
-  await t.rejects(npm.exec('deny-scripts', []), { code: 'EUSAGE' })
+  await t.rejects(npm.exec('deny-scripts', []), {
+    code: 'EUSAGE',
+    message: /`npm deny-scripts --allow-scripts-pending` is not supported; run `npm install-scripts ls` to list unreviewed packages/,
+  })
 })
 
 t.test('deny-scripts --all denies every unreviewed package', async t => {
@@ -102,6 +105,16 @@ t.test('deny-scripts errors on unknown package', async t => {
     npm.exec('deny-scripts', ['not-installed']),
     { code: 'ENOMATCH' }
   )
+})
+
+t.test('deny-scripts <pkg@version> denies a dotted name with a version specifier', async t => {
+  const { npm, prefix } = await _mockNpm(t, {
+    prefixDir: setupProject({ withScripts: ['cordova.plugins.diagnostic'] }),
+  })
+  await npm.exec('deny-scripts', ['cordova.plugins.diagnostic@1.0.0'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { 'cordova.plugins.diagnostic': false })
 })
 
 t.test('deny-scripts requires positional args or --all', async t => {
@@ -128,6 +141,25 @@ t.test('deny-scripts --all with no unreviewed packages prints message', async t 
   })
   await npm.exec('deny-scripts', [])
   t.match(joinedOutput(), /No packages with unreviewed install scripts/)
+})
+
+t.test('deny-scripts --all --json with no unreviewed emits empty list', async t => {
+  const { npm, joinedOutput } = await _mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'host', version: '1.0.0' }),
+      'package-lock.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        requires: true,
+        packages: { '': { name: 'host', version: '1.0.0' } },
+      }),
+      node_modules: {},
+    },
+    config: { all: true, json: true },
+  })
+  await npm.exec('deny-scripts', [])
+  t.strictSame(JSON.parse(joinedOutput()), { allowScripts: [] })
 })
 
 t.test('deny-scripts fails on global', async t => {

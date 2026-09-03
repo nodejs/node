@@ -12,11 +12,10 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-openSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello world');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 // openSync + fstatSync + readSync + closeSync
 {
@@ -27,6 +26,19 @@ myVfs.mount(mountPoint);
   const buf = Buffer.alloc(11);
   assert.strictEqual(fs.readSync(fd, buf, 0, 11, 0), 11);
   assert.strictEqual(buf.toString(), 'hello world');
+  fs.closeSync(fd);
+}
+
+// readSync with position null uses and advances the current file position
+{
+  const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
+  const b1 = Buffer.alloc(5);
+  const b2 = Buffer.alloc(6);
+
+  assert.strictEqual(fs.readSync(fd, b1, 0, 5, null), 5);
+  assert.strictEqual(fs.readSync(fd, b2, 0, 6, null), 6);
+  assert.strictEqual(b1.toString(), 'hello');
+  assert.strictEqual(b2.toString(), ' world');
   fs.closeSync(fd);
 }
 

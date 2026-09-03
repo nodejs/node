@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -31,8 +29,8 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 // First connection: receive the token.
 const cs1 = await connect(serverEndpoint.address, {
   onnewtoken: mustCall((token) => {
-    ok(Buffer.isBuffer(token));
-    ok(token.length > 0);
+    assert.ok(Buffer.isBuffer(token));
+    assert.ok(token.length > 0);
     savedToken = token;
     gotToken.resolve();
   }),

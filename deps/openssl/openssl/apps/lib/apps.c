@@ -1057,9 +1057,12 @@ int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
                 if (ok)
                     pcert = NULL;
             } else if (pcerts != NULL) {
-                ok = X509_add_cert(*pcerts,
-                    OSSL_STORE_INFO_get1_CERT(info),
-                    X509_ADD_FLAG_DEFAULT);
+                X509 *cert = OSSL_STORE_INFO_get1_CERT(info);
+
+                ok = cert != NULL
+                    && X509_add_cert(*pcerts, cert, X509_ADD_FLAG_DEFAULT);
+                if (!ok)
+                    X509_free(cert);
             }
             ncerts += ok;
             break;
@@ -1069,7 +1072,11 @@ int load_key_certs_crls(const char *uri, int format, int maybe_stdin,
                 if (ok)
                     pcrl = NULL;
             } else if (pcrls != NULL) {
-                ok = sk_X509_CRL_push(*pcrls, OSSL_STORE_INFO_get1_CRL(info));
+                X509_CRL *crl = OSSL_STORE_INFO_get1_CRL(info);
+
+                ok = crl != NULL && sk_X509_CRL_push(*pcrls, crl);
+                if (!ok)
+                    X509_CRL_free(crl);
             }
             ncrls += ok;
             break;
@@ -1681,11 +1688,18 @@ CA_DB *load_index(const char *dbfile, DB_ATTR *db_attr)
         goto err;
 
 #ifndef OPENSSL_NO_POSIX_IO
-    BIO_get_fp(in, &dbfp);
-    if (fstat(fileno(dbfp), &dbst) == -1) {
-        ERR_raise_data(ERR_LIB_SYS, errno,
-            "calling fstat(%s)", dbfile);
-        goto err;
+    if (BIO_get_fp(in, &dbfp) > 0 && dbfp != NULL) {
+        if (fstat(fileno(dbfp), &dbst) == -1) {
+            ERR_raise_data(ERR_LIB_SYS, errno,
+                "calling fstat(%s)", dbfile);
+            goto err;
+        }
+    } else {
+        if (stat(dbfile, &dbst) == -1) {
+            ERR_raise_data(ERR_LIB_SYS, errno,
+                "calling stat(%s)", dbfile);
+            goto err;
+        }
     }
 #endif
 
@@ -1715,8 +1729,14 @@ CA_DB *load_index(const char *dbfile, DB_ATTR *db_attr)
     }
 
     retdb->dbfname = OPENSSL_strdup(dbfile);
-    if (retdb->dbfname == NULL)
+    if (retdb->dbfname == NULL) {
+        TXT_DB_free(retdb->db);
+        retdb->db = NULL;
+        OPENSSL_free(retdb);
+        retdb = NULL;
+        ERR_raise_data(ERR_LIB_SYS, errno, "Out of memory while copying filename: %s", dbfile);
         goto err;
+    }
 
 #ifndef OPENSSL_NO_POSIX_IO
     retdb->dbst = dbst;

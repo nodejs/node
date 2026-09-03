@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>iframe for xhr tests</title>
+<script>
+async function xhr(url, options) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const opts = options ? options : {};
+    xhr.onload = () => {
+      resolve(xhr);
+    };
+    xhr.onerror = () => {
+      reject('xhr failed');
+    };
+
+    xhr.open('GET', url);
+    if (opts.responseType) {
+      xhr.responseType = opts.responseType;
+    }
+    xhr.send();
+  });
+}
+</script>

@@ -186,19 +186,17 @@ LCFI1:
 	/* Make the call.  */
 	bl	BLCLS_HELP
 
-	/* r3 contains the rtype pointer... save it since we will need
-	   it later.  */
-	sg	r3,LINKAGE_SIZE(r1)	; ffi_type * result_type
-	lg	r0,0(r3)		; size => r0
-	lhz	r3,FFI_TYPE_TYPE(r3)	; type => r3
+	/* r3 now holds a small PPC_LD_* jump-table index (see the PPC_LD_*
+	   defines in ffi_darwin.c), not an ffi_type* as this file previously
+	   assumed: ffi_closure_helper_common cannot return both an ffi_type*
+	   and the dispatch index through r3, so it returns the index.  The
+	   helper has already intercepted by-reference struct returns (writing
+	   the result to the caller`s buffer and returning PPC_LD_NONE); for a
+	   by-value struct return it returns PPC_LD_STRUCT and stashes cif->rtype
+	   in the first parameter-save slot, which the PPC_LD_STRUCT fragment
+	   below recovers.  */
 
-	/* The helper will have intercepted structure returns and inserted
-	   the caller`s destination address for structs returned by ref.  */
-
-	/* r3 contains the return type  so use it to look up in a table
-	   so we know how to deal with each type.  */
-
-	addi	r5,r1,(SAVE_SIZE-RESULT_BYTES) /* Otherwise, our return is here.  */
+	addi	r5,r1,(SAVE_SIZE-RESULT_BYTES) /* Our return value is here.  */
 	bl	Lget_ret_type0_addr	/* Get pointer to Lret_type0 into LR.  */
 	mflr	r4			/* Move to r4.  */
 	slwi	r3,r3,4			/* Now multiply return type by 16.  */
@@ -218,43 +216,60 @@ LFE1:
 Lget_ret_type0_addr:
 	blrl
 
-/* case FFI_TYPE_VOID  */
+/* The fragments below are indexed by the PPC_LD_* return code that
+   ffi_closure_helper_common handed back in r3, so their order must match the
+   PPC_LD_* values in ffi_darwin.c.  Each is exactly 16 bytes (four
+   instructions), except the final PPC_LD_STRUCT fragment.  */
+
+/* case PPC_LD_NONE (void, or a struct returned by reference)  */
 Lret_type0:
 	b	Lfinish
 	nop
 	nop
 	nop
 
-/* case FFI_TYPE_INT  */
+/* case PPC_LD_R3 (one GPR: int, pointer, and on ppc64 also 64-bit ints)  */
 Lret_type1:
 	lg	r3,0(r5)
 	b	Lfinish
 	nop
 	nop
 
-/* case FFI_TYPE_FLOAT  */
+/* case PPC_LD_R3R4 (two GPRs: the 32-bit ABI`s 64-bit integer)  */
 Lret_type2:
+#if defined(__ppc64__)
+	lg	r3,0(r5)
+	lg	r4,8(r5)
+#else
+	lwz	r3,0(r5)
+	lwz	r4,4(r5)
+#endif
+	b	Lfinish
+	nop
+
+/* case PPC_LD_F32  */
+Lret_type3:
 	lfs	f1,0(r5)
 	b	Lfinish
 	nop
 	nop
 
-/* case FFI_TYPE_DOUBLE  */
-Lret_type3:
+/* case PPC_LD_F64  */
+Lret_type4:
 	lfd	f1,0(r5)
 	b	Lfinish
 	nop
 	nop
 
-/* case FFI_TYPE_LONGDOUBLE  */
-Lret_type4:
+/* case PPC_LD_F128 (128-bit long double: two doubles)  */
+Lret_type5:
 	lfd	f1,0(r5)
 	lfd	f2,8(r5)
 	b	Lfinish
 	nop
 
-/* case FFI_TYPE_UINT8  */
-Lret_type5:
+/* case PPC_LD_U8  */
+Lret_type6:
 #if defined(__ppc64__)
 	lbz	r3,7(r5)
 #else
@@ -264,8 +279,8 @@ Lret_type5:
 	nop
 	nop
 
-/* case FFI_TYPE_SINT8  */
-Lret_type6:
+/* case PPC_LD_S8  */
+Lret_type7:
 #if defined(__ppc64__)
 	lbz	r3,7(r5)
 #else
@@ -275,8 +290,8 @@ Lret_type6:
 	b	Lfinish
 	nop
 
-/* case FFI_TYPE_UINT16  */
-Lret_type7:
+/* case PPC_LD_U16  */
+Lret_type8:
 #if defined(__ppc64__)
 	lhz	r3,6(r5)
 #else
@@ -286,8 +301,8 @@ Lret_type7:
 	nop
 	nop
 
-/* case FFI_TYPE_SINT16  */
-Lret_type8:
+/* case PPC_LD_S16  */
+Lret_type9:
 #if defined(__ppc64__)
 	lha	r3,6(r5)
 #else
@@ -297,77 +312,43 @@ Lret_type8:
 	nop
 	nop
 
-/* case FFI_TYPE_UINT32  */
-Lret_type9:
 #if defined(__ppc64__)
-	lwz	r3,4(r5)
-#else
-	lwz	r3,0(r5)
-#endif
-	b	Lfinish
-	nop
-	nop
-
-/* case FFI_TYPE_SINT32  */
+/* case PPC_LD_U32 (ppc64 only; the 32-bit ABI aliases U32 to PPC_LD_R3)  */
 Lret_type10:
-#if defined(__ppc64__)
 	lwz	r3,4(r5)
-#else
-	lwz	r3,0(r5)
-#endif
 	b	Lfinish
 	nop
 	nop
 
-/* case FFI_TYPE_UINT64  */
+/* case PPC_LD_S32 (ppc64 only; the 32-bit ABI aliases S32 to PPC_LD_R3)  */
 Lret_type11:
-#if defined(__ppc64__)
-	lg	r3,0(r5)
+	lwa	r3,4(r5)
 	b	Lfinish
 	nop
-#else
-	lwz	r3,0(r5)
-	lwz	r4,4(r5)
-	b	Lfinish
+	nop
 #endif
-	nop
 
-/* case FFI_TYPE_SINT64  */
-Lret_type12:
-#if defined(__ppc64__)
-	lg	r3,0(r5)
-	b	Lfinish
-	nop
-#else
-	lwz	r3,0(r5)
-	lwz	r4,4(r5)
-	b	Lfinish
-#endif
-	nop
-
-/* case FFI_TYPE_STRUCT  */
-Lret_type13:
+/* case PPC_LD_STRUCT (a by-value struct return).  This is the final,
+   variable-length fragment, so it need not be padded to 16 bytes.  The helper
+   stashed cif->rtype in the first parameter-save slot (see ffi_darwin.c),
+   because the small dispatch index in r3 left no room for it.  */
+Lret_type_struct:
+	lg	r6,PARENT_PARM_BASE(r1)	; cif->rtype
+	sg	r6,LINKAGE_SIZE(r1)	; where the struct code below expects it
+	lg	r0,0(r6)		; size => r0
 #if defined(__ppc64__)
 	lg	r3,0(r5)		; we need at least this...
 	cmpi	0,r0,4
 	bgt	Lstructend		; not a special small case
 	b	Lsmallstruct		; see if we need more.
 #else
-	cmpwi	0,r0,4
-	bgt	Lfinish		; not by value
-	lg	r3,0(r5)
+	lg	r3,0(r5)		; a <=4-byte struct, returned in r3
 	b	Lfinish
 #endif
-/* case FFI_TYPE_POINTER  */
-Lret_type14:
-	lg	r3,0(r5)
-	b	Lfinish
-	nop
-	nop
 
 #if defined(__ppc64__)
 Lsmallstruct:
-	beq	Lfour			; continuation of Lret13.
+	beq	Lfour			; continuation of Lret_type_struct.
 	cmpi	0,r0,3
 	beq	Lfinish			; don`t adjust this - can`t be any floats here...
 	srdi	r3,r3,48

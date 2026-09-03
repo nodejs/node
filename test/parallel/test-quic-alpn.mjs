@@ -1,11 +1,8 @@
 // Flags: --experimental-quic --no-warnings
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
-
-const { notStrictEqual, strictEqual } = assert;
-const { readKey } = fixtures;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -14,8 +11,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // Server offers multiple ALPNs. Client requests one that the server supports.
 // Verify the negotiated protocol matches on both sides.
@@ -25,7 +22,7 @@ const serverOpened = Promise.withResolvers();
 async function checkSession(session) {
   const info = await session.opened;
   // The client should negotiate proto-b (the only protocol it requested)
-  strictEqual(info.protocol, 'proto-b');
+  assert.strictEqual(info.protocol, 'proto-b');
 }
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
@@ -36,7 +33,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   alpn: ['proto-a', 'proto-b', 'proto-c'],
 });
 
-notStrictEqual(serverEndpoint.address, undefined);
+assert.notStrictEqual(serverEndpoint.address, undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'proto-b',
@@ -47,3 +44,10 @@ const clientSession = await connect(serverEndpoint.address, {
 await Promise.all([serverOpened.promise, checkSession(clientSession)]);
 await clientSession.close();
 await serverEndpoint.close();
+
+// QUIC requires an application protocol, so a server that offers none is
+// rejected when the endpoint is configured rather than at handshake time.
+await assert.rejects(listen(mustNotCall(), {
+  sni: { '*': { keys: [key], certs: [cert] } },
+  alpn: [],
+}), { code: 'ERR_INVALID_ARG_VALUE' });

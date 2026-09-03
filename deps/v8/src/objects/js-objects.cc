@@ -5786,6 +5786,24 @@ void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
 }
 
 // static
+Maybe<bool> JSGlobalObject::HasRestrictedGlobalProperty(
+    Isolate* isolate, DirectHandle<JSGlobalObject> global,
+    DirectHandle<Name> name) {
+  LookupIterator::Configuration config = LookupIterator::OWN_SKIP_INTERCEPTOR;
+  if (global->HasNamedInterceptor() &&
+      global->GetNamedInterceptor()->has_dont_delete_property()) {
+    config = LookupIterator::OWN;
+  }
+  LookupIterator it(isolate, global, name, global, config);
+  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+  if (maybe.IsNothing()) return Nothing<bool>();
+  // Global var and function bindings (except those that are introduced by
+  // non-strict direct eval) are non-configurable and are therefore restricted
+  // global properties.
+  return Just((maybe.FromJust() & DONT_DELETE) != 0);
+}
+
+// static
 MaybeDirectHandle<JSDate> JSDate::New(Isolate* isolate,
                                       DirectHandle<JSFunction> constructor,
                                       DirectHandle<JSReceiver> new_target,

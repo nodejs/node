@@ -71,6 +71,7 @@ async function testPipeToSyncSourceError() {
   let failCalled = false;
   const writer = {
     writeSync() { return true; },
+    endSync: common.mustNotCall(),
     fail(reason) { failCalled = true; },
   };
   function* failingSource() {
@@ -127,6 +128,7 @@ async function testPipeToSyncWithTransforms() {
   const chunks = [];
   const writer = {
     writeSync(chunk) { chunks.push(new TextDecoder().decode(chunk)); return true; },
+    endSync() { return 0; },
   };
   const upper = (batch) => {
     if (batch === null) return null;
@@ -139,6 +141,32 @@ async function testPipeToSyncWithTransforms() {
   };
   pipeToSync(fromSync('hello'), upper, writer);
   assert.strictEqual(chunks.join(''), 'HELLO');
+}
+
+async function testPipeToWriterTransformMethodIgnored() {
+  const chunks = [];
+  const writer = {
+    transform: common.mustNotCall(),
+    write(chunk) { chunks.push(new TextDecoder().decode(chunk)); },
+  };
+
+  await pipeTo(from('hello'), writer);
+  assert.strictEqual(chunks.join(''), 'hello');
+}
+
+async function testPipeToSyncWriterTransformMethodIgnored() {
+  const chunks = [];
+  const writer = {
+    transform: common.mustNotCall(),
+    writeSync(chunk) {
+      chunks.push(new TextDecoder().decode(chunk));
+      return true;
+    },
+    endSync() { return 0; },
+  };
+
+  pipeToSync(fromSync('hello'), writer);
+  assert.strictEqual(chunks.join(''), 'hello');
 }
 
 // PipeTo with writev writer
@@ -215,7 +243,7 @@ async function testPipeToSyncMinimalWriter() {
     },
   };
 
-  pipeToSync(fromSync('minimal-sync'), minimalWriter);
+  pipeToSync(fromSync('minimal-sync'), minimalWriter, { preventClose: true });
   assert.strictEqual(chunks.length > 0, true);
 }
 
@@ -301,6 +329,8 @@ Promise.all([
   testPipeToWithSignal(),
   testPipeToWithTransforms(),
   testPipeToSyncWithTransforms(),
+  testPipeToWriterTransformMethodIgnored(),
+  testPipeToSyncWriterTransformMethodIgnored(),
   testPipeToWithWritevWriter(),
   testPipeToSyncFallback(),
   testPipeToPreventFail(),

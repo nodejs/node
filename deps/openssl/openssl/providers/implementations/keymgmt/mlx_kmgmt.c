@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -245,7 +245,7 @@ static int mlx_kem_export(void *vkey, int selection, OSSL_CALLBACK *param_cb,
 {
     MLX_KEY *key = vkey;
     OSSL_PARAM_BLD *tmpl = NULL;
-    OSSL_PARAM *params = NULL;
+    OSSL_PARAM *params = NULL, *p;
     size_t publen;
     size_t prvlen;
     int ret = 0;
@@ -307,12 +307,18 @@ static int mlx_kem_export(void *vkey, int selection, OSSL_CALLBACK *param_cb,
         goto err;
 
     ret = param_cb(params, cbarg);
+    /*
+     * OSSL_PARAM_free() only wipes the secure-heap data block,
+     * so wipe the key material copies held in the params first.
+     */
+    for (p = params; p->key != NULL; p++)
+        OPENSSL_cleanse(p->data, p->data_size);
     OSSL_PARAM_free(params);
 
 err:
     OSSL_PARAM_BLD_free(tmpl);
     OPENSSL_secure_clear_free(sub_arg.prvenc, prvlen);
-    OPENSSL_free(sub_arg.pubenc);
+    OPENSSL_clear_free(sub_arg.pubenc, publen);
     return ret;
 }
 
@@ -562,12 +568,18 @@ static int mlx_kem_get_params(void *vkey, OSSL_PARAM params[])
         selection |= OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS;
 
     /* Extract sub-component key material */
-    if (!export_sub(&sub_arg, selection, key))
+    if (!export_sub(&sub_arg, selection, key)
+        || (pub != NULL && sub_arg.pubcount != 2)
+        || (prv != NULL && sub_arg.prvcount != 2)) {
+        /* Erase any partial key material on failure */
+        if (sub_arg.pubenc != NULL)
+            OPENSSL_cleanse(sub_arg.pubenc,
+                key->minfo->pubkey_bytes + key->xinfo->pubkey_bytes);
+        if (sub_arg.prvenc != NULL)
+            OPENSSL_cleanse(sub_arg.prvenc,
+                key->minfo->prvkey_bytes + key->xinfo->prvkey_bytes);
         return 0;
-
-    if ((pub != NULL && sub_arg.pubcount != 2)
-        || (prv != NULL && sub_arg.prvcount != 2))
-        return 0;
+    }
 
     return 1;
 }
@@ -733,15 +745,17 @@ static void *mlx_kem_dup(const void *vkey, int selection)
         || (ret = OPENSSL_memdup(key, sizeof(*ret))) == NULL)
         return NULL;
 
-    if (ret->propq != NULL
-        && (ret->propq = OPENSSL_strdup(ret->propq)) == NULL) {
+    ret->mkey = ret->xkey = NULL;
+
+    if (key->propq != NULL
+        && (ret->propq = OPENSSL_strdup(key->propq)) == NULL) {
         OPENSSL_free(ret);
         return NULL;
     }
 
     /* Absent key material, nothing left to do */
-    if (ret->mkey == NULL) {
-        if (ret->xkey == NULL)
+    if (key->mkey == NULL) {
+        if (key->xkey == NULL)
             return ret;
         /* Fail if the source key is an inconsistent state */
         OPENSSL_free(ret->propq);
@@ -751,7 +765,6 @@ static void *mlx_kem_dup(const void *vkey, int selection)
 
     switch (selection & OSSL_KEYMGMT_SELECT_KEYPAIR) {
     case 0:
-        ret->xkey = ret->mkey = NULL;
         ret->state = MLX_HAVE_NOKEYS;
         return ret;
     case OSSL_KEYMGMT_SELECT_KEYPAIR:

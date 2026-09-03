@@ -35,11 +35,11 @@ const nonStringInputs = [
 
 // zlib.Unzip classes need to get valid data, or else they'll throw.
 const unzips = [
-  zlib.Unzip(),
-  zlib.Gunzip(),
-  zlib.Inflate(),
-  zlib.InflateRaw(),
-  zlib.BrotliDecompress(),
+  new zlib.Unzip(),
+  new zlib.Gunzip(),
+  new zlib.Inflate(),
+  new zlib.InflateRaw(),
+  new zlib.BrotliDecompress(),
   new zlib.ZstdDecompress(),
 ];
 
@@ -51,6 +51,43 @@ nonStringInputs.forEach(common.mustCall((input) => {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 }, nonStringInputs.length));
+
+const spoofedLength = new Uint8Array(1).fill(0x41);
+Object.defineProperty(spoofedLength, 'length', { get: () => 5000 });
+Object.defineProperty(spoofedLength, 'byteLength', { get: () => 5000 });
+
+[
+  zlib.deflateSync,
+  zlib.gzipSync,
+  zlib.deflateRawSync,
+  zlib.unzipSync,
+  zlib.inflateSync,
+  zlib.gunzipSync,
+  zlib.inflateRawSync,
+  zlib.brotliCompressSync,
+  zlib.brotliDecompressSync,
+  zlib.zstdCompressSync,
+  zlib.zstdDecompressSync,
+].forEach((method) => {
+  assert.throws(() => {
+    method(spoofedLength);
+  }, {
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+  });
+});
+
+{
+  const deflate = zlib.createDeflate();
+  deflate._outOffset = deflate._chunkSize + 1;
+  assert.throws(() => {
+    deflate._processChunk(Buffer.alloc(1), zlib.constants.Z_FINISH);
+  }, {
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+  });
+  deflate.close();
+}
 
 unzips.forEach(common.mustCall((uz, i) => {
   uz.on('error', common.mustCall());

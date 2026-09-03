@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the creation of a single executable application.
 
@@ -18,7 +18,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'simple'));
+const outputFile = buildSEA(fixtures.path('sea', 'simple'));
 
 spawnSyncAndAssert(
   outputFile,

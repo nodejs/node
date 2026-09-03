@@ -336,6 +336,9 @@ var defaultOptions = {
   // Can be either `"script"`, `"module"` or `"commonjs"`. This influences global
   // strict mode and parsing of `import` and `export` declarations.
   sourceType: "script",
+  // When set to true, enable strict parsing mode even if `sourceType`
+  // is `"script"`.
+  strict: false,
   // `onInsertedSemicolon` can be a callback that will be called when
   // a semicolon is automatically inserted. It will be passed the
   // position of the inserted semicolon as an offset, and if
@@ -377,6 +380,11 @@ var defaultOptions = {
   // line being 1-based and column 0-based) will be attached to the
   // nodes.
   locations: false,
+  // Pass an optional `{line, column}` object to use for the start of
+  // the parse. This is mostly useful when using `parseExpressionAt`
+  // with `locations: true`, to prevent the parser from having to
+  // determine the line position at the start position.
+  startLocation: null,
   // A function can be passed as `onToken` option, which will
   // cause Acorn to call that function with object in the same
   // format as tokens returned from `tokenizer().getToken()`. Note
@@ -530,13 +538,17 @@ var Parser = function Parser(options, input, startPos) {
   // Set up token state
 
   // The current position of the tokenizer in the input.
-  if (startPos) {
-    this.pos = startPos;
+  this.pos = startPos || 0;
+  this.curLine = 1;
+  if (options.startLocation) {
+    this.lineStart = this.pos - options.startLocation.column;
+    this.curLine = options.startLocation.line;
+  } else if (startPos) {
     this.lineStart = this.input.lastIndexOf("\n", startPos - 1) + 1;
-    this.curLine = this.input.slice(0, this.lineStart).split(lineBreak).length;
+    if (this.options.locations)
+      { this.curLine = this.input.slice(0, this.lineStart).split(lineBreak).length; }
   } else {
-    this.pos = this.lineStart = 0;
-    this.curLine = 1;
+    this.lineStart = 0;
   }
 
   // Properties of the current token:
@@ -562,7 +574,7 @@ var Parser = function Parser(options, input, startPos) {
 
   // Figure out if it's a module code.
   this.inModule = options.sourceType === "module";
-  this.strict = this.inModule || this.strictDirective(this.pos);
+  this.strict = this.inModule || options.strict === true || this.strictDirective(this.pos);
 
   // Used to signify the start of a potential arrow function
   this.potentialArrowAt = -1;
@@ -600,9 +612,11 @@ var Parser = function Parser(options, input, startPos) {
 var prototypeAccessors = { inFunction: { configurable: true },inGenerator: { configurable: true },inAsync: { configurable: true },canAwait: { configurable: true },allowReturn: { configurable: true },allowSuper: { configurable: true },allowDirectSuper: { configurable: true },treatFunctionsAsVar: { configurable: true },allowNewDotTarget: { configurable: true },allowUsing: { configurable: true },inClassStaticBlock: { configurable: true } };
 
 Parser.prototype.parse = function parse () {
+    var this$1$1 = this;
+
   var node = this.options.program || this.startNode();
   this.nextToken();
-  return this.parseTopLevel(node)
+  return this.catchStackOverflow(function () { return this$1$1.parseTopLevel(node); })
 };
 
 prototypeAccessors.inFunction.get = function () { return (this.currentVarScope().flags & SCOPE_FUNCTION) > 0 };
@@ -741,6 +755,17 @@ pp$9.eatContextual = function(name) {
   return true
 };
 
+pp$9.catchStackOverflow = function(f) {
+  try {
+    return f()
+  } catch (e) {
+    if (e instanceof Error && (/\bstack\b.*\b(exceeded|overflow)\b/i.test(e.message) || /\btoo much recursion\b/i.test(e.message)))
+      { this.raise(this.start, "Not enough stack space to parse input"); }
+    else
+      { throw e }
+  }
+};
+
 // Asserts that following token is given contextual keyword.
 
 pp$9.expectContextual = function(name) {
@@ -844,10 +869,10 @@ var pp$8 = Parser.prototype;
 // to its body instead of creating a new node.
 
 pp$8.parseTopLevel = function(node) {
-  var exports = Object.create(null);
+  var exports$1 = Object.create(null);
   if (!node.body) { node.body = []; }
   while (this.type !== types$1.eof) {
-    var stmt = this.parseStatement(null, true, exports);
+    var stmt = this.parseStatement(null, true, exports$1);
     node.body.push(stmt);
   }
   if (this.inModule)
@@ -936,7 +961,18 @@ pp$8.isUsingKeyword = function(isAwaitUsing, isFor) {
   while (isIdentifierChar(ch = this.fullCharCodeAt(next)))
   if (ch === 92) { return true }
   var id = this.input.slice(idStart, next);
-  if (keywordRelationalOperator.test(id) || isFor && id === "of") { return false }
+  if (keywordRelationalOperator.test(id)) { return false }
+  if (isFor && !isAwaitUsing && id === "of") {
+    // Look ahead for using declaration with initializer, i.e., `for (using of = ...)`
+    skipWhiteSpace.lastIndex = next;
+    var skipAfterOf = skipWhiteSpace.exec(this.input);
+    next = next + skipAfterOf[0].length;
+    if (this.input.charCodeAt(next) !== 61 /* '=' */ ||
+      // Check for ==, === and => operators
+      (ch = this.input.charCodeAt(next + 1)) === 61 /* '=' */ || ch === 62 /* '>' */) {
+      return false
+    }
+  }
   return true
 };
 
@@ -955,7 +991,7 @@ pp$8.isUsing = function(isFor) {
 // `if (foo) /blah/.exec(foo)`, where looking at the previous token
 // does not help.
 
-pp$8.parseStatement = function(context, topLevel, exports) {
+pp$8.parseStatement = function(context, topLevel, exports$1) {
   var starttype = this.type, node = this.startNode(), kind;
 
   if (this.isLet(context)) {
@@ -1010,7 +1046,7 @@ pp$8.parseStatement = function(context, topLevel, exports) {
       if (!this.inModule)
         { this.raise(this.start, "'import' and 'export' may appear only with 'sourceType: module'"); }
     }
-    return starttype === types$1._import ? this.parseImport(node) : this.parseExport(node, exports)
+    return starttype === types$1._import ? this.parseImport(node) : this.parseExport(node, exports$1)
 
     // If the statement does not start with a statement keyword or a
     // brace, it's an ExpressionStatement or LabeledStatement. We
@@ -1028,6 +1064,10 @@ pp$8.parseStatement = function(context, topLevel, exports) {
     if (usingKind) {
       if (!this.allowUsing) {
         this.raise(this.start, "Using declaration cannot appear in the top level when source type is `script` or in the bare case statement");
+      }
+      if (context) {
+        // Cases like `for (;;) using x = ...;`, `if (true) await using x = ...;`, etc. are not allowed.
+        this.raise(this.start, "Using declaration is not allowed in single-statement positions");
       }
       if (usingKind === "await using") {
         if (!this.canAwait) {
@@ -1162,11 +1202,12 @@ pp$8.parseForStatement = function(node) {
 // Helper method to parse for loop after variable initialization
 pp$8.parseForAfterInit = function(node, init, awaitAt) {
   if ((this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of"))) && init.declarations.length === 1) {
-    if (this.options.ecmaVersion >= 9) {
-      if (this.type === types$1._in) {
-        if (awaitAt > -1) { this.unexpected(awaitAt); }
-      } else { node.await = awaitAt > -1; }
-    }
+    if (this.type === types$1._in) {
+      if ((init.kind === "using" || init.kind === "await using") && !init.declarations[0].init) {
+        this.raise(this.start, "Using declaration is not allowed in for-in loops");
+      }
+      if (this.options.ecmaVersion >= 9 && awaitAt > -1) { this.unexpected(awaitAt); }
+    } else if (this.options.ecmaVersion >= 9) { node.await = awaitAt > -1; }
     return this.parseForIn(node, init)
   }
   if (awaitAt > -1) { this.unexpected(awaitAt); }
@@ -1771,11 +1812,11 @@ function checkKeyName(node, name) {
 
 // Parses module export declaration.
 
-pp$8.parseExportAllDeclaration = function(node, exports) {
+pp$8.parseExportAllDeclaration = function(node, exports$1) {
   if (this.options.ecmaVersion >= 11) {
     if (this.eatContextual("as")) {
       node.exported = this.parseModuleExportName();
-      this.checkExport(exports, node.exported, this.lastTokStart);
+      this.checkExport(exports$1, node.exported, this.lastTokStart);
     } else {
       node.exported = null;
     }
@@ -1789,14 +1830,14 @@ pp$8.parseExportAllDeclaration = function(node, exports) {
   return this.finishNode(node, "ExportAllDeclaration")
 };
 
-pp$8.parseExport = function(node, exports) {
+pp$8.parseExport = function(node, exports$1) {
   this.next();
   // export * from '...'
   if (this.eat(types$1.star)) {
-    return this.parseExportAllDeclaration(node, exports)
+    return this.parseExportAllDeclaration(node, exports$1)
   }
   if (this.eat(types$1._default)) { // export default ...
-    this.checkExport(exports, "default", this.lastTokStart);
+    this.checkExport(exports$1, "default", this.lastTokStart);
     node.declaration = this.parseExportDefaultDeclaration();
     return this.finishNode(node, "ExportDefaultDeclaration")
   }
@@ -1804,16 +1845,16 @@ pp$8.parseExport = function(node, exports) {
   if (this.shouldParseExportStatement()) {
     node.declaration = this.parseExportDeclaration(node);
     if (node.declaration.type === "VariableDeclaration")
-      { this.checkVariableExport(exports, node.declaration.declarations); }
+      { this.checkVariableExport(exports$1, node.declaration.declarations); }
     else
-      { this.checkExport(exports, node.declaration.id, node.declaration.id.start); }
+      { this.checkExport(exports$1, node.declaration.id, node.declaration.id.start); }
     node.specifiers = [];
     node.source = null;
     if (this.options.ecmaVersion >= 16)
       { node.attributes = []; }
   } else { // export { x, y as z } [from '...']
     node.declaration = null;
-    node.specifiers = this.parseExportSpecifiers(exports);
+    node.specifiers = this.parseExportSpecifiers(exports$1);
     if (this.eatContextual("from")) {
       if (this.type !== types$1.string) { this.unexpected(); }
       node.source = this.parseExprAtom();
@@ -1863,47 +1904,47 @@ pp$8.parseExportDefaultDeclaration = function() {
   }
 };
 
-pp$8.checkExport = function(exports, name, pos) {
-  if (!exports) { return }
+pp$8.checkExport = function(exports$1, name, pos) {
+  if (!exports$1) { return }
   if (typeof name !== "string")
     { name = name.type === "Identifier" ? name.name : name.value; }
-  if (hasOwn(exports, name))
+  if (hasOwn(exports$1, name))
     { this.raiseRecoverable(pos, "Duplicate export '" + name + "'"); }
-  exports[name] = true;
+  exports$1[name] = true;
 };
 
-pp$8.checkPatternExport = function(exports, pat) {
+pp$8.checkPatternExport = function(exports$1, pat) {
   var type = pat.type;
   if (type === "Identifier")
-    { this.checkExport(exports, pat, pat.start); }
+    { this.checkExport(exports$1, pat, pat.start); }
   else if (type === "ObjectPattern")
     { for (var i = 0, list = pat.properties; i < list.length; i += 1)
       {
         var prop = list[i];
 
-        this.checkPatternExport(exports, prop);
+        this.checkPatternExport(exports$1, prop);
       } }
   else if (type === "ArrayPattern")
     { for (var i$1 = 0, list$1 = pat.elements; i$1 < list$1.length; i$1 += 1) {
       var elt = list$1[i$1];
 
-        if (elt) { this.checkPatternExport(exports, elt); }
+        if (elt) { this.checkPatternExport(exports$1, elt); }
     } }
   else if (type === "Property")
-    { this.checkPatternExport(exports, pat.value); }
+    { this.checkPatternExport(exports$1, pat.value); }
   else if (type === "AssignmentPattern")
-    { this.checkPatternExport(exports, pat.left); }
+    { this.checkPatternExport(exports$1, pat.left); }
   else if (type === "RestElement")
-    { this.checkPatternExport(exports, pat.argument); }
+    { this.checkPatternExport(exports$1, pat.argument); }
 };
 
-pp$8.checkVariableExport = function(exports, decls) {
-  if (!exports) { return }
+pp$8.checkVariableExport = function(exports$1, decls) {
+  if (!exports$1) { return }
   for (var i = 0, list = decls; i < list.length; i += 1)
     {
     var decl = list[i];
 
-    this.checkPatternExport(exports, decl.id);
+    this.checkPatternExport(exports$1, decl.id);
   }
 };
 
@@ -1918,13 +1959,13 @@ pp$8.shouldParseExportStatement = function() {
 
 // Parses a comma-separated list of module exports.
 
-pp$8.parseExportSpecifier = function(exports) {
+pp$8.parseExportSpecifier = function(exports$1) {
   var node = this.startNode();
   node.local = this.parseModuleExportName();
 
   node.exported = this.eatContextual("as") ? this.parseModuleExportName() : node.local;
   this.checkExport(
-    exports,
+    exports$1,
     node.exported,
     node.exported.start
   );
@@ -1932,7 +1973,7 @@ pp$8.parseExportSpecifier = function(exports) {
   return this.finishNode(node, "ExportSpecifier")
 };
 
-pp$8.parseExportSpecifiers = function(exports) {
+pp$8.parseExportSpecifiers = function(exports$1) {
   var nodes = [], first = true;
   // export { x, y as z } [from '...']
   this.expect(types$1.braceL);
@@ -1942,7 +1983,7 @@ pp$8.parseExportSpecifiers = function(exports) {
       if (this.afterTrailingComma(types$1.braceR)) { break }
     } else { first = false; }
 
-    nodes.push(this.parseExportSpecifier(exports));
+    nodes.push(this.parseExportSpecifier(exports$1));
   }
   return nodes
 };
@@ -2673,15 +2714,19 @@ pp$5.checkPropClash = function(prop, propHash, refDestructuringErrors) {
 // delayed syntax error at correct position).
 
 pp$5.parseExpression = function(forInit, refDestructuringErrors) {
-  var startPos = this.start, startLoc = this.startLoc;
-  var expr = this.parseMaybeAssign(forInit, refDestructuringErrors);
-  if (this.type === types$1.comma) {
-    var node = this.startNodeAt(startPos, startLoc);
-    node.expressions = [expr];
-    while (this.eat(types$1.comma)) { node.expressions.push(this.parseMaybeAssign(forInit, refDestructuringErrors)); }
-    return this.finishNode(node, "SequenceExpression")
-  }
-  return expr
+  var this$1$1 = this;
+
+  return this.catchStackOverflow(function () {
+    var startPos = this$1$1.start, startLoc = this$1$1.startLoc;
+    var expr = this$1$1.parseMaybeAssign(forInit, refDestructuringErrors);
+    if (this$1$1.type === types$1.comma) {
+      var node = this$1$1.startNodeAt(startPos, startLoc);
+      node.expressions = [expr];
+      while (this$1$1.eat(types$1.comma)) { node.expressions.push(this$1$1.parseMaybeAssign(forInit, refDestructuringErrors)); }
+      return this$1$1.finishNode(node, "SequenceExpression")
+    }
+    return expr
+  })
 };
 
 // Parse an assignment expression. This includes applications of
@@ -2746,7 +2791,7 @@ pp$5.parseMaybeConditional = function(forInit, refDestructuringErrors) {
   var startPos = this.start, startLoc = this.startLoc;
   var expr = this.parseExprOps(forInit, refDestructuringErrors);
   if (this.checkExpressionErrors(refDestructuringErrors)) { return expr }
-  if (this.eat(types$1.question)) {
+  if (!(expr.type === "ArrowFunctionExpression" && expr.start === startPos) && this.eat(types$1.question)) {
     var node = this.startNodeAt(startPos, startLoc);
     node.test = expr;
     node.consequent = this.parseMaybeAssign();
@@ -2846,7 +2891,7 @@ pp$5.parseMaybeUnary = function(refDestructuringErrors, sawUnary, incDec, forIni
     }
   }
 
-  if (!incDec && this.eat(types$1.starstar)) {
+  if (!incDec && !(expr.type === "ArrowFunctionExpression" && expr.start === startPos) && this.eat(types$1.starstar)) {
     if (sawUnary)
       { this.unexpected(this.lastTokStart); }
     else
@@ -3298,6 +3343,8 @@ pp$5.parseNew = function() {
   }
   var startPos = this.start, startLoc = this.startLoc;
   node.callee = this.parseSubscripts(this.parseExprAtom(null, false, true), startPos, startLoc, true, false);
+  if (node.callee.type === "Super")
+    { this.raiseRecoverable(startPos, "Invalid use of 'super'"); }
   if (this.eat(types$1.parenL)) { node.arguments = this.parseExprList(types$1.parenR, this.options.ecmaVersion >= 8, false); }
   else { node.arguments = empty; }
   return this.finishNode(node, "NewExpression")
@@ -6214,7 +6261,7 @@ pp.readWord = function() {
 // [ghbt]: https://github.com/acornjs/acorn/issues
 
 
-var version = "8.16.0";
+var version = "8.18.0";
 
 Parser.acorn = {
   Parser: Parser,

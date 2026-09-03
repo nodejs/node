@@ -191,6 +191,9 @@ static std::string GetErrorSource(Isolate* isolate,
 
 static std::atomic<bool> is_in_oom{false};
 static thread_local std::atomic<bool> is_retrieving_js_stacktrace{false};
+// This is thread-local because it only guards re-entrancy within the current
+// thread's uncaught-exception path; no cross-thread synchronization is needed.
+static thread_local bool is_in_uncaught_exception = false;
 MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
   if (isolate == nullptr) {
     return MaybeLocal<StackTrace>();
@@ -393,6 +396,30 @@ void AppendExceptionLine(Environment* env,
             .FromMaybe(false));
 }
 
+namespace {
+// Default handler: Dumps native + JS backtraces to stderr and exits. This
+// indirectly calls backtrace so it can not be marked as [[noreturn]] (see the
+// comment on node::Assert() below). `message` and `location` are ignored
+// because the assertion/fatal-error message, if any, is already printed to
+// stderr by the caller (Assert()/OnFatalError()) before this handler runs.
+void DefaultAbortHandler(const char* /*location*/, const char* /*message*/) {
+  DumpNativeBacktrace(stderr);
+  DumpJavaScriptBacktrace(stderr);
+  fflush(stderr);
+  ABORT_NO_BACKTRACE();
+}
+// Constant-initialized, so this is valid from load time, safe even for a
+// CHECK() during early startup, before any SetAbortHandler call.
+AbortHandler g_abort_handler = DefaultAbortHandler;
+}  // namespace
+
+void SetAbortHandler(AbortHandler handler) {
+  g_abort_handler = handler ? handler : DefaultAbortHandler;
+}
+AbortHandler GetAbortHandler() {
+  return g_abort_handler;
+}
+
 void Assert(const AssertionInfo& info) {
   std::string name = GetHumanReadableProcessName();
 
@@ -406,7 +433,7 @@ void Assert(const AssertionInfo& info) {
           info.message);
 
   fflush(stderr);
-  ABORT();
+  ABORT_WITH_DETAILS(info.file_line, info.message);
 }
 
 enum class EnhanceFatalException { kEnhance, kDontEnhance };
@@ -584,7 +611,7 @@ static void ReportFatalException(Environment* env,
   }
 
   fflush(stderr);
-  ABORT();
+  ABORT_WITH_DETAILS(location, message);
 }
 
 void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
@@ -620,7 +647,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
   }
 
   fflush(stderr);
-  ABORT();
+  ABORT_WITH_DETAILS(location, message);
 }
 
 v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
@@ -1278,6 +1305,26 @@ void TriggerUncaughtException(Isolate* isolate,
   CHECK(isolate->InContext());
   Local<Context> context = isolate->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
+  // Re-entrancy guard: prevent infinite recursion when the JS-level
+  // exception handler (process._fatalException) itself triggers another
+  // exception through the inspector protocol, causing V8's pending message
+  // reporting to call TriggerUncaughtException reentrantly.
+  if (is_in_uncaught_exception) {
+    PrintToStderrAndFlush(
+        "FATAL ERROR: Re-entrant uncaught exception detected.\n"
+        "The exception handler threw an error while processing a\n"
+        "previous uncaught exception, likely due to an inspector\n"
+        "protocol issue. Aborting to prevent infinite recursion.\n" +
+        FormatCaughtException(isolate, context, error, message));
+    ABORT();
+  }
+  // RAII guard to ensure the flag is cleared when TriggerUncaughtException
+  // returns normally. Note: ABORT() and env->Exit() do not run this
+  // destructor, which is intentional — the process is terminating.
+  struct UncaughtExceptionGuard {
+    UncaughtExceptionGuard() { is_in_uncaught_exception = true; }
+    ~UncaughtExceptionGuard() { is_in_uncaught_exception = false; }
+  } uncaught_exception_guard;
   if (env == nullptr) {
     // This means that the exception happens before Environment is assigned
     // to the context e.g. when there is a SyntaxError in a per-context

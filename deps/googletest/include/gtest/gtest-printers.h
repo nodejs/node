@@ -291,11 +291,9 @@ struct ConvertibleToIntegerPrinter {
 };
 
 struct ConvertibleToStringViewPrinter {
-#if GTEST_INTERNAL_HAS_STRING_VIEW
   static void PrintValue(internal::StringView value, ::std::ostream* os) {
     internal::UniversalPrint(value, os);
   }
-#endif
 };
 
 #ifdef GTEST_HAS_ABSL
@@ -524,17 +522,14 @@ inline void PrintTo(bool x, ::std::ostream* os) {
 GTEST_API_ void PrintTo(wchar_t wc, ::std::ostream* os);
 
 GTEST_API_ void PrintTo(char32_t c, ::std::ostream* os);
-inline void PrintTo(char16_t c, ::std::ostream* os) {
-  // TODO(b/418738869): Incorrect for values not representing valid codepoints.
-  // Also see https://github.com/google/googletest/issues/4762.
-  PrintTo(static_cast<char32_t>(c), os);
-}
+
+// Overloads for the UTF-8 and UTF-16 code unit types.  A code unit that
+// encodes a code point all by itself is printed with the U+XXXX notation;
+// one that does not (any non-ASCII char8_t, and the UTF-16 surrogates) is
+// printed as a code unit instead, the way wchar_t is.
+GTEST_API_ void PrintTo(char16_t c, ::std::ostream* os);
 #ifdef __cpp_lib_char8_t
-inline void PrintTo(char8_t c, ::std::ostream* os) {
-  // TODO(b/418738869): Incorrect for values not representing valid codepoints.
-  // Also see https://github.com/google/googletest/issues/4762.
-  PrintTo(static_cast<char32_t>(c), os);
-}
+GTEST_API_ void PrintTo(char8_t c, ::std::ostream* os);
 #endif
 
 // gcc/clang __{u,}int128_t
@@ -676,12 +671,12 @@ inline void PrintTo(char32_t* s, ::std::ostream* os) {
   PrintTo(ImplicitCast_<const char32_t*>(s), os);
 }
 
-// MSVC can be configured to define wchar_t as a typedef of unsigned
-// short.  It defines _NATIVE_WCHAR_T_DEFINED when wchar_t is a native
-// type.  When wchar_t is a typedef, defining an overload for const
-// wchar_t* would cause unsigned short* be printed as a wide string,
-// possibly causing invalid memory accesses.
-#if !defined(_MSC_VER) || defined(_NATIVE_WCHAR_T_DEFINED)
+// Only add an overload for printing wchar_t* if:
+// 1. Wide string support is enabled.
+// 2. wchar_t is a distinct native type. (If it's a typedef, the overload could
+//    cause a pointer to the underlying type to be mistakenly treated as a
+//    string.)
+#if GTEST_HAS_STD_WSTRING && GTEST_HAS_NATIVE_WCHAR
 // Overloads for wide C strings
 GTEST_API_ void PrintTo(const wchar_t* s, ::std::ostream* os);
 inline void PrintTo(wchar_t* s, ::std::ostream* os) {
@@ -703,12 +698,12 @@ void PrintRawArrayTo(const T a[], size_t count, ::std::ostream* os) {
   }
 }
 
-// Overloads for ::std::string and ::std::string_view
-GTEST_API_ void PrintStringTo(::std::string_view s, ::std::ostream* os);
+// Overloads for ::std::string and std::string_view
+GTEST_API_ void PrintStringTo(std::string_view s, ::std::ostream* os);
 inline void PrintTo(const ::std::string& s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
-inline void PrintTo(::std::string_view s, ::std::ostream* os) {
+inline void PrintTo(std::string_view s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
 
@@ -752,16 +747,14 @@ inline void PrintTo(::std::wstring_view s, ::std::ostream* os) {
 }
 #endif  // GTEST_HAS_STD_WSTRING
 
-#if GTEST_INTERNAL_HAS_STRING_VIEW
 // Overload for internal::StringView. Needed for build configurations where
 // internal::StringView is an alias for absl::string_view, but absl::string_view
 // is a distinct type from std::string_view.
 template <int&... ExplicitArgumentBarrier, typename T = internal::StringView,
-          std::enable_if_t<!std::is_same_v<T, ::std::string_view>, int> = 0>
+          std::enable_if_t<!std::is_same_v<T, std::string_view>, int> = 0>
 inline void PrintTo(internal::StringView sp, ::std::ostream* os) {
   PrintStringTo(sp, os);
 }
-#endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
 inline void PrintTo(std::nullptr_t, ::std::ostream* os) { *os << "(nullptr)"; }
 
@@ -863,8 +856,8 @@ void PrintTupleTo(const T& t, std::integral_constant<size_t, I>,
     GTEST_INTENTIONAL_CONST_COND_POP_()
     *os << ", ";
   }
-  UniversalPrinter<typename std::tuple_element<I - 1, T>::type>::Print(
-      std::get<I - 1>(t), os);
+  UniversalPrinter<std::tuple_element_t<I - 1, T>>::Print(std::get<I - 1>(t),
+                                                          os);
 }
 
 template <typename... Types>
@@ -945,13 +938,13 @@ template <typename T>
 class [[nodiscard]] UniversalPrinter<std::optional<T>> {
  public:
   static void Print(const std::optional<T>& value, ::std::ostream* os) {
-    *os << '(';
     if (!value) {
-      *os << "nullopt";
+      UniversalPrint(std::nullopt, os);
     } else {
+      *os << '(';
       UniversalPrint(*value, os);
+      *os << ')';
     }
-    *os << ')';
   }
 };
 
@@ -961,27 +954,38 @@ class [[nodiscard]] UniversalPrinter<std::nullopt_t> {
   static void Print(std::nullopt_t, ::std::ostream* os) { *os << "(nullopt)"; }
 };
 
+struct UniversalPrinterVisitor {
+  template <typename T>
+  void operator()(const T& arg) const {
+    *os << "'" << GetTypeName<T>() << "(index = " << index << ")' with value ";
+    UniversalPrint(arg, os);
+  }
+  ::std::ostream* os;
+  std::size_t index;
+};
+
 // Printer for std::variant
 template <typename... T>
 class [[nodiscard]] UniversalPrinter<std::variant<T...>> {
  public:
   static void Print(const std::variant<T...>& value, ::std::ostream* os) {
-    *os << '(';
-    std::visit(Visitor{os, value.index()}, value);
-    *os << ')';
-  }
-
- private:
-  struct Visitor {
-    template <typename U>
-    void operator()(const U& u) const {
-      *os << "'" << GetTypeName<U>() << "(index = " << index
-          << ")' with value ";
-      UniversalPrint(u, os);
+    if (value.valueless_by_exception()) {
+      *os << "(valueless)";
+    } else {
+      *os << '(';
+      std::visit(UniversalPrinterVisitor{os, value.index()}, value);
+      *os << ')';
     }
-    ::std::ostream* os;
-    std::size_t index;
-  };
+  }
+};
+
+// Printer for std::monostate
+template <>
+class [[nodiscard]] UniversalPrinter<std::monostate> {
+ public:
+  static void Print(std::monostate, ::std::ostream* os) {
+    *os << "(monostate)";
+  }
 };
 
 // UniversalPrintArray(begin, len, os) prints an array of 'len'
@@ -1166,15 +1170,12 @@ class [[nodiscard]] UniversalTersePrinter<const wchar_t*> {
     }
   }
 };
-#endif
 
 template <>
-class [[nodiscard]] UniversalTersePrinter<wchar_t*> {
- public:
-  static void Print(wchar_t* str, ::std::ostream* os) {
-    UniversalTersePrinter<const wchar_t*>::Print(str, os);
-  }
-};
+class [[nodiscard]] UniversalTersePrinter<wchar_t*>
+    : public UniversalTersePrinter<const wchar_t*> {};
+
+#endif  // GTEST_HAS_STD_WSTRING
 
 template <typename T>
 void UniversalTersePrint(const T& value, ::std::ostream* os) {
@@ -1218,7 +1219,7 @@ template <typename Tuple>
 Strings UniversalTersePrintTupleFieldsToStrings(const Tuple& value) {
   Strings result;
   TersePrintPrefixToStrings(
-      value, std::integral_constant<size_t, std::tuple_size<Tuple>::value>(),
+      value, std::integral_constant<size_t, std::tuple_size_v<Tuple>>(),
       &result);
   return result;
 }

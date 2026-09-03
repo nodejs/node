@@ -66,9 +66,8 @@ class SeaSerializer : public BlobSerializer<SeaSerializer> {
       : BlobSerializer<SeaSerializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::SEA)) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   size_t Write(const T& data);
 };
 
@@ -150,9 +149,8 @@ class SeaDeserializer : public BlobDeserializer<SeaDeserializer> {
       : BlobDeserializer<SeaDeserializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::SEA), v) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   T Read();
 };
 
@@ -265,6 +263,15 @@ void IsSea(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(IsSingleExecutable());
 }
 
+void IsVfsEnabled(const FunctionCallbackInfo<Value>& args) {
+  bool enabled = false;
+  if (IsSingleExecutable()) {
+    SeaResource sea_resource = FindSingleExecutableResource();
+    enabled = static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs);
+  }
+  args.GetReturnValue().Set(enabled);
+}
+
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   bool is_building_sea =
       !per_process::cli_options->experimental_sea_config.empty();
@@ -283,7 +290,9 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
-std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
+std::tuple<int, char**> FixupArgsForSEA(int argc,
+                                        char** argv,
+                                        std::vector<std::string>* errors) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
   if (IsSingleExecutable()) {
@@ -303,8 +312,10 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
       for (int i = 1; i < argc; ++i) {
         if (strncmp(argv[i], "--node-options=", 15) == 0) {
           std::string node_options = argv[i] + 15;
-          std::vector<std::string> errors;
-          cli_extension_args = ParseNodeOptionsEnvVar(node_options, &errors);
+          cli_extension_args = ParseNodeOptionsEnvVar(node_options, errors);
+          if (!errors->empty()) {
+            return {argc, argv};
+          }
           // Remove this argument by shifting the rest
           for (int j = i; j < argc - 1; ++j) {
             argv[j] = argv[j + 1];
@@ -321,10 +332,11 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
                      cli_extension_args.size() + 2);
     new_argv.emplace_back(argv[0]);
 
+    exec_argv_storage.reserve(sea_resource.exec_argv.size() +
+                              cli_extension_args.size());
+
     // Insert exec argv from SEA config
     if (!sea_resource.exec_argv.empty()) {
-      exec_argv_storage.reserve(sea_resource.exec_argv.size() +
-                                cli_extension_args.size());
       for (const auto& arg : sea_resource.exec_argv) {
         exec_argv_storage.emplace_back(arg);
         new_argv.emplace_back(exec_argv_storage.back().data());
@@ -444,6 +456,16 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
       if (use_code_cache_value) {
         result.flags |= SeaFlags::kUseCodeCache;
       }
+    } else if (key == "useVfs") {
+      bool use_vfs;
+      if (field.value().get_bool().get(use_vfs)) {
+        FPrintF(
+            stderr, "\"useVfs\" field of %s is not a Boolean\n", config_path);
+        return std::nullopt;
+      }
+      if (use_vfs) {
+        result.flags |= SeaFlags::kEnableVfs;
+      }
     } else if (key == "assets") {
       simdjson::ondemand::object assets_object;
       if (field.value().get_object().get(assets_object)) {
@@ -537,6 +559,14 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     }
   }
 
+  if (!document.at_end()) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: %s\n",
+            config_path,
+            simdjson::error_message(simdjson::TRAILING_CONTENT));
+    return std::nullopt;
+  }
+
   if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot) &&
       static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
     // TODO(joyeecheung): code cache in snapshot should be configured by
@@ -552,6 +582,19 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
             "\"mainFormat\": \"module\" is not supported when "
             "\"useSnapshot\" is true\n");
     return std::nullopt;
+  }
+
+  if (static_cast<bool>(result.flags & SeaFlags::kEnableVfs)) {
+    if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot)) {
+      FPrintF(stderr,
+              "\"useVfs\" is not supported when \"useSnapshot\" is true\n");
+      return std::nullopt;
+    }
+    if (static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
+      FPrintF(stderr,
+              "\"useVfs\" is not supported when \"useCodeCache\" is true\n");
+      return std::nullopt;
+    }
   }
 
   if (result.main_path.empty()) {
@@ -829,7 +872,7 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   if (sea_resource.assets.empty()) {
     return;
   }
-  auto it = sea_resource.assets.find(*key);
+  auto it = sea_resource.assets.find(std::string_view(*key, key.length()));
   if (it == sea_resource.assets.end()) {
     return;
   }
@@ -913,7 +956,31 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
+  if (IsSingleExecutable()) {
+    SeaResource sea_resource = FindSingleExecutableResource();
+    // Expose the main script path recorded in the SEA config so the VFS
+    // integration can place the main script at the mount point root.
+    if (static_cast<bool>(sea_resource.flags & SeaFlags::kEnableVfs)) {
+      Local<String> code_path_str;
+      if (String::NewFromUtf8(isolate,
+                              sea_resource.code_path.data(),
+                              NewStringType::kNormal,
+                              sea_resource.code_path.length())
+              .ToLocal(&code_path_str)) {
+        target
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "mainCodePath"),
+                  code_path_str)
+            .Check();
+      }
+    }
+  }
+
   SetMethod(context, target, "isSea", IsSea);
+  SetMethod(context, target, "isVfsEnabled", IsVfsEnabled);
   SetMethod(context,
             target,
             "isExperimentalSeaWarningNeeded",
@@ -924,6 +991,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
+  registry->Register(IsVfsEnabled);
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);

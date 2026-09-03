@@ -34,8 +34,10 @@ nghttp2_data_provider_wrap_v1(nghttp2_data_provider_wrap *dpw,
     return NULL;
   }
 
-  dpw->version = NGHTTP2_DATA_PROVIDER_V1;
-  dpw->data_prd.v1 = *data_prd;
+  *dpw = (nghttp2_data_provider_wrap){
+    .version = NGHTTP2_DATA_PROVIDER_V1,
+    .data_prd.v1 = *data_prd,
+  };
 
   return dpw;
 }
@@ -47,8 +49,10 @@ nghttp2_data_provider_wrap_v2(nghttp2_data_provider_wrap *dpw,
     return NULL;
   }
 
-  dpw->version = NGHTTP2_DATA_PROVIDER_V2;
-  dpw->data_prd.v2 = *data_prd;
+  *dpw = (nghttp2_data_provider_wrap){
+    .version = NGHTTP2_DATA_PROVIDER_V2,
+    .data_prd.v2 = *data_prd,
+  };
 
   return dpw;
 }
@@ -139,8 +143,7 @@ void nghttp2_outbound_item_free(nghttp2_outbound_item *item, nghttp2_mem *mem) {
 }
 
 void nghttp2_outbound_queue_init(nghttp2_outbound_queue *q) {
-  q->head = q->tail = NULL;
-  q->n = 0;
+  *q = (nghttp2_outbound_queue){0};
 }
 
 void nghttp2_outbound_queue_push(nghttp2_outbound_queue *q,

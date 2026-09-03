@@ -23,7 +23,10 @@ const originalFd = Object.getOwnPropertyDescriptor(FileHandle.prototype, 'fd');
 let count = 0;
 async function createFile() {
   const filePath = tmpdir.resolve(`op_errors_${++count}.txt`);
-  await writeFile(filePath, 'content');
+  // Larger than one read chunk (512 KiB), so that readFile(path) reads it
+  // through a FileHandle (small files are read in a single native round trip
+  // that does not involve FileHandle.prototype).
+  await writeFile(filePath, 'content'.repeat(100_000));
   return filePath;
 }
 

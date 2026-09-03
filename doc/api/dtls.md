@@ -123,8 +123,15 @@ added: REPLACEME
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
   * `cert` {string|Buffer} Client certificate in PEM format.
   * `key` {string|Buffer} Client private key in PEM format.
-  * `rejectUnauthorized` {boolean} Reject connections with unverifiable
-    certificates. **Default:** `true`.
+  * `rejectUnauthorized` {boolean} When `true`, the server's certificate must
+    both chain to a trusted CA and match the expected identity (`servername`,
+    or `host` when `servername` is not set); otherwise the handshake is
+    aborted and `session.opened` rejects. When `false`, the certificate is not
+    verified. **Default:** `true`.
+  * `servername` {string} Server name used for the SNI (Server Name
+    Indication) extension and as the identity checked during certificate
+    verification. **Default:** the `host` argument. Set to `''` to disable SNI.
+    SNI is never sent for IP address literals.
   * `bindHost` {string} Local bind address. **Default:** `'0.0.0.0'`.
   * `bindPort` {number} Local bind port. **Default:** `0` (ephemeral).
   * `alpn` {string\[]|Buffer} ALPN protocol names.

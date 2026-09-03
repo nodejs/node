@@ -14,13 +14,13 @@ const bench = common.createBenchmark(main, {
 });
 
 const {
-  TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent,
+  TRACE_EVENT_PHASE_BEGIN: kBeginEvent,
 } = common.binding('constants').trace;
 
 function doTrace(n, trace) {
   bench.start();
   for (let i = 0; i < n; i++) {
-    trace(kBeforeEvent, 'foo', 'test', 0, 'test');
+    trace(kBeginEvent, 'foo', 'test', 0, 'test');
   }
   bench.end(n);
 }

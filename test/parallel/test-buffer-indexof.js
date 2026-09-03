@@ -619,6 +619,32 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   assert.strictEqual(haystack.lastIndexOf(needle), haystack.length - 3);
 }
 
+// UTF-8 string search should use the same replacement-character semantics
+// as Buffer.from() for unpaired UTF-16 surrogates.
+{
+  const prefix = 'a'.repeat(16);
+  const suffix = 'b'.repeat(16);
+  const needles = [
+    `${prefix}${String.fromCharCode(0xd800)}${suffix}`,
+    `${prefix}${String.fromCharCode(0xdc00)}${suffix}`,
+    JSON.parse(`{"needle":"${prefix}\\ud800${suffix}"}`).needle,
+  ];
+
+  for (const needle of needles) {
+    const needleBuffer = Buffer.from(needle, 'utf8');
+    const haystack = Buffer.concat([
+      Buffer.from('xx'),
+      needleBuffer,
+      Buffer.from('yy'),
+    ]);
+
+    assert.strictEqual(Buffer.byteLength(needle, 'utf8'), needleBuffer.length);
+    assert.strictEqual(haystack.indexOf(needle, 0, 'utf8'), 2);
+    assert.strictEqual(haystack.lastIndexOf(needle, haystack.length - 1, 'utf8'), 2);
+    assert.strictEqual(haystack.includes(needle, 0, 'utf8'), true);
+  }
+}
+
 // Avoid abort because of invalid usage
 // see https://github.com/nodejs/node/issues/32753
 {

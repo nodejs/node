@@ -32,6 +32,18 @@ function readStream(stream) {
   }));
 }
 
+// ReadStream with explicit fd via for-await; autoClose:false leaves fd open
+(async () => {
+  const fd = myVfs.openSync('/file.txt', 'r');
+  const stream = myVfs.createReadStream('/file.txt', { fd, autoClose: false });
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  assert.strictEqual(Buffer.concat(chunks).toString(), 'hello world');
+  myVfs.closeSync(fd);
+})().then(common.mustCall());
+
 // WriteStream with explicit fd; autoClose:false leaves the fd open
 (async () => {
   const fd = myVfs.openSync('/fd-write.txt', 'w');
