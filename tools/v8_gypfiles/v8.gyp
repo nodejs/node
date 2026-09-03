@@ -2485,6 +2485,9 @@
         ['v8_target_arch=="ppc64" or v8_target_arch=="s390x"', {
           'defines': ['TOOLCHAIN_MISS_ASM_HWCAP_H',],
         }],
+        ['v8_target_arch=="riscv64"', {
+          'defines': ['HWY_BROKEN_TARGETS=HWY_RVV',],
+        }],
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(HIGHWAY_ROOT)/BUILD.gn"  "source_set.\\"libhwy.*?sources = ")',
