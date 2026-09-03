@@ -47,9 +47,9 @@ class CppgcWrapperListNode;
  * cleanup relies on a living Node.js `Realm`, it should implement a
  * pattern like this:
  *
- *   ~MyWrap() { this->Destroy(); }
+ *   ~MyWrap() { this->Finalize(); }
  *   void Clean(Realm* env) override {
- *     // Do cleanup that relies on a living Environemnt.
+ *     // Do cleanup that relies on a living Realm.
  *   }
  */
 class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
@@ -68,7 +68,7 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
 
   inline v8::Local<v8::Object> object() const;
   inline Environment* env() const;
-  inline Realm* realm() const { return realm_; }
+  inline Realm* realm() const;
   inline v8::Local<v8::Object> object(v8::Isolate* isolate) const {
     return traced_reference_.Get(isolate);
   }
@@ -95,11 +95,7 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
   // destructor. Outside of Finalize(), subclasses should avoid calling
   // into JavaScript or perform any operation that can trigger garbage
   // collection during the destruction.
-  void Finalize() {
-    if (realm_ == nullptr) return;
-    this->Clean(realm_);
-    realm_ = nullptr;
-  }
+  inline void Finalize();
 
   // The default implementation of Clean() is a no-op. If subclasses wish
   // to perform cleanup that require a living Realm, they should
@@ -110,10 +106,8 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
 
   inline ~CppgcMixin();
 
-  friend class CppgcWrapperListNode;
-
  private:
-  Realm* realm_ = nullptr;
+  CppgcWrapperListNode* list_node_ = nullptr;
   v8::TracedReference<v8::Object> traced_reference_;
 };
 
