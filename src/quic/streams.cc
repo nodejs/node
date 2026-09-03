@@ -1685,7 +1685,7 @@ void Stream::Destroy(QuicError error) {
   EndWritable();
 
   // Also end the readable side if it isn't already. If not already ended,
-  // this will eventually surface as a error, since the data is truncated.
+  // this will eventually surface as an error, since the data is truncated.
   TruncateReadable();
 
   // We are going to release our reference to the outbound_ queue here.
