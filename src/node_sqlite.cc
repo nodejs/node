@@ -1742,6 +1742,10 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Reading the options bag above can run user JavaScript through a property
+  // getter, which may have closed the database since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
 
@@ -1929,8 +1933,21 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
     if (!fn->Get(env->context(), env->length_string()).ToLocal(&js_len)) {
       return;
     }
+
+    if (!js_len->IsInt32()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"function.length\" property must be an integer.");
+      return;
+    }
+
     argc = js_len.As<Int32>()->Value();
   }
+
+  // Reading the options bag and "function.length" above can run user
+  // JavaScript through a property getter, which may have closed the database
+  // since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   UserDefinedFunction* user_data = new UserDefinedFunction(
       env, fn, BaseObjectWeakPtr<DatabaseSync>(db), use_bigint_args);
@@ -2094,6 +2111,10 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Reading the options bag above can run user JavaScript through a property
+  // getter, which may have closed the database since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
   // sqlite3_malloc64 is required because SQLITE_DESERIALIZE_FREEONCLOSE
   // transfers ownership to SQLite, which calls sqlite3_free() on close.
   // See: https://www.sqlite.org/c3ref/deserialize.html
@@ -2104,7 +2125,16 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  input->CopyContents(buf, byte_length);
+  // The same user JavaScript may also have shrunk or detached the backing
+  // store, in which case byte_length is stale and CopyContents() leaves the
+  // remainder of buf uninitialized. Handing that to SQLite would disclose it
+  // through serialize().
+  if (input->CopyContents(buf, byte_length) != byte_length) {
+    sqlite3_free(buf);
+    THROW_ERR_INVALID_STATE(
+        env, "The \"buffer\" argument was resized while reading \"options\"");
+    return;
+  }
 
   db->FinalizeStatements();
 
@@ -2242,16 +2272,36 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
+    if (!js_len->IsInt32()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.step.length\" property must be an integer.");
+      return;
+    }
+
     // Subtract 1 because the first argument is the aggregate value.
     argc = js_len.As<Int32>()->Value() - 1;
-    if (!inverseFunc.IsEmpty() &&
-        !inverseFunc->Get(env->context(), env->length_string())
-             .ToLocal(&js_len)) {
-      return;
+    if (!inverseFunc.IsEmpty()) {
+      if (!inverseFunc->Get(env->context(), env->length_string())
+               .ToLocal(&js_len)) {
+        return;
+      }
+
+      if (!js_len->IsInt32()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.inverse.length\" property must be an integer.");
+        return;
+      }
     }
 
     argc = std::max({argc, js_len.As<Int32>()->Value() - 1, 0});
   }
+
+  // Reading the options bag and the step/inverse "length" properties above can
+  // run user JavaScript through a property getter, which may have closed the
+  // database since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   int text_rep = SQLITE_UTF8;
   if (direct_only) {
@@ -2281,10 +2331,15 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
 }
 
 void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
   std::string table;
   std::string db_name = "main";
 
-  Environment* env = Environment::GetCurrent(args);
   if (args.Length() > 0) {
     if (!args[0]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -2335,10 +2390,9 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  DatabaseSync* db;
-  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  // Reading the options bag above can run user JavaScript through a property
+  // getter, which may have closed the database since it was checked.
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
-  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
 
   sqlite3_session* pSession;
   int r =
@@ -2464,6 +2518,11 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
       progressFunc = progress_v.As<Function>();
     }
   }
+
+  // Reading the destination path and the options bag above can run user
+  // JavaScript through a property getter, which may have closed the database
+  // since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
@@ -2607,6 +2666,10 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       };
     }
   }
+
+  // Reading the options bag above can run user JavaScript through a property
+  // getter, which may have closed the database since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   // Keep the database alive in case a callback drops all references to it,
   // which could otherwise let it be garbage-collected mid-callback.
