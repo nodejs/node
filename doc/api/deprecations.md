@@ -4549,9 +4549,33 @@ const server = http2.createSecureServer({
 });
 ```
 
+```mjs
+import { createSecureServer } from 'node:http2';
+
+// Deprecated
+const server = createSecureServer({
+  allowHTTP1: true,
+  Http1IncomingMessage: MyIncomingMessage,
+  Http1ServerResponse: MyServerResponse,
+});
+```
+
 ```cjs
 // Use this instead
 const server = http2.createSecureServer({
+  allowHTTP1: true,
+  http1Options: {
+    IncomingMessage: MyIncomingMessage,
+    ServerResponse: MyServerResponse,
+  },
+});
+```
+
+```mjs
+import { createSecureServer } from 'node:http2';
+
+// Use this instead
+const server = createSecureServer({
   allowHTTP1: true,
   http1Options: {
     IncomingMessage: MyIncomingMessage,
@@ -4679,7 +4703,35 @@ server.on('stream', (stream) => {
 });
 ```
 
+```mjs
+// Deprecated
+server.on('stream', (stream) => {
+  stream.on('aborted', () => {
+    // Stream was closed while the writable was still open.
+  });
+});
+```
+
 ```cjs
+// Use this instead
+server.on('stream', (stream) => {
+  // Read-side abort: peer cancelled before sending END_STREAM.
+  stream.on('error', (err) => {
+    if (err.code === 'ERR_HTTP2_STREAM_ABORTED' ||
+        err.code === 'ERR_HTTP2_STREAM_ERROR') {
+      // Peer cancelled the request mid-stream.
+    }
+  });
+  // Write-side abort: our response didn't fully send before close.
+  stream.on('close', () => {
+    if (!stream.writableFinished) {
+      // Writes were aborted (peer cancel, local destroy, etc.).
+    }
+  });
+});
+```
+
+```mjs
 // Use this instead
 server.on('stream', (stream) => {
   // Read-side abort: peer cancelled before sending END_STREAM.
