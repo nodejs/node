@@ -38,6 +38,7 @@ class StalledClientSocket extends Duplex {
     super();
     this.inner = net.connect(port, common.localhostIPv4);
     this.inner.on('data', (chunk) => this.push(chunk));
+    this.inner.on('end', () => this.push(null));
   }
   _read() {
     // Incoming data is pushed as it arrives.
@@ -54,7 +55,7 @@ class StalledClientSocket extends Duplex {
     callback();
   }
   _final(callback) {
-    callback();
+    this.inner.end(callback);
   }
   _destroy(err, callback) {
     this.inner.destroy();
@@ -101,7 +102,8 @@ server.listen(0, common.mustCall(() => {
     stallWrites = false;
     for (const callback of heldCallbacks) callback();
 
-    client.destroy();
+    req.end();
+    client.close();
     server.close();
   }));
 }));
