@@ -307,6 +307,44 @@ function buffers(vector) {
   };
 }
 
+async function testAlgorithmConfigPrototypePollution() {
+  const properties = [
+    'encapsulationKeyLength',
+    'ciphertextLength',
+    'groupOrder',
+    'namedCurve',
+  ];
+  const descriptors = new Map();
+
+  for (const property of properties) {
+    descriptors.set(
+      property,
+      Object.getOwnPropertyDescriptor(Object.prototype, property));
+    Object.defineProperty(Object.prototype, property, {
+      __proto__: null,
+      configurable: true,
+      get: common.mustNotCall(`Object.prototype.${property} getter`),
+      set: common.mustNotCall(`Object.prototype.${property} setter`),
+    });
+  }
+
+  try {
+    await subtle.generateKey(
+      'MLKEM768-X25519',
+      true,
+      ['encapsulateBits', 'decapsulateBits']);
+  } finally {
+    for (const property of properties) {
+      const descriptor = descriptors.get(property);
+      if (descriptor === undefined) {
+        delete Object.prototype[property];
+      } else {
+        Object.defineProperty(Object.prototype, property, descriptor);
+      }
+    }
+  }
+}
+
 async function testGeneratedRoundTrip(vector) {
   const algorithm = { name: vector.name };
   const { ciphertext } = buffers(vector);
@@ -415,6 +453,28 @@ async function testVectorRoundTrip(vector) {
     ciphertext);
   assert(Buffer.from(vectorSharedSecret).equals(sharedSecret));
 
+  const implicitRejectionCiphertext = Buffer.from(ciphertext);
+  const pqCiphertextLength =
+    ciphertext.byteLength - lengths[vector.name].groupElement;
+  implicitRejectionCiphertext.fill(0, 0, pqCiphertextLength);
+  // Preserve the valid traditional group element so this only exercises
+  // ML-KEM implicit rejection.
+  assert(implicitRejectionCiphertext.subarray(pqCiphertextLength)
+    .equals(ciphertext.subarray(pqCiphertextLength)));
+
+  const implicitRejectionSharedSecret = Buffer.from(
+    await subtle.decapsulateBits(
+      algorithm,
+      privateKey,
+      implicitRejectionCiphertext));
+  assert.strictEqual(implicitRejectionSharedSecret.byteLength, 32);
+  assert(!implicitRejectionSharedSecret.equals(sharedSecret));
+  assert(implicitRejectionSharedSecret.equals(Buffer.from(
+    await subtle.decapsulateBits(
+      algorithm,
+      privateKey,
+      implicitRejectionCiphertext))));
+
   const publicKeyOnly = await subtle.importKey(
     'raw-public',
     publicKey,
@@ -499,6 +559,27 @@ async function testFailures(vector) {
     ['decapsulateBits']);
   const publicKeyOnly = await subtle.getPublicKey(privateKey, ['encapsulateBits']);
   const jwk = await subtle.exportKey('jwk', privateKey);
+
+  // JWK key usage validation precedes `key_ops` validation.
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk, key_ops: ['encapsulateBits', 'encapsulateBits'] },
+      algorithm,
+      true,
+      ['encapsulateBits']),
+    {
+      name: 'SyntaxError',
+      message: `Unsupported key usage for ${vector.name} key`,
+    });
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk, key_ops: ['decapsulateBits', 'decapsulateBits'] },
+      algorithm,
+      true,
+      ['decapsulateBits']),
+    { name: 'DataError', message: 'Duplicate key operation' });
 
   await assert.rejects(
     subtle.importKey('raw-public', Buffer.alloc(publicKey.byteLength - 1), algorithm, true, ['encapsulateBits']),
@@ -598,6 +679,7 @@ function testSupports(vector) {
 }
 
 (async () => {
+  await testAlgorithmConfigPrototypePollution();
   for (const vector of vectors) {
     testSupports(vector);
     await testGeneratedRoundTrip(vector);
