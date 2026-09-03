@@ -116,6 +116,8 @@ test('test coverage report', async (t) => {
 
 test('test tap coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
+    // A dump left here would match the negative checks below on pid reuse.
+    t.after(() => tmpdir.refresh());
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
       '--experimental-test-coverage',
@@ -154,6 +156,8 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
 
 test('test spec coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
+    // A dump left here would match the negative checks below on pid reuse.
+    t.after(() => tmpdir.refresh());
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = [
       '--experimental-test-coverage',
