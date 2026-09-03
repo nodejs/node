@@ -386,6 +386,23 @@ async function testVectorRoundTrip(vector) {
   assert(Buffer.from(jwk.pub, 'base64url').equals(publicKey));
   assert(Buffer.from(jwk.priv, 'base64url').equals(seed));
 
+  const publicJwk = await subtle.exportKey('jwk', publicKeyFromPrivate);
+  assert.deepStrictEqual(publicJwk, {
+    kty: 'AKP',
+    alg: algorithm.name,
+    pub: jwk.pub,
+    key_ops: ['encapsulateBits'],
+    ext: true,
+  });
+  const jwkPublicKey = await subtle.importKey(
+    'jwk',
+    publicJwk,
+    algorithm,
+    true,
+    ['encapsulateBits']);
+  assert(Buffer.from(await subtle.exportKey('raw-public', jwkPublicKey))
+    .equals(publicKey));
+
   const jwkPrivateKey = await subtle.importKey(
     'jwk',
     jwk,
