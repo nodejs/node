@@ -488,7 +488,9 @@ for (const { kind, message } of [
   { kind: 'sequence', message: /valid record sequence/ },
   { kind: 'record', message: /not a valid benchmark record/ },
   { kind: 'identity', message: /not a valid benchmark record/ },
+  { kind: 'name-path', message: /not a valid benchmark record/ },
   { kind: 'plan', message: /not a valid benchmark plan/ },
+  { kind: 'timeout', message: /not a valid benchmark plan/ },
   { kind: 'diagnostic', message: /not a valid benchmark diagnostic/ },
   { kind: 'diagnostic-order', message: /valid lifecycle sequence/ },
   { kind: 'summary', message: /not a valid benchmark summary/ },
@@ -523,6 +525,22 @@ for (const { kind, message } of [
   assert(diagnostics.some(
     ({ data }) => /valid lifecycle sequence/.test(data.message)));
   assert.strictEqual(records.at(-1).data.success, false);
+}
+
+{
+  const result = spawnBench([
+    '--bench-isolation=none',
+    '--bench-reporter=json',
+    fixtures.path('bench-runner/a.cjs'),
+    fixtures.path('bench-runner/exit-code.cjs'),
+  ]);
+  assert.strictEqual(result.status, 1);
+  const records = parseRecords(result);
+  const diagnostic = records.find(({ type, data }) =>
+    type === 'bench:diagnostic' && /set exit code/.test(data.message)).data;
+  assert.strictEqual(diagnostic.entryFile, null);
+  assert.strictEqual(diagnostic.fileRunId, null);
+  assert.strictEqual(diagnostic.file, null);
 }
 
 for (const { mode, message } of [
