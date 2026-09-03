@@ -62,7 +62,9 @@
           'BUILDING_V8_PLATFORM_SHARED',  # Make V8_PLATFORM_EXPORT visible.
         ]
       }],
-      ['node_shared=="true"', {
+      # The V8 static libraries get linked into libv8_debug_helper too, and
+      # the local-exec TLS model is only valid in an executable.
+      ['node_shared=="true" or node_enable_v8debughelper=="true"', {
         'defines': [
           'V8_TLS_USED_IN_LIBRARY',  # Enable V8_TLS_LIBRARY_MODE.
         ],
