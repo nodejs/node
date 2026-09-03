@@ -3,7 +3,7 @@
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/65759
     description: Hybrid KEM algorithms are now supported.
   - version:
      - v25.9.0
@@ -1102,7 +1102,7 @@ The algorithms currently supported include:
 added: v15.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/65759
     description: Hybrid KEM algorithms are now supported.
   - version:
     - v26.1.0
@@ -1171,7 +1171,7 @@ Derives the public key from a given private key.
 added: v15.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/65759
     description: Hybrid KEM algorithms are now supported.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59647
@@ -1241,7 +1241,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 added: v15.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/65759
     description: Hybrid KEM algorithms are now supported.
   - version:
     - v26.1.0
