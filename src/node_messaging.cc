@@ -651,8 +651,8 @@ void MessagePortData::AddToIncomingQueue(std::shared_ptr<Message> message) {
 void MessagePortData::AddWorkerExitNotification(uint64_t thread_id,
                                                 ExitCode exit_code) {
   Mutex::ScopedLock lock(mutex_);
-  auto message = std::make_shared<Message>(
-    WorkerExitNotification{thread_id, exit_code});
+  auto message =
+      std::make_shared<Message>(WorkerExitNotification{thread_id, exit_code});
   AddToIncomingQueue(std::move(message));
 
   if (owner_ != nullptr) {
@@ -660,7 +660,6 @@ void MessagePortData::AddWorkerExitNotification(uint64_t thread_id,
     owner_->TriggerAsync();
   }
 }
-
 
 void MessagePortData::Entangle(MessagePortData* a, MessagePortData* b) {
   auto group = std::make_shared<SiblingGroup>();
@@ -788,10 +787,11 @@ MessagePort* MessagePort::New(
   return port;
 }
 
-MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
-                                              MessageProcessingMode mode,
-                                              Local<Value>* port_list,
-                    std::optional<WorkerExitNotification>* worker_exit) {
+MaybeLocal<Value> MessagePort::ReceiveMessage(
+    Local<Context> context,
+    MessageProcessingMode mode,
+    Local<Value>* port_list,
+    std::optional<WorkerExitNotification>* worker_exit) {
   std::shared_ptr<Message> received;
   {
     // Get the head of the message queue.
@@ -816,10 +816,10 @@ MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
     data_->incoming_messages_.pop_front();
   }
 
-  if ( received->IsWorkerExitMessage() ) {
-    if ( worker_exit != nullptr ) {
+  if (received->IsWorkerExitMessage()) {
+    if (worker_exit != nullptr) {
       *worker_exit = received->worker_exit_notification();
-       return env()->no_message_symbol();
+      return env()->no_message_symbol();
     }
   }
 
@@ -883,15 +883,15 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
       // Catch any exceptions from parsing the message itself (not from
       // emitting it) as 'messageeror' events.
       TryCatchScope try_catch(env());
-      if (!ReceiveMessage(context, mode, &port_list,
-         &worker_exit).ToLocal(&payload)) {
+      if (!ReceiveMessage(context, mode, &port_list, &worker_exit)
+               .ToLocal(&payload)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated())
           message_error = try_catch.Exception();
         goto reschedule;
       }
     }
-    if (payload == env()->no_message_symbol()
-     && !worker_exit.has_value()) break;
+    if (payload == env()->no_message_symbol() && !worker_exit.has_value())
+      break;
 
     if (!env()->can_call_into_js()) {
       Debug(this, "MessagePort drains queue because !can_call_into_js()");
@@ -899,7 +899,7 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
       continue;
     }
 
-    if ( worker_exit.has_value() ) {
+    if (worker_exit.has_value()) {
       const WorkerExitNotification& notification = *worker_exit;
 
       Debug(this,
@@ -911,25 +911,23 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
       exit_info
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(env()->isolate(), "threadId"),
-                v8::Number::New(
-                    env()->isolate(),
-                    static_cast<double>(notification.thread_id)))
+                v8::Number::New(env()->isolate(),
+                                static_cast<double>(notification.thread_id)))
           .Check();
 
       exit_info
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(env()->isolate(), "exitCode"),
-                v8::Integer::New(
-                    env()->isolate(),
-                    static_cast<int>(notification.exit_code)))
+                v8::Integer::New(env()->isolate(),
+                                 static_cast<int>(notification.exit_code)))
           .Check();
-     argv[0] = exit_info;
-     argv[1] = Undefined(env()->isolate());
-     argv[2] = FIXED_ONE_BYTE_STRING(env()->isolate(), "workerexited");
+      argv[0] = exit_info;
+      argv[1] = Undefined(env()->isolate());
+      argv[2] = FIXED_ONE_BYTE_STRING(env()->isolate(), "workerexited");
     } else {
-     argv[0] = payload;
-     argv[1] = port_list;
-     argv[2] = env()->message_string();
+      argv[0] = payload;
+      argv[1] = port_list;
+      argv[2] = env()->message_string();
     }
 
     if (MakeCallback(emit_message, arraysize(argv), argv).IsEmpty()) {

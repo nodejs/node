@@ -18,8 +18,8 @@ class MessagePortData;
 class MessagePort;
 
 struct WorkerExitNotification {
-    uint64_t thread_id;
-    ExitCode exit_code;
+  uint64_t thread_id;
+  ExitCode exit_code;
 };
 
 typedef MaybeStackBuffer<v8::Value, 8> TransferList;
@@ -56,7 +56,7 @@ class Message : public MemoryRetainer {
   explicit Message(MallocedBuffer<char>&& payload = MallocedBuffer<char>());
 
   explicit Message(WorkerExitNotification notification)
-    : worker_exit_notification_(std::move(notification)) {}
+      : worker_exit_notification_(std::move(notification)) {}
 
   ~Message() = default;
 
@@ -168,8 +168,8 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
   void Disentangle(MessagePortData* data);
 
   void NotifyWorkerExit(MessagePortData* exiting_port,
-                      uint64_t thread_id,
-                      ExitCode exit_code);
+                        uint64_t thread_id,
+                        ExitCode exit_code);
 
   const std::string& name() const { return name_; }
 
@@ -335,7 +335,7 @@ class MessagePort : public HandleWrap {
       v8::Local<v8::Context> context,
       MessageProcessingMode mode,
       v8::Local<v8::Value>* port_list = nullptr,
-    std::optional<WorkerExitNotification>* worker_exit = nullptr);
+      std::optional<WorkerExitNotification>* worker_exit = nullptr);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;
