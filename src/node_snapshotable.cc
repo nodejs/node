@@ -859,7 +859,9 @@ static void ResetContextSettingsBeforeSnapshot(Local<Context> context) {
 
 const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
   static auto registry = std::make_unique<ExternalReferenceRegistry>();
-  return registry->external_references();
+  static const std::vector<intptr_t>& references =
+      registry->external_references();
+  return references;
 }
 
 void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
