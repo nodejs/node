@@ -298,10 +298,10 @@ tmpdir.refresh();
     }));
 
     req.on('response', (res) => {
-      let cnt = 10;
-      res.on('data', () => {
-        cnt--;
-        if (cnt === 0) rs.destroy();
+      let received = 0;
+      res.on('data', (data) => {
+        received += data.length;
+        if (received >= 50) rs.destroy();
       });
     });
   }));
