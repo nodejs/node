@@ -8563,12 +8563,12 @@ Reopen the file in place, useful for log rotation.
 
 #### `utf8Stream.write(data)`
 
-* `data` {string|Buffer} The data to write.
+* `data` {string|Buffer|TypedArray|DataView} The data to write.
 * Returns {boolean}
 
 When the `options.contentMode` is set to `'utf8'` when the stream is created,
 the `data` argument must be a string. If the `contentMode` is set to `'buffer'`,
-the `data` argument must be a {Buffer}.
+the `data` argument must be a {Buffer}, {TypedArray}, or {DataView}.
 
 #### `utf8Stream.writing`
 
