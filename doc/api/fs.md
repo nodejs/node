@@ -2287,6 +2287,9 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65754
+    description: The `atomic` option is now supported.
   - version:
     - v21.0.0
     - v20.10.0
@@ -2317,6 +2320,12 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `filehandle.sync()` is used to flush the data.
+    **Default:** `false`.
+  * `atomic` {boolean} If `true`, the data is written to a temporary file next
+    to `file`, flushed, and then renamed over `file`. A reader sees either the
+    old data or the new data, never a half-written file. The permissions of an
+    existing `file` are kept instead of `mode`. Cannot be used with a file
+    descriptor, a {FileHandle}, or a `flag` other than `'w'`.
     **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * Returns: {Promise} Fulfills with `undefined` upon success.
@@ -5681,6 +5690,9 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65754
+    description: The `atomic` option is now supported.
   - version:
     - v21.0.0
     - v20.10.0
@@ -5745,6 +5757,12 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `fs.fsync()` is used to flush the data.
+    **Default:** `false`.
+  * `atomic` {boolean} If `true`, the data is written to a temporary file next
+    to `file`, flushed, and then renamed over `file`. A reader sees either the
+    old data or the new data, never a half-written file. The permissions of an
+    existing `file` are kept instead of `mode`. Cannot be used with a file
+    descriptor, a {FileHandle}, or a `flag` other than `'w'`.
     **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * `callback` {Function}
@@ -7095,6 +7113,9 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65754
+    description: The `atomic` option is now supported.
   - version:
     - v21.0.0
     - v20.10.0
@@ -7186,6 +7207,12 @@ added:
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
+  * `atomic` {boolean} If `true`, the data is written to a temporary file next
+    to `file`, flushed, and then renamed over `file`. A reader sees either the
+    old data or the new data, never a half-written file. The permissions of an
+    existing `file` are kept instead of `mode`. Cannot be used with a file
+    descriptor, a {FileHandle}, or a `flag` other than `'w'`.
+    **Default:** `false`.
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer|null} **Default:** `null`
