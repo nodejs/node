@@ -71,24 +71,28 @@ void PipeWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()->SetInternalFieldCount(PipeWrap::kInternalFieldCount);
+  Local<FunctionTemplate> t = env->pipe_constructor_template();
+  if (t.IsEmpty()) {
+    t = NewFunctionTemplate(isolate, New);
+    t->InstanceTemplate()->SetInternalFieldCount(PipeWrap::kInternalFieldCount);
 
-  t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
+    t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
-  SetProtoMethod(isolate, t, "bind", Bind);
-  SetProtoMethod(isolate, t, "listen", Listen);
-  SetProtoMethod(isolate, t, "connect", Connect);
-  SetProtoMethod(isolate, t, "open", Open);
+    SetProtoMethod(isolate, t, "bind", Bind);
+    SetProtoMethod(isolate, t, "listen", Listen);
+    SetProtoMethod(isolate, t, "connect", Connect);
+    SetProtoMethod(isolate, t, "open", Open);
 
 #ifdef _WIN32
-  SetProtoMethod(isolate, t, "setPendingInstances", SetPendingInstances);
+    SetProtoMethod(isolate, t, "setPendingInstances", SetPendingInstances);
 #endif
 
-  SetProtoMethod(isolate, t, "fchmod", Fchmod);
-
-  SetConstructorFunction(context, target, "Pipe", t);
-  env->set_pipe_constructor_template(t);
+    SetProtoMethod(isolate, t, "fchmod", Fchmod);
+    t->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Pipe"));
+    env->set_pipe_constructor_template(t);
+  }
+  SetConstructorFunction(
+      context, target, "Pipe", t, SetConstructorFunctionFlag::NONE);
 
   // Create FunctionTemplate for PipeConnectWrap.
   auto cwt = AsyncWrap::MakeLazilyInitializedJSTemplate(env);

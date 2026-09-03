@@ -106,8 +106,11 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
 void DTLSContext::InitPerContext(Local<Object> target,
                                  Local<Context> context,
                                  Environment* env) {
-  SetConstructorFunction(
-      context, target, "DTLSContext", GetConstructorTemplate(env));
+  SetConstructorFunction(context,
+                         target,
+                         "DTLSContext",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 }
 
 void DTLSContext::RegisterExternalReferences(

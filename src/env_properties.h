@@ -454,7 +454,7 @@
   V(v8_heap_statistics_template, v8::DictionaryTemplate)                       \
   V(histogram_ctor_template, v8::FunctionTemplate)                             \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                      \
+  V(http2stream_constructor_template, v8::FunctionTemplate)                    \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
@@ -475,7 +475,7 @@
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
-  V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(shutdown_wrap_template, v8::FunctionTemplate)                              \
   V(soa_record_template, v8::DictionaryTemplate)                               \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
@@ -494,7 +494,7 @@
   V(urlpatterncomponentresult_template, v8::DictionaryTemplate)                \
   V(urlpatterninit_template, v8::DictionaryTemplate)                           \
   V(urlpatternresult_template, v8::DictionaryTemplate)                         \
-  V(write_wrap_template, v8::ObjectTemplate)                                   \
+  V(write_wrap_template, v8::FunctionTemplate)                                 \
   V(worker_cpu_profile_taker_template, v8::ObjectTemplate)                     \
   V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
   V(worker_heap_profile_taker_template, v8::ObjectTemplate)                    \
