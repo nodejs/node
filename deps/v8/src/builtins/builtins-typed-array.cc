@@ -506,10 +506,17 @@ simdutf::result ArrayBufferSetFromBase64(
   output_length = array_length;
   simdutf::result simd_result;
   if (typed_array->buffer()->is_shared()) {
+#if SIMDUTF_ATOMIC_REF
     simd_result = simdutf::atomic_base64_to_binary_safe(
         reinterpret_cast<const T>(input_vector), input_length,
         reinterpret_cast<char*>(typed_array->DataPtr()), output_length,
         alphabet, last_chunk_handling, /*decode_up_to_bad_char*/ true);
+#else
+    simd_result = simdutf::base64_to_binary_safe(
+        reinterpret_cast<const T>(input_vector), input_length,
+        reinterpret_cast<char*>(typed_array->DataPtr()), output_length,
+        alphabet, last_chunk_handling, /*decode_up_to_bad_char*/ true);
+#endif
   } else {
     simd_result = simdutf::base64_to_binary_safe(
         reinterpret_cast<const T>(input_vector), input_length,
@@ -836,9 +843,15 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
 
     size_t simd_result_size;
     if (uint8array->buffer()->is_shared()) {
+#if SIMDUTF_ATOMIC_REF
       simd_result_size = simdutf::atomic_binary_to_base64(
           std::bit_cast<const char*>(uint8array->DataPtr()), length,
           reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+#else
+      simd_result_size = simdutf::binary_to_base64(
+          std::bit_cast<const char*>(uint8array->DataPtr()), length,
+          reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+#endif
     } else {
       simd_result_size = simdutf::binary_to_base64(
           std::bit_cast<const char*>(uint8array->DataPtr()), length,
