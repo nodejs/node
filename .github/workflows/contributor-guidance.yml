@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-slim
     outputs:
       is_first_time: ${{ steps.resolve.outputs.is_first_time }}
+      # The event association may not expose private organization membership,
+      # so gate the guidance job on the privileged API result.
       should_scan: ${{ steps.resolve.outputs.should_scan }}
     steps:
       - name: Check author association
