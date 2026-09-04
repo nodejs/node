@@ -7,12 +7,13 @@
 const common = require('../common');
 const assert = require('assert');
 const {
-  pull,
-  pullSync,
   bytes,
   bytesSync,
+  dump,
   from,
   fromSync,
+  pull,
+  pullSync,
 } = require('stream/iter');
 
 // Stateless transform returns ArrayBuffer (async)
@@ -236,8 +237,7 @@ async function testTransformReturnsInvalidType() {
   };
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const batch of pull(from('x'), tx)) { /* consume */ }
+      await dump(pull(from('x'), tx));
     },
     { code: 'ERR_INVALID_ARG_TYPE' },
   );

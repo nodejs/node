@@ -7,6 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -38,7 +39,7 @@ async function transferAndGetPacketCount(maxPayloadSize) {
 
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(new Uint8Array(dataLength));
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise]);
 
   const pktSent = clientSession.stats.pktSent;

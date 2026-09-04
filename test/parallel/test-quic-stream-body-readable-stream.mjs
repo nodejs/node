@@ -4,6 +4,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -46,7 +47,7 @@ await clientSession.opened;
   });
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(rs);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -55,7 +56,7 @@ await clientSession.opened;
   const readable = Readable.from([encoder.encode(message)]);
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(readable);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
