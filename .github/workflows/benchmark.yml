@@ -71,14 +71,13 @@ jobs:
         include:
           - runner: ubuntu-24.04
             system: x86_64-linux
-            perfetto: true
           - runner: ubuntu-24.04-arm
             system: aarch64-linux
           - runner: macos-15-intel
             system: x86_64-darwin
           - runner: macos-latest
             system: aarch64-darwin
-    name: '${{ matrix.system }}: with shared libraries${{ matrix.perfetto && '' and perfetto'' || '''' }}'
+    name: '${{ matrix.system }}: with shared libraries'
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -121,7 +120,6 @@ jobs:
             --pure --keep TAR_DIR --keep FLAKY_TESTS \
             --keep SCCACHE_GHA_ENABLED --keep SCCACHE_GHA_RW_MODE \
             --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
-            --arg withPerfetto ${{ matrix.perfetto || false }} \
             --arg ccache '(import <nixpkgs> {}).sccache' \
             --run '
               make build-ci -j4 V=1 && sccache --stop-server
@@ -137,7 +135,6 @@ jobs:
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
             --pure --keep SCCACHE_LOCAL_RW_MODE \
-            --arg withPerfetto ${{ matrix.perfetto || false }} \
             --arg ccache '(import <nixpkgs> {}).sccache' \
             --run '
                 make build-ci -j4 V=1
