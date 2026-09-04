@@ -19,3 +19,9 @@ prefix wpt
 [$system==freebsd]
 
 [$system==aix]
+
+[$arch==riscv64]
+# These have been failing in the CI due to ERR_WORKER_OUT_OF_MEMORY
+# https://github.com/nodejs/build/issues/4099
+test-encoding: PASS, FLAKY
+test-wasm-webapi: PASS, FLAKY
