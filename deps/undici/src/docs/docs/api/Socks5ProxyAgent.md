@@ -60,6 +60,11 @@ added: v7.23.0
     a password embedded in `proxyUrl`. **Default:** the URL password, if any.
   * `connect` {Function} Custom connector used to open the socket to the proxy.
     **Default:** a connector built from `proxyTls`.
+  * `connectTimeout` {number} Maximum time in milliseconds for each proxy
+    connection, SOCKS5 negotiation, and target TLS negotiation stage. A value of
+    `0` disables these stage timeouts. `proxyTls.timeout` and
+    `requestTls.timeout` override it for their respective TLS stages.
+    **Default:** `5000`.
   * `proxyTls` {BuildOptions} TLS options for the connection to the proxy itself
     (SOCKS5 over TLS). When set, the proxy connection is established over TLS and
     `servername` defaults to the proxy host name.
@@ -69,7 +74,8 @@ added: v7.23.0
     host name.
 
 Throws an `InvalidArgumentError` if `proxyUrl` is missing or does not use the
-`socks5:` or `socks:` protocol.
+`socks5:` or `socks:` protocol, or if `connectTimeout`, `proxyTls.timeout`, or
+`requestTls.timeout` is not a finite, non-negative number.
 
 ```mjs
 import { Socks5ProxyAgent } from 'undici'

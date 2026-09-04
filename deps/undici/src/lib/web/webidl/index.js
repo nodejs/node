@@ -26,9 +26,9 @@ const webidl = {
 /**
  * @description Instantiate an error.
  *
- * @param {Object} opts
- * @param {string} opts.header
- * @param {string} opts.message
+ * @param {Object} message
+ * @param {string} message.header
+ * @param {string} message.message
  * @returns {TypeError}
  */
 webidl.errors.exception = function (message) {

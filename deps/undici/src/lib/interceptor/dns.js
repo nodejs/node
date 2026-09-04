@@ -3,6 +3,7 @@ const { isIP } = require('node:net')
 const { lookup } = require('node:dns')
 const DecoratorHandler = require('../handler/decorator-handler')
 const { InvalidArgumentError, InformationalError } = require('../core/errors')
+const { kRequestOrigin } = require('../core/symbols')
 const maxInt = Math.pow(2, 31) - 1
 
 function hasSafeIterator (headers) {
@@ -434,6 +435,9 @@ class DNSDispatchHandler extends DecoratorHandler {
             origin: `${this.#origin.protocol}//${
               ip.family === 6 ? `[${ip.address}]` : ip.address
             }${port}`,
+            [kRequestOrigin]: this.#opts[kRequestOrigin] === undefined
+              ? this.#origin
+              : this.#opts[kRequestOrigin],
             headers: withHostHeader(this.#origin.host, this.#opts.headers)
           }
           this.#dispatch(dispatchOpts, this)
@@ -557,6 +561,9 @@ module.exports = interceptorOpts => {
           ...origDispatchOpts,
           servername: origin.hostname, // For SNI on TLS
           origin: newOrigin.origin,
+          [kRequestOrigin]: origDispatchOpts[kRequestOrigin] === undefined
+            ? origin
+            : origDispatchOpts[kRequestOrigin],
           headers: withHostHeader(origin.host, origDispatchOpts.headers)
         }
 

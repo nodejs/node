@@ -3,6 +3,7 @@
 const util = require('../core/util')
 const assert = require('node:assert')
 const { InvalidArgumentError } = require('../core/errors')
+const { kRequestOrigin } = require('../core/symbols')
 
 const redirectableStatusCodes = [300, 301, 302, 303, 307, 308]
 
@@ -43,6 +44,14 @@ class RedirectHandler {
     this.handler.onRequestStart?.(controller, { ...context, history: this.history })
   }
 
+  onBodySent (chunk) {
+    this.handler.onBodySent?.(chunk)
+  }
+
+  onRequestSent () {
+    this.handler.onRequestSent?.()
+  }
+
   onRequestUpgrade (controller, statusCode, headers, socket) {
     this.handler.onRequestUpgrade?.(controller, statusCode, headers, socket)
   }
@@ -81,8 +90,12 @@ class RedirectHandler {
       ? null
       : headers.location
 
-    if (this.opts.origin) {
-      this.history.push(new URL(this.opts.path, this.opts.origin))
+    const requestOrigin = this.opts[kRequestOrigin] === undefined
+      ? this.opts.origin
+      : this.opts[kRequestOrigin]
+
+    if (requestOrigin) {
+      this.history.push(new URL(this.opts.path, requestOrigin))
     }
 
     if (!this.location) {
@@ -90,7 +103,10 @@ class RedirectHandler {
       return
     }
 
-    const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)))
+    const baseUrl = requestOrigin
+      ? new URL(this.opts.path, requestOrigin)
+      : undefined
+    const { origin, pathname, search } = util.parseURL(new URL(this.location, baseUrl))
     const path = search ? `${pathname}${search}` : pathname
 
     // Check for redirect loops by seeing if we've already visited this URL in our history
@@ -106,9 +122,10 @@ class RedirectHandler {
     // Remove headers referring to the original URL.
     // By default it is Host only. A 303 or a 301/302 POST-to-GET redirect also removes all Content-* headers.
     // https://tools.ietf.org/html/rfc7231#section-6.4
-    this.opts.headers = cleanRequestHeaders(this.opts.headers, removeContentHeaders, this.opts.origin !== origin, this.stripHeadersOnRedirect, this.stripHeadersOnCrossOriginRedirect)
+    this.opts.headers = cleanRequestHeaders(this.opts.headers, removeContentHeaders, requestOrigin !== origin, this.stripHeadersOnRedirect, this.stripHeadersOnCrossOriginRedirect)
     this.opts.path = path
     this.opts.origin = origin
+    this.opts[kRequestOrigin] = origin
     this.opts.query = null
   }
 

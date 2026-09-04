@@ -923,7 +923,7 @@ function makeRequest (init) {
     serviceWorkers: init.serviceWorkers ?? 'all',
     initiator: init.initiator ?? '',
     destination: init.destination ?? '',
-    priority: init.priority ?? null,
+    priority: init.priority ?? 'auto',
     origin: init.origin ?? 'client',
     policyContainer: init.policyContainer ?? 'client',
     referrer: init.referrer ?? 'client',
@@ -1129,8 +1129,7 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'priority',
     converter: webidl.converters.DOMString,
-    allowedValues: ['high', 'low', 'auto'],
-    defaultValue: () => 'auto'
+    allowedValues: ['high', 'low', 'auto']
   }
 ])
 

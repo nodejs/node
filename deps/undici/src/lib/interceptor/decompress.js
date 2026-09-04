@@ -1,7 +1,8 @@
 'use strict'
 
 const { createInflate, createGunzip, createBrotliDecompress, createZstdDecompress } = require('node:zlib')
-const { pipeline } = require('node:stream')
+const { pipeline, Transform: TransformStream } = require('node:stream')
+const { InvalidArgumentError, ResponseExceededMaxSizeError } = require('../core/errors')
 const DecoratorHandler = require('../handler/decorator-handler')
 
 /** @typedef {import('node:stream').Transform} Transform */
@@ -20,6 +21,31 @@ const supportedEncodings = {
 }
 
 const defaultSkipStatusCodes = /** @type {const} */ ([204, 304])
+const defaultMaxSize = 64 * 1024 * 1024
+
+/**
+ * Limits the output of one stage in a decompression chain.
+ * @param {number} maxSize - Maximum output size in bytes
+ * @returns {Transform}
+ */
+function createMaxSizeLimiter (maxSize) {
+  let size = 0
+
+  return new TransformStream({
+    transform (chunk, _encoding, callback) {
+      const decompressedSize = size + chunk.length
+      if (decompressedSize > maxSize) {
+        callback(new ResponseExceededMaxSizeError(
+          `Decompressed response size (${decompressedSize}) exceeded maxSize (${maxSize})`
+        ))
+        return
+      }
+
+      size = decompressedSize
+      callback(null, chunk)
+    }
+  })
+}
 
 let warningEmitted = /** @type {boolean} */ (false)
 
@@ -27,6 +53,7 @@ let warningEmitted = /** @type {boolean} */ (false)
  * @typedef {Object} DecompressHandlerOptions
  * @property {number[]|Readonly<number[]>} [skipStatusCodes=[204, 304]] - List of status codes to skip decompression for
  * @property {boolean} [skipErrorResponses] - Whether to skip decompression for error responses (status codes >= 400)
+ * @property {number} [maxSize=67108864] - Maximum decompressed response size in bytes
  */
 
 class DecompressHandler extends DecoratorHandler {
@@ -38,11 +65,24 @@ class DecompressHandler extends DecoratorHandler {
   #skipStatusCodes
   /** @type {boolean} */
   #skipErrorResponses
+  /** @type {number} */
+  #maxSize
+  /** @type {number} */
+  #decompressedSize = 0
+  /** @type {boolean} */
+  #terminated = false
+  /** @type {boolean} */
+  #inputEnded = false
 
-  constructor (handler, { skipStatusCodes = defaultSkipStatusCodes, skipErrorResponses = true } = {}) {
+  constructor (handler, { skipStatusCodes = defaultSkipStatusCodes, skipErrorResponses = true, maxSize = defaultMaxSize } = {}) {
+    if (!Number.isSafeInteger(maxSize) || maxSize < 1) {
+      throw new InvalidArgumentError('maxSize must be a positive integer')
+    }
+
     super(handler)
     this.#skipStatusCodes = skipStatusCodes
     this.#skipErrorResponses = skipErrorResponses
+    this.#maxSize = maxSize
   }
 
   /**
@@ -62,7 +102,7 @@ class DecompressHandler extends DecoratorHandler {
    * Creates a chain of decompressors for multiple content encodings
    *
    * @param {string} encodings - Comma-separated list of content encodings
-   * @returns {Array<DecompressorStream>} - Array of decompressor streams
+   * @returns {Array<Transform>} - Array of decompressor and limiting streams
    * @throws {Error} - If the number of content-encodings exceeds the maximum allowed
    */
   #createDecompressionChain (encodings) {
@@ -90,7 +130,40 @@ class DecompressHandler extends DecoratorHandler {
       decompressors.push(supportedEncodings[encoding]())
     }
 
-    return decompressors
+    if (decompressors.length < 2) {
+      return decompressors
+    }
+
+    /** @type {Transform[]} */
+    const streams = []
+    for (let i = 0; i < decompressors.length; i++) {
+      streams.push(decompressors[i])
+      if (i < decompressors.length - 1) {
+        streams.push(createMaxSizeLimiter(this.#maxSize))
+      }
+    }
+
+    return streams
+  }
+
+  /**
+   * Stops decompression and reports an error.
+   * @param {Controller} controller - The controller to coordinate with
+   * @param {Error} error - The decompression error
+   * @returns {void}
+   */
+  #fail (controller, error) {
+    if (this.#terminated) {
+      return
+    }
+
+    if (this.#inputEnded) {
+      // The request is already marked complete once the compressed input ends,
+      // so controller.abort() can no longer propagate decoder flush errors.
+      this.onResponseError(controller, error)
+    } else {
+      controller.abort(error)
+    }
   }
 
   /**
@@ -101,8 +174,21 @@ class DecompressHandler extends DecoratorHandler {
    */
   #setupDecompressorEvents (decompressor, controller) {
     decompressor.on('readable', () => {
+      if (this.#terminated) {
+        return
+      }
+
       let chunk
       while ((chunk = decompressor.read()) !== null) {
+        const decompressedSize = this.#decompressedSize + chunk.length
+        if (decompressedSize > this.#maxSize) {
+          this.#fail(controller, new ResponseExceededMaxSizeError(
+            `Decompressed response size (${decompressedSize}) exceeded maxSize (${this.#maxSize})`
+          ))
+          return
+        }
+
+        this.#decompressedSize = decompressedSize
         const result = super.onResponseData(controller, chunk)
         if (result === false) {
           break
@@ -111,7 +197,7 @@ class DecompressHandler extends DecoratorHandler {
     })
 
     decompressor.on('error', (error) => {
-      super.onResponseError(controller, error)
+      this.#fail(controller, error)
     })
   }
 
@@ -125,6 +211,12 @@ class DecompressHandler extends DecoratorHandler {
     this.#setupDecompressorEvents(decompressor, controller)
 
     decompressor.on('end', () => {
+      if (this.#terminated) {
+        return
+      }
+
+      this.#terminated = true
+      this.#cleanupDecompressors()
       super.onResponseEnd(controller, this.#trailers)
     })
   }
@@ -139,10 +231,17 @@ class DecompressHandler extends DecoratorHandler {
     this.#setupDecompressorEvents(lastDecompressor, controller)
 
     pipeline(this.#decompressors, (err) => {
-      if (err) {
-        super.onResponseError(controller, err)
+      if (this.#terminated) {
         return
       }
+
+      if (err) {
+        this.#fail(controller, err)
+        return
+      }
+
+      this.#terminated = true
+      this.#cleanupDecompressors()
       super.onResponseEnd(controller, this.#trailers)
     })
   }
@@ -198,7 +297,7 @@ class DecompressHandler extends DecoratorHandler {
 
           filteredHeaders.push(rawHeaders[i], rawHeaders[i + 1])
         }
-        controller.rawHeaders = filteredHeaders
+        rawHeaders.splice(0, rawHeaders.length, ...filteredHeaders)
       } else if (typeof rawHeaders === 'object') {
         for (const name of Object.keys(rawHeaders)) {
           const lowerName = name.toLowerCase()
@@ -238,9 +337,9 @@ class DecompressHandler extends DecoratorHandler {
    */
   onResponseEnd (controller, trailers) {
     if (this.#decompressors.length > 0) {
+      this.#inputEnded = true
       this.#trailers = trailers
       this.#decompressors[0].end()
-      this.#cleanupDecompressors()
       return
     }
     super.onResponseEnd(controller, trailers)
@@ -252,12 +351,15 @@ class DecompressHandler extends DecoratorHandler {
    * @returns {void}
    */
   onResponseError (controller, err) {
-    if (this.#decompressors.length > 0) {
-      for (const decompressor of this.#decompressors) {
-        decompressor.destroy(err)
-      }
-      this.#cleanupDecompressors()
+    if (this.#terminated) {
+      return
     }
+
+    this.#terminated = true
+    for (const decompressor of this.#decompressors) {
+      decompressor.destroy()
+    }
+    this.#cleanupDecompressors()
     super.onResponseError(controller, err)
   }
 }
