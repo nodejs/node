@@ -82,7 +82,16 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
 
   // For delayed CallSiteInfo creation (storing the raw data for several
   // CallSiteInfos in a FixedArray).
-  enum Fields { kCode = 0, kReceiver, kFunction, kOffset, kFlags, kCount };
+  // kFlags must stay last (see CallSiteBuilder::AppendFrame).
+  enum Fields {
+    kCode = 0,
+    kReceiver,
+    kFunction,
+    kOffset,
+    kParameters,
+    kFlags,
+    kCount
+  };
 
   // Deferred flags: defined in the Torque bitfield, but only meaningful in
   // raw capture arrays.  Stripped before creating actual CallSiteInfo objects.

@@ -42,11 +42,13 @@ DirectHandle<CallSiteInfo> CallSiteInfo::ConstructFromRawData(
   }
 
   int offset = Smi::ToInt(frames->get(base_index + Fields::kOffset));
+  DirectHandle<FixedArray> parameters(
+      Cast<FixedArray>(frames->get(base_index + Fields::kParameters)), isolate);
   int flags = Smi::ToInt(frames->get(base_index + Fields::kFlags));
 
   return isolate->factory()->NewCallSiteInfo(
       Cast<JSAny>(receiver), Cast<UnionOf<Smi, JSFunction>>(function),
-      resolved_code, offset, flags, isolate->factory()->empty_fixed_array());
+      resolved_code, offset, flags, parameters);
 }
 
 // static
