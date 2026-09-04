@@ -147,8 +147,6 @@ jobs:
         include:
           - runner: ubuntu-24.04
             system: x86_64-linux
-            # Exercise the trace-event code against a perfetto-enabled V8.
-            perfetto: true
           # built separately in build-aarch64-linux-v8
           # - runner: ubuntu-24.04-arm
           #   system: aarch64-linux
@@ -156,15 +154,23 @@ jobs:
             system: x86_64-darwin
           - runner: macos-latest
             system: aarch64-darwin
-    name: '${{ matrix.system }}: with shared libraries${{ matrix.perfetto && '' and perfetto'' || '''' }}'
+    name: '${{ matrix.system }}: with shared libraries'
     uses: ./.github/workflows/build-shared.yml
     with:
       runner: ${{ matrix.runner }}
       with-sccache: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       extra-nix-flags: |
         --arg useSeparateDerivationForV8 true \
-        ${{ matrix.perfetto && '--arg withPerfetto true \' || '\' }}
-        ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+        ${{ endsWith(matrix.system, '-darwin') && '\
+          --arg withAmaro false \
+          --arg withFFI false \
+          --arg withLief false \
+          --arg withPerfetto false \
+          --arg withSQLite false \
+          --arg extraConfigFlags ''[
+            "--without-inspector"
+            "--without-node-options"
+          ]'' \' || '\' }}
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
