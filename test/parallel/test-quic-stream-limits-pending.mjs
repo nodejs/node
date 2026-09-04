@@ -8,6 +8,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -53,8 +54,7 @@ const s2 = await clientSession.createBidirectionalStream({
 // more stream credits.
 assert.strictEqual(s2.pending, true);
 
-// Drain and close the first stream.
-for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(s1);
 await s1.closed;
 
 // After s1 closes, the server sends MAX_STREAMS which opens s2.
@@ -62,7 +62,7 @@ await s1.closed;
 await allDone.promise;
 
 // s2 should no longer be pending.
-for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(s2);
 await s2.closed;
 
 await clientSession.close();

@@ -7,6 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -123,8 +124,7 @@ for (let i = 0; i < payloadSizes.length; i++) {
 w.endSync();
 
 // Drain the server's empty response to let the stream close cleanly.
-// eslint-disable-next-line no-unused-vars
-for await (const _ of stream) { /* drain response */ }
+await dump(stream);
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
 await serverEndpoint.close();

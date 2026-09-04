@@ -5,6 +5,7 @@
 // should not fail — it's a no-op.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -39,7 +40,7 @@ w.endSync();
 await w[Symbol.asyncDispose]();
 
 // The stream should close cleanly.
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
