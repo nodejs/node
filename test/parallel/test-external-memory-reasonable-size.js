@@ -8,7 +8,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
+const { execSync } = require('child_process');
 const { totalmem } = require('os');
 
 // The smallest limit V8 accepts is 1 GB, so the child has to allocate more
@@ -20,14 +20,15 @@ for (const flag of [
   '--external-memory-max-reasonable-size=1',
   '--external_memory_max_reasonable_size=1',
 ]) {
-  const child = spawnSync(process.execPath, [
-    flag, '-e', 'new Float64Array(150_000_000)',
-  ]);
-
-  assert.notStrictEqual(
-    child.status,
-    0,
-    `${flag} was not honored, the child exited cleanly`,
+  // The child aborts with over a gigabyte resident, so keep it from writing a
+  // core file; on some hosts that dump alone outlasts the test timeout.
+  const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" ${flag} -e "new Float64Array(150_000_000)"`;
+  assert.throws(
+    () => execSync(common.isWindows ? cmd : `ulimit -c 0; ${cmd}`, { ...opts, stdio: 'pipe' }),
+    (err) => {
+      assert.notStrictEqual(err.status, 0, `${flag} was not honored, the child exited cleanly`);
+      assert.match(err.stderr.toString(), /kMaxReasonableBytes/);
+      return true;
+    },
   );
-  assert.match(child.stderr.toString(), /kMaxReasonableBytes/);
 }
