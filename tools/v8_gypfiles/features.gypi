@@ -324,6 +324,10 @@
     # Sets -dV8_ENABLE_WEBASSEMBLY.
     'v8_enable_webassembly%': 1,
 
+    # Enable WebAssembly debugging via GDB-remote protocol.
+    # Sets -dV8_ENABLE_WASM_GDB_REMOTE_DEBUGGING.
+    'v8_enable_wasm_gdb_remote_debugging%': 0,
+
     # Enable advanced BigInt algorithms, costing about 10-30 KiB binary size
     # depending on platform.
     'v8_advanced_bigint_algorithms%': 1,
@@ -530,6 +534,9 @@
       }],
       ['v8_enable_webassembly==1', {
         'defines': ['V8_ENABLE_WEBASSEMBLY',],
+      }],
+      ['v8_enable_wasm_gdb_remote_debugging==1', {
+        'defines': ['V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING',],
       }],
       ['v8_dict_property_const_tracking==1', {
         'defines': ['V8_DICT_PROPERTY_CONST_TRACKING',],
