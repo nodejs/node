@@ -48,11 +48,14 @@ class ECDH final : public BaseObject {
   static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  void MaybeCacheValidKeyPair(uint64_t generation);
   bool IsKeyPairValid();
   bool IsKeyValidForCurve(const ncrypto::BignumPointer& private_key);
 
   ncrypto::ECKeyPointer key_;
   const EC_GROUP* group_;
+  bool has_valid_key_pair_ = false;
+  uint64_t valid_key_pair_generation_ = 0;
 };
 
 struct EcKeyPairParams final : public MemoryRetainer {
