@@ -1637,6 +1637,10 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
+    - version:
+    - v24.4.0
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
     - v20.6.0
     - v18.19.0
@@ -3978,6 +3982,10 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version:
+    - v24.4.0
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
     - v20.6.0
     - v18.19.0
@@ -6490,6 +6498,10 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version:
+    - v24.4.0
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
     - v20.6.0
     - v18.19.0
