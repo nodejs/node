@@ -12,6 +12,7 @@
 #include <type_traits>
 
 #include "absl/functional/overload.h"
+#include "simdutf.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -38,7 +39,6 @@
 #include "src/torque/runtime-macro-shims.h"
 #include "src/torque/runtime-support.h"
 #include "src/utils/utils.h"
-#include "third_party/simdutf/simdutf.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
