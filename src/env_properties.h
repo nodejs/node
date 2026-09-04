@@ -461,6 +461,7 @@
   V(lock_info_template, v8::DictionaryTemplate)                                \
   V(lock_query_template, v8::DictionaryTemplate)                               \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
+  V(microtask_queue_constructor_template, v8::FunctionTemplate)                \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(mx_record_template, v8::DictionaryTemplate)                                \
   V(naptr_record_template, v8::DictionaryTemplate)                             \

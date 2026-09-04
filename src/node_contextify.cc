@@ -153,10 +153,10 @@ ContextifyContext* ContextifyContext::New(Environment* env,
 
   const SnapshotData* snapshot_data = env->isolate_data()->snapshot_data();
 
-  MicrotaskQueue* queue =
-      options->own_microtask_queue
-          ? options->own_microtask_queue.get()
-          : env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
+  MicrotaskQueue* queue = options->own_microtask_queue.get();
+  if (queue == nullptr) queue = options->shared_microtask_queue.get();
+  if (queue == nullptr)
+    queue = env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
 
   Local<Context> v8_context;
   if (!(CreateV8Context(env->isolate(), object_template, snapshot_data, queue)
@@ -178,7 +178,9 @@ ContextifyContext::ContextifyContext(Environment* env,
                                      ContextOptions* options)
     : microtask_queue_(options->own_microtask_queue
                            ? options->own_microtask_queue.release()
-                           : nullptr) {
+                           : nullptr),
+      shared_microtask_queue_(std::move(options->shared_microtask_queue)),
+      drain_after_evaluate_(options->drain_after_evaluate) {
   CppgcMixin::Wrap(this, env, wrapper);
 
   context_.Reset(env->isolate(), v8_context);
@@ -414,7 +416,7 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ContextOptions options;
 
-  CHECK_EQ(args.Length(), 7);
+  CHECK_GE(args.Length(), 7);
   Local<Object> sandbox;
   if (args[0]->IsObject()) {
     sandbox = args[0].As<Object>();
@@ -445,10 +447,19 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   if (args[5]->IsBoolean() && args[5]->BooleanValue(env->isolate())) {
     options.own_microtask_queue =
         MicrotaskQueue::New(env->isolate(), MicrotasksPolicy::kExplicit);
+    options.drain_after_evaluate = true;
+  } else if (args[5]->IsObject()) {
+    ContextifyMicrotaskQueue* queue;
+    ASSIGN_OR_RETURN_UNWRAP_CPPGC(&queue, args[5].As<Object>());
+    options.shared_microtask_queue = queue->microtask_queue();
   }
 
   CHECK(args[6]->IsSymbol());
   options.host_defined_options_id = args[6].As<Symbol>();
+
+  if (args.Length() > 7 && args[7]->IsBoolean()) {
+    options.drain_after_evaluate = args[7]->BooleanValue(env->isolate());
+  }
 
   TryCatchScope try_catch(env);
   ContextifyContext* context_ptr =
@@ -2027,6 +2038,81 @@ static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(promise);
 }
 
+void ContextifyMicrotaskQueue::CreatePerIsolateProperties(
+    IsolateData* isolate_data, Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<String> class_name = FIXED_ONE_BYTE_STRING(isolate, "MicrotaskQueue");
+
+  Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, New);
+  tmpl->InstanceTemplate()->SetInternalFieldCount(
+      ContextifyMicrotaskQueue::kInternalFieldCount);
+  tmpl->SetClassName(class_name);
+  SetProtoMethod(isolate, tmpl, "runMicrotasks", RunMicrotasks);
+
+  target->Set(isolate, "MicrotaskQueue", tmpl);
+  SetMethod(isolate, target, "isMicrotaskQueue", IsMicrotaskQueue);
+  isolate_data->set_microtask_queue_constructor_template(tmpl);
+}
+
+void ContextifyMicrotaskQueue::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(RunMicrotasks);
+  registry->Register(IsMicrotaskQueue);
+}
+
+ContextifyMicrotaskQueue* ContextifyMicrotaskQueue::New(
+    Environment* env, Local<Object> object) {
+  DCHECK_NOT_NULL(env->isolate()->GetCppHeap());
+  return cppgc::MakeGarbageCollected<ContextifyMicrotaskQueue>(
+      env->cppgc_allocation_handle(), env, object);
+}
+
+void ContextifyMicrotaskQueue::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  New(env, args.This());
+}
+
+ContextifyMicrotaskQueue::ContextifyMicrotaskQueue(
+    Environment* env, Local<Object> object)
+    : microtask_queue_(
+          MicrotaskQueue::New(env->isolate(), MicrotasksPolicy::kExplicit)) {
+  CppgcMixin::Wrap(this, env, object);
+}
+
+bool ContextifyMicrotaskQueue::InstanceOf(Environment* env,
+                                          const Local<Value>& value) {
+  return !value.IsEmpty() &&
+         value->IsObject() &&
+         env->microtask_queue_constructor_template()->HasInstance(value);
+}
+
+void ContextifyMicrotaskQueue::RunMicrotasks(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!ContextifyMicrotaskQueue::InstanceOf(env, args.This())) {
+    THROW_ERR_INVALID_THIS(
+        env,
+        "MicrotaskQueue methods can only be called on "
+        "MicrotaskQueue instances.");
+    return;
+  }
+  ContextifyMicrotaskQueue* queue;
+  ASSIGN_OR_RETURN_UNWRAP_CPPGC(&queue, args.This());
+  queue->microtask_queue_->PerformCheckpoint(args.GetIsolate());
+}
+
+void ContextifyMicrotaskQueue::IsMicrotaskQueue(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  bool is_queue =
+      args.Length() > 0 && args[0]->IsObject() && InstanceOf(env, args[0]) &&
+      CppgcMixin::Unwrap<ContextifyMicrotaskQueue>(args[0].As<Object>()) !=
+          nullptr;
+  args.GetReturnValue().Set(is_queue);
+}
+
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -2034,6 +2120,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   ContextifyContext::CreatePerIsolateProperties(isolate_data, target);
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   ContextifyFunction::CreatePerIsolateProperties(isolate_data, target);
+  ContextifyMicrotaskQueue::CreatePerIsolateProperties(isolate_data, target);
 
   SetMethod(isolate, target, "runInterruptible", RunInterruptible);
 
@@ -2083,6 +2170,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   ContextifyContext::RegisterExternalReferences(registry);
   ContextifyScript::RegisterExternalReferences(registry);
   ContextifyFunction::RegisterExternalReferences(registry);
+  ContextifyMicrotaskQueue::RegisterExternalReferences(registry);
 
   registry->Register(CompileFunctionForCJSLoader);
   registry->Register(RunInterruptible);
