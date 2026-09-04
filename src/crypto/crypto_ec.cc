@@ -134,9 +134,12 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
+  const uint64_t generation = ncrypto::getFipsStateGeneration();
+  ecdh->has_valid_key_pair_ = false;
   if (!ecdh->key_.generate()) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to generate key");
   }
+  ecdh->MaybeCacheValidKeyPair(generation);
 }
 
 ECPointPointer ECDH::BufferToPoint(Environment* env,
@@ -307,6 +310,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   ecdh->key_ = std::move(new_key);
   ecdh->group_ = ecdh->key_.getGroup();
+  ecdh->has_valid_key_pair_ = false;
 }
 
 void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
@@ -325,6 +329,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
         "Failed to convert Buffer to EC_POINT");
   }
 
+  ecdh->has_valid_key_pair_ = false;
   if (!ecdh->key_.setPublicKey(pub)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to set EC_POINT as the public key");
@@ -345,9 +350,22 @@ bool ECDH::IsKeyValidForCurve(const BignumPointer& private_key) {
          private_key < order;
 }
 
+void ECDH::MaybeCacheValidKeyPair(uint64_t generation) {
+  has_valid_key_pair_ = generation == ncrypto::getFipsStateGeneration();
+  if (has_valid_key_pair_) valid_key_pair_generation_ = generation;
+}
+
 bool ECDH::IsKeyPairValid() {
+  const uint64_t generation = ncrypto::getFipsStateGeneration();
+  if (has_valid_key_pair_ && valid_key_pair_generation_ == generation) {
+    return true;
+  }
+  has_valid_key_pair_ = false;
+
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  return key_.checkKey();
+  const bool is_valid = key_.checkKey();
+  if (is_valid) MaybeCacheValidKeyPair(generation);
+  return is_valid;
 }
 
 // Convert the input public key to compressed, uncompressed, or hybrid formats.
