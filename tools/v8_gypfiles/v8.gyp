@@ -1215,7 +1215,7 @@
             }],
             ['v8_enable_webassembly==1', {
               'conditions': [
-                ['OS in "linux mac ios freebsd openharmony"', {
+                ['OS in "linux mac ios freebsd openharmony android"', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
@@ -1243,7 +1243,7 @@
           'conditions': [
             ['v8_enable_webassembly==1', {
               'conditions': [
-                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS in "linux mac ios openharmony")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac openharmony"))', {
+                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS in "linux mac ios openharmony android")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac openharmony android"))', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
@@ -1255,7 +1255,7 @@
                     '<(V8_ROOT)/src/trap-handler/handler-outside-win.cc',
                   ],
                 }],
-                ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac win openharmony")', {
+                ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac win openharmony android")', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
                   ],
