@@ -15,8 +15,8 @@ const resultSync = fs.mkdtempSync(prefixBuffer);
 assert.strictEqual(Buffer.isBuffer(resultSync), true);
 
 // 2. Test Callback API
-fs.mkdtemp(prefixBuffer, common.mustSucceed((resultCb) => {
-  assert.strictEqual(Buffer.isBuffer(resultCb), true);
+fs.mkdtemp(prefixBuffer, common.mustSucceed((result) => {
+  assert.strictEqual(Buffer.isBuffer(result), true);
 }));
 
 // 3. Test Promises API
