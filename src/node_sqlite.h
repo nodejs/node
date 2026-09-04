@@ -250,6 +250,7 @@ class DatabaseSync : public BaseObject {
   static void Serialize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Deserialize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateModule(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int AuthorizerCallback(void* user_data,
                                 int action_code,
                                 const char* param1,
@@ -288,6 +289,10 @@ class DatabaseSync : public BaseObject {
   void IncrementCallbackDepth() { ++callback_depth_; }
   void DecrementCallbackDepth() { --callback_depth_; }
   bool IsInCallback() const { return callback_depth_ > 0; }
+
+  void IncrementDestructorDepth() { ++destructor_depth_; }
+  void DecrementDestructorDepth() { --destructor_depth_; }
+  bool IsInDestructor() const { return destructor_depth_ > 0; }
 
   // SQLite reaches back into JavaScript from inside its pre-update hook, while
   // it is still walking this connection's session list. Session objects are
@@ -336,6 +341,7 @@ class DatabaseSync : public BaseObject {
   std::unique_ptr<sqlite3, ConnectionDeleter> connection_;
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
+  int destructor_depth_ = 0;
   int authorizer_depth_ = 0;
   int trace_suppression_depth_ = 0;
   std::vector<sqlite3_stmt*> stepping_statements_;
@@ -349,6 +355,7 @@ class DatabaseSync : public BaseObject {
   friend class Session;
   friend class SQLTagStore;
   friend class StatementExecutionHelper;
+  friend class VirtualTableModule;
 };
 
 class StatementSync : public BaseObject {
@@ -530,6 +537,23 @@ class CallbackDepthGuard {
   std::vector<BaseObjectPtr<Session>> pinned_sessions_;
 };
 
+// Marks a window in which SQLite is being torn down from a C++ destructor.
+// Those destructors run from V8 garbage collection callbacks, where executing
+// JavaScript is forbidden, so callbacks reached through them must not call back
+// into JavaScript.
+class DestructorScope {
+ public:
+  explicit DestructorScope(DatabaseSync* db) : db_(db) {
+    db_->IncrementDestructorDepth();
+  }
+  ~DestructorScope() { db_->DecrementDestructorDepth(); }
+  DestructorScope(const DestructorScope&) = delete;
+  DestructorScope& operator=(const DestructorScope&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
 class TraceEventSuppressionGuard {
  public:
   explicit TraceEventSuppressionGuard(DatabaseSync* db) : db_(db) {
@@ -616,6 +640,90 @@ class DatabaseSyncLimits : public BaseObject {
 
  private:
   BaseObjectWeakPtr<DatabaseSync> database_;
+};
+
+struct NodeVTab {
+  sqlite3_vtab base;
+  class VirtualTableModule* module;
+};
+
+struct NodeVTabCursor {
+  sqlite3_vtab_cursor base;
+  class VirtualTableModule* module;
+  v8::Global<v8::Object> iterator;
+  v8::Global<v8::Value> current_row;
+  // The value each hidden column was constrained to, indexed by schema column
+  // index and empty for visible columns. These are owned copies, since the
+  // values SQLite passes to xFilter are only valid for that call.
+  std::vector<sqlite3_value*> hidden_values;
+  sqlite3_int64 rowid;
+  bool done;
+};
+
+class VirtualTableModule {
+ public:
+  VirtualTableModule(Environment* env,
+                     BaseObjectWeakPtr<DatabaseSync> db,
+                     v8::Local<v8::Function> rows_fn,
+                     std::string&& schema_sql,
+                     int num_columns,
+                     std::vector<int>&& hidden_col_indices,
+                     bool use_bigint_args,
+                     bool direct_only);
+  ~VirtualTableModule();
+
+  static int xCreate(sqlite3* db,
+                     void* pAux,
+                     int argc,
+                     const char* const* argv,
+                     sqlite3_vtab** ppVTab,
+                     char** pzErr);
+  static int xBestIndex(sqlite3_vtab* pVTab, sqlite3_index_info* pInfo);
+  static int xDisconnect(sqlite3_vtab* pVTab);
+  static int xDestroy(sqlite3_vtab* pVTab);
+  static int xOpen(sqlite3_vtab* pVTab, sqlite3_vtab_cursor** ppCursor);
+  static int xClose(sqlite3_vtab_cursor* pCursor);
+  static int xFilter(sqlite3_vtab_cursor* pCursor,
+                     int idxNum,
+                     const char* idxStr,
+                     int argc,
+                     sqlite3_value** argv);
+  static int xNext(sqlite3_vtab_cursor* pCursor);
+  static int xEof(sqlite3_vtab_cursor* pCursor);
+  static int xColumn(sqlite3_vtab_cursor* pCursor, sqlite3_context* ctx, int i);
+  static int xRowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64* pRowid);
+  static void xDestroyModule(void* pAux);
+
+ private:
+  // Suppresses the SQLite error text so the pending JavaScript exception is
+  // what surfaces to the caller. Always returns SQLITE_ERROR.
+  int PropagateJSError();
+
+  // Reports a violation of the iteration protocol by the `rows` function.
+  // Unlike PropagateJSError there is no JavaScript exception to surface, so an
+  // error message has to be supplied. Always returns SQLITE_ERROR.
+  static int ReportProtocolError(sqlite3_vtab* vtab, const char* message);
+
+  // False while the database is being torn down from a destructor, which runs
+  // from a garbage collection callback where JavaScript cannot be executed.
+  bool CanCallIntoJS() const;
+
+  static void ReleaseHiddenValues(NodeVTabCursor* cursor);
+
+  Environment* env_;
+  BaseObjectWeakPtr<DatabaseSync> db_;
+  v8::Global<v8::Function> rows_fn_;
+  std::string schema_sql_;
+  int num_columns_;
+  std::vector<int> hidden_col_indices_;
+  // Maps schema column index to row array index for visible columns.
+  // Hidden columns are mapped to -1.
+  std::vector<int> col_index_map_;
+  bool use_bigint_args_;
+  bool direct_only_;
+  sqlite3_module module_def_;
+
+  friend class DatabaseSync;
 };
 
 }  // namespace sqlite
