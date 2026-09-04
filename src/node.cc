@@ -46,6 +46,7 @@
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
+#include "node_watchdog.h"
 
 #if HAVE_OPENSSL
 #include "ncrypto.h"
@@ -245,6 +246,9 @@ void Environment::InitializeDiagnostics() {
     isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
   if (options_->trace_promises) {
     isolate_->SetPromiseHook(TracePromises);
+  }
+  if (is_main_thread() && per_process::cli_options->trace_sigterm) {
+    TraceSigtermWatchdog::Enable(this);
   }
 }
 

@@ -117,6 +117,34 @@ class TraceSigintWatchdog : public HandleWrap, public SigintWatchdogBase {
   SignalFlags signal_flag_ = SignalFlags::None;
 };
 
+// Prints the JavaScript stack trace of the main thread when `SIGTERM` is
+// received, then lets `SIGTERM` take its usual course. It runs its own event
+// loop on a dedicated thread, because the main event loop is not reached while
+// JavaScript is stuck (which is exactly when the trace is interesting).
+// Watching the signal through libuv (rather than sigaction()) keeps it
+// multiplexed with `process.on('SIGTERM')` handlers.
+class TraceSigtermWatchdog {
+ public:
+  // Enables the watchdog for the lifetime of `env`.
+  static void Enable(Environment* env);
+
+ private:
+  explicit TraceSigtermWatchdog(Environment* env);
+  ~TraceSigtermWatchdog();
+
+  TraceSigtermWatchdog(const TraceSigtermWatchdog&) = delete;
+  TraceSigtermWatchdog& operator=(const TraceSigtermWatchdog&) = delete;
+
+  static void Run(void* arg);
+  void OnSignal();
+
+  Environment* env_;
+  uv_loop_t loop_;
+  uv_signal_t signal_;
+  uv_async_t stop_;
+  uv_thread_t thread_;
+};
+
 class SigintWatchdogHelper {
  public:
   static SigintWatchdogHelper* GetInstance() { return &instance; }
