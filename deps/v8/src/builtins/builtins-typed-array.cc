@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "simdutf.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins-utils-inl.h"
@@ -15,7 +16,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/simd.h"
-#include "third_party/simdutf/simdutf.h"
 
 namespace v8::internal {
 

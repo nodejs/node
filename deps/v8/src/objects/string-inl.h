@@ -14,6 +14,7 @@
 #include "absl/functional/overload.h"
 #include "include/v8config.h"
 #include "src/base/logging.h"
+#include "simdutf.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils-inl.h"
@@ -38,7 +39,6 @@
 #include "src/strings/string-hasher-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
-#include "third_party/simdutf/simdutf.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
