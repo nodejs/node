@@ -419,6 +419,12 @@ system, the callers are responsible for avoiding removal or
 invalidation of modules in the virtual file system while they are
 being loaded.
 
+Native addons (`.node` files) stored in a mounted VFS can be `require()`d as
+well. The operating system's dynamic loader cannot open a virtual path, so the
+addon's bytes are read from the VFS and loaded from a private, self-cleaning
+temporary image instead. Addons on the real file system are unaffected and
+load directly.
+
 ## Use with Single Executable Applications
 
 When running as a [Single Executable Application][] built with
