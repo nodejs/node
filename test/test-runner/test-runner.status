@@ -14,4 +14,3 @@ test-watch-create-isolation-none: SKIP
 # https://github.com/nodejs/node/issues/54534#issuecomment-5423551021
 test-run-watch-cwd-isolation-none: PASS, FLAKY
 test-run-watch-cwd-isolation-none-argv: PASS, FLAKY
-test-run-watch-emit-restarted: PASS, FLAKY
