@@ -4578,6 +4578,7 @@ cc_library(
   name = "simdutf",
   srcs = ["third_party/simdutf/simdutf.cpp"],
   hdrs = ["third_party/simdutf/simdutf.h"],
+  strip_include_prefix = "third_party/simdutf",
   copts = select({
         "@v8//bazel/config:is_clang": ["-std=c++20"],
         "@v8//bazel/config:is_gcc": ["-std=gnu++2a"],
