@@ -4729,21 +4729,11 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowStdErrException(error, "cp", *dest);
   }
 
-  auto file_copy_opts = std::filesystem::copy_options::recursive;
-  if (force) {
-    file_copy_opts |= std::filesystem::copy_options::overwrite_existing;
-  } else if (error_on_exist) {
-    file_copy_opts |= std::filesystem::copy_options::none;
-  } else {
-    file_copy_opts |= std::filesystem::copy_options::skip_existing;
-  }
-
   std::function<bool(std::filesystem::path, std::filesystem::path)>
       copy_dir_contents;
   copy_dir_contents = [verbatim_symlinks,
                        &copy_dir_contents,
                        &env,
-                       file_copy_opts,
                        preserve_timestamps,
                        force,
                        error_on_exist,
@@ -4849,17 +4839,36 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           return false;
         }
       } else if (dir_entry.is_regular_file()) {
-        std::filesystem::copy_file(
-            dir_entry.path(), dest_file_path, file_copy_opts, error);
-        if (error) {
-          if (error == std::errc::file_exists) {
+        // Use libuv for regular file copies to avoid VirtioFS EACCES
+        // (libstdc++ creates dest with 0200 then fchmod, VirtioFS blocks).
+        // Mirrors single-file path which uses uv_fs_copyfile when mode != 0.
+        // Handle force / errorOnExist / skipExisting semantics via libuv flags.
+        if (!force && !error_on_exist) {
+          std::error_code ec;
+          if (std::filesystem::exists(dest_file_path, ec) && !ec) {
+            continue;
+          }
+        }
+        auto src_str = ConvertPathToUTF8(dir_entry.path());
+        auto dest_file_str = ConvertPathToUTF8(dest_file_path);
+        uv_fs_t req;
+        auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+        int flags = error_on_exist ? UV_FS_COPYFILE_EXCL : 0;
+        int result = uv_fs_copyfile(nullptr,
+                                    &req,
+                                    src_str.c_str(),
+                                    dest_file_str.c_str(),
+                                    flags,
+                                    nullptr);
+        if (is_uv_error(result)) {
+          if (result == UV_EEXIST) {
             THROW_ERR_FS_CP_EEXIST(isolate,
                                    "[ERR_FS_CP_EEXIST]: Target already exists: "
                                    "cp returned EEXIST (%s already exists)",
                                    dest_file_path);
             return false;
           }
-          env->ThrowStdErrException(error, "cp", dest_str.c_str());
+          env->ThrowUVException(result, "cp", nullptr, dest_file_str.c_str());
           return false;
         }
 
