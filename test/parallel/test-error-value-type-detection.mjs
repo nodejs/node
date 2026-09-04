@@ -209,3 +209,58 @@ assert.strictEqual(
   determineSpecificType(new WeakSet()),
   'an instance of WeakSet',
 );
+
+// Anonymous classes have an empty `name`, so the value is inspected instead.
+// `inspect(..., { depth: -1 })` prints this one as `{}` because it has no own
+// properties; the values below carry a `constructor` property of their own and
+// print as `[Object]`.
+assert.strictEqual(
+  determineSpecificType(new (class {})()),
+  '{}',
+);
+
+// `constructor` is an ordinary, user-controlled property that need not be a
+// function. Describing such a value must not throw.
+assert.strictEqual(
+  determineSpecificType(JSON.parse('{"constructor": 5}')),
+  '[Object]',
+);
+
+assert.strictEqual(
+  determineSpecificType({ constructor: { name: '' } }),
+  '[Object]',
+);
+
+// A `constructor.name` that is not a usable string must not be interpolated
+// into the message.
+assert.strictEqual(
+  determineSpecificType({ constructor: { name: Symbol('x') } }),
+  '[Object]',
+);
+
+assert.strictEqual(
+  determineSpecificType({ constructor: { name: 42 } }),
+  '[Object]',
+);
+
+// `constructor` and its `name` are each read once. Both may be accessors, so
+// repeated reads are observable, and a `name` validated by one read and
+// interpolated from another need not be the same value twice.
+let constructorReads = 0;
+let nameReads = 0;
+const named = {
+  get constructor() {
+    constructorReads++;
+    return { get name() { nameReads++; return 'Foo'; } };
+  },
+};
+assert.strictEqual(determineSpecificType(named), 'an instance of Foo');
+assert.strictEqual(constructorReads, 1);
+assert.strictEqual(nameReads, 1);
+
+// Building the error must not fail when `constructor` is a truthy primitive.
+assert.strictEqual(
+  new errorsModule.codes.ERR_INVALID_ARG_TYPE(
+    'arg', 'string', JSON.parse('{"constructor": 5}')).code,
+  'ERR_INVALID_ARG_TYPE',
+);
