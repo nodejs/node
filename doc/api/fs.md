@@ -1651,7 +1651,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {Promise} Fulfills with the created directory path.
   If `encoding` is `'buffer'`, then the resulting directory
   path is returned as a {Buffer}. Otherwise, the path is returned as a
