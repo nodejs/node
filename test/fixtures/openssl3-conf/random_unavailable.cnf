@@ -1,0 +1,7 @@
+nodejs_conf = nodejs_init
+
+[nodejs_init]
+random = random_sect
+
+[random_sect]
+random = NO-SUCH-DRBG

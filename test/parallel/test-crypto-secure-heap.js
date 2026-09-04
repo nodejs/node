@@ -61,6 +61,17 @@ if (process.argv[2] === 'child') {
   return;
 }
 
+if (process.argv[2] === 'workers') {
+  // A Worker's crypto calls may run out of secure heap; that surfaces as an
+  // error in the Worker, never as an abort of the process.
+  const { Worker } = require('worker_threads');
+  for (let i = 0; i < 8; i++) {
+    new Worker('try { require("crypto").randomBytes(4); } catch {}',
+               { eval: true });
+  }
+  return;
+}
+
 const child = fork(
   process.argv[1],
   ['child'],
@@ -69,6 +80,17 @@ const child = fork(
 child.on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 0);
 }));
+
+{
+  const child = fork(
+    process.argv[1],
+    ['workers'],
+    { execArgv: ['--secure-heap=1024', '--secure-heap-min=4'] });
+  child.on('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(signal, null);
+    assert.strictEqual(code, 0);
+  }));
+}
 
 {
   const child = fork(fixtures.path('a.js'), {
