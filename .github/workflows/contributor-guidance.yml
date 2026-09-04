@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-slim
     outputs:
       is_first_time: ${{ steps.resolve.outputs.is_first_time }}
+      should_scan: ${{ steps.resolve.outputs.should_scan }}
     steps:
       - name: Check author association
         id: resolve
@@ -42,9 +43,15 @@ jobs:
           case "$api_association" in
             FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
               echo 'is_first_time=true' >> "$GITHUB_OUTPUT"
+              echo 'should_scan=true' >> "$GITHUB_OUTPUT"
               ;;
             CONTRIBUTOR|NONE)
               echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
+              echo 'should_scan=true' >> "$GITHUB_OUTPUT"
+              ;;
+            COLLABORATOR|MANNEQUIN|MEMBER|OWNER)
+              echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
+              echo 'should_scan=false' >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "Unexpected author association: $api_association" >&2
@@ -55,6 +62,7 @@ jobs:
   guidance:
     name: Apply contributor guidance
     needs: contributor
+    if: needs.contributor.outputs.should_scan == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -72,8 +80,8 @@ jobs:
           scan-issues: false
           auto-close: false
           honeypot: false
-          # The contributor job only runs for a subset of `github.event.pull_request.author_association`
-          # values, so `trusted-author-associations` would be redundant here.
+          # The privileged association check skips trusted authors before this job,
+          # so `trusted-author-associations` would be redundant here.
           # trusted-author-associations: collaborator,member,owner
 
       - name: Comment with contributor guidance
