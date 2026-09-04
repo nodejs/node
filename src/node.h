@@ -1289,8 +1289,7 @@ NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     const char* path = nullptr);
 #endif
 
-const char* signo_string(int errorno);
-
+NODE_EXTERN const char* signo_string(int errorno);
 
 typedef void (*addon_register_func)(
     v8::Local<v8::Object> exports,
