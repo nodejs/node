@@ -671,7 +671,8 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1) {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
-        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+        "The first argument must be a Buffer, ArrayBuffer, SharedArrayBuffer, "
+        "or ArrayBufferView");
     return;
   }
 
@@ -689,7 +690,8 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
-        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+        "The first argument must be a Buffer, ArrayBuffer, SharedArrayBuffer, "
+        "or ArrayBufferView");
     return;
   }
 
