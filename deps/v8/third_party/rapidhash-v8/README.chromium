@@ -19,3 +19,5 @@ particular version is copied over from Chromium.
 Local Modifications:
 - Copied over from Chromium's third_party/rapidhash with all its changes.
 - Removed base/ includes and replaced with V8 versions.
+- mul_mod in secret.h uses a 128-bit multiply and modulo where the compiler
+  runtime provides one.
