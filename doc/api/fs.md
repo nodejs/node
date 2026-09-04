@@ -1692,7 +1692,7 @@ added: v24.4.0
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {Promise} Fulfills with a Promise for an async-disposable Object:
   * `path` {string|Buffer} The path of the created directory.
   * `remove` {AsyncFunction} A function which removes the created directory.
@@ -4008,7 +4008,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * `callback` {Function}
   * `err` {Error}
   * `directory` {string|Buffer}
@@ -6504,7 +6504,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {string|Buffer}
 
 Returns the created directory path. If `encoding` is `'buffer'`, then the
