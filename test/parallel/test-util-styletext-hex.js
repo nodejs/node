@@ -245,4 +245,38 @@ describe('util.styleText hex color support', () => {
       );
     });
   });
+
+  describe('valid background hex colors', () => {
+    it('should parse bg#ffcc00 as RGB(255, 204, 0) background', () => {
+      const styled = util.styleText('bg#ffcc00', 'test', { validateStream: false });
+      assert.strictEqual(styled, '\u001b[48;2;255;204;0mtest\u001b[49m');
+    });
+
+    it('should expand bg#fc0 to bg#ffcc00 -> RGB(255, 204, 0) background', () => {
+      const styled = util.styleText('bg#fc0', 'test', { validateStream: false });
+      assert.strictEqual(styled, '\u001b[48;2;255;204;0mtest\u001b[49m');
+    });
+
+    it('should combine foreground and background hex colors', () => {
+      const styled = util.styleText(['#ffffff', 'bg#ff5733'], 'test', { validateStream: false });
+      assert.strictEqual(styled, '\u001b[38;2;255;255;255m\u001b[48;2;255;87;51mtest\u001b[49m\u001b[39m');
+    });
+  });
+
+  describe('valid foreground hex colors with fg# prefix', () => {
+    it('should parse fg#ffcc00 as RGB(255, 204, 0) foreground', () => {
+      const styled = util.styleText('fg#ffcc00', 'test', { validateStream: false });
+      assert.strictEqual(styled, '\u001b[38;2;255;204;0mtest\u001b[39m');
+    });
+
+    it('should expand fg#fc0 to fg#ffcc00 -> RGB(255, 204, 0) foreground', () => {
+      const styled = util.styleText('fg#fc0', 'test', { validateStream: false });
+      assert.strictEqual(styled, '\u001b[38;2;255;204;0mtest\u001b[39m');
+    });
+
+    it('should combine foreground (fg#) and background (bg#) hex colors', () => {
+      const styled = util.styleText(['fg#ffffff', 'bg#ff5733'], 'test', { validateStream: false });
+      assert.strictEqual(styled, '\u001b[38;2;255;255;255m\u001b[48;2;255;87;51mtest\u001b[49m\u001b[39m');
+    });
+  });
 });
