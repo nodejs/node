@@ -6,6 +6,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -44,7 +45,7 @@ await clientSession.opened;
   await w.write(encoder.encode('async write'));
   const n = w.endSync();
   assert.strictEqual(n, 11);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -59,7 +60,7 @@ await clientSession.opened;
   assert.strictEqual(result, true);
   const n = w.endSync();
   assert.strictEqual(n, 12);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -73,7 +74,7 @@ await clientSession.opened;
   ]);
   const n = w.endSync();
   assert.strictEqual(n, 12);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -84,7 +85,7 @@ await clientSession.opened;
   w.writeSync(encoder.encode('end async'));
   const n = await w.end();
   assert.strictEqual(n, 9);
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 
@@ -103,7 +104,7 @@ await clientSession.opened;
   assert.ok(drain === null || drain instanceof Promise);
   w.writeSync(encoder.encode('capacity'));
   w.endSync();
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 

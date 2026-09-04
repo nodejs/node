@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { broadcast, Broadcast, from, text } = require('stream/iter');
+const { Broadcast, broadcast, dump, from, text } = require('stream/iter');
 
 // =============================================================================
 // Broadcast.from
@@ -159,8 +159,7 @@ async function testBroadcastFromSourceError() {
   const { broadcast: bc } = Broadcast.from(failingSource());
   const consumer = bc.push();
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of consumer) { /* consume */ }
+    await dump(consumer);
   }, { message: 'broadcast source boom' });
 }
 
