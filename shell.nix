@@ -19,7 +19,7 @@
   withFFI ? true,
   withSSL ? true,
   withTemporal ? false,
-  withPerfetto ? false,
+  withPerfetto ? true,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -87,7 +87,7 @@ let
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
   ++ builtins.map (depName: "--shared-${depName}") sharedV8Deps
-  ++ pkgs.lib.optional withPerfetto "--with-perfetto";
+  ++ pkgs.lib.optional (!withPerfetto) "--without-perfetto";
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;
