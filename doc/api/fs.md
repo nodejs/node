@@ -1637,7 +1637,7 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v24.4.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/64397
     description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
