@@ -68,18 +68,19 @@ def translate_config(out_dir, config, v8_config):
           bool_string_to_number(config['node_enable_inspector']),
       'shlib_suffix': 'dylib' if sys.platform == 'darwin' else 'so',
       'tsan': bool_string_to_number(config['is_tsan']),
-      # TODO(zcbenz): Shared components are not supported in GN config yet.
       'node_shared': 'false',
-      'node_shared_brotli': 'false',
-      'node_shared_cares': 'false',
-      'node_shared_http_parser': 'false',
-      'node_shared_libuv': 'false',
-      'node_shared_nghttp2': 'false',
+      'node_shared_brotli': config['node_shared_brotli'],
+      'node_shared_cares': config['node_shared_cares'],
+      'node_shared_hdr_histogram': config['node_shared_hdr_histogram'],
+      'node_shared_http_parser': config['node_shared_http_parser'],
+      'node_shared_libuv': config['node_shared_libuv'],
+      'node_shared_nghttp2': config['node_shared_nghttp2'],
       'node_shared_nghttp3': 'false',
       'node_shared_ngtcp2': 'false',
       'node_shared_openssl': 'false',
-      'node_shared_sqlite': 'false',
+      'node_shared_sqlite': config['node_shared_sqlite'],
       'node_shared_zlib': 'false',
+      'node_shared_zstd': config['node_shared_zstd'],
     }
   }
   config_gypi['variables'].update(v8_config)
