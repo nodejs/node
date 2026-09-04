@@ -450,16 +450,17 @@ bool IsCertificateTrustValid(SecCertificateRef ref) {
       CFArrayCreateMutable(nullptr, 1, &kCFTypeArrayCallBacks);
   CFArraySetValueAtIndex(subj_certs, 0, ref);
 
-  // Enumerating trust anchors must not constrain them to a particular
-  // application policy. The actual TLS handshake applies the appropriate EKU
-  // checks when validating the peer certificate. Basic X.509 policy also
-  // disables network access, avoiding AIA and revocation requests during
+  // Use the SSL client policy to preserve the existing certificate filtering,
+  // but disable network access to avoid AIA and revocation requests during
   // certificate enumeration.
-  SecPolicyRef policy = SecPolicyCreateBasicX509();
+  SecPolicyRef policy = SecPolicyCreateSSL(false, nullptr);
   OSStatus ortn =
       SecTrustCreateWithCertificates(subj_certs, policy, &sec_trust);
   bool result = false;
   if (ortn) {
+    /* should never happen */
+  } else if (SecTrustSetNetworkFetchAllowed(sec_trust, false) !=
+             errSecSuccess) {
     /* should never happen */
   } else {
     result = SecTrustEvaluateWithError(sec_trust, nullptr);
