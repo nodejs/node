@@ -1137,7 +1137,8 @@ class CallSiteBuilder {
     int pc_offset = static_cast<int>(frame->pc() - code->instruction_start());
 
     AppendFrame(Cast<UnionOf<JSAny, Hole>>(handle(frame->receiver(), isolate_)),
-                function, handle(code, isolate_), pc_offset, flags, isolate_->factory()->empty_fixed_array());
+                function, handle(code, isolate_), pc_offset, flags,
+                frame->GetParameters(/*never_allocate=*/false));
     return true;
   }
 
@@ -1177,6 +1178,8 @@ class CallSiteBuilder {
 
     elements_->set(base_index + CallSiteInfo::Fields::kOffset,
                    Smi::FromInt(offset));
+    elements_->set(base_index + CallSiteInfo::Fields::kParameters,
+                   *parameters);
 
     index_++;
     skipped_prev_frame_ = false;
