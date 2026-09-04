@@ -1025,6 +1025,81 @@ added:
 
 Synchronous version of [`bytes()`][].
 
+### `dump(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {AsyncIterable|Iterable} whose chunks must be {Uint8Array\[]}
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `limit` {number} Maximum number of bytes to consume. If the total bytes
+    read exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
+* Returns: {Promise} Fulfills with `undefined`.
+
+Read a source to completion, discarding every chunk. Unlike the other
+consumers, `dump()` retains nothing. Memory tops-out at a single batch no
+matter how much data the source produces.
+
+Use this to consume a stream when the content doesn't matter. For example, A
+QUIC stream only returns flow-control credit to the peer as its data is
+consumed, so a receiver that does not want the payload must still read it to
+completion.
+
+If the source errors part-way through, the returned promise rejects with that
+error.
+
+There is no default `limit`. `dump()` reads until the source is exhausted
+unless a limit is specified. When a limit is configured and the source exceeds
+it, the promise rejects and the source is cancelled. A partial dump is never
+reported as success.
+
+```mjs
+import { dump, from, pull, tap } from 'node:stream/iter';
+
+// Count the bytes flowing through a stream without retaining any of them.
+let bytesSeen = 0;
+const counter = tap((chunks) => {
+  for (const chunk of chunks) bytesSeen += chunk.byteLength;
+});
+
+await dump(pull(from('hello world'), counter));
+console.log(bytesSeen); // 11
+```
+
+```cjs
+const { dump, from, pull, tap } = require('node:stream/iter');
+
+async function run() {
+  // Count the bytes flowing through a stream without retaining any of them.
+  let bytesSeen = 0;
+  const counter = tap((chunks) => {
+    for (const chunk of chunks) bytesSeen += chunk.byteLength;
+  });
+
+  await dump(pull(from('hello world'), counter));
+  console.log(bytesSeen); // 11
+}
+
+run().catch(console.error);
+```
+
+### `dumpSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Iterable} whose chunks must be {Uint8Array\[]}
+* `options` {Object}
+  * `limit` {number} Maximum number of bytes to consume. If the total bytes
+    read exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
+* Returns: {undefined}
+
+Synchronous version of [`dump()`][]. Throws `ERR_INVALID_ARG_TYPE` if `source`
+is not synchronously iterable.
+
 ### `text(source[, options])`
 
 <!-- YAML
@@ -2167,6 +2242,7 @@ console.log(textSync(stream)); // 'hello world'
 [`array()`]: #arraysource-options
 [`arrayBuffer()`]: #arraybuffersource-options
 [`bytes()`]: #bytessource-options
+[`dump()`]: #drainsource-options
 [`from()`]: #frominput
 [`fromSync()`]: #fromsyncinput
 [`node:zlib/iter`]: zlib.md#iterable-compression
