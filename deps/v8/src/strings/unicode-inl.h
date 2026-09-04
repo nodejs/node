@@ -8,9 +8,9 @@
 #include "src/strings/unicode.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "simdutf.h"
 #include "src/base/logging.h"
 #include "src/utils/utils.h"
-#include "third_party/simdutf/simdutf.h"
 
 namespace unibrow {
 
