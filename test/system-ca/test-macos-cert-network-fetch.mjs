@@ -1,16 +1,12 @@
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert/strict';
+import { X509Certificate } from 'node:crypto';
 import { execFile, execFileSync } from 'node:child_process';
-import fs from 'node:fs';
 import http from 'node:http';
 import { once } from 'node:events';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
-import tmpdir from '../common/tmpdir.js';
-import cryptoFixtures from '../common/crypto.js';
-
-const { opensslCli } = cryptoFixtures;
 
 if (!common.hasCrypto) {
   common.skip('requires crypto');
@@ -18,10 +14,6 @@ if (!common.hasCrypto) {
 
 if (process.platform !== 'darwin') {
   common.skip('macOS-specific test');
-}
-
-if (!opensslCli) {
-  common.skip('missing openssl-cli');
 }
 
 function isCertInKeychain(cn) {
@@ -41,6 +33,7 @@ if (!isCertInKeychain('StartCom Certification Authority')) {
 }
 
 const execFileAsync = promisify(execFile);
+const responderPort = 12347;
 
 async function run(file, args) {
   return execFileAsync(file, args, { encoding: 'utf8' });
@@ -48,82 +41,6 @@ async function run(file, args) {
 
 async function runToCompletion(file, args) {
   await new Promise((resolve) => execFile(file, args, resolve));
-}
-
-async function generateCertificates(port) {
-  const intermediateKey = tmpdir.resolve('intermediate-key.pem');
-  const intermediateCsr = tmpdir.resolve('intermediate.csr');
-  const intermediateCert = tmpdir.resolve('intermediate-cert.pem');
-  const intermediateDer = tmpdir.resolve('intermediate-cert.der');
-  const intermediateConfig = tmpdir.resolve('intermediate.cnf');
-  const leafKey = tmpdir.resolve('leaf-key.pem');
-  const leafCsr = tmpdir.resolve('leaf.csr');
-  const leafCert = tmpdir.resolve('leaf-cert.pem');
-  const leafConfig = tmpdir.resolve('leaf.cnf');
-  const rootCert = fixtures.path('keys', 'fake-startcom-root-cert.pem');
-  const rootKey = fixtures.path('keys', 'fake-startcom-root-key.pem');
-
-  fs.writeFileSync(intermediateConfig, `
-[v3_ca]
-basicConstraints = critical,CA:TRUE,pathlen:0
-keyUsage = critical,keyCertSign,cRLSign
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer
-`);
-  fs.writeFileSync(leafConfig, `
-[v3_leaf]
-basicConstraints = critical,CA:FALSE
-keyUsage = critical,digitalSignature,keyEncipherment
-extendedKeyUsage = serverAuth,clientAuth
-subjectAltName = DNS:localhost,IP:127.0.0.1
-authorityInfoAccess = caIssuers;URI:http://127.0.0.1:${port}/intermediate.der,\\
-                      OCSP;URI:http://127.0.0.1:${port}/ocsp
-`);
-
-  await run(opensslCli, [
-    'req', '-new', '-newkey', 'rsa:2048', '-noenc',
-    '-keyout', intermediateKey,
-    '-out', intermediateCsr,
-    '-subj', '/CN=NodeJS Test AIA Intermediate',
-  ]);
-  await run(opensslCli, [
-    'x509', '-req',
-    '-in', intermediateCsr,
-    '-CA', rootCert,
-    '-CAkey', rootKey,
-    '-set_serial', `0x${Date.now().toString(16)}01`,
-    '-out', intermediateCert,
-    '-days', '1',
-    '-extfile', intermediateConfig,
-    '-extensions', 'v3_ca',
-  ]);
-  await run(opensslCli, [
-    'x509', '-in', intermediateCert, '-outform', 'DER', '-out', intermediateDer,
-  ]);
-  await run(opensslCli, [
-    'req', '-new', '-newkey', 'rsa:2048', '-noenc',
-    '-keyout', leafKey,
-    '-out', leafCsr,
-    '-subj', '/CN=NodeJS Test AIA Leaf',
-  ]);
-  await run(opensslCli, [
-    'x509', '-req',
-    '-in', leafCsr,
-    '-CA', intermediateCert,
-    '-CAkey', intermediateKey,
-    '-set_serial', `0x${Date.now().toString(16)}02`,
-    '-out', leafCert,
-    '-days', '1',
-    '-extfile', leafConfig,
-    '-extensions', 'v3_leaf',
-  ]);
-
-  return {
-    intermediateCert,
-    intermediateDer,
-    leafCert,
-    rootCert,
-  };
 }
 
 function parseKeychainSearchList(stdout) {
@@ -135,34 +52,36 @@ function parseKeychainSearchList(stdout) {
 test('system CA enumeration does not fetch AIA or OCSP', {
   timeout: 30_000,
 }, async (t) => {
-  tmpdir.refresh();
-
   const requests = [];
-  let intermediate;
+  const leafCert = fixtures.path('keys', 'system-ca-network-leaf-cert.pem');
+  const rootCert = fixtures.path('keys', 'fake-startcom-root-cert.pem');
+  const infoAccess = new X509Certificate(
+    fixtures.readKey('system-ca-network-leaf-cert.pem'),
+  ).infoAccess;
+  assert.match(
+    infoAccess,
+    /CA Issuers - URI:http:\/\/127\.0\.0\.1:12347\/intermediate\.der/,
+  );
+  assert.match(infoAccess, /OCSP - URI:http:\/\/127\.0\.0\.1:12347\/ocsp/);
+
   const server = http.createServer((req, res) => {
     requests.push({ method: req.method, url: req.url });
     if (req.url === '/intermediate.der') {
-      res.writeHead(200, { 'Content-Type': 'application/pkix-cert' });
-      res.end(intermediate);
+      res.writeHead(404, { 'Cache-Control': 'no-store' });
+      res.end();
     } else if (req.url?.startsWith('/ocsp')) {
-      res.writeHead(500);
+      res.writeHead(500, { 'Cache-Control': 'no-store' });
       res.end();
     } else {
       res.writeHead(404);
       res.end();
     }
   });
-  server.listen(0, '127.0.0.1');
+  server.listen(responderPort, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
-  const address = server.address();
-  assert.notStrictEqual(address, null);
-  assert.notStrictEqual(typeof address, 'string');
-  const certificates = await generateCertificates(address.port);
-  intermediate = fs.readFileSync(certificates.intermediateDer);
-
-  const keychain = tmpdir.resolve('node-system-ca-test.keychain-db');
+  const keychain = '/tmp/node-system-ca-network-test.keychain-db';
   const password = 'node-test';
   const { stdout } = await run('/usr/bin/security', [
     'list-keychains', '-d', 'user',
@@ -185,7 +104,7 @@ test('system CA enumeration does not fetch AIA or OCSP', {
     'set-keychain-settings', '-lut', '3600', keychain,
   ]);
   await run('/usr/bin/security', [
-    'add-certificates', '-k', keychain, certificates.leafCert,
+    'add-certificates', '-k', keychain, leafCert,
   ]);
   await run('/usr/bin/security', [
     'list-keychains', '-d', 'user', '-s', ...originalKeychains, keychain,
@@ -202,10 +121,12 @@ test('system CA enumeration does not fetch AIA or OCSP', {
   // certificate can trigger both types of network request.
   await runToCompletion('/usr/bin/security', [
     'verify-cert',
-    '-c', certificates.leafCert,
-    '-r', certificates.rootCert,
-    '-p', 'ssl',
-    '-n', 'localhost',
+    '-c', leafCert,
+    '-r', rootCert,
+    '-p', 'basic',
+    '-R', 'ocsp',
+    '-R', 'online',
+    '-R', 'require',
   ]);
   const validationFetchedAia = requests.some(
     ({ url }) => url === '/intermediate.der',
@@ -214,12 +135,15 @@ test('system CA enumeration does not fetch AIA or OCSP', {
   requests.length = 0;
   await runToCompletion('/usr/bin/security', [
     'verify-cert',
-    '-c', certificates.leafCert,
-    '-c', certificates.intermediateCert,
-    '-r', certificates.rootCert,
-    '-p', 'ssl',
-    '-n', 'localhost',
+    '-c', leafCert,
+    '-c', fixtures.path(
+      'keys',
+      'system-ca-network-intermediate-cert.pem',
+    ),
+    '-r', rootCert,
+    '-p', 'basic',
     '-R', 'ocsp',
+    '-R', 'online',
     '-R', 'require',
   ]);
   const validationRequestedOcsp = requests.some(
