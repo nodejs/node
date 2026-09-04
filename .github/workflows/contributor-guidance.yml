@@ -73,7 +73,7 @@ jobs:
           auto-close: false
           honeypot: false
           # The contributor job only runs for a subset of `github.event.pull_request.author_association`
-          # values, so `trusted-author-associations` would be redundent here.
+          # values, so `trusted-author-associations` would be redundant here.
           # trusted-author-associations: collaborator,member,owner
 
       - name: Comment with contributor guidance
