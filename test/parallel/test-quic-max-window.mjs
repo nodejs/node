@@ -8,6 +8,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -41,7 +42,7 @@ const dataLength = 8192;
 
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(new Uint8Array(dataLength));
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
 }
@@ -69,7 +70,7 @@ const dataLength = 8192;
 
   const stream = await clientSession.createBidirectionalStream();
   stream.setBody(new Uint8Array(dataLength));
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
   await serverEndpoint.close();
 }
