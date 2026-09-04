@@ -77,6 +77,7 @@ jobs:
           # trusted-author-associations: collaborator,member,owner
 
       - name: Comment with contributor guidance
+        if: env.IS_FIRST_TIME == 'true' || env.ADD_CAUTION == 'true'
         env:
           ADD_CAUTION: >-
             ${{
@@ -122,10 +123,8 @@ jobs:
             body="$WELCOME_MESSAGE"$'\n\n'"$CAUTION_MESSAGE"
           elif [[ "$IS_FIRST_TIME" == "true" ]]; then
             body="$WELCOME_MESSAGE"
-          elif [[ "$ADD_CAUTION" == "true" ]]; then
-            body="$CAUTION_MESSAGE"
           else
-            exit 0
+            body="$CAUTION_MESSAGE"
           fi
 
           printf '%s\n' "$body" |
