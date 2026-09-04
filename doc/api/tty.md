@@ -239,6 +239,26 @@ changes:
 `writeStream.cursorTo()` moves this `WriteStream`'s cursor to the specified
 position.
 
+### `writeStream.getBackgroundColor()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} Resolves with `{ r, g, b }` (0-255 each) representing the
+  terminal's background color, or `undefined` if the terminal does not
+  support or respond to the query in time.
+
+Queries the terminal for its background color using the OSC 11 escape
+sequence and resolves with the result.
+
+This is a best-effort API. Support depends on the terminal emulator and
+environment — for example, some terminal multiplexers (such as tmux) do not
+respond to this query at all, and some terminals have been observed to
+respond with incorrect values. Results should not be treated as
+authoritative, and callers should have a fallback for when the Promise
+resolves to `undefined`.
+
 ### `writeStream.getColorDepth([env])`
 
 <!-- YAML
