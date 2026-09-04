@@ -145,8 +145,15 @@ static ExclusiveAccess<CleanupHookRegistry> cleanup_hook_registry;
 
 static void CleanupHookThunkRun(void* arg) {
   const CleanupHookThunk* thunk = static_cast<CleanupHookThunk*>(arg);
-  thunk->fun(thunk->arg);
-  RemoveEnvironmentCleanupHook(thunk->isolate, thunk->fun, thunk->arg);
+  // `thunk->fun` may itself remove and free this CleanupHookThunk (e.g. via
+  // ~ObjectWrap(), which calls RemoveEnvironmentCleanupHook()), so cache the
+  // fields we still need before invoking it rather than reading them from
+  // `thunk` afterwards.
+  Isolate* isolate = thunk->isolate;
+  CleanupHook fun = thunk->fun;
+  void* fun_arg = thunk->arg;
+  fun(fun_arg);
+  RemoveEnvironmentCleanupHook(isolate, fun, fun_arg);
 }
 
 void AddEnvironmentCleanupHook(Isolate* isolate,
