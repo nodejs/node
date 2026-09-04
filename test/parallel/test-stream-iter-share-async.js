@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  dump,
   from,
   share,
   text,
@@ -327,12 +328,10 @@ async function testShareSourceError() {
   const c2 = shared.pull();
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of c1) { /* consume */ }
+    await dump(c1);
   }, { message: 'share source boom' });
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of c2) { /* consume */ }
+    await dump(c2);
   }, { message: 'share source boom' });
 }
 

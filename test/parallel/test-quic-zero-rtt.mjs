@@ -10,6 +10,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -76,7 +77,7 @@ await Promise.all([gotTicket.promise, gotToken.promise]);
 const s1 = await cs1.createBidirectionalStream({
   body: encoder.encode('first'),
 });
-for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(s1);
 await Promise.all([s1.closed, cs1.closed]);
 
 // --- ZRTT-02: Second connection — 0-RTT with ticket + token ---
@@ -98,7 +99,7 @@ assert.strictEqual(info2.earlyDataAttempted, true);
 assert.strictEqual(info2.earlyDataAccepted, true);
 
 await s2.writer.end();
-for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(s2);
 await s2.closed;
 
 // Verify the server saw the early data flag.
