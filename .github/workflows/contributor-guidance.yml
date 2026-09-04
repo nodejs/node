@@ -1,3 +1,8 @@
+# This action requires the following secrets to be set on the repository:
+#   GH_USER_TOKEN: GitHub user token, used because FIRST_TIMER and
+#                  FIRST_TIME_CONTRIBUTOR associations are only returned for
+#                  privileged API calls
+
 name: Contributor guidance
 
 on:
@@ -9,8 +14,7 @@ permissions: {}
 jobs:
   contributor:
     name: Resolve contributor status
-    # Use the event only to exclude trusted associations, mannequins, and bots.
-    # Resolve every potentially external contributor with a privileged API request.
+    # Avoid allocating a runner unless a welcome or scan is a plausible outcome.
     if: >-
       github.run_attempt == 1 &&
       github.repository == 'nodejs/node' &&
@@ -22,57 +26,35 @@ jobs:
     runs-on: ubuntu-slim
     outputs:
       is_first_time: ${{ steps.resolve.outputs.is_first_time }}
-      should_scan: ${{ steps.resolve.outputs.should_scan }}
     steps:
       - name: Check author association
         id: resolve
         env:
+          EVENT_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          started_at=$SECONDS
-          # TODO: Remove the retries once privileged API requests are confirmed
-          # to return the association immediately.
-          for delay in 0 15 30 60; do
-            sleep "$delay"
-            association=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER" \
-              --jq '.author_association')
-            elapsed=$((SECONDS - started_at))
-            echo "Author association after ${elapsed}s: $association"
+          api_association=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$NUMBER" \
+            --jq '.author_association')
+          echo "API author association: $api_association"
+          echo "Event author association: $EVENT_ASSOCIATION"
 
-            case "$association" in
-              FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
-                echo 'is_first_time=true' >> "$GITHUB_OUTPUT"
-                echo 'should_scan=true' >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-              CONTRIBUTOR)
-                echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
-                echo 'should_scan=true' >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-              NONE)
-                ;;
-              COLLABORATOR|MANNEQUIN|MEMBER|OWNER)
-                echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
-                echo 'should_scan=false' >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-              *)
-                echo "Unexpected author association: $association" >&2
-                exit 1
-                ;;
-            esac
-          done
-
-          # NONE is unresolved, not trusted. Scan without posting the welcome.
-          echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
-          echo 'should_scan=true' >> "$GITHUB_OUTPUT"
+          case "$api_association" in
+            FIRST_TIMER|FIRST_TIME_CONTRIBUTOR)
+              echo 'is_first_time=true' >> "$GITHUB_OUTPUT"
+              ;;
+            CONTRIBUTOR|NONE)
+              echo 'is_first_time=false' >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unexpected author association: $api_association" >&2
+              exit 1
+              ;;
+          esac
 
   guidance:
     name: Apply contributor guidance
     needs: contributor
-    if: needs.contributor.outputs.should_scan == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -90,6 +72,9 @@ jobs:
           scan-issues: false
           auto-close: false
           honeypot: false
+          # The contributor job only runs for a subset of `github.event.pull_request.author_association`
+          # values, so `trusted-author-associations` would be redundent here.
+          # trusted-author-associations: collaborator,member,owner
 
       - name: Comment with contributor guidance
         env:
