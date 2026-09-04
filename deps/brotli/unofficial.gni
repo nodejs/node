@@ -4,36 +4,49 @@
 
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
+import("../../node.gni")
+
 template("brotli_gn_build") {
-  config("brotli_config") {
-    include_dirs = [ "c/include" ]
-  }
-
-  gypi_values = exec_script("../../tools/gypi_to_gn.py",
-                            [ rebase_path("brotli.gyp") ],
-                            "scope",
-                            [ "brotli.gyp" ])
-
-  source_set(target_name) {
-    forward_variables_from(invoker, "*")
-    public_configs = [ ":brotli_config" ]
-    sources = gypi_values.brotli_sources
-    if (is_linux) {
-      defines = [ "OS_LINUX" ]
-    } else if (is_mac) {
-      defines = [ "OS_MACOSX" ]
-    } else if (target_os == "freebsd") {
-      defines = [ "OS_FREEBSD" ]
+  if (node_shared_brotli) {
+    import("//build/config/linux/pkg_config.gni")
+    pkg_config("brotli_config") {
+      packages = [ "libbrotlidec", "libbrotlienc" ]
     }
-    if (is_linux) {
-      libs = [ "m" ]
+    group(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":brotli_config" ]
     }
-    if (is_clang || !is_win) {
-      cflags_c = [
-        "-Wno-implicit-fallthrough",
-        "-Wno-unreachable-code",
-        "-Wno-unreachable-code-return",
-      ]
+  } else {
+    config("brotli_config") {
+      include_dirs = [ "c/include" ]
+    }
+
+    gypi_values = exec_script("../../tools/gypi_to_gn.py",
+                              [ rebase_path("brotli.gyp") ],
+                              "scope",
+                              [ "brotli.gyp" ])
+
+    source_set(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":brotli_config" ]
+      sources = gypi_values.brotli_sources
+      if (is_linux) {
+        defines = [ "OS_LINUX" ]
+      } else if (is_mac) {
+        defines = [ "OS_MACOSX" ]
+      } else if (target_os == "freebsd") {
+        defines = [ "OS_FREEBSD" ]
+      }
+      if (is_linux) {
+        libs = [ "m" ]
+      }
+      if (is_clang || !is_win) {
+        cflags_c = [
+          "-Wno-implicit-fallthrough",
+          "-Wno-unreachable-code",
+          "-Wno-unreachable-code-return",
+        ]
+      }
     }
   }
 }
