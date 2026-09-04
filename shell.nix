@@ -155,6 +155,14 @@ pkgs.mkShell {
       RUFF = pkgs.lib.getExe ruff;
     }
   )
+  // (
+    let
+      yamllint = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "yamllint") null devTools;
+    in
+    pkgs.lib.optionalAttrs (yamllint != null) {
+      YAMLLINT = pkgs.lib.getExe yamllint;
+    }
+  )
   // pkgs.lib.optionalAttrs (!withSQLite) {
     NOSQLITE = "1";
   }
