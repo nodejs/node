@@ -9,14 +9,30 @@ const styled = '\u001b[31mhello\u001b[39m';
 const plain = 'hello';
 
 const workerCode = `
-  const { parentPort } = require('node:worker_threads');
+  const { parentPort, workerData } = require('node:worker_threads');
   const { styleText } = require('node:util');
 
-  parentPort.postMessage(styleText('red', 'hello'));
+  const stream = process[workerData.stream];
+  parentPort.postMessage({
+    hasColorDepth: typeof stream.getColorDepth === 'function',
+    hasColors: typeof stream.hasColors === 'function',
+    isTTY: stream.isTTY,
+    result: styleText('red', 'hello', { stream }),
+  });
 `;
 
-async function runWorker(options) {
-  const worker = new Worker(workerCode, options);
+const env = { ...process.env, TERM: 'xterm-256color' };
+delete env.FORCE_COLOR;
+delete env.NO_COLOR;
+delete env.NODE_DISABLE_COLORS;
+
+async function runWorker(stream, options = {}) {
+  const worker = new Worker(workerCode, {
+    env,
+    eval: true,
+    workerData: { stream },
+    ...options,
+  });
   const exit = once(worker, 'exit');
   const [actual] = await once(worker, 'message');
 
@@ -24,32 +40,65 @@ async function runWorker(options) {
   return actual;
 }
 
-// Make the parent destination deterministically color-capable. Worker color
-// behavior should not depend on whether the test runner itself owns a TTY.
-Object.defineProperty(process.stdout, 'isTTY', {
-  configurable: true,
-  value: true,
-});
-Object.defineProperty(process.stdout, 'getColorDepth', {
-  configurable: true,
-  value: () => 8,
-});
+function setIsTTY(stream, value) {
+  Object.defineProperty(stream, 'isTTY', {
+    configurable: true,
+    value,
+  });
+}
 
-const env = { ...process.env, TERM: 'xterm-256color' };
-delete env.FORCE_COLOR;
-delete env.NO_COLOR;
-delete env.NODE_DISABLE_COLORS;
+function restoreIsTTY(stream, descriptor) {
+  if (descriptor === undefined) {
+    delete stream.isTTY;
+  } else {
+    Object.defineProperty(stream, 'isTTY', descriptor);
+  }
+}
+
+const stdoutIsTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+const stderrIsTTY = Object.getOwnPropertyDescriptor(process.stderr, 'isTTY');
 
 common.mustCall(async () => {
-  const [pipedOutput, capturedOutput] = await Promise.all([
-    // By default, worker output is piped to the parent's color-capable stdout.
-    runWorker({ eval: true, env }),
+  try {
+    setIsTTY(process.stdout, true);
+    assert.deepStrictEqual(await runWorker('stdout'), {
+      hasColorDepth: true,
+      hasColors: true,
+      isTTY: true,
+      result: styled,
+    });
 
-    // With stdout: true, the output is captured and its eventual destination is
-    // unknown, so styleText() should not add ANSI sequences automatically.
-    runWorker({ eval: true, env, stdout: true }),
-  ]);
+    setIsTTY(process.stderr, true);
+    assert.deepStrictEqual(await runWorker('stderr'), {
+      hasColorDepth: true,
+      hasColors: true,
+      isTTY: true,
+      result: styled,
+    });
 
-  assert.strictEqual(capturedOutput, plain);
-  assert.strictEqual(pipedOutput, styled);
+    assert.deepStrictEqual(await runWorker('stdout', { stdout: true }), {
+      hasColorDepth: false,
+      hasColors: false,
+      isTTY: undefined,
+      result: plain,
+    });
+
+    assert.deepStrictEqual(await runWorker('stderr', { stderr: true }), {
+      hasColorDepth: false,
+      hasColors: false,
+      isTTY: undefined,
+      result: plain,
+    });
+
+    setIsTTY(process.stdout, false);
+    assert.deepStrictEqual(await runWorker('stdout'), {
+      hasColorDepth: false,
+      hasColors: false,
+      isTTY: undefined,
+      result: plain,
+    });
+  } finally {
+    restoreIsTTY(process.stdout, stdoutIsTTY);
+    restoreIsTTY(process.stderr, stderrIsTTY);
+  }
 })();
