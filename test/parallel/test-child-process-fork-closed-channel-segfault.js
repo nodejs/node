@@ -78,7 +78,8 @@ const server = net
           if (err && err.code !== 'ERR_IPC_CHANNEL_CLOSED' &&
                      err.code !== 'ECONNRESET' &&
                      err.code !== 'ECONNREFUSED' &&
-                     err.code !== 'EMFILE') {
+                     err.code !== 'EMFILE' &&
+                     err.code !== 'EPIPE') {
             throw err;
           }
         });
