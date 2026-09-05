@@ -1605,6 +1605,13 @@ changes:
     description: The `resourceLimits` option was introduced.
 -->
 
+<!-- worker-execargv-permission-ceiling -->
+**Permission Model (breaking):** If the parent process runs with the
+Permission Model enabled, an explicit `execArgv` (including `[]`) does not
+disable or exceed the parent's permission-related grants. See the
+[Permission Model](permissions.md#permission-model) documentation.
+
+
 * `filename` {string|URL} The path to the Worker's main script or module. Must
   be either an absolute path or a relative path (i.e. relative to the
   current working directory) starting with `./` or `../`, or a WHATWG `URL`
