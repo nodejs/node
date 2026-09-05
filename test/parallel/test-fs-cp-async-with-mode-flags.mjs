@@ -29,3 +29,14 @@ cp(src, dest, mustNotMutateObjectDeep({
   assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
     err.code === 'ENOSYS' || err.code === 'EXDEV');
 }));
+
+// The mode flags reach copyFile() whether or not a filter is given.
+{
+  const { promises } = await import('node:fs');
+  const outcome = (filter) => promises.cp(src, nextdir(), {
+    recursive: true,
+    mode: constants.COPYFILE_FICLONE_FORCE,
+    filter,
+  }).then(() => 'copied', (err) => `${err.code} ${err.syscall}`);
+  assert.strictEqual(await outcome(undefined), await outcome(() => true));
+}
