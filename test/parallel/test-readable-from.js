@@ -2,7 +2,7 @@
 
 const { mustCall } = require('../common');
 const { once } = require('events');
-const { Readable } = require('stream');
+const { getDefaultHighWaterMark, Readable } = require('stream');
 const assert = require('assert');
 const common = require('../common');
 
@@ -10,6 +10,28 @@ const common = require('../common');
   assert.throws(() => {
     Readable.from(null);
   }, /ERR_INVALID_ARG_TYPE/);
+}
+
+{
+  // Arrays use the default object-mode highWaterMark, while other iterables
+  // retain the one-at-a-time behavior.
+  const arrayStream = Readable.from([1, 2]);
+  assert.strictEqual(
+    arrayStream.readableHighWaterMark,
+    getDefaultHighWaterMark(true),
+  );
+  arrayStream.destroy();
+
+  const setStream = Readable.from(new Set([1, 2]));
+  assert.strictEqual(setStream.readableHighWaterMark, 1);
+  setStream.destroy();
+}
+
+{
+  // Readable inputs are already in the requested form.
+  const source = Readable.from([1]);
+  assert.strictEqual(Readable.from(source), source);
+  source.destroy();
 }
 
 async function toReadableBasicSupport() {
