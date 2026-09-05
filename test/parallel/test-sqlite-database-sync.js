@@ -51,6 +51,15 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
+  test('throws if the database location has an unparsable href', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync({ href: 'zzz' });
+    }, {
+      code: 'ERR_INVALID_URL',
+      message: 'Invalid URL',
+    });
+  });
+
   test('throws if options is provided but is not an object', (t) => {
     t.assert.throws(() => {
       new DatabaseSync('foo', null);

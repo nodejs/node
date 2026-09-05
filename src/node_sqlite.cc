@@ -1284,7 +1284,10 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
       Utf8Value location_value(env->isolate(), href.As<String>());
       auto location = location_value.ToStringView();
       if (!has_null_bytes(location)) {
-        CHECK(ada::can_parse(location));
+        if (!ada::can_parse(location)) {
+          THROW_ERR_INVALID_URL(env->isolate(), "Invalid URL");
+          return std::nullopt;
+        }
         if (!location.starts_with("file:")) {
           THROW_ERR_INVALID_URL_SCHEME(env->isolate());
           return std::nullopt;
@@ -2422,6 +2425,13 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || !args[0]->IsObject()) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
                                "The \"sourceDb\" argument must be an object.");
+    return;
+  }
+
+  if (!env->sqlite_database_sync_constructor_template()->HasInstance(args[0])) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"sourceDb\" argument must be a DatabaseSync instance.");
     return;
   }
 
@@ -4573,6 +4583,7 @@ static void Initialize(Local<Object> target,
       NewFunctionTemplate(isolate, DatabaseSync::New);
   db_tmpl->InstanceTemplate()->SetInternalFieldCount(
       DatabaseSync::kInternalFieldCount);
+  env->set_sqlite_database_sync_constructor_template(db_tmpl);
   Local<Object> constants = Object::New(isolate);
 
   DefineConstants(constants);

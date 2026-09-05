@@ -52,6 +52,15 @@ describe('backup()', () => {
     });
   });
 
+  test('throws if the source database is not a DatabaseSync', (t) => {
+    t.assert.throws(() => {
+      backup({}, nextDb());
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "sourceDb" argument must be a DatabaseSync instance.'
+    });
+  });
+
   test('throws if path is not a string, URL, or Buffer', (t) => {
     const database = makeSourceDb();
 
