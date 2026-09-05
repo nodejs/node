@@ -1552,6 +1552,8 @@
             '<(V8_ROOT)/src/base/platform/platform-posix.h',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.h',
+	    '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
+            '<(V8_ROOT)/src/base/platform/platform-linux.cc',
           ],
           'link_settings': {
             'target_conditions': [
@@ -1562,19 +1564,6 @@
               }],
             ],
           },
-          'target_conditions': [
-            ['_toolset=="host"', {
-              'sources': [
-                '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
-                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
-              ],
-            }, {
-              'sources': [
-                '<(V8_ROOT)/src/base/debug/stack_trace_android.cc',
-                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
-              ],
-            }],
-          ],
         }],
         ['is_fuchsia', {
           'sources': [
