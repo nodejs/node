@@ -24,6 +24,8 @@
 
 namespace node {
 
+using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -32,8 +34,9 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::Number;
 using v8::Object;
-using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 namespace dtls {
@@ -92,6 +95,9 @@ Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getStats", GetStats);
     SetProtoMethod(isolate, tmpl, "getAddress", GetAddress);
     SetProtoMethod(isolate, tmpl, "setMTU", SetMTU);
+    SetProtoMethod(isolate, tmpl, "setSocketOptions", SetSocketOptions);
+    SetProtoMethod(isolate, tmpl, "setHandshakeTimeout", SetHandshakeTimeout);
+    SetProtoMethod(isolate, tmpl, "setSessionLimits", SetSessionLimits);
     SetProtoMethod(isolate, tmpl, "setCallbacks", DoSetCallbacks);
 
     env->set_dtls_endpoint_constructor_template(tmpl);
@@ -118,6 +124,9 @@ void DTLSEndpoint::RegisterExternalReferences(
   registry->Register(GetStats);
   registry->Register(GetAddress);
   registry->Register(SetMTU);
+  registry->Register(SetSocketOptions);
+  registry->Register(SetHandshakeTimeout);
+  registry->Register(SetSessionLimits);
   registry->Register(DoSetCallbacks);
 }
 
@@ -132,12 +141,33 @@ int DTLSEndpoint::Bind(const SocketAddress& address) {
   if (state_->bound) return UV_EALREADY;
 
   unsigned int flags = 0;
-  if (address.family() == AF_INET6) {
+  if (address.family() == AF_INET6 && ipv6_only_) {
     flags |= UV_UDP_IPV6ONLY;
+  }
+  if (reuse_port_) {
+    flags |= UV_UDP_REUSEPORT;
   }
 
   int err = uv_udp_bind(&handle_, address.data(), flags);
   if (err != 0) return err;
+
+  // Only once bound: there is no socket to set them on before that. A zero
+  // means the option was not given, so the system default stands.
+  auto* h = reinterpret_cast<uv_handle_t*>(&handle_);
+  if (udp_receive_buffer_size_ > 0) {
+    int size = static_cast<int>(udp_receive_buffer_size_);
+    err = uv_recv_buffer_size(h, &size);
+    if (err != 0) return err;
+  }
+  if (udp_send_buffer_size_ > 0) {
+    int size = static_cast<int>(udp_send_buffer_size_);
+    err = uv_send_buffer_size(h, &size);
+    if (err != 0) return err;
+  }
+  if (udp_ttl_ > 0) {
+    err = uv_udp_set_ttl(&handle_, static_cast<int>(udp_ttl_));
+    if (err != 0) return err;
+  }
 
   state_->bound = 1;
 
@@ -170,11 +200,13 @@ int DTLSEndpoint::Listen(DTLSContext* context) {
   return 0;
 }
 
-BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
-                                                 const SocketAddress& remote,
-                                                 const char* servername,
-                                                 const char* verify_host,
-                                                 bool verify_is_ip) {
+BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(
+    DTLSContext* context,
+    const SocketAddress& remote,
+    const char* servername,
+    const char* verify_host,
+    bool verify_is_ip,
+    const ncrypto::Buffer<const unsigned char>& resume) {
   if (IsHandleClosing()) {
     THROW_ERR_INVALID_STATE(env(), "Endpoint is closing");
     return {};
@@ -189,25 +221,34 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
 
   auto session = DTLSSession::Create(env(),
                                      this,
-                                     context->ssl_ctx(),
+                                     context,
                                      remote,
                                      false /* is_server */,
                                      servername,
                                      verify_host,
-                                     verify_is_ip);
+                                     verify_is_ip,
+                                     resume);
 
   if (!session) return {};
 
   sessions_[remote] = session;
+  sessions_per_host_[remote]++;
   state_->session_count = sessions_.size();
   DTLS_STAT_INCREMENT(DTLSEndpointStats, client_sessions);
 
   // Ref the handle while we have sessions.
   uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
 
-  // Start receiving if not already.
+  // Start receiving if not already. Listen() checks this and unwinds; here it
+  // was ignored, so a failure left a session in the table that no datagram
+  // could ever reach, and the only report was its handshake timing out.
   if (!listening_) {
-    uv_udp_recv_start(&handle_, OnAlloc, OnRecv);
+    int err = uv_udp_recv_start(&handle_, OnAlloc, OnRecv);
+    if (err != 0) {
+      RemoveSession(remote);
+      env()->ThrowUVException(err, "recv_start");
+      return {};
+    }
   }
 
   // Initiate the DTLS handshake by running Cycle.
@@ -226,15 +267,22 @@ int DTLSEndpoint::SendTo(const SocketAddress& dest,
       uv_buf_init(const_cast<char*>(reinterpret_cast<const char*>(data)), len);
   int err = uv_udp_try_send(&handle_, &buf, 1, dest.data());
 
-  if (err == static_cast<int>(len)) {
+  // A datagram is sent whole or not at all, and libuv documents a
+  // non-negative return as always matching the buffer size, so there is no
+  // partial send to resume. Testing for == len instead let any other
+  // non-negative value fall through to the queued send below and put the
+  // same datagram on the wire a second time.
+  if (err >= 0) {
     DTLS_STAT_INCREMENT_N(DTLSEndpointStats, bytes_sent, len);
     DTLS_STAT_INCREMENT(DTLSEndpointStats, packets_sent);
-    return 0;  // Sent successfully.
+    return 0;
   }
 
-  if (err != UV_EAGAIN && err < 0) {
+  if (err != UV_EAGAIN) {
     return err;  // Real error.
   }
+
+  // EAGAIN: the socket buffer is full, so queue it.
 
   // Async send: copy the data since it won't outlive this call.
   auto* req = new SendReq();
@@ -253,7 +301,14 @@ int DTLSEndpoint::SendTo(const SocketAddress& dest,
 }
 
 void DTLSEndpoint::RemoveSession(const SocketAddress& addr) {
-  sessions_.erase(addr);
+  if (sessions_.erase(addr) != 0) {
+    // Drop the host entry entirely at zero so this map tracks live peers
+    // rather than every peer ever seen.
+    auto it = sessions_per_host_.find(addr);
+    if (it != sessions_per_host_.end() && --it->second == 0) {
+      sessions_per_host_.erase(it);
+    }
+  }
   state_->session_count = sessions_.size();
 
   // Unref if no more sessions and not listening.
@@ -339,12 +394,11 @@ void DTLSEndpoint::SetCallbacks(Local<Object> callbacks) {
       "onSessionHandshake",
       "onSessionMessage",
       "onSessionKeylog",
-      "onSessionTicket",
   };
 
   for (int i = 0; i < DTLS_CB_COUNT; i++) {
-    Local<String> name;
-    if (!String::NewFromUtf8(isolate, names[i]).ToLocal(&name)) {
+    Local<Value> name;
+    if (!ToV8Value(context, names[i]).ToLocal(&name)) {
       THROW_ERR_OPERATION_FAILED(isolate,
                                  "Failed to create callback name string");
       return;
@@ -369,6 +423,16 @@ void DTLSEndpoint::OnAlloc(uv_handle_t* handle,
   // this thread, and OnRecv fully consumes each datagram (copying it into the
   // session's BIO) before the next OnAlloc, so a per-endpoint buffer suffices
   // and avoids a heap allocation on every packet.
+  //
+  // One datagram at a time holds only because recvmmsg is off: libuv sets
+  // UV_HANDLE_UDP_RECVMMSG solely when uv_udp_init_ex() is passed
+  // UV_UDP_RECVMMSG, and DTLSEndpoint uses plain uv_udp_init(). Enabling it
+  // would have libuv pack several datagrams into this one buffer and deliver
+  // them as UV_UDP_MMSG_CHUNK slices, which this design does not handle.
+  //
+  // The size matters too: OnRecv drops anything flagged UV_UDP_PARTIAL, so a
+  // buffer below the 65507-byte maximum UDP payload would start discarding
+  // large datagrams rather than truncating them.
   if (endpoint->recv_buf_.empty()) {
     endpoint->recv_buf_.resize(65536);
   }
@@ -391,10 +455,12 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     HandleScope handle_scope(endpoint->env()->isolate());
     Context::Scope context_scope(endpoint->env()->context());
-    Local<Value> argv[] = {
-        String::NewFromUtf8(endpoint->env()->isolate(), uv_strerror(nread))
-            .ToLocalChecked(),
-    };
+    Local<Value> message;
+    if (!ToV8Value(endpoint->env()->context(), uv_strerror(nread))
+             .ToLocal(&message)) {
+      return;
+    }
+    Local<Value> argv[] = {message};
     Local<Function> cb = endpoint->GetCallback(DTLS_CB_ENDPOINT_ERROR);
     if (!cb.IsEmpty()) {
       endpoint->MakeCallback(cb, 1, argv);
@@ -403,6 +469,18 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   }
 
   if (addr == nullptr) {
+    return;
+  }
+
+  // A truncated datagram is not a short DTLS record, it is a corrupt one, so
+  // drop it rather than hand a fragment to OpenSSL.
+  //
+  // This cannot currently fire. libuv raises UV_UDP_PARTIAL from MSG_TRUNC,
+  // which the kernel only sets when the datagram did not fit the buffer, and
+  // OnAlloc always supplies 65536 -- above the largest possible UDP payload,
+  // 65507 over IPv4 and 65527 over IPv6. The check is here so that shrinking
+  // that buffer degrades to dropped packets instead of corrupt records.
+  if ((flags & UV_UDP_PARTIAL) != 0) {
     return;
   }
 
@@ -449,6 +527,14 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
                                    const SocketAddress& remote) {
   if (IsHandleClosing()) return;
 
+  // An empty datagram is legal UDP but can never carry a DTLS record, and
+  // anyone can send one. Dropping it here keeps it out of the accept path,
+  // where it would otherwise cost a full SSL_new()/DTLSv1_listen()/SSL_free()
+  // cycle, and out of the session BIOs, where a zero length write to a
+  // datagram BIO queues an empty datagram whose read reports EOF rather than
+  // "try again".
+  if (len == 0) return;
+
   // Look up existing session by remote address.
   auto it = sessions_.find(remote);
   if (it != sessions_.end()) {
@@ -462,6 +548,48 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
   }
 }
 
+bool DTLSEndpoint::HasCapacityFor(const SocketAddress& remote) const {
+  if (max_sessions_ != 0 && sessions_.size() >= max_sessions_) return false;
+
+  if (max_sessions_per_host_ != 0) {
+    auto it = sessions_per_host_.find(remote);
+    if (it != sessions_per_host_.end() && it->second >= max_sessions_per_host_)
+      return false;
+  }
+
+  return true;
+}
+
+// Cheap structural screen for a datagram that could plausibly begin a
+// handshake, applied before anything is allocated for it.
+//
+// Everything reaching the accept path is unauthenticated and from a source
+// address that has not been validated yet, and DTLSv1_listen() only ever
+// proceeds on a ClientHello. Recognising the obvious rejects here avoids
+// paying SSL_new() + two BIO_new()s + SSL_free() to reach the same verdict.
+// This deliberately does not attempt to parse the ClientHello itself; that is
+// OpenSSL's job, and getting it wrong would mean rejecting real clients.
+bool DTLSEndpoint::CouldBeClientHello(const uint8_t* data, size_t len) {
+  // DTLS record header is 13 bytes, then the handshake msg_type.
+  if (len < 14) return false;
+
+  // ContentType must be handshake(22).
+  if (data[0] != 22) return false;
+
+  // ProtocolVersion is DTLS 1.0 (0xfeff) or 1.2 (0xfefd); both have major
+  // 0xfe. DTLS 1.3 keeps the record version at 0xfefd for compatibility.
+  if (data[1] != 0xfe) return false;
+
+  // The record must not claim more payload than the datagram actually holds.
+  const size_t record_len = (static_cast<size_t>(data[11]) << 8) | data[12];
+  if (record_len > len - 13) return false;
+
+  // HandshakeType must be client_hello(1).
+  if (data[13] != 1) return false;
+
+  return true;
+}
+
 void DTLSEndpoint::AcceptConnection(const uint8_t* data,
                                     size_t len,
                                     const SocketAddress& remote) {
@@ -470,8 +598,28 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
     return;
   }
 
+  if (!CouldBeClientHello(data, len)) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_rejected_count);
+    return;
+  }
+
+  // Refuse before allocating anything. Staying silent rather than sending an
+  // alert is deliberate: the peer has not completed the cookie exchange yet,
+  // so replying would make this an amplification vector. A real client simply
+  // retransmits and gets in once there is room.
+  if (!HasCapacityFor(remote)) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_refused_count);
+    return;
+  }
+
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
+
+  // Anything reaching this point is unauthenticated and may well be garbage,
+  // so DTLSv1_listen() failing is routine rather than exceptional. Discard
+  // whatever it queues instead of letting it accumulate across packets and
+  // resurface as a bogus error somewhere else on this thread.
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   // Stateless cookie exchange via DTLSv1_listen() for DoS protection.
   //
@@ -494,34 +642,48 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   ncrypto::SSLPointer ssl(SSL_new(server_context_->ssl_ctx()));
   if (!ssl) return;
 
-  auto in = ncrypto::BIOPointer::NewMem();
-  auto out = ncrypto::BIOPointer::NewMem();
+  // These become the session's enc_in_/enc_out_, so both have to preserve
+  // datagram boundaries -- see DTLSSession::Create().
+  auto in = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
+  auto out = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
   if (!in || !out) return;
 
-  BIO_set_mem_eof_return(in.get(), -1);
-  BIO_set_mem_eof_return(out.get(), -1);
   // SSL_set_bio takes ownership of both BIOs.
   BIO* in_raw = in.release();
   BIO* out_raw = out.release();
   SSL_set_bio(ssl.get(), in_raw, out_raw);
   SSL_set_accept_state(ssl.get());
-  SSL_set_options(ssl.get(), SSL_OP_NO_QUERY_MTU | SSL_OP_COOKIE_EXCHANGE);
+  // SSL_OP_COOKIE_EXCHANGE is deliberately not set here: DTLSv1_listen() sets
+  // it on the SSL it is given (d1_lib.c:804) before doing anything else, so
+  // setting it again just invites the question of why the context does not.
+  SSL_set_options(ssl.get(), SSL_OP_NO_QUERY_MTU);
   SSL_set_mtu(ssl.get(), mtu_);
 
   // Set peer address on context for the cookie callbacks.
   server_context_->set_cookie_peer(remote);
 
-  BIO_write(in_raw, data, len);
+  // Both are allocation failures rather than anything the peer did, and both
+  // used to be ignored: an unwritten BIO would put DTLSv1_listen() to work on
+  // an empty buffer, and a null BIO_ADDR is not something it accepts. Dropping
+  // the datagram is the right answer -- the peer retransmits.
+  if (BIO_write(in_raw, data, len) <= 0) return;
 
   DeleteFnPtr<BIO_ADDR, BIO_ADDR_free> peer(BIO_ADDR_new());
+  if (!peer) return;
   int ret = DTLSv1_listen(ssl.get(), peer.get());
 
   if (ret == 0) {
-    // Send HelloVerifyRequest.
-    uint8_t resp_buf[65536];
-    int resp_len;
-    while ((resp_len = BIO_read(out_raw, resp_buf, sizeof(resp_buf))) > 0) {
-      SendTo(remote, resp_buf, resp_len);
+    // Send HelloVerifyRequest. `out_raw` is a datagram BIO, so BIO_pending()
+    // gives the exact size of the next datagram; a HelloVerifyRequest is well
+    // under a hundred bytes, so this never leaves the stack in practice.
+    MaybeStackBuffer<uint8_t, 256> resp_buf;
+    for (;;) {
+      size_t pending = BIO_pending(out_raw);
+      if (pending == 0) break;
+      resp_buf.AllocateSufficientStorage(pending);
+      int resp_len = BIO_read(out_raw, resp_buf.out(), pending);
+      if (resp_len <= 0) break;
+      SendTo(remote, resp_buf.out(), resp_len);
     }
     return;
   }
@@ -533,26 +695,33 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   // Cookie verified. Hand the SSL (which has already completed cookie
   // exchange and consumed the ClientHello) to a DTLSSession. Calling
   // Cycle() will drive SSL_do_handshake to produce the ServerHello.
-  auto session = DTLSSession::CreateFromSSL(
-      env(), this, std::move(ssl), in_raw, out_raw, remote);
+  auto session = DTLSSession::CreateFromSSL(env(),
+                                            this,
+                                            server_context_.get(),
+                                            std::move(ssl),
+                                            in_raw,
+                                            out_raw,
+                                            remote);
 
   if (!session) return;
 
   sessions_[remote] = session;
+  sessions_per_host_[remote]++;
   state_->session_count = sessions_.size();
   DTLS_STAT_INCREMENT(DTLSEndpointStats, server_sessions);
 
   uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
 
-  // Drive the handshake forward — produces ServerHello etc.
-  session->Cycle();
-
-  // Emit the new session to JS.
+  // Emit the new session to JS before driving the handshake, so a listener
+  // is in place for anything the handshake reports. Cycle() runs second.
   Local<Value> argv[] = {session->object()};
   Local<Function> cb = GetCallback(DTLS_CB_SESSION_NEW);
   if (!cb.IsEmpty()) {
     MakeCallback(cb, 1, argv);
   }
+
+  // Drive the handshake forward — produces ServerHello etc.
+  session->Cycle();
 }
 
 // --- JS binding methods ---
@@ -578,7 +747,11 @@ void DTLSEndpoint::DoBind(const FunctionCallbackInfo<Value>& args) {
 
   int err = endpoint->Bind(addr);
   if (err != 0) {
-    return THROW_ERR_INVALID_STATE(env, uv_strerror(err));
+    // A libuv failure reported as ERR_INVALID_STATE loses the errno and the
+    // syscall, so a caller cannot tell EADDRINUSE from anything else. Every
+    // other binding surfaces these as the error code libuv gave, and code
+    // testing err.code === 'EADDRINUSE' is the usual way this is handled.
+    return env->ThrowUVException(err, "bind");
   }
 }
 
@@ -589,12 +762,13 @@ void DTLSEndpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
 
+  CHECK(DTLSContext::HasInstance(env, args[0]));
   DTLSContext* context;
   ASSIGN_OR_RETURN_UNWRAP(&context, args[0].As<Object>());
 
   int err = endpoint->Listen(context);
   if (err != 0) {
-    return THROW_ERR_INVALID_STATE(env, uv_strerror(err));
+    return env->ThrowUVException(err, "listen");
   }
 }
 
@@ -603,6 +777,7 @@ void DTLSEndpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   Environment* env = endpoint->env();
 
+  CHECK(DTLSContext::HasInstance(env, args[0]));
   DTLSContext* context;
   ASSIGN_OR_RETURN_UNWRAP(&context, args[0].As<Object>());
 
@@ -629,8 +804,17 @@ void DTLSEndpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   const char* verify_host_ptr = args[4]->IsString() ? *verify_host : nullptr;
   bool verify_is_ip = args[5]->IsTrue();
 
+  // Optional DER-encoded session to resume. The identity it was authenticated
+  // for is checked in JS before it reaches here.
+  ncrypto::Buffer<const unsigned char> resume{};
+  ArrayBufferViewContents<unsigned char> resume_buf;
+  if (args[6]->IsArrayBufferView()) {
+    resume_buf.Read(args[6].As<ArrayBufferView>());
+    resume = {resume_buf.data(), resume_buf.length()};
+  }
+
   auto session = endpoint->Connect(
-      context, remote, servername_ptr, verify_host_ptr, verify_is_ip);
+      context, remote, servername_ptr, verify_host_ptr, verify_is_ip, resume);
   if (session) {
     args.GetReturnValue().Set(session->object());
   }
@@ -673,6 +857,17 @@ void DTLSEndpoint::GetAddress(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void DTLSEndpoint::SetSessionLimits(const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsUint32());
+
+  endpoint->max_sessions_ = args[0].As<Uint32>()->Value();
+  endpoint->max_sessions_per_host_ = args[1].As<Uint32>()->Value();
+}
+
 void DTLSEndpoint::SetMTU(const FunctionCallbackInfo<Value>& args) {
   DTLSEndpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
@@ -683,7 +878,39 @@ void DTLSEndpoint::SetMTU(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_OUT_OF_RANGE(endpoint->env(),
                                   "MTU must be between 256 and 65535");
   }
+  // Only affects sessions created after this point: DTLSSession reads the
+  // value once, when it builds its SSL. Not currently reachable after
+  // construction -- JS calls this from the DTLSEndpoint constructor only.
   endpoint->mtu_ = mtu;
+}
+
+void DTLSEndpoint::SetSocketOptions(const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  // Validated in JavaScript, and read before Bind(), which is what applies
+  // them. The DTLSEndpoint constructor is the only caller.
+  CHECK(args[0]->IsBoolean());  // ipv6Only
+  CHECK(args[1]->IsBoolean());  // reusePort
+  CHECK(args[2]->IsUint32());   // udpReceiveBufferSize
+  CHECK(args[3]->IsUint32());   // udpSendBufferSize
+  CHECK(args[4]->IsUint32());   // udpTTL
+  endpoint->ipv6_only_ = args[0].As<Boolean>()->Value();
+  endpoint->reuse_port_ = args[1].As<Boolean>()->Value();
+  endpoint->udp_receive_buffer_size_ = args[2].As<Uint32>()->Value();
+  endpoint->udp_send_buffer_size_ = args[3].As<Uint32>()->Value();
+  endpoint->udp_ttl_ = args[4].As<Uint32>()->Value();
+}
+
+void DTLSEndpoint::SetHandshakeTimeout(
+    const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  CHECK(args[0]->IsNumber());
+  double timeout = args[0].As<Number>()->Value();
+  // Read once per session, when it is created, like the MTU above.
+  endpoint->handshake_timeout_ = static_cast<uint64_t>(timeout);
 }
 
 void DTLSEndpoint::DoSetCallbacks(const FunctionCallbackInfo<Value>& args) {
