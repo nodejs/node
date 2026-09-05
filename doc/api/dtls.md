@@ -6,7 +6,7 @@ added: REPLACEME
 
 <!-- introduced_in=REPLACEME -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active Development
 
 <!-- source_link=lib/dtls.js -->
 
