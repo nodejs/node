@@ -11,6 +11,7 @@ const {
   share,
   tap,
   text,
+  toAsyncStreamable,
 } = require('stream/iter');
 
 async function testPullIdentity() {
@@ -48,20 +49,69 @@ async function testPullStatefulTransform() {
   assert.strictEqual(data, 'data-ASYNC-END');
 }
 
+async function testPullStatefulTransformReceiver() {
+  const descriptor = {};
+  descriptor.transform = common.mustCall(
+    async function*(source) {
+      assert.strictEqual(this, descriptor);
+      for await (const chunks of source) {
+        yield chunks;
+      }
+    });
+
+  assert.strictEqual(await text(pull(from('receiver'), descriptor)), 'receiver');
+}
+
 async function testPullWithAbortSignal() {
   async function* gen() {
     yield [new Uint8Array([1])];
   }
 
-  const result = pull(gen(), { signal: AbortSignal.abort() });
-  await assert.rejects(
-    async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of result) {
-        assert.fail('Should not reach here');
-      }
-    },
+  assert.throws(
+    () => pull(gen(), { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
+  );
+}
+
+async function testPullNormalizesSourceAtCallTime() {
+  let protocolCalls = 0;
+  let iteratorCalls = 0;
+  const source = {
+    [toAsyncStreamable]() {
+      protocolCalls++;
+      return {
+        async *[Symbol.asyncIterator]() {
+          iteratorCalls++;
+          yield 'data';
+        },
+      };
+    },
+  };
+
+  const result = pull(source);
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 0);
+  assert.strictEqual(await text(result), 'data');
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 1);
+}
+
+function testPullPreAbortOrdering() {
+  const reason = new Error('already aborted');
+  let protocolCalls = 0;
+  const source = {
+    [toAsyncStreamable]() {
+      protocolCalls++;
+      return from('data');
+    },
+  };
+  const signal = AbortSignal.abort(reason);
+
+  assert.throws(() => pull(source, { signal }), (error) => error === reason);
+  assert.strictEqual(protocolCalls, 1);
+  assert.throws(
+    () => pull(null, { signal }),
+    { code: 'ERR_INVALID_ARG_TYPE' },
   );
 }
 
@@ -474,7 +524,10 @@ async function testTransformOptionsNotShared() {
     testPullIdentity(),
     testPullStatelessTransform(),
     testPullStatefulTransform(),
+    testPullStatefulTransformReceiver(),
     testPullWithAbortSignal(),
+    testPullNormalizesSourceAtCallTime(),
+    testPullPreAbortOrdering(),
     testPullChainedTransforms(),
     testPullSourceError(),
     testTapCallbackError(),
