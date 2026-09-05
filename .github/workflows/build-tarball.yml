@@ -2,7 +2,7 @@ name: Build from tarball
 
 on:
   pull_request:
-    types: [opened, assigned, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
       - '**.nix'
