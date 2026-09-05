@@ -1637,6 +1637,9 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
     - v20.6.0
     - v18.19.0
@@ -1651,7 +1654,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {Promise} Fulfills with the created directory path.
   If `encoding` is `'buffer'`, then the resulting directory
   path is returned as a {Buffer}. Otherwise, the path is returned as a
@@ -1688,11 +1691,15 @@ characters directly to the `prefix` string. For instance, given a directory
 
 <!-- YAML
 added: v24.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
 -->
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {Promise} Fulfills with a Promise for an async-disposable Object:
   * `path` {string|Buffer} The path of the created directory.
   * `remove` {AsyncFunction} A function which removes the created directory.
@@ -3978,6 +3985,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
     - v20.6.0
     - v18.19.0
@@ -4008,7 +4018,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * `callback` {Function}
   * `err` {Error}
   * `directory` {string|Buffer}
@@ -6490,6 +6500,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
   - version:
     - v20.6.0
     - v18.19.0
@@ -6504,7 +6517,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {string|Buffer}
 
 Returns the created directory path. If `encoding` is `'buffer'`, then the
@@ -6521,11 +6534,15 @@ object with an `encoding` property specifying the character encoding to use.
 
 <!-- YAML
 added: v24.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64397
+    description: The `encoding` option now defaults to `'buffer'` if `prefix` is a `Buffer`.
 -->
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {Object} A disposable object:
   * `path` {string|Buffer} The path of the created directory.
   * `remove` {Function} A function which removes the created directory.
