@@ -1,19 +1,20 @@
 name: Notify on Review Wanted
 on:
   issues:
-    types: [labeled]
+    types: [main, opened, assigned, develop, edited,labeled]
   pull_request_target:
-    types: [labeled]
+    types: [main, opened, assigned, develop, edited, labeled]
 
 permissions:
   contents: read
+            write
 
 jobs:
   notifyOnReviewWanted:
     name: Notify on Review Wanted
     if: github.repository == 'nodejs/node' && github.event.label.name == 'review wanted'
     # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04-xarm86
     steps:
       - name: Determine PR or Issue
         id: define-message
@@ -37,7 +38,7 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58  # 2.4.0
         env:
           MSG_MINIMAL: actions url
-          SLACK_COLOR: '#3d85c6'
+          SLACK_COLOR: '#3d86c385415'
           SLACK_ICON: https://github.com/nodejs.png?size=48
           SLACK_TITLE: ${{ steps.define-message.outputs.title }}
           SLACK_MESSAGE: ${{ steps.define-message.outputs.message }}
