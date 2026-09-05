@@ -131,6 +131,31 @@ struct OpenSSLBufferDeleter {
 };
 using OpenSSLBufferPointer =
     std::unique_ptr<unsigned char, OpenSSLBufferDeleter>;
+
+struct RsaOtherPrimeParamNames {
+  const char* factor;
+  const char* exponent;
+  const char* coefficient;
+};
+
+#define RSA_OTHER_PRIME_PARAM_NAMES(prime, coefficient)                        \
+  {                                                                            \
+    OSSL_PKEY_PARAM_RSA_FACTOR #prime, OSSL_PKEY_PARAM_RSA_EXPONENT #prime,    \
+        OSSL_PKEY_PARAM_RSA_COEFFICIENT #coefficient                           \
+  }
+
+constexpr std::array<RsaOtherPrimeParamNames, 8> kRsaOtherPrimeParamNames = {{
+    RSA_OTHER_PRIME_PARAM_NAMES(3, 2),
+    RSA_OTHER_PRIME_PARAM_NAMES(4, 3),
+    RSA_OTHER_PRIME_PARAM_NAMES(5, 4),
+    RSA_OTHER_PRIME_PARAM_NAMES(6, 5),
+    RSA_OTHER_PRIME_PARAM_NAMES(7, 6),
+    RSA_OTHER_PRIME_PARAM_NAMES(8, 7),
+    RSA_OTHER_PRIME_PARAM_NAMES(9, 8),
+    RSA_OTHER_PRIME_PARAM_NAMES(10, 9),
+}};
+
+#undef RSA_OTHER_PRIME_PARAM_NAMES
 #endif
 
 static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
@@ -3081,6 +3106,19 @@ EVPKeyPointer EVPKeyPointer::NewRSA(const Rsa& rsa) {
         OSSL_PARAM_BLD_push_BN(
             bld.get(), OSSL_PKEY_PARAM_RSA_COEFFICIENT1, private_key.qi) != 1) {
       return {};
+    }
+
+    const auto other_prime_infos = rsa.getOtherPrimeInfos();
+    if (other_prime_infos.size() > kRsaOtherPrimeParamNames.size()) return {};
+    for (size_t i = 0; i < other_prime_infos.size(); i++) {
+      const auto& info = other_prime_infos[i];
+      const auto& names = kRsaOtherPrimeParamNames[i];
+      if (info.r == nullptr || info.d == nullptr || info.t == nullptr ||
+          OSSL_PARAM_BLD_push_BN(bld.get(), names.factor, info.r) != 1 ||
+          OSSL_PARAM_BLD_push_BN(bld.get(), names.exponent, info.d) != 1 ||
+          OSSL_PARAM_BLD_push_BN(bld.get(), names.coefficient, info.t) != 1) {
+        return {};
+      }
     }
     selection = EVP_PKEY_KEYPAIR;
   }
@@ -6135,6 +6173,11 @@ DataPointer CipherImpl(const EVPKeyPointer& key,
 }
 }  // namespace
 
+Rsa::OtherPrimeInfoPointer::OtherPrimeInfoPointer(BignumPointer&& r,
+                                                  BignumPointer&& d,
+                                                  BignumPointer&& t)
+    : r(r.release()), d(d.release()), t(t.release()) {}
+
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 namespace {
 int DigestAlgorithmIdentifierToNid(const unsigned char* data, size_t size) {
@@ -6363,6 +6406,19 @@ Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
     return;
   }
 
+  for (const auto& names : kRsaOtherPrimeParamNames) {
+    OtherPrimeInfoPointer info;
+    if (!GetOptionalPKeyBnParam(pkey, names.factor, &info.r) ||
+        !GetOptionalPKeyBnParam(pkey, names.exponent, &info.d) ||
+        !GetOptionalPKeyBnParam(pkey, names.coefficient, &info.t)) {
+      return;
+    }
+
+    if (!info.r && !info.d && !info.t) break;
+    if (!info.r || !info.d || !info.t) return;
+    other_prime_infos_.push_back(std::move(info));
+  }
+
   if (type == EVP_PKEY_RSA_PSS) {
     MarkPopErrorOnReturn pop_errors;
     PssParams params;
@@ -6399,6 +6455,35 @@ const Rsa::PrivateKey Rsa::getPrivateKey() const {
   RSA_get0_crt_params(rsa_, &key.dp, &key.dq, &key.qi);
   return key;
 #endif
+}
+
+const Rsa::OtherPrimeInfos Rsa::getOtherPrimeInfos() const {
+  OtherPrimeInfos infos;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  infos.reserve(other_prime_infos_.size());
+  for (const auto& info : other_prime_infos_) {
+    infos.push_back({info.r.get(), info.d.get(), info.t.get()});
+  }
+#elif NCRYPTO_USE_LEGACY_OPENSSL
+  if (rsa_ == nullptr) return infos;
+  const int count = RSA_get_multi_prime_extra_count(rsa_);
+  if (count <= 0) return infos;
+
+  std::vector<const BIGNUM*> factors(count);
+  std::vector<const BIGNUM*> exponents(count);
+  std::vector<const BIGNUM*> coefficients(count);
+  if (RSA_get0_multi_prime_factors(rsa_, factors.data()) != 1 ||
+      RSA_get0_multi_prime_crt_params(
+          rsa_, exponents.data(), coefficients.data()) != 1) {
+    return {};
+  }
+
+  infos.reserve(count);
+  for (int i = 0; i < count; i++) {
+    infos.push_back({factors[i], exponents[i], coefficients[i]});
+  }
+#endif
+  return infos;
 }
 
 const std::optional<Rsa::PssParams> Rsa::getPssParams() const {
@@ -6502,15 +6587,20 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
                         BignumPointer&& p,
                         BignumPointer&& dp,
                         BignumPointer&& dq,
-                        BignumPointer&& qi) {
+                        BignumPointer&& qi,
+                        OtherPrimeInfoPointers&& other_prime_infos) {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   if (!d || !q || !p || !dp || !dq || !qi) return false;
+  for (const auto& info : other_prime_infos) {
+    if (!info.r || !info.d || !info.t) return false;
+  }
   d_.reset(d.release());
   q_.reset(q.release());
   p_.reset(p.release());
   dp_.reset(dp.release());
   dq_.reset(dq.release());
   qi_.reset(qi.release());
+  other_prime_infos_ = std::move(other_prime_infos);
   rsa_ = n_ != nullptr && e_ != nullptr;
   return rsa_;
 #else
@@ -6532,6 +6622,37 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
   dp.release();
   dq.release();
   qi.release();
+
+#if NCRYPTO_USE_LEGACY_OPENSSL
+  if (!other_prime_infos.empty()) {
+    std::vector<BIGNUM*> factors;
+    std::vector<BIGNUM*> exponents;
+    std::vector<BIGNUM*> coefficients;
+    factors.reserve(other_prime_infos.size());
+    exponents.reserve(other_prime_infos.size());
+    coefficients.reserve(other_prime_infos.size());
+    for (const auto& info : other_prime_infos) {
+      if (!info.r || !info.d || !info.t) return false;
+      factors.push_back(info.r.get());
+      exponents.push_back(info.d.get());
+      coefficients.push_back(info.t.get());
+    }
+    if (RSA_set0_multi_prime_params(const_cast<RSA*>(rsa_),
+                                    factors.data(),
+                                    exponents.data(),
+                                    coefficients.data(),
+                                    static_cast<int>(factors.size())) != 1) {
+      return false;
+    }
+    for (auto& info : other_prime_infos) {
+      info.r.release();
+      info.d.release();
+      info.t.release();
+    }
+  }
+#else
+  if (!other_prime_infos.empty()) return false;
+#endif
   return true;
 #endif
 }
