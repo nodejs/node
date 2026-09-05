@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
 
@@ -16,9 +17,7 @@ const { createRunner } = require('node:bench');
   }, common.mustCall((b) => {
     invocations.push(`${b.phase}:${b.index}`);
     const detail = { index: b.index, phase: b.phase };
-    b.start();
-    process.hrtime.bigint();
-    const sample = b.end(2, { detail });
+    const sample = completeSample(b, 2, { detail });
     detail.index = -1;
 
     assert.strictEqual(sample.operations, 2);

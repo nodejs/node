@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { setImmediate } = require('timers/promises');
 const {
@@ -13,12 +14,6 @@ const {
   run,
   suite,
 } = require('node:bench');
-
-function complete(b) {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
-}
 
 suite('before failure', () => {
   before(() => { throw new Error('before failure'); });
@@ -34,7 +29,7 @@ suite('beforeEach failure', () => {
 
 suite('after failure', () => {
   after(() => { throw new Error('after failure'); });
-  bench('completes before after', { samples: 1 }, complete);
+  bench('completes before after', { samples: 1 }, completeSample);
 });
 
 suite('build failure', async () => {
@@ -42,7 +37,7 @@ suite('build failure', async () => {
   throw new Error('build failure');
 });
 
-bench('continues after suite failures', { samples: 1 }, complete);
+bench('continues after suite failures', { samples: 1 }, completeSample);
 
 const completions = [];
 const diagnostics = [];

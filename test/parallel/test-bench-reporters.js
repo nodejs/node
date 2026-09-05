@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { Readable } = require('stream');
 const { bench, run } = require('node:bench');
@@ -11,9 +12,7 @@ bench('json completed', {
   params: { size: 'small' },
   samples: 1,
 }, (b) => {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
+  completeSample(b);
 });
 
 bench('json failed', { samples: 1 }, () => {

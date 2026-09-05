@@ -2,15 +2,14 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
 
 const runner = createRunner({ yieldBetweenSamples: false });
 
 runner.bench('done during warmup', { samples: 1, warmup: 1 }, (b) => {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
+  completeSample(b);
   b.done();
 });
 runner.bench('invalid record', { samples: 1 }, (b) => b.record(null));

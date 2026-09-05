@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { bench, run, suite } = require('node:bench');
 const { setTimeout } = require('timers/promises');
@@ -40,21 +41,15 @@ bench('late timeout', { samples: 1, timeout: 5 }, async (b) => {
 });
 bench('after late timeout', options, common.mustCall((b) => {
   assert.strictEqual(lateTimeoutActive, false);
-  complete(b);
+  completeSample(b);
 }));
 
 const signal = AbortSignal.abort(new Error('stop'));
 bench('aborted', { samples: 1, signal }, () => {});
 
-function complete(b) {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
-}
-
-bench('duplicate', { samples: 1, params: { value: 1 } }, complete);
-bench('duplicate', { samples: 1, params: { value: 1 } }, complete);
-bench('continues', options, complete);
+bench('duplicate', { samples: 1, params: { value: 1 } }, completeSample);
+bench('duplicate', { samples: 1, params: { value: 1 } }, completeSample);
+bench('continues', options, completeSample);
 bench('timeout', { samples: 1, timeout: 10 }, async () => {
   await new Promise(() => {});
 });
