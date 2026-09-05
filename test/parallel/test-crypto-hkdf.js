@@ -108,6 +108,23 @@ const { hasOpenSSL } = require('../common/crypto');
     code: 'ERR_OUT_OF_RANGE'
   });
 
+  {
+    const info = new Uint8Array(2048);
+    Object.defineProperty(info, 'byteLength', {
+      __proto__: null,
+      get() {
+        return 1;
+      },
+    });
+
+    const calls = [
+      () => hkdf('sha256', 'a', '', info, 10, common.mustNotCall()),
+      () => hkdfSync('sha256', 'a', '', info, 10),
+    ];
+    for (const call of calls)
+      assert.throws(call, { code: 'ERR_OUT_OF_RANGE' });
+  }
+
   assert.throws(
     () => hkdf('sha512', 'a', '', '', 64 * 255 + 1, common.mustNotCall()), {
       code: 'ERR_CRYPTO_INVALID_KEYLEN'
