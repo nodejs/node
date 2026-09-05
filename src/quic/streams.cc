@@ -1058,6 +1058,9 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, IDX_STATS_STREAM_COUNT);
 
+  constexpr auto IDX_STATE_STREAM_SIZE = sizeof(Stream::State);
+  NODE_DEFINE_CONSTANT(target, IDX_STATE_STREAM_SIZE);
+
   constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
       static_cast<uint8_t>(HeadersKind::HINTS);
   constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
@@ -1404,13 +1407,6 @@ BaseObjectPtr<Blob::Reader> Stream::get_reader() {
   return reader;
 }
 
-void Stream::set_final_size(uint64_t final_size) {
-  DCHECK_IMPLIES(state()->fin_received == 1,
-                 final_size <= STAT_GET(Stats, final_size));
-  state()->fin_received = 1;
-  STAT_SET(Stats, final_size, final_size);
-}
-
 void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
   if (!source || !is_writable()) return;
   Debug(this, "Setting the outbound data source");
@@ -1554,7 +1550,7 @@ void Stream::FlushAccumulation() {
     return;
   }
   // Should be unreachable: append() only fails once the queue has been capped,
-  // EndReadable() flushes before capping, and ReceiveData() accumulates
+  // CapReadable() flushes before capping, and ReceiveData() accumulates
   // nothing once read_ended is set. Reaching here means received stream data
   // is being dropped on the floor, so say so and at least do not also leak
   // the flow control credit for it.
@@ -1641,13 +1637,26 @@ void Stream::EndWritable() {
   state()->write_ended = 1;
 }
 
-void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
+void Stream::FinishReadable() {
   if (!is_readable()) return;
+  state()->fin_received = 1;
+  CapReadable(std::nullopt);
+}
+
+void Stream::TruncateReadable(std::optional<uint64_t> maybe_final_size) {
+  if (!is_readable()) return;
+  CapReadable(maybe_final_size);
+}
+
+void Stream::CapReadable(std::optional<uint64_t> maybe_final_size) {
+  DCHECK(is_readable());
   state()->read_ended = 1;
   // Flush any accumulated data before capping so the reader can see it.
   FlushAccumulation();
-  set_final_size(maybe_final_size.value_or(STAT_GET(Stats, bytes_received)));
-  inbound_->cap(STAT_GET(Stats, final_size));
+  const uint64_t final_size =
+      maybe_final_size.value_or(STAT_GET(Stats, bytes_received));
+  STAT_SET(Stats, final_size, final_size);
+  inbound_->cap(final_size);
   // Notify the JS reader so it can see EOS. The subsequent pull observes
   // the now-capped DataQueue and returns EOS.
   if (reader_) reader_->NotifyPull();
@@ -1675,13 +1684,14 @@ void Stream::Destroy(QuicError error) {
   // End the writable before marking as destroyed.
   EndWritable();
 
-  // Also end the readable side if it isn't already.
-  EndReadable();
+  // Also end the readable side if it isn't already. If not already ended,
+  // this will eventually surface as an error, since the data is truncated.
+  TruncateReadable();
 
   // We are going to release our reference to the outbound_ queue here.
   outbound_.reset();
 
-  // EndReadable() above already flushed accumulated data. Just release
+  // TruncateReadable() above already flushed accumulated data. Just release
   // the ring buffer memory.
   recv_accumulator_.reset();
 
@@ -1736,7 +1746,7 @@ void Stream::ReceiveData(const uint8_t* data,
   // end the readable side if this is the last bit of data we've received.
   Debug(this, "Receiving %zu bytes of data", len);
   if (state()->read_ended == 1 || len == 0) {
-    if (flags.fin) EndReadable();
+    if (flags.fin) FinishReadable();
     // Nothing will ever consume these bytes, so return the connection-level
     // credit ngtcp2 charged for them. The stream window is deliberately left
     // alone: there is no point inviting more data onto a stream we have
@@ -1819,7 +1829,7 @@ void Stream::ReceiveData(const uint8_t* data,
 
   if (flags.fin) {
     FlushAccumulation();
-    EndReadable();
+    FinishReadable();
   } else if (reader_ && was_empty) {
     // Notify the reader once when the accumulator transitions from empty
     // to non-empty. This wakes the reader exactly once per accumulation
@@ -1850,7 +1860,7 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
         final_size,
         error);
   state()->reset_code = error.code();
-  EndReadable(final_size);
+  TruncateReadable(final_size);
   EmitReset(error);
 }
 
@@ -1873,7 +1883,7 @@ void Stream::DoStreamReset(error_code code) {
 }
 
 void Stream::SendStopSending(error_code code) {
-  EndReadable();
+  TruncateReadable();
 
   if (!is_pending()) {
     // If the stream is a local unidirectional there's nothing to do here.
