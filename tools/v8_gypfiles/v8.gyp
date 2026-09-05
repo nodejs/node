@@ -293,7 +293,7 @@
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
       ],
       'conditions': [
-        ['v8_use_perfetto==1', {
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],
@@ -321,7 +321,7 @@
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
-        ['v8_use_perfetto==1', {
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],
@@ -496,7 +496,7 @@
         },
       ],
       'conditions': [
-        ['v8_use_perfetto==1', {
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],
@@ -996,7 +996,7 @@
         'v8_pch',
       ],
       'conditions': [
-        ['v8_use_perfetto==1', {
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],
@@ -1137,8 +1137,12 @@
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_use_perfetto.*?sources \\+= ")',
           ],
-          'dependencies': [
-            '<(perfetto_gyp_file):perfetto_sdk',
+          'conditions': [
+            ['node_shared_perfetto=="false"', {
+              'dependencies': [
+                '<(perfetto_gyp_file):perfetto_sdk',
+              ],
+            }],
           ],
         }],
         ['v8_enable_snapshot_compression==1', {
@@ -1763,8 +1767,12 @@
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\+= ")',
           ],
-          'dependencies': [
-            '<(perfetto_gyp_file):perfetto_sdk',
+          'conditions': [
+            ['node_shared_perfetto=="false"', {
+              'dependencies': [
+                '<(perfetto_gyp_file):perfetto_sdk',
+              ],
+            }],
           ],
         }],
         ['v8_enable_system_instrumentation==1 and is_win', {
@@ -1878,7 +1886,7 @@
         },
       },
       'conditions': [
-        ['v8_use_perfetto==1', {
+        ['v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             '<(perfetto_gyp_file):perfetto_sdk',
           ],

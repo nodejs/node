@@ -121,6 +121,7 @@ tools/*/*.i.tmp
 /*.xml
 /v8*-tap.json
 /node_trace.*.log
+/node_trace.*.pftrace
 # coverage related
 /gcovr
 /build

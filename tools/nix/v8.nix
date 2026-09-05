@@ -47,9 +47,10 @@ let
       ]
       ++ lib.optional (!useSharedAbseil) ../../tools/v8_gypfiles/abseil.gyp
       ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
-      ++ lib.optionals (builtins.elem "--with-perfetto" configureFlags) [
-        ../../deps/perfetto
-      ]
+      ++ lib.optional (
+        builtins.elem "--with-perfetto" configureFlags
+        && !(builtins.elem "--shared-perfetto" configureFlags)
+      ) ../../deps/perfetto
       ++ lib.optionals (icu != null) [
         ../../tools/icu/icu_versions.json
         ../../tools/icu/icu-system.gyp
