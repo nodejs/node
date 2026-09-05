@@ -333,6 +333,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   Isolate* isolate = isolate_data->isolate();
 
   HistogramBase::Initialize(isolate_data, target);
+  SlidingWindowHistogram::Initialize(isolate_data, target);
 
   SetMethod(isolate, target, "setupObservers", SetupPerformanceObservers);
   SetMethod(isolate,
@@ -419,6 +420,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SlowPerformanceNow);
   registry->Register(fast_performance_now);
   HistogramBase::RegisterExternalReferences(registry);
+  SlidingWindowHistogram::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
   IterationHistogram::RegisterExternalReferences(registry);
 }
