@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { bench, run } = require('node:bench');
 
@@ -9,9 +10,7 @@ let invocations = 0;
 const timeout = common.platformTimeout(1000);
 bench('overridden', { samples: 8, timeout, warmup: 8 }, (b) => {
   invocations++;
-  b.start();
-  process.hrtime.bigint();
-  b.end(invocations);
+  completeSample(b, invocations);
 });
 
 const plans = [];

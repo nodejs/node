@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
 const { setImmediate } = require('timers/promises');
@@ -16,9 +17,7 @@ async function observe(factoryOptions, runOptions) {
 
   runner.bench('yielding', { samples: 2 }, (b) => {
     observed.push(turnOccurred);
-    b.start();
-    process.hrtime.bigint();
-    b.end(1);
+    completeSample(b);
   });
 
   await runner.run(runOptions).toArray();
@@ -55,9 +54,7 @@ async function observeAfterEachTimeout() {
     samples: 1,
     timeout: 5,
   }, (b) => {
-    b.start();
-    process.hrtime.bigint();
-    b.end(1);
+    completeSample(b);
   });
   await runner.run().toArray();
   const result = await completion;

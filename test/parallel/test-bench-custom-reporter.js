@@ -2,15 +2,14 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { Writable } = require('stream');
 const { finished } = require('stream/promises');
 const { bench, run } = require('node:bench');
 
 bench('completed', { samples: 1 }, (b) => {
-  b.start();
-  process.hrtime.bigint();
-  b.end(1);
+  completeSample(b);
 });
 bench.skip('skipped', { samples: 1 }, common.mustNotCall());
 

@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { completeSample } = require('../common/bench');
 const assert = require('assert');
 const { bench, run, suite } = require('node:bench');
 
@@ -10,9 +11,7 @@ const calls = [];
 function complete(name) {
   return (b) => {
     calls.push(name);
-    b.start();
-    process.hrtime.bigint();
-    b.end(1);
+    completeSample(b);
   };
 }
 
