@@ -4,8 +4,10 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  BlockList,
   SocketAddress,
 } = require('net');
+const { inspect } = require('util');
 
 const {
   InternalSocketAddress,
@@ -139,34 +141,91 @@ describe('net.SocketAddress...', () => {
   });
 
   it('SocketAddress.parse() works as expected', () => {
+    // The exhaustive grammar table lives in test/cctest/test_sockaddr.cc,
+    // next to the parser. These cover the JS layer and a few representatives.
     const good = [
       { input: '1.2.3.4', address: '1.2.3.4', port: 0, family: 'ipv4' },
-      { input: '192.168.257:1', address: '192.168.1.1', port: 1, family: 'ipv4' },
-      { input: '256', address: '0.0.1.0', port: 0, family: 'ipv4' },
-      { input: '999999999:12', address: '59.154.201.255', port: 12, family: 'ipv4' },
-      { input: '0xffffffff', address: '255.255.255.255', port: 0, family: 'ipv4' },
-      { input: '0x.0x.0', address: '0.0.0.0', port: 0, family: 'ipv4' },
+      { input: '1.2.3.4:8080', address: '1.2.3.4', port: 8080, family: 'ipv4' },
+      // A well known port must survive; the URL based parser dropped it.
+      { input: '1.2.3.4:80', address: '1.2.3.4', port: 80, family: 'ipv4' },
       { input: '[1:0::]', address: '1::', port: 0, family: 'ipv6' },
       { input: '[1::8]:123', address: '1::8', port: 123, family: 'ipv6' },
+      { input: '[::ffff:1.2.3.4]:80', address: '::ffff:1.2.3.4', port: 80, family: 'ipv6' },
+      // A numeric IPv6 zone id is accepted and does not appear in the address.
+      { input: '[fe80::1%2]:80', address: 'fe80::1', port: 80, family: 'ipv6' },
     ];
 
-    good.forEach((i) => {
-      const addr = SocketAddress.parse(i.input);
-      assert.strictEqual(addr.address, i.address);
-      assert.strictEqual(addr.port, i.port);
-      assert.strictEqual(addr.family, i.family);
+    good.forEach(({ input, ...expected }) => {
+      const addr = SocketAddress.parse(input);
+      assert.ok(addr, `${input} did not parse`);
+      assert.deepStrictEqual(
+        { address: addr.address, port: addr.port, family: addr.family },
+        expected);
     });
 
     const bad = [
-      'not an ip',
-      'abc.123',
-      '259.1.1.1',
-      '12:12:12',
+      // Legacy IPv4 forms. See CVE-2021-29923 and CVE-2021-29922.
+      '0177.0.0.1:80',
+      '0x7f.0.0.1:80',
+      '2130706433:80',
+      '127.1:80',
+      '192.168.257:1',
+      '0xffffffff',
+      // URL syntax.
+      'user@1.2.3.4:80',
+      '1.2.3.4:80/foo',
+      // Strings that only reach the parser through Utf8Value.
+      '\u2460\u2461\u2462.4.5.6:80',
+      '1.2.3.4\u0000junk:80',
+      '1.2.3.4:80\u0000junk',
+      // Representative structural rejections.
+      '1.2.3.4:',
+      '1.2.3.4:65536',
+      '::1',
+      '[fe80::1%lo0]:80',
+      '',
+      'localhost:80',
     ];
 
     bad.forEach((i) => {
-      assert.strictEqual(SocketAddress.parse(i), undefined);
+      assert.strictEqual(SocketAddress.parse(i), undefined, `${i} should not parse`);
     });
+
+    assert.throws(() => SocketAddress.parse(1), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  it('SocketAddress.parse() returns a branded SocketAddress', () => {
+    const parsed = SocketAddress.parse('1.2.3.4:8080');
+
+    assert.ok(parsed instanceof SocketAddress);
+    assert.ok(SocketAddress.isSocketAddress(parsed));
+    assert.strictEqual(parsed.constructor, SocketAddress);
+  });
+
+  it('SocketAddress.parse() matches the constructor', () => {
+    const parsed = SocketAddress.parse('1.2.3.4:8080');
+    const built = new SocketAddress({ address: '1.2.3.4', port: 8080 });
+
+    assert.deepStrictEqual(parsed.toJSON(), built.toJSON());
+    assert.strictEqual(inspect(parsed), inspect(built));
+  });
+
+  it('SocketAddress.parse() returns a cloneable SocketAddress', () => {
+    const parsed = SocketAddress.parse('1.2.3.4:8080');
+    const clone = structuredClone(parsed);
+
+    assert.ok(clone instanceof SocketAddress);
+    assert.deepStrictEqual(clone.toJSON(), parsed.toJSON());
+  });
+
+  it('SocketAddress.parse() returns a SocketAddress BlockList accepts', () => {
+    const list = new BlockList();
+    list.addAddress(SocketAddress.parse('1.2.3.4:8080'));
+
+    assert.ok(list.check('1.2.3.4'));
+    assert.ok(!list.check('1.2.3.5'));
   });
 
 });

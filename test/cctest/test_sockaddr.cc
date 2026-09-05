@@ -1,5 +1,11 @@
 #include "gtest/gtest.h"
 #include "node_sockaddr-inl.h"
+#include "node_sockaddr_parser.h"
+
+#include <string>
+#include <string_view>
+
+namespace sockaddr_parser = node::sockaddr_parser;
 
 using node::SocketAddress;
 using node::SocketAddressBlockList;
@@ -291,6 +297,170 @@ TEST(SocketAddress, NewAutoFamily) {
 
   // Invalid address should fail.
   CHECK(!SocketAddress::New("not_an_address", 0, &addr));
+}
+
+TEST(SocketAddress, ParseValid) {
+  static constexpr struct {
+    std::string_view input;
+    int family;
+    std::string_view address;
+    int port;
+  } kAccepted[] = {
+      {"1.2.3.4", AF_INET, "1.2.3.4", 0},
+      {"1.2.3.4:8080", AF_INET, "1.2.3.4", 8080},
+      // A well known port must survive; the URL based parser dropped it.
+      {"1.2.3.4:80", AF_INET, "1.2.3.4", 80},
+      {"1.2.3.4:443", AF_INET, "1.2.3.4", 443},
+      // Leading zeros are allowed in the port but not in an octet.
+      {"1.2.3.4:080", AF_INET, "1.2.3.4", 80},
+      {"0.0.0.0", AF_INET, "0.0.0.0", 0},
+      {"255.255.255.255:65535", AF_INET, "255.255.255.255", 65535},
+      {"[::1]:8080", AF_INET6, "::1", 8080},
+      {"[::]", AF_INET6, "::", 0},
+      {"[1:0::]", AF_INET6, "1::", 0},
+      {"[1::8]:123", AF_INET6, "1::8", 123},
+      {"[1:2:3:4:5:6:7:8]", AF_INET6, "1:2:3:4:5:6:7:8", 0},
+      {"[ABCD::EF]:1", AF_INET6, "abcd::ef", 1},
+      {"[::ffff:1.2.3.4]:80", AF_INET6, "::ffff:1.2.3.4", 80},
+      {"[1:2:3:4:5:6:1.2.3.4]", AF_INET6, "1:2:3:4:5:6:102:304", 0},
+  };
+
+  for (const auto& c : kAccepted) {
+    SocketAddress addr;
+    ASSERT_TRUE(SocketAddress::Parse(c.input, &addr))
+        << "rejected: " << c.input;
+    EXPECT_EQ(addr.family(), c.family) << c.input;
+    EXPECT_EQ(addr.address(), c.address) << c.input;
+    EXPECT_EQ(addr.port(), c.port) << c.input;
+  }
+}
+
+TEST(SocketAddress, ParseScopeId) {
+  SocketAddress addr;
+
+  CHECK(SocketAddress::Parse("[fe80::1%2]:80", &addr));
+  CHECK_EQ(addr.family(), AF_INET6);
+  CHECK_EQ(addr.address(), "fe80::1");
+  CHECK_EQ(addr.port(), 80);
+  CHECK_EQ(reinterpret_cast<const sockaddr_in6*>(addr.data())->sin6_scope_id,
+           2);
+
+  CHECK(SocketAddress::Parse("[fe80::1]:80", &addr));
+  CHECK_EQ(reinterpret_cast<const sockaddr_in6*>(addr.data())->sin6_scope_id,
+           0);
+}
+
+TEST(SocketAddress, ParseRejects) {
+  static constexpr std::string_view kRejected[] = {
+      // Legacy IPv4 forms. See CVE-2021-29923 and CVE-2021-29922.
+      "0177.0.0.1:80",
+      "01.2.3.4:80",
+      "1.2.3.04:80",
+      "00.0.0.0",
+      "0x7f.0.0.1:80",
+      "0xffffffff",
+      "0x.0x.0",
+      "2130706433:80",
+      "127.1:80",
+      "192.168.257:1",
+      "256",
+      "999999999:12",
+
+      // Out of range or malformed IPv4.
+      "256.1.1.1:80",
+      "259.1.1.1",
+      "1.2.3.4.5:80",
+      "1.2.3",
+      "1.2.3.",
+      ".1.2.3.4",
+      "1.2.3.1234",
+
+      // URL syntax.
+      "user@1.2.3.4:80",
+      "1.2.3.4:80/foo",
+      "1.2.3.4:80?x=1",
+      "1.2.3.4:80#f",
+      "http://1.2.3.4:80",
+
+      // Leading or trailing junk.
+      " 1.2.3.4:80",
+      "1.2.3.4:80 ",
+      "1.2.3.4\t:80",
+      "1.2.3.4:",
+      "1.2.3.4::80",
+      "[::1]:8080extra",
+
+      // A NUL byte must not hide the rest of the host from uv_inet_pton.
+      std::string_view("1.2.3.4\0junk:80", 15),
+      std::string_view("1.2.3.4:80\0junk", 15),
+      std::string_view("[::1\0junk]:80", 13),
+
+      // Ports.
+      "1.2.3.4:65536",
+      "1.2.3.4:-1",
+      "1.2.3.4:+80",
+      "1.2.3.4:0x50",
+
+      // IPv6 requires brackets and must be well formed.
+      "::1",
+      "[::1",
+      "::1]",
+      "[]",
+      "[12345::]",
+      "[1::2::3]",
+      "[1:2:3:4:5:6:7:8:9]",
+      "[1:2:3:4:5:6:7]",
+      "[1.2.3.4::]",
+      "[::1.2.3.4:5]",
+      "[:::]",
+      "[:1]",
+
+      // Only numeric zone ids are accepted.
+      "[fe80::1%lo0]:80",
+      "[fe80::1%]:80",
+      "[fe80::1%2",
+      "[fe80::1%4294967296]:80",
+
+      // Not addresses at all.
+      "",
+      "not an ip",
+      "abc.123",
+      "12:12:12",
+      "localhost:80",
+  };
+
+  for (std::string_view input : kRejected) {
+    SocketAddress addr;
+    EXPECT_FALSE(SocketAddress::Parse(input, &addr)) << "accepted: " << input;
+  }
+}
+
+TEST(SocketAddress, ParseOverlongHost) {
+  // The host is copied into a fixed buffer before reaching uv_inet_pton.
+  SocketAddress addr;
+  CHECK(!SocketAddress::Parse(
+      std::string(sockaddr_parser::kMaxHostLength + 1, '1') + ":80", &addr));
+  CHECK(!SocketAddress::Parse(
+      "[" + std::string(sockaddr_parser::kMaxHostLength + 1, 'a') + "]:80",
+      &addr));
+  CHECK(
+      !SocketAddress::Parse("[::1%" + std::string(4096, '9') + "]:80", &addr));
+  CHECK(!SocketAddress::Parse("1.2.3.4:" + std::string(4096, '9'), &addr));
+}
+
+TEST(SocketAddress, ParseMatchesLibuv) {
+  // The framing must hand libuv exactly the address text it would have been
+  // given directly.
+  SocketAddress parsed;
+  SocketAddress created;
+
+  CHECK(SocketAddress::Parse("1.2.3.4:8080", &parsed));
+  CHECK(SocketAddress::New(AF_INET, "1.2.3.4", 8080, &created));
+  CHECK_EQ(parsed, created);
+
+  CHECK(SocketAddress::Parse("[2001:db8::1]:443", &parsed));
+  CHECK(SocketAddress::New(AF_INET6, "2001:db8::1", 443, &created));
+  CHECK_EQ(parsed, created);
 }
 
 TEST(SocketAddress, HashIPv6) {
