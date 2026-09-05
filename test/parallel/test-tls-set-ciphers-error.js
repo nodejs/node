@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 {
   const options = {
@@ -21,7 +21,7 @@ const { hasOpenSSL } = require('../common/crypto');
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
                 /no[_ ]cipher[_ ]match/i);
   options.ciphers = 'TLS_not_a_cipher';
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     tls.createServer(options).close();
   } else {
     assert.throws(() => tls.createServer(options, common.mustNotCall()),

@@ -8,7 +8,7 @@ if (!common.hasCrypto) {
 }
 
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const https = require('https');
 const { constants: { SSL_OP_NO_TICKET } } = require('crypto');
@@ -25,7 +25,7 @@ if (fips3) {
   options.maxVersion = 'TLSv1.3';
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   options.ciphers = fips3 ?
     'ECDHE-RSA-AES256-GCM-SHA384' : 'RSA@SECLEVEL=0';
 }

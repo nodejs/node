@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
 {
@@ -100,7 +101,7 @@ const {
 // Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
 {
   const g = 0;
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     assert.throws(() => crypto.createDiffieHellman('abcdef', g), {
       code: 'ERR_CRYPTO_OPERATION_FAILED',
       name: 'Error'
@@ -112,7 +113,7 @@ const {
 }
 
 {
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     assert.throws(() => crypto.createDiffieHellman('abcdef', Buffer.from([2])), {
       code: 'ERR_CRYPTO_OPERATION_FAILED',
       name: 'Error'

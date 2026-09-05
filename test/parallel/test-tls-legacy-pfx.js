@@ -4,9 +4,9 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   common.skip('OpenSSL legacy failures are only testable with OpenSSL 3+');
 }
 

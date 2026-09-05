@@ -13,7 +13,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { createSecretKey } = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function assertSameSet(actual, expected, msg) {
@@ -115,7 +115,7 @@ function assertSameSet(actual, expected, msg) {
     asymmetric.splice(asymmetric.findIndex(({ algorithm }) =>
       algorithm.name === 'X25519'), 1);
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     asymmetric.push({
       algorithm: { name: 'ML-DSA-65' },
       usages: ['verify', 'sign', 'verify', 'sign'],
@@ -297,7 +297,7 @@ function assertSameSet(actual, expected, msg) {
     assert.deepStrictEqual(imported.usages, ['sign']);
   })());
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     // ML-DSA JWK roundtrip.
     tests.push((async () => {
       const { privateKey } = await subtle.generateKey(
@@ -508,7 +508,7 @@ function assertSameSet(actual, expected, msg) {
     jwkPairVectors.splice(jwkPairVectors.findIndex(({ algorithm }) =>
       algorithm.name === 'X25519'), 1);
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     jwkPairVectors.push({
       algorithm: { name: 'ML-DSA-65' },
       usages: ['verify', 'sign', 'verify', 'sign'],

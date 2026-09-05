@@ -27,6 +27,7 @@ const {
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
 const fips3 = hasFIPS(3);
@@ -351,7 +352,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     createPrivateKey({ key: '' });
   }, hasOpenSSL(3) ? {
     message: 'error:1E08010C:DECODER routines::unsupported',
-  } : process.features.openssl_is_boringssl ? {
+  } : isBoringSSL ? {
     message: 'error:0900006e:PEM routines:OPENSSL_internal:NO_START_LINE',
     code: 'ERR_OSSL_PEM_NO_START_LINE',
     reason: 'NO_START_LINE',
@@ -384,7 +385,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }, hasOpenSSL(3) ? {
     message: /error:1E08010C:DECODER routines::unsupported/,
     library: 'DECODER routines'
-  } : process.features.openssl_is_boringssl ? {
+  } : isBoringSSL ? {
     library: 'public key routines',
     message: 'error:06000066:public key routines:OPENSSL_internal:DECODE_ERROR'
   } : {
@@ -439,7 +440,7 @@ for (const info of [
   const fipsUnsupported =
     rejectsXCurves && keyType.startsWith('x');
 
-  if (process.features.openssl_is_boringssl && keyType.endsWith('448')) {
+  if (isBoringSSL && keyType.endsWith('448')) {
     common.printSkipMessage(`Skipping unsupported ${keyType} test case`);
     continue;
   }
@@ -631,7 +632,7 @@ for (const info of [
   const { keyType, namedCurve } = info;
   const fipsUnsupported = fips3 && namedCurve === 'secp256k1';
 
-  if (process.features.openssl_is_boringssl && !getCurves().includes(namedCurve)) {
+  if (isBoringSSL && !getCurves().includes(namedCurve)) {
     common.printSkipMessage(`Skipping unsupported ${keyType} test case`);
     continue;
   }
@@ -861,7 +862,7 @@ for (const info of [
     { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // Test RSA-PSS.
   {
     // This key pair does not restrict the message digest algorithm or salt

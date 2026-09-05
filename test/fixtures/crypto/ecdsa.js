@@ -1,5 +1,7 @@
 'use strict';
 
+const { isBoringSSL } = require('../../common/crypto');
+
 module.exports = function() {
   const pkcs8 = {
     'P-256': Buffer.from(
@@ -72,7 +74,7 @@ module.exports = function() {
         'b6a0a14d7e4bc6dd2eda82c9234f174b670b60c8f7d101f68fdf5889e02373b025' +
         'dcbc4c82f2929b8e06c68535da98e38fe399c53a814b097935581ef21535eb',
         'hex'),
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': Buffer.from(
           'f6a48eb5557f484ed0c3e4b5c78a3cf497cbd346db06a4165d429248aa2cc51a69' +
           '747d09f57af145469a8b607a9b8b9709629d74e8f5ca337c6ddc581b6f6103',
@@ -104,7 +106,7 @@ module.exports = function() {
         '72fbdb369fd34c1c54264d07f4facd69b02e4206f8a8bb259b882a305c56fde2d3' +
         '5107e493c53cd6b4af0b31306f4d03fd43cfc762a1030e17a3d775453a1212b142' +
         '9f7b3d93066a5f42a10b138cd177dc09616e827d598822d78d4627b754e6', 'hex'),
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': Buffer.from(
           '0b07c078be30fa5925a307d6fc559c5f398e63fb5d007d6b24a834847f2d3d18d5' +
           'b5e840711c52a7bc6626c3ced93301e873c013a706f6b297c12cc6d47a71e0529e' +
@@ -144,7 +146,7 @@ module.exports = function() {
         '01f0071e6a32867fa70f695cd39c4e87e142b9e4134d38740bd6fee354a575167e' +
         '13524e94832637910fe11e53a85fb21b91adb81bb1779c4e2b8bc87c717dc35084',
         'hex'),
-      ...(!process.features.openssl_is_boringssl ? {
+      ...(!isBoringSSL ? {
         'SHA3-256': Buffer.from(
           '00463679f47a4c705e03447360dcf34d1743e0d4b2591cc66832a6bc80d92e538c' +
           '169a1fd330f98e7235ca7fec7e16ac44fb13095b8edf2c76b75c4845177d59e425' +
@@ -170,7 +172,7 @@ module.exports = function() {
   const curves = ['P-256', 'P-384', 'P-521'];
   const hashes = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512'];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     hashes.push('SHA3-256', 'SHA3-384', 'SHA3-512');
   }
 

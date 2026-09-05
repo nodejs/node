@@ -8,13 +8,13 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const rejectsXCurves = hasFIPS(3, 5);
 
 // Test EdDSA key generation.
 {
   for (const keyType of ['ed25519', 'ed448', 'x25519', 'x448']) {
-    if (process.features.openssl_is_boringssl && keyType.endsWith('448')) {
+    if (isBoringSSL && keyType.endsWith('448')) {
       common.printSkipMessage(`Skipping unsupported ${keyType} test case`);
       continue;
     }

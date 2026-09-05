@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 const fips3 = hasFIPS(3);
 const rejectsSha1Signing = hasFIPS(3) && !hasFIPS(3, 5);
@@ -269,7 +269,7 @@ async function testSaltLength(keyLength, hash, hLen) {
       ['SHA-256', 32],
       ['SHA-384', 48],
       ['SHA-512', 64],
-      ...(!process.features.openssl_is_boringssl ? [
+      ...(!isBoringSSL ? [
         ['SHA3-256', 32],
         ['SHA3-384', 48],
         ['SHA3-512', 64],

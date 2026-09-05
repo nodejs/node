@@ -1,11 +1,13 @@
 'use strict';
+
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 const assert = require('assert');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   require('../common/boringssl').testTls13SessionTicketSemanticsDiffer();
   return;
 }

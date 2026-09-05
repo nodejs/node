@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 // EC: NIST and OpenSSL curve names are both recognized for raw-public and raw-private
 {
@@ -67,7 +67,7 @@ const { hasOpenSSL } = require('../common/crypto');
     ['x25519', 'x25519_public.pem'],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     rawPublicKeys.push(
       ['ed448', 'ed448_public.pem'],
       ['x448', 'x448_public.pem'],
@@ -76,7 +76,7 @@ const { hasOpenSSL } = require('../common/crypto');
     common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
   }
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     rawPublicKeys.push(
       ['ml-dsa-44', 'ml_dsa_44_public.pem'],
       ['ml-kem-768', 'ml_kem_768_public.pem'],
@@ -122,7 +122,7 @@ if (hasOpenSSL(3, 5)) {
   const unsupportedKeyTypes = [
     ['rsa', 'rsa_public_2048.pem', 'rsa_private_2048.pem'],
   ];
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     unsupportedKeyTypes.push(['dsa', 'dsa_public.pem', 'dsa_private.pem']);
   } else {
     common.printSkipMessage('Skipping unsupported dsa test case');
@@ -148,7 +148,7 @@ if (hasOpenSSL(3, 5)) {
   }
 
   // DH keys also don't support raw formats
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     const privKeyObj = crypto.createPrivateKey(
       fixtures.readKey('dh_private.pem', 'ascii'));
     assert.throws(() => privKeyObj.export({ format: 'raw-private' }),
@@ -170,7 +170,7 @@ if (hasOpenSSL(3, 5)) {
 
 // PQC import throws when PQC is not supported
 if (!hasOpenSSL(3, 5)) {
-  const unsupported = process.features.openssl_is_boringssl ?
+  const unsupported = isBoringSSL ?
     // BoringSSL supports ML-DSA and ML-KEM-{768,1024}, but not ML-KEM-512 or SLH-DSA.
     ['ml-kem-512', 'slh-dsa-sha2-128f', 'slh-dsa-shake-128f'] :
     [
@@ -232,7 +232,7 @@ if (!hasOpenSSL(3, 5)) {
 }
 
 // ML-KEM: public keys of different type cannot be imported as the other type
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   const mlKem768Pub = crypto.createPublicKey(
     fixtures.readKey('ml_kem_768_public.pem', 'ascii'));
   const mlKem1024Pub = crypto.createPublicKey(
@@ -251,7 +251,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
 }
 
 // ML-DSA: -44 and -65 public keys cannot be imported as the other type
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   const mlDsa44Pub = crypto.createPublicKey(
     fixtures.readKey('ml_dsa_44_public.pem', 'ascii'));
   const mlDsa65Pub = crypto.createPublicKey(
@@ -333,10 +333,10 @@ if (hasOpenSSL(3, 5)) {
     namedCurve: 'P-256',
   }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
 
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
   }
-  for (const type of process.features.openssl_is_boringssl ?
+  for (const type of isBoringSSL ?
     ['ed25519', 'x25519'] :
     ['ed25519', 'ed448', 'x25519', 'x448']) {
     const priv = crypto.createPrivateKey(
@@ -364,7 +364,7 @@ if (hasOpenSSL(3, 5)) {
 }
 
 // raw-private cannot be used for ml-kem and ml-dsa
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   for (const type of ['ml-kem-768', 'ml-dsa-44']) {
     const priv = crypto.createPrivateKey(
       fixtures.readKey(`${type.replaceAll('-', '_')}_private_seed_only.pem`, 'ascii'));
@@ -472,7 +472,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
                 { code: 'ERR_INVALID_ARG_VALUE' });
 
   // PQC raw-seed -> createPublicKey
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     const mlDsaPriv = crypto.createPrivateKey(
       fixtures.readKey('ml_dsa_44_private_seed_only.pem', 'ascii'));
     const mlDsaPub = crypto.createPublicKey(
@@ -521,10 +521,10 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
 
 // x25519, ed25519, x448, and ed448 cannot be used as 'ec' namedCurve values
 {
-  if (process.features.openssl_is_boringssl) {
+  if (isBoringSSL) {
     common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
   }
-  for (const type of process.features.openssl_is_boringssl ?
+  for (const type of isBoringSSL ?
     ['ed25519', 'x25519'] :
     ['ed25519', 'x25519', 'ed448', 'x448']) {
     const priv = crypto.createPrivateKey(

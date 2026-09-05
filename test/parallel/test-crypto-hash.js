@@ -1,5 +1,7 @@
 'use strict';
+
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
@@ -189,7 +191,7 @@ assert.throws(
 }
 
 // Test XOF hash functions and the outputLength option.
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   const invalidXofLength = {
     code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
     name: 'Error',

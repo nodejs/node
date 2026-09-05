@@ -6,10 +6,14 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const {
+  hasOpenSSL,
+  hasFIPS,
+  isBoringSSL: commonIsBoringSSL,
+} = require('../common/crypto');
 const { promisify } = require('util');
 
-const isBoringSSL = process.features.openssl_is_boringssl;
+const isBoringSSL = commonIsBoringSSL;
 const isFips = hasFIPS(3);
 
 if (!hasOpenSSL(3) && !isBoringSSL) {

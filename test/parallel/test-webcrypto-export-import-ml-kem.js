@@ -5,9 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+if (!hasOpenSSL(3, 5) && !isBoringSSL)
   common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
@@ -105,7 +105,7 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
       extractable,
       privateUsages);
   } catch (err) {
-    if (process.features.openssl_is_boringssl) {
+    if (isBoringSSL) {
       assert.strictEqual(err.name, 'DataError');
       assert.strictEqual(err.cause.code,
                          'ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED');
@@ -469,7 +469,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
 (async function() {
   const tests = [];
   for (const vector of testVectors) {
-    if (process.features.openssl_is_boringssl && vector.name === 'ML-KEM-512') {
+    if (isBoringSSL && vector.name === 'ML-KEM-512') {
       common.printSkipMessage('Skipping unsupported ML-KEM-512 test');
       continue;
     }
@@ -525,7 +525,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
   }
 })().then(common.mustCall());
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   (async function() {
     for (const { name, privateUsages } of testVectors) {
       const pem = fixtures.readKey(getKeyFileName(name.toLowerCase(), 'private_priv_only'), 'ascii');

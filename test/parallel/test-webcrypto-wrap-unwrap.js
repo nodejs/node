@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { getFips } = require('crypto');
@@ -206,7 +206,7 @@ async function generateKeysToWrap() {
     },
   ];
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5) || isBoringSSL) {
     for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
       parameters.push({
         algorithm: { name },
@@ -217,7 +217,7 @@ async function generateKeysToWrap() {
     }
   }
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     parameters.push(
       {
         algorithm: {

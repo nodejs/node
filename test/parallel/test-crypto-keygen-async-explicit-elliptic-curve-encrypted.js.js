@@ -4,20 +4,22 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
-  common.skip('BoringSSL does not support paramEncoding: explicit');
-
-const assert = require('assert');
 const {
-  generateKeyPair,
-} = require('crypto');
-const {
+  isBoringSSL,
   hasFIPS,
   testSignVerify,
   spkiExp,
   sec1EncExp,
   hasOpenSSL,
 } = require('../common/crypto');
+
+if (isBoringSSL)
+  common.skip('BoringSSL does not support paramEncoding: explicit');
+
+const assert = require('assert');
+const {
+  generateKeyPair,
+} = require('crypto');
 
 {
   // Test async explicit elliptic curve key generation with an encrypted

@@ -6,7 +6,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -87,7 +87,7 @@ const fips4 = hasFIPS(4);
      'a7abd704d0be364c6d4a530b6f93fcaff95474a2eee5a127ff86c5d095a2a812'],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.push(
       ['hello hello hello', 'there', 'my friend indeed', 'SHA3-256',
        '89b3751df2ada85322a57ec82f7d0a5c233c6def91c92e681bc5118bd5768dca'],
@@ -140,7 +140,7 @@ const fips4 = hasFIPS(4);
      '12790ce09027db067d680670f4dc704715b5120d139e8fde810afc34fb66f9f1'],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.push(
       ['hello hello hello', 'my friend indeed', 1000, 'SHA3-256',
        '0f69b46660cba27b95215d5676492c64ed6abf6d426669a4a02b0ca3a1c36c11'],
@@ -176,7 +176,7 @@ const fips4 = hasFIPS(4);
     [{ name: 'HMAC', hash: 'SHA-512' }, 'sign', 1024],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     vectors.push(
       [{ name: 'HMAC', hash: 'SHA3-256', length: 256 }, 'sign', 256],
       [{ name: 'HMAC', hash: 'SHA3-384', length: 384 }, 'sign', 384],
@@ -236,7 +236,7 @@ const fips4 = hasFIPS(4);
     [{ name: 'HMAC', hash: 'SHA-512' }, 'sign', 1024],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     vectors.push(
       [{ name: 'HMAC', hash: 'SHA3-256', length: 256 }, 'sign', 256],
       [{ name: 'HMAC', hash: 'SHA3-384', length: 384 }, 'sign', 384],
@@ -372,7 +372,7 @@ if (hasOpenSSL(3) && !hasFIPS()) {
     }
   } else {
     test('X25519').then(common.mustCall());
-    if (!process.features.openssl_is_boringssl) {
+    if (!isBoringSSL) {
       test('X448').then(common.mustCall());
     } else {
       common.printSkipMessage('Skipping unsupported X448 test case');

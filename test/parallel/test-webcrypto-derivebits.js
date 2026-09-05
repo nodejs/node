@@ -7,7 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 const requiresLongHkdfInputs = hasFIPS(3) && !hasFIPS(3, 5);
 const rejectsWeakPbkdf2Inputs = hasFIPS(4);
@@ -152,7 +152,7 @@ const rejectsXCurves = hasFIPS(3, 5);
     }
   } else {
     test('X25519').then(common.mustCall());
-    if (!process.features.openssl_is_boringssl) {
+    if (!isBoringSSL) {
       test('X448').then(common.mustCall());
     } else {
       common.printSkipMessage('Skipping unsupported X448 test case');
