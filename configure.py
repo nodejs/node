@@ -850,6 +850,13 @@ parser.add_argument('--enable-v8windbg',
     default=None,
     help=argparse.SUPPRESS)  # Undocumented.
 
+parser.add_argument('--enable-v8debughelper',
+    action='store_true',
+    dest='enable_v8debughelper',
+    default=None,
+    help='Build V8\'s debug helper as a shared library, loadable by a debugger '
+         'extension.')
+
 parser.add_argument('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
@@ -2248,6 +2255,7 @@ def configure_v8(o, configs):
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
   o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
+  o['variables']['node_enable_v8debughelper'] = b(options.enable_v8debughelper)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8:
@@ -2255,6 +2263,8 @@ def configure_v8(o, configs):
       raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
     if options.enable_v8windbg:
       raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+    if options.enable_v8debughelper:
+      raise Exception('--enable-v8debughelper is incompatible with --without-bundled-v8.')
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config("v8")
     if pkg_libs and pkg_libpath:
       output['libraries'] += [pkg_libpath] + pkg_libs.split()
