@@ -249,6 +249,20 @@ class Sink {
 }
 
 {
+  // abort() must abort the controller signal even if .signal was never
+  // observed before the abort (lazy AbortController materialization).
+  let ctrl;
+  const err = new Error('abort-before-signal');
+  const ws = new WritableStream({
+    start(c) { ctrl = c; },
+  });
+  assert.ok(ctrl);
+  ws.abort(err);
+  assert.strictEqual(ctrl.signal.aborted, true);
+  assert.strictEqual(ctrl.signal.reason, err);
+}
+
+{
   let controller;
   const writable = new WritableStream({
     start(c) { controller = c; }
