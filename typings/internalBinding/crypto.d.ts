@@ -787,6 +787,12 @@ declare namespace InternalCryptoBinding {
       InternalX509Certificate: InternalX509CertificateConstructor,
     ];
 
+  type PKCS12ParseResult = [
+    privateKey: KeyObjectHandle | null,
+    certificate: X509CertificateHandle | null,
+    additionalCertificates: X509CertificateHandle[],
+  ];
+
   interface CipherInfo {
     name: string;
     nid: number;
@@ -1020,6 +1026,10 @@ export interface CryptoBinding {
     functionName?: InternalCryptoBinding.OptionalBufferSource,
     customization?: InternalCryptoBinding.OptionalBufferSource,
   ): string | InternalCryptoBinding.Buffer;
+  parsePKCS12(
+    bundle: InternalCryptoBinding.ByteSource,
+    passphrase?: InternalCryptoBinding.ByteSource,
+  ): InternalCryptoBinding.PKCS12ParseResult;
   parseX509(data: InternalCryptoBinding.ByteSource): InternalCryptoBinding.X509CertificateHandle;
   privateDecrypt: InternalCryptoBinding.PublicKeyCipher;
   privateEncrypt: InternalCryptoBinding.PublicKeyCipher;

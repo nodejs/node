@@ -5516,6 +5516,65 @@ const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ```
 
+### `crypto.parsePKCS12(bundle[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `bundle` {ArrayBuffer|Buffer|TypedArray|DataView} The DER-encoded PKCS#12
+  bundle.
+* `options` {Object}
+  * `passphrase` {string|ArrayBuffer|Buffer|TypedArray|DataView} The passphrase
+    protecting the bundle. Omit for bundles with no passphrase. PKCS#12
+    encodes an absent and an empty passphrase differently, but OpenSSL tries
+    both, so omitting this option and passing `''` behave the same. The
+    passphrase must not contain a NUL byte; PKCS#12 passwords cannot
+    represent one, and passing one throws [`ERR_INVALID_ARG_VALUE`][].
+* Returns: {Object}
+  * `privateKey` {KeyObject|null} The private key, or `null` if the bundle
+    contains none.
+  * `certificate` {X509Certificate|null} The certificate associated with
+    `privateKey`, or `null` if the bundle contains none.
+  * `additionalCertificates` {X509Certificate\[]} Every other certificate in
+    the bundle. These are not necessarily certificate authorities; this is
+    whatever remains once `certificate` has been taken out. May be empty.
+
+Parses a PKCS#12 bundle — commonly seen with the `.p12` or `.pfx` extension —
+and returns its contents.
+
+```mjs
+import { parsePKCS12 } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+const { privateKey, certificate } = parsePKCS12(
+  readFileSync('bundle.p12'),
+  { passphrase: 'secret' },
+);
+
+console.log(certificate.subject);
+console.log(privateKey.export({ type: 'pkcs8', format: 'pem' }));
+```
+
+A PKCS#12 bundle may technically contain more than one private key. This API
+returns only the first, matching the behavior of OpenSSL's `PKCS12_parse()`.
+
+`certificate` is identified by its association with the private key. A bundle
+containing no private key therefore reports `certificate` as `null` and returns
+all of its certificates through `additionalCertificates`, including any
+end-entity certificate the bundle holds.
+
+Bundles encrypted with older algorithms — notably RC2 and PBE-SHA1 variants
+produced by legacy Windows tooling and older versions of `keytool` — require
+OpenSSL's legacy provider. Reading these throws an error with the code
+[`ERR_CRYPTO_UNSUPPORTED_OPERATION`][]; starting Node.js with
+[`--openssl-legacy-provider`][] may allow them to be read, subject to the
+security implications of enabling that provider.
+
+To use a PKCS#12 bundle directly for a TLS connection, prefer the `pfx` option
+of [`tls.createSecureContext()`][] rather than parsing and re-supplying the
+parts.
+
 ### `crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)`
 
 <!-- YAML
@@ -7624,11 +7683,14 @@ See the [list of SSL OP Flags][] for details.
 [`--enable-fips`]: cli.md#--enable-fips
 [`--force-fips`]: cli.md#--force-fips
 [`--openssl-config`]: cli.md#--openssl-configfile
+[`--openssl-legacy-provider`]: cli.md#--openssl-legacy-provider
 [`--openssl-shared-config`]: cli.md#--openssl-shared-config
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
 [`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html
 [`DiffieHellmanGroup`]: #class-diffiehellmangroup
+[`ERR_CRYPTO_UNSUPPORTED_OPERATION`]: errors.md#err_crypto_unsupported_operation
+[`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`KeyObject`]: #class-keyobject
 [`Sign`]: #class-sign
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
@@ -7690,6 +7752,7 @@ See the [list of SSL OP Flags][] for details.
 [`stream.Transform`]: stream.md#class-streamtransform
 [`stream.Writable` options]: stream.md#new-streamwritableoptions
 [`stream.transform` options]: stream.md#new-streamtransformoptions
+[`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [`verify.update()`]: #verifyupdatedata-inputencoding
 [`verify.verify()`]: #verifyverifykey-signature-signatureencoding
