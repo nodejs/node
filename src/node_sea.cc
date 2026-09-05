@@ -44,6 +44,10 @@ using v8::Value;
 namespace node {
 namespace sea {
 
+// The reserved asset key under which the ZIP archive named by "vfsArchive"
+// is stored. Must match the name used by lib/internal/vfs/sea.js.
+constexpr std::string_view kVfsArchiveAssetName = "node:sea:vfs.zip";
+
 namespace {
 
 SeaFlags operator|(SeaFlags x, SeaFlags y) {
@@ -272,6 +276,15 @@ void IsVfsEnabled(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(enabled);
 }
 
+void IsVfsArchiveEnabled(const FunctionCallbackInfo<Value>& args) {
+  bool enabled = false;
+  if (IsSingleExecutable()) {
+    const SeaResource& sea_resource = FindSingleExecutableResource();
+    enabled = static_cast<bool>(sea_resource.flags & SeaFlags::kVfsArchive);
+  }
+  args.GetReturnValue().Set(enabled);
+}
+
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   bool is_building_sea =
       !per_process::cli_options->experimental_sea_config.empty();
@@ -466,6 +479,16 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
       if (use_vfs) {
         result.flags |= SeaFlags::kEnableVfs;
       }
+    } else if (key == "vfsArchive") {
+      std::string_view archive_path;
+      if (field.value().get_string().get(archive_path)) {
+        FPrintF(stderr,
+                "\"vfsArchive\" field of %s is not a string\n",
+                config_path);
+        return std::nullopt;
+      }
+      result.vfs_archive_path = archive_path;
+      result.flags |= SeaFlags::kVfsArchive;
     } else if (key == "assets") {
       simdjson::ondemand::object assets_object;
       if (field.value().get_object().get(assets_object)) {
@@ -595,6 +618,26 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
               "\"useVfs\" is not supported when \"useCodeCache\" is true\n");
       return std::nullopt;
     }
+  }
+
+  if (static_cast<bool>(result.flags & SeaFlags::kVfsArchive)) {
+    if (!static_cast<bool>(result.flags & SeaFlags::kEnableVfs)) {
+      FPrintF(stderr, "\"vfsArchive\" requires \"useVfs\" to be true\n");
+      return std::nullopt;
+    }
+    if (!result.assets.empty()) {
+      FPrintF(stderr,
+              "\"vfsArchive\" cannot be used together with \"assets\"\n");
+      return std::nullopt;
+    }
+    if (result.vfs_archive_path.empty()) {
+      FPrintF(stderr,
+              "\"vfsArchive\" field of %s is not a non-empty string\n",
+              config_path);
+      return std::nullopt;
+    }
+    // The archive is embedded as a single reserved asset.
+    result.flags |= SeaFlags::kIncludeAssets;
   }
 
   if (result.main_path.empty()) {
@@ -808,6 +851,27 @@ ExitCode GenerateSingleExecutableBlob(
   if (!config.assets.empty() && BuildAssets(config.assets, &assets) != 0) {
     return ExitCode::kGenericUserError;
   }
+  if (static_cast<bool>(config.flags & SeaFlags::kVfsArchive)) {
+    std::string archive;
+    int r = ReadFileSync(&archive, config.vfs_archive_path.c_str());
+    if (r != 0) {
+      const char* err = uv_strerror(r);
+      FPrintF(stderr,
+              "Cannot read vfsArchive %s: %s\n",
+              config.vfs_archive_path,
+              err);
+      return ExitCode::kGenericUserError;
+    }
+    // Only a signature sanity check; the archive is parsed by the ZIP
+    // support in JS when the executable starts.
+    if (archive.size() < 4 || archive[0] != 'P' || archive[1] != 'K') {
+      FPrintF(stderr,
+              "vfsArchive %s is not a ZIP archive\n",
+              config.vfs_archive_path);
+      return ExitCode::kGenericUserError;
+    }
+    assets.emplace(std::string(kVfsArchiveAssetName), std::move(archive));
+  }
   std::unordered_map<std::string_view, std::string_view> assets_view;
   for (auto const& [key, content] : assets) {
     assets_view.emplace(key, content);
@@ -981,6 +1045,7 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "isSea", IsSea);
   SetMethod(context, target, "isVfsEnabled", IsVfsEnabled);
+  SetMethod(context, target, "isVfsArchiveEnabled", IsVfsArchiveEnabled);
   SetMethod(context,
             target,
             "isExperimentalSeaWarningNeeded",
@@ -992,6 +1057,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
   registry->Register(IsVfsEnabled);
+  registry->Register(IsVfsArchiveEnabled);
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);
