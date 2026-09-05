@@ -4,7 +4,14 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const {
+  isBoringSSL,
+  hasFIPS,
+  testEncryptDecrypt,
+  testSignVerify,
+} = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support RSA-PSS key pair generation');
 
 const assert = require('assert');
@@ -12,11 +19,6 @@ const {
   constants,
   generateKeyPair,
 } = require('crypto');
-const {
-  hasFIPS,
-  testEncryptDecrypt,
-  testSignVerify,
-} = require('../common/crypto');
 
 // Test RSA-PSS.
 {

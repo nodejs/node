@@ -4,9 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+if (!hasOpenSSL(3, 5) && !isBoringSSL)
   common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
@@ -21,7 +21,7 @@ const algorithms = new Set([
   'ml-kem-512', 'ml-kem-768', 'ml-kem-1024',
 ]);
 // BoringSSL does not support ML-KEM-512.
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   algorithms.delete('ml-kem-512');
 }
 

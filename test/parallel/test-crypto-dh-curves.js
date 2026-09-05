@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const {
   DH_CHECK_P_NOT_PRIME,
   DH_CHECK_P_NOT_SAFE_PRIME,
@@ -21,7 +21,7 @@ const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
           'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
 crypto.createDiffieHellman(p, 'hex');
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   const notPrime = Buffer.from(p, 'hex');
   notPrime[notPrime.length - 1] = 0xfd;
   assert.strictEqual(
@@ -63,7 +63,7 @@ assert.throws(
   });
 
 // Confirm DH_check() results are exposed for optional examination.
-const bad_dh = process.features.openssl_is_boringssl ?
+const bad_dh = isBoringSSL ?
   crypto.createDiffieHellman('abcd', 'hex', 0) :
   crypto.createDiffieHellman('02', 'hex');
 assert.notStrictEqual(bad_dh.verifyError, 0);
@@ -77,7 +77,7 @@ if (hasOpenSSL(3)) {
     () => crypto.createDiffieHellman(Buffer.from(p, 'hex'),
                                      Buffer.from(p, 'hex')),
     { code: 'ERR_OSSL_DH_BAD_GENERATOR' });
-} else if (!process.features.openssl_is_boringssl) {
+} else if (!isBoringSSL) {
   assert.strictEqual(
     crypto.createDiffieHellman(Buffer.from(p, 'hex'),
                                Buffer.from(p, 'hex')).verifyError,

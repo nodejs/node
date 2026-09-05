@@ -11,14 +11,14 @@ const {
   createPublicKey,
   createPrivateKey,
 } = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const rejectsXCurves = hasFIPS(3, 5);
 
 // Test generateKeyPairSync with raw encoding for EdDSA/ECDH key types.
 {
   const types = ['ed25519', 'x25519'];
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     types.push('ed448', 'x448');
   }
   for (const type of types) {
@@ -60,7 +60,7 @@ const rejectsXCurves = hasFIPS(3, 5);
 // Test async generateKeyPair with raw encoding for EdDSA/ECDH key types.
 {
   const types = ['ed25519', 'x25519'];
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     types.push('ed448', 'x448');
   }
   for (const type of types) {
@@ -175,7 +175,7 @@ const rejectsXCurves = hasFIPS(3, 5);
 }
 
 // Test error: raw with DSA.
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   assert.throws(() => generateKeyPairSync('dsa', {
     modulusLength: 2048,
     publicKeyEncoding: { format: 'raw-public' },
@@ -222,7 +222,7 @@ if (!process.features.openssl_is_boringssl) {
 }
 
 // PQC key types
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   // Test raw encoding for ML-DSA key types (raw-public + raw-seed only).
   {
     for (const type of ['ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87']) {
@@ -249,7 +249,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   // Test raw encoding for ML-KEM key types (raw-public + raw-seed only).
   {
     for (const type of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
-      if (process.features.openssl_is_boringssl && type === 'ml-kem-512') {
+      if (isBoringSSL && type === 'ml-kem-512') {
         common.printSkipMessage(`Skipping unsupported ${type} test case`);
         continue;
       }
@@ -276,7 +276,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   // Test raw encoding for SLH-DSA key types.
   {
     for (const type of ['slh-dsa-sha2-128f', 'slh-dsa-shake-128f']) {
-      if (process.features.openssl_is_boringssl) {
+      if (isBoringSSL) {
         common.printSkipMessage(`Skipping unsupported ${type} test case`);
         continue;
       }
@@ -291,7 +291,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   }
 
   // Test error: raw-seed with SLH-DSA (not supported).
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     assert.throws(() => generateKeyPairSync('slh-dsa-sha2-128f', {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-seed' },

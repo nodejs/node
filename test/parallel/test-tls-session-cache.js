@@ -28,6 +28,7 @@ const {
   hasOpenSSL,
   hasFIPS,
   opensslCli,
+  isBoringSSL: commonIsBoringSSL,
 } = require('../common/crypto');
 
 if (!opensslCli) {
@@ -38,7 +39,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
 const { spawn } = require('child_process');
-const isBoringSSL = process.features.openssl_is_boringssl;
+const isBoringSSL = commonIsBoringSSL;
 
 doTest({ tickets: false }, function() {
   doTest({ tickets: true }, function() {

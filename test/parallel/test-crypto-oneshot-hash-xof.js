@@ -1,13 +1,15 @@
 'use strict';
+
 // This tests crypto.hash() works.
 const common = require('../common');
+const { isBoringSSL } = require('../common/crypto');
 
 if (!common.hasCrypto) common.skip('missing crypto');
 
 const assert = require('assert');
 const crypto = require('crypto');
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   common.skip('BoringSSL does not support XOF hash functions');
 }
 

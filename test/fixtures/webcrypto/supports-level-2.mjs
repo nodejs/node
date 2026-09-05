@@ -13,8 +13,6 @@ const [ECDH, X25519] = await Promise.all([
   subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']),
 ]);
 
-const boringSSL = process.features.openssl_is_boringssl;
-
 export const vectors = {
   'encrypt': [
     [false, 'Invalid'],

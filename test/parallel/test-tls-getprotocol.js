@@ -3,7 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 // This test ensures that `getProtocol` returns the right protocol
 // from a TLS connection
@@ -28,7 +28,7 @@ let clientConfigs = [
   },
 ];
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   // Remove the TLSv1 and TLSv1.1 cases. BoringSSL does not negotiate those
   // legacy protocols in this configuration; keep TLSv1.2 to cover getProtocol()
   // on a successful BoringSSL TLS handshake.
@@ -42,7 +42,7 @@ const serverConfig = {
   cert: fixtures.readKey('agent2-cert.pem')
 };
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   serverConfig.ciphers = fips3 ?
     'ECDHE-RSA-AES256-GCM-SHA384' : 'RSA@SECLEVEL=0';
 }

@@ -6,7 +6,13 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (process.features.openssl_is_boringssl) {
+const {
+  isBoringSSL,
+  hasFIPS,
+  hasOpenSSL,
+} = require('../common/crypto');
+
+if (isBoringSSL) {
   common.skip('BoringSSL does not support FIPS');
 }
 
@@ -18,7 +24,6 @@ const { Worker } = require('node:worker_threads');
 const {
   spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
-const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 const channelName = 'crypto.fips.indicator';
 const mode = process.env.NODE_TEST_FIPS_FORCE_MODE;

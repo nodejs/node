@@ -6,7 +6,8 @@ if (!common.hasCrypto) {
 }
 
 const {
-  hasOpenSSL3,
+  hasOpenSSL,
+  isBoringSSL,
 } = require('../common/crypto');
 
 const assert = require('assert');
@@ -38,7 +39,7 @@ const errorHandler = common.mustCall((err) => {
   assert.match(err.code,
                /ERR_SSL_(WRONG_VERSION_NUMBER|PACKET_LENGTH_TOO_LONG|BAD_RECORD_TYPE)/);
   assert.strictEqual(err.library, 'SSL routines');
-  if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
+  if (!hasOpenSSL(3) && !isBoringSSL)
     assert.strictEqual(err.function, 'ssl3_get_record');
   assert.match(err.reason,
                /wrong[\s_]version[\s_]number|packet[\s_]length[\s_]too[\s_]long|bad[\s_]record[\s_]type/i);
@@ -99,7 +100,7 @@ function sendBADTLSRecord() {
     assert.match(err.code,
                  /ERR_SSL_(TLSV1_ALERT_PROTOCOL_VERSION|TLSV1_ALERT_RECORD_OVERFLOW|(SSL\/)?TLS_ALERT_UNEXPECTED_MESSAGE)/);
     assert.strictEqual(err.library, 'SSL routines');
-    if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
+    if (!hasOpenSSL(3) && !isBoringSSL)
       assert.strictEqual(err.function, 'ssl3_read_bytes');
     assert.match(err.reason,
                  /tlsv1[\s_]alert[\s_]protocol[\s_]version|tlsv1[\s_]alert[\s_]record[\s_]overflow|(ssl\/)?tls[\s_]alert[\s_]unexpected[\s_]message/i);

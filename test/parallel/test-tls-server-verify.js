@@ -26,7 +26,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { opensslCli } = require('../common/crypto');
+const { opensslCli, isBoringSSL } = require('../common/crypto');
 
 if (!opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -125,7 +125,7 @@ let testCases =
      ] },
   ];
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   // Remove the delayed client-certificate verification case. It depends on TLS
   // renegotiation to request a client certificate after the initial handshake,
   // but BoringSSL does not support caller-initiated renegotiation.

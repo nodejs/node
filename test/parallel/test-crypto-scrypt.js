@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const isFips = hasFIPS(3);
 
 if (typeof crypto.scrypt !== 'function' || typeof crypto.scryptSync !== 'function')
@@ -203,7 +203,7 @@ for (const options of toobig) {
   const expected = isFips ? {
     code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS',
   } : {
-    message: process.features.openssl_is_boringssl ?
+    message: isBoringSSL ?
       /Invalid scrypt params:.*(INVALID_PARAMETERS|MEMORY_LIMIT_EXCEEDED)/ :
       /Invalid scrypt params:.*memory limit exceeded/,
     code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS',
