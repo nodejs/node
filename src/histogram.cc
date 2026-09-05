@@ -5,31 +5,43 @@
 #include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "threadpoolwork-inl.h"
 #include "util.h"
 #include "v8-typed-array.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <numbers>
 #include <vector>
 
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
+using v8::Exception;
+using v8::FastApiCallbackOptions;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Map;
+using v8::Name;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::Promise;
 using v8::String;
 using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 template <typename T>
@@ -66,6 +78,8 @@ std::shared_ptr<Histogram> Histogram::Create(const Options& options) {
 
 void Histogram::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("histogram", GetMemorySize());
+  tracker->TrackFieldWithSize("qrde_snapshot",
+                              GetCachedRecordedSnapshotMemorySize());
 }
 
 bool Histogram::IsCompatible(const Histogram& other) const {
@@ -76,6 +90,99 @@ bool Histogram::IsCompatible(const Histogram& other) const {
              other.histogram_->highest_trackable_value &&
          histogram_->significant_figures ==
              other.histogram_->significant_figures;
+}
+
+Histogram::RecordedSnapshot Histogram::BuildRecordedSnapshot(
+    const hdr_histogram* histogram) {
+  RecordedSnapshot snapshot;
+  snapshot.total_count = histogram->total_count;
+  if (snapshot.total_count == 0) return snapshot;
+
+  const size_t occupied =
+      std::count_if(histogram->counts,
+                    histogram->counts + histogram->counts_len,
+                    [](int64_t count) { return count != 0; });
+  snapshot.buckets.reserve(occupied);
+  hdr_iter iter;
+  hdr_iter_recorded_init(&iter, histogram);
+  while (hdr_iter_next(&iter)) {
+    snapshot.buckets.push_back({
+        static_cast<double>(iter.median_equivalent_value),
+        static_cast<double>(
+            hdr_size_of_equivalent_value_range(histogram, iter.value)),
+        iter.count,
+        iter.cumulative_count,
+    });
+  }
+  return snapshot;
+}
+
+Histogram::RecordedSnapshotSource Histogram::GetRecordedSnapshotSource(
+    bool use_cache) const {
+  RecordedSnapshotSource source;
+  int64_t lowest;
+  int64_t highest;
+  int figures;
+  {
+    RwLock::ScopedReadLock lock(mutex_);
+    source.generation = mutation_generation_;
+    if (use_cache && recorded_snapshot_cache_) {
+      source.snapshot = recorded_snapshot_cache_;
+      source.cache_hit = true;
+      return source;
+    }
+    if (histogram_->total_count == 0) {
+      source.snapshot = std::make_shared<const RecordedSnapshot>();
+      return source;
+    }
+    lowest = histogram_->lowest_discernible_value;
+    highest = histogram_->highest_trackable_value;
+    figures = histogram_->significant_figures;
+  }
+
+  hdr_histogram* copy;
+  if (hdr_init(lowest, highest, figures, &copy) != 0) return source;
+  source.histogram.reset(copy);
+
+  RwLock::ScopedReadLock lock(mutex_);
+  source.generation = mutation_generation_;
+  if (use_cache && recorded_snapshot_cache_) {
+    source.histogram.reset();
+    source.snapshot = recorded_snapshot_cache_;
+    source.cache_hit = true;
+    return source;
+  }
+  if (histogram_->total_count == 0) {
+    source.histogram.reset();
+    source.snapshot = std::make_shared<const RecordedSnapshot>();
+    return source;
+  }
+
+  CHECK_EQ(source.histogram->counts_len, histogram_->counts_len);
+  source.histogram->min_value = histogram_->min_value;
+  source.histogram->max_value = histogram_->max_value;
+  source.histogram->normalizing_index_offset =
+      histogram_->normalizing_index_offset;
+  source.histogram->conversion_ratio = histogram_->conversion_ratio;
+  source.histogram->total_count = histogram_->total_count;
+  std::memcpy(source.histogram->counts,
+              histogram_->counts,
+              histogram_->counts_len * sizeof(*histogram_->counts));
+  return source;
+}
+
+void Histogram::CacheRecordedSnapshot(
+    uint64_t generation, std::shared_ptr<const RecordedSnapshot> snapshot) {
+  RwLock::ScopedWriteLock lock(mutex_);
+  if (generation == mutation_generation_) {
+    recorded_snapshot_cache_ = std::move(snapshot);
+  }
+}
+
+size_t Histogram::GetCachedRecordedSnapshotMemorySize() const {
+  RwLock::ScopedReadLock lock(mutex_);
+  if (!recorded_snapshot_cache_) return 0;
+  return recorded_snapshot_cache_->buckets.capacity() * sizeof(RecordedBucket);
 }
 
 double Histogram::Cdf(int64_t value) const {
@@ -169,6 +276,7 @@ double Histogram::Subtract(const Histogram& other) {
       histogram_->counts[i] = count;
     }
     hdr_reset_internal_counters(histogram_.get());
+    InvalidateRecordedSnapshot();
     exceeds_ = (exceeds_ > other.exceeds_) ? exceeds_ - other.exceeds_ : 0;
     return static_cast<double>(dropped);
   };
@@ -273,22 +381,157 @@ static double BetaContinuedFraction(double a, double b, double x) {
   return h;
 }
 
+struct BetaParameters {
+  double a;
+  double b;
+  double log_normalization;
+  double mean;
+  double standard_deviation;
+  double skewness;
+  double excess_kurtosis;
+  double log_scale;
+  double symmetry_point;
+  bool use_asymptotic_front;
+  bool use_asymptotic_cdf;
+};
+
+static double StirlingCorrection(double x) {
+  const double inverse = 1.0 / x;
+  const double inverse_squared = inverse * inverse;
+  return inverse * (1.0 / 12.0 +
+                    inverse_squared *
+                        (-1.0 / 360.0 +
+                         inverse_squared *
+                             (1.0 / 1260.0 +
+                              inverse_squared *
+                                  (-1.0 / 1680.0 + inverse_squared / 1188.0))));
+}
+
+static BetaParameters MakeBetaParameters(double a,
+                                         double b,
+                                         bool approximate_large_shapes) {
+  const double sum = a + b;
+  const double mean = a / sum;
+  const bool use_asymptotic_front =
+      approximate_large_shapes && a >= 8.0 && b >= 8.0;
+  // The continued fraction needs progressively more iterations as both
+  // beta shapes grow. At this concentration the Edgeworth error is smaller
+  // than the continued-fraction truncation error.
+  const bool use_asymptotic_cdf =
+      approximate_large_shapes && a * b / sum >= 25'000.0;
+  const double variance = mean * (1.0 - mean) / (sum + 1.0);
+  const double skewness =
+      2.0 * (b - a) * std::sqrt(sum + 1.0) / ((sum + 2.0) * std::sqrt(a * b));
+  const double excess_kurtosis =
+      6.0 * ((a - b) * (a - b) * (sum + 1.0) - a * b * (sum + 2.0)) /
+      (a * b * (sum + 2.0) * (sum + 3.0));
+  return {
+      a,
+      b,
+      use_asymptotic_front ? 0.0
+                           : std::lgamma(sum) - std::lgamma(a) - std::lgamma(b),
+      mean,
+      std::sqrt(variance),
+      skewness,
+      excess_kurtosis,
+      use_asymptotic_front ? 0.5 * std::log(sum * mean * (1.0 - mean) /
+                                            (2.0 * std::numbers::pi)) +
+                                 StirlingCorrection(sum) -
+                                 StirlingCorrection(a) - StirlingCorrection(b)
+                           : 0.0,
+      (a + 1.0) / (sum + 2.0),
+      use_asymptotic_front,
+      use_asymptotic_cdf,
+  };
+}
+
+static BetaParameters ReflectBetaParameters(const BetaParameters& params) {
+  return {
+      params.b,
+      params.a,
+      params.log_normalization,
+      1.0 - params.mean,
+      params.standard_deviation,
+      -params.skewness,
+      params.excess_kurtosis,
+      params.log_scale,
+      1.0 - params.symmetry_point,
+      params.use_asymptotic_front,
+      params.use_asymptotic_cdf,
+  };
+}
+
+static double BetaFront(const BetaParameters& params, double x) {
+  if (x <= 0.0 || x >= 1.0) return 0.0;
+  double log_front;
+  if (params.use_asymptotic_front) {
+    log_front = params.a * std::log1p((x - params.mean) / params.mean) +
+                params.b * std::log1p((params.mean - x) / (1.0 - params.mean)) +
+                params.log_scale;
+  } else {
+    log_front = params.log_normalization + params.a * std::log(x) +
+                params.b * std::log(1.0 - x);
+  }
+  return std::exp(log_front);
+}
+
+static double AsymptoticBetaCdf(const BetaParameters& params,
+                                double x,
+                                double* front_out) {
+  const double z = (x - params.mean) / params.standard_deviation;
+  const double normal_cdf = 0.5 * std::erfc(-z / std::numbers::sqrt2);
+  if (std::fabs(z) >= 8.0) {
+    if (front_out != nullptr) *front_out = 0.0;
+    return normal_cdf;
+  }
+
+  const double z2 = z * z;
+  const double z3 = z2 * z;
+  const double normal_pdf =
+      std::exp(-0.5 * z2) / std::sqrt(2.0 * std::numbers::pi);
+  if (front_out != nullptr) {
+    const double z4 = z2 * z2;
+    const double z6 = z3 * z3;
+    const double density_correction =
+        1.0 + params.skewness / 6.0 * (z3 - 3.0 * z) +
+        params.excess_kurtosis / 24.0 * (z4 - 6.0 * z2 + 3.0) +
+        params.skewness * params.skewness / 72.0 *
+            (z6 - 15.0 * z4 + 45.0 * z2 - 15.0);
+    *front_out = x * (1.0 - x) * normal_pdf / params.standard_deviation *
+                 std::max(0.0, density_correction);
+  }
+  const double correction = params.skewness / 6.0 * (1.0 - z2) -
+                            params.excess_kurtosis / 24.0 * (z3 - 3.0 * z) -
+                            params.skewness * params.skewness / 72.0 *
+                                (z3 * z2 - 10.0 * z3 + 15.0 * z);
+  return std::clamp(normal_cdf + normal_pdf * correction, 0.0, 1.0);
+}
+
 // Regularized incomplete beta function I_x(a, b).
 // Returns the probability that a Beta(a,b) random variable is <= x.
-static double RegularizedIncompleteBeta(double a, double b, double x) {
+static double RegularizedIncompleteBeta(const BetaParameters& params,
+                                        double x,
+                                        double* front_out = nullptr) {
+  if (front_out != nullptr) *front_out = 0.0;
   if (x <= 0.0) return 0.0;
   if (x >= 1.0) return 1.0;
-
-  double ln_front = std::lgamma(a + b) - std::lgamma(a) - std::lgamma(b) +
-                    a * std::log(x) + b * std::log(1.0 - x);
-  double bt = std::exp(ln_front);
+  if (params.use_asymptotic_cdf) {
+    return AsymptoticBetaCdf(params, x, front_out);
+  }
+  const double front = BetaFront(params, x);
+  if (front_out != nullptr) *front_out = front;
 
   // Use the symmetry relation to ensure the continued fraction
   // converges in the region where it is most accurate.
-  if (x < (a + 1.0) / (a + b + 2.0)) {
-    return bt * BetaContinuedFraction(a, b, x) / a;
+  if (x < params.symmetry_point) {
+    return front * BetaContinuedFraction(params.a, params.b, x) / params.a;
   }
-  return 1.0 - bt * BetaContinuedFraction(b, a, 1.0 - x) / b;
+  return 1.0 -
+         front * BetaContinuedFraction(params.b, params.a, 1.0 - x) / params.b;
+}
+
+static double RegularizedIncompleteBeta(double a, double b, double x) {
+  return RegularizedIncompleteBeta(MakeBetaParameters(a, b, false), x);
 }
 
 // Standard normal CDF: Phi(x) = P(Z <= x).
@@ -337,6 +580,381 @@ static double BinomialCdf(int64_t k, int64_t n, double p) {
   return RegularizedIncompleteBeta(
       static_cast<double>(n - k), static_cast<double>(k + 1), 1.0 - p);
 }
+
+struct QrdeResult {
+  std::vector<double> quantiles;
+  std::vector<double> densities;
+  size_t corrections = 0;
+};
+
+enum class QrdeDequantization : uint32_t {
+  kNone,
+  kHdr,
+  kAll,
+};
+
+static bool QrdeShouldDequantize(const Histogram::RecordedBucket& bucket,
+                                 QrdeDequantization dequantization) {
+  return bucket.count > 1 && (dequantization == QrdeDequantization::kAll ||
+                              (dequantization == QrdeDequantization::kHdr &&
+                               bucket.resolution > 1.0));
+}
+
+static std::pair<double, double> QrdeBucketRange(
+    const Histogram::RecordedSnapshot& snapshot,
+    size_t index,
+    QrdeDequantization dequantization) {
+  const auto& bucket = snapshot.buckets[index];
+  if (!QrdeShouldDequantize(bucket, dequantization)) {
+    return {bucket.value, bucket.value};
+  }
+
+  const double half_resolution = bucket.resolution / 2.0;
+  if (snapshot.buckets.size() == 1) {
+    return {bucket.value - half_resolution, bucket.value + half_resolution};
+  }
+  if (index == 0) {
+    return {bucket.value, bucket.value + half_resolution};
+  }
+  if (index + 1 == snapshot.buckets.size()) {
+    return {bucket.value - half_resolution, bucket.value};
+  }
+  return {bucket.value - half_resolution, bucket.value + half_resolution};
+}
+
+static bool QrdeExactSupport(const Histogram::RecordedSnapshot& snapshot,
+                             const BetaParameters& params,
+                             const BetaParameters& reflected,
+                             double count,
+                             size_t* begin_index,
+                             size_t* end_index) {
+  // Collapsing both tails changes a quantile by at most 2^-79 times the
+  // histogram range, which is less than 2^-16 over the int64 value domain.
+  constexpr double tail_mass = 0x1p-80;
+  size_t lo = 0;
+  size_t hi = snapshot.buckets.size();
+  while (lo < hi) {
+    const size_t mid = lo + (hi - lo) / 2;
+    const double rank =
+        static_cast<double>(snapshot.buckets[mid].cumulative_count) / count;
+    const double cdf = RegularizedIncompleteBeta(params, rank);
+    if (!std::isfinite(cdf)) return false;
+    if (cdf < tail_mass) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  if (lo == snapshot.buckets.size()) return false;
+  const size_t first = lo;
+
+  lo = first;
+  hi = snapshot.buckets.size();
+  while (lo < hi) {
+    const size_t mid = lo + (hi - lo) / 2;
+    const double remaining_rank =
+        static_cast<double>(snapshot.total_count -
+                            snapshot.buckets[mid].cumulative_count) /
+        count;
+    const double survival =
+        RegularizedIncompleteBeta(reflected, remaining_rank);
+    if (!std::isfinite(survival)) return false;
+    if (survival > tail_mass) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  if (lo == snapshot.buckets.size() || lo < first) return false;
+  *begin_index = first;
+  *end_index = lo + 1;
+  return true;
+}
+
+static double QrdeQuantile(const Histogram::RecordedSnapshot& snapshot,
+                           double p,
+                           QrdeDequantization dequantization) {
+  const double count = static_cast<double>(snapshot.total_count);
+  const double a = (count + 1.0) * p;
+  const double b = (count + 1.0) * (1.0 - p);
+  const BetaParameters mass_params = MakeBetaParameters(a, b, true);
+  const BetaParameters reflected_params = ReflectBetaParameters(mass_params);
+
+  size_t begin_index = 0;
+  size_t end_index = snapshot.buckets.size();
+  if (mass_params.use_asymptotic_cdf) {
+    // Outside this interval the normal-tail mass is below 2e-33.
+    constexpr double support_deviations = 12.0;
+    const double lower_rank = std::max(
+        0.0,
+        mass_params.mean - support_deviations * mass_params.standard_deviation);
+    const double upper_rank = std::min(
+        1.0,
+        mass_params.mean + support_deviations * mass_params.standard_deviation);
+    const auto first = std::lower_bound(
+        snapshot.buckets.begin(),
+        snapshot.buckets.end(),
+        lower_rank * count,
+        [](const Histogram::RecordedBucket& bucket, double cumulative) {
+          return static_cast<double>(bucket.cumulative_count) < cumulative;
+        });
+    const auto last = std::lower_bound(
+        first,
+        snapshot.buckets.end(),
+        upper_rank * count,
+        [](const Histogram::RecordedBucket& bucket, double cumulative) {
+          return static_cast<double>(bucket.cumulative_count) < cumulative;
+        });
+    begin_index = first - snapshot.buckets.begin();
+    if (last != snapshot.buckets.end()) {
+      end_index = last - snapshot.buckets.begin() + 1;
+    }
+  } else if (snapshot.buckets.size() >= 512) {
+    QrdeExactSupport(snapshot,
+                     mass_params,
+                     reflected_params,
+                     count,
+                     &begin_index,
+                     &end_index);
+  }
+
+  const bool dequantize = dequantization != QrdeDequantization::kNone;
+  const auto first_range = QrdeBucketRange(snapshot, 0, dequantization);
+  const auto last_range =
+      QrdeBucketRange(snapshot, snapshot.buckets.size() - 1, dequantization);
+  const double lower_endpoint = first_range.first;
+  const double upper_endpoint = last_range.second;
+
+  double previous_cdf = 0.0;
+  double previous_survival = 0.0;
+  double previous_front = 0.0;
+  int64_t previous_count =
+      begin_index == 0 ? 0 : snapshot.buckets[begin_index - 1].cumulative_count;
+  if (previous_count != 0) {
+    const double previous_rank = static_cast<double>(previous_count) / count;
+    previous_cdf = RegularizedIncompleteBeta(
+        mass_params, previous_rank, dequantize ? &previous_front : nullptr);
+    if (!std::isfinite(previous_cdf) ||
+        (dequantize && !std::isfinite(previous_front))) {
+      begin_index = 0;
+      end_index = snapshot.buckets.size();
+      previous_count = 0;
+      previous_cdf = 0.0;
+      previous_front = 0.0;
+    } else {
+      previous_cdf = std::clamp(previous_cdf, 0.0, 1.0);
+    }
+  }
+
+  double quantile = lower_endpoint * previous_cdf;
+  bool using_survival = false;
+
+  for (size_t i = begin_index; i < end_index; i++) {
+    const auto& bucket = snapshot.buckets[i];
+    const double u0 = static_cast<double>(previous_count) / count;
+    const double u1 = static_cast<double>(bucket.cumulative_count) / count;
+    double front = 0.0;
+    double mass;
+    // Use the reflected CDF above the symmetry point so small upper-tail
+    // interval weights are not lost to subtraction from one.
+    if (u1 <= mass_params.symmetry_point) {
+      const double cdf =
+          std::clamp(RegularizedIncompleteBeta(
+                         mass_params, u1, dequantize ? &front : nullptr),
+                     previous_cdf,
+                     1.0);
+      mass = cdf - previous_cdf;
+      previous_cdf = cdf;
+    } else {
+      const double remaining_rank =
+          static_cast<double>(snapshot.total_count - bucket.cumulative_count) /
+          count;
+      double survival = RegularizedIncompleteBeta(
+          reflected_params, remaining_rank, dequantize ? &front : nullptr);
+      if (using_survival) {
+        survival = std::clamp(survival, 0.0, previous_survival);
+        mass = previous_survival - survival;
+      } else {
+        survival = std::clamp(survival, 0.0, 1.0 - previous_cdf);
+        mass = 1.0 - previous_cdf - survival;
+        using_survival = true;
+      }
+      previous_survival = survival;
+    }
+
+    if (!QrdeShouldDequantize(bucket, dequantization)) {
+      quantile += bucket.value * mass;
+    } else {
+      // I_x(a + 1, b) = I_x(a, b) - front / a, so the first moment
+      // within this rank interval does not require a second beta CDF.
+      const double sum = a + b;
+      const double rank_width = static_cast<double>(bucket.count) / count;
+      const double local_moment =
+          std::clamp((a / sum - u0) * mass - (front - previous_front) / sum,
+                     0.0,
+                     rank_width * mass);
+      const auto [lower, upper] = QrdeBucketRange(snapshot, i, dequantization);
+      quantile += lower * mass + (upper - lower) * local_moment / rank_width;
+    }
+
+    previous_front = front;
+    previous_count = bucket.cumulative_count;
+  }
+
+  const double remaining_mass =
+      using_survival ? previous_survival : 1.0 - previous_cdf;
+  quantile += upper_endpoint * std::clamp(remaining_mass, 0.0, 1.0);
+  return quantile;
+}
+
+static QrdeResult CalculateQrde(const Histogram::RecordedSnapshot& snapshot,
+                                const std::vector<double>& probabilities,
+                                QrdeDequantization dequantization) {
+  QrdeResult result;
+  if (snapshot.buckets.empty()) return result;
+
+  result.quantiles.resize(probabilities.size());
+  result.densities.resize(probabilities.size() - 1);
+
+  const auto first_range = QrdeBucketRange(snapshot, 0, dequantization);
+  const auto last_range =
+      QrdeBucketRange(snapshot, snapshot.buckets.size() - 1, dequantization);
+  result.quantiles.front() = first_range.first;
+  result.quantiles.back() = last_range.second;
+
+  for (size_t i = 1; i + 1 < probabilities.size(); i++) {
+    double value = QrdeQuantile(snapshot, probabilities[i], dequantization);
+    value =
+        std::clamp(value, result.quantiles.front(), result.quantiles.back());
+    if (value < result.quantiles[i - 1]) {
+      value = result.quantiles[i - 1];
+      result.corrections++;
+    }
+    result.quantiles[i] = value;
+  }
+
+  for (size_t i = 0; i < result.densities.size(); i++) {
+    const double width = result.quantiles[i + 1] - result.quantiles[i];
+    const double probability_mass = probabilities[i + 1] - probabilities[i];
+    result.densities[i] = width == 0.0 ? std::numeric_limits<double>::infinity()
+                                       : probability_mass / width;
+  }
+
+  return result;
+}
+
+static Local<Float64Array> ToFloat64Array(Isolate* isolate,
+                                          const std::vector<double>& values) {
+  auto store =
+      ArrayBuffer::NewBackingStore(isolate, values.size() * sizeof(double));
+  if (!values.empty()) {
+    memcpy(store->Data(), values.data(), values.size() * sizeof(double));
+  }
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(isolate, std::move(store));
+  return Float64Array::New(buffer, 0, values.size());
+}
+
+static const char* QrdeDequantizationName(QrdeDequantization dequantization) {
+  switch (dequantization) {
+    case QrdeDequantization::kNone:
+      return "none";
+    case QrdeDequantization::kHdr:
+      return "hdr";
+    case QrdeDequantization::kAll:
+      return "all";
+  }
+  UNREACHABLE();
+}
+
+class QrdeJob final : public ThreadPoolWork {
+ public:
+  QrdeJob(Environment* env,
+          Local<Promise::Resolver> resolver,
+          std::shared_ptr<Histogram> histogram,
+          Histogram::RecordedSnapshotSource snapshot_source,
+          std::vector<double> probabilities,
+          QrdeDequantization dequantization)
+      : ThreadPoolWork(env, "histogram.qrde"),
+        histogram_(std::move(histogram)),
+        snapshot_source_(std::move(snapshot_source)),
+        probabilities_(std::move(probabilities)),
+        dequantization_(dequantization) {
+    resolver_.Reset(env->isolate(), resolver);
+  }
+
+  void DoThreadPoolWork() override {
+    if (snapshot_source_.snapshot) {
+      snapshot_ = std::move(snapshot_source_.snapshot);
+    } else {
+      snapshot_ = std::make_shared<const Histogram::RecordedSnapshot>(
+          Histogram::BuildRecordedSnapshot(snapshot_source_.histogram.get()));
+      snapshot_source_.histogram.reset();
+    }
+    if (histogram_) {
+      histogram_->CacheRecordedSnapshot(snapshot_source_.generation, snapshot_);
+      histogram_.reset();
+    }
+    result_ = CalculateQrde(*snapshot_, probabilities_, dequantization_);
+  }
+
+  void AfterThreadPoolWork(int status) override {
+    std::unique_ptr<QrdeJob> self(this);
+    Environment* env = ThreadPoolWork::env();
+    CHECK(status == 0 || status == UV_ECANCELED);
+    if (!env->can_call_into_js()) {
+      resolver_.Reset();
+      return;
+    }
+
+    Isolate* isolate = env->isolate();
+    HandleScope handle_scope(isolate);
+    Context::Scope context_scope(env->context());
+    InternalCallbackScope callback_scope(
+        env, Object::New(isolate), {0, 0}, InternalCallbackScope::kNoFlags);
+    Local<Promise::Resolver> resolver =
+        Local<Promise::Resolver>::New(isolate, resolver_);
+
+    if (status == UV_ECANCELED) {
+      USE(resolver->Reject(
+          env->context(),
+          Exception::Error(OneByteString(isolate, "QRDE job was canceled"))));
+      resolver_.Reset();
+      return;
+    }
+
+    Local<Name> names[] = {
+        FIXED_ONE_BYTE_STRING(isolate, "probabilities"),
+        FIXED_ONE_BYTE_STRING(isolate, "quantiles"),
+        FIXED_ONE_BYTE_STRING(isolate, "densities"),
+        FIXED_ONE_BYTE_STRING(isolate, "count"),
+        FIXED_ONE_BYTE_STRING(isolate, "bucketCount"),
+        FIXED_ONE_BYTE_STRING(isolate, "corrections"),
+        FIXED_ONE_BYTE_STRING(isolate, "dequantize"),
+    };
+    Local<Value> values[] = {
+        ToFloat64Array(isolate, probabilities_),
+        ToFloat64Array(isolate, result_.quantiles),
+        ToFloat64Array(isolate, result_.densities),
+        BigInt::New(isolate, snapshot_->total_count),
+        Number::New(isolate, static_cast<double>(snapshot_->buckets.size())),
+        Number::New(isolate, static_cast<double>(result_.corrections)),
+        OneByteString(isolate, QrdeDequantizationName(dequantization_)),
+    };
+    Local<Object> value =
+        Object::New(isolate, Null(isolate), names, values, arraysize(names));
+    USE(resolver->Resolve(env->context(), value));
+    resolver_.Reset();
+  }
+
+ private:
+  std::shared_ptr<Histogram> histogram_;
+  Histogram::RecordedSnapshotSource snapshot_source_;
+  std::shared_ptr<const Histogram::RecordedSnapshot> snapshot_;
+  const std::vector<double> probabilities_;
+  const QrdeDequantization dequantization_;
+  QrdeResult result_;
+  Global<Promise::Resolver> resolver_;
+};
 
 // -----------------------------------------------------------------------
 // Minimal CBOR encoder/decoder (RFC 8949) -- just enough types for
@@ -1113,6 +1731,8 @@ CFunction HistogramBase::fast_record_(
     CFunction::Make(&HistogramBase::FastRecord));
 CFunction HistogramBase::fast_record_delta_(
     CFunction::Make(&HistogramBase::FastRecordDelta));
+CFunction SlidingWindowHistogram::fast_record_(
+    CFunction::Make(&SlidingWindowHistogram::FastRecord));
 CFunction IntervalHistogram::fast_start_(
     CFunction::Make(&IntervalHistogram::FastStart));
 CFunction IntervalHistogram::fast_stop_(
@@ -1165,6 +1785,7 @@ void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
   SetProtoMethodNoSideEffect(isolate, tmpl, "cohensD", GetCohensD);
   SetProtoMethodNoSideEffect(isolate, tmpl, "cliffsD", GetCliffsD);
   SetProtoMethodNoSideEffect(isolate, tmpl, "percentileCI", GetPercentileCI);
+  SetProtoMethod(isolate, tmpl, "qrde", GetQrde);
   SetFastMethodNoSideEffect(
       isolate, instance, "ewmaMean", GetEwmaMean, &fast_get_ewma_mean_);
   SetFastMethodNoSideEffect(
@@ -1219,6 +1840,7 @@ void HistogramImpl::RegisterExternalReferences(
   registry->Register(GetCohensD);
   registry->Register(GetCliffsD);
   registry->Register(GetPercentileCI);
+  registry->Register(GetQrde);
   registry->Register(GetEwmaMean);
   registry->Register(GetEwmaStddev);
   registry->Register(GetEwmaErrorRate);
@@ -1233,12 +1855,10 @@ void HistogramImpl::RegisterExternalReferences(
   is_registered = true;
 }
 
-HistogramBase::HistogramBase(
-    Environment* env,
-    Local<Object> wrap,
-    const Histogram::Options& options)
-    : BaseObject(env, wrap),
-      HistogramImpl(options) {
+HistogramBase::HistogramBase(Environment* env,
+                             Local<Object> wrap,
+                             const Histogram::Options& options)
+    : BaseObject(env, wrap), HistogramImpl(options) {
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
@@ -1246,12 +1866,10 @@ HistogramBase::HistogramBase(
       EmbedderDataTag::kDefault);
 }
 
-HistogramBase::HistogramBase(
-    Environment* env,
-    Local<Object> wrap,
-    std::shared_ptr<Histogram> histogram)
-    : BaseObject(env, wrap),
-      HistogramImpl(std::move(histogram)) {
+HistogramBase::HistogramBase(Environment* env,
+                             Local<Object> wrap,
+                             std::shared_ptr<Histogram> histogram)
+    : BaseObject(env, wrap), HistogramImpl(std::move(histogram)) {
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
@@ -1281,8 +1899,8 @@ void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
   CHECK_IMPLIES(!args[0]->IsNumber(), args[0]->IsBigInt());
   bool lossless = true;
   int64_t value = args[0]->IsBigInt()
-      ? args[0].As<BigInt>()->Int64Value(&lossless)
-      : static_cast<int64_t>(args[0].As<Number>()->Value());
+                      ? args[0].As<BigInt>()->Int64Value(&lossless)
+                      : static_cast<int64_t>(args[0].As<Number>()->Value());
   if (!lossless || value < 1)
     return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
   HistogramBase* histogram;
@@ -1345,8 +1963,7 @@ void HistogramBase::RecordCorrected(const FunctionCallbackInfo<Value>& args) {
 }
 
 BaseObjectPtr<HistogramBase> HistogramBase::Create(
-    Environment* env,
-    const Histogram::Options& options) {
+    Environment* env, const Histogram::Options& options) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env->isolate_data())
            ->InstanceTemplate()
@@ -1359,8 +1976,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
 }
 
 BaseObjectPtr<HistogramBase> HistogramBase::Create(
-    Environment* env,
-    std::shared_ptr<Histogram> histogram) {
+    Environment* env, std::shared_ptr<Histogram> histogram) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env->isolate_data())
            ->InstanceTemplate()
@@ -1478,6 +2094,254 @@ void HistogramBase::HistogramTransferData::MemoryInfo(
   tracker->TrackField("histogram", histogram_);
 }
 
+SlidingWindowHistogram::SlidingWindowHistogram(
+    Environment* env,
+    Local<Object> wrap,
+    const Histogram::Options& options,
+    size_t chunk_count,
+    bool time_based,
+    uint64_t rotate_at,
+    std::shared_ptr<Histogram> spare)
+    : BaseObject(env, wrap),
+      options_(options),
+      chunks_(chunk_count),
+      generations_(chunk_count, kNoGeneration),
+      spare_(std::move(spare)),
+      time_based_(time_based),
+      rotate_at_(rotate_at),
+      origin_(uv_hrtime()) {
+  MakeWeak();
+  external_memory_ = spare_->GetMemorySize();
+  env->external_memory_accounter()->Increase(env->isolate(), external_memory_);
+}
+
+SlidingWindowHistogram::~SlidingWindowHistogram() {
+  env()->external_memory_accounter()->Decrease(env()->isolate(),
+                                               external_memory_);
+}
+
+void SlidingWindowHistogram::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("chunks", chunks_);
+  tracker->TrackField("generations", generations_);
+  tracker->TrackField("spare", spare_);
+}
+
+uint64_t SlidingWindowHistogram::CurrentTimeGeneration() const {
+  const uint64_t now = uv_hrtime();
+  CHECK_GE(now, origin_);
+  return (now - origin_) / rotate_at_;
+}
+
+Histogram* SlidingWindowHistogram::GetChunk(uint64_t generation) {
+  const size_t index = generation % chunks_.size();
+  if (generations_[index] == generation) {
+    CHECK(chunks_[index]);
+    return chunks_[index].get();
+  }
+
+  if (chunks_[index]) {
+    chunks_[index]->Reset();
+  } else if (spare_) {
+    chunks_[index] = std::move(spare_);
+  } else {
+    chunks_[index] = Histogram::Create(options_);
+    if (!chunks_[index]) return nullptr;
+    const size_t size = chunks_[index]->GetMemorySize();
+    external_memory_ += size;
+    env()->external_memory_accounter()->Increase(env()->isolate(), size);
+  }
+
+  generations_[index] = generation;
+  return chunks_[index].get();
+}
+
+bool SlidingWindowHistogram::RecordValue(int64_t value) {
+  uint64_t generation;
+  if (time_based_) {
+    generation = CurrentTimeGeneration();
+  } else if (records_in_current_chunk_ == rotate_at_) {
+    CHECK_LT(current_generation_, kNoGeneration - 1);
+    generation = current_generation_ + 1;
+  } else {
+    generation = current_generation_;
+  }
+
+  Histogram* chunk = GetChunk(generation);
+  if (chunk == nullptr) return false;
+
+  chunk->Record(value);
+  if (!time_based_) {
+    if (generation != current_generation_) {
+      current_generation_ = generation;
+      records_in_current_chunk_ = 0;
+    }
+    records_in_current_chunk_++;
+    has_count_records_ = true;
+  }
+  return true;
+}
+
+std::shared_ptr<Histogram> SlidingWindowHistogram::CreateSnapshot() const {
+  std::shared_ptr<Histogram> snapshot = Histogram::Create(options_);
+  if (!snapshot) return {};
+
+  uint64_t current_generation;
+  if (time_based_) {
+    current_generation = CurrentTimeGeneration();
+  } else {
+    if (!has_count_records_) return snapshot;
+    current_generation = current_generation_;
+  }
+
+  for (size_t i = 0; i < chunks_.size(); i++) {
+    const uint64_t generation = generations_[i];
+    if (generation == kNoGeneration || generation > current_generation ||
+        current_generation - generation >= chunks_.size()) {
+      continue;
+    }
+    CHECK(chunks_[i]);
+    CHECK_EQ(snapshot->Add(*chunks_[i]), 0);
+  }
+  return snapshot;
+}
+
+void SlidingWindowHistogram::ResetWindow() {
+  std::fill(generations_.begin(), generations_.end(), kNoGeneration);
+  origin_ = uv_hrtime();
+  current_generation_ = 0;
+  records_in_current_chunk_ = 0;
+  has_count_records_ = false;
+}
+
+void SlidingWindowHistogram::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  CHECK_IMPLIES(!args[0]->IsNumber(), args[0]->IsBigInt());
+  CHECK_IMPLIES(!args[1]->IsNumber(), args[1]->IsBigInt());
+  CHECK(args[2]->IsUint32());
+  CHECK(args[3]->IsUint32());
+  CHECK(args[4]->IsBoolean());
+  CHECK(args[5]->IsBigInt());
+
+  Environment* env = Environment::GetCurrent(args);
+  bool lossless = true;
+  int64_t lowest = 1;
+  int64_t highest = std::numeric_limits<int64_t>::max();
+
+  if (args[0]->IsNumber()) {
+    lowest = args[0].As<Integer>()->Value();
+  } else {
+    lowest = args[0].As<BigInt>()->Int64Value(&lossless);
+    if (!lossless)
+      return THROW_ERR_OUT_OF_RANGE(env, "options.lowest is out of range");
+  }
+
+  if (args[1]->IsNumber()) {
+    highest = args[1].As<Integer>()->Value();
+  } else {
+    highest = args[1].As<BigInt>()->Int64Value(&lossless);
+    if (!lossless)
+      return THROW_ERR_OUT_OF_RANGE(env, "options.highest is out of range");
+  }
+
+  const int figures = args[2].As<Uint32>()->Value();
+  const uint32_t chunk_count = args[3].As<Uint32>()->Value();
+  if (chunk_count == 0)
+    return THROW_ERR_OUT_OF_RANGE(env, "options.chunks is out of range");
+
+  lossless = true;
+  const uint64_t rotate_at = args[5].As<BigInt>()->Uint64Value(&lossless);
+  if (!lossless || rotate_at == 0) {
+    return THROW_ERR_OUT_OF_RANGE(env, "rotation interval is out of range");
+  }
+
+  Histogram::Options options{lowest, highest, figures};
+  std::shared_ptr<Histogram> spare = Histogram::Create(options);
+  if (!spare)
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid histogram options");
+
+  new SlidingWindowHistogram(env,
+                             args.This(),
+                             options,
+                             chunk_count,
+                             args[4]->IsTrue(),
+                             rotate_at,
+                             std::move(spare));
+}
+
+void SlidingWindowHistogram::Record(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_IMPLIES(!args[0]->IsNumber(), args[0]->IsBigInt());
+  bool lossless = true;
+  const int64_t value =
+      args[0]->IsBigInt() ? args[0].As<BigInt>()->Int64Value(&lossless)
+                          : static_cast<int64_t>(args[0].As<Number>()->Value());
+  if (!lossless || value < 1)
+    return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
+
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  if (!histogram->RecordValue(value)) THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+}
+
+void SlidingWindowHistogram::FastRecord(Local<Value> receiver,
+                                        int64_t value,
+                                        // NOLINTNEXTLINE(runtime/references)
+                                        FastApiCallbackOptions& options) {
+  CHECK_GE(value, 1);
+  TRACK_V8_FAST_API_CALL("histogram.slidingWindow.record");
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  if (!histogram->RecordValue(value)) {
+    HandleScope scope(options.isolate);
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(histogram->env());
+  }
+}
+
+void SlidingWindowHistogram::Snapshot(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+
+  std::shared_ptr<Histogram> snapshot = histogram->CreateSnapshot();
+  if (!snapshot) return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+
+  BaseObjectPtr<HistogramBase> result =
+      HistogramBase::Create(env, std::move(snapshot));
+  if (result) args.GetReturnValue().Set(result->object());
+}
+
+void SlidingWindowHistogram::Reset(const FunctionCallbackInfo<Value>& args) {
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  histogram->ResetWindow();
+}
+
+void SlidingWindowHistogram::Initialize(IsolateData* isolate_data,
+                                        Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, New);
+  tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SlidingWindowHistogram"));
+  auto instance = tmpl->InstanceTemplate();
+  instance->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  SetFastMethod(isolate, instance, "record", Record, &fast_record_);
+  SetProtoMethod(isolate, tmpl, "snapshot", Snapshot);
+  SetProtoMethod(isolate, tmpl, "reset", Reset);
+  SetConstructorFunction(isolate,
+                         target,
+                         "SlidingWindowHistogram",
+                         tmpl,
+                         SetConstructorFunctionFlag::NONE);
+}
+
+void SlidingWindowHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Record);
+  registry->Register(fast_record_);
+  registry->Register(Snapshot);
+  registry->Register(Reset);
+}
+
 Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->intervalhistogram_constructor_template();
@@ -1527,8 +2391,9 @@ BaseObjectPtr<IntervalHistogram> IntervalHistogram::Create(
     AsyncWrap::ProviderType type) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
-          ->InstanceTemplate()
-          ->NewInstance(env->context()).ToLocal(&obj)) {
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
     return nullptr;
   }
 
@@ -1552,8 +2417,7 @@ void IntervalHistogram::MemoryInfo(MemoryTracker* tracker) const {
 void IntervalHistogram::OnStart(StartFlags flags) {
   if (enabled_ || IsHandleClosing()) return;
   enabled_ = true;
-  if (flags == StartFlags::RESET)
-    histogram()->Reset();
+  if (flags == StartFlags::RESET) histogram()->Reset();
   uv_timer_start(&timer_, TimerCB, interval_, interval_);
   uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
 }
@@ -2000,6 +2864,47 @@ void HistogramImpl::GetPercentileCI(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(arr);
 }
 
+void HistogramImpl::GetQrde(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
+  CHECK(args[0]->IsFloat64Array());
+  CHECK(args[1]->IsUint32());
+  CHECK(args[2]->IsBoolean());
+  Local<Float64Array> input = args[0].As<Float64Array>();
+  CHECK_GE(input->Length(), 2);
+  CHECK_LE(input->Length(), 1001);
+  auto backing = input->Buffer()->GetBackingStore();
+  const double* data = reinterpret_cast<const double*>(
+      static_cast<const char*>(backing->Data()) + input->ByteOffset());
+  std::vector<double> probabilities(data, data + input->Length());
+  const uint32_t dequantization = args[1].As<Uint32>()->Value();
+  CHECK_LE(dequantization, static_cast<uint32_t>(QrdeDequantization::kAll));
+  const bool cache_snapshot = args[2]->IsTrue();
+
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) return;
+
+  auto histogram_ptr = histogram->histogram();
+  auto snapshot_source =
+      histogram_ptr->GetRecordedSnapshotSource(cache_snapshot);
+  if (!snapshot_source.histogram && !snapshot_source.snapshot) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return;
+  }
+  std::shared_ptr<Histogram> cache_target;
+  if (cache_snapshot && !snapshot_source.cache_hit) {
+    cache_target = histogram_ptr;
+  }
+  auto* job = new QrdeJob(env,
+                          resolver,
+                          std::move(cache_target),
+                          std::move(snapshot_source),
+                          std::move(probabilities),
+                          static_cast<QrdeDequantization>(dequantization));
+  args.GetReturnValue().Set(resolver->GetPromise());
+  job->ScheduleWork();
+}
+
 void HistogramImpl::GetEwmaMean(const FunctionCallbackInfo<Value>& args) {
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   args.GetReturnValue().Set((*histogram)->EwmaMean());
@@ -2038,10 +2943,10 @@ void HistogramImpl::DoExport(const FunctionCallbackInfo<Value>& args) {
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   std::vector<uint8_t> data = (*histogram)->Export();
 
-  auto store = v8::ArrayBuffer::NewBackingStore(env->isolate(), data.size());
+  auto store = ArrayBuffer::NewBackingStore(env->isolate(), data.size());
   memcpy(store->Data(), data.data(), data.size());
-  auto buf = v8::ArrayBuffer::New(env->isolate(), std::move(store));
-  auto arr = v8::Uint8Array::New(buf, 0, data.size());
+  auto buf = ArrayBuffer::New(env->isolate(), std::move(store));
+  auto arr = Uint8Array::New(buf, 0, data.size());
   args.GetReturnValue().Set(arr);
 }
 
@@ -2051,7 +2956,7 @@ void HistogramImpl::DoImport(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_INVALID_ARG_TYPE(env, "data must be a Uint8Array");
     return;
   }
-  Local<v8::Uint8Array> input = args[0].As<v8::Uint8Array>();
+  Local<Uint8Array> input = args[0].As<Uint8Array>();
   auto backing = input->Buffer()->GetBackingStore();
   const uint8_t* data =
       static_cast<const uint8_t*>(backing->Data()) + input->ByteOffset();
@@ -2152,8 +3057,8 @@ std::unique_ptr<worker::TransferData> IterationHistogram::CloneForMessaging()
   return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 
-std::unique_ptr<worker::TransferData>
-IntervalHistogram::CloneForMessaging() const {
+std::unique_ptr<worker::TransferData> IntervalHistogram::CloneForMessaging()
+    const {
   return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 

@@ -37,7 +37,26 @@ class Histogram : public MemoryRetainer {
                             // exceeding this threshold.
   };
 
+  struct RecordedBucket {
+    double value;
+    double resolution;
+    int64_t count;
+    int64_t cumulative_count;
+  };
+
+  struct RecordedSnapshot {
+    std::vector<RecordedBucket> buckets;
+    int64_t total_count = 0;
+  };
+
   using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
+
+  struct RecordedSnapshotSource {
+    HistogramPointer histogram;
+    std::shared_ptr<const RecordedSnapshot> snapshot;
+    uint64_t generation = 0;
+    bool cache_hit = false;
+  };
 
   // Factory method that returns nullptr on hdr_init failure.
   static std::shared_ptr<Histogram> Create(const Options& options);
@@ -129,6 +148,10 @@ class Histogram : public MemoryRetainer {
   void LogBuckets(int64_t first_bucket, double log_base, Iterator&& fn) const;
 
   bool IsCompatible(const Histogram& other) const;
+  RecordedSnapshotSource GetRecordedSnapshotSource(bool use_cache) const;
+  static RecordedSnapshot BuildRecordedSnapshot(const hdr_histogram* histogram);
+  void CacheRecordedSnapshot(uint64_t generation,
+                             std::shared_ptr<const RecordedSnapshot> snapshot);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Histogram)
@@ -136,6 +159,8 @@ class Histogram : public MemoryRetainer {
 
  private:
   inline void UpdateEwma(double value);
+  inline void InvalidateRecordedSnapshot();
+  size_t GetCachedRecordedSnapshotMemorySize() const;
 
   HistogramPointer histogram_;
   uint64_t prev_ = 0;
@@ -150,6 +175,9 @@ class Histogram : public MemoryRetainer {
   // SLO error rate EWMA (active when threshold_ > 0 and ewma_alpha_ > 0)
   int64_t threshold_ = 0;
   double ewma_error_rate_ = 0;
+
+  uint64_t mutation_generation_ = 0;
+  std::shared_ptr<const RecordedSnapshot> recorded_snapshot_cache_;
 
   RwLock mutex_;
 };
@@ -203,6 +231,7 @@ class HistogramImpl {
   static void GetCohensD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCliffsD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPercentileCI(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetQrde(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEwmaMean(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEwmaStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEwmaErrorRate(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -329,6 +358,60 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
  private:
   static v8::CFunction fast_record_;
   static v8::CFunction fast_record_delta_;
+};
+
+// BaseObject disallows cloning and transfer, so ring state is confined to the
+// owning Environment's thread.
+class SlidingWindowHistogram final : public BaseObject {
+ public:
+  static void Initialize(IsolateData* isolate_data,
+                         v8::Local<v8::ObjectTemplate> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SlidingWindowHistogram)
+  SET_SELF_SIZE(SlidingWindowHistogram)
+
+ private:
+  static constexpr uint64_t kNoGeneration =
+      std::numeric_limits<uint64_t>::max();
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastRecord(v8::Local<v8::Value> receiver,
+                         int64_t value,
+                         v8::FastApiCallbackOptions& options);
+  static void Snapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Reset(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SlidingWindowHistogram(Environment* env,
+                         v8::Local<v8::Object> wrap,
+                         const Histogram::Options& options,
+                         size_t chunk_count,
+                         bool time_based,
+                         uint64_t rotate_at,
+                         std::shared_ptr<Histogram> spare);
+  ~SlidingWindowHistogram() override;
+
+  Histogram* GetChunk(uint64_t generation);
+  bool RecordValue(int64_t value);
+  std::shared_ptr<Histogram> CreateSnapshot() const;
+  void ResetWindow();
+  uint64_t CurrentTimeGeneration() const;
+
+  Histogram::Options options_;
+  std::vector<std::shared_ptr<Histogram>> chunks_;
+  std::vector<uint64_t> generations_;
+  std::shared_ptr<Histogram> spare_;
+  bool time_based_;
+  uint64_t rotate_at_;
+  uint64_t origin_;
+  uint64_t current_generation_ = 0;
+  uint64_t records_in_current_chunk_ = 0;
+  size_t external_memory_ = 0;
+  bool has_count_records_ = false;
+
+  static v8::CFunction fast_record_;
 };
 
 // CRTP mixin for HandleWrap-based histograms with start/stop support.
