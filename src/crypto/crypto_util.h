@@ -227,6 +227,15 @@ class ByteSource final {
     return ncrypto::BignumPointer(data<unsigned char>(), size());
   }
 
+  inline ByteSource ToCopy() const {
+    if (empty()) return {};
+    CHECK_NOT_NULL(data_);
+    auto data = MallocOpenSSL<char>(size());
+    CHECK_NOT_NULL(data);
+    memcpy(data, data_, size());
+    return ByteSource::Allocated(data, size());
+  }
+
   // Creates a v8::BackingStore that takes over responsibility for
   // any allocated data. The ByteSource will be reset with size = 0
   // after being called.
