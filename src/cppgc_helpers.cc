@@ -1,14 +1,14 @@
-#include "cppgc_helpers.h"
-#include "env-inl.h"
+#include "cppgc_helpers.h"  // NOLINT(build/include_inline)
+#include "cppgc_helpers-inl.h"
 
 namespace node {
 
 void CppgcWrapperList::Cleanup() {
-  for (auto node : *this) {
-    CppgcMixin* ptr = node->persistent.Get();
-    if (ptr != nullptr) {
-      ptr->Finalize();
-    }
+  while (!IsEmpty()) {
+    CppgcWrapperListNode* node = PopFront();
+    CppgcMixin* wrapper = node->persistent.Get();
+    if (wrapper != nullptr) wrapper->Finalize();
+    node->realm = nullptr;
   }
 }
 
@@ -21,20 +21,6 @@ void CppgcWrapperList::MemoryInfo(MemoryTracker* tracker) const {
       // is available for us
       tracker->Track(ptr, MemoryTracker::kWeakEdge);
     }
-  }
-}
-
-void CppgcWrapperList::PurgeEmpty() {
-  for (auto weak_it = begin(); weak_it != end();) {
-    CppgcWrapperListNode* node = *weak_it;
-    auto next_it = ++weak_it;
-    // The underlying cppgc wrapper has already been garbage collected.
-    // Remove it from the list.
-    if (!node->persistent) {
-      node->persistent.Clear();
-      delete node;
-    }
-    weak_it = next_it;
   }
 }
 }  // namespace node
