@@ -1094,7 +1094,7 @@ int DTLSContext::ALPNSelectCallback(SSL* ssl,
       {ctx->alpn_protos_.data(), ctx->alpn_protos_.size()}, {in, inlen});
 
   if (!selected.has_value()) {
-    return SSL_TLSEXT_ERR_NOACK;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
   crypto::SetSelectedProtocol(out, outlen, *selected);
