@@ -19,7 +19,7 @@
 #include <mutex>
 #include "math.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 #include "openssl/provider.h"
 #endif
 
@@ -38,9 +38,6 @@ using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::CryptoErrorList;
 using ncrypto::DataPointer;
-#ifndef OPENSSL_NO_ENGINE
-using ncrypto::EnginePointer;
-#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::SSLPointer;
 using v8::Array;
 using v8::ArrayBuffer;
@@ -453,7 +450,7 @@ std::optional<std::string> ProcessFipsOptions() {
   const bool force_fips = per_process::cli_options->force_fips_crypto;
   if (!enable_fips && !force_fips) return std::nullopt;
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   // Whether FIPS-approved implementations are reachable is decided by the
   // OpenSSL configuration, not by Node.js. Refuse to start rather than
   // restrict the default property query to a provider that is not there,
@@ -507,15 +504,6 @@ void InitCryptoOnce() {
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
   CHECK_NOT_NULL(settings);
 
-#if OPENSSL_VERSION_MAJOR < 3
-  // --openssl-config=...
-  if (!per_process::cli_options->openssl_config.empty()) {
-    const char* conf = per_process::cli_options->openssl_config.c_str();
-    OPENSSL_INIT_set_config_filename(settings, conf);
-  }
-#endif
-
-#if OPENSSL_VERSION_MAJOR >= 3
   // --openssl-legacy-provider
   if (per_process::cli_options->openssl_legacy_provider) {
     OSSL_PROVIDER* legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
@@ -523,7 +511,6 @@ void InitCryptoOnce() {
       fprintf(stderr, "Unable to load legacy provider.\n");
     }
   }
-#endif
 
   OPENSSL_init_ssl(0, settings);
   InstallFipsIndicatorCallback();
@@ -571,10 +558,6 @@ void InitCryptoOnce() {
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
-
-#ifndef OPENSSL_NO_ENGINE
-  EnginePointer::initEnginesOnce();
-#endif  // !OPENSSL_NO_ENGINE
 }
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -934,7 +917,7 @@ Maybe<void> Decorate(Environment* env,
   if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const char* fs = nullptr;
 #else
   const char* fs = ERR_func_error_string(err);
@@ -1074,28 +1057,6 @@ void ThrowCryptoError(Environment* env,
   }
   env->isolate()->ThrowException(exception);
 }
-
-#ifndef OPENSSL_NO_ENGINE
-void SetEngine(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CHECK(args.Length() >= 2 && args[0]->IsString());
-  uint32_t flags;
-  if (!args[1]->Uint32Value(env->context()).To(&flags)) return;
-
-  const node::Utf8Value engine_id(env->isolate(), args[0]);
-  // If the engine name is not known, calling setAsDefault on the
-  // empty engine pointer will be non-op that always returns false.
-  args.GetReturnValue().Set(
-      EnginePointer::getEngineByName(*engine_id).setAsDefault(flags));
-}
-#endif  // !OPENSSL_NO_ENGINE
 
 MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
   EscapableHandleScope scope(env->isolate());
@@ -1242,10 +1203,6 @@ void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
-#ifndef OPENSSL_NO_ENGINE
-  SetMethod(context, target, "setEngine", SetEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
   SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
   SetMethodNoSideEffect(
       context, target, "getFipsCryptoGeneration", GetFipsCryptoGeneration);
@@ -1265,10 +1222,6 @@ void Initialize(Environment* env, Local<Object> target) {
       context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-#ifndef OPENSSL_NO_ENGINE
-  registry->Register(SetEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
   registry->Register(GetFipsCrypto);
   registry->Register(GetFipsCryptoGeneration);
   registry->Register(SetupFipsIndicatorChannel);

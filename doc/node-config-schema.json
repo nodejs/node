@@ -405,7 +405,7 @@
             },
             "openssl-legacy-provider": {
               "type": "boolean",
-              "description": "enable OpenSSL 3.0 legacy provider"
+              "description": "enable OpenSSL's legacy provider"
             },
             "openssl-shared-config": {
               "type": "boolean",

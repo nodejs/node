@@ -13,7 +13,7 @@ const {
   hkdfSync,
   getHashes
 } = require('crypto');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
 {
   assert.throws(() => hkdf(), {
@@ -125,9 +125,6 @@ const algorithms = [
   ['sha256', '', 'salt', '', 10],
   ['sha512', 'secret', 'salt', '', 15],
 ];
-if (!hasOpenSSL(3) && !isBoringSSL)
-  algorithms.push(['whirlpool', 'secret', '', 'info', 20]);
-
 algorithms.forEach(([ hash, secret, salt, info, length ]) => {
   {
     const syncResult = hkdfSync(hash, secret, salt, info, length);
@@ -216,7 +213,7 @@ algorithms.forEach(([ hash, secret, salt, info, length ]) => {
 });
 
 
-if (!hasOpenSSL(3)) {
+if (isBoringSSL) {
   const kKnownUnsupported = ['shake128', 'shake256'];
   for (const hash of getHashes()) {
     if (kKnownUnsupported.includes(hash)) continue;

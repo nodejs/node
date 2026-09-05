@@ -54,7 +54,7 @@ function assertSameSet(actual, expected, msg) {
     symmetric.splice(symmetric.findIndex(({ algorithm }) =>
       algorithm.name === 'ChaCha20-Poly1305'), 1);
 
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     symmetric.push({
       algorithm: { name: 'AES-OCB', length: 128 },
       usages: ['decrypt', 'encrypt', 'decrypt', 'encrypt'],
@@ -66,7 +66,7 @@ function assertSameSet(actual, expected, msg) {
       expected: ['sign', 'verify'],
     });
   } else {
-    common.printSkipMessage('AES-OCB and KMAC require OpenSSL >= 3');
+    common.printSkipMessage('AES-OCB and KMAC are not supported by BoringSSL');
   }
 
   for (const { algorithm, usages, expected } of symmetric) {
@@ -171,7 +171,7 @@ function assertSameSet(actual, expected, msg) {
       expected: ['wrapKey', 'unwrapKey'] },
   ];
 
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     // KMAC does not support `raw` format, only `raw-secret` and `jwk`.
     tests.push((async () => {
       const key = await subtle.importKey(
@@ -196,7 +196,7 @@ function assertSameSet(actual, expected, msg) {
       assert.strictEqual(key.usages.length, 2);
     })());
   } else {
-    common.printSkipMessage('AES-OCB and KMAC require OpenSSL >= 3');
+    common.printSkipMessage('AES-OCB and KMAC are not supported by BoringSSL');
   }
 
   for (const { algorithm, keyData, usages, expected } of rawSymmetric) {
@@ -360,7 +360,7 @@ function assertSameSet(actual, expected, msg) {
   })());
 
   // AES-OCB raw-secret import.
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     tests.push((async () => {
       const key = await subtle.importKey(
         'raw-secret',
@@ -372,7 +372,7 @@ function assertSameSet(actual, expected, msg) {
       assert.strictEqual(key.usages.length, 2);
     })());
   } else {
-    common.printSkipMessage('AES-OCB requires OpenSSL >= 3');
+    common.printSkipMessage('AES-OCB is not supported by BoringSSL');
   }
 
   Promise.all(tests).then(common.mustCall());
@@ -448,7 +448,7 @@ function assertSameSet(actual, expected, msg) {
       expected: ['wrapKey', 'unwrapKey'] },
   ];
 
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     jwkVectors.push({
       algorithm: { name: 'AES-OCB', length: 128 },
       usages: ['decrypt', 'encrypt', 'decrypt', 'encrypt'],
@@ -460,7 +460,7 @@ function assertSameSet(actual, expected, msg) {
       expected: ['sign', 'verify'],
     });
   } else {
-    common.printSkipMessage('AES-OCB and KMAC require OpenSSL >= 3');
+    common.printSkipMessage('AES-OCB and KMAC are not supported by BoringSSL');
   }
 
   for (const { algorithm, usages, expected } of jwkVectors) {

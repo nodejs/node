@@ -4,9 +4,9 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { hasOpenSSL } = require('../common/crypto');
-if (!hasOpenSSL(3))
-  common.skip('requires OpenSSL 3.x');
+const { isBoringSSL } = require('../common/crypto');
+if (isBoringSSL)
+  common.skip('OpenSSL provider support is required');
 
 // Verifies the openssl.store permission: allowed when --allow-openssl-store is
 // set, can be dropped at runtime, and denied by default in a child process.

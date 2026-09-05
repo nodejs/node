@@ -884,7 +884,7 @@ Environment::Environment(IsolateData* isolate_data,
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id),
       thread_name_(thread_name) {
-#if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL3_PROVIDER
+#if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL_PROVIDER
   provider_digest_cache = std::make_unique<ncrypto::DigestCache>();
   provider_cipher_cache = std::make_unique<ncrypto::CipherCache>();
 #if OPENSSL_WITH_EVP_MAC

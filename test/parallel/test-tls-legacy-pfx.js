@@ -4,10 +4,10 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { hasOpenSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3)) {
-  common.skip('OpenSSL legacy failures are only testable with OpenSSL 3+');
+if (isBoringSSL) {
+  common.skip('OpenSSL legacy failures are not testable with BoringSSL');
 }
 
 const fixtures = require('../common/fixtures');

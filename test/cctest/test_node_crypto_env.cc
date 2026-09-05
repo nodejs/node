@@ -26,7 +26,7 @@ TEST_F(NodeCryptoEnv, LoadBIO) {
   //  just put a random string into BIO
   Local<String> key = String::NewFromUtf8(isolate_, "abcdef").ToLocalChecked();
   ncrypto::BIOPointer bio(node::crypto::LoadBIO(*env, key));
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifndef OPENSSL_IS_BORINGSSL
   const int ofs = 2;
   ASSERT_EQ(BIO_seek(bio.get(), ofs), ofs);
   ASSERT_EQ(BIO_tell(bio.get()), ofs);
@@ -35,7 +35,7 @@ TEST_F(NodeCryptoEnv, LoadBIO) {
                                       "any errors on the OpenSSL error stack\n";
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 TEST_F(NodeCryptoEnv, ExportIncompleteRsaPrivateKeyAsJwk) {
   v8::HandleScope handle_scope(isolate_);
   Argv argv;

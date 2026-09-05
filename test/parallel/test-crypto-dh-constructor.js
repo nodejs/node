@@ -5,10 +5,10 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const size = hasFIPS(3) ?
-  2048 : (crypto.getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
+  2048 : (crypto.getFips() === 1 || !isBoringSSL ? 1024 : 256);
 const dh1 = crypto.createDiffieHellman(size);
 const p1 = dh1.getPrime('buffer');
 

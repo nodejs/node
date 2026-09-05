@@ -14,7 +14,7 @@ if (!common.hasCrypto) common.skip('missing crypto');
 const require = createRequire(import.meta.url);
 const { kSupportedAlgorithms } = require('internal/crypto/util');
 const { getFips } = require('node:crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 const TypedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
@@ -136,7 +136,7 @@ if (supports('digest', 'cSHAKE128')) {
 
   // asyncDigest() picks the cSHAKE job over plain SHAKE on a non-empty
   // customization.
-  if (hasOpenSSL(3)) {
+  if (!isBoringSSL) {
     const algorithm = {
       name: 'cSHAKE128',
       outputLength: 256,

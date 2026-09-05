@@ -145,11 +145,8 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   auto buf = DataPointer::Alloc(buf_len);
   auto ptr = static_cast<unsigned char*>(buf.get());
 
-  // In some outdated version of OpenSSL (e.g.
-  // ubi81_sharedlibs_openssl111fips_x64) may be used in sharedlib mode, the
-  // logic will be failed when input size is zero. The newer OpenSSL has fixed
-  // it up. But we still have to regard zero as special in Node.js code to
-  // prevent old OpenSSL failure.
+  // Some shared OpenSSL builds fail when the input size is zero. Keep handling
+  // zero-length input in Node.js to avoid relying on backend-specific behavior.
   //
   // Refs:
   // https://github.com/openssl/openssl/commit/420cb707b880e4fb649094241371701013eeb15f

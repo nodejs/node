@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 
 const {
   isBoringSSL,
-  hasOpenSSL,
   hasFIPS,
 } = require('../common/crypto');
 
@@ -18,7 +17,6 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
-
 const fips3 = hasFIPS(3);
 
 // This tests check that generateKeyPair returns correct bit length in
@@ -49,18 +47,16 @@ const fips3 = hasFIPS(3);
     assert.strictEqual(publicKey.asymmetricKeyDetails.modulusLength, 513);
   }));
 
-  if (hasOpenSSL(3)) {
-    generateKeyPair('dsa', {
-      modulusLength: 2049,
-      divisorLength: 256,
-    }, common.mustCall((err, publicKey, privateKey) => {
-      if (fips3) {
-        assert.strictEqual(err?.code, 'ERR_OSSL_DSA_BAD_FFC_PARAMETERS');
-        return;
-      }
-      assert.ifError(err);
-      assert.strictEqual(privateKey.asymmetricKeyDetails.modulusLength, 2049);
-      assert.strictEqual(publicKey.asymmetricKeyDetails.modulusLength, 2049);
-    }));
-  }
+  generateKeyPair('dsa', {
+    modulusLength: 2049,
+    divisorLength: 256,
+  }, common.mustCall((err, publicKey, privateKey) => {
+    if (fips3) {
+      assert.strictEqual(err?.code, 'ERR_OSSL_DSA_BAD_FFC_PARAMETERS');
+      return;
+    }
+    assert.ifError(err);
+    assert.strictEqual(privateKey.asymmetricKeyDetails.modulusLength, 2049);
+    assert.strictEqual(publicKey.asymmetricKeyDetails.modulusLength, 2049);
+  }));
 }

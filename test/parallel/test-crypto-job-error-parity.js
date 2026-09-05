@@ -8,7 +8,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
@@ -195,7 +195,7 @@ const data = Buffer.from('test data');
 }
 
 // === crypto.encapsulate / crypto.decapsulate ===
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   // KEM: Decapsulate with wrong private key type
   {
     const rsaPublicKey = crypto.createPublicKey(

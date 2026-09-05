@@ -8,8 +8,8 @@ const argon2 = hasOpenSSL(3, 2);
 const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
 const sha3 = crypto.getHashes().includes('sha3-256');
-const ocb = hasOpenSSL(3);
-const kmac = hasOpenSSL(3);
+const ocb = !isBoringSSL;
+const kmac = !isBoringSSL;
 const hybridKems = pqc && (!boringSSL || (sha3 && shake256));
 
 const { subtle } = globalThis.crypto;

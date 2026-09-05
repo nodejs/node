@@ -64,8 +64,6 @@ static void InitConfig(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "hasOpenSSL");
 #endif  // HAVE_OPENSSL
 
-  READONLY_TRUE_PROPERTY(target, "fipsMode");
-
 #ifdef NODE_HAVE_I18N_SUPPORT
 
   READONLY_TRUE_PROPERTY(target, "hasIntl");

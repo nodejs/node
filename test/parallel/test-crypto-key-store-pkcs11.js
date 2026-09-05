@@ -3,9 +3,9 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { hasOpenSSL } = require('../common/crypto');
-if (!hasOpenSSL(3, 0))
-  common.skip('requires OpenSSL 3.x');
+const { isBoringSSL } = require('../common/crypto');
+if (isBoringSSL)
+  common.skip('OpenSSL provider support is required');
 
 // The PKCS#11 token, the OpenSSL configuration that activates a provider for
 // it, and the PIN that unlocks it are all provided by the environment. See

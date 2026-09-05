@@ -9,12 +9,12 @@ if (common.isASan)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const before = process.memoryUsage.rss();
 {
   const size = hasFIPS(3) ?
-    2048 : (crypto.getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
+    2048 : (crypto.getFips() === 1 || !isBoringSSL ? 1024 : 256);
   const dh = crypto.createDiffieHellman(size);
   const publicKey = dh.generateKeys();
   const privateKey = dh.getPrivateKey();

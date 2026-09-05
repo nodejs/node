@@ -40,7 +40,7 @@ using v8::Value;
 namespace crypto {
 namespace {
 bool IsRsaPssDigestEncodable(const Digest& digest) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const int nid = EVP_MD_type(digest.get());
   if (nid == NID_undef) return false;
 
@@ -78,10 +78,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       return {};
     }
 
-    // TODO(tniessen): This appears to only be necessary in OpenSSL 3, while
-    // OpenSSL 1.1.1 behaves as recommended by RFC 8017 and defaults the MGF1
-    // hash algorithm to the RSA-PSS hashAlgorithm. Remove this code if the
-    // behavior of OpenSSL 3 changes.
+    // OpenSSL does not default the MGF1 hash algorithm to the RSA-PSS
+    // hashAlgorithm as recommended by RFC 8017, so set it explicitly.
     auto& mgf1_md = params->params.mgf1_md;
     if (!mgf1_md && params->params.md) {
       mgf1_md = params->params.md;
@@ -365,7 +363,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   ncrypto::Rsa rsa_view;
 #else
   RSAPointer rsa(RSA_new());
@@ -437,7 +435,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
     }
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(rsa_view);
 #else
   auto pkey = EVPKeyPointer::NewRSA(std::move(rsa));
@@ -456,8 +454,6 @@ bool GetRsaKeyDetail(Environment* env,
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
 
-  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
-  // versions older than 1.1.1e via FIPS / dynamic linking.
   const ncrypto::Rsa rsa = m_pkey;
   if (!rsa) return false;
 

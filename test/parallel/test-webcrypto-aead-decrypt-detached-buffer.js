@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 const fips3 = hasFIPS(3);
 
@@ -55,7 +55,7 @@ if (fips3) {
   tests.push(test('ChaCha20-Poly1305', 32, 12, 'raw-secret'));
 }
 
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   tests.push(test(
     'AES-OCB',
     32,
