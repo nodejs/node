@@ -1060,6 +1060,16 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
   // The common case is that we're creating a new stream. The less likely
   // case is that we're receiving a set of trailers
   if (!stream) [[likely]] {
+    // Close() may be deferred while mem_recv is in progress (see
+    // Http2Session::Close). A 'stream' handler that calls session.destroy()
+    // runs via nextTick from MakeCallback during that window, so later
+    // HEADERS in the same receive buffer must not create a C++ stream
+    // whose JS wrapper (and onread) is never installed.
+    if (session->is_closing()) {
+      nghttp2_submit_rst_stream(
+          session->session(), NGHTTP2_FLAG_NONE, id, NGHTTP2_REFUSED_STREAM);
+      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+    }
     if (!session->CanAddStream() ||
         Http2Stream::New(session, id, frame->headers.cat) == nullptr)
         [[unlikely]] {
