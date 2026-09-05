@@ -51,6 +51,10 @@ all: \
   non-trusted-intermediate-ca-key.pem \
   non-trusted-leaf-from-intermediate-cert.pem \
   non-trusted-leaf-from-intermediate-key.pem \
+  system-ca-network-intermediate-cert.pem \
+  system-ca-network-intermediate-key.pem \
+  system-ca-network-leaf-cert.pem \
+  system-ca-network-leaf-key.pem \
   rsa_private.pem \
   rsa_private_encrypted.pem \
   rsa_private_pkcs8.pem \
@@ -414,6 +418,56 @@ non-trusted-leaf-from-intermediate-cert.pem: non-trusted-leaf-from-intermediate-
 			-sha256
 
 	rm -f non-trusted-leaf-from-intermediate-cert.csr
+
+system-ca-network-intermediate-key.pem:
+	openssl genrsa -out system-ca-network-intermediate-key.pem 2048
+
+system-ca-network-intermediate-cert.pem: \
+		system-ca-network-intermediate-key.pem \
+		system-ca-network.cnf \
+		fake-startcom-root-cert.pem \
+		fake-startcom-root-key.pem
+	openssl req -new \
+			-sha256 \
+			-key system-ca-network-intermediate-key.pem \
+			-subj "/CN=NodeJS-System-CA-Network-Intermediate" \
+			-out system-ca-network-intermediate-cert.csr
+	openssl x509 -req \
+			-in system-ca-network-intermediate-cert.csr \
+			-CA fake-startcom-root-cert.pem \
+			-CAkey fake-startcom-root-key.pem \
+			-set_serial 0x4e6f64654e657403 \
+			-out system-ca-network-intermediate-cert.pem \
+			-days 99999 \
+			-extfile system-ca-network.cnf \
+			-extensions v3_ca \
+			-sha256
+	rm -f system-ca-network-intermediate-cert.csr
+
+system-ca-network-leaf-key.pem:
+	openssl genrsa -out system-ca-network-leaf-key.pem 2048
+
+system-ca-network-leaf-cert.pem: \
+		system-ca-network-leaf-key.pem \
+		system-ca-network-intermediate-cert.pem \
+		system-ca-network-intermediate-key.pem \
+		system-ca-network.cnf
+	openssl req -new \
+			-sha256 \
+			-key system-ca-network-leaf-key.pem \
+			-subj "/CN=NodeJS-System-CA-Network-Leaf" \
+			-out system-ca-network-leaf-cert.csr
+	openssl x509 -req \
+			-in system-ca-network-leaf-cert.csr \
+			-CA system-ca-network-intermediate-cert.pem \
+			-CAkey system-ca-network-intermediate-key.pem \
+			-set_serial 0x4e6f64654e657405 \
+			-out system-ca-network-leaf-cert.pem \
+			-days 99999 \
+			-extfile system-ca-network.cnf \
+			-extensions v3_leaf \
+			-sha256
+	rm -f system-ca-network-leaf-cert.csr
 
 #
 # agent1 is signed by ca1.
