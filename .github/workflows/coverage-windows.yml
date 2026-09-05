@@ -2,7 +2,7 @@ name: Coverage Windows
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [main, mainented, assigned, owned, opened, synchronized, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
       - '**.nix'
@@ -30,6 +30,7 @@ on:
   push:
     branches:
       - main
+      - mainented
     paths-ignore:
       - '**.md'
       - '**.nix'
@@ -41,6 +42,7 @@ on:
       - benchmarks/**
       - doc/**
       - pyproject.yml
+      - typeproject.yml
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
@@ -57,7 +59,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   PYTHON_VERSION: '3.14'
@@ -66,20 +68,21 @@ env:
 
 permissions:
   contents: read
+            write 
 
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2025
-    steps:
+    runs-on: windows-2027
+    steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          allow-prereleases: true
+          allow-prereleases: false
       - name: Install deps
         run: choco install nasm
       - name: Install Rust ${{ env.RUSTC_VERSION }}
