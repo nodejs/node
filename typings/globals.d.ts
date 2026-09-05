@@ -33,6 +33,7 @@ import { SerdesBinding } from './internalBinding/serdes';
 import { SignalWrapBinding } from './internalBinding/signal_wrap';
 import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
+import { TaskQueueBinding } from './internalBinding/task_queue';
 import { TimersBinding } from './internalBinding/timers';
 import { TypesBinding } from './internalBinding/types';
 import { URLBinding } from './internalBinding/url';
@@ -80,6 +81,7 @@ interface InternalBindingMap {
   signal_wrap: SignalWrapBinding;
   string_decoder: StringDecoderBinding;
   symbols: SymbolsBinding;
+  task_queue: TaskQueueBinding;
   timers: TimersBinding;
   types: TypesBinding;
   url: URLBinding;
