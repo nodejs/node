@@ -10,7 +10,7 @@ const {
   getCiphers,
   getCipherInfo,
 } = require('crypto');
-const { hasFIPS, hasOpenSSL3 } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 
@@ -18,7 +18,7 @@ const ciphers = getCiphers();
 
 assert.strictEqual(getCipherInfo(-1), undefined);
 assert.strictEqual(getCipherInfo('cipher that does not exist'), undefined);
-if (hasOpenSSL3) {
+if (hasOpenSSL(3)) {
   assert.deepStrictEqual(
     ciphers.filter((cipher) => cipher.includes('cbc-hmac')), []);
   for (const cipher of [
@@ -54,7 +54,7 @@ if (ciphers.includes('aes-128-wrap-inv')) {
 }
 assert(!ciphers.some((cipher) => /^\d+(?:\.\d+)+$/.test(cipher)));
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // A failed provider fetch must not contaminate the OpenSSL error queue.
   assert.throws(() => createHash('sha256', { outputLength: 28 }), {
     code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
@@ -63,7 +63,7 @@ if (!process.features.openssl_is_boringssl) {
 
 for (const cipher of ciphers) {
   const info = getCipherInfo(cipher);
-  if (process.features.openssl_is_boringssl && !info) {
+  if (isBoringSSL && !info) {
     // BoringSSL reports some legacy ciphers in getCiphers() but returns no
     // info for them (e.g. des-ede3, des-ede3-ecb, rc2-40-cbc).
     common.printSkipMessage(`Skipping unsupported ${cipher} test case`);
@@ -115,7 +115,7 @@ assert(getCipherInfo('aes-128-cbc', { ivLength: 16 }));
 
 assert(!getCipherInfo('aes-128-ccm', { ivLength: 1 }));
 assert(!getCipherInfo('aes-128-ccm', { ivLength: 14 }));
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   for (let n = 7; n <= 13; n++)
     assert(getCipherInfo('aes-128-ccm', { ivLength: n }));
 } else {
@@ -126,7 +126,7 @@ assert(!getCipherInfo('aes-128-ocb', { ivLength: 16 }));
 if (hasFIPS(3)) {
   assert.strictEqual(
     getCipherInfo('aes-128-ocb', { ivLength: 12 }), undefined);
-} else if (!process.features.openssl_is_boringssl) {
+} else if (!isBoringSSL) {
   for (let n = 1; n < 16; n++)
     assert(getCipherInfo('aes-128-ocb', { ivLength: n }));
 } else {

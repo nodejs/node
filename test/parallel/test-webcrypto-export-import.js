@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -518,7 +518,7 @@ if (hasOpenSSL(3)) {
 }
 
 // SHA-3 hashes and JWK "alg"
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   const rsa = fixtures.readKey('rsa_private_2048.pem');
   const privateKey = createPrivateKey(rsa);
   const publicKey = createPublicKey(privateKey);

@@ -3,12 +3,14 @@
 
 const common = require('../common');
 
+const { isBoringSSL } = require('../common/crypto');
+
 if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
 if (Number(process.versions.openssl.split('.')[0]) < 4 ||
-    process.features.openssl_is_boringssl) {
+    isBoringSSL) {
   common.skip('OpenSSL 4 provider support is required');
 }
 

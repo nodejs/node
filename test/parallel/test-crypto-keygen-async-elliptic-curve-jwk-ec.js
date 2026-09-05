@@ -8,12 +8,12 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 // Test async elliptic curve key generation with 'jwk' encoding and named
 // curve.
 for (const curve of ['P-384', 'P-256', 'P-521', 'secp256k1']) {
-  if (process.features.openssl_is_boringssl && curve === 'secp256k1') {
+  if (isBoringSSL && curve === 'secp256k1') {
     common.printSkipMessage(`Skipping unsupported ${curve} test case`);
     continue;
   }

@@ -3,14 +3,15 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl) {
+const { isBoringSSL, hasFIPS } = require('../common/crypto');
+
+if (isBoringSSL) {
   require('../common/boringssl').testMultiPfxSelectionDifference();
   return;
 }
 
 const assert = require('assert');
 const tls = require('tls');
-const { hasFIPS } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const fips3 = hasFIPS(3);
 const fips4 = hasFIPS(4);

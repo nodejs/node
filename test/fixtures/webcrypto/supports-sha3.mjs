@@ -1,6 +1,8 @@
+import { isBoringSSL } from '../../common/crypto.js'
+
 const { subtle } = globalThis.crypto;
 
-const boringSSL = process.features.openssl_is_boringssl;
+const boringSSL = isBoringSSL;
 
 const RSA_KEY_GEN = {
   modulusLength: 2048,

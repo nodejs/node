@@ -4,7 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const { isBoringSSL, hasFIPS } = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support DSA key pair generation');
 
 const assert = require('assert');
@@ -12,7 +14,6 @@ const assert = require('assert');
 const {
   generateKeyPairSync,
 } = require('crypto');
-const { hasFIPS } = require('../common/crypto');
 
 const fips3 = hasFIPS(3);
 

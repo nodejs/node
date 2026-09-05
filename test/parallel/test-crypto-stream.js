@@ -28,7 +28,7 @@ if (!common.hasCrypto) {
 const assert = require('assert');
 const stream = require('stream');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 if (!crypto.getFips()) {
   // Small stream to buffer converter
@@ -73,7 +73,7 @@ const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
 const decipher = crypto.createDecipheriv('aes-128-cbc', badkey, iv);
 
 cipher.pipe(decipher)
-  .on('error', common.expectsError((hasOpenSSL3 || process.features.openssl_is_boringssl) ? {
+  .on('error', common.expectsError((hasOpenSSL(3) || isBoringSSL) ? {
     message: /bad[\s_]decrypt/i,
     library: /Provider routines|Cipher functions/,
     reason: /bad[\s_]decrypt/i,

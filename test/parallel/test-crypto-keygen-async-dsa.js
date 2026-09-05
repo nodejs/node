@@ -4,20 +4,21 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const {
+  isBoringSSL,
+  assertApproximateSize,
+  testSignVerify,
+  spkiExp,
+  hasOpenSSL,
+} = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('not supported by BoringSSL');
 
 const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
-const {
-  assertApproximateSize,
-  testSignVerify,
-  spkiExp,
-} = require('../common/crypto');
-
-const { hasOpenSSL } = require('../common/crypto');
 
 // Test async DSA key generation.
 {

@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { getFips } = require('crypto');
@@ -152,7 +152,7 @@ if (hasOpenSSL(3)) {
 }
 
 // Test Sign/Verify Ed448
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   async function test(data) {
     const ec = new TextEncoder();
     const { publicKey, privateKey } = await subtle.generateKey({
@@ -174,7 +174,7 @@ if (!process.features.openssl_is_boringssl) {
 }
 
 // Test Sign/Verify ML-DSA
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   async function test(name, data) {
     const ec = new TextEncoder();
     const { publicKey, privateKey } = await subtle.generateKey({

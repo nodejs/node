@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
@@ -100,7 +100,7 @@ for (const [asymmetricKeyType, pubLen] of [
     }
   }
 
-  if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
+  if (!hasOpenSSL(3, 5) && !isBoringSSL) {
     assert.throws(() => createPublicKey(keys.public), {
       code: hasOpenSSL(3) ? 'ERR_OSSL_EVP_DECODE_ERROR' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
     });
@@ -110,7 +110,7 @@ for (const [asymmetricKeyType, pubLen] of [
         code: hasOpenSSL(3) ? 'ERR_OSSL_UNSUPPORTED' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
       });
     }
-  } else if (process.features.openssl_is_boringssl && asymmetricKeyType === 'ml-kem-512') {
+  } else if (isBoringSSL && asymmetricKeyType === 'ml-kem-512') {
     // BoringSSL does not support ML-KEM-512.
     assert.throws(() => createPublicKey(keys.public),
                   { code: 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM' });
@@ -123,7 +123,7 @@ for (const [asymmetricKeyType, pubLen] of [
     assertPublicKey(publicKey);
 
     {
-      const entries = process.features.openssl_is_boringssl ?
+      const entries = isBoringSSL ?
         // BoringSSL only supports the seed-only PKCS#8 private key encoding.
         [[keys.private_seed_only, true]] :
         [

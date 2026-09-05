@@ -4,14 +4,15 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl)
+const { isBoringSSL, hasFIPS } = require('../common/crypto');
+
+if (isBoringSSL)
   common.skip('BoringSSL does not support RSA-PSS key pair generation');
 
 const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
-const { hasFIPS } = require('../common/crypto');
 
 // 'rsa-pss' should not add a RSASSA-PSS-params sequence by default.
 // Regression test for: https://github.com/nodejs/node/issues/39936

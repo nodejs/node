@@ -14,8 +14,11 @@ const {
 } = require('crypto');
 const { inspect } = require('util');
 
-const { hasOpenSSL3 } = require('../common/crypto');
-const isBoringSSL = process.features.openssl_is_boringssl;
+const {
+  hasOpenSSL,
+  isBoringSSL: commonIsBoringSSL,
+} = require('../common/crypto');
+const isBoringSSL = commonIsBoringSSL;
 
 // Test invalid parameter encoding.
 {
@@ -379,7 +382,7 @@ const isBoringSSL = process.features.openssl_is_boringssl;
   let invalidExponentError = /bad e value/;
   if (isBoringSSL) {
     invalidExponentError = /BAD_E_VALUE/;
-  } else if (hasOpenSSL3) {
+  } else if (hasOpenSSL(3)) {
     invalidExponentError = /exponent/;
   }
   for (const publicExponent of [1, 1 + 0x10001]) {

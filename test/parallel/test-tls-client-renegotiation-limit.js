@@ -25,13 +25,13 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { opensslCli } = require('../common/crypto');
+const { opensslCli, isBoringSSL } = require('../common/crypto');
 
 if (!opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
 }
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   require('../common/boringssl').testRenegotiationUnsupported();
   return;
 }

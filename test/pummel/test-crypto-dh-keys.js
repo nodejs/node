@@ -32,7 +32,7 @@ if (common.isPi()) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 for (const name of ['modp1', 'modp2', 'modp5', 'modp14', 'modp15', 'modp16', 'modp17']) {
   // modp1 is 768 bits, FIPS requires >= 1024.
@@ -47,7 +47,7 @@ for (const name of ['modp1', 'modp2', 'modp5', 'modp14', 'modp15', 'modp16', 'mo
     continue;
   }
   if ((name === 'modp1' && crypto.getFips() === 1) ||
-      (process.features.openssl_is_boringssl &&
+      (isBoringSSL &&
        (name === 'modp1' || name === 'modp2'))) {
     common.printSkipMessage(`Skipping unsupported ${name} test case`);
     continue;

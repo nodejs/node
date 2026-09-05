@@ -9,7 +9,7 @@ const assert = require('assert');
 const { Buffer } = require('buffer');
 const { subtle } = globalThis.crypto;
 const { createHash, getHashes } = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const fips = hasFIPS();
 
 const kTests = [
@@ -19,7 +19,7 @@ const kTests = [
   ['SHA-512', ['sha512'], 512],
 ];
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   kTests.push(
     [{ name: 'cSHAKE128', outputLength: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
     [{ name: 'cSHAKE256', outputLength: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
@@ -150,7 +150,7 @@ const kDigestedData = {
           '60b22aab8d36a4c2a3affdb71234f49276737c575ddf7' +
           '4d14054cbd6fdb98fd0ddcbcb46f91ad76b6ee'
   },
-  ...(!process.features.openssl_is_boringssl ? {
+  ...(!isBoringSSL ? {
     'cshake128': {
       empty: '7f9c2ba4e88f827d616045507605853ed73b8093f6e' +
             'fbc88eb1a6eacfa66ef26',

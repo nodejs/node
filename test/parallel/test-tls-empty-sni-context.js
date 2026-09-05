@@ -3,7 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 const assert = require('assert');
 const tls = require('tls');
 
@@ -26,7 +26,7 @@ const server = tls.createServer(options, (c) => {
   }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {
-    const expectedErr = process.features.openssl_is_boringssl ?
+    const expectedErr = isBoringSSL ?
       'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR' : hasOpenSSL(4, 0) ?
         'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
           'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';

@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const { hasOpenSSL } = require('../../test/common/crypto.js');
+const { hasOpenSSL, isBoringSSL } = require('../../test/common/crypto.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -24,7 +24,7 @@ if (hasOpenSSL(3, 5)) {
   keyFixtures['ml-kem-512'] = readKeyPair('ml_kem_512_public', 'ml_kem_512_private');
   keyFixtures['ml-kem-768'] = readKeyPair('ml_kem_768_public', 'ml_kem_768_private');
   keyFixtures['ml-kem-1024'] = readKeyPair('ml_kem_1024_public', 'ml_kem_1024_private');
-} else if (process.features.openssl_is_boringssl) {
+} else if (isBoringSSL) {
   keyFixtures['ml-kem-768'] = readKeyPair('ml_kem_768_public', 'ml_kem_768_private_seed_only');
   keyFixtures['ml-kem-1024'] = readKeyPair('ml_kem_1024_public', 'ml_kem_1024_private_seed_only');
 }

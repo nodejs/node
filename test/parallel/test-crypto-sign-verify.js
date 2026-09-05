@@ -12,6 +12,7 @@ const {
   hasOpenSSL,
   hasFIPS,
   opensslCli,
+  isBoringSSL,
 } = require('../common/crypto');
 
 // Test certificates
@@ -80,7 +81,7 @@ if (fips30) {
       });
   }, { message: hasOpenSSL(3) ?
     'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
-    process.features.openssl_is_boringssl ?
+    isBoringSSL ?
       'error:0600006d:public key routines:OPENSSL_internal:ILLEGAL_OR_UNSUPPORTED_PADDING_MODE' :
       'bye, bye, error stack' });
 
@@ -376,7 +377,7 @@ assert.throws(
   }, hasOpenSSL(3) ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
-  } : process.features.openssl_is_boringssl ? {
+  } : isBoringSSL ? {
     code: 'ERR_OSSL_EVP_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /ILLEGAL_OR_UNSUPPORTED_PADDING_MODE/,
   } : {
@@ -460,7 +461,7 @@ for (const pair of [
     raw: true },
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
-    skip: process.features.openssl_is_boringssl,
+    skip: isBoringSSL,
     algo: null,
     supportsContext: hasOpenSSL(3, 2),
     sigLen: 114,
@@ -721,7 +722,7 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
   const keys = [['ec-key.pem', 64], dsaKey];
 
   for (const [file, length] of keys) {
-    if (process.features.openssl_is_boringssl && file.startsWith('dsa_')) {
+    if (isBoringSSL && file.startsWith('dsa_')) {
       common.printSkipMessage(`Skipping unsupported ${file} test case`);
       continue;
     }
@@ -857,7 +858,7 @@ if (!opensslCli) {
   }));
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // Test RSA-PSS.
   {
     // This key pair does not restrict the message digest algorithm or salt
@@ -1022,7 +1023,7 @@ if (!process.features.openssl_is_boringssl) {
   // Ed25519 and Ed448 must use the one-shot methods
   const keys = [{ privateKey: fixtures.readKey('ed25519_private.pem', 'ascii'),
                   publicKey: fixtures.readKey('ed25519_public.pem', 'ascii') }];
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     keys.push({ privateKey: fixtures.readKey('ed448_private.pem', 'ascii'),
                 publicKey: fixtures.readKey('ed448_public.pem', 'ascii') });
   } else {
@@ -1042,7 +1043,7 @@ if (!process.features.openssl_is_boringssl) {
   }
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // Dh, x25519 and x448 should not be used for signing/verifying
   // https://github.com/nodejs/node/issues/53742
   for (const algo of ['dh', 'x25519', 'x448']) {

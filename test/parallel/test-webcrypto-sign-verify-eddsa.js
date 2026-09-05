@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -31,7 +31,7 @@ const smallOrderVerifyVectors = [
   },
 ];
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   smallOrderVerifyVectors.push({
     name: 'Ed448',
     publicKey: Buffer.concat([Buffer.from([1]), Buffer.alloc(56)]),
