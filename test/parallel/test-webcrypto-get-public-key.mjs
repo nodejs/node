@@ -56,6 +56,14 @@ for (const name of ['ML-KEM-512', 'ML-KEM-768', 'ML-KEM-1024']) {
   keyGeneration[name] = vector(name, ['decapsulateBits'], ['encapsulateBits']);
 }
 
+for (const name of [
+  'MLKEM768-P256',
+  'MLKEM768-X25519',
+  'MLKEM1024-P384',
+]) {
+  keyGeneration[name] = vector(name, ['decapsulateBits'], ['encapsulateBits']);
+}
+
 const unsupportedGetPublicKeyAlgorithms = new Set([
   'AES-CBC',
   'AES-CTR',

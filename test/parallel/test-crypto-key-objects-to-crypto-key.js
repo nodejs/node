@@ -404,7 +404,11 @@ for (const name of ['ML-KEM-512', 'ML-KEM-768', 'ML-KEM-1024']) {
   }
 }
 
-const unsupportedToCryptoKeyAlgorithms = new Set();
+const unsupportedToCryptoKeyAlgorithms = new Set([
+  'MLKEM768-P256',
+  'MLKEM768-X25519',
+  'MLKEM1024-P384',
+]);
 
 for (const name of Object.keys(kSupportedAlgorithms.importKey)) {
   const vectors = tests[name];

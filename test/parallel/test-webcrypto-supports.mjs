@@ -71,6 +71,9 @@ function getSharedKeyLength(alg) {
     case 'ml-kem-512':
     case 'ml-kem-768':
     case 'ml-kem-1024':
+    case 'mlkem768-p256':
+    case 'mlkem768-x25519':
+    case 'mlkem1024-p384':
       return 256;
   }
 }
