@@ -2,6 +2,8 @@ var keyData = {
   'ML-KEM-512': {
     privateUsages: ['decapsulateBits', 'decapsulateKey'],
     publicUsages: ['encapsulateBits', 'encapsulateKey'],
+    publicFormats: ['spki', 'jwk', 'raw-public'],
+    privateFormats: ['pkcs8', 'jwk', 'raw-seed'],
     pkcs8: new Uint8Array([
       48, 84, 2, 1, 0, 48, 11, 6, 9, 96, 134, 72, 1, 101, 3, 4, 4, 1, 4, 66,
       128, 64, 165, 38, 193, 164, 132, 122, 104, 173, 83, 214, 227, 31, 231,
@@ -33,6 +35,8 @@ var keyData = {
   'ML-KEM-768': {
     privateUsages: ['decapsulateBits', 'decapsulateKey'],
     publicUsages: ['encapsulateBits', 'encapsulateKey'],
+    publicFormats: ['spki', 'jwk', 'raw-public'],
+    privateFormats: ['pkcs8', 'jwk', 'raw-seed'],
     pkcs8: new Uint8Array([
       48, 84, 2, 1, 0, 48, 11, 6, 9, 96, 134, 72, 1, 101, 3, 4, 4, 2, 4, 66,
       128, 64, 166, 200, 29, 100, 198, 48, 80, 164, 143, 215, 2, 108, 106, 162,
@@ -63,6 +67,8 @@ var keyData = {
   'ML-KEM-1024': {
     privateUsages: ['decapsulateBits', 'decapsulateKey'],
     publicUsages: ['encapsulateBits', 'encapsulateKey'],
+    publicFormats: ['spki', 'jwk', 'raw-public'],
+    privateFormats: ['pkcs8', 'jwk', 'raw-seed'],
     pkcs8: new Uint8Array([
       48, 84, 2, 1, 0, 48, 11, 6, 9, 96, 134, 72, 1, 101, 3, 4, 4, 3, 4, 66,
       128, 64, 152, 117, 178, 230, 181, 134, 244, 129, 167, 125, 166, 8, 181,
