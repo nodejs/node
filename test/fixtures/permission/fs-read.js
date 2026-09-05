@@ -414,6 +414,31 @@ const regularFile = __filename;
   }));
 }
 
+// fs.openAsBlobSync
+{
+  assert.throws(() => {
+    fs.openAsBlobSync(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  assert.throws(() => {
+    fs.openAsBlobSync(bufferBlockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+  assert.throws(() => {
+    fs.openAsBlobSync(blockedFileURL);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+}
+
 // fs.exists
 {
   // It will return false (without performing IO) when permissions is not met
