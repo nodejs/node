@@ -2437,6 +2437,82 @@ Returns the values at the specified percentiles, computed in a single
 efficient pass over the histogram data. More efficient than calling
 `histogram.percentile()` multiple times.
 
+### `histogram.qrde([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `bins` {number} The number of equal-probability density bins to return.
+    Must be between 1 and 1000. Cannot be used with `probabilities`.
+    **Default:** `100`.
+  * `probabilities` {number\[]} Custom probability boundaries. The array must
+    contain between 2 and 1001 strictly increasing values, start with `0`, and
+    end with `1`. Cannot be used with `bins`.
+  * `dequantize` {string} Controls whether repeated bucket values are spread
+    deterministically over their equivalent-value ranges. May be `'none'`,
+    `'hdr'`, or `'all'`. **Default:** `'hdr'`.
+  * `cache` {boolean} When `true`, retains the expanded histogram snapshot for
+    reuse by subsequent calls with `cache: true`. The snapshot is invalidated
+    when the histogram is modified. **Default:** `false`.
+* Returns: {Promise} Fulfills with an {Object} containing:
+  * `probabilities` {Float64Array} The probability boundaries used by the
+    estimate.
+  * `quantiles` {Float64Array} The quantiles at the probability boundaries.
+  * `densities` {Float64Array} The density within each quantile interval.
+  * `count` {bigint} The number of values in the histogram snapshot.
+  * `bucketCount` {number} The number of occupied HDR buckets.
+  * `corrections` {number} The number of non-monotonic floating-point results
+    that were clamped to the preceding quantile.
+  * `dequantize` {string} The selected dequantization mode.
+
+Returns a quantile-respectful density estimate based on the Harrell-Davis
+quantile estimator. By default, `bins` generates equal probability boundaries.
+The `probabilities` option can instead focus the estimate on regions such as
+p90, p99, p99.9, and p99.99. The density for interval `i` contains probability
+mass `probabilities[i + 1] - probabilities[i]`. The histogram is snapshotted
+when the method is called. Snapshot expansion and the estimate are calculated
+in the libuv thread pool. Highly concentrated beta weights use a second-order
+asymptotic approximation to avoid numerical convergence loss at large sample
+counts.
+
+Setting `cache` to `true` avoids repeating snapshot capture and expansion when
+several estimates are requested from an unchanged histogram. The retained
+snapshot uses memory proportional to the number of occupied HDR buckets and is
+released when the histogram is next modified.
+
+QRDE temporarily uses approximately one additional HDR count array plus 32
+bytes per occupied bucket. With `cache: true`, the expanded 32-byte-per-bucket
+snapshot remains allocated. The following estimates use `lowest: 1` and
+`highest: Number.MAX_SAFE_INTEGER` and exclude allocator and JavaScript object
+overhead:
+
+| `figures` | Histogram | Maximum expanded snapshot | Peak cache-miss QRDE |
+| --------- | --------: | ------------------------: | -------------------: |
+| 1         |   6.3 KiB |                    25 KiB |               31 KiB |
+| 2         |    47 KiB |                   188 KiB |              235 KiB |
+| 3         |   352 KiB |                   1.4 MiB |              1.7 MiB |
+| 4         |   5.0 MiB |                    20 MiB |               25 MiB |
+| 5         |    37 MiB |                   148 MiB |              185 MiB |
+
+The maximum snapshot column assumes every representable bucket is occupied.
+Lower `highest` values reduce histogram and temporary copy sizes. Concurrent
+calls that miss the cache each require their own temporary copy and expanded
+snapshot.
+
+HDR histograms aggregate observations into equivalent-value buckets. The
+`'hdr'` dequantization mode models repeated values in buckets wider than one
+unit as a continuous uniform distribution over the bucket resolution. This
+reduces density artifacts introduced by HDR quantization while preserving
+repeated unit-resolution values as point masses. The `'all'` mode also
+dequantizes repeated unit-resolution values. Use `'none'` to calculate the
+grouped Harrell-Davis estimator using bucket midpoints directly.
+
+An empty histogram returns the requested `probabilities` but produces empty
+`quantiles` and `densities` arrays. A non-dequantized interval whose quantile
+boundaries are equal has an infinite density.
+
 ### `histogram.reset()`
 
 <!-- YAML
