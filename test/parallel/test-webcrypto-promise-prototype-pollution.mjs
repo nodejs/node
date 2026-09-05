@@ -878,6 +878,19 @@ for (const name of [
   }));
 }
 
+for (const name of [
+  'MLKEM768-P256',
+  'MLKEM768-X25519',
+  'MLKEM1024-P384',
+]) {
+  addFixture(name, kemFixture({
+    name,
+    generateAlgorithm: algorithm(name),
+    importAlgorithm: algorithm(name),
+    spki: false,
+  }));
+}
+
 for (const name of ['HKDF', 'PBKDF2']) {
   addFixture(name, kdfFixture({
     name,
