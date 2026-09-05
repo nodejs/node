@@ -1718,6 +1718,61 @@ added:
 
 Returns a {RecordableHistogram}.
 
+## `perf_hooks.createSlidingWindowHistogram(options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `chunks` {number} The number of histogram chunks retained. Must be an
+    integer between `1` and `1024`.
+  * `chunkDuration` {number} The duration of each chunk in milliseconds. Must
+    be an integer between `1` and `18_446_744_073_709`. Exactly one of
+    `chunkDuration` and `recordsPerChunk` must be specified.
+  * `recordsPerChunk` {number} The number of calls to `record()` assigned to
+    each chunk. Must be an integer between `1` and `Number.MAX_SAFE_INTEGER`.
+    Exactly one of `chunkDuration` and `recordsPerChunk` must be specified.
+  * `lowest` {number|bigint} The lowest discernible value. Must be an integer
+    value greater than `0`. **Default:** `1`.
+  * `highest` {number|bigint} The highest recordable value. Must be an integer
+    value that is equal to or greater than two times `lowest`.
+    **Default:** `Number.MAX_SAFE_INTEGER`.
+  * `figures` {number} The number of accuracy digits. Must be an integer between
+    `1` and `5`. **Default:** `3`.
+* Returns: {SlidingWindowHistogram}
+
+Creates a {SlidingWindowHistogram} that retains the latest `chunks` histogram
+chunks. Rotation is lazy and does not create a timer. Time-based rotation is
+evaluated when `record()` or `snapshot()` is called. Count-based rotation is
+evaluated when `record()` is called.
+
+One histogram chunk is allocated during construction. Additional chunks are
+allocated lazily. The maximum native memory used by the window scales with
+`chunks` and with the `lowest`, `highest`, and `figures` histogram options.
+
+The window boundary has chunk-level precision. With `N` chunks of duration
+`D`, a recorded value is retained for between `(N - 1) * D` and `N * D`
+milliseconds. Once a count-based window is populated, it retains between
+`(N - 1) * C + 1` and `N * C` recording attempts, where `C` is
+`recordsPerChunk`. Recording attempts which exceed `highest` are included when
+determining count-based rotation.
+
+```js
+const { createSlidingWindowHistogram } = require('node:perf_hooks');
+
+const window = createSlidingWindowHistogram({
+  chunks: 6,
+  chunkDuration: 10_000,
+});
+
+window.record(20_000_000);
+
+// Materialize the current window as an independent Histogram.
+const snapshot = window.snapshot();
+console.log(snapshot.percentile(99));
+```
+
 ## `perf_hooks.importHistogram(data)`
 
 <!-- YAML
@@ -2687,6 +2742,54 @@ Subtracts the values of `other` from this histogram. Both histograms should
 have compatible configurations. Bucket counts that would become negative
 are clamped to zero.
 
+## Class: `SlidingWindowHistogram`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Records values into a lazily rotated ring of histogram chunks. Instances are
+created using [`perf_hooks.createSlidingWindowHistogram()`][] and cannot be
+constructed directly. A `SlidingWindowHistogram` does not extend {Histogram};
+call `snapshot()` to materialize the current window as a {Histogram}.
+
+`SlidingWindowHistogram` instances cannot be cloned or transferred through a
+{MessagePort}.
+
+### `slidingWindowHistogram.record(val)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `val` {number|bigint} The amount to record.
+
+Records `val` in the current chunk. For a count-based window, every call that
+reaches the native histogram counts toward rotation, including values which
+exceed the configured `highest` value.
+
+### `slidingWindowHistogram.reset()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Invalidates all chunks in the current window. Allocated chunks are reset
+lazily when reused.
+
+### `slidingWindowHistogram.snapshot()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Histogram}
+
+Materializes the current window as a new, independent {Histogram}. Values
+recorded or expired after this method returns do not change the returned
+histogram. Materialization allocates one histogram and merges every retained
+chunk.
+
 ## Histogram analysis examples
 
 The `Histogram` class provides statistical analysis methods useful for
@@ -3117,6 +3220,7 @@ dns.promises.resolve('localhost');
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`histogram.export()`]: #histogramexport
+[`perf_hooks.createSlidingWindowHistogram()`]: #perf_hookscreateslidingwindowhistogramoptions
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
 [`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
 [`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions

@@ -23,6 +23,7 @@ using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
 using v8::Exception;
+using v8::FastApiCallbackOptions;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -1730,6 +1731,8 @@ CFunction HistogramBase::fast_record_(
     CFunction::Make(&HistogramBase::FastRecord));
 CFunction HistogramBase::fast_record_delta_(
     CFunction::Make(&HistogramBase::FastRecordDelta));
+CFunction SlidingWindowHistogram::fast_record_(
+    CFunction::Make(&SlidingWindowHistogram::FastRecord));
 CFunction IntervalHistogram::fast_start_(
     CFunction::Make(&IntervalHistogram::FastStart));
 CFunction IntervalHistogram::fast_stop_(
@@ -2089,6 +2092,254 @@ std::unique_ptr<worker::TransferData> HistogramBase::CloneForMessaging() const {
 void HistogramBase::HistogramTransferData::MemoryInfo(
     MemoryTracker* tracker) const {
   tracker->TrackField("histogram", histogram_);
+}
+
+SlidingWindowHistogram::SlidingWindowHistogram(
+    Environment* env,
+    Local<Object> wrap,
+    const Histogram::Options& options,
+    size_t chunk_count,
+    bool time_based,
+    uint64_t rotate_at,
+    std::shared_ptr<Histogram> spare)
+    : BaseObject(env, wrap),
+      options_(options),
+      chunks_(chunk_count),
+      generations_(chunk_count, kNoGeneration),
+      spare_(std::move(spare)),
+      time_based_(time_based),
+      rotate_at_(rotate_at),
+      origin_(uv_hrtime()) {
+  MakeWeak();
+  external_memory_ = spare_->GetMemorySize();
+  env->external_memory_accounter()->Increase(env->isolate(), external_memory_);
+}
+
+SlidingWindowHistogram::~SlidingWindowHistogram() {
+  env()->external_memory_accounter()->Decrease(env()->isolate(),
+                                               external_memory_);
+}
+
+void SlidingWindowHistogram::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("chunks", chunks_);
+  tracker->TrackField("generations", generations_);
+  tracker->TrackField("spare", spare_);
+}
+
+uint64_t SlidingWindowHistogram::CurrentTimeGeneration() const {
+  const uint64_t now = uv_hrtime();
+  CHECK_GE(now, origin_);
+  return (now - origin_) / rotate_at_;
+}
+
+Histogram* SlidingWindowHistogram::GetChunk(uint64_t generation) {
+  const size_t index = generation % chunks_.size();
+  if (generations_[index] == generation) {
+    CHECK(chunks_[index]);
+    return chunks_[index].get();
+  }
+
+  if (chunks_[index]) {
+    chunks_[index]->Reset();
+  } else if (spare_) {
+    chunks_[index] = std::move(spare_);
+  } else {
+    chunks_[index] = Histogram::Create(options_);
+    if (!chunks_[index]) return nullptr;
+    const size_t size = chunks_[index]->GetMemorySize();
+    external_memory_ += size;
+    env()->external_memory_accounter()->Increase(env()->isolate(), size);
+  }
+
+  generations_[index] = generation;
+  return chunks_[index].get();
+}
+
+bool SlidingWindowHistogram::RecordValue(int64_t value) {
+  uint64_t generation;
+  if (time_based_) {
+    generation = CurrentTimeGeneration();
+  } else if (records_in_current_chunk_ == rotate_at_) {
+    CHECK_LT(current_generation_, kNoGeneration - 1);
+    generation = current_generation_ + 1;
+  } else {
+    generation = current_generation_;
+  }
+
+  Histogram* chunk = GetChunk(generation);
+  if (chunk == nullptr) return false;
+
+  chunk->Record(value);
+  if (!time_based_) {
+    if (generation != current_generation_) {
+      current_generation_ = generation;
+      records_in_current_chunk_ = 0;
+    }
+    records_in_current_chunk_++;
+    has_count_records_ = true;
+  }
+  return true;
+}
+
+std::shared_ptr<Histogram> SlidingWindowHistogram::CreateSnapshot() const {
+  std::shared_ptr<Histogram> snapshot = Histogram::Create(options_);
+  if (!snapshot) return {};
+
+  uint64_t current_generation;
+  if (time_based_) {
+    current_generation = CurrentTimeGeneration();
+  } else {
+    if (!has_count_records_) return snapshot;
+    current_generation = current_generation_;
+  }
+
+  for (size_t i = 0; i < chunks_.size(); i++) {
+    const uint64_t generation = generations_[i];
+    if (generation == kNoGeneration || generation > current_generation ||
+        current_generation - generation >= chunks_.size()) {
+      continue;
+    }
+    CHECK(chunks_[i]);
+    CHECK_EQ(snapshot->Add(*chunks_[i]), 0);
+  }
+  return snapshot;
+}
+
+void SlidingWindowHistogram::ResetWindow() {
+  std::fill(generations_.begin(), generations_.end(), kNoGeneration);
+  origin_ = uv_hrtime();
+  current_generation_ = 0;
+  records_in_current_chunk_ = 0;
+  has_count_records_ = false;
+}
+
+void SlidingWindowHistogram::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  CHECK_IMPLIES(!args[0]->IsNumber(), args[0]->IsBigInt());
+  CHECK_IMPLIES(!args[1]->IsNumber(), args[1]->IsBigInt());
+  CHECK(args[2]->IsUint32());
+  CHECK(args[3]->IsUint32());
+  CHECK(args[4]->IsBoolean());
+  CHECK(args[5]->IsBigInt());
+
+  Environment* env = Environment::GetCurrent(args);
+  bool lossless = true;
+  int64_t lowest = 1;
+  int64_t highest = std::numeric_limits<int64_t>::max();
+
+  if (args[0]->IsNumber()) {
+    lowest = args[0].As<Integer>()->Value();
+  } else {
+    lowest = args[0].As<BigInt>()->Int64Value(&lossless);
+    if (!lossless)
+      return THROW_ERR_OUT_OF_RANGE(env, "options.lowest is out of range");
+  }
+
+  if (args[1]->IsNumber()) {
+    highest = args[1].As<Integer>()->Value();
+  } else {
+    highest = args[1].As<BigInt>()->Int64Value(&lossless);
+    if (!lossless)
+      return THROW_ERR_OUT_OF_RANGE(env, "options.highest is out of range");
+  }
+
+  const int figures = args[2].As<Uint32>()->Value();
+  const uint32_t chunk_count = args[3].As<Uint32>()->Value();
+  if (chunk_count == 0)
+    return THROW_ERR_OUT_OF_RANGE(env, "options.chunks is out of range");
+
+  lossless = true;
+  const uint64_t rotate_at = args[5].As<BigInt>()->Uint64Value(&lossless);
+  if (!lossless || rotate_at == 0) {
+    return THROW_ERR_OUT_OF_RANGE(env, "rotation interval is out of range");
+  }
+
+  Histogram::Options options{lowest, highest, figures};
+  std::shared_ptr<Histogram> spare = Histogram::Create(options);
+  if (!spare)
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid histogram options");
+
+  new SlidingWindowHistogram(env,
+                             args.This(),
+                             options,
+                             chunk_count,
+                             args[4]->IsTrue(),
+                             rotate_at,
+                             std::move(spare));
+}
+
+void SlidingWindowHistogram::Record(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_IMPLIES(!args[0]->IsNumber(), args[0]->IsBigInt());
+  bool lossless = true;
+  const int64_t value =
+      args[0]->IsBigInt() ? args[0].As<BigInt>()->Int64Value(&lossless)
+                          : static_cast<int64_t>(args[0].As<Number>()->Value());
+  if (!lossless || value < 1)
+    return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
+
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  if (!histogram->RecordValue(value)) THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+}
+
+void SlidingWindowHistogram::FastRecord(Local<Value> receiver,
+                                        int64_t value,
+                                        // NOLINTNEXTLINE(runtime/references)
+                                        FastApiCallbackOptions& options) {
+  CHECK_GE(value, 1);
+  TRACK_V8_FAST_API_CALL("histogram.slidingWindow.record");
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  if (!histogram->RecordValue(value)) {
+    HandleScope scope(options.isolate);
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(histogram->env());
+  }
+}
+
+void SlidingWindowHistogram::Snapshot(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+
+  std::shared_ptr<Histogram> snapshot = histogram->CreateSnapshot();
+  if (!snapshot) return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+
+  BaseObjectPtr<HistogramBase> result =
+      HistogramBase::Create(env, std::move(snapshot));
+  if (result) args.GetReturnValue().Set(result->object());
+}
+
+void SlidingWindowHistogram::Reset(const FunctionCallbackInfo<Value>& args) {
+  SlidingWindowHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  histogram->ResetWindow();
+}
+
+void SlidingWindowHistogram::Initialize(IsolateData* isolate_data,
+                                        Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, New);
+  tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SlidingWindowHistogram"));
+  auto instance = tmpl->InstanceTemplate();
+  instance->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  SetFastMethod(isolate, instance, "record", Record, &fast_record_);
+  SetProtoMethod(isolate, tmpl, "snapshot", Snapshot);
+  SetProtoMethod(isolate, tmpl, "reset", Reset);
+  SetConstructorFunction(isolate,
+                         target,
+                         "SlidingWindowHistogram",
+                         tmpl,
+                         SetConstructorFunctionFlag::NONE);
+}
+
+void SlidingWindowHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Record);
+  registry->Register(fast_record_);
+  registry->Register(Snapshot);
+  registry->Register(Reset);
 }
 
 Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
