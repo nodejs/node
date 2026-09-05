@@ -1658,6 +1658,22 @@ tmpdir.refresh();
 }
 
 {
+  async function* passThrough(source) {
+    for await (const chunk of source) {
+      yield chunk;
+    }
+  }
+
+  const streams = () => [
+    Readable.from(Array.from({ length: 100 }, (_, i) => i)),
+    passThrough,
+  ];
+
+  pipelinep(...streams()).then(common.mustCall());
+  pipelinep(streams()).then(common.mustCall());
+}
+
+{
   const r = new Readable();
   for (let i = 0; i < 4000; i++) {
     r.push('asdfdagljanfgkaljdfn');
