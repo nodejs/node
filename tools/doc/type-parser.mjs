@@ -226,6 +226,8 @@ const customTypesMap = {
     'perf_hooks.html#class-performanceobserver',
   'PerformanceObserverEntryList':
     'perf_hooks.html#class-performanceobserverentrylist',
+  'SlidingWindowHistogram':
+    'perf_hooks.html#class-slidingwindowhistogram',
 
   'readline.Interface':
     'readline.html#class-readlineinterface',
