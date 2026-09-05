@@ -792,6 +792,163 @@ case-insensitive matching if set to true.
 
 The constructor can throw a `TypeError` to indicate parsing failure.
 
+#### `urlPattern.hash`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `hash` component.
+In this example the pattern does not specify a hash component, so it matches
+any value and the pattern string is the wildcard `'*'`.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.hash);
+// Prints: *
+```
+
+#### `urlPattern.hasRegExpGroups`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {boolean}
+
+Gets a read-only boolean that is `true` if any component of the URL pattern
+contains a regular expression group, and `false` otherwise.
+
+```js
+const bookPattern = new URLPattern({ pathname: '/books/:id' });
+console.log(bookPattern.hasRegExpGroups);
+// Prints: false
+
+const versionPattern = new URLPattern({ pathname: '/docs/:version(v\\d+)/*' });
+console.log(versionPattern.hasRegExpGroups);
+// Prints: true
+```
+
+#### `urlPattern.hostname`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `hostname` component.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.hostname);
+// Prints: nodejs.org
+```
+
+#### `urlPattern.password`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `password` component.
+In this example the pattern does not specify a password component, so it matches
+any value and the pattern string is the wildcard `'*'`.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.password);
+// Prints: *
+```
+
+#### `urlPattern.pathname`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `pathname` component.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.pathname);
+// Prints: /docs/latest/api/*.html
+```
+
+#### `urlPattern.port`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `port` component.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org:8080/docs/*');
+console.log(myPattern.port);
+// Prints: 8080
+```
+
+#### `urlPattern.protocol`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `protocol` component.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.protocol);
+// Prints: https
+```
+
+#### `urlPattern.search`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `search` component.
+In this example the pattern does not specify a search component, so it matches
+any value and the pattern string is the wildcard `'*'`.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.search);
+// Prints: *
+```
+
+#### `urlPattern.username`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* Type: {string}
+
+Gets the read-only pattern string of the URL pattern's `username` component.
+In this example the pattern does not specify a username component, so it matches
+any value and the pattern string is the wildcard `'*'`.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.username);
+// Prints: *
+```
+
 #### `urlPattern.exec(input[, baseURL])`
 
 * `input` {string | Object} A URL or URL parts
