@@ -9,12 +9,13 @@ const assert = require('assert');
 const {
   Share,
   SyncShare,
-  share,
-  shareSync,
-  shareProtocol,
-  shareSyncProtocol,
+  dump,
   from,
   fromSync,
+  share,
+  shareProtocol,
+  shareSync,
+  shareSyncProtocol,
   text,
   textSync,
 } = require('stream/iter');
@@ -97,8 +98,7 @@ async function testShareSourceThrowsNonError() {
   const shared = share(source());
   const consumer = shared.pull();
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const batch of consumer) { /* consume */ }
+    await dump(consumer);
   }, { code: 'ERR_OPERATION_FAILED' });
 }
 

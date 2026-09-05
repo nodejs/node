@@ -6,6 +6,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -49,7 +50,7 @@ await serverDone.promise;
 // After the server received data, the stream opened successfully.
 // The data arrival proves (pending stream opens after handshake).
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await stream.closed;
 await clientSession.close();
 await serverEndpoint.close();

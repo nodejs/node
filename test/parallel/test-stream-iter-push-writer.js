@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { push, ondrain, text } = require('stream/iter');
+const { dump, ondrain, push, text } = require('stream/iter');
 
 async function testOndrain() {
   const { writer } = push({ budget: 16384 });
@@ -242,8 +242,7 @@ async function testFail() {
   // Second fail is a no-op (already errored)
   writer.fail(new Error('boom2'));
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* consume */ }
+    await dump(readable);
   }, { message: 'boom' });
 }
 
@@ -252,8 +251,7 @@ async function testEndAsyncReturnValue() {
   writer.writeSync('hello');
   // Start consuming concurrently (end() waits for drain)
   const consume = (async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* drain */ }
+    await dump(readable);
   })();
   const total = await writer.end();
   assert.strictEqual(total, 5);
@@ -308,8 +306,7 @@ async function testEndAfterEndSyncWaitsForDrain() {
   await Promise.resolve();
   assert.strictEqual(ended, false);
 
-  // eslint-disable-next-line no-unused-vars
-  for await (const _ of readable) { /* drain */ }
+  await dump(readable);
   assert.strictEqual(await end, 5);
 }
 
@@ -489,8 +486,7 @@ async function testEndIdempotentWhenClosed() {
   await writer.write('hello');
   // Start consuming concurrently (end() waits for drain)
   const consume = (async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* drain */ }
+    await dump(readable);
   })();
   const first = await writer.end();
   assert.strictEqual(first, 5);
@@ -509,8 +505,7 @@ async function testAsyncDispose() {
   assert.strictEqual(writer.writeSync('fail'), false);
   // Drain readable
   try {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* consume */ }
+    await dump(readable);
   } catch {
     // Expected - reader sees the error
   }
@@ -525,8 +520,7 @@ async function testSyncDispose() {
   assert.strictEqual(writer.writeSync('fail'), false);
   // Drain readable
   try {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of readable) { /* consume */ }
+    await dump(readable);
   } catch {
     // Expected
   }

@@ -4,10 +4,11 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  dump,
   from,
   fromSync,
-  push,
   merge,
+  push,
   text,
   toAsyncStreamable,
   toStreamable,
@@ -99,10 +100,7 @@ async function testMergeSourceError() {
   }
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of merge(goodSource(), badSource())) {
-        /* consume */
-      }
+      await dump(merge(goodSource(), badSource()));
     },
     { message: 'merge source boom' },
   );
@@ -390,10 +388,7 @@ async function testMergeCleanupErrorOnly() {
 
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of merge(source(), failingReturnSource())) {
-        // Consume all - no primary error
-      }
+      await dump(merge(source(), failingReturnSource()));
     },
     { message: 'cleanup boom' },
   );
@@ -416,10 +411,7 @@ async function testMergePrimaryErrorPrecedesCleanupError() {
 
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of merge(badSource(), failingReturnSource())) {
-        // Consume until error
-      }
+      await dump(merge(badSource(), failingReturnSource()));
     },
     { message: 'primary boom' },
   );

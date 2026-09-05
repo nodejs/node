@@ -7,6 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -92,8 +93,7 @@ assert.strictEqual(clientOpts.enableDatagrams, customAppOptions.enableDatagrams)
 const stream = await clientSession.createBidirectionalStream();
 stream.writer.endSync();
 
-// eslint-disable-next-line no-unused-vars
-for await (const _ of stream) { /* drain */ }
+await dump(stream);
 await Promise.all([stream.closed, serverDone.promise]);
 
 // After close, applicationOptions should return null.

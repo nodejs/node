@@ -4,14 +4,14 @@
 const common = require('../common');
 const assert = require('assert');
 const {
+  Share,
+  SyncShare,
+  dump,
   from,
   fromSync,
   share,
-  Share,
-  SyncShare,
   text,
   textSync,
-
 } = require('stream/iter');
 
 // =============================================================================
@@ -235,8 +235,7 @@ async function testShareStrictBackpressure() {
   // the budget (since the slow consumer prevents trimming),
   // triggering an ERR_OUT_OF_RANGE error.
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of fast) { /* consume */ }
+    await dump(fast);
   }, { code: 'ERR_OUT_OF_RANGE' });
 }
 

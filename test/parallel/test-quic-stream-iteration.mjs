@@ -9,6 +9,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -70,7 +71,7 @@ for (let i = 0; i < totalStreams; i++) {
   const stream = await clientSession.createBidirectionalStream({
     body: encoder.encode(message),
   });
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 }
 

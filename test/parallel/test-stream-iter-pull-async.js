@@ -5,6 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const {
   broadcast,
+  dump,
   from,
   pull,
   push,
@@ -107,10 +108,7 @@ async function testTransformSignalListenerErrorOnSourceError() {
 
   await assert.rejects(
     async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of pull(failingSource(), throwingTransform)) {
-        // Consume
-      }
+      await dump(pull(failingSource(), throwingTransform));
     },
     { message: 'source error' },
   );
@@ -130,8 +128,7 @@ async function testPullSourceError() {
     throw new Error('source boom');
   }
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(failingSource())) { /* consume */ }
+    await dump(pull(failingSource()));
   }, { message: 'source boom' });
 }
 
@@ -139,8 +136,7 @@ async function testPullSourceError() {
 async function testTapCallbackError() {
   const badTap = tap(() => { throw new Error('tap boom'); });
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badTap)) { /* consume */ }
+    await dump(pull(from('hello'), badTap));
   }, { message: 'tap boom' });
 }
 
@@ -298,8 +294,7 @@ async function testPullStatelessTransformError() {
     throw new Error('async stateless boom');
   };
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badTransform)) { /* consume */ }
+    await dump(pull(from('hello'), badTransform));
   }, { message: 'async stateless boom' });
 }
 
@@ -314,8 +309,7 @@ async function testPullStatefulTransformError() {
     },
   };
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badStateful)) { /* consume */ }
+    await dump(pull(from('hello'), badStateful));
   }, { message: 'async stateful boom' });
 }
 
@@ -353,8 +347,7 @@ async function testPullStatelessTransformFlushError() {
     return chunks;
   };
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of pull(from('hello'), badFlush)) { /* consume */ }
+    await dump(pull(from('hello'), badFlush));
   }, { message: 'async flush boom' });
 }
 
