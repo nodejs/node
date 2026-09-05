@@ -13,6 +13,10 @@ if (common.isASan) {
   common.skip('ASan does not play well with secure heap allocations');
 }
 
+if (common.hasV8Sandbox) {
+  common.skip('--secure-heap is not available with the V8 sandbox');
+}
+
 const {
   isBoringSSL,
   hasOpenSSL,

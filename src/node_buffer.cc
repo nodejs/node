@@ -88,7 +88,7 @@ namespace {
 
 class CallbackInfo : public Cleanable {
  public:
-  static inline Local<ArrayBuffer> CreateTrackedArrayBuffer(
+  static inline MaybeLocal<ArrayBuffer> CreateTrackedArrayBuffer(
       Environment* env,
       char* data,
       size_t length,
@@ -114,7 +114,7 @@ class CallbackInfo : public Cleanable {
   Environment* const env_;
 };
 
-Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
+MaybeLocal<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
     Environment* env,
     char* data,
     size_t length,
@@ -124,10 +124,18 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
   CHECK_IMPLIES(data == nullptr, length == 0);
 
   CallbackInfo* self = new CallbackInfo(env, callback, data, hint);
-  std::unique_ptr<BackingStore> bs =
-      ArrayBuffer::NewBackingStore(data, length, [](void*, size_t, void* arg) {
+  std::unique_ptr<BackingStore> bs = AdoptIntoBackingStore(
+      env->isolate(),
+      data,
+      length,
+      [](void*, size_t, void* arg) {
         static_cast<CallbackInfo*>(arg)->OnBackingStoreFree();
-      }, self);
+      },
+      self);
+  if (!bs) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return MaybeLocal<ArrayBuffer>();
+  }
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
 
   // V8 simply ignores the BackingStore deleter callback if data == nullptr,
@@ -135,7 +143,7 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
   if (data == nullptr) {
     ab->Detach(Local<Value>()).Check();
     self->OnBackingStoreFree();  // This calls `callback` asynchronously.
-  } else {
+  } else if (ab->Data() == data) {
     // Store the ArrayBuffer so that we can detach it later.
     self->persistent_.Reset(env->isolate(), ab);
     self->persistent_.SetWeak();
@@ -143,7 +151,6 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
 
   return ab;
 }
-
 
 CallbackInfo::CallbackInfo(Environment* env,
                            FreeCallback callback,
@@ -481,11 +488,13 @@ MaybeLocal<Object> New(Environment* env,
     return Local<Object>();
   }
 
-  Local<ArrayBuffer> ab =
-      CallbackInfo::CreateTrackedArrayBuffer(env, data, length, callback, hint);
-  if (ab->SetPrivate(env->context(),
+  Local<ArrayBuffer> ab;
+  if (!CallbackInfo::CreateTrackedArrayBuffer(env, data, length, callback, hint)
+           .ToLocal(&ab) ||
+      ab->SetPrivate(env->context(),
                      env->untransferable_object_private_symbol(),
-                     True(env->isolate())).IsNothing()) {
+                     True(env->isolate()))
+          .IsNothing()) {
     return Local<Object>();
   }
   MaybeLocal<Uint8Array> maybe_ui = Buffer::New(env, ab, 0, length);
@@ -529,32 +538,24 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
-#if defined(V8_ENABLE_SANDBOX)
-  // When v8 sandbox is enabled, external backing stores are not supported
-  // since all arraybuffer allocations are expected to be done by the isolate.
-  // Since this violates the contract of this function, let's free the data and
-  // throw an error.
-  free(data);
-  THROW_ERR_OPERATION_FAILED(
-      env->isolate(),
-      "Wrapping external data is not supported when the v8 sandbox is enabled");
-  return MaybeLocal<Object>();
-#else
   EscapableHandleScope handle_scope(env->isolate());
 
-  auto free_callback = [](void* data, size_t length, void* deleter_data) {
-    free(data);
-  };
-  std::unique_ptr<BackingStore> bs =
-      ArrayBuffer::NewBackingStore(data, length, free_callback, nullptr);
-
+  std::unique_ptr<BackingStore> bs = AdoptIntoBackingStore(
+      env->isolate(),
+      data,
+      length,
+      [](void* data, size_t, void*) { free(data); },
+      nullptr);
+  if (!bs) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return MaybeLocal<Object>();
+  }
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
 
   Local<Object> obj;
   if (Buffer::New(env, ab, 0, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
-#endif
 }
 
 namespace {
@@ -1608,11 +1609,7 @@ inline size_t CheckNumberToSize(Local<Value> number) {
   // See v8::internal::TryNumberToSize on this (and on < comparison)
   double maxSize = static_cast<double>(std::numeric_limits<size_t>::max());
   CHECK(value >= 0 && value < maxSize);
-  size_t size = static_cast<size_t>(value);
-#ifdef V8_ENABLE_SANDBOX
-  CHECK_LE(size, kMaxSafeBufferSizeForSandbox);
-#endif
-  return size;
+  return static_cast<size_t>(value);
 }
 
 // Allocates an ArrayBuffer of `size` bytes. Its contents are left

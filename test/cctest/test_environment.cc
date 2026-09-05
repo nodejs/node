@@ -554,7 +554,11 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
   }
 
   CHECK_EQ(callback_calls, 1);
+#ifdef V8_ENABLE_SANDBOX
+  CHECK_EQ(ab->ByteLength(), sizeof(hello));
+#else
   CHECK_EQ(ab->ByteLength(), 0);
+#endif
 }
 
 #if HAVE_INSPECTOR
