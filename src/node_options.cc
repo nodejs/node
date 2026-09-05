@@ -675,6 +675,26 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:vfs module",
             BOOL_FIELD(experimental_vfs),
             kAllowedInEnvvar);
+  // --vfs-mount and --vfs-load both append to vfs_mounts, so the list holds
+  // every mount in the order the command line asked for them. Which of those
+  // the entry point comes from is recovered from the position of --vfs-load,
+  // rather than an index the user has to count out.
+  AddOption("--vfs-mount",
+            "mount a directory or archive as a virtual file system "
+            "(option can be repeated; requires --experimental-vfs)",
+            &EnvironmentOptions::vfs_mounts,
+            kAllowedInEnvvar);
+  // Choosing the entry point is the command line's alone: an environment
+  // variable must not be able to redirect what a `node <args>` invocation runs,
+  // so this is rejected in NODE_OPTIONS.
+  AddOption("--vfs-load",
+            "mount a directory or archive as a virtual file system and run the "
+            "entry point and module resolution against it instead of the real "
+            "file system (may be given once; requires --experimental-vfs)",
+            &EnvironmentOptions::vfs_mounts,
+            kDisallowedInEnvvar);
+  AddOption("[vfs_load_set]", "", BOOL_FIELD(vfs_load));
+  Implies("--vfs-load", "[vfs_load_set]");
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",

@@ -93,6 +93,65 @@ const memoryVfs = vfs.create();
 const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
 ```
 
+## `vfs.registerProvider(entry)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `entry` {Object}
+  * `name` {string} A short identifier, used in diagnostics.
+  * `canHandle` {Function} Called with the resolved path and its
+    [`fs.Stats`][]. Returns `true` if this provider should back the source.
+  * `create` {Function} Called with the resolved path and its [`fs.Stats`][].
+    Returns the {VirtualProvider} backing the source.
+
+Registers a provider that [`--vfs-mount`][] can select for a source it
+recognizes, so a file format Node.js has no built-in provider for can still be
+mounted.
+
+A source is claimed by the first provider whose `canHandle()` returns `true`.
+Registered providers are consulted before the built-in ones, newest
+registration first, and are offered directories as well as files, so a
+registered provider can back, wrap, or vet any source. If none claims the
+source, the built-in providers handle it: a directory with
+[`RealFSProvider`][], and a file whose bytes are a ZIP archive with
+[`ZipProvider`][].
+
+Providers must be registered before the mounts are created. Register from a
+module preloaded with [`--require`][] or [`--import`][]:
+
+```cjs
+// provider.js, preloaded with --require
+const fs = require('node:fs');
+const vfs = require('node:vfs');
+
+const MAGIC = Buffer.from('CUSTOMFMT');
+
+vfs.registerProvider({
+  name: 'customfmt',
+  canHandle(path, stats) {
+    if (!stats.isFile()) return false;
+    const head = Buffer.alloc(MAGIC.length);
+    const fd = fs.openSync(path, 'r');
+    try {
+      fs.readSync(fd, head, 0, MAGIC.length, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
+    return head.equals(MAGIC);
+  },
+  create(path) {
+    return new MyCustomProvider(path);
+  },
+});
+```
+
+```console
+$ node --experimental-vfs --require ./provider.js \
+       --vfs-load archive.customfmt
+```
+
 ## Class: `VirtualFileSystem`
 
 <!-- YAML
@@ -629,6 +688,9 @@ fields use synthetic but stable values:
 [ES modules resolution algorithm]: esm.md#resolution-algorithm
 [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
 [Single Executable Application]: single-executable-applications.md
+[`--import`]: cli.md#--importmodule
+[`--require`]: cli.md#-r---require-module
+[`--vfs-mount`]: cli.md#--vfs-mountsource
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem

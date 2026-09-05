@@ -3770,6 +3770,78 @@ added: v0.1.3
 
 Print node's version.
 
+### `--vfs-load=source`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {string} A directory or an archive file to mount and run.
+
+Requires [`--experimental-vfs`][]. May be given at most once.
+
+Mounts `source` exactly as [`--vfs-mount`][] does, and additionally runs the
+entry point and all subsequent `require()`/`import` resolution against that
+mount rather than the real file system. The entry point is taken from the mount
+the same way `node <directory>` takes one: the mount's own `package.json`
+`"main"`, or `index.js`. Any positional command-line argument is the program's
+own (available from `process.argv[2]` onward), never an entry-point override.
+
+`process.argv[1]` reports `source` rather than the reserved mount point, since
+the mount point is an opaque implementation detail.
+
+Mounting the same source twice mounts it twice, at two separate mount points.
+The entry point then comes from the mount `--vfs-load` itself contributed, not
+from an earlier `--vfs-mount` of the same source.
+
+In worker threads `--vfs-load` mounts but does not load: a worker inherits the
+same mounts, in the same order, and runs its own entry point.
+
+`--vfs-load` is not permitted in [`NODE_OPTIONS`][]: which entry point runs is
+the command line's decision, and the environment must not be able to redirect
+it.
+
+```console
+$ node --experimental-vfs --vfs-load=app.zip
+$ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
+```
+
+### `--vfs-mount=source`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {string} A directory or an archive file to mount.
+
+Requires [`--experimental-vfs`][]. May be repeated to mount several sources.
+
+Mounts `source` as a virtual file system ([`node:vfs`][]). Each mount is placed
+at a reserved mount point assigned by Node.js, so mounts never shadow real
+paths and no target can be chosen. Mounting alone does not change the entry
+point; use [`--vfs-load`][] for the source to run from.
+
+`--vfs-mount` and [`--vfs-load`][] mount in the order they are written, so
+
+```console
+$ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
+```
+
+mounts `a`, `b` and `c` in that order and runs `b`. Mounts contributed by
+[`NODE_OPTIONS`][] are mounted before the command line's.
+
+The provider backing a source is chosen from the source itself rather than from
+its file name:
+
+* A directory is mounted with a [`RealFSProvider`][] rooted there.
+* A file whose bytes are a ZIP archive is mounted with a [`ZipProvider`][], so
+  an archive can carry any name.
+
+Providers registered with `vfs.registerProvider()` (typically from a module
+preloaded with [`--require`][] or [`--import`][]) are consulted first, in
+reverse registration order, and may claim directories as well as files. If no
+provider claims the source, Node.js exits with an error.
+
 ### `--watch`
 
 <!-- YAML
@@ -4211,6 +4283,7 @@ one is included in the list below.
 * `--use-openssl-ca`
 * `--use-system-ca`
 * `--v8-pool-size`
+* `--vfs-mount`
 * `--watch-kill-signal`
 * `--watch-path`
 * `--watch-preserve-output`
@@ -4724,6 +4797,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
+[`--experimental-vfs`]: #--experimental-vfs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--no-require-module`]: #--no-require-module
@@ -4735,6 +4809,8 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
+[`--vfs-load`]: #--vfs-loadsource
+[`--vfs-mount`]: #--vfs-mountsource
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
@@ -4743,8 +4819,10 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
 [`NO_COLOR`]: https://no-color.org
+[`RealFSProvider`]: vfs.md#class-realfsprovider
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
+[`ZipProvider`]: vfs.md#class-zipprovider
 [`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
