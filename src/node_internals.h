@@ -348,6 +348,8 @@ void DefineZlibConstants(v8::Local<v8::Object> target);
 // addresses, so this should be used with care.
 v8::IsolateGroup GetOrCreateIsolateGroup();
 
+// The blob every isolate is created from, see NewIsolate(). It is never freed.
+bool IsFirstSnapshotBlob(const char* data);
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
                         MultiIsolatePlatform* platform,
