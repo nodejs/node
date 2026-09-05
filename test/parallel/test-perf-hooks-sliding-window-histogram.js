@@ -49,6 +49,11 @@ const {
   assert.strictEqual(histogram.snapshot().count, 0);
   histogram.record(10n);
   assert.strictEqual(histogram.snapshot().maxBigInt, 10n);
+  for (const value of [0n, 2n ** 63n]) {
+    assert.throws(() => histogram.record(value), {
+      code: 'ERR_OUT_OF_RANGE',
+    });
+  }
 
   assert.throws(() => new histogram.constructor(), {
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
@@ -141,6 +146,19 @@ const {
     lowest: 10,
     highest: 10,
   }), { code: 'ERR_OUT_OF_RANGE' });
+
+  for (const [name, value] of [
+    ['lowest', 0n],
+    ['lowest', 2n ** 63n],
+    ['highest', 0n],
+    ['highest', 2n ** 63n],
+  ]) {
+    assert.throws(() => createSlidingWindowHistogram({
+      chunks: 2,
+      recordsPerChunk: 1,
+      [name]: value,
+    }), { code: 'ERR_OUT_OF_RANGE' });
+  }
 
   for (const bounds of [
     { lowest: 1n },
