@@ -2895,6 +2895,12 @@ nghttp3_ssize nghttp3_qpack_decoder_read_encoder(nghttp3_qpack_decoder *decoder,
       if (decoder->opcode == NGHTTP3_QPACK_ES_OPCODE_SET_DTABLE_CAP) {
         DEBUGF("qpack::decode: Set dtable capacity to %" PRIu64 "\n",
                decoder->rstate.left);
+#if SIZE_MAX < UINT64_MAX
+        if (decoder->rstate.left > SIZE_MAX) {
+          return NGHTTP3_ERR_QPACK_ENCODER_STREAM_ERROR;
+        }
+#endif /* SIZE_MAX < UINT64_MAX */
+
         rv = nghttp3_qpack_decoder_set_max_dtable_capacity(
           decoder, (size_t)decoder->rstate.left);
         if (rv != 0) {

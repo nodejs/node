@@ -57,6 +57,7 @@ Session::Application_Options::operator const nghttp3_settings() const {
       .glitch_ratelim_burst = 1000,
       .glitch_ratelim_rate = 33,
       .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_EAGER,
+      .wt_enabled = enable_webtransport
   };
 }
 
@@ -78,6 +79,8 @@ std::string Session::Application_Options::ToString() const {
          (enable_connect_protocol ? std::string("yes") : std::string("no"));
   res += prefix + "enable datagrams: " +
          (enable_datagrams ? std::string("yes") : std::string("no"));
+  res += prefix + "webtransport enabled: " +
+         (enable_webtransport ? std::string("yes") : std::string("no"));
   res += indent.Close();
   return res;
 }
@@ -107,7 +110,7 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
         !SET(max_field_section_size) || !SET(qpack_max_dtable_capacity) ||
         !SET(qpack_encoder_max_dtable_capacity) ||
         !SET(qpack_blocked_streams) || !SET(enable_connect_protocol) ||
-        !SET(enable_datagrams)) {
+        !SET(enable_datagrams) || !SET(enable_webtransport)) {
       // The call to SetOption should have scheduled an exception to be thrown.
       return Nothing<Application_Options>();
     }
@@ -138,6 +141,7 @@ MaybeLocal<Object> Session::Application_Options::ToObject(
       "qpackBlockedStreams",
       "enableConnectProtocol",
       "enableDatagrams",
+      "enableWebtransport"
   };
   if (tmpl.IsEmpty()) {
     tmpl = DictionaryTemplate::New(env->isolate(), names);
@@ -153,6 +157,7 @@ MaybeLocal<Object> Session::Application_Options::ToObject(
       BigInt::NewFromUnsigned(env->isolate(), qpack_blocked_streams),
       Boolean::New(env->isolate(), enable_connect_protocol),
       Boolean::New(env->isolate(), enable_datagrams),
+      Boolean::New(env->isolate(), enable_webtransport),
   };
   static_assert(std::size(values) == std::size(names));
 
@@ -415,7 +420,7 @@ class DefaultApplication final : public Session::Application {
   void BlockStream(stream_id id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
       // Remove the stream from the send queue. It will be re-scheduled
-      // via ExtendMaxStreamData when the peer grants more flow control.
+      // via ExtendMax(Stream)Data when the peer grants more flow control.
       // Without this, SendPendingData would repeatedly pop and retry
       // the same blocked stream in an infinite loop.
       stream->Unschedule();
@@ -430,6 +435,15 @@ class DefaultApplication final : public Session::Application {
     stream->UpdateWriteDesiredSize();  // the stream might be blocked on js side
     stream->Schedule(&stream_queue_);
   }
+
+  void ExtendMaxData(uint64_t max_data) override {
+    // The peer granted more flow control for session. Re-schedule
+    // all streams so SendPendingData will resume writing.
+    for (auto& [id, stream] : session().streams()) {
+      stream->Schedule(&stream_queue_);
+    }
+  }
+  
 
   bool StreamCommit(Session::StreamData* stream_data, size_t datalen) override {
     DCHECK_NOT_NULL(stream_data);
