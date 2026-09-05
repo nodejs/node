@@ -698,6 +698,34 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   CHECK_EQ(data.extracted_value, 42);
   CHECK_EQ(from_inspector->IntegerValue(context).FromJust(), 42);
 }
+
+TEST_F(EnvironmentTest, InspectorWithoutPlatform) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  node::IsolateData* isolate_data = node::CreateIsolateData(
+      isolate_, &NodeTestFixture::current_loop, nullptr);
+  v8::Local<v8::Context> context = node::NewContext(isolate_);
+  v8::Context::Scope context_scope(context);
+  std::vector<std::string> args(*argv, *argv + 1);
+  node::Environment* env =
+      node::CreateEnvironment(isolate_data, context, args, args);
+  CHECK_NOT_NULL(env);
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(env,
+                            "const { Session } = require('inspector');\n"
+                            "const session = new Session();\n"
+                            "session.connect();\n"
+                            "console.time('t'); console.timeEnd('t');\n"
+                            "session.disconnect();\n"
+                            "return 42;")
+          .ToLocalChecked();
+  EXPECT_EQ(result->Int32Value(context).FromJust(), 42);
+
+  node::FreeEnvironment(env);
+  node::FreeIsolateData(isolate_data);
+}
+
 #endif  // HAVE_INSPECTOR
 
 TEST_F(EnvironmentTest, ExitHandlerTest) {
