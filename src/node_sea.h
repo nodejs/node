@@ -70,7 +70,7 @@ struct SeaResource {
 
 bool IsSingleExecutable();
 std::string_view FindSingleExecutableBlob();
-SeaResource FindSingleExecutableResource();
+const SeaResource& FindSingleExecutableResource();
 std::tuple<int, char**> FixupArgsForSEA(int argc,
                                         char** argv,
                                         std::vector<std::string>* errors);

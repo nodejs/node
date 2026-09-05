@@ -327,7 +327,7 @@ MaybeLocal<Value> StartExecution(Environment* env,
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   // Snapshot in SEA is only loaded for the main thread.
   if (sea::IsSingleExecutable() && env->is_main_thread()) {
-    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    const sea::SeaResource& sea = sea::FindSingleExecutableResource();
     // The SEA preparation blob building process should already enforce this,
     // this check is just here to guard against the unlikely case where
     // the SEA preparation blob has been manually modified by someone.
@@ -957,7 +957,7 @@ static ExitCode InitializeNodeWithArgsInternal(
       !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (sea::IsSingleExecutable()) {
-    sea::SeaResource sea_resource = sea::FindSingleExecutableResource();
+    const sea::SeaResource& sea_resource = sea::FindSingleExecutableResource();
     if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
       should_parse_node_options = false;
     }
@@ -1517,7 +1517,7 @@ bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (sea::IsSingleExecutable()) {
     is_sea = true;
-    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    const sea::SeaResource& sea = sea::FindSingleExecutableResource();
     if (sea.use_snapshot()) {
       std::unique_ptr<SnapshotData> read_data =
           std::make_unique<SnapshotData>();
