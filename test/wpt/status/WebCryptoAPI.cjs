@@ -54,21 +54,25 @@ if (!hasOpenSSL(3, 5) && !isBoringSSL) {
   skip(
     'encap_decap/encap_decap_bits.tentative.https.any.js',
     'encap_decap/encap_decap_keys.tentative.https.any.js',
+    'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
     'generateKey/failures_ML-DSA.tentative.https.any.js',
     'generateKey/failures_ML-KEM.tentative.https.any.js',
+    'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_ML-DSA.tentative.https.any.js',
     'generateKey/successes_ML-KEM.tentative.https.any.js',
+    'import_export/Hybrid-KEM_importKey.tentative.https.any.js',
     'import_export/ML-DSA_importKey.tentative.https.any.js',
     'import_export/ML-KEM_importKey.tentative.https.any.js',
+    'serialization/hybridkem.tentative.https.window.js',
     'serialization/mldsa.tentative.https.any.js',
     'serialization/mlkem.tentative.https.any.js',
     'sign_verify/mldsa.tentative.https.any.js');
 
   skipSubtests(
-    ['getPublicKey.tentative.https.any.js', /ml-(?:kem|dsa)/i],
+    ['getPublicKey.tentative.https.any.js', /ml-?(?:kem|dsa)/i],
     [
       'supports-modern.tentative.https.any.js',
-      /(?:ml-(?:kem|dsa)|(?:en|de)capsulateKey)/i,
+      /(?:ml-?(?:kem|dsa)|(?:en|de)capsulateKey)/i,
     ]);
 }
 
@@ -79,26 +83,30 @@ if (isBoringSSL) {
     'digest/cshake.tentative.https.any.js',
     'digest/sha3.tentative.https.any.js',
     'generateKey/failures_Ed448.tentative.https.any.js',
+    'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
     'generateKey/failures_X448.tentative.https.any.js',
     'generateKey/successes_Ed448.tentative.https.any.js',
+    'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',
+    'import_export/Hybrid-KEM_importKey.tentative.https.any.js',
     'import_export/okp_importKey_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_X448.tentative.https.any.js',
     'import_export/okp_importKey_X448.tentative.https.any.js',
     'serialization/ed448.tentative.https.any.js',
+    'serialization/hybridkem.tentative.https.window.js',
     'serialization/x448.tentative.https.any.js',
     'sign_verify/eddsa_curve448.tentative.https.any.js');
 
   skipSubtests(
-    ['encap_decap/encap_decap_bits.tentative.https.any.js', /ml-kem-512/i],
-    ['encap_decap/encap_decap_keys.tentative.https.any.js', /ml-kem-512/i],
+    ['encap_decap/encap_decap_bits.tentative.https.any.js', /(?:ml-kem-512|mlkem)/i],
+    ['encap_decap/encap_decap_keys.tentative.https.any.js', /(?:ml-kem-512|mlkem)/i],
     ['generateKey/failures_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/successes_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
-    ['getPublicKey.tentative.https.any.js', /(?:ed448|x448|ml-kem-512)/i],
+    ['getPublicKey.tentative.https.any.js', /(?:ed448|x448|ml-kem-512|mlkem)/i],
     ['import_export/ML-KEM_importKey.tentative.https.any.js', /ml-kem-512/i],
     ['serialization/mlkem.tentative.https.any.js', /ml-kem-512/i],
-    ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
+    ['supports-modern.tentative.https.any.js', /(?:ml-kem-512|mlkem)/i]);
 }
 
 if (hasFIPS(3)) {
@@ -144,12 +152,16 @@ if (hasFIPS(3, 5)) {
     'derive_bits_keys/cfrg_curves_bits_curve448.tentative.https.any.js',
     'derive_bits_keys/cfrg_curves_keys_curve25519.https.any.js',
     'derive_bits_keys/cfrg_curves_keys_curve448.tentative.https.any.js',
+    'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
+    'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_X25519.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',
+    'import_export/Hybrid-KEM_importKey.tentative.https.any.js',
     'import_export/okp_importKey_X25519.https.any.js',
     'import_export/okp_importKey_X448.tentative.https.any.js',
     'import_export/okp_importKey_failures_X25519.https.any.js',
     'import_export/okp_importKey_failures_X448.tentative.https.any.js',
+    'serialization/hybridkem.tentative.https.window.js',
     'serialization/x25519.https.any.js',
     'serialization/x448.tentative.https.any.js');
 
@@ -158,11 +170,14 @@ if (hasFIPS(3, 5)) {
       'derive_bits_keys/derived_bits_length.https.any.js',
       /^X25519 derivation/,
     ],
-    ['getPublicKey.tentative.https.any.js', /(?:X25519|X448)/],
+    ['encap_decap/encap_decap_bits.tentative.https.any.js', /mlkem/i],
+    ['encap_decap/encap_decap_keys.tentative.https.any.js', /mlkem/i],
+    ['getPublicKey.tentative.https.any.js', /(?:X25519|X448|MLKEM)/],
     [
       'import_export/raw_format_aliases.tentative.https.any.js',
       /(?:X25519|X448)/,
     ],
+    ['supports-modern.tentative.https.any.js', /mlkem/i],
     [
       'supports.tentative.https.any.js',
       /(?:X25519|^deriveKey promise tests|^supports validates the ECDH public key$)/,

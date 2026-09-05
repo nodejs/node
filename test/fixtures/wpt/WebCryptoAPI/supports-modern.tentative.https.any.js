@@ -33,6 +33,24 @@ const modernAlgorithms = {
       'decapsulateKey', 'decapsulateBits', 'getPublicKey'
     ],
   },
+  'MLKEM768-P256': {
+    operations: [
+      'generateKey', 'importKey', 'encapsulateKey', 'encapsulateBits',
+      'decapsulateKey', 'decapsulateBits', 'getPublicKey'
+    ],
+  },
+  'MLKEM768-X25519': {
+    operations: [
+      'generateKey', 'importKey', 'encapsulateKey', 'encapsulateBits',
+      'decapsulateKey', 'decapsulateBits', 'getPublicKey'
+    ],
+  },
+  'MLKEM1024-P384': {
+    operations: [
+      'generateKey', 'importKey', 'encapsulateKey', 'encapsulateBits',
+      'decapsulateKey', 'decapsulateBits', 'getPublicKey'
+    ],
+  },
 
   // Symmetric algorithms
   'ChaCha20-Poly1305': {
