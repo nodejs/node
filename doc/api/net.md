@@ -1669,7 +1669,12 @@ corresponding system default unchanged.
 
 `initialDelay` and `interval` are specified in milliseconds but the
 underlying socket options are configured in whole seconds; the values are
-divided by `1000` and rounded down before being applied.
+divided by `1000` and rounded down before being applied. A positive value
+below `1000` therefore rounds down to `0`, which leaves the corresponding
+system default unchanged rather than applying the requested timing. Since
+this is rarely intended, a `KeepAliveWarning` process warning is emitted in
+that case. Sub-second timings cannot be expressed: use a value of at least
+`1000` milliseconds.
 
 Enabling the keep-alive functionality will set the following socket options:
 
