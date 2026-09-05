@@ -5,4 +5,5 @@ export interface TimersBinding {
   toggleTimerRef(value: boolean): void;
   toggleImmediateRef(value: boolean): void;
   immediateInfo: Uint32Array;
+  timeoutInfo: Int32Array;
 }
