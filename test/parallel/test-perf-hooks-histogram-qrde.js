@@ -9,6 +9,16 @@ function assertClose(actual, expected, tolerance = 1e-12) {
             `${actual} != ${expected}`);
 }
 
+function recordRepeated(histogram, options, value, count) {
+  const block = createHistogram(options);
+  block.record(value);
+  while (count > 0) {
+    if (count % 2 === 1) histogram.add(block);
+    count = Math.floor(count / 2);
+    if (count > 0) block.add(block);
+  }
+}
+
 (async () => {
   const empty = createHistogram();
   const emptyResult = await empty.qrde();
@@ -23,6 +33,9 @@ function assertClose(actual, expected, tolerance = 1e-12) {
   assert.strictEqual(emptyResult.corrections, 0);
   assert.strictEqual(emptyResult.dequantize, 'hdr');
 
+  assert.throws(() => empty.qrde.call({}), {
+    code: 'ERR_INVALID_THIS',
+  });
   assert.throws(() => empty.qrde(null), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
@@ -219,4 +232,18 @@ function assertClose(actual, expected, tolerance = 1e-12) {
     await largeCount.qrde({ bins: 2, dequantize: 'none' });
   assert.strictEqual(largeCountResult.count, (1n << 53n) + 1n);
   assertClose(largeCountResult.quantiles[1], 2);
+
+  // Exercise correction across the exact-to-asymptotic beta CDF threshold.
+  const correctionOptions = { highest: 131071, figures: 5 };
+  const correction = createHistogram(correctionOptions);
+  recordRepeated(correction, correctionOptions, 1, 26239);
+  recordRepeated(correction, correctionOptions, 131071, 973761);
+  const count = 1_000_000;
+  const threshold = (1 - Math.sqrt(1 - 100_000 / (count + 1))) / 2;
+  const corrected = await correction.qrde({
+    probabilities: [0, threshold - 1e-10, threshold + 1e-10, 1],
+    dequantize: 'none',
+  });
+  assert.strictEqual(corrected.corrections, 1);
+  assert.strictEqual(corrected.quantiles[1], corrected.quantiles[2]);
 })().then(common.mustCall());
