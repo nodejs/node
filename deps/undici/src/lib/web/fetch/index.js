@@ -59,6 +59,7 @@ const {
 const EE = require('node:events')
 const { Readable, pipeline, finished, isErrored, isReadable } = require('node:stream')
 const { addAbortListener, bufferToLowerCasedHeaderName } = require('../../core/util')
+const { SocketError } = require('../../core/errors')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
@@ -2396,6 +2397,11 @@ async function httpNetworkFetch (
             // We need to support 200 for websocket over h2 as per RFC-8441
             // Absence of session means H1
             if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
+              if (socket.session != null) {
+                // The server refused the extended CONNECT, and nothing further
+                // will settle this request. Fail the opening handshake here.
+                controller.abort(new SocketError('bad upgrade', null))
+              }
               return false
             }
 

@@ -227,14 +227,19 @@ function TAOCheck () {
   return 'success'
 }
 
+// https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-append-the-fetch-metadata-headers-for-a-request
 function appendFetchMetadata (httpRequest) {
+  //  1. If r’s url is not a potentially trustworthy URL, return.
+  if (!isURLPotentiallyTrustworthy(requestCurrentURL(httpRequest))) {
+    return
+  }
+
   //  https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-dest-header
   //  TODO
 
   //  https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-mode-header
 
   //  1. Assert: r’s url is a potentially trustworthy URL.
-  //  TODO
 
   //  2. Let header be a Structured Header whose value is a token.
   let header = null

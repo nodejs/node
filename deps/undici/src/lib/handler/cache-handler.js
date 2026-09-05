@@ -173,6 +173,14 @@ class CacheHandler {
     this.#handler.onRequestStart?.(controller, context)
   }
 
+  onBodySent (chunk) {
+    this.#handler.onBodySent?.(chunk)
+  }
+
+  onRequestSent () {
+    this.#handler.onRequestSent?.()
+  }
+
   onRequestUpgrade (controller, statusCode, headers, socket) {
     this.#handler.onRequestUpgrade?.(controller, statusCode, headers, socket)
   }
@@ -210,6 +218,13 @@ class CacheHandler {
     }
 
     const cacheControlHeader = resHeaders['cache-control']
+    const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
+
+    if (revalidationResponseDisallowsCachedReuse(this.#cacheType, resHeaders, cacheControlDirectives)) {
+      deleteCachedValue(this.#store, this.#cacheKey)
+      return downstreamOnHeaders()
+    }
+
     const heuristicallyCacheable = resHeaders['last-modified'] && arrayIncludes(HEURISTICALLY_CACHEABLE_STATUS_CODES, statusCode)
     if (
       !cacheControlHeader &&
@@ -226,8 +241,7 @@ class CacheHandler {
       return downstreamOnHeaders()
     }
 
-    const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
-    if (!canCacheResponse(this.#cacheType, statusCode, resHeaders, cacheControlDirectives, this.#cacheKey.headers)) {
+    if (!canCacheResponse(this.#cacheType, this.#cacheKey.method, statusCode, resHeaders, cacheControlDirectives, this.#cacheKey.headers)) {
       if (statusCode === 304 && (cacheControlHeader || revalidationResponseDisallowsCachedReuse(this.#cacheType, resHeaders, cacheControlDirectives))) {
         deleteCachedValue(this.#store, this.#cacheKey)
       }
@@ -476,7 +490,10 @@ function deleteCachedValueIfNotModified (statusCode, store, cacheKey) {
  */
 function revalidationResponseDisallowsCachedReuse (cacheType, resHeaders, cacheControlDirectives) {
   return cacheControlDirectives['no-store'] === true ||
-    (cacheType === 'shared' && cacheControlDirectives.private === true) ||
+    (cacheType === 'shared' && (
+      cacheControlDirectives.private === true ||
+      Object.hasOwn(resHeaders, 'set-cookie')
+    )) ||
     (resHeaders.vary ? isInvalidOrWildcardVaryHeader(resHeaders.vary) : false)
 }
 
@@ -484,12 +501,16 @@ function revalidationResponseDisallowsCachedReuse (cacheType, resHeaders, cacheC
  * @see https://www.rfc-editor.org/rfc/rfc9111.html#name-storing-responses-to-authen
  *
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheOptions['type']} cacheType
+ * @param {string} method
  * @param {number} statusCode
  * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  * @param {import('../../types/header.d.ts').IncomingHttpHeaders} [reqHeaders]
  */
-function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives, reqHeaders) {
+function canCacheResponse (cacheType, method, statusCode, resHeaders, cacheControlDirectives, reqHeaders) {
+  if (!arrayIncludes(util.safeHTTPMethods, method)) {
+    return false
+  }
   // Status code must be final and understood.
   if (statusCode < 200 || arrayIncludes(NOT_UNDERSTOOD_STATUS_CODES, statusCode)) {
     return false
@@ -510,7 +531,10 @@ function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirect
     return false
   }
 
-  if (cacheType === 'shared' && cacheControlDirectives.private === true) {
+  if (cacheType === 'shared' && (
+    cacheControlDirectives.private === true ||
+    Object.hasOwn(resHeaders, 'set-cookie')
+  )) {
     return false
   }
 

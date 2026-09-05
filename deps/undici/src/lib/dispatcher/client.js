@@ -137,7 +137,8 @@ class Client extends DispatcherBase {
     connectionWindowSize,
     pingInterval,
     webSocket,
-    h2Options
+    h2Options,
+    eventSource
   } = {}) {
     if (keepAlive !== undefined) {
       throw new InvalidArgumentError('unsupported keepAlive, use pipelining=0 instead')
@@ -276,7 +277,7 @@ class Client extends DispatcherBase {
       }
     }
 
-    super({ webSocket })
+    super({ webSocket, eventSource })
 
     if (typeof connect !== 'function') {
       connect = buildConnector({

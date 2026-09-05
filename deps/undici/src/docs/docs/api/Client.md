@@ -147,6 +147,10 @@ added: v1.0.0
       WebSocket messages. Applied to uncompressed messages, compressed frame
       payloads, and decompressed (`permessage-deflate`) messages. Set to `0` to
       disable the limit. **Default:** `134217728`.
+  * `eventSource` {Object} (optional) EventSource-specific configuration.
+    * `maxEventSize` {number} The maximum allowed event size, in bytes, for
+      EventSource messages. Set to `0` to disable the limit.
+      **Default:** `buffer.kStringMaxLength`.
 * Returns: {Client}
 
 Instantiating a `Client` does not open a connection; the connection is

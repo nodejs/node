@@ -1,4 +1,5 @@
 'use strict'
+const buffer = require('node:buffer')
 const { Transform } = require('node:stream')
 const { isASCIINumber, isValidLastEventId } = require('./util')
 
@@ -22,6 +23,8 @@ const COLON = 0x3A
  * @type {32} SPACE
  */
 const SPACE = 0x20
+
+const defaultMaxEventSize = buffer.kStringMaxLength
 
 const DATA = Buffer.from('data')
 const EVENT = Buffer.from('event')
@@ -64,6 +67,12 @@ function isFieldName (line, length, field) {
   }
 
   return true
+}
+
+function createMaxEventSizeExceededError () {
+  const error = new Error('EventSource message size exceeded')
+  error.aborted = false
+  return error
 }
 
 /**
@@ -114,6 +123,8 @@ class EventSourceStream extends Transform {
   pos = 0
   lineChunkIndex = 0
   linePos = 0
+  eventDataSize = 0
+  maxEventSize
 
   event = {
     data: undefined,
@@ -125,6 +136,7 @@ class EventSourceStream extends Transform {
   /**
    * @param {object} options
    * @param {boolean} [options.readableObjectMode]
+   * @param {number} [options.maxEventSize]
    * @param {eventSourceSettings} [options.eventSourceSettings]
    * @param {(chunk: any, encoding?: BufferEncoding | undefined) => boolean} [options.push]
    */
@@ -136,6 +148,7 @@ class EventSourceStream extends Transform {
     super(options)
 
     this.state = options.eventSourceSettings || {}
+    this.maxEventSize = options.maxEventSize ?? defaultMaxEventSize
     if (options.push) {
       this.push = options.push
     }
@@ -231,7 +244,12 @@ class EventSourceStream extends Transform {
 
         // In any case, we can process the line as we reached an
         // end-of-line character
-        this.parseLine(this.readLine(), this.event)
+        try {
+          this.parseLine(this.readLine(), this.event)
+        } catch (error) {
+          callback(error)
+          return
+        }
         this.consumeCurrentByte()
         // A line was processed and this could be the end of the event. We need
         // to check if the next line is empty to determine if the event is
@@ -282,6 +300,13 @@ class EventSourceStream extends Transform {
     }
 
     if (isFieldName(line, fieldLength, DATA)) {
+      const valueBytes = line.length - valueStart
+      const eventDataSize = this.eventDataSize + (event.data === undefined ? 0 : 1) + valueBytes
+
+      if (this.maxEventSize > 0 && eventDataSize > this.maxEventSize) {
+        throw createMaxEventSizeExceededError()
+      }
+
       const value = line.toString('utf8', valueStart)
 
       if (event.data === undefined) {
@@ -289,6 +314,7 @@ class EventSourceStream extends Transform {
       } else {
         event.data += `\n${value}`
       }
+      this.eventDataSize = eventDataSize
       return
     }
 
@@ -345,6 +371,7 @@ class EventSourceStream extends Transform {
     this.event.event = undefined
     this.event.id = undefined
     this.event.retry = undefined
+    this.eventDataSize = 0
   }
 
   hasPendingEvent () {

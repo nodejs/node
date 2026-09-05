@@ -5,6 +5,8 @@ module.exports = {
   kDestroy: Symbol('destroy'),
   kDispatch: Symbol('dispatch'),
   kUrl: Symbol('url'),
+  kRequestOrigin: Symbol('request origin'),
+  kOriginless: Symbol('originless'),
   kWriting: Symbol('writing'),
   kResuming: Symbol('resuming'),
   kQueue: Symbol('queue'),

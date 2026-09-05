@@ -101,8 +101,8 @@ body yourself.
 
 * `opts` {Object} (optional)
   * `maxSize` {number} Maximum number of bytes to read and discard. Responses
-    whose `Content-Length` exceeds this value are aborted. **Default:**
-    `1_048_576` (1 MiB).
+    whose declared or received body size exceeds this value are aborted.
+    **Default:** `1_048_576` (1 MiB).
 
 Per-request override: set `dumpMaxSize` on the dispatch options to override
 the global `maxSize` for a specific request.
@@ -210,6 +210,9 @@ Automatically decompresses response bodies encoded with `gzip`, `x-gzip`,
     skipped. **Default:** `[204, 304]`.
   * `skipErrorResponses` {boolean} When `true`, responses with a status code
     >= 400 are not decompressed. **Default:** `true`.
+  * `maxSize` {number} Maximum decompressed response size in bytes. The request
+    fails with a `ResponseExceededMaxSizeError` if the decoded body exceeds
+    this limit. **Default:** `67108864` (64 MiB).
 
 **Returns:** {Dispatcher.DispatcherComposeInterceptor}
 
@@ -221,7 +224,8 @@ import { Agent, interceptors } from 'undici'
 const agent = new Agent().compose(
   interceptors.decompress({
     skipStatusCodes: [204, 304],
-    skipErrorResponses: false // decompress error bodies too
+    skipErrorResponses: false, // decompress error bodies too
+    maxSize: 16 * 1024 * 1024 // limit decoded bodies to 16 MiB
   })
 )
 ```
