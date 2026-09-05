@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 function getOutcome(fn) {
   try {
@@ -110,7 +110,7 @@ function assertSameErrorOrSuccess(actual, expected) {
                          }));
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   assert.strictEqual(
     crypto.createHash('shake128', { outputLength: -0 }).digest('hex'),
     '',

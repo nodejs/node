@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const https = require('https');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const fips3 = hasFIPS(3);
 
@@ -17,7 +17,7 @@ const options = {
   minVersion: fips3 ? 'TLSv1.2' : 'TLSv1.1',
 };
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   options.ciphers = fips3 ?
     'ECDHE-RSA-AES256-GCM-SHA384' : 'ALL@SECLEVEL=0';
 }
@@ -36,7 +36,7 @@ function getBaseOptions(port) {
     servername: 'agent1',
   };
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     baseOptions.ciphers = fips3 ?
       'ECDHE-RSA-AES256-GCM-SHA384' : 'ALL@SECLEVEL=0';
   }

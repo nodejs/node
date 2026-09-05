@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const { hasOpenSSL } = require('../../test/common/crypto.js');
+const { hasOpenSSL, isBoringSSL } = require('../../test/common/crypto.js');
 const assert = require('node:assert');
 const {
   createHmac,
@@ -10,7 +10,7 @@ const {
 } = require('node:crypto');
 
 if (!hasOpenSSL(3) ||
-    process.features.openssl_is_boringssl ||
+    isBoringSSL ||
     typeof createMac !== 'function' ||
     typeof getMacs !== 'function') {
   console.log('Skipping: generic MAC API requires OpenSSL >= 3');

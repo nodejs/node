@@ -26,7 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const { Certificate } = crypto;
 const fixtures = require('../common/fixtures');
 
@@ -42,7 +42,7 @@ function copyArrayBuffer(buf) {
 
 function checkMethods(certificate) {
 
-  if (!process.features.openssl_is_boringssl)
+  if (!isBoringSSL)
     assert.strictEqual(certificate.verifySpkac(spkacValid), !hasFIPS(3));
   assert.strictEqual(certificate.verifySpkac(spkacFail), false);
 
@@ -58,7 +58,7 @@ function checkMethods(certificate) {
   );
   assert.strictEqual(certificate.exportChallenge(spkacFail), '');
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     const ab = copyArrayBuffer(spkacValid);
     const expected = !hasFIPS(3);
     assert.strictEqual(certificate.verifySpkac(ab), expected);

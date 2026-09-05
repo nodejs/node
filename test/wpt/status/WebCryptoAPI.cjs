@@ -3,6 +3,7 @@
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../../common/crypto.js');
 
 const conditionalFileSkips = {};
@@ -10,7 +11,7 @@ const conditionalSubtestSkips = {};
 
 function skip(...files) {
   for (const file of files) {
-    const provider = process.features.openssl_is_boringssl ?
+    const provider = isBoringSSL ?
       'BoringSSL' :
       `OpenSSL ${process.versions.openssl}${hasFIPS(3) ? ' FIPS mode' : ''}`;
     conditionalFileSkips[file] = {
@@ -49,7 +50,7 @@ if (!hasOpenSSL(3, 2) || hasFIPS(3)) {
     'import_export/Argon2_importKey.tentative.https.any.js');
 }
 
-if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
+if (!hasOpenSSL(3, 5) && !isBoringSSL) {
   skip(
     'encap_decap/encap_decap_bits.tentative.https.any.js',
     'encap_decap/encap_decap_keys.tentative.https.any.js',
@@ -71,7 +72,7 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
     ]);
 }
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   skip(
     'derive_bits_keys/cfrg_curves_bits_curve448.tentative.https.any.js',
     'derive_bits_keys/cfrg_curves_keys_curve448.tentative.https.any.js',

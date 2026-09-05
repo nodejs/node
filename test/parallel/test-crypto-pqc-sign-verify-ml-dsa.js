@@ -4,9 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+if (!hasOpenSSL(3, 5) && !isBoringSSL)
   common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
@@ -39,7 +39,7 @@ for (const [asymmetricKeyType, sigLen] of [
     [keys.private_seed_only, true],
     [keys.private_priv_only, false],
   ]) {
-    if (process.features.openssl_is_boringssl && !seedOnly) {
+    if (isBoringSSL && !seedOnly) {
       common.printSkipMessage('Skipping unsupported private key format test');
       continue;
     }
@@ -52,7 +52,7 @@ for (const [asymmetricKeyType, sigLen] of [
         assert.strictEqual(verify(undefined, data, keys.public, Buffer.alloc(sigLen)), false);
         assert.strictEqual(verify(undefined, data, keys.public, signature), true);
         assert.strictEqual(verify(undefined, data, privateKey, signature), true);
-        const code = process.features.openssl_is_boringssl ?
+        const code = isBoringSSL ?
           'ERR_OSSL_EVP_COMMAND_NOT_SUPPORTED' : 'ERR_OSSL_INVALID_DIGEST';
         assert.throws(() => sign('sha256', data, privateKey), { code });
         assert.throws(
@@ -72,7 +72,7 @@ for (const [asymmetricKeyType, sigLen] of [
           }));
         }));
 
-        const message = process.features.openssl_is_boringssl ? /COMMAND_NOT_SUPPORTED/ : /invalid digest/;
+        const message = isBoringSSL ? /COMMAND_NOT_SUPPORTED/ : /invalid digest/;
         sign('sha256', data, privateKey, common.expectsError(message));
         verify('sha256', data, keys.public, Buffer.alloc(sigLen), common.expectsError(message));
       }

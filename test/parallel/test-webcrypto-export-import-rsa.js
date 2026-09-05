@@ -1,6 +1,8 @@
 'use strict';
 
 const common = require('../common');
+
+const { isBoringSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
@@ -19,7 +21,7 @@ const hashes = [
   'SHA-512',
 ];
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   hashes.push(
     'SHA3-256',
     'SHA3-384',

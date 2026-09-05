@@ -7,7 +7,7 @@ const { TestTLSSocket, ccs } = require('../common/tls');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const https = require('https');
-const { hasFIPS } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
 // Regression test for an use-after-free bug in the TLS implementation that
 // would occur when `SSL_write()` failed.
@@ -22,7 +22,7 @@ const opts = {
 };
 const rejectsClientHello = hasFIPS(3) && !hasFIPS(3, 5);
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   opts.ciphers = 'ALL@SECLEVEL=0';
 }
 

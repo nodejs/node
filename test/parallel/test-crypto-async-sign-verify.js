@@ -3,7 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const assert = require('assert');
 const util = require('util');
 const crypto = require('crypto');
@@ -102,7 +102,7 @@ test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
 // ED25519
 test('ed25519_public.pem', 'ed25519_private.pem', undefined, true);
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // ED448
   test('ed448_public.pem', 'ed448_private.pem', undefined, true);
 
@@ -175,7 +175,7 @@ MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
   const signature = crypto.randomBytes(16);
 
   let expected = /no default digest/;
-  if (hasOpenSSL(3) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3) || isBoringSSL) {
     expected = /operation[\s_]not[\s_]supported[\s_]for[\s_]this[\s_]keytype/i;
   }
 

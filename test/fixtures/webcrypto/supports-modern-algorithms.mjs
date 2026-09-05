@@ -1,8 +1,8 @@
 import * as crypto from 'node:crypto'
 
-import { hasOpenSSL } from '../../common/crypto.js'
+import { hasOpenSSL, isBoringSSL } from '../../common/crypto.js'
 
-const boringSSL = process.features.openssl_is_boringssl;
+const boringSSL = isBoringSSL;
 const pqc = hasOpenSSL(3, 5) || boringSSL;
 const argon2 = hasOpenSSL(3, 2);
 const shake128 = crypto.getHashes().includes('shake128');

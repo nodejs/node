@@ -4,19 +4,19 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
 
-const algorithms = process.features.openssl_is_boringssl ?
+const algorithms = isBoringSSL ?
   // BoringSSL does not support ML-KEM-512.
   ['ml-kem-768', 'ml-kem-1024'] :
   ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024'];
 
-if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
+if (!hasOpenSSL(3, 5) && !isBoringSSL) {
   for (const asymmetricKeyType of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
     assert.throws(() => generateKeyPair(asymmetricKeyType, common.mustNotCall()), {
       code: 'ERR_INVALID_ARG_VALUE',
@@ -72,7 +72,7 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
   }
 }
 
-if (process.features.openssl_is_boringssl) {
+if (isBoringSSL) {
   assert.throws(() => generateKeyPair('ml-kem-512', common.mustNotCall()), {
     code: 'ERR_INVALID_ARG_VALUE',
     message: /The argument 'type' must be a supported key type/

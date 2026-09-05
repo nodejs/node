@@ -6,7 +6,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
@@ -158,7 +158,7 @@ const vectors = {
   },
 };
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   vectors.Ed448 = {
     result: 'CryptoKeyPair',
     usages: [
@@ -200,7 +200,7 @@ if (hasOpenSSL(3)) {
   }
 }
 
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     vectors[name] = {
       result: 'CryptoKeyPair',
@@ -504,7 +504,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
 
 
   let fipsExponentTest;
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     if (fips3) {
       fipsExponentTest = assert.rejects(
         subtle.generateKey({
@@ -722,7 +722,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     [1024, 'SHA-512', ['sign', 'verify']],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.push(
       [256, 'SHA3-256', ['sign', 'verify']],
       [384, 'SHA3-384', ['sign', 'verify']],
@@ -808,7 +808,7 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
     ],
   ];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.push(
       [
         'Ed448',
@@ -836,7 +836,7 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 }
 
 // Test ML-DSA Key Generation
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   async function test(
     name,
     privateUsages,
@@ -879,7 +879,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
 }
 
 // Test ML-KEM Key Generation
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+if (hasOpenSSL(3, 5) || isBoringSSL) {
   async function test(
     name,
     privateUsages,
@@ -916,7 +916,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
 
   const kTests = ['ML-KEM-768', 'ML-KEM-1024'];
 
-  if (!process.features.openssl_is_boringssl) {
+  if (!isBoringSSL) {
     kTests.unshift('ML-KEM-512');
   } else {
     common.printSkipMessage('Skipping unsupported ML-KEM-512 test');

@@ -12,6 +12,7 @@ const fixtures = require('../common/fixtures');
 const {
   hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 const fips3 = hasFIPS(3);
 const fips35 = hasFIPS(3, 5);
@@ -51,7 +52,7 @@ const openssl1DecryptError = {
 const decryptError = fips4 ?
   { code: 'ERR_OSSL_BAD_DECRYPT' } : hasOpenSSL(3) ?
     { message: 'error:1C800064:Provider routines::bad decrypt' } :
-    process.features.openssl_is_boringssl ? {
+    isBoringSSL ? {
       message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
       code: 'ERR_OSSL_BAD_DECRYPT',
       reason: 'BAD_DECRYPT',
@@ -64,7 +65,7 @@ const decryptPrivateKeyError = fips4 ? {
   code: 'ERR_OSSL_BAD_DECRYPT',
 } : hasOpenSSL(3) ? {
   message: 'error:1C800064:Provider routines::bad decrypt',
-} : process.features.openssl_is_boringssl ? {
+} : isBoringSSL ? {
   message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
 } : openssl1DecryptError;
 
@@ -350,7 +351,7 @@ function test_rsa(padding, encryptOaepHash, decryptOaepHash) {
 test_rsa('RSA_NO_PADDING');
 test_rsa('RSA_PKCS1_OAEP_PADDING');
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   test_rsa('RSA_PKCS1_PADDING');
 } else {
   common.printSkipMessage('Skipping unsupported RSA_PKCS1_PADDING test case');
@@ -525,7 +526,7 @@ assert.throws(() => {
 //
 // Test DSA signing and verification
 //
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
@@ -563,7 +564,7 @@ if (!process.features.openssl_is_boringssl) {
 //
 // Test DSA signing and verification with PKCS#8 private key
 //
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
@@ -595,7 +596,7 @@ const input = 'I AM THE WALRUS';
   }, decryptPrivateKeyError);
 }
 
-if (!process.features.openssl_is_boringssl) {
+if (!isBoringSSL) {
   // DSA signatures vary across runs so there is no static string to verify
   // against.
   const dsaDigest = fips3 ? 'SHA256' : 'SHA1';
