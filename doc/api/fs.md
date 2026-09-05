@@ -6542,7 +6542,7 @@ changes:
 
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'utf8'` (or `'buffer'` if `prefix` is a `Buffer`)
 * Returns: {Object} A disposable object:
   * `path` {string|Buffer} The path of the created directory.
   * `remove` {Function} A function which removes the created directory.
