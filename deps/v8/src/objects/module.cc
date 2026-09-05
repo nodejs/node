@@ -265,8 +265,8 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
   }
 }
 
-MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
-                                           Handle<Module> module) {
+MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
+                                              Handle<Module> module) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
@@ -492,16 +492,13 @@ void JSDeferredModuleNamespace::EvaluateModuleSync(
     return;
   }
 
-  MaybeDirectHandle<Object> maybe_result = Module::Evaluate(isolate, module);
-  DirectHandle<Object> result;
-  if (!maybe_result.ToHandle(&result)) {
+  MaybeDirectHandle<JSPromise> maybe_result = Module::Evaluate(isolate, module);
+  DirectHandle<JSPromise> promise;
+  if (!maybe_result.ToHandle(&promise)) {
     return;
   }
 
-  // If there's a result, it needs to be a promise with either Reject or
-  // Fulfilled status.
-  DCHECK(IsJSPromise(*result));
-  DirectHandle<JSPromise> promise = Cast<JSPromise>(result);
+  // The result is always the module's top-level capability promise.
   // 5. If promise.[[PromiseState]] is rejected, then
   if (promise->status() == Promise::kRejected) {
     // a. If promise.[[PromiseIsHandled]] is false, perform

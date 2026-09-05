@@ -280,7 +280,7 @@ class V8_EXPORT Module : public Data {
    *
    * If IsGraphAsync() is false, the returned Promise is settled.
    */
-  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Evaluate(Local<Context> context);
 
   /**
    * Returns the namespace object of this module.
@@ -337,6 +337,15 @@ class V8_EXPORT Module : public Data {
    * (where an exception was thrown).
    */
   using SyntheticModuleEvaluationSteps =
+      MaybeLocal<Promise> (*)(Local<Context> context, Local<Module> module);
+
+  /*
+   * Deprecated version of SyntheticModuleEvaluationSteps: the returned value is
+   * still required to be a Promise, but that is only enforced at runtime.
+   */
+  // TODO(https://crbug.com/545375591): Remove once all embedders return a
+  // MaybeLocal<Promise>.
+  using LegacySyntheticModuleEvaluationSteps =
       MaybeLocal<Value> (*)(Local<Context> context, Local<Module> module);
 
   /**
@@ -350,6 +359,16 @@ class V8_EXPORT Module : public Data {
       Isolate* isolate, Local<String> module_name,
       const MemorySpan<const Local<String>>& export_names,
       SyntheticModuleEvaluationSteps evaluation_steps);
+
+  // TODO(https://crbug.com/545375591): Advance to V8_DEPRECATED and then remove
+  // this overload once all embedders have been migrated to the one above.
+  V8_DEPRECATE_SOON(
+      "Use the CreateSyntheticModule overload whose evaluation_steps return a "
+      "MaybeLocal<Promise>")
+  static Local<Module> CreateSyntheticModule(
+      Isolate* isolate, Local<String> module_name,
+      const MemorySpan<const Local<String>>& export_names,
+      LegacySyntheticModuleEvaluationSteps evaluation_steps);
 
   /**
    * Set this module's exported value for the name export_name to the specified
