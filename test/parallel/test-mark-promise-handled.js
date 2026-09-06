@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('node:assert');
 const { markPromiseAsHandled } = require('node:util');
 
-process.on('unhandledrejection', common.mustNotCall());
+process.on('unhandledRejection', common.mustNotCall());
 
 markPromiseAsHandled(Promise.reject(123));
 
