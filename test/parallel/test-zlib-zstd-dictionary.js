@@ -40,3 +40,24 @@ for (const dict of [arrayBuffer, uint8, dataView]) {
   const decompressed = zlib.zstdDecompressSync(compressed, { dictionary: dict });
   assert.strictEqual(decompressed.toString(), input.toString());
 }
+
+for (const dictionary of [null, 'string', 123, true, {}, [1, 2, 3]]) {
+  const options = { dictionary };
+  const expected = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  };
+
+  assert.throws(() => zlib.createZstdCompress(options), expected);
+  assert.throws(() => zlib.createZstdDecompress(options), expected);
+  assert.throws(() => zlib.zstdCompressSync(input, options), expected);
+  assert.throws(() => zlib.zstdDecompressSync(input, options), expected);
+  assert.throws(
+    () => zlib.zstdCompress(input, options, common.mustNotCall()),
+    expected,
+  );
+  assert.throws(
+    () => zlib.zstdDecompress(input, options, common.mustNotCall()),
+    expected,
+  );
+}

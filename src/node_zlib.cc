@@ -1820,8 +1820,7 @@ CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size,
 }
 
 CompressionError ZstdDecompressContext::ResetStream() {
-  const size_t result =
-      ZSTD_DCtx_reset(dctx_.get(), ZSTD_reset_session_only);
+  const size_t result = ZSTD_DCtx_reset(dctx_.get(), ZSTD_reset_session_only);
   if (ZSTD_isError(result)) {
     const ZSTD_ErrorCode error = ZSTD_getErrorCode(result);
     return CompressionError(
