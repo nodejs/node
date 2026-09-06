@@ -48,17 +48,29 @@ describe('backup()', () => {
       backup();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "sourceDb" argument must be an object.'
+      message: 'The "sourceDb" argument must be an instance of DatabaseSync.'
     });
   });
 
   test('throws if the source database is not a DatabaseSync', (t) => {
-    t.assert.throws(() => {
-      backup({}, nextDb());
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "sourceDb" argument must be a DatabaseSync instance.'
-    });
+    const database = makeSourceDb();
+    const values = [
+      {},
+      [],
+      { p0: 1, p1: 2, p2: 3, p3: 4 },
+      { __proto__: DatabaseSync.prototype },
+      database.prepare('SELECT 1'),
+      database.createSession(),
+    ];
+
+    for (const value of values) {
+      t.assert.throws(() => {
+        backup(value, nextDb());
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "sourceDb" argument must be an instance of DatabaseSync.'
+      });
+    }
   });
 
   test('throws if path is not a string, URL, or Buffer', (t) => {
@@ -94,6 +106,17 @@ describe('backup()', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.'
+    });
+  });
+
+  test('throws if the database path has an unparsable href', (t) => {
+    const database = makeSourceDb();
+
+    t.assert.throws(() => {
+      backup(database, { href: 'zzz' });
+    }, {
+      code: 'ERR_INVALID_URL',
+      message: 'Invalid URL'
     });
   });
 

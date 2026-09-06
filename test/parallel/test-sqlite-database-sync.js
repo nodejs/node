@@ -60,6 +60,15 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
+  test('propagates an exception thrown by the href getter', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync({ get href() { throw new RangeError('boom'); } });
+    }, {
+      name: 'RangeError',
+      message: 'boom',
+    });
+  });
+
   test('throws if options is provided but is not an object', (t) => {
     t.assert.throws(() => {
       new DatabaseSync('foo', null);
