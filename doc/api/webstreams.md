@@ -38,17 +38,9 @@ This example creates a simple `ReadableStream` that pushes the current
 is used to read the data from the stream.
 
 ```mjs
-import {
-  ReadableStream,
-} from 'node:stream/web';
-
-import {
-  setInterval as every,
-} from 'node:timers/promises';
-
-import {
-  performance,
-} from 'node:perf_hooks';
+import { ReadableStream } from 'node:stream/web';
+import { setInterval as every } from 'node:timers/promises';
+import { performance } from 'node:perf_hooks';
 
 const SECOND = 1000;
 
@@ -64,17 +56,9 @@ for await (const value of stream)
 ```
 
 ```cjs
-const {
-  ReadableStream,
-} = require('node:stream/web');
-
-const {
-  setInterval: every,
-} = require('node:timers/promises');
-
-const {
-  performance,
-} = require('node:perf_hooks');
+const { ReadableStream } = require('node:stream/web');
+const { setInterval: every } = require('node:timers/promises');
+const { performance } = require('node:perf_hooks');
 
 const SECOND = 1000;
 

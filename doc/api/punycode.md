@@ -20,7 +20,11 @@ encoding, see [`url.domainToASCII`][] or, more generally, the
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:
 
-```js
+```mjs
+import punycode from 'node:punycode';
+```
+
+```cjs
 const punycode = require('node:punycode');
 ```
 

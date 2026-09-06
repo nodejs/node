@@ -10,7 +10,7 @@ added: v23.8.0
 
 <!-- source_link=lib/quic.js -->
 
-The 'node:quic' module provides an implementation of the QUIC protocol.
+The `node:quic` module provides an implementation of the QUIC protocol.
 To access it, start Node.js with the `--experimental-quic` option and:
 
 ```mjs

@@ -18,7 +18,11 @@ Streams can be readable, writable, or both. All streams are instances of
 
 To access the `node:stream` module:
 
-```js
+```mjs
+import stream from 'node:stream';
+```
+
+```cjs
 const stream = require('node:stream');
 ```
 

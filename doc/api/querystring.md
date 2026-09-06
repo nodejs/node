@@ -11,7 +11,11 @@
 The `node:querystring` module provides utilities for parsing and formatting URL
 query strings. It can be accessed using:
 
-```js
+```mjs
+import querystring from 'node:querystring';
+```
+
+```cjs
 const querystring = require('node:querystring');
 ```
 
