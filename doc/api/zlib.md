@@ -2190,8 +2190,14 @@ Only applicable to deflate algorithm.
 added: v0.7.0
 -->
 
-Reset the compressor/decompressor to factory defaults. Only applicable to
-the inflate and deflate algorithms.
+For inflate and deflate streams, reset the compressor/decompressor to factory
+defaults.
+
+For Zstd streams, cancel the current frame and start a new session while
+preserving the configured parameters and dictionary. If `pledgedSrcSize` was
+configured for a Zstd compressor, it applies again to the next frame.
+
+Calling `reset()` while a write is in progress throws an `Error`.
 
 ## Class: `ZstdOptions`
 

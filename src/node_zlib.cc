@@ -1718,7 +1718,29 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
 }
 
 CompressionError ZstdCompressContext::ResetStream() {
-  return Init(pledged_src_size_);
+  size_t result = ZSTD_CCtx_reset(cctx_.get(), ZSTD_reset_session_only);
+  if (ZSTD_isError(result)) {
+    const ZSTD_ErrorCode error = ZSTD_getErrorCode(result);
+    return CompressionError(
+        ZSTD_getErrorString(error), ZstdStrerror(error), error);
+  }
+
+  result = ZSTD_CCtx_setPledgedSrcSize(cctx_.get(), pledged_src_size_);
+  if (ZSTD_isError(result)) {
+    const ZSTD_ErrorCode error = ZSTD_getErrorCode(result);
+    return CompressionError(
+        ZSTD_getErrorString(error), ZstdStrerror(error), error);
+  }
+
+  if (pledged_src_size_ == ZSTD_CONTENTSIZE_UNKNOWN) {
+    consumed_src_size_.reset();
+  } else {
+    consumed_src_size_ = 0;
+  }
+  error_ = ZSTD_error_no_error;
+  error_string_.clear();
+  error_code_string_.clear();
+  return {};
 }
 
 void ZstdCompressContext::DoThreadPoolWork() {
@@ -1798,9 +1820,23 @@ CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size,
 }
 
 CompressionError ZstdDecompressContext::ResetStream() {
-  // We pass ZSTD_CONTENTSIZE_UNKNOWN because the argument is ignored for
-  // decompression.
-  return Init(ZSTD_CONTENTSIZE_UNKNOWN, {}, reject_garbage_after_end_);
+  const size_t result =
+      ZSTD_DCtx_reset(dctx_.get(), ZSTD_reset_session_only);
+  if (ZSTD_isError(result)) {
+    const ZSTD_ErrorCode error = ZSTD_getErrorCode(result);
+    return CompressionError(
+        ZSTD_getErrorString(error), ZstdStrerror(error), error);
+  }
+
+  frame_complete_ = false;
+  decoding_frame_after_complete_ = false;
+  ignoring_trailing_input_ = false;
+  frame_prefix_size_ = 0;
+  possible_frame_types_ = 0;
+  error_ = ZSTD_error_no_error;
+  error_string_.clear();
+  error_code_string_.clear();
+  return {};
 }
 
 void ZstdDecompressContext::DoThreadPoolWork() {
