@@ -1124,7 +1124,7 @@ Each Zstd-based class takes an `options` object. All options are optional.
   to improve compression efficiency when compressing or decompressing data that
   shares common patterns with the dictionary.
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
-  input remains after the first complete compressed stream. **Default:** `false`
+  input remains after a complete sequence of Zstd frames. **Default:** `false`
 
 For example:
 
@@ -1160,7 +1160,8 @@ added:
   - v22.15.0
 -->
 
-Decompress data using the Zstd algorithm.
+Decompress data using the Zstd algorithm. Concatenated Zstd and skippable frames
+are decoded as a single stream.
 
 ## `zlib.constants`
 

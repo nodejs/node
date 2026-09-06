@@ -32,12 +32,12 @@ declare namespace InternalZlibBinding {
 
   class ZstdCompress extends ZlibBase {
     constructor();
-    init(initParamsArray: Uint32Array, pledgedSrcSize: number | undefined, writeState: Uint32Array, callback: VoidFunction, dictionary?: ArrayBufferView): void;
+    init(initParamsArray: Uint32Array, pledgedSrcSize: number | undefined, writeState: Uint32Array, callback: VoidFunction, dictionary?: ArrayBufferView, rejectGarbageAfterEnd?: boolean): void;
   }
 
   class ZstdDecompress extends ZlibBase {
     constructor();
-    init(initParamsArray: Uint32Array, pledgedSrcSize: number | undefined, writeState: Uint32Array, callback: VoidFunction, dictionary?: ArrayBufferView): void;
+    init(initParamsArray: Uint32Array, pledgedSrcSize: number | undefined, writeState: Uint32Array, callback: VoidFunction, dictionary?: ArrayBufferView, rejectGarbageAfterEnd?: boolean): void;
   }
 }
 
