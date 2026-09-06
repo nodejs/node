@@ -23,10 +23,13 @@ function callAsync(fn, input, options) {
   });
 }
 
-async function collect(stream, input) {
+async function collect(stream, ...inputs) {
   const chunks = [];
   stream.on('data', (chunk) => chunks.push(chunk));
-  stream.end(input);
+  for (let i = 0; i < inputs.length - 1; i++) {
+    stream.write(inputs[i]);
+  }
+  stream.end(inputs[inputs.length - 1]);
   await finished(stream);
   return Buffer.concat(chunks);
 }
@@ -79,6 +82,7 @@ const cases = [
     decompressSync: zlib.zstdDecompressSync,
     createDecompress: zlib.createZstdDecompress,
     defaultOutput: 'a',
+    trailingInput: Buffer.from('trailing junk'),
   },
 ];
 
@@ -89,10 +93,14 @@ for (const {
   decompressSync,
   createDecompress,
   defaultOutput,
+  trailingInput,
 } of cases) {
   test(`rejectGarbageAfterEnd rejects trailing input for ${label}`, async () => {
     const compressed = compress(Buffer.from('a'));
-    const withTrailingInput = Buffer.concat([compressed, compressed]);
+    const withTrailingInput = Buffer.concat([
+      compressed,
+      trailingInput ?? compressed,
+    ]);
 
     assert.strictEqual(decompressSync(withTrailingInput).toString(), defaultOutput);
     assert.strictEqual(
@@ -121,6 +129,134 @@ for (const {
     );
   });
 }
+
+test('zstd decompresses concatenated frames regardless of chunking', async () => {
+  const first = zlib.zstdCompressSync('a');
+  const second = zlib.zstdCompressSync('b');
+  const skippable = Buffer.alloc(12);
+  skippable.writeUInt32LE(0x184d2a50, 0);
+  skippable.writeUInt32LE(4, 4);
+  skippable.write('meta', 8);
+
+  for (const input of [
+    Buffer.concat([first, second]),
+    Buffer.concat([first, skippable, second]),
+  ]) {
+    for (const rejectGarbageAfterEnd of [false, true]) {
+      const options = { rejectGarbageAfterEnd };
+      assert.strictEqual(
+        zlib.zstdDecompressSync(input, options).toString(),
+        'ab',
+      );
+      assert.strictEqual(
+        (await callAsync(zlib.zstdDecompress, input, options)).toString(),
+        'ab',
+      );
+
+      for (let split = 0; split <= input.length; split++) {
+        assert.strictEqual(
+          (await collect(
+            zlib.createZstdDecompress(options),
+            input.subarray(0, split),
+            input.subarray(split),
+          )).toString(),
+          'ab',
+          `split at byte ${split}`,
+        );
+      }
+    }
+  }
+});
+
+test('zstd trailing junk handling is independent of chunking', async () => {
+  const compressed = zlib.zstdCompressSync('a');
+  const laterFrame = zlib.zstdCompressSync('b');
+  const junk = Buffer.from('trailing junk');
+
+  assert.strictEqual(
+    (await collect(
+      zlib.createZstdDecompress(),
+      compressed,
+      junk,
+      laterFrame,
+    )).toString(),
+    'a',
+  );
+  await assert.rejects(
+    collect(
+      zlib.createZstdDecompress({ rejectGarbageAfterEnd: true }),
+      compressed,
+      junk,
+    ),
+    trailingJunkError,
+  );
+});
+
+test('zstd handles incomplete trailing frame identifiers as junk', async () => {
+  const compressed = zlib.zstdCompressSync('a');
+  const framePrefix = zlib.zstdCompressSync('b').subarray(0, 3);
+
+  for (let length = 1; length <= framePrefix.length; length++) {
+    const trailing = framePrefix.subarray(0, length);
+    assert.strictEqual(
+      zlib.zstdDecompressSync(Buffer.concat([compressed, trailing])).toString(),
+      'a',
+    );
+    assert.throws(
+      () => zlib.zstdDecompressSync(Buffer.concat([compressed, trailing]), {
+        rejectGarbageAfterEnd: true,
+      }),
+      trailingJunkError,
+    );
+    assert.strictEqual(
+      (await collect(
+        zlib.createZstdDecompress(),
+        compressed,
+        trailing,
+      )).toString(),
+      'a',
+    );
+  }
+});
+
+test('zstd reports errors in subsequent frames', async () => {
+  const first = zlib.zstdCompressSync('a');
+  const second = zlib.zstdCompressSync('b', {
+    params: {
+      [zlib.constants.ZSTD_c_checksumFlag]: 1,
+    },
+  });
+  second[second.length - 1] ^= 1;
+  const input = Buffer.concat([first, second]);
+  const checksumError = { code: 'ZSTD_error_checksum_wrong' };
+
+  assert.throws(() => zlib.zstdDecompressSync(input), checksumError);
+  await assert.rejects(
+    collect(zlib.createZstdDecompress(), first, second),
+    checksumError,
+  );
+});
+
+test('zstd decompresses multiple frames across output buffers', async () => {
+  const firstInput = Buffer.allocUnsafe(1024);
+  const secondInput = Buffer.allocUnsafe(1024);
+  for (let i = 0; i < firstInput.length; i++) {
+    firstInput[i] = i;
+    secondInput[i] = i + 1;
+  }
+  const input = Buffer.concat([
+    zlib.zstdCompressSync(firstInput),
+    zlib.zstdCompressSync(secondInput),
+  ]);
+  const expected = Buffer.concat([firstInput, secondInput]);
+  const options = { chunkSize: 64 };
+
+  assert.deepStrictEqual(zlib.zstdDecompressSync(input, options), expected);
+  assert.deepStrictEqual(
+    await collect(zlib.createZstdDecompress(options), input),
+    expected,
+  );
+});
 
 test('rejectGarbageAfterEnd must be a boolean', () => {
   const compressed = zlib.deflateSync(Buffer.from('a'));
