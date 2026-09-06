@@ -30,6 +30,7 @@ import { ProfilerBinding } from './internalBinding/profiler';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
 import { SignalWrapBinding } from './internalBinding/signal_wrap';
+import { StreamPipeBinding } from './internalBinding/stream_pipe';
 import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
 import { TimersBinding } from './internalBinding/timers';
@@ -76,6 +77,7 @@ interface InternalBindingMap {
   sea: SeaBinding;
   serdes: SerdesBinding;
   signal_wrap: SignalWrapBinding;
+  stream_pipe: StreamPipeBinding;
   string_decoder: StringDecoderBinding;
   symbols: SymbolsBinding;
   timers: TimersBinding;
