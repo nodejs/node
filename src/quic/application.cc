@@ -117,7 +117,7 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 
   // Ensure the advertised max_field_section_size in SETTINGS is at least
   // as large as max_header_length. Otherwise the peer would be told to
-  // restrict headers to a smaller size than what CanAddHeader accepts.
+  // restrict headers to a smaller size than what the HTTP/3 stream accepts.
   if (options.max_field_section_size < options.max_header_length) {
     options.max_field_section_size = options.max_header_length;
   }
