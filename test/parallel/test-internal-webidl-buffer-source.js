@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { test } = require('node:test');
 const vm = require('vm');
@@ -269,6 +269,92 @@ test('AllowSharedBufferSource handles growable shared buffers with explicit ' +
     assert.strictEqual(converters.AllowSharedBufferSource(view, {
       allowResizable: true,
     }), view);
+  }
+});
+
+test('Shared buffer growability checks do not read JavaScript properties', () => {
+  for (const [buffer, growable] of [
+    [new SharedArrayBuffer(8), false],
+    [new SharedArrayBuffer(8, { maxByteLength: 8 }), true],
+    [new SharedArrayBuffer(8, { maxByteLength: 16 }), true],
+    [vm.runInNewContext('new SharedArrayBuffer(8)'), false],
+    [vm.runInNewContext('new SharedArrayBuffer(8, { maxByteLength: 16 })'), true],
+  ]) {
+    const view = new Uint8Array(buffer);
+    const dataView = new DataView(buffer);
+    for (const mode of ['shadow', 'getter', 'prototype']) {
+      if (mode === 'shadow') {
+        Object.defineProperty(buffer, 'growable', {
+          value: !growable,
+          configurable: true,
+        });
+      } else if (mode === 'getter') {
+        Object.defineProperty(buffer, 'growable', {
+          get: common.mustNotCall('Unexpected growable getter'),
+          configurable: true,
+        });
+      } else {
+        delete buffer.growable;
+        Object.setPrototypeOf(buffer, null);
+      }
+
+      for (const value of [buffer, view, dataView]) {
+        if (growable) {
+          assert.throws(() => converters.AllowSharedBufferSource(value), {
+            code: 'ERR_INVALID_ARG_TYPE',
+          });
+        } else {
+          assert.strictEqual(converters.AllowSharedBufferSource(value), value);
+        }
+        assert.strictEqual(converters.AllowSharedBufferSource(value, {
+          allowResizable: true,
+        }), value);
+      }
+
+      if (growable) {
+        assert.throws(() => converters.Uint8Array(view, { allowShared: true }), {
+          code: 'ERR_INVALID_ARG_TYPE',
+        });
+      } else {
+        assert.strictEqual(converters.Uint8Array(view, { allowShared: true }), view);
+      }
+      assert.strictEqual(converters.Uint8Array(view, {
+        allowShared: true,
+        allowResizable: true,
+      }), view);
+    }
+  }
+});
+
+test('Shared WebAssembly buffer growability is checked per buffer', {
+  skip: typeof WebAssembly === 'undefined',
+}, () => {
+  const memory = new WebAssembly.Memory({ initial: 1, maximum: 2, shared: true });
+  for (const [buffer, growable] of [
+    [memory.buffer, false],
+    [memory.toResizableBuffer(), true],
+    [memory.toFixedLengthBuffer(), false],
+  ]) {
+    for (const value of [buffer, new Uint8Array(buffer), new DataView(buffer)]) {
+      if (growable) {
+        assert.throws(() => converters.AllowSharedBufferSource(value), {
+          code: 'ERR_INVALID_ARG_TYPE',
+        });
+      } else {
+        assert.strictEqual(converters.AllowSharedBufferSource(value), value);
+      }
+      assert.strictEqual(converters.AllowSharedBufferSource(value, {
+        allowResizable: true,
+      }), value);
+    }
+    const view = new Uint8Array(buffer);
+    if (growable) {
+      assert.throws(() => converters.Uint8Array(view, { allowShared: true }), {
+        code: 'ERR_INVALID_ARG_TYPE',
+      });
+    } else {
+      assert.strictEqual(converters.Uint8Array(view, { allowShared: true }), view);
+    }
   }
 });
 
