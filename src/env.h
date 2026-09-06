@@ -583,6 +583,7 @@ struct SnapshotData {
   // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
   // building process.
   v8::StartupData v8_snapshot_blob_data{nullptr, 0};
+  DataOwnership v8_snapshot_blob_data_ownership = DataOwnership::kOwned;
 
   IsolateDataSerializeInfo isolate_data_info;
   // TODO(joyeecheung): there should be a vector of env_info once we snapshot
@@ -602,7 +603,11 @@ struct SnapshotData {
   bool Check() const;
   static bool FromFile(SnapshotData* out, FILE* in);
   static bool FromBlob(SnapshotData* out, const std::vector<char>& in);
-  static bool FromBlob(SnapshotData* out, std::string_view in);
+  // If the V8 data is not owned, `in` must outlive `out`.
+  static bool FromBlob(SnapshotData* out,
+                       std::string_view in,
+                       DataOwnership v8_snapshot_blob_data_ownership =
+                           DataOwnership::kOwned);
   static const SnapshotData* FromEmbedderWrapper(
       const EmbedderSnapshotData* data);
   EmbedderSnapshotData::Pointer AsEmbedderWrapper() const;

@@ -158,6 +158,27 @@ class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
   template <typename T>
     requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   T Read();
+
+  v8::StartupData ReadV8StartupData(
+      SnapshotData::DataOwnership ownership) {
+    Debug("Read<v8::StartupData>()\n");
+
+    int raw_size = ReadArithmetic<int>();
+    Debug("size=%d\n", raw_size);
+
+    CHECK_GT(raw_size, 0);  // There should be no startup data of size 0.
+    if (ownership == SnapshotData::DataOwnership::kOwned) {
+      // The data pointer of v8::StartupData would be deleted so it must be
+      // new'ed.
+      std::unique_ptr<char> buf = std::unique_ptr<char>(new char[raw_size]);
+      ReadArithmetic<char>(buf.get(), raw_size);
+      return v8::StartupData{buf.release(), raw_size};
+    }
+
+    const char* data = sink.data() + read_total;
+    read_total += raw_size;
+    return v8::StartupData{data, raw_size};
+  }
 };
 
 class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
@@ -181,17 +202,7 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
 // [ |raw_size| bytes ] contents
 template <>
 v8::StartupData SnapshotDeserializer::Read() {
-  Debug("Read<v8::StartupData>()\n");
-
-  int raw_size = ReadArithmetic<int>();
-  Debug("size=%d\n", raw_size);
-
-  CHECK_GT(raw_size, 0);  // There should be no startup data of size 0.
-  // The data pointer of v8::StartupData would be deleted so it must be new'ed.
-  std::unique_ptr<char> buf = std::unique_ptr<char>(new char[raw_size]);
-  ReadArithmetic<char>(buf.get(), raw_size);
-
-  return v8::StartupData{buf.release(), raw_size};
+  return ReadV8StartupData(SnapshotData::DataOwnership::kOwned);
 }
 
 template <>
@@ -640,7 +651,9 @@ bool SnapshotData::FromBlob(SnapshotData* out, const std::vector<char>& in) {
   return FromBlob(out, std::string_view(in.data(), in.size()));
 }
 
-bool SnapshotData::FromBlob(SnapshotData* out, std::string_view in) {
+bool SnapshotData::FromBlob(SnapshotData* out,
+                            std::string_view in,
+                            DataOwnership v8_snapshot_blob_data_ownership) {
   SnapshotDeserializer r(in);
   r.Debug("SnapshotData::FromBlob()\n");
 
@@ -656,7 +669,9 @@ bool SnapshotData::FromBlob(SnapshotData* out, std::string_view in) {
     return false;
   }
 
-  out->v8_snapshot_blob_data = r.Read<v8::StartupData>();
+  out->v8_snapshot_blob_data =
+      r.ReadV8StartupData(v8_snapshot_blob_data_ownership);
+  out->v8_snapshot_blob_data_ownership = v8_snapshot_blob_data_ownership;
   r.Debug("Read isolate_data_info\n");
   out->isolate_data_info = r.Read<IsolateDataSerializeInfo>();
   out->env_info = r.Read<EnvSerializeInfo>();
@@ -701,6 +716,7 @@ bool SnapshotData::Check() const {
 
 SnapshotData::~SnapshotData() {
   if (data_ownership == DataOwnership::kOwned &&
+      v8_snapshot_blob_data_ownership == DataOwnership::kOwned &&
       v8_snapshot_blob_data.data != nullptr) {
     delete[] v8_snapshot_blob_data.data;
   }
@@ -822,6 +838,9 @@ namespace node {
   // -- v8_snapshot_blob_data begins --
   { v8_snapshot_blob_data, v8_snapshot_blob_size },
   // -- v8_snapshot_blob_data ends --
+  // -- v8_snapshot_blob_data_ownership begins --
+  SnapshotData::DataOwnership::kNotOwned,
+  // -- v8_snapshot_blob_data_ownership ends --
   // -- isolate_data_info begins --
 )" << data->isolate_data_info
      << R"(
