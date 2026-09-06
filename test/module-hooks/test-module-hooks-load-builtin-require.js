@@ -1,4 +1,4 @@
-// Flags: --experimental-bench --no-warnings
+// Flags: --experimental-logger --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -38,6 +38,7 @@ hook.deregister();
 const schemelessBlockList = new Set([
   'bench',
   'bench/reporters',
+  'logger',
   'sea',
   'test',
   'test/reporters',

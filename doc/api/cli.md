@@ -1545,6 +1545,16 @@ Specify the `module` containing exported [asynchronous module customization hook
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
+### `--experimental-logger`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Enable the experimental [`node:logger`][] module.
+
 ### `--experimental-network-inspection`
 
 <!-- YAML
@@ -4276,6 +4286,7 @@ one is included in the list below.
 * `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-loader`
+* `--experimental-logger`
 * `--experimental-modules`
 * `--experimental-package-map`
 * `--experimental-print-required-tla`
@@ -4961,6 +4972,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
+[`node:logger`]: logger.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
