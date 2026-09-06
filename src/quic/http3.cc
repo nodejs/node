@@ -1430,7 +1430,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static constexpr nghttp3_callbacks kCallbacks = {
       on_acked_stream_data,
-      nullptr,  // nghttp3_stream_close (deprecated)
+      nullptr,  // stream_close (deprecated, use v2 below)
       on_receive_data,
       on_deferred_consume,
       on_begin_headers,
@@ -1443,7 +1443,7 @@ class Http3ApplicationImpl final : public Session::Application {
       on_end_stream,
       on_do_reset_stream,
       on_shutdown,
-      nullptr,  // recv_settings (deprecated)
+      nullptr,  // recv_settings (deprecated, use v2 below)
       on_receive_origin,
       on_end_origin,
       on_rand,
