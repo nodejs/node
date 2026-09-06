@@ -15,6 +15,10 @@
 #include "cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
+#if V8_CC_MSVC
+#include <intrin.h>  // _AddressOfReturnAddress()
+#endif
+
 /**
  * cppgc - A C++ garbage collection library.
  */
@@ -37,7 +41,11 @@ class Heap;
  */
 class V8_EXPORT StackStartMarker {
  public:
+#if V8_CC_MSVC
+  StackStartMarker() : stack_start_(_AddressOfReturnAddress()) {}
+#else
   StackStartMarker() : stack_start_(__builtin_frame_address(0)) {}
+#endif
   void* stack_start() const { return stack_start_; }
 
  private:
