@@ -646,6 +646,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_FFI);
 #endif  // HAVE_FFI
+  AddOption("--experimental-logger",
+            "experimental node:logger module",
+            BOOL_FIELD(experimental_logger),
+            kAllowedInEnvvar);
   AddOption("--experimental-web-worker",
             "experimental Web Worker API",
             BOOL_FIELD(experimental_web_worker),

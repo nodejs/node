@@ -1,3 +1,5 @@
+// Flags: --experimental-logger
+
 'use strict';
 
 // This tests that when builtins that demand the `node:` prefix are
@@ -13,6 +15,7 @@ const { registerHooks } = require('module');
 const schemelessBlockList = new Set([
   'bench',
   'bench/reporters',
+  'logger',
   'sea',
   'test',
   'test/reporters',

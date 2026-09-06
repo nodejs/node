@@ -1,3 +1,5 @@
+// Flags: --experimental-logger
+
 'use strict';
 
 const common = require('../common');
@@ -37,6 +39,7 @@ hook.deregister();
 const schemelessBlockList = new Set([
   'bench',
   'bench/reporters',
+  'logger',
   'sea',
   'test',
   'test/reporters',

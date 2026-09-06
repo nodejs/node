@@ -80,6 +80,20 @@ console.log('This message is displayed first.');
 // Process exit event with code: 0
 ```
 
+### Event: `'defaultLoggerProviderChanged'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `provider` {Object} The new default logger provider.
+* `defaultProvider` {Object|undefined} The default logger provider at the time
+  the event is emitted.
+
+The `'defaultLoggerProviderChanged'` event is emitted synchronously when
+[`logger.setDefaultProvider()`][] is called with a provider that differs from
+the current default provider.
+
 ### Event: `'disconnect'`
 
 <!-- YAML
@@ -4642,6 +4656,7 @@ cases:
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
 [`domain`]: domain.md
+[`logger.setDefaultProvider()`]: logger.md#loggersetdefaultproviderprovider
 [`module.getSourceMapsSupport()`]: module.md#modulegetsourcemapssupport
 [`module.isBuiltin(id)`]: module.md#moduleisbuiltinmodulename
 [`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
