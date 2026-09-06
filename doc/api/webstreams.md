@@ -893,7 +893,7 @@ to a new `Buffer`, `TypedArray`, or `DataView`.
 added: v16.5.0
 -->
 
-* Type: {Buffer|TypedArray|DataView}
+* Type: {Uint8Array}
 
 ### Class: `WritableStream`
 
