@@ -8,6 +8,7 @@ const {
 } = require('../core/util')
 
 const { serializePathWithQuery } = require('../core/util')
+const { kRequestOrigin } = require('../core/symbols')
 
 const MAX_DELTA_SECONDS = 2147483647
 const RESTRICTIVE_DIRECTIVE_NAMES = ['no-store', 'private', 'no-cache']
@@ -147,8 +148,47 @@ function getMalformedRestrictiveDirectiveName (key) {
 /**
  * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
  */
-function makeCacheKey (opts) {
-  const origin = opts.origin ? opts.origin.toString() : ''
+function getRequestOrigin (opts) {
+  const origin = opts[kRequestOrigin] === undefined
+    ? opts.origin
+    : opts[kRequestOrigin]
+  return typeof origin === 'string' || origin instanceof URL
+    ? origin
+    : null
+}
+
+/**
+ * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
+ * @param {string|null|undefined} interceptorOrigin
+ */
+function getInterceptorOrigin (opts, interceptorOrigin) {
+  const requestOrigin = getRequestOrigin(opts)
+  if (interceptorOrigin === undefined) {
+    return requestOrigin
+  }
+  if (interceptorOrigin === null) {
+    return null
+  }
+  if (requestOrigin) {
+    try {
+      if (new URL(requestOrigin).origin !== interceptorOrigin) {
+        return null
+      }
+    } catch {
+      return interceptorOrigin
+    }
+  }
+  return interceptorOrigin
+}
+
+/**
+ * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
+ * @param {string|URL|null} [origin]
+ */
+function makeCacheKey (opts, origin = getRequestOrigin(opts)) {
+  if (!origin) {
+    throw new Error('opts.origin is undefined')
+  }
 
   let fullPath = opts.path || '/'
 
@@ -157,7 +197,7 @@ function makeCacheKey (opts) {
   }
 
   return {
-    origin,
+    origin: origin.toString(),
     method: opts.method,
     path: fullPath,
     headers: opts.headers
@@ -700,6 +740,8 @@ function makeDeduplicationKey (cacheKey, excludeHeaders) {
 }
 
 module.exports = {
+  getInterceptorOrigin,
+  getRequestOrigin,
   makeCacheKey,
   normalizeHeaders,
   assertCacheKey,

@@ -87,7 +87,7 @@ class MemoryCacheStore extends EventEmitter {
   }
 
   /**
-   * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} req
+   * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} key
    * @returns {import('../../types/cache-interceptor.d.ts').default.GetResult | undefined}
    */
   get (key) {
@@ -179,7 +179,7 @@ class MemoryCacheStore extends EventEmitter {
 
           // Perform eviction
           for (const [key, entries] of store.#entries) {
-            for (const entry of entries.splice(0, entries.length / 2)) {
+            for (const entry of entries.splice(0, Math.ceil(entries.length / 2))) {
               store.#size -= entry.size
               store.#count -= 1
             }

@@ -2,7 +2,7 @@
 const assert = require('node:assert')
 
 const { kRetryHandlerDefaultRetry } = require('../core/symbols')
-const { RequestRetryError } = require('../core/errors')
+const { RequestRetryError, RequestAbortedError } = require('../core/errors')
 const {
   isDisturbed,
   parseRangeHeader,
@@ -41,19 +41,42 @@ function validatePartialResponseContentLength (headers, range, statusCode, retry
 // new one: backpressure pauses the new connection's controller, but the
 // consumer's resume() targets the old one, so the resumed body stalls forever.
 // The proxy always forwards to the controller of the currently active connection.
+// An abort is additionally reported to the handler so it can cancel a pending
+// retry backoff instead of letting the request hang until the backoff elapses.
+// The notification is a private callback the handler hands over on construction,
+// so nothing outside the handler can trigger it.
 class RetryController {
-  constructor () {
+  #onAbort
+
+  constructor (onAbort) {
+    this.#onAbort = onAbort
     this.target = null
   }
 
   pause () { this.target?.pause() }
   resume () { this.target?.resume() }
-  abort (reason) { this.target?.abort(reason) }
+
+  abort (reason) {
+    this.target?.abort(reason)
+    this.#onAbort(reason)
+  }
+
   get paused () { return this.target?.paused ?? false }
   get aborted () { return this.target?.aborted ?? false }
   get reason () { return this.target?.reason ?? null }
   get rawHeaders () { return this.target?.rawHeaders ?? null }
+  set rawHeaders (value) {
+    if (this.target) {
+      this.target.rawHeaders = value
+    }
+  }
+
   get rawTrailers () { return this.target?.rawTrailers ?? null }
+  set rawTrailers (value) {
+    if (this.target) {
+      this.target.rawTrailers = value
+    }
+  }
 }
 
 class RetryHandler {
@@ -112,15 +135,32 @@ class RetryHandler {
     this.etag = null
     this.statusCode = null
     this.headers = null
-    this.controllerProxy = new RetryController()
+    this.controllerProxy = new RetryController(reason => this.#onAbort(reason))
+    // A retry decision is in flight (the policy may be holding a backoff
+    // timer). While pending, a consumer abort cancels the wait.
+    this.retryPending = false
+    // Backoff timer returned by the retry policy, so #onAbort can cancel it.
+    // Null for custom policies that do not return their timer.
+    this.retryTimer = null
+    // Set once an abort during the backoff delivered the terminal error
+    // downstream; late policy callbacks and connection errors are then moot.
+    this.aborted = false
   }
 
   onResponseStartWithRetry (controller, statusCode, headers, statusMessage, err) {
     if (this.retryOpts.throwOnError) {
       // Preserve old behavior for status codes that are not eligible for retry
       if (this.retryOpts.statusCodes.includes(statusCode) === false) {
-        this.headersSent = true
-        this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
+        if (this.headersSent) {
+          // The downstream handler already received the response from an
+          // earlier attempt. Forwarding this response would replace the
+          // downstream body and leave the original body pending forever.
+          this.handler.onResponseError?.(this.controllerProxy, err)
+        } else {
+          this.headersSent = true
+          this.checkpointResponseEnd(headers)
+          this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
+        }
       } else {
         this.error = err
       }
@@ -130,14 +170,30 @@ class RetryHandler {
 
     if (isDisturbed(this.opts.body)) {
       this.headersSent = true
+      this.checkpointResponseEnd(headers)
       this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
       return
     }
 
     function shouldRetry (passedErr) {
+      if (this.aborted) {
+        // Aborted while the policy was deciding; the decision is moot.
+        return
+      }
+      this.retryPending = false
+      this.retryTimer = null
+
       if (passedErr) {
-        this.headersSent = true
-        this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
+        if (this.headersSent) {
+          // The downstream handler already received the response from an
+          // earlier attempt. Forwarding this response would replace the
+          // downstream body and leave the original body pending forever.
+          this.handler.onResponseError?.(this.controllerProxy, passedErr)
+        } else {
+          this.headersSent = true
+          this.checkpointResponseEnd(headers)
+          this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
+        }
         controller.resume()
         return
       }
@@ -154,14 +210,31 @@ class RetryHandler {
     // between, leaving this one paused forever -- the very stall the proxy exists
     // to prevent.
     controller.pause()
-    this.retryOpts.retry(
+    // The default policy returns its backoff timer so an abort can cancel it;
+    // a custom policy may return anything (or nothing), which is ignored.
+    this.retryPending = true
+    this.retryTimer = this.retryOpts.retry(
       err,
       {
         state: { counter: this.retryCount },
         opts: { retryOptions: this.retryOpts, ...this.opts }
       },
       shouldRetry.bind(this)
-    )
+    ) ?? null
+  }
+
+  checkpointResponseEnd (headers) {
+    if (this.end == null && this.opts.method !== 'HEAD') {
+      const contentLength = headers['content-length']
+      this.end = contentLength != null ? Number(contentLength) - 1 : null
+
+      assert(
+        this.end == null || Number.isFinite(this.end),
+        'invalid content-length'
+      )
+
+      this.resume = this.end != null
+    }
   }
 
   onRequestStart (controller, context) {
@@ -174,6 +247,14 @@ class RetryHandler {
     if (!this.headersSent) {
       this.handler.onRequestStart?.(this.controllerProxy, context)
     }
+  }
+
+  onBodySent (chunk) {
+    this.handler.onBodySent?.(chunk)
+  }
+
+  onRequestSent () {
+    this.handler.onRequestSent?.()
   }
 
   onRequestUpgrade (_controller, statusCode, headers, socket) {
@@ -190,7 +271,8 @@ class RetryHandler {
       timeoutFactor,
       statusCodes,
       errorCodes,
-      methods
+      methods,
+      retryAfter
     } = retryOptions
     const { counter } = state
 
@@ -222,7 +304,7 @@ class RetryHandler {
       return
     }
 
-    let retryAfterHeader = headers?.['retry-after']
+    let retryAfterHeader = retryAfter === false ? undefined : headers?.['retry-after']
     if (retryAfterHeader) {
       retryAfterHeader = Number(retryAfterHeader)
       retryAfterHeader = Number.isNaN(retryAfterHeader)
@@ -237,7 +319,9 @@ class RetryHandler {
           ? Math.min(retryAfterHeader, maxTimeout)
           : Math.min(minTimeout * timeoutFactor ** (counter - 1), maxTimeout)
 
-    setTimeout(() => cb(null), retryTimeout)
+    // Return the backoff timer so the handler can cancel it when the
+    // consumer aborts while the retry decision is pending.
+    return setTimeout(() => cb(null), retryTimeout)
   }
 
   onResponseStart (controller, statusCode, headers, statusMessage) {
@@ -250,18 +334,6 @@ class RetryHandler {
     this.retryCount += 1
     this.statusCode = statusCode
     this.headers = headers
-
-    if (statusCode >= 300) {
-      const err = new RequestRetryError('Request failed', statusCode, {
-        headers,
-        data: {
-          count: this.retryCount
-        }
-      })
-
-      this.onResponseStartWithRetry(controller, statusCode, headers, statusMessage, err)
-      return
-    }
 
     // Checkpoint for resume from where we left it
     if (this.headersSent) {
@@ -299,9 +371,25 @@ class RetryHandler {
 
       const { start, size, end = size ? size - 1 : null } = contentRange
 
-      assert(this.start === start, 'content-range mismatch')
-      assert(this.end == null || this.end === end, 'content-range mismatch')
+      if (this.start !== start || (this.end != null && this.end !== end)) {
+        throw new RequestRetryError('Content-Range mismatch', statusCode, {
+          headers,
+          data: { count: this.retryCount }
+        })
+      }
 
+      return
+    }
+
+    if (statusCode >= 300) {
+      const err = new RequestRetryError('Request failed', statusCode, {
+        headers,
+        data: {
+          count: this.retryCount
+        }
+      })
+
+      this.onResponseStartWithRetry(controller, statusCode, headers, statusMessage, err)
       return
     }
 
@@ -435,14 +523,27 @@ class RetryHandler {
   }
 
   onResponseError (controller, err) {
+    if (this.aborted) {
+      // #onAbort already delivered the terminal error downstream; the late
+      // error of the torn-down connection must not be forwarded twice.
+      return
+    }
+
     // controller is THIS failed connection (not the proxy): we inspect whether
     // the consumer aborted it to decide retry-vs-propagate.
-    if (controller?.aborted || isDisturbed(this.opts.body)) {
+    if (controller?.aborted || isDisturbed(this.opts.body) || (this.headersSent && !this.resume)) {
       this.handler.onResponseError?.(this.controllerProxy, err)
       return
     }
 
     function shouldRetry (returnedErr) {
+      if (this.aborted) {
+        // Aborted while the policy was deciding; the decision is moot.
+        return
+      }
+      this.retryPending = false
+      this.retryTimer = null
+
       if (!returnedErr) {
         this.retry()
         return
@@ -462,14 +563,31 @@ class RetryHandler {
       this.retryCount += 1
     }
 
-    this.retryOpts.retry(
+    this.retryPending = true
+    this.retryTimer = this.retryOpts.retry(
       err,
       {
         state: { counter: this.retryCount },
         opts: { retryOptions: this.retryOpts, ...this.opts }
       },
       shouldRetry.bind(this)
-    )
+    ) ?? null
+  }
+
+  #onAbort (reason) {
+    // A consumer abort lands on the controller proxy. If the retry policy is
+    // still deciding (typically holding a backoff timer), cancel the wait and
+    // surface the abort immediately instead of letting the request hang until
+    // the backoff elapses.
+    if (!this.retryPending) {
+      return
+    }
+
+    this.aborted = true
+    this.retryPending = false
+    clearTimeout(this.retryTimer)
+    this.retryTimer = null
+    this.handler.onResponseError?.(this.controllerProxy, reason ?? new RequestAbortedError())
   }
 }
 
