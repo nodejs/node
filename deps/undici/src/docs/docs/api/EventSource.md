@@ -66,6 +66,9 @@ added: v6.5.0
       wait before re-establishing a dropped connection. The server may override
       this value with a `retry` field. **Default:** `3000`.
 
+EventSource-specific limits can be configured on the dispatcher using the
+`eventSource` option. See [`Client`][] for details.
+
 Creates a new `EventSource` and immediately begins connecting to `url`. The
 request is sent with the `Accept: text/event-stream` header, a cache mode of
 `no-store`, and an initiator type of `other`.
@@ -349,6 +352,7 @@ eventSource.onerror = () => {
 ```
 
 [WHATWG-conformant]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
+[`Client`]: Client.md#new-clienturl-options
 [`Dispatcher`]: Dispatcher.md#class-dispatcher
 [`addEventListener()`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
 [server-sent events]: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
