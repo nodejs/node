@@ -2158,7 +2158,8 @@ added: v0.5.8
 -->
 
 * `kind` **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
-  `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams.
+  `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams, and
+  `zlib.constants.ZSTD_e_flush` for Zstd-based streams.
 * `callback` {Function}
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
@@ -2229,6 +2230,9 @@ Each Zstd-based class takes an `options` object. All options are optional.
 * `finishFlush` {integer} **Default:** `zlib.constants.ZSTD_e_end`
 * `chunkSize` {integer} **Default:** `16 * 1024`
 * `params` {Object} Key-value object containing indexed [Zstd parameters][].
+* `pledgedSrcSize` {number} Expected total size of the uncompressed input. It
+  must be a non-negative safe integer and must match the input size when
+  compression finishes. Only applicable to Zstd compressors.
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
@@ -3068,6 +3072,8 @@ added:
 Compress a chunk of data with [`ZstdCompress`][].
 
 ### `zlib.zstdDecompress(buffer[, options], callback)`
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added:
