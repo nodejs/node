@@ -111,7 +111,6 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
             core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-            core.exportVariable('NIX_SCCACHE', '(import <nixpkgs> {}).sccache');
 
       - name: Build Node.js on the base commit
         run: |
@@ -123,13 +122,11 @@ jobs:
             --arg useSeparateDerivationForV8 true \
             --arg withPerfetto ${{ matrix.perfetto || false }} \
             --arg loadJSBuiltinsDynamically false \
-            --arg ccache "${NIX_SCCACHE:-null}" \
+            --arg ccache '(import <nixpkgs> {}).sccache' \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
             --run '
-                set -e
-                make build-ci -j4 V=1
-                sccache --stop-server
+              make build-ci -j4 V=1 && sccache --stop-server
             '
           mv out/Release/node base_node
 
@@ -145,7 +142,7 @@ jobs:
             --arg useSeparateDerivationForV8 true \
             --arg withPerfetto ${{ matrix.perfetto || false }} \
             --arg loadJSBuiltinsDynamically false \
-            --arg ccache "${NIX_SCCACHE:-null}" \
+            --arg ccache '(import <nixpkgs> {}).sccache' \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
             --run '
