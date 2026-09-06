@@ -745,8 +745,8 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
 
   {
     TryCatchScope try_catch(env);
-    USE(module->InstantiateModule(
-        context, ResolveModuleCallback, ResolveSourceCallback));
+    Maybe<bool> instantiated = module->InstantiateModule(
+        context, ResolveModuleCallback, ResolveSourceCallback);
 
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       CHECK(!try_catch.Message().IsEmpty());
@@ -758,7 +758,16 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
       try_catch.ReThrow();
       return;
     }
+
+    if (instantiated.IsNothing() || !instantiated.FromJust()) {
+      return;
+    }
   }
+
+  // After instantiation, V8 holds the module graph. Drop the extra JS
+  // references to imported ModuleWraps so they can be collected once they
+  // are removed from Node.js caches.
+  args.This()->SetInternalField(kLinkedRequestsSlot, Undefined(isolate));
 }
 
 void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
