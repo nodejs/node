@@ -328,13 +328,41 @@ test('ffi memory helpers reject missing required arguments', () => {
   // `undefined` as if the read or the write had succeeded.
   for (const width of widths) {
     for (const name of [`get${width}`, `set${width}`]) {
-      assert.throws(() => ffi[name](), { code: 'ERR_INVALID_ARG_VALUE' });
-      assert.throws(() => ffi[name](undefined), { code: 'ERR_INVALID_ARG_VALUE' });
+      assert.throws(() => ffi[name](), { code: 'ERR_INVALID_ARG_TYPE' });
+      assert.throws(() => ffi[name](undefined), { code: 'ERR_INVALID_ARG_TYPE' });
     }
   }
 
-  assert.throws(() => ffi.toBuffer(1n), { code: 'ERR_INVALID_ARG_VALUE' });
-  assert.throws(() => ffi.toBuffer(1n, undefined), { code: 'ERR_INVALID_ARG_VALUE' });
-  assert.throws(() => ffi.toArrayBuffer(1n), { code: 'ERR_INVALID_ARG_VALUE' });
-  assert.throws(() => ffi.toArrayBuffer(1n, undefined), { code: 'ERR_INVALID_ARG_VALUE' });
+  assert.throws(() => ffi.toBuffer(1n), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => ffi.toBuffer(1n, undefined), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => ffi.toArrayBuffer(1n), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => ffi.toArrayBuffer(1n, undefined), { code: 'ERR_INVALID_ARG_TYPE' });
+});
+
+test('ffi memory helpers distinguish wrong-typed from invalid arguments', () => {
+  withAllocations(common.mustCall((alloc) => {
+    const ptr = alloc(8);
+    const type = { code: 'ERR_INVALID_ARG_TYPE' };
+    const value = { code: 'ERR_INVALID_ARG_VALUE' };
+
+    // A pointer that is not a bigint, or an offset or length that is not a
+    // number, is a type error, like the JavaScript validators report it.
+    assert.throws(() => ffi.getInt8('x'), type);
+    assert.throws(() => ffi.getInt8(ptr, 'x'), type);
+    assert.throws(() => ffi.setInt8('x', 0, 1), type);
+    assert.throws(() => ffi.setInt8(ptr, 'x', 1), type);
+    assert.throws(() => ffi.toBuffer(ptr, 'x'), type);
+    assert.throws(() => ffi.toArrayBuffer(ptr, 'x'), type);
+    assert.throws(() => ffi.exportBuffer(Buffer.from([1]), 'x', 1), type);
+    assert.throws(() => ffi.exportArrayBuffer(new ArrayBuffer(1), 'x', 1), type);
+    assert.throws(() => ffi.exportArrayBufferView(new Uint8Array(1), 'x', 1), type);
+
+    // A bigint or number of the right type that is out of range stays a
+    // value error.
+    assert.throws(() => ffi.getInt8(-1n), value);
+    assert.throws(() => ffi.getInt8(ptr, -1), value);
+    assert.throws(() => ffi.setInt8(ptr, 1.5, 1), value);
+    assert.throws(() => ffi.toBuffer(ptr, 1.5), value);
+    assert.throws(() => ffi.exportBuffer(Buffer.from([1]), -1n, 1), value);
+  }));
 });
