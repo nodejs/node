@@ -300,17 +300,6 @@ enum class Direction : uint8_t {
   UNIDIRECTIONAL,
 };
 
-enum class HeadersKind : uint8_t {
-  HINTS,
-  INITIAL,
-  TRAILING,
-};
-
-enum class HeadersFlags : uint8_t {
-  NONE,
-  TERMINAL,
-};
-
 enum class StreamPriority : uint8_t {
   DEFAULT = NGHTTP3_DEFAULT_URGENCY,
   LOW = NGHTTP3_URGENCY_LOW,

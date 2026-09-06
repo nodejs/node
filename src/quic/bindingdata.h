@@ -294,6 +294,8 @@ class BindingData final
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
   JS_METHOD(SetCallbacks);
+  JS_METHOD(SendHeaders);
+  JS_METHOD(SetHeadersInterest);
 
   // Lazily-created per-Realm SessionManager. Centralizes CID -> Session
   // routing so that any endpoint can route packets to any session.

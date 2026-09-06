@@ -10,7 +10,6 @@
 #include <memory_tracker.h>
 #include <node_blob.h>
 #include <node_bob.h>
-#include <node_http_common.h>
 #include <util.h>
 #include "bindingdata.h"
 #include "data.h"
@@ -21,6 +20,14 @@ namespace node::quic {
 
 class Session;
 class Stream;
+
+// Optional per-stream state owned by the negotiated application protocol.
+// Stream deliberately treats this as opaque so protocol semantics do not
+// become part of the transport stream abstraction.
+class StreamApplicationState {
+ public:
+  virtual ~StreamApplicationState() = default;
+};
 
 // An elastic ring buffer used by Stream to coalesce received data before
 // flushing it into the DataQueue. This avoids creating many small V8
@@ -179,11 +186,6 @@ class PendingStream final {
 // that the stream is gone. Any data that has already been received and is in
 // the inbound queue is preserved and may be read by the application.
 //
-// QUIC streams in general do not have headers. Some QUIC applications, however,
-// may associate headers with the stream (HTTP/3 for instance). As a
-// convenience, the Stream class will hold onto these headers for the
-// application.
-//
 // Streams may be created in a pending state. This means that while the Stream
 // object is created, it has not yet been opened in ngtcp2 and therefore has
 // no official status yet. Certain operations can still be performed on the
@@ -202,8 +204,6 @@ class Stream final : public AsyncWrap,
                      public Ngtcp2Source,
                      public DataQueue::BackpressureListener {
  public:
-  using Header = NgHeaderBase<BindingData>;
-
   // Acquire a DataQueue from the given value if it is valid. The return
   // follows the typical V8 rules for Maybe types. If an error occurs,
   // the Maybe will be empty and an exception will be set on the isolate.
@@ -263,6 +263,10 @@ class Stream final : public AsyncWrap,
   // otherwise falls back to created_at. Returns 0 if neither is set.
   uint64_t last_activity_timestamp() const;
 
+  // Records protocol-level receive activity that does not pass through
+  // ReceiveData(), such as application framing metadata.
+  void RecordReceivedActivity();
+
   // True if this stream was created in a pending state and is still waiting
   // to be created.
   bool is_pending() const;
@@ -275,9 +279,6 @@ class Stream final : public AsyncWrap,
   // done with the outbound data. We may still be waiting on outbound
   // data to be acknowledged by the remote peer.
   bool is_eos() const;
-
-  // True if the stream wants to send trailing headers after the body.
-  bool wants_trailers() const;
 
   // Marks this stream as having received 0-RTT early data.
   void set_early();
@@ -297,6 +298,17 @@ class Stream final : public AsyncWrap,
   // Returns the Blob::Reader for the inbound data, or nullptr.
   Blob::Reader* reader() const;
 
+  StreamApplicationState* application_state() const {
+    return application_state_.get();
+  }
+  void set_application_state(
+      std::unique_ptr<StreamApplicationState> application_state) {
+    application_state_ = std::move(application_state);
+  }
+
+  StreamPriority priority() const { return priority_.priority; }
+  StreamPriorityFlags priority_flags() const { return priority_.flags; }
+
   // Called by the session/application to indicate that the specified number
   // of bytes have been acknowledged by the peer.
   void Acknowledge(size_t datalen);
@@ -307,6 +319,10 @@ class Stream final : public AsyncWrap,
   // that the data has been retransmitted due to loss or has been
   // acknowledged to have been received by the peer.
   void Commit(size_t datalen, bool fin = false);
+
+  // Updates the write_desired_size state field based on current flow control
+  // and outbound buffer state. Emits drain if transitioning from 0 to > 0.
+  void UpdateWriteDesiredSize();
 
   void EndWritable();
   void EndReadable(std::optional<uint64_t> maybe_final_size = std::nullopt);
@@ -355,18 +371,8 @@ class Stream final : public AsyncWrap,
   // that has already been received is still readable.
   void SendStopSending(error_code code);
 
-  // Currently, only HTTP/3 streams support headers. These methods are here
-  // to support that. They are not used when using any other QUIC application.
-
-  void BeginHeaders(HeadersKind kind);
-  void set_headers_kind(HeadersKind kind);
-  // Returns false if the header cannot be added. This will typically happen
-  // if the application does not support headers, a maximum number of headers
-  // have already been added, or the maximum total header length is reached.
-  bool AddHeader(std::unique_ptr<Header> header);
-
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
-  // reader_, headers_, and pending_headers_queue_.
+  // reader_, and application_state_.
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Stream)
   SET_SELF_SIZE(Stream)
@@ -387,7 +393,6 @@ class Stream final : public AsyncWrap,
 
  private:
   struct Impl;
-  struct PendingHeaders;
 
   class Outbound;
 
@@ -437,11 +442,6 @@ class Stream final : public AsyncWrap,
   // Notifies the JavaScript side that the peer asked it to stop sending.
   void EmitStopSending(const QuicError& error);
 
-  // Notifies the JavaScript side that the application is ready to receive
-  // trailing headers. Any trailing headers must be sent immediately, and
-  // synchronously when this callback is triggered.
-  void EmitWantTrailers();
-
   // Notifies the JavaScript side that sending data on the stream has been
   // blocked because of flow control restriction.
   void EmitBlocked();
@@ -450,23 +450,12 @@ class Stream final : public AsyncWrap,
   // for more data. Fires when write_desired_size transitions from 0 to > 0.
   void EmitDrain();
 
-  // Updates the write_desired_size state field based on current flow control
-  // and outbound buffer state. Emits drain if transitioning from 0 to > 0.
-  void UpdateWriteDesiredSize();
-
-  // Delivers the set of inbound headers that have been collected.
-  void EmitHeaders();
-
   void NotifyReadableEnded(error_code code);
   void NotifyWritableEnded(error_code code);
 
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
   void NotifyStreamOpened(stream_id id);
-  void EnqueuePendingHeaders(HeadersKind kind,
-                             v8::Local<v8::Array> headers,
-                             HeadersFlags flags);
-
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
   BaseObjectWeakPtr<Session> session_;
@@ -474,6 +463,7 @@ class Stream final : public AsyncWrap,
   std::shared_ptr<DataQueue> inbound_;
   BaseObjectWeakPtr<Blob::Reader> reader_;
   std::unique_ptr<RecvAccumulator> recv_accumulator_;
+  std::unique_ptr<StreamApplicationState> application_state_;
 
   // Bytes delivered to ReceiveData() that still hold inbound flow control
   // credit. Returned incrementally as the consumer reads them, and in bulk
@@ -488,7 +478,6 @@ class Stream final : public AsyncWrap,
   // and the stream id will be assigned.
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
-  std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
 
@@ -499,26 +488,8 @@ class Stream final : public AsyncWrap,
   };
   StoredPriority priority_;
 
-  const StoredPriority& stored_priority() const { return priority_; }
-
-  // The headers_ field holds a block of headers that have been received and
-  // are being buffered for delivery to the JavaScript side. Headers are
-  // stored as C++ objects during collection (AddHeader) and converted to
-  // V8 strings only when emitted (EmitHeaders), avoiding StrongRootAllocator
-  // mutex contention on the per-header hot path.
-  std::vector<std::unique_ptr<Header>> headers_;
-
-  // The headers_kind_ field indicates the kind of headers that are being
-  // buffered.
-  HeadersKind headers_kind_ = HeadersKind::INITIAL;
-
-  // The headers_length_ field holds the total length of the headers that have
-  // been buffered.
-  size_t headers_length_ = 0;
-
   friend struct Impl;
   friend class PendingStream;
-  friend class Http3ApplicationImpl;
   friend class DefaultApplication;
 
  public:
