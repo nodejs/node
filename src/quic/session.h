@@ -84,6 +84,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     bool enable_connect_protocol = true;
     bool enable_datagrams = true;
+    // for a client always enabling wt, may be good
+    bool enable_webtransport = false;
 
     operator const nghttp3_settings() const;
 
@@ -532,6 +534,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool is_destroyed_or_closing() const;
   size_t max_packet_size() const;
   void set_priority_supported(bool on = true);
+
+  // Check whether flow control permits opening another stream
+  bool CanImmediatelyOpenStream(Direction direction);
 
   // Open a new locally-initialized stream with the specified directionality.
   // If the session is not yet in a state where the stream can be openen --

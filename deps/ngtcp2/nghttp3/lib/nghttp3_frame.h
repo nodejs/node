@@ -46,6 +46,24 @@
 #define NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID 0x0F0701U
 /* ORIGIN: https://datatracker.ietf.org/doc/html/rfc9412 */
 #define NGHTTP3_FRAME_ORIGIN 0x0CU
+/* WebTransport extended frame type */
+#define NGHTTP3_FRAME_EX_WT 0x4000000000000001ULL
+/* WT_STREAM:
+   https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-14 */
+#define NGHTTP3_EXFR_WT_STREAM_BIDI 0x41U
+#define NGHTTP3_EXFR_WT_STREAM_UNI 0x54U
+#define NGHTTP3_EXFR_WT_STREAM_DATA 0x00U
+
+/* HTTP Capsule extended frame type */
+#define NGHTTP3_FRAME_EX_CPSL 0x4000000000000002ULL
+#define NGHTTP3_EXFR_CPSL_WT_CLOSE_SESSION 0x2843U
+#define NGHTTP3_EXFR_CPSL_WT_DRAIN_SESSION 0x78AEU
+#define NGHTTP3_EXFR_CPSL_WT_MAX_STREAMS_BIDI 0x190B4D3FU
+#define NGHTTP3_EXFR_CPSL_WT_MAX_STREAMS_UNI 0x190B4D40U
+#define NGHTTP3_EXFR_CPSL_WT_STREAMS_BLOCKED_BIDI 0x190B4D43U
+#define NGHTTP3_EXFR_CPSL_WT_STREAMS_BLOCKED_UNI 0x190B4D44U
+#define NGHTTP3_EXFR_CPSL_WT_MAX_DATA 0x190B4D3DU
+#define NGHTTP3_EXFR_CPSL_WT_DATA_BLOCKED 0x190B4D41U
 
 /* Frame types that are reserved for HTTP/2, and must not be used in
    HTTP/3. */
@@ -76,6 +94,14 @@ typedef struct nghttp3_frame_headers {
 #define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07U
 #define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08U
 #define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33U
+/* https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-15 */
+#define NGHTTP3_SETTINGS_ID_WT_ENABLED 0x2C7CF000U
+/* https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-14 */
+#define NGHTTP3_SETTINGS_ID_WT_MAX_SESSIONS 0x14E9CD29U
+/* https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-07 */
+#define NGHTTP3_SETTINGS_ID_WT_MAX_SESSIONS_DRAFT7 0xC671706AU
+/* https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-02 */
+#define NGHTTP3_SETTINGS_ID_ENABLE_WEBTRANSPORT_DRAFT2 0x2B603742U
 
 #define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2U
 #define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3U
@@ -132,6 +158,42 @@ typedef struct nghttp3_frame_origin {
   nghttp3_vec origin_list;
 } nghttp3_frame_origin;
 
+typedef struct nghttp3_exfr_hd {
+  uint64_t type;
+} nghttp3_exfr_hd;
+
+typedef struct nghttp3_exfr_wt_stream {
+  uint64_t type;
+  int64_t session_id;
+  nghttp3_data_reader dr;
+} nghttp3_exfr_wt_stream;
+
+typedef union nghttp3_exfr_wt {
+  nghttp3_exfr_hd hd;
+  nghttp3_exfr_wt_stream wt_stream;
+} nghttp3_exfr_wt;
+
+typedef struct nghttp3_frame_ex_wt {
+  uint64_t type;
+  nghttp3_exfr_wt fr;
+} nghttp3_frame_ex_wt;
+
+typedef struct nghttp3_exfr_cpsl_wt_close_session {
+  uint64_t type;
+  nghttp3_vec error_msg;
+  uint32_t error_code;
+} nghttp3_exfr_cpsl_wt_close_session;
+
+typedef union nghttp3_exfr_cpsl {
+  nghttp3_exfr_hd hd;
+  nghttp3_exfr_cpsl_wt_close_session wt_close_session;
+} nghttp3_exfr_cpsl;
+
+typedef struct nghttp3_frame_ex_cpsl {
+  uint64_t type;
+  nghttp3_exfr_cpsl fr;
+} nghttp3_frame_ex_cpsl;
+
 typedef union nghttp3_frame {
   nghttp3_frame_hd hd;
   nghttp3_frame_data data;
@@ -140,6 +202,8 @@ typedef union nghttp3_frame {
   nghttp3_frame_goaway goaway;
   nghttp3_frame_priority_update priority_update;
   nghttp3_frame_origin origin;
+  nghttp3_frame_ex_wt wt;
+  nghttp3_frame_ex_cpsl cpsl;
 } nghttp3_frame;
 
 /*
@@ -232,6 +296,18 @@ uint8_t *nghttp3_frame_write_origin(uint8_t *dest,
  */
 size_t nghttp3_frame_write_origin_len(uint64_t *ppayloadlen,
                                       const nghttp3_frame_origin *fr);
+
+uint8_t *nghttp3_frame_write_wt_stream(uint8_t *dest,
+                                       const nghttp3_exfr_wt_stream *fr);
+
+size_t nghttp3_frame_write_wt_stream_len(const nghttp3_exfr_wt_stream *fr);
+
+uint8_t *nghttp3_frame_write_cpsl_wt_close_session(
+  uint8_t *dest, const nghttp3_exfr_cpsl_wt_close_session *fr,
+  uint64_t payloadlen);
+
+size_t nghttp3_frame_write_cpsl_wt_close_session_len(
+  uint64_t *ppayloadlen, const nghttp3_exfr_cpsl_wt_close_session *fr);
 
 /*
  * nghttp3_nva_copy copies name/value pairs from |nva|, which contains

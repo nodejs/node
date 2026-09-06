@@ -141,6 +141,14 @@ class Session::Application : public MemoryRetainer {
     // By default do nothing.
   }
 
+  // Called when the Session determines that the flow control window for the
+  // session has been expanded. Not all Application types will require
+  // this notification so the default is to do nothing.
+  virtual void ExtendMaxData(uint64_t max_data) {
+    Debug(session_, "Application extending max data");
+    // By default do nothing.
+  }
+
   // Different Applications may wish to set some application data in the
   // session ticket (e.g. http/3 would set server settings in the application
   // data). The first byte written MUST be the Application::Type enum value.
@@ -178,6 +186,27 @@ class Session::Application : public MemoryRetainer {
                            const v8::Local<v8::Array>& headers,
                            HeadersFlags flags = HeadersFlags::NONE) {
     return false;
+  }
+
+  // connects the webtransport session stream to stream object,
+  // it also sends some initial bytes to the wire to signal
+  // the other side, that this is a webtransport stream
+  // it is a noop, if we can not send on this stream incoming
+  // unidirectional stream
+  virtual bool MakeWebtransportStream(const Stream& stream,
+     int64_t sessionid)  {
+      return false;
+  }
+
+  // closes the webtransort session stream,
+  // and also closes connect webtransport data streams
+  virtual bool CloseWebtransportSessionStream(
+      const Stream& stream,
+      uint32_t wt_error_code,
+      const uint8_t *msg,
+      size_t msglen
+    ) {
+      return false;
   }
 
   // Returns true if the application protocol supports sending and

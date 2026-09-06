@@ -1349,6 +1349,11 @@ added: v23.8.0
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
+  * `waitUntilAvailable` {boolean} When true the promise will wait until flow
+    control will allow to open the stream. If set to false, the function
+    will fail synchronously, if flow control will not allow to open the stream
+    immediately.
+    **Default:** `false`
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.
   * `ontrailers` {Function} Callback for received trailing headers.
@@ -1390,6 +1395,11 @@ added: v23.8.0
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
+  * `waitUntilAvailable` {boolean} When true the promise will wait until flow
+    control will allow to open the stream. If set to false, the function
+    will fail synchronously, if flow control will not allow to open the stream
+    immediately.
+    **Default:** `false`
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.
   * `ontrailers` {Function} Callback for received trailing headers.
@@ -1920,6 +1930,19 @@ Either `'application'` or `'transport'`. Indicates the namespace of
 <!-- YAML
 added: v23.8.0
 -->
+
+### `stream.ready`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise}
+
+A promise that is immediately fulfilled, if the stream fits within
+flow control limits or fulfilled when the pending stream is created.
+It rejects, if a pending stream is closed with an error before being
+created.
 
 ### `stream.closed`
 

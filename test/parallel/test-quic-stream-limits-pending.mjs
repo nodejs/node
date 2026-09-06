@@ -15,22 +15,30 @@ if (!hasQuic) {
 
 const { listen, connect } = await import('../common/quic.mjs');
 const { bytes } = await import('stream/iter');
+const { setTimeout: sleep } = await import('timers/promises');
 
 const encoder = new TextEncoder();
 const allDone = Promise.withResolvers();
+const twoDone = Promise.withResolvers();
 let serverStreamCount = 0;
 
 // Server allows only 1 bidi stream at a time.
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
-    await bytes(stream);
+    const streambytes = await bytes(stream);
     stream.writer.endSync();
     await stream.closed;
-    if (++serverStreamCount === 2) {
-      serverSession.close();
+    ++serverStreamCount;
+    if (serverStreamCount === 2) {
+      twoDone.resolve();
+    }
+    if (serverStreamCount === 3) {
       allDone.resolve();
     }
-  }, 2);
+    if (serverStreamCount === 4) {
+      serverSession.close();
+    }
+  }, 4);
 }), {
   transportParams: { initialMaxStreamsBidi: 1 },
 });
@@ -41,29 +49,50 @@ await clientSession.opened;
 // First stream opens immediately (within the limit).
 const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
+  waitUntilAvailable: true
 });
 
-// Second stream is created but queued as pending because the
+try {
+  // Second stream should not open, but throw.
+  const s2 = await clientSession.createBidirectionalStream({
+    body: encoder.encode('stream 2'),
+    waitUntilAvailable: false
+  });
+} catch (error) {
+  assert.strictEqual(error.code, 'ERR_INVALID_STATE');
+}
+
+// Third stream is created but queued as pending because the
 // server only allows 1 concurrent bidi stream.
-const s2 = await clientSession.createBidirectionalStream({
-  body: encoder.encode('stream 2'),
+const s3 = await clientSession.createBidirectionalStream({
+  body: encoder.encode('stream 3'),
+  waitUntilAvailable: true
 });
 
-// s2 should be pending until s1 closes and the server grants
+// s3 should be pending until s1 closes and the server grants
 // more stream credits.
-assert.strictEqual(s2.pending, true);
+assert.strictEqual(s3.pending, true);
 
 // Drain and close the first stream.
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
 await s1.closed;
 
-// After s1 closes, the server sends MAX_STREAMS which opens s2.
+// After s1 closes, the server sends MAX_STREAMS which opens s3.
 // Wait for the server to receive both streams.
-await allDone.promise;
+await twoDone.promise;
+// s3 should no longer be pending.
+for await (const _ of s3) { /* drain */ } // eslint-disable-line no-unused-vars
+await s3.closed;
 
-// s2 should no longer be pending.
-for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars
-await s2.closed;
+await sleep(10); // we wait a bit, as we do not have a callback exposed to js
+// fourth stream should open immediately and not throw
+console.log('before last stream')
+const s4 = await clientSession.createBidirectionalStream({
+  body: encoder.encode('stream 4'),
+  waitUntilAvailable: false
+});
+await s4.closed;
+await allDone.promise;
 
 await clientSession.close();
 await serverEndpoint.close();

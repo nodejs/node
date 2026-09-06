@@ -26,6 +26,7 @@ const callbacks = {
   onSessionOrigin() {},
   onSessionGoaway() {},
   onSessionVersionNegotiation() {},
+  onStreamAvailable() {},
   onStreamCreated() {},
   onStreamBlocked() {},
   onStreamClose() {},
@@ -33,6 +34,8 @@ const callbacks = {
   onStreamReset() {},
   onStreamStopSending() {},
   onStreamHeaders() {},
+  onStreamSessionId() {},
+  onStreamWTSessionClose() {},
   onStreamTrailers() {},
 };
 // Fail if any callback is missing
