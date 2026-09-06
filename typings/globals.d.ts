@@ -28,6 +28,7 @@ import { PerformanceBinding } from './internalBinding/performance';
 import { PermissionBinding } from './internalBinding/permission';
 import { ProcessBinding } from './internalBinding/process';
 import { ProcessWrapBinding } from './internalBinding/process_wrap';
+import { ProfilerBinding } from './internalBinding/profiler';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
 import { SignalWrapBinding } from './internalBinding/signal_wrap';
@@ -75,6 +76,7 @@ interface InternalBindingMap {
   permission: PermissionBinding;
   process: ProcessBinding;
   process_wrap: ProcessWrapBinding;
+  profiler: ProfilerBinding;
   sea: SeaBinding;
   serdes: SerdesBinding;
   signal_wrap: SignalWrapBinding;
