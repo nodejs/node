@@ -22,7 +22,11 @@
 namespace node {
 
 using v8::Array;
+using v8::Global;
+using v8::Integer;
 using v8::Local;
+using v8::LocalVector;
+using v8::Value;
 
 namespace quic {
 
@@ -137,6 +141,25 @@ struct Http3HeaderTraits {
 };
 
 using Http3Header = NgHeader<Http3HeaderTraits>;
+
+struct Http3StreamState final : public StreamApplicationState {
+  struct PendingHeaders final {
+    HeadersKind kind;
+    Global<Array> headers;
+    HeadersFlags flags;
+
+    PendingHeaders(HeadersKind kind, Global<Array> headers, HeadersFlags flags)
+        : kind(kind), headers(std::move(headers)), flags(flags) {}
+    DISALLOW_COPY_AND_MOVE(PendingHeaders)
+  };
+
+  std::vector<std::unique_ptr<PendingHeaders>> pending_headers;
+  std::vector<std::unique_ptr<Http3Header>> headers;
+  HeadersKind headers_kind = HeadersKind::INITIAL;
+  size_t headers_length = 0;
+  bool wants_headers = false;
+  bool wants_trailers = false;
+};
 
 // Implements the low-level HTTP/3 Application semantics.
 class Http3ApplicationImpl final : public Session::Application {
@@ -334,17 +357,6 @@ class Http3ApplicationImpl final : public Session::Application {
     return nghttp3_conn_add_ack_offset(*this, id, datalen) == 0;
   }
 
-  bool CanAddHeader(size_t current_count,
-                    size_t current_headers_length,
-                    size_t this_header_length) override {
-    // We cannot add the header if we've either reached
-    // * the max number of header pairs or
-    // * the max number of header bytes (name + value combined)
-    return (current_count < options_.max_header_pairs) &&
-           (current_headers_length + this_header_length) <=
-               options_.max_header_length;
-  }
-
   bool stream_fin_managed_by_application() const override { return true; }
 
   void StreamWriteShut(stream_id id) override {
@@ -537,75 +549,49 @@ class Http3ApplicationImpl final : public Session::Application {
     Application::ReceiveStreamStopSending(stream, std::move(error));
   }
 
-  bool SendHeaders(const Stream& stream,
+  bool StreamOpened(Stream& stream) override {
+    auto* state = GetStreamState(stream);
+    if (state == nullptr || state->pending_headers.empty()) return true;
+
+    decltype(state->pending_headers) pending;
+    state->pending_headers.swap(pending);
+    Session::SendPendingDataScope send_scope(&session());
+    for (auto& headers : pending) {
+      if (!SubmitHeaders(stream,
+                         headers->kind,
+                         headers->headers.Get(env()->isolate()),
+                         headers->flags)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool SendHeaders(Stream& stream,
                    HeadersKind kind,
                    const Local<Array>& headers,
                    HeadersFlags flags = HeadersFlags::NONE) override {
-    Session::SendPendingDataScope send_scope(&session());
-    Http3Headers nva(env(), headers);
+    if (kind == HeadersKind::HINTS && !session().is_server()) return false;
 
-    switch (kind) {
-      case HeadersKind::HINTS: {
-        if (!session().is_server()) {
-          // Client side cannot send hints
-          return false;
-        }
-        Debug(&session(),
-              "Submitting %" PRIu64 " early hints for stream %" PRIu64,
-              stream.id());
-        return nghttp3_conn_submit_info(
-                   *this, stream.id(), nva.data(), nva.length()) == 0;
-        break;
-      }
-      case HeadersKind::INITIAL: {
-        static constexpr nghttp3_data_reader reader = {on_read_data_callback};
-        const nghttp3_data_reader* reader_ptr = nullptr;
-
-        // If the terminal flag is set, that means that we know we're only
-        // sending headers and no body and the stream writable side should be
-        // closed immediately because there is no nghttp3_data_reader provided.
-        if (flags != HeadersFlags::TERMINAL) {
-          reader_ptr = &reader;
-        }
-
-        if (session().is_server()) {
-          // If this is a server, we're submitting a response...
-          Debug(&session(),
-                "Submitting %" PRIu64 " response headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_response(*this,
-                                              stream.id(),
-                                              nva.data(),
-                                              nva.length(),
-                                              reader_ptr) == 0;
-        } else {
-          // Otherwise we're submitting a request...
-          Debug(&session(),
-                "Submitting %" PRIu64 " request headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_request(*this,
-                                             stream.id(),
-                                             nva.data(),
-                                             nva.length(),
-                                             reader_ptr,
-                                             const_cast<Stream*>(&stream)) == 0;
-        }
-        break;
-      }
-      case HeadersKind::TRAILING: {
-        Debug(&session(),
-              "Submitting %" PRIu64 " trailing headers for stream %" PRIu64,
-              nva.length(),
-              stream.id());
-        return nghttp3_conn_submit_trailers(
-                   *this, stream.id(), nva.data(), nva.length()) == 0;
-        break;
-      }
+    if (stream.is_pending()) {
+      Debug(&session(), "Enqueuing headers for pending HTTP/3 stream");
+      auto& state = GetOrCreateStreamState(stream);
+      state.pending_headers.push_back(
+          std::make_unique<Http3StreamState::PendingHeaders>(
+              kind, Global<Array>(env()->isolate(), headers), flags));
+      return true;
     }
 
-    return false;
+    Session::SendPendingDataScope send_scope(&session());
+    return SubmitHeaders(stream, kind, headers, flags);
+  }
+
+  void SetHeadersInterest(Stream& stream,
+                          bool wants_headers,
+                          bool wants_trailers) override {
+    auto& state = GetOrCreateStreamState(stream);
+    state.wants_headers = wants_headers;
+    state.wants_trailers = wants_trailers;
   }
 
   void SetStreamPriority(const Stream& stream,
@@ -642,8 +628,7 @@ class Http3ApplicationImpl final : public Session::Application {
     // PRIORITY_UPDATE frames). Client-side priority is tracked by the
     // Stream itself and returned directly from GetPriority in streams.cc.
     if (!session().is_server()) {
-      auto& stored = stream.stored_priority();
-      return {stored.priority, stored.flags};
+      return {stream.priority(), stream.priority_flags()};
     }
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {
@@ -730,7 +715,7 @@ class Http3ApplicationImpl final : public Session::Application {
     // for the next writev_stream in the send loop.
     if (pending_trailers_stream_ == data->id) {
       pending_trailers_stream_ = -1;
-      if (data->stream) data->stream->EmitWantTrailers();
+      if (data->stream) EmitWantTrailers(*data->stream);
     }
     return true;
   }
@@ -748,6 +733,137 @@ class Http3ApplicationImpl final : public Session::Application {
   inline bool is_control_stream(stream_id id) const {
     return id == control_stream_id_ || id == qpack_dec_stream_id_ ||
            id == qpack_enc_stream_id_;
+  }
+
+  bool SubmitHeaders(Stream& stream,
+                     HeadersKind kind,
+                     const Local<Array>& headers,
+                     HeadersFlags flags) {
+    Http3Headers nva(env(), headers);
+
+    switch (kind) {
+      case HeadersKind::HINTS: {
+        if (!session().is_server()) return false;
+        Debug(&session(),
+              "Submitting %" PRIu64 " early hints for stream %" PRIu64,
+              stream.id());
+        return nghttp3_conn_submit_info(
+                   *this, stream.id(), nva.data(), nva.length()) == 0;
+      }
+      case HeadersKind::INITIAL: {
+        static constexpr nghttp3_data_reader reader = {on_read_data_callback};
+        const nghttp3_data_reader* reader_ptr = nullptr;
+        if (flags != HeadersFlags::TERMINAL) reader_ptr = &reader;
+
+        if (session().is_server()) {
+          Debug(&session(),
+                "Submitting %" PRIu64 " response headers for stream %" PRIu64,
+                nva.length(),
+                stream.id());
+          return nghttp3_conn_submit_response(*this,
+                                              stream.id(),
+                                              nva.data(),
+                                              nva.length(),
+                                              reader_ptr) == 0;
+        }
+
+        Debug(&session(),
+              "Submitting %" PRIu64 " request headers for stream %" PRIu64,
+              nva.length(),
+              stream.id());
+        return nghttp3_conn_submit_request(*this,
+                                           stream.id(),
+                                           nva.data(),
+                                           nva.length(),
+                                           reader_ptr,
+                                           &stream) == 0;
+      }
+      case HeadersKind::TRAILING: {
+        Debug(&session(),
+              "Submitting %" PRIu64 " trailing headers for stream %" PRIu64,
+              nva.length(),
+              stream.id());
+        return nghttp3_conn_submit_trailers(
+                   *this, stream.id(), nva.data(), nva.length()) == 0;
+      }
+    }
+
+    return false;
+  }
+
+  Http3StreamState* GetStreamState(Stream& stream) const {
+    return static_cast<Http3StreamState*>(stream.application_state());
+  }
+
+  Http3StreamState& GetOrCreateStreamState(Stream& stream) {
+    if (stream.application_state() == nullptr) {
+      stream.set_application_state(std::make_unique<Http3StreamState>());
+    }
+    return *GetStreamState(stream);
+  }
+
+  void BeginHeaders(Stream& stream, HeadersKind kind) {
+    auto& state = GetOrCreateStreamState(stream);
+    state.headers_length = 0;
+    state.headers.clear();
+    state.headers_kind = kind;
+  }
+
+  bool AddHeader(Stream& stream, std::unique_ptr<Http3Header> header) {
+    auto& state = GetOrCreateStreamState(stream);
+    size_t length = header->length();
+    if (state.headers.size() >= options_.max_header_pairs ||
+        state.headers_length + length > options_.max_header_length) {
+      return false;
+    }
+    state.headers_length += length;
+    state.headers.push_back(std::move(header));
+    return true;
+  }
+
+  void EmitHeaders(Stream& stream) {
+    auto& state = GetOrCreateStreamState(stream);
+    stream.RecordReceivedActivity();
+    if (!env()->can_call_into_js() || !state.wants_headers) {
+      state.headers.clear();
+      return;
+    }
+
+    CallbackScope<Stream> cb_scope(&stream);
+    auto& binding = BindingData::Get(env());
+    size_t count = state.headers.size() * 2;
+    LocalVector<Value> values(env()->isolate(), count);
+
+    for (size_t i = 0; i < state.headers.size(); i++) {
+      Local<Value> name;
+      Local<Value> value;
+      if (!state.headers[i]->GetName(&binding).ToLocal(&name) ||
+          !state.headers[i]->GetValue(&binding).ToLocal(&value)) [[unlikely]] {
+        state.headers.clear();
+        return;
+      }
+      values[i * 2] = name;
+      values[i * 2 + 1] = value;
+    }
+
+    state.headers.clear();
+    Local<Value> argv[] = {
+        Array::New(env()->isolate(), values.data(), count),
+        Integer::NewFromUnsigned(env()->isolate(),
+                                 static_cast<uint32_t>(state.headers_kind))};
+    stream.MakeCallback(
+        binding.stream_headers_callback(), arraysize(argv), argv);
+  }
+
+  void EmitWantTrailers(Stream& stream) {
+    auto* state = GetStreamState(stream);
+    if (!env()->can_call_into_js() || state == nullptr ||
+        !state->wants_trailers) {
+      return;
+    }
+    CallbackScope<Stream> cb_scope(&stream);
+    stream.MakeCallback(
+        BindingData::Get(env()).stream_trailers_callback(), 0, nullptr);
   }
 
   void BuildOriginPayload() {
@@ -831,7 +947,7 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application beginning initial block of headers for stream "
           "%" PRIi64,
           id);
-    stream->BeginHeaders(HeadersKind::INITIAL);
+    BeginHeaders(*stream, HeadersKind::INITIAL);
   }
 
   void OnReceiveHeader(stream_id id, std::unique_ptr<Http3Header> header) {
@@ -843,7 +959,7 @@ class Http3ApplicationImpl final : public Session::Application {
       Debug(&session(),
             "HTTP/3 application switching to hints headers for stream %" PRIi64,
             stream->id());
-      stream->set_headers_kind(HeadersKind::HINTS);
+      GetOrCreateStreamState(*stream).headers_kind = HeadersKind::HINTS;
     }
     IF_QUIC_DEBUG(env()) {
       Debug(&session(),
@@ -851,7 +967,7 @@ class Http3ApplicationImpl final : public Session::Application {
             header->name(),
             header->value());
     }
-    stream->AddHeader(std::move(header));
+    AddHeader(*stream, std::move(header));
   }
 
   void OnEndHeaders(stream_id id, int fin) {
@@ -861,8 +977,8 @@ class Http3ApplicationImpl final : public Session::Application {
     Debug(&session(),
           "HTTP/3 application received end of headers for stream %" PRIi64,
           id);
-    stream->EmitHeaders();
-    // EmitHeaders() calls into JavaScript, which can synchronously destroy the
+    EmitHeaders(*stream);
+    // EmitHeaders calls into JavaScript, which can synchronously destroy the
     // stream. Its arena-backed state is released by Destroy(), so do not touch
     // the stream again if that happened.
     if (stream->is_destroyed()) return;
@@ -884,7 +1000,7 @@ class Http3ApplicationImpl final : public Session::Application {
     Debug(&session(),
           "HTTP/3 application beginning block of trailers for stream %" PRIi64,
           id);
-    stream->BeginHeaders(HeadersKind::TRAILING);
+    BeginHeaders(*stream, HeadersKind::TRAILING);
   }
 
   void OnReceiveTrailer(stream_id id, std::unique_ptr<Http3Header> header) {
@@ -897,7 +1013,7 @@ class Http3ApplicationImpl final : public Session::Application {
             header->name(),
             header->value());
     }
-    stream->AddHeader(std::move(header));
+    AddHeader(*stream, std::move(header));
   }
 
   void OnEndTrailers(stream_id id, int fin) {
@@ -907,8 +1023,8 @@ class Http3ApplicationImpl final : public Session::Application {
     Debug(&session(),
           "HTTP/3 application received end of trailers for stream %" PRIi64,
           id);
-    stream->EmitHeaders();
-    // EmitHeaders() calls into JavaScript, which can synchronously destroy the
+    EmitHeaders(*stream);
+    // EmitHeaders calls into JavaScript, which can synchronously destroy the
     // stream. Its arena-backed state is released by Destroy(), so do not touch
     // the stream again if that happened.
     if (stream->is_destroyed()) return;
@@ -1112,7 +1228,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
     if (stream->is_eos()) {
       *pflags |= NGHTTP3_DATA_FLAG_EOF;
-      if (stream->wants_trailers()) {
+      if (app.GetOrCreateStreamState(*stream).wants_trailers) {
         *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
         app.pending_trailers_stream_ = id;
       }
@@ -1131,7 +1247,7 @@ class Http3ApplicationImpl final : public Session::Application {
               return;
             case bob::Status::STATUS_EOS:
               *pflags |= NGHTTP3_DATA_FLAG_EOF;
-              if (stream->wants_trailers()) {
+              if (app.GetOrCreateStreamState(*stream).wants_trailers) {
                 *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
                 app.pending_trailers_stream_ = id;
               }

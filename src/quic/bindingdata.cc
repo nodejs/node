@@ -1,6 +1,7 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
+#include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -13,13 +14,16 @@
 #include <node_realm-inl.h>
 #include <node_sockaddr-inl.h>
 #include <v8.h>
+#include "application.h"
 #include "bindingdata.h"
 #include "session.h"
 #include "session_manager.h"
+#include "streams.h"
 
 namespace node {
 
 using mem::kReserveSizeAndAlign;
+using v8::Array;
 using v8::DictionaryTemplate;
 using v8::Function;
 using v8::FunctionTemplate;
@@ -288,6 +292,26 @@ void nghttp3_debug_log(const char* fmt, va_list args) {
 void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   nghttp3_set_debug_vprintf_callback(nghttp3_debug_log);
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
+  SetMethod(realm->context(), target, "sendHeaders", SendHeaders);
+  SetMethod(realm->context(), target, "setHeadersInterest", SetHeadersInterest);
+
+  constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
+      static_cast<uint8_t>(HeadersKind::HINTS);
+  constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
+      static_cast<uint8_t>(HeadersKind::INITIAL);
+  constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING =
+      static_cast<uint8_t>(HeadersKind::TRAILING);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE =
+      static_cast<uint8_t>(HeadersFlags::NONE);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
+      static_cast<uint8_t>(HeadersFlags::TERMINAL);
+
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_TRAILING);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
+
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
 
@@ -295,6 +319,32 @@ void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(IllegalConstructor);
   registry->Register(SetCallbacks);
+  registry->Register(SendHeaders);
+  registry->Register(SetHeadersInterest);
+}
+
+JS_METHOD_IMPL(BindingData::SendHeaders) {
+  Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsUint32());  // Kind
+  CHECK(args[2]->IsArray());   // Headers
+  CHECK(args[3]->IsUint32());  // Flags
+
+  HeadersKind kind = FromV8Value<HeadersKind>(args[1]);
+  Local<Array> headers = args[2].As<Array>();
+  HeadersFlags flags = FromV8Value<HeadersFlags>(args[3]);
+
+  args.GetReturnValue().Set(stream->session().application().SendHeaders(
+      *stream, kind, headers, flags));
+}
+
+JS_METHOD_IMPL(BindingData::SetHeadersInterest) {
+  Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsBoolean());
+  CHECK(args[2]->IsBoolean());
+  stream->session().application().SetHeadersInterest(
+      *stream, args[1]->IsTrue(), args[2]->IsTrue());
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
