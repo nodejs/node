@@ -1921,6 +1921,19 @@ Either `'application'` or `'transport'`. Indicates the namespace of
 added: v23.8.0
 -->
 
+### `stream.ready`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise}
+
+A promise that is immediately fulfilled, if the stream fits within
+flow control limits or fulfilled when the pending stream is created.
+It rejects, if a pending stream is closed with an error before being
+created.
+
 ### `stream.closed`
 
 <!-- YAML

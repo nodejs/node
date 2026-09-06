@@ -1191,12 +1191,15 @@ void Stream::NotifyStreamOpened(stream_id id) {
   // yet, but just for completeness, let's make sure.
   if (outbound_) session().ResumeStream(id);
 
+  // We inform, the js side that the pending stream is now available
+  EmitStreamAvailable();
+
   // This may make application data sendable, so keep it as the final action:
   // sending can eventually call into JavaScript and destroy the stream.
   BaseObjectPtr<Stream> self(this);
   auto& application = session().application();
-  error_code internal_error = application.GetInternalErrorCode();
   if (!application.StreamOpened(*this) && !is_destroyed()) {
+    error_code internal_error = application.GetInternalErrorCode();
     Destroy(QuicError::ForApplication(internal_error));
   }
 }
@@ -1778,6 +1781,14 @@ void Stream::SendStopSending(error_code code) {
 }
 
 // ============================================================================
+
+void Stream::EmitStreamAvailable() {
+  if (!env()->can_call_into_js()) {
+    return;
+  }
+  CallbackScope<Stream> cb_scope(this);
+  MakeCallback(BindingData::Get(env()).stream_available_callback(), 0, nullptr);
+}
 
 void Stream::EmitBlocked() {
   // state()->wants_block will be set from the javascript side if the

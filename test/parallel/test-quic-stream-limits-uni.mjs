@@ -34,20 +34,33 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
+let ready = 0;
+
 // First uni stream opens immediately.
 const s1 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 1'),
+});
+
+s1.ready.then(() => {
+  ready++;
 });
 
 // Second uni stream is pending (limit = 1).
 const s2 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 2'),
 });
+
+s2.ready.then(() => {
+  ready++;
+});
+assert.strictEqual(ready, 1);
+
 assert.strictEqual(s2.pending, true);
 
 // Wait for both to complete.
 await s1.closed;
 await allDone.promise;
+assert.strictEqual(ready, 2);
 await s2.closed;
 
 await clientSession.close();
