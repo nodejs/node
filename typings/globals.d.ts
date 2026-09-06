@@ -26,6 +26,7 @@ import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
 import { ProcessBinding } from './internalBinding/process';
 import { ProcessWrapBinding } from './internalBinding/process_wrap';
+import { ProfilerBinding } from './internalBinding/profiler';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
 import { SignalWrapBinding } from './internalBinding/signal_wrap';
@@ -71,6 +72,7 @@ interface InternalBindingMap {
   os: OSBinding;
   process: ProcessBinding;
   process_wrap: ProcessWrapBinding;
+  profiler: ProfilerBinding;
   sea: SeaBinding;
   serdes: SerdesBinding;
   signal_wrap: SignalWrapBinding;
