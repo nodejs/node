@@ -45,6 +45,7 @@ const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
 });
 
+// eslint-disable-next-line node-core/must-call-assert
 s1.ready.then(() => {
   ready++;
 });
@@ -55,6 +56,7 @@ const s2 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 2'),
 });
 
+// eslint-disable-next-line node-core/must-call-assert
 s2.ready.then(() => {
   ready++;
 });

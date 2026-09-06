@@ -41,6 +41,7 @@ const s1 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 1'),
 });
 
+// eslint-disable-next-line node-core/must-call-assert
 s1.ready.then(() => {
   ready++;
 });
@@ -50,6 +51,7 @@ const s2 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 2'),
 });
 
+// eslint-disable-next-line node-core/must-call-assert
 s2.ready.then(() => {
   ready++;
 });
