@@ -2,6 +2,7 @@
 
 const Dispatcher = require('./dispatcher')
 const RetryHandler = require('../handler/retry-handler')
+const { kOriginless, kUrl } = require('../core/symbols')
 
 class RetryAgent extends Dispatcher {
   #agent = null
@@ -10,6 +11,8 @@ class RetryAgent extends Dispatcher {
     super(options)
     this.#agent = agent
     this.#options = options
+    this[kUrl] = agent[kUrl]
+    this[kOriginless] = agent[kOriginless]
   }
 
   dispatch (opts, handler) {

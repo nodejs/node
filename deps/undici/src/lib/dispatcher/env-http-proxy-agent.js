@@ -16,7 +16,7 @@ class EnvHttpProxyAgent extends DispatcherBase {
   #opts = null
 
   constructor (opts = {}) {
-    super()
+    super(opts)
     this.#opts = opts
 
     const { httpProxy, httpsProxy, noProxy, ...agentOpts } = opts
@@ -69,6 +69,13 @@ class EnvHttpProxyAgent extends DispatcherBase {
     // brackets from IPv6 literals (e.g. "[::1]" -> "::1") so that the
     // result matches the unbracketed form stored by #parseNoProxy.
     hostname = hostname.replace(/:\d*$/, '').replace(/^\[(.+)\]$/, '$1').toLowerCase()
+    // Drop a trailing dot: it only marks the fully qualified form of a domain
+    // name ("example.com." and "example.com" are the same name, RFC 1034 root
+    // label). This runs on every dispatch, so it is a charCode check rather
+    // than a third regex. `length > 1` leaves the degenerate host "." alone.
+    if (hostname.length > 1 && hostname.charCodeAt(hostname.length - 1) === 46) {
+      hostname = hostname.slice(0, -1)
+    }
     port = Number.parseInt(port, 10) || DEFAULT_PORTS[protocol] || 0
     if (!this.#shouldProxy(hostname, port)) {
       return this[kNoProxyAgent]
@@ -143,8 +150,8 @@ class EnvHttpProxyAgent extends DispatcherBase {
       }
 
       noProxyEntries.push({
-        // strip leading dot or asterisk with dot
-        hostname: hostname.replace(/^\*?\./, '').toLowerCase(),
+        // strip leading dot or asterisk with dot, and any trailing dot
+        hostname: hostname.replace(/^\*?\./, '').replace(/^(.+)\.$/, '$1').toLowerCase(),
         port
       })
     }
