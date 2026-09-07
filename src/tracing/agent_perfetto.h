@@ -67,6 +67,7 @@ class PerfettoSessionReader final {
   void ReadTraceCallback(perfetto::TracingSession::ReadTraceCallbackArgs args);
   void SessionStopCallback();
   void Read();
+  void MaybeStartTeardown();
 
   static void OnReadAsync(uv_async_t* async);
   static void OnReadTimer(uv_timer_t* timer);
@@ -78,6 +79,7 @@ class PerfettoSessionReader final {
   int handles_pending_close_ = 0;
   std::atomic<bool> stop_requested_ = false;
   std::atomic<bool> read_in_progress_ = false;
+  bool owner_released_ = false;  // Guarded by chunks_mutex_.
 
   Mutex chunks_mutex_;
   std::list<std::vector<char>> pending_chunks_;
