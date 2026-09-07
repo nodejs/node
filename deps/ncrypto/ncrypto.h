@@ -650,8 +650,10 @@ class Dsa final {
 class Rsa final {
  public:
   Rsa();
+  enum class Selection { Public, Private };
+  static Rsa PublicOnly(const EVPKeyPointer& key);
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  explicit Rsa(const EVP_PKEY* pkey);
+  explicit Rsa(const EVP_PKEY* pkey, Selection selection = Selection::Private);
 #else
   Rsa(OSSL3_CONST RSA* rsa);
 #endif
