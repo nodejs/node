@@ -6933,6 +6933,51 @@ int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
 }
 
+DataPointer Ec::TryExportPublic(const EVPKeyPointer& key,
+                                point_conversion_form_t form) {
+  if (form != POINT_CONVERSION_UNCOMPRESSED) return {};
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  {
+    MarkPopErrorOnReturn pop_errors;
+    size_t length = 0;
+    if (EVP_PKEY_get_octet_string_param(
+            key.get(), OSSL_PKEY_PARAM_PUB_KEY, nullptr, 0, &length) == 1) {
+      auto bytes = DataPointer::Alloc(length);
+      if (bytes && length != 0 &&
+          EVP_PKEY_get_octet_string_param(key.get(),
+                                          OSSL_PKEY_PARAM_PUB_KEY,
+                                          bytes.get<unsigned char>(),
+                                          length,
+                                          &length) == 1 &&
+          (bytes.get<unsigned char>()[0] & ~1) == form) {
+        return bytes.resize(length);
+      }
+    }
+  }
+#endif
+  return {};
+}
+
+DataPointer Ec::ExportPrivate(const EVPKeyPointer& key) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  {
+    MarkPopErrorOnReturn pop_errors;
+    BignumPointer priv;
+    BignumPointer order;
+    if (GetPKeyBnParam(key.get(), OSSL_PKEY_PARAM_PRIV_KEY, &priv) &&
+        GetPKeyBnParam(key.get(), OSSL_PKEY_PARAM_EC_ORDER, &order)) {
+      return priv.encodePadded(order.byteLength());
+    }
+  }
+#endif
+  ECKeyPointer ec(key);
+  if (!ec || ec.getPrivateKey() == nullptr) return {};
+  auto order = BignumPointer::New();
+  if (!order || !EC_GROUP_get_order(ec.getGroup(), order.get(), nullptr))
+    return {};
+  return BignumPointer::EncodePadded(ec.getPrivateKey(), order.byteLength());
+}
+
 bool Ec::GetKeyComponents(const EVPKeyPointer& key,
                           BignumPointer* x,
                           BignumPointer* y,
