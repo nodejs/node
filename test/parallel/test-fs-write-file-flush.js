@@ -47,6 +47,19 @@ test('synchronous version', async (t) => {
 
     assert.strictEqual(spy.mock.calls.length, 0);
   });
+
+  await t.test('performs flush with explicit utf8 encoding', (t) => {
+    // Refs: the C++ utf8 fast path must not skip the flush.
+    const spy = t.mock.method(fs, 'fsyncSync');
+
+    for (const encoding of ['utf8', 'utf-8']) {
+      const file = nextFile();
+      fs.writeFileSync(file, data, { encoding, flush: true });
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), data);
+    }
+
+    assert.strictEqual(spy.mock.calls.length, 2);
+  });
 });
 
 test('callback version', async (t) => {
