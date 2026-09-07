@@ -1764,6 +1764,7 @@ class ECKeyPointer final {
   bool setPublicKeyRaw(const BignumPointer& x, const BignumPointer& y);
   bool generate();
   bool checkKey() const;
+  bool checkPrivateKey() const;
   DataPointer computeSecret(const ECPointPointer& peer) const;
 
   const EC_GROUP* getGroup() const;

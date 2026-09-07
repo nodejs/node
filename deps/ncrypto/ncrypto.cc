@@ -5348,6 +5348,24 @@ bool ECPointPointer::mul(const EC_GROUP* group, const BIGNUM* priv_key) {
 
 // ============================================================================
 
+bool ECKeyPointer::checkPrivateKey() const {
+  const auto group = getGroup();
+  const auto priv = getPrivateKey();
+  const auto pub = getPublicKey();
+  if (group == nullptr || priv == nullptr || pub == nullptr) return false;
+
+  auto order = BignumPointer::New();
+  if (!order || !EC_GROUP_get_order(group, order.get(), nullptr) ||
+      BN_is_zero(priv) || BN_is_negative(priv) ||
+      BN_cmp(priv, order.get()) >= 0) {
+    return false;
+  }
+
+  auto expected = ECPointPointer::New(group);
+  return expected && expected.mul(group, priv) &&
+         EC_POINT_cmp(group, expected.get(), pub, nullptr) == 0;
+}
+
 #if NCRYPTO_USE_LEGACY_KEY_TYPES
 ECKeyPointer::ECKeyPointer() : key_(nullptr) {}
 

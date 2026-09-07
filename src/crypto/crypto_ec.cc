@@ -756,7 +756,7 @@ KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
       return {};
     }
     // Verify that the public point matches the private scalar (d*G == (x,y)).
-    if (!ec.checkKey()) {
+    if (!ec.checkPrivateKey()) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
       return {};
     }
@@ -764,7 +764,10 @@ KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
 
   auto pkey = EVPKeyPointer::New();
   if (!pkey) return {};
-  CHECK(pkey.set(ec));
+  if (!pkey.set(ec)) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
