@@ -628,10 +628,6 @@ const SnapshotData* SnapshotData::FromEmbedderWrapper(
   return data != nullptr ? data->impl_ : nullptr;
 }
 
-EmbedderSnapshotData::Pointer SnapshotData::AsEmbedderWrapper() const {
-  return EmbedderSnapshotData::Pointer{new EmbedderSnapshotData(this, false)};
-}
-
 bool SnapshotData::FromFile(SnapshotData* out, FILE* in) {
   return FromBlob(out, ReadFileSync(in));
 }

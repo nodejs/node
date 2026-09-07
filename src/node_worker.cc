@@ -204,13 +204,13 @@ class WorkerThreadData {
       isolate->SetStackLimit(w->stack_base_);
 
       HandleScope handle_scope(isolate);
-      isolate_data_.reset(IsolateData::CreateIsolateData(
-          isolate,
-          &loop_,
-          w_->platform_,
-          allocator.get(),
-          w->snapshot_data()->AsEmbedderWrapper().get(),
-          std::move(w_->per_isolate_opts_)));
+      isolate_data_.reset(
+          IsolateData::CreateIsolateData(isolate,
+                                         &loop_,
+                                         w_->platform_,
+                                         allocator.get(),
+                                         w->snapshot_data(),
+                                         std::move(w_->per_isolate_opts_)));
       CHECK(isolate_data_);
       CHECK(!isolate_data_->is_building_snapshot());
       isolate_data_->set_worker_context(w_);
