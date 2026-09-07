@@ -813,6 +813,11 @@ class Ec final {
 
   static int GetCurveIdFromName(const char* name);
   static int GetCurveId(const EVPKeyPointer& key);
+  static bool GetKeyComponents(const EVPKeyPointer& key,
+                               BignumPointer* x,
+                               BignumPointer* y,
+                               BignumPointer* priv,
+                               int* degree);
 
   using GetCurveCallback = std::function<bool(const char*)>;
   static bool GetCurves(GetCurveCallback callback);
