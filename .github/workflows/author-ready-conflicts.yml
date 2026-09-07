@@ -1,0 +1,48 @@
+name: Unlabel conflicting pull requests
+
+on:
+  schedule:
+    - cron: 15 3 * * *
+
+permissions:
+  contents: read
+
+jobs:
+  remove-label:
+    name: Remove author ready
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Remove the label and comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE: >-
+            This pull request has conflicts with its base branch, removing the
+            `author ready` label.
+
+            Please
+            [rebase](https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#step-5-rebase)
+            your branch onto the latest base branch, resolve the conflicts
+            locally, and force-push.
+
+            Afterwards the pull request needs a fresh collaborator approval,
+            and a collaborator will add the label back once it is
+            [author ready](https://github.com/nodejs/node/blob/HEAD/doc/contributing/collaborator-guide.md#author-ready-pull-requests)
+            again.
+        run: |
+          # Requesting the mergeable field makes GitHub compute the merge state,
+          # pull requests still reported as UNKNOWN are picked up by a later run.
+          gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --label 'author ready' \
+            --state open \
+            --limit 100 \
+            --json number,mergeable \
+            --jq '.[] | select(.mergeable == "CONFLICTING") | .number' |
+            while read -r number; do
+              gh pr edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label 'author ready'
+              printf '%s\n' "$MESSAGE" |
+                gh pr comment "$number" --repo "$GITHUB_REPOSITORY" --body-file -
+            done
