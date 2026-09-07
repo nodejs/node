@@ -18,15 +18,18 @@ using v8::CFunction;
 using v8::Context;
 using v8::DictionaryTemplate;
 using v8::External;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::IndexFilter;
 using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
+using v8::kPromiseHandlerAddedAfterReject;
 using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
@@ -467,6 +470,26 @@ void MarkPromiseAsHandled(const FunctionCallbackInfo<Value>& args) {
   Local<Promise> promise = args[0].As<Promise>();
   promise->MarkAsHandled();
   promise->MarkAsSilent();
+
+  // If the promise is already rejected, then it may have already been
+  // reported to the unhandled rejection handler. Marking it as handled
+  // above does not trigger the v8 callback that updates it's status.
+  // So to avoid the notification we call out manually.
+  if (promise->State() == v8::Promise::kRejected) {
+    Environment* env = Environment::GetCurrent(args);
+    Local<Function> callback = env->promise_reject_callback();
+    CHECK(!callback.IsEmpty());
+
+    Local<Value> type =
+        Number::New(env->isolate(), kPromiseHandlerAddedAfterReject);
+    Local<Value> vargs[] = {type, promise, Undefined(env->isolate())};
+
+    USE(callback->Call(
+        env->context(), Undefined(env->isolate()), arraysize(vargs), vargs));
+
+    // Note that if callback->Call throws here, we go ahead and let that
+    // propagate.
+  }
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

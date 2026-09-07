@@ -1691,6 +1691,17 @@ console.log(util.isDeepStrictEqual(foo, bar, true));
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
+## `util.markPromiseAsHandled(promise)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `promise` {promise} The promise to mark as handled
+
+Marks a promise as handled so that unhandled rejections are ignored and are not
+reported to the `'unhandledrejection'` event.
+
 ## Class: `util.MIMEType`
 
 <!-- YAML
