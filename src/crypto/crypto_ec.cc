@@ -870,11 +870,19 @@ KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
       return {};
     }
+    // Verify that the public point matches the private scalar (d*G == (x,y)).
+    if (!ec.checkPrivateKey()) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+      return {};
+    }
   }
 
   auto pkey = EVPKeyPointer::New();
   if (!pkey) return {};
-  CHECK(pkey.set(ec));
+  if (!pkey.set(ec)) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
