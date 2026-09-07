@@ -561,6 +561,8 @@ changes:
     is used, it must contain exactly one item with value `'ipc'` or an error
     will be thrown. For instance `[0, 1, 2, 'ipc']`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `windowsHide` {boolean} Hide the subprocess console window that would
+    normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `timeout` {number} In milliseconds the maximum amount of time the process
