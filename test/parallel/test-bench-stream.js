@@ -165,7 +165,7 @@ async function testDeliveryDoesNotConsumeTimeout() {
   const iterator = stream[Symbol.asyncIterator]();
 
   await iterator.next();
-  await setTimeout(timeout * 2);
+  await setImmediate();
   for (;;) {
     const next = await iterator.next();
     if (next.done) break;
