@@ -386,21 +386,24 @@ bool KeyObjectData::ToEncodedPublicKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
+      auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
+      auto bytes = ncrypto::Ec::TryExportPublic(pkey, form);
+      if (bytes)
+        return Buffer::Copy(env, bytes.get<const char>(), bytes.size())
+            .ToLocal(out);
       ECKeyPointer ec_key(pkey);
       if (!ec_key) {
         THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
         return false;
       }
-      // A provider-backed key need not expose its public point.
       if (ec_key.getPublicKey() == nullptr) {
         THROW_ERR_CRYPTO_OPERATION_FAILED(env,
                                           "Failed to export EC public key");
         return false;
       }
-      auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
-      const auto group = ec_key.getGroup();
-      const auto point = ec_key.getPublicKey();
-      return ECPointToBuffer(env, group, point, form).ToLocal(out);
+      return ECPointToBuffer(
+                 env, ec_key.getGroup(), ec_key.getPublicKey(), form)
+          .ToLocal(out);
     }
     const int id = pkey.id();
     bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
@@ -441,25 +444,7 @@ bool KeyObjectData::ToEncodedPrivateKey(
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
     if (pkey.id() == EVP_PKEY_EC) {
-      ECKeyPointer ec_key(pkey);
-      if (!ec_key) {
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-        return false;
-      }
-      const BIGNUM* private_key = ec_key.getPrivateKey();
-      if (private_key == nullptr) {
-        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                          "Failed to export EC private key");
-        return false;
-      }
-      const auto group = ec_key.getGroup();
-      auto order = BignumPointer::New();
-      if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
-        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                          "Failed to export EC private key");
-        return false;
-      }
-      auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
+      auto buf = ncrypto::Ec::ExportPrivate(pkey);
       if (!buf) {
         THROW_ERR_CRYPTO_OPERATION_FAILED(env,
                                           "Failed to export EC private key");
@@ -1581,24 +1566,27 @@ void KeyObjectHandle::ExportECPublicRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  ECKeyPointer ec_key(m_pkey);
-  if (!ec_key) return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-  // A provider-backed key need not expose its public point.
-  if (ec_key.getPublicKey() == nullptr) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "Failed to export EC public key");
-  }
-
   CHECK(args[0]->IsInt32());
   auto form =
       static_cast<point_conversion_form_t>(args[0].As<Int32>()->Value());
 
-  const auto group = ec_key.getGroup();
-  const auto point = ec_key.getPublicKey();
-
+  auto bytes = ncrypto::Ec::TryExportPublic(m_pkey, form);
+  if (bytes) {
+    args.GetReturnValue().Set(
+        Buffer::Copy(env, bytes.get<const char>(), bytes.size())
+            .FromMaybe(Local<Value>()));
+    return;
+  }
+  ECKeyPointer ec_key(m_pkey);
+  if (!ec_key) return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (ec_key.getPublicKey() == nullptr) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC public key");
+  }
   Local<Object> buf;
-  if (!ECPointToBuffer(env, group, point, form).ToLocal(&buf)) return;
-
+  if (!ECPointToBuffer(env, ec_key.getGroup(), ec_key.getPublicKey(), form)
+           .ToLocal(&buf))
+    return;
   args.GetReturnValue().Set(buf);
 }
 
@@ -1617,23 +1605,7 @@ void KeyObjectHandle::ExportECPrivateRaw(
     return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-  ECKeyPointer ec_key(m_pkey);
-  if (!ec_key) return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-
-  const BIGNUM* private_key = ec_key.getPrivateKey();
-  if (private_key == nullptr) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "Failed to export EC private key");
-  }
-
-  const auto group = ec_key.getGroup();
-  auto order = BignumPointer::New();
-  if (!order || !EC_GROUP_get_order(group, order.get(), nullptr)) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "Failed to export EC private key");
-  }
-
-  auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
+  auto buf = ncrypto::Ec::ExportPrivate(m_pkey);
   if (!buf) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
                                              "Failed to export EC private key");
