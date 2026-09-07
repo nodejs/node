@@ -98,7 +98,7 @@ BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 
 # Default to quiet/pretty builds.
 # To do verbose builds, run `make V=1` or set the V environment variable.
-V ?= 0
+V ?=
 
 # Use -e to double check in case it's a broken link
 available-node = \
