@@ -572,9 +572,7 @@ bool GetRsaKeyDetail(Environment* env,
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
 
-  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
-  // versions older than 1.1.1e via FIPS / dynamic linking.
-  const ncrypto::Rsa rsa = m_pkey;
+  const auto rsa = ncrypto::Rsa::PublicOnly(m_pkey);
   if (!rsa) return false;
 
   auto pub_key = rsa.getPublicKey();
@@ -608,15 +606,8 @@ bool GetRsaKeyDetail(Environment* env,
   }
 
   if (m_pkey.isA(KeyAlgorithm::RSA_PSS)) {
-    // Due to the way ASN.1 encoding works, default values are omitted when
-    // encoding the data structure. However, there are also RSA-PSS keys for
-    // which no parameters are set. In that case, the ASN.1 RSASSA-PSS-params
-    // sequence will be missing entirely and RSA_get0_pss_params will return
-    // nullptr. If parameters are present but all parameters are set to their
-    // default values, an empty sequence will be stored in the ASN.1 structure.
-    // In that case, RSA_get0_pss_params does not return nullptr but all fields
-    // of the returned RSA_PSS_PARAMS will be set to nullptr.
-
+    // An absent RSASSA-PSS-params sequence means the key is unrestricted.
+    // An empty sequence restricts the key to the default parameter values.
     auto maybe_params = rsa.getPssParams();
     if (maybe_params.has_value()) {
       auto& params = maybe_params.value();

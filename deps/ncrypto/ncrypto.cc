@@ -6827,11 +6827,20 @@ ASN1StringPointer EncodeRsaPssParams(const Rsa::PssParams& params) {
 
 Rsa::Rsa() : rsa_(false) {}
 
-Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
+Rsa::Rsa(const EVP_PKEY* pkey, Selection selection) : Rsa() {
   rsa_pss_ = EVPKeyPointer::isA(pkey, KeyAlgorithm::RSA_PSS);
   if (!EVPKeyPointer::isA(pkey, KeyAlgorithm::RSA) && !rsa_pss_) return;
   if (!GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_N, &n_) ||
       !GetPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_E, &e_)) {
+    return;
+  }
+  if (rsa_pss_) {
+    MarkPopErrorOnReturn pop_errors;
+    PssParams params;
+    if (ReadRsaPssParams(pkey, &params)) pss_params_ = params;
+  }
+  if (selection == Selection::Public) {
+    rsa_ = true;
     return;
   }
   if (!GetOptionalPKeyBnParam(pkey, OSSL_PKEY_PARAM_RSA_D, &d_) ||
@@ -6856,18 +6865,20 @@ Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
     other_prime_infos_.push_back(std::move(info));
   }
 
-  if (rsa_pss_) {
-    MarkPopErrorOnReturn pop_errors;
-    PssParams params;
-    if (ReadRsaPssParams(pkey, &params)) pss_params_ = params;
-  }
-
   rsa_ = true;
 }
 #else
 Rsa::Rsa() : rsa_(nullptr) {}
 Rsa::Rsa(OSSL3_CONST RSA* ptr) : rsa_(ptr) {}
 #endif
+
+Rsa Rsa::PublicOnly(const EVPKeyPointer& key) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  return Rsa(key.get(), Selection::Public);
+#else
+  return key;
+#endif
+}
 
 const Rsa::PublicKey Rsa::getPublicKey() const {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
