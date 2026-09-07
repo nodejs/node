@@ -864,7 +864,9 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   double currentTimeMS() override {
-    return env_->isolate_data()->platform()->CurrentClockTimeMillis();
+    MultiIsolatePlatform* platform = env_->isolate_data()->platform();
+    if (platform == nullptr) return GetCurrentTimeInMicroseconds() / 1000;
+    return platform->CurrentClockTimeMillis();
   }
 
   std::unique_ptr<StringBuffer> resourceNameToUrl(
