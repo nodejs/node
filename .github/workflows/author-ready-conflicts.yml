@@ -1,4 +1,4 @@
-name: Unlabel conflicting pull requests
+name: Unlabel not-ready pull requests
 
 on:
   schedule:
