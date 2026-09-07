@@ -4,7 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
-const { setImmediate, setTimeout } = require('timers/promises');
+const { setImmediate } = require('timers/promises');
 
 function recordSample(b) {
   b.record({
@@ -151,15 +151,21 @@ async function testCancellationCompletesBenchmarks() {
 
 async function testDeliveryDoesNotConsumeTimeout() {
   const runner = createRunner({ yieldBetweenSamples: false });
+  // The timeout only has to cover the benchmark's own work, which is 32 samples
+  // that do nothing but record a fixed value. Keep it generous so that a loaded
+  // machine cannot exhaust it on its own, and keep the consumer stalled for
+  // longer than the timeout so that the benchmark can only complete when the
+  // time spent delivering records is excluded from the timeout.
+  const timeout = common.platformTimeout(500);
   const completion = runner.bench('slow consumer', {
     samples: 32,
-    timeout: common.platformTimeout(20),
+    timeout,
   }, recordSample);
   const stream = runner.run();
   const iterator = stream[Symbol.asyncIterator]();
 
   await iterator.next();
-  await setTimeout(common.platformTimeout(50));
+  await setImmediate();
   for (;;) {
     const next = await iterator.next();
     if (next.done) break;
