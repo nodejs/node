@@ -600,10 +600,8 @@ IsolateData* IsolateData::CreateIsolateData(
     uv_loop_t* loop,
     MultiIsolatePlatform* platform,
     ArrayBufferAllocator* allocator,
-    const EmbedderSnapshotData* embedder_snapshot_data,
+    const SnapshotData* snapshot_data,
     std::shared_ptr<PerIsolateOptions> options) {
-  const SnapshotData* snapshot_data =
-      SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
   if (options == nullptr) {
     options = per_process::cli_options->per_isolate->Clone();
   }

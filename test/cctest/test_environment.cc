@@ -355,6 +355,18 @@ TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   EXPECT_TRUE(called_cb_2);
 }
 
+TEST_F(EnvironmentTest, WorkerInEnvironmentWithoutSnapshot) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+  CHECK_NULL(isolate_data_->snapshot_data());
+  node::LoadEnvironment(*env,
+                        "const { Worker } = require('worker_threads');"
+                        "new Worker('process.exit(0)', { eval: true });")
+      .ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env).FromJust(), 0);
+}
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
