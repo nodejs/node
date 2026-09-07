@@ -779,11 +779,7 @@ bool GetEcKeyDetail(Environment* env,
   const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
-  ECKeyPointer ec(m_pkey);
-  if (!ec) return true;
-
-  const auto group = ec.getGroup();
-  int nid = EC_GROUP_get_curve_name(group);
+  int nid = Ec::GetCurveId(m_pkey);
   if (nid == NID_undef) return true;
 
   return target
