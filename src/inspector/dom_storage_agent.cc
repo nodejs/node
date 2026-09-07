@@ -106,6 +106,10 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
           "Could not read DOM storage items");
     }
     storage_map_fallback = web_storage_obj.value()->GetAll();
+    if (!storage_map_fallback.has_value()) {
+      return protocol::DispatchResponse::ServerError(
+          "Could not read DOM storage items");
+    }
     storage_map = &storage_map_fallback.value();
   }
 
