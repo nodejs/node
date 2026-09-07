@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+</head>
+<body>
+<script>
+const scope = "./resources/in-scope";
+
+promise_test(async (test) => {
+    const registration = await service_worker_unregister_and_register(
+        test, "./resources/fetch-error-worker.js", scope);
+    promise_test(async () => registration.unregister(),
+                 "Unregister service worker");
+    await wait_for_state(test, registration.installing, 'activated');
+}, "Setup service worker");
+
+promise_test(async (test) => {
+    const iframe = await with_iframe(scope);
+    test.add_cleanup(() => iframe.remove());
+    const response = await iframe.contentWindow.fetch("fetch-error-test");
+    return promise_rejects_js(test, iframe.contentWindow.TypeError,
+                              response.text(), 'text() should reject');
+}, "Make sure a load that makes progress does not time out");
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>Service Worker: Partitioned Service Workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/partitioned-utils.js"></script>
+
+<body>
+This test creates a iframe in a first-party context and then registers a
+service worker (such that the iframe client is unclaimed).
+A third-party iframe is then created which has its SW call clients.claim()
+and then the test checks that the 1p iframe was not claimed int he process.
+Finally the test has its SW call clients.claim() and confirms the 1p iframe is
+claimed.
+
+<script>
+promise_test(async t => {
+  const script = './resources/partitioned-storage-sw.js';
+  const scope = './resources/partitioned-';
+
+  // Add a 1p iframe.
+  const wait_frame_url = new URL(
+    './resources/partitioned-service-worker-iframe-claim.html?1p-mode',
+    self.location);
+
+  const frame = await with_iframe(wait_frame_url, false);
+  t.add_cleanup(async () => {
+    frame.remove();
+  });
+
+  // Add service worker to this 1P context.
+  const reg = await service_worker_unregister_and_register(t, script, scope);
+  t.add_cleanup(() => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  // Register the message listener.
+  self.addEventListener('message', messageEventHandler);
+
+  // Now we need to create a third-party iframe whose SW will claim it and then
+  // the iframe will postMessage that its serviceWorker.controller state has
+  // changed.
+  const third_party_iframe_url = new URL(
+    './resources/partitioned-service-worker-iframe-claim.html?3p-mode',
+    get_host_info().HTTPS_ORIGIN + self.location.pathname);
+
+  // Create the 3p window (which will in turn create the iframe with the SW)
+  // and await on its data.
+  const frame_3p_data = await loadAndReturnSwData(t, third_party_iframe_url,
+    'window');
+  assert_equals(frame_3p_data.status, "success",
+     "3p iframe was successfully claimed");
+
+  // Confirm that the 1p iframe wasn't claimed at the same time.
+  const controller_1p_iframe = makeMessagePromise();
+  frame.contentWindow.postMessage({type: "get-controller"});
+  const controller_1p_iframe_data = await controller_1p_iframe;
+  assert_equals(controller_1p_iframe_data.controller, null,
+     "Test iframe client isn't claimed yet.");
+
+
+  // Tell the SW to claim.
+  const claimed_1p_iframe = makeMessagePromise();
+  reg.active.postMessage({type: "claim"});
+  const claimed_1p_iframe_data = await claimed_1p_iframe;
+
+  assert_equals(claimed_1p_iframe_data.status, "success",
+     "iframe client was successfully claimed.");
+
+}, "ServiceWorker's clients.claim() is partitioned");
+</script>
+
+</body>

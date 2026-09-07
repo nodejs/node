@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<title>Service Worker: Navigation redirection must clear body</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<meta charset="utf-8">
+<body>
+<form id="test-form" method="POST" style="display: none;">
+  <input type="submit" id="submit-button" />
+</form>
+<script>
+promise_test(function(t) {
+    var scope = 'resources/navigation-redirect-body.py';
+    var script = 'resources/navigation-redirect-body-worker.js';
+    var registration;
+    var frame = document.createElement('frame');
+    var form = document.getElementById('test-form');
+    var submit_button = document.getElementById('submit-button');
+
+    frame.src = 'about:blank';
+    frame.name = 'target_frame';
+    frame.id = 'frame';
+    document.body.appendChild(frame);
+    t.add_cleanup(function() { document.body.removeChild(frame); });
+
+    form.action = scope;
+    form.target = 'target_frame';
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          var frame_load_promise = new Promise(function(resolve) {
+              frame.addEventListener('load', function() {
+                  resolve(frame.contentWindow.document.body.innerText);
+                }, false);
+            });
+          submit_button.click();
+          return frame_load_promise;
+        })
+      .then(function(text) {
+          var request_uri = decodeURIComponent(text);
+          assert_equals(
+              request_uri,
+              '/service-workers/service-worker/resources/navigation-redirect-body.py?redirect');
+          return registration.unregister();
+        });
+  }, 'Navigation redirection must clear body');
+</script>
+</body>

@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Ensure service worker is bypassed in insecure contexts</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+// This test checks that an HTTPS iframe embedded in an HTTP document is not
+// loaded via a service worker, since it's not a secure context. To that end, we
+// first register a service worker, wait for its activation, and create an
+// iframe that is controlled by said service worker. We use the iframe as a
+// way to receive messages from the service worker.
+// The bulk of the test begins by opening an HTTP window with the noopener
+// option, installing a message event handler, and embedding an HTTPS iframe. If
+// the browser behaves correctly then the iframe will be loaded from the network
+// and will contain a script that posts a message to the parent window,
+// informing it that it was loaded from the network. If, however, the iframe is
+// intercepted, the service worker will return a page with a script that posts a
+// message to the parent window, informing it that it was intercepted.
+// Upon getting either result, the window will report the result to the service
+// worker by navigating to a reporting URL. The service worker will then inform
+// all clients about the result, including the controlled iframe from the
+// beginning of the test. The message event handler will verify that the result
+// is as expected, concluding the test.
+promise_test(t => {
+    const SCRIPT = "resources/secure-context-service-worker.js";
+    const SCOPE = "resources/";
+    const HTTP_IFRAME_URL = get_host_info().HTTP_ORIGIN + base_path() + SCOPE + "secure-context/window.html";
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+        .then(registration => {
+            t.add_cleanup(() => {
+                return registration.unregister();
+            });
+            return wait_for_state(t, registration.installing, 'activated');
+        })
+        .then(() => {
+            return with_iframe(SCOPE + "blank.html");
+        })
+        .then(iframe => {
+            t.add_cleanup(() => {
+                iframe.remove();
+            });
+            return new Promise(resolve => {
+                iframe.contentWindow.navigator.serviceWorker.onmessage = t.step_func(event => {
+                    assert_equals(event.data, 'network');
+                    resolve();
+                });
+                window.open(HTTP_IFRAME_URL, 'MyWindow', 'noopener');
+            });
+        });
+})
+
+</script>
+</body>

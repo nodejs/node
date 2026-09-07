@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<title>Service Worker: claim client not using registration</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+promise_test(function(t) {
+    var init_scope = 'resources/blank.html?not-using-init';
+    var claim_scope = 'resources/blank.html?not-using';
+    var init_worker_url = 'resources/empty.js';
+    var claim_worker_url = 'resources/claim-worker.js';
+    var claim_worker, claim_registration, frame1, frame2;
+    return service_worker_unregister_and_register(
+        t, init_worker_url, init_scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, init_scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return Promise.all(
+              [with_iframe(init_scope), with_iframe(claim_scope)]);
+        })
+      .then(function(frames) {
+          frame1 = frames[0];
+          frame2 = frames[1];
+          assert_equals(
+              frame1.contentWindow.navigator.serviceWorker.controller.scriptURL,
+              normalizeURL(init_worker_url),
+              'Frame1 controller should not be null');
+          assert_equals(
+              frame2.contentWindow.navigator.serviceWorker.controller, null,
+              'Frame2 controller should be null');
+          return navigator.serviceWorker.register(claim_worker_url,
+                                                  {scope: claim_scope});
+        })
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, claim_scope);
+            });
+
+          claim_worker = registration.installing;
+          claim_registration = registration;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          var saw_controllerchanged = new Promise(function(resolve) {
+              frame2.contentWindow.navigator.serviceWorker.oncontrollerchange =
+                  function() { resolve(); }
+            });
+          var channel = new MessageChannel();
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = t.step_func(function(e) {
+                  assert_equals(e.data, 'PASS',
+                                'Worker call to claim() should fulfill.');
+                  resolve();
+                });
+            });
+          claim_worker.postMessage({port: channel.port2}, [channel.port2]);
+          return Promise.all([saw_controllerchanged, saw_message]);
+        })
+      .then(function() {
+          assert_equals(
+              frame1.contentWindow.navigator.serviceWorker.controller.scriptURL,
+              normalizeURL(init_worker_url),
+              'Frame1 should not be influenced');
+          assert_equals(
+              frame2.contentWindow.navigator.serviceWorker.controller.scriptURL,
+              normalizeURL(claim_worker_url),
+              'Frame2 should be controlled by the new registration');
+          frame1.remove();
+          frame2.remove();
+          return claim_registration.unregister();
+        });
+  }, 'Test claim client which is not using registration');
+
+promise_test(function(t) {
+    var scope = 'resources/blank.html?longer-matched';
+    var claim_scope = 'resources/blank.html?longer';
+    var claim_worker_url = 'resources/claim-worker.js';
+    var installing_worker_url = 'resources/empty-worker.js';
+    var frame, claim_worker;
+    return with_iframe(scope)
+      .then(function(f) {
+          frame = f;
+          return navigator.serviceWorker.register(
+              claim_worker_url, {scope: claim_scope});
+        })
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, claim_scope);
+            });
+
+          claim_worker = registration.installing;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return navigator.serviceWorker.register(
+              installing_worker_url, {scope: scope});
+        })
+      .then(function() {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          var channel = new MessageChannel();
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = t.step_func(function(e) {
+                  assert_equals(e.data, 'PASS',
+                                'Worker call to claim() should fulfill.');
+                  resolve();
+                });
+            });
+          claim_worker.postMessage({port: channel.port2}, [channel.port2]);
+          return saw_message;
+        })
+      .then(function() {
+          assert_equals(
+              frame.contentWindow.navigator.serviceWorker.controller, null,
+              'Frame should not be claimed when a longer-matched ' +
+              'registration exists');
+          frame.remove();
+        });
+  }, 'Test claim client when there\'s a longer-matched registration not ' +
+     'already used by the page');
+
+</script>

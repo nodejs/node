@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>Service Worker: FetchEvent.request passed to onfetch</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+promise_test(t => {
+    var url = 'resources/request-end-to-end-worker.js';
+    var scope = 'resources/blank.html';
+    return service_worker_unregister_and_register(t, url, scope)
+      .then(r => {
+          add_completion_callback(() => { r.unregister(); });
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(() => { return with_iframe(scope); })
+      .then(frame => {
+          add_completion_callback(() => { frame.remove(); });
+
+          var result = JSON.parse(frame.contentDocument.body.textContent);
+          assert_equals(result.url, frame.src, 'request.url');
+          assert_equals(result.method, 'GET', 'request.method');
+          assert_equals(result.referrer, location.href, 'request.referrer');
+          assert_equals(result.mode, 'navigate', 'request.mode');
+          assert_equals(result.request_construct_error, '',
+                        'Constructing a Request with a Request whose mode ' +
+                        'is navigate and non-empty RequestInit must not throw a ' +
+                        'TypeError.')
+          assert_equals(result.credentials, 'include', 'request.credentials');
+          assert_equals(result.redirect, 'manual', 'request.redirect');
+          assert_equals(result.append_header_error, 'TypeError',
+                        'Appending a new header to the request must throw a ' +
+                        'TypeError.')
+
+          // `assert_equals()` is not used here to create a stable failure
+          // baseline, because the User-Agent header would be version-dependent
+          // if set.
+          assert_true(result.headers['user-agent'] === undefined,
+                      'Default User-Agent header should not be passed to ' +
+                      'onfetch event.')
+        });
+  }, 'Test FetchEvent.request passed to onfetch');
+</script>

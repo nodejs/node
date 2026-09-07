@@ -209,6 +209,7 @@ class NativeKeyObject : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateNativeKeyObjectClass(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsKeyObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // True if `value` is a real NativeKeyObject instance. Uses the
   // FunctionTemplate stored on the Environment as a brand check.
@@ -277,6 +278,7 @@ class NativeCryptoKey : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateCryptoKeyClass(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsCryptoKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::MaybeLocal<v8::Value> Create(Environment* env,
                                           const KeyObjectData& data,

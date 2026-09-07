@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: canvas tainting of the fetched video using cache responses</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script src="resources/fetch-canvas-tainting-tests.js"></script>
+<body>
+<script>
+do_canvas_tainting_tests({
+  resource_path: base_path() + 'resources/fetch-access-control.py?VIDEO',
+  cache: true
+});
+</script>
+</body>

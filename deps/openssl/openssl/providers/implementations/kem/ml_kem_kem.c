@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -125,6 +125,7 @@ static int ml_kem_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
         /* Possibly, but much less likely wrong type */
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_SEED_LENGTH);
+        OPENSSL_cleanse((void *)ctx->entropy_buf, sizeof(ctx->entropy_buf));
         ctx->entropy = NULL;
         return 0;
     }

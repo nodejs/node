@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Navigation Preload Resource Timing</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script>
+
+function check_timing_entry(entry, url, decodedBodySize, encodedBodySize) {
+  assert_equals(entry.name, url, 'The entry name of '+ url);
+
+  assert_equals(
+    entry.entryType, 'resource',
+    'The entryType of preload response timing entry must be "resource' +
+    '" :' + url);
+  assert_equals(
+    entry.initiatorType, 'navigation',
+    'The initiatorType of preload response timing entry must be ' +
+    '"navigation":' + url);
+
+  // If the server returns the redirect response, |decodedBodySize| is null and
+  // |entry.decodedBodySize| should be 0. Otherwise |entry.decodedBodySize| must
+  // same as |decodedBodySize|
+  assert_equals(
+    entry.decodedBodySize, Number(decodedBodySize),
+    'decodedBodySize must same as the decoded size in the server:' + url);
+
+  // If the server returns the redirect response, |encodedBodySize| is null and
+  // |entry.encodedBodySize| should be 0. Otherwise |entry.encodedBodySize| must
+  // same as |encodedBodySize|
+  assert_equals(
+    entry.encodedBodySize, Number(encodedBodySize),
+    'encodedBodySize must same as the encoded size in the server:' + url);
+
+  assert_greater_than(
+    entry.transferSize, entry.decodedBodySize,
+    'transferSize must greater then encodedBodySize.');
+
+  assert_greater_than(entry.startTime, 0, 'startTime of ' + url);
+  assert_greater_than_equal(entry.fetchStart, entry.startTime,
+                            'fetchStart >= startTime of ' + url);
+  assert_greater_than_equal(entry.domainLookupStart, entry.fetchStart,
+                            'domainLookupStart >= fetchStart of ' + url);
+  assert_greater_than_equal(entry.domainLookupEnd, entry.domainLookupStart,
+                            'domainLookupEnd >= domainLookupStart of ' + url);
+  assert_greater_than_equal(entry.connectStart, entry.domainLookupEnd,
+                            'connectStart >= domainLookupEnd of ' + url);
+  assert_greater_than_equal(entry.connectEnd, entry.connectStart,
+                            'connectEnd >= connectStart of ' + url);
+  assert_greater_than_equal(entry.requestStart, entry.connectEnd,
+                            'requestStart >= connectEnd of ' + url);
+  assert_greater_than_equal(entry.responseStart, entry.requestStart,
+                            'domainLookupStart >= requestStart of ' + url);
+  assert_greater_than_equal(entry.responseEnd, entry.responseStart,
+                            'responseEnd >= responseStart of ' + url);
+  assert_greater_than(entry.duration, 0, 'duration of ' + url);
+}
+
+promise_test(t => {
+    var script = 'resources/resource-timing-worker.js';
+    var scope = 'resources/resource-timing-scope.py';
+    var registration;
+    var frames = [];
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(reg => {
+          registration = reg;
+          add_completion_callback(_ => registration.unregister());
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(_ => with_iframe(scope + '?type=normal'))
+      .then(frame => {
+          frames.push(frame);
+          return with_iframe(scope + '?type=redirect');
+        })
+      .then(frame => {
+          frames.push(frame);
+          frames.forEach(frame => {
+            var result = JSON.parse(frame.contentDocument.body.textContent);
+            assert_equals(
+              result.timingEntries.length, 1,
+              'performance.getEntriesByName() must returns one ' +
+              'PerformanceResourceTiming entry for the navigation preload.');
+            var entry = result.timingEntries[0];
+            check_timing_entry(entry, frame.src, result.decodedBodySize,
+                               result.encodedBodySize);
+            frame.remove();
+          });
+          return registration.unregister();
+        });
+  }, 'Navigation Preload Resource Timing.');
+
+</script>

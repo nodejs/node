@@ -26,13 +26,10 @@ namespace internal {
   V(BigInt64, bigint64, BIGINT64, int64_t)               \
   V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t) \
   V(Float32, float32, FLOAT32, float)                    \
-  V(Float64, float64, FLOAT64, double)
+  V(Float64, float64, FLOAT64, double)                   \
+  V(Float16, float16, FLOAT16, uint16_t)
 
-#define TYPED_ARRAYS_FLOAT16(V) V(Float16, float16, FLOAT16, uint16_t)
-
-#define TYPED_ARRAYS(V) \
-  TYPED_ARRAYS_BASE(V)  \
-  TYPED_ARRAYS_FLOAT16(V)
+#define TYPED_ARRAYS(V) TYPED_ARRAYS_BASE(V)
 
 #define RAB_GSAB_TYPED_ARRAYS_BASE(V)                                    \
   V(RabGsabUint8, rab_gsab_uint8, RAB_GSAB_UINT8, uint8_t)               \
@@ -46,14 +43,10 @@ namespace internal {
   V(RabGsabUint8Clamped, rab_gsab_uint8_clamped, RAB_GSAB_UINT8_CLAMPED, \
     uint8_t)                                                             \
   V(RabGsabFloat32, rab_gsab_float32, RAB_GSAB_FLOAT32, float)           \
-  V(RabGsabFloat64, rab_gsab_float64, RAB_GSAB_FLOAT64, double)
-
-#define RAB_GSAB_TYPED_ARRAYS_FLOAT16(V) \
+  V(RabGsabFloat64, rab_gsab_float64, RAB_GSAB_FLOAT64, double)          \
   V(RabGsabFloat16, rab_gsab_float16, RAB_GSAB_FLOAT16, uint16_t)
 
-#define RAB_GSAB_TYPED_ARRAYS(V) \
-  RAB_GSAB_TYPED_ARRAYS_BASE(V)  \
-  RAB_GSAB_TYPED_ARRAYS_FLOAT16(V)
+#define RAB_GSAB_TYPED_ARRAYS(V) RAB_GSAB_TYPED_ARRAYS_BASE(V)
 
 // The TypedArrays backed by RAB / GSAB are called Uint8Array, Uint16Array etc,
 // and not RabGsabUint8Array, RabGsabUint16Array etc. This macro is used for
@@ -69,14 +62,11 @@ namespace internal {
   V(BigInt64, rab_gsab_bigint64, RAB_GSAB_BIGINT64, int64_t)               \
   V(Uint8Clamped, rab_gsab_uint8_clamped, RAB_GSAB_UINT8_CLAMPED, uint8_t) \
   V(Float32, rab_gsab_float32, RAB_GSAB_FLOAT32, float)                    \
-  V(Float64, rab_gsab_float64, RAB_GSAB_FLOAT64, double)
-
-#define RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE_FLOAT16(V) \
+  V(Float64, rab_gsab_float64, RAB_GSAB_FLOAT64, double)                   \
   V(Float16, rab_gsab_float16, RAB_GSAB_FLOAT16, uint16_t)
 
 #define RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(V) \
-  RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE_BASE(V)  \
-  RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE_FLOAT16(V)
+  RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE_BASE(V)
 
 // Like RAB_GSAB_TYPED_ARRAYS but has an additional parameter for
 // for the corresponding non-RAB/GSAB ElementsKind.
@@ -93,14 +83,11 @@ namespace internal {
   V(RabGsabUint8Clamped, rab_gsab_uint8_clamped, RAB_GSAB_UINT8_CLAMPED,      \
     uint8_t, UINT8_CLAMPED)                                                   \
   V(RabGsabFloat32, rab_gsab_float32, RAB_GSAB_FLOAT32, float, FLOAT32)       \
-  V(RabGsabFloat64, rab_gsab_float64, RAB_GSAB_FLOAT64, double, FLOAT64)
-
-#define RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND_FLOAT16(V) \
+  V(RabGsabFloat64, rab_gsab_float64, RAB_GSAB_FLOAT64, double, FLOAT64)      \
   V(RabGsabFloat16, rab_gsab_float16, RAB_GSAB_FLOAT16, uint16_t, FLOAT16)
 
 #define RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND(V) \
-  RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND_BASE(V)  \
-  RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND_FLOAT16(V)
+  RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND_BASE(V)
 
 enum ElementsKind : uint8_t {
   // The "fast" kind for elements that only contain SMI values. Must be first

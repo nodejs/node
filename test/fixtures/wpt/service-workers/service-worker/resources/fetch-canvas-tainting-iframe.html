@@ -1,0 +1,70 @@
+<html>
+<title>iframe for fetch canvas tainting test</title>
+<script>
+const NOT_TAINTED = 'NOT_TAINTED';
+const TAINTED = 'TAINTED';
+const LOAD_ERROR = 'LOAD_ERROR';
+
+// Creates an image/video element with src=|url| and an optional |cross_origin|
+// attibute. Tries to read from the image/video using a canvas element. Returns
+// NOT_TAINTED if it could be read, TAINTED if it could not be read, and
+// LOAD_ERROR if loading the image/video failed.
+function create_test_case_promise(url, cross_origin) {
+  return new Promise(resolve => {
+      if (url.indexOf('PNGIMAGE') != -1) {
+        const img = document.createElement('img');
+        if (cross_origin != '') {
+          img.crossOrigin = cross_origin;
+        }
+        img.onload = function() {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            const context = canvas.getContext('2d');
+            context.drawImage(img, 0, 0);
+            context.getImageData(0, 0, 100, 100);
+            resolve(NOT_TAINTED);
+          } catch (e) {
+            resolve(TAINTED);
+          }
+        };
+        img.onerror = function() {
+          resolve(LOAD_ERROR);
+        }
+        img.src = url;
+        return;
+      }
+
+      if (url.indexOf('VIDEO') != -1) {
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.muted = true;
+        if (cross_origin != '') {
+          video.crossOrigin = cross_origin;
+        }
+        video.onplay = function() {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0);
+            context.getImageData(0, 0, 100, 100);
+            resolve(NOT_TAINTED);
+          } catch (e) {
+            resolve(TAINTED);
+          }
+        };
+        video.onerror = function() {
+          resolve(LOAD_ERROR);
+        }
+        video.src = url;
+        return;
+      }
+
+      resolve('unknown resource type');
+  });
+}
+</script>
+</html>

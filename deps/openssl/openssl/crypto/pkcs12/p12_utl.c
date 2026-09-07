@@ -186,6 +186,8 @@ char *OPENSSL_uni2utf8(const unsigned char *uni, int unilen)
     /* string must contain an even number of bytes */
     if (unilen & 1)
         return NULL;
+    if (unilen < 0)
+        return NULL;
 
     for (asclen = 0, i = 0; i < unilen;) {
         j = bmp_to_utf8(NULL, uni + i, unilen - i);

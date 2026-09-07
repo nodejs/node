@@ -11,7 +11,7 @@ on:
   # be read-only, and the Action won't have access to any other repository
   # secrets, which it needs to access Jenkins API.
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: 3/5 * * * *
 
 concurrency: ${{ github.workflow }}
 
@@ -28,6 +28,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     outputs:
+      aged_prs: ${{ steps.get_candidate_prs.outputs.aged_prs }}
       candidates: ${{ steps.get_candidate_prs.outputs.candidates }}
     steps:
       - name: Get Pull Request Candidates
@@ -50,6 +51,7 @@ jobs:
                   --search "-label:blocked")
           candidates=$(printf '%s %s\n' "$fast_track_prs" "$aged_prs" |
                   jq -r -s 'reduce .[] as $pr ([]; if index($pr) then . else . + [$pr] end) | join(" ")')
+          echo "aged_prs=$aged_prs" >> "$GITHUB_OUTPUT"
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
@@ -64,7 +66,7 @@ jobs:
     runs-on: ubuntu-slim
     steps:
       - name: Install Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -93,6 +95,7 @@ jobs:
           curl -fsSLo "$readme" "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/README.md"
 
           numbers=
+          lacks_second_approval_prs=
           # shellcheck disable=SC2086
           for pr in $CANDIDATES; do
             metadata="${RUNNER_TEMP}/metadata-${pr}.json"
@@ -139,6 +142,14 @@ jobs:
             if [ "$metadata_status" -ge 20 ] && [ "$metadata_status" -le 29 ]; then
               echo "pr ${pr} skipped, not ready to land"
               echo "reason codes: ${metadata_reason_codes}"
+              if jq -e '
+                    (.reasonCodes | index("wait-time")) and
+                    (.pullRequest.labels | index("lacks-second-approval") | not)
+                  ' "$metadata" > /dev/null; then
+                case " $AGED_PRS " in
+                  *" $pr "*) lacks_second_approval_prs="$lacks_second_approval_prs $pr" ;;
+                esac
+              fi
               continue
             fi
 
@@ -148,12 +159,28 @@ jobs:
           done
 
           numbers=$(echo "$numbers" | xargs)
+          lacks_second_approval_prs=$(echo "$lacks_second_approval_prs" | xargs)
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+          echo "lacks_second_approval_prs=$lacks_second_approval_prs" >> "$GITHUB_OUTPUT"
         env:
+          AGED_PRS: ${{ needs.get_candidate_prs.outputs.aged_prs }}
           CANDIDATES: ${{ needs.get_candidate_prs.outputs.candidates }}
           GH_TOKEN: ${{ github.token }}
 
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Label Pull Requests Lacking a Second Approval
+        if: steps.get_mergeable_prs.outputs.lacks_second_approval_prs != ''
+        run: |
+          # shellcheck disable=SC2086
+          for pr in $PULL_REQUESTS; do
+            if ! gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label 'lacks-second-approval'; then
+              echo "::warning::Failed to add lacks-second-approval to PR ${pr}"
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PULL_REQUESTS: ${{ steps.get_mergeable_prs.outputs.lacks_second_approval_prs }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         if: steps.get_mergeable_prs.outputs.numbers != ''
         with:
           # A personal token is required because pushing with GITHUB_TOKEN will

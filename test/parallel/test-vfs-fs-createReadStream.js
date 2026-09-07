@@ -10,14 +10,11 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const baseMountPoint = path.resolve('/tmp/vfs-createReadStream-' + process.pid);
-let counter = 0;
 function mounted() {
-  const mountPoint = baseMountPoint + '-' + (counter++);
   const myVfs = vfs.create();
   myVfs.mkdirSync('/src', { recursive: true });
   myVfs.writeFileSync('/src/hello.txt', 'hello world');
-  myVfs.mount(mountPoint);
+  const mountPoint = myVfs.mount();
   return { myVfs, mountPoint };
 }
 

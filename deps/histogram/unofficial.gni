@@ -4,29 +4,42 @@
 
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
+import("../../node.gni")
+
 template("histogram_gn_build") {
-  config("histogram_config") {
-    include_dirs = [ "include" ]
-  }
-
-  gypi_values = exec_script("../../tools/gypi_to_gn.py",
-                            [ rebase_path("histogram.gyp") ],
-                            "scope",
-                            [ "histogram.gyp" ])
-
-  source_set(target_name) {
-    forward_variables_from(invoker, "*")
-    public_configs = [ ":histogram_config" ]
-    sources = gypi_values.histogram_sources
-    if (is_clang || !is_win) {
-      cflags_c = [
-        "-Wno-atomic-alignment",
-        "-Wno-incompatible-pointer-types",
-        "-Wno-unused-function",
-      ]
+  if (node_shared_hdr_histogram) {
+    import("//build/config/linux/pkg_config.gni")
+    pkg_config("histogram_config") {
+      packages = [ "hdr_histogram" ]
     }
-    if (is_linux) {
-      libs = [ "atomic" ]
+    group(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":histogram_config" ]
+    }
+  } else {
+    config("histogram_config") {
+      include_dirs = [ "include" ]
+    }
+
+    gypi_values = exec_script("../../tools/gypi_to_gn.py",
+                              [ rebase_path("histogram.gyp") ],
+                              "scope",
+                              [ "histogram.gyp" ])
+
+    source_set(target_name) {
+      forward_variables_from(invoker, "*")
+      public_configs = [ ":histogram_config" ]
+      sources = gypi_values.histogram_sources
+      if (is_clang || !is_win) {
+        cflags_c = [
+          "-Wno-atomic-alignment",
+          "-Wno-incompatible-pointer-types",
+          "-Wno-unused-function",
+        ]
+      }
+      if (is_linux) {
+        libs = [ "atomic" ]
+      }
     }
   }
 }

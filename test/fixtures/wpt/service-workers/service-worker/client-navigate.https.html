@@ -1,0 +1,107 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<title>Service Worker: WindowClient.navigate</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+  function wait_for_message(msg) {
+    return new Promise(function(resolve, reject) {
+      var get_message_data = function get_message_data(e) {
+        window.removeEventListener("message", get_message_data);
+        resolve(e.data);
+      }
+      window.addEventListener("message", get_message_data, false);
+    });
+  }
+
+  function run_test(controller, clientId, test) {
+    return new Promise(function(resolve, reject) {
+      var channel = new MessageChannel();
+      channel.port1.onmessage = function(e) {
+        resolve(e.data);
+      };
+      var message = {
+        port: channel.port2,
+        test: test,
+        clientId: clientId,
+      };
+      controller.postMessage(
+        message, [channel.port2]);
+    });
+  }
+
+  async function with_controlled_iframe_and_url(t, name, f) {
+    const SCRIPT = "resources/client-navigate-worker.js";
+    const SCOPE = "resources/client-navigate-frame.html";
+
+    // Register service worker and wait for it to become activated
+    const registration = await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+    t.add_cleanup(() => registration.unregister());
+    const worker = registration.installing;
+    await wait_for_state(t, worker, 'activated');
+
+    // Create child iframe and make sure we register a listener for the message
+    // it sends before it's created
+    const client_id_promise = wait_for_message();
+    const iframe = await with_iframe(SCOPE);
+    t.add_cleanup(() => iframe.remove());
+    const { id } = await client_id_promise;
+
+    // Run the test in the service worker and fetch it
+    const { result, url } = await run_test(worker, id, name);
+    fetch_tests_from_worker(worker);
+    assert_equals(result, name);
+
+    // Hand over the iframe and URL from the service worker to the callback
+    await f(iframe, url);
+  }
+
+  promise_test(function(t) {
+    return with_controlled_iframe_and_url(t, 'test_client_navigate_success', async (iframe, url) => {
+      assert_equals(
+        url, new URL("resources/client-navigated-frame.html",
+                      location).toString());
+      assert_equals(
+        iframe.contentWindow.location.href,
+        new URL("resources/client-navigated-frame.html",
+                location).toString());
+    });
+  }, "Frame location should update on successful navigation");
+
+  promise_test(function(t) {
+    return with_controlled_iframe_and_url(t, 'test_client_navigate_redirect', async (iframe, url) => {
+      assert_equals(url, "");
+      assert_throws_dom("SecurityError", function() { return iframe.contentWindow.location.href });
+    });
+  }, "Frame location should not be accessible after redirect");
+
+  promise_test(function(t) {
+    return with_controlled_iframe_and_url(t, 'test_client_navigate_cross_origin', async (iframe, url) => {
+      assert_equals(url, "");
+      assert_throws_dom("SecurityError", function() { return iframe.contentWindow.location.href });
+    });
+  }, "Frame location should not be accessible after cross-origin navigation");
+
+  promise_test(function(t) {
+    return with_controlled_iframe_and_url(t, 'test_client_navigate_about_blank', async (iframe, url) => {
+      assert_equals(
+          iframe.contentWindow.location.href,
+          new URL("resources/client-navigate-frame.html",
+                  location).toString());
+      iframe.contentWindow.document.body.style = "background-color: green"
+    });
+  }, "Frame location should not update on failed about:blank navigation");
+
+  promise_test(function(t) {
+    return with_controlled_iframe_and_url(t, 'test_client_navigate_mixed_content', async (iframe, url) => {
+      assert_equals(
+          iframe.contentWindow.location.href,
+          new URL("resources/client-navigate-frame.html",
+                  location).toString());
+      iframe.contentWindow.document.body.style = "background-color: green"
+    });
+  }, "Frame location should not update on failed mixed-content navigation");
+</script>

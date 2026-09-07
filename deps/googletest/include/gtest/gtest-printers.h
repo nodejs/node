@@ -522,17 +522,14 @@ inline void PrintTo(bool x, ::std::ostream* os) {
 GTEST_API_ void PrintTo(wchar_t wc, ::std::ostream* os);
 
 GTEST_API_ void PrintTo(char32_t c, ::std::ostream* os);
-inline void PrintTo(char16_t c, ::std::ostream* os) {
-  // TODO(b/418738869): Incorrect for values not representing valid codepoints.
-  // Also see https://github.com/google/googletest/issues/4762.
-  PrintTo(static_cast<char32_t>(c), os);
-}
+
+// Overloads for the UTF-8 and UTF-16 code unit types.  A code unit that
+// encodes a code point all by itself is printed with the U+XXXX notation;
+// one that does not (any non-ASCII char8_t, and the UTF-16 surrogates) is
+// printed as a code unit instead, the way wchar_t is.
+GTEST_API_ void PrintTo(char16_t c, ::std::ostream* os);
 #ifdef __cpp_lib_char8_t
-inline void PrintTo(char8_t c, ::std::ostream* os) {
-  // TODO(b/418738869): Incorrect for values not representing valid codepoints.
-  // Also see https://github.com/google/googletest/issues/4762.
-  PrintTo(static_cast<char32_t>(c), os);
-}
+GTEST_API_ void PrintTo(char8_t c, ::std::ostream* os);
 #endif
 
 // gcc/clang __{u,}int128_t
@@ -674,12 +671,12 @@ inline void PrintTo(char32_t* s, ::std::ostream* os) {
   PrintTo(ImplicitCast_<const char32_t*>(s), os);
 }
 
-// MSVC can be configured to define wchar_t as a typedef of unsigned
-// short.  It defines _NATIVE_WCHAR_T_DEFINED when wchar_t is a native
-// type.  When wchar_t is a typedef, defining an overload for const
-// wchar_t* would cause unsigned short* be printed as a wide string,
-// possibly causing invalid memory accesses.
-#if !defined(_MSC_VER) || defined(_NATIVE_WCHAR_T_DEFINED)
+// Only add an overload for printing wchar_t* if:
+// 1. Wide string support is enabled.
+// 2. wchar_t is a distinct native type. (If it's a typedef, the overload could
+//    cause a pointer to the underlying type to be mistakenly treated as a
+//    string.)
+#if GTEST_HAS_STD_WSTRING && GTEST_HAS_NATIVE_WCHAR
 // Overloads for wide C strings
 GTEST_API_ void PrintTo(const wchar_t* s, ::std::ostream* os);
 inline void PrintTo(wchar_t* s, ::std::ostream* os) {

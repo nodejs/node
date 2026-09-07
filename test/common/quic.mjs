@@ -53,9 +53,56 @@ async function connect(address, options = {}) {
   return quic.connect(address, { alpn, verifyPeer, ...rest });
 }
 
+/**
+ * Build a deterministic payload whose content depends on absolute position.
+ *
+ * Flow control bugs frequently show up as duplicated, dropped, or reordered
+ * regions rather than as a wrong total length, so the pattern deliberately
+ * varies over a long period (not a repeating 256-byte ramp) to make such
+ * damage detectable by `hashBytes` below.
+ * @param {number} size Number of bytes to generate.
+ * @param {number} [seed] Offsets the pattern so callers can build distinct
+ *   payloads of the same length.
+ * @returns {Uint8Array}
+ */
+function makePayload(size, seed = 0) {
+  const out = new Uint8Array(size);
+  let state = (seed * 2654435761 + 1) >>> 0;
+  for (let i = 0; i < size; i++) {
+    // xorshift32 -- cheap, deterministic, and position sensitive.
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17;
+    state ^= state << 5; state >>>= 0;
+    out[i] = state & 0xff;
+  }
+  return out;
+}
+
+/**
+ * Order-sensitive FNV-1a 32-bit hash.
+ *
+ * Note this is deliberately not a simple additive checksum: addition is
+ * commutative, so it cannot distinguish correctly ordered data from
+ * reordered data. Flow control errors can reorder or duplicate regions
+ * while preserving the byte total, so verification needs to be sensitive to
+ * position.
+ * @param {Uint8Array} buf
+ * @returns {number} Hash as an unsigned 32-bit integer.
+ */
+function hashBytes(buf) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < buf.byteLength; i++) {
+    h ^= buf[i];
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
 export {
   key,
   cert,
   listen,
   connect,
+  makePayload,
+  hashBytes,
 };

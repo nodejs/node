@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -2901,10 +2901,9 @@ __owur int ssl_validate_ct(SSL_CONNECTION *s);
 
 __owur EVP_PKEY *ssl_get_auto_dh(SSL_CONNECTION *s);
 
-__owur int ssl_security_cert(SSL_CONNECTION *s, SSL_CTX *ctx, X509 *x, int vfy,
-    int is_ee);
+__owur int ssl_security_cert(SSL_CONNECTION *s, SSL_CTX *ctx, X509 *x, int is_ee);
 __owur int ssl_security_cert_chain(SSL_CONNECTION *s, STACK_OF(X509) *sk,
-    X509 *ex, int vfy);
+    X509 *ex);
 
 int tls_choose_sigalg(SSL_CONNECTION *s, int fatalerrs);
 

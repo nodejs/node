@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js"></script>
+<script>
+var host_info = get_host_info();
+var scope = 'blank.html?clients-get';
+var script = 'clients-get-worker.js';
+
+var registration;
+var worker;
+var wait_for_worker_promise = navigator.serviceWorker.getRegistration(scope)
+  .then(function(reg) {
+      if (reg)
+        return reg.unregister();
+    })
+  .then(function() {
+      return navigator.serviceWorker.register(script, {scope: scope});
+    })
+  .then(function(reg) {
+      registration = reg;
+      worker = reg.installing;
+      return new Promise(function(resolve) {
+          worker.addEventListener('statechange', function() {
+              if (worker.state == 'activated')
+                resolve();
+            });
+        });
+    });
+
+window.addEventListener('message', function(e) {
+  var cross_origin_client_ids = [];
+  cross_origin_client_ids.push(e.data.clientId);
+  wait_for_worker_promise
+    .then(function() {
+        return with_iframe(scope);
+      })
+    .then(function(iframe) {
+        add_completion_callback(function() { iframe.remove(); });
+        navigator.serviceWorker.onmessage = function(e) {
+          registration.unregister();
+          window.parent.postMessage(
+            { type: 'clientId', value: e.data }, host_info['HTTPS_ORIGIN']
+          );
+        };
+        registration.active.postMessage({clientIds: cross_origin_client_ids});
+      });
+});
+</script>

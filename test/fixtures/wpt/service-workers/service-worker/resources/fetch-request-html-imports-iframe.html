@@ -1,0 +1,13 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script type="text/javascript">
+  var hostInfo = get_host_info();
+  var makeLink = function(id, url) {
+      var link = document.createElement('link');
+      link.rel = 'import'
+      link.id = id;
+      link.href = url;
+      document.documentElement.appendChild(link);
+    };
+  makeLink('same', hostInfo.HTTPS_ORIGIN + '/sample-dir/same.html');
+  makeLink('other', hostInfo.HTTPS_REMOTE_ORIGIN + '/sample-dir/other.html');
+</script>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(function (t) {
+    var currentState = 'test-is-starting';
+    var scope = 'resources/state/';
+
+    return service_worker_unregister_and_register(
+        t, 'resources/empty-worker.js', scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          var sw = registration.installing;
+
+          assert_equals(sw.state, 'installing',
+                        'the service worker should be in "installing" state.');
+          checkStateTransition(sw.state);
+          return onStateChange(sw);
+        });
+
+    function checkStateTransition(newState) {
+        switch (currentState) {
+        case 'test-is-starting':
+            break; // anything goes
+        case 'installing':
+            assert_in_array(newState, ['installed', 'redundant']);
+            break;
+        case 'installed':
+            assert_in_array(newState, ['activating', 'redundant']);
+            break;
+        case 'activating':
+            assert_in_array(newState, ['activated', 'redundant']);
+            break;
+        case 'activated':
+            assert_equals(newState, 'redundant');
+            break;
+        case 'redundant':
+            assert_unreached('a ServiceWorker should not transition out of ' +
+                             'the "redundant" state');
+            break;
+        default:
+            assert_unreached('should not transition into unknown state "' +
+                             newState + '"');
+            break;
+        }
+        currentState = newState;
+    }
+
+    function onStateChange(expectedTarget) {
+      return new Promise(function(resolve) {
+            expectedTarget.addEventListener('statechange', resolve);
+          }).then(function(event) {
+            assert_true(event.target instanceof ServiceWorker,
+                        'the target of the statechange event should be a ' +
+                        'ServiceWorker.');
+            assert_equals(event.target, expectedTarget,
+                          'the target of the statechange event should be ' +
+                          'the installing ServiceWorker');
+            assert_equals(event.type, 'statechange',
+                          'the type of the event should be "statechange".');
+
+            checkStateTransition(event.target.state);
+
+            if (event.target.state != 'activated')
+                return onStateChange(expectedTarget);
+          });
+    }
+}, 'Service Worker state property and "statechange" event');
+</script>

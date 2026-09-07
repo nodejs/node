@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>Service Worker: Partitioned Cookies 3P Window</title>
+<script src="/resources/testharness.js"></script>
+</head>
+
+<body>
+<script>
+
+promise_test(async t => {
+  assert_true(
+      location.search.includes('origin='), 'First party origin passed');
+  const first_party_origin = decodeURIComponent(
+      location.search.split('origin=')[1]);
+  const iframe = document.createElement('iframe');
+  iframe.src = new URL(
+      './partitioned-cookies-3p-frame.html',
+      first_party_origin + location.pathname).href;
+  document.body.appendChild(iframe);
+  await fetch_tests_from_window(iframe.contentWindow);
+
+  const credentialless_frame = document.createElement('iframe');
+  credentialless_frame.credentialless = true;
+  credentialless_frame.src = new URL(
+      './partitioned-cookies-3p-credentialless-frame.html',
+      first_party_origin + location.pathname).href;
+  document.body.appendChild(credentialless_frame);
+  await fetch_tests_from_window(credentialless_frame.contentWindow);
+});
+
+</script>
+</body>
+</html>

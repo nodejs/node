@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>ServiceWorkerGlobalScope: Error event error message</title>
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+<script src='../resources/test-helpers.sub.js'></script>
+<script>
+promise_test(t => {
+    var script = 'resources/error-worker.js';
+    var scope = 'resources/scope/service-worker-error-event';
+    var error_name = 'testError'
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(registration => {
+          var worker = registration.installing;
+          add_completion_callback(() => { registration.unregister(); });
+          return new Promise(function(resolve) {
+              navigator.serviceWorker.onmessage = resolve;
+              worker.postMessage('');
+            });
+        })
+      .then(e => {
+          assert_equals(e.data.error, error_name, 'error type');
+          assert_greater_than(
+            e.data.message.indexOf(error_name), -1, 'error message');
+          assert_greater_than(
+            e.data.filename.indexOf(script), -1, 'filename');
+          assert_equals(e.data.lineno, 5, 'error line number');
+          assert_equals(e.data.colno, 3, 'error column number');
+        });
+  }, 'Error handlers inside serviceworker should see the attributes of ' +
+     'ErrorEvent');
+</script>

@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var worker = 'resources/fetch-event-test-worker.js';
+function wait(ms) {
+    return new Promise(resolve => step_timeout(resolve, ms));
+}
+
+promise_test(async t => {
+    const scope = 'resources/';
+    const registration =
+        await service_worker_unregister_and_register(t, worker, scope);
+    await wait_for_state(t, registration.installing, 'activated');
+
+    // This will happen after all other tests
+    promise_test(t => {
+        return registration.unregister();
+      }, 'restore global state');
+  }, 'global setup');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?headers';
+    return with_iframe(page_url)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          const headers = JSON.parse(frame.contentDocument.body.textContent);
+          const header_names = {};
+          for (const [name, value] of headers) {
+            header_names[name] = true;
+          }
+
+          assert_true(
+            header_names.hasOwnProperty('accept'),
+            'request includes "Accept" header as inserted by Fetch'
+          );
+        });
+  }, 'Service Worker headers in the request of a fetch event');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?string';
+    return with_iframe(page_url)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'Test string',
+            'Service Worker should respond to fetch with a test string');
+          assert_equals(
+            frame.contentDocument.contentType,
+            'text/plain',
+            'The content type of the response created with a string should be text/plain');
+          assert_equals(
+            frame.contentDocument.characterSet,
+            'UTF-8',
+            'The character set of the response created with a string should be UTF-8');
+        });
+  }, 'Service Worker responds to fetch event with string');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?string';
+    var frame;
+    return with_iframe(page_url)
+      .then(function(f) {
+        frame = f;
+        t.add_cleanup(() => { frame.remove(); });
+        return frame.contentWindow.fetch(page_url + "#foo")
+      })
+      .then(function(response) { return response.text() })
+      .then(function(text) {
+          assert_equals(
+            text,
+            'Test string',
+            'Service Worker should respond to fetch with a test string');
+        });
+  }, 'Service Worker responds to fetch event using request fragment with string');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?blob';
+    return with_iframe(page_url)
+      .then(frame => {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'Test blob',
+            'Service Worker should respond to fetch with a test string');
+        });
+  }, 'Service Worker responds to fetch event with blob body');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?referrer';
+      return with_iframe(page_url)
+      .then(frame => {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'Referrer: ' + document.location.href,
+            'Service Worker should respond to fetch with the referrer URL');
+        });
+  }, 'Service Worker responds to fetch event with the referrer URL');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?clientId';
+    var frame;
+    return with_iframe(page_url)
+      .then(function(f) {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'Client ID Not Found',
+            'Service Worker should respond to fetch with a client id');
+          return frame.contentWindow.fetch('resources/other.html?clientId');
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          assert_equals(
+            response_text.substr(0, 15),
+            'Client ID Found',
+            'Service Worker should respond to fetch with an existing client id');
+        });
+  }, 'Service Worker responds to fetch event with an existing client id');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?resultingClientId';
+    const expected_found = 'Resulting Client ID Found';
+    const expected_not_found = 'Resulting Client ID Not Found';
+    return with_iframe(page_url)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent.substr(0, expected_found.length),
+            expected_found,
+            'Service Worker should respond with an existing resulting client id for non-subresource requests');
+          return frame.contentWindow.fetch('resources/other.html?resultingClientId');
+        })
+      .then(function(response) { return response.text(); })
+      .then(function(response_text) {
+          assert_equals(
+            response_text.substr(0),
+            expected_not_found,
+            'Service Worker should respond with an empty resulting client id for subresource requests');
+        });
+  }, 'Service Worker responds to fetch event with the correct resulting client id');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?ignore';
+    return with_iframe(page_url)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(frame.contentDocument.body.textContent,
+                        'Here\'s a simple html file.\n',
+                        'Response should come from fallback to native fetch');
+        });
+  }, 'Service Worker does not respond to fetch event');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?null';
+    return with_iframe(page_url)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(frame.contentDocument.body.textContent,
+                        '',
+                        'Response should be the empty string');
+        });
+  }, 'Service Worker responds to fetch event with null response body');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?fetch';
+    return with_iframe(page_url)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(frame.contentDocument.body.textContent,
+                        'Here\'s an other html file.\n',
+                        'Response should come from fetched other file');
+        });
+  }, 'Service Worker fetches other file in fetch event');
+
+// Creates a form and an iframe and does a form submission that navigates the
+// frame to |action_url|. Returns the frame after navigation.
+function submit_form(action_url) {
+  return new Promise(resolve => {
+      const frame = document.createElement('iframe');
+      frame.name = 'post-frame';
+      document.body.appendChild(frame);
+      const form = document.createElement('form');
+      form.target = frame.name;
+      form.action = action_url;
+      form.method = 'post';
+      const input1 = document.createElement('input');
+      input1.type = 'text';
+      input1.value = 'testValue1';
+      input1.name = 'testName1'
+      form.appendChild(input1);
+      const input2 = document.createElement('input');
+      input2.type = 'text';
+      input2.value = 'testValue2';
+      input2.name = 'testName2'
+      form.appendChild(input2);
+      document.body.appendChild(form);
+      frame.onload = function() {
+        form.remove();
+        resolve(frame);
+      };
+      form.submit();
+    });
+}
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?form-post';
+    return submit_form(page_url)
+      .then(frame => {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(frame.contentDocument.body.textContent,
+                        'POST:application/x-www-form-urlencoded:' +
+                        'testName1=testValue1&testName2=testValue2');
+        });
+  }, 'Service Worker responds to fetch event with POST form');
+
+promise_test(t => {
+    // Add '?ignore' so the service worker falls back to network.
+    const page_url = 'resources/echo-content.py?ignore';
+    return submit_form(page_url)
+      .then(frame => {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(frame.contentDocument.body.textContent,
+                        'testName1=testValue1&testName2=testValue2');
+        });
+  }, 'Service Worker falls back to network in fetch event with POST form');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?multiple-respond-with';
+    return with_iframe(page_url)
+      .then(frame => {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            '(0)(1)[InvalidStateError](2)[InvalidStateError]',
+            'Multiple calls of respondWith must throw InvalidStateErrors.');
+        });
+  }, 'Multiple calls of respondWith must throw InvalidStateErrors');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?used-check';
+    var first_frame;
+    return with_iframe(page_url)
+      .then(function(frame) {
+          assert_equals(frame.contentDocument.body.textContent,
+                        'Here\'s an other html file.\n',
+                        'Response should come from fetched other file');
+          first_frame = frame;
+          t.add_cleanup(() => { first_frame.remove(); });
+          return with_iframe(page_url);
+        })
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          // When we access to the page_url in the second time, the content of the
+          // response is generated inside the ServiceWorker. The body contains
+          // the value of bodyUsed of the first response which is already
+          // consumed by FetchEvent.respondWith method.
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'bodyUsed: true',
+            'event.respondWith must set the used flag.');
+        });
+  }, 'Service Worker event.respondWith must set the used flag');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?fragment-check';
+    var fragment = '#/some/fragment';
+    var first_frame;
+    return with_iframe(page_url + fragment)
+      .then(function(frame) {
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'Fragment Found :' + fragment,
+            'Service worker should expose URL fragments in request.');
+        });
+  }, 'Service Worker should expose FetchEvent URL fragments.');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?cache';
+    var frame;
+    var cacheTypes = [
+      undefined, 'default', 'no-store', 'reload', 'no-cache', 'force-cache', 'only-if-cached'
+    ];
+    return with_iframe(page_url)
+      .then(function(f) {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          assert_equals(frame.contentWindow.document.body.textContent, 'default');
+          var tests = cacheTypes.map(function(type) {
+            return new Promise(function(resolve, reject) {
+                var init = {cache: type};
+                if (type === 'only-if-cached') {
+                  // For privacy reasons, for the time being, only-if-cached
+                  // requires the mode to be same-origin.
+                  init.mode = 'same-origin';
+                }
+                return frame.contentWindow.fetch(page_url + '=' + type, init)
+                  .then(function(response) { return response.text(); })
+                  .then(function(response_text) {
+                      var expected = (type === undefined) ? 'default' : type;
+                      assert_equals(response_text, expected,
+                                    'Service Worker should respond to fetch with the correct type');
+                    })
+                  .then(resolve)
+                  .catch(reject);
+              });
+          });
+          return Promise.all(tests);
+        })
+      .then(function() {
+          return new Promise(function(resolve, reject) {
+            frame.addEventListener('load', function onLoad() {
+              frame.removeEventListener('load', onLoad);
+              try {
+                assert_equals(frame.contentWindow.document.body.textContent,
+                              'no-cache');
+                resolve();
+              } catch (e) {
+                reject(e);
+              }
+            });
+            frame.contentWindow.location.reload();
+          });
+        });
+  }, 'Service Worker responds to fetch event with the correct cache types');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?eventsource';
+    var frame;
+
+    function test_eventsource(opts) {
+      return new Promise(function(resolve, reject) {
+        var eventSource = new frame.contentWindow.EventSource(page_url, opts);
+        eventSource.addEventListener('message', function(msg) {
+          eventSource.close();
+          try {
+            var data = JSON.parse(msg.data);
+            assert_equals(data.mode, 'cors',
+                          'EventSource should make CORS requests.');
+            assert_equals(data.cache, 'no-store',
+                          'EventSource should bypass the http cache.');
+            var expectedCredentials = opts.withCredentials ? 'include'
+                                                           : 'same-origin';
+            assert_equals(data.credentials, expectedCredentials,
+                          'EventSource should pass correct credentials mode.');
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+        eventSource.addEventListener('error', function(e) {
+          eventSource.close();
+          reject('The EventSource fired an error event.');
+        });
+      });
+    }
+
+    return with_iframe(page_url)
+      .then(function(f) {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          return test_eventsource({ withCredentials: false });
+        })
+      .then(function() {
+          return test_eventsource({ withCredentials: true });
+        });
+  }, 'Service Worker should intercept EventSource');
+
+promise_test(t => {
+    const page_url = 'resources/simple.html?integrity';
+    var frame;
+    var integrity_metadata = 'gs0nqru8KbsrIt5YToQqS9fYao4GQJXtcId610g7cCU=';
+
+    return with_iframe(page_url)
+      .then(function(f) {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          // A request has associated integrity metadata (a string).
+          // Unless stated otherwise, it is the empty string.
+          assert_equals(
+            frame.contentDocument.body.textContent, '');
+
+          return frame.contentWindow.fetch(page_url, {'integrity': integrity_metadata});
+        })
+      .then(response => {
+          return response.text();
+        })
+      .then(response_text => {
+          assert_equals(response_text, integrity_metadata, 'integrity');
+        });
+  }, 'Service Worker responds to fetch event with the correct integrity_metadata');
+
+// Test that the service worker can read FetchEvent#body when it is a string.
+// It responds with request body it read.
+promise_test(t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/simple.html?ignore-for-request-body-string';
+    let frame;
+
+    return with_iframe(page_url)
+      .then(f => {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          return frame.contentWindow.fetch('simple.html?request-body', {
+              method: 'POST',
+              body: 'i am the request body'
+            });
+        })
+      .then(response => {
+          return response.text();
+        })
+      .then(response_text => {
+          assert_equals(response_text, 'i am the request body');
+        });
+  }, 'FetchEvent#body is a string');
+
+// Test that the service worker can read FetchEvent#body when it is made from
+// a ReadableStream. It responds with request body it read.
+promise_test(async t => {
+    const rs = new ReadableStream({start(c) {
+      c.enqueue('i a');
+      c.enqueue('m the request');
+      step_timeout(t.step_func(() => {
+        c.enqueue(' body');
+        c.close();
+      }, 10));
+    }});
+
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = `resources/simple.html?ignore&id=${token()}`;
+
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    const res = await frame.contentWindow.fetch('simple.html?request-body', {
+      method: 'POST',
+      body: rs.pipeThrough(new TextEncoderStream()),
+      duplex: 'half',
+    });
+    assert_equals(await res.text(), 'i am the request body');
+  }, 'FetchEvent#body is a ReadableStream');
+
+// Test that the request body is sent to network upon network fallback,
+// for a string body.
+promise_test(t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/?ignore-for-request-body-fallback-string';
+    let frame;
+
+    return with_iframe(page_url)
+      .then(f => {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          // Add "?ignore" so the service worker falls back to echo-content.py.
+          const echo_url = '/fetch/api/resources/echo-content.py?ignore';
+          return frame.contentWindow.fetch(echo_url, {
+              method: 'POST',
+              body: 'i am the request body'
+            });
+        })
+      .then(response => {
+          return response.text();
+        })
+      .then(response_text => {
+          assert_equals(
+              response_text,
+              'i am the request body',
+              'the network fallback request should include the request body');
+        });
+  }, 'FetchEvent#body is a string and is passed to network fallback');
+
+// Test that the request body is sent to network upon network fallback,
+// for a ReadableStream body.
+promise_test(async t => {
+    const rs = new ReadableStream({start(c) {
+      c.enqueue('i a');
+      c.enqueue('m the request');
+      t.step_timeout(t.step_func(() => {
+        c.enqueue(' body');
+        c.close();
+      }, 10));
+    }});
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/?ignore-for-request-body-fallback-string';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    // Add "?ignore" so the service worker falls back to echo-content.py.
+    const echo_url = '/fetch/api/resources/echo-content.py?ignore';
+    const w = frame.contentWindow;
+    await promise_rejects_js(t, w.TypeError,  w.fetch(echo_url, {
+        method: 'POST',
+        body: rs
+    }));
+  }, 'FetchEvent#body is a none Uint8Array ReadableStream and is passed to a service worker');
+
+// Test that the request body is sent to network upon network fallback even when
+// the request body is used in the service worker, for a string body.
+promise_test(async t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/?ignore-for-request-body-fallback-string';
+
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    // Add "?use-and-ignore" so the service worker falls back to echo-content.py.
+    const echo_url = '/fetch/api/resources/echo-content.py?use-and-ignore';
+    const response = await frame.contentWindow.fetch(echo_url, {
+        method: 'POST',
+        body: 'i am the request body'
+    });
+    const text = await response.text();
+    assert_equals(
+        text,
+        'i am the request body',
+        'the network fallback request should include the request body');
+  }, 'FetchEvent#body is a string, used and passed to network fallback');
+
+// Test that the request body is sent to network upon network fallback even when
+// the request body is used by clone() in the service worker, for a string body.
+promise_test(async t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/?ignore-for-request-body-fallback-string';
+
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    // Add "?clone-and-ignore" so the service worker falls back to
+    // echo-content.py.
+    const echo_url = '/fetch/api/resources/echo-content.py?clone-and-ignore';
+    const response = await frame.contentWindow.fetch(echo_url, {
+        method: 'POST',
+        body: 'i am the request body'
+    });
+    const text = await response.text();
+    assert_equals(
+        text,
+        'i am the request body',
+        'the network fallback request should include the request body');
+  }, 'FetchEvent#body is a string, cloned and passed to network fallback');
+
+// Test that the service worker can read FetchEvent#body when it is a blob.
+// It responds with request body it read.
+promise_test(t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/simple.html?ignore-for-request-body-blob';
+    let frame;
+
+    return with_iframe(page_url)
+      .then(f => {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          const blob = new Blob(['it\'s me the blob', ' ', 'and more blob!']);
+          return frame.contentWindow.fetch('simple.html?request-body', {
+              method: 'POST',
+              body: blob
+            });
+        })
+      .then(response => {
+          return response.text();
+        })
+      .then(response_text => {
+          assert_equals(response_text, 'it\'s me the blob and more blob!');
+        });
+  }, 'FetchEvent#body is a blob');
+
+// Test that the request body is sent to network upon network fallback,
+// for a blob body.
+promise_test(t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/simple.html?ignore-for-request-body-fallback-blob';
+    let frame;
+
+    return with_iframe(page_url)
+      .then(f => {
+          frame = f;
+          t.add_cleanup(() => { frame.remove(); });
+          const blob = new Blob(['it\'s me the blob', ' ', 'and more blob!']);
+          // Add "?ignore" so the service worker falls back to echo-content.py.
+          const echo_url = '/fetch/api/resources/echo-content.py?ignore';
+          return frame.contentWindow.fetch(echo_url, {
+              method: 'POST',
+              body: blob
+            });
+        })
+      .then(response => {
+          return response.text();
+        })
+      .then(response_text => {
+          assert_equals(
+              response_text,
+              'it\'s me the blob and more blob!',
+              'the network fallback request should include the request body');
+        });
+  }, 'FetchEvent#body is a blob and is passed to network fallback');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?keepalive';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent, 'false');
+    const response = await frame.contentWindow.fetch(page_url, {keepalive: true});
+    const text = await response.text();
+    assert_equals(text, 'true');
+  }, 'Service Worker responds to fetch event with the correct keepalive value');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isReloadNavigation';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.location.reload();
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = true');
+  }, 'FetchEvent#request.isReloadNavigation is true (location.reload())');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isReloadNavigation';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(0);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = true');
+  }, 'FetchEvent#request.isReloadNavigation is true (history.go(0))');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isReloadNavigation';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      const form = frame.contentDocument.createElement('form');
+      form.method = 'POST';
+      form.name = 'form';
+      form.action = new Request(page_url).url;
+      frame.contentDocument.body.appendChild(form);
+      form.submit();
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = POST, isReloadNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.location.reload();
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = POST, isReloadNavigation = true');
+  }, 'FetchEvent#request.isReloadNavigation is true (POST + location.reload())');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isReloadNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    let frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = false');
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = anotherUrl;
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-1);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(0);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isReloadNavigation = true');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(1);
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+  }, 'FetchEvent#request.isReloadNavigation is true (with history traversal)');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = anotherUrl;
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-1);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = true');
+  }, 'FetchEvent#request.isHistoryNavigation is true (with history.go(-1))');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const frame = await with_iframe(anotherUrl);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = page_url;
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-1);
+    });
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(1);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = true');
+  }, 'FetchEvent#request.isHistoryNavigation is true (with history.go(1))');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const frame =  await with_iframe(anotherUrl);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = page_url;
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-1);
+    });
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(1);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = true');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(0);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+  }, 'FetchEvent#request.isHistoryNavigation is false (with history.go(0))');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const frame = await with_iframe(anotherUrl);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = page_url;
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-1);
+    });
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(1);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = true');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.location.reload();
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+  }, 'FetchEvent#request.isHistoryNavigation is false (with location.reload)');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const oneAnotherUrl = new Request('resources/simple.html?ignore2').url;
+
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = anotherUrl;
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = oneAnotherUrl;
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-2);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = true');
+  }, 'FetchEvent#request.isHistoryNavigation is true (with history.go(-2))');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const oneAnotherUrl = new Request('resources/simple.html?ignore2').url;
+    const frame = await with_iframe(anotherUrl);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = oneAnotherUrl;
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = page_url;
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-2);
+    });
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(2);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = true');
+  }, 'FetchEvent#request.isHistoryNavigation is true (with history.go(2))');
+
+promise_test(async (t) => {
+    const page_url = 'resources/simple.html?isHistoryNavigation';
+    const anotherUrl = new Request('resources/simple.html?ignore').url;
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = GET, isHistoryNavigation = false');
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      const form = frame.contentDocument.createElement('form');
+      form.method = 'POST';
+      form.name = 'form';
+      form.action = new Request(page_url).url;
+      frame.contentDocument.body.appendChild(form);
+      form.submit();
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = POST, isHistoryNavigation = false');
+    // Use step_timeout(0) to ensure the history entry is created for Blink
+    // and WebKit. See https://bugs.webkit.org/show_bug.cgi?id=42861.
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.src = anotherUrl;
+    });
+    assert_equals(frame.contentDocument.body.textContent, "Here's a simple html file.\n");
+    await wait(0);
+    await new Promise((resolve) => {
+      frame.addEventListener('load', resolve);
+      frame.contentWindow.history.go(-1);
+    });
+    assert_equals(frame.contentDocument.body.textContent,
+                  'method = POST, isHistoryNavigation = true');
+  }, 'FetchEvent#request.isHistoryNavigation is true (POST + history.go(-1))');
+
+// When service worker responds with a Response, no XHR upload progress
+// events are delivered.
+promise_test(async t => {
+    const page_url = 'resources/simple.html?ignore-for-request-body-string';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+
+    const xhr = new frame.contentWindow.XMLHttpRequest();
+    xhr.open('POST', 'simple.html?request-body');
+    xhr.upload.addEventListener('progress', t.unreached_func('progress'));
+    xhr.upload.addEventListener('error', t.unreached_func('error'));
+    xhr.upload.addEventListener('abort', t.unreached_func('abort'));
+    xhr.upload.addEventListener('timeout', t.unreached_func('timeout'));
+    xhr.upload.addEventListener('load', t.unreached_func('load'));
+    xhr.upload.addEventListener('loadend', t.unreached_func('loadend'));
+    xhr.send('i am the request body');
+
+    await new Promise((resolve) => xhr.addEventListener('load', resolve));
+  }, 'XHR upload progress events for response coming from SW');
+
+// Upload progress events should be delivered for the network fallback case.
+promise_test(async t => {
+    const page_url = 'resources/simple.html?ignore-for-request-body-string';
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+
+    let progress = false;
+    let load = false;
+    let loadend = false;
+
+    const xhr = new frame.contentWindow.XMLHttpRequest();
+    xhr.open('POST', '/fetch/api/resources/echo-content.py?ignore');
+    xhr.upload.addEventListener('progress', () => progress = true);
+    xhr.upload.addEventListener('error', t.unreached_func('error'));
+    xhr.upload.addEventListener('abort', t.unreached_func('abort'));
+    xhr.upload.addEventListener('timeout', t.unreached_func('timeout'));
+    xhr.upload.addEventListener('load', () => load = true);
+    xhr.upload.addEventListener('loadend', () => loadend = true);
+    xhr.send('i am the request body');
+
+    await new Promise((resolve) => xhr.addEventListener('load', resolve));
+    assert_true(progress, 'progress');
+    assert_true(load, 'load');
+    assert_true(loadend, 'loadend');
+  }, 'XHR upload progress events for network fallback');
+
+promise_test(async t => {
+    // Set page_url to "?ignore" so the service worker falls back to network
+    // for the main resource request, and add a suffix to avoid colliding
+    // with other tests.
+    const page_url = 'resources/?ignore-for-request-body-fallback-string';
+
+    const frame = await with_iframe(page_url);
+    t.add_cleanup(() => { frame.remove(); });
+    // Add "?clone-and-ignore" so the service worker falls back to
+    // echo-content.py.
+    const echo_url = '/fetch/api/resources/echo-content.py?status=421';
+    const response = await frame.contentWindow.fetch(echo_url, {
+        method: 'POST',
+        body: 'text body'
+    });
+    assert_equals(response.status, 421);
+    const text = await response.text();
+    assert_equals(
+        text,
+        'text body. Request was sent 1 times.',
+        'the network fallback request should include the request body');
+  }, 'Fetch with POST with text on sw 421 response should not be retried.');
+</script>
+</body>

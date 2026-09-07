@@ -1,4 +1,3 @@
-// Flags: --experimental-ffi
 'use strict';
 const common = require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
@@ -33,22 +32,24 @@ test('ffi builtin is unavailable when disabled', () => {
   assert.strictEqual(signal, null);
 });
 
-test('ffi builtin is listed', () => {
-  for (const [flag, stdout] of Object.entries({
-    '--experimental-ffi': 'true\n',
-    '--no-experimental-ffi': 'false\n',
-  })) {
+test('ffi builtin is listed by default', () => {
+  for (const flags of [[], ['--experimental-ffi']]) {
     spawnSyncAndAssert(process.execPath, [
-      flag,
+      ...flags,
       '-p',
       'require("node:module").builtinModules.includes("node:ffi")',
-    ], { stdout });
+    ], { stdout: 'true\n' });
   }
+
+  spawnSyncAndAssert(process.execPath, [
+    '--no-experimental-ffi',
+    '-p',
+    'require("node:module").builtinModules.includes("node:ffi")',
+  ], { stdout: 'false\n' });
 });
 
 test('ffi can be imported from ESM', () => {
   const { stdout, stderr, status, signal } = spawnSync(process.execPath, [
-    '--experimental-ffi',
     '--input-type=module',
     '-e',
     'import * as ffi from "node:ffi"; console.log(typeof ffi.dlopen);',
@@ -64,7 +65,6 @@ test('ffi can be imported from ESM', () => {
 
 test('DynamicLibrary requires new', () => {
   const { stdout, stderr, status, signal } = spawnSync(process.execPath, [
-    '--experimental-ffi',
     '-e',
     'const ffi = require("node:ffi"); ffi.DynamicLibrary("missing");',
   ], {

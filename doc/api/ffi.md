@@ -28,7 +28,7 @@ const ffi = require('node:ffi');
 ```
 
 This module is only available under the `node:` scheme in builds with FFI
-support and is gated by the `--experimental-ffi` flag.
+support. It can be disabled with the `--no-experimental-ffi` flag.
 
 Building Node.js with `node:ffi` support is available via the bundled `libffi` on
 platforms where `libffi` provides a compatible static backend, or via a
@@ -800,5 +800,5 @@ and keep callback and pointer lifetimes explicit on the native side.
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`library.functions`]: #libraryfunctions
-[`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
+[`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [type names]: #type-names

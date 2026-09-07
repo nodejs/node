@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.get with window and worker clients</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var scope = 'resources/clients-get-client-types';
+var frame_url = scope + '-frame.html';
+var shared_worker_url = scope + '-shared-worker.js';
+var worker_url = scope + '-worker.js';
+var client_ids = [];
+var registration;
+var frame;
+promise_test(function(t) {
+    return service_worker_unregister_and_register(
+        t, 'resources/clients-get-worker.js', scope)
+      .then(function(r) {
+          registration = r;
+          add_completion_callback(function() { registration.unregister(); });
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(frame_url);
+        })
+      .then(function(f) {
+          frame = f;
+          add_completion_callback(function() { frame.remove(); });
+          frame.focus();
+          return wait_for_clientId();
+        })
+      .then(function(client_id) {
+          client_ids.push(client_id);
+          return new Promise(function(resolve) {
+              var w = new SharedWorker(shared_worker_url);
+              w.port.onmessage = function(e) {
+                resolve(e.data.clientId);
+              };
+            });
+        })
+      .then(function(client_id) {
+          client_ids.push(client_id);
+          var channel = new MessageChannel();
+          var w = new Worker(worker_url);
+          w.postMessage({cmd:'GetClientId', port:channel.port2},
+              [channel.port2]);
+          return new Promise(function(resolve) {
+              channel.port1.onmessage = function(e) {
+                resolve(e.data.clientId);
+              };
+            });
+        })
+      .then(function(client_id) {
+          client_ids.push(client_id);
+          var channel = new MessageChannel();
+          frame.contentWindow.postMessage('StartWorker', '*', [channel.port2]);
+          return new Promise(function(resolve) {
+              channel.port1.onmessage = function(e) {
+                resolve(e.data.clientId);
+              };
+            });
+        })
+      .then(function(client_id) {
+          client_ids.push(client_id);
+          var saw_message = new Promise(function(resolve) {
+              navigator.serviceWorker.onmessage = resolve;
+            });
+          registration.active.postMessage({clientIds: client_ids});
+          return saw_message;
+        })
+      .then(function(e) {
+          assert_equals(e.data.length, expected.length);
+          // We use these assert_not_equals because assert_array_equals doesn't
+          // print the error description when passed an undefined value.
+          assert_not_equals(e.data[0], undefined,
+              'Window client should not be undefined');
+          assert_array_equals(e.data[0], expected[0], 'Window client');
+          assert_not_equals(e.data[1], undefined,
+              'Shared worker client should not be undefined');
+          assert_array_equals(e.data[1], expected[1], 'Shared worker client');
+          assert_not_equals(e.data[2], undefined,
+              'Worker(Started by main frame) client should not be undefined');
+          assert_array_equals(e.data[2], expected[2],
+              'Worker(Started by main frame) client');
+          assert_not_equals(e.data[3], undefined,
+              'Worker(Started by sub frame) client should not be undefined');
+          assert_array_equals(e.data[3], expected[3],
+              'Worker(Started by sub frame) client');
+        });
+  }, 'Test Clients.get() with window and worker clients');
+
+function wait_for_clientId() {
+  return new Promise(function(resolve) {
+      function get_client_id(e) {
+        window.removeEventListener('message', get_client_id);
+        resolve(e.data.clientId);
+      }
+      window.addEventListener('message', get_client_id, false);
+    });
+}
+
+var expected = [
+    // visibilityState, focused, url, type, frameType
+    ['visible', true, normalizeURL(scope) + '-frame.html', 'window', 'nested'],
+    [undefined, undefined, normalizeURL(scope) + '-shared-worker.js', 'sharedworker', 'none'],
+    [undefined, undefined, normalizeURL(scope) + '-worker.js', 'worker', 'none'],
+    [undefined, undefined, normalizeURL(scope) + '-frame-worker.js', 'worker', 'none']
+];
+</script>

@@ -52,6 +52,8 @@ namespace node {
   V(HTTPINCOMINGMESSAGE)                                                       \
   V(HTTPCLIENTREQUEST)                                                         \
   V(LOCKS)                                                                     \
+  V(DTLS_ENDPOINT)                                                             \
+  V(DTLS_SESSION)                                                              \
   V(JSSTREAM)                                                                  \
   V(JSUDPWRAP)                                                                 \
   V(MESSAGEPORT)                                                               \

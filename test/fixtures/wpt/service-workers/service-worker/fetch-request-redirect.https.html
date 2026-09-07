@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<title>Service Worker: FetchEvent for resources</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/media.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var test_scope = ""
+function assert_resolves(promise, description) {
+    return promise.then(
+        () => test(() => {}, description + " - " + test_scope),
+        (e) => test(() => { throw e; }, description + " - " + test_scope)
+    );
+}
+
+function assert_rejects(promise, description) {
+    return promise.then(
+        () => test(() => { assert_unreached(); }, description + " - " + test_scope),
+        () => test(() => {}, description + " - " + test_scope)
+    );
+}
+
+function iframe_test(url, timeout_enabled) {
+  return new Promise(function(resolve, reject) {
+      var frame = document.createElement('iframe');
+      frame.src = url;
+      if (timeout_enabled) {
+        // We can't catch the network error on iframe. So we use the timer for
+        // failure detection.
+        var timer = setTimeout(function() {
+            reject(new Error('iframe load timeout'));
+            frame.remove();
+          }, 10000);
+      }
+      frame.onload = function() {
+        if (timeout_enabled)
+          clearTimeout(timer);
+        try {
+          if (frame.contentDocument.body.textContent == 'Hello world\n')
+            resolve();
+          else
+            reject(new Error('content mismatch'));
+        } catch (e) {
+          // Chrome treats iframes that failed to load due to a network error as
+          // having a different origin, so accessing contentDocument throws an
+          // error. Other browsers might have different behavior.
+          reject(new Error(e));
+        }
+        frame.remove();
+      };
+      document.body.appendChild(frame);
+    });
+}
+
+promise_test(function(t) {
+    test_scope = "default";
+
+    var SCOPE = 'resources/fetch-request-redirect-iframe.html';
+    var SCRIPT = 'resources/fetch-rewrite-worker.js';
+    var REDIRECT_URL = base_path() + 'resources/redirect.py?Redirect=';
+    var IMAGE_URL = base_path() + 'resources/square.png';
+    var AUDIO_URL = getAudioURI("/media/sound_5");
+    var XHR_URL = base_path() + 'resources/simple.txt';
+    var HTML_URL = base_path() + 'resources/sample.html';
+
+    var REDIRECT_TO_IMAGE_URL = REDIRECT_URL + encodeURIComponent(IMAGE_URL);
+    var REDIRECT_TO_AUDIO_URL = REDIRECT_URL + encodeURIComponent(AUDIO_URL);
+    var REDIRECT_TO_XHR_URL = REDIRECT_URL + encodeURIComponent(XHR_URL);
+    var REDIRECT_TO_HTML_URL = REDIRECT_URL + encodeURIComponent(HTML_URL);
+
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(function(registration) {
+          t.add_cleanup(() => service_worker_unregister(t, SCOPE));
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(SCOPE); })
+      .then(async function(f) {
+            frame = f;
+            // XMLHttpRequest tests.
+            await assert_resolves(frame.contentWindow.xhr(XHR_URL),
+                            'Normal XHR should succeed.');
+            await assert_resolves(frame.contentWindow.xhr(REDIRECT_TO_XHR_URL),
+                            'Redirected XHR should succeed.');
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&redirect-mode=follow'),
+                'Redirected XHR with Request.redirect=follow should succeed.');
+            await assert_rejects(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&redirect-mode=error'),
+                'Redirected XHR with Request.redirect=error should fail.');
+            await assert_rejects(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&redirect-mode=manual'),
+                'Redirected XHR with Request.redirect=manual should fail.');
+
+            // Image loading tests.
+            await assert_resolves(frame.contentWindow.load_image(IMAGE_URL),
+                            'Normal image resource should be loaded.');
+            await assert_resolves(
+                frame.contentWindow.load_image(REDIRECT_TO_IMAGE_URL),
+                'Redirected image resource should be loaded.');
+            await assert_resolves(
+                frame.contentWindow.load_image(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_IMAGE_URL) +
+                    '&redirect-mode=follow'),
+                'Loading redirected image with Request.redirect=follow should' +
+                ' succeed.');
+            await assert_rejects(
+                frame.contentWindow.load_image(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_IMAGE_URL) +
+                    '&redirect-mode=error'),
+                'Loading redirected image with Request.redirect=error should ' +
+                'fail.');
+            await assert_rejects(
+                frame.contentWindow.load_image(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_IMAGE_URL) +
+                    '&redirect-mode=manual'),
+                'Loading redirected image with Request.redirect=manual should' +
+                ' fail.');
+
+            // Audio loading tests.
+            await assert_resolves(frame.contentWindow.load_audio(AUDIO_URL),
+                            'Normal audio resource should be loaded.');
+            await assert_resolves(
+                frame.contentWindow.load_audio(REDIRECT_TO_AUDIO_URL),
+                'Redirected audio resource should be loaded.');
+            await assert_resolves(
+                frame.contentWindow.load_audio(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_AUDIO_URL) +
+                    '&redirect-mode=follow'),
+                'Loading redirected audio with Request.redirect=follow should' +
+                ' succeed.');
+            await assert_rejects(
+                frame.contentWindow.load_audio(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_AUDIO_URL) +
+                    '&redirect-mode=error'),
+                'Loading redirected audio with Request.redirect=error should ' +
+                'fail.');
+            await assert_rejects(
+                frame.contentWindow.load_audio(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_AUDIO_URL) +
+                    '&redirect-mode=manual'),
+                'Loading redirected audio with Request.redirect=manual should' +
+                ' fail.');
+
+            // Iframe tests.
+            await assert_resolves(iframe_test(HTML_URL),
+                            'Normal iframe loading should succeed.');
+            await assert_resolves(
+                iframe_test(REDIRECT_TO_HTML_URL),
+                'Normal redirected iframe loading should succeed.');
+            await assert_rejects(
+                iframe_test(SCOPE + '?url=' +
+                            encodeURIComponent(REDIRECT_TO_HTML_URL) +
+                            '&redirect-mode=follow',
+                            true /* timeout_enabled */),
+                'Redirected iframe loading with Request.redirect=follow should'+
+                ' fail.');
+            await assert_rejects(
+                iframe_test(SCOPE + '?url=' +
+                            encodeURIComponent(REDIRECT_TO_HTML_URL) +
+                            '&redirect-mode=error',
+                            true /* timeout_enabled */),
+                'Redirected iframe loading with Request.redirect=error should '+
+                'fail.');
+            await assert_resolves(
+                iframe_test(SCOPE + '?url=' +
+                            encodeURIComponent(REDIRECT_TO_HTML_URL) +
+                            '&redirect-mode=manual',
+                            true /* timeout_enabled */),
+                'Redirected iframe loading with Request.redirect=manual should'+
+                ' succeed.');
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Verify redirect mode of Fetch API and ServiceWorker FetchEvent.');
+
+// test for reponse.redirected
+promise_test(function(t) {
+    test_scope = "redirected";
+
+    var SCOPE = 'resources/fetch-request-redirect-iframe.html';
+    var SCRIPT = 'resources/fetch-rewrite-worker.js';
+    var REDIRECT_URL = base_path() + 'resources/redirect.py?Redirect=';
+    var XHR_URL = base_path() + 'resources/simple.txt';
+    var IMAGE_URL = base_path() + 'resources/square.png';
+
+    var REDIRECT_TO_XHR_URL = REDIRECT_URL + encodeURIComponent(XHR_URL);
+
+    var host_info = get_host_info();
+
+    var CROSS_ORIGIN_URL = host_info['HTTPS_REMOTE_ORIGIN'] + IMAGE_URL;
+
+    var REDIRECT_TO_CROSS_ORIGIN = REDIRECT_URL +
+      encodeURIComponent(CROSS_ORIGIN_URL + '?ACAOrigin=*');
+
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(function(registration) {
+          t.add_cleanup(() => service_worker_unregister(t, SCOPE));
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(SCOPE); })
+      .then(async function(f) {
+          frame = f;
+            // XMLHttpRequest tests.
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(XHR_URL) +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=true'),
+                'Normal XHR should be resolved and response should not be ' +
+                'redirected.');
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&expected_redirected=true' +
+                    '&expected_resolves=true'),
+                'Redirected XHR should be resolved and response should be ' +
+                'redirected.');
+
+            // tests for request's mode = cors
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(XHR_URL) +
+                    '&mode=cors' +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=true'),
+                'Normal XHR should be resolved and response should not be ' +
+                'redirected even with CORS mode.');
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&mode=cors' +
+                    '&redirect-mode=follow' +
+                    '&expected_redirected=true' +
+                    '&expected_resolves=true'),
+                'Redirected XHR should be resolved and response.redirected ' +
+                'should be redirected with CORS mode.');
+
+            // tests for request's mode = no-cors
+            // The response.redirect should be false since we will not add
+            // redirected url list when redirect-mode is not follow.
+            await assert_rejects(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&mode=no-cors' +
+                    '&redirect-mode=manual' +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=false'),
+                'Redirected XHR should be reject and response should be ' +
+                'redirected with NO-CORS mode and redirect-mode=manual.');
+
+            // tests for redirecting to a cors
+            await assert_resolves(
+                frame.contentWindow.load_image(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_CROSS_ORIGIN) +
+                    '&mode=no-cors' +
+                    '&redirect-mode=follow' +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=true'),
+                'Redirected CORS image should be reject and response should ' +
+                'not be redirected with NO-CORS mode.');
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Verify redirected of Response(Fetch API) and ServiceWorker FetchEvent.');
+
+// test for reponse.redirected after cached
+promise_test(function(t) {
+    test_scope = "cache";
+
+    var SCOPE = 'resources/fetch-request-redirect-iframe.html';
+    var SCRIPT = 'resources/fetch-rewrite-worker.js';
+    var REDIRECT_URL = base_path() + 'resources/redirect.py?Redirect=';
+    var XHR_URL = base_path() + 'resources/simple.txt';
+    var IMAGE_URL = base_path() + 'resources/square.png';
+
+    var REDIRECT_TO_XHR_URL = REDIRECT_URL + encodeURIComponent(XHR_URL);
+
+    var host_info = get_host_info();
+
+    var CROSS_ORIGIN_URL = host_info['HTTPS_REMOTE_ORIGIN'] + IMAGE_URL;
+
+    var REDIRECT_TO_CROSS_ORIGIN = REDIRECT_URL +
+      encodeURIComponent(CROSS_ORIGIN_URL + '?ACAOrigin=*');
+
+    var worker;
+    var frame;
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(function(registration) {
+          t.add_cleanup(() => service_worker_unregister(t, SCOPE));
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(SCOPE); })
+      .then(async function(f) {
+          frame = f;
+            // XMLHttpRequest tests.
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(XHR_URL) +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=true' +
+                    '&cache'),
+                'Normal XHR should be resolved and response should not be ' +
+                'redirected.');
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&expected_redirected=true' +
+                    '&expected_resolves=true' +
+                    '&cache'),
+                'Redirected XHR should be resolved and response should be ' +
+                'redirected.');
+
+            // tests for request's mode = cors
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(XHR_URL) +
+                    '&mode=cors' +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=true' +
+                    '&cache'),
+                'Normal XHR should be resolved and response should not be ' +
+                'redirected even with CORS mode.');
+            await assert_resolves(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&mode=cors' +
+                    '&redirect-mode=follow' +
+                    '&expected_redirected=true' +
+                    '&expected_resolves=true' +
+                    '&cache'),
+                'Redirected XHR should be resolved and response.redirected ' +
+                'should be redirected with CORS mode.');
+
+            // tests for request's mode = no-cors
+            // The response.redirect should be false since we will not add
+            // redirected url list when redirect-mode is not follow.
+            await assert_rejects(
+                frame.contentWindow.xhr(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_XHR_URL) +
+                    '&mode=no-cors' +
+                    '&redirect-mode=manual' +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=false' +
+                    '&cache'),
+                'Redirected XHR should be reject and response should be ' +
+                'redirected with NO-CORS mode and redirect-mode=manual.');
+
+            // tests for redirecting to a cors
+            await assert_resolves(
+                frame.contentWindow.load_image(
+                    './?url=' + encodeURIComponent(REDIRECT_TO_CROSS_ORIGIN) +
+                    '&mode=no-cors' +
+                    '&redirect-mode=follow' +
+                    '&expected_redirected=false' +
+                    '&expected_resolves=true' +
+                    '&cache'),
+                'Redirected CORS image should be reject and response should ' +
+                'not be redirected with NO-CORS mode.');
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Verify redirected of Response(Fetch API), Cache API and ServiceWorker ' +
+     'FetchEvent.');
+</script>

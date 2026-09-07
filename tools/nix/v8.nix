@@ -23,6 +23,8 @@
 }:
 
 let
+  useSharedAbseil = builtins.elem "--shared-abseil" configureFlags;
+  useSharedHighway = builtins.elem "--shared-highway" configureFlags;
   src =
     let
       inherit (lib) fileset;
@@ -35,7 +37,6 @@ let
         ../../node.gypi
         ../../tools/gyp/pylib
         ../../tools/gyp_node.py
-        ../../tools/v8_gypfiles/abseil.gyp
         ../../tools/v8_gypfiles/features.gypi
         ../../tools/v8_gypfiles/ForEachFormat.py
         ../../tools/v8_gypfiles/ForEachReplace.py
@@ -44,9 +45,12 @@ let
         ../../tools/v8_gypfiles/toolchain.gypi
         ../../tools/v8_gypfiles/v8.gyp
       ]
-      ++ lib.optionals (builtins.elem "--with-perfetto" configureFlags) [
-        ../../deps/perfetto
-      ]
+      ++ lib.optional (!useSharedAbseil) ../../tools/v8_gypfiles/abseil.gyp
+      ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
+      ++ lib.optional (
+        builtins.elem "--with-perfetto" configureFlags
+        && !(builtins.elem "--shared-perfetto" configureFlags)
+      ) ../../deps/perfetto
       ++ lib.optionals (icu != null) [
         ../../tools/icu/icu_versions.json
         ../../tools/icu/icu-system.gyp
@@ -63,12 +67,16 @@ let
       potentiallyAlreadyRemovedFiles =
         # Files that are removed in the release tarball (see Makefile $(TARBALL) target)
         [ (fileset.difference ../../deps/v8/test ../../deps/v8/test/torque) ]
-        ++ (builtins.filter builtins.pathExists [
-          ../../deps/v8/samples
-          ../../deps/v8/tools/profviz
-          ../../deps/v8/tools/run-tests.py
-          ../../deps/v8/third_party/ittapi
-        ]);
+        ++ (builtins.filter builtins.pathExists (
+          [
+            ../../deps/v8/samples
+            ../../deps/v8/tools/profviz
+            ../../deps/v8/tools/run-tests.py
+            ../../deps/v8/third_party/ittapi
+          ]
+          ++ lib.optional useSharedAbseil ../../deps/v8/third_party/abseil-cpp
+          ++ lib.optional useSharedHighway ../../deps/v8/third_party/highway
+        ));
       trackedFiles =
         ({
           # This line is being modified by Makefile $(TARBALL) target, any change to it should be sync
@@ -197,9 +205,11 @@ stdenv.mkDerivation (finalAttrs: {
     find deps/v8/include -name '*.h' -print0 | while read -r -d "" file; do
       install -Dm644 "$file" -T "$out/include/''${file#deps/v8/include/}"
     done
-    find deps/v8/third_party/abseil-cpp/absl -name '*.h' -print0 | while read -r -d "" file; do
-      install -Dm644 "$file" -T "$out/include/''${file#deps/v8/third_party/abseil-cpp/}"
-    done
+    ${lib.optionalString (!useSharedAbseil) ''
+      find deps/v8/third_party/abseil-cpp/absl -name '*.h' -print0 | while read -r -d "" file; do
+        install -Dm644 "$file" -T "$out/include/''${file#deps/v8/third_party/abseil-cpp/}"
+      done
+    ''}
 
     mkdir -p $out/lib/pkgconfig
     cat -> $out/lib/pkgconfig/v8.pc << EOF

@@ -35,6 +35,8 @@ hook.deregister();
 // the one with the `node:` prefix. The one with the prefix
 // stripped for internal lookups should not get passed into the hooks.
 const schemelessBlockList = new Set([
+  'bench',
+  'bench/reporters',
   'sea',
   'test',
   'test/reporters',

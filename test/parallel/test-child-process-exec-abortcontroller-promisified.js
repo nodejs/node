@@ -10,10 +10,9 @@ const invalidArgTypeError = {
   name: 'TypeError'
 };
 
-const waitCommand = common.isWindows ?
-  // `"` is forbidden for Windows paths, no need for escaping.
-  `"${process.execPath}" -e "setInterval(()=>{}, 99)"` :
-  'sleep 2m';
+// `pause` is a cmd.exe builtin, so killing the shell kills the whole tree.
+// Running an executable here would leave it orphaned.
+const waitCommand = common.isWindows ? 'pause' : 'sleep 2m';
 
 {
   const ac = new AbortController();

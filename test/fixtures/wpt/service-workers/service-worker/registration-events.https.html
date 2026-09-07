@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>Service Worker: registration events</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(function(t) {
+    var scope = 'resources/in-scope/';
+    return service_worker_unregister_and_register(
+        t, 'resources/events-worker.js', scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+          });
+
+          return onRegister(registration.installing);
+        });
+
+    function sendMessagePort(worker, from) {
+        var messageChannel = new MessageChannel();
+        worker.postMessage({from:from, port:messageChannel.port2}, [messageChannel.port2]);
+        return messageChannel.port1;
+    }
+
+    function onRegister(sw) {
+        return new Promise(function(resolve) {
+            sw.onstatechange = function() {
+                if (sw.state === 'activated')
+                    resolve();
+            };
+        }).then(function() {
+            return new Promise(function(resolve) {
+                sendMessagePort(sw, 'registering doc').onmessage = resolve;
+            });
+        }).then(function(e) {
+                assert_array_equals(e.data.events,
+                                    ['install', 'activate'],
+                                   'Worker should see install then activate events');
+        });
+    }
+}, 'Registration: events');
+</script>

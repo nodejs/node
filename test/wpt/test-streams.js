@@ -2,7 +2,8 @@
 
 const { WPTRunner } = require('../common/wpt');
 
-const runner = new WPTRunner('streams');
+// Runs each spec in its own process; this suite has crashed the runner in CI.
+const runner = new WPTRunner('streams', { backend: 'process' });
 
 // Set a script that will be executed in the worker before running the tests.
 runner.pretendGlobalThisAs('Window');

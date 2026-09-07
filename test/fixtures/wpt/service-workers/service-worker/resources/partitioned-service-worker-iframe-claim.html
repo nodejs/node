@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<title>Service Worker: 3P iframe for partitioned service workers</title>
+<script src="./test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="./partitioned-utils.js"></script>
+
+<body>
+  <script>
+    // 1p mode will respond to requests for its current controller and
+    // postMessage when its controller changes.
+    async function onLoad1pMode(){
+      self.addEventListener('message', evt => {
+        if(!evt.data)
+          return;
+
+        if (evt.data.type === "get-controller") {
+          window.parent.postMessage({controller: navigator.serviceWorker.controller});
+        }
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', evt => {
+        window.parent.postMessage({status: "success", context: "1p"}, '*');
+      });
+    }
+
+    // 3p mode will tell its SW to claim and then postMessage its results
+    // automatically.
+    async function onLoad3pMode() {
+      reg = await setupServiceWorker();
+
+      if(navigator.serviceWorker.controller != null){
+        //This iframe is already under control of a service worker, testing for
+        // a controller change will timeout. Return a failure.
+        window.parent.postMessage({status: "failure", context: "3p"}, '*');
+        return;
+      }
+
+      // Once this client is claimed, let the test know.
+      navigator.serviceWorker.addEventListener('controllerchange', evt => {
+        window.parent.postMessage({status: "success", context: "3p"}, '*');
+      });
+
+      // Trigger the SW to claim.
+      reg.active.postMessage({type: "claim"});
+
+    }
+
+    const request_url = new URL(window.location.href);
+    var url_search = request_url.search.substr(1);
+
+    if(url_search == "1p-mode") {
+      self.addEventListener('load', onLoad1pMode);
+    }
+    else if(url_search == "3p-mode") {
+      self.addEventListener('load', onLoad3pMode);
+    }
+    // Else do nothing.
+  </script>
+</body>

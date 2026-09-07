@@ -1,0 +1,71 @@
+<!doctype html>
+<title>Cache Storage: verify scripts loaded from cache_storage are marked opaque</title>
+<link rel="help" href="https://w3c.github.io/ServiceWorker/#cache-interface">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+'use strict';
+
+const SW_URL = 'resources/opaque-script-sw.js';
+const BASE_SCOPE = './resources/opaque-script-frame.html';
+const SAME_ORIGIN_BASE = new URL('./resources/', self.location.href).href;
+const CROSS_ORIGIN_BASE = new URL('./resources/',
+    get_host_info().HTTPS_REMOTE_ORIGIN + base_path()).href;
+
+function wait_for_error() {
+  return new Promise(resolve => {
+    self.addEventListener('message', function messageHandler(evt) {
+      if (evt.data.type !== 'ErrorEvent')
+        return;
+      self.removeEventListener('message', messageHandler);
+      resolve(evt.data.msg);
+    });
+  });
+}
+
+// Load an iframe that dynamically adds a script tag that is
+// same/cross origin and large/small.  It then calls a function
+// defined in that loaded script that throws an unhandled error.
+// The resulting message exposed in the global onerror handler
+// is reported back from this function.  Opaque cross origin
+// scripts should not expose the details of the uncaught exception.
+async function get_error_message(t, mode, size) {
+  const script_base = mode === 'same-origin' ? SAME_ORIGIN_BASE
+                                             : CROSS_ORIGIN_BASE;
+  const script = script_base + `opaque-script-${size}.js`;
+  const scope = BASE_SCOPE + `?script=${script}`;
+  const reg = await service_worker_unregister_and_register(t, SW_URL, scope);
+  t.add_cleanup(_ => reg.unregister());
+  assert_true(!!reg.installing);
+  await wait_for_state(t, reg.installing, 'activated');
+  const error_promise = wait_for_error();
+  const f = await with_iframe(scope);
+  t.add_cleanup(_ => f.remove());
+  const error = await error_promise;
+  return error;
+}
+
+promise_test(async t => {
+  const error = await get_error_message(t, 'same-origin', 'small');
+  assert_true(error.includes('Intentional error'));
+}, 'Verify small same-origin cache_storage scripts are not opaque.');
+
+promise_test(async t => {
+  const error = await get_error_message(t, 'same-origin', 'large');
+  assert_true(error.includes('Intentional error'));
+}, 'Verify large same-origin cache_storage scripts are not opaque.');
+
+promise_test(async t => {
+  const error = await get_error_message(t, 'cross-origin', 'small');
+  assert_false(error.includes('Intentional error'));
+}, 'Verify small cross-origin cache_storage scripts are opaque.');
+
+promise_test(async t => {
+  const error = await get_error_message(t, 'cross-origin', 'large');
+  assert_false(error.includes('Intentional error'));
+}, 'Verify large cross-origin cache_storage scripts are opaque.');
+
+</script>

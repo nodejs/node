@@ -1100,7 +1100,6 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 
 
 TEST(SubclassTypedArrayBuiltin) {
-  v8_flags.js_float16array = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

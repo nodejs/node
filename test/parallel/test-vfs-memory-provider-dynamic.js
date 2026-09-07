@@ -46,35 +46,43 @@ function makeFileEntry(prototypeFrom, contentProvider) {
   return fileEntry;
 }
 
+function makeDirEntry(prototypeFrom, populate) {
+  const t = Date.now();
+  const dirEntry = { __proto__: Object.getPrototypeOf(prototypeFrom) };
+  Object.assign(dirEntry, {
+    type: 1,           // TYPE_DIR
+    mode: 0o755,
+    children: new Map(),
+    populate,
+    populated: false,
+    nlink: 1,
+    uid: 0,
+    gid: 0,
+    atime: t,
+    mtime: t,
+    ctime: t,
+    birthtime: t,
+  });
+  dirEntry.isFile = prototypeFrom.isFile.bind(dirEntry);
+  dirEntry.isDirectory = prototypeFrom.isDirectory.bind(dirEntry);
+  dirEntry.isSymbolicLink = prototypeFrom.isSymbolicLink.bind(dirEntry);
+  dirEntry.isDynamic = prototypeFrom.isDynamic.bind(dirEntry);
+  dirEntry.getContentSync = prototypeFrom.getContentSync.bind(dirEntry);
+  dirEntry.getContentAsync = prototypeFrom.getContentAsync.bind(dirEntry);
+  return dirEntry;
+}
+
 // ===== Lazy-populated directory =====
 {
   const provider = new MemoryProvider();
   const root = getRoot(provider);
 
-  const dir = {
-    __proto__: Object.getPrototypeOf(root),
-    type: 1,           // TYPE_DIR
-    mode: 0o755,
-    children: new Map(),
-    populate: (scoped) => {
-      scoped.addFile('hello.txt', 'lazy hello');
-      scoped.addFile('dyn.txt', () => 'dynamic-string');
-      scoped.addDirectory('subdir', null);
-      scoped.addSymlink('link.txt', '/lazy/hello.txt');
-    },
-    populated: false,
-    nlink: 1,
-    uid: 0,
-    gid: 0,
-  };
-  const t = Date.now();
-  dir.atime = t; dir.mtime = t; dir.ctime = t; dir.birthtime = t;
-  dir.isFile = root.isFile.bind(dir);
-  dir.isDirectory = root.isDirectory.bind(dir);
-  dir.isSymbolicLink = root.isSymbolicLink.bind(dir);
-  dir.isDynamic = root.isDynamic.bind(dir);
-  dir.getContentSync = root.getContentSync.bind(dir);
-  dir.getContentAsync = root.getContentAsync.bind(dir);
+  const dir = makeDirEntry(root, (scoped) => {
+    scoped.addFile('hello.txt', 'lazy hello');
+    scoped.addFile('dyn.txt', () => 'dynamic-string');
+    scoped.addDirectory('subdir', null);
+    scoped.addSymlink('link.txt', '/lazy/hello.txt');
+  });
   root.children.set('lazy', dir);
 
   const myVfs = vfs.create(provider);
@@ -124,4 +132,20 @@ function makeFileEntry(prototypeFrom, contentProvider) {
   myVfs.promises.readFile('/async-only.txt', 'utf8').then(common.mustCall((s) => {
     assert.strictEqual(s, 'async-only');
   }));
+}
+
+// ===== Renaming over a lazy directory does not discard its entries =====
+{
+  const provider = new MemoryProvider();
+  const root = getRoot(provider);
+  root.children.set('lazy', makeDirEntry(root, (scoped) => {
+    scoped.addFile('keep.txt', 'keep');
+  }));
+
+  const myVfs = vfs.create(provider);
+  myVfs.mkdirSync('/src');
+
+  assert.throws(() => myVfs.renameSync('/src', '/lazy'), { code: 'ENOTEMPTY' });
+  assert.strictEqual(myVfs.existsSync('/src'), true);
+  assert.strictEqual(myVfs.readFileSync('/lazy/keep.txt', 'utf8'), 'keep');
 }

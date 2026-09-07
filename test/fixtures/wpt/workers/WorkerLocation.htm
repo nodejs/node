@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title> WorkerLocation object </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var worker = new Worker('./support/WorkerLocation.js');
+  worker.onmessage = t.step_func_done(function(e) {
+    var href = window.location.href;
+    var ExpectedResult = href.substring(0, href.lastIndexOf('/')) + '/support/WorkerLocation.js';
+    assert_equals(e.data.location, ExpectedResult);
+  });
+});
+</script>

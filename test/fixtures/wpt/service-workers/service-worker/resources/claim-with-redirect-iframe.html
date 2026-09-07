@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<body>
+<script>
+var host_info = get_host_info();
+
+function send_result(result) {
+  window.parent.postMessage({message: result},
+                            host_info['HTTPS_ORIGIN']);
+}
+
+function executeTask(params) {
+  // Execute task for each parameter
+  if (params.has('register')) {
+    var worker_url = decodeURIComponent(params.get('register'));
+    var scope = decodeURIComponent(params.get('scope'));
+    navigator.serviceWorker.register(worker_url, {scope: scope})
+      .then(r => send_result('registered'));
+  } else if (params.has('redirected')) {
+    send_result('redirected');
+  } else if (params.has('update')) {
+    var scope = decodeURIComponent(params.get('update'));
+    navigator.serviceWorker.getRegistration(scope)
+      .then(r => r.update())
+      .then(() => send_result('updated'));
+  } else if (params.has('unregister')) {
+    var scope = decodeURIComponent(params.get('unregister'));
+    navigator.serviceWorker.getRegistration(scope)
+      .then(r => r.unregister())
+      .then(succeeded => {
+          if (succeeded) {
+            send_result('unregistered');
+          } else {
+            send_result('failure: unregister');
+          }
+        });
+  } else {
+    send_result('unknown parameter: ' + params.toString());
+  }
+}
+
+var params = new URLSearchParams(location.search.slice(1));
+executeTask(params);
+</script>
+</body>

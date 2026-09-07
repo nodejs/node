@@ -17,6 +17,7 @@
     'emulator%': [],
 
     'node_shared%': 'false',
+    'node_enable_v8debughelper%': 'false',
     'node_enable_experimentals%': 'false',
     'force_dynamic_crt%': 0,
     'node_use_v8_platform%': 'true',
@@ -42,7 +43,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.28',
+    'v8_embedder_string': '-node.32',
 
     ##### V8 defaults for Node.js #####
 
@@ -611,6 +612,10 @@
                 'cflags': [ '-m64', '-march=z14' ],
                 'ldflags': [ '-m64', '-march=z14' ],
               }],
+              [ 'host_arch=="riscv64" and OS=="linux"', {
+                'cflags': [ '-march=rv64gc' ],
+                'ldflags': [ '-march=rv64gc' ],
+              }],
             ],
           }],
           ['_toolset=="target"', {
@@ -636,6 +641,10 @@
                 'cflags': [ '-m64', '-march=z14' ],
                 'ldflags': [ '-m64', '-march=z14' ],
               }],
+              [ 'target_arch=="riscv64" and OS=="linux"', {
+                'cflags': [ '-march=rv64gc' ],
+                'ldflags': [ '-march=rv64gc' ],
+              }],
             ],
           }],
         ],
@@ -646,7 +655,9 @@
             'cflags!': [ '-pthread' ],
             'ldflags!': [ '-pthread' ],
           }],
-          [ 'node_shared=="true"', {
+          # The V8 static libraries get linked into libv8_debug_helper, so they
+          # have to be position independent too.
+          [ 'node_shared=="true" or node_enable_v8debughelper=="true"', {
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ],
           }],

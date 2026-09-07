@@ -1,0 +1,20 @@
+<script>
+var callback;
+
+// Creates a <script> element with |url| source, and returns a promise for the
+// result of the executed script. Uses JSONP because some responses to |url|
+// are opaque so their body cannot be tested directly.
+function getJSONP(url) {
+  var sc = document.createElement('script');
+  sc.src = url;
+  var promise = new Promise(function(resolve, reject) {
+      // This callback function is called by appending a script element.
+      callback = resolve;
+      sc.addEventListener(
+          'error',
+          function() { reject('Failed to load url:' + url); });
+    });
+  document.body.appendChild(sc);
+  return promise;
+}
+</script>

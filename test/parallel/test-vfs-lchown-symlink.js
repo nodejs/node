@@ -8,7 +8,6 @@ const fsp = require('fs/promises');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-lchown-' + process.pid);
 const myVfs = vfs.create();
 myVfs.writeFileSync('/sync-target.txt', 'target');
 myVfs.symlinkSync('/sync-target.txt', '/sync-link.txt');
@@ -16,7 +15,7 @@ myVfs.writeFileSync('/async-target.txt', 'target');
 myVfs.symlinkSync('/async-target.txt', '/async-link.txt');
 myVfs.writeFileSync('/promise-target.txt', 'target');
 myVfs.symlinkSync('/promise-target.txt', '/promise-link.txt');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 function assertOwnership(filePath, uid, gid) {
   const stats = fs.lstatSync(path.join(mountPoint, filePath));

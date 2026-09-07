@@ -213,6 +213,23 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   env->set_heap_snapshot_near_heap_limit(limit);
 }
 
+void SetHeapProfileNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  CHECK_GT(limit, 0);
+
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = Environment::GetCwd(env->exec_path());
+  }
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dir);
+
+  env->AddHeapProfileNearHeapLimitCallback();
+  env->set_heap_profile_near_heap_limit(limit);
+}
+
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapStatistics s;
@@ -309,6 +326,7 @@ void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   std::ostringstream out_stream;
   bool success = node::SerializeHeapProfile(isolate, out_stream);
   if (success) {
+    isolate->GetHeapProfiler()->StopSamplingHeapProfiler();
     Local<Value> result;
     if (ToV8Value(env->context(), out_stream.str(), isolate).ToLocal(&result)) {
       args.GetReturnValue().Set(result);
@@ -730,6 +748,10 @@ void Initialize(Local<Object> target,
                         SetHeapSnapshotNearHeapLimit);
   SetMethod(context,
             target,
+            "setHeapProfileNearHeapLimit",
+            SetHeapProfileNearHeapLimit);
+  SetMethod(context,
+            target,
             "updateHeapStatisticsBuffer",
             UpdateHeapStatisticsBuffer);
 
@@ -839,6 +861,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetFlagsFromString);
   registry->Register(GetHashSeed);
   registry->Register(SetHeapSnapshotNearHeapLimit);
+  registry->Register(SetHeapProfileNearHeapLimit);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);

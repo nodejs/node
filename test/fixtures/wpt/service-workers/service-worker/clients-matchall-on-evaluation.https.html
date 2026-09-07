@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll on script evaluation</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(function(t) {
+    var script = 'resources/clients-matchall-on-evaluation-worker.js';
+    var scope = 'resources/blank.html?clients-matchAll-on-evaluation';
+
+    var saw_message = new Promise(function(resolve) {
+        navigator.serviceWorker.onmessage = function(e) {
+            assert_equals(e.data, 'matched');
+            resolve();
+          };
+      });
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(registration) {
+          add_completion_callback(function() { registration.unregister(); });
+          return saw_message;
+        });
+  }, 'Test Clients.matchAll() on script evaluation');
+</script>

@@ -1,0 +1,39 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js"></script>
+<script>
+function check_referer(url, expected_referer) {
+  return fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(headers) {
+        if (headers['referer'] === expected_referer) {
+          return Promise.resolve();
+        } else {
+          return Promise.reject('Referer for ' + url + ' must be ' +
+                                expected_referer + ' but got ' +
+                                headers['referer']);
+        }
+      });
+}
+
+window.addEventListener('message', function(evt) {
+    var host_info = get_host_info();
+    var port = evt.ports[0];
+    check_referer('request-headers.py?ignore=true',
+                  host_info['HTTPS_ORIGIN'] +
+                  base_path() + 'referer-iframe.html')
+      .then(function() {
+          return check_referer(
+              'request-headers.py',
+              host_info['HTTPS_ORIGIN'] +
+              base_path() + 'referer-iframe.html');
+        })
+      .then(function() {
+          return check_referer(
+              'request-headers.py?url=request-headers.py',
+              host_info['HTTPS_ORIGIN'] +
+              base_path() + 'fetch-rewrite-worker.js');
+        })
+      .then(function() { port.postMessage({results: 'finish'}); })
+      .catch(function(e) { port.postMessage({results: 'failure:' + e}); });
+  });
+</script>

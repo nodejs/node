@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>respondWith with a new Response</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+const WORKER =
+  'resources/fetch-event-respond-with-custom-response-worker.js';
+const SCOPE =
+  'resources/blank.html';
+
+// Register a service worker, then create an iframe at url.
+function iframeTest(url, callback, name) {
+  return promise_test(async t => {
+    const reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+    add_completion_callback(() => reg.unregister());
+    await wait_for_state(t, reg.installing, 'activated');
+    const iframe = await with_iframe(url);
+    const iwin = iframe.contentWindow;
+    t.add_cleanup(() => iframe.remove());
+    await callback(t, iwin);
+  }, name);
+}
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?type=string');
+  assert_equals(await response.text(), 'PASS');
+}, 'Subresource built from a string');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?type=blob');
+  assert_equals(await response.text(), 'PASS');
+}, 'Subresource built from a blob');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?type=buffer');
+  assert_equals(await response.text(), 'PASS');
+}, 'Subresource built from a buffer');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?type=buffer-view');
+  assert_equals(await response.text(), 'PASS');
+}, 'Subresource built from a buffer-view');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?type=form-data');
+  const data = await response.formData();
+  assert_equals(data.get('result'), 'PASS');
+}, 'Subresource built from form-data');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?type=search-params');
+  assert_equals(await response.text(), 'result=PASS');
+}, 'Subresource built from search-params');
+
+// As above, but navigations
+
+iframeTest(SCOPE + '?type=string', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS');
+}, 'Navigation resource built from a string');
+
+iframeTest(SCOPE + '?type=blob', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS');
+}, 'Navigation resource built from a blob');
+
+iframeTest(SCOPE + '?type=buffer', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS');
+}, 'Navigation resource built from a buffer');
+
+iframeTest(SCOPE + '?type=buffer-view', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS');
+}, 'Navigation resource built from a buffer-view');
+
+// Note: not testing form data for a navigation as the boundary header is lost.
+
+iframeTest(SCOPE + '?type=search-params', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'result=PASS');
+}, 'Navigation resource built from search-params');
+</script>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<title>Service Worker: Fetch Event Waits for Activate Event</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+const worker_url = 'resources/fetch-waits-for-activate-worker.js';
+const normalized_worker_url = normalizeURL(worker_url);
+const worker_scope = 'resources/fetch-waits-for-activate/';
+
+// Resolves with the Service Worker's registration once it's reached the
+// "activating" state. (The Service Worker should remain "activating" until
+// explicitly told advance to the "activated" state).
+async function registerAndWaitForActivating(t) {
+  const registration = await service_worker_unregister_and_register(
+      t, worker_url, worker_scope);
+  t.add_cleanup(() => service_worker_unregister(t, worker_scope));
+
+  await wait_for_state(t, registration.installing, 'activating');
+
+  return registration;
+}
+
+// Attempts to ensure that the "Handle Fetch" algorithm has reached the step
+//
+//   "If activeWorker’s state is "activating", wait for activeWorker’s state to
+//    become "activated"."
+//
+// by waiting for some time to pass.
+//
+// WARNING: whether the algorithm has reached that step isn't directly
+// observable, so this is best effort and can race. Note that this can only
+// result in false positives (where the algorithm hasn't reached that step yet
+// and any functional events haven't actually been handled by the Service
+// Worker).
+async function ensureFunctionalEventsAreWaiting(registration) {
+  await (new Promise(resolve => { setTimeout(resolve, 1000); }));
+
+  assert_equals(registration.active.scriptURL, normalized_worker_url,
+                'active worker should be present');
+  assert_equals(registration.active.state, 'activating',
+                'active worker should be in activating state');
+}
+
+promise_test(async t => {
+  const registration = await registerAndWaitForActivating(t);
+
+  let frame = null;
+  t.add_cleanup(() => {
+    if (frame) {
+      frame.remove();
+    }
+  });
+
+  // This should block until we message the worker to tell it to complete
+  // the activate event.
+  const frameLoadPromise = with_iframe(worker_scope).then(function(f) {
+    frame = f;
+  });
+
+  await ensureFunctionalEventsAreWaiting(registration);
+  assert_equals(frame, null, 'frame should not be loaded');
+
+  registration.active.postMessage('ACTIVATE');
+
+  await frameLoadPromise;
+  assert_equals(frame.contentWindow.navigator.serviceWorker.controller.scriptURL,
+                normalized_worker_url,
+                'frame should now be loaded and controlled');
+  assert_equals(registration.active.state, 'activated',
+                'active worker should be in activated state');
+}, 'Navigation fetch events should wait for the activate event to complete.');
+
+promise_test(async t => {
+  const frame = await with_iframe(worker_scope);
+  t.add_cleanup(() => { frame.remove(); });
+
+  const registration = await registerAndWaitForActivating(t);
+
+  // Make the Service Worker control the frame so the frame can perform an
+  // intercepted fetch.
+  await (new Promise(resolve => {
+    navigator.serviceWorker.onmessage = e => {
+      assert_equals(
+        frame.contentWindow.navigator.serviceWorker.controller.scriptURL,
+        normalized_worker_url, 'frame should be controlled');
+      resolve();
+    };
+
+    registration.active.postMessage('CLAIM');
+  }));
+
+  const fetch_url = `${worker_scope}non/existent/path`;
+  const expected_fetch_result = 'Hello world';
+  let fetch_promise_settled = false;
+
+  // This should block until we message the worker to tell it to complete
+  // the activate event.
+  const fetchPromise = frame.contentWindow.fetch(fetch_url, {
+    method: 'POST',
+    body: expected_fetch_result,
+  }).then(response => {
+    fetch_promise_settled = true;
+    return response;
+  });
+
+  await ensureFunctionalEventsAreWaiting(registration);
+  assert_false(fetch_promise_settled,
+               "fetch()-ing a Service Worker-controlled scope shouldn't have " +
+               "settled yet");
+
+  registration.active.postMessage('ACTIVATE');
+
+  const response = await fetchPromise;
+  assert_equals(await response.text(), expected_fetch_result,
+                "Service Worker should have responded to request to" +
+                fetch_url)
+  assert_equals(registration.active.state, 'activated',
+                'active worker should be in activated state');
+}, 'Subresource fetch events should wait for the activate event to complete.');
+
+</script>
+</body>

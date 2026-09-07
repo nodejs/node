@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>Service Worker: FetchEvent fires for &lt;a download&gt; (crbug.com/40410035)</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script src="../resources/fetch-event-download-helpers.js"></script>
+<body>
+<script>
+'use strict';
+
+// The SW lives at resources/fetch-event-download-worker.js with scope
+// resources/. The `<a download>` link points into that scope so the SW
+// receives the fetch event.
+const WORKER = 'resources/fetch-event-download-worker.js';
+const SCOPE = 'resources/';
+
+promise_test(async (t) => {
+  const reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+  t.add_cleanup(() => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  const channelId = uniqueChannelId();
+  const targetUrl = SCOPE + 'download-target.txt?channel=' + channelId;
+  const messagePromise = nextChannelMessage(t, channelId);
+
+  await clickDownloadAnchor(t, targetUrl);
+
+  const data = await messagePromise;
+  assert_equals(data.type, 'fetch',
+      'SW should observe a fetch event for the download URL.');
+  assert_equals(new URL(data.url).pathname,
+      new URL(targetUrl, location).pathname,
+      'fetch event URL matches the <a download> target.');
+  assert_equals(data.destination, '',
+      'Per HTML "Downloading hyperlinks", the request destination must be "".');
+  assert_equals(data.mode, 'navigate',
+      'Per HTML "Downloading hyperlinks", the request mode must be "navigate".');
+  assert_equals(data.method, 'GET',
+      'Downloads use GET.');
+}, 'FetchEvent fires for <a download> with destination "".');
+</script>
+</body>

@@ -118,12 +118,14 @@ expected.atRunTime = new Set([
 
 const { isMainThread } = require('worker_threads');
 // Binaries built without the snapshot (e.g. cross-compiled) and
-// --no-node-snapshot bootstrap the main context from scratch, like a worker.
-const mainContextFromSnapshot = isMainThread &&
+// --no-node-snapshot bootstrap the context from scratch; so do workers under
+// --no-worker-snapshot.
+const contextFromSnapshot =
   process.config.variables.node_use_node_snapshot &&
-  !process.execArgv.includes('--no-node-snapshot');
+  !process.execArgv.includes('--no-node-snapshot') &&
+  (isMainThread || !process.execArgv.includes('--no-worker-snapshot'));
 
-if (mainContextFromSnapshot) {
+if (contextFromSnapshot) {
   [
     'Internal Binding cjs_lexer',
     'NativeModule internal/modules/esm/assert',
@@ -148,7 +150,8 @@ if (mainContextFromSnapshot) {
 } else if (isMainThread) {
   expected.beforePreExec.delete(getFormatNativeModule);
   expected.atRunTime.add(getFormatNativeModule);
-} else {  // Worker.
+}
+if (!isMainThread) {
   [
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',

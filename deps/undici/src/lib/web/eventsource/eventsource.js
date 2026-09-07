@@ -7,9 +7,13 @@ const { EventSourceStream } = require('./eventsource-stream')
 const { parseMIMEType } = require('../fetch/data-url')
 const { createFastMessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
-const { kEnumerableProperty } = require('../../core/util')
+const { isValidHeaderValue, kEnumerableProperty } = require('../../core/util')
 const { environmentSettingsObject } = require('../fetch/util')
 const { createPotentialCORSRequest } = require('./util')
+const { getGlobalDispatcher } = require('../../global')
+const { isomorphicDecode } = require('../infra')
+
+const textEncoder = new TextEncoder()
 
 let experimentalWarned = false
 
@@ -281,6 +285,7 @@ class EventSource extends EventTarget {
 
       const eventSourceStream = new EventSourceStream({
         eventSourceSettings: this.#state,
+        maxEventSize: this.#dispatcher.eventSourceOptions?.maxEventSize,
         push: (event) => {
           this.dispatchEvent(createFastMessageEvent(
             event.type,
@@ -340,8 +345,12 @@ class EventSource extends EventTarget {
       //         string, encoded as UTF-8.
       //      2. Set (`Last-Event-ID`, lastEventIDValue) in request's header
       //         list.
+      this.#request.headersList.delete('last-event-id', true)
       if (this.#state.lastEventId.length) {
-        this.#request.headersList.set('last-event-id', this.#state.lastEventId, true)
+        const lastEventId = isomorphicDecode(textEncoder.encode(this.#state.lastEventId))
+        if (isValidHeaderValue(lastEventId)) {
+          this.#request.headersList.set('last-event-id', lastEventId, true)
+        }
       }
 
       //   4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
@@ -465,7 +474,8 @@ webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   },
   {
     key: 'dispatcher', // undici only
-    converter: webidl.converters.any
+    converter: webidl.converters.any,
+    defaultValue: () => getGlobalDispatcher()
   },
   {
     key: 'node', // undici only

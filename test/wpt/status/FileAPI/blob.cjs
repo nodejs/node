@@ -33,7 +33,4 @@ module.exports = {
       ],
     },
   },
-  'Blob-in-worker.worker.js': {
-    skip: 'Depends on Web Workers API',
-  },
 };

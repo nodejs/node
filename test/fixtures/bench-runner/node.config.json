@@ -1,0 +1,7 @@
+{
+  "bench": {
+    "bench-isolation": "none",
+    "bench-reporter": ["json"],
+    "bench-samples": 1
+  }
+}

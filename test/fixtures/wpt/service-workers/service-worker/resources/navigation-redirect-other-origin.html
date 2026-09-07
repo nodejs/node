@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js"></script>
+<script>
+var host_info = get_host_info();
+var SCOPE = 'navigation-redirect-scope1.py';
+var SCRIPT = 'redirect-worker.js';
+
+var registration;
+var worker;
+var wait_for_worker_promise = navigator.serviceWorker.getRegistration(SCOPE)
+  .then(function(reg) {
+      if (reg)
+        return reg.unregister();
+    })
+  .then(function() {
+      return navigator.serviceWorker.register(SCRIPT, {scope: SCOPE});
+    })
+  .then(function(reg) {
+      registration = reg;
+      worker = reg.installing;
+      return new Promise(function(resolve) {
+          worker.addEventListener('statechange', function() {
+              if (worker.state == 'activated')
+                resolve();
+            });
+        });
+    });
+
+function send_result(message_id, result) {
+  window.parent.postMessage(
+      {id: message_id, result: result},
+      host_info['HTTPS_ORIGIN']);
+}
+
+function get_request_infos(worker) {
+  return new Promise(function(resolve) {
+    var channel = new MessageChannel();
+    channel.port1.onmessage = (msg) => {
+      resolve(msg.data.requestInfos);
+    };
+    worker.postMessage({command: 'getRequestInfos', port: channel.port2},
+                       [channel.port2]);
+  });
+}
+
+function get_clients(worker, actual_ids) {
+  return new Promise(function(resolve) {
+      var channel = new MessageChannel();
+      channel.port1.onmessage = (msg) => {
+        resolve(msg.data.clients);
+      };
+      worker.postMessage({
+        command: 'getClients',
+        actual_ids,
+        port: channel.port2
+      }, [channel.port2]);
+    });
+}
+
+window.addEventListener('message', on_message, false);
+
+function on_message(e) {
+  if (e.origin != host_info['HTTPS_ORIGIN']) {
+    console.error('invalid origin: ' + e.origin);
+    return;
+  }
+  const command = e.data.message.command;
+  if (command == 'wait_for_worker') {
+    wait_for_worker_promise.then(function() { send_result(e.data.id, 'ok'); });
+  } else if (command == 'get_request_infos') {
+    get_request_infos(worker)
+      .then(function(data) {
+          send_result(e.data.id, data);
+        });
+  } else if (command == 'get_clients') {
+    get_clients(worker, e.data.message.actual_ids)
+      .then(function(data) {
+          send_result(e.data.id, data);
+        });
+  } else if (command == 'unregister') {
+    registration.unregister()
+      .then(function() {
+          send_result(e.data.id, 'ok');
+        });
+  }
+}
+
+</script>

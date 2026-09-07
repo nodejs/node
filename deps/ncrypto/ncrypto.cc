@@ -14,9 +14,11 @@
 #endif
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <climits>
 #include <cstring>
 #include <string_view>
+#include <vector>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/core_names.h>
 #include <openssl/params.h>
@@ -129,6 +131,31 @@ struct OpenSSLBufferDeleter {
 };
 using OpenSSLBufferPointer =
     std::unique_ptr<unsigned char, OpenSSLBufferDeleter>;
+
+struct RsaOtherPrimeParamNames {
+  const char* factor;
+  const char* exponent;
+  const char* coefficient;
+};
+
+#define RSA_OTHER_PRIME_PARAM_NAMES(prime, coefficient)                        \
+  {                                                                            \
+    OSSL_PKEY_PARAM_RSA_FACTOR #prime, OSSL_PKEY_PARAM_RSA_EXPONENT #prime,    \
+        OSSL_PKEY_PARAM_RSA_COEFFICIENT #coefficient                           \
+  }
+
+constexpr std::array<RsaOtherPrimeParamNames, 8> kRsaOtherPrimeParamNames = {{
+    RSA_OTHER_PRIME_PARAM_NAMES(3, 2),
+    RSA_OTHER_PRIME_PARAM_NAMES(4, 3),
+    RSA_OTHER_PRIME_PARAM_NAMES(5, 4),
+    RSA_OTHER_PRIME_PARAM_NAMES(6, 5),
+    RSA_OTHER_PRIME_PARAM_NAMES(7, 6),
+    RSA_OTHER_PRIME_PARAM_NAMES(8, 7),
+    RSA_OTHER_PRIME_PARAM_NAMES(9, 8),
+    RSA_OTHER_PRIME_PARAM_NAMES(10, 9),
+}};
+
+#undef RSA_OTHER_PRIME_PARAM_NAMES
 #endif
 
 static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
@@ -507,23 +534,43 @@ DataPointer DataPointer::resize(size_t len) {
 }
 
 // ============================================================================
-bool isFipsEnabled() {
-  ClearErrorOnReturn clear_error_on_return;
+namespace {
+// This generation only coordinates cache invalidation. It does not make
+// OpenSSL default property changes safe to race with crypto operations.
+std::atomic<uint64_t> fips_state_generation{0};
+
+bool isFipsEnabledRaw() {
 #if OPENSSL_VERSION_MAJOR >= 3
   return EVP_default_properties_is_fips_enabled(nullptr) == 1;
 #else
   return FIPS_mode() == 1;
 #endif
 }
+}  // namespace
+
+bool isFipsEnabled() {
+  ClearErrorOnReturn clear_error_on_return;
+  return isFipsEnabledRaw();
+}
 
 bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
-  if (isFipsEnabled() == enable) return true;
+  const bool was_enabled = isFipsEnabled();
+  if (was_enabled == enable) return true;
   ClearErrorOnReturn clearErrorOnReturn(errors);
 #if OPENSSL_VERSION_MAJOR >= 3
-  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
+  const bool success =
+      EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
 #else
-  return FIPS_mode_set(enable ? 1 : 0) == 1;
+  const bool success = FIPS_mode_set(enable ? 1 : 0) == 1;
 #endif
+  if (success && isFipsEnabledRaw() != was_enabled) {
+    fips_state_generation.fetch_add(1, std::memory_order_release);
+  }
+  return success;
+}
+
+uint64_t getFipsStateGeneration() {
+  return fips_state_generation.load(std::memory_order_acquire);
 }
 
 bool testFipsEnabled() {
@@ -3060,6 +3107,19 @@ EVPKeyPointer EVPKeyPointer::NewRSA(const Rsa& rsa) {
             bld.get(), OSSL_PKEY_PARAM_RSA_COEFFICIENT1, private_key.qi) != 1) {
       return {};
     }
+
+    const auto other_prime_infos = rsa.getOtherPrimeInfos();
+    if (other_prime_infos.size() > kRsaOtherPrimeParamNames.size()) return {};
+    for (size_t i = 0; i < other_prime_infos.size(); i++) {
+      const auto& info = other_prime_infos[i];
+      const auto& names = kRsaOtherPrimeParamNames[i];
+      if (info.r == nullptr || info.d == nullptr || info.t == nullptr ||
+          OSSL_PARAM_BLD_push_BN(bld.get(), names.factor, info.r) != 1 ||
+          OSSL_PARAM_BLD_push_BN(bld.get(), names.exponent, info.d) != 1 ||
+          OSSL_PARAM_BLD_push_BN(bld.get(), names.coefficient, info.t) != 1) {
+        return {};
+      }
+    }
     selection = EVP_PKEY_KEYPAIR;
   }
 
@@ -4406,13 +4466,211 @@ bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 
 // ============================================================================
 
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+namespace {
+constexpr char AsciiToLower(char c) {
+  return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+}
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+constexpr auto kUnsupportedCipherFlags =
+    EVP_CIPH_FLAG_CIPHER_WITH_MAC | EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK;
+
+bool HasUnsupportedCipherFlags(const EVP_CIPHER* cipher) {
+  return (EVP_CIPHER_get_flags(cipher) & kUnsupportedCipherFlags) != 0;
+}
+
+bool IsSupportedLegacyCipher(const EVP_CIPHER* cipher) {
+  return cipher != nullptr && cipher != EVP_enc_null() &&
+         !HasUnsupportedCipherFlags(cipher);
+}
+
+bool IsSupportedFetchedCipher(const EVP_CIPHER* cipher) {
+  if (cipher == nullptr || EVP_CIPHER_is_a(cipher, "NULL") ||
+      HasUnsupportedCipherFlags(cipher)) {
+    return false;
+  }
+
+#ifdef OSSL_CIPHER_PARAM_ENCRYPT_THEN_MAC
+  int encrypt_then_mac = 0;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_int(OSSL_CIPHER_PARAM_ENCRYPT_THEN_MAC,
+                               &encrypt_then_mac),
+      OSSL_PARAM_construct_end(),
+  };
+  if (EVP_CIPHER_get_params(const_cast<EVP_CIPHER*>(cipher), params) == 1 &&
+      encrypt_then_mac != 0) {
+    return false;
+  }
+#endif
+
+  return true;
+}
+
+void PushAlgorithmAlias(const char* name, void* arg) {
+  if (name == nullptr) return;
+  static_cast<std::vector<std::string>*>(arg)->emplace_back(name);
+}
+#endif
+}  // namespace
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
 Cipher::Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher)
     : cipher_(cipher.get()), fetched_cipher_(std::move(cipher)) {}
 #endif
 
+size_t CaseInsensitiveNameHash::operator()(
+    std::string_view name) const noexcept {
+  size_t hash = 5381;
+  for (char c : name) hash = ((hash << 5) + hash) ^ AsciiToLower(c);
+  return hash;
+}
+
+bool CaseInsensitiveNameEqual::operator()(std::string_view lhs,
+                                          std::string_view rhs) const noexcept {
+  if (lhs.size() != rhs.size()) return false;
+  for (size_t n = 0; n < lhs.size(); n++) {
+    if (AsciiToLower(lhs[n]) != AsciiToLower(rhs[n])) return false;
+  }
+  return true;
+}
+
+DigestCache::Result DigestCache::lookup(const char* name,
+                                        uint64_t generation) const {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (generation_ != generation) return {};
+  const auto it = aliases_.find(name);
+  if (it == aliases_.end()) return {};
+  return lookup(it->second, generation);
+#else
+  static_cast<void>(name);
+  static_cast<void>(generation);
+  return {};
+#endif
+}
+
+DigestCache::Result DigestCache::insert(const char* name,
+                                        const EVP_MD* digest,
+                                        uint64_t generation) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (generation_ != generation || name == nullptr || digest == nullptr) {
+    return {};
+  }
+
+  const char* canonical_name = EVP_MD_get0_name(digest);
+  const OSSL_PROVIDER* provider = EVP_MD_get0_provider(digest);
+  if (canonical_name == nullptr || provider == nullptr) return {};
+
+  for (size_t index = 0; index < digests_.size(); index++) {
+    const EVP_MD* cached = digests_[index].get();
+    if (cached == nullptr) continue;
+    const char* cached_name = EVP_MD_get0_name(cached);
+    if (EVP_MD_get0_provider(cached) == provider && cached_name != nullptr &&
+        CaseInsensitiveNameEqual()(cached_name, canonical_name)) {
+      const int32_t id = static_cast<int32_t>(first_id_ + index);
+      aliases_.insert_or_assign(name, id);
+      return {cached, id};
+    }
+  }
+
+  if (next_id_ == UINT32_MAX ||
+      EVP_MD_up_ref(const_cast<EVP_MD*>(digest)) != 1) {
+    return {};
+  }
+
+  digests_.emplace_back(const_cast<EVP_MD*>(digest));
+  const int32_t id = static_cast<int32_t>(next_id_++);
+  const size_t index = digests_.size() - 1;
+
+  std::vector<std::string> aliases;
+  EVP_MD_names_do_all(digests_[index].get(), PushAlgorithmAlias, &aliases);
+  for (const std::string& alias : aliases) aliases_.emplace(alias, id);
+  aliases_.insert_or_assign(name, id);
+
+  return {digests_[index].get(), id};
+#else
+  static_cast<void>(name);
+  static_cast<void>(digest);
+  static_cast<void>(generation);
+  return {};
+#endif
+}
+
+void DigestCache::reset(uint64_t generation) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (generation_ == generation) return;
+  aliases_.clear();
+  digests_.clear();
+  first_id_ = next_id_;
+#endif
+  generation_ = generation;
+}
+
+const DigestCache::AliasMap& DigestCache::aliases() const {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  return aliases_;
+#else
+  static const AliasMap empty;
+  return empty;
+#endif
+}
+
+const EVP_CIPHER* CipherCache::lookup(const char* name, uint64_t generation) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (generation_ != generation) {
+    aliases_.clear();
+    ciphers_.clear();
+    generation_ = generation;
+  }
+
+  const auto it = aliases_.find(name);
+  if (it == aliases_.end()) return nullptr;
+  if (it->second >= ciphers_.size()) return nullptr;
+  return ciphers_[it->second].get();
+#else
+  static_cast<void>(name);
+  static_cast<void>(generation);
+  return nullptr;
+#endif
+}
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+const EVP_CIPHER* CipherCache::insert(
+    const char* name,
+    DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>&& cipher,
+    uint64_t generation) {
+  if (generation_ != generation || cipher == nullptr) return nullptr;
+
+  const char* canonical_name = EVP_CIPHER_get0_name(cipher.get());
+  const OSSL_PROVIDER* provider = EVP_CIPHER_get0_provider(cipher.get());
+  if (canonical_name != nullptr && provider != nullptr) {
+    for (size_t id = 0; id < ciphers_.size(); id++) {
+      const EVP_CIPHER* cached = ciphers_[id].get();
+      const char* cached_name = EVP_CIPHER_get0_name(cached);
+      if (EVP_CIPHER_get0_provider(cached) == provider &&
+          cached_name != nullptr &&
+          CaseInsensitiveNameEqual()(cached_name, canonical_name)) {
+        aliases_.insert_or_assign(name, id);
+        return cached;
+      }
+    }
+  }
+
+  ciphers_.emplace_back(std::move(cipher));
+  const size_t id = ciphers_.size() - 1;
+
+  std::vector<std::string> aliases;
+  EVP_CIPHER_names_do_all(ciphers_[id].get(), PushAlgorithmAlias, &aliases);
+  for (const std::string& alias : aliases) {
+    aliases_.emplace(alias, id);
+  }
+  aliases_.insert_or_assign(name, id);
+
+  return ciphers_[id].get();
+}
+#endif
+
 Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   if (other.fetched_cipher_ != nullptr) {
     if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
       fetched_cipher_.reset(other.fetched_cipher_.get());
@@ -4425,7 +4683,7 @@ Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
 
 Cipher& Cipher::operator=(const Cipher& other) {
   if (this == &other) return *this;
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   if (other.fetched_cipher_ != nullptr) {
     if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
       fetched_cipher_.reset(other.fetched_cipher_.get());
@@ -4442,40 +4700,59 @@ Cipher& Cipher::operator=(const Cipher& other) {
   return *this;
 }
 
-const Cipher Cipher::FromName(const char* name) {
+const Cipher Cipher::FromName(const char* name, CipherCache* cache) {
   const EVP_CIPHER* cipher = EVP_get_cipherbyname(name);
-  if (cipher != nullptr) return Cipher(cipher);
+  if (cipher != nullptr) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    if (!IsSupportedLegacyCipher(cipher)) return Cipher();
+#endif
+    return Cipher(cipher);
+  }
 
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // A resolution that overlaps a FIPS transition may use either property
+  // state. The cache retains the generation observed here, so the first
+  // resolution begun after the transition clears any stale entries.
+  const uint64_t generation = getFipsStateGeneration();
+  if (cache != nullptr) {
+    if (const EVP_CIPHER* cached = cache->lookup(name, generation)) {
+      return Cipher(cached);
+    }
+  }
+
   MarkPopErrorOnReturn mark_pop_error_on_return;
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
       EVP_CIPHER_fetch(nullptr, name, nullptr));
-  if (fetched == nullptr) return Cipher();
+  if (!IsSupportedFetchedCipher(fetched.get())) return Cipher();
 
-  const int mode = EVP_CIPHER_mode(fetched.get());
-  const bool is_siv_mode =
-#if OPENSSL_WITH_AES_SIV
-      mode == EVP_CIPH_SIV_MODE ||
-#endif
-#if OPENSSL_WITH_AES_GCM_SIV
-      mode == EVP_CIPH_GCM_SIV_MODE ||
-#endif
-      false;
-  if (is_siv_mode) return Cipher(std::move(fetched));
+  if (cache != nullptr && generation == getFipsStateGeneration()) {
+    if (const EVP_CIPHER* cached =
+            cache->insert(name, std::move(fetched), generation)) {
+      return Cipher(cached);
+    }
+  }
 
-  return Cipher();
+  return Cipher(std::move(fetched));
 #else
+  static_cast<void>(cache);
   return Cipher();
 #endif
 }
 
-const Cipher Cipher::FromNid(int nid) {
+const Cipher Cipher::FromNid(int nid, CipherCache* cache) {
   const EVP_CIPHER* cipher = EVP_get_cipherbynid(nid);
-  if (cipher != nullptr) return Cipher(cipher);
+  if (cipher != nullptr) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    if (!IsSupportedLegacyCipher(cipher)) return Cipher();
+#endif
+    return Cipher(cipher);
+  }
 
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   const char* name = OBJ_nid2sn(nid);
-  if (name != nullptr) return FromName(name);
+  if (name != nullptr) return FromName(name, cache);
+#else
+  static_cast<void>(cache);
 #endif
 
   return Cipher();
@@ -4485,27 +4762,79 @@ const Cipher Cipher::FromCtx(const CipherCtxPointer& ctx) {
   return Cipher(GetCipherCtxCipher(ctx.get()));
 }
 
-const Cipher Cipher::EMPTY = Cipher();
-const Cipher Cipher::AES_128_CBC = Cipher::FromNid(NID_aes_128_cbc);
-const Cipher Cipher::AES_192_CBC = Cipher::FromNid(NID_aes_192_cbc);
-const Cipher Cipher::AES_256_CBC = Cipher::FromNid(NID_aes_256_cbc);
-const Cipher Cipher::AES_128_CTR = Cipher::FromNid(NID_aes_128_ctr);
-const Cipher Cipher::AES_192_CTR = Cipher::FromNid(NID_aes_192_ctr);
-const Cipher Cipher::AES_256_CTR = Cipher::FromNid(NID_aes_256_ctr);
-const Cipher Cipher::AES_128_GCM = Cipher::FromNid(NID_aes_128_gcm);
-const Cipher Cipher::AES_192_GCM = Cipher::FromNid(NID_aes_192_gcm);
-const Cipher Cipher::AES_256_GCM = Cipher::FromNid(NID_aes_256_gcm);
-const Cipher Cipher::AES_128_KW = Cipher::FromNid(NID_id_aes128_wrap);
-const Cipher Cipher::AES_192_KW = Cipher::FromNid(NID_id_aes192_wrap);
-const Cipher Cipher::AES_256_KW = Cipher::FromNid(NID_id_aes256_wrap);
+namespace {
+template <int nid>
+const Cipher& GetPredefinedCipher() {
+  static const Cipher cipher = Cipher::FromNid(nid);
+  return cipher;
+}
+}  // namespace
+
+const Cipher& Cipher::AES_128_CBC() {
+  return GetPredefinedCipher<NID_aes_128_cbc>();
+}
+
+const Cipher& Cipher::AES_192_CBC() {
+  return GetPredefinedCipher<NID_aes_192_cbc>();
+}
+
+const Cipher& Cipher::AES_256_CBC() {
+  return GetPredefinedCipher<NID_aes_256_cbc>();
+}
+
+const Cipher& Cipher::AES_128_CTR() {
+  return GetPredefinedCipher<NID_aes_128_ctr>();
+}
+
+const Cipher& Cipher::AES_192_CTR() {
+  return GetPredefinedCipher<NID_aes_192_ctr>();
+}
+
+const Cipher& Cipher::AES_256_CTR() {
+  return GetPredefinedCipher<NID_aes_256_ctr>();
+}
+
+const Cipher& Cipher::AES_128_GCM() {
+  return GetPredefinedCipher<NID_aes_128_gcm>();
+}
+
+const Cipher& Cipher::AES_192_GCM() {
+  return GetPredefinedCipher<NID_aes_192_gcm>();
+}
+
+const Cipher& Cipher::AES_256_GCM() {
+  return GetPredefinedCipher<NID_aes_256_gcm>();
+}
+
+const Cipher& Cipher::AES_128_KW() {
+  return GetPredefinedCipher<NID_id_aes128_wrap>();
+}
+
+const Cipher& Cipher::AES_192_KW() {
+  return GetPredefinedCipher<NID_id_aes192_wrap>();
+}
+
+const Cipher& Cipher::AES_256_KW() {
+  return GetPredefinedCipher<NID_id_aes256_wrap>();
+}
 
 #ifndef OPENSSL_IS_BORINGSSL
-const Cipher Cipher::AES_128_OCB = Cipher::FromNid(NID_aes_128_ocb);
-const Cipher Cipher::AES_192_OCB = Cipher::FromNid(NID_aes_192_ocb);
-const Cipher Cipher::AES_256_OCB = Cipher::FromNid(NID_aes_256_ocb);
+const Cipher& Cipher::AES_128_OCB() {
+  return GetPredefinedCipher<NID_aes_128_ocb>();
+}
+
+const Cipher& Cipher::AES_192_OCB() {
+  return GetPredefinedCipher<NID_aes_192_ocb>();
+}
+
+const Cipher& Cipher::AES_256_OCB() {
+  return GetPredefinedCipher<NID_aes_256_ocb>();
+}
 #endif
 
-const Cipher Cipher::CHACHA20_POLY1305 = Cipher::FromNid(NID_chacha20_poly1305);
+const Cipher& Cipher::CHACHA20_POLY1305() {
+  return GetPredefinedCipher<NID_chacha20_poly1305>();
+}
 
 bool Cipher::isGcmMode() const {
   if (!cipher_) return false;
@@ -4525,6 +4854,15 @@ bool Cipher::isCtrMode() const {
 bool Cipher::isCcmMode() const {
   if (!cipher_) return false;
   return getMode() == EVP_CIPH_CCM_MODE;
+}
+
+bool Cipher::isCtsMode() const {
+  if (!cipher_) return false;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  return (EVP_CIPHER_get_flags(cipher_) & EVP_CIPH_FLAG_CTS) != 0;
+#else
+  return false;
+#endif
 }
 
 bool Cipher::isOcbMode() const {
@@ -4631,7 +4969,7 @@ const char* Cipher::getName() const {
     const char* name = OBJ_nid2sn(nid);
     if (name != nullptr) return name;
   }
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   return EVP_CIPHER_get0_name(cipher_);
 #else
   return {};
@@ -4728,9 +5066,55 @@ bool CipherCtxPointer::setAeadTagLength(size_t length) {
       ctx_.get(), EVP_CTRL_AEAD_SET_TAG, length, nullptr);
 }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+// OSSL_CIPHER_PARAM_XTS_STANDARD is not defined by OpenSSL 3.0. Use its
+// parameter name directly so custom 3.0 providers can advertise it too.
+constexpr char kCipherParamXtsStandard[] = "xts_standard";
+
+bool SetCipherCtxStringParam(EVP_CIPHER_CTX* ctx,
+                             const char* key,
+                             const char* value) {
+  if (ctx == nullptr || value == nullptr) return false;
+
+  const OSSL_PARAM* settable = EVP_CIPHER_CTX_settable_params(ctx);
+  const OSSL_PARAM* descriptor =
+      settable == nullptr ? nullptr : OSSL_PARAM_locate_const(settable, key);
+  if (descriptor == nullptr ||
+      descriptor->data_type != OSSL_PARAM_UTF8_STRING) {
+    return false;
+  }
+
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_utf8_string(key, const_cast<char*>(value), 0),
+      OSSL_PARAM_END,
+  };
+  return EVP_CIPHER_CTX_set_params(ctx, params) == 1;
+}
+}  // namespace
+#endif
+
+bool CipherCtxPointer::setCtsMode(const char* mode) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  return SetCipherCtxStringParam(ctx_.get(), OSSL_CIPHER_PARAM_CTS_MODE, mode);
+#else
+  static_cast<void>(mode);
+  return false;
+#endif
+}
+
 bool CipherCtxPointer::setPadding(bool padding) {
   if (!ctx_) return false;
   return EVP_CIPHER_CTX_set_padding(ctx_.get(), padding);
+}
+
+bool CipherCtxPointer::setXtsStandard(const char* standard) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  return SetCipherCtxStringParam(ctx_.get(), kCipherParamXtsStandard, standard);
+#else
+  static_cast<void>(standard);
+  return false;
+#endif
 }
 
 int CipherCtxPointer::getBlockSize() const {
@@ -4756,6 +5140,16 @@ bool CipherCtxPointer::isOcbMode() const {
 bool CipherCtxPointer::isCcmMode() const {
   if (!ctx_) return false;
   return getMode() == EVP_CIPH_CCM_MODE;
+}
+
+bool CipherCtxPointer::isCtsMode() const {
+  if (!ctx_) return false;
+  return Cipher::FromCtx(*this).isCtsMode();
+}
+
+bool CipherCtxPointer::isXtsMode() const {
+  if (!ctx_) return false;
+  return getMode() == EVP_CIPH_XTS_MODE;
 }
 
 bool CipherCtxPointer::isWrapMode() const {
@@ -5779,6 +6173,11 @@ DataPointer CipherImpl(const EVPKeyPointer& key,
 }
 }  // namespace
 
+Rsa::OtherPrimeInfoPointer::OtherPrimeInfoPointer(BignumPointer&& r,
+                                                  BignumPointer&& d,
+                                                  BignumPointer&& t)
+    : r(r.release()), d(d.release()), t(t.release()) {}
+
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 namespace {
 int DigestAlgorithmIdentifierToNid(const unsigned char* data, size_t size) {
@@ -6007,6 +6406,19 @@ Rsa::Rsa(const EVP_PKEY* pkey) : Rsa() {
     return;
   }
 
+  for (const auto& names : kRsaOtherPrimeParamNames) {
+    OtherPrimeInfoPointer info;
+    if (!GetOptionalPKeyBnParam(pkey, names.factor, &info.r) ||
+        !GetOptionalPKeyBnParam(pkey, names.exponent, &info.d) ||
+        !GetOptionalPKeyBnParam(pkey, names.coefficient, &info.t)) {
+      return;
+    }
+
+    if (!info.r && !info.d && !info.t) break;
+    if (!info.r || !info.d || !info.t) return;
+    other_prime_infos_.push_back(std::move(info));
+  }
+
   if (type == EVP_PKEY_RSA_PSS) {
     MarkPopErrorOnReturn pop_errors;
     PssParams params;
@@ -6043,6 +6455,35 @@ const Rsa::PrivateKey Rsa::getPrivateKey() const {
   RSA_get0_crt_params(rsa_, &key.dp, &key.dq, &key.qi);
   return key;
 #endif
+}
+
+const Rsa::OtherPrimeInfos Rsa::getOtherPrimeInfos() const {
+  OtherPrimeInfos infos;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  infos.reserve(other_prime_infos_.size());
+  for (const auto& info : other_prime_infos_) {
+    infos.push_back({info.r.get(), info.d.get(), info.t.get()});
+  }
+#elif NCRYPTO_USE_LEGACY_OPENSSL
+  if (rsa_ == nullptr) return infos;
+  const int count = RSA_get_multi_prime_extra_count(rsa_);
+  if (count <= 0) return infos;
+
+  std::vector<const BIGNUM*> factors(count);
+  std::vector<const BIGNUM*> exponents(count);
+  std::vector<const BIGNUM*> coefficients(count);
+  if (RSA_get0_multi_prime_factors(rsa_, factors.data()) != 1 ||
+      RSA_get0_multi_prime_crt_params(
+          rsa_, exponents.data(), coefficients.data()) != 1) {
+    return {};
+  }
+
+  infos.reserve(count);
+  for (int i = 0; i < count; i++) {
+    infos.push_back({factors[i], exponents[i], coefficients[i]});
+  }
+#endif
+  return infos;
 }
 
 const std::optional<Rsa::PssParams> Rsa::getPssParams() const {
@@ -6146,15 +6587,20 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
                         BignumPointer&& p,
                         BignumPointer&& dp,
                         BignumPointer&& dq,
-                        BignumPointer&& qi) {
+                        BignumPointer&& qi,
+                        OtherPrimeInfoPointers&& other_prime_infos) {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   if (!d || !q || !p || !dp || !dq || !qi) return false;
+  for (const auto& info : other_prime_infos) {
+    if (!info.r || !info.d || !info.t) return false;
+  }
   d_.reset(d.release());
   q_.reset(q.release());
   p_.reset(p.release());
   dp_.reset(dp.release());
   dq_.reset(dq.release());
   qi_.reset(qi.release());
+  other_prime_infos_ = std::move(other_prime_infos);
   rsa_ = n_ != nullptr && e_ != nullptr;
   return rsa_;
 #else
@@ -6176,6 +6622,37 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
   dp.release();
   dq.release();
   qi.release();
+
+#if NCRYPTO_USE_LEGACY_OPENSSL
+  if (!other_prime_infos.empty()) {
+    std::vector<BIGNUM*> factors;
+    std::vector<BIGNUM*> exponents;
+    std::vector<BIGNUM*> coefficients;
+    factors.reserve(other_prime_infos.size());
+    exponents.reserve(other_prime_infos.size());
+    coefficients.reserve(other_prime_infos.size());
+    for (const auto& info : other_prime_infos) {
+      if (!info.r || !info.d || !info.t) return false;
+      factors.push_back(info.r.get());
+      exponents.push_back(info.d.get());
+      coefficients.push_back(info.t.get());
+    }
+    if (RSA_set0_multi_prime_params(const_cast<RSA*>(rsa_),
+                                    factors.data(),
+                                    exponents.data(),
+                                    coefficients.data(),
+                                    static_cast<int>(factors.size())) != 1) {
+      return false;
+    }
+    for (auto& info : other_prime_infos) {
+      info.r.release();
+      info.d.release();
+      info.t.release();
+    }
+  }
+#else
+  if (!other_prime_infos.empty()) return false;
+#endif
   return true;
 #endif
 }
@@ -6229,23 +6706,7 @@ struct CipherCallbackContext {
   void operator()(const char* name) { cb(name); }
 };
 
-#if OPENSSL_WITH_AES_SIV
-constexpr const char* kProviderOnlyAesSivCiphers[] = {
-    "aes-128-siv",
-    "aes-192-siv",
-    "aes-256-siv",
-};
-#endif
-
-#if OPENSSL_WITH_AES_GCM_SIV
-constexpr const char* kProviderOnlyAesGcmSivCiphers[] = {
-    "aes-128-gcm-siv",
-    "aes-192-gcm-siv",
-    "aes-256-gcm-siv",
-};
-#endif
-
-#if OPENSSL_VERSION_MAJOR >= 3
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
 template <class TypeName,
           TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
           void free_type(TypeName*),
@@ -6269,12 +6730,48 @@ void array_push_back(const TypeName* evp_ref,
   // instance if the algorithm is supported by the public OpenSSL APIs (some
   // algorithms are used internally by OpenSSL and are also passed to this
   // callback).
-  TypeName* fetched = fetch_type(nullptr, real_name, nullptr);
-  if (fetched == nullptr) return;
+  DeleteFnPtr<TypeName, free_type> fetched(
+      fetch_type(nullptr, real_name, nullptr));
+  if (!IsSupportedFetchedCipher(fetched.get())) return;
 
-  free_type(fetched);
   auto& cb = *(static_cast<CipherCallbackContext*>(arg));
   cb(from);
+}
+
+void array_push_back_provider_name(const char* name, void* arg) {
+  if (name == nullptr) return;
+
+  const std::string_view name_view(name);
+  const bool is_dotted_decimal =
+      name_view.find('.') != std::string_view::npos &&
+      std::all_of(name_view.begin(), name_view.end(), [](unsigned char c) {
+        return (c >= '0' && c <= '9') || c == '.';
+      });
+  if (is_dotted_decimal) return;
+
+  std::string normalized_name(name_view);
+  std::transform(normalized_name.begin(),
+                 normalized_name.end(),
+                 normalized_name.begin(),
+                 [](unsigned char c) {
+                   if (c >= 'A' && c <= 'Z') {
+                     return static_cast<char>(c + ('a' - 'A'));
+                   }
+                   return static_cast<char>(c);
+                 });
+  auto& cb = *(static_cast<CipherCallbackContext*>(arg));
+  cb(normalized_name.c_str());
+}
+
+void array_push_back_provider(EVP_CIPHER* cipher, void* arg) {
+  const char* name = EVP_CIPHER_get0_name(cipher);
+  if (name == nullptr) return;
+
+  DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
+      EVP_CIPHER_fetch(nullptr, name, nullptr));
+  if (!IsSupportedFetchedCipher(fetched.get())) return;
+
+  EVP_CIPHER_names_do_all(fetched.get(), array_push_back_provider_name, arg);
 }
 #else
 template <class TypeName>
@@ -6301,7 +6798,7 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
   }
 #else
   EVP_CIPHER_do_all_sorted(
-#if OPENSSL_VERSION_MAJOR >= 3
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
       array_push_back<EVP_CIPHER,
                       EVP_CIPHER_fetch,
                       EVP_CIPHER_free,
@@ -6311,23 +6808,8 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
       array_push_back<EVP_CIPHER>,
 #endif
       &context);
-#if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
-  auto maybe_push_provider_only_cipher = [&](const char* name) {
-    EVP_CIPHER* cipher = EVP_CIPHER_fetch(nullptr, name, nullptr);
-    if (cipher == nullptr) return;
-    EVP_CIPHER_free(cipher);
-    context.cb(name);
-  };
-#endif
-#if OPENSSL_WITH_AES_SIV
-  for (const char* name : kProviderOnlyAesSivCiphers) {
-    maybe_push_provider_only_cipher(name);
-  }
-#endif
-#if OPENSSL_WITH_AES_GCM_SIV
-  for (const char* name : kProviderOnlyAesGcmSivCiphers) {
-    maybe_push_provider_only_cipher(name);
-  }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  EVP_CIPHER_do_all_provided(nullptr, array_push_back_provider, &context);
 #endif
 #endif
 }
@@ -6479,10 +6961,18 @@ EVP_MD_CTX* EVPMDCtxPointer::release() {
   return ctx_.release();
 }
 
-bool EVPMDCtxPointer::digestInit(const Digest& digest) {
+bool EVPMDCtxPointer::digestInit(const EVP_MD* digest) {
   if (!ctx_) return false;
   return EVP_DigestInit_ex(ctx_.get(), digest, nullptr) > 0;
 }
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 0)
+bool EVPMDCtxPointer::digestInit(const EVP_MD* digest,
+                                 const OSSL_PARAM* params) {
+  if (!ctx_) return false;
+  return EVP_DigestInit_ex2(ctx_.get(), digest, params) > 0;
+}
+#endif
 
 bool EVPMDCtxPointer::digestUpdate(const Buffer<const void>& in) {
   if (!ctx_) return false;
@@ -6832,6 +7322,79 @@ EVPMacPointer EVPMacPointer::Fetch(const char* algorithm) {
   return EVPMacPointer(EVP_MAC_fetch(nullptr, algorithm, nullptr));
 }
 
+MacKind MacCache::GetKind(EVP_MAC* mac) {
+  if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_HMAC)) return MacKind::kHmac;
+  if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_CMAC)) return MacKind::kCmac;
+  if (EVP_MAC_is_a(mac, OSSL_MAC_NAME_GMAC)) return MacKind::kGmac;
+  return MacKind::kOther;
+}
+
+MacCache::Result MacCache::lookup(const char* name, uint64_t generation) const {
+  if (generation_ != generation || name == nullptr) return {};
+  const auto it = aliases_.find(name);
+  if (it == aliases_.end()) return {};
+  return lookup(it->second, generation);
+}
+
+MacCache::Result MacCache::insert(const char* name,
+                                  EVPMacPointer&& mac,
+                                  uint64_t generation) {
+  if (generation_ != generation || generation != getFipsStateGeneration() ||
+      name == nullptr || mac == nullptr) {
+    return {};
+  }
+
+  const char* canonical_name = EVP_MAC_get0_name(mac.get());
+  const OSSL_PROVIDER* provider = EVP_MAC_get0_provider(mac.get());
+  if (canonical_name == nullptr || provider == nullptr) return {};
+
+  for (size_t index = 0; index < macs_.size(); index++) {
+    EVP_MAC* cached = macs_[index].mac.get();
+    if (cached == nullptr) continue;
+    const char* cached_name = EVP_MAC_get0_name(cached);
+    if (EVP_MAC_get0_provider(cached) == provider && cached_name != nullptr &&
+        CaseInsensitiveNameEqual()(cached_name, canonical_name)) {
+      if (generation != getFipsStateGeneration()) return {};
+      const int32_t id = static_cast<int32_t>(first_id_ + index);
+      aliases_.insert_or_assign(name, id);
+      return {cached, id, macs_[index].kind};
+    }
+  }
+
+  if (next_id_ == UINT32_MAX) return {};
+
+  std::vector<std::string> aliases;
+  {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (EVP_MAC_names_do_all(mac.get(), PushAlgorithmAlias, &aliases) != 1) {
+      return {};
+    }
+  }
+  if (generation != getFipsStateGeneration()) return {};
+
+  const MacKind kind = GetKind(mac.get());
+  macs_.push_back({std::move(mac), kind});
+  const int32_t id = static_cast<int32_t>(next_id_++);
+  const size_t index = macs_.size() - 1;
+
+  for (const std::string& alias : aliases) aliases_.emplace(alias, id);
+  aliases_.insert_or_assign(name, id);
+
+  return {macs_[index].mac.get(), id, kind};
+}
+
+void MacCache::reset(uint64_t generation) {
+  if (generation_ == generation) return;
+  aliases_.clear();
+  macs_.clear();
+  first_id_ = next_id_;
+  generation_ = generation;
+}
+
+const MacCache::AliasMap& MacCache::aliases() const {
+  return aliases_;
+}
+
 EVPMacCtxPointer::EVPMacCtxPointer(EVP_MAC_CTX* ctx) : ctx_(ctx) {}
 
 EVPMacCtxPointer::EVPMacCtxPointer(EVPMacCtxPointer&& other) noexcept
@@ -6859,22 +7422,42 @@ EVP_MAC_CTX* EVPMacCtxPointer::release() {
 bool EVPMacCtxPointer::init(const Buffer<const void>& key,
                             const OSSL_PARAM* params) {
   if (!ctx_) return false;
-  return EVP_MAC_init(ctx_.get(),
-                      static_cast<const unsigned char*>(key.data),
-                      key.len,
-                      params) == 1;
+
+  static constexpr unsigned char kEmptyKey = 0;
+  const unsigned char* key_data = static_cast<const unsigned char*>(key.data);
+  if (key_data == nullptr) {
+    if (key.len != 0) return false;
+    key_data = &kEmptyKey;
+  }
+
+  return EVP_MAC_init(ctx_.get(), key_data, key.len, params) == 1;
 }
 
 bool EVPMacCtxPointer::update(const Buffer<const void>& data) {
   if (!ctx_) return false;
+  if (data.len == 0) return true;
+  if (data.data == nullptr) return false;
   return EVP_MAC_update(ctx_.get(),
                         static_cast<const unsigned char*>(data.data),
                         data.len) == 1;
 }
 
+size_t EVPMacCtxPointer::getSize() const {
+  return ctx_ ? EVP_MAC_CTX_get_mac_size(ctx_.get()) : 0;
+}
+
+const OSSL_PARAM* EVPMacCtxPointer::getSettableParams() const {
+  return ctx_ ? EVP_MAC_CTX_settable_params(ctx_.get()) : nullptr;
+}
+
 DataPointer EVPMacCtxPointer::final(size_t length) {
   if (!ctx_) return {};
-  auto buf = DataPointer::Alloc(length);
+
+  // DataPointer uses a null allocation to represent failure. Retain a
+  // one-byte allocation for a successful zero-length result while passing the
+  // requested zero capacity to OpenSSL. A non-null output pointer is required
+  // to actually finalize; nullptr only queries the output length.
+  auto buf = DataPointer::Alloc(length == 0 ? 1 : length);
   if (!buf) return {};
 
   size_t result_len = length;
@@ -6884,8 +7467,9 @@ DataPointer EVPMacCtxPointer::final(size_t length) {
                     length) != 1) {
     return {};
   }
+  if (result_len > length) return {};
 
-  return buf;
+  return buf.resize(result_len);
 }
 
 EVPMacCtxPointer EVPMacCtxPointer::New(EVP_MAC* mac) {
@@ -7009,7 +7593,10 @@ DataPointer xofHashDigest(const Buffer<const unsigned char>& buf,
   if (ctx.digestInit(md) != 1) {
     return {};
   }
-  if (ctx.digestUpdate(reinterpret_cast<const Buffer<const void>&>(buf)) != 1) {
+  if (ctx.digestUpdate(Buffer<const void>{
+          .data = buf.data,
+          .len = buf.len,
+      }) != 1) {
     return {};
   }
   return ctx.digestFinal(output_length);
@@ -7145,14 +7732,86 @@ size_t Digest::size() const {
   return EVP_MD_size(md_);
 }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+Digest::Digest(DeleteFnPtr<EVP_MD, EVP_MD_free> md)
+    : md_(md.get()), fetched_md_(std::move(md)) {}
+#endif
+
+Digest::Digest(const Digest& other) : md_(other.md_) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (other.fetched_md_ != nullptr) {
+    if (EVP_MD_up_ref(other.fetched_md_.get()) == 1) {
+      fetched_md_.reset(other.fetched_md_.get());
+    } else {
+      md_ = nullptr;
+    }
+  }
+#endif
+}
+
+Digest& Digest::operator=(const Digest& other) {
+  if (this == &other) return *this;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (other.fetched_md_ != nullptr) {
+    if (EVP_MD_up_ref(other.fetched_md_.get()) == 1) {
+      fetched_md_.reset(other.fetched_md_.get());
+    } else {
+      fetched_md_.reset();
+      md_ = nullptr;
+      return *this;
+    }
+  } else {
+    fetched_md_.reset();
+  }
+#endif
+  md_ = other.md_;
+  return *this;
+}
+
 const Digest Digest::MD5 = Digest(EVP_md5());
 const Digest Digest::SHA1 = Digest(EVP_sha1());
 const Digest Digest::SHA256 = Digest(EVP_sha256());
 const Digest Digest::SHA384 = Digest(EVP_sha384());
 const Digest Digest::SHA512 = Digest(EVP_sha512());
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+bool IsSupportedDigest(const EVP_MD* md) {
+  if (md == nullptr || EVP_MD_is_a(md, "NULL")) return false;
+
+  // OpenSSL currently crashes when ML-DSA-MU finalizes an empty input. Keep it
+  // unavailable until the provider implementation is fixed.
+  // https://github.com/openssl/openssl/issues/32445
+  if (EVP_MD_is_a(md, "ML-DSA-MU")) return false;
+
+  return true;
+}
+}  // namespace
+#endif
+
 const Digest Digest::FromName(const char* name) {
-  return ncrypto::getDigestByName(name);
+  const EVP_MD* md = ncrypto::getDigestByName(name);
+  if (md != nullptr) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    if (md == EVP_md_null()) return Digest();
+#endif
+    return Digest(md);
+  }
+
+  return Fetch(name);
+}
+
+const Digest Digest::Fetch(const char* name) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  DeleteFnPtr<EVP_MD, EVP_MD_free> fetched(
+      EVP_MD_fetch(nullptr, name, nullptr));
+  if (IsSupportedDigest(fetched.get())) {
+    return Digest(std::move(fetched));
+  }
+#endif
+
+  return Digest();
 }
 
 // ============================================================================

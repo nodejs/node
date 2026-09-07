@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script>
+function fetch_url(url) {
+  return new Promise(function(resolve, reject) {
+      var request = new XMLHttpRequest();
+      request.addEventListener('load', function(event) {
+          resolve();
+        });
+      request.addEventListener('error', function(event) {
+          reject();
+        });
+      request.open('GET', url);
+      request.send();
+    });
+}
+
+function make_test(testcase) {
+  var name = testcase.name;
+  return fetch_url(window.location.href + '?' + name)
+    .then(
+      function() {
+          if (testcase.expect_load)
+            return Promise.resolve();
+          return Promise.reject(new Error(
+              name + ': expected network error but loaded'));
+        },
+      function() {
+          if (!testcase.expect_load)
+            return Promise.resolve();
+          return Promise.reject(new Error(
+              name + ': expected to load but got network error'));
+        });
+}
+
+function run_tests() {
+  var tests = [
+    { name: 'prevent-default-and-respond-with', expect_load: true },
+    { name: 'prevent-default', expect_load: false },
+    { name: 'reject', expect_load: false },
+    { name: 'unused-body', expect_load: true },
+    { name: 'used-body', expect_load: false },
+    { name: 'unused-fetched-body', expect_load: true },
+    { name: 'used-fetched-body', expect_load: false },
+    { name: 'throw-exception', expect_load: true },
+  ].map(make_test);
+
+  Promise.all(tests)
+    .then(function() {
+        window.parent.notify_test_done('PASS');
+      })
+    .catch(function(error) {
+        window.parent.notify_test_done('FAIL: ' + error.message);
+      });
+}
+
+if (!navigator.serviceWorker.controller)
+  window.parent.notify_test_done('FAIL: no controller');
+else
+  run_tests();
+</script>

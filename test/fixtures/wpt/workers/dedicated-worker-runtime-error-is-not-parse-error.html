@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: runtime errors are not parse errors</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+promise_test(async () => {
+  const worker = new Worker('support/eval-syntax-error.js');
+  const event = await new Promise(resolve => {
+    worker.onerror = e => { e.preventDefault(); resolve(e); };
+  });
+  assert_true(event instanceof ErrorEvent,
+      'eval() syntax error should dispatch ErrorEvent, not Event');
+}, 'eval() with syntax error dispatches ErrorEvent at Worker');
+
+promise_test(async () => {
+  const worker = new Worker('support/json-parse-error.js');
+  const event = await new Promise(resolve => {
+    worker.onerror = e => { e.preventDefault(); resolve(e); };
+  });
+  assert_true(event instanceof ErrorEvent,
+      'JSON.parse() error should dispatch ErrorEvent, not Event');
+}, 'JSON.parse() error dispatches ErrorEvent at Worker');
+
+promise_test(async () => {
+  const worker = new Worker('modules/resources/syntax-error.js', { type: 'classic' });
+  const event = await new Promise(resolve => {
+    worker.onerror = e => { e.preventDefault(); resolve(e); };
+  });
+  assert_equals(event.constructor, Event,
+      'Script parse error should dispatch Event, not ErrorEvent');
+  assert_false(event instanceof ErrorEvent,
+      'Script parse error should not be an ErrorEvent');
+}, 'Script parse error dispatches plain Event at Worker');
+
+</script>

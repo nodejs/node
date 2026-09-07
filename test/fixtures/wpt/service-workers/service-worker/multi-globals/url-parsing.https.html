@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>register()/getRegistration() URL parsing, with multiple globals in play</title>
+<link rel="help" href="https://w3c.github.io/ServiceWorker/spec/service_worker/index.html#service-worker-container-register-method">
+<link rel="help" href="https://w3c.github.io/ServiceWorker/spec/service_worker/index.html#service-worker-container-getregistration-method">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="/resources/testharness.js"></script>
+<script src="../resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+
+<!-- This is the entry global -->
+
+<iframe src="incumbent/incumbent.https.html"></iframe>
+
+<script>
+'use strict';
+
+const loadPromise = new Promise(resolve => {
+    window.addEventListener('load', () => resolve());
+});
+
+promise_test(t => {
+    let registration;
+
+    return loadPromise.then(() => {
+        return frames[0].testRegister();
+    }).then(r => {
+        registration = r;
+        return wait_for_state(t, registration.installing, 'activated');
+    }).then(_ => {
+        assert_equals(registration.active.scriptURL, normalizeURL('relevant/test-sw.js'), 'the script URL should be parsed against the relevant global');
+        assert_equals(registration.scope, normalizeURL('relevant/'), 'the default scope URL should be parsed against the parsed script URL');
+
+        return registration.unregister();
+    });
+}, 'register should use the relevant global of the object it was called on to resolve the script URL and the default scope URL');
+
+promise_test(t => {
+    let registration;
+
+    return loadPromise.then(() => {
+        return frames[0].testRegister({ scope: 'scope' });
+    }).then(r => {
+        registration = r;
+        return wait_for_state(t, registration.installing, 'activated');
+    }).then(_ => {
+        assert_equals(registration.active.scriptURL, normalizeURL('relevant/test-sw.js'), 'the script URL should be parsed against the relevant global');
+        assert_equals(registration.scope, normalizeURL('relevant/scope'), 'the given scope URL should be parsed against the relevant global');
+
+        return registration.unregister();
+    });
+}, 'register should use the relevant global of the object it was called on to resolve the script URL and the given scope URL');
+
+promise_test(t => {
+    let registration;
+
+    return loadPromise.then(() => {
+        return navigator.serviceWorker.register(normalizeURL('relevant/test-sw.js'));
+    }).then(r => {
+        registration = r;
+        return frames[0].testGetRegistration();
+    })
+    .then(gottenRegistration => {
+        assert_not_equals(registration, null, 'the registration should not be null');
+        assert_not_equals(gottenRegistration, null, 'the registration from the other frame should not be null');
+        assert_equals(gottenRegistration.scope, registration.scope,
+            'the retrieved registration\'s scope should be equal to the original\'s scope');
+
+        return registration.unregister();
+    });
+}, 'getRegistration should use the relevant global of the object it was called on to resolve the script URL');
+
+</script>

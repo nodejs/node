@@ -1,0 +1,2 @@
+this file is served without Access-Control-Allow-Origin headers so it should not
+be readable from cross-origin.

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Window for cross-origin iframe with Shared Worker</title>
+<script src="/common/get-host-info.sub.js"></script>
+
+<body>
+<script>
+
+const iframe_url = new URL(
+  'iframe-sw-shared-name.html',
+    get_host_info().ORIGIN + self.location.pathname);
+
+
+window.onmessage = (e) => {window.opener.postMessage(e.data, '*')};
+
+var frame = document.createElement('iframe');
+frame.src = iframe_url;
+frame.style.position = 'absolute';
+document.body.appendChild(frame);
+
+</script>
+</body>
+</html>

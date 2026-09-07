@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>Service Worker: Navigation setting cookies</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script src="/cookies/resources/cookie-helper.sub.js"></script>
+<body>
+<script>
+'use strict';
+
+const scopepath = '/cookies/resources/setSameSite.py?with-sw';
+
+async function unregister_service_worker(origin) {
+  let target_url = origin +
+      '/service-workers/service-worker/resources/unregister-rewrite-worker.html' +
+      '?scopepath=' + encodeURIComponent(scopepath);
+  const w = window.open(target_url);
+  try {
+    await wait_for_message('SW-UNREGISTERED');
+  } finally {
+    w.close();
+  }
+}
+
+async function register_service_worker(origin) {
+  let target_url = origin +
+      '/service-workers/service-worker/resources/register-rewrite-worker.html' +
+      '?scopepath=' + encodeURIComponent(scopepath);
+  const w = window.open(target_url);
+  try {
+    await wait_for_message('SW-REGISTERED');
+  } finally {
+    w.close();
+  }
+}
+
+async function clear_cookies(origin) {
+  let target_url = origin + '/cookies/samesite/resources/puppet.html';
+  const w = window.open(target_url);
+  try {
+    await wait_for_message('READY');
+    w.postMessage({ type: 'drop' }, '*');
+    await wait_for_message('drop-complete');
+  } finally {
+    w.close();
+  }
+}
+
+// The following tests are adapted from /cookies/samesite/setcookie-navigation.https.html
+
+// Asserts that cookies are present or not present (according to `expectation`)
+// in the cookie string `cookies` with the correct names and value.
+function assert_cookies_present(cookies, value, expected_cookie_names, expectation) {
+  for (name of expected_cookie_names) {
+    let re = new RegExp("(?:^|; )" + name + "=" + value + "(?:$|;)");
+    let assertion = expectation ? assert_true : assert_false;
+    assertion(re.test(cookies), "`" + name + "=" + value + "` in cookies");
+  }
+}
+
+// Navigate from ORIGIN to |origin_to|, expecting the navigation to set SameSite
+// cookies on |origin_to|.
+function navigate_test(method, origin_to, query, title) {
+  promise_test(async function(t) {
+    // The cookies don't need to be cleared on each run because |value| is
+    // a new random value on each run, so on each run we are overwriting and
+    // checking for a cookie with a different random value.
+    let value = query + "&" + Math.random();
+    let url_from = SECURE_ORIGIN + "/cookies/samesite/resources/navigate.html"
+    let url_to = origin_to + "/cookies/resources/setSameSite.py?" + value;
+    var w = window.open(url_from);
+    await wait_for_message('READY', SECURE_ORIGIN);
+    assert_equals(SECURE_ORIGIN, window.origin);
+    assert_equals(SECURE_ORIGIN, w.origin);
+    let command = (method === "POST") ? "post-form" : "navigate";
+    w.postMessage({ type: command, url: url_to }, "*");
+    let message = await wait_for_message('COOKIES_SET', origin_to);
+    let samesite_cookie_names = ['samesite_strict', 'samesite_lax', 'samesite_none', 'samesite_unspecified'];
+    assert_cookies_present(message.data.cookies, value, samesite_cookie_names, true);
+    w.close();
+  }, title);
+}
+
+promise_test(async t => {
+  await register_service_worker(SECURE_ORIGIN);
+  await register_service_worker(SECURE_CROSS_SITE_ORIGIN);
+}, 'Setup service workers');
+
+navigate_test("GET", SECURE_ORIGIN, "with-sw&ignore",
+              "Same-site top-level navigation with fallback service worker should be able to set SameSite=* cookies.");
+navigate_test("GET", SECURE_CROSS_SITE_ORIGIN, "with-sw&ignore",
+              "Cross-site top-level navigation with fallback service worker should be able to set SameSite=* cookies.");
+navigate_test("POST", SECURE_ORIGIN, "with-sw&ignore",
+              "Same-site top-level POST with fallback service worker should be able to set SameSite=* cookies.");
+navigate_test("POST", SECURE_CROSS_SITE_ORIGIN, "with-sw&ignore",
+              "Cross-site top-level with fallback service worker POST should be able to set SameSite=* cookies.");
+
+navigate_test("GET", SECURE_ORIGIN, "with-sw",
+              "Same-site top-level navigation with passthrough service worker should be able to set SameSite=* cookies.");
+navigate_test("GET", SECURE_CROSS_SITE_ORIGIN, "with-sw",
+              "Cross-site top-level navigation with passthrough service worker should be able to set SameSite=* cookies.");
+navigate_test("POST", SECURE_ORIGIN, "with-sw",
+              "Same-site top-level POST with passthrough service worker should be able to set SameSite=* cookies.");
+navigate_test("POST", SECURE_CROSS_SITE_ORIGIN, "with-sw",
+              "Cross-site top-level with passthrough service worker POST should be able to set SameSite=* cookies.");
+
+navigate_test("GET", SECURE_ORIGIN, "with-sw&navpreload",
+              "Same-site top-level navigation with navpreload service worker should be able to set SameSite=* cookies.");
+navigate_test("GET", SECURE_CROSS_SITE_ORIGIN, "with-sw&navpreload",
+              "Cross-site top-level navigation with navpreload service worker should be able to set SameSite=* cookies.");
+// navpreload not supported with POST method
+
+navigate_test("GET", SECURE_ORIGIN, "with-sw&change-request",
+              "Same-site top-level navigation with change-request service worker should be able to set SameSite=* cookies.");
+navigate_test("GET", SECURE_CROSS_SITE_ORIGIN, "with-sw&change-request",
+              "Cross-site top-level navigation with change-request service worker should be able to set SameSite=* cookies.");
+navigate_test("POST", SECURE_ORIGIN, "with-sw&change-request",
+              "Same-site top-level POST with change-request service worker should be able to set SameSite=* cookies.");
+navigate_test("POST", SECURE_CROSS_SITE_ORIGIN, "with-sw&change-request",
+              "Cross-site top-level with change-request service worker POST should be able to set SameSite=* cookies.");
+
+promise_test(async t => {
+  await unregister_service_worker(SECURE_ORIGIN);
+  await unregister_service_worker(SECURE_CROSS_SITE_ORIGIN);
+  await clear_cookies(SECURE_ORIGIN);
+  await clear_cookies(SECURE_CROSS_SITE_ORIGIN);
+}, 'Cleanup service workers');
+
+</script>
+</body>

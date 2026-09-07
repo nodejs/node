@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<title>Service Worker: Registration-updateViaCache</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+  const UPDATE_VIA_CACHE_VALUES = [undefined, 'imports', 'all', 'none'];
+  const SCRIPT_URL = 'resources/update-max-aged-worker.py';
+  const SCOPE = 'resources/blank.html';
+
+  async function cleanup() {
+    const reg = await navigator.serviceWorker.getRegistration(SCOPE);
+    if (!reg) return;
+    if (reg.scope == new URL(SCOPE, location).href) {
+      return reg.unregister();
+    };
+  }
+
+  function getScriptTimes(sw, testName) {
+    return new Promise(resolve => {
+      navigator.serviceWorker.addEventListener('message', function listener(event) {
+        if (event.data.test !== testName) return;
+        navigator.serviceWorker.removeEventListener('message', listener);
+        resolve({
+          mainTime: event.data.mainTime,
+          importTime: event.data.importTime
+        });
+      });
+
+      sw.postMessage('');
+    });
+  }
+
+  // Test creating registrations & triggering an update.
+  for (const updateViaCache of UPDATE_VIA_CACHE_VALUES) {
+    const testName = `register-with-updateViaCache-${updateViaCache}`;
+
+    promise_test(async t => {
+      await cleanup();
+
+      const opts = {scope: SCOPE};
+
+      if (updateViaCache) opts.updateViaCache = updateViaCache;
+
+      const reg = await navigator.serviceWorker.register(
+        `${SCRIPT_URL}?test=${testName}`,
+        opts
+      );
+
+      assert_equals(reg.updateViaCache, updateViaCache || 'imports', "reg.updateViaCache");
+
+      const sw = reg.installing || reg.waiting || reg.active;
+      await wait_for_state(t, sw, 'activated');
+      const values = await getScriptTimes(sw, testName);
+      await reg.update();
+
+      if (updateViaCache == 'all') {
+        assert_equals(reg.installing, null, "No new service worker");
+      }
+      else {
+        const newWorker = reg.installing;
+        assert_true(!!newWorker, "New worker installing");
+        const newValues = await getScriptTimes(newWorker, testName);
+
+        if (!updateViaCache || updateViaCache == 'imports') {
+          assert_not_equals(values.mainTime, newValues.mainTime, "Main script should have updated");
+          assert_equals(values.importTime, newValues.importTime, "Imported script should be the same");
+        }
+        else if (updateViaCache == 'none') {
+          assert_not_equals(values.mainTime, newValues.mainTime, "Main script should have updated");
+          assert_not_equals(values.importTime, newValues.importTime, "Imported script should have updated");
+        }
+        else {
+          // We should have handled all of the possible values for updateViaCache.
+          // If this runs, something's gone very wrong.
+          throw Error(`Unexpected updateViaCache value: ${updateViaCache}`);
+        }
+      }
+
+      await cleanup();
+    }, testName);
+  }
+
+  // Test changing the updateViaCache value of an existing registration.
+  for (const updateViaCache1 of UPDATE_VIA_CACHE_VALUES) {
+    for (const updateViaCache2 of UPDATE_VIA_CACHE_VALUES) {
+      const testName = `register-with-updateViaCache-${updateViaCache1}-then-${updateViaCache2}`;
+
+      promise_test(async t => {
+        await cleanup();
+
+        const fullScriptUrl = `${SCRIPT_URL}?test=${testName}`;
+        let opts = {scope: SCOPE};
+        if (updateViaCache1) opts.updateViaCache = updateViaCache1;
+
+        const reg = await navigator.serviceWorker.register(fullScriptUrl, opts);
+
+        const sw = reg.installing;
+        await wait_for_state(t, sw, 'activated');
+        const values = await getScriptTimes(sw, testName);
+
+        const frame = await with_iframe(SCOPE);
+        const reg_in_frame = await frame.contentWindow.navigator.serviceWorker.getRegistration(normalizeURL(SCOPE));
+        assert_equals(reg_in_frame.updateViaCache, updateViaCache1 || 'imports', "reg_in_frame.updateViaCache");
+
+        opts = {scope: SCOPE};
+        if (updateViaCache2) opts.updateViaCache = updateViaCache2;
+
+        await navigator.serviceWorker.register(fullScriptUrl, opts);
+
+        const expected_updateViaCache = updateViaCache2 || 'imports';
+
+        assert_equals(reg.updateViaCache, expected_updateViaCache, "reg.updateViaCache updated");
+        // If the update happens via the cache, the scripts will come back byte-identical.
+        // We bypass the byte-identical check if the script URL has changed, but not if
+        // only the updateViaCache value has changed.
+        if (updateViaCache2 == 'all') {
+          assert_equals(reg.installing, null, "No new service worker");
+        }
+        // If there's no change to the updateViaCache value, register should be a no-op.
+        // The default value should behave as 'imports'.
+        else if ((updateViaCache1 || 'imports') == (updateViaCache2 || 'imports')) {
+          assert_equals(reg.installing, null, "No new service worker");
+        }
+        else {
+          const newWorker = reg.installing;
+          assert_true(!!newWorker, "New worker installing");
+          const newValues = await getScriptTimes(newWorker, testName);
+
+          if (!updateViaCache2 || updateViaCache2 == 'imports') {
+            assert_not_equals(values.mainTime, newValues.mainTime, "Main script should have updated");
+            assert_equals(values.importTime, newValues.importTime, "Imported script should be the same");
+          }
+          else if (updateViaCache2 == 'none') {
+            assert_not_equals(values.mainTime, newValues.mainTime, "Main script should have updated");
+            assert_not_equals(values.importTime, newValues.importTime, "Imported script should have updated");
+          }
+          else {
+            // We should have handled all of the possible values for updateViaCache2.
+            // If this runs, something's gone very wrong.
+            throw Error(`Unexpected updateViaCache value: ${updateViaCache}`);
+          }
+        }
+
+        // Wait for all registration related tasks on |frame| to complete.
+        await wait_for_activation_on_sample_scope(t, frame.contentWindow);
+        // The updateViaCache change should have been propagated to all
+        // corresponding JS registration objects.
+        assert_equals(reg_in_frame.updateViaCache, expected_updateViaCache, "reg_in_frame.updateViaCache updated");
+        frame.remove();
+
+        await cleanup();
+      }, testName);
+    }
+  }
+
+  // Test accessing updateViaCache of an unregistered registration.
+  for (const updateViaCache of UPDATE_VIA_CACHE_VALUES) {
+    const testName = `access-updateViaCache-after-unregister-${updateViaCache}`;
+
+    promise_test(async t => {
+      await cleanup();
+
+      const opts = {scope: SCOPE};
+
+      if (updateViaCache) opts.updateViaCache = updateViaCache;
+
+      const reg = await navigator.serviceWorker.register(
+        `${SCRIPT_URL}?test=${testName}`,
+        opts
+      );
+
+      const expected_updateViaCache = updateViaCache || 'imports';
+      assert_equals(reg.updateViaCache, expected_updateViaCache, "reg.updateViaCache");
+
+      await reg.unregister();
+
+      // Keep the original value.
+      assert_equals(reg.updateViaCache, expected_updateViaCache, "reg.updateViaCache");
+
+      await cleanup();
+    }, testName);
+  }
+
+  promise_test(async t => {
+    await cleanup();
+    t.add_cleanup(cleanup);
+
+    const registration = await navigator.serviceWorker.register(
+        'resources/empty.js',
+        {scope: SCOPE});
+    assert_equals(registration.updateViaCache, 'imports',
+                  'before update attempt');
+
+    const fail = navigator.serviceWorker.register(
+        'resources/malformed-worker.py?parse-error',
+        {scope: SCOPE, updateViaCache: 'none'});
+    await promise_rejects_js(t, TypeError, fail);
+    assert_equals(registration.updateViaCache, 'imports',
+                  'after update attempt');
+  }, 'updateViaCache is not updated if register() rejects');
+</script>

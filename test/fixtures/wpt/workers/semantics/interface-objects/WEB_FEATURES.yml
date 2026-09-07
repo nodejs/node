@@ -1,0 +1,7 @@
+rules:
+# These "any.js" tests are limited to the SharedWorker context via the "META"
+# configuration.
+- 003.any.js: [shared-workers]
+- 004.any.js: [shared-workers]
+- 001.worker.js: [dedicated-workers]
+- 002.worker.js: [dedicated-workers]

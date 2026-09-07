@@ -15,7 +15,7 @@ declare namespace InternalZlibBinding {
     writeSync(flushFlag: number, input: TypedArray, inputOff: number, inputLen: number, out: TypedArray, outOff: number, outLen: number): void;
   }
 
-  class Zlib extends ZlibBase{
+  class Zlib extends ZlibBase {
     constructor(mode: number)
     init(windowBits: number, level: number, memLevel: number, strategy: number, writeState: Uint32Array, callback: VoidFunction, dictionary: Uint32Array): number;
   }
@@ -29,10 +29,24 @@ declare namespace InternalZlibBinding {
     constructor(mode: number);
     init(initParamsArray: Uint32Array, writeState: Uint32Array, callback: VoidFunction): boolean;
   }
+
+  class ZstdCompress extends ZlibBase {
+    constructor();
+    init(initParamsArray: Uint32Array, pledgedSrcSize: number | undefined, writeState: Uint32Array, callback: VoidFunction, dictionary?: ArrayBufferView): void;
+  }
+
+  class ZstdDecompress extends ZlibBase {
+    constructor();
+    init(initParamsArray: Uint32Array, pledgedSrcSize: number | undefined, writeState: Uint32Array, callback: VoidFunction, dictionary?: ArrayBufferView): void;
+  }
 }
 
 export interface ZlibBinding {
   BrotliDecoder: typeof InternalZlibBinding.BrotliDecoder;
   BrotliEncoder: typeof InternalZlibBinding.BrotliEncoder;
+  ZLIB_VERSION: string;
   Zlib: typeof InternalZlibBinding.Zlib;
+  ZstdCompress: typeof InternalZlibBinding.ZstdCompress;
+  ZstdDecompress: typeof InternalZlibBinding.ZstdDecompress;
+  crc32(data: string | ArrayBufferView, value: number): number;
 }

@@ -1,0 +1,3 @@
+rules:
+- importScripts-in-sharedworker.html: [shared-workers]
+- "*": [dedicated-workers]

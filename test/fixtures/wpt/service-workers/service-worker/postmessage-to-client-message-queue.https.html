@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<title>Service Worker: postMessage to Client (message queue)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// This function creates a message listener that captures all messages
+// sent to this window and matches them with corresponding requests.
+// This frees test code from having to use clunky constructs just to
+// avoid race conditions, since the relative order of message and
+// request arrival doesn't matter.
+function create_message_listener(t) {
+    const listener = {
+        messages: new Set(),
+        requests: new Set(),
+        waitFor: function(predicate) {
+            for (const event of this.messages) {
+                // If a message satisfying the predicate has already
+                // arrived, it gets matched to this request.
+                if (predicate(event)) {
+                    this.messages.delete(event);
+                    return Promise.resolve(event);
+                }
+            }
+
+            // If no match was found, the request is stored and a
+            // promise is returned.
+            const request = { predicate };
+            const promise = new Promise(resolve => request.resolve = resolve);
+            this.requests.add(request);
+            return promise;
+        }
+    };
+    window.onmessage = t.step_func(event => {
+        for (const request of listener.requests) {
+            // If the new message matches a stored request's
+            // predicate, the request's promise is resolved with this
+            // message.
+            if (request.predicate(event)) {
+                listener.requests.delete(request);
+                request.resolve(event);
+                return;
+            }
+        };
+
+        // No outstanding request for this message, store it in case
+        // it's requested later.
+        listener.messages.add(event);
+    });
+    return listener;
+}
+
+async function service_worker_register_and_activate(t, script, scope) {
+    const registration = await service_worker_unregister_and_register(t, script, scope);
+    t.add_cleanup(() => registration.unregister());
+    const worker = registration.installing;
+    await wait_for_state(t, worker, 'activated');
+    return worker;
+}
+
+// Add an iframe (parent) whose document contains a nested iframe
+// (child), then set the child's src attribute to child_url and return
+// its Window (without waiting for it to finish loading).
+async function with_nested_iframes(t, child_url) {
+    const parent = await with_iframe('resources/nested-iframe-parent.html?role=parent');
+    t.add_cleanup(() => parent.remove());
+    const child = parent.contentWindow.document.getElementById('child');
+    child.setAttribute('src', child_url);
+    return child.contentWindow;
+}
+
+// Returns a predicate matching a fetch message with the specified
+// key.
+function fetch_message(key) {
+    return event => event.data.type === 'fetch' && event.data.key === key;
+}
+
+// Returns a predicate matching a ping message with the specified
+// payload.
+function ping_message(data) {
+    return event => event.data.type === 'ping' && event.data.data === data;
+}
+
+// A client message queue test is a testharness.js test with some
+// additional setup:
+// 1. A listener (see create_message_listener)
+// 2. An active service worker
+// 3. Two nested iframes
+// 4. A state transition function that controls the order of events
+//    during the test
+function client_message_queue_test(url, test_function, description) {
+    promise_test(async t => {
+        t.listener = create_message_listener(t);
+
+        const script = 'resources/stalling-service-worker.js';
+        const scope = 'resources/';
+        t.service_worker = await service_worker_register_and_activate(t, script, scope);
+
+        // We create two nested iframes such that both are controlled by
+        // the newly installed service worker.
+        const child_url = url + '?role=child';
+        t.frame = await with_nested_iframes(t, child_url);
+
+        t.state_transition = async function(from, to, scripts) {
+            // A state transition begins with the child's parser
+            // fetching a script due to a <script> tag. The request
+            // arrives at the service worker, which notifies the
+            // parent, which in turn notifies the test. Note that the
+            // event loop keeps spinning while the parser is waiting.
+            const request = await this.listener.waitFor(fetch_message(to));
+
+            // The test instructs the service worker to send two ping
+            // messages through the Client interface: first to the
+            // child, then to the parent.
+            this.service_worker.postMessage(from);
+
+            // When the parent receives the ping message, it forwards
+            // it to the test. Assuming that messages to both child
+            // and parent are mapped to the same task queue (this is
+            // not [yet] required by the spec), receiving this message
+            // guarantees that the child has already dispatched its
+            // message if it was allowed to do so.
+            await this.listener.waitFor(ping_message(from));
+
+            // Finally, reply to the service worker's fetch
+            // notification with the script it should use as the fetch
+            // request's response. This is a defensive mechanism that
+            // ensures the child's parser really is blocked until the
+            // test is ready to continue.
+            request.ports[0].postMessage([`state = '${to}';`].concat(scripts));
+        };
+
+        await test_function(t);
+    }, description);
+}
+
+function client_message_queue_enable_test(
+    install_script,
+    start_script,
+    earliest_dispatch,
+    description)
+{
+    function assert_state_less_than_equal(state1, state2, explanation) {
+        const states = ['init', 'install', 'start', 'finish', 'loaded'];
+        const index1 = states.indexOf(state1);
+        const index2 = states.indexOf(state2);
+        if (index1 > index2)
+          assert_unreached(explanation);
+    }
+
+    client_message_queue_test('enable-client-message-queue.html', async t => {
+        // While parsing the child's document, the child transitions
+        // from the 'init' state all the way to the 'finish' state.
+        // Once parsing is finished it would enter the final 'loaded'
+        // state. All but the last transition require assitance from
+        // the test.
+        await t.state_transition('init', 'install', [install_script]);
+        await t.state_transition('install', 'start', [start_script]);
+        await t.state_transition('start', 'finish', []);
+
+        // Wait for all messages to get dispatched on the child's
+        // ServiceWorkerContainer and then verify that each message
+        // was dispatched after |earliest_dispatch|.
+        const report = await t.frame.report;
+        ['init', 'install', 'start'].forEach(state => {
+            const explanation = `Message sent in state '${state}' was dispatched in '${report[state]}', should be dispatched no earlier than '${earliest_dispatch}'`;
+            assert_state_less_than_equal(earliest_dispatch,
+                                         report[state],
+                                         explanation);
+        });
+    }, description);
+}
+
+const empty_script = ``;
+
+const add_event_listener =
+    `navigator.serviceWorker.addEventListener('message', handle_message);`;
+
+const set_onmessage = `navigator.serviceWorker.onmessage = handle_message;`;
+
+const start_messages = `navigator.serviceWorker.startMessages();`;
+
+client_message_queue_enable_test(add_event_listener, empty_script, 'loaded',
+    'Messages from ServiceWorker to Client only received after DOMContentLoaded event.');
+
+client_message_queue_enable_test(add_event_listener, start_messages, 'start',
+    'Messages from ServiceWorker to Client only received after calling startMessages().');
+
+client_message_queue_enable_test(set_onmessage, empty_script, 'install',
+    'Messages from ServiceWorker to Client only received after setting onmessage.');
+
+const resolve_manual_promise = `resolve_manual_promise();`
+
+async function test_microtasks_when_client_message_queue_enabled(t, scripts) {
+    await t.state_transition('init', 'start', scripts.concat([resolve_manual_promise]));
+    let result = await t.frame.result;
+    assert_equals(result[0], 'microtask', 'The microtask was executed first.');
+    assert_equals(result[1], 'message', 'The message was dispatched.');
+}
+
+client_message_queue_test('message-vs-microtask.html', t => {
+    return test_microtasks_when_client_message_queue_enabled(t, [
+        add_event_listener,
+        start_messages,
+    ]);
+}, 'Microtasks run before dispatching messages after calling startMessages().');
+
+client_message_queue_test('message-vs-microtask.html', t => {
+    return test_microtasks_when_client_message_queue_enabled(t, [set_onmessage]);
+}, 'Microtasks run before dispatching messages after setting onmessage.');
+</script>

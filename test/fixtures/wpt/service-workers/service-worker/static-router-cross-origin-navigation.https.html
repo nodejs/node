@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Static Router: Cross-origin navigation via cache source</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+const host_info = get_host_info();
+const path = new URL(".", window.location).pathname;
+const remote_origin = host_info.HTTPS_REMOTE_ORIGIN;
+
+// Use the rule that matches all requests and serves from cache.
+const ROUTER_KEY = 'condition-urlpattern-constructed-match-all-source-cache';
+const helper_url = `${remote_origin}${path}resources/register-static-router-iframe.html?key=${ROUTER_KEY}`;
+const target_url = `${remote_origin}${path}resources/cache.html`;
+
+promise_test(async t => {
+  // 1. Register SW on remote origin.
+  const remote_iframe = document.createElement('iframe');
+  t.add_cleanup(() => remote_iframe.remove());
+
+  const registered_promise = new Promise((resolve, reject) => {
+    window.addEventListener('message', e => {
+      if (e.data.type === 'registered') {
+        resolve();
+      } else if (e.data.type === 'error') {
+        reject(new Error(e.data.error));
+      }
+    });
+  });
+
+  remote_iframe.src = helper_url;
+  document.body.appendChild(remote_iframe);
+  await registered_promise;
+
+  // 2. Create same-origin iframe to initiate navigation.
+  const local_iframe = document.createElement('iframe');
+  t.add_cleanup(() => local_iframe.remove());
+  local_iframe.srcdoc = '<html><body></body></html>';
+  document.body.appendChild(local_iframe);
+
+  // Wait for srcdoc to load.
+  await new Promise(resolve => {
+    local_iframe.onload = resolve;
+  });
+
+  // 3. Click link inside local iframe to go to remote origin.
+  const link = local_iframe.contentDocument.createElement('a');
+  link.href = target_url;
+  link.innerText = 'Click me';
+  local_iframe.contentDocument.body.appendChild(link);
+
+  // Wait for the message from the cached response.
+  const cached_promise = new Promise(resolve => {
+    window.addEventListener('message', function handler(e) {
+      if (e.data.type === 'loaded_from_cache') {
+        window.removeEventListener('message', handler);
+        resolve();
+      }
+    });
+  });
+
+  link.click();
+  await cached_promise;
+
+  assert_true(true, "Navigation completed and loaded from cache");
+}, 'Cross-origin navigation with static router cache rule');
+</script>
+</body>

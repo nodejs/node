@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<title>Shared Worker: Data URL cross-origin checks</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+</body>
+<script>
+
+function dirname(path) {
+  return path.replace(/\/[^\/]*$/, '/');
+}
+
+promise_test(t => {
+  return new Promise(function(resolve) {
+    let count = 0;
+    onmessage = e => {
+      assert_equals(e.data, 1);
+      if (++count == 2) {
+        resolve(true);
+      }
+    };
+
+    let iframeA = document.createElement('iframe');
+    document.body.appendChild(iframeA);
+    iframeA.src =  get_host_info().HTTP_REMOTE_ORIGIN +
+                   dirname(location.pathname) +
+                   "support/iframe_sw_dataUrl.html";
+
+    let iframeB = document.createElement('iframe');
+    document.body.appendChild(iframeB);
+    iframeB.src =  get_host_info().HTTPS_REMOTE_ORIGIN +
+                   dirname(location.pathname) +
+                   "support/iframe_sw_dataUrl.html";
+  });
+}, 'Data URL not shared by cross-origin SharedWorkers');
+
+promise_test(t => {
+  return new Promise(function(resolve) {
+    let count = 0;
+    onmessage = e => {
+      assert_equals(e.data, ++count);
+      if (count == 2) {
+        resolve(true);
+      }
+    };
+
+    let iframeA = document.createElement('iframe');
+    document.body.appendChild(iframeA);
+    iframeA.src =  get_host_info().HTTP_ORIGIN +
+                   dirname(location.pathname) +
+                   "support/iframe_sw_dataUrl.html";
+
+    let iframeB = document.createElement('iframe');
+    document.body.appendChild(iframeB);
+    iframeB.src =  get_host_info().HTTP_ORIGIN +
+                   dirname(location.pathname) +
+                   "support/iframe_sw_dataUrl.html";
+  });
+}, 'Data URLs shared by same-origin SharedWorkers');
+
+</script>
+</html>

@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>iframe: cross-origin CSS request, service worker substitutes a same-origin response</title>
+<!-- Cross-origin stylesheet request. The controlling service worker intercepts
+     it and responds with a fetch() of a same-origin stylesheet, so the content
+     is same-origin and cssRules must be readable. -->
+<link rel="stylesheet" type="text/css"
+      href="{{location[scheme]}}://{{hosts[alt][]}}:{{location[port]}}/service-workers/service-worker/resources/css-sw-substitute-marker.css">

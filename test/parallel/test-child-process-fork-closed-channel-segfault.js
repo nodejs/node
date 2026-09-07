@@ -76,6 +76,7 @@ const server = net
           // Ignore errors when sending the second handle because the worker
           // may already have exited.
           if (err && err.code !== 'ERR_IPC_CHANNEL_CLOSED' &&
+                     err.code !== 'EPIPE' &&
                      err.code !== 'ECONNRESET' &&
                      err.code !== 'ECONNREFUSED' &&
                      err.code !== 'EMFILE') {

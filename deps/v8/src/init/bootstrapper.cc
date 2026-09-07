@@ -3483,6 +3483,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, math, "exp", Builtin::kMathExp, 1, kAdapt);
     SimpleInstallFunction(isolate_, math, "floor", Builtin::kMathFloor, 1,
                           kAdapt);
+    SimpleInstallFunction(isolate_, math, "f16round", Builtin::kMathF16round, 1,
+                          kAdapt);
     SimpleInstallFunction(isolate_, math, "fround", Builtin::kMathFround, 1,
                           kAdapt);
     SimpleInstallFunction(isolate_, math, "hypot", Builtin::kMathHypot, 2,
@@ -4330,6 +4332,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           Builtin::kDataViewPrototypeGetUint32, 1, kDontAdapt);
     SimpleInstallFunction(isolate_, prototype, "setUint32",
                           Builtin::kDataViewPrototypeSetUint32, 2, kDontAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getFloat16",
+                          Builtin::kDataViewPrototypeGetFloat16, 1, kDontAdapt);
+    SimpleInstallFunction(isolate_, prototype, "setFloat16",
+                          Builtin::kDataViewPrototypeSetFloat16, 2, kDontAdapt);
     SimpleInstallFunction(isolate_, prototype, "getFloat32",
                           Builtin::kDataViewPrototypeGetFloat32, 1, kDontAdapt);
     SimpleInstallFunction(isolate_, prototype, "setFloat32",
@@ -5083,11 +5089,6 @@ DirectHandle<JSFunction> Genesis::InstallTypedArray(
           JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
           GetCorrespondingRabGsabElementsKind(elements_kind), 0);
   rab_gsab_initial_map->SetConstructor(*result);
-
-  if (rab_gsab_initial_map_index == Context::RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX &&
-      v8_flags.js_float16array) {
-    LOG(isolate(), MapDetails(*rab_gsab_initial_map));
-  }
 
   native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map,
                         UPDATE_WRITE_BARRIER, kReleaseStore);
@@ -5867,34 +5868,6 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
       isolate(), async_iterator_prototype, factory->async_dispose_symbol(),
       "[Symbol.asyncDispose]", Builtin::kAsyncIteratorPrototypeAsyncDispose, 0,
       kAdapt);
-}
-
-void Genesis::InitializeGlobal_js_float16array() {
-  if (!v8_flags.js_float16array) return;
-
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> math = Cast<JSObject>(
-      JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
-
-  SimpleInstallFunction(isolate_, math, "f16round", Builtin::kMathF16round, 1,
-                        kAdapt);
-
-  DirectHandle<JSObject> dataview_prototype(
-      Cast<JSObject>(native_context()->data_view_fun()->instance_prototype()),
-      isolate());
-
-  SimpleInstallFunction(isolate_, dataview_prototype, "getFloat16",
-                        Builtin::kDataViewPrototypeGetFloat16, 1, kDontAdapt);
-  SimpleInstallFunction(isolate_, dataview_prototype, "setFloat16",
-                        Builtin::kDataViewPrototypeSetFloat16, 2, kDontAdapt);
-
-  DirectHandle<JSFunction> fun = InstallTypedArray(
-      "Float16Array", FLOAT16_ELEMENTS, FLOAT16_TYPED_ARRAY_CONSTRUCTOR_TYPE,
-      Context::RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX);
-
-  InstallWithIntrinsicDefaultProto(isolate_, fun,
-                                   Context::FLOAT16_ARRAY_FUN_INDEX);
 }
 
 void Genesis::InitializeGlobal_js_regexp_escape() {

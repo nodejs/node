@@ -1,0 +1,17 @@
+<style type="text/css">
+#crossOriginCss { color: red; }
+#crossOriginHtml { color: blue; }
+#sameOriginCss { color: red; }
+#sameOriginHtml { color: red; }
+#synthetic { color: red; }
+</style>
+<link href="./cross-origin-css.css?mime=no" rel="stylesheet" type="text/css">
+<link href="./cross-origin-html.css?mime=no" rel="stylesheet" type="text/css">
+<link href="./fetch-request-css-cross-origin-mime-check-same.css" rel="stylesheet" type="text/css">
+<link href="./fetch-request-css-cross-origin-mime-check-same.html" rel="stylesheet" type="text/css">
+<link href="./synthetic.css?mime=no" rel="stylesheet" type="text/css">
+<h1 id=crossOriginCss>I should be blue</h1>
+<h1 id=crossOriginHtml>I should be blue</h1>
+<h1 id=sameOriginCss>I should be blue</h1>
+<h1 id=sameOriginHtml>I should be blue</h1>
+<h1 id=synthetic>I should be blue</h1>

@@ -1,0 +1,19 @@
+<!doctype html>
+<title>worker.port</title>
+<link rel=help href="http://www.whatwg.org/html/#sharedworker">
+<link rel=help href="http://www.whatwg.org/html/#messageport">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const worker = new SharedWorker('empty.js', '');
+  assert_true('port' in worker, "port");
+  assert_true('postMessage' in worker.port, "postMessage");
+  assert_true('start' in worker.port, "start");
+  assert_true('close' in worker.port, "close");
+  assert_true('onmessage' in worker.port, "onmessage");
+  assert_true('addEventListener' in worker.port, "addEventListener");
+  assert_true('removeEventListener' in worker.port, "removeEventListener");
+  assert_true('dispatchEvent' in worker.port, "dispatchEvent");
+});
+</script>

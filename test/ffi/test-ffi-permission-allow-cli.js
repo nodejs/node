@@ -1,4 +1,4 @@
-// Flags: --permission --allow-ffi --allow-child-process --experimental-ffi --allow-fs-read=* --allow-fs-write=*
+// Flags: --permission --allow-ffi --allow-child-process --allow-fs-read=* --allow-fs-write=*
 'use strict';
 
 const { skipIfFFIMissing } = require('../common');
@@ -19,7 +19,6 @@ test('allow-ffi enables ffi APIs and permission flag discovery', () => {
   const { stdout, status, signal } = spawnSync(process.execPath, [
     '--permission',
     '--expose-internals',
-    '--experimental-ffi',
     '-p',
     'JSON.stringify(require("internal/process/permission").availableFlags())',
   ], {

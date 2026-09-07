@@ -229,6 +229,8 @@ class TLSWrap : public AsyncWrap,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPeerX509Certificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasPeerCertificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPeerFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);

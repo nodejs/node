@@ -11,7 +11,6 @@ This a list of all the dependencies:
 * [acorn][]
 * [ada][]
 * [amaro][]
-* [base64][]
 * [brotli][]
 * [c-ares][]
 * [merve][]
@@ -267,7 +266,7 @@ C++ testing and mocking framework.
 The [histogram](https://github.com/HdrHistogram/HdrHistogram_c) dependency is
 a C port of High Dynamic Range (HDR) Histogram.
 
-### ic
+### icu-small
 
 The [icu](http://site.icu-project.org) is widely used set of C/C++
 and Java libraries providing Unicode and Globalization
@@ -415,7 +414,6 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [acorn]: #acorn
 [ada]: #ada
 [amaro]: #amaro
-[base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares
 [corepack]: #corepack

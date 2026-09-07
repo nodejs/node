@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<title>Test sending multiple ports through Worker.postMessage.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(function(t) {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  worker.onmessage = t.step_func_done(function(evt) {
+    assert_true(evt.data.startsWith('PASS'));
+  });
+  worker.postMessage("noport");
+}, 'Test postMessage with no port.');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  worker.onmessage = t.step_func_done(function(evt) {
+    assert_true(evt.data.startsWith('PASS'));
+  });
+  worker.postMessage("noargs");
+}, 'Test postMessage with no arguments.');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  worker.onmessage = t.step_func_done(function(evt) {
+    assert_true(evt.data.startsWith('PASS'));
+  });
+  worker.postMessage("zero ports", []);
+}, 'Test postMessage with no ports and empty array.');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  var channel = new MessageChannel();
+  worker.onmessage = t.step_func_done(function(evt) {
+    assert_true(evt.data.startsWith('PASS'));
+  });
+  worker.postMessage("two ports", [channel.port1, channel.port2]);
+}, 'Test postMessage with two ports.');
+
+test(() => {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  assert_throws_js(TypeError,
+                   function() { worker.postMessage(); },
+                   'Empty postMessage should throw exception.');
+}, 'Test empty postMessage throws exception.');
+
+test(() => {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  var channel = new MessageChannel();
+  assert_throws_js(TypeError,
+                   function() { worker.postMessage("null port",
+                                                   [channel.port1, null,
+                                                    channel.port2]); },
+                   'postMessage with null ports should throw exception.');
+}, 'Test postMessage with null ports throws exception.');
+
+test(() => {
+  var worker = new Worker("support/Worker-thread-multi-port.js")
+  var channel = new MessageChannel();
+  assert_throws_dom('DataCloneError',
+                    function() { worker.postMessage("notAPort",
+                                                    [channel.port1, {},
+                                                     channel.port2]); },
+                    'postMessage with incorrect ports should throw exception.');
+}, 'Test postMessage with incorrect ports throws exception');
+
+test(() => {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  assert_throws_dom('DataCloneError',
+                    function() { worker.postMessage("notASequence", [{length: 3}]) },
+                    'postMessage without sequence should throw exception.');
+}, 'Test postMessage without sequence throws exception');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-thread-multi-port.js");
+  var channel = new MessageChannel();
+  assert_throws_dom('DataCloneError',
+                    function() { worker.postMessage("notAPort",
+                                                    [channel.port1, {},
+                                                     channel.port2]); },
+                    'postMessage with incorrect ports should throw exception.');
+  worker.onmessage = t.step_func_done(function(evt) {
+    assert_true(evt.data.startsWith('PASS'));
+  });
+  worker.postMessage("failed ports", [channel.port1, channel.port2]);
+}, 'Test postMessage on channel with previous failed postMessage calls.');
+</script>

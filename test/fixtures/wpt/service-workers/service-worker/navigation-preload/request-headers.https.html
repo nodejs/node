@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Navigation Preload request headers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script>
+promise_test(t => {
+    var script = 'resources/request-headers-worker.js';
+    var scope = 'resources/request-headers-scope.py';
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(registration => {
+          add_completion_callback(_ => registration.unregister());
+          var worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(_ => with_iframe(scope))
+      .then(frame => {
+          var headers = JSON.parse(frame.contentDocument.body.textContent);
+          assert_true(
+            'SERVICE-WORKER-NAVIGATION-PRELOAD' in headers,
+            'The Navigation Preload request must specify a ' +
+            '"Service-Worker-Navigation-Preload" header.');
+          assert_array_equals(
+            headers['SERVICE-WORKER-NAVIGATION-PRELOAD'],
+            ['hello'],
+            'The Navigation Preload request must specify the correct value ' +
+            'for the "Service-Worker-Navigation-Preload" header.');
+          assert_true(
+            'UPGRADE-INSECURE-REQUESTS' in headers,
+            'The Navigation Preload request must specify an ' +
+            '"Upgrade-Insecure-Requests" header.');
+          assert_array_equals(
+            headers['UPGRADE-INSECURE-REQUESTS'],
+            ['1'],
+            'The Navigation Preload request must specify the correct value ' +
+            'for the "Upgrade-Insecure-Requests" header.');
+        });
+  }, 'Navigation Preload request headers.');
+
+</script>

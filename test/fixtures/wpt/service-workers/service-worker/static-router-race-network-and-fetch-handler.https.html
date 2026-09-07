@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are evaluated with the request desitnation condition.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const ROUTER_KEY = 'condition-urlpattern-string-source-race-network-and-fetch-handler';
+const SW_SRC = 'resources/static-router-race-network-and-fetch-handler-sw.js';
+const FRAME_SRC = 'resources/direct.py';
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, `${FRAME_SRC}?nonce=${rnd}&server_slow`);
+  // Expect the response from the fetch handler.
+  assert_equals(iframe.contentWindow.document.body.innerText, rnd);
+  const {requests, errors}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(errors.length, 0);
+}, 'Main resource load matched the rule with race-network-and-fetch-handler source, and the fetch handler response is faster than the server response');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, `${FRAME_SRC}?nonce=${rnd}&sw_slow`);
+  // Expect the response from the netowrk request.
+  assert_equals(iframe.contentWindow.document.body.innerText, "Network with GET request");
+  // Ensure the fetch handler is also executed.
+  const {requests, errors}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(errors.length, 0);
+}, 'Main resource load matched the rule with race-network-and-fetch-handler source, and the server reseponse is faster than the fetch handler');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, `${FRAME_SRC}?nonce=${rnd}&server_slow&call_fetch`);
+  // Expect the response from the fetch handler.
+  assert_equals(iframe.contentWindow.document.body.innerText, rnd);
+  const {requests, errors}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(errors.length, 0);
+}, 'Main resource load matched the rule with race-network-and-fetch-handler source, and the fetch handler response is faster than the server response while fetch() is triggered inside the fetch handler');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, `${FRAME_SRC}?nonce=${rnd}&sw_slow&call_fetch`);
+  // Expect the response from the netowrk request.
+  assert_equals(iframe.contentWindow.document.body.innerText, "Network with GET request");
+  // Ensure the fetch handler is also executed.
+  const {requests, errors}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(errors.length, 0);
+}, 'Main resource load matched the rule with race-network-and-fetch-handler source, and the server reseponse is faster than the fetch handler while fetch() is triggered inside the fetch handler');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, FRAME_SRC);
+  // Expect the response from the fetch handler.
+  const response = await iframe.contentWindow.fetch(`?nonce=${rnd}&server_slow`);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), rnd);
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 2);
+}, 'Subresource load matched the rule with race-network-and-fetch-handler source, and the fetch handler response is faster than the server response');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, FRAME_SRC);
+  // Expect the response from the network request.
+  const response = await iframe.contentWindow.fetch(`?nonce=${rnd}&sw_slow`);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), "Network with GET request");
+  // Ensure the fetch handler is also executed.
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 2);
+}, 'Subresource load matched the rule with race-network-and-fetch-handler source, and the server reseponse is faster than the fetch handler');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, FRAME_SRC);
+  // Expect the response from the network request.
+  const response = await iframe.contentWindow.fetch(`?nonce=${rnd}&sw_slow&server_no_content`);
+  assert_equals(response.status, 204);
+  // Ensure the fetch handler is also executed.
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 2);
+}, 'Subresource load matched the rule with race-network-and-fetch-handler source, and the server reseponse with 204 response is faster than the fetch handler');
+
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, ROUTER_KEY, SW_SRC);
+  const iframe = await createIframe(t, FRAME_SRC);
+  const response = await iframe.contentWindow.fetch(`?nonce=${rnd}&sw_slow&server_not_found`);
+  // Expect the response from the network request was faster, but the result was 404.
+  // So, the fetch handler result will be used instead.
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), rnd);
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 2);
+}, 'Subresource load matched the rule with race-network-and-fetch-handler source, and the server reseponse is faster than the fetch handler, but not found');
+</script>
+</body>

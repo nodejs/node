@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<title>respondWith cannot be called asynchronously</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// This file has tests that call respondWith() asynchronously.
+
+let frame;
+let worker;
+const script = 'resources/fetch-event-async-respond-with-worker.js';
+const scope = 'resources/simple.html';
+
+// Global setup: this must be the first promise_test.
+promise_test(async (t) => {
+  const registration =
+      await service_worker_unregister_and_register(t, script, scope);
+  worker = registration.installing;
+  await wait_for_state(t, worker, 'activated');
+  frame = await with_iframe(scope);
+}, 'global setup');
+
+// Waits for a single message from the service worker and then removes the
+// message handler. Not safe for concurrent use.
+function wait_for_message() {
+  return new Promise((resolve) => {
+    const handler = (event) => {
+      navigator.serviceWorker.removeEventListener('message', handler);
+      resolve(event.data);
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+  });
+}
+
+// Does one test case. It fetches |url|. The service worker gets a fetch event
+// for |url| and attempts to call respondWith() asynchronously. It reports back
+// to the test whether an exception was thrown.
+async function do_test(url) {
+  // Send a message to tell the worker a new test case is starting.
+  const message = wait_for_message();
+  worker.postMessage('initializeMessageHandler');
+  const response = await message;
+  assert_equals(response, 'messageHandlerInitialized');
+
+  // Start a fetch.
+  const fetchPromise = frame.contentWindow.fetch(url);
+
+  // Receive the test result from the service worker.
+  const result = wait_for_message();
+  await fetchPromise.then(()=> {}, () => {});
+  return result;
+};
+
+promise_test(async (t) => {
+  const result = await do_test('respondWith-in-task');
+  assert_true(result.didThrow, 'should throw');
+  assert_equals(result.error, 'InvalidStateError');
+}, 'respondWith in a task throws InvalidStateError');
+
+promise_test(async (t) => {
+  const result = await do_test('respondWith-in-microtask');
+  assert_equals(result.didThrow, false, 'should not throw');
+}, 'respondWith in a microtask does not throw');
+
+// Global cleanup: the final promise_test.
+promise_test(async (t) => {
+  if (frame)
+    frame.remove();
+  await service_worker_unregister(t, scope);
+}, 'global cleanup');
+</script>
+</html>

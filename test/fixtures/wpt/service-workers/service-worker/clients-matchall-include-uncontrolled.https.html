@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll with includeUncontrolled</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function test_matchall(service_worker, expected, query_options) {
+  expected.sort((a, b) => a[2] > b[2] ? 1 : -1);
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = e => {
+      const data = e.data.filter(info => {
+        return info[2].indexOf('clients-matchall') > -1;
+      });
+      data.sort((a, b) => a[2] > b[2] ? 1 : -1);
+      assert_equals(data.length, expected.length);
+      for (let i = 0; i < data.length; i++)
+        assert_array_equals(data[i], expected[i]);
+      resolve();
+    };
+    service_worker.postMessage({port:channel.port2, options:query_options},
+                               [channel.port2]);
+  });
+}
+
+// Run clients.matchAll without and with includeUncontrolled=true.
+// (We want to run the two tests sequentially in the same promise_test
+// so that we can use the same set of iframes without intefering each other.
+promise_test(async t => {
+  // |base_url| is out-of-scope.
+  const base_url = 'resources/blank.html?clients-matchall';
+  const scope = base_url + '-includeUncontrolled';
+
+  const registration =
+      await service_worker_unregister_and_register(
+          t, 'resources/clients-matchall-worker.js', scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+  const service_worker = registration.installing;
+  await wait_for_state(t, service_worker, 'activated');
+
+  // Creates 3 iframes, 2 for in-scope and 1 for out-of-scope.
+  let frames = [];
+  frames.push(await with_iframe(base_url));
+  frames.push(await with_iframe(scope + '#1'));
+  frames.push(await with_iframe(scope + '#2'));
+
+  // Make sure we have focus for '#2' frame and its parent window.
+  frames[2].focus();
+  frames[2].contentWindow.focus();
+
+  const expected_without_include_uncontrolled = [
+    // visibilityState, focused, url, type, frameType
+    ['visible', false, new URL(scope + '#1', location).toString(), 'window', 'nested'],
+    ['visible', true, new URL(scope + '#2', location).toString(), 'window', 'nested']
+  ];
+  const expected_with_include_uncontrolled = [
+    // visibilityState, focused, url, type, frameType
+    ['visible', true, location.href, 'window', 'top-level'],
+    ['visible', false, new URL(scope + '#1', location).toString(), 'window', 'nested'],
+    ['visible', true, new URL(scope + '#2', location).toString(), 'window', 'nested'],
+    ['visible', false, new URL(base_url, location).toString(), 'window', 'nested']
+  ];
+
+  await test_matchall(service_worker, expected_without_include_uncontrolled);
+  await test_matchall(service_worker, expected_with_include_uncontrolled,
+                      { includeUncontrolled: true });
+}, 'Verify matchAll() with windows respect includeUncontrolled');
+
+// TODO: Add tests for clients.matchAll for dedicated workers.
+
+async function create_shared_worker(script_url) {
+  const shared_worker = new SharedWorker(script_url);
+  const msgEvent = await new Promise(r => shared_worker.port.onmessage = r);
+  assert_equals(msgEvent.data, 'started');
+  return shared_worker;
+}
+
+// Run clients.matchAll for shared workers without and with
+// includeUncontrolled=true.
+promise_test(async t => {
+  const script_url = 'resources/clients-matchall-client-types-shared-worker.js';
+  const uncontrolled_script_url =
+      new URL(script_url + '?uncontrolled', location).toString();
+  const controlled_script_url =
+      new URL(script_url + '?controlled', location).toString();
+
+  // Start a shared worker that is not controlled by a service worker.
+  const uncontrolled_shared_worker =
+      await create_shared_worker(uncontrolled_script_url);
+
+  // Register a service worker.
+  const registration =
+      await service_worker_unregister_and_register(
+          t, 'resources/clients-matchall-worker.js', script_url);
+  t.add_cleanup(() => service_worker_unregister(t, script_url));
+  const service_worker = registration.installing;
+  await wait_for_state(t, service_worker, 'activated');
+
+  // Start another shared worker controlled by the service worker.
+  await create_shared_worker(controlled_script_url);
+
+  const expected_without_include_uncontrolled = [
+    // visibilityState, focused, url, type, frameType
+    [undefined, undefined, controlled_script_url, 'sharedworker', 'none'],
+  ];
+  const expected_with_include_uncontrolled = [
+    // visibilityState, focused, url, type, frameType
+    [undefined, undefined, controlled_script_url, 'sharedworker', 'none'],
+    [undefined, undefined, uncontrolled_script_url, 'sharedworker', 'none'],
+  ];
+
+  await test_matchall(service_worker, expected_without_include_uncontrolled,
+                      { type: 'sharedworker' });
+  await test_matchall(service_worker, expected_with_include_uncontrolled,
+                      { includeUncontrolled: true, type: 'sharedworker' });
+}, 'Verify matchAll() with shared workers respect includeUncontrolled');
+</script>

@@ -1,0 +1,15 @@
+<!doctype html>
+<title>setting name</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+  var w1 = new SharedWorker('setting.js#1', 'x');
+  w1.port.addEventListener('message', this.step_func(function(e) {
+    assert_equals(e.data, 1);
+    this.done();
+  }), false);
+  w1.port.start();
+});
+</script>

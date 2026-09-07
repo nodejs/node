@@ -1,0 +1,15 @@
+<!doctype html>
+<title>e.ports in dedicated worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+(async_test()).step(function() {
+  var worker = new Worker('event-ports-dedicated.js');
+  worker.postMessage(1);
+  worker.onmessage = this.step_func(function(e) {
+    assert_true(e.data);
+    this.done();
+  });
+});
+</script>

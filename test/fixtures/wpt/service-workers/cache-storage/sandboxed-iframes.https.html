@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>Cache Storage: Verify access in sandboxed iframes</title>
+<link rel="help" href="https://w3c.github.io/ServiceWorker/#cache-storage">
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+function load_iframe(src, sandbox) {
+    return new Promise(function(resolve, reject) {
+        var iframe = document.createElement('iframe');
+        iframe.onload = function() { resolve(iframe); };
+
+        iframe.sandbox = sandbox;
+        iframe.src = src;
+
+        document.documentElement.appendChild(iframe);
+    });
+}
+
+function wait_for_message(id) {
+    return new Promise(function(resolve) {
+        self.addEventListener('message', function listener(e) {
+            if (e.data.id === id) {
+                resolve(e.data);
+                self.removeEventListener('message', listener);
+            }
+        });
+    });
+}
+
+var counter = 0;
+
+promise_test(function(t) {
+    return load_iframe('./resources/iframe.html',
+                       'allow-scripts allow-same-origin')
+        .then(function(iframe) {
+            var id = ++counter;
+            iframe.contentWindow.postMessage({id: id}, '*');
+            return wait_for_message(id);
+        })
+        .then(function(message) {
+            assert_equals(
+                message.result, 'allowed',
+                'Access should be allowed if sandbox has allow-same-origin');
+        });
+}, 'Sandboxed iframe with allow-same-origin is allowed access');
+
+promise_test(function(t) {
+    return load_iframe('./resources/iframe.html',
+                       'allow-scripts')
+        .then(function(iframe) {
+            var id = ++counter;
+            iframe.contentWindow.postMessage({id: id}, '*');
+            return wait_for_message(id);
+        })
+        .then(function(message) {
+            assert_equals(
+                message.result, 'denied',
+                'Access should be denied if sandbox lacks allow-same-origin');
+            assert_equals(message.name, 'SecurityError',
+                          'Failure should be a SecurityError');
+        });
+}, 'Sandboxed iframe without allow-same-origin is denied access');
+
+</script>

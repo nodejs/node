@@ -55,8 +55,8 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_object(napi_env env,
 NAPI_EXTERN napi_status NAPI_CDECL
 node_api_create_object_with_properties(napi_env env,
                                        napi_value prototype_or_null,
-                                       napi_value* property_names,
-                                       napi_value* property_values,
+                                       const napi_value* property_names,
+                                       const napi_value* property_values,
                                        size_t property_count,
                                        napi_value* result);
 #endif  // NAPI_EXPERIMENTAL

@@ -1,0 +1,12 @@
+<!doctype html>
+<title>worker.port.onmessage</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const worker = new SharedWorker('port-onmessage.js', '');
+  worker.port.onmessage = t.step_func_done(e => {
+    assert_true(e.data);
+  });
+}, 'Test SharedWorker.port.onmessage');
+</script>

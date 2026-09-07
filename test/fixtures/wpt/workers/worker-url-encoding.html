@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset=windows-1252>
+<title>Worker URL is parsed using document encoding</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+  async_test(t => {
+    let worker = new Worker("resources/worker-url-encoding.js?\u00DF");
+    worker.onmessage = t.step_func(e => {
+      assert_equals(e.data, "?%DF");
+      t.done();
+    });
+  }, "Worker URL is parsed using document encoding");
+</script>

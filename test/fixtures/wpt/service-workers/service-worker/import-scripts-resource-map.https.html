@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Tests for importScripts: script resource map</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+  <script>
+    // This test registers a worker that imports a script multiple times. The
+    // script should be stored on the first import and thereafter that stored
+    // script should be loaded. The worker asserts that the stored script was
+    // loaded; if the assert fails then registration fails.
+
+    promise_test(async t => {
+      const SCOPE = "resources/import-scripts-resource-map";
+      const SCRIPT = "resources/import-scripts-resource-map-worker.js";
+      await service_worker_unregister(t, SCOPE);
+      const registration = await navigator.serviceWorker.register(SCRIPT, {
+        scope: SCOPE
+      });
+      await registration.unregister();
+    }, "import the same script URL multiple times");
+
+    promise_test(async t => {
+      const SCOPE = "resources/import-scripts-diff-resource-map";
+      const SCRIPT = "resources/import-scripts-diff-resource-map-worker.js";
+      await service_worker_unregister(t, SCOPE);
+      const registration = await navigator.serviceWorker.register(SCRIPT, {
+        scope: SCOPE
+      });
+      await registration.unregister();
+    }, "call importScripts() with multiple arguments");
+  </script>
+</body>

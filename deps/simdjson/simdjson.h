@@ -1,4 +1,4 @@
-/* auto-generated on 2026-08-14 12:14:27 -0400. version 4.6.7 Do not edit! */
+/* auto-generated on 2026-08-24 17:10:01 -0400. version 4.6.9 Do not edit! */
 /* including simdjson.h:  */
 /* begin file simdjson.h */
 #ifndef SIMDJSON_H
@@ -2538,7 +2538,7 @@ namespace std {
 #define SIMDJSON_SIMDJSON_VERSION_H
 
 /** The version of simdjson being used (major.minor.revision) */
-#define SIMDJSON_VERSION "4.6.7"
+#define SIMDJSON_VERSION "4.6.9"
 
 namespace simdjson {
 enum {
@@ -2553,7 +2553,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdjson being used.
    */
-  SIMDJSON_VERSION_REVISION = 7
+  SIMDJSON_VERSION_REVISION = 9
 };
 } // namespace simdjson
 
@@ -69201,6 +69201,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -72864,13 +72865,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -82583,6 +82580,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -86246,13 +86244,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -96452,6 +96446,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -100115,13 +100110,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -110321,6 +110312,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -113984,13 +113976,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -124305,6 +124293,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -127968,13 +127957,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -138606,6 +138591,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -142269,13 +142255,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -152381,6 +152363,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -156044,13 +156027,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -166179,6 +166158,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -169842,13 +169822,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {
@@ -179981,6 +179957,7 @@ template <typename Func>
 template <typename Func>
 #endif
 inline error_code value::for_each_at_path_with_wildcard(std::string_view json_path, Func&& callback) noexcept {
+  if (size_t(iter.depth()) >= iter.json_iter().parser->max_depth()) { return DEPTH_ERROR; }
   json_type t;
   SIMDJSON_TRY(type().get(t));
   switch (t) {
@@ -183644,13 +183621,9 @@ simdjson_inline bool raw_json_string::unsafe_is_equal(std::string_view target) c
   if(target.size() <= SIMDJSON_PADDING) {
     return (raw()[target.size()] == '"') && !memcmp(raw(), target.data(), target.size());
   }
-  const char * r{raw()};
-  size_t pos{0};
-  for(;pos < target.size();pos++) {
-    if(r[pos] != target[pos]) { return false; }
-  }
-  if(r[pos] != '"') { return false; }
-  return true;
+  // Past SIMDJSON_PADDING we can no longer rely on the padding to keep the
+  // comparison in bounds, so we must stop at the quote terminating the key.
+  return is_equal(target);
 }
 
 simdjson_inline bool raw_json_string::is_equal(std::string_view target) const noexcept {

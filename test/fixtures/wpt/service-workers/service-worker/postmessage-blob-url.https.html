@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>Service Worker: postMessage Blob URL</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(t => {
+    let script = 'resources/postmessage-blob-url.js';
+    let scope = 'resources/blank.html';
+    let registration;
+    let blobText = 'Blob text';
+    let blob;
+    let blobUrl;
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(r => {
+          add_completion_callback(() => r.unregister());
+          registration = r;
+          let worker = registration.installing;
+          blob = new Blob([blobText]);
+          blobUrl = URL.createObjectURL(blob);
+          return new Promise(resolve => {
+            navigator.serviceWorker.onmessage = e => { resolve(e.data); }
+            worker.postMessage(blobUrl);
+          });
+        })
+      .then(response => {
+          assert_equals(response, 'Worker reply:' + blobText);
+          URL.revokeObjectURL(blobUrl);
+          return registration.unregister();
+        });
+  }, 'postMessage Blob URL to a ServiceWorker');
+</script>

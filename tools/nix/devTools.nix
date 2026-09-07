@@ -7,7 +7,9 @@
   pkgs.gh
   pkgs.git
   pkgs.jq
+  pkgs.ruff
   pkgs.shellcheck
+  pkgs.yamllint
 ]
 ++ (
   if (ncu-path == null) then

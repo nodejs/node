@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test the name property of shared workers mixing constructor options and constructor strings</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#concept-workerglobalscope-name">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-sharedworker">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-sharedworkerglobalscope-name">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+setup({ single_test: true });
+
+const name = "my name";
+
+const worker1 = new SharedWorker("support/shared-name.js", { name });
+worker1.port.onmessage = receiveMessage;
+
+const worker2 = new SharedWorker("support/shared-name.js", { name });
+worker2.port.onmessage = receiveMessage;
+
+const worker3 = new SharedWorker("support/shared-name.js", name);
+worker3.port.onmessage = receiveMessage;
+
+let nextCounterExpected = 1;
+function receiveMessage(e) {
+  const { counter, name: receivedName } = e.data;
+
+  assert_equals(receivedName, name);
+  assert_equals(counter, nextCounterExpected);
+
+  ++nextCounterExpected;
+  if (nextCounterExpected === 4) {
+    done();
+  }
+}
+</script>

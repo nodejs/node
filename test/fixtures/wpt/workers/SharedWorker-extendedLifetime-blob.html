@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<title>SharedWorker extendedLifetime (Blob URL)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<script>
+
+const createBlobWorkerAndStore = async (uuid) => {
+  const script = `
+    let stored_data = null;
+    self.onconnect = e => {
+      const port = e.ports[0];
+      port.onmessage = msg => {
+        if (msg.data.op === 'store') {
+          stored_data = msg.data.data;
+          port.postMessage({status: 'OK', reqid: msg.data.reqid});
+        } else if (msg.data.op === 'load') {
+          port.postMessage({status: 'OK', data: stored_data, reqid: msg.data.reqid});
+        }
+      };
+    };
+  `;
+  const blob = new Blob([script], {type: 'application/javascript'});
+  const url = URL.createObjectURL(blob);
+  window.worker = new SharedWorker(url, {extendedLifetime: true});
+  worker.port.start();
+  await new Promise(resolve => {
+    const listener = e => {
+      if (e.data.reqid === 1) {
+        worker.port.removeEventListener('message', listener);
+        resolve(e.data);
+      }
+    };
+    worker.port.addEventListener('message', listener);
+    worker.port.postMessage({op: 'store', data: uuid, reqid: 1});
+  });
+  return url;
+};
+
+const connectAndLoad = async (url) => {
+  window.worker = new SharedWorker(url, {extendedLifetime: true});
+  worker.port.start();
+  return new Promise(resolve => {
+    const listener = e => {
+      if (e.data.reqid === 2) {
+        worker.port.removeEventListener('message', listener);
+        resolve(e.data);
+      }
+    };
+    worker.port.addEventListener('message', listener);
+    worker.port.postMessage({op: 'load', reqid: 2});
+  });
+};
+
+promise_test(async t => {
+  const uuid = token();
+  const ctx = new RemoteContext(token());
+  const popup = window.open(remoteExecutorUrl(ctx.context_id));
+  const blobUrl = await ctx.execute_script(createBlobWorkerAndStore, [uuid]);
+  popup.close();
+
+  // The blob URL might be revoked in the popup's context upon close,
+  // but the SharedWorker should survive because of extendedLifetime.
+  // A new connection from this page should still match the existing worker.
+  const response = await connectAndLoad(blobUrl);
+  assert_equals(response.status, 'OK');
+  assert_equals(response.data, uuid);
+}, "Blob URL SharedWorker should survive across navigations with extendedLifetime");
+
+</script>

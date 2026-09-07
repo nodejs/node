@@ -807,6 +807,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetMethodNoSideEffect(isolate, target, "cwd", Cwd);
   SetMethod(isolate, target, "dlopen", binding::DLOpen);
+  SetMethod(isolate, target, "dlopenBinary", binding::DLOpenBinary);
   SetMethod(isolate, target, "reallyExit", ReallyExit);
 
 #if defined __POSIX__ && !defined(__PASE__)
@@ -854,6 +855,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Cwd);
   registry->Register(binding::DLOpen);
+  registry->Register(binding::DLOpenBinary);
   registry->Register(ReallyExit);
 
 #if defined __POSIX__ && !defined(__PASE__)

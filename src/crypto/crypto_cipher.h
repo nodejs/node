@@ -51,11 +51,15 @@ class CipherBase : public BaseObject {
                   int key_len,
                   const unsigned char* iv,
                   int iv_len,
-                  unsigned int auth_tag_len);
+                  unsigned int auth_tag_len,
+                  const char* cts_mode,
+                  const char* xts_standard);
   void InitIv(const char* cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
-              unsigned int auth_tag_len);
+              unsigned int auth_tag_len,
+              const char* cts_mode,
+              const char* xts_standard);
   bool InitAuthenticated(const char* cipher_type,
                          int iv_len,
                          unsigned int auth_tag_len);
@@ -87,7 +91,7 @@ class CipherBase : public BaseObject {
   unsigned int auth_tag_len_;
   char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
-  bool has_siv_update_;
+  bool has_one_shot_update_;
   unsigned int siv_aad_components_;
   int max_message_size_;
 };

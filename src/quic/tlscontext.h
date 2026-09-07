@@ -3,6 +3,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <base_object.h>
+#include <crypto/crypto_client_hello.h>
 #include <crypto/crypto_context.h>
 #include <crypto/crypto_keys.h>
 #include <memory_tracker.h>
@@ -91,7 +92,7 @@ class TLSSession final : public MemoryRetainer {
   // for each.
 
   // Gets the TLSSession from the SSL pointer app data.
-  static const TLSSession& From(const SSL* ssl);
+  static TLSSession& From(const SSL* ssl);
 
   // The constructor is public in order to satisfy the call to std::make_unique
   // in TLSContext::NewSession. It should not be called directly.
@@ -123,6 +124,38 @@ class TLSSession final : public MemoryRetainer {
 
   // The ALPN (protocol name) negotiated for the session
   const std::string protocol() const;
+
+  // Server-side early selection. A server picks the SNI context and the
+  // ALPN protocol from the ClientHello itself, before the TLS library
+  // reaches ticket decryption and early data, and holds the handshake
+  // there while the Session is handed to JavaScript. The results are
+  // cached here because the SSL object does not carry them until the
+  // later servername/ALPN callbacks run, which is after the pause.
+  //
+  // The state is explicit because the ClientHello callback can run more
+  // than once per handshake: the TLS stack restarts ClientHello
+  // processing when the handshake is resumed, and ngtcp2 can hand it
+  // further CRYPTO data - a reordered chunk replayed by
+  // conn_emit_pending_crypto_data, another CRYPTO frame in the same
+  // packet - while the handshake is still suspended. Only kPending does
+  // the work; kSelected keeps the handshake suspended until the Session
+  // has been surfaced.
+  enum class EarlySelection : uint8_t {
+    // Nothing selected yet.
+    kPending,
+    // Selected, and the handshake is suspended waiting for the Session
+    // to be handed to JavaScript.
+    kSelected,
+    // The Session has been surfaced; the handshake may run on.
+    kComplete,
+  };
+  inline EarlySelection early_selection() const { return early_selection_; }
+  inline void set_early_selection(EarlySelection state) {
+    early_selection_ = state;
+  }
+  inline void set_servername(std::string_view name) { servername_ = name; }
+  inline void set_alpn(std::string_view alpn) { alpn_ = alpn; }
+  inline const std::string& alpn() const { return alpn_; }
 
   // Triggers key update to begin. This will fail and return false if either a
   // previous key update is in progress or if the initial handshake has not yet
@@ -161,6 +194,9 @@ class TLSSession final : public MemoryRetainer {
   Session* session_;
   ncrypto::BIOPointer bio_trace_;
   std::string validation_error_ = "";
+  std::string servername_;
+  std::string alpn_;
+  EarlySelection early_selection_ = EarlySelection::kPending;
 };
 
 // The TLSContext is used to create a TLSSession. For the client, there is
@@ -326,6 +362,17 @@ class TLSContext final : public MemoryRetainer,
   ncrypto::SSLCtxPointer Initialize(Environment* env);
   operator SSL_CTX*() const;
 
+  // Returns the context to use for the requested host name, which is this
+  // context when nothing more specific matches. Returns nullptr when the
+  // connection cannot be served at all.
+  TLSContext* SelectSNIContext(std::string_view servername);
+
+  // Performs the server's early selection: SNI, then ALPN, then the
+  // Application, and then suspends the handshake. See the comment on
+  // TLSSession::EarlySelection.
+  static crypto::ClientHelloResult OnClientHello(
+      const crypto::ClientHelloContext& hello);
+
   static void OnKeylog(const SSL* ssl, const char* line);
   static int OnNewSession(SSL* ssl, SSL_SESSION* session);
   static int OnSelectAlpn(SSL* ssl,
@@ -337,13 +384,26 @@ class TLSContext final : public MemoryRetainer,
   static int OnVerifyClientCertificate(int preverify_ok, X509_STORE_CTX* ctx);
   static int OnSNI(SSL* ssl, int* ad, void* arg);
 
+  // Lets sni_contexts_ be looked up by string_view, so a connection that
+  // sends SNI does not have to build a std::string key to find its identity.
+  struct StringHash {
+    using is_transparent = void;
+    size_t operator()(std::string_view value) const {
+      return std::hash<std::string_view>{}(value);
+    }
+  };
+
   Side side_;
   Options options_;
   ncrypto::X509Pointer cert_;
   ncrypto::X509Pointer issuer_;
   std::string validation_error_ = "";
   ncrypto::SSLCtxPointer ctx_;
-  std::unordered_map<std::string, std::shared_ptr<TLSContext>> sni_contexts_;
+  std::unordered_map<std::string,
+                     std::shared_ptr<TLSContext>,
+                     StringHash,
+                     std::equal_to<>>
+      sni_contexts_;
 
   friend class TLSSession;
 };

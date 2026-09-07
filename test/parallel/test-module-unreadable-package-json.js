@@ -18,6 +18,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
@@ -38,11 +39,10 @@ const entry = tmpdir.resolve('main.mjs');
 fs.writeFileSync(entry, 'import { which } from "dep"; console.log(which);');
 
 // Sanity check: the export resolves while the package config is readable.
-{
-  const child = spawnSync(process.execPath, [entry], { encoding: 'utf8' });
-  assert.strictEqual(child.stdout.trim(), 'real');
-  assert.strictEqual(child.status, 0, child.stderr);
-}
+spawnSyncAndAssert(process.execPath, [entry], { encoding: 'utf8' }, {
+  stdout: 'real',
+  trim: true,
+});
 
 fs.chmodSync(depPackageJson, 0o000);
 

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<title>SharedWorker: import failure</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script> setup({allow_uncaught_exception: true}); </script>
+<script>
+
+// TODO: Factor out the test cases into a separate file.
+// (like import-test-cases.js)
+
+// SharedWorkers doesn't fire error events when runtime script errors occur.
+//
+// "For shared workers, if the error is still not handled afterwards, the error
+// may be reported to a developer console." [spec text]
+// https://html.spec.whatwg.org/C/#runtime-script-errors-2
+
+promise_test(async () => {
+  const scriptURL = 'resources/import-scripts-worker.js';
+  const worker = new SharedWorker(scriptURL, { type: 'module' });
+  const msg_event =
+    await new Promise(resolve => worker.port.onmessage = resolve);
+  assert_equals(msg_event.data, 'TypeError');
+}, 'importScripts() on module worker should throw an exception.');
+
+promise_test(() => {
+  const scriptURL = 'resources/non-existent-worker.js';
+  const worker = new SharedWorker(scriptURL, { type: 'module' });
+  return new Promise(resolve => worker.onerror = resolve);
+}, 'Worker construction for non-existent script should dispatch an ' +
+   'ErrorEvent.');
+
+promise_test(() => {
+  const scriptURL = 'resources/static-import-non-existent-script-worker.js';
+  const worker = new SharedWorker(scriptURL, { type: 'module' });
+  return new Promise(resolve => worker.onerror = resolve);
+}, 'Static import for non-existent script should dispatch an ErrorEvent.');
+
+promise_test(async () => {
+  const scriptURL = './non-existent-worker.js';
+  const worker =
+      new SharedWorker('resources/dynamic-import-given-url-worker.js',
+                       { type: 'module' });
+  worker.port.postMessage(scriptURL);
+  const msg_event = await new Promise((resolve, reject) => {
+    worker.port.onmessage = resolve;
+    worker.onerror = error => {
+      const msg = error instanceof ErrorEvent ? error.message
+                                              : 'unknown error';
+      reject(msg);
+    };
+  });
+  assert_equals(msg_event.data, 'TypeError');
+}, 'Dynamic import for non-existent script should throw an exception.');
+
+test(() => {
+  const scriptURL = 'http://invalid:123$';
+  assert_throws_dom('SyntaxError',
+                    () => new SharedWorker(scriptURL, { type: 'module' }));
+}, 'SharedWorker construction for an invalid URL should throw an exception.');
+
+async_test((t) => {
+  const scriptURL = 'file:///static-import-worker.js';
+  const worker = new SharedWorker(scriptURL, { type: 'module' });
+  worker.onerror = t.step_func_done(function(e) {
+    assert_true(e instanceof Event);
+  });
+
+}, 'SharedWorker construction for a file URL should throw an exception.');
+
+</script>

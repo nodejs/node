@@ -2,6 +2,7 @@
 
 #include "base_object-inl.h"
 #include "env-inl.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -237,8 +238,8 @@ void LockManager::ProcessQueue(Environment* env) {
      * 1- Build first_seen_for_resource: the oldest pending request
      *   for every resource name we encounter
      * 2- Decide what to do with each entry:
-     *     – If it belongs to another Environment, remember that env so we
-     *       can wake it later
+     *     – If it belongs to another Environment, remember that env only if
+     *       the request can make progress
      *     – For our Environment, pick one of:
      *         * grantable_request  – can be granted now
      *         * if_available_request – user asked for ifAvailable and the
@@ -254,11 +255,6 @@ void LockManager::ProcessQueue(Environment* env) {
            queue_iter != pending_queue_.end();
            ++queue_iter) {
         LockRequest* request = queue_iter->get();
-
-        // Collect unique environments to wake up later
-        if (request->env() != env) {
-          other_envs_to_wake.insert(request->env());
-        }
 
         // During a single pass, the first time we see a resource name is the
         // earliest pending request
@@ -283,12 +279,21 @@ void LockManager::ProcessQueue(Environment* env) {
           // If both are shared, they're compatible and can proceed
         }
 
-        // Only process requests from the current environment
+        bool is_grantable =
+            !should_wait_for_earlier_requests && IsGrantable(request);
+
+        // Requests must be processed on their Environment's event loop. Wake
+        // another Environment only when it has a request that can make
+        // progress; otherwise blocked Environments would continuously wake
+        // each other.
         if (request->env() != env) {
+          if (is_grantable || request->if_available()) {
+            other_envs_to_wake.insert(request->env());
+          }
           continue;
         }
 
-        if (should_wait_for_earlier_requests || !IsGrantable(request)) {
+        if (!is_grantable) {
           if (request->if_available()) {
             // ifAvailable request when resource not available: grant with null
             if_available_request = std::move(*queue_iter);
@@ -753,6 +758,8 @@ void LockManager::ReleaseLock(Lock* lock) {
 // Wakeup of target Environment's event loop
 void LockManager::WakeEnvironment(Environment* target_env) {
   if (target_env == nullptr || target_env->is_stopping()) return;
+
+  COUNT_GENERIC_USAGE("LockManager.WakeEnvironment");
 
   // Schedule ProcessQueue in the target Environment on its event loop.
   target_env->SetImmediateThreadsafe([](Environment* env_to_wake) {

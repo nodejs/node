@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>Service Worker: Service Worker can receive HTTP opaqueredirect response.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<meta charset="utf-8">
+<body></body>
+<script>
+async_test(function(t) {
+    var frame_src = get_host_info()['HTTPS_ORIGIN'] + base_path() +
+      'resources/navigation-redirect-to-http-iframe.html';
+    function on_message(e) {
+      assert_equals(e.data.results, 'OK');
+      t.done();
+    }
+
+    window.addEventListener('message', t.step_func(on_message), false);
+
+    with_iframe(frame_src)
+      .then(function(frame) {
+           t.add_cleanup(function() { frame.remove(); });
+         });
+  }, 'Verify Service Worker can receive HTTP opaqueredirect response.');
+</script>

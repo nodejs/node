@@ -1,0 +1,21 @@
+<!doctype html>
+<title>base url, dedicated worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+var t = async_test();
+var i = 0;
+function runtest() {
+  i++;
+  if (i != 2)
+    return;
+  var worker = new Worker('support/005-1.js');
+  worker.onmessage = this.step_func(function(e) {
+    assert_true(e.data);
+    this.done();
+  });
+}
+</script>
+<iframe src=001-1.xml onload="t.step(runtest);"></iframe>
+<iframe src=support/001-1.xml onload="t.step(runtest);"></iframe>

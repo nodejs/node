@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>Service Worker: 3P iframe for partitioned service workers</title>
+<script src="./test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="./partitioned-utils.js"></script>
+
+
+<body>
+This iframe will register a service worker when it loads and then add its own
+iframe that will attempt to navigate to a url that service worker will intercept
+and use to resolve the service worker's internal Promise.
+<script>
+
+async function onLoad() {
+  await setupServiceWorker();
+
+  // When the SW's iframe finishes it'll post a message. This forwards it up to
+  // the window.
+  self.addEventListener('message', evt => {
+      window.parent.postMessage(evt.data, '*');
+  });
+
+  // Now try to resolve the SW's promise. If we're partitioned then there
+  // shouldn't be a promise to resolve.
+  const resolve_frame_url = new URL('./partitioned-resolve.fakehtml?From3pFrame', self.location);
+  const frame_resolve = await new Promise(resolve => {
+    var frame = document.createElement('iframe');
+    frame.src = resolve_frame_url;
+    frame.onload = function() { resolve(frame); };
+    document.body.appendChild(frame);
+  });
+}
+
+self.addEventListener('load', onLoad);
+</script>
+</body>

@@ -7,8 +7,8 @@
 <!-- source_link=lib/crypto.js -->
 
 The `node:crypto` module provides cryptographic functionality that includes a
-set of wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify
-functions.
+set of wrappers for OpenSSL's hash, message authentication code (MAC), cipher,
+decipher, sign, verify, and key encapsulation mechanism (KEM) functions.
 
 ```mjs
 const { createHmac } = await import('node:crypto');
@@ -633,6 +633,10 @@ The [`crypto.createCipheriv()`][] method is
 used to create `Cipheriv` instances. `Cipheriv` objects are not to be created
 directly using the `new` keyword.
 
+The selected algorithm may impose additional restrictions on streaming and
+calls to [`cipher.update()`][]. See [CCM mode][], [CBC-CTS mode][], [XTS mode][],
+[AES key wrap modes][], and [SIV and GCM-SIV modes][].
+
 Example: Using `Cipheriv` objects as streams:
 
 ```mjs
@@ -905,14 +909,15 @@ added: v0.7.1
 * `autoPadding` {boolean} **Default:** `true`
 * Returns: {Cipheriv} The same `Cipheriv` instance for method chaining.
 
-When using block encryption algorithms, the `Cipheriv` class will automatically
-add padding to the input data to the appropriate block size. To disable the
-default padding call `cipher.setAutoPadding(false)`.
+When using block ciphers that use standard block padding, the `Cipheriv` class
+will automatically add padding to the input data to the appropriate block size.
+To disable the default padding call `cipher.setAutoPadding(false)`.
 
-When `autoPadding` is `false`, the length of the entire input data must be a
-multiple of the cipher's block size or [`cipher.final()`][] will throw an error.
-Disabling automatic padding is useful for non-standard padding, for instance
-using `0x0` instead of PKCS padding.
+For block ciphers that use standard block padding, when `autoPadding` is
+`false`, the length of the entire input data must be a multiple of the cipher's
+block size or [`cipher.final()`][] will throw an error. Disabling automatic
+padding is useful for non-standard padding, for instance using `0x0` instead of
+PKCS padding.
 
 The `cipher.setAutoPadding()` method must be called before
 [`cipher.final()`][].
@@ -946,9 +951,12 @@ is specified, a string using the specified encoding is returned. If no
 When `outputEncoding` is specified, it must use the same encoding as previous
 calls to `cipher.update()`.
 
-The `cipher.update()` method can be called multiple times with new data until
-[`cipher.final()`][] is called. Calling `cipher.update()` after
-[`cipher.final()`][] will result in an error being thrown.
+For most algorithms, `cipher.update()` can be called multiple times with new
+data until [`cipher.final()`][] is called. Some algorithms restrict calls to
+`cipher.update()`. For example, [CCM mode][], [CBC-CTS mode][], [XTS mode][],
+[AES key wrap modes][], and [SIV and GCM-SIV modes][] require the whole message
+in a single call. Calling `cipher.update()` after [`cipher.final()`][] will
+result in an error being thrown.
 
 ## Class: `Decipheriv`
 
@@ -969,6 +977,10 @@ used in one of two ways:
 The [`crypto.createDecipheriv()`][] method is
 used to create `Decipheriv` instances. `Decipheriv` objects are not to be created
 directly using the `new` keyword.
+
+The selected algorithm may impose additional restrictions on streaming and
+calls to [`decipher.update()`][]. See [CCM mode][], [CBC-CTS mode][],
+[XTS mode][], [AES key wrap modes][], and [SIV and GCM-SIV modes][].
 
 Example: Using `Decipheriv` objects as streams:
 
@@ -1267,8 +1279,8 @@ When data has been encrypted without standard block padding, calling
 `decipher.setAutoPadding(false)` will disable automatic padding to prevent
 [`decipher.final()`][] from checking for and removing padding.
 
-Turning auto padding off will only work if the input data's length is a
-multiple of the ciphers block size.
+For block ciphers that use standard block padding, disabling it requires the
+input data's length to be a multiple of the cipher's block size.
 
 The `decipher.setAutoPadding()` method must be called before
 [`decipher.final()`][].
@@ -1291,19 +1303,23 @@ changes:
 Updates the decipher with `data`. If the `inputEncoding` argument is given,
 the `data`
 argument is a string using the specified encoding. If the `inputEncoding`
-argument is not given, `data` must be a [`Buffer`][]. If `data` is a
-[`Buffer`][] then `inputEncoding` is ignored.
+argument is not given, `data` must be a [`Buffer`][], `TypedArray`, or
+`DataView`. If `data` is a [`Buffer`][], `TypedArray`, or `DataView`, then
+`inputEncoding` is ignored.
 
-The `outputEncoding` specifies the output format of the enciphered
+The `outputEncoding` specifies the output format of the deciphered
 data. If the `outputEncoding`
 is specified, a string using the specified encoding is returned. If no
 `outputEncoding` is provided, a [`Buffer`][] is returned.
 When `outputEncoding` is specified, it must use the same encoding as previous
 calls to `decipher.update()`.
 
-The `decipher.update()` method can be called multiple times with new data until
-[`decipher.final()`][] is called. Calling `decipher.update()` after
-[`decipher.final()`][] will result in an error being thrown.
+For most algorithms, `decipher.update()` can be called multiple times with new
+data until [`decipher.final()`][] is called. Some algorithms restrict calls to
+`decipher.update()`. For example, [CCM mode][], [CBC-CTS mode][], [XTS mode][],
+[AES key wrap modes][], and [SIV and GCM-SIV modes][] require the whole message
+in a single call. Calling `decipher.update()` after [`decipher.final()`][] will
+result in an error being thrown.
 
 Even if the underlying cipher implements authentication, the authenticity and
 integrity of the plaintext returned from this function may be uncertain at this
@@ -2521,6 +2537,91 @@ Depending on the type of this `KeyObject`, this property is either
 `'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
 or `'private'` for private (asymmetric) keys.
 
+## Class: `Mac`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+* Extends: {stream.Transform}
+
+The `Mac` class computes message authentication codes using MAC
+implementations supplied by OpenSSL providers. It can be used in one of two
+ways:
+
+* As a [stream][] that is both readable and writable, where data is written and
+  one authentication tag is produced on the readable side when the writable
+  side ends; or
+* By calling [`mac.update()`][] one or more times followed by [`mac.final()`][].
+
+Instances of `Mac` are created using [`crypto.createMac()`][]. The `Mac` class
+is not exported directly by the `node:crypto` module.
+
+Calling `mac.end()` without first writing data computes the authentication tag
+for an empty message. If the selected MAC produces a zero-byte tag, such as
+when a provider accepts `outputLength: 0`, the readable side ends without
+emitting a data chunk because Node.js streams do not emit zero-length chunks.
+When using `mac.final()` instead, it returns a zero-length [`Buffer`][] or an
+empty encoded string.
+
+`mac.end()` and `mac.final()` are alternative terminal operations and must not
+both be called on the same object. A `Mac` object cannot be used again after
+either operation attempts finalization or after an underlying MAC update fails.
+
+Example: Using [`mac.update()`][] and [`mac.final()`][]:
+
+```mjs
+const { createMac, randomBytes } = await import('node:crypto');
+
+const key = randomBytes(16);
+const mac = createMac('CMAC', key, {
+  cipher: 'AES-128-CBC',
+});
+
+mac.update('some data to authenticate');
+console.log(mac.final('hex'));
+```
+
+### `mac.final([outputEncoding])`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+* `outputEncoding` {string} The [encoding][] of the return value.
+* Returns: {Buffer | string}
+
+Completes the MAC computation and returns the authentication tag. If
+`outputEncoding` is omitted or is `'buffer'`, a [`Buffer`][] is returned.
+Otherwise, a string is returned.
+
+To verify an authentication tag, compare equal-length [`Buffer`][] values using
+[`crypto.timingSafeEqual()`][].
+
+The `Mac` object cannot be used again after finalization is attempted,
+including when finalization fails. Later calls to `mac.update()` or
+`mac.final()` throw `ERR_CRYPTO_MAC_FINALIZED`.
+
+### `mac.update(data[, inputEncoding])`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+* `data` {string|Buffer|TypedArray|DataView}
+* `inputEncoding` {string} The [encoding][] of the `data` string.
+* Returns: {Mac}
+
+Updates the MAC with `data` and returns the `Mac` object so that calls can be
+chained. When `data` is a string, `inputEncoding` defaults to `'utf8'`. When
+`data` is a [`Buffer`][], `TypedArray`, or `DataView`, `inputEncoding` is
+ignored.
+
+This method can be called multiple times before finalization. If an underlying
+MAC update fails, the `Mac` object cannot be used again. Calling this method
+after a previous underlying MAC update failure or after finalization throws
+`ERR_CRYPTO_MAC_FINALIZED`.
+
 ## Class: `Sign`
 
 <!-- YAML
@@ -3554,6 +3655,12 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: v26.9.0
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Additional ciphers available through OpenSSL providers (e.g.
+                 SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
+                 are now supported. The `ctsMode` and `xtsStandard` options
+                 were added.
   - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
@@ -3595,47 +3702,74 @@ changes:
 * `algorithm` {string}
 * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `iv` {string|ArrayBuffer|Buffer|TypedArray|DataView|null}
-* `options` {Object} [`stream.transform` options][]
+* `options` {Object} [`stream.transform` options][] with these additional
+  properties:
+  * `authTagLength` {number} The authentication tag length in bytes. Its
+    requirements and default depend on the authenticated cipher, as described
+    below.
+  * `ctsMode` {string} The [CBC-CTS mode][] variant. One of `'CS1'`, `'CS2'`,
+    or `'CS3'`. The values are case-sensitive. **Default:** `'CS1'`.
+  * `encoding` {string} The [encoding][] to use when `key` is a string. This
+    option does not affect a string `iv`, which is always interpreted as UTF-8.
+    **Default:** `'utf8'`.
+  * `xtsStandard` {string} The standard used by `sm4-xts`. One of `'GB'` or
+    `'IEEE'`. The values are case-sensitive. **Default:** `'GB'`.
 * Returns: {Cipheriv}
 
 Creates and returns a `Cipheriv` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
 
-The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
-`authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
-option is not required but can be used to set the length of the authentication
-tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
+The `options` argument controls cipher-specific settings and stream behavior.
+It is optional except when a cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`)
+is used. In that case, the `authTagLength` option is required and specifies the
+length of the authentication tag in bytes, see [CCM mode][]. In GCM mode, the
+`authTagLength` option is not required but can be used to set the length of the
+authentication tag that will be returned by `getAuthTag()` and defaults to 16
+bytes.
 For `SIV`, `GCM-SIV`, and `chacha20-poly1305`, the `authTagLength` option
 defaults to 16 bytes. `SIV` and `GCM-SIV` only support 16-byte authentication
 tags.
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms` will
-display the available cipher algorithms.
+The `ctsMode` and `xtsStandard` options configure parameters exposed by OpenSSL
+providers. They are available only with OpenSSL 3.0 or later and a provider
+that supports the corresponding parameter. `ctsMode` applies only to CBC-CTS
+ciphers, and `xtsStandard` applies only to `sm4-xts`. Supplying either option
+for an available cipher implementation that does not support it throws an
+`ERR_CRYPTO_UNSUPPORTED_OPERATION` error. See [CBC-CTS mode][] and [XTS mode][]
+for details.
+
+The available algorithms depend on OpenSSL. [`crypto.getCiphers()`][] lists the
+algorithms exposed by Node.js. On recent OpenSSL releases,
+`openssl list -cipher-algorithms` displays the algorithms available to OpenSSL,
+which can include algorithms that Node.js does not expose.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
-a [`KeyObject`][] of type `secret`. If the cipher does not need
-an initialization vector, `iv` may be `null`.
+[initialization vector][]. Each may be a string, `ArrayBuffer`, [`Buffer`][],
+`TypedArray`, or `DataView`. A string `key` is decoded using `options.encoding`,
+which defaults to `'utf8'`; a string `iv` is always decoded as UTF-8. The `key`
+may optionally be a [`KeyObject`][] of type `secret`. If the cipher does not
+need an initialization vector, `iv` may be `null`.
 
 When passing strings for `key` or `iv`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
-Initialization vectors should be unpredictable and unique; ideally, they will be
-cryptographically random. They do not have to be secret: IVs are typically just
-added to ciphertext messages unencrypted. It may sound contradictory that
-something has to be unpredictable and unique, but does not have to be secret;
-remember that an attacker must not be able to predict ahead of time what a
-given IV will be.
+Initialization vector requirements depend on the algorithm. For some
+algorithms, an IV must be unpredictable and unique; for others, uniqueness
+alone is sufficient, a fixed value is required, or no IV is used. Follow the
+requirements for the selected algorithm. IVs typically do not have to be secret
+and can be transmitted with the ciphertext.
 
 ### `crypto.createDecipheriv(algorithm, key, iv[, options])`
 
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: v26.9.0
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Additional ciphers available through OpenSSL providers (e.g.
+                 SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
+                 are now supported. The `ctsMode` and `xtsStandard` options
+                 were added.
   - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
@@ -3673,40 +3807,59 @@ changes:
 * `algorithm` {string}
 * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `iv` {string|ArrayBuffer|Buffer|TypedArray|DataView|null}
-* `options` {Object} [`stream.transform` options][]
+* `options` {Object} [`stream.transform` options][] with these additional
+  properties:
+  * `authTagLength` {number} The authentication tag length in bytes. Its
+    requirements and default depend on the authenticated cipher, as described
+    below.
+  * `ctsMode` {string} The [CBC-CTS mode][] variant. One of `'CS1'`, `'CS2'`,
+    or `'CS3'`. The values are case-sensitive. **Default:** `'CS1'`.
+  * `encoding` {string} The [encoding][] to use when `key` is a string. This
+    option does not affect a string `iv`, which is always interpreted as UTF-8.
+    **Default:** `'utf8'`.
+  * `xtsStandard` {string} The standard used by `sm4-xts`. One of `'GB'` or
+    `'IEEE'`. The values are case-sensitive. **Default:** `'GB'`.
 * Returns: {Decipheriv}
 
 Creates and returns a `Decipheriv` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
 
-The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
-`authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][].
-For AES-GCM and `chacha20-poly1305`, the `authTagLength` option defaults to 16
-bytes and must be set to a different value if a different length is used. For
-`SIV` and `GCM-SIV`, the `authTagLength` option defaults to 16 bytes and only
-16-byte authentication tags are supported.
+The `options` argument controls cipher-specific settings and stream behavior.
+It is optional except when a cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`)
+is used. In that case, the `authTagLength` option is required and specifies the
+length of the authentication tag in bytes, see [CCM mode][]. For GCM and
+`chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes and must be
+set if a different length is used. For `SIV` and `GCM-SIV`, the `authTagLength`
+option defaults to 16 bytes and only 16-byte authentication tags are supported.
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms` will
-display the available cipher algorithms.
+The `ctsMode` and `xtsStandard` options configure parameters exposed by OpenSSL
+providers. They are available only with OpenSSL 3.0 or later and a provider
+that supports the corresponding parameter. `ctsMode` applies only to CBC-CTS
+ciphers, and `xtsStandard` applies only to `sm4-xts`. Supplying either option
+for an available cipher implementation that does not support it throws an
+`ERR_CRYPTO_UNSUPPORTED_OPERATION` error. See [CBC-CTS mode][] and [XTS mode][]
+for details.
+
+The available algorithms depend on OpenSSL. [`crypto.getCiphers()`][] lists the
+algorithms exposed by Node.js. On recent OpenSSL releases,
+`openssl list -cipher-algorithms` displays the algorithms available to OpenSSL,
+which can include algorithms that Node.js does not expose.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
-a [`KeyObject`][] of type `secret`. If the cipher does not need
-an initialization vector, `iv` may be `null`.
+[initialization vector][]. Each may be a string, `ArrayBuffer`, [`Buffer`][],
+`TypedArray`, or `DataView`. A string `key` is decoded using `options.encoding`,
+which defaults to `'utf8'`; a string `iv` is always decoded as UTF-8. The `key`
+may optionally be a [`KeyObject`][] of type `secret`. If the cipher does not
+need an initialization vector, `iv` may be `null`.
 
 When passing strings for `key` or `iv`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
-Initialization vectors should be unpredictable and unique; ideally, they will be
-cryptographically random. They do not have to be secret: IVs are typically just
-added to ciphertext messages unencrypted. It may sound contradictory that
-something has to be unpredictable and unique, but does not have to be secret;
-remember that an attacker must not be able to predict ahead of time what a given
-IV will be.
+Initialization vector requirements depend on the algorithm. For some
+algorithms, an IV must be unpredictable and unique; for others, uniqueness
+alone is sufficient, a fixed value is required, or no IV is used. Follow the
+requirements for the selected algorithm. IVs typically do not have to be secret
+and can be transmitted with the ciphertext.
 
 ### `crypto.createDiffieHellman(prime[, primeEncoding][, generator][, generatorEncoding])`
 
@@ -3789,6 +3942,11 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: v26.9.0
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Hash algorithms exposed by OpenSSL providers are now
+                 supported. The `functionName` and `customization` options
+                 were added for cSHAKE hash functions.
   - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
@@ -3796,6 +3954,14 @@ changes:
 
 * `algorithm` {string}
 * `options` {Object} [`stream.transform` options][]
+  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the customization byte string. **Default:** an
+    empty byte string.
+  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the NIST function-name byte string. **Default:**
+    an empty byte string.
+  * `outputLength` {number} For XOF hash functions, specifies the desired
+    output length in bytes.
 * Returns: {Hash}
 
 Creates and returns a `Hash` object that can be used to generate hash digests
@@ -3803,12 +3969,23 @@ using the given `algorithm`. Optional `options` argument controls stream
 behavior. For XOF hash functions such as `'shake256'`, the `outputLength` option
 can be used to specify the desired output length in bytes.
 
+The `functionName` and `customization` options apply only to cSHAKE-128 and
+cSHAKE-256. They are supported only when Node.js is built with OpenSSL 4.0 or
+later and the selected provider supports the corresponding digest parameters.
+Strings are encoded as UTF-8, and neither strings nor byte values may contain
+NUL bytes. Both options default to an empty byte string. For OpenSSL's built-in
+providers, `functionName` is case-sensitive and must be `''`, `'TupleHash'`,
+`'ParallelHash'`, or `'KMAC'`. Other providers can impose different
+restrictions. With both options empty, cSHAKE produces the same output as the
+corresponding SHAKE function for the same output length. `cshake-128` and
+`cshake-256` default to output lengths of 32 and 64 bytes, respectively.
+
 When the data is small (< 5MB) and readily available, [`crypto.hash()`][] is usually faster.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+The available algorithms depend on the version and configuration of OpenSSL on
+the platform. Examples are `'sha256'` and `'sha512'`. Use
+[`crypto.getHashes()`][] to obtain the list of hash algorithms available to the
+Node.js process.
 
 Example: generating the sha256 sum of a file
 
@@ -3891,10 +4068,11 @@ changes:
 Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
 Optional `options` argument controls stream behavior.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+The available algorithms depend on the version and configuration of OpenSSL on
+the platform. Examples are `'sha256'` and `'sha512'`.
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+HMAC imposes additional restrictions, so not every listed algorithm is
+suitable.
 
 The `key` is the HMAC key used to generate the cryptographic HMAC hash. If it is
 a [`KeyObject`][], its type must be `secret`. If it is a string, please consider
@@ -3956,6 +4134,65 @@ input.on('readable', () => {
   }
 });
 ```
+
+### `crypto.createMac(algorithm, key[, options])`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `algorithm` {string} The name of the MAC algorithm.
+* `key` {ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+* `options` {Object} [`stream.transform` options][]
+  * `digest` {string} The digest used by a MAC such as HMAC.
+  * `cipher` {string} The cipher used by a MAC such as CMAC or GMAC.
+  * `iv` {ArrayBuffer|Buffer|TypedArray|DataView} The initialization vector for
+    a MAC such as GMAC.
+  * `customization` {ArrayBuffer|Buffer|TypedArray|DataView} A customization
+    byte string for MACs that support it, such as KMAC.
+  * `salt` {ArrayBuffer|Buffer|TypedArray|DataView} A salt byte string for MACs
+    that support it, such as BLAKE2 MACs.
+  * `outputLength` {number} The requested provider output size in bytes. Must be
+    an unsigned 32-bit integer. Provider-specific restrictions also apply.
+* Returns: {Mac}
+
+`algorithm` must be a non-empty provider MAC name. The MAC-specific properties
+listed above are extensions to the standard [`stream.transform` options][] and
+are passed only when the selected provider implementation advertises the
+corresponding parameter with the expected type. A supplied MAC-specific option
+that the selected implementation does not support causes an error.
+
+The following table summarizes the MAC-specific options accepted by MAC
+implementations in OpenSSL's built-in providers. The `key` argument is required
+for every MAC. The table lists only MAC-specific options; standard
+[`stream.transform` options][] remain available for every family.
+
+| MAC family | Required options                        | Optional options                        | Notes                                                                  |
+| ---------- | --------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------- |
+| HMAC       | `digest`                                | None                                    |                                                                        |
+| CMAC       | `cipher` using CBC mode                 | None                                    |                                                                        |
+| GMAC       | `cipher` using GCM mode, non-empty `iv` | None                                    | Requires a unique IV for every message authenticated with a given key. |
+| KMAC       | None                                    | `customization`, `outputLength`         |                                                                        |
+| BLAKE2 MAC | None                                    | `customization`, `salt`, `outputLength` |                                                                        |
+| Poly1305   | None                                    | None                                    | Each key must be used for only one message.                            |
+| SipHash    | None                                    | `outputLength`                          |                                                                        |
+
+`outputLength` configures the output size of the provider MAC. It is never
+implemented by computing a longer tag and truncating it. A value of `0` is
+passed to the provider and is accepted only when that provider can initialize
+and finalize the MAC with a zero-byte output. When `outputLength` is omitted,
+the provider's default output size is used and must be nonzero.
+
+The `key` must contain bytes or be a [`KeyObject`][] of type `secret`. Key
+length and other key requirements are determined by the selected provider
+implementation.
+
+Available algorithms and their accepted parameters depend on the OpenSSL
+version, loaded providers, and active default property query. Use
+[`crypto.getMacs()`][] to list fetchable MAC names. A listed name can still
+require options or a key with provider-specific properties.
 
 ### `crypto.createPrivateKey(key)`
 
@@ -4171,8 +4408,10 @@ added: v0.1.92
 * Returns: {Sign}
 
 Creates and returns a `Sign` object that uses the given `algorithm`. Use
-[`crypto.getHashes()`][] to obtain the names of the available digest algorithms.
-Optional `options` argument controls the `stream.Writable` behavior.
+[`crypto.getHashes()`][] to obtain the names available to the hashing APIs. The
+key type and signature scheme can impose additional restrictions on which
+digests can be used. Optional `options` argument controls the
+`stream.Writable` behavior.
 
 In some cases, a `Sign` instance can be created using the name of a signature
 algorithm, such as `'RSA-SHA256'`, instead of a digest algorithm. This will use
@@ -4191,8 +4430,9 @@ added: v0.1.92
 * Returns: {Verify}
 
 Creates and returns a `Verify` object that uses the given algorithm.
-Use [`crypto.getHashes()`][] to obtain an array of names of the available
-signing algorithms. Optional `options` argument controls the
+Use [`crypto.getHashes()`][] to obtain the names available to the hashing APIs.
+The key type and signature scheme can impose additional restrictions on which
+digests can be used. Optional `options` argument controls the
 `stream.Writable` behavior.
 
 In some cases, a `Verify` instance can be created using the name of a signature
@@ -4439,6 +4679,10 @@ changes:
 Generates a new asymmetric key pair of the given `type`. See the
 supported [asymmetric key types][].
 
+For RSA-PSS keys, [`crypto.getHashes()`][] lists algorithms available to the
+hashing APIs, but not every listed digest can be encoded in RSA-PSS parameters
+or is supported by the active RSA implementation.
+
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
 the respective part of the key is returned as a [`KeyObject`][].
@@ -4560,6 +4804,10 @@ changes:
 
 Generates a new asymmetric key pair of the given `type`. See the
 supported [asymmetric key types][].
+
+For RSA-PSS keys, [`crypto.getHashes()`][] lists algorithms available to the
+hashing APIs, but not every listed digest can be encoded in RSA-PSS parameters
+or is supported by the active RSA implementation.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -4919,10 +5167,26 @@ mode][].
 
 <!-- YAML
 added: v0.9.3
+changes:
+  - version: v26.9.0
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Names and aliases exposed by loaded OpenSSL providers that
+                 match the default property query are now included.
 -->
 
 * Returns: {string\[]} An array of the names of the supported hash algorithms,
   such as `'RSA-SHA256'`. Hash algorithms are also called "digest" algorithms.
+
+This is the authoritative Node.js list of hash algorithms available to
+[`crypto.createHash()`][] and [`crypto.hash()`][] in the current process. With
+OpenSSL 3 or later, the list depends on the loaded providers and the default
+property query in effect when the list is first generated. Some listed
+algorithms can require API-specific options, such as `outputLength` for XOF
+hash functions.
+
+A listed hash algorithm is not necessarily supported by APIs that combine a
+digest with another cryptographic operation, such as HMAC, key derivation, or
+signing. Those operations can apply additional restrictions.
 
 ```mjs
 const {
@@ -4938,6 +5202,40 @@ const {
 } = require('node:crypto');
 
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
+```
+
+### `crypto.getMacs()`
+
+<!-- YAML
+added: v26.9.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* Returns: {string\[]} A fresh array containing the sorted, lowercase names
+  and aliases of fetchable MAC implementations.
+
+Returns MAC names exposed by loaded OpenSSL providers that match the active
+default property query. Duplicate names and numeric OID aliases are omitted.
+On builds without OpenSSL `EVP_MAC` support, this function returns an empty
+array.
+
+The returned names describe implementations that OpenSSL can fetch. They do not
+guarantee that [`crypto.createMac()`][] can initialize the MAC without
+additional options. A provider can require additional parameters or a key with
+algorithm-specific properties, and it can expose parameters that this API does
+not support.
+
+After a successful FIPS mode change made with [`crypto.setFips()`][], subsequent
+calls reflect the new mode, and newly created `Mac` objects use it. Existing
+`Mac` objects continue using the provider implementation selected when they
+were created.
+
+```mjs
+const { getMacs } = await import('node:crypto');
+
+console.log(getMacs());
+// ['blake2bmac', 'blake2smac', 'cmac', 'gmac', 'hmac', ...]
 ```
 
 ### `crypto.getRandomValues(typedArray)`
@@ -4960,6 +5258,11 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: v26.9.0
+    pr-url: https://github.com/nodejs/node/pull/65484
+    description: Hash algorithms exposed by OpenSSL providers are now
+                 supported. The `functionName` and `customization` options
+                 were added for cSHAKE hash functions.
   - version:
      - v25.5.0
      - v24.13.1
@@ -4977,6 +5280,12 @@ changes:
   into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
   the encoded `TypedArray` into this API instead.
 * `options` {Object|string}
+  * `customization` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the customization byte string. **Default:** an
+    empty byte string.
+  * `functionName` {string|ArrayBuffer|Buffer|TypedArray|DataView} For cSHAKE
+    hash functions, specifies the NIST function-name byte string. **Default:**
+    an empty byte string.
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
   * `outputLength` {number} For XOF hash functions such as 'shake256',
@@ -4988,10 +5297,21 @@ the object-based `crypto.createHash()` when hashing a smaller amount of data
 (<= 5MB) that's readily available. If the data can be big or if it is streamed,
 it's still recommended to use `crypto.createHash()` instead.
 
-The `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms` will
-display the available digest algorithms.
+The available algorithms depend on the version and configuration of OpenSSL on
+the platform. Examples are `'sha256'` and `'sha512'`. Use
+[`crypto.getHashes()`][] to obtain the list of hash algorithms available to the
+Node.js process.
+
+The `functionName` and `customization` options apply only to cSHAKE-128 and
+cSHAKE-256. They are supported only when Node.js is built with OpenSSL 4.0 or
+later and the selected provider supports the corresponding digest parameters.
+Strings are encoded as UTF-8, and neither strings nor byte values may contain
+NUL bytes. Both options default to an empty byte string. For OpenSSL's built-in
+providers, `functionName` is case-sensitive and must be `''`, `'TupleHash'`,
+`'ParallelHash'`, or `'KMAC'`. Other providers can impose different
+restrictions. With both options empty, cSHAKE produces the same output as the
+corresponding SHAKE function for the same output length. `cshake-128` and
+`cshake-256` default to output lengths of 32 and 64 bytes, respectively.
 
 If `options` is a string, then it specifies the `outputEncoding`.
 
@@ -5063,6 +5383,10 @@ changes:
 
 HKDF is a simple key derivation function defined in RFC 5869. The given `ikm`,
 `salt` and `info` are used with the `digest` to derive a key of `keylen` bytes.
+The available digest algorithms depend on the version and configuration of
+OpenSSL. HKDF uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or HKDF.
 
 The supplied `callback` function is called with two arguments: `err` and
 `derivedKey`. If an error occurs while deriving the key, `err` will be set;
@@ -5122,6 +5446,10 @@ changes:
 Provides a synchronous HKDF key derivation function as defined in RFC 5869. The
 given `ikm`, `salt` and `info` are used with the `digest` to derive a key of
 `keylen` bytes.
+The available digest algorithms depend on the version and configuration of
+OpenSSL. HKDF uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or HKDF.
 
 The successfully generated `derivedKey` will be returned as an {ArrayBuffer}.
 
@@ -5231,8 +5559,10 @@ pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
 });
 ```
 
-An array of supported digest functions can be retrieved using
-[`crypto.getHashes()`][].
+The available digest algorithms depend on the version and configuration of
+OpenSSL. PBKDF2 uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or PBKDF2.
 
 This API uses libuv's threadpool, which can have surprising and
 negative performance implications for some applications; see the
@@ -5304,8 +5634,10 @@ const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
-An array of supported digest functions can be retrieved using
-[`crypto.getHashes()`][].
+The available digest algorithms depend on the version and configuration of
+OpenSSL. PBKDF2 uses HMAC internally. [`crypto.getHashes()`][] lists algorithms
+available to the hashing APIs, but not every listed algorithm is necessarily
+suitable for HMAC or PBKDF2.
 
 ### `crypto.privateDecrypt(privateKey, buffer)`
 
@@ -5360,6 +5692,10 @@ changes:
 
 Decrypts `buffer` with `privateKey`. `buffer` was previously encrypted using
 the corresponding public key, for example using [`crypto.publicEncrypt()`][].
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the active RSA implementation can impose additional restrictions on digests
+used for OAEP or MGF1.
 
 If `privateKey` is not a [`KeyObject`][], this function behaves as if
 `privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
@@ -5508,6 +5844,10 @@ changes:
 Encrypts the content of `buffer` with `key` and returns a new
 [`Buffer`][] with encrypted content. The returned data can be decrypted using
 the corresponding private key, for example using [`crypto.privateDecrypt()`][].
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the active RSA implementation can impose additional restrictions on digests
+used for OAEP or MGF1.
 
 If `key` is not a [`KeyObject`][], this function behaves as if
 `key` had been passed to [`crypto.createPublicKey()`][]. If it is an
@@ -6173,11 +6513,14 @@ changes:
     description: Custom engine support in OpenSSL 3 is deprecated.
 -->
 
+> Stability: 0 - Deprecated
+
 * `engine` {string}
 * `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
 
 Load and set the `engine` for some or all OpenSSL functions (selected by flags).
-Support for custom engines in OpenSSL is deprecated from OpenSSL 3.
+Use of this API is deprecated because custom engine support has been deprecated
+since OpenSSL 3.
 
 `engine` could be either an id or a path to the engine's shared library.
 
@@ -6281,6 +6624,10 @@ dependent upon the key type.
 
 `algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
 ML-DSA.
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the key type and signature scheme determine whether a listed digest can be
+used for signing.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. When `key` is a string, `ArrayBuffer`,
@@ -6418,6 +6765,10 @@ key type.
 
 `algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
 ML-DSA.
+
+[`crypto.getHashes()`][] lists algorithms available to the hashing APIs, but
+the key type and signature scheme determine whether a listed digest can be
+used for verification.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. When `key` is a string, `ArrayBuffer`,
@@ -6662,6 +7013,79 @@ try {
 console.log(receivedPlaintext);
 ```
 
+### CBC-CTS mode
+
+For CBC ciphertext stealing (CBC-CTS) ciphers, the `ctsMode` option to
+[`crypto.createCipheriv()`][] or [`crypto.createDecipheriv()`][] selects the
+variant:
+
+* `'CS1'` is the default. For block-aligned input, its output is the same as CBC
+  mode.
+* `'CS2'` is also the same as CBC for block-aligned input. For input with a
+  partial final block, it swaps the final full and partial ciphertext blocks
+  relative to CS1.
+* `'CS3'` is the Kerberos 5 variant. It uses the CS2 ordering for a partial
+  final block and swaps the final two ciphertext blocks even for block-aligned
+  input.
+
+Encryption and decryption must use the same variant. The option is available
+only with CBC-CTS provider ciphers on OpenSSL 3.0 or later.
+
+Applications which use this mode must adhere to these restrictions:
+
+* The plaintext or ciphertext must be at least one block long.
+* The ciphertext has the same length as the plaintext.
+* `cipher.update()` or `decipher.update()` must be called exactly once with all
+  input data. Stream methods such as `write(data)`, `end(data)`, or `pipe()` may
+  fail because CBC-CTS does not accept multiple data updates.
+* `cipher.final()` or `decipher.final()` must still be called to complete the
+  operation.
+* `crypto.getCipherInfo()` reports the base mode as `'cbc'`.
+
+### XTS mode
+
+XTS ciphers operate on independently tweakable data units. A `Cipheriv` or
+`Decipheriv` instance represents one complete data unit, and its `iv` argument
+provides the 16-byte tweak. Use a new instance with the appropriate positional
+tweak for each different logical data unit.
+
+Applications which use XTS mode must adhere to these restrictions:
+
+* The plaintext or ciphertext must be at least one 16-byte block. Its length
+  does not have to be a multiple of 16 bytes because XTS uses ciphertext
+  stealing for a final partial block.
+* The ciphertext has the same length as the plaintext.
+* `cipher.update()` or `decipher.update()` must be called exactly once with all
+  input data. Stream methods such as `write(data)`, `end(data)`, or `pipe()` may
+  fail because XTS does not accept multiple data updates.
+* `cipher.final()` or `decipher.final()` must still be called to complete the
+  operation.
+
+For `sm4-xts`, the `xtsStandard` option to [`crypto.createCipheriv()`][] or
+[`crypto.createDecipheriv()`][] selects either the default `'GB'` variant from
+GB/T 17964-2021 or the `'IEEE'` variant from IEEE Std 1619-2007. Encryption and
+decryption must use the same variant. The option is available only for
+`sm4-xts`; it does not apply to AES-XTS ciphers. OpenSSL's default provider
+supports `sm4-xts` in OpenSSL 3.2 or later.
+
+### AES key wrap modes
+
+AES key wrap (`AES-WRAP`) and AES key wrap with padding (`AES-WRAP-PAD`)
+ciphers operate on a complete key-data value rather than on an incremental byte
+stream. The inverse-transform variants have the same processing restrictions.
+
+Applications which use an AES key wrap cipher must adhere to these
+restrictions:
+
+* `cipher.update()` or `decipher.update()` must be called exactly once with the
+  complete, non-empty input value.
+* Do not use AES key wrap ciphers as generic [`stream.Transform`][] streams.
+  Methods such as `write(data)`, `end(data)`, and `pipe()` can split one value
+  across multiple updates, with each update being treated as a separate wrap or
+  unwrap operation.
+* `cipher.final()` or `decipher.final()` must still be called to complete the
+  operation.
+
 ### SIV and GCM-SIV modes
 
 `SIV`[^openssl30] and `GCM-SIV`[^openssl32] are supported [AEAD algorithms][]
@@ -6787,12 +7211,18 @@ startup. The following controls are also available:
 * [`--enable-fips`][] and [`--force-fips`][] enable the property query and
   additionally require the configured provider named `fips` to initialize and
   pass its self-test. Node.js exits if that check fails. `--force-fips` also
-  prevents FIPS mode from being disabled from script code.
+  prevents FIPS mode from being disabled from script code. With
+  `--force-fips=strict`, Node.js also rejects non-approved operations reported
+  through the OpenSSL FIPS indicator callback.
 * [`crypto.setFips()`][] changes the FIPS/property-query state. On OpenSSL 3, it
   does not install, load, initialize, or validate a provider. Implementations
   fetched before the call are not changed.
 * [`crypto.getFips()`][] reports the FIPS/property-query state. On OpenSSL 3, a
   return value of `1` does not prove that a FIPS provider is loaded or validated.
+* With [`--enable-fips-indicator-events`][], the
+  [`'crypto.fips.indicator'`][] diagnostics channel reports non-approved
+  operations permitted by an OpenSSL 3.4 or later FIPS provider configured for
+  backwards compatibility.
 
 With OpenSSL 1.1.1, these controls use the library's FIPS mode support and
 require a FIPS-capable OpenSSL build.
@@ -7087,6 +7517,8 @@ See the [list of SSL OP Flags][] for details.
 [^openssl35]: Requires OpenSSL >= 3.5
 
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
+[AES key wrap modes]: #aes-key-wrap-modes
+[CBC-CTS mode]: #cbc-cts-mode
 [CCM mode]: #ccm-mode
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
 [Caveats]: #support-for-weak-or-compromised-algorithms
@@ -7116,8 +7548,12 @@ See the [list of SSL OP Flags][] for details.
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
 [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
+[SIV and GCM-SIV modes]: #siv-and-gcm-siv-modes
 [Web Crypto API documentation]: webcrypto.md
+[XTS mode]: #xts-mode
+[`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
+[`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
 [`--enable-fips`]: cli.md#--enable-fips
 [`--force-fips`]: cli.md#--force-fips
 [`--openssl-config`]: cli.md#--openssl-configfile
@@ -7139,6 +7575,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createECDH()`]: #cryptocreateecdhcurvename
 [`crypto.createHash()`]: #cryptocreatehashalgorithm-options
 [`crypto.createHmac()`]: #cryptocreatehmacalgorithm-key-options
+[`crypto.createMac()`]: #cryptocreatemacalgorithm-key-options
 [`crypto.createPrivateKey()`]: #cryptocreateprivatekeykey
 [`crypto.createPublicKey()`]: #cryptocreatepublickeykey
 [`crypto.createSecretKey()`]: #cryptocreatesecretkeykey-encoding
@@ -7146,10 +7583,12 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createVerify()`]: #cryptocreateverifyalgorithm-options
 [`crypto.generateKey()`]: #cryptogeneratekeytype-options-callback
 [`crypto.generateKeyPair()`]: #cryptogeneratekeypairtype-options-callback
+[`crypto.getCiphers()`]: #cryptogetciphers
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getFips()`]: #cryptogetfips
 [`crypto.getHashes()`]: #cryptogethashes
+[`crypto.getMacs()`]: #cryptogetmacs
 [`crypto.hash()`]: #cryptohashalgorithm-data-options
 [`crypto.privateDecrypt()`]: #cryptoprivatedecryptprivatekey-buffer
 [`crypto.privateEncrypt()`]: #cryptoprivateencryptprivatekey-buffer
@@ -7159,6 +7598,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
 [`crypto.setFips()`]: #cryptosetfipsbool
 [`crypto.sign()`]: #cryptosignalgorithm-data-key-callback
+[`crypto.timingSafeEqual()`]: #cryptotimingsafeequala-b
 [`crypto.verify()`]: #cryptoverifyalgorithm-data-key-signature-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
 [`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
@@ -7175,9 +7615,12 @@ See the [list of SSL OP Flags][] for details.
 [`hmac.update()`]: #hmacupdatedata-inputencoding
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`keyObject.export()`]: #keyobjectexportoptions
+[`mac.final()`]: #macfinaloutputencoding
+[`mac.update()`]: #macupdatedata-inputencoding
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding
 [`sign.update()`]: #signupdatedata-inputencoding
+[`stream.Transform`]: stream.md#class-streamtransform
 [`stream.Writable` options]: stream.md#new-streamwritableoptions
 [`stream.transform` options]: stream.md#new-streamtransformoptions
 [`util.promisify()`]: util.md#utilpromisifyoriginal

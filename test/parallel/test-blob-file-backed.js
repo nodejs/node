@@ -130,6 +130,19 @@ writeFileSync(testfile5, '');
 })().then(common.mustCall());
 
 (async () => {
+  // A path that cannot be stat'd reports the underlying libuv error rather
+  // than a generic argument error, so ENOENT can be told apart from any other
+  // reason the file could not be used.
+  // Refs: https://github.com/nodejs/node/issues/65514
+  const missing = tmpdir.resolve('does-not-exist.txt');
+  await assert.rejects(async () => openAsBlob(missing), {
+    code: 'ENOENT',
+    syscall: 'stat',
+    path: missing,
+  });
+})().then(common.mustCall());
+
+(async () => {
   // We currently do not allow File-backed blobs to be cloned or transferred
   // across worker threads. This is largely because the underlying FdEntry
   // is bound to the Environment/Realm under which is was created.

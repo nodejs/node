@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<title>Service Worker: Registration update()</title>
+<meta name="timeout" content="long">
+<script src="/common/utils.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+const SCOPE = 'resources/simple.txt';
+
+// Create a service worker (update-worker.py). The response to update() will be
+// different based on the mode.
+async function prepare_ready_registration_with_mode(t, mode) {
+  const key = token();
+  const worker_url = `resources/update-worker.py?Key=${key}&Mode=${mode}`;
+  const expected_url = normalizeURL(worker_url);
+  const registration = await service_worker_unregister_and_register(
+      t, worker_url, SCOPE);
+  await wait_for_state(t, registration.installing, 'activated');
+  assert_equals(registration.installing, null,
+                'prepare_ready: installing');
+  assert_equals(registration.waiting, null,
+                'prepare_ready: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'prepare_ready: active');
+  return [registration, expected_url];
+}
+
+// Create a service worker (update-worker-from-file.py), which is initially
+// |initial_worker| and |updated_worker| later.
+async function prepare_ready_registration_with_file(
+    t, initial_worker, updated_worker) {
+  const key = token();
+  const worker_url = `resources/update-worker-from-file.py?` +
+      `First=${initial_worker}&Second=${updated_worker}&Key=${key}`;
+  const expected_url = normalizeURL(worker_url);
+
+  const registration = await service_worker_unregister_and_register(
+      t, worker_url, SCOPE);
+  await wait_for_state(t, registration.installing, 'activated');
+  assert_equals(registration.installing, null,
+                'prepare_ready: installing');
+  assert_equals(registration.waiting, null,
+                'prepare_ready: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'prepare_ready: active');
+  return [registration, expected_url];
+}
+
+function assert_installing_and_active(registration, expected_url) {
+  assert_equals(registration.installing.scriptURL, expected_url,
+                'assert_installing_and_active: installing');
+  assert_equals(registration.waiting, null,
+                'assert_installing_and_active: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'assert_installing_and_active: active');
+}
+
+function assert_waiting_and_active(registration, expected_url) {
+  assert_equals(registration.installing, null,
+                'assert_waiting_and_active: installing');
+  assert_equals(registration.waiting.scriptURL, expected_url,
+                'assert_waiting_and_active: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'assert_waiting_and_active: active');
+}
+
+function assert_active_only(registration, expected_url) {
+  assert_equals(registration.installing, null,
+                'assert_active_only: installing');
+  assert_equals(registration.waiting, null,
+                'assert_active_only: waiting');
+  assert_equals(registration.active.scriptURL, expected_url,
+                'assert_active_only: active');
+}
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_mode(t, 'normal');
+  t.add_cleanup(() => registration.unregister());
+
+  await Promise.all([registration.update(), wait_for_update(t, registration)]);
+  assert_installing_and_active(registration, expected_url);
+
+  await wait_for_state(t, registration.installing, 'installed');
+  assert_waiting_and_active(registration, expected_url);
+
+  await wait_for_state(t, registration.waiting, 'activated');
+  assert_active_only(registration, expected_url);
+}, 'update() should succeed when new script is available.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_mode(t, 'bad_mime_type');
+  t.add_cleanup(() => registration.unregister());
+
+  await promise_rejects_dom(t, 'SecurityError', registration.update());
+  assert_active_only(registration, expected_url);
+}, 'update() should fail when mime type is invalid.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_mode(t, 'redirect');
+  t.add_cleanup(() => registration.unregister());
+
+  await promise_rejects_js(t, TypeError, registration.update());
+  assert_active_only(registration, expected_url);
+}, 'update() should fail when a response for the main script is redirect.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_mode(t, 'syntax_error');
+  t.add_cleanup(() => registration.unregister());
+
+  await promise_rejects_js(t, TypeError, registration.update());
+  assert_active_only(registration, expected_url);
+}, 'update() should fail when a new script contains a syntax error.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_mode(t, 'throw_install');
+  t.add_cleanup(() => registration.unregister());
+
+  await Promise.all([registration.update(), wait_for_update(t, registration)]);
+  assert_installing_and_active(registration, expected_url);
+}, 'update() should resolve when the install event throws.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_mode(t, 'normal');
+  t.add_cleanup(() => registration.unregister());
+
+  // We need to hold a client alive so that unregister() below doesn't remove
+  // the registration before update() has had a chance to look at the pending
+  // uninstall flag.
+  const frame = await with_iframe(SCOPE);
+  t.add_cleanup(() => frame.remove());
+
+  await promise_rejects_js(
+      t, TypeError,
+      Promise.all([registration.unregister(), registration.update()]));
+}, 'update() should fail when the pending uninstall flag is set.');
+
+promise_test(async t => {
+  const [registration, expected_url] =
+      await prepare_ready_registration_with_file(
+        t,
+        'update-smaller-body-before-update-worker.js',
+        'update-smaller-body-after-update-worker.js');
+  t.add_cleanup(() => registration.unregister());
+
+  await Promise.all([registration.update(), wait_for_update(t, registration)]);
+  assert_installing_and_active(registration, expected_url);
+
+  await wait_for_state(t, registration.installing, 'installed');
+  assert_waiting_and_active(registration, expected_url);
+
+  await wait_for_state(t, registration.waiting, 'activated');
+  assert_active_only(registration, expected_url);
+}, 'update() should succeed when the script shrinks.');
+</script>

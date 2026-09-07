@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,6 +49,13 @@
     } while (0)
 
 #ifndef OPENSSL_NO_QUIC
+/*
+ * Test instrumentation only; see poll_builder.h. Always NULL in production
+ * use.
+ */
+void (*ossl_quic_poll_translate_test_step_cb)(size_t idx, void *arg) = NULL;
+void *ossl_quic_poll_translate_test_step_cb_arg = NULL;
+
 static int poll_translate_ssl_quic(SSL *ssl,
     QUIC_REACTOR_WAIT_CTX *wctx,
     RIO_POLL_BUILDER *rpb,
@@ -216,6 +223,10 @@ static int poll_translate(SSL_POLL_ITEM *items,
     for (i = 0; i < num_items; ++i) {
         item = &ITEM_N(items, stride, i);
 
+        if (ossl_quic_poll_translate_test_step_cb != NULL)
+            ossl_quic_poll_translate_test_step_cb(i,
+                ossl_quic_poll_translate_test_step_cb_arg);
+
         switch (item->desc.type) {
         case BIO_POLL_DESCRIPTOR_TYPE_SSL:
             ssl = item->desc.value.ssl;
@@ -233,7 +244,7 @@ static int poll_translate(SSL_POLL_ITEM *items,
                     FAIL_ITEM(i);
 
                 if (*abort_blocking)
-                    return 1;
+                    goto out;
 
                 if (!SSL_get_event_timeout(ssl, &timeout, &is_infinite))
                     FAIL_ITEM(i++); /* need to clean up this item too */
@@ -271,7 +282,12 @@ static int poll_translate(SSL_POLL_ITEM *items,
     }
 
 out:
-    if (!ok)
+    /*
+     * On abort_blocking, the item which triggered the abort has already
+     * balanced its own enter/leave of the blocking section (see
+     * poll_translate_ssl_quic()); only items 0..i-1 still need cleanup here.
+     */
+    if (!ok || *abort_blocking)
         postpoll_translation_cleanup(items, i, stride, wctx);
 
     *p_earliest_wakeup_deadline = earliest_wakeup_deadline;
@@ -320,8 +336,15 @@ static int poll_block(SSL_POLL_ITEM *items,
             p_result_count))
         goto out;
 
-    if (abort_blocking)
+    if (abort_blocking) {
+        /*
+         * Nothing actually failed; we just shouldn't block because an item
+         * may have become ready while we were setting up. The caller's
+         * retry loop will call poll_readout() again to pick this up.
+         */
+        ok = 1;
         goto out;
+    }
 
     earliest_wakeup_deadline = ossl_time_min(earliest_wakeup_deadline,
         user_deadline);

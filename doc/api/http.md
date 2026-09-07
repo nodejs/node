@@ -1127,7 +1127,7 @@ const hasContentType = request.hasHeader('content-type');
 
 ### `request.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
 Limits maximum response headers count. If set to 0, no limit will be applied.
 
@@ -1914,7 +1914,7 @@ added: v5.7.0
 added: v0.7.0
 -->
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 

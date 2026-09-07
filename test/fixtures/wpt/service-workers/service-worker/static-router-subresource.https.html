@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Static Router: simply skip fetch handler if pattern matches</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/static-router-helpers.sub.js"></script>
+<body>
+<script>
+const SCRIPT = 'resources/static-router-sw.js';
+const ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED =
+  'condition-urlpattern-constructed-source-network';
+const ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_IGNORE_CASE =
+  'condition-urlpattern-constructed-ignore-case-source-network';
+const ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_RESPECT_CASE =
+  'condition-urlpattern-constructed-respect-case-source-network';
+const ROUTER_RULE_KEY_URL_PATTERN_URLPATTERNCOMPATIBLE =
+  'condition-urlpattern-urlpatterncompatible-source-network';
+const ROUTER_RULE_KEY_URL_PATTERN_STRING =
+  'condition-urlpattern-string-source-network';
+const ROUTER_RULE_KEY_REQUEST = 'condition-request-source-network'
+const ROUTER_RULE_KEY_URL_PATTERN_STRING_CACHE =
+  'condition-urlpattern-string-source-cache';
+const ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_MATCH_ALL_CACHE =
+  'condition-urlpattern-constructed-match-all-source-cache';
+const ROUTER_RULE_KEY_URLPATTERN_CACHE_WITH_NAME =
+  'condition-urlpattern-string-source-cache-with-name';
+const ROUTER_RULE_KEY_OR = 'condition-or-source-network'
+const ROUTER_RULE_KEY_NOT = 'condition-urlpattern-not-source-network';
+const SCOPE = 'resources/';
+const HTML_FILE = 'resources/simple.html';
+const TXT_FILE = 'resources/direct.txt';
+const CSV_FILE = 'resources/simple.csv';
+const NOT_FILE = 'resources/not.txt';
+// Warning: please prepare the corresponding `*.text.headers` files, otherwise
+// iframeTest() fails to load the following files due to MIME mismatches.
+const OR_TEST_FILES = [
+  'resources/or-test/direct1.text',
+  'resources/or-test/direct2.text',
+  'resources/or-test/does-not-exist.text',
+];
+
+iframeTest(HTML_FILE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), rnd);
+}, 'Subresource load not matched with URLPattern condition');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load matched with URLPattern condition');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED, async (t, iwin, worker) => {
+  const rnd = randomString();
+  // Confirm that the given URLPatternCompatible has a wildcard pattern for the
+  // hostname. Also, if |urlPattern| is a consutructed URLPattern object,
+  // baseURL won't be set while adding router rules, thus it matches the cross
+  // origin request as far as other components matches. So expecting the direct
+  // network request and the fetch handler doesn't capture the response.
+  // The response is going to be a opaque.
+  const origin = get_host_info().HTTPS_REMOTE_ORIGIN;
+  const response = await iwin.fetch(
+    `${origin}/${TXT_FILE}?nonce=${rnd}`, {mode: 'no-cors'});
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(response.type, 'opaque');
+}, 'Subresource cross origin load matched with URLPattern condition via constructed object');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_IGNORE_CASE, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load matched with ignoreCase URLPattern condition');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_RESPECT_CASE, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), rnd);
+}, 'Subresource load matched without ignoreCase URLPattern condition');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_URLPATTERNCOMPATIBLE, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load matched with URLPattern condition via URLPatternCompatible');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_URLPATTERNCOMPATIBLE, async (t, iwin, worker) => {
+  // The SW script URL is added as a baseURL when |urlPattern| is passed via
+  // URLPatternCompatible, and there is not |baseURL| in it. Cross
+  // origin request will go through the fetch handler because |baseURL| info
+  // complements hostname with the hostname of the SW script.
+  const rnd = randomString();
+  const origin = get_host_info().HTTPS_REMOTE_ORIGIN;
+  const response = await iwin.fetch(`${origin}/${TXT_FILE}?nonce=${rnd}`);
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(await response.text(), rnd);
+}, 'Subresource cross origin load not matched with URLPattern condition via URLPatternCompatible');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_STRING, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load matched with URLPattern condition via string');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_STRING, async (t, iwin, worker) => {
+  // The SW script URL is added as a baseURL when |urlPattern| is passed via
+  // string, and there is not |baseURL| in it. Cross origin request will go
+  // through the fetch handler because |baseURL| info complements hostname with
+  // the hostname of the SW script.
+  const rnd = randomString();
+  const origin = get_host_info().HTTPS_REMOTE_ORIGIN;
+  const response = await iwin.fetch(`${origin}/${TXT_FILE}?nonce=${rnd}`);
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(await response.text(), rnd);
+}, 'Subresource cross origin load not matched with URLPattern condition via string');
+
+iframeTest(CSV_FILE, ROUTER_RULE_KEY_REQUEST, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd, { mode: 'no-cors' });
+  assert_equals(await response.text(), "matched,with,non-url,conditions\n");
+}, 'Subresource load matched with RequestMode condition');
+
+iframeTest(OR_TEST_FILES[0], ROUTER_RULE_KEY_OR, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load matched with the nested `or` condition');
+
+iframeTest(OR_TEST_FILES[1], ROUTER_RULE_KEY_OR, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load matched with the next `or` condition');
+
+iframeTest(OR_TEST_FILES[2], ROUTER_RULE_KEY_OR, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), rnd);
+}, 'Subresource load not matched with `or` condition');
+
+iframeTest(HTML_FILE, ROUTER_RULE_KEY_URL_PATTERN_STRING_CACHE, async (t, iwin) => {
+  // No need to set `resources/` because the request is dispatched from iframe.
+  const CACHED_FILE = 'cache.txt';
+  const response = await iwin.fetch(CACHED_FILE);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), "From cache");
+
+  // This doesn't match because the cache key is wrong.
+  const rnd = randomString();
+  const response_with_param = await iwin.fetch(`${CACHED_FILE}?nonce=${rnd}`);
+  assert_equals(response_with_param.status, 404);
+}, 'Subresource load matched with the cache source rule');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_MATCH_ALL_CACHE, async (t, iwin, worker) => {
+  // Send a request, which is not stored in the cache, but it exists over the network.
+  const rnd = randomString();
+  let response = await iwin.fetch(`?nonce=${rnd}`);
+  assert_equals(await response.text(), "Network\n");
+  assert_equals(response.status, 200);
+
+  // Send a request, which is not stored in the cache, and does not exist over the network.
+  const NON_EXISTING_FILE = 'not-found.txt';
+  response = await iwin.fetch(`${NON_EXISTING_FILE}?nonce=${randomString()}`);
+  assert_equals(response.status, 404);
+
+  // Both requests are not handled by ServiceWorker.
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+}, 'Subresource load did not match with the cache and fallback to the network');
+
+iframeTest(HTML_FILE, ROUTER_RULE_KEY_URLPATTERN_CACHE_WITH_NAME, async (t, iwin, worker) => {
+  // No need to set `resources/` because the request is dispatched from iframe.
+  const CACHED_FILE = 'cache.txt';
+  const response = await iwin.fetch(CACHED_FILE);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), "From cache");
+
+  // This doesn't match because the cache key is wrong.
+  const rnd = randomString();
+  const response_with_param = await iwin.fetch(`${CACHED_FILE}?nonce=${rnd}`);
+  assert_equals(response_with_param.status, 404);
+}, 'Subresource load matched with the cache source, with specifying the cache name');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_NOT, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch(`${NOT_FILE}?nonce=${rnd}`);
+  assert_equals(await response.text(), rnd);
+}, 'Subresource load should not match with the not condition');
+
+iframeTest(TXT_FILE, ROUTER_RULE_KEY_NOT, async (t, iwin) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network\n");
+}, 'Subresource load should match with a file other than not');
+
+</script>
+</body>

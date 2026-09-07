@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+const worker = 'resources/fetch-event-within-sw-worker.js';
+
+function wait(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function reset() {
+  for (const iframe of [...document.querySelectorAll('.test-iframe')]) {
+    iframe.remove();
+  }
+  return navigator.serviceWorker.getRegistrations().then(registrations => {
+    return Promise.all(registrations.map(r => r.unregister()));
+  }).then(() => caches.keys()).then(cacheKeys => {
+    return Promise.all(cacheKeys.map(c => caches.delete(c)));
+  });
+}
+
+add_completion_callback(reset);
+
+function regReady(reg) {
+  return new Promise((resolve, reject) => {
+    if (reg.active) {
+      resolve();
+      return;
+    }
+    const nextWorker = reg.waiting || reg.installing;
+
+    nextWorker.addEventListener('statechange', () => {
+      if (nextWorker.state == 'redundant') {
+        reject(Error(`Service worker failed to install`));
+        return;
+      }
+      if (nextWorker.state == 'activated') {
+        resolve();
+      }
+    });
+  });
+}
+
+function getCookies() {
+  return new Map(
+    document.cookie
+      .split(/;/g)
+      .map(c => c.trim().split('=').map(s => s.trim()))
+  );
+}
+
+function registerSwAndOpenFrame() {
+  return reset().then(() => navigator.serviceWorker.register(worker, {scope: 'resources/'}))
+    .then(reg => regReady(reg))
+    .then(() => with_iframe('resources/simple.html'));
+}
+
+function raceBroadcastAndCookie(channel, cookie) {
+  const initialCookie = getCookies().get(cookie);
+  let done = false;
+
+  return Promise.race([
+    new Promise(resolve => {
+      const bc = new BroadcastChannel(channel);
+      bc.onmessage = () => {
+        bc.close();
+        resolve('broadcast');
+      };
+    }),
+    (function checkCookie() {
+      // Stop polling if the broadcast channel won
+      if (done == true) return;
+      if (getCookies().get(cookie) != initialCookie) return 'cookie';
+
+      return wait(200).then(checkCookie);
+    }())
+  ]).then(val => {
+    done = true;
+    return val;
+  });
+}
+
+promise_test(() => {
+  return Notification.requestPermission().then(permission => {
+    if (permission != "granted") {
+      throw Error('You must allow notifications for this origin before running this test.');
+    }
+    return registerSwAndOpenFrame();
+  }).then(iframe => {
+    return Promise.resolve().then(() => {
+      // In this test, the service worker will ping the 'icon-request' channel
+      // if it intercepts a request for 'notification_icon.py'. If the request
+      // reaches the server it sets the 'notification' cookie to the value given
+      // in the URL. "raceBroadcastAndCookie" monitors both and returns which
+      // happens first.
+      const race = raceBroadcastAndCookie('icon-request', 'notification');
+      const notification = new iframe.contentWindow.Notification('test', {
+        icon: `notification_icon.py?set-cookie-notification=${Math.random()}`
+      });
+      notification.close();
+
+      return race.then(winner => {
+        assert_equals(winner, 'broadcast', 'The service worker intercepted the from-window notification icon request');
+      });
+    }).then(() => {
+      // Similar race to above, but this time the service worker requests the
+      // notification.
+      const race = raceBroadcastAndCookie('icon-request', 'notification');
+      iframe.contentWindow.fetch(`show-notification?set-cookie-notification=${Math.random()}`);
+
+      return race.then(winner => {
+        assert_equals(winner, 'broadcast', 'The service worker intercepted the from-service-worker notification icon request');
+      });
+    })
+  });
+}, `Notification requests intercepted both from window and SW`);
+
+</script>
+</body>

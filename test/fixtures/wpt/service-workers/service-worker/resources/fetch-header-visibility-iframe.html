@@ -1,0 +1,66 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js?pipe=sub"></script>
+<script>
+  var host_info = get_host_info();
+  var uri = document.location + '?check-ua-header';
+
+  var headers = new Headers();
+  headers.set('User-Agent', 'custom_ua');
+
+  // Check the custom UA case
+  fetch(uri, { headers: headers }).then(function(response) {
+    return response.text();
+  }).then(function(text) {
+    if (text == 'custom_ua') {
+      parent.postMessage('PASS', '*');
+    } else {
+      parent.postMessage('withUA FAIL - expected "custom_ua", got "' + text + '"', '*');
+    }
+  }).catch(function(err) {
+    parent.postMessage('withUA FAIL - unexpected error: ' + err, '*');
+  });
+
+  // Check the default UA case
+  fetch(uri, {}).then(function(response) {
+    return response.text();
+  }).then(function(text) {
+    if (text == 'NO_UA') {
+      parent.postMessage('PASS', '*');
+    } else {
+      parent.postMessage('noUA FAIL - expected "NO_UA", got "' + text + '"', '*');
+    }
+  }).catch(function(err) {
+    parent.postMessage('noUA FAIL - unexpected error: ' + err, '*');
+  });
+
+  var uri = document.location + '?check-accept-header';
+  var headers = new Headers();
+  headers.set('Accept', 'hmm');
+
+  // Check for custom accept header
+  fetch(uri, { headers: headers }).then(function(response) {
+    return response.text();
+  }).then(function(text) {
+    if (text === headers.get('Accept')) {
+      parent.postMessage('PASS', '*');
+    } else {
+      parent.postMessage('custom accept FAIL - expected ' + headers.get('Accept') +
+                         ' got "' + text + '"', '*');
+    }
+  }).catch(function(err) {
+    parent.postMessage('custom accept FAIL - unexpected error: ' + err, '*');
+  });
+
+  // Check for default accept header
+  fetch(uri).then(function(response) {
+    return response.text();
+  }).then(function(text) {
+    if (text === '*/*') {
+      parent.postMessage('PASS', '*');
+    } else {
+      parent.postMessage('accept FAIL - expected */* got "' + text + '"', '*');
+    }
+  }).catch(function(err) {
+    parent.postMessage('accept FAIL - unexpected error: ' + err, '*');
+  });
+</script>

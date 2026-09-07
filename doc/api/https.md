@@ -199,7 +199,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### `server.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
 See [`server.maxHeadersCount`][] in the `node:http` module.
 

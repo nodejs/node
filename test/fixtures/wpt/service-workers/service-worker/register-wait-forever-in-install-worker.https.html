@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>Service Worker: Register wait-forever-in-install-worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(function(t) {
+    var bad_script = 'resources/wait-forever-in-install-worker.js';
+    var good_script = 'resources/empty-worker.js';
+    var scope = 'resources/wait-forever-in-install-worker';
+    var other_scope = 'resources/wait-forever-in-install-worker-other';
+    var registration;
+    var registerPromise;
+
+    return navigator.serviceWorker.register(bad_script, {scope: scope})
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          assert_equals(registration.installing.scriptURL,
+                        normalizeURL(bad_script));
+
+          // This register job should not start until the first
+          // register for the same scope completes.
+          registerPromise =
+            navigator.serviceWorker.register(good_script, {scope: scope});
+
+          // In order to test that the above register does not complete
+          // we will perform a register() on a different scope.  The
+          // assumption here is that the previous register call would
+          // have completed in the same timeframe if it was able to do
+          // so.
+          return navigator.serviceWorker.register(good_script,
+                                                  {scope: other_scope});
+        })
+      .then(function(swr) {
+          return swr.unregister();
+        })
+      .then(function() {
+          assert_equals(registration.installing.scriptURL,
+                        normalizeURL(bad_script));
+          registration.installing.postMessage('STOP_WAITING');
+          return registerPromise;
+        })
+      .then(function(swr) {
+          assert_equals(registration.installing.scriptURL,
+                        normalizeURL(good_script));
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+  }, 'register worker that calls waitUntil with a promise that never ' +
+     'resolves in oninstall');
+
+</script>

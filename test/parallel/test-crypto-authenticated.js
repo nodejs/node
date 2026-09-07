@@ -63,7 +63,7 @@ for (const test of TEST_CASES) {
     continue;
   }
 
-  const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
+  const isCCM = /^(?:aes-(?:128|192|256)|sm4)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
   const isSIV = /^aes-(128|192|256)-siv$/.test(test.algo);
 
@@ -801,14 +801,29 @@ for (const test of TEST_CASES) {
     const iv = Buffer.alloc(12);
     const opts = { authTagLength: 10 };
 
+    const control = crypto.createCipheriv('aes-128-ccm', key, iv, opts);
+    control.update(Buffer.alloc(0));
+    control.final();
+    const expectedTag = control.getAuthTag();
+
     const cipher = crypto.createCipheriv('aes-128-ccm', key, iv, opts);
-    assert.throws(() => {
-      cipher.final();
-    }, hasOpenSSL(3) ? {
-      code: 'ERR_OSSL_TAG_NOT_SET'
-    } : {
-      message: /Unsupported state/
-    });
+    let output;
+    try {
+      output = cipher.final();
+    } catch (err) {
+      // OpenSSL without https://github.com/openssl/openssl/pull/32427
+      // cannot finalize an empty CCM message unless update() was called.
+      if (hasOpenSSL(3)) {
+        assert.strictEqual(err.code, 'ERR_OSSL_TAG_NOT_SET');
+      } else {
+        assert.match(err.message, /Unsupported state/);
+      }
+    }
+
+    if (output !== undefined) {
+      assert.deepStrictEqual(output, Buffer.alloc(0));
+      assert.deepStrictEqual(cipher.getAuthTag(), expectedTag);
+    }
   }
 }
 
@@ -963,6 +978,7 @@ if (!fips3 && !process.features.openssl_is_boringssl) {
 if (ciphers.includes('aes-128-ccm')) {
   const key = crypto.randomBytes(16);
   const nonce = crypto.randomBytes(13);
+  const authError = /Unsupported state or unable to authenticate data/;
 
   const cipher = crypto.createCipheriv('aes-128-ccm', key, nonce, {
     authTagLength: 16,
@@ -986,6 +1002,47 @@ if (ciphers.includes('aes-128-ccm')) {
     decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
     decipher.update(new DataView(new ArrayBuffer(0)));
     decipher.final();
+
+    const invalidTag = Buffer.from(tag);
+    invalidTag[0] ^= 0xff;
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(tag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(invalidTag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      decipher.update(Buffer.alloc(0));
+      assert.throws(() => decipher.final(), authError);
+    }
+
+    {
+      const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+        authTagLength: 16,
+      });
+      decipher.setAuthTag(tag);
+      decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+      decipher.update(Buffer.alloc(0));
+      assert.throws(() => decipher.update(Buffer.alloc(0)), errMessages.state);
+      decipher.final();
+    }
   }
 } else {
   common.printSkipMessage('Skipping unsupported aes-128-ccm test');

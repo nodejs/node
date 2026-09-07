@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var worker_url = 'resources/empty-worker.js';
+
+async_test(function(t) {
+  var scope = 'resources/scope/subsequent-register-from-same-window';
+  var registration;
+
+  service_worker_unregister_and_register(t, worker_url, scope)
+    .then(function(r) {
+        registration = r;
+        return wait_for_state(t, r.installing, 'activated');
+      })
+    .then(function() {
+        return navigator.serviceWorker.register(worker_url, { scope: scope });
+      })
+    .then(function(new_registration) {
+        assert_equals(new_registration, registration,
+                      'register should resolve to the same registration');
+        assert_equals(new_registration.active, registration.active,
+                      'register should resolve to the same worker');
+        assert_equals(new_registration.active.state, 'activated',
+                      'the worker should be in state "activated"');
+        return registration.unregister();
+      })
+    .then(function() { t.done(); })
+    .catch(unreached_rejection(t));
+}, 'Subsequent registrations resolve to the same registration object');
+
+async_test(function(t) {
+  var scope = 'resources/scope/subsequent-register-from-different-iframe';
+  var frame;
+  var registration;
+
+  service_worker_unregister_and_register(t, worker_url, scope)
+    .then(function(r) {
+        registration = r;
+        return wait_for_state(t, r.installing, 'activated');
+      })
+    .then(function() { return with_iframe('resources/404.py'); })
+    .then(function(f) {
+        frame = f;
+        return frame.contentWindow.navigator.serviceWorker.register(
+            'empty-worker.js',
+            { scope: 'scope/subsequent-register-from-different-iframe' });
+      })
+    .then(function(new_registration) {
+        assert_not_equals(
+          registration, new_registration,
+          'register should resolve to a different registration');
+        assert_equals(
+          registration.scope, new_registration.scope,
+          'registrations should have the same scope');
+
+        assert_equals(
+          registration.installing, null,
+          'installing worker should be null');
+        assert_equals(
+          new_registration.installing, null,
+          'installing worker should be null');
+        assert_equals(
+          registration.waiting, null,
+          'waiting worker should be null')
+        assert_equals(
+          new_registration.waiting, null,
+          'waiting worker should be null')
+
+        assert_not_equals(
+          registration.active, new_registration.active,
+          'registration should have a different active worker');
+        assert_equals(
+          registration.active.scriptURL,
+          new_registration.active.scriptURL,
+          'active workers should have the same script URL');
+        assert_equals(
+          registration.active.state,
+          new_registration.active.state,
+          'active workers should be in the same state');
+
+        frame.remove();
+        return registration.unregister();
+      })
+    .then(function() { t.done(); })
+    .catch(unreached_rejection(t));
+}, 'Subsequent registrations from a different iframe resolve to the ' +
+       'different registration object but they refer to the same ' +
+       'registration and workers');
+
+async_test(function(t) {
+  var scope = 'resources/scope/concurrent-register';
+
+  service_worker_unregister(t, scope)
+    .then(function() {
+        var promises = [];
+        for (var i = 0; i < 10; ++i) {
+          promises.push(navigator.serviceWorker.register(worker_url,
+                                                         { scope: scope }));
+        }
+        return Promise.all(promises);
+      })
+    .then(function(registrations) {
+        registrations.forEach(function(registration) {
+            assert_equals(registration, registrations[0],
+                          'register should resolve to the same registration');
+          });
+        return registrations[0].unregister();
+      })
+    .then(function() { t.done(); })
+    .catch(unreached_rejection(t));
+}, 'Concurrent registrations resolve to the same registration object');
+
+</script>
+</body>

@@ -1,4 +1,4 @@
-// Flags: --permission --experimental-ffi --allow-fs-read=*
+// Flags: --permission --allow-fs-read=*
 'use strict';
 const common = require('../common');
 const assert = require('node:assert');

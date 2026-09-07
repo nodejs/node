@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var scope = 'resources/blank.html?clients-matchAll';
+var frames = [];
+promise_test(function(t) {
+    return service_worker_unregister_and_register(
+        t, 'resources/clients-matchall-worker.js', scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope + '#1'); })
+      .then(function(frame1) {
+          frames.push(frame1);
+          frame1.focus();
+          return with_iframe(scope + '#2');
+        })
+      .then(function(frame2) {
+          frames.push(frame2);
+          var channel = new MessageChannel();
+
+          return new Promise(function(resolve) {
+              channel.port1.onmessage = resolve;
+              frame2.contentWindow.navigator.serviceWorker.controller.postMessage(
+                  {port:channel.port2}, [channel.port2]);
+            });
+        })
+      .then(onMessage);
+}, 'Test Clients.matchAll()');
+
+var expected = [
+    // visibilityState, focused, url, type, frameType
+    ['visible', true, new URL(scope + '#1', location).toString(), 'window', 'nested'],
+    ['visible', false, new URL(scope + '#2', location).toString(), 'window', 'nested']
+];
+
+function onMessage(e) {
+  assert_equals(e.data.length, 2);
+  assert_array_equals(e.data[0], expected[0]);
+  assert_array_equals(e.data[1], expected[1]);
+  frames.forEach(function(f) { f.remove(); });
+}
+</script>

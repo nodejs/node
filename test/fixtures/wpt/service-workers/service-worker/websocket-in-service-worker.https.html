@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Service Worker: WebSockets can be created in a Service Worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(t => {
+    const SCRIPT = 'resources/websocket-worker.js?pipe=sub';
+    const SCOPE = 'resources/blank.html';
+    let registration;
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(r => {
+          add_completion_callback(() => { r.unregister(); });
+          registration = r;
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(() => {
+          return new Promise(resolve => {
+              navigator.serviceWorker.onmessage = t.step_func(msg => {
+                  assert_equals(msg.data, 'PASS');
+                  resolve();
+              });
+              registration.active.postMessage({});
+          });
+        });
+  }, 'Verify WebSockets can be created in a Service Worker');
+</script>

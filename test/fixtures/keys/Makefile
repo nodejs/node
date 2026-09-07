@@ -70,6 +70,7 @@ all: \
   rsa_spkac.spkac \
   rsa_spkac_invalid.spkac \
   rsa_private_2048.pem \
+  rsa_private_2048_3_primes.pem \
   rsa_private_4096.pem \
   rsa_public_2048.pem \
   rsa_public_4096.pem \
@@ -926,6 +927,13 @@ rsa_spkac_invalid.spkac: rsa_spkac.spkac
 
 rsa_private_2048.pem:
 	openssl genrsa -out rsa_private_2048.pem 2048
+
+rsa_private_2048_3_primes.pem:
+	openssl genpkey \
+		-algorithm RSA \
+		-pkeyopt rsa_keygen_bits:2048 \
+		-pkeyopt rsa_keygen_primes:3 \
+		-out rsa_private_2048_3_primes.pem
 
 rsa_private_4096.pem:
 	openssl genrsa -out rsa_private_4096.pem 4096

@@ -7,8 +7,6 @@ const { libraryPath, ensureFixtureLibrary } = require('./common.js');
 const bench = common.createBenchmark(main, {
   size: [64, 1024, 16384],
   n: [1e6],
-}, {
-  flags: ['--experimental-ffi'],
 });
 
 ensureFixtureLibrary();

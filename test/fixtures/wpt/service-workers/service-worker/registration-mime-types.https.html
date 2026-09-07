@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Service Worker: Registration (MIME types)</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="resources/registration-tests-mime-types.js"></script>
+<script>
+registration_tests_mime_types((script, options) => navigator.serviceWorker.register(script, options));
+</script>

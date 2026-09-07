@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -404,6 +404,10 @@ int X509_CRL_get0_by_cert(X509_CRL *crl, X509_REVOKED **ret, X509 *x)
 
 static int def_crl_verify(X509_CRL *crl, EVP_PKEY *r)
 {
+    if (X509_ALGOR_cmp(&crl->sig_alg, &crl->crl.sig_alg) != 0) {
+        ERR_raise(ERR_LIB_X509, X509_R_CRL_SIGNATURE_ALGORITHM_MISMATCH);
+        return 0;
+    }
     return ASN1_item_verify_ex(ASN1_ITEM_rptr(X509_CRL_INFO),
         &crl->sig_alg, &crl->signature, &crl->crl, NULL,
         r, crl->libctx, crl->propq);

@@ -1889,6 +1889,31 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   }
 }
 
+// static
+std::optional<Tagged<Object>> TranslatedState::TryResolveTaggedValue(
+    DeoptTranslationIterator* it, Address fp,
+    Tagged<DeoptimizationLiteralArray> literals) {
+  TranslationOpcode opcode = it->NextOpcode();
+  switch (opcode) {
+    case TranslationOpcode::LITERAL: {
+      int literal_index = it->NextOperand();
+      return literals->get(literal_index);
+    }
+    case TranslationOpcode::TAGGED_STACK_SLOT: {
+      int slot_offset =
+          OptimizedJSFrame::StackSlotOffsetRelativeToFp(it->NextOperand());
+      intptr_t value = *reinterpret_cast<intptr_t*>(fp + slot_offset);
+      return Tagged<Object>(DecompressIfNeeded(value));
+    }
+    default:
+      // Any other encoding (unboxed numerics, register-resident values,
+      // captured objects, etc.) requires the full TranslatedState path to
+      // materialize. Caller should fall back.
+      it->SkipOperands(TranslationOpcodeOperandCount(opcode));
+      return std::nullopt;
+  }
+}
+
 TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : purpose_(kFrameInspection) {
   int deopt_index = SafepointEntry::kNoDeoptIndex;

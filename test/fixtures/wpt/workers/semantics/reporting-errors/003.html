@@ -1,0 +1,23 @@
+<!doctype html>
+<title>shared worker, no error event on worker or port</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({allow_uncaught_exception:true});
+async_test(function() {
+  window.onerror = this.step_func(function(a) {
+    assert_unreached('window.onerror invoked: ' + a);
+  });
+  var worker = new SharedWorker('003.js', '');
+  worker.addEventListener('error', this.step_func(function(e) {
+    assert_unreached('error on worker');
+  }), false);
+  worker.port.addEventListener('error', this.step_func(function(e) {
+    assert_unreached('error on port');
+  }), false);
+  worker.port.onmessage = this.step_func_done(function(e) {
+    assert_equals(e.data, '');
+  });
+});
+</script>

@@ -9,11 +9,10 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-linkSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello world');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 fs.linkSync(
   path.join(mountPoint, 'src/hello.txt'),

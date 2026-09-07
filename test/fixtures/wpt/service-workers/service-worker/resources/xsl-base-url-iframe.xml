@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="resources/request-url-path/import-relative.xsl"?>
+<stylesheet-test>
+This tests a stylesheet which has a xsl:import with a relative URL.
+</stylesheet-test>

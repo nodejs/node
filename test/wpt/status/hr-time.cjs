@@ -19,7 +19,7 @@ module.exports = {
     },
   } : {}),
 
-  'idlharness.any.js': {
+  'idlharness.any.html': {
     fail: {
       expected: [
         'Window interface: attribute performance',

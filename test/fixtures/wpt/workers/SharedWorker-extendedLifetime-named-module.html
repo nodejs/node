@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>SharedWorker extendedLifetime (Named and Module)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<script>
+
+const connectToSharedWorker = async (options) => {
+  window.worker = new SharedWorker(
+    '/workers/resources/shared-worker-memory.js', options);
+  worker.port.start();
+};
+
+const postAndWait = async (data) => {
+  return new Promise(resolve => {
+    const listener = event => {
+      if (event.data.reqid !== data.reqid) {
+        return;
+      }
+      worker.port.removeEventListener('message', listener);
+      resolve(event.data);
+    };
+    worker.port.addEventListener('message', listener);
+    worker.port.postMessage(data);
+  });
+};
+
+promise_test(async t => {
+  const uuid = token();
+  const options = {name: 'named-worker', extendedLifetime: true};
+
+  const ctx = new RemoteContext(token());
+  const popup = window.open(remoteExecutorUrl(ctx.context_id));
+  await ctx.execute_script(connectToSharedWorker, [options]);
+  await ctx.execute_script(postAndWait, [{reqid: 1, op: 'store', data: uuid}]);
+  popup.close();
+
+  // Wait for potential worker teardown (if extendedLifetime were not working)
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  const ctx2 = new RemoteContext(token());
+  const popup2 = window.open(remoteExecutorUrl(ctx2.context_id));
+  await ctx2.execute_script(connectToSharedWorker, [options]);
+  const response = await ctx2.execute_script(postAndWait, [{reqid: 2, op: 'load'}]);
+  assert_equals(response.data, uuid);
+}, "Named SharedWorker should survive across navigations with extendedLifetime");
+
+promise_test(async t => {
+  const uuid = token();
+  const options = {type: 'module', extendedLifetime: true};
+
+  const ctx = new RemoteContext(token());
+  const popup = window.open(remoteExecutorUrl(ctx.context_id));
+  await ctx.execute_script(connectToSharedWorker, [options]);
+  await ctx.execute_script(postAndWait, [{reqid: 10, op: 'store', data: uuid}]);
+  popup.close();
+
+  // Wait for potential worker teardown
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  const ctx2 = new RemoteContext(token());
+  const popup2 = window.open(remoteExecutorUrl(ctx2.context_id));
+  await ctx2.execute_script(connectToSharedWorker, [options]);
+  const response = await ctx2.execute_script(postAndWait, [{reqid: 11, op: 'load'}]);
+  assert_equals(response.data, uuid);
+}, "Module SharedWorker should survive across navigations with extendedLifetime");
+
+</script>

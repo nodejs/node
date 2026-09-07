@@ -122,15 +122,15 @@ directly through the process arguments.
 When using the Permission Model, the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR
 exception unless the user explicitly passes the \fB--allow-ffi\fR flag when
-starting Node.js. The \fBnode:ffi\fR module also requires the
-\fB--experimental-ffi\fR flag and is only available in builds with FFI support.
+starting Node.js. The \fBnode:ffi\fR module is only available in builds with
+FFI support.
 Example:
 .Bd -literal
 const { DynamicLibrary, suffix } = require('node:ffi');
 const lib = new DynamicLibrary(`./mylib.${suffix}`);
 .Ed
 .Bd -literal
-$ node --permission --experimental-ffi index.js
+$ node --permission index.js
 Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
@@ -164,6 +164,17 @@ by default in the allowed read list.
 process.permission.has('fs.read', 'index.js'); // true
 process.permission.has('fs.read', 'custom-require.js'); // true
 process.permission.has('fs.read', 'custom-require-2.js'); // true
+.Ed
+.
+.It Fl -allow-fs-vfs
+When using the Permission Model, a virtual file system cannot be
+mounted by default: \fBvfs.mount()\fR throws \fBERR_INVALID_STATE\fR unless the
+user explicitly passes the \fB--allow-fs-vfs\fR flag when starting Node.js.
+A mounted VFS serves paths that the file system permissions do not describe,
+so mounting one is gated on its own flag rather than on \fB--allow-fs-read\fR or
+\fB--allow-fs-write\fR.
+.Bd -literal
+$ node --experimental-vfs --permission --allow-fs-vfs app.js
 .Ed
 .
 .It Fl -allow-fs-write
@@ -280,6 +291,57 @@ Error: Access to this API has been restricted
   permission: 'WorkerThreads'
 }
 .Ed
+.
+.It Fl -bench
+Starts the Node.js command-line benchmark runner. At least one explicit file or
+glob pattern is required:
+.Bd -literal
+node --bench benchmark.mjs
+node --bench 'benchmarks/**/*.js'
+.Ed
+Quote glob patterns to prevent expansion by the shell. Matching files are
+sorted and executed serially. By default, each file runs in a separate child
+process. Benchmark files declare benchmarks using \fBnode:bench\fR; they must not
+call \fBrun()\fR themselves. See the benchmark runner documentation for more
+details.
+This flag cannot be combined with \fB--test\fR, \fB--watch\fR, \fB--watch-path\fR,
+\fB--check\fR, \fB--eval\fR, or \fB--interactive\fR.
+.
+.It Fl -bench-isolation Ns = Ns Ar mode
+Configures benchmark file isolation. When \fBmode\fR is \fB'process'\fR, each matching
+file runs in a separate child process. This is the default. Files are still run
+serially so their measured work does not overlap.
+When \fBmode\fR is \fB'none'\fR, all matching files and benchmarks run serially in the
+benchmark runner process. This reduces startup overhead but allows module,
+heap, and process state to carry between files. User writes to stdout or stderr
+also share destinations with benchmark reporters in this mode.
+The supported modes are \fB'process'\fR and \fB'none'\fR.
+.
+.It Fl -bench-name-pattern Ns = Ns Ar pattern
+Only runs benchmarks whose full hierarchical name matches the JavaScript
+regular expression \fBpattern\fR. Non-matching benchmarks are reported as skipped.
+.
+.It Fl -bench-reporter-destination Ns = Ns Ar destination
+Specifies the destination for the corresponding benchmark reporter. The value
+can be \fBstdout\fR, \fBstderr\fR, or a file path. A single reporter defaults to
+\fBstdout\fR when no destination is specified.
+.
+.It Fl -bench-reporter Ns = Ns Ar reporter
+Specifies a benchmark reporter. The built-in reporters are \fBspec\fR and \fBjson\fR.
+The \fBjson\fR reporter emits newline-delimited JSON. A custom reporter can be
+specified using a module specifier resolved from the current working directory.
+This option can be repeated. When multiple reporters are specified, each must
+have a corresponding \fB--bench-reporter-destination\fR. The default reporter is
+\fBspec\fR.
+.
+.It Fl -bench-samples Ns = Ns Ar count
+Overrides the maximum number of measured callback invocations for every
+selected benchmark. A benchmark may finish earlier by calling
+\fBcontext.done()\fR. \fBcount\fR must be an integer between \fB1\fR and \fB4294967295\fR.
+.
+.It Fl -bench-warmup Ns = Ns Ar count
+Overrides the number of unreported warmup callback invocations for every
+selected benchmark. \fBcount\fR must be an integer between \fB0\fR and \fB4294967295\fR.
 .
 .It Fl -build-sea Ns = Ns Ar config
 Generates a single executable application from a JSON
@@ -517,6 +579,12 @@ Enable FIPS mode at startup. With OpenSSL 3, a configured provider named
 \fBfips\fR must be available and initialize successfully. With OpenSSL 1.1.1,
 Node.js must be built against a FIPS-capable OpenSSL.
 .
+.It Fl -enable-fips-indicator-events
+Publish OpenSSL FIPS indicator results to the
+\fB'crypto.fips.indicator'\fR diagnostics channel. This option requires OpenSSL
+3.4 or later. It does not enable FIPS mode or change whether an operation
+is permitted.
+.
 .It Fl -enable-source-maps
 Enable Source Map support for stack traces.
 When using a transpiler, such as TypeScript, stack traces thrown by an
@@ -741,12 +809,12 @@ If present, Node.js will look for a
 \fBnode.config.json\fR file in the current working directory and load it as a
 configuration file.
 .
+.It Fl -experimental-dtls
+Enable experimental support for the DTLS protocol. See the
+dtls documentation for details.
+.
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
-.
-.It Fl -experimental-ffi
-Enable the experimental \fBnode:ffi\fR module.
-This flag is only available in builds with FFI support.
 .
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
@@ -832,15 +900,32 @@ Enable experimental ES Module support in the \fBnode:vm\fR module.
 .It Fl -experimental-wasi-unstable-preview1
 Enable experimental WebAssembly System Interface (WASI) support.
 .
+.It Fl -experimental-web-worker
+Enable experimental support for the Web Worker API.
+.
 .It Fl -experimental-worker-inspection
 Enable experimental support for the worker inspection with Chrome DevTools.
 .
 .It Fl -force-context-aware
 Disable loading native addons that are not context-aware.
 .
-.It Fl -force-fips
+.It Fl -force-fips Ns = Ns Ar [mode]
 Enable FIPS mode at startup and prevent it from being disabled from script
 code. The same OpenSSL requirements as \fB--enable-fips\fR apply.
+An optional mode can be specified using \fB--force-fips=mode\fR:
+.Bl -bullet
+.It
+\fBprovider\fR: Preserve the OpenSSL FIPS provider's configured handling of
+non-approved operations. This is the current default when the mode is
+omitted.
+.It
+\fBstrict\fR: Reject non-approved operations reported through the OpenSSL FIPS
+indicator callback. This mode requires OpenSSL 3.4 or later.
+.El
+The \fBstrict\fR mode only covers operations reported through the callback for
+OpenSSL's default library context. It does not cover native addons that use
+another \fBOSSL_LIB_CTX\fR or another copy of \fBlibcrypto\fR, nor operation-specific
+indicators that do not invoke the callback.
 .
 .It Fl -force-node-api-uncaught-exceptions-policy
 Enforces \fBuncaughtException\fR event on Node-API asynchronous callbacks.
@@ -1094,6 +1179,10 @@ Silence deprecation warnings.
 .It Fl -no-experimental-detect-module
 Disable using syntax detection to determine module type.
 .
+.It Fl -no-experimental-ffi
+Disable the experimental \fBnode:ffi\fR module.
+This flag is only available in builds with FFI support.
+.
 .It Fl -no-experimental-global-navigator
 Disable exposition of Navigator API on the global scope.
 .
@@ -1137,6 +1226,10 @@ For more information, see the TypeScript type-stripping documentation.
 .
 .It Fl -no-warnings
 Silence all process warnings (including deprecations).
+.
+.It Fl -no-worker-snapshot
+Start worker threads by running the internal bootstrap from scratch instead of
+deserializing the bootstrapped context from the built-in startup snapshot.
 .
 .It Fl -node-memory-debug
 Enable extra debug checks for memory leaks in Node.js internals. This is
@@ -1328,6 +1421,13 @@ forked processes, or clustered processes.
 .It Fl -run
 This runs a specified command from a package.json's \fB"scripts"\fR object.
 If a missing \fB"command"\fR is provided, it will list the available scripts.
+Passing \fB--run\fR without a command lists the available scripts and exits
+with a non-zero exit code:
+.Bd -literal
+$ node --run
+Available scripts are:
+  test: node --test
+.Ed
 \fB--run\fR will traverse up to the root directory and finds a \fBpackage.json\fR
 file to run the command from.
 \fB--run\fR prepends \fB./node_modules/.bin\fR for each ancestor of
@@ -1687,19 +1787,17 @@ This is equivalent to setting the \fBNODE_USE_ENV_PROXY=1\fR environment variabl
 When both are set, \fB--use-env-proxy\fR takes precedence.
 .
 .It Fl -use-largepages Ns = Ns Ar mode
-Re-map the Node.js static code to large memory pages at startup. If supported on
-the target system, this will cause the Node.js static code to be moved onto 2
-MiB pages instead of 4 KiB pages.
-The following values are valid for \fBmode\fR:
+This option is no longer supported and a no-op. It used to re-map the Node.js
+static code to large memory pages at startup.
+It still accepts the following values for compatibility:
 .Bl -bullet
 .It
 \fBoff\fR: No mapping will be attempted. This is the default.
 .It
-\fBon\fR: If supported by the OS, mapping will be attempted. Failure to map will
-be ignored and a message will be printed to standard error.
+\fBon\fR: No mapping will be attempted and a message will be printed to
+standard error stating it's no longer supported.
 .It
-\fBsilent\fR: If supported by the OS, mapping will be attempted. Failure to map
-will be ignored and will not be reported.
+\fBsilent\fR: Same as \fBoff\fR.
 .El
 .
 .It Fl -use-system-ca
@@ -1938,6 +2036,8 @@ one is included in the list below.
 .It
 \fB--allow-fs-read\fR
 .It
+\fB--allow-fs-vfs\fR
+.It
 \fB--allow-fs-write\fR
 .It
 \fB--allow-inspector\fR
@@ -1949,6 +2049,18 @@ one is included in the list below.
 \fB--allow-wasi\fR
 .It
 \fB--allow-worker\fR
+.It
+\fB--bench-isolation\fR
+.It
+\fB--bench-name-pattern\fR
+.It
+\fB--bench-reporter-destination\fR
+.It
+\fB--bench-reporter\fR
+.It
+\fB--bench-samples\fR
+.It
+\fB--bench-warmup\fR
 .It
 \fB--conditions\fR, \fB-C\fR
 .It
@@ -1972,6 +2084,8 @@ one is included in the list below.
 .It
 \fB--dns-result-order\fR
 .It
+\fB--enable-fips-indicator-events\fR
+.It
 \fB--enable-fips\fR
 .It
 \fB--enable-network-family-autoselection\fR
@@ -1986,9 +2100,9 @@ one is included in the list below.
 .It
 \fB--experimental-detect-module\fR
 .It
-\fB--experimental-eventsource\fR
+\fB--experimental-dtls\fR
 .It
-\fB--experimental-ffi\fR
+\fB--experimental-eventsource\fR
 .It
 \fB--experimental-import-meta-resolve\fR
 .It
@@ -2023,6 +2137,8 @@ one is included in the list below.
 \fB--experimental-vm-modules\fR
 .It
 \fB--experimental-wasi-unstable-preview1\fR
+.It
+\fB--experimental-web-worker\fR
 .It
 \fB--force-context-aware\fR
 .It
@@ -2078,6 +2194,8 @@ one is included in the list below.
 .It
 \fB--no-deprecation\fR
 .It
+\fB--no-experimental-ffi\fR
+.It
 \fB--no-experimental-global-navigator\fR
 .It
 \fB--no-experimental-repl-await\fR
@@ -2103,6 +2221,8 @@ one is included in the list below.
 \fB--no-warnings\fR
 .It
 \fB--no-webstorage\fR
+.It
+\fB--no-worker-snapshot\fR
 .It
 \fB--node-memory-debug\fR
 .It

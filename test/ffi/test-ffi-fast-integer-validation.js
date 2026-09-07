@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --allow-natives-syntax
+// Flags: --allow-natives-syntax
 'use strict';
 
 const common = require('../common');

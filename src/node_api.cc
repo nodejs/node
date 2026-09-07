@@ -451,6 +451,7 @@ class ThreadSafeFunction {
 
     if (popped_value) {
       v8::HandleScope scope(env->isolate);
+      v8::Context::Scope context_scope(env->context());
       AsyncResource::CallbackScope cb_scope(&*async_resource);
       napi_value js_callback = nullptr;
       if (!ref.IsEmpty()) {
@@ -469,6 +470,7 @@ class ThreadSafeFunction {
     v8::HandleScope scope(env->isolate);
     EmptyQueue();
     if (finalize_cb) {
+      v8::Context::Scope context_scope(env->context());
       AsyncResource::CallbackScope cb_scope(&*async_resource);
       env->CallFinalizer<false>(finalize_cb, finalize_data, context);
     }
@@ -1236,6 +1238,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
     // Establish a handle scope here so that every callback doesn't have to.
     // Also it is needed for the exception-handling below.
     v8::HandleScope scope(_env->isolate);
+    v8::Context::Scope context_scope(_env->context());
 
     CallbackScope callback_scope(this);
 

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Service Worker: CSP script directive for ServiceWorker script</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+service_worker_test(
+    'resources/service-worker-csp-worker.py?directive=script',
+    'CSP test for script-src in ServiceWorkerGlobalScope');
+</script>

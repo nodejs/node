@@ -71,6 +71,7 @@ async function testPipeToSyncSourceError() {
   let failCalled = false;
   const writer = {
     writeSync() { return true; },
+    endSync: common.mustNotCall(),
     fail(reason) { failCalled = true; },
   };
   function* failingSource() {
@@ -127,6 +128,7 @@ async function testPipeToSyncWithTransforms() {
   const chunks = [];
   const writer = {
     writeSync(chunk) { chunks.push(new TextDecoder().decode(chunk)); return true; },
+    endSync() { return 0; },
   };
   const upper = (batch) => {
     if (batch === null) return null;
@@ -160,6 +162,7 @@ async function testPipeToSyncWriterTransformMethodIgnored() {
       chunks.push(new TextDecoder().decode(chunk));
       return true;
     },
+    endSync() { return 0; },
   };
 
   pipeToSync(fromSync('hello'), writer);
@@ -240,11 +243,11 @@ async function testPipeToSyncMinimalWriter() {
     },
   };
 
-  pipeToSync(fromSync('minimal-sync'), minimalWriter);
+  pipeToSync(fromSync('minimal-sync'), minimalWriter, { preventClose: true });
   assert.strictEqual(chunks.length > 0, true);
 }
 
-async function testPipeToSyncIterableFastPathWritesIncrementally() {
+async function testPipeToSyncIterableUsesFromBatching() {
   let pulled = 0;
   let firstWritePulled = 0;
   const chunks = [];
@@ -267,7 +270,7 @@ async function testPipeToSyncIterableFastPathWritesIncrementally() {
 
   const totalBytes = await pipeTo(source(), writer);
   assert.strictEqual(totalBytes, 3);
-  assert.strictEqual(firstWritePulled, 1);
+  assert.strictEqual(firstWritePulled, 3);
   assert.deepStrictEqual(chunks, [
     new Uint8Array([0x61]),
     new Uint8Array([0x62]),
@@ -275,7 +278,31 @@ async function testPipeToSyncIterableFastPathWritesIncrementally() {
   ]);
 }
 
-async function testPipeToSyncIterableFastPathWriteFallback() {
+async function testPipeToSourceNormalizationIndependentOfWriter() {
+  function source() {
+    return {
+      *[Symbol.iterator]() {
+        yield {
+          async *[Symbol.asyncIterator]() {
+            yield 'nested';
+          },
+        };
+      },
+    };
+  }
+
+  for (const hasWriteSync of [false, true]) {
+    const writer = { write: common.mustNotCall() };
+    if (hasWriteSync) writer.writeSync = common.mustNotCall();
+
+    await assert.rejects(
+      pipeTo(source(), writer, { preventClose: true, preventFail: true }),
+      { code: 'ERR_INVALID_ARG_TYPE' },
+    );
+  }
+}
+
+async function testPipeToSyncIterableWriteFallback() {
   const asyncWrites = [];
   const writer = {
     writeSync(chunk) {
@@ -296,7 +323,7 @@ async function testPipeToSyncIterableFastPathWriteFallback() {
   assert.deepStrictEqual(asyncWrites, [new Uint8Array([0x62])]);
 }
 
-async function testPipeToSyncIterableFastPathAsyncValue() {
+async function testPipeToSyncIterableAsyncValue() {
   const chunks = [];
   const writer = {
     write: common.mustNotCall(),
@@ -334,7 +361,8 @@ Promise.all([
   testPipeToSyncPreventClose(),
   testPipeToMinimalWriter(),
   testPipeToSyncMinimalWriter(),
-  testPipeToSyncIterableFastPathWritesIncrementally(),
-  testPipeToSyncIterableFastPathWriteFallback(),
-  testPipeToSyncIterableFastPathAsyncValue(),
+  testPipeToSyncIterableUsesFromBatching(),
+  testPipeToSyncIterableWriteFallback(),
+  testPipeToSyncIterableAsyncValue(),
+  testPipeToSourceNormalizationIndependentOfWriter(),
 ]).then(common.mustCall());

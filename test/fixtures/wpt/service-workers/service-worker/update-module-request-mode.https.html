@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>Test that mode is set to same-origin for a main module</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// Tests a main module service worker script fetch during an update check.
+// The fetch should have the mode set to 'same-origin'.
+//
+// The test works by registering a main module service worker. It then does an
+// update. The test server responds with an updated worker script that remembers
+// the http request. The updated worker reports back this request to the test
+// page.
+promise_test(async (t) => {
+  const script = "resources/test-request-mode-worker.py";
+  const scope = "resources/";
+
+  // Register the service worker.
+  await service_worker_unregister(t, scope);
+  const registration = await navigator.serviceWorker.register(
+      script, {scope, type: 'module'});
+  await wait_for_state(t, registration.installing, 'activated');
+
+  // Do an update.
+  await registration.update();
+
+  // Ask the new worker what the request was.
+  const newWorker = registration.installing;
+  const sawMessage = new Promise((resolve) => {
+    navigator.serviceWorker.onmessage = (event) => {
+      resolve(event.data);
+    };
+  });
+  newWorker.postMessage('getHeaders');
+  const result = await sawMessage;
+
+  // Test the result.
+  assert_equals(result['sec-fetch-mode'], 'same-origin');
+  assert_equals(result['origin'], undefined);
+
+}, 'headers of a main module script');
+
+</script>

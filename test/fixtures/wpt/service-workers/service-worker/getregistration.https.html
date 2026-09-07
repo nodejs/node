@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+async_test(function(t) {
+    var documentURL = 'no-such-worker';
+    navigator.serviceWorker.getRegistration(documentURL)
+      .then(function(value) {
+          assert_equals(value, undefined,
+                        'getRegistration should resolve with undefined');
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'getRegistration');
+
+promise_test(function(t) {
+    var scope = 'resources/scope/getregistration/normal';
+    var registration;
+    return service_worker_unregister_and_register(t, 'resources/empty-worker.js',
+                                                  scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(value) {
+          assert_equals(
+              value, registration,
+              'getRegistration should resolve to the same registration object');
+        });
+  }, 'Register then getRegistration');
+
+promise_test(function(t) {
+    var scope = 'resources/scope/getregistration/url-with-fragment';
+    var documentURL = scope + '#ref';
+    var registration;
+    return service_worker_unregister_and_register(t, 'resources/empty-worker.js',
+                                                  scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          return navigator.serviceWorker.getRegistration(documentURL);
+        })
+      .then(function(value) {
+          assert_equals(
+              value, registration,
+              'getRegistration should resolve to the same registration object');
+        });
+  }, 'Register then getRegistration with a URL having a fragment');
+
+async_test(function(t) {
+    var documentURL = 'http://example.com/';
+    navigator.serviceWorker.getRegistration(documentURL)
+      .then(function() {
+          assert_unreached(
+              'getRegistration with an out of origin URL should fail');
+      }, function(reason) {
+          assert_equals(
+              reason.name, 'SecurityError',
+              'getRegistration with an out of origin URL should fail');
+          t.done();
+      })
+      .catch(unreached_rejection(t));
+  }, 'getRegistration with a cross origin URL');
+
+async_test(function(t) {
+    var scope = 'resources/scope/getregistration/register-unregister';
+    service_worker_unregister_and_register(t, 'resources/empty-worker.js',
+                                           scope)
+      .then(function(registration) {
+          return registration.unregister();
+        })
+      .then(function() {
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(value) {
+          assert_equals(value, undefined,
+                        'getRegistration should resolve with undefined');
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register then Unregister then getRegistration');
+
+
+promise_test(async function(t) {
+  const scope = 'resources/scope/getregistration/register-unregister';
+  const registration = await service_worker_unregister_and_register(
+    t, 'resources/empty-worker.js', scope
+  );
+
+  const frame = await with_iframe(scope);
+  t.add_cleanup(() => frame.remove());
+
+  const frameNav = frame.contentWindow.navigator;
+  await registration.unregister();
+  const value = await frameNav.serviceWorker.getRegistration(scope);
+
+  assert_equals(value, undefined, 'getRegistration should resolve with undefined');
+}, 'Register then Unregister then getRegistration in controlled iframe');
+
+</script>

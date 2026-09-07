@@ -312,6 +312,26 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
   }
 }
 
+// Calling digest() after the Hmac has already been used as a stream must
+// return an empty buffer (the DEP0206 repeat-digest guard), not uninitialized
+// stack memory. The stream itself must still produce the correct digest.
+// See: https://github.com/nodejs/node/issues/28245
+{
+  const key = 'key';
+  const data = 'some data to hash';
+
+  const streamHmac = crypto.createHmac('sha256', key);
+  streamHmac.end(data);
+  const streamDigest = streamHmac.read();
+
+  // digest() after the stream already finalized must not return garbage.
+  assert.deepStrictEqual(streamHmac.digest(), Buffer.alloc(0));
+
+  // Sanity check: the stream itself produced the correct digest.
+  const expected = crypto.createHmac('sha256', key).update(data).digest();
+  assert.deepStrictEqual(streamDigest, expected);
+}
+
 // Test HMAC-MD5/SHA1 (rfc 2202 Test Cases)
 const rfc2202_md5 = [
   {

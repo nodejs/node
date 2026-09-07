@@ -282,6 +282,28 @@ parser.add_argument('--openssl-system-ca-path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
+shared_optgroup.add_argument('--shared-abseil',
+    action='store_true',
+    dest='shared_abseil',
+    default=None,
+    help='link to a shared Abseil DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-abseil-includes',
+    action='store',
+    dest='shared_abseil_includes',
+    help='directory containing Abseil header files')
+
+shared_optgroup.add_argument('--shared-abseil-libname',
+    action='store',
+    dest='shared_abseil_libname',
+    default=None,
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-abseil-libpath',
+    action='store',
+    dest='shared_abseil_libpath',
+    help='a directory to search for the shared Abseil DLL')
+
 shared_optgroup.add_argument('--shared-gtest',
     action='store_true',
     dest='shared_gtest',
@@ -326,11 +348,27 @@ shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
     dest='shared_hdr_histogram_libpath',
     help='a directory to search for the shared HdrHistogram DLL')
 
-parser.add_argument('--experimental-http-parser',
+shared_optgroup.add_argument('--shared-highway',
     action='store_true',
-    dest='experimental_http_parser',
+    dest='shared_highway',
     default=None,
-    help='(no-op)')
+    help='link to a shared Highway (hwy) DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-highway-includes',
+    action='store',
+    dest='shared_highway_includes',
+    help='directory containing Highway header files')
+
+shared_optgroup.add_argument('--shared-highway-libname',
+    action='store',
+    dest='shared_highway_libname',
+    default='hwy',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-highway-libpath',
+    action='store',
+    dest='shared_highway_libpath',
+    help='a directory to search for the shared Highway DLL')
 
 shared_optgroup.add_argument('--shared-http-parser',
     action='store_true',
@@ -507,6 +545,29 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
     action='store',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
+
+shared_optgroup.add_argument('--shared-perfetto',
+    action='store_true',
+    dest='shared_perfetto',
+    default=None,
+    help='link to a shared perfetto SDK instead of the one in deps/perfetto '
+         '(requires --with-perfetto)')
+
+shared_optgroup.add_argument('--shared-perfetto-includes',
+    action='store',
+    dest='shared_perfetto_includes',
+    help='directory containing perfetto header files')
+
+shared_optgroup.add_argument('--shared-perfetto-libname',
+    action='store',
+    dest='shared_perfetto_libname',
+    default='perfetto',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-perfetto-libpath',
+    action='store',
+    dest='shared_perfetto_libpath',
+    help='a directory to search for the shared perfetto DLL')
 
 shared_optgroup.add_argument('--shared-uvwasi',
     action='store_true',
@@ -812,6 +873,13 @@ parser.add_argument('--enable-v8windbg',
     default=None,
     help=argparse.SUPPRESS)  # Undocumented.
 
+parser.add_argument('--enable-v8debughelper',
+    action='store_true',
+    dest='enable_v8debughelper',
+    default=None,
+    help='Build V8\'s debug helper as a shared library, loadable by a debugger '
+         'extension.')
+
 parser.add_argument('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
@@ -834,7 +902,7 @@ parser.add_argument('--experimental-pointer-compression-shared-cage',
     action='store_true',
     dest='pointer_compression_shared_cage',
     default=None,
-    help='[Experimental] Use V8 pointer compression with shared cage (requires --experimental-enable-pointer-compression)')
+    help='[Experimental] Use V8 pointer compression with a shared cage and enable the V8 sandbox (requires --experimental-enable-pointer-compression)')
 
 parser.add_argument('--v8-options',
     action='store',
@@ -884,13 +952,13 @@ parser.add_argument('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
     default=None,
-    help='This option has no effect. --use-largepages is now a runtime option.')
+    help='This option is no longer supported and a no-op.')
 
 parser.add_argument('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
     default=None,
-    help='This option has no effect. --use-largepages is now a runtime option.')
+    help='This option is no longer supported and a no-op.')
 
 parser.add_argument('--use-section-ordering-file',
     action='store',
@@ -1022,32 +1090,11 @@ parser.add_argument('--control-flow-guard',
     default=None,
     help='enable Control Flow Guard (CFG)')
 
-# Dummy option for backwards compatibility
-parser.add_argument('--without-report',
-    action='store_true',
-    dest='unused_without_report',
-    default=None,
-    help=argparse.SUPPRESS)
-
-parser.add_argument('--with-snapshot',
-    action='store_true',
-    dest='unused_with_snapshot',
-    default=None,
-    help=argparse.SUPPRESS)
-
-parser.add_argument('--without-snapshot',
-    action='store_true',
-    dest='unused_without_snapshot',
-    default=None,
-    help=argparse.SUPPRESS)
-
 parser.add_argument('--without-siphash',
     action='store_true',
     dest='without_siphash',
     default=None,
     help=argparse.SUPPRESS)
-
-# End dummy list.
 
 parser.add_argument('--without-ssl',
     action='store_true',
@@ -1078,6 +1125,12 @@ parser.add_argument('--experimental-quic',
     dest='experimental_quic',
     default=None,
     help='build with experimental QUIC support')
+
+parser.add_argument('--experimental-dtls',
+    action='store_true',
+    dest='experimental_dtls',
+    default=None,
+    help='build with experimental DTLS support')
 
 parser.add_argument('--ninja',
     action='store_true',
@@ -1900,8 +1953,6 @@ def configure_node(o):
                      else target_arch != host_arch)
   if cross_compiling:
     os.environ['GYP_CROSSCOMPILE'] = "1"
-  if options.unused_without_snapshot:
-    warn('building --without-snapshot is no longer possible')
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
@@ -2041,10 +2092,8 @@ def configure_node(o):
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
-         have no effect during build time. Support for mapping to large pages is
-         now a runtime option of Node.js. Run `node --use-largepages` or add
-         `--use-largepages` to the `NODE_OPTIONS` environment variable once
-         Node.js is built to enable mapping to large pages.''')
+         have no effect. Mapping the Node.js static code to large pages is
+         no longer supported.''')
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
@@ -2195,16 +2244,10 @@ def configure_v8(o, configs):
                                          flavor not in ('aix', 'os400', 'zos') and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
-  # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
-  # We currently have many backing stores tied to pointers from C++ land that are not
-  # even necessarily dynamic (e.g. in static storage) for fast communication between JS and C++.
-  # Until we manage to get rid of all those, v8_enable_sandbox cannot be used.
-  # Note that enabling pointer compression without enabling sandbox is unsupported by V8,
-  # so this can be broken at any time.
-  o['variables']['v8_enable_sandbox'] = 0
-  # We set v8_enable_pointer_compression_shared_cage to 0 always, even when
-  # pointer compression is enabled so that we don't accidentally enable shared
-  # cage mode when pointer compression is on.
+  # Like V8's own default, the sandbox goes with the shared pointer compression
+  # cage. Multi-cage builds give every IsolateGroup its own sandbox, which the
+  # array buffer allocator does not know about yet.
+  o['variables']['v8_enable_sandbox'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
@@ -2229,6 +2272,7 @@ def configure_v8(o, configs):
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
   o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
+  o['variables']['node_enable_v8debughelper'] = b(options.enable_v8debughelper)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8:
@@ -2236,6 +2280,8 @@ def configure_v8(o, configs):
       raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
     if options.enable_v8windbg:
       raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
+    if options.enable_v8debughelper:
+      raise Exception('--enable-v8debughelper is incompatible with --without-bundled-v8.')
     (pkg_libs, pkg_cflags, pkg_libpath, _) = pkg_config("v8")
     if pkg_libs and pkg_libpath:
       output['libraries'] += [pkg_libpath] + pkg_libs.split()
@@ -2343,6 +2389,15 @@ def configure_lief(o):
 
   configure_library('lief', o, pkgname='LIEF')
 
+def configure_perfetto(o):
+  if not options.with_perfetto:
+    if options.shared_perfetto:
+      error('--shared-perfetto requires --with-perfetto')
+    o['variables']['node_shared_perfetto'] = b(False)
+    return
+
+  configure_library('perfetto', o)
+
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
   if options.without_sqlite:
@@ -2396,6 +2451,10 @@ def configure_ffi(o):
 
 def configure_quic(o):
   o['variables']['node_use_quic'] = b(options.experimental_quic and
+                                      not options.without_ssl)
+
+def configure_dtls(o):
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
                                       not options.without_ssl)
 
 def configure_static(o):
@@ -2835,6 +2894,71 @@ configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output, pkgname='libllhttp')
 configure_library('libuv', output)
+configure_library('abseil', output, pkgname=[
+  'absl_absl_check',
+  'absl_absl_log',
+  'absl_absl_vlog_is_on',
+  'absl_algorithm_container',
+  'absl_algorithm',
+  'absl_any_invocable',
+  'absl_base',
+  'absl_bind_front',
+  'absl_bits',
+  'absl_btree',
+  'absl_charset',
+  'absl_cleanup',
+  'absl_config',
+  'absl_cord',
+  'absl_core_headers',
+  'absl_die_if_null',
+  'absl_dynamic_annotations',
+  'absl_failure_signal_handler',
+  'absl_fast_type_id',
+  'absl_fixed_array',
+  'absl_flat_hash_map',
+  'absl_flat_hash_set',
+  'absl_function_ref',
+  'absl_has_ostream_operator',
+  'absl_hash_container_defaults',
+  'absl_hash',
+  'absl_inlined_vector',
+  'absl_int128',
+  'absl_layout',
+  'absl_leak_check',
+  'absl_linked_hash_map',
+  'absl_linked_hash_set',
+  'absl_log_entry',
+  'absl_log_globals',
+  'absl_log_initialize',
+  'absl_log_severity',
+  'absl_log_sink_registry',
+  'absl_log_sink',
+  'absl_memory',
+  'absl_no_destructor',
+  'absl_node_hash_map',
+  'absl_node_hash_set',
+  'absl_nullability',
+  'absl_optional',
+  'absl_overload',
+  'absl_prefetch',
+  'absl_random_bit_gen_ref',
+  'absl_random_distributions',
+  'absl_random_random',
+  'absl_raw_logging_internal',
+  'absl_span',
+  'absl_stacktrace',
+  'absl_status',
+  'absl_statusor',
+  'absl_str_format',
+  'absl_string_view',
+  'absl_strings',
+  'absl_symbolize',
+  'absl_synchronization',
+  'absl_time',
+  'absl_type_traits',
+  'absl_utility',
+  'absl_variant',
+])
 configure_library('ada', output)
 configure_library('simdjson', output)
 configure_library('simdutf', output)
@@ -2842,12 +2966,14 @@ configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('gtest', output)
 configure_library('hdr_histogram', output)
+configure_library('highway', output, pkgname='libhwy')
 configure_library('merve', output)
 configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
+configure_perfetto(output);
 configure_sqlite(output);
 configure_ffi(output);
 configure_library('temporal_capi', output)
@@ -2856,6 +2982,7 @@ configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
 configure_quic(output)
+configure_dtls(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)

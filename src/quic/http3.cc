@@ -486,21 +486,6 @@ class Http3ApplicationImpl final : public Session::Application {
                : SessionTicket::AppData::Status::TICKET_USE;
   }
 
-  bool ApplySessionTicketData(const PendingTicketAppData& data) override {
-    if (!std::holds_alternative<Http3TicketData>(data)) return false;
-    const auto& ticket = std::get<Http3TicketData>(data);
-    // Validate that current settings are >= stored settings.
-    return options_.max_field_section_size >= ticket.max_field_section_size &&
-           options_.qpack_max_dtable_capacity >=
-               ticket.qpack_max_dtable_capacity &&
-           options_.qpack_encoder_max_dtable_capacity >=
-               ticket.qpack_encoder_max_dtable_capacity &&
-           options_.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
-           (!ticket.enable_connect_protocol ||
-            options_.enable_connect_protocol) &&
-           (!ticket.enable_datagrams || options_.enable_datagrams);
-  }
-
   void ReceiveStreamClose(Stream* stream,
                           QuicError&& error = QuicError()) override {
     Debug(
@@ -877,6 +862,10 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application received end of headers for stream %" PRIi64,
           id);
     stream->EmitHeaders();
+    // EmitHeaders() calls into JavaScript, which can synchronously destroy the
+    // stream. Its arena-backed state is released by Destroy(), so do not touch
+    // the stream again if that happened.
+    if (stream->is_destroyed()) return;
     if (fin) {
       // The stream is done. There's no more data to receive!
       Debug(&session(), "Headers are final for stream %" PRIi64, id);
@@ -919,6 +908,10 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application received end of trailers for stream %" PRIi64,
           id);
     stream->EmitHeaders();
+    // EmitHeaders() calls into JavaScript, which can synchronously destroy the
+    // stream. Its arena-backed state is released by Destroy(), so do not touch
+    // the stream again if that happened.
+    if (stream->is_destroyed()) return;
     if (fin) {
       Debug(&session(), "Trailers are final for stream %" PRIi64, id);
       Stream::ReceiveDataFlags flags{
@@ -1083,6 +1076,13 @@ class Http3ApplicationImpl final : public Session::Application {
     if (auto stream = session->FindStream(id)) {
       return stream;
     }
+    // No record of a locally-initiated stream means we already destroyed it,
+    // and frames still in flight must not bring it back to life. See
+    // DefaultApplication::ReceiveStreamData for the same guard on the raw
+    // QUIC path.
+    if (!session->is_destroyed() && ngtcp2_conn_is_local_stream(*session, id)) {
+      return {};
+    }
     if (auto stream = session->CreateStream(id)) {
       return stream;
     }
@@ -1224,6 +1224,23 @@ class Http3ApplicationImpl final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     auto& session = app.session();
+
+    // DATA frames for a request stream the application already destroyed can
+    // still arrive. Drop the payload rather than resurrecting the stream or
+    // tearing down the connection, but return its credit: unlike framing
+    // bytes, DATA payload is not included in the count nghttp3 reports to
+    // ReceiveStreamData, so we own it. The is_destroyed() check must come
+    // first, see DefaultApplication::ReceiveStreamData.
+    if (!session.is_destroyed() && !session.FindStream(id) &&
+        ngtcp2_conn_is_local_stream(session, id)) {
+      Debug(&session,
+            "HTTP/3 discarding %zu bytes for destroyed local stream %" PRIi64,
+            datalen,
+            id);
+      app.ReturnConnectionCredit(datalen);
+      return NGTCP2_SUCCESS;
+    }
+
     if (auto stream = FindOrCreateStream(conn, &session, id)) [[likely]] {
       stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
       return NGTCP2_SUCCESS;
@@ -1413,7 +1430,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static constexpr nghttp3_callbacks kCallbacks = {
       on_acked_stream_data,
-      nullptr,  // nghttp3_stream_close (deprecated)
+      nullptr,  // stream_close (deprecated, use v2 below)
       on_receive_data,
       on_deferred_consume,
       on_begin_headers,
@@ -1426,37 +1443,13 @@ class Http3ApplicationImpl final : public Session::Application {
       on_end_stream,
       on_do_reset_stream,
       on_shutdown,
-      nullptr,  // recv_settings (deprecated)
+      nullptr,  // recv_settings (deprecated, use v2 below)
       on_receive_origin,
       on_end_origin,
       on_rand,
       on_receive_settings,
       on_stream_close};
 };
-
-std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {
-  if (data.len != kSessionTicketAppDataSize) return std::nullopt;
-
-  const uint8_t* buf = reinterpret_cast<const uint8_t*>(data.base);
-
-  // buf[0] is the type byte (already checked by caller), buf[1] is version.
-  if (buf[1] != kSessionTicketAppDataVersion) return std::nullopt;
-
-  const uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
-  uint32_t stored_crc = ReadBE32(buf + 2);
-  uLong computed_crc = crc32(0L, Z_NULL, 0);
-  computed_crc = crc32(computed_crc, payload, kSessionTicketAppDataPayloadSize);
-  if (stored_crc != static_cast<uint32_t>(computed_crc)) return std::nullopt;
-
-  return Http3TicketData{
-      ReadBE64(payload),
-      ReadBE64(payload + 8),
-      ReadBE64(payload + 16),
-      ReadBE64(payload + 24),
-      payload[32] != 0,
-      payload[33] != 0,
-  };
-}
 
 std::unique_ptr<Session::Application> CreateHttp3Application(
     Session* session, const Session::Application_Options& options) {
