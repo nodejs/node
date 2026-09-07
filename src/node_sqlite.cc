@@ -1653,9 +1653,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     Local<Object> options = args[1].As<Object>();
 
     Local<Value> return_arrays_v;
-    if (!options
-             ->Get(env->context(),
-                   FIXED_ONE_BYTE_STRING(env->isolate(), "returnArrays"))
+    if (!options->Get(env->context(), env->return_arrays_string())
              .ToLocal(&return_arrays_v)) {
       return;
     }
@@ -1670,9 +1668,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Value> read_big_ints_v;
-    if (!options
-             ->Get(env->context(),
-                   FIXED_ONE_BYTE_STRING(env->isolate(), "readBigInts"))
+    if (!options->Get(env->context(), env->read_bigints_string())
              .ToLocal(&read_big_ints_v)) {
       return;
     }
@@ -1687,10 +1683,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Value> allow_bare_named_params_v;
-    if (!options
-             ->Get(env->context(),
-                   FIXED_ONE_BYTE_STRING(env->isolate(),
-                                         "allowBareNamedParameters"))
+    if (!options->Get(env->context(), env->allow_bare_named_params_string())
              .ToLocal(&allow_bare_named_params_v)) {
       return;
     }
@@ -1706,10 +1699,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Value> allow_unknown_named_params_v;
-    if (!options
-             ->Get(env->context(),
-                   FIXED_ONE_BYTE_STRING(env->isolate(),
-                                         "allowUnknownNamedParameters"))
+    if (!options->Get(env->context(), env->allow_unknown_named_params_string())
              .ToLocal(&allow_unknown_named_params_v)) {
       return;
     }
@@ -4603,10 +4593,8 @@ static void Initialize(Local<Object> target,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
                           DatabaseSync::IsTransactionGetter);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "limits"),
-                          DatabaseSync::LimitsGetter);
+  SetSideEffectFreeGetter(
+      isolate, db_tmpl, env->limits_string(), DatabaseSync::LimitsGetter);
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
       v8::Symbol::For(isolate, sqlite_type_key);
