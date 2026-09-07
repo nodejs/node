@@ -4,6 +4,8 @@ var keyData = {
   'ML-DSA-44': {
     privateUsages: ['sign'],
     publicUsages: ['verify'],
+    publicFormats: ['spki', 'jwk', 'raw-public'],
+    privateFormats: ['pkcs8', 'jwk', 'raw-seed'],
     pkcs8: mldsaKeyFixtures.pkcs8['ML-DSA-44'],
     spki: mldsaKeyFixtures.spki['ML-DSA-44'],
     'raw-public': hexStringToUint8Array(
@@ -23,6 +25,8 @@ var keyData = {
   'ML-DSA-65': {
     privateUsages: ['sign'],
     publicUsages: ['verify'],
+    publicFormats: ['spki', 'jwk', 'raw-public'],
+    privateFormats: ['pkcs8', 'jwk', 'raw-seed'],
     pkcs8: mldsaKeyFixtures.pkcs8['ML-DSA-65'],
     spki: mldsaKeyFixtures.spki['ML-DSA-65'],
     'raw-public': hexStringToUint8Array(
@@ -42,6 +46,8 @@ var keyData = {
   'ML-DSA-87': {
     privateUsages: ['sign'],
     publicUsages: ['verify'],
+    publicFormats: ['spki', 'jwk', 'raw-public'],
+    privateFormats: ['pkcs8', 'jwk', 'raw-seed'],
     pkcs8: mldsaKeyFixtures.pkcs8['ML-DSA-87'],
     spki: mldsaKeyFixtures.spki['ML-DSA-87'],
     'raw-public': hexStringToUint8Array(
