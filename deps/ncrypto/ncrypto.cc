@@ -4130,11 +4130,7 @@ std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
 #endif
   } else if (id == EVP_PKEY_EC) {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-    Ec ec(get());
-    if (!ec) return std::nullopt;
-    const EC_GROUP* group = ec.getGroup();
-    if (group == nullptr) return std::nullopt;
-    bits = EC_GROUP_order_bits(group);
+    bits = EVP_PKEY_bits(get());
 #else
     const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(get());
     if (ec_key == nullptr) return std::nullopt;
