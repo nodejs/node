@@ -6933,6 +6933,24 @@ int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
 }
 
+int Ec::GetCurveId(const EVPKeyPointer& key) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  char name[80];
+  size_t length = 0;
+  if (EVP_PKEY_get_utf8_string_param(
+          key.get(), OSSL_PKEY_PARAM_GROUP_NAME, name, sizeof(name), &length) !=
+      1) {
+    return NID_undef;
+  }
+  return GetCurveIdFromName(name);
+#else
+  const EC_KEY* ec = key;
+  if (ec == nullptr) return NID_undef;
+  const EC_GROUP* group = EC_KEY_get0_group(ec);
+  return group == nullptr ? NID_undef : EC_GROUP_get_curve_name(group);
+#endif
+}
+
 int Ec::GetCurveIdFromName(const char* name) {
   int nid = EC_curve_nist2nid(name);
   if (nid == NID_undef) {
