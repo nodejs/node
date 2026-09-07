@@ -2779,8 +2779,8 @@ added: v23.8.0
 
 The endpoint maintains an internal cache of validated socket addresses as a
 performance optimization. This option sets the maximum number of addresses
-that are cached. This is an advanced option that users typically won't have
-need to specify.
+that are cached. The value must be greater than `0`. This is an advanced option
+that users typically won't have need to specify.
 
 #### `endpointOptions.disableStatelessReset`
 

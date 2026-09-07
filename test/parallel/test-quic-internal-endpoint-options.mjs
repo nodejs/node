@@ -56,7 +56,7 @@ const cases = [
     valid: [
       1, 10, 100, 1000, 10000, 10000n,
     ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    invalid: [-1, -1n, 0, 0n, 'a', null, false, true, {}, [], () => {}]
   },
   {
     key: 'retryRate',
