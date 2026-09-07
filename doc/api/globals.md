@@ -1313,7 +1313,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 ## Class: `Worker`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the

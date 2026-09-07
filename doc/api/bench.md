@@ -1,9 +1,9 @@
 # Benchmark runner
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v26.9.0-->
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1.0 - Early Development
@@ -287,7 +287,7 @@ run().compose(names).pipe(process.stdout);
 ## `createRunner([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `options` {Object}
@@ -310,7 +310,7 @@ value passed to `createRunner()`.
 ## `bench([name][, options], fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `name` {string} The benchmark name. **Default:** The `name` property of `fn`,
@@ -380,7 +380,7 @@ the samples.
 ### `bench.skip([name][, options], fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Shorthand for `bench(name, { ...options, skip: true }, fn)`.
@@ -388,7 +388,7 @@ Shorthand for `bench(name, { ...options, skip: true }, fn)`.
 ### `bench.only([name][, options], fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Shorthand for `bench(name, { ...options, only: true }, fn)`.
@@ -396,7 +396,7 @@ Shorthand for `bench(name, { ...options, only: true }, fn)`.
 ## `suite([name][, options], fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `name` {string} The suite name. **Default:** The `name` property of `fn`, or
@@ -422,7 +422,7 @@ functions are awaited before benchmark execution begins.
 ## `describe([name][, options], fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Alias for `suite()`.
@@ -430,7 +430,7 @@ Alias for `suite()`.
 ## `before(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -440,7 +440,7 @@ Registers a hook that runs once before the benchmarks in the current suite.
 ## `after(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -450,7 +450,7 @@ Registers a hook that runs once after the benchmarks in the current suite.
 ## `beforeEach(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. It receives an object with
@@ -463,7 +463,7 @@ the benchmark function before `context.start()` or `context.record()`.
 ## `afterEach(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. It receives an object with
@@ -476,7 +476,7 @@ in the benchmark function after `context.end()` or `context.record()`.
 ## `run([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `options` {Object}
@@ -518,7 +518,7 @@ for await (const { type, data } of run()) {
 ## `runFile(path[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `path` {string|Buffer|URL} The path of one benchmark module.
@@ -572,7 +572,7 @@ instance is created for every warmup and measured sample.
 ### `context.index`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {number}
@@ -583,7 +583,7 @@ measured samples have separate index sequences.
 ### `context.name`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {string}
@@ -593,7 +593,7 @@ The benchmark name.
 ### `context.params`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {Object}
@@ -603,7 +603,7 @@ The benchmark's canonicalized parameter metadata.
 ### `context.phase`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {string}
@@ -614,7 +614,7 @@ and `'measurement'` for a measured invocation.
 ### `context.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {AbortSignal}
@@ -625,7 +625,7 @@ finishes.
 ### `context.start()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Starts the measured region using `process.hrtime.bigint()`. Calling `start()`
@@ -634,7 +634,7 @@ more than once is an error.
 ### `context.end(operations[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `operations` {number} The number of completed operations. Must be a positive
@@ -655,7 +655,7 @@ region.
 ### `context.record(sample)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `sample` {Object}
@@ -677,7 +677,7 @@ message transport from the duration. `record()` is mutually exclusive with
 ### `context.diagnostic(message[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `message` {any} A structured-cloneable diagnostic value. With CLI process
@@ -705,7 +705,7 @@ arguments or an uncloneable message or detail violate the sample contract.
 ### `context.done()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Requests successful benchmark completion after the current measured sample.

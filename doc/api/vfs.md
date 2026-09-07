@@ -117,7 +117,7 @@ added: v26.4.0
 ### `vfs.mount()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Returns: {string} The absolute mount point.
@@ -172,7 +172,7 @@ fs.existsSync(`${mountPoint}/data.txt`); // false
 ### `vfs.unmount()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Unmounts the virtual file system. After unmounting, virtual files
@@ -185,7 +185,7 @@ currently mounted has no effect.
 ### `vfs.mounted`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {boolean}
@@ -195,7 +195,7 @@ added: REPLACEME
 ### `vfs.mountPoint`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {string | null}
@@ -207,7 +207,7 @@ mounted.
 ### `vfs.mountPointURL`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * {string | null}
@@ -565,7 +565,7 @@ The resolved absolute path used as the root.
 ## Class: `ZipProvider`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 A provider that exposes the entries of a ZIP archive - either a
@@ -606,7 +606,7 @@ main();
 ### `new ZipProvider(source)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `source` {zlib.ZipBuffer|zlib.ZipFile} An already-open archive.

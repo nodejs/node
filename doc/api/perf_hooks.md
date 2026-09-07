@@ -1094,7 +1094,7 @@ before Node.js receives the first byte of the response from the server.
 ### `performanceResourceTiming.finalResponseHeadersStart`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {number}
@@ -1106,7 +1106,7 @@ as opposed to an interim response.
 ### `performanceResourceTiming.firstInterimResponseStart`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {number}
@@ -1122,7 +1122,7 @@ added:
   - v18.2.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65017
     description: This property now returns `firstInterimResponseStart`
                  when it is non-zero.
@@ -1217,7 +1217,7 @@ content-codings.
 ### `performanceResourceTiming.renderBlockingStatus`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {string}
@@ -1227,7 +1227,7 @@ The render blocking status of the resource. It is either `'blocking'` or `'non-b
 ### `performanceResourceTiming.contentType`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {string}
@@ -1238,7 +1238,7 @@ string if it cannot be determined.
 ### `performanceResourceTiming.contentEncoding`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {string}
@@ -1721,7 +1721,7 @@ Returns a {RecordableHistogram}.
 ## `perf_hooks.importHistogram(data)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `data` {Uint8Array} A CBOR-encoded histogram previously produced by
@@ -2110,7 +2110,7 @@ loop delay threshold.
 ### `histogram.export()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Returns: {Uint8Array}
@@ -2287,7 +2287,7 @@ The mean of the recorded event loop delays.
 ### `histogram.meanCI([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `options` {Object}
