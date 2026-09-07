@@ -751,8 +751,8 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       }
       if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
         return EncodeTwoByteString(
-            isolate, str_len, [buf, buflen](uint16_t* dst) {
-              memcpy(dst, buf, buflen);
+            isolate, str_len, [buf, str_len](uint16_t* dst) {
+              memcpy(dst, buf, str_len * sizeof(*dst));
             });
       }
       return ExternTwoByteString::NewFromCopy(
