@@ -4,7 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
-const { setImmediate, setTimeout } = require('timers/promises');
+const { setImmediate } = require('timers/promises');
 
 function recordSample(b) {
   b.record({
