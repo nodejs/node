@@ -9,10 +9,10 @@ const tls = require('tls');
 const { X509Certificate } = require('crypto');
 const tlsCommon = require('../common/tls');
 
-const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
+const expectedPems = tls.getCACertificates('default');
 
 {
-  const certs = tls.getCACertificates({ type: 'default', format: 'x509' });
+  const certs = tls.getCACertificates('default', { format: 'x509' });
   assert.strictEqual(certs.length, expectedPems.length);
 
   const certsRaw = certs.map((c) => c.raw);
@@ -24,7 +24,7 @@ const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
 }
 
 {
-  const certs = tls.getCACertificates({ type: 'default', format: 'buffer' });
+  const certs = tls.getCACertificates('default', { format: 'buffer' });
   assert.strictEqual(certs.length, expectedPems.length);
   tlsCommon.assertEqualCerts(certs, expectedPems);
 
@@ -34,7 +34,7 @@ const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
 }
 
 {
-  const certs = tls.getCACertificates({ type: 'default' });
+  const certs = tls.getCACertificates('default');
   assert.strictEqual(certs.length, expectedPems.length);
   for (const cert of certs) {
     assert.strictEqual(typeof cert, 'string');
@@ -44,7 +44,7 @@ const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
 
 {
   assert.throws(() => {
-    tls.getCACertificates({ type: 'default', format: 'invalid' });
+    tls.getCACertificates('default', { format: 'invalid' });
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
@@ -53,7 +53,7 @@ const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
 }
 
 {
-  const certs = tls.getCACertificates({ format: 'buffer' });
+  const certs = tls.getCACertificates(undefined, { format: 'buffer' });
   assert.ok(Array.isArray(certs));
   assert.ok(certs.length > 0);
   for (const cert of certs) {
@@ -63,7 +63,7 @@ const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
 
 {
   assert.throws(() => {
-    tls.getCACertificates({ type: 'invalid', format: 'buffer' });
+    tls.getCACertificates('invalid', { format: 'buffer' });
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',

@@ -2417,7 +2417,7 @@ const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
 tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
 ```
 
-## `tls.getCACertificates([options])`
+## `tls.getCACertificates([type][, options])`
 
 <!-- YAML
 added:
@@ -2426,15 +2426,13 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59349
-    description: Added the `format` option and support for passing the `type`
-                 as an `options` object to `getCACertificates()`.
+    description: Added the `options` argument with `format` option.
 -->
 
-* `options` {string|Object|undefined}
-  Optional. If a string, it is treated as the `type` of certificates to return.
-  If an object, it may contain:
-  * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
-    **Default:** `"default"`.
+* `type` {string} The type of CA certificates that will be returned. Valid values
+  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
+  **Default:** `"default"`.
+* `options` {Object}
   * `format` {string} The format of returned certificates. One of `"pem"`, `"der"`, or `"x509"`.
     **Default:** `"pem"`.
     * `"pem"` (alias: `"string"`): Returns an array of PEM-encoded certificate strings.
@@ -2446,6 +2444,8 @@ changes:
   * PEM strings when `format` is `"pem"` (or `"string"`).
   * `Buffer` objects containing DER data when `format` is `"der"` (or `"buffer"`).
   * [`X509Certificate`][x509certificate] instances when `format` is `"x509"`.
+
+Returns an array containing the CA certificates from various sources, depending on `type`:
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
@@ -2647,7 +2647,7 @@ added: v0.11.3
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
-[`tls.getCACertificates()`]: #tlsgetcacertificatesoptions
+[`tls.getCACertificates()`]: #tlsgetcacertificatestype-options
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options
