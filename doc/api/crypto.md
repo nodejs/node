@@ -4225,7 +4225,9 @@ require options or a key with provider-specific properties.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: v26.7.0
+  - version:
+     - v26.7.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/63949
     description: The key can also be a URL referencing an object for an
                  OpenSSL STORE loader. The `properties` option was added.

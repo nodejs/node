@@ -5345,7 +5345,8 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: v26.8.0
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/64504
     description: Detached `ArrayBuffer`s and views backed by them are treated
                  as empty.
@@ -5366,7 +5367,8 @@ added:
   - v19.4.0
   - v18.14.0
 changes:
-  - version: v26.8.0
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/64504
     description: Detached `ArrayBuffer`s and views backed by them are treated
                  as empty.

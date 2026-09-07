@@ -715,7 +715,9 @@ changes:
   - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/62757
     description: Add the `persistent` option.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/65157
     description: Throw `ERR_INVALID_ARG_VALUE` if `sql` contains no statements.
 -->
@@ -1111,10 +1113,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1203,10 +1209,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1242,10 +1252,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1290,10 +1304,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1478,10 +1496,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1507,10 +1529,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1536,10 +1562,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1564,10 +1594,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: v26.8.0
+  - version:
+     - v26.8.0
+     - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->

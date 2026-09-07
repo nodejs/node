@@ -1910,7 +1910,9 @@ console.log(JSON.stringify(myMIMES));
 ### `MIMEType.parse(string)`
 
 <!--
-added: v26.8.0
+added:
+ - v26.8.0
+ - v24.21.0
 -->
 
 * `string` {string} The input MIME to parse
