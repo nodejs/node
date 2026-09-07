@@ -296,7 +296,7 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
 ### `--allow-openssl-store`
 
 <!-- YAML
-added: REPLACEME
+added: v24.21.0
 -->
 
 > Stability: 1.1 - Active development

@@ -647,7 +647,7 @@ console.log(query.get());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/65157
     description: Throw `ERR_INVALID_ARG_VALUE` if `sql` contains no statements.
 -->
@@ -1025,10 +1025,10 @@ bound. Binding any other value throws an `ERR_INVALID_ARG_TYPE` error.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1097,10 +1097,10 @@ execution of this prepared statement. This property is a wrapper around
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1132,10 +1132,10 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1164,10 +1164,10 @@ the values in `namedParameters` and `anonymousParameters`. See
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
@@ -1298,10 +1298,10 @@ class execute synchronously.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1323,10 +1323,10 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1348,10 +1348,10 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
@@ -1372,10 +1372,10 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62001
     description: Add support for boolean values in bound parameters.
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/62061
     description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->

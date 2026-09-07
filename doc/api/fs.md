@@ -2941,7 +2941,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/63851
     description: Add the `windowsHandle` option.
   - version: v16.10.0
@@ -3078,7 +3078,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v24.21.0
     pr-url: https://github.com/nodejs/node/pull/63851
     description: Add the `windowsHandle` option.
   - version: v22.0.0
