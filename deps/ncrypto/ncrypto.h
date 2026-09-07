@@ -813,6 +813,9 @@ class Ec final {
 
   static int GetCurveIdFromName(const char* name);
   static int GetCurveId(const EVPKeyPointer& key);
+  static DataPointer TryExportPublic(const EVPKeyPointer& key,
+                                     point_conversion_form_t form);
+  static DataPointer ExportPrivate(const EVPKeyPointer& key);
   static bool GetKeyComponents(const EVPKeyPointer& key,
                                BignumPointer* x,
                                BignumPointer* y,
