@@ -6933,6 +6933,65 @@ int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
 }
 
+bool Ec::GetKeyComponents(const EVPKeyPointer& key,
+                          BignumPointer* x,
+                          BignumPointer* y,
+                          BignumPointer* priv,
+                          int* degree) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const int nid = GetCurveId(key);
+  switch (nid) {
+    case NID_X9_62_prime256v1:
+    case NID_secp256k1:
+      *degree = 256;
+      break;
+    case NID_secp384r1:
+      *degree = 384;
+      break;
+    case NID_secp521r1:
+      *degree = 521;
+      break;
+    default:
+      *degree = 0;
+  }
+  if (*degree != 0) {
+    MarkPopErrorOnReturn pop_errors;
+    unsigned char x_bytes[66]{};
+    unsigned char y_bytes[66]{};
+    const size_t width = (*degree + 7) / 8;
+    OSSL_PARAM params[] = {
+        OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_EC_PUB_X, x_bytes, width),
+        OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_EC_PUB_Y, y_bytes, width),
+        OSSL_PARAM_construct_end(),
+    };
+    if (EVP_PKEY_get_params(key.get(), params) == 1 &&
+        OSSL_PARAM_modified(&params[0]) && OSSL_PARAM_modified(&params[1])) {
+      x->reset(BN_native2bn(x_bytes, width, nullptr));
+      y->reset(BN_native2bn(y_bytes, width, nullptr));
+      return *x && *y &&
+             (priv == nullptr ||
+              GetPKeyBnParam(key.get(), OSSL_PKEY_PARAM_PRIV_KEY, priv));
+    }
+  }
+#endif
+  ECKeyPointer ec(key);
+  if (!ec || ec.getPublicKey() == nullptr) return false;
+  *degree = EC_GROUP_get_degree(ec.getGroup());
+  x->reset(BN_new());
+  y->reset(BN_new());
+  if (!*x || !*y ||
+      EC_POINT_get_affine_coordinates(
+          ec.getGroup(), ec.getPublicKey(), x->get(), y->get(), nullptr) != 1) {
+    return false;
+  }
+  if (priv != nullptr) {
+    if (ec.getPrivateKey() == nullptr) return false;
+    priv->reset(BN_dup(ec.getPrivateKey()));
+    if (!*priv) return false;
+  }
+  return true;
+}
+
 int Ec::GetCurveId(const EVPKeyPointer& key) {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   char name[80];

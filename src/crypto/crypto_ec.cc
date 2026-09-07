@@ -488,29 +488,20 @@ bool ExportJWKEcKey(Environment* env,
   const auto& m_pkey = key.GetAsymmetricKey();
   CHECK_EQ(m_pkey.id(), EVP_PKEY_EC);
 
-  ECKeyPointer ec(m_pkey);
-  if (!ec) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+  BignumPointer x;
+  BignumPointer y;
+  BignumPointer priv;
+  int degree_bits;
+  if (!Ec::GetKeyComponents(
+          m_pkey,
+          &x,
+          &y,
+          key.GetKeyType() == kKeyTypePrivate ? &priv : nullptr,
+          &degree_bits)) {
     return false;
   }
-  // A provider-backed key need not expose its public point.
-  if (ec.getPublicKey() == nullptr) return false;
-
-  const auto pub = ec.getPublicKey();
-  const auto group = ec.getGroup();
-
-  int degree_bits = EC_GROUP_get_degree(group);
   int degree_bytes =
       (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
-
-  auto x = BignumPointer::New();
-  auto y = BignumPointer::New();
-
-  if (!EC_POINT_get_affine_coordinates(group, pub, x.get(), y.get(), nullptr)) {
-    ThrowCryptoError(env, ERR_get_error(),
-                     "Failed to get elliptic-curve point coordinates");
-    return false;
-  }
 
   if (!target
            ->DefineOwnProperty(
@@ -535,7 +526,7 @@ bool ExportJWKEcKey(Environment* env,
   }
 
   Local<String> crv_name;
-  const int nid = EC_GROUP_get_curve_name(group);
+  const int nid = Ec::GetCurveId(m_pkey);
   switch (nid) {
     case NID_X9_62_prime256v1:
       crv_name = env->p256_string();
@@ -562,9 +553,8 @@ bool ExportJWKEcKey(Environment* env,
   }
 
   if (key.GetKeyType() == kKeyTypePrivate) {
-    auto pvt = ec.getPrivateKey();
-    if (pvt == nullptr) return false;
-    return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes)
+    return SetEncodedValue(
+               env, target, env->jwk_d_string(), priv.get(), degree_bytes)
         .IsJust();
   }
 
