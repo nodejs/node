@@ -7871,7 +7871,7 @@ var require_client_h1 = __commonJS({
     __name(onSocketClose, "onSocketClose");
     function clearIdleSocketValidation(socket) {
       if (socket[kIdleSocketValidationTimeout]) {
-        clearTimeout(socket[kIdleSocketValidationTimeout]);
+        clearImmediate(socket[kIdleSocketValidationTimeout]);
         socket[kIdleSocketValidationTimeout] = null;
       }
       socket[kIdleSocketValidation] = 0;
@@ -7879,14 +7879,13 @@ var require_client_h1 = __commonJS({
     __name(clearIdleSocketValidation, "clearIdleSocketValidation");
     function scheduleIdleSocketValidation(client, socket) {
       socket[kIdleSocketValidation] = 1;
-      socket[kIdleSocketValidationTimeout] = setTimeout(() => {
+      socket[kIdleSocketValidationTimeout] = setImmediate(() => {
         socket[kIdleSocketValidationTimeout] = null;
         socket[kIdleSocketValidation] = 2;
         if (client[kSocket] === socket && !socket.destroyed) {
           client[kResume]();
         }
-      }, 0);
-      socket[kIdleSocketValidationTimeout].unref?.();
+      });
     }
     __name(scheduleIdleSocketValidation, "scheduleIdleSocketValidation");
     function resumeH1(client) {
@@ -8388,7 +8387,9 @@ var require_client_h2 = __commonJS({
       RequestAbortedError,
       SocketError,
       InformationalError,
-      InvalidArgumentError
+      InvalidArgumentError,
+      HeadersTimeoutError,
+      BodyTimeoutError
     } = require_errors();
     var {
       kUrl,
@@ -8413,6 +8414,7 @@ var require_client_h2 = __commonJS({
       kHTTPContext,
       kClosed,
       kBodyTimeout,
+      kHeadersTimeout,
       kEnableConnectProtocol,
       kRemoteSettings,
       kHTTP2Stream,
@@ -8551,7 +8553,7 @@ var require_client_h2 = __commonJS({
     function resumeH2(client) {
       const socket = client[kSocket];
       if (socket?.destroyed === false) {
-        if (client[kSize] === 0 || client[kMaxConcurrentStreams] === 0) {
+        if (client[kSize] === 0) {
           socket.unref();
           client[kHTTP2Session].unref();
         } else {
@@ -8625,6 +8627,25 @@ var require_client_h2 = __commonJS({
       util.destroy(this[kSocket], err);
     }
     __name(onHttp2SessionEnd, "onHttp2SessionEnd");
+    function completeRequest(client, request, resetPendingIdx = false) {
+      const queue = client[kQueue];
+      const runningIdx = client[kRunningIdx];
+      if (runningIdx < client[kPendingIdx] && queue[runningIdx] === request) {
+        queue[runningIdx] = null;
+        client[kRunningIdx] = runningIdx + 1;
+        return;
+      }
+      const index = queue.indexOf(request, runningIdx);
+      if (index === -1 || index >= client[kPendingIdx]) {
+        return;
+      }
+      queue.splice(index, 1);
+      client[kPendingIdx]--;
+      if (resetPendingIdx && client[kPendingIdx] < client[kRunningIdx]) {
+        client[kPendingIdx] = client[kRunningIdx];
+      }
+    }
+    __name(completeRequest, "completeRequest");
     function onHttp2SessionGoAway(errorCode) {
       const err = this[kError] || new SocketError(`HTTP/2: "GOAWAY" frame received with code ${errorCode}`, util.getSocketInfo(this[kSocket]));
       const client = this[kClient];
@@ -8636,7 +8657,9 @@ var require_client_h2 = __commonJS({
       if (client[kRunningIdx] < client[kQueue].length) {
         const request = client[kQueue][client[kRunningIdx]];
         client[kQueue][client[kRunningIdx]++] = null;
-        util.errorRequest(client, request, err);
+        if (request != null) {
+          util.errorRequest(client, request, err);
+        }
         client[kPendingIdx] = client[kRunningIdx];
       }
       assert(client[kRunning] === 0);
@@ -8660,7 +8683,9 @@ var require_client_h2 = __commonJS({
         const requests = client[kQueue].splice(client[kRunningIdx]);
         for (let i = 0; i < requests.length; i++) {
           const request = requests[i];
-          util.errorRequest(client, request, err);
+          if (request != null) {
+            util.errorRequest(client, request, err);
+          }
         }
       }
     }
@@ -8698,7 +8723,8 @@ var require_client_h2 = __commonJS({
     }
     __name(shouldSendContentLength, "shouldSendContentLength");
     function writeH2(client, request) {
-      const requestTimeout = request.bodyTimeout ?? client[kBodyTimeout];
+      const headersTimeout = request.headersTimeout ?? client[kHeadersTimeout];
+      const bodyTimeout = request.bodyTimeout ?? client[kBodyTimeout];
       const session = client[kHTTP2Session];
       const { method, path, host, upgrade, expectContinue, signal, protocol, headers: reqHeaders } = request;
       let { body } = request;
@@ -8746,6 +8772,7 @@ var require_client_h2 = __commonJS({
           stream.removeAllListeners("data");
           stream.close();
           client[kOnError](err);
+          completeRequest(client, request);
           client[kResume]();
         }
         util.destroy(body, err);
@@ -8780,7 +8807,7 @@ var require_client_h2 = __commonJS({
             const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
             request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream);
             ++session[kOpenStreams];
-            client[kQueue][client[kRunningIdx]++] = null;
+            completeRequest(client, request);
           });
           stream.on("error", () => {
             if (stream.rstCode === NGHTTP2_REFUSED_STREAM || stream.rstCode === NGHTTP2_CANCEL) {
@@ -8791,7 +8818,7 @@ var require_client_h2 = __commonJS({
             session[kOpenStreams] -= 1;
             if (session[kOpenStreams] === 0) session.unref();
           });
-          stream.setTimeout(requestTimeout);
+          stream.setTimeout(headersTimeout);
           return true;
         }
         stream = session.request(headers, { endStream: false, signal });
@@ -8800,13 +8827,14 @@ var require_client_h2 = __commonJS({
           const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
           request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream);
           ++session[kOpenStreams];
-          client[kQueue][client[kRunningIdx]++] = null;
+          completeRequest(client, request);
         });
+        stream.on("error", abort);
         stream.once("close", () => {
           session[kOpenStreams] -= 1;
           if (session[kOpenStreams] === 0) session.unref();
         });
-        stream.setTimeout(requestTimeout);
+        stream.setTimeout(headersTimeout);
         return true;
       }
       headers[HTTP2_HEADER_PATH] = path;
@@ -8864,12 +8892,13 @@ var require_client_h2 = __commonJS({
         writeBodyH2();
       }
       ++session[kOpenStreams];
-      stream.setTimeout(requestTimeout);
+      stream.setTimeout(headersTimeout);
       let responseReceived = false;
       stream.once("response", (headers2) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
         request.onResponseStarted();
         responseReceived = true;
+        stream.setTimeout(bodyTimeout);
         if (request.aborted) {
           stream.removeAllListeners("data");
           return;
@@ -8892,12 +8921,11 @@ var require_client_h2 = __commonJS({
           if (!request.aborted && !request.completed) {
             request.onComplete({});
           }
-          client[kQueue][client[kRunningIdx]++] = null;
+          completeRequest(client, request);
           client[kResume]();
         } else {
           abort(new InformationalError("HTTP/2: stream half-closed (remote)"));
-          client[kQueue][client[kRunningIdx]++] = null;
-          client[kPendingIdx] = client[kRunningIdx];
+          completeRequest(client, request, true);
           client[kResume]();
         }
       });
@@ -8906,6 +8934,9 @@ var require_client_h2 = __commonJS({
         session[kOpenStreams] -= 1;
         if (session[kOpenStreams] === 0) {
           session.unref();
+        }
+        if (!request.aborted && !request.completed) {
+          abort(new InformationalError("HTTP/2: stream closed before the response was complete"));
         }
       });
       stream.once("error", function(err) {
@@ -8920,7 +8951,7 @@ var require_client_h2 = __commonJS({
         stream.removeAllListeners("data");
       });
       stream.on("timeout", () => {
-        const err = new InformationalError(`HTTP/2: "stream timeout after ${requestTimeout}"`);
+        const err = responseReceived ? new BodyTimeoutError(`HTTP/2: "body timeout after ${bodyTimeout}"`) : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${headersTimeout}"`);
         stream.removeAllListeners("data");
         session[kOpenStreams] -= 1;
         if (session[kOpenStreams] === 0) {
@@ -9430,7 +9461,9 @@ var require_client = __commonJS({
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request = requests[i];
-            util.errorRequest(this, request, err);
+            if (request != null) {
+              util.errorRequest(this, request, err);
+            }
           }
           const callback = /* @__PURE__ */ __name(() => {
             if (this[kClosedResolve]) {
@@ -9455,7 +9488,9 @@ var require_client = __commonJS({
         const requests = client[kQueue].splice(client[kRunningIdx]);
         for (let i = 0; i < requests.length; i++) {
           const request = requests[i];
-          util.errorRequest(client, request, err);
+          if (request != null) {
+            util.errorRequest(client, request, err);
+          }
         }
         assert(client[kSize] === 0);
       }
@@ -14767,7 +14802,7 @@ var require_connection = __commonJS({
           const secProtocol = response.headersList.get("Sec-WebSocket-Protocol");
           if (secProtocol !== null) {
             const requestProtocols = getDecodeSplit("sec-websocket-protocol", request.headersList);
-            if (!requestProtocols.includes(secProtocol)) {
+            if (requestProtocols === null || !requestProtocols.includes(secProtocol)) {
               failWebsocketConnection(handler, 1002, "Protocol was not set in the opening handshake.");
               return;
             }
@@ -14891,6 +14926,7 @@ var require_permessage_deflate = __commonJS({
             if (this.#maxPayloadSize > 0 && this.#inflate[kLength] > this.#maxPayloadSize) {
               callback(new MessageSizeExceededError());
               this.#inflate.removeAllListeners();
+              this.#inflate.destroy();
               this.#inflate = null;
               return;
             }
@@ -15902,6 +15938,43 @@ var require_eventsource_stream = __commonJS({
     var CR = 13;
     var COLON = 58;
     var SPACE = 32;
+    var DATA = Buffer.from("data");
+    var EVENT = Buffer.from("event");
+    var ID = Buffer.from("id");
+    var RETRY = Buffer.from("retry");
+    function isASCIINumberBytes(buffer, start) {
+      if (start >= buffer.length) {
+        return false;
+      }
+      for (let i = start; i < buffer.length; i++) {
+        if (buffer[i] < 48 || buffer[i] > 57) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isASCIINumberBytes, "isASCIINumberBytes");
+    function isValidLastEventIdBytes(buffer, start) {
+      for (let i = start; i < buffer.length; i++) {
+        if (buffer[i] === 0) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isValidLastEventIdBytes, "isValidLastEventIdBytes");
+    function isFieldName(line, length, field) {
+      if (length !== field.length) {
+        return false;
+      }
+      for (let i = 0; i < length; i++) {
+        if (line[i] !== field[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isFieldName, "isFieldName");
     var EventSourceStream = class extends Transform {
       static {
         __name(this, "EventSourceStream");
@@ -15924,10 +15997,13 @@ var require_eventsource_stream = __commonJS({
        */
       eventEndCheck = false;
       /**
-       * @type {Buffer|null}
+       * @type {Buffer[]}
        */
-      buffer = null;
+      chunks = [];
+      chunkIndex = 0;
       pos = 0;
+      lineChunkIndex = 0;
+      linePos = 0;
       event = {
         data: void 0,
         event: void 0,
@@ -15959,63 +16035,30 @@ var require_eventsource_stream = __commonJS({
           callback();
           return;
         }
-        if (this.buffer) {
-          this.buffer = Buffer.concat([this.buffer, chunk]);
-        } else {
-          this.buffer = chunk;
-        }
+        this.chunks.push(chunk);
         if (this.checkBOM) {
-          switch (this.buffer.length) {
-            case 1:
-              if (this.buffer[0] === BOM[0]) {
-                callback();
-                return;
-              }
-              this.checkBOM = false;
-              callback();
-              return;
-            case 2:
-              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1]) {
-                callback();
-                return;
-              }
-              this.checkBOM = false;
-              break;
-            case 3:
-              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) {
-                this.buffer = Buffer.alloc(0);
-                this.checkBOM = false;
-                callback();
-                return;
-              }
-              this.checkBOM = false;
-              break;
-            default:
-              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) {
-                this.buffer = this.buffer.subarray(3);
-              }
-              this.checkBOM = false;
-              break;
+          if (this.handleBOM()) {
+            callback();
+            return;
           }
         }
-        while (this.pos < this.buffer.length) {
+        while (this.hasCurrentByte()) {
+          const byte = this.currentByte();
           if (this.eventEndCheck) {
             if (this.crlfCheck) {
-              if (this.buffer[this.pos] === LF) {
-                this.buffer = this.buffer.subarray(this.pos + 1);
-                this.pos = 0;
+              if (byte === LF) {
                 this.crlfCheck = false;
+                this.consumeCurrentByte();
                 continue;
               }
               this.crlfCheck = false;
             }
-            if (this.buffer[this.pos] === LF || this.buffer[this.pos] === CR) {
-              if (this.buffer[this.pos] === CR) {
+            if (byte === LF || byte === CR) {
+              if (byte === CR) {
                 this.crlfCheck = true;
               }
-              this.buffer = this.buffer.subarray(this.pos + 1);
-              this.pos = 0;
-              if (this.event.data !== void 0 || this.event.event || this.event.id !== void 0 || this.event.retry) {
+              this.consumeCurrentByte();
+              if (this.hasPendingEvent()) {
                 this.processEvent(this.event);
               }
               this.clearEvent();
@@ -16024,17 +16067,16 @@ var require_eventsource_stream = __commonJS({
             this.eventEndCheck = false;
             continue;
           }
-          if (this.buffer[this.pos] === LF || this.buffer[this.pos] === CR) {
-            if (this.buffer[this.pos] === CR) {
+          if (byte === LF || byte === CR) {
+            if (byte === CR) {
               this.crlfCheck = true;
             }
-            this.parseLine(this.buffer.subarray(0, this.pos), this.event);
-            this.buffer = this.buffer.subarray(this.pos + 1);
-            this.pos = 0;
+            this.parseLine(this.readLine(), this.event);
+            this.consumeCurrentByte();
             this.eventEndCheck = true;
             continue;
           }
-          this.pos++;
+          this.advanceCursor();
         }
         callback();
       }
@@ -16050,43 +16092,42 @@ var require_eventsource_stream = __commonJS({
         if (colonPosition === 0) {
           return;
         }
-        let field = "";
-        let value = "";
+        let fieldLength = line.length;
+        let valueStart = line.length;
         if (colonPosition !== -1) {
-          field = line.subarray(0, colonPosition).toString("utf8");
-          let valueStart = colonPosition + 1;
+          fieldLength = colonPosition;
+          valueStart = colonPosition + 1;
           if (line[valueStart] === SPACE) {
             ++valueStart;
           }
-          value = line.subarray(valueStart).toString("utf8");
-        } else {
-          field = line.toString("utf8");
-          value = "";
         }
-        switch (field) {
-          case "data":
-            if (event[field] === void 0) {
-              event[field] = value;
-            } else {
-              event[field] += `
+        if (isFieldName(line, fieldLength, DATA)) {
+          const value = line.toString("utf8", valueStart);
+          if (event.data === void 0) {
+            event.data = value;
+          } else {
+            event.data += `
 ${value}`;
-            }
-            break;
-          case "retry":
-            if (isASCIINumber(value)) {
-              event[field] = value;
-            }
-            break;
-          case "id":
-            if (isValidLastEventId(value)) {
-              event[field] = value;
-            }
-            break;
-          case "event":
-            if (value.length > 0) {
-              event[field] = value;
-            }
-            break;
+          }
+          return;
+        }
+        if (isFieldName(line, fieldLength, RETRY)) {
+          if (isASCIINumberBytes(line, valueStart)) {
+            event.retry = line.toString("utf8", valueStart);
+          }
+          return;
+        }
+        if (isFieldName(line, fieldLength, ID)) {
+          if (isValidLastEventIdBytes(line, valueStart)) {
+            event.id = line.toString("utf8", valueStart);
+          }
+          return;
+        }
+        if (isFieldName(line, fieldLength, EVENT)) {
+          const value = line.toString("utf8", valueStart);
+          if (value.length > 0) {
+            event.event = value;
+          }
         }
       }
       /**
@@ -16111,12 +16152,120 @@ ${value}`;
         }
       }
       clearEvent() {
-        this.event = {
-          data: void 0,
-          event: void 0,
-          id: void 0,
-          retry: void 0
-        };
+        this.event.data = void 0;
+        this.event.event = void 0;
+        this.event.id = void 0;
+        this.event.retry = void 0;
+      }
+      hasPendingEvent() {
+        return this.event.data !== void 0 || this.event.event !== void 0 || this.event.id !== void 0 || this.event.retry !== void 0;
+      }
+      hasCurrentByte() {
+        return this.chunkIndex < this.chunks.length && this.pos < this.chunks[this.chunkIndex].length;
+      }
+      currentByte() {
+        return this.chunks[this.chunkIndex][this.pos];
+      }
+      consumeCurrentByte() {
+        this.advanceCursor();
+        this.syncLineStartToCursor();
+      }
+      advanceCursor() {
+        this.pos++;
+        while (this.chunkIndex < this.chunks.length && this.pos >= this.chunks[this.chunkIndex].length) {
+          this.chunkIndex++;
+          this.pos = 0;
+        }
+      }
+      syncLineStartToCursor() {
+        this.lineChunkIndex = this.chunkIndex;
+        this.linePos = this.pos;
+        this.dropConsumedChunks();
+      }
+      dropConsumedChunks() {
+        while (this.lineChunkIndex > 0) {
+          this.chunks.shift();
+          this.lineChunkIndex--;
+          this.chunkIndex--;
+        }
+        if (this.chunkIndex === this.chunks.length) {
+          this.chunks.length = 0;
+          this.chunkIndex = 0;
+          this.pos = 0;
+          this.lineChunkIndex = 0;
+          this.linePos = 0;
+        }
+      }
+      readLine() {
+        if (this.lineChunkIndex === this.chunkIndex) {
+          return this.chunks[this.chunkIndex].subarray(this.linePos, this.pos);
+        }
+        const chunks = [];
+        let length = 0;
+        for (let i = this.lineChunkIndex; i <= this.chunkIndex; i++) {
+          const chunk = this.chunks[i];
+          const start = i === this.lineChunkIndex ? this.linePos : 0;
+          const end = i === this.chunkIndex ? this.pos : chunk.length;
+          const slice = chunk.subarray(start, end);
+          length += slice.length;
+          chunks.push(slice);
+        }
+        return Buffer.concat(chunks, length);
+      }
+      peekBufferedByte(offset) {
+        let chunkIndex = this.lineChunkIndex;
+        let pos = this.linePos;
+        while (chunkIndex < this.chunks.length) {
+          const chunk = this.chunks[chunkIndex];
+          const remaining = chunk.length - pos;
+          if (offset < remaining) {
+            return chunk[pos + offset];
+          }
+          offset -= remaining;
+          chunkIndex++;
+          pos = 0;
+        }
+      }
+      discardLeadingBytes(count) {
+        while (count > 0 && this.lineChunkIndex < this.chunks.length) {
+          const chunk = this.chunks[this.lineChunkIndex];
+          const remaining = chunk.length - this.linePos;
+          if (count < remaining) {
+            this.linePos += count;
+            count = 0;
+          } else {
+            count -= remaining;
+            this.lineChunkIndex++;
+            this.linePos = 0;
+          }
+        }
+        this.chunkIndex = this.lineChunkIndex;
+        this.pos = this.linePos;
+        this.dropConsumedChunks();
+      }
+      handleBOM() {
+        const first = this.peekBufferedByte(0);
+        const second = this.peekBufferedByte(1);
+        const third = this.peekBufferedByte(2);
+        if (second === void 0) {
+          if (first === BOM[0]) {
+            return true;
+          }
+          this.checkBOM = false;
+          return true;
+        }
+        if (third === void 0) {
+          if (first === BOM[0] && second === BOM[1]) {
+            return true;
+          }
+          this.checkBOM = false;
+          return false;
+        }
+        if (first === BOM[0] && second === BOM[1] && third === BOM[2]) {
+          this.discardLeadingBytes(3);
+        }
+        this.checkBOM = false;
+        return !this.hasCurrentByte();
       }
     };
     module2.exports = {

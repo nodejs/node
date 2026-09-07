@@ -374,7 +374,9 @@ class Client extends DispatcherBase {
       const requests = this[kQueue].splice(this[kPendingIdx])
       for (let i = 0; i < requests.length; i++) {
         const request = requests[i]
-        util.errorRequest(this, request, err)
+        if (request != null) {
+          util.errorRequest(this, request, err)
+        }
       }
 
       const callback = () => {
@@ -413,7 +415,9 @@ function onError (client, err) {
 
     for (let i = 0; i < requests.length; i++) {
       const request = requests[i]
-      util.errorRequest(client, request, err)
+      if (request != null) {
+        util.errorRequest(client, request, err)
+      }
     }
     assert(client[kSize] === 0)
   }
