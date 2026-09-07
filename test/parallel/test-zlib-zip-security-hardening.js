@@ -18,6 +18,7 @@ require('../common');
 const assert = require('assert');
 const { test } = require('node:test');
 const zlib = require('zlib');
+const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
@@ -74,6 +75,116 @@ test('a local/central encryption-flag disagreement is rejected', () => {
   const c = centralOffset(buf);
   buf.writeUInt16LE(buf.readUInt16LE(c + 8) | 0x0001, c + 8); // Central encrypted bit
   readsThrow(buf, 'a.txt');
+});
+
+// 1d. A failed lazy local-header check must not leave a file-backed entry in
+// partially resolved state. Otherwise, a later read uses -1 as its file offset
+// and reads from the descriptor's current position.
+test('failed local-header validation does not poison file-backed entries', async () => {
+  const decoy = Buffer.from('SCANNER-SEES-BENIGN!!');
+  const payload = Buffer.from('UNZIP-SEES-PAYLOAD!!!');
+  const entry = zlib.ZipEntry.createSync(
+    'entry.txt', payload, { method: 'store' });
+  const chunks = [];
+  for (const chunk of zlib.createZipArchiveSync(
+    [entry], { baseOffset: decoy.length })) {
+    chunks.push(chunk);
+  }
+  const buf = Buffer.concat([decoy, ...chunks]);
+  buf.writeUInt32LE(zlib.crc32(decoy), centralOffset(buf) + 16);
+
+  tmpdir.refresh();
+  const file = path.join(tmpdir.path, 'mismatched.zip');
+  fs.writeFileSync(file, buf);
+  const invalid = { code: 'ERR_ZIP_INVALID_ARCHIVE' };
+
+  {
+    const zip = zlib.ZipFile.openSync(file);
+    try {
+      const fileEntry = zip.getSync('entry.txt');
+      assert.ok(fileEntry.modified instanceof Date);
+      assert.throws(() => fileEntry.contentSync(), invalid);
+      assert.throws(() => fileEntry.contentSync(), invalid);
+    } finally {
+      zip.closeSync();
+    }
+  }
+
+  {
+    const zip = zlib.ZipFile.openSync(file);
+    try {
+      const fileEntry = zip.getSync('entry.txt');
+      assert.throws(() => fileEntry.contentSync(), invalid);
+      assert.throws(() => fileEntry.contentSync(), invalid);
+    } finally {
+      zip.closeSync();
+    }
+  }
+
+  {
+    const zip = await zlib.ZipFile.open(file);
+    try {
+      const fileEntry = await zip.get('entry.txt');
+      assert.ok(fileEntry.modified instanceof Date);
+      await assert.rejects(fileEntry.content(), invalid);
+      await assert.rejects(fileEntry.content(), invalid);
+    } finally {
+      await zip.close();
+    }
+  }
+
+  {
+    const zip = await zlib.ZipFile.open(file);
+    try {
+      const fileEntry = await zip.get('entry.txt');
+      await assert.rejects(fileEntry.content(), invalid);
+      await assert.rejects(fileEntry.content(), invalid);
+    } finally {
+      await zip.close();
+    }
+  }
+
+  {
+    const zip = await zlib.ZipFile.open(file);
+    try {
+      const fileEntry = await zip.get('entry.txt');
+      assert.ok(fileEntry.modified instanceof Date);
+      await assert.rejects(async () => {
+        for await (const chunk of fileEntry.contentIterator()) {
+          assert.ok(Buffer.isBuffer(chunk));
+        }
+      }, invalid);
+      await assert.rejects(async () => {
+        for await (const chunk of await zip.stream('entry.txt')) {
+          assert.ok(Buffer.isBuffer(chunk));
+        }
+      }, invalid);
+    } finally {
+      await zip.close();
+    }
+  }
+
+  {
+    const zip = zlib.ZipFile.openSync(file);
+    try {
+      assert.throws(() => zip.compactSync(), invalid);
+    } finally {
+      zip.closeSync();
+    }
+  }
+
+  {
+    const zip = await zlib.ZipFile.open(file);
+    try {
+      await assert.rejects(async () => {
+        for await (const chunk of zip.compact()) {
+          assert.ok(Buffer.isBuffer(chunk));
+        }
+      }, invalid);
+    } finally {
+      await zip.close();
+    }
+  }
 });
 
 // 2. zipFiles must reject a FIFO source rather than block on open() forever.
