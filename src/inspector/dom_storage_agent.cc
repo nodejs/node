@@ -102,7 +102,28 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
     if (web_storage_obj) {
+      // A message from a remote frontend is dispatched without a HandleScope
+      // on the stack, and opening the backing file can throw, so give the
+      // exception a scope to be allocated in and somewhere to land.
+      v8::HandleScope handle_scope(env_->isolate());
+      v8::TryCatch try_catch(env_->isolate());
       storage_map_fallback = web_storage_obj.value()->GetAll();
+      if (try_catch.HasCaught()) {
+        // Pass the reason along; "the file was written by a newer Node.js" and
+        // "the file is locked" are not the same problem to the user. Read it
+        // off the Message, which was built when the exception was thrown.
+        // Converting the exception itself would call a user-patchable
+        // Error.prototype.toString, and there is no JavaScript frame here to
+        // run it from.
+        Local<v8::Message> message = try_catch.Message();
+        if (!message.IsEmpty()) {
+          Utf8Value reason(env_->isolate(), message->Get());
+          return protocol::DispatchResponse::ServerError(
+              std::string("Could not read DOM storage items: ") + reason.out());
+        }
+        return protocol::DispatchResponse::ServerError(
+            "Could not read DOM storage items");
+      }
       if (!storage_map_fallback.has_value()) {
         return protocol::DispatchResponse::ServerError(
             "Could not read DOM storage items");
