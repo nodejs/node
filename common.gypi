@@ -17,6 +17,7 @@
     'emulator%': [],
 
     'node_shared%': 'false',
+    'node_enable_v8debughelper%': 'false',
     'node_enable_experimentals%': 'false',
     'force_dynamic_crt%': 0,
     'node_use_v8_platform%': 'true',
@@ -654,7 +655,9 @@
             'cflags!': [ '-pthread' ],
             'ldflags!': [ '-pthread' ],
           }],
-          [ 'node_shared=="true"', {
+          # The V8 static libraries get linked into libv8_debug_helper, so they
+          # have to be position independent too.
+          [ 'node_shared=="true" or node_enable_v8debughelper=="true"', {
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ],
           }],
