@@ -241,7 +241,7 @@ tarball and/or browse the git repository checked out at the relevant tag.
 
 ### Prerequisites
 
-* [A supported version of Python][Python versions] for building and testing.
+* [A supported version of Python][Python versions] (excludes pre-release versions) for building and testing.
 * A Rust toolchain if [building Node.js with Temporal support](#building-nodejs-with-temporal-support).
 * Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`).
 
