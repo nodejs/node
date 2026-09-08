@@ -9,6 +9,7 @@ const {
   createECDH,
   createPrivateKey,
   createPublicKey,
+  getCurves,
   getFips,
   sign,
   verify,
@@ -24,7 +25,7 @@ const curves = [
    '01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' +
    'fa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409'],
 ];
-if (!getFips()) {
+if (!getFips() && getCurves().includes('secp256k1')) {
   curves.push(['secp256k1', 'secp256k1', 32,
                'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141']);
 }
