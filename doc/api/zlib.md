@@ -2202,6 +2202,9 @@ added:
   - v23.8.0
   - v22.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65911
+    description: Multiple concatenated Zstd frames in the input are now decoded.
   - version:
      - v26.7.0
      - v24.20.0
@@ -2230,7 +2233,10 @@ Each Zstd-based class takes an `options` object. All options are optional.
   to improve compression efficiency when compressing or decompressing data that
   shares common patterns with the dictionary.
 * `rejectGarbageAfterEnd` {boolean} If `true`, decompression fails when
-  input remains after the first complete compressed stream. **Default:** `false`
+  trailing input is detected after the end of the compressed stream. This
+  includes unreadable bytes as well as additional Zstd frames following the
+  first one, which are otherwise decoded as part of the same stream.
+  **Default:** `false`
 
 For example:
 
