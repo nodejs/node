@@ -5,21 +5,15 @@
 // net.createConnection().
 
 const common = require('../common');
-console.log('require completed: common', Date.now());
 const assert = require('assert');
-console.log('require completed: assert', Date.now());
 const net = require('net');
-console.log('require completed: net', Date.now());
 const http = require('http');
-console.log('require completed: http', Date.now());
 const { internalBinding } = require('internal/test/binding');
-console.log('require completed: internal/test/binding', Date.now());
 const { UV_ENETUNREACH, UV_EADDRINUSE } = internalBinding('uv');
 const {
   newAsyncId,
   symbols: { async_id_symbol }
 } = require('internal/async_hooks');
-console.log('require completed: internal/async_hooks', Date.now());
 
 const config = {
   host: 'http://example.com',
