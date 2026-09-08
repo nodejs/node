@@ -6,7 +6,7 @@
 //         and open when existing streams close.
 // initialMaxStreamsUni limits concurrent uni streams (same behavior).
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
 if (!hasQuic) {
@@ -61,6 +61,13 @@ s2.opened.then(() => {
   opened++;
 });
 
+// Third stream is created but queued as pending because the
+// server only allows 1 concurrent bidi stream.
+const s3 = await clientSession.createBidirectionalStream({
+  body: encoder.encode('stream 3'),
+});
+
+
 // s2 should be pending until s1 closes and the server grants
 // more stream credits.
 assert.strictEqual(s2.pending, true);
@@ -69,6 +76,12 @@ assert.strictEqual(opened, 1);
 // Drain and close the first stream.
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
 await s1.closed;
+
+const err = new Error('Test error');
+s3.destroy(err);
+
+await assert.rejects(stream.closed, err);
+
 
 // After s1 closes, the server sends MAX_STREAMS which opens s2.
 // Wait for the server to receive both streams.
