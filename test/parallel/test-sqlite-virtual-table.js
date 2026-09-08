@@ -614,6 +614,34 @@ suite('DatabaseSync.prototype.createModule()', () => {
         db.prepare('SELECT * FROM no_such_table');
       }, { code: 'ERR_SQLITE_ERROR', message: /no such table: no_such_table/ });
     });
+
+    test('a SQLite error outranks a throwing cleanup', () => {
+      // Both fail at once: the statement aborts on a constraint violation
+      // while the cursor is open, and the cursor's return() then throws. Only
+      // one can surface, and xClose cannot choose based on the statement's
+      // state, because SQLite closes cursors before transferring the error to
+      // the connection. The constraint violation is the actionable one.
+      const db = new DatabaseSync(':memory:');
+
+      db.createModule('both_fail', {
+        columns: [{ name: 'value', type: 'INTEGER' }],
+        rows() {
+          let i = 0;
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [i++], done: i > 50 }; },
+            return() { throw new Error('cleanup boom'); },
+          };
+        },
+      });
+
+      db.exec('CREATE TABLE t(v INTEGER PRIMARY KEY)');
+      db.exec('INSERT INTO t VALUES (5)');
+
+      assert.throws(() => {
+        db.prepare('INSERT INTO t SELECT value FROM both_fail').run();
+      }, { code: 'ERR_SQLITE_ERROR', message: /UNIQUE constraint failed: t\.v/ });
+    });
   });
 
   suite('iteration protocol violations', () => {
