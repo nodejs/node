@@ -498,7 +498,6 @@ bool ExportJWKEcKey(Environment* env,
           &y,
           key.GetKeyType() == kKeyTypePrivate ? &priv : nullptr,
           &degree_bits)) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return false;
   }
   int degree_bytes =
