@@ -22,6 +22,7 @@ import { InternalOnlyV8Binding } from './internalBinding/internal_only_v8';
 import { IPCSerdesBinding } from './internalBinding/ipc_serdes';
 import { LocksBinding } from './internalBinding/locks';
 import { MessagingBinding } from './internalBinding/messaging';
+import { MksnapshotBinding } from './internalBinding/mksnapshot';
 import { ModulesBinding } from './internalBinding/modules';
 import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
@@ -72,6 +73,7 @@ interface InternalBindingMap {
   ipc_serdes: IPCSerdesBinding;
   locks: LocksBinding;
   messaging: MessagingBinding;
+  mksnapshot: MksnapshotBinding;
   modules: ModulesBinding;
   options: OptionsBinding;
   os: OSBinding;
