@@ -3,7 +3,7 @@
 // Test: a readable truncated by the connection idle timeout delivers the
 // data it received, then ends per the truncatedReads policy: an error under
 // the default (so an incomplete stream can never look complete), and a clean
-// end under 'allow' (an idle timeout carries no error).
+// end under 'ignore' (an idle timeout carries no error).
 
 import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -28,7 +28,7 @@ const transportParams = { maxIdleTimeout: 1 };
 }
 {
   const { received, threw } = await readStream(serve, {
-    clientOptions: { transportParams, truncatedReads: 'allow' },
+    clientOptions: { transportParams, truncatedReads: 'ignore' },
   });
   assert.strictEqual(received, 1000);
   assert.strictEqual(threw, undefined);

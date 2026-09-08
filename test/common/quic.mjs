@@ -149,8 +149,7 @@ async function readStream(serverBody, options = {}) {
   await stream.writer.write(new Uint8Array([1]));
 
   let closedError;
-  const closedSettled =
-    stream.closed.then(() => {}, (err) => { closedError = err; });
+  const closedSettled = stream.closed.catch((err) => { closedError = err; });
 
   await beforeIterate?.({ stream, session });
 

@@ -3427,7 +3427,7 @@ idle timeout (`maxIdleTimeout` transport parameter) to be useful.
 
 #### `sessionOptions.truncatedReads`
 
-* Type: {string} One of `'error'` or `'allow'`.
+* Type: {string} One of `'error'` or `'ignore'`.
 * **Default:** `'error'`
 
 Controls how reading a stream reports a truncated read. A stream's read side
@@ -3442,9 +3442,9 @@ selects how the stream's async iterator reports this:
   `ERR_QUIC_STREAM_RESET` carrying the peer's error code, a connection error,
   or `ERR_QUIC_STREAM_ABORTED` for other cases.
 
-* `'allow'` - Truncated reads are allowed: only a stream or connection error
-  is reported, and any clean abort/cancellation or similar simply ends the
-  stream. A non-zero peer reset, non-zero local stop-sending or connection
+* `'ignore'` - The truncation itself is ignored: only a stream or connection
+  error is reported, and any clean abort/cancellation or similar simply ends
+  the stream. A non-zero peer reset, non-zero local stop-sending or connection
   error still fails, but a truncation with no error at all (an idle timeout,
   a graceful close, or a plain `stopSending()`) ends the read cleanly with the
   data received. This matches `stream.closed`, which rejects only on an error.

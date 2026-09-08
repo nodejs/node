@@ -10,7 +10,7 @@
 //   3. otherwise the truncation carries no error of its own and the
 //      truncatedReads policy decides - 'error' (the default) throws
 //      ERR_QUIC_STREAM_ABORTED so an incomplete stream can never look
-//      complete, 'allow' ends the read cleanly.
+//      complete, 'ignore' ends the read cleanly.
 //
 // This file covers rules 1 and 3 on a live connection: peer resets and local
 // aborts. Rule 2 needs the stream to already be tearing down when the reader
@@ -39,7 +39,7 @@ const resetWith = (code) => async (stream) => {
 const stall = (stream) => { stream.setBody(stallingBody(1000)); };
 
 // A peer reset with code 0 is a clean abort: a truncation, but not an error.
-// Rule 3 - the default reports it, 'allow' treats it as a clean end.
+// Rule 3 - the default reports it, 'ignore' treats it as a clean end.
 {
   const { received, threw } = await readStream(resetWith(0n));
   assert.strictEqual(received, 1000);
@@ -48,7 +48,7 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
 }
 {
   const { received, threw } =
-    await readStream(resetWith(0n), { clientOptions: { truncatedReads: 'allow' } });
+    await readStream(resetWith(0n), { clientOptions: { truncatedReads: 'ignore' } });
   assert.strictEqual(received, 1000);
   assert.strictEqual(threw, undefined);
 }
@@ -76,7 +76,7 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
 }
 {
   const { received, threw } =
-    await readStream(resetWith(42n), { clientOptions: { truncatedReads: 'allow' } });
+    await readStream(resetWith(42n), { clientOptions: { truncatedReads: 'ignore' } });
   assert.strictEqual(received, 1000);
   assert.strictEqual(threw?.code, 'ERR_QUIC_STREAM_RESET');
   assert.strictEqual(threw.errorCode, 42n);
@@ -85,7 +85,7 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
 // Aborting our own read with stopSending() is rule 3, not rule 1: we asked for
 // the truncation, so it is not an error the peer inflicted on us, and the code
 // we send does not come back as one. The read still stops short, so the
-// default policy reports it and 'allow' does not.
+// default policy reports it and 'ignore' does not.
 {
   const { received, threw, closedError } = await readStream(stall, {
     onFirstChunk: ({ stream }) => stream.stopSending(0n),
@@ -97,7 +97,7 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
 }
 {
   const { received, threw } = await readStream(stall, {
-    clientOptions: { truncatedReads: 'allow' },
+    clientOptions: { truncatedReads: 'ignore' },
     onFirstChunk: ({ stream }) => stream.stopSending(0n),
   });
   assert.ok(received > 0);
@@ -109,7 +109,7 @@ const stall = (stream) => { stream.setBody(stallingBody(1000)); };
 // STOP_SENDING with a RESET_STREAM echoing it, which is what rejects closed -
 // but the read reports our own abort rather than attributing it to the peer,
 // and does so whether or not that answer has arrived yet.
-for (const truncatedReads of ['error', 'allow']) {
+for (const truncatedReads of ['error', 'ignore']) {
   for (const awaitEcho of [false, true]) {
     const peerReset = Promise.withResolvers();
     const { received, threw, closedError } = await readStream(stall, {
@@ -160,7 +160,7 @@ for (const truncatedReads of ['error', 'allow']) {
         serverRead.resolve({ received, threw: err });
       }
     };
-  }, { truncatedReads: 'allow' });
+  }, { truncatedReads: 'ignore' });
 
   const session = await connect(serverEndpoint.address);
   await session.opened;
