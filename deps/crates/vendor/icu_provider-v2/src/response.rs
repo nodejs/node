@@ -2,10 +2,10 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use crate::buf::BufferMarker;
 use crate::DataError;
 use crate::DataLocale;
 use crate::DynamicDataMarker;
+use crate::buf::BufferMarker;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use core::fmt::Debug;
@@ -92,21 +92,21 @@ pub struct DataPayload<M: DynamicDataMarker>(pub(crate) DataPayloadInner<M>);
 ///
 /// The type parameter `O` is stored as part of the interior enum, leading to
 /// better stack size optimization. `O` can be as large as the [`DataPayload`]
-/// minus two words without impacting stack size.
+/// minus two usizes without impacting stack size.
 ///
 /// # Examples
 ///
 /// Create and use [`DataPayloadOr`]:
 ///
 /// ```
-/// use icu_locale_core::langid;
+/// use icu_locale_core::data_locale;
+/// use icu_provider::DataPayloadOr;
 /// use icu_provider::hello_world::*;
 /// use icu_provider::prelude::*;
-/// use icu_provider::DataPayloadOr;
 ///
 /// let response: DataResponse<HelloWorldV1> = HelloWorldProvider
 ///     .load(DataRequest {
-///         id: DataIdentifierBorrowed::for_locale(&langid!("de").into()),
+///         id: DataIdentifierBorrowed::for_locale(&data_locale!("de")),
 ///         ..Default::default()
 ///     })
 ///     .expect("Loading should succeed");
@@ -132,19 +132,19 @@ pub struct DataPayload<M: DynamicDataMarker>(pub(crate) DataPayloadInner<M>);
 ///
 /// const W: usize = size_of::<usize>();
 ///
-/// // Data struct is 3 words:
+/// // Data struct is 3 usizes:
 /// icu_provider::data_marker!(SampleV1, [usize; 3]);
 ///
-/// // DataPayload adds a word for a total of 4 words:
+/// // DataPayload adds a usize for a total of 4 usizes:
 /// assert_eq!(W * 4, size_of::<DataPayload<SampleV1>>());
 ///
-/// // Option<DataPayload> balloons to 5 words:
+/// // Option<DataPayload> balloons to 5 usizes:
 /// assert_eq!(W * 5, size_of::<Option<DataPayload<SampleV1>>>());
 ///
 /// // But, using DataPayloadOr is the same size as DataPayload:
 /// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, ()>>());
 ///
-/// // The largest optimized Other type is two words smaller than the DataPayload:
+/// // The largest optimized Other type is two usizes smaller than the DataPayload:
 /// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, [usize; 1]>>());
 /// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, [usize; 2]>>());
 /// assert_eq!(W * 5, size_of::<DataPayloadOr<SampleV1, [usize; 3]>>());
@@ -990,6 +990,39 @@ where
             DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(o)) => Err(o),
         }
     }
+
+    /// Maps the Other type to a new Other type.
+    #[inline]
+    pub fn map_other<O2>(self, f: impl FnOnce(O) -> O2) -> DataPayloadOr<M, O2> {
+        DataPayloadOr(match self.0 {
+            DataPayloadOrInner::Yoke(yoke) => DataPayloadOrInner::Yoke(yoke),
+            DataPayloadOrInner::Inner(DataPayloadOrInnerInner::StaticRef(r)) => {
+                DataPayloadOrInner::Inner(DataPayloadOrInnerInner::StaticRef(r))
+            }
+            DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(o)) => {
+                DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(f(o)))
+            }
+        })
+    }
+
+    /// Maps the Marker type to a compatible Marker type.
+    ///
+    /// See [`DataResponse::cast`].
+    #[inline]
+    pub fn cast<M2>(self) -> DataPayloadOr<M2, O>
+    where
+        M2: DynamicDataMarker<DataStruct = M::DataStruct>,
+    {
+        DataPayloadOr(match self.0 {
+            DataPayloadOrInner::Yoke(yoke) => DataPayloadOrInner::Yoke(yoke),
+            DataPayloadOrInner::Inner(DataPayloadOrInnerInner::StaticRef(r)) => {
+                DataPayloadOrInner::Inner(DataPayloadOrInnerInner::StaticRef(r))
+            }
+            DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(o)) => {
+                DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(o))
+            }
+        })
+    }
 }
 
 impl<M> DataPayloadOr<M, ()>
@@ -1110,9 +1143,12 @@ fn test_debug() {
     use crate::prelude::*;
     let resp = HelloWorldProvider
         .load(DataRequest {
-            id: DataIdentifierBorrowed::for_locale(&icu_locale_core::locale!("en").into()),
+            id: DataIdentifierBorrowed::for_locale(&icu_locale_core::data_locale!("en")),
             ..Default::default()
         })
         .unwrap();
-    assert_eq!("DataResponse { metadata: DataResponseMetadata { locale: None, buffer_format: None, checksum: Some(1234) }, payload: HelloWorld { message: \"Hello World\" } }", format!("{resp:?}"));
+    assert_eq!(
+        "DataResponse { metadata: DataResponseMetadata { locale: None, buffer_format: None, checksum: Some(1234) }, payload: HelloWorld { message: \"Hello World\" } }",
+        format!("{resp:?}")
+    );
 }

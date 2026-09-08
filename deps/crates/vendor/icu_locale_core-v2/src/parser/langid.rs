@@ -3,15 +3,15 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 pub use super::errors::ParseError;
-use crate::extensions::unicode::{Attribute, Key, Value};
+#[cfg(feature = "alloc")]
+use crate::LanguageIdentifier;
 use crate::extensions::ExtensionType;
+use crate::extensions::unicode::{Attribute, Key, Value};
 use crate::parser::SubtagIterator;
 #[cfg(feature = "alloc")]
 use crate::shortvec::ShortBoxSlice;
 use crate::subtags;
 use crate::subtags::Subtag;
-#[cfg(feature = "alloc")]
-use crate::LanguageIdentifier;
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum ParserMode {
@@ -196,56 +196,56 @@ pub const fn parse_locale_with_single_variant_single_keyword_unicode_extension_f
         iter = iter.next_const().0;
     }
 
-    if matches!(mode, ParserMode::Locale) {
-        if let Some(subtag) = iter.peek() {
-            match ExtensionType::try_from_utf8(subtag) {
-                Ok(ExtensionType::Unicode) => {
-                    iter = iter.next_const().0;
-                    if let Some(peek) = iter.peek() {
-                        if Attribute::try_from_utf8(peek).is_ok() {
-                            // We cannot handle Attributes in a const context
+    if matches!(mode, ParserMode::Locale)
+        && let Some(subtag) = iter.peek()
+    {
+        match ExtensionType::try_from_utf8(subtag) {
+            Ok(ExtensionType::Unicode) => {
+                iter = iter.next_const().0;
+                if let Some(peek) = iter.peek()
+                    && Attribute::try_from_utf8(peek).is_ok()
+                {
+                    // We cannot handle Attributes in a const context
+                    return Err(ParseError::InvalidSubtag);
+                }
+
+                let mut key = None;
+                let mut current_type = None;
+
+                while let Some(peek) = iter.peek() {
+                    if peek.len() == 2 {
+                        if key.is_some() {
+                            // We cannot handle more than one Key in a const context
                             return Err(ParseError::InvalidSubtag);
                         }
-                    }
-
-                    let mut key = None;
-                    let mut current_type = None;
-
-                    while let Some(peek) = iter.peek() {
-                        if peek.len() == 2 {
-                            if key.is_some() {
-                                // We cannot handle more than one Key in a const context
-                                return Err(ParseError::InvalidSubtag);
-                            }
-                            match Key::try_from_utf8(peek) {
-                                Ok(k) => key = Some(k),
-                                Err(e) => return Err(e),
-                            };
-                        } else if key.is_some() {
-                            match Value::parse_subtag_from_utf8(peek) {
-                                Ok(Some(t)) => {
-                                    if current_type.is_some() {
-                                        // We cannot handle more than one type in a const context
-                                        return Err(ParseError::InvalidSubtag);
-                                    }
-                                    current_type = Some(t);
+                        match Key::try_from_utf8(peek) {
+                            Ok(k) => key = Some(k),
+                            Err(e) => return Err(e),
+                        };
+                    } else if key.is_some() {
+                        match Value::parse_subtag_from_utf8(peek) {
+                            Ok(Some(t)) => {
+                                if current_type.is_some() {
+                                    // We cannot handle more than one type in a const context
+                                    return Err(ParseError::InvalidSubtag);
                                 }
-                                Ok(None) => {}
-                                Err(e) => return Err(e),
+                                current_type = Some(t);
                             }
-                        } else {
-                            break;
+                            Ok(None) => {}
+                            Err(e) => return Err(e),
                         }
-                        iter = iter.next_const().0;
+                    } else {
+                        break;
                     }
-                    if let Some(k) = key {
-                        keyword = Some((k, current_type));
-                    }
+                    iter = iter.next_const().0;
                 }
-                // We cannot handle Transform, Private, Other extensions in a const context
-                Ok(_) => return Err(ParseError::InvalidSubtag),
-                Err(e) => return Err(e),
+                if let Some(k) = key {
+                    keyword = Some((k, current_type));
+                }
             }
+            // We cannot handle Transform, Private, Other extensions in a const context
+            Ok(_) => return Err(ParseError::InvalidSubtag),
+            Err(e) => return Err(e),
         }
     }
 

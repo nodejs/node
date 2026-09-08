@@ -5,7 +5,7 @@
 mod fixtures;
 mod helpers;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 use icu_locale_core::Locale;
 

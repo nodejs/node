@@ -1,6 +1,6 @@
 [package]
 name = "serde"
-version = "1.0.228"
+version = "1.0.229"
 authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
 build = "build.rs"
 categories = ["encoding", "no-std", "no-std::no-alloc"]
@@ -15,7 +15,7 @@ repository = "https://github.com/serde-rs/serde"
 rust-version = "1.56"
 
 [dependencies]
-serde_core = { version = "=1.0.228", path = "../serde_core", default-features = false, features = ["result"] }
+serde_core = { version = "=1.0.229", path = "../serde_core", default-features = false, features = ["result"] }
 serde_derive = { version = "1", optional = true, path = "../serde_derive" }
 
 [package.metadata.playground]

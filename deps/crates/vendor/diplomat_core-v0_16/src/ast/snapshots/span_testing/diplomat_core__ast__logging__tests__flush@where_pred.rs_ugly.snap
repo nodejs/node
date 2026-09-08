@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Trait bounds are unsupported.
+In src/ast/snapshots/span_testing/where_pred.rs:3:27:
+...here T: U {}...
+        ^^^^
+Suggestion: Remove type predicate.

@@ -17,7 +17,8 @@ use crate::internals::attr;
 use crate::private;
 use quote::quote;
 
-/// Generates `Deserialize::deserialize` body for an `enum Enum {...}` with `#[serde(tag)]` attribute
+/// Generates `Deserialize::deserialize` body for an `enum Enum {...}` with
+/// `#[serde(tag)]` attribute
 pub(super) fn deserialize(
     params: &Parameters,
     variants: &[Variant],
@@ -34,9 +35,7 @@ pub(super) fn deserialize(
         .map(|(i, variant)| {
             let variant_name = field_i(i);
 
-            let block = Match(deserialize_internally_tagged_variant(
-                params, variant, cattrs,
-            ));
+            let block = Match(deserialize_internally_tagged_variant(params, variant, cattrs));
 
             quote! {
                 __Field::#variant_name => #block

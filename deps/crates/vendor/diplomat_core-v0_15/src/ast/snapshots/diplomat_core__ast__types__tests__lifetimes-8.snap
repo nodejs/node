@@ -1,9 +1,0 @@
----
-source: core/src/ast/types.rs
-expression: "TypeName::from_syn(&syn::parse_quote! { DiplomatSlice<'a, u16> }, None)"
----
-PrimitiveSlice:
-  - - Named: a
-    - Immutable
-  - u16
-  - Diplomat

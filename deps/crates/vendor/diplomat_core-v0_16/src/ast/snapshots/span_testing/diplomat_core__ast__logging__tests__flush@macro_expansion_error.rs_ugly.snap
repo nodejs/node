@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected ident when expanding macro argument.
+In src/ast/snapshots/span_testing/macro_expansion_error.rs:6:14:
+...$123...
+    ^^^
+Need ident after $ to replace with variable

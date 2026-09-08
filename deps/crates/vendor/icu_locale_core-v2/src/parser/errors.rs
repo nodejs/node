@@ -15,8 +15,8 @@ pub enum ParseError {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::subtags::Language;
     /// use icu::locale::ParseError;
+    /// use icu::locale::subtags::Language;
     ///
     /// assert_eq!("x2".parse::<Language>(), Err(ParseError::InvalidLanguage));
     /// ```
@@ -28,8 +28,8 @@ pub enum ParseError {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::subtags::Region;
     /// use icu::locale::ParseError;
+    /// use icu::locale::subtags::Region;
     ///
     /// assert_eq!("#@2X".parse::<Region>(), Err(ParseError::InvalidSubtag));
     /// ```
@@ -41,8 +41,8 @@ pub enum ParseError {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::Key;
     /// use icu::locale::ParseError;
+    /// use icu::locale::extensions::unicode::Key;
     ///
     /// assert_eq!("#@2X".parse::<Key>(), Err(ParseError::InvalidExtension));
     /// ```

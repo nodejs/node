@@ -452,7 +452,7 @@ impl IsoDate {
             // c. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], d1, y2, m2, d2) is false,
             // Safety: balance_iso_year_month should always return a month value from 1..=12
             while !iso_date_surpasses(
-                &IsoDate::new_unchecked(intermediate.0, intermediate.1 as u8, self.day),
+                &IsoDate::new_unchecked(intermediate.0, intermediate.1, self.day),
                 other,
                 sign,
             ) {

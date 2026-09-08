@@ -5,10 +5,10 @@
 mod fixtures;
 mod helpers;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-use icu_locale_core::subtags::{Language, Region, Script, Variant};
 use icu_locale_core::ParseError;
+use icu_locale_core::subtags::{Language, Region, Script, Variant};
 
 macro_rules! subtag_bench {
     ($c:expr, $name:expr, $subtag:ident, $data:expr) => {

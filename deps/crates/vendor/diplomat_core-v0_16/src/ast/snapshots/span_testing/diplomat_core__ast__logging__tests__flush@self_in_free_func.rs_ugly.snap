@@ -1,0 +1,8 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Cannot use self parameter in free function.
+In src/ast/snapshots/span_testing/self_in_free_func.rs:3:12:
+...b fn takes_self(&sel...
+        ^^^^^^^^^^

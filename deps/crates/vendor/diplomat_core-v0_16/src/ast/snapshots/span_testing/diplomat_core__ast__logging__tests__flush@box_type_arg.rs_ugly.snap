@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected a type in Box type arg
+In src/ast/snapshots/span_testing/box_type_arg.rs:3:24:
+...: Box<32>) {}...
+        ^^^^
+Should be a type

@@ -5,14 +5,16 @@
 [package]
 name = "writeable"
 description = "A more efficient alternative to fmt::Display"
-version = "0.6.2"
+version = "0.6.4"
+keywords = ["formatting", "write", "string", "no-std"]
 
 authors.workspace = true
-edition.workspace = true
+edition = "2021"
 include.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version = "1.82"
+
 
 [package.metadata.workspaces]
 independent = true
@@ -41,3 +43,6 @@ bench = false  # This option is required for Benchmark CI
 [[bench]]
 name = "writeable"
 harness = false
+
+[lints]
+workspace = true

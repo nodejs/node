@@ -147,10 +147,7 @@ macro_rules! crate_root {
 
         // Used by generated code. Not public API.
         #[doc(hidden)]
-        #[cfg_attr(
-            all(docsrs, if_docsrs_then_no_serde_core),
-            path = "core/private/mod.rs"
-        )]
+        #[cfg_attr(all(docsrs, if_docsrs_then_no_serde_core), path = "core/private/mod.rs")]
         mod private;
 
         // Used by declarative macro generated code. Not public API.

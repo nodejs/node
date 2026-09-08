@@ -23,7 +23,7 @@ use super::Value;
 /// # Examples
 ///
 /// ```
-/// use icu::locale::extensions::transform::{key, Fields, Value};
+/// use icu::locale::extensions::transform::{Fields, Value, key};
 ///
 /// let value = "hybrid".parse::<Value>().expect("Failed to parse a Value.");
 /// let fields = [(key!("h0"), value)].into_iter().collect::<Fields>();
@@ -58,8 +58,8 @@ impl Fields {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::locale;
     /// use icu::locale::Locale;
+    /// use icu::locale::locale;
     ///
     /// let loc1 = Locale::try_from_str("und-t-h0-hybrid").unwrap();
     /// let loc2 = locale!("und-u-ca-buddhist");
@@ -78,7 +78,7 @@ impl Fields {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::transform::{key, Fields, Value};
+    /// use icu::locale::extensions::transform::{Fields, Value, key};
     ///
     /// let value = "hybrid".parse::<Value>().expect("Failed to parse a Value.");
     /// let mut fields = [(key!("h0"), value)].into_iter().collect::<Fields>();
@@ -122,7 +122,7 @@ impl Fields {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::transform::{key, Fields, Value};
+    /// use icu::locale::extensions::transform::{Fields, Value, key};
     ///
     /// let value = "hybrid".parse::<Value>().unwrap();
     /// let fields = [(key!("h0"), value.clone())]
@@ -146,8 +146,8 @@ impl Fields {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::transform::{key, Value};
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::transform::{Value, key};
     ///
     /// let lower = "lower".parse::<Value>().expect("valid extension subtag");
     /// let casefold = "casefold".parse::<Value>().expect("valid extension subtag");
@@ -172,8 +172,8 @@ impl Fields {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::transform::key;
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::transform::key;
     ///
     /// let mut loc: Locale = "und-t-h0-hybrid-d0-hex-m0-xml".parse().unwrap();
     ///

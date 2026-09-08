@@ -5,12 +5,12 @@
 [package]
 name = "tinystr"
 description = "A small ASCII-only bounded length string representation."
-version = "0.8.3"
+version = "0.8.4"
 keywords = ["small-string", "ascii", "string", "str"]
 categories = ["data-structures"]
 
 authors.workspace = true
-edition.workspace = true
+edition = "2021"
 include.workspace = true
 license.workspace = true
 repository.workspace = true

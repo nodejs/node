@@ -5,11 +5,11 @@ use syn::{
     punctuated::Punctuated,
     token::{Colon, Comma, PathSep, Plus, Where},
     Data, DataEnum, DataStruct, DeriveInput, Error, Fields, Generics, Ident, Path, PathArguments,
-    PathSegment, PredicateType, Result, TraitBound, TraitBoundModifier, Type, TypeParam,
+    PathSegment, PredicateType, Result, TraitBound, TraitBoundModifiers, Type, TypeParam,
     TypeParamBound, TypePath, WhereClause, WherePredicate,
 };
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub(crate) fn derive(input: &DeriveInput) -> Result<TokenStream> {
     let impls = match &input.data {
@@ -92,11 +92,12 @@ fn impl_struct(input: &DeriveInput, data: &DataStruct) -> Result<TokenStream> {
         quote! {
             impl #impl_generics ::core::fmt::Display for #ty #ty_generics #where_clause {
                 fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                    // NB: This destructures the fields of `self` into named variables (for unnamed
-                    // fields, it uses _0, _1, etc as above). The `#[allow(unused_variables)]`
-                    // section means it doesn't have to parse the individual field references out of
-                    // the docstring.
-                    #[allow(unused_variables)]
+                    // NB: This destructures the fields of `self` into named
+                    // variables (for unnamed fields, it uses _0, _1, etc as
+                    // above). The `#[allow(unused_variables, unused_assignments)]`
+                    // section means it doesn't have to parse the individual field
+                    // references out of the docstring.
+                    #[allow(unused_variables, unused_assignments)]
                     let #pat = self;
                     #display
                 }
@@ -115,8 +116,10 @@ fn new_empty_where_type_predicate(ident: Ident) -> PredicateType {
         arguments: PathArguments::None,
     });
     PredicateType {
+        attrs: Vec::new(),
         lifetimes: None,
         bounded_ty: Type::Path(TypePath {
+            attrs: Vec::new(),
             qself: None,
             path: Path {
                 leading_colon: None,
@@ -199,8 +202,9 @@ fn add_display_constraint_to_type_predicate(
 
     let display_bound = TypeParamBound::Trait(TraitBound {
         paren_token: None,
-        modifier: TraitBoundModifier::None,
         lifetimes: None,
+        modifiers: TraitBoundModifiers::default(),
+        maybe: None,
         path: display_path,
     });
     if !predicate_that_needs_a_display_impl.bounds.is_empty() {
@@ -224,9 +228,9 @@ fn add_display_constraint_to_type_predicate(
 fn extract_trait_constraints_from_source(
     where_clause: &WhereClause,
     type_params: &[&TypeParam],
-) -> HashMap<Ident, Vec<TraitBound>> {
+) -> BTreeMap<Ident, Vec<TraitBound>> {
     // Add trait bounds provided at the declaration site of type parameters for the struct/enum.
-    let mut param_constraint_mapping: HashMap<Ident, Vec<TraitBound>> = type_params
+    let mut param_constraint_mapping: BTreeMap<Ident, Vec<TraitBound>> = type_params
         .iter()
         .map(|type_param| {
             let trait_bounds: Vec<TraitBound> = type_param
@@ -248,7 +252,11 @@ fn extract_trait_constraints_from_source(
         // We only care about type and not lifetime constraints here.
         if let WherePredicate::Type(ref pred_ty) = predicate {
             let ident = match &pred_ty.bounded_ty {
-                Type::Path(TypePath { path, qself: None }) => match path.get_ident() {
+                Type::Path(TypePath {
+                    path,
+                    qself: None,
+                    attrs: _,
+                }) => match path.get_ident() {
                     None => continue,
                     Some(ident) => ident,
                 },
@@ -396,7 +404,7 @@ fn impl_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
         Ok(quote! {
             impl #impl_generics ::core::fmt::Display for #ty #ty_generics #where_clause {
                 fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                    #[allow(unused_variables)]
+                    #[allow(unused_variables, unused_assignments)]
                     match self {
                         #(#arms,)*
                     }

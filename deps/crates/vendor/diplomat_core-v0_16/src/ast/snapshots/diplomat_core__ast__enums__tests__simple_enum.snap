@@ -1,0 +1,82 @@
+---
+source: core/src/ast/enums.rs
+expression: "Enum::new(&syn::parse_quote!\n{\n    #[doc = r\" Some docs.\"] #[diplomat::rust_link(foo::Bar, Enum)] enum\n    MyLocalEnum { Abc, #[doc = r\" Some more docs.\"] Def }\n}, &Default::default(), &crate::ast::SpanLocation::None)"
+---
+name:
+  - MyLocalEnum
+  - start:
+      line: 1
+      col: 0
+    end:
+      line: 1
+      col: 0
+    range:
+      start: 0
+      end: 0
+    span_location: None
+docs:
+  - - cfg: Star
+      lines: Some docs.
+  - - path:
+        elements:
+          - - foo
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location:
+                LocalSource: ", Enum"
+          - - Bar
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location:
+                LocalSource: ", Enum"
+      typ: Enum
+      display: Normal
+variants:
+  - - - Abc
+      - start:
+          line: 1
+          col: 0
+        end:
+          line: 1
+          col: 0
+        range:
+          start: 0
+          end: 0
+        span_location: None
+    - 0
+    - - - cfg: Star
+          lines: ""
+      - []
+    - {}
+  - - - Def
+      - start:
+          line: 1
+          col: 0
+        end:
+          line: 1
+          col: 0
+        range:
+          start: 0
+          end: 0
+        span_location: None
+    - 1
+    - - - cfg: Star
+          lines: Some more docs.
+      - []
+    - {}
+methods: []
+attrs: {}

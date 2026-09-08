@@ -1,0 +1,8 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Owned slices only support primitives
+In src/ast/snapshots/span_testing/owned_slice.rs:3:30:
+...Box<[Type]>) {...
+        ^^^^

@@ -10,8 +10,8 @@ use crate::{dynutil::UpcastDataPayload, ule::MaybeAsVarULE};
 use alloc::sync::Arc;
 use databake::{Bake, BakeSize, CrateEnv, TokenStream};
 use yoke::*;
-use zerovec::vecs::Index32;
 use zerovec::VarZeroVec;
+use zerovec::vecs::Index32;
 
 #[cfg(doc)]
 use zerovec::ule::VarULE;

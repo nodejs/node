@@ -70,7 +70,7 @@ impl SubdivisionSuffix {
 ///
 /// ```
 /// use icu::locale::{
-///     extensions::unicode::{subdivision_suffix, SubdivisionId},
+///     extensions::unicode::{SubdivisionId, subdivision_suffix},
 ///     subtags::region,
 /// };
 ///
@@ -98,7 +98,7 @@ impl SubdivisionId {
     ///
     /// ```
     /// use icu::locale::{
-    ///     extensions::unicode::{subdivision_suffix, SubdivisionId},
+    ///     extensions::unicode::{SubdivisionId, subdivision_suffix},
     ///     subtags::region,
     /// };
     ///
@@ -132,8 +132,8 @@ impl SubdivisionId {
     /// When the value can't be parsed:
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::SubdivisionId;
     /// use icu::locale::ParseError;
+    /// use icu::locale::extensions::unicode::SubdivisionId;
     ///
     /// // Value is too short
     /// assert!(matches!(
@@ -164,21 +164,31 @@ impl SubdivisionId {
 
     /// See [`Self::try_from_str`]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
-        let is_alpha = code_units
-            .first()
-            .and_then(|b| {
-                b.is_ascii_alphabetic()
-                    .then_some(true)
-                    .or_else(|| b.is_ascii_digit().then_some(false))
-            })
-            .ok_or(ParseError::InvalidExtension)?;
-        let region_len = if is_alpha { 2 } else { 3 };
-        let (region_code_units, suffix_code_units) = code_units
-            .split_at_checked(region_len)
-            .ok_or(ParseError::InvalidExtension)?;
-        let region =
-            Region::try_from_utf8(region_code_units).map_err(|_| ParseError::InvalidExtension)?;
-        let suffix = SubdivisionSuffix::try_from_utf8(suffix_code_units)?;
+        Self::try_from_subtag(Subtag::try_from_utf8(code_units)?)
+    }
+
+    pub(crate) const fn try_from_subtag(subtag: Subtag) -> Result<Self, ParseError> {
+        let code_units = subtag.as_str().as_bytes();
+        let Some(first) = code_units.first() else {
+            return Err(ParseError::InvalidExtension);
+        };
+        let region_len = if first.is_ascii_alphabetic() {
+            2
+        } else if first.is_ascii_digit() {
+            3
+        } else {
+            return Err(ParseError::InvalidExtension);
+        };
+        let Some((region_code_units, suffix_code_units)) = code_units.split_at_checked(region_len)
+        else {
+            return Err(ParseError::InvalidExtension);
+        };
+        let Ok(region) = Region::try_from_utf8(region_code_units) else {
+            return Err(ParseError::InvalidExtension);
+        };
+        let Ok(suffix) = SubdivisionSuffix::try_from_utf8(suffix_code_units) else {
+            return Err(ParseError::InvalidExtension);
+        };
         Ok(Self { region, suffix })
     }
 

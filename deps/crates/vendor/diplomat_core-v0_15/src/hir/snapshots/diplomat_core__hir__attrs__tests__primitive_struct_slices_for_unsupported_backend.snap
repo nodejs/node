@@ -1,5 +1,0 @@
----
-source: core/src/hir/attrs.rs
-expression: output
----
-Lowering error in Foo::takes_slice: Primitive struct slices are not supported by this backend

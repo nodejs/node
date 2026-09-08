@@ -15,27 +15,27 @@
 //! doubt, disregard `serde_core` and always use `serde`.
 //!
 //! Crates that depend on `serde_core` instead of `serde` are able to compile in
-//! parallel with `serde_derive` even when `serde`'s "derive" feature is turned on,
-//! as shown in the following build timings.
+//! parallel with `serde_derive` even when `serde`'s "derive" feature is turned
+//! on, as shown in the following build timings.
 //!
 //! <br>
 //!
 //! <table>
-//! <tr><td align="center">When <code>serde_json</code> depends on <code>serde</code></td></tr>
-//! <tr><td><img src="https://github.com/user-attachments/assets/78dc179c-6ab1-4059-928c-1474b0d9d0bb"></td></tr>
+//! <tr><td align="center">When <code>serde_json</code> depends on
+//! <code>serde</code></td></tr> <tr><td><img src="https://github.com/user-attachments/assets/78dc179c-6ab1-4059-928c-1474b0d9d0bb"></td></tr>
 //! </table>
 //!
 //! <br>
 //!
 //! <table>
-//! <tr><td align="center">When <code>serde_json</code> depends on <code>serde_core</code></td></tr>
-//! <tr><td><img src="https://github.com/user-attachments/assets/6b6cff5e-3e45-4ac7-9db1-d99ee8b9f5f7"></td></tr>
+//! <tr><td align="center">When <code>serde_json</code> depends on
+//! <code>serde_core</code></td></tr> <tr><td><img src="https://github.com/user-attachments/assets/6b6cff5e-3e45-4ac7-9db1-d99ee8b9f5f7"></td></tr>
 //! </table>
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde_core/1.0.228")]
+#![doc(html_root_url = "https://docs.rs/serde_core/1.0.229")]
 // Support using Serde without the standard library!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Show which crate feature enables conditionally compiled APIs in documentation.
@@ -54,7 +54,7 @@
     // clippy bug: https://github.com/rust-lang/rust-clippy/issues/7768
     clippy::semicolon_if_nothing_returned,
     // not available in our oldest supported compiler
-    clippy::empty_enum,
+    clippy::empty_enums,
     clippy::type_repetition_in_bounds, // https://github.com/rust-lang/rust-clippy/issues/8772
     // integer and float ser/de requires these sorts of casts
     clippy::cast_possible_truncation,

@@ -35,7 +35,7 @@ use crate::shortvec::ShortBoxSlice;
 /// Manually build up a [`Keywords`] object:
 ///
 /// ```
-/// use icu::locale::extensions::unicode::{key, value, Keywords};
+/// use icu::locale::extensions::unicode::{Keywords, key, value};
 ///
 /// let keywords = [(key!("hc"), value!("h23"))]
 ///     .into_iter()
@@ -48,8 +48,8 @@ use crate::shortvec::ShortBoxSlice;
 ///
 /// ```
 /// use icu::locale::{
-///     extensions::unicode::{key, value},
 ///     Locale,
+///     extensions::unicode::{key, value},
 /// };
 ///
 /// let loc: Locale = "und-u-hc-h23-kc-true".parse().expect("Valid BCP-47");
@@ -118,8 +118,8 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::locale;
     /// use icu::locale::Locale;
+    /// use icu::locale::locale;
     ///
     /// let loc1 = Locale::try_from_str("und-t-h0-hybrid").unwrap();
     /// let loc2 = locale!("und-u-ca-buddhist");
@@ -137,7 +137,7 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{key, value, Keywords};
+    /// use icu::locale::extensions::unicode::{Keywords, key, value};
     ///
     /// let keywords = [(key!("ca"), value!("gregory"))]
     ///     .into_iter()
@@ -159,7 +159,7 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{key, value, Keywords};
+    /// use icu::locale::extensions::unicode::{Keywords, key, value};
     ///
     /// let keywords = [(key!("ca"), value!("buddhist"))]
     ///     .into_iter()
@@ -184,7 +184,7 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{key, value, Keywords};
+    /// use icu::locale::extensions::unicode::{Keywords, key, value};
     ///
     /// let mut keywords = [(key!("ca"), value!("buddhist"))]
     ///     .into_iter()
@@ -211,8 +211,8 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::{key, value};
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::unicode::{key, value};
     ///
     /// let mut loc: Locale = "und-u-hello-ca-buddhist-hc-h12"
     ///     .parse()
@@ -238,8 +238,8 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::key;
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::unicode::key;
     ///
     /// let mut loc: Locale = "und-u-hello-ca-buddhist-hc-h12"
     ///     .parse()
@@ -276,8 +276,8 @@ impl Keywords {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::extensions::unicode::key;
     /// use icu::locale::Locale;
+    /// use icu::locale::extensions::unicode::key;
     ///
     /// let mut loc: Locale = "und-u-ca-buddhist-hc-h12-ms-metric".parse().unwrap();
     ///
