@@ -54,6 +54,7 @@ const { subtle } = globalThis.crypto;
   assert.strictEqual(Object.getPrototypeOf(internalProto), CryptoKey.prototype);
 
   const invalidThis = { code: 'ERR_INVALID_THIS', name: 'TypeError' };
+  const invalidArgType = { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' };
 
   // Plain object receiver.
   Object.entries(getters).forEach(([, getter]) => {
@@ -94,10 +95,10 @@ const { subtle } = globalThis.crypto;
   assert.strictEqual(isCryptoKey(spoofed), false);
   await assert.rejects(
     subtle.sign('HMAC', spoofed, Buffer.from('payload')),
-    invalidThis);
+    invalidArgType);
   await assert.rejects(
     subtle.exportKey('jwk', spoofed),
-    invalidThis);
+    invalidArgType);
 
   // Subvert `instanceof CryptoKey` via Symbol.hasInstance, then
   // invoke the native getters on a forged object. The C++ tag
