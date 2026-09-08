@@ -61,15 +61,6 @@ class V8_EXPORT_PRIVATE HashSeed {
   static constexpr int kTotalSize = sizeof(Data);
 
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
-  // Byte offsets from the data start, for CSA that loads fields at raw
-  // offsets from the ByteArray data start.
-  static constexpr int kDerivedM1Offset = offsetof(Data, m1);
-  static constexpr int kDerivedM1InvOffset = offsetof(Data, m1_inv);
-  static constexpr int kDerivedM2Offset = offsetof(Data, m2);
-  static constexpr int kDerivedM2InvOffset = offsetof(Data, m2_inv);
-  static constexpr int kDerivedM3Offset = offsetof(Data, m3);
-  static constexpr int kDerivedM3InvOffset = offsetof(Data, m3_inv);
-
   inline uint32_t m1() const;
   inline uint32_t m1_inv() const;
   inline uint32_t m2() const;

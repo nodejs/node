@@ -29,7 +29,7 @@ class ConservativeTracedHandlesMarkingVisitor final
   Heap& heap_;
   MarkingState& marking_state_;
   MarkingWorklists::Local& local_marking_worklist_;
-  const TracedHandles::NodeBounds traced_node_bounds_;
+  const ConservativeTracedHandlesNodeScanner scanner_;
   const TracedHandles::MarkMode mark_mode_;
 };
 

@@ -17,7 +17,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <algorithm>
 #include <cerrno>
 #include <csignal>
 #include <cstring>
@@ -63,7 +62,6 @@ struct StackTrace {
   static constexpr int kStackCount = 64;
   int depth;
   void* result[kStackCount];
-  uintptr_t frames[kStackCount];
   int sizes[kStackCount];
 };
 
@@ -193,48 +191,6 @@ ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
       ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
   EXPECT_GT(g_should_fixup_calls, 0);
   EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
-
-  // ==========================================================================
-
-  g_fixup_calls = 0;
-  g_should_fixup_calls = 0;
-  a.depth = absl::internal_stacktrace::GetStackFrames(
-      a.result, a.frames, a.sizes, kStackCount, kSkip);
-  g_enable_fixup = !g_enable_fixup;
-  b.depth = absl::internal_stacktrace::GetStackFrames(
-      b.result, b.frames, b.sizes, kStackCount, kSkip);
-  EXPECT_THAT(
-      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
-      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
-  EXPECT_THAT(
-      absl::MakeSpan(a.sizes, static_cast<size_t>(a.depth)),
-      ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
-  EXPECT_THAT(
-      absl::MakeSpan(a.frames, static_cast<size_t>(a.depth)),
-      ContainerEq(absl::MakeSpan(b.frames, static_cast<size_t>(b.depth))));
-  EXPECT_GT(g_should_fixup_calls, 0);
-  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
-
-  // ==========================================================================
-
-  g_fixup_calls = 0;
-  g_should_fixup_calls = 0;
-  a.depth = absl::internal_stacktrace::GetStackFramesWithContext(
-      a.result, a.frames, a.sizes, kStackCount, kSkip, nullptr, nullptr);
-  g_enable_fixup = !g_enable_fixup;
-  b.depth = absl::internal_stacktrace::GetStackFramesWithContext(
-      b.result, b.frames, b.sizes, kStackCount, kSkip, nullptr, nullptr);
-  EXPECT_THAT(
-      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
-      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
-  EXPECT_THAT(
-      absl::MakeSpan(a.sizes, static_cast<size_t>(a.depth)),
-      ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
-  EXPECT_THAT(
-      absl::MakeSpan(a.frames, static_cast<size_t>(a.depth)),
-      ContainerEq(absl::MakeSpan(b.frames, static_cast<size_t>(b.depth))));
-  EXPECT_GT(g_should_fixup_calls, 0);
-  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
 }
 
 TEST(StackTrace, FixupNoFixupEquivalence) { FixupNoFixupEquivalenceNoInline(); }
@@ -351,92 +307,13 @@ TEST(StackTrace, CustomUnwinderPerformsFixup) {
   EXPECT_GT(g_fixup_calls, 0);
 }
 
-#if ABSL_HAVE_BUILTIN(__builtin_frame_address)
-struct FrameInfo {
-  const void* return_address;
-  uintptr_t frame_address;
-};
-
-// Returns the canonical frame address and return address for the current stack
-// frame, while capturing the stack trace at the same time.
-// This performs any platform-specific adjustments necessary to convert from the
-// compiler built-ins to the expected API outputs.
-ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS     // May read random elements from stack.
-    ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY  // May read random elements from stack.
-        ABSL_ATTRIBUTE_NOINLINE static FrameInfo
-        CaptureBacktraceNoInline(StackTrace& backtrace) {
-  FrameInfo result;
-  result.return_address = __builtin_return_address(0);
-  // Large enough to cover all realistic slots the return address could be in
-  const int kMaxReturnAddressIndex = 5;
-  void* const* bfa = static_cast<void* const*>(__builtin_frame_address(0));
-  backtrace.depth = absl::internal_stacktrace::GetStackFramesWithContext(
-      backtrace.result, backtrace.frames, backtrace.sizes,
-      StackTrace::kStackCount, /*skip_count=*/0,
-      /*uc=*/nullptr, /*min_dropped_frames=*/nullptr);
-  // Make sure the return address is at a reasonable location in the frame
-  ptrdiff_t i;
-  for (i = 0; i < kMaxReturnAddressIndex; ++i) {
-    // Avoid std::find() here, since it lacks no-sanitize attributes.
-    if (bfa[i] == result.return_address) {
-      break;
-    }
-  }
-  result.frame_address =
-      i < kMaxReturnAddressIndex
-          ? reinterpret_cast<uintptr_t>(
-                bfa + i + 1 /* get the Canonical Frame Address (CFA) */)
-          : 0;
-  return result;
-}
-
-TEST(StackTrace, CanonicalFrameAddresses) {
-  // Now capture a stack trace and verify that the return addresses and frame
-  // addresses line up for one frame.
-  StackTrace backtrace;
-  const auto [return_address, frame_address] =
-      CaptureBacktraceNoInline(backtrace);
-  auto return_addresses = absl::MakeSpan(backtrace.result)
-                              .subspan(0, static_cast<size_t>(backtrace.depth));
-  auto frame_addresses = absl::MakeSpan(backtrace.frames)
-                             .subspan(0, static_cast<size_t>(backtrace.depth));
-
-  // Many platforms don't support this by default.
-  bool support_is_expected = false;
-
-  if (support_is_expected) {
-    // If all zeros were returned, that is valid per the function's contract.
-    // It just means we don't support returning frame addresses on this
-    // platform.
-    bool supported = static_cast<size_t>(std::count(frame_addresses.begin(),
-                                                    frame_addresses.end(), 0)) <
-                     frame_addresses.size();
-    EXPECT_TRUE(supported);
-    if (supported) {
-      ASSERT_TRUE(frame_address)
-          << "unable to obtain frame address corresponding to return address";
-      EXPECT_THAT(return_addresses, Contains(return_address).Times(1));
-      EXPECT_THAT(frame_addresses, Contains(frame_address).Times(1));
-      ptrdiff_t ifound = std::find(return_addresses.begin(),
-                                   return_addresses.end(), return_address) -
-                         return_addresses.begin();
-      // Make sure we found the frame in the first place.
-      ASSERT_LT(ifound, backtrace.depth);
-      // Make sure the frame address actually corresponds to the return
-      // address.
-      EXPECT_EQ(frame_addresses[static_cast<size_t>(ifound)], frame_address);
-      // Make sure the addresses only appear once.
-    }
-  }
-}
-#endif
-
 // This test is Linux specific.
 #if defined(__linux__)
 const void* g_return_address = nullptr;
 bool g_sigusr2_raised = false;
 
-void SigUsr2Handler(int, siginfo_t*, void* uc) {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void SigUsr2Handler(int, siginfo_t*,
+                                                       void* uc) {
   absl::base_internal::ErrnoSaver errno_saver;
   // Many platforms don't support this by default.
   bool support_is_expected = false;
@@ -457,18 +334,19 @@ void SigUsr2Handler(int, siginfo_t*, void* uc) {
   g_sigusr2_raised = true;
 }
 
-void SigUsr1Handler(int, siginfo_t*, void*) {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS void SigUsr1Handler(int, siginfo_t*, void*) {
   raise(SIGUSR2);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
-ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
   g_return_address = __builtin_return_address(0);
   raise(SIGUSR1);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
-ABSL_ATTRIBUTE_NOINLINE void TestNestedSignal() {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS ABSL_ATTRIBUTE_NOINLINE void
+TestNestedSignal() {
   constexpr size_t kAltstackSize = 1 << 14;
   // Allocate altstack on regular stack to make sure it'll have a higher
   // address than some of the regular stack frames.
@@ -501,5 +379,52 @@ TEST(StackTrace, NestedSignal) {
   EXPECT_TRUE(g_sigusr2_raised);
 }
 #endif
+
+TEST(StackTrace, NoNullptrInPopulatedRange) {
+  constexpr int kMaxDepth = 1024;
+  void* results[kMaxDepth];
+  int depth = absl::GetStackTrace(results, kMaxDepth, 0);
+  for (int i = 0; i < depth; ++i) {
+    EXPECT_NE(results[i], nullptr) << "Unexpected nullptr found at index " << i;
+  }
+}
+
+
+#if defined(__aarch64__) && defined(__linux__)
+static void CorruptedSigStackHandler(int, siginfo_t*, void*) {
+  void** fp = reinterpret_cast<void**>(__builtin_frame_address(0));
+  void* saved_fp = fp[0];
+  fp[0] = reinterpret_cast<void*>(0x7deadbeef000ULL);  // Unmapped address
+
+  void* stack[16];
+  absl::GetStackTrace(stack, 16, 0);
+
+  fp[0] = saved_fp;
+}
+#endif
+
+TEST(StackTrace, CorruptedSignalStackFrameSafety) {
+#if defined(__aarch64__) && defined(__linux__)
+  stack_t sigstk{};
+  constexpr size_t kAltstackSize = 1 << 14;
+  char altstack[kAltstackSize];
+  sigstk.ss_sp = altstack;
+  sigstk.ss_size = kAltstackSize;
+  sigstk.ss_flags = 0;
+  ASSERT_EQ(sigaltstack(&sigstk, nullptr), 0);
+
+  struct sigaction act{}, oldact{};
+  act.sa_sigaction = CorruptedSigStackHandler;
+  act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  ASSERT_EQ(sigaction(SIGUSR1, &act, &oldact), 0);
+
+  raise(SIGUSR1);
+
+  sigaction(SIGUSR1, &oldact, nullptr);
+  stack_t disable_stk{};
+  disable_stk.ss_flags = SS_DISABLE;
+  sigaltstack(&disable_stk, nullptr);
+#endif
+}
 
 }  // namespace

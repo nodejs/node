@@ -494,8 +494,8 @@
 //
 // These attributes only take effect when the following conditions are met:
 //
-//   * The file/target is built in at least C++11 mode, with a Clang compiler
-//     that supports XRay attributes.
+//   * The file/target is built with a Clang compiler that supports XRay
+//     attributes.
 //   * The file/target is built with the -fxray-instrument flag set for the
 //     Clang/LLVM compiler.
 //   * The function is defined in the translation unit (the compiler honors the
@@ -529,6 +529,25 @@
 #define ABSL_XRAY_ALWAYS_INSTRUMENT
 #define ABSL_XRAY_NEVER_INSTRUMENT
 #define ABSL_XRAY_LOG_ARGS(N)
+#endif
+
+// ABSL_ATTRIBUTE_NULL_AFTER_MOVE
+//
+// Indicates that a user-defined smart-pointer-like type makes guarantees on the
+// state of a moved-from object, leaving it in a null state, where it can be
+// used as long as it is not dereferenced. In other words, these are the same
+// semantics that smart pointers from the standard library provide.
+//
+// The clang-tidy check bugprone-use-after-move allows member functions of types
+// marked with this attribute to be called on objects that have been moved from;
+// without the attribute, this would result in a use-after-move warning.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate) && defined(__clang__) && \
+    __clang_major__ >= 12
+#define ABSL_ATTRIBUTE_NULL_AFTER_MOVE                       \
+  [[clang::annotate("clang-tidy", "bugprone-use-after-move", \
+                    "null_after_move")]]
+#else
+#define ABSL_ATTRIBUTE_NULL_AFTER_MOVE
 #endif
 
 // ABSL_ATTRIBUTE_REINITIALIZES
@@ -620,47 +639,16 @@
 //
 // Annotates implicit fall-through between switch labels, allowing a case to
 // indicate intentional fallthrough and turn off warnings about any lack of a
-// `break` statement. The ABSL_FALLTHROUGH_INTENDED macro should be followed by
-// a semicolon and can be used in most places where `break` can, provided that
-// no statements exist between it and the next switch label.
+// `break` statement.
 //
-// Example:
+// Deprecated: Use the standard C++17 `[[fallthrough]]` instead.
 //
-//  switch (x) {
-//    case 40:
-//    case 41:
-//      if (truth_is_out_there) {
-//        ++x;
-//        ABSL_FALLTHROUGH_INTENDED;  // Use instead of/along with annotations
-//                                    // in comments
-//      } else {
-//        return x;
-//      }
-//    case 42:
-//      ...
-//
-// Notes: When supported, GCC and Clang can issue a warning on switch labels
-// with unannotated fallthrough using the warning `-Wimplicit-fallthrough`. See
-// clang documentation on language extensions for details:
-// https://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
-//
-// When used with unsupported compilers, the ABSL_FALLTHROUGH_INTENDED macro has
-// no effect on diagnostics. In any case this macro has no effect on runtime
-// behavior and performance of code.
+// This macro has no effect on runtime behavior and performance of code.
 
 #ifdef ABSL_FALLTHROUGH_INTENDED
 #error "ABSL_FALLTHROUGH_INTENDED should not be defined."
-#elif ABSL_HAVE_CPP_ATTRIBUTE(fallthrough)
-#define ABSL_FALLTHROUGH_INTENDED [[fallthrough]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::fallthrough)
-#define ABSL_FALLTHROUGH_INTENDED [[clang::fallthrough]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::fallthrough)
-#define ABSL_FALLTHROUGH_INTENDED [[gnu::fallthrough]]
-#else
-#define ABSL_FALLTHROUGH_INTENDED \
-  do {                            \
-  } while (0)
 #endif
+#define ABSL_FALLTHROUGH_INTENDED [[fallthrough]]
 
 // ABSL_DEPRECATED()
 //
@@ -721,46 +709,6 @@
 #define ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
 #define ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 #endif  // defined(__GNUC__) || defined(__clang__)
-
-// ABSL_CONST_INIT
-//
-// A variable declaration annotated with the `ABSL_CONST_INIT` attribute will
-// not compile (on supported platforms) unless the variable has a constant
-// initializer. This is useful for variables with static and thread storage
-// duration, because it guarantees that they will not suffer from the so-called
-// "static init order fiasco".
-//
-// This attribute must be placed on the initializing declaration of the
-// variable. Some compilers will give a -Wmissing-constinit warning when this
-// attribute is placed on some other declaration but missing from the
-// initializing declaration.
-//
-// In some cases (notably with thread_local variables), `ABSL_CONST_INIT` can
-// also be used in a non-initializing declaration to tell the compiler that a
-// variable is already initialized, reducing overhead that would otherwise be
-// incurred by a hidden guard variable. Thus annotating all declarations with
-// this attribute is recommended to potentially enhance optimization.
-//
-// Example:
-//
-//   class MyClass {
-//    public:
-//     ABSL_CONST_INIT static MyType my_var;
-//   };
-//
-//   ABSL_CONST_INIT MyType MyClass::my_var = MakeMyType(...);
-//
-// For code or headers that are assured to only build with C++20 and up, prefer
-// just using the standard `constinit` keyword directly over this macro.
-//
-// Note that this attribute is redundant if the variable is declared constexpr.
-#if defined(__cpp_constinit) && __cpp_constinit >= 201907L
-#define ABSL_CONST_INIT constinit
-#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
-#define ABSL_CONST_INIT [[clang::require_constant_initialization]]
-#else
-#define ABSL_CONST_INIT
-#endif
 
 // ABSL_REQUIRE_EXPLICIT_INIT
 //
@@ -830,6 +778,45 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
   // This is deliberately left undefined to prevent linking
   static AbslInternal_YouForgotToExplicitlyInitializeAField v;
 };
+#endif
+
+// ABSL_CONST_INIT
+//
+// A variable declared with `ABSL_CONST_INIT` will not compile (on supported
+// platforms) unless the variable has a constant initializer. This is useful for
+// variables with static and thread storage duration, because it guarantees that
+// they will not suffer from the so-called "static init order fiasco".
+//
+// `ABSL_CONST_INIT` must be placed on the initializing declaration
+// (i.e. definition) of the variable. Some compilers will give a
+// `-Wmissing-constinit` warning when it is placed on some other
+// declaration but missing from the initializing declaration.
+//
+// For thread_local variables, placing `ABSL_CONST_INIT` on the non-initializing
+// declaration tells the compiler that the variable is already initialized,
+// reducing overhead that would otherwise be incurred by a hidden guard
+// variable.
+//
+// Example:
+//
+//   class MyClass {
+//    public:
+//     ABSL_CONST_INIT static MyType my_var;
+//   };
+//
+//   ABSL_CONST_INIT MyType MyClass::my_var = MakeMyType(...);
+//
+// For code or headers that are assured to only build with C++20 and up, prefer
+// using the standard `constinit` keyword directly over this macro.
+//
+// Note that `ABSL_CONST_INIT` must not be used on a variable declared
+// constexpr.
+#if defined(__cpp_constinit) && __cpp_constinit >= 201907L
+#define ABSL_CONST_INIT constinit
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
+#define ABSL_CONST_INIT [[clang::require_constant_initialization]]
+#else
+#define ABSL_CONST_INIT
 #endif
 
 // ABSL_ATTRIBUTE_PURE_FUNCTION
@@ -915,6 +902,23 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 #define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(Owner)
 #endif
 
+// Internal attribute; name and documentation TBD.
+//
+// See the upstream documentation:
+// https://clang.llvm.org/docs/AttributeReference.html#lifetime_capture_by_this
+//
+// Note: ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this) is deprecated. Use
+// ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS instead.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::lifetime_capture_by_this)
+#define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS \
+  [[clang::lifetime_capture_by_this]]
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::lifetime_capture_by)
+#define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS \
+  ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)
+#else
+#define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS
+#endif
+
 // ABSL_ATTRIBUTE_VIEW indicates that a type is solely a "view" of data that it
 // points to, similarly to a span, string_view, or other non-owning reference
 // type.
@@ -933,7 +937,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // We disable this on Clang versions < 13 because of the following
 // false-positive:
 //
-//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//   absl::string_view f(std::optional<absl::string_view> sv) { return *sv; }
 //
 // See the following links for details:
 // https://reviews.llvm.org/D64448
@@ -964,7 +968,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // We disable this on Clang versions < 13 because of the following
 // false-positive:
 //
-//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//   absl::string_view f(std::optional<absl::string_view> sv) { return *sv; }
 //
 // See the following links for details:
 // https://reviews.llvm.org/D64448

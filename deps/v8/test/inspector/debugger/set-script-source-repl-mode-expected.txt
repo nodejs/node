@@ -1,2 +1,0 @@
-Check that setScriptSource works with REPL mode
-Debugger.setScriptSource: Ok

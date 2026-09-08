@@ -163,6 +163,9 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
               uint8_t imm8);
 
+  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+
   // Helper struct to implement functions that check for AVX support and
   // dispatch to the appropriate AVX/SSE instruction.
   template <typename Dst, typename Arg, typename... Args>
@@ -368,7 +371,6 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   AVX_OP(Pmovmskb, pmovmskb)
   AVX_OP(Pmullw, pmullw)
   AVX_OP(Pmuludq, pmuludq)
-  AVX_OP(Pshufd, pshufd)
   AVX_OP(Pshufhw, pshufhw)
   AVX_OP(Pshuflw, pshuflw)
   AVX_OP(Pslld, pslld)
@@ -525,18 +527,18 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
   void I64x2Neg(XMMRegister dst, XMMRegister src, XMMRegister scratch);
-  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch);
+  void I64x2AbsPreAvx10(XMMRegister dst, XMMRegister src, XMMRegister scratch);
   void I64x2GtS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
                 XMMRegister scratch);
   void I64x2GeS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
                 XMMRegister scratch);
-  void I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
-                 XMMRegister xmm_tmp);
-  void I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
-                 XMMRegister xmm_tmp, XMMRegister xmm_shift,
-                 Register tmp_shift);
-  void I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
-                XMMRegister tmp1, XMMRegister tmp2);
+  void I64x2ShrSPreAvx10(XMMRegister dst, XMMRegister src, uint8_t shift,
+                         XMMRegister xmm_tmp);
+  void I64x2ShrSPreAvx10(XMMRegister dst, XMMRegister src, Register shift,
+                         XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                         Register tmp_shift);
+  void I64x2MulPreAvx10(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                        XMMRegister tmp1, XMMRegister tmp2);
   void I64x2ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);
   void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
@@ -947,8 +949,8 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
     }
   }
 
-  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
-                   XMMRegister tmp2, Register scratch) {
+  void I8x16PopcntPreAvx10(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
+                           XMMRegister tmp2, Register scratch) {
     ASM_CODE_COMMENT(this);
     DCHECK_NE(dst, tmp1);
     DCHECK_NE(src, tmp1);

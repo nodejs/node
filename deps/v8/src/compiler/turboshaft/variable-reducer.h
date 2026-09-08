@@ -338,8 +338,8 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
       }
     }
 
-    return __ FrameState(base::VectorOf(new_inputs), first_frame->inlined,
-                         first_frame->data);
+    return __ template FrameState<AnyFrameState>(
+        base::VectorOf(new_inputs), first_frame->inlined, first_frame->data);
   }
 
   VariableTable table_{__ phase_zone()};

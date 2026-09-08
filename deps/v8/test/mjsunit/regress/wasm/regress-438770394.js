@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-fast-api-calls --expose-fast-api --no-liftoff --wasm-fast-api
+// Flags: --turbo-fast-api-calls --expose-fast-api --wasm-fast-api
 // Flags: --wasm-lazy-compilation
 // Flags: --fast-api-allow-float-in-sim
 

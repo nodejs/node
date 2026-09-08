@@ -18,6 +18,7 @@
 
 #include "absl/base/internal/raw_logging.h"
 
+#include <string>
 #include <tuple>
 
 #include "gtest/gtest.h"

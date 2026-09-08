@@ -21,13 +21,8 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_STACKTRACE_POWERPC_INL_H_
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_POWERPC_INL_H_
 
-#include "absl/debugging/internal/addresses.h"
-#if defined(__linux__)
-#include <asm/ptrace.h>   // for PT_NIP.
-#include <ucontext.h>     // for ucontext_t
-#endif
-
 #include <unistd.h>
+
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -35,9 +30,15 @@
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
-#include "absl/debugging/stacktrace.h"
 #include "absl/debugging/internal/address_is_readable.h"
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
+#include "absl/debugging/stacktrace.h"
+
+#if defined(__linux__)
+#include <asm/ptrace.h>   // for PT_NIP.
+#include <ucontext.h>     // for ucontext_t
+#endif
 
 // Given a stack pointer, return the saved link register value.
 // Note that this is the link register for a callee.
@@ -91,6 +92,13 @@ static void **NextStackFrame(void **old_sp, const void *uc) {
         && ((uintptr_t)new_sp - (uintptr_t)old_sp > 1000000)) return nullptr;
   }
   if ((uintptr_t)new_sp % kStackAlignment != 0) return nullptr;
+
+  // Verify readability before using new_sp.
+  if (!STRICT_UNWINDING && new_sp != nullptr &&
+      !absl::debugging_internal::AddressIsReadable(
+          StacktracePowerPCGetLRPtr(new_sp))) {
+    return nullptr;
+  }
 
 #if defined(__linux__)
   enum StackTraceKernelSymbolStatus {

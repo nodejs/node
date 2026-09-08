@@ -1,0 +1,86 @@
+header: semaphore.h
+standards:
+  - posix
+macros:
+  - macro_name: SEM_FAILED
+    macro_header: semaphore-macros.h
+types:
+  - type_name: clockid_t
+  - type_name: mode_t
+  - type_name: sem_t
+  - type_name: struct_timespec
+functions:
+  - name: sem_clockwait
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *__restrict
+      - type: clockid_t
+      - type: const struct timespec *__restrict
+  - name: sem_close
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *
+  - name: sem_destroy
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *
+  - name: sem_getvalue
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *__restrict
+      - type: int *__restrict
+  - name: sem_init
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *
+      - type: int
+      - type: unsigned
+  - name: sem_open
+    standards:
+      - posix
+    return_type: sem_t *
+    arguments:
+      - type: const char *
+      - type: int
+      - type: '...'
+  - name: sem_post
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *
+  - name: sem_timedwait
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *__restrict
+      - type: const struct timespec *__restrict
+  - name: sem_trywait
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *
+  - name: sem_unlink
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: sem_wait
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: sem_t *

@@ -8,17 +8,15 @@
 #include "src/objects/swiss-name-dictionary.h"
 // Include the non-inl header before the rest of the headers.
 
-#include <algorithm>
 #include <optional>
 
-#include "src/base/macros.h"
-#include "src/execution/isolate-utils-inl.h"
+#include "src/base/logging.h"
 #include "src/heap/heap.h"
-#include "src/objects/fixed-array-inl.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/js-collection-iterator.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 
@@ -26,10 +24,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
-
-OBJECT_CONSTRUCTORS_IMPL(SwissNameDictionary, HeapObject)
 
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
   return reinterpret_cast<ctrl_t*>(
@@ -41,14 +35,11 @@ uint8_t* SwissNameDictionary::PropertyDetailsTable() {
       field_address(PropertyDetailsTableStartOffset(Capacity())));
 }
 
-int SwissNameDictionary::Capacity() {
-  return ReadField<int32_t>(CapacityOffset());
-}
+int SwissNameDictionary::Capacity() { return capacity_; }
 
 void SwissNameDictionary::SetCapacity(int capacity) {
   DCHECK(IsValidCapacity(capacity));
-
-  WriteField<int32_t>(CapacityOffset(), capacity);
+  capacity_ = capacity;
 }
 
 int SwissNameDictionary::NumberOfElements() {
@@ -223,36 +214,23 @@ InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
 
 Tagged<Object> SwissNameDictionary::LoadFromDataTable(int entry,
                                                       int data_offset) {
-  return LoadFromDataTable(GetPtrComprCageBase(*this), entry, data_offset);
-}
-
-Tagged<Object> SwissNameDictionary::LoadFromDataTable(
-    PtrComprCageBase cage_base, int entry, int data_offset) {
   DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
-  int offset = DataTableStartOffset() +
-               (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
-  return TaggedField<Object>::Relaxed_Load(cage_base, *this, offset);
+  return data_table()[entry * kDataTableEntryCount + data_offset]
+      .Relaxed_Load();
 }
 
 void SwissNameDictionary::StoreToDataTable(int entry, int data_offset,
                                            Tagged<Object> data) {
   DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
-
-  int offset = DataTableStartOffset() +
-               (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
-
-  RELAXED_WRITE_FIELD(*this, offset, data);
-  WRITE_BARRIER(*this, offset, data);
+  data_table()[entry * kDataTableEntryCount + data_offset].Relaxed_Store(this,
+                                                                         data);
 }
 
 void SwissNameDictionary::StoreToDataTableNoBarrier(int entry, int data_offset,
                                                     Tagged<Object> data) {
   DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
-
-  int offset = DataTableStartOffset() +
-               (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
-
-  RELAXED_WRITE_FIELD(*this, offset, data);
+  data_table()[entry * kDataTableEntryCount + data_offset]
+      .Relaxed_Store_no_write_barrier(data);
 }
 
 void SwissNameDictionary::ClearDataTableEntry(Isolate* isolate, int entry) {
@@ -312,9 +290,8 @@ Tagged<Object> SwissNameDictionary::ValueAt(InternalIndex entry) {
 
 std::optional<Tagged<Object>> SwissNameDictionary::TryValueAt(
     InternalIndex entry) {
-  SLOW_DCHECK(Isolate::Current()->heap() ==
-              Heap::FromWritableHeapObject(*this));
-  SLOW_DCHECK(Isolate::Current()->heap()->IsPendingAllocation(Tagged(*this)));
+  SLOW_DCHECK(Isolate::Current()->heap() == Heap::FromWritableHeapObject(this));
+  SLOW_DCHECK(Isolate::Current()->heap()->IsPendingAllocation(Tagged(this)));
   // We can read Capacity() in a non-atomic way since we are reading an
   // initialized object which is not pending allocation.
   if (static_cast<unsigned>(entry.as_int()) >=
@@ -655,24 +632,20 @@ SwissNameDictionary::IterateEntriesOrdered() {
   }
 
   Isolate* isolate = Isolate::Current();
-  DCHECK_EQ(isolate, Heap::FromWritableHeapObject(*this)->isolate());
-  return IndexIterable(direct_handle(*this, isolate));
+  DCHECK_EQ(isolate, Heap::FromWritableHeapObject(this)->isolate());
+  return IndexIterable(direct_handle(Tagged(this), isolate));
 }
 
 SwissNameDictionary::IndexIterable SwissNameDictionary::IterateEntries() {
   return IterateEntriesOrdered();
 }
 
-void SwissNameDictionary::SetHash(int32_t hash) {
-  WriteField(PrefixOffset(), hash);
-}
+void SwissNameDictionary::SetHash(int32_t hash) { hash_ = hash; }
 
-int SwissNameDictionary::Hash() { return ReadField<int32_t>(PrefixOffset()); }
+int SwissNameDictionary::Hash() { return hash_; }
 
 // static
-constexpr int SwissNameDictionary::PrefixOffset() {
-  return HeapObject::kHeaderSize;
-}
+constexpr int SwissNameDictionary::PrefixOffset() { return sizeof(HeapObject); }
 
 // static
 constexpr int SwissNameDictionary::CapacityOffset() {
@@ -707,8 +680,10 @@ constexpr int SwissNameDictionary::PropertyDetailsTableStartOffset(
 
 // static
 constexpr int SwissNameDictionary::MaxCapacity() {
+  // TODO(375937549): Convert to uint32_t.
   constexpr int kConstSize =
-      SwissNameDictionary::DataTableStartOffset() + sizeof(ByteArray::Header) +
+      SwissNameDictionary::DataTableStartOffset() +
+      OFFSET_OF_DATA_START(ByteArray) +
       // Size for present and deleted element count at max capacity:
       2 * sizeof(uint32_t);
   constexpr int kPerEntrySize =
@@ -722,7 +697,8 @@ constexpr int SwissNameDictionary::MaxCapacity() {
       sizeof(uint32_t);
 
   constexpr int result =
-      (kMaxFixedArrayCapacity * kTaggedSize - kConstSize) / kPerEntrySize;
+      (static_cast<int>(kMaxFixedArrayCapacity) * kTaggedSize - kConstSize) /
+      kPerEntrySize;
   static_assert(Smi::kMaxValue >= result);
 
   return result;
@@ -760,9 +736,16 @@ SwissNameDictionary::probe(uint32_t hash, int capacity) {
       swiss_table::H1(hash), static_cast<uint32_t>(non_zero_capacity - 1));
 }
 
-ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, Tagged<ByteArray>,
-                   MetaTablePointerOffset(), true,
-                   value->length() >= kMetaTableEnumerationDataStartIndex)
+Tagged<ByteArray> SwissNameDictionary::meta_table() const {
+  return meta_table_.load();
+}
+
+void SwissNameDictionary::set_meta_table(Tagged<ByteArray> value,
+                                         WriteBarrierMode mode) {
+  DCHECK_GE(value->ulength().value(),
+            static_cast<uint32_t>(kMetaTableEnumerationDataStartIndex));
+  meta_table_.store(this, value, mode);
+}
 
 }  // namespace v8::internal
 

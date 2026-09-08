@@ -7,12 +7,15 @@
 
 #include <stdint.h>
 
-#include <memory>
 #include <vector>
 
 #include "include/v8-internal.h"  // For Address.
 #include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
+
+namespace cppgc {
+class Visitor;
+}  // namespace cppgc
 
 namespace v8 {
 namespace internal {
@@ -27,9 +30,13 @@ class Tagged;
 class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
  public:
   static void SetUpDefaultMicrotaskQueue(Isolate* isolate);
-  static std::unique_ptr<MicrotaskQueue> New(Isolate* isolate);
+  static MicrotaskQueue* New(Isolate* isolate);
 
   ~MicrotaskQueue() override;
+
+  MicrotaskQueue();
+  void Trace(cppgc::Visitor* visitor) const override;
+  const char* GetHumanReadableName() const override { return "MicrotaskQueue"; }
 
   // Uses raw Address values because it's called via ExternalReference.
   // {raw_microtask} is a tagged Microtask pointer.
@@ -43,15 +50,15 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
                         v8::Local<Function> microtask) override;
   void EnqueueMicrotask(v8::Isolate* isolate, v8::MicrotaskCallback callback,
                         void* data) override;
+  void EnqueueMicrotask(v8::Isolate* isolate,
+                        v8::MicrotaskCallbackWithData callback,
+                        v8::Local<v8::Data> data) override;
   void PerformCheckpoint(v8::Isolate* isolate) override {
-    if (!ShouldPerfomCheckpoint()) return;
+    if (!ShouldPerformCheckpoint(isolate)) return;
     PerformCheckpointInternal(isolate);
   }
 
-  bool ShouldPerfomCheckpoint() const {
-    return !IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
-           !HasMicrotasksSuppressions();
-  }
+  bool ShouldPerformCheckpoint(v8::Isolate* isolate) const;
 
   void EnqueueMicrotask(Tagged<Microtask> microtask);
   void AddMicrotasksCompletedCallback(
@@ -68,6 +75,9 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   // Iterate all pending Microtasks in this queue as strong roots, so that
   // builtins can update the queue directly without the write barrier.
   void IterateMicrotasks(RootVisitor* visitor);
+
+  // Clears the queue by discarding all queued Microtasks.
+  void ClearMicrotasks();
 
   // Microtasks scope depth represents nested scopes controlling microtasks
   // invocation, which happens when depth reaches zero.
@@ -104,9 +114,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   Tagged<Microtask> get(intptr_t index) const;
 
-  MicrotaskQueue* next() const { return next_; }
-  MicrotaskQueue* prev() const { return prev_; }
-
   static const size_t kRingBufferOffset;
   static const size_t kCapacityOffset;
   static const size_t kSizeOffset;
@@ -120,7 +127,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   void OnCompleted(Isolate* isolate);
 
-  MicrotaskQueue();
   void ResizeBuffer(intptr_t new_capacity);
 
   // A ring buffer to hold Microtask instances.
@@ -133,11 +139,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
 
   // The number of finished microtask.
   intptr_t finished_microtask_count_ = 0;
-
-  // MicrotaskQueue instances form a doubly linked list loop, so that all
-  // instances are reachable through |next_|.
-  MicrotaskQueue* next_ = nullptr;
-  MicrotaskQueue* prev_ = nullptr;
 
   int microtasks_depth_ = 0;
   int microtasks_suppressions_ = 0;

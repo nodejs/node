@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared
+// Flags: --wasm-shared
 // Flags: --allow-natives-syntax --shared-string-table --harmony-struct
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -169,12 +169,11 @@ let tests = [
 for (const {name, type, valid, invalid} of tests) {
   print(`test ${name}`);
   let builder = new WasmModuleBuilder();
-  let struct = builder.addStruct(
-    [makeField(kWasmI32, true)], kNoSuperType, false, false);
+  let struct = builder.addStruct({fields: [makeField(kWasmI32, true)]});
   let sharedStruct = builder.addStruct(
-    [makeField(kWasmI32, true)], kNoSuperType, false, true);
-  let array = builder.addArray(kWasmI32, true, kNoSuperType, false, false);
-  let sharedArray = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+      {fields: [makeField(kWasmI32, true)], shared: true});
+  let array = builder.addArray(kWasmI32);
+  let sharedArray = builder.addArray(kWasmI32, {shared: true});
 
   builder.addFunction("createUnsharedStruct",
     makeSig([], [wasmRefType(struct)]))
@@ -221,3 +220,50 @@ for (const {name, type, valid, invalid} of tests) {
     }
   }
 }
+
+(function SharedStructInDifferentIsolate() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], shared: true});
+  let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)]);
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let worker = new Worker(function() {
+    onmessage = function({data:msg}) {
+      d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+
+      let builder = new WasmModuleBuilder();
+
+      let struct = builder.addStruct(
+          {fields: [makeField(kWasmI32, true)], shared: true});
+      let id_sig =
+          makeSig([wasmRefNullType(struct)], [wasmRefNullType(struct)]);
+      builder.addFunction("id", id_sig)
+        .addBody([kExprLocalGet, 0])
+        .exportFunc();
+
+      let instance = builder.instantiate();
+      try {
+        instance.exports.id(msg.struct);
+        postMessage({success: 1});
+      } catch {
+        postMessage({success: 0});
+      }
+      return;
+    }
+  }, {type: 'function'});
+
+  let value = 42;
+  let struct_obj = instance.exports.producer(value);
+  worker.postMessage({struct: struct_obj});
+
+  let response = worker.getMessage();
+  assertEquals(1, response.success);
+})();

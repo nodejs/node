@@ -16,6 +16,8 @@
 #define ABSL_STRINGS_INTERNAL_CORD_REP_TEST_UTIL_H_
 
 #include <cassert>
+#include <cstddef>
+#include <cstring>
 #include <memory>
 #include <random>
 #include <string>
@@ -27,6 +29,7 @@
 #include "absl/strings/internal/cord_rep_btree.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

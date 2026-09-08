@@ -196,6 +196,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef, Label::Distance distance);
 
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef,
+                                  Label::Distance distance);
+
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
   void LoadInterpreterDataInterpreterTrampoline(Register destination,
@@ -357,6 +362,28 @@ class V8_EXPORT_PRIVATE MacroAssembler
   }
   void PinsrdPreSse41(XMMRegister dst, Operand src, uint8_t imm8,
                       uint32_t* load_pc_offset);
+
+  // SIMD128
+  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch) {
+    I64x2AbsPreAvx10(dst, src, scratch);
+  }
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
+                 XMMRegister xmm_tmp) {
+    I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp);
+  }
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
+                 XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                 Register tmp_shift) {
+    I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp, xmm_shift, tmp_shift);
+  }
+  void I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                XMMRegister tmp1, XMMRegister tmp2) {
+    I64x2MulPreAvx10(dst, lhs, rhs, tmp1, tmp2);
+  }
+  void I8x16Popcnt(XMMRegister dst, XMMRegister src, Register scratch,
+                   XMMRegister tmp1, XMMRegister tmp2) {
+    I8x16PopcntPreAvx10(dst, src, tmp1, tmp2, scratch);
+  }
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
@@ -599,6 +626,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object, Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object, Register scratch) NOOP_UNLESS_DEBUG_CODE;

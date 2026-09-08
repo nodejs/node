@@ -83,6 +83,7 @@ group("d8_pgo") {
   data_deps = [
     "..:d8",
     "..:v8_python_base",
+    "..:v8_dump_build_config",
   ]
 
   data = [

@@ -195,7 +195,7 @@ constexpr void AsciiStrCaseFoldImpl(char* absl_nonnull dst,
 
   for (size_t i = 0; i < size; ++i) {
     unsigned char v = static_cast<unsigned char>(src[i]);
-    if ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 (Naive) {
+    if constexpr (Naive) {
       v ^= AsciiInAZRangeNaive<ToUpper>(v) ? kAsciiCaseBitFlip : 0;
     } else {
       v ^= AsciiInAZRange<ToUpper>(v) ? kAsciiCaseBitFlip : 0;

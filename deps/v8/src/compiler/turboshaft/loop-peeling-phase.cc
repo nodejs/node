@@ -7,9 +7,7 @@
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/loop-peeling-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
-#include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8::internal::compiler::turboshaft {

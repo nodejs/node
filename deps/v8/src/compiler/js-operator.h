@@ -41,8 +41,8 @@ class Operator;
 struct JSOperatorGlobalCache;
 
 // Macro lists.
-#define JS_UNOP_WITH_FEEDBACK(V) \
-  JS_BITWISE_UNOP_LIST(V)        \
+#define JS_UNOP_WITH_EMBEDDED_FEEDBACK(V) \
+  JS_BITWISE_UNOP_LIST(V)                 \
   JS_ARITH_UNOP_LIST(V)
 
 #define JS_BINOP_WITH_FEEDBACK(V) \
@@ -50,23 +50,14 @@ struct JSOperatorGlobalCache;
   JS_BITWISE_BINOP_LIST(V)        \
   V(JSInstanceOf, InstanceOf)
 
-#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) JS_COMPARE_BINOP_COMMON_LIST(V)
+#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) \
+  JS_COMPARE_BINOP_COMMON_LIST(V)          \
+  JS_ARITH_BINOP_LIST(V)                   \
+  JS_BITWISE_BINOP_LIST(V)
 
 // Predicates.
 class JSOperator final : public AllStatic {
  public:
-  static constexpr bool IsUnaryWithFeedback(Operator::Opcode opcode) {
-#define CASE(Name, ...)   \
-  case IrOpcode::k##Name: \
-    return true;
-    switch (opcode) {
-      JS_UNOP_WITH_FEEDBACK(CASE);
-      default:
-        return false;
-    }
-#undef CASE
-  }
-
   static constexpr bool IsBinaryWithFeedback(Operator::Opcode opcode) {
 #define CASE(Name, ...)   \
   case IrOpcode::k##Name: \
@@ -85,6 +76,18 @@ class JSOperator final : public AllStatic {
     return true;
     switch (opcode) {
       JS_BINOP_WITH_EMBEDDED_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+  }
+
+  static constexpr bool IsUnaryWithEmbeddedFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_UNOP_WITH_EMBEDDED_FEEDBACK(CASE);
       default:
         return false;
     }
@@ -354,15 +357,19 @@ class ContextAccess final {
  public:
   ContextAccess(size_t depth, size_t index, bool immutable);
 
-  size_t depth() const { return depth_; }
+  size_t depth() const { return DepthField::decode(immutable_and_depth_); }
   size_t index() const { return index_; }
-  bool immutable() const { return immutable_; }
+  bool immutable() const {
+    return ImmutableField::decode(immutable_and_depth_);
+  }
 
  private:
+  using ImmutableField = base::BitField<bool, 0, 1>;
+  using DepthField = ImmutableField::Next<uint32_t, 31>;
+
   // For space reasons, we keep this tightly packed, otherwise we could just use
   // a simple int/int/bool POD.
-  const bool immutable_;
-  const uint16_t depth_;
+  uint32_t immutable_and_depth_;
   const uint32_t index_;
 };
 
@@ -905,7 +912,7 @@ const GetIteratorParameters& GetIteratorParametersOf(const Operator* op);
 
 class ForOfNextParameters final {
  public:
-  ForOfNextParameters(const FeedbackSource& call_feedback)
+  explicit ForOfNextParameters(const FeedbackSource& call_feedback)
       : call_feedback_(call_feedback) {}
 
   FeedbackSource const& callFeedback() const { return call_feedback_; }
@@ -956,8 +963,7 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
                                 SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback,
-                                bool receiver_is_first_param = false);
+                                FeedbackSource const& feedback);
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
@@ -965,14 +971,12 @@ class JSWasmCallParameters {
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
   int arity_without_implicit_args() const;
-  bool receiver_is_first_param() const { return receiver_is_first_param_; }
 
  private:
   wasm::NativeModule* native_module_;
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
-  bool receiver_is_first_param_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
@@ -1027,10 +1031,23 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Modulus(FeedbackSource const& feedback);
   const Operator* Exponentiate(FeedbackSource const& feedback);
 
-  const Operator* BitwiseNot(FeedbackSource const& feedback);
-  const Operator* Decrement(FeedbackSource const& feedback);
-  const Operator* Increment(FeedbackSource const& feedback);
-  const Operator* Negate(FeedbackSource const& feedback);
+  const Operator* Add(BinaryOperationHint hint);
+  const Operator* Subtract(BinaryOperationHint hint);
+  const Operator* Multiply(BinaryOperationHint hint);
+  const Operator* Divide(BinaryOperationHint hint);
+  const Operator* Modulus(BinaryOperationHint hint);
+  const Operator* Exponentiate(BinaryOperationHint hint);
+  const Operator* BitwiseOr(BinaryOperationHint hint);
+  const Operator* BitwiseXor(BinaryOperationHint hint);
+  const Operator* BitwiseAnd(BinaryOperationHint hint);
+  const Operator* ShiftLeft(BinaryOperationHint hint);
+  const Operator* ShiftRight(BinaryOperationHint hint);
+  const Operator* ShiftRightLogical(BinaryOperationHint hint);
+
+  const Operator* BitwiseNot(BinaryOperationHint hint);
+  const Operator* Decrement(BinaryOperationHint hint);
+  const Operator* Increment(BinaryOperationHint hint);
+  const Operator* Negate(BinaryOperationHint hint);
 
   const Operator* ToLength();
   const Operator* ToName();
@@ -1177,6 +1194,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* InstanceOf(const FeedbackSource& feedback);
   const Operator* OrdinaryHasInstance();
 
+  const Operator* AsyncFunctionAwait();
   const Operator* AsyncFunctionEnter();
   const Operator* AsyncFunctionReject();
   const Operator* AsyncFunctionResolve();
@@ -1270,23 +1288,6 @@ class JSNodeWrapperBase : public NodeWrapper {
         NodeProperties::GetValueInput(node(), TheIndex));  \
   }
 
-class JSUnaryOpNode final : public JSNodeWrapperBase {
- public:
-  explicit constexpr JSUnaryOpNode(Node* node) : JSNodeWrapperBase(node) {
-    DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
-  }
-
-#define INPUTS(V)            \
-  V(Value, value, 0, Object) \
-  V(FeedbackVector, feedback_vector, 1, HeapObject)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
-};
-
-#define V(JSName, ...) using JSName##Node = JSUnaryOpNode;
-JS_UNOP_WITH_FEEDBACK(V)
-#undef V
-
 class JSBinaryOpNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSBinaryOpNode(Node* node) : JSNodeWrapperBase(node) {
@@ -1328,7 +1329,7 @@ JS_BINOP_WITH_FEEDBACK(V)
 #undef V
 
 #define V(JSName, ...) using JSName##Node = JSBinaryOpWithEmbeddedFeedbackNode;
-JS_BINOP_WITH_EMBEDDED_FEEDBACK(V)
+JS_COMPARE_BINOP_COMMON_LIST(V)
 #undef V
 
 class JSGetIteratorNode final : public JSNodeWrapperBase {
@@ -1347,6 +1348,7 @@ class JSGetIteratorNode final : public JSNodeWrapperBase {
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };
+
 
 class JSForOfNextNode final : public JSNodeWrapperBase {
  public:

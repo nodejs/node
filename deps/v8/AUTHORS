@@ -44,6 +44,7 @@ Julia Computing, Inc. <*@juliacomputing.com>
 CodeWeavers, Inc. <*@codeweavers.com>
 Alibaba, Inc. <*@alibaba-inc.com>
 SiFive, Inc. <*@sifive.com>
+Island Technology, Inc. <*@island.io>
 
 Aapo Alasuutari <aapo.alasuutari@gmail.com>
 Aaron Bieber <deftly@gmail.com>
@@ -66,6 +67,7 @@ Amos Lim <eui-sang.lim@samsung.com>
 Andreas Anyuru <andreas.anyuru@gmail.com>
 Andrei Kashcha <anvaka@gmail.com>
 Andreu Botella <andreu@andreubotella.com>
+Andrew Gaul <andrew@gaul.org>
 Andrew Paprocki <andrew@ishiboo.com>
 Anna Henningsen <anna@addaleax.net>
 Antoine du Hamel <duhamelantoine1995@gmail.com>
@@ -78,6 +80,7 @@ Arthur Islamov <arthur@islamov.ai>
 Asuka Shikina <shikina.asuka@gmail.com>
 Aurèle Barrière <aurele.barriere@gmail.com>
 Aviv Keller <me@aviv.sh>
+Ayako Hayasaka <a.iwasaki0128@gmail.com>
 Bala Avulapati <bavulapati@gmail.com>
 Bangfu Tao <bangfu.tao@samsung.com>
 Ben Coe <bencoe@gmail.com>
@@ -85,6 +88,9 @@ Ben Newman <ben@meteor.com>
 Ben Noordhuis <info@bnoordhuis.nl>
 Benjamin Tan <demoneaux@gmail.com>
 Bert Belder <bertbelder@gmail.com>
+Bez Sahara <ratislav.bichul2@gmail.com>
+Bez Sahara <dev@astramanga.org>
+Bowon Kang <rw70578@gmail.com>
 Brendon Tiszka <btiszka@gmail.com>
 Brice Dobry <brice.dobry@futurewei.com>
 Bruno Pitrus <brunopitrus@hotmail.com>
@@ -101,10 +107,12 @@ Christopher Nady <nady.christopher@gmail.com>
 Colin Ihrig <cjihrig@gmail.com>
 Cong Zuo <zckevinzc@gmail.com>
 Craig Schlenter <craig.schlenter@gmail.com>
+Cristiano Moraes <cris.moraes.ds@gmail.com>
 Daniel Andersson <kodandersson@gmail.com>
 Daniel Bevenius <daniel.bevenius@gmail.com>
 Daniel Dromboski <dandromb@gmail.com>
 Daniel James <dnljms@gmail.com>
+Daniel Kocielinski <daniel.koc@gmail.com>
 Daniel Shelton <d1.shelton@samsung.com>
 Daniil Bakin <bd.bakin@gmail.com>
 Danylo Boiko <danielboyko02@gmail.com>
@@ -132,7 +140,7 @@ Fedor Indutny <fedor@indutny.com>
 Felix Geisendörfer <haimuiba@gmail.com>
 Feng Yu <f3n67u@gmail.com>
 Filipe David Manana <fdmanana@gmail.com>
-Florian Loitsch <floitsch@rivosinc.com>
+Florian Loitsch <floitsch@meta.com>
 Frank Lemanschik <frank@dspeed.eu>
 Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
 Gao Sheng <gaosheng08@meituan.com>
@@ -141,6 +149,7 @@ Gergely Nagy <ngg@ngg.hu>
 Gilang Mentari Hamidy <gilang@hamidy.net>
 Giovanny Gutierrez <giovannygutierrez@gmail.com>
 Gus Caplan <me@gus.host>
+Guy Bedford <guybedford@gmail.com>
 Gwang Yoon Hwang <ryumiel@company100.net>
 Haichuan Wang <hc.opensource@gmail.com>
 Hannu Trey <hannu.trey@gmail.com>
@@ -164,17 +173,21 @@ Jaime Bernardo <jaime@janeasystems.com>
 Jake Hughes <jh@jakehughes.uk>
 James M Snell <jasnell@gmail.com>
 James Pike <g00gle@chilon.net>
+Jamie Magee <jamie.magee@gmail.com>
 Jan Krems <jan.krems@gmail.com>
 Jan de Mooij <jandemooij@gmail.com>
 Janusz Majnert <jmajnert@gmail.com>
+Jarden Xian <zeroxiaobai@gmail.com>
 Javad Amiri <javad.amiri@anu.edu.au>
 Jay Freeman <saurik@saurik.com>
 Jeroen Bobbeldijk <jerbob92@gmail.com>
 Jérôme Vouillon <jerome.vouillon@gmail.com>
 Jesper van den Ende <jespertheend@gmail.com>
+Jesse Wright <jmwright.045@gmail.com>
 Ji Qiu <qiuji@iscas.ac.cn>
 Jiawen Geng <technicalcute@gmail.com>
 Jiaxun Yang <jiaxun.yang@flygoat.com>
+Jihyeon Jeong <smartphonewithbear@gmail.com>
 Joel Stanley <joel@jms.id.au>
 Johan Bergström <johan@bergstroem.nu>
 Johan Levin <johan13@gmail.com>
@@ -188,7 +201,7 @@ Junha Park <jpark3@scu.edu>
 Junming Huang <kiminghjm@gmail.com>
 Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
 Karl Skomski <karl@skomski.com>
-Kasper Lund <kasperl@rivosinc.com>
+Kasper Lund <kasperl@meta.com>
 Keith Smiley <keithbsmiley@gmail.com>
 Kenta Moriuchi <moriken@kimamass.com>
 Kevin Gibbons <bakkot@gmail.com>
@@ -239,6 +252,7 @@ Nicolas Antonius Ernst Leopold Maria Kaiser <nikai@nikai.net>
 Nicolò Ribaudo <nicolo.ribaudo@gmail.com>
 Niek van der Maas <mail@niekvandermaas.nl>
 Niklas Hambüchen <mail@nh2.me>
+Niklas Wenzel <dev@nikwen.de>
 Noj Vek <nojvek@gmail.com>
 Oleksandr Chekhovskyi <oleksandr.chekhovskyi@gmail.com>
 Oliver Dunk <oliver@oliverdunk.com>
@@ -276,16 +290,19 @@ Ruben Bridgewater <ruben@bridgewater.de>
 Ryan Dahl <ry@tinyclouds.org>
 Sahil Shaikh <shaikhsahil4883@gmail.com>
 Sakthipriyan Vairamani (thefourtheye) <thechargingvolcano@gmail.com>
+Samuel Attard <samuel.r.attard@gmail.com>
 Sander Mathijs van Veen <sander@leaningtech.com>
 Sandro Santilli <strk@keybit.net>
 Sanjoy Das <sanjoy@playingwithpointers.com>
 Sam James <sam@gentoo.org>
+Samuel Attard <samuel.r.attard@gmail.com>
 Sébastien Doeraene <sjrdoeraene@gmail.com>
 Seo Sanghyeon <sanxiyn@gmail.com>
 Sergey Markelov <sergionso@gmail.com>
 Shawn Anastasio <shawnanastasio@gmail.com>
 Shawn Presser <shawnpresser@gmail.com>
 Sho Miyamoto <me@shqld.dev>
+Shumaf Lovpache <soarex16@gmail.com>
 Stefan Penner <stefan.penner@gmail.com>
 Stefan Stojanovic <stefko.stojanovic@gmail.com>
 Stephan Hartmann <stha09@googlemail.com>
@@ -345,6 +362,7 @@ Zhaojun Meng <zhaojun.meng@gmail.com>
 Zheng Liu <i6122f@gmail.com>
 Zhongqi Wang <wzq2253675767@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>
+Zuyao Chen <zuyaocat@gmail.com>
 柳荣一 <admin@web-tinker.com>
 Yang Xiang <xiangyangemail@gmail.com>
 Kotaro Ohsugi <dec4m4rk@gmail.com>
@@ -359,3 +377,4 @@ Liam Wachter <liam.g.wachter@gmail.com>
 Flavio Toffalini <flavio87@gmail.com>
 Mathias Payer <mathias.payer@gmail.com>
 Christian Wressnegger <intellisec.de@gmail.com>
+Zekai Zheng <zzheng@atlassian.com>

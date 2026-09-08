@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_REGISTER_ALLOCATION_H_
 #define V8_COMPILER_BACKEND_REGISTER_ALLOCATION_H_
 
+#include "src/base/logging.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/zone/zone.h"
 
@@ -12,7 +14,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-enum class RegisterKind { kGeneral, kDouble, kSimd128 };
+enum class RegisterKind { kGeneral, kDouble, kSimd128, kSimd256 };
+
+inline RegisterKind RegisterKindFor(MachineRepresentation rep) {
+  if (IsSimd256(rep)) return RegisterKind::kSimd256;
+  if (IsSimd128(rep)) return RegisterKind::kSimd128;
+  if (IsFloatingPoint(rep)) return RegisterKind::kDouble;
+  return RegisterKind::kGeneral;
+}
 
 inline int GetRegisterCount(const RegisterConfiguration* config,
                             RegisterKind kind) {
@@ -23,7 +32,10 @@ inline int GetRegisterCount(const RegisterConfiguration* config,
       return config->num_double_registers();
     case RegisterKind::kSimd128:
       return config->num_simd128_registers();
+    case RegisterKind::kSimd256:
+      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 inline int GetAllocatableRegisterCount(const RegisterConfiguration* config,
@@ -35,7 +47,10 @@ inline int GetAllocatableRegisterCount(const RegisterConfiguration* config,
       return config->num_allocatable_double_registers();
     case RegisterKind::kSimd128:
       return config->num_allocatable_simd128_registers();
+    case RegisterKind::kSimd256:
+      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 inline const int* GetAllocatableRegisterCodes(
@@ -47,7 +62,10 @@ inline const int* GetAllocatableRegisterCodes(
       return config->allocatable_double_codes();
     case RegisterKind::kSimd128:
       return config->allocatable_simd128_codes();
+    case RegisterKind::kSimd256:
+      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 inline int ByteWidthForStackSlot(MachineRepresentation rep) {
@@ -81,6 +99,7 @@ inline int ByteWidthForStackSlot(MachineRepresentation rep) {
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace compiler

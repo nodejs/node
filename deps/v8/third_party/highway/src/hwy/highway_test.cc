@@ -30,6 +30,27 @@ namespace hwy {
 namespace HWY_NAMESPACE {
 namespace {
 
+#ifndef HWY_MAX_BYTES
+#error "HWY_MAX_BYTES not defined"
+#endif
+#ifndef HWY_MIN_BYTES
+#error "HWY_MIN_BYTES not defined"
+#endif
+
+#if HWY_MIN_BYTES < 8
+#error "HWY_MIN_BYTES must be positive and at least 64 bits"
+#endif
+#if HWY_MIN_BYTES > HWY_MAX_BYTES
+#error "HWY_MIN_BYTES must be less than or equal to HWY_MAX_BYTES"
+#endif
+
+#if HWY_CAP_GE256 != (HWY_MIN_BYTES >= 32)
+#error "Mismatch between HWY_CAP_GE256 and HWY_MIN_BYTES"
+#endif
+#if HWY_CAP_GE512 != (HWY_MIN_BYTES >= 64)
+#error "Mismatch between HWY_CAP_GE512 and HWY_MIN_BYTES"
+#endif
+
 template <size_t kLimit, typename T>
 HWY_NOINLINE void TestCappedLimit(T /* tag */) {
   CappedTag<T, kLimit> d;
@@ -276,9 +297,8 @@ HWY_NOINLINE void TestAllSignBit() {
   ForFloatTypes(ForPartialVectors<TestSignBitFloat>());
 }
 
-// TODO(b/287462770): inline to work around incorrect SVE codegen
 template <class D, class V>
-HWY_INLINE void AssertNaN(D d, VecArg<V> v, const char* file, int line) {
+HWY_NOINLINE void AssertNaN(D d, VecArg<V> v, const char* file, int line) {
   using T = TFromD<D>;
   const size_t N = Lanes(d);
   if (!AllTrue(d, IsNaN(v))) {
@@ -548,7 +568,7 @@ struct TestBlocks {
 };
 
 HWY_NOINLINE void TestAllBlocks() {
-  ForAllTypes(ForPartialVectors<TestDFromV>());
+  ForAllTypes(ForPartialVectors<TestBlocks>());
 }
 
 struct TestBlockDFromD {

@@ -1,0 +1,5 @@
+header: elf.h
+public_includes:
+  - llvm-libc-proxy/elf_proxy.h
+standards:
+  - svid

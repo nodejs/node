@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-wasm-lazy-compilation --no-wasm-loop-peeling
 // Flags: --no-wasm-inlining --no-wasm-loop-unrolling
-// Flags: --no-wasm-loop-peeling
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -13,7 +12,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(wasmRefType(struct), true);
+  let array = builder.addArray(wasmRefType(struct));
 
   builder.addFunction("arrayGetSameType",
     makeSig([kWasmI32, wasmRefNullType(array)], [kWasmI32]))

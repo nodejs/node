@@ -121,8 +121,9 @@ namespace v8::internal::compiler::turboshaft {
 //     5. Invalidate everything (for an indexed store into an arbitrary base)
 //
 // To have 1. in constant time, we maintain a global hashmap (`all_keys`) from
-// MemoryAddress (= {base, index, offset, element_size_log2, size}) to Keys, and
-// from these Keys, we have constant-time lookup in the SnapshotTable.
+// MemoryAddress (= {base, index, offset, element_size_log2,
+// MemoryRepresentation}) to Keys, and from these Keys, we have constant-time
+// lookup in the SnapshotTable.
 // To have 3. efficiently, we maintain a Map from offsets to lists of every
 // MemoryAddress at this offset (`offset_keys_`).
 // To have 4. efficiently, we have a similar map from bases to lists of every
@@ -192,25 +193,51 @@ struct MemoryAddress {
   OptionalOpIndex index;
   int32_t offset;
   uint8_t element_size_log2;
-  uint8_t size;
+  MemoryRepresentation representation;
+
+  MemoryAddress(OpIndex base, OptionalOpIndex index, int32_t offset,
+                uint8_t element_size_log2, MemoryRepresentation representation)
+      : base(base),
+        index(index),
+        offset(offset),
+        element_size_log2(element_size_log2),
+        representation(Canonicalize(representation)) {}
 
   bool operator==(const MemoryAddress& other) const {
     return base == other.base && index == other.index &&
            offset == other.offset &&
-           element_size_log2 == other.element_size_log2 && size == other.size;
+           element_size_log2 == other.element_size_log2 &&
+           representation == other.representation;
   }
 
   template <typename H>
   friend H AbslHashValue(H h, const MemoryAddress& mem) {
     return H::combine(std::move(h), mem.base, mem.index, mem.offset,
-                      mem.element_size_log2, mem.size);
+                      mem.element_size_log2, mem.representation.value());
+  }
+
+ private:
+  // We want to be able to eliminate loads with different tagged/compressed
+  // representations. Therefore we canonicalize the representation before
+  // creating a MemoryAddress.
+  static MemoryRepresentation Canonicalize(MemoryRepresentation repr) {
+    switch (repr) {
+      case MemoryRepresentation::TaggedSigned():
+      case MemoryRepresentation::TaggedPointer():
+        return MemoryRepresentation::AnyTagged();
+      case MemoryRepresentation::UncompressedTaggedSigned():
+      case MemoryRepresentation::UncompressedTaggedPointer():
+        return MemoryRepresentation::AnyUncompressedTagged();
+      default:
+        return repr;
+    }
   }
 };
 std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem);
 
 inline size_t hash_value(MemoryAddress const& mem) {
   return fast_hash_combine(mem.base, mem.index, mem.offset,
-                           mem.element_size_log2, mem.size);
+                           mem.element_size_log2, mem.representation.value());
 }
 
 struct KeyData {
@@ -454,14 +481,35 @@ class MemoryContentTable
     }
   }
 
+  void InvalidateEverything() {
+    for (auto& base_keys : base_keys_) {
+      for (auto it = base_keys.second.with_offsets.begin();
+           it != base_keys.second.with_offsets.end();) {
+        Key key = *it;
+        // It's important to remove with RemoveAt before Setting the key to
+        // invalid, otherwise OnKeyChange will remove {key} from {base_keys},
+        // which will invalidate {it}.
+        it = base_keys.second.with_offsets.RemoveAt(it);
+        TRACE(">>> Invalidating " << key.data().mem);
+        Set(key, OpIndex::Invalid());
+      }
+      for (auto it = base_keys.second.with_indices.begin();
+           it != base_keys.second.with_indices.end();) {
+        Key key = *it;
+        it = base_keys.second.with_indices.RemoveAt(it);
+        TRACE(">>> Invalidating " << key.data().mem);
+        Set(key, OpIndex::Invalid());
+      }
+    }
+  }
+
   OpIndex Find(const LoadOp& load) {
     OpIndex base = ResolveBase(load.base());
     OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
-    uint8_t size = load.loaded_rep.SizeInBytes();
 
-    MemoryAddress mem{base, index, offset, element_size_log2, size};
+    MemoryAddress mem(base, index, offset, element_size_log2, load.loaded_rep);
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
@@ -473,12 +521,12 @@ class MemoryContentTable
     int32_t offset = store.offset;
     uint8_t element_size_log2 = index.valid() ? store.element_size_log2 : 0;
     OpIndex value = store.value();
-    uint8_t size = store.stored_rep.SizeInBytes();
 
     if (store.kind.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, size, value);
+      InsertImmutable(base, index, offset, element_size_log2, store.stored_rep,
+                      value);
     } else {
-      Insert(base, index, offset, element_size_log2, size, value);
+      Insert(base, index, offset, element_size_log2, store.stored_rep, value);
     }
   }
 
@@ -487,40 +535,39 @@ class MemoryContentTable
     OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
-    uint8_t size = load.loaded_rep.SizeInBytes();
 
     if (load.kind.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, size, load_idx);
+      InsertImmutable(base, index, offset, element_size_log2, load.loaded_rep,
+                      load_idx);
     } else {
-      Insert(base, index, offset, element_size_log2, size, load_idx);
+      Insert(base, index, offset, element_size_log2, load.loaded_rep, load_idx);
     }
   }
 
 #if V8_ENABLE_SANDBOX
   OpIndex Find(const LoadTrustedPointerOp& load) {
-    OpIndex base = ResolveBase(load.table());
-    OptionalOpIndex index = load.handle();
-    int32_t offset = 0;
-    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
-    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+    OpIndex base = ResolveBase(load.base());
+    int32_t offset = load.offset;
+    constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
 
-    MemoryAddress mem{base, index, offset, element_size_log2, size};
+    MemoryAddress mem(base, OpIndex::Invalid(), offset, kElementSizeLog2,
+                      MemoryRepresentation::TrustedPointer());
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
   }
 
   void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
-    OpIndex base = ResolveBase(load.table());
-    OptionalOpIndex index = load.handle();
-    int32_t offset = 0;
-    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
-    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+    OpIndex base = ResolveBase(load.base());
+    int32_t offset = load.offset;
+    constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
 
-    if (load.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, size, load_idx);
+    if (load.kind.is_immutable) {
+      InsertImmutable(base, OpIndex::Invalid(), offset, kElementSizeLog2,
+                      MemoryRepresentation::TrustedPointer(), load_idx);
     } else {
-      Insert(base, index, offset, element_size_log2, size, load_idx);
+      Insert(base, OpIndex::Invalid(), offset, kElementSizeLog2,
+             MemoryRepresentation::TrustedPointer(), load_idx);
     }
   }
 #endif
@@ -545,72 +592,20 @@ class MemoryContentTable
   }
 #endif
 
- private:
-  // To avoid pathological execution times, we cap the maximum number of
-  // keys we track. This is safe, because *not* tracking objects (even
-  // though we could) only makes us miss out on possible optimizations.
-  // TODO(dmercadier/jkummerow): Find a more elegant solution to keep
-  // execution time in check. One example of a test case can be found in
-  // crbug.com/v8/14370.
-  static constexpr size_t kMaxKeys = 10000;
-
-  void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
-              uint8_t element_size_log2, uint8_t size, OpIndex value) {
-    DCHECK_EQ(base, ResolveBase(base));
-
-    MemoryAddress mem{base, index, offset, element_size_log2, size};
-    TRACE("> MemoryContentTable: will insert " << mem
-                                               << " with value=" << value);
-    auto existing_key = all_keys_.find(mem);
-    if (existing_key != all_keys_.end()) {
-      TRACE(">> Reusing existing key");
-      Set(existing_key->second, value);
-      return;
+  void InvalidatePotentialLoadedStringMaps() {
+    constexpr int kMapOffset = offsetof(HeapObject, map_);
+    auto offset_keys = offset_keys_.find(kMapOffset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(kMapOffset, key.data().mem.offset);
+      // TODO(dmercadier): check known maps for key.data().mem.base and don't
+      // invalidate if maps cannot be string maps.
+      it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
+      Set(key, OpIndex::Invalid());
     }
-
-    if (all_keys_.size() > kMaxKeys) {
-      TRACE(">> Bailing out because too many keys");
-      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
-        std::cout
-            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
-      }
-      return;
-    }
-
-    // Creating a new key.
-    Key key = NewKey({mem});
-    all_keys_.insert({mem, key});
-    Set(key, value);
-  }
-
-  void InsertImmutable(OpIndex base, OptionalOpIndex index, int32_t offset,
-                       uint8_t element_size_log2, uint8_t size, OpIndex value) {
-    DCHECK_EQ(base, ResolveBase(base));
-
-    MemoryAddress mem{base, index, offset, element_size_log2, size};
-    TRACE("> MemoryContentTable: will insert immutable "
-          << mem << " with value=" << value);
-    auto existing_key = all_keys_.find(mem);
-    if (existing_key != all_keys_.end()) {
-      TRACE(">> Reusing existing key");
-      SetNoNotify(existing_key->second, value);
-      return;
-    }
-
-    if (all_keys_.size() > kMaxKeys) {
-      TRACE(">> Bailing out because too many keys");
-      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
-        std::cout
-            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
-      }
-      return;
-    }
-
-    // Creating a new key.
-    Key key = NewKey({mem});
-    all_keys_.insert({mem, key});
-    // Call `SetNoNotify` to avoid calls to `OnNewKey` and `OnValueChanged`.
-    SetNoNotify(key, value);
   }
 
   void InvalidateAtOffset(int32_t offset, OpIndex base) {
@@ -637,6 +632,76 @@ class MemoryContentTable
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
       Set(key, OpIndex::Invalid());
     }
+  }
+
+ private:
+  // To avoid pathological execution times, we cap the maximum number of
+  // keys we track. This is safe, because *not* tracking objects (even
+  // though we could) only makes us miss out on possible optimizations.
+  // TODO(dmercadier/jkummerow): Find a more elegant solution to keep
+  // execution time in check. One example of a test case can be found in
+  // crbug.com/v8/14370.
+  static constexpr size_t kMaxKeys = 10000;
+
+  void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
+              uint8_t element_size_log2, MemoryRepresentation representation,
+              OpIndex value) {
+    DCHECK_EQ(base, ResolveBase(base));
+
+    MemoryAddress mem(base, index, offset, element_size_log2, representation);
+    TRACE("> MemoryContentTable: will insert " << mem
+                                               << " with value=" << value);
+    auto existing_key = all_keys_.find(mem);
+    if (existing_key != all_keys_.end()) {
+      TRACE(">> Reusing existing key");
+      Set(existing_key->second, value);
+      return;
+    }
+
+    if (all_keys_.size() > kMaxKeys) {
+      TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
+      }
+      return;
+    }
+
+    // Creating a new key.
+    Key key = NewKey({mem});
+    all_keys_.insert({mem, key});
+    Set(key, value);
+  }
+
+  void InsertImmutable(OpIndex base, OptionalOpIndex index, int32_t offset,
+                       uint8_t element_size_log2,
+                       MemoryRepresentation representation, OpIndex value) {
+    DCHECK_EQ(base, ResolveBase(base));
+
+    MemoryAddress mem(base, index, offset, element_size_log2, representation);
+    TRACE("> MemoryContentTable: will insert immutable "
+          << mem << " with value=" << value);
+    auto existing_key = all_keys_.find(mem);
+    if (existing_key != all_keys_.end()) {
+      TRACE(">> Reusing existing key");
+      SetNoNotify(existing_key->second, value);
+      return;
+    }
+
+    if (all_keys_.size() > kMaxKeys) {
+      TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
+      }
+      return;
+    }
+
+    // Creating a new key.
+    Key key = NewKey({mem});
+    all_keys_.insert({mem, key});
+    // Call `SetNoNotify` to avoid calls to `OnNewKey` and `OnValueChanged`.
+    SetNoNotify(key, value);
   }
 
   bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, Key other) {
@@ -775,8 +840,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
+#ifdef V8_ENABLE_WEBASSEMBLY
+  void ProcessWasmStackCheck(OpIndex op_idx, const WasmStackCheckOp& op);
+#endif
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
+
+  void WipeAllMaps();
 
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
@@ -949,52 +1019,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                 // NaN.
                 EmitReportLoadEliminationError();
               }
-            } else if (compare_rep == RegisterRepresentation::Tagged()) {
-              // We are trying to replace a Tagged value by a different Tagged
-              // value. This is generally wrong, but there is one exception: we
-              // are allowed to replace a string map by a different string map
-              // that has the same 1/2-byte encoding. The reason why this is
-              // fine is because we never rely on the exact shape of a string,
-              // as the only operations that look at string maps are:
-              //
-              //  - CheckString (in Turboshaft, this is ObjectIs(kString)): this
-              //  doesn't care about shapes, only about the fact that something
-              //  is a string or not.
-              //
-              //  - StringAt: loading the map is done in a loop that contains a
-              //  runtime call, which is annotated as AnySideEffects, which will
-              //  prevent LoadElimination from ever eliminating the map load.
-              //
-              //  - NewConsString: this only cares about the encoding of the
-              //  input, in order to determine the encoding of the outputs.
-
-              Label<> error(this);
-              Label<> done(this);
-              GOTO_IF_NOT(LIKELY(__ IsStringMap(actual_idx)), error);
-              GOTO_IF_NOT(LIKELY(__ IsStringMap(replacement_idx)), error);
-
-              // Both actual and replacement are strings.
-
-              // Checking that the encoding (1 or 2-byte) remained the same.
-              V<Word32> actual_instance_type =
-                  __ LoadInstanceTypeField(actual_idx);
-              V<Word32> replacement_instance_type =
-                  __ LoadInstanceTypeField(replacement_idx);
-              V<Word32> actual_encoding = __ Word32BitwiseAnd(
-                  actual_instance_type, kStringEncodingMask);
-              V<Word32> replacement_encoding = __ Word32BitwiseAnd(
-                  replacement_instance_type, kStringEncodingMask);
-              GOTO_IF(
-                  LIKELY(__ Word32Equal(actual_encoding, replacement_encoding)),
-                  done);
-              GOTO(error);
-
-              BIND(error);
-              EmitReportLoadEliminationError();
-              BIND(done);
-
-              // NOT aborting: we replaced a string map with a different string
-              // map, but they have the same encoding.
             } else {
               EmitReportLoadEliminationError();
             }
@@ -1052,7 +1076,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointer)(
       V<Object> ig_index, const LoadTrustedPointerOp& load) {
     if (v8_flags.turboshaft_trusted_load_elimination) {
-      CHECK(v8_flags.turboshaft_load_elimination);
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsLoadElimination()) {
         OpIndex replacement_ig_index = replacement.replacement();

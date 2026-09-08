@@ -8,8 +8,8 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/v8-cppgc.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc-internal/marking-visitor.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
-#include "src/heap/cppgc/marking-visitor.h"
 
 namespace cppgc {
 

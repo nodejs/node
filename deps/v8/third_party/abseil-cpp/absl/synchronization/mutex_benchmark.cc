@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
 #include <cstdint>
+#include <limits>
 #include <mutex>  // NOLINT(build/c++11)
 #include <vector>
 
-#include "absl/base/config.h"
 #include "absl/base/internal/cycleclock.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
+#include "absl/base/internal/thread_identity.h"
 #include "absl/base/no_destructor.h"
 #include "absl/synchronization/blocking_counter.h"
+#include "absl/synchronization/internal/create_thread_identity.h"
+#include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/mutex.h"
 #include "benchmark/benchmark.h"
@@ -30,7 +35,7 @@ namespace {
 void BM_Mutex(benchmark::State& state) {
   static absl::NoDestructor<absl::Mutex> mu;
   for (auto _ : state) {
-    absl::MutexLock lock(*mu.get());
+    absl::MutexLock lock(*mu);
   }
 }
 BENCHMARK(BM_Mutex)->UseRealTime()->Threads(1)->ThreadPerCpu();
@@ -38,7 +43,7 @@ BENCHMARK(BM_Mutex)->UseRealTime()->Threads(1)->ThreadPerCpu();
 void BM_ReaderLock(benchmark::State& state) {
   static absl::NoDestructor<absl::Mutex> mu;
   for (auto _ : state) {
-    absl::ReaderMutexLock lock(*mu.get());
+    absl::ReaderMutexLock lock(*mu);
   }
 }
 BENCHMARK(BM_ReaderLock)->UseRealTime()->Threads(1)->ThreadPerCpu();

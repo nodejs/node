@@ -59,6 +59,17 @@ OneByteVectorResource one_byte_string_resource(
 UC16VectorResource two_byte_string_resource(base::Vector<const base::uc16>(
     &kTwoByteSubjectString[0], kSubjectStringLength));
 
+// A regexp variant is compiled either to native code (the single-tier or
+// tiered-up pipeline) or to bytecode (--regexp-interpret-all, or before
+// tier-up in the two-tier pipeline). The transition test only cares whether a
+// variant of the given encoding exists, so accept either form.
+bool HasCompiledLatin1Variant(i::Tagged<i::IrRegExpData> data) {
+  return data->has_latin1_code() || data->has_latin1_bytecode();
+}
+bool HasCompiledUc16Variant(i::Tagged<i::IrRegExpData> data) {
+  return data->has_uc16_code() || data->has_uc16_bytecode();
+}
+
 class InterruptTest {
  public:
   InterruptTest()
@@ -110,12 +121,12 @@ class InterruptTest {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     Local<RegExp> re = instance->regexp_handle_.Get(isolate);
     i::DirectHandle<i::JSRegExp> regexp = Utils::OpenDirectHandle(*re);
-    // We executed on a two-byte subject so far, so we expect only bytecode for
-    // two-byte to be present.
+    // We executed on a two-byte subject so far, so we expect only a two-byte
+    // variant to be present.
     i::Tagged<i::IrRegExpData> re_data =
         CheckedCast<i::IrRegExpData>(regexp->data(i_isolate));
-    CHECK(!re_data->has_latin1_bytecode());
-    CHECK(re_data->has_uc16_bytecode());
+    CHECK(!HasCompiledLatin1Variant(re_data));
+    CHECK(HasCompiledUc16Variant(re_data));
 
     // Transition the subject string to one-byte by internalizing it.
     // It already contains only one-byte characters.
@@ -340,11 +351,11 @@ TEST(InterruptAndTransitionSubjectFromTwoByteToOneByte) {
   CHECK(test.GetSubjectString()->ContainsOnlyOneByte());
 
   test.RunTest(InterruptTest::TwoByteSubjectToOneByte);
-  // After the test, we expect that bytecode for a one-byte subject has been
-  // installed during the interrupt.
+  // After the test, we expect that a one-byte variant has been installed
+  // during the interrupt.
   i::DirectHandle<i::JSRegExp> regexp =
       Utils::OpenDirectHandle(*test.GetRegExp());
   i::Tagged<i::IrRegExpData> data =
       CheckedCast<i::IrRegExpData>(regexp->data(i_isolate));
-  CHECK(data->has_latin1_bytecode());
+  CHECK(HasCompiledLatin1Variant(data));
 }

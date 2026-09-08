@@ -18,7 +18,7 @@
 #include <iostream>
 #include <ostream>
 
-#include "absl/base/config.h"
+#include "gtest/gtest.h"
 #include "absl/random/random.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/futex_waiter.h"
@@ -27,10 +27,8 @@
 #include "absl/synchronization/internal/sem_waiter.h"
 #include "absl/synchronization/internal/stdcpp_waiter.h"
 #include "absl/synchronization/internal/thread_pool.h"
-#include "absl/synchronization/internal/win32_waiter.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "gtest/gtest.h"
 
 // Test go/btm support by randomizing the value of clock_gettime() for
 // CLOCK_MONOTONIC. This works by overriding a weak symbol in glibc.

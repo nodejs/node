@@ -132,6 +132,7 @@ class V8_EXPORT_PRIVATE StaticCanonicalForLoopMatcher {
   static constexpr BinOp BinopFromOverflowCheckedBinopKind(
       OverflowCheckedBinopOp::Kind kind);
   static constexpr bool BinopKindIsSupported(WordBinopOp::Kind binop_kind);
+  static constexpr bool BinopIsCommutative(BinOp op);
 
  private:
   bool MatchPhiCompareCst(OpIndex cond_idx,
@@ -201,7 +202,7 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
 
     auto iter_count = GetIterationCount(loop_header);
     return iter_count.IsExact() &&
-           iter_count.exact_count() < kMaxLoopIterationsForFullUnrolling;
+           iter_count.exact_count() <= kMaxLoopIterationsForFullUnrolling;
   }
 
   bool ShouldPartiallyUnrollLoop(const Block* loop_header) const {
@@ -275,7 +276,7 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   // count we have seen in some huge Wasm functions in the past, e.g., function
   // #21937 of https://crbug.com/383661627 (1.7M operations, 2.7MB wire bytes).
   static constexpr size_t kMaxFunctionSizeForPartialUnrolling = 1'000'000;
-  static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 50;
+  static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 64;
   static constexpr size_t kWasmMaxLoopSizeForPartialUnrolling = 80;
   static constexpr size_t kWasmMaxUnrolledLoopSize = 240;
   static constexpr size_t kMaxLoopIterationsForFullUnrolling = 4;
@@ -337,11 +338,11 @@ class LoopStackCheckElisionReducer : public Next {
 
 #if V8_ENABLE_WEBASSEMBLY
   V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
-      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
+      V<Any> ig_idx, const WasmStackCheckOp& stack_check) {
     if (skip_next_stack_check_ &&
         stack_check.kind == WasmStackCheckOp::Kind::kLoop) {
       skip_next_stack_check_ = false;
-      return {};
+      return V<None>::Invalid();
     }
     return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
   }
@@ -447,7 +448,7 @@ class LoopUnrollingReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<None> ig_idx,
+  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<Any> ig_idx,
                                              const WasmStackCheckOp& check) {
     if (ShouldSkipOptimizationStep() || !skip_next_stack_check_) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, check);
@@ -505,6 +506,8 @@ class LoopUnrollingReducer : public Next {
   // {unrolling_} is true if a loop is currently being unrolled.
   UnrollingStatus unrolling_ = UnrollingStatus::kNotUnrolling;
   bool skip_next_stack_check_ = false;
+  const ZoneAbslFlatHashSet<uint32_t>& stack_checks_to_remove_ =
+      __ input_graph().stack_checks_to_remove();
 
   const Block* current_loop_header_ = nullptr;
   JSHeapBroker* broker_ = __ data() -> broker();
@@ -552,8 +555,11 @@ bool LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
     // We remove the stack check of all iterations but the last one.
     TRACE("> Emitting iteration " << i);
     bool is_last_iteration = i == unroll_count - 2;
+    bool skip_stack_check =
+        !is_last_iteration ||
+        stack_checks_to_remove_.contains(header->index().id());
     ScopedModification<bool> inner_skip_stack_checks(&skip_next_stack_check_,
-                                                     !is_last_iteration);
+                                                     skip_stack_check);
 
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
     if (StopUnrollingIfUnreachable(output_graph_header)) {

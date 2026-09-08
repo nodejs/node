@@ -14,9 +14,7 @@
 //
 #include "absl/log/internal/test_helpers.h"
 
-#ifdef __Fuchsia__
-#include <zircon/syscalls.h>
-#endif
+#include <csignal>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -24,6 +22,14 @@
 #include "absl/log/globals.h"
 #include "absl/log/initialize.h"
 #include "absl/log/internal/globals.h"
+
+#ifdef __Fuchsia__
+#include <zircon/syscalls.h>
+#endif
+
+#if defined(ABSL_HAVE_ALARM)
+#include <signal.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

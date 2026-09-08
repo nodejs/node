@@ -150,8 +150,6 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   bool wasm_error() { return error_type_ >= kFirstWasmError; }
   const char* error_msg() { return error_msg_.c_str(); }
 
-  Isolate* isolate() const { return isolate_; }
-
   constexpr const char* context_name() const { return context_; }
 
  private:

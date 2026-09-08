@@ -251,7 +251,7 @@ int FprintF(std::FILE* output, const UntypedFormatSpecImpl format,
     errno = sink.error();
     return -1;
   }
-  if (sink.count() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+  if (sink.count() > size_t{std::numeric_limits<int>::max()}) {
     errno = EFBIG;
     return -1;
   }
@@ -267,6 +267,10 @@ int SnprintF(char* output, size_t size, const UntypedFormatSpecImpl format,
   }
   size_t total = sink.total_written();
   if (size) output[std::min(total, size - 1)] = 0;
+  if (total > size_t{std::numeric_limits<int>::max()}) {
+    errno = EFBIG;
+    return -1;
+  }
   return static_cast<int>(total);
 }
 

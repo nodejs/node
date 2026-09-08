@@ -7,9 +7,9 @@
 
 #include <memory>
 
+#include "src/heap/cppgc-internal/marking-state.h"
+#include "src/heap/cppgc-internal/marking-worklists.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
-#include "src/heap/cppgc/marking-state.h"
-#include "src/heap/cppgc/marking-worklists.h"
 #include "src/objects/embedder-data-slot.h"
 
 namespace v8 {
@@ -34,7 +34,10 @@ class CppMarkingState final {
 
   void Publish() { marking_state_.Publish(); }
 
-  inline void MarkAndPush(void* instance);
+  V8_INLINE void MarkAndPush(void* instance) {
+    marking_state_.MarkAndPush(
+        cppgc::internal::HeapObjectHeader::FromObject(instance));
+  }
 
   bool IsLocalEmpty() const {
     return marking_state_.marking_worklist().IsLocalEmpty();

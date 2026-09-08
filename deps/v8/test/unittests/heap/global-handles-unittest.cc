@@ -258,6 +258,45 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
   CHECK_EQ(2 * kArrayLength + 1, eternal_handles->handles_count());
 }
 
+TEST_F(GlobalHandlesTest, StrongGlobalHandles) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  Handle<Object> h1;
+  Handle<Object> h2;
+  Handle<Object> h3;
+  Handle<Object> h4;
+
+  {
+    HandleScope scope(isolate);
+
+    DirectHandle<Object> i = factory->NewStringFromStaticChars("fisk");
+    DirectHandle<Object> u = factory->NewNumber(1.12344);
+
+    h1 = global_handles->Create(*i);
+    h2 = global_handles->Create(*u);
+    h3 = global_handles->Create(*i);
+    h4 = global_handles->Create(*u);
+  }
+
+  // After GC, objects should survive.
+  InvokeMinorGC();
+
+  EXPECT_TRUE(IsString(*h1));
+  EXPECT_TRUE(IsHeapNumber(*h2));
+  EXPECT_TRUE(IsString(*h3));
+  EXPECT_TRUE(IsHeapNumber(*h4));
+
+  EXPECT_EQ(*h3, *h1);
+  GlobalHandles::Destroy(h1.location());
+  GlobalHandles::Destroy(h3.location());
+
+  EXPECT_EQ(*h4, *h2);
+  GlobalHandles::Destroy(h2.location());
+  GlobalHandles::Destroy(h4.location());
+}
+
 TEST_F(GlobalHandlesTest, PersistentBaseGetLocal) {
   v8::Isolate* isolate = v8_isolate();
 

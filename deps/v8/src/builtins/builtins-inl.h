@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -21,6 +22,7 @@ constexpr Builtin Builtins::RecordWrite(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kRecordWriteSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -31,6 +33,7 @@ constexpr Builtin Builtins::IndirectPointerBarrier(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kIndirectPointerBarrierSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -41,6 +44,7 @@ constexpr Builtin Builtins::EphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kEphemeronKeyBarrierSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -133,7 +137,7 @@ constexpr Builtin Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
 constexpr Builtin Builtins::StringAdd(StringAddFlags flags) {
   switch (flags) {
     case STRING_ADD_CHECK_NONE:
-      return Builtin::kStringAdd_CheckNone;
+      return Builtin::kStringAdd_NoMapCheck;
     case STRING_ADD_CONVERT_LEFT:
       return Builtin::kStringAddConvertLeft;
     case STRING_ADD_CONVERT_RIGHT:
@@ -271,8 +275,15 @@ int Builtins::GetFormalParameterCount(Builtin builtin) {
     return Builtins::GetStackParameterCount(builtin);
 
   } else if (kind == ASM || kind == TFC) {
-    // At the moment, all ASM builtins are varargs builtins. This is verified
-    // in CheckFormalParameterCount.
+#if V8_ENABLE_WEBASSEMBLY
+    // WasmResume and WasmReject have fixed stack cleanup for the receiver and
+    // one explicit argument.
+    if (builtin == Builtin::kWasmResume || builtin == Builtin::kWasmReject) {
+      return JSParameterCount(1);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    // Other ASM and TFC builtins with JS linkage are varargs builtins. This is
+    // verified in CheckFormalParameterCount.
     return kDontAdaptArgumentsSentinel;
 
   } else if (kind == CPP) {
@@ -312,16 +323,14 @@ bool Builtins::IsJSTrampoline(Builtin builtin) {
   switch (builtin) {
     case Builtin::kIllegal:
     case Builtin::kCompileLazy:
+    case Builtin::kMarkFlushed:
     case Builtin::kInterpreterEntryTrampoline:
-    case Builtin::kInstantiateAsmJs:
     case Builtin::kDebugBreakTrampoline:
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Builtin::kJSToWasmWrapper:
-    case Builtin::kJSToJSWrapper:
-    case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
 #if V8_ENABLE_DRUMBRAKE
-    case Builtin::kGenericJSToWasmInterpreterWrapper:
+    case Builtin::kJSToWasmInterpreterWrapper:
 #endif
     case Builtin::kWasmStressSwitch:
 #endif

@@ -26,7 +26,12 @@ function test_arrow_function() {
   return test_arrow_func;
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_arrow_function(test_arrow_func) {
+  keep_alive.push(test_arrow_func);
   assertEquals(
     test_arrow_func.prototype.func(),
     "test_function.prototype.func",

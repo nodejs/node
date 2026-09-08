@@ -14,10 +14,10 @@
 
 #include "absl/random/internal/randen_slow.h"
 
+#include <cstdint>
 #include <cstring>
 
 #include "gtest/gtest.h"
-#include "absl/base/internal/endian.h"
 #include "absl/random/internal/randen_traits.h"
 
 namespace {

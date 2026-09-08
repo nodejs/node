@@ -104,6 +104,12 @@ warmup(readUint16);
 assertOptimized(readUint16);
 assertEquals(0xabcd, readUint16(8));
 assertEquals(0xcdab, readUint16(8, true));
+dataview.setUint16(8, 0x1234);
+assertEquals(0x1234, readUint16(8));
+assertEquals(0x3412, readUint16(8, true));
+dataview.setUint16(8, 0x8000);
+assertEquals(0x8000, readUint16(8));
+assertEquals(0x0080, readUint16(8, true));
 
 // TurboFan valid getInt16.
 let b1 = -0x1234;

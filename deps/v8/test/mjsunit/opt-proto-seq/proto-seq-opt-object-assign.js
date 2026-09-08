@@ -9,11 +9,16 @@
 // Flags: --no-lazy-feedback-allocation
 // Flags: --maglev --turbofan
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function test_object_assign(){
   function foo(){};
   foo.prototype.key_1 = function () {return "OK"};
   foo.prototype.key_2 = function () {};
   const returnedTarget = Object.assign({}, foo.prototype);
+  keep_alive.push(foo, foo.prototype, returnedTarget);
   return returnedTarget.key_1();
 }
 

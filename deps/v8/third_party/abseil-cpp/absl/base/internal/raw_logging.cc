@@ -21,15 +21,15 @@
 #include <cstring>
 #include <string>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten/console.h>
-#endif
-
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/console.h>
+#endif
 
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
 // these platforms, we define the token ABSL_LOW_LEVEL_WRITE_SUPPORTED.

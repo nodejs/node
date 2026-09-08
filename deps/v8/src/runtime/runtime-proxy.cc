@@ -5,7 +5,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -15,7 +15,7 @@ RUNTIME_FUNCTION(Runtime_IsJSProxy) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSProxy(obj));
+  return ReadOnlyRoots(isolate).boolean_value(IsJSProxy(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_CheckProxyHasTrapResult) {
 
   Maybe<bool> result = JSProxy::CheckHasTrap(isolate, name, target);
   if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_CheckProxyDeleteTrapResult) {
@@ -116,7 +116,7 @@ RUNTIME_FUNCTION(Runtime_CheckProxyDeleteTrapResult) {
 
   Maybe<bool> result = JSProxy::CheckDeleteTrap(isolate, name, target);
   if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 }  // namespace internal

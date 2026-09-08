@@ -46,7 +46,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
       WasmDetectedFeatures* detected_features) {
     ModuleResult result =
         DecodeWasmModule(WasmEnabledFeatures::All(), module_bytes.as_vector(),
-                         false, kWasmOrigin, detected_features);
+                         false, detected_features);
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");

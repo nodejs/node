@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging --allow-natives-syntax
+// Flags: --allow-natives-syntax
 // Flags: --liftoff --wasm-deopt --wasm-inlining-ignore-call-counts
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-let $array6 = builder.addArray(kWasmI32, true, kNoSuperType, false);
+let $array6 = builder.addArray(kWasmI32);
 let $sig8 = builder.addType(makeSig([], []));
 let $sig9 = builder.addType(makeSig([kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmS128], []));
 let $sig10 = builder.addType(makeSig([], [wasmRefType($array6)]));

@@ -43,8 +43,8 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   if (!storage) return;
   storage->addMessage(V8ConsoleMessage::createForConsoleAPI(
       context, contextId, groupId, inspector,
-      inspector->client()->currentTimeMS(), ConsoleAPIType::kError,
-      {arguments.begin(), arguments.end()}, String16(), nullptr));
+      inspector->client()->currentTimeMS(), ConsoleAPIType::kError, arguments,
+      String16(), nullptr));
 }
 
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
@@ -52,17 +52,6 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   isolate->ThrowException(toV8String(isolate, message));
   reportError(context, tryCatch);
-}
-
-InjectedScript* getInjectedScript(v8::Local<v8::Context> context,
-                                  int sessionId) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  V8InspectorImpl* inspector =
-      static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-  InspectedContext* inspectedContext =
-      inspector->getContext(InspectedContext::contextId(context));
-  if (!inspectedContext) return nullptr;
-  return inspectedContext->getInjectedScript(sessionId);
 }
 
 bool substituteObjectTags(int sessionId, const String16& groupName,
@@ -95,6 +84,10 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       reportError(context, tryCatch, "attributes should be an Object");
       return false;
     }
+    if (attributesValue->IsProxy()) {
+      reportError(context, tryCatch, "Proxy values are not allowed in JSONML");
+      return false;
+    }
     v8::Local<v8::Object> attributes = attributesValue.As<v8::Object>();
     v8::Local<v8::Value> originValue;
     if (!attributes->Get(context, objectLiteral).ToLocal(&originValue)) {
@@ -114,7 +107,16 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       return false;
     }
 
-    InjectedScript* injectedScript = getInjectedScript(context, sessionId);
+    V8InspectorImpl* inspector =
+        static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+    std::shared_ptr<InspectedContext> inspectedContext =
+        inspector->getContext(InspectedContext::contextId(context));
+    if (!inspectedContext) {
+      reportError(context, tryCatch, "cannot find context with specified id");
+      return false;
+    }
+    std::shared_ptr<InjectedScript> injectedScript =
+        inspectedContext->getInjectedScript(sessionId);
     if (!injectedScript) {
       reportError(context, tryCatch, "cannot find context with specified id");
       return false;
@@ -146,6 +148,11 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       v8::Local<v8::Value> value;
       if (!jsonML->Get(context, i).ToLocal(&value)) {
         reportError(context, tryCatch);
+        return false;
+      }
+      if (value->IsProxy()) {
+        reportError(context, tryCatch,
+                    "Proxy values are not allowed in JSONML");
         return false;
       }
       if (value->IsArray() && value.As<v8::Array>()->Length() > 0 &&
@@ -393,7 +400,16 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
                    .setHeader(toProtocolString(isolate, header))
                    .build();
     if (!bodyFunction.IsEmpty()) {
-      InjectedScript* injectedScript = getInjectedScript(context, sessionId);
+      V8InspectorImpl* inspector =
+          static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+      std::shared_ptr<InspectedContext> inspectedContext =
+          inspector->getContext(InspectedContext::contextId(context));
+      if (!inspectedContext) {
+        reportError(context, tryCatch, "cannot find context with specified id");
+        return;
+      }
+      std::shared_ptr<InjectedScript> injectedScript =
+          inspectedContext->getInjectedScript(sessionId);
       if (!injectedScript) {
         reportError(context, tryCatch, "cannot find context with specified id");
         return;

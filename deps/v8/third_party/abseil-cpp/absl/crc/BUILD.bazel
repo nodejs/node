@@ -34,22 +34,6 @@ package(
 licenses(["notice"])
 
 cc_library(
-    name = "cpu_detect",
-    srcs = [
-        "internal/cpu_detect.cc",
-    ],
-    hdrs = ["internal/cpu_detect.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
-    deps = [
-        "//absl/base",
-        "//absl/base:config",
-        "//absl/types:optional",
-    ],
-)
-
-cc_library(
     name = "crc_internal",
     srcs = [
         "internal/crc.cc",
@@ -64,9 +48,9 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
-        ":cpu_detect",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:cpu_detect",
         "//absl/base:endian",
         "//absl/base:prefetch",
         "//absl/base:raw_logging_internal",
@@ -93,11 +77,11 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":cpu_detect",
         ":crc_internal",
         ":non_temporal_memcpy",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:cpu_detect",
         "//absl/base:endian",
         "//absl/base:prefetch",
         "//absl/strings",

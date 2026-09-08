@@ -241,9 +241,8 @@ class PropertyCallbackInfo {
    * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
    * In case the property is installed on the global object the Holder()
    * would return the global proxy.
-   * TODO(http://crbug.com/333672197): rename back to Holder().
    */
-  V8_INLINE Local<Object> HolderV2() const;
+  V8_INLINE Local<Object> Holder() const;
 
   /**
    * \return The return value of the callback.
@@ -683,7 +682,7 @@ Local<Value> PropertyCallbackInfo<T>::Data() const {
 }
 
 template <typename T>
-Local<Object> PropertyCallbackInfo<T>::HolderV2() const {
+Local<Object> PropertyCallbackInfo<T>::Holder() const {
   return Local<Object>::FromSlot(&args_[kHolderIndex]);
 }
 

@@ -19,14 +19,6 @@
 
 #include <sys/ucontext.h>
 
-#include "absl/base/config.h"
-#include "absl/debugging/internal/addresses.h"
-#if defined(__linux__)
-#include <sys/mman.h>
-#include <ucontext.h>
-#include <unistd.h>
-#endif
-
 #include <atomic>
 #include <cassert>
 #include <cstdint>
@@ -35,7 +27,15 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/stacktrace.h"
+
+#if defined(__linux__)
+#include <sys/mman.h>
+#include <ucontext.h>
+#include <unistd.h>
+#endif
 
 static constexpr ptrdiff_t kUnknownFrameSize = 0;
 
@@ -142,6 +142,10 @@ static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
   void *return_address = nullptr;
   while (frame_pointer && n < max_depth) {
     return_address = frame_pointer[-1];
+    // Follow x86 and stop if the return address is null (end of stack).
+    if (return_address == nullptr) {
+      break;
+    }
 
     // The absl::GetStackFrames routine is called when we are in some
     // informational context (the failure signal handler for example).  Use the

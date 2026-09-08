@@ -15,8 +15,8 @@ void FlushInstructionCache(void* start, size_t size) {
   if (size == 0) return;
   if (v8_flags.jitless) return;
 
-  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "FlushInstructionCache",
-               "start", start, "size", size);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "FlushInstructionCache",
+              "start", start, "size", size);
 
 #if defined(USE_SIMULATOR)
   base::MutexGuard lock_guard(Simulator::i_cache_mutex());

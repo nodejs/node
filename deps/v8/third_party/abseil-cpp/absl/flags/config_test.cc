@@ -13,12 +13,11 @@
 // limitations under the License.
 
 #include "absl/flags/config.h"
+#include "gtest/gtest.h"
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
-
-#include "gtest/gtest.h"
 
 #ifndef ABSL_FLAGS_STRIP_NAMES
 #error ABSL_FLAGS_STRIP_NAMES is not defined

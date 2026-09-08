@@ -1,0 +1,2 @@
+Tests that destroying context during inspect does not cause UAF (regress-523442920).
+Success (no crash).

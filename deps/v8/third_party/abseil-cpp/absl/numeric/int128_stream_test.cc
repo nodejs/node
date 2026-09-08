@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/numeric/int128.h"
-
+#include <cstddef>
+#include <cstdint>
+#include <ios>
+#include <limits>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
 
 namespace {

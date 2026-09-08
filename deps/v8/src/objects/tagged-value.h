@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_TAGGED_VALUE_H_
 #define V8_OBJECTS_TAGGED_VALUE_H_
 
-#include "src/objects/objects.h"
-
 #include "include/v8-internal.h"
+#include "include/v8config.h"
+#include "src/objects/objects.h"
 #include "src/objects/tagged-impl.h"
 
 namespace v8 {
@@ -16,7 +16,7 @@ namespace internal {
 // Almost same as Object but this one deals with in-heap and potentially
 // compressed representation of Objects and provide only limited functionality
 // which doesn't require decompression.
-class StrongTaggedValue
+class V8_GSL_POINTER StrongTaggedValue
     : public TaggedImpl<HeapObjectReferenceType::STRONG, Tagged_t> {
  public:
   constexpr StrongTaggedValue() : TaggedImpl() {}
@@ -30,7 +30,8 @@ class StrongTaggedValue
 // Almost same as Tagged<MaybeObject> but this one deals with in-heap and
 // potentially compressed representation of Objects and provide only limited
 // functionality which doesn't require decompression.
-class TaggedValue : public TaggedImpl<HeapObjectReferenceType::WEAK, Tagged_t> {
+class V8_GSL_POINTER TaggedValue
+    : public TaggedImpl<HeapObjectReferenceType::WEAK, Tagged_t> {
  public:
   constexpr TaggedValue() : TaggedImpl() {}
   explicit constexpr TaggedValue(Tagged_t ptr) : TaggedImpl(ptr) {}

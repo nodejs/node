@@ -37,7 +37,7 @@ TEST(Unscopables) {
                                         ->NewInstance(current_context)
                                         .ToLocalChecked();
 
-  CHECK(object->SetPrototypeV2(current_context, prototype).FromJust());
+  CHECK(object->SetPrototype(current_context, prototype).FromJust());
 
   context->Global()
       ->Set(current_context, v8_str("object"), object)

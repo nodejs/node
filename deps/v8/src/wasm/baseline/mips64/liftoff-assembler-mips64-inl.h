@@ -11,7 +11,6 @@
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -336,7 +335,9 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   }
 
   // Set the new stack and frame pointer.
-  daddiu(sp, fp, -stack_param_delta * 8);
+  // WebAssembly allows functions to have up to 1000 parameters
+  // (see kV8MaxWasmFunctionParams).
+  Daddu(sp, fp, Operand(-stack_param_delta * 8));
   Pop(ra, fp);
 }
 
@@ -358,10 +359,17 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
   MacroAssembler patching_assembler(
-      zone(), AssemblerOptions{}, CodeObjectRequired::kNo,
+      zone(), AssemblerOptions{}, CodeObjectRequired{false},
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 
-  if (V8_LIKELY(frame_size < 4 * KB)) {
+  int max_stack_space =
+      frame_size + max_pushed_argument_slots_ * kSystemPointerSize;
+
+  // The threshold here must match the DCHECK in {Isolate::StackOverflow}:
+  // we could use up this limit once for parameters in a caller, once for the
+  // fixed frame size in its callee, plus we must leave some space for the
+  // runtime call that leads to the DCHECK.
+  if (V8_LIKELY(max_stack_space < 3 * KB)) {
     // This is the standard case for small frames: just subtract from SP and be
     // done with it.
     patching_assembler.Daddu(sp, sp, Operand(-frame_size));
@@ -384,17 +392,17 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // {pc_offset()}).
 
   int imm32 = pc_offset() - offset - 3 * kInstrSize;
-  patching_assembler.BranchLong(imm32);
+  patching_assembler.BranchLong(imm32 >> 2);
 
   // If the frame is bigger than the stack, we throw the stack overflow
   // exception unconditionally. Thereby we can avoid the integer overflow
   // check in the condition code.
   RecordComment("OOL: stack check for large frame");
   Label continuation;
-  if (frame_size < v8_flags.stack_size * 1024) {
+  if (max_stack_space < v8_flags.stack_size * 1024) {
     Register stack_limit = kScratchReg;
     LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-    Daddu(stack_limit, stack_limit, Operand(frame_size));
+    Daddu(stack_limit, stack_limit, Operand(max_stack_space));
     Branch(&continuation, uge, sp, Operand(stack_limit));
   }
 
@@ -415,7 +423,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // (which is a Branch now).
   int func_start_offset = offset + 7 * kInstrSize;
   imm32 = func_start_offset - pc_offset() - 3 * kInstrSize;
-  BranchLong(imm32);
+  BranchLong(imm32 >> 2);
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -451,9 +459,9 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     LoadInstanceDataFromFrame(instance_data);
   }
 
-  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-      WasmTrustedInstanceData::kTieringBudgetArrayOffset);
-  Ld(budget_array, MemOperand(instance_data, kArrayOffset));
+  Ld(budget_array,
+     FieldMemOperand(instance_data,
+                     WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
   int budget_arr_offset = kInt32Size * declared_func_index;
 
@@ -492,6 +500,13 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   }
 }
 
+void LiftoffAssembler::PrepareDebugTrap(MessageTemplate message) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, Operand(Smi::FromInt(static_cast<int>(message))));
+  Push(scratch);
+}
+
 void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
   Ld(dst, liftoff::GetInstanceDataOperand());
 }
@@ -508,13 +523,13 @@ void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
   DCHECK_LE(0, offset);
   switch (size) {
     case 1:
-      Lb(dst, MemOperand(instance, offset));
+      Lb(dst, FieldMemOperand(instance, offset));
       break;
     case 4:
-      Lw(dst, MemOperand(instance, offset));
+      Lw(dst, FieldMemOperand(instance, offset));
       break;
     case 8:
-      Ld(dst, MemOperand(instance, offset));
+      Ld(dst, FieldMemOperand(instance, offset));
       break;
     default:
       UNIMPLEMENTED();
@@ -525,11 +540,7 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int32_t offset) {
   static_assert(kTaggedSize == kSystemPointerSize);
-  Ld(dst, MemOperand(instance, offset));
-}
-
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  Sd(instance, liftoff::GetInstanceDataOperand());
+  Ld(dst, FieldMemOperand(instance, offset));
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}
@@ -537,7 +548,7 @@ void LiftoffAssembler::ResetOSRTarget() {}
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm,
-                                         uint32_t* protected_load_pc,
+                                         uint32_t* trapping_load_pc,
                                          bool needs_shift) {
   static_assert(kTaggedSize == kInt64Size);
   unsigned shift_amount = !needs_shift ? 0 : 3;
@@ -546,17 +557,17 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   Ld(dst, src_op);
 
   // Since LoadTaggedField might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_load_pc} after
+  // argument to a register, we have to compute the {trapping_load_pc} after
   // calling it.
-  if (protected_load_pc) {
-    *protected_load_pc = pc_offset() - kInstrSize;
+  if (trapping_load_pc) {
+    *trapping_load_pc = pc_offset() - kInstrSize;
   }
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
-                                            int32_t offset_imm) {
+                                            int32_t field_offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
-  LoadTaggedPointer(dst, src_addr, no_reg, offset_imm);
+  Ld(dst, FieldMemOperand(src_addr, field_offset));
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -565,27 +576,25 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
   Ld(dst, src_op);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* trapping_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   static_assert(kTaggedSize == kInt64Size);
   Register scratch = kScratchReg2;
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Sd(src, dst_op);
 
   // Since StoreTaggedField might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_load_pc} after
+  // argument to a register, we have to compute the {trapping_load_pc} after
   // calling it.
-  if (protected_store_pc) {
-    *protected_store_pc = pc_offset() - kInstrSize;
+  if (trapping_store_pc) {
+    *trapping_store_pc = pc_offset() - kInstrSize;
   }
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
@@ -599,6 +608,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
   CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
                 kZero, &exit);
+  // The second argument must be the full address instead of an offset.
   Daddu(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -607,7 +617,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
-                            LoadType type, uint32_t* protected_load_pc,
+                            LoadType type, uint32_t* trapping_load_pc,
                             bool is_load_mem, bool i64_offset,
                             bool needs_shift) {
   unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
@@ -664,17 +674,17 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   }
 #endif
   // Since load macros might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_load_pc} after
+  // argument to a register, we have to compute the {trapping_load_pc} after
   // calling them.
-  if (protected_load_pc) {
-    *protected_load_pc = pc_offset() - kInstrSize;
+  if (trapping_load_pc) {
+    *trapping_load_pc = pc_offset() - kInstrSize;
   }
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
-                             uint32_t* protected_store_pc, bool is_store_mem,
+                             uint32_t* trapping_store_pc, bool is_store_mem,
                              bool i64_offset) {
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
@@ -725,16 +735,16 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
 
   // Since store macros might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_store_pc} after
+  // argument to a register, we have to compute the {trapping_store_pc} after
   // calling them.
-  if (protected_store_pc) {
-    *protected_store_pc = pc_offset() - kInstrSize;
+  if (trapping_store_pc) {
+    *trapping_store_pc = pc_offset() - kInstrSize;
   }
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, uint32_t* protected_load_pc,
+                                  LoadType type, uint32_t* trapping_load_pc,
                                   AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList pinned, bool i64_offset,
                                   Endianness /* endianness */) {
@@ -782,15 +792,15 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
       UNREACHABLE();
   }
 
-  // protected_load_pc should be the address of the load instruction.
+  // trapping_load_pc should be the address of the load instruction.
   // The MacroAssembler load may contain some instructions for adjusting
   // MemOperand, so use pc_offset - kInstrSize * 2 to locate.
-  if (protected_load_pc) *protected_load_pc = pc_offset() - kInstrSize * 2;
+  if (trapping_load_pc) *trapping_load_pc = pc_offset() - kInstrSize * 2;
 }
 
 void LiftoffAssembler::AtomicLoadTaggedPointer(
     Register dst, Register src_addr, Register offset_reg, int32_t offset_imm,
-    AtomicMemoryOrder /* memory_order */, uint32_t* protected_load_pc,
+    AtomicMemoryOrder /* memory_order */, uint32_t* trapping_load_pc,
     bool needs_shift) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
@@ -803,14 +813,14 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(
   pc_offset_of_load = pc_offset() - kInstrSize;
   sync();
 #endif
-  if (protected_load_pc != nullptr) {
-    *protected_load_pc = pc_offset_of_load;
+  if (trapping_load_pc != nullptr) {
+    *trapping_load_pc = pc_offset_of_load;
   }
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, uint32_t* protected_store_pc,
+                                   StoreType type, uint32_t* trapping_store_pc,
                                    AtomicMemoryOrder memory_order,
                                    LiftoffRegList pinned, bool i64_offset,
                                    Endianness /* endianness */) {
@@ -849,19 +859,44 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   }
   if (memory_order == AtomicMemoryOrder::kSeqCst) sync();
 
-  // protected_store_pc should be the address of the store instruction.
+  // trapping_store_pc should be the address of the store instruction.
   // The MacroAssembler store may contain some instructions for adjusting
   // MemOperand, so use pc_offset - kInstrSize to locate.
-  if (protected_store_pc) *protected_store_pc = pc_offset() - kInstrSize;
+  if (trapping_store_pc) *trapping_store_pc = pc_offset() - kInstrSize;
 }
 
 void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
-    uint32_t* protected_store_pc) {
-  AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
-              StoreType::kI32Store, protected_store_pc, memory_order, pinned,
-              false);
+    uint32_t* trapping_store_pc) {
+  static_assert(kTaggedSize == kInt64Size);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+
+  sync();
+  Sd(src, dst_op);
+  // Since StoreTaggedField might start with an instruction loading an immediate
+  // argument to a register, we have to compute the {trapping_load_pc} after
+  // calling it.
+  if (trapping_store_pc) {
+    *trapping_store_pc = pc_offset() - kInstrSize;
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Label exit;
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(dst_addr, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
+  CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
+                kZero, &exit);
+  // The second argument must be the full address instead of an offset.
+  Daddu(scratch, dst_op.rm(), dst_op.offset());
+  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr) \
@@ -869,7 +904,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Label binop;                                                         \
     sync();                                                              \
     bind(&binop);                                                        \
-    if (protected_load_pc) *protected_load_pc = pc_offset();             \
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();               \
     load_linked(result.gp(), MemOperand(temp0, 0));                      \
     bin_instr(temp1, result.gp(), Operand(value.gp()));                  \
     store_conditional(temp1, MemOperand(temp0, 0));                      \
@@ -886,7 +921,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     sll(temp3, temp3, 3);                                               \
     sync();                                                             \
     bind(&binop);                                                       \
-    if (protected_load_pc) *protected_load_pc = pc_offset();            \
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();              \
     load_linked(temp1, MemOperand(temp0, 0));                           \
     ExtractBits(result.gp(), temp1, temp3, size, false);                \
     bin_instr(temp2, result.gp(), value.gp());                          \
@@ -900,7 +935,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
   void LiftoffAssembler::Atomic##name(                                         \
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,            \
       LiftoffRegister value, LiftoffRegister result, StoreType type,           \
-      uint32_t* protected_load_pc, bool i64_offset,                            \
+      uint32_t* trapping_load_pc, bool i64_offset,                             \
       Endianness /* endianness */) {                                           \
     LiftoffRegList pinned{dst_addr, value, result};                            \
     if (offset_reg != no_reg) pinned.set(offset_reg);                          \
@@ -913,19 +948,19 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Daddu(temp0, dst_op.rm(), dst_op.offset());                                \
     switch (type.value()) {                                                    \
       case StoreType::kI64Store8:                                              \
-        DCHECK_NULL(protected_load_pc);                                        \
+        DCHECK_NULL(trapping_load_pc);                                         \
         ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 8, inst64, 7);                     \
         break;                                                                 \
       case StoreType::kI32Store8:                                              \
-        DCHECK_NULL(protected_load_pc);                                        \
+        DCHECK_NULL(trapping_load_pc);                                         \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 8, inst32, 3);                       \
         break;                                                                 \
       case StoreType::kI64Store16:                                             \
-        DCHECK_NULL(protected_load_pc);                                        \
+        DCHECK_NULL(trapping_load_pc);                                         \
         ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, 16, inst64, 7);                    \
         break;                                                                 \
       case StoreType::kI32Store16:                                             \
-        DCHECK_NULL(protected_load_pc);                                        \
+        DCHECK_NULL(trapping_load_pc);                                         \
         ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, 16, inst32, 3);                      \
         break;                                                                 \
       case StoreType::kI64Store32:                                             \
@@ -956,7 +991,7 @@ ATOMIC_BINOP_CASE(Xor, Xor, Xor)
     Label exchange;                                                      \
     sync();                                                              \
     bind(&exchange);                                                     \
-    if (protected_load_pc) *protected_load_pc = pc_offset();             \
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();               \
     load_linked(result.gp(), MemOperand(temp0, 0));                      \
     mov(temp1, value.gp());                                              \
     store_conditional(temp1, MemOperand(temp0, 0));                      \
@@ -973,7 +1008,7 @@ ATOMIC_BINOP_CASE(Xor, Xor, Xor)
     sll(temp1, temp1, 3);                                                    \
     sync();                                                                  \
     bind(&exchange);                                                         \
-    if (protected_load_pc) *protected_load_pc = pc_offset();                 \
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();                   \
     load_linked(temp2, MemOperand(temp0, 0));                                \
     ExtractBits(result.gp(), temp2, temp1, size, false);                     \
     InsertBits(temp2, value.gp(), temp1, size);                              \
@@ -985,7 +1020,7 @@ ATOMIC_BINOP_CASE(Xor, Xor, Xor)
 void LiftoffAssembler::AtomicExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister value, LiftoffRegister result, StoreType type,
-    uint32_t* protected_load_pc, bool i64_offset, Endianness /* endianness */) {
+    uint32_t* trapping_load_pc, bool i64_offset, Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -1023,44 +1058,35 @@ void LiftoffAssembler::AtomicExchange(
 
 void LiftoffAssembler::AtomicExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-    LiftoffRegister value, LiftoffRegister result, uint32_t* protected_load_pc,
+    LiftoffRegister value, LiftoffRegister result, uint32_t* trapping_load_pc,
     LiftoffRegList pinned) {
   // Perform the atomic exchange.
-  {
-    LiftoffRegList pinned{dst_addr, value, result};
-    if (offset_reg != no_reg) pinned.set(offset_reg);
-    Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-    Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-    MemOperand dst_op =
-        liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, false);
-    Daddu(temp0, dst_op.rm(), dst_op.offset());
-    if constexpr (COMPRESS_POINTERS_BOOL) {
-      UNREACHABLE();
-    } else {
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
-    }
+  pinned.set(dst_addr);
+  pinned.set(value);
+  pinned.set(result);
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, false);
+  Daddu(temp0, dst_op.rm(), dst_op.offset());
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    UNREACHABLE();
+  } else {
+    ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
   }
 
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   Label exit;
   JumpIfSmi(value.gp(), &exit);
-  CheckPageFlag(dst_addr, scratch,
+  CheckPageFlag(dst_addr, temp1,
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
-  CheckPageFlag(value.gp(), scratch,
+  CheckPageFlag(value.gp(), temp1,
                 MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
 
-  if (offset_reg.is_valid()) {
-    Dext(scratch, offset_reg, 0, 32);
-    if (offset_imm) {
-      Daddu(scratch, scratch, Operand(offset_imm));
-    }
-  } else {
-    li(scratch, offset_imm);
-  }
-  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+  // The second argument must be the full address instead of an offset.
+  CallRecordWriteStubSaveRegisters(dst_addr, temp0, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
@@ -1074,7 +1100,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     Label exit;                                                     \
     sync();                                                         \
     bind(&compareExchange);                                         \
-    if (protected_load_pc) *protected_load_pc = pc_offset();        \
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();          \
     load_linked(result.gp(), MemOperand(temp0, 0));                 \
     BranchShort(&exit, ne, expected_reg, Operand(result.gp()));     \
     mov(temp2, new_value.gp());                                     \
@@ -1094,7 +1120,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     sll(temp1, temp1, 3);                                        \
     sync();                                                      \
     bind(&compareExchange);                                      \
-    if (protected_load_pc) *protected_load_pc = pc_offset();     \
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();       \
     load_linked(temp2, MemOperand(temp0, 0));                    \
     ExtractBits(result.gp(), temp2, temp1, size, false);         \
     ExtractBits(temp2, expected_reg, zero_reg, size, false);     \
@@ -1109,7 +1135,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    StoreType type, uint32_t* protected_load_pc, bool i64_offset,
+    StoreType type, uint32_t* trapping_load_pc, bool i64_offset,
     Endianness /* endianness */) {
   LiftoffRegList pinned{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
@@ -1122,19 +1148,19 @@ void LiftoffAssembler::AtomicCompareExchange(
   Daddu(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
-      DCHECK_NULL(protected_load_pc);
+      DCHECK_NULL(trapping_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, 8, 7);
       break;
     case StoreType::kI32Store8:
-      DCHECK_NULL(protected_load_pc);
+      DCHECK_NULL(trapping_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 3);
       break;
     case StoreType::kI64Store16:
-      DCHECK_NULL(protected_load_pc);
+      DCHECK_NULL(trapping_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, 16, 7);
       break;
     case StoreType::kI32Store16:
-      DCHECK_NULL(protected_load_pc);
+      DCHECK_NULL(trapping_load_pc);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 3);
       break;
     case StoreType::kI64Store32:
@@ -1159,41 +1185,48 @@ void LiftoffAssembler::AtomicCompareExchange(
 void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
-    uint32_t* protected_load_pc, LiftoffRegList pinned) {
-  AtomicCompareExchange(
-      dst_addr, offset_reg, offset_imm, expected, new_value, result,
-      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      protected_load_pc, false);
+    uint32_t* trapping_load_pc, LiftoffRegList pinned) {
+  // The result register may not alias with any of the inputs as the CAS
+  // instruction overwrites it in the loop.
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
 
-  if constexpr (COMPRESS_POINTERS_BOOL) {
-    UNIMPLEMENTED();
-  }
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
 
-  if (v8_flags.disable_write_barriers) return;
-  // Emit the write barrier.
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   Label exit;
-  JumpIfSmi(new_value.gp(), &exit);
-  CheckPageFlag(dst_addr, scratch,
-                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
-  CheckPageFlag(new_value.gp(), scratch,
-                MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
-
-  if (offset_reg.is_valid()) {
-    Dext(scratch, offset_reg, 0, 32);
-    if (offset_imm) {
-      Daddu(scratch, scratch, Operand(offset_imm));
-    }
-  } else {
-    li(scratch, offset_imm);
+  Daddu(temp0, dst_op.rm(), dst_op.offset());
+  {
+    Label compareExchange;
+    sync();
+    bind(&compareExchange);
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();
+    Lld(result.gp(), MemOperand(temp0, 0));
+    BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));
+    mov(temp1, new_value.gp());
+    Scd(temp1, MemOperand(temp0, 0));
+    BranchShort(&compareExchange, eq, temp1, Operand(zero_reg));
   }
-  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
-                                   StubCallMode::kCallWasmRuntimeStub);
+
+  if (!v8_flags.disable_write_barriers) {
+    // Emit the write barrier.
+    JumpIfSmi(new_value.gp(), &exit);
+    CheckPageFlag(dst_addr, temp1,
+                  MemoryChunk::kPointersFromHereAreInterestingMask, kZero,
+                  &exit);
+    CheckPageFlag(new_value.gp(), temp1,
+                  MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
+
+    // The second argument must be the full address instead of an offset.
+    CallRecordWriteStubSaveRegisters(dst_addr, temp0, SaveFPRegsMode::kSave,
+                                     StubCallMode::kCallWasmRuntimeStub);
+  }
   bind(&exit);
+  sync();
 }
 
-void LiftoffAssembler::AtomicFence() { sync(); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder /*order*/) { sync(); }
 
 void LiftoffAssembler::Pause() { sync(); }
 
@@ -1241,20 +1274,28 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   }
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
   // TODO(ksreten): Handle different sizes here.
   MacroAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
   DCHECK_NE(dst, src);
   if (kind != kS128) {
     MacroAssembler::Move(dst, src);
   } else {
     MacroAssembler::move_v(dst.toW(), src.toW());
   }
+}
+
+template <>
+inline void LiftoffAssembler::Move(Simd128Register dst, Simd128Register src,
+                                   ValueKind kind) {
+  UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
@@ -1395,6 +1436,50 @@ void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
   Sd(scratch, MemOperand(dst.gp(), offset));
 }
 
+void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
+                                         MaxStepsVariant steps,
+                                         Label* trap_label,
+                                         LiftoffRegList pinned) {
+  Register addr = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register max_steps = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+
+  li(addr, reinterpret_cast<uintptr_t>(max_steps_ptr));
+  Lw(max_steps, MemOperand(addr, 0));
+  if (auto* steps_const = std::get_if<int32_t>(&steps)) {
+    Subu(max_steps, max_steps, Operand(*steps_const));
+    Sw(max_steps, MemOperand(addr, 0));
+    Branch(trap_label, lt, max_steps, Operand(zero_reg));
+    return;
+  }
+
+  UseScratchRegisterScope temps(this);
+  Register scratch0 = temps.Acquire();
+  Register scratch1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+
+  auto [reg, kind] = std::get<std::pair<Register, ValueKind>>(steps);
+
+  // Decrement the counter. If it underflows, clamp to -1 to prevent
+  // wraparound into positive range.
+
+  if (kind == kI64) {
+    Dsubu(scratch0, max_steps, reg);
+  } else {
+    Subu(scratch0, max_steps, reg);
+    sll(scratch1, reg, 0);
+    reg = scratch1;
+  }
+
+  // If max_steps was `unsigned less than` reg, the subtraction wrapped around,
+  // clamp to -1.
+  Label no_underflow;
+  Branch(&no_underflow, hs, max_steps, Operand(reg));
+  li(scratch0, Operand(-1));
+  bind(&no_underflow);
+
+  Sw(scratch0, MemOperand(addr, 0));
+  Branch(trap_label, lt, scratch0, Operand(zero_reg));
+}
+
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   MacroAssembler::Mul(dst, lhs, rhs);
 }
@@ -1502,6 +1587,39 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
   MacroAssembler::Daddu(dst.gp(), lhs.gp(), Operand(imm));
 }
 
+void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, bl);
+  DCHECK_NE(dst_low, dst_high);
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  Daddu(dst_low, al, bl);
+  Daddu(scratch, ah, bh);
+  Sltu(dst_high, dst_low, bl);
+  Daddu(dst_high, scratch, dst_high);
+}
+
+void LiftoffAssembler::emit_i64_sub128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  Sltu(scratch, al, bl);
+  Dsubu(dst_low, al, bl);
+  Dsubu(dst_high, ah, bh);
+  Dsubu(dst_high, dst_high, scratch);
+}
+
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   MacroAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
@@ -1517,6 +1635,42 @@ void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
   Register scratch = temps.Acquire();
   MacroAssembler::li(scratch, Operand(imm));
   MacroAssembler::Dmul(dst.gp(), lhs.gp(), scratch);
+}
+
+void LiftoffAssembler::emit_i64_mul_wide_s() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
+
+  LiftoffRegister low_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister high_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{low_result});
+
+  Dmult(lhs.gp(), rhs.gp());
+  mflo(low_result.gp());
+  mfhi(high_result.gp());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
+
+void LiftoffAssembler::emit_i64_mul_wide_u() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
+
+  LiftoffRegister low_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister high_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{low_result});
+
+  Dmultu(lhs.gp(), rhs.gp());
+  mflo(low_result.gp());
+  mfhi(high_result.gp());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1610,9 +1764,29 @@ I64_BINOP_I(xor, Xor)
 I64_SHIFTOP_I(shl, dsll)
 I64_SHIFTOP_I(sar, dsra)
 I64_SHIFTOP_I(shr, dsrl)
+I64_SHIFTOP_I(ror, drotr)
 
 #undef I64_SHIFTOP
 #undef I64_SHIFTOP_I
+
+void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Dsubu(scratch, zero_reg, amount);
+  drotrv(dst.gp(), src.gp(), scratch);
+}
+
+void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
+  int amount_ror = 64 - amount;
+  amount_ror &= 63;
+  if (amount_ror < 32) {
+    drotr(dst.gp(), src.gp(), amount_ror);
+  } else {
+    drotr32(dst.gp(), src.gp(), amount_ror - 32);
+  }
+}
 
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   Dext(dst, src, 0, 32);
@@ -2305,14 +2479,14 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
                                      LoadTransformationKind transform,
-                                     uint32_t* protected_load_pc,
+                                     uint32_t* trapping_load_pc,
                                      bool i64_offset) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   MemOperand src_op =
       liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, i64_offset);
   MSARegister dst_msa = dst.fp().toW();
-  *protected_load_pc = pc_offset();
+  *trapping_load_pc = pc_offset();
   MachineType memtype = type.mem_type();
 
   if (transform == LoadTransformationKind::kExtend) {
@@ -2373,11 +2547,11 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
-                                uint8_t laneidx, uint32_t* protected_load_pc,
+                                uint8_t laneidx, uint32_t* trapping_load_pc,
                                 bool i64_offset) {
   MemOperand src_op =
       liftoff::GetMemOp(this, addr, offset_reg, offset_imm, i64_offset);
-  *protected_load_pc = pc_offset();
+  *trapping_load_pc = pc_offset();
   LoadStoreLaneParams load_params(type.mem_type().representation(), laneidx);
   MacroAssembler::LoadLane(load_params.sz, dst.fp().toW(), laneidx, src_op);
 }
@@ -2385,11 +2559,10 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
-                                 uint32_t* protected_store_pc,
-                                 bool i64_offset) {
+                                 uint32_t* trapping_store_pc, bool i64_offset) {
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst, offset, offset_imm, i64_offset);
-  if (protected_store_pc) *protected_store_pc = pc_offset();
+  if (trapping_store_pc) *trapping_store_pc = pc_offset();
   LoadStoreLaneParams store_params(type.mem_rep(), lane);
   MacroAssembler::StoreLane(store_params.sz, src.fp().toW(), lane, dst_op);
 }
@@ -2787,8 +2960,8 @@ void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   srli_b(scratch0, src.fp().toW(), 7);
   srli_h(scratch1, scratch0, 7);
   or_v(scratch0, scratch0, scratch1);
@@ -2912,8 +3085,8 @@ void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   srli_h(scratch0, src.fp().toW(), 15);
   srli_w(scratch1, scratch0, 15);
   or_v(scratch0, scratch0, scratch1);
@@ -3036,8 +3209,8 @@ void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   srli_w(scratch0, src.fp().toW(), 31);
   srli_d(scratch1, scratch0, 31);
   or_v(scratch0, scratch0, scratch1);
@@ -3140,11 +3313,11 @@ void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  srli_d(kSimd128RegZero, src.fp().toW(), 63);
-  shf_w(kSimd128ScratchReg, kSimd128RegZero, 0x02);
-  slli_d(kSimd128ScratchReg, kSimd128ScratchReg, 1);
-  or_v(kSimd128RegZero, kSimd128RegZero, kSimd128ScratchReg);
-  copy_u_b(dst.gp(), kSimd128RegZero, 0);
+  srli_d(kSimd128ScratchReg, src.fp().toW(), 63);
+  shf_w(kSimd128ScratchReg1, kSimd128ScratchReg, 0x02);
+  slli_d(kSimd128ScratchReg1, kSimd128ScratchReg1, 1);
+  or_v(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg1);
+  copy_u_b(dst.gp(), kSimd128ScratchReg, 0);
 }
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3271,8 +3444,8 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
   MSARegister dst_msa = dst.fp().toW();
   MSARegister lhs_msa = lhs.fp().toW();
   MSARegister rhs_msa = rhs.fp().toW();
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
   // scratch1 = (lhs == rhs) ?  (lhs | rhs) : (rhs | rhs).
   fseq_w(scratch0, lhs_msa, rhs_msa);
@@ -3293,8 +3466,8 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   MSARegister dst_msa = dst.fp().toW();
   MSARegister lhs_msa = lhs.fp().toW();
   MSARegister rhs_msa = rhs.fp().toW();
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
   // scratch1 = (lhs == rhs) ?  (lhs | rhs) : (rhs | rhs).
   fseq_w(scratch0, lhs_msa, rhs_msa);
@@ -3406,8 +3579,8 @@ void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
   MSARegister dst_msa = dst.fp().toW();
   MSARegister lhs_msa = lhs.fp().toW();
   MSARegister rhs_msa = rhs.fp().toW();
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
   // scratch1 = (lhs == rhs) ?  (lhs | rhs) : (rhs | rhs).
   fseq_d(scratch0, lhs_msa, rhs_msa);
@@ -3428,8 +3601,8 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   MSARegister dst_msa = dst.fp().toW();
   MSARegister lhs_msa = lhs.fp().toW();
   MSARegister rhs_msa = rhs.fp().toW();
-  MSARegister scratch0 = kSimd128RegZero;
-  MSARegister scratch1 = kSimd128ScratchReg;
+  MSARegister scratch0 = kSimd128ScratchReg;
+  MSARegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
   // scratch1 = (lhs == rhs) ?  (lhs | rhs) : (rhs | rhs).
   fseq_d(scratch0, lhs_msa, rhs_msa);
@@ -3480,17 +3653,17 @@ void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-  ilvr_w(kSimd128RegZero, kSimd128RegZero, src.fp().toW());
-  slli_d(kSimd128RegZero, kSimd128RegZero, 32);
-  srai_d(kSimd128RegZero, kSimd128RegZero, 32);
-  ffint_s_d(dst.fp().toW(), kSimd128RegZero);
+  ilvr_w(kSimd128ScratchReg, kSimd128RegZero, src.fp().toW());
+  slli_d(kSimd128ScratchReg, kSimd128ScratchReg, 32);
+  srai_d(kSimd128ScratchReg, kSimd128ScratchReg, 32);
+  ffint_s_d(dst.fp().toW(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-  ilvr_w(kSimd128RegZero, kSimd128RegZero, src.fp().toW());
-  ffint_u_d(dst.fp().toW(), kSimd128RegZero);
+  ilvr_w(kSimd128ScratchReg, kSimd128RegZero, src.fp().toW());
+  ffint_u_d(dst.fp().toW(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
@@ -4179,11 +4352,8 @@ void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
   Jump(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
-                                    compiler::CallDescriptor* call_descriptor,
+void LiftoffAssembler::CallIndirect(compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  // For mips64, we have more cache registers than wasm parameters. That means
-  // that target will always be in a register.
   DCHECK(target.is_valid());
   CallWasmCodePointer(target);
 }
@@ -4209,7 +4379,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   Daddu(sp, sp, size);
 }
 
-void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

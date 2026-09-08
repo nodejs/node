@@ -231,11 +231,8 @@ class StreamTester {
   }
 
   // Compiled native module, valid after successful compile.
-  NativeModule* native_module() const {
+  CppGCManaged<NativeModule>::Ptr native_module() const {
     return module_object()->native_module();
-  }
-  std::shared_ptr<NativeModule> shared_native_module() const {
-    return module_object()->shared_native_module();
   }
 
   // Run all compiler tasks, both foreground and background tasks.
@@ -260,8 +257,7 @@ class StreamTester {
     stream_->Finish(
         [cached_bytes](
             WasmStreaming::ModuleCachingInterface& caching_interface) {
-          caching_interface.SetCachedCompiledModuleBytes(
-              {cached_bytes.begin(), cached_bytes.size()});
+          caching_interface.SetCachedCompiledModuleBytes(cached_bytes);
         });
   }
 
@@ -336,17 +332,16 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   tester.RunCompilerTasks();
   CHECK(tester.IsPromiseFulfilled());
 
-  NativeModule* native_module = tester.native_module();
+  CppGCManaged<NativeModule>::Ptr native_module = tester.native_module();
   CHECK_NOT_NULL(native_module);
 
-  auto* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   std::vector<IndirectHandle<WasmExportedFunction>> exported_functions;
   {
     ErrorThrower thrower{i_isolate, "GetValidCompiledModuleBytes"};
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
-            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {},
-                              {})
+            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {})
             .ToHandleChecked();
     CHECK(!thrower.error());
 
@@ -379,7 +374,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   }
 
   // Serialize the NativeModule.
-  i::wasm::WasmSerializer serializer(native_module);
+  i::wasm::WasmSerializer serializer(native_module.raw());
   size_t size = serializer.GetSerializedNativeModuleSize();
   std::vector<uint8_t> buffer(size);
   CHECK(serializer.SerializeNativeModule(base::VectorOf(buffer)));
@@ -420,9 +415,8 @@ STREAM_TEST(TestAllBytesArriveAOTCompilerFinishesFirst) {
 size_t GetFunctionOffset(i::Isolate* isolate, base::Vector<const uint8_t> bytes,
                          size_t index) {
   WasmDetectedFeatures unused_detected_features;
-  ModuleResult result =
-      DecodeWasmModule(WasmEnabledFeatures::All(), bytes, false,
-                       ModuleOrigin::kWasmOrigin, &unused_detected_features);
+  ModuleResult result = DecodeWasmModule(WasmEnabledFeatures::All(), bytes,
+                                         false, &unused_detected_features);
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();
@@ -1285,20 +1279,20 @@ STREAM_TEST(TestIncrementalCaching) {
   IndirectHandle<WasmInstanceObject> instance;
   {
     DirectHandle<Script> script = GetWasmEngine()->GetOrCreateScript(
-        i_isolate, tester.shared_native_module(), kNoSourceUrl);
-    DirectHandle<WasmModuleObject> module_object =
-        WasmModuleObject::New(i_isolate, tester.shared_native_module(), script);
+        i_isolate, tester.native_module().as_shared_ptr(), kNoSourceUrl);
+    DirectHandle<WasmModuleObject> module_object = WasmModuleObject::New(
+        i_isolate, tester.native_module().as_shared_ptr(), script);
     ErrorThrower thrower(i_isolate, "Instantiation");
     // We instantiated before, so the second instantiation must also succeed:
     instance = indirect_handle(
         GetWasmEngine()
-            ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
+            ->SyncInstantiate(i_isolate, &thrower, module_object, {})
             .ToHandleChecked(),
         i_isolate);
     CHECK(!thrower.error());
 
     WasmCodeRefScope code_scope;
-    NativeModule* module = tester.native_module();
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
     CHECK(module->GetCode(0) == nullptr || module->GetCode(0)->is_liftoff());
     CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
     CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
@@ -1310,13 +1304,13 @@ STREAM_TEST(TestIncrementalCaching) {
   size_t serialized_size;
   {
     WasmCodeRefScope code_scope;
-    NativeModule* module = tester.native_module();
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
     CHECK(!module->GetCode(0)->is_liftoff());
     CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
     CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
     CHECK_EQ(1, call_cache_counter);
     {
-      i::wasm::WasmSerializer serializer(tester.native_module());
+      i::wasm::WasmSerializer serializer(tester.native_module().raw());
       serialized_size = serializer.GetSerializedNativeModuleSize();
     }
     i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 1);
@@ -1324,13 +1318,13 @@ STREAM_TEST(TestIncrementalCaching) {
   tester.RunCompilerTasks();
   {
     WasmCodeRefScope code_scope;
-    NativeModule* module = tester.native_module();
+    CppGCManaged<NativeModule>::Ptr module = tester.native_module();
     CHECK(!module->GetCode(0)->is_liftoff());
     CHECK(!module->GetCode(1)->is_liftoff());
     CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
     CHECK_EQ(2, call_cache_counter);
     {
-      i::wasm::WasmSerializer serializer(tester.native_module());
+      i::wasm::WasmSerializer serializer(tester.native_module().raw());
       CHECK_LT(serialized_size, serializer.GetSerializedNativeModuleSize());
     }
   }
@@ -1484,8 +1478,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
     ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
-            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {},
-                              {})
+            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {})
             .ToHandleChecked();
     CHECK(!thrower.error());
 
@@ -1598,12 +1591,11 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
   {
     // Create an instance.
     ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
-    instance =
-        indirect_handle(GetWasmEngine()
-                            ->SyncInstantiate(i_isolate, &thrower,
-                                              tester.module_object(), {}, {})
-                            .ToHandleChecked(),
-                        i_isolate);
+    instance = indirect_handle(
+        GetWasmEngine()
+            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {})
+            .ToHandleChecked(),
+        i_isolate);
     CHECK(!thrower.error());
 
     // Execute the first function 100 times (which triggers tier-up and hence
@@ -1703,8 +1695,7 @@ STREAM_TEST(TestHardCachingThreshold) {
     ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
-            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {},
-                              {})
+            ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {})
             .ToHandleChecked();
     CHECK(!thrower.error());
     CHECK(!caching_was_triggered);

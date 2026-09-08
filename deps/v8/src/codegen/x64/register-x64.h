@@ -61,10 +61,10 @@ enum RegisterCode {
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
   constexpr bool is_byte_register() const { return code() <= 3; }
-#ifdef V8_ENABLE_APX_F
   // Return the fifth bit of the register code as a 0 or 1.  Used often
   // when constructing the REX2 prefix byte.
   constexpr int bit4() const { return (code() >> 4) & 0x1; }
+#ifdef V8_ENABLE_APX_F
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
   constexpr int high_bit() const { return (code() >> 3) & 0x1; }
@@ -146,8 +146,36 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(xmm14)                  \
   V(xmm15)
 
-#define FLOAT_REGISTERS DOUBLE_REGISTERS
-#define SIMD128_REGISTERS DOUBLE_REGISTERS
+#define EXTENDED_XMM_REGISTERS(V) \
+  V(xmm16)                        \
+  V(xmm17)                        \
+  V(xmm18)                        \
+  V(xmm19)                        \
+  V(xmm20)                        \
+  V(xmm21)                        \
+  V(xmm22)                        \
+  V(xmm23)                        \
+  V(xmm24)                        \
+  V(xmm25)                        \
+  V(xmm26)                        \
+  V(xmm27)                        \
+  V(xmm28)                        \
+  V(xmm29)                        \
+  V(xmm30)                        \
+  V(xmm31)
+
+#define DOUBLE_REGISTERS_AVX512(V) \
+  DOUBLE_REGISTERS(V)              \
+  EXTENDED_XMM_REGISTERS(V)
+
+#ifdef V8_ENABLE_AVX10_1
+#define ALL_XMM_REGISTERS(V) DOUBLE_REGISTERS_AVX512(V)
+#else
+#define ALL_XMM_REGISTERS(V) DOUBLE_REGISTERS(V)
+#endif  // V8_ENABLE_AVX10_1
+
+#define FLOAT_REGISTERS ALL_XMM_REGISTERS
+#define SIMD128_REGISTERS ALL_XMM_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
   V(xmm0)                               \
@@ -184,6 +212,34 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(ymm14)               \
   V(ymm15)
 
+#define EXTENDED_YMM_REGISTERS(V) \
+  V(ymm16)                        \
+  V(ymm17)                        \
+  V(ymm18)                        \
+  V(ymm19)                        \
+  V(ymm20)                        \
+  V(ymm21)                        \
+  V(ymm22)                        \
+  V(ymm23)                        \
+  V(ymm24)                        \
+  V(ymm25)                        \
+  V(ymm26)                        \
+  V(ymm27)                        \
+  V(ymm28)                        \
+  V(ymm29)                        \
+  V(ymm30)                        \
+  V(ymm31)
+
+#define YMM_REGISTERS_AVX512(V) \
+  YMM_REGISTERS(V)              \
+  EXTENDED_YMM_REGISTERS(V)
+
+#ifdef V8_ENABLE_AVX10_1
+#define ALL_YMM_REGISTERS(V) YMM_REGISTERS_AVX512(V)
+#else
+#define ALL_YMM_REGISTERS(V) YMM_REGISTERS(V)
+#endif  // V8_ENABLE_AVX10_1
+
 #ifdef V8_TARGET_OS_WIN
 #define C_CALL_CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
 #define C_CALL_CALLEE_SAVE_FP_REGISTERS \
@@ -205,14 +261,14 @@ constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {
 #define REGISTER_CODE(R) kDoubleCode_##R,
-  DOUBLE_REGISTERS(REGISTER_CODE)
+  ALL_XMM_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
       kDoubleAfterLast
 };
 
 enum YMMRegisterCode {
 #define REGISTER_CODE(R) kYMMCode_##R,
-  YMM_REGISTERS(REGISTER_CODE)
+  ALL_YMM_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
       kYMMAfterLast
 };
@@ -223,9 +279,18 @@ static_assert(static_cast<int>(kDoubleAfterLast) ==
 
 class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
  public:
+  // Return the fifth bit of the register code as a 0 or 1. Used together with
+  // high_bit() to encode xmm16-31 in the EVEX prefix.
+  int bit4() const { return (code() >> 4) & 0x1; }
+#if defined(V8_ENABLE_AVX10_1) || defined(V8_ENABLE_APX_F)
+  // Return the high bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX prefix byte.
+  int high_bit() const { return (code() >> 3) & 0x1; }
+#else
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
   int high_bit() const { return code() >> 3; }
+#endif  // V8_ENABLE_AVX10_1 || V8_ENABLE_APX_F
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
   int low_bits() const { return code() & 0x7; }
@@ -241,6 +306,10 @@ static_assert(sizeof(XMMRegister) <= sizeof(int),
 
 class YMMRegister : public XMMRegister {
  public:
+  static constexpr YMMRegister no_reg() {
+    return YMMRegister(XMMRegister::no_reg());
+  }
+
   static constexpr YMMRegister from_code(int code) {
     V8_ASSUME(code >= 0 && code < XMMRegister::kNumRegisters);
     return YMMRegister(code);
@@ -252,6 +321,7 @@ class YMMRegister : public XMMRegister {
 
  private:
   friend class XMMRegister;
+  explicit constexpr YMMRegister(XMMRegister reg) : XMMRegister(reg) {}
   explicit constexpr YMMRegister(int code) : XMMRegister(code) {}
 };
 
@@ -269,19 +339,19 @@ using Simd256Register = YMMRegister;
 
 #define DECLARE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
-DOUBLE_REGISTERS(DECLARE_REGISTER)
+ALL_XMM_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 #define DECLARE_REGISTER(R) \
   constexpr YMMRegister R = YMMRegister::from_code(kYMMCode_##R);
-YMM_REGISTERS(DECLARE_REGISTER)
+ALL_YMM_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
-DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
-DEFINE_REGISTER_NAMES(YMMRegister, YMM_REGISTERS)
+DEFINE_REGISTER_NAMES(XMMRegister, ALL_XMM_REGISTERS)
+DEFINE_REGISTER_NAMES(YMMRegister, ALL_YMM_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 constexpr Register kStackPointerRegister = rsp;

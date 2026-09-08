@@ -123,30 +123,28 @@ TurbofanPipelineStatistics::~TurbofanPipelineStatistics() {
 void TurbofanPipelineStatistics::BeginPhaseKind(const char* name) {
   if (Base::InPhaseKind()) EndPhaseKind();
   Base::BeginPhaseKind(name);
-  TRACE_EVENT_BEGIN1(kTraceCategory, name, "kind",
-                     CodeKindToString(code_kind()));
+  TRACE_EVENT_BEGIN(kTraceCategory, perfetto::StaticString(name), "kind",
+                    CodeKindToString(code_kind()));
 }
 
 void TurbofanPipelineStatistics::EndPhaseKind() {
   CompilationStatistics::BasicStats diff;
   Base::EndPhaseKind(&diff);
-  TRACE_EVENT_END2(kTraceCategory, phase_kind_name(), "kind",
-                   CodeKindToString(code_kind()), "stats",
-                   TRACE_STR_COPY(diff.AsJSON().c_str()));
+  TRACE_EVENT_END(kTraceCategory, "kind", CodeKindToString(code_kind()),
+                  "stats", diff.AsJSON().c_str());
 }
 
 void TurbofanPipelineStatistics::BeginPhase(const char* name) {
   Base::BeginPhase(name);
-  TRACE_EVENT_BEGIN1(kTraceCategory, phase_name(), "kind",
-                     CodeKindToString(code_kind()));
+  TRACE_EVENT_BEGIN(kTraceCategory, perfetto::StaticString(phase_name()),
+                    "kind", CodeKindToString(code_kind()));
 }
 
 void TurbofanPipelineStatistics::EndPhase() {
   CompilationStatistics::BasicStats diff;
   Base::EndPhase(&diff);
-  TRACE_EVENT_END2(kTraceCategory, phase_name(), "kind",
-                   CodeKindToString(code_kind()), "stats",
-                   TRACE_STR_COPY(diff.AsJSON().c_str()));
+  TRACE_EVENT_END(kTraceCategory, "kind", CodeKindToString(code_kind()),
+                  "stats", diff.AsJSON().c_str());
 }
 
 }  // namespace compiler

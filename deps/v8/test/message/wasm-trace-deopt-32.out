@@ -9,7 +9,7 @@
       6: (wasm float literal 3.200000)
       7: (wasm double literal 6.400000)
       8: 28 51 00 00 00 00 00 00 28 51 00 00 00 00 00 00 ; * (Simd128)
-      9: {ADDRESS} ; * {ADDRESS} <Other heap object (WASM_NULL_TYPE)>
+      9: {ADDRESS} ; * {ADDRESS} WasmNull
      10: 2 ; *(int32)*
      11: 3 ; *(int32)*
      12: {ADDRESS} ; * {ADDRESS} <Other heap object (WASM_FUNC_REF_TYPE)>

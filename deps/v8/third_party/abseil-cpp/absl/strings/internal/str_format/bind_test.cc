@@ -15,9 +15,14 @@
 #include "absl/strings/internal/str_format/bind.h"
 
 #include <string.h>
+
 #include <limits>
 
 #include "gtest/gtest.h"
+#include "absl/strings/internal/str_format/arg.h"
+#include "absl/strings/internal/str_format/constexpr_parser.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

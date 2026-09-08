@@ -114,6 +114,10 @@ export class GraphPhase extends Phase {
     for (const edge of edgesJSON) {
       const target = this.nodeIdToNodeMap[edge.target];
       const source = this.nodeIdToNodeMap[edge.source];
+      if (!target || !source) {
+        console.warn(`Edge from ${edge.source} to ${edge.target} has missing source or target.`);
+        continue;
+      }
       const newEdge = new GraphEdge(target, edge.index, source, edge.type);
       this.data.edges.push(newEdge);
       target.inputs.push(newEdge);

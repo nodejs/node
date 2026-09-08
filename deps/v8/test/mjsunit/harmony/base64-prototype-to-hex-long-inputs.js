@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-base-64
-
 (function TestBase64PrototypeToHexWithLongInputs() {
   assertEquals(
       (new Uint8Array([102, 111, 111, 98, 97, 114, 111, 111])).toHex(),

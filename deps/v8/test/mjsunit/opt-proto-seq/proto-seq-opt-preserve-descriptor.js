@@ -21,7 +21,12 @@ function test_preserve_descriptor() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_preserve_descriptor(obj) {
+  keep_alive.push(obj);
   assertEquals(obj.x, 1);
   assertEquals(obj.prop_with_desc, 2);
   let desc = Object.getOwnPropertyDescriptor(obj.__proto__, "prop_with_desc");

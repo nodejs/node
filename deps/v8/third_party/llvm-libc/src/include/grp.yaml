@@ -1,0 +1,10 @@
+header: grp.h
+standards:
+  - posix
+types:
+  - type_name: struct_group
+  - type_name: gid_t
+  - type_name: size_t
+enums: []
+objects: []
+functions: []

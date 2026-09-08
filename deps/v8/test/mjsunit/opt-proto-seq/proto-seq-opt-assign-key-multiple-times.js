@@ -22,7 +22,12 @@ function test_assign_key_multiple_times() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_assign_key_multiple_times(x) {
+  keep_alive.push(x);
   assertEquals(x.smi, 1);
 }
 

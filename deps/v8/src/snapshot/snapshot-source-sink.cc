@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-void SnapshotByteSink::PutN(int number_of_bytes, const uint8_t v,
+void SnapshotByteSink::PutN(size_t number_of_bytes, const uint8_t v,
                             const char* description) {
   data_.insert(data_.end(), number_of_bytes, v);
 }
@@ -32,7 +32,7 @@ void SnapshotByteSink::PutUint30(uint32_t integer, const char* description) {
   if (bytes > 3) Put(static_cast<uint8_t>((integer >> 24) & 0xFF), "IntPart4");
 }
 
-void SnapshotByteSink::PutRaw(const uint8_t* data, int number_of_bytes,
+void SnapshotByteSink::PutRaw(const uint8_t* data, size_t number_of_bytes,
                               const char* description) {
 #ifdef MEMORY_SANITIZER
   __msan_check_mem_is_initialized(data, number_of_bytes);

@@ -118,6 +118,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
+    dmtc1(zero_reg, kDoubleRegZero);
   }
 
   // Jump unconditionally to given label.
@@ -137,6 +138,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Use --debug_code to enable.
   void Assert(Condition cc, AbortReason reason, Register rs,
               Operand rt) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   void AssertJSAny(Register object, Register map_tmp, Register tmp,
                    AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
@@ -417,6 +421,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPush(RegList regs);
   void MultiPushFPU(DoubleRegList regs);
   void MultiPushMSA(DoubleRegList regs);
+  void MultiPushFPUWideStride(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -458,6 +463,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Daddu(sp, sp, 3 * kPointerSize);
   }
 
+  // Pop four registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3, Register src4) {
+    Ld(src4, MemOperand(sp, 0 * kPointerSize));
+    Ld(src3, MemOperand(sp, 1 * kPointerSize));
+    Ld(src2, MemOperand(sp, 2 * kPointerSize));
+    Ld(src1, MemOperand(sp, 3 * kPointerSize));
+    Daddu(sp, sp, 4 * kPointerSize);
+  }
+
   void Pop(uint32_t count = 1) { Daddu(sp, sp, Operand(count * kPointerSize)); }
 
   // Pops multiple values from the stack and load them in the
@@ -465,6 +479,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPop(RegList regs);
   void MultiPopFPU(DoubleRegList regs);
   void MultiPopMSA(DoubleRegList regs);
+  void MultiPopFPUWideStride(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rs, const Operand& rt); \
@@ -752,8 +767,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
 
-  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
-
   // TODO(ishell): rename to LoadAddress to make semantics cleaner.
   void LoadIsolateField(Register dst, IsolateFieldId id);
 
@@ -858,6 +871,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
+
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef);
 
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
@@ -1243,13 +1260,25 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure, Register scratch1,
-                                           Register scratch2);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    Ext(dst, src, Field::kShift, Field::kSize);
+    static constexpr int shift = Field::kShift;
+    static constexpr uint64_t mask =
+        static_cast<uint64_t>(Field::kMask) >> shift;
+    if constexpr ((mask & (mask + 1)) == 0) {
+      Ext(dst, src, shift, Field::kSize);
+    } else {
+      if constexpr (shift == 0) {
+        And(dst, src, mask);
+      } else if constexpr (shift < 32) {
+        dsrl(dst, src, shift);
+        And(dst, dst, mask);
+      } else {
+        dsrl32(dst, src, shift - 32);
+        And(dst, dst, mask);
+      }
+    }
   }
 
   template <typename Field>
@@ -1262,7 +1291,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
 
  private:
-  bool has_double_zero_reg_set_ = false;
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,

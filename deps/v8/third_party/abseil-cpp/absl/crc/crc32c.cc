@@ -14,6 +14,7 @@
 
 #include "absl/crc/crc32c.h"
 
+#include <cstddef>
 #include <cstdint>
 
 #include "absl/crc/internal/crc.h"

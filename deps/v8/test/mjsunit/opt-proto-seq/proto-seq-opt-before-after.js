@@ -21,7 +21,12 @@ function test_before_after() {
   return [new test_function(), before, after];
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_before_after(arr) {
+  keep_alive.push(arr);
   assertEquals(arr[0].x, 1);
   assertEquals(arr[0].y, 2);
   assertEquals(arr[1], "before");

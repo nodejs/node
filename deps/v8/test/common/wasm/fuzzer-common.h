@@ -10,7 +10,6 @@
 
 #include <memory>
 
-#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tracing.h"
 

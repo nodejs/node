@@ -20,6 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/numeric/internal/bits.h"
 #include "absl/random/random.h"
 
 namespace absl {
@@ -62,32 +63,32 @@ TYPED_TEST(IntegerTypesTest, HandlesTypes) {
 
   EXPECT_EQ(rotl(UIntType{0x12}, 0), uint8_t{0x12});
   EXPECT_EQ(rotr(UIntType{0x12}, -4), uint8_t{0x21});
-  static_assert(rotl(UIntType{0x12}, 0) == uint8_t{0x12}, "");
+  static_assert(rotl(UIntType{0x12}, 0) == uint8_t{0x12});
 
-  static_assert(rotr(UIntType{0x12}, 0) == uint8_t{0x12}, "");
+  static_assert(rotr(UIntType{0x12}, 0) == uint8_t{0x12});
   EXPECT_EQ(rotr(UIntType{0x12}, 0), uint8_t{0x12});
 
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CLZ
-  static_assert(countl_zero(UIntType{}) == 8, "");
-  static_assert(countl_zero(static_cast<UIntType>(-1)) == 0, "");
+  static_assert(countl_zero(UIntType{}) == 8);
+  static_assert(countl_zero(static_cast<UIntType>(-1)) == 0);
 
-  static_assert(countl_one(UIntType{}) == 0, "");
-  static_assert(countl_one(static_cast<UIntType>(-1)) == 8, "");
+  static_assert(countl_one(UIntType{}) == 0);
+  static_assert(countl_one(static_cast<UIntType>(-1)) == 8);
 
-  static_assert(countr_zero(UIntType{}) == 8, "");
-  static_assert(countr_zero(static_cast<UIntType>(-1)) == 0, "");
+  static_assert(countr_zero(UIntType{}) == 8);
+  static_assert(countr_zero(static_cast<UIntType>(-1)) == 0);
 
-  static_assert(countr_one(UIntType{}) == 0, "");
-  static_assert(countr_one(static_cast<UIntType>(-1)) == 8, "");
+  static_assert(countr_one(UIntType{}) == 0);
+  static_assert(countr_one(static_cast<UIntType>(-1)) == 8);
 
-  static_assert(popcount(UIntType{}) == 0, "");
-  static_assert(popcount(UIntType{1}) == 1, "");
-  static_assert(popcount(static_cast<UIntType>(-1)) == 8, "");
+  static_assert(popcount(UIntType{}) == 0);
+  static_assert(popcount(UIntType{1}) == 1);
+  static_assert(popcount(static_cast<UIntType>(-1)) == 8);
 
-  static_assert(bit_width(UIntType{}) == 0, "");
-  static_assert(bit_width(UIntType{1}) == 1, "");
-  static_assert(bit_width(UIntType{3}) == 2, "");
-  static_assert(bit_width(static_cast<UIntType>(-1)) == 8, "");
+  static_assert(bit_width(UIntType{}) == 0);
+  static_assert(bit_width(UIntType{1}) == 1);
+  static_assert(bit_width(UIntType{3}) == 2);
+  static_assert(bit_width(static_cast<UIntType>(-1)) == 8);
 #endif
 
   EXPECT_EQ(countl_zero(UIntType{}), 8);
@@ -115,12 +116,11 @@ TYPED_TEST(IntegerTypesTest, HandlesTypes) {
 }
 
 TEST(Rotate, Left) {
-  static_assert(rotl(uint8_t{0x12}, 0) == uint8_t{0x12}, "");
-  static_assert(rotl(uint16_t{0x1234}, 0) == uint16_t{0x1234}, "");
-  static_assert(rotl(uint32_t{0x12345678UL}, 0) == uint32_t{0x12345678UL}, "");
+  static_assert(rotl(uint8_t{0x12}, 0) == uint8_t{0x12});
+  static_assert(rotl(uint16_t{0x1234}, 0) == uint16_t{0x1234});
+  static_assert(rotl(uint32_t{0x12345678UL}, 0) == uint32_t{0x12345678UL});
   static_assert(rotl(uint64_t{0x12345678ABCDEF01ULL}, 0) ==
-                    uint64_t{0x12345678ABCDEF01ULL},
-                "");
+                uint64_t{0x12345678ABCDEF01ULL});
 
   EXPECT_EQ(rotl(uint8_t{0x12}, 0), uint8_t{0x12});
   EXPECT_EQ(rotl(uint16_t{0x1234}, 0), uint16_t{0x1234});
@@ -157,12 +157,11 @@ TEST(Rotate, Left) {
 }
 
 TEST(Rotate, Right) {
-  static_assert(rotr(uint8_t{0x12}, 0) == uint8_t{0x12}, "");
-  static_assert(rotr(uint16_t{0x1234}, 0) == uint16_t{0x1234}, "");
-  static_assert(rotr(uint32_t{0x12345678UL}, 0) == uint32_t{0x12345678UL}, "");
+  static_assert(rotr(uint8_t{0x12}, 0) == uint8_t{0x12});
+  static_assert(rotr(uint16_t{0x1234}, 0) == uint16_t{0x1234});
+  static_assert(rotr(uint32_t{0x12345678UL}, 0) == uint32_t{0x12345678UL});
   static_assert(rotr(uint64_t{0x12345678ABCDEF01ULL}, 0) ==
-                    uint64_t{0x12345678ABCDEF01ULL},
-                "");
+                uint64_t{0x12345678ABCDEF01ULL});
 
   EXPECT_EQ(rotr(uint8_t{0x12}, 0), uint8_t{0x12});
   EXPECT_EQ(rotr(uint16_t{0x1234}, 0), uint16_t{0x1234});
@@ -242,14 +241,14 @@ TEST(Rotate, Symmetry) {
 
 TEST(Counting, LeadingZeroes) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CLZ
-  static_assert(countl_zero(uint8_t{}) == 8, "");
-  static_assert(countl_zero(static_cast<uint8_t>(-1)) == 0, "");
-  static_assert(countl_zero(uint16_t{}) == 16, "");
-  static_assert(countl_zero(static_cast<uint16_t>(-1)) == 0, "");
-  static_assert(countl_zero(uint32_t{}) == 32, "");
-  static_assert(countl_zero(~uint32_t{}) == 0, "");
-  static_assert(countl_zero(uint64_t{}) == 64, "");
-  static_assert(countl_zero(~uint64_t{}) == 0, "");
+  static_assert(countl_zero(uint8_t{}) == 8);
+  static_assert(countl_zero(static_cast<uint8_t>(-1)) == 0);
+  static_assert(countl_zero(uint16_t{}) == 16);
+  static_assert(countl_zero(static_cast<uint16_t>(-1)) == 0);
+  static_assert(countl_zero(uint32_t{}) == 32);
+  static_assert(countl_zero(~uint32_t{}) == 0);
+  static_assert(countl_zero(uint64_t{}) == 64);
+  static_assert(countl_zero(~uint64_t{}) == 0);
 #endif
 
   EXPECT_EQ(countl_zero(uint8_t{}), 8);
@@ -280,14 +279,14 @@ TEST(Counting, LeadingZeroes) {
 
 TEST(Counting, LeadingOnes) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CLZ
-  static_assert(countl_one(uint8_t{}) == 0, "");
-  static_assert(countl_one(static_cast<uint8_t>(-1)) == 8, "");
-  static_assert(countl_one(uint16_t{}) == 0, "");
-  static_assert(countl_one(static_cast<uint16_t>(-1)) == 16, "");
-  static_assert(countl_one(uint32_t{}) == 0, "");
-  static_assert(countl_one(~uint32_t{}) == 32, "");
-  static_assert(countl_one(uint64_t{}) == 0, "");
-  static_assert(countl_one(~uint64_t{}) == 64, "");
+  static_assert(countl_one(uint8_t{}) == 0);
+  static_assert(countl_one(static_cast<uint8_t>(-1)) == 8);
+  static_assert(countl_one(uint16_t{}) == 0);
+  static_assert(countl_one(static_cast<uint16_t>(-1)) == 16);
+  static_assert(countl_one(uint32_t{}) == 0);
+  static_assert(countl_one(~uint32_t{}) == 32);
+  static_assert(countl_one(uint64_t{}) == 0);
+  static_assert(countl_one(~uint64_t{}) == 64);
 #endif
 
   EXPECT_EQ(countl_one(uint8_t{}), 0);
@@ -302,14 +301,14 @@ TEST(Counting, LeadingOnes) {
 
 TEST(Counting, TrailingZeroes) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CTZ
-  static_assert(countr_zero(uint8_t{}) == 8, "");
-  static_assert(countr_zero(static_cast<uint8_t>(-1)) == 0, "");
-  static_assert(countr_zero(uint16_t{}) == 16, "");
-  static_assert(countr_zero(static_cast<uint16_t>(-1)) == 0, "");
-  static_assert(countr_zero(uint32_t{}) == 32, "");
-  static_assert(countr_zero(~uint32_t{}) == 0, "");
-  static_assert(countr_zero(uint64_t{}) == 64, "");
-  static_assert(countr_zero(~uint64_t{}) == 0, "");
+  static_assert(countr_zero(uint8_t{}) == 8);
+  static_assert(countr_zero(static_cast<uint8_t>(-1)) == 0);
+  static_assert(countr_zero(uint16_t{}) == 16);
+  static_assert(countr_zero(static_cast<uint16_t>(-1)) == 0);
+  static_assert(countr_zero(uint32_t{}) == 32);
+  static_assert(countr_zero(~uint32_t{}) == 0);
+  static_assert(countr_zero(uint64_t{}) == 64);
+  static_assert(countr_zero(~uint64_t{}) == 0);
 #endif
 
   EXPECT_EQ(countr_zero(uint8_t{}), 8);
@@ -324,14 +323,14 @@ TEST(Counting, TrailingZeroes) {
 
 TEST(Counting, TrailingOnes) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CTZ
-  static_assert(countr_one(uint8_t{}) == 0, "");
-  static_assert(countr_one(static_cast<uint8_t>(-1)) == 8, "");
-  static_assert(countr_one(uint16_t{}) == 0, "");
-  static_assert(countr_one(static_cast<uint16_t>(-1)) == 16, "");
-  static_assert(countr_one(uint32_t{}) == 0, "");
-  static_assert(countr_one(~uint32_t{}) == 32, "");
-  static_assert(countr_one(uint64_t{}) == 0, "");
-  static_assert(countr_one(~uint64_t{}) == 64, "");
+  static_assert(countr_one(uint8_t{}) == 0);
+  static_assert(countr_one(static_cast<uint8_t>(-1)) == 8);
+  static_assert(countr_one(uint16_t{}) == 0);
+  static_assert(countr_one(static_cast<uint16_t>(-1)) == 16);
+  static_assert(countr_one(uint32_t{}) == 0);
+  static_assert(countr_one(~uint32_t{}) == 32);
+  static_assert(countr_one(uint64_t{}) == 0);
+  static_assert(countr_one(~uint64_t{}) == 64);
 #endif
 
   EXPECT_EQ(countr_one(uint8_t{}), 0);
@@ -346,18 +345,18 @@ TEST(Counting, TrailingOnes) {
 
 TEST(Counting, Popcount) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_POPCOUNT
-  static_assert(popcount(uint8_t{}) == 0, "");
-  static_assert(popcount(uint8_t{1}) == 1, "");
-  static_assert(popcount(static_cast<uint8_t>(-1)) == 8, "");
-  static_assert(popcount(uint16_t{}) == 0, "");
-  static_assert(popcount(uint16_t{1}) == 1, "");
-  static_assert(popcount(static_cast<uint16_t>(-1)) == 16, "");
-  static_assert(popcount(uint32_t{}) == 0, "");
-  static_assert(popcount(uint32_t{1}) == 1, "");
-  static_assert(popcount(~uint32_t{}) == 32, "");
-  static_assert(popcount(uint64_t{}) == 0, "");
-  static_assert(popcount(uint64_t{1}) == 1, "");
-  static_assert(popcount(~uint64_t{}) == 64, "");
+  static_assert(popcount(uint8_t{}) == 0);
+  static_assert(popcount(uint8_t{1}) == 1);
+  static_assert(popcount(static_cast<uint8_t>(-1)) == 8);
+  static_assert(popcount(uint16_t{}) == 0);
+  static_assert(popcount(uint16_t{1}) == 1);
+  static_assert(popcount(static_cast<uint16_t>(-1)) == 16);
+  static_assert(popcount(uint32_t{}) == 0);
+  static_assert(popcount(uint32_t{1}) == 1);
+  static_assert(popcount(~uint32_t{}) == 32);
+  static_assert(popcount(uint64_t{}) == 0);
+  static_assert(popcount(uint64_t{1}) == 1);
+  static_assert(popcount(~uint64_t{}) == 64);
 #endif  // ABSL_INTERNAL_HAS_CONSTEXPR_POPCOUNT
 
   EXPECT_EQ(popcount(uint8_t{}), 0);
@@ -452,15 +451,15 @@ TEST(IntegralPowersOfTwo, SingleBit) {
   EXPECT_FALSE(has_single_bit(uint64_t{}));
   EXPECT_FALSE(has_single_bit(~uint64_t{}));
 
-  static_assert(!has_single_bit(0u), "");
-  static_assert(has_single_bit(1u), "");
-  static_assert(has_single_bit(2u), "");
-  static_assert(!has_single_bit(3u), "");
-  static_assert(has_single_bit(4u), "");
-  static_assert(!has_single_bit(1337u), "");
-  static_assert(has_single_bit(65536u), "");
-  static_assert(has_single_bit(uint32_t{1} << 30), "");
-  static_assert(has_single_bit(uint64_t{1} << 42), "");
+  static_assert(!has_single_bit(0u));
+  static_assert(has_single_bit(1u));
+  static_assert(has_single_bit(2u));
+  static_assert(!has_single_bit(3u));
+  static_assert(has_single_bit(4u));
+  static_assert(!has_single_bit(1337u));
+  static_assert(has_single_bit(65536u));
+  static_assert(has_single_bit(uint32_t{1} << 30));
+  static_assert(has_single_bit(uint64_t{1} << 42));
 
   EXPECT_FALSE(has_single_bit(0u));
   EXPECT_TRUE(has_single_bit(1u));
@@ -493,20 +492,18 @@ bool IsBitCeilConstantExpression(char) {
 
 TEST(IntegralPowersOfTwo, Ceiling) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CLZ
-  static_assert(bit_ceil(0u) == 1, "");
-  static_assert(bit_ceil(1u) == 1, "");
-  static_assert(bit_ceil(2u) == 2, "");
-  static_assert(bit_ceil(3u) == 4, "");
-  static_assert(bit_ceil(4u) == 4, "");
-  static_assert(bit_ceil(1337u) == 2048, "");
-  static_assert(bit_ceil(65536u) == 65536, "");
-  static_assert(bit_ceil(65536u - 1337u) == 65536, "");
-  static_assert(bit_ceil(uint32_t{0x80000000}) == uint32_t{0x80000000}, "");
-  static_assert(bit_ceil(uint64_t{0x40000000000}) == uint64_t{0x40000000000},
-                "");
-  static_assert(
-      bit_ceil(uint64_t{0x8000000000000000}) == uint64_t{0x8000000000000000},
-      "");
+  static_assert(bit_ceil(0u) == 1);
+  static_assert(bit_ceil(1u) == 1);
+  static_assert(bit_ceil(2u) == 2);
+  static_assert(bit_ceil(3u) == 4);
+  static_assert(bit_ceil(4u) == 4);
+  static_assert(bit_ceil(1337u) == 2048);
+  static_assert(bit_ceil(65536u) == 65536);
+  static_assert(bit_ceil(65536u - 1337u) == 65536);
+  static_assert(bit_ceil(uint32_t{0x80000000}) == uint32_t{0x80000000});
+  static_assert(bit_ceil(uint64_t{0x40000000000}) == uint64_t{0x40000000000});
+  static_assert(bit_ceil(uint64_t{0x8000000000000000}) ==
+                uint64_t{0x8000000000000000});
 
   EXPECT_TRUE((IsBitCeilConstantExpression<uint8_t, uint8_t{0x0}>(0)));
   EXPECT_TRUE((IsBitCeilConstantExpression<uint8_t, uint8_t{0x80}>(0)));
@@ -547,16 +544,15 @@ TEST(IntegralPowersOfTwo, Ceiling) {
 
 TEST(IntegralPowersOfTwo, Floor) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CLZ
-  static_assert(bit_floor(0u) == 0, "");
-  static_assert(bit_floor(1u) == 1, "");
-  static_assert(bit_floor(2u) == 2, "");
-  static_assert(bit_floor(3u) == 2, "");
-  static_assert(bit_floor(4u) == 4, "");
-  static_assert(bit_floor(1337u) == 1024, "");
-  static_assert(bit_floor(65536u) == 65536, "");
-  static_assert(bit_floor(65536u - 1337u) == 32768, "");
-  static_assert(bit_floor(uint64_t{0x40000000000}) == uint64_t{0x40000000000},
-                "");
+  static_assert(bit_floor(0u) == 0);
+  static_assert(bit_floor(1u) == 1);
+  static_assert(bit_floor(2u) == 2);
+  static_assert(bit_floor(3u) == 2);
+  static_assert(bit_floor(4u) == 4);
+  static_assert(bit_floor(1337u) == 1024);
+  static_assert(bit_floor(65536u) == 65536);
+  static_assert(bit_floor(65536u - 1337u) == 32768);
+  static_assert(bit_floor(uint64_t{0x40000000000}) == uint64_t{0x40000000000});
 #endif
 
   EXPECT_EQ(bit_floor(0u), 0);
@@ -604,22 +600,22 @@ TEST(IntegralPowersOfTwo, Floor) {
 
 TEST(IntegralPowersOfTwo, Width) {
 #if ABSL_INTERNAL_HAS_CONSTEXPR_CLZ
-  static_assert(bit_width(uint8_t{}) == 0, "");
-  static_assert(bit_width(uint8_t{1}) == 1, "");
-  static_assert(bit_width(uint8_t{3}) == 2, "");
-  static_assert(bit_width(static_cast<uint8_t>(-1)) == 8, "");
-  static_assert(bit_width(uint16_t{}) == 0, "");
-  static_assert(bit_width(uint16_t{1}) == 1, "");
-  static_assert(bit_width(uint16_t{3}) == 2, "");
-  static_assert(bit_width(static_cast<uint16_t>(-1)) == 16, "");
-  static_assert(bit_width(uint32_t{}) == 0, "");
-  static_assert(bit_width(uint32_t{1}) == 1, "");
-  static_assert(bit_width(uint32_t{3}) == 2, "");
-  static_assert(bit_width(~uint32_t{}) == 32, "");
-  static_assert(bit_width(uint64_t{}) == 0, "");
-  static_assert(bit_width(uint64_t{1}) == 1, "");
-  static_assert(bit_width(uint64_t{3}) == 2, "");
-  static_assert(bit_width(~uint64_t{}) == 64, "");
+  static_assert(bit_width(uint8_t{}) == 0);
+  static_assert(bit_width(uint8_t{1}) == 1);
+  static_assert(bit_width(uint8_t{3}) == 2);
+  static_assert(bit_width(static_cast<uint8_t>(-1)) == 8);
+  static_assert(bit_width(uint16_t{}) == 0);
+  static_assert(bit_width(uint16_t{1}) == 1);
+  static_assert(bit_width(uint16_t{3}) == 2);
+  static_assert(bit_width(static_cast<uint16_t>(-1)) == 16);
+  static_assert(bit_width(uint32_t{}) == 0);
+  static_assert(bit_width(uint32_t{1}) == 1);
+  static_assert(bit_width(uint32_t{3}) == 2);
+  static_assert(bit_width(~uint32_t{}) == 32);
+  static_assert(bit_width(uint64_t{}) == 0);
+  static_assert(bit_width(uint64_t{1}) == 1);
+  static_assert(bit_width(uint64_t{3}) == 2);
+  static_assert(bit_width(~uint64_t{}) == 64);
 #endif
 
   EXPECT_EQ(bit_width(uint8_t{}), 0);

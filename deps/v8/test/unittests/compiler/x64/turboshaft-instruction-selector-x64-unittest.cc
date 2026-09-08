@@ -9,10 +9,11 @@
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/objects-inl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/compiler/backend/turboshaft-instruction-selector-unittest.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/simd-shuffle.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal::compiler::turboshaft {
@@ -84,7 +85,11 @@ TEST_F(TurboshaftInstructionSelectorTest, SelectWord32) {
   EXPECT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kFlags_select, s[0]->flags_mode());
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-  EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  if (UseApxCmovcc()) {
+    EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasRegisterPolicy());
+  } else {
+    EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  }
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, SelectWord64) {
@@ -98,7 +103,11 @@ TEST_F(TurboshaftInstructionSelectorTest, SelectWord64) {
   EXPECT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kFlags_select, s[0]->flags_mode());
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-  EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  if (UseApxCmovcc()) {
+    EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasRegisterPolicy());
+  } else {
+    EXPECT_TRUE(s.IsSameAsInput(s[0]->Output(), 2));
+  }
 }
 
 namespace {
@@ -2018,6 +2027,508 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadAndWord64ShiftRight32) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSigned) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kSigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSignedWithLoad) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> load = m.Load(MachineType::Int64(), p1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, load, Word64MulWideOp::Kind::kSigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulWide, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideUnsigned) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideUnsignedWithLoad) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> load = m.Load(MachineType::Uint64(), p1);
+  V<Word64Pair> mul =
+      m.Word64MulWide(p0, load, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulWide, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MR, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64MulWideSignedWithHighProjection) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kSigned);
+  OpIndex high = m.Projection(mul, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64MulWideUnsignedWithHighProjection) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex high = m.Projection(mul, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64UmulWide, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+struct AddOrSub128 {
+  Word64AddSub128BinopOp::Kind kind;
+  ArchOpcode expected;
+};
+
+std::ostream& operator<<(std::ostream& os, const AddOrSub128& op) {
+  return os << (op.kind == Word64AddSub128BinopOp::Kind::kAdd ? "Add" : "Sub");
+}
+
+using TurboshaftInstructionSelectorAddSub128Test =
+    TurboshaftInstructionSelectorTestWithParam<AddOrSub128>;
+
+const AddOrSub128 kAddOrSub128[] = {
+    {Word64AddSub128BinopOp::Kind::kAdd, kX64Add128},
+    {Word64AddSub128BinopOp::Kind::kSub, kX64Sub128},
+};
+
+TEST_P(TurboshaftInstructionSelectorAddSub128Test, Word64AddSub128) {
+  const AddOrSub128 param = GetParam();
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64> p3 = m.Parameter<Word64>(3);
+  V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, p2, p3, param.kind);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(param.expected, s[0]->arch_opcode());
+  ASSERT_EQ(4U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_P(TurboshaftInstructionSelectorAddSub128Test, Word64AddSub128Aliasing) {
+  const AddOrSub128 param = GetParam();
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                    MachineType::Uint64());
+    V<Word64> p0 = m.Parameter<Word64>(0);
+    V<Word64> p1 = m.Parameter<Word64>(1);
+    // a_high == a_low
+    V<Word64Pair> res = m.Word64AddSub128Binop(p0, p0, p1, p1, param.kind);
+    OpIndex high = m.Projection(res, 1);
+    m.Return(high);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(param.expected, s[0]->arch_opcode());
+    // Confirm that input 0 and input 2 are the same virtual register.
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(2)));
+    // Confirm that output 0 is tied to input 0.
+    EXPECT_TRUE(s.IsSameAsFirst(s[0]->OutputAt(0)));
+    // Confirm that output 1 is tied to input 2.
+    EXPECT_TRUE(s.IsSameAsInput(s[0]->OutputAt(1), 2));
+  }
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                    MachineType::Uint64());
+    V<Word64> p0 = m.Parameter<Word64>(0);
+    V<Word64> p1 = m.Parameter<Word64>(1);
+    // b_high == a_low. Since b_high is used after a_low is modified (via
+    // the tied output 0), it must be in a unique register.
+    V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, p1, p0, param.kind);
+    OpIndex high = m.Projection(res, 1);
+    m.Return(high);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(param.expected, s[0]->arch_opcode());
+    // b_high is Input 3.
+    EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(3))->IsUsedAtStart());
+  }
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                    MachineType::Uint64(), MachineType::Uint64());
+    V<Word64> a_low = m.Parameter<Word64>(0);
+    V<Word64> a_high = m.Parameter<Word64>(1);
+    V<Word64> b_low = m.Parameter<Word64>(2);
+    // b_high is a load from [a_low + 8]. The base register a_low must be
+    // unique because it aliases output 0 which is modified before the
+    // carry-addition uses b_high.
+    V<Word64> b_high = m.Load(MachineType::Uint64(), a_low, m.Int64Constant(8));
+    V<Word64Pair> res =
+        m.Word64AddSub128Binop(a_low, a_high, b_low, b_high, param.kind);
+    OpIndex high = m.Projection(res, 1);
+    m.Return(high);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(param.expected, s[0]->arch_opcode());
+    // b_high memory operand components start at input 3.
+    EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(3))->IsUsedAtStart());
+    EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(4))->IsUsedAtStart());
+  }
+}
+
+TEST_P(TurboshaftInstructionSelectorAddSub128Test, Word64AddSub128Immediate) {
+  const AddOrSub128 param = GetParam();
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, m.Int64Constant(42),
+                                             m.Int64Constant(100), param.kind);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(param.expected, s[0]->arch_opcode());
+  ASSERT_EQ(4U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
+}
+
+TEST_P(TurboshaftInstructionSelectorAddSub128Test,
+       Word64AddSub128WithMemoryOperandHigh) {
+  const AddOrSub128 param = GetParam();
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64> p3 = m.Parameter<Word64>(3);  // base address
+  V<Word64> load = m.Load(MachineType::Uint64(), p3);
+  V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, p2, load, param.kind);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(param.expected, s[0]->arch_opcode());
+  AddressingMode mode =
+      static_cast<AddressingMode>(MiscField::decode(s[0]->opcode()));
+  EXPECT_EQ(kMode_MR, mode);
+}
+
+TEST_P(TurboshaftInstructionSelectorAddSub128Test,
+       Word64AddSub128WithBothMemoryOperands) {
+  const AddOrSub128 param = GetParam();
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p2 = m.Parameter<Word64>(1);
+  V<Word64> p3 = m.Parameter<Word64>(2);  // base address
+  V<Word64> load_low =
+      m.LoadImmutable(MachineType::Uint64(), p3, m.Int64Constant(0));
+  V<Word64> load_high =
+      m.LoadImmutable(MachineType::Uint64(), p3, m.Int64Constant(8));
+  V<Word64Pair> res =
+      m.Word64AddSub128Binop(p0, load_low, p2, load_high, param.kind);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kX64Movq, s[0]->arch_opcode());
+  EXPECT_EQ(param.expected, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_None, s[1]->addressing_mode());
+  AddressingMode mode =
+      static_cast<AddressingMode>(MiscField::decode(s[1]->opcode()));
+  EXPECT_EQ(kMode_MR1, mode);
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorAddSub128Test,
+                         ::testing::ValuesIn(kAddOrSub128));
+
+// -----------------------------------------------------------------------------
+// CCMP branch-cascade fusion.
+
+namespace {
+// Returns the fused cascade instruction, or nullptr if the cascade was not
+// fused. The fused instruction is the one with a conditional-branch flags-mode.
+const Instruction* FindFusedCcmpBranch(
+    const TurboshaftInstructionSelectorTest::Stream& s) {
+  const Instruction* found = nullptr;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->flags_mode() == kFlags_conditional_branch) {
+      EXPECT_EQ(nullptr, found);
+      found = s[i];
+    }
+  }
+  return found;
+}
+}  // namespace
+
+TEST_F(TurboshaftInstructionSelectorTest, CcmpBranchCascadeEligible) {
+#ifdef V8_ENABLE_APX_F
+  FlagScope<bool> ccmp(&v8_flags.enable_apx_f_ccmp, true);
+  CpuFeatures::SetSupported(APX_F);
+#endif
+  if (!UseApxCcmp()) return;
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    const Instruction* ccmp_insn = FindFusedCcmpBranch(s);
+    ASSERT_NE(nullptr, ccmp_insn);
+    EXPECT_EQ(kX64Cmp32, ccmp_insn->arch_opcode());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex shared = m.Parameter(1);
+    Block *t1 = m.NewBlock(), *t2 = m.NewBlock(), *b = m.NewBlock();
+    Block *merge = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(3)), t1, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(4)), t2, f);
+    m.Bind(t1);
+    m.Goto(merge);
+    m.Bind(t2);
+    m.Goto(merge);
+    m.Bind(merge);
+    OpIndex phi = m.Phi(MachineRepresentation::kWord32, shared, shared);
+    m.Return(phi);
+    m.Bind(f);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_NE(nullptr, FindFusedCcmpBranch(s));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(100)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_NE(nullptr, FindFusedCcmpBranch(s));
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, CcmpBranchCascadeIneligible) {
+#ifdef V8_ENABLE_APX_F
+  FlagScope<bool> ccmp(&v8_flags.enable_apx_f_ccmp, true);
+  CpuFeatures::SetSupported(APX_F);
+#endif
+  if (!UseApxCcmp()) return;
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex y = m.Parameter(1);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(y, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "different variables";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Int32LessThan(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "non-equality compare";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word64Equal(x, m.Int64Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word64Equal(x, m.Int64Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "word64 representation";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    V<Word32> cond_a = m.Word32Equal(x, m.Int32Constant(1));
+    m.Branch(cond_a, t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(cond_a);
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "head compare has extra use";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex y = m.Parameter(1);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, y), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s))
+        << "fused rhs is not an immediate";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t1 = m.NewBlock(), *t2 = m.NewBlock(), *b = m.NewBlock();
+    Block* f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t1, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t2, f);
+    m.Bind(t1);
+    m.Return(m.Int32Constant(11));
+    m.Bind(t2);
+    m.Return(m.Int32Constant(33));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "true edges do not merge";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex v1 = m.Parameter(1);
+    OpIndex v2 = m.Parameter(2);
+    Block *t1 = m.NewBlock(), *t2 = m.NewBlock(), *b = m.NewBlock();
+    Block *merge = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t1, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t2, f);
+    m.Bind(t1);
+    m.Goto(merge);
+    m.Bind(t2);
+    m.Goto(merge);
+    m.Bind(merge);
+    OpIndex phi = m.Phi(MachineRepresentation::kWord32, v1, v2);
+    m.Return(phi);
+    m.Bind(f);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "merge phi inputs differ";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *head = m.NewBlock(), *t = m.NewBlock(), *b = m.NewBlock();
+    Block* f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(5)), head, b);
+    m.Bind(head);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s))
+        << "fused block has multiple predecessors";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Pointer());
+    OpIndex x = m.Parameter(0);
+    OpIndex mem = m.Parameter(1);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Store(MachineRepresentation::kWord32, mem, m.Int32Constant(0), x,
+            WriteBarrierKind::kNoWriteBarrier);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "side effect in fused block";
+  }
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 // -----------------------------------------------------------------------------
 // SIMD.
@@ -2445,7 +2956,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Int64());
   V<Simd128> const load = m.Simd128LoadTransform(
       m.Parameter(0), m.Int64Constant(2),
-      Simd128LoadTransformOp::LoadKind::RawAligned().Protected(),
+      Simd128LoadTransformOp::LoadKind::RawAligned().Trapping(),
       Simd128LoadTransformOp::TransformKind::k64Zero, 0);
   V<Simd128> const promote = m.F64x2PromoteLowF32x4(load);
   m.Return(promote);
@@ -2473,6 +2984,124 @@ TEST_F(TurboshaftInstructionSelectorTest, SIMDF32x4SConvert) {
   EXPECT_EQ(1U, s[2]->OutputCount());
 }
 
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(TurboshaftInstructionSelectorTest, I64x2MulAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> lhs = m.Parameter<Simd128>(0);
+  V<Simd128> rhs = m.Parameter<Simd128>(1);
+  m.Return(m.I64x2Mul(lhs, rhs));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IMul, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(1))->IsUsedAtStart());
+}
+
+#ifdef V8_ENABLE_SIMD256
+TEST_F(TurboshaftInstructionSelectorTest, I64x4MulAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd256(), MachineType::Simd256(),
+                  MachineType::Simd256());
+  V<Simd256> lhs = m.Parameter<Simd256>(0);
+  V<Simd256> rhs = m.Parameter<Simd256>(1);
+  m.Return(m.Simd256Binop(lhs, rhs, Simd256BinopOp::Kind::kI64x4Mul));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IMul, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV256, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(1))->IsUsedAtStart());
+}
+#endif  // V8_ENABLE_SIMD256
+
+TEST_F(TurboshaftInstructionSelectorTest, I64x2ShrSAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Int32());
+  V<Simd128> input = m.Parameter<Simd128>(0);
+  V<Word32> shift = m.Parameter<Word32>(1);
+  m.Return(m.I64x2ShrS(input, shift));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IShrS, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, I8x16PopcntAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> input = m.Parameter<Simd128>(0);
+  m.Return(m.I8x16Popcnt(input));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64I8x16Popcnt, s[0]->arch_opcode());
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, I64x2AbsAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> input = m.Parameter<Simd128>(0);
+  m.Return(m.I64x2Abs(input));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IAbs, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+}
+#endif  // V8_ENABLE_AVX10_1
+
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
+  if (v8_flags.disable_write_barriers) return;
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                  MachineType::Pointer(), MachineType::AnyTagged());
+  m.Store(m.Parameter(0), m.Parameter(1), m.Parameter(2),
+          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase).Atomic(),
+          MemoryRepresentation::TaggedPointer(),
+          WriteBarrierKind::kFullWriteBarrier, AtomicMemoryOrder::kSeqCst);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build(kAllExceptNopInstructions);
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[0]->arch_opcode());
+  EXPECT_EQ(AtomicMemoryOrderField::decode(s[0]->opcode()),
+            AtomicMemoryOrder::kSeqCst);
+  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[0]->opcode()),
+            RecordWriteMode::kValueIsAny);
+}
 
 }  // namespace v8::internal::compiler::turboshaft

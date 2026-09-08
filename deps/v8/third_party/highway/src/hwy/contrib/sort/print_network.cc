@@ -80,7 +80,7 @@ static void PrintMergeNetwork(int rows, int cols) {
   printf("\n");
 }
 
-int main(int argc, char** argv) {
+int main(int /*argc*/, char** /*argv*/) {
   PrintMergeNetwork(8, 2);
   PrintMergeNetwork(8, 4);
   PrintMergeNetwork(16, 4);

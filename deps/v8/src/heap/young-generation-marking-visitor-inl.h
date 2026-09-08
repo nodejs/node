@@ -24,7 +24,8 @@ namespace internal {
 template <YoungGenerationMarkingVisitationMode marking_mode>
 YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
     Heap* heap,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
+    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+    YoungPendingAllocations::Snapshot* young_pending_allocations_snapshot)
     : Base(heap->isolate()),
       isolate_(heap->isolate()),
       marking_worklists_local_(
@@ -36,6 +37,7 @@ YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
           *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
       pretenuring_handler_(heap->pretenuring_handler()),
       local_pretenuring_feedback_(local_pretenuring_feedback),
+      young_pending_allocations_snapshot_(young_pending_allocations_snapshot),
       shortcut_strings_(heap->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_SWEEPER)) {}
 
@@ -84,8 +86,12 @@ size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
   const int object_size =
       static_cast<int>(Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
           map, object, maybe_object_size));
+  DCHECK_IMPLIES(
+      marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent,
+      young_pending_allocations_snapshot_ != nullptr);
   PretenuringHandler::UpdateAllocationSite(
-      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_);
+      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_,
+      young_pending_allocations_snapshot_);
   return object_size;
 }
 
@@ -122,7 +128,7 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   if (handle != kNullExternalPointerHandle) {
     ExternalPointerTable& table = isolate_->external_pointer_table();
     auto* space = isolate_->heap()->young_external_pointer_space();
-    table.Mark(space, handle, slot.address());
+    table.Mark(space, handle, slot.address(), slot.tag_range());
     if (slot.tag_range() == kArrayBufferExtensionTag) {
       maybe_extension = table.Get(handle, kArrayBufferExtensionTag);
     }
@@ -221,7 +227,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   // Maps won't change in the atomic pause, so the map can be read without
   // atomics.
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
-    Tagged<Map> map = heap_object->map(isolate_);
+    Tagged<Map> map = heap_object->map();
     const size_t visited_size = Base::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(
@@ -248,9 +254,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
     Address map_address = map_slot.load_map().ptr();
     if (map_address == StaticReadOnlyRoot::kThinOneByteStringMap ||
         map_address == StaticReadOnlyRoot::kThinTwoByteStringMap) {
-      DCHECK_EQ((*heap_object)
-                    ->map(ObjectVisitorWithCageBases::cage_base())
-                    ->visitor_id(),
+      DCHECK_EQ((*heap_object)->map()->visitor_id(),
                 VisitorId::kVisitThinString);
       *heap_object = Cast<ThinString>(*heap_object)->actual();
       // ThinStrings always refer to internalized strings, which are always
@@ -261,10 +265,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
     } else if (map_address == StaticReadOnlyRoot::kConsOneByteStringMap ||
                map_address == StaticReadOnlyRoot::kConsTwoByteStringMap) {
       // Not all ConsString are short cut candidates.
-      const VisitorId visitor_id =
-          (*heap_object)
-              ->map(ObjectVisitorWithCageBases::cage_base())
-              ->visitor_id();
+      const VisitorId visitor_id = (*heap_object)->map()->visitor_id();
       if (visitor_id == VisitorId::kVisitShortcutCandidate) {
         Tagged<ConsString> string = Cast<ConsString>(*heap_object);
         if (static_cast<Tagged_t>(string->second().ptr()) ==

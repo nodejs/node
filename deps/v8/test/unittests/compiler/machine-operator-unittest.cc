@@ -325,10 +325,11 @@ class MachineOptionalOperatorTest : public TestWithZone {
 TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
   TRACED_FOREACH(OptionalOperatorEntry, pop, kOptionalOperators) {
     TRACED_FOREACH(MachineRepresentation, machine_rep1, kMachineReps) {
-      MachineOperatorBuilder machine1(zone(), machine_rep1, pop.enabling_flag);
+      MachineOperatorBuilder machine1(zone(), machine_rep1,
+                                      {pop.enabling_flag});
       TRACED_FOREACH(MachineRepresentation, machine_rep2, kMachineReps) {
         MachineOperatorBuilder machine2(zone(), machine_rep2,
-                                        pop.enabling_flag);
+                                        {pop.enabling_flag});
         const Operator* op1 = (machine1.*pop.constructor)().op();
         const Operator* op2 = (machine2.*pop.constructor)().op();
         EXPECT_EQ(op1, op2);

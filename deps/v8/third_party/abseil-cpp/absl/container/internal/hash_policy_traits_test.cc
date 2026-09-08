@@ -45,7 +45,7 @@ struct PolicyWithoutOptionalOps {
   static std::function<int(int)> apply_impl;
   static std::function<Slot&(Slot*)> value;
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -99,7 +99,7 @@ struct PolicyNoHashFn {
     return fn(v);
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -108,9 +108,9 @@ struct PolicyNoHashFn {
 size_t* PolicyNoHashFn::apply_called_count;
 
 struct PolicyCustomHashFn : PolicyNoHashFn {
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedApplyToSlotFn<Hash, int, kIsDefault>;
+    return &TypeErasedApplyToSlotFn<Hash, int, kIsDefault, kSeedShift>;
   }
 };
 
@@ -121,10 +121,11 @@ TEST(HashTest, PolicyNoHashFn_get_hash_slot_fn) {
   Hash hasher;
   Slot value = 7;
   auto* fn = hash_policy_traits<PolicyNoHashFn>::get_hash_slot_fn<
-      Hash, /*kIsDefault=*/false>();
+      Hash, /*kIsDefault=*/false, /*kSeedShift=*/6>();
   EXPECT_NE(fn, nullptr);
   EXPECT_EQ(fn(&hasher, &value, 100),
-            (HashElement<Hash, /*kIsDefault=*/false>(hasher, 100)(value)));
+            (HashElement<Hash, /*kIsDefault=*/false, /*kSeedShift=*/6>(
+                hasher, 100)(value)));
   EXPECT_EQ(apply_called_count, 1);
 }
 
@@ -135,11 +136,13 @@ TEST(HashTest, PolicyCustomHashFn_get_hash_slot_fn) {
   Hash hasher;
   Slot value = 7;
   auto* fn = hash_policy_traits<PolicyCustomHashFn>::get_hash_slot_fn<
-      Hash, /*kIsDefault=*/false>();
-  EXPECT_EQ(
-      fn, (PolicyCustomHashFn::get_hash_slot_fn<Hash, /*kIsDefault=*/false>()));
+      Hash, /*kIsDefault=*/false, /*kSeedShift=*/6>();
+  EXPECT_EQ(fn,
+            (PolicyCustomHashFn::get_hash_slot_fn<Hash, /*kIsDefault=*/false,
+                                                  /*kSeedShift=*/6>()));
   EXPECT_EQ(fn(&hasher, &value, 100),
-            (HashElement<Hash, /*kIsDefault=*/false>(hasher, 100)(value)));
+            (HashElement<Hash, /*kIsDefault=*/false, /*kSeedShift=*/6>(
+                hasher, 100)(value)));
   EXPECT_EQ(apply_called_count, 0);
 }
 

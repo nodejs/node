@@ -113,6 +113,29 @@ function assertTableIsValid(table, length) {
   assertTableIsValid(table, 10);
 })();
 
+(function TestTableInitialNullShapes() {
+  print("TestTableInitialNullShapes");
+  // funcref table with no initializer
+  let t1 = new WebAssembly.Table({element: "anyfunc", initial: 1});
+  assertEquals(null, t1.get(0));
+
+  // funcref table with explicit null
+  let t2 = new WebAssembly.Table({element: "anyfunc", initial: 1}, null);
+  assertEquals(null, t2.get(0));
+
+  // externref table with no initializer
+  let t3 = new WebAssembly.Table({element: "externref", initial: 1});
+  assertEquals(undefined, t3.get(0));
+
+  // externref table with explicit null
+  let t4 = new WebAssembly.Table({element: "externref", initial: 1}, null);
+  assertEquals(null, t4.get(0));
+
+  // externref table with explicit undefined
+  let t5 = new WebAssembly.Table({element: "externref", initial: 1}, undefined);
+  assertEquals(undefined, t5.get(0));
+})();
+
 (function TestMaximumDoesHasProperty() {
   var hasPropertyWasCalled = false;
   var desc = {element: "anyfunc", initial: 10};

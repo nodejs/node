@@ -11,8 +11,10 @@
 #include <ranges>
 #include <type_traits>
 
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/property-details-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 
@@ -33,8 +35,7 @@ Tagged<TransitionArray> TransitionsAccessor::GetTransitionArray(
 // static
 Tagged<TransitionArray> TransitionsAccessor::GetTransitionArray(
     Isolate* isolate, DirectHandle<Map> map) {
-  Tagged<MaybeObject> raw_transitions =
-      map->raw_transitions(isolate, kAcquireLoad);
+  Tagged<MaybeObject> raw_transitions = map->raw_transitions(kAcquireLoad);
   return GetTransitionArray(isolate, raw_transitions);
 }
 
@@ -90,8 +91,7 @@ void TransitionsAccessor::SetSideStepTransition(SideStepTransition::Kind kind,
   DCHECK_LT(SideStepTransition::index_of(kind), SideStepTransition::kSize);
   DCHECK_GE(SideStepTransition::index_of(kind), 0);
   transitions()->GetSideStepTransitions()->set(
-      SideStepTransition::index_of(kind),
-      object.IsSmi() ? object : MakeWeak(object));
+      SideStepTransition::index_of(kind), MakeWeakOrSmi(object));
 }
 
 Tagged<WeakFixedArray> TransitionArray::GetSideStepTransitions() {
@@ -118,12 +118,14 @@ void TransitionArray::SetPrototypeTransitions(
   WeakFixedArray::set(kPrototypeTransitionsIndex, transitions, kReleaseStore);
 }
 
-int TransitionArray::NumberOfPrototypeTransitions(
+uint32_t TransitionArray::NumberOfPrototypeTransitions(
     Tagged<WeakFixedArray> proto_transitions) {
-  if (proto_transitions->length() == 0) return 0;
+  if (proto_transitions->ulength().value() == 0) return 0;
   Tagged<MaybeObject> raw =
       proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-  return raw.ToSmi().value();
+  int32_t transitions = raw.ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 Tagged<Name> TransitionArray::GetKey(int transition_number) {
@@ -174,7 +176,7 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Tagged<Name> name,
 
 PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(
     Tagged<Map> transition) {
-  return transition->GetLastDescriptorDetails(isolate_);
+  return transition->GetLastDescriptorDetails();
 }
 
 // static
@@ -206,7 +208,6 @@ Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
-      return Map();
     case kWeakRef:
       return Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
     case kFullTransitionArray:
@@ -236,8 +237,7 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
     DCHECK_EQ(raw.ToSmi(), Smi::uninitialized_deserialization_value());
     return false;
   }
-  if (raw.GetHeapObjectIfStrong(&heap_object) &&
-      IsUndefined(heap_object, isolate)) {
+  if (raw.GetHeapObjectIfStrong(&heap_object) && IsUndefined(heap_object)) {
     return false;
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);
@@ -246,7 +246,7 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
 
 int TransitionArray::SearchNameForTesting(Tagged<Name> name,
                                           int* out_insertion_index) {
-  return SearchName(name, out_insertion_index);
+  return SearchName(name, /* concurrent_search= */ false, out_insertion_index);
 }
 
 Tagged<Map> TransitionArray::SearchAndGetTargetForTesting(
@@ -321,31 +321,20 @@ int TransitionArray::BinarySearchName(Tagged<Name> name,
 int TransitionArray::LinearSearchName(Tagged<Name> name,
                                       int* out_insertion_index) {
   int len = number_of_transitions();
-  if (out_insertion_index != nullptr) {
-    uint32_t hash = name->hash();
-    for (int i = 0; i < len; i++) {
-      Tagged<Name> entry = GetKey(i);
-      if (entry == name) return i;
-      if (entry->hash() > hash) {
-        *out_insertion_index = i;
-        return kNotFound;
-      }
-    }
-    *out_insertion_index = len;
-    return kNotFound;
-  } else {
-    for (int i = 0; i < len; i++) {
-      if (GetKey(i) == name) return i;
-    }
-    return kNotFound;
+  for (int i = 0; i < len; i++) {
+    if (GetKey(i) == name) return i;
   }
+  if (out_insertion_index != nullptr) {
+    *out_insertion_index = len;
+  }
+  return kNotFound;
 }
 
 TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Tagged<Map> map,
                                          bool concurrent_access)
     : isolate_(isolate),
       map_(map),
-      raw_transitions_(map->raw_transitions(isolate_, kAcquireLoad)),
+      raw_transitions_(map->raw_transitions(kAcquireLoad)),
       encoding_(GetEncoding(isolate_, raw_transitions_)),
       concurrent_access_(concurrent_access) {
   DCHECK_IMPLIES(encoding_ == kMigrationTarget, map_->is_deprecated());
@@ -388,8 +377,7 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
 // static
 TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
     Isolate* isolate, DirectHandle<Map> map) {
-  Tagged<MaybeObject> raw_transitions =
-      map->raw_transitions(isolate, kAcquireLoad);
+  Tagged<MaybeObject> raw_transitions = map->raw_transitions(kAcquireLoad);
   return GetEncoding(isolate, raw_transitions);
 }
 
@@ -412,9 +400,12 @@ MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
   return MaybeHandle<Map>(result, isolate);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int TransitionArray::number_of_transitions() const {
-  if (length() < kFirstIndex) return 0;
-  return get(kTransitionLengthIndex).ToSmi().value();
+  if (ulength().value() < kFirstIndex) return 0;
+  int transitions = get(kTransitionLengthIndex).ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 int TransitionArray::CompareKeys(Tagged<Name> key1, uint32_t hash1,
@@ -461,9 +452,11 @@ void TransitionArray::Set(int transition_number, Tagged<Name> key,
   WeakFixedArray::set(ToTargetIndex(transition_number), target);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int TransitionArray::Capacity() {
-  if (length() <= kFirstIndex) return 0;
-  return (length() - kFirstIndex) / kEntrySize;
+  uint32_t len = ulength().value();
+  if (len <= kFirstIndex) return 0;
+  return (len - kFirstIndex) / kEntrySize;
 }
 
 void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
@@ -511,8 +504,9 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
       int entries = array->number_of_transitions();
       // Do linear search for small entries.
       const int kMaxEntriesForLinearSearch = 8;
-      if (entries > kMaxEntriesForLinearSearch)
+      if (entries > kMaxEntriesForLinearSearch) {
         return {Handle<String>::null(), Handle<Map>::null()};
+      }
       for (int i = entries - 1; i >= 0; i--) {
         Tagged<Name> name = array->GetKey(i);
         Tagged<Map> target = array->GetTarget(i);
@@ -567,8 +561,9 @@ void TransitionsAccessor::ForEachTransitionWithKey(
         if (transitions()->HasPrototypeTransitions()) {
           Tagged<WeakFixedArray> cache =
               transitions()->GetPrototypeTransitions();
-          int length = TransitionArray::NumberOfPrototypeTransitions(cache);
-          for (int i = 0; i < length; i++) {
+          const uint32_t length =
+              TransitionArray::NumberOfPrototypeTransitions(cache);
+          for (uint32_t i = 0; i < length; i++) {
             Tagged<MaybeObject> target =
                 cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
             Tagged<HeapObject> heap_object;

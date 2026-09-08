@@ -9,6 +9,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/heap-layout-inl.h"
@@ -208,6 +209,12 @@ Address* HandleScope::Extend(Isolate* isolate) {
   }
 
   return result;
+}
+
+Address* HandleScope::ExtendAndCreateHandle(Isolate* isolate, Address value) {
+  Address* result = Extend(isolate);
+  HandleScopeData* data = isolate->handle_scope_data();
+  return CreateHandleUnchecked(data, result, value);
 }
 
 void HandleScope::DeleteExtensions(Isolate* isolate) {

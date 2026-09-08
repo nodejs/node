@@ -14,6 +14,8 @@
 
 #include "absl/base/internal/unscaledcycleclock.h"
 
+#include "absl/base/internal/unscaledcycleclock_config.h"
+
 #if ABSL_USE_UNSCALED_CYCLECLOCK
 
 #if defined(_WIN32)

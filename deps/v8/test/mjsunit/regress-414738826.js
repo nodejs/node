@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --additive-safe-int-feedback
+// Flags: --turbolev --turbolev-additive-safe-int-feedback
 
 let a = [0, 1, , 2];
 function foo(i) {

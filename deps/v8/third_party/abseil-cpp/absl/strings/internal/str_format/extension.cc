@@ -16,8 +16,12 @@
 #include "absl/strings/internal/str_format/extension.h"
 
 #include <errno.h>
+
 #include <algorithm>
+#include <cstddef>
 #include <string>
+
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

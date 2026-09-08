@@ -41,12 +41,13 @@ inline MachineRepresentation GetMachineRepresentation(MachineType type) {
 template <class ResultCollector, class SigType>
 void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
                           ResultCollector& locations,
-                          int* untagged_parameter_slots,
-                          int* total_parameter_slots,
-                          int* untagged_return_slots, int* total_return_slots) {
+                          int* untagged_parameter_slots = nullptr,
+                          int* total_parameter_slots = nullptr,
+                          int* untagged_return_slots = nullptr,
+                          int* total_return_slots = nullptr) {
   constexpr int kParamsSlotOffset = 0;
   LinkageLocationAllocator params(kGpParamRegisters, kFpParamRegisters,
-                                  kParamsSlotOffset);
+                                  kSimd128ParamRegisters, kParamsSlotOffset);
   // The instance object.
   locations.AddParamAt(0, params.Next(MachineRepresentation::kTaggedPointer));
   const size_t param_offset = 1;  // Actual params start here.
@@ -67,7 +68,9 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
     locations.AddParamAt(i + param_offset, params.Next(param));
   }
   params.EndSlotArea();  // End the untagged area. Tagged slots come after.
-  *untagged_parameter_slots = params.NumStackSlots();
+  if (untagged_parameter_slots) {
+    *untagged_parameter_slots = params.NumStackSlots();
+  }
   if (has_tagged_param) {
     for (size_t i = 0; i < parameter_count; i++) {
       MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
@@ -84,7 +87,7 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
                                      MachineType::TaggedPointer()));
   }
   int params_stack_height = AddArgumentPaddingSlots(params.NumStackSlots());
-  *total_parameter_slots = params_stack_height;
+  if (total_parameter_slots) *total_parameter_slots = params_stack_height;
 
   // Add return location(s).
   // For efficient signature verification, order results by taggedness, such
@@ -92,7 +95,7 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
   // followed by tagged results. That way, we can simply check the size of
   // each section, rather than needing a bit map.
   LinkageLocationAllocator rets(kGpReturnRegisters, kFpReturnRegisters,
-                                params_stack_height);
+                                kSimd128ReturnRegisters, params_stack_height);
 
   const size_t return_count = sig->return_count();
   bool has_tagged_result = false;
@@ -105,7 +108,7 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
     locations.AddReturnAt(i, rets.Next(ret));
   }
   rets.EndSlotArea();  // End the untagged area.
-  *untagged_return_slots = rets.NumStackSlots();
+  if (untagged_return_slots) *untagged_return_slots = rets.NumStackSlots();
   if (has_tagged_result) {
     for (size_t i = 0; i < return_count; i++) {
       MachineRepresentation ret = GetMachineRepresentation(sig->GetReturn(i));
@@ -113,7 +116,7 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
       locations.AddReturnAt(i, rets.Next(ret));
     }
   }
-  *total_return_slots = rets.NumStackSlots();
+  if (total_return_slots) *total_return_slots = rets.NumStackSlots();
 }
 
 #if V8_ENABLE_SANDBOX
@@ -137,27 +140,23 @@ class SignatureHasher {
   template <typename SigType>
   static uint64_t Hash(const SigType* sig) {
     SignatureHasher hasher;
-    int total_param_stack_slots;
-    int total_return_stack_slots;
+    // It seems tempting to use the {total_*_slots} return values here
+    // to compute {hasher.*.tagged_on_stack_}, but that would be
+    // incorrect in the presence of padding slots (on arm64).
     IterateSignatureImpl(
         sig, false /* no extra callable parameter */, hasher,
-        &hasher.params_.untagged_on_stack_, &total_param_stack_slots,
-        &hasher.rets_.untagged_on_stack_, &total_return_stack_slots);
-
-    hasher.params_.tagged_on_stack_ =
-        total_param_stack_slots - hasher.params_.untagged_on_stack_;
-    hasher.rets_.tagged_on_stack_ =
-        total_return_stack_slots - hasher.rets_.untagged_on_stack_;
+        &hasher.params_.untagged_on_stack_, nullptr /* total_parameter_slots */,
+        &hasher.rets_.untagged_on_stack_, nullptr /* total_return_slots */);
 
     return hasher.GetHash();
   }
 
   void AddParamAt(size_t index, LinkageLocation location) {
     if (index == 0) return;  // Skip the instance object.
-    CountIfRegister(location, params_);
+    CountLocation(location, params_);
   }
   void AddReturnAt(size_t index, LinkageLocation location) {
-    CountIfRegister(location, rets_);
+    CountLocation(location, rets_);
   }
 
  private:
@@ -213,12 +212,17 @@ class SignatureHasher {
     return (rets_.GetHash() << kTotalWidth) | params_.GetHash();
   }
 
-  void CountIfRegister(LinkageLocation loc, Counts& counts) {
+  void CountLocation(LinkageLocation loc, Counts& counts) {
+    MachineType type = loc.GetType();
     if (!loc.IsRegister()) {
       DCHECK(loc.IsCallerFrameSlot());
+      // Tagged values always occupy exactly one stack slot, so counting
+      // values is equivalent to counting slots here. {untagged_on_stack_}
+      // is still taken from {IterateSignatureImpl} because untagged values
+      // (e.g. S128) can occupy multiple slots.
+      if (type.IsTagged()) counts.tagged_on_stack_++;
       return;
     }
-    MachineType type = loc.GetType();
     if (type.IsTagged()) {
       counts.tagged_in_reg_++;
     } else if (IsIntegral(type.representation())) {

@@ -47,10 +47,11 @@ const char* ParseInt(const char* p, int min, int max, int* vp) {
   return p;
 }
 
-// abbr = <.*?> | [^-+,\d]{3,}
+// abbr = <.+?> | [^-+,\d]{3,}
 const char* ParseAbbr(const char* p, std::string* abbr) {
   const char* op = p;
   if (*p == '<') {  // special zoneinfo <...> form
+    if (*++p == '>' || *p == '\0') return nullptr;  // no "<>"
     while (*++p != '>') {
       if (*p == '\0') return nullptr;
     }
@@ -92,14 +93,17 @@ const char* ParseOffset(const char* p, int min_hour, int max_hour, int sign,
   return p;
 }
 
-// datetime = ( Jn | n | Mm.w.d ) [ / offset ]
+// datetime = , ( Jn | n | Mm.w.d ) [ / offset ]
 const char* ParseDateTime(const char* p, PosixTransition* res) {
-  if (p != nullptr && *p == ',') {
+  if (p != nullptr) {
+    if (*p != ',') return nullptr;
     if (*++p == 'M') {
       int month = 0;
-      if ((p = ParseInt(p + 1, 1, 12, &month)) != nullptr && *p == '.') {
+      if ((p = ParseInt(p + 1, 1, 12, &month)) != nullptr) {
+        if (*p != '.') return nullptr;
         int week = 0;
-        if ((p = ParseInt(p + 1, 1, 5, &week)) != nullptr && *p == '.') {
+        if ((p = ParseInt(p + 1, 1, 5, &week)) != nullptr) {
+          if (*p != '.') return nullptr;
           int weekday = 0;
           if ((p = ParseInt(p + 1, 0, 6, &weekday)) != nullptr) {
             res->date.fmt = PosixTransition::M;
@@ -122,17 +126,17 @@ const char* ParseDateTime(const char* p, PosixTransition* res) {
         res->date.n.day = static_cast<std::int_fast16_t>(day);
       }
     }
-  }
-  if (p != nullptr) {
-    res->time.offset = 2 * 60 * 60;  // default offset is 02:00:00
-    if (*p == '/') p = ParseOffset(p + 1, -167, 167, 1, &res->time.offset);
+    if (p != nullptr) {
+      res->time.offset = 2 * 60 * 60;  // default offset is 02:00:00
+      if (*p == '/') p = ParseOffset(p + 1, -167, 167, 1, &res->time.offset);
+    }
   }
   return p;
 }
 
 }  // namespace
 
-// spec = std offset [ dst [ offset ] , datetime , datetime ]
+// spec = std offset [ dst [ offset ] datetime datetime ]
 bool ParsePosixSpec(const std::string& spec, PosixTimeZone* res) {
   const char* p = spec.c_str();
   if (*p == ':') return false;

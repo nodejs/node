@@ -15,10 +15,6 @@
 #ifndef ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 #define ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 
-#ifndef _WIN32
-#include <sys/types.h>
-#endif
-
 #include <algorithm>
 #include <chrono>  // NOLINT(build/c++11)
 #include <cstdint>
@@ -29,6 +25,10 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+
+#ifndef _WIN32
+#include <sys/types.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

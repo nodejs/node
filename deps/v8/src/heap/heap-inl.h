@@ -35,8 +35,10 @@
 #include "src/heap/spaces-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/cell-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/map-word-inl.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/templates.h"
 #include "src/objects/visitors-inl.h"
 #include "src/roots/static-roots.h"
 #include "src/utils/allocation.h"
@@ -133,7 +135,7 @@ void Heap::SetMessageListeners(Tagged<ArrayList> value) {
 }
 
 void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
-  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table, isolate()));
+  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table));
   roots_table()[RootIndex::kFunctionsMarkedForManualOptimization] =
       hash_table.ptr();
 }
@@ -146,9 +148,20 @@ void Heap::SetDoubleStringCache(Tagged<DoubleStringCache> cache) {
   set_double_string_cache(cache);
 }
 
+void Heap::SetCachedBigIntDivisor(Tagged<BigInt> divisor) {
+  set_cached_bigint_divisor(divisor);
+}
+
+void Heap::SetNextCachedBigIntDivisor(Tagged<BigInt> divisor) {
+  set_next_cached_bigint_divisor(divisor);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 void Heap::SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts) {
   set_wasm_canonical_rtts(rtts);
+}
+void Heap::SetWasmSharedCanonicalRtts(Tagged<WeakFixedArray> rtts) {
+  set_wasm_shared_canonical_rtts(rtts);
 }
 void Heap::SetJSToWasmWrappers(Tagged<WeakFixedArray> js_to_wasm_wrappers) {
   set_js_to_wasm_wrappers(js_to_wasm_wrappers);
@@ -181,12 +194,7 @@ Address Heap::code_range_base() {
 }
 
 int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
-  if (allocation == AllocationType::kCode) {
-    DCHECK_EQ(MemoryChunkLayout::MaxRegularCodeObjectSize(),
-              max_regular_code_object_size_);
-    return max_regular_code_object_size_;
-  }
-  return kMaxRegularHeapObjectSize;
+  return heap_allocator_->MaxRegularHeapObjectSize(allocation);
 }
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
@@ -293,49 +301,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) return false;
 
-  BaseSpace* base_space = chunk->Metadata(isolate())->owner();
-  Address addr = object.address();
-
-  switch (base_space->identity()) {
-    case NEW_SPACE: {
-      return allocator()->new_space_allocator()->IsPendingAllocation(addr);
-    }
-
-    case OLD_SPACE: {
-      return allocator()->old_space_allocator()->IsPendingAllocation(addr);
-    }
-
-    case CODE_SPACE: {
-      return allocator()->code_space_allocator()->IsPendingAllocation(addr);
-    }
-
-    case TRUSTED_SPACE: {
-      return allocator()->trusted_space_allocator()->IsPendingAllocation(addr);
-    }
-
-    case LO_SPACE:
-    case CODE_LO_SPACE:
-    case TRUSTED_LO_SPACE:
-    case NEW_LO_SPACE: {
-      LargeObjectSpace* large_space =
-          static_cast<LargeObjectSpace*>(base_space);
-      base::MutexGuard guard(large_space->pending_allocation_mutex());
-      return addr == large_space->pending_object();
-    }
-
-    case SHARED_SPACE:
-    case SHARED_LO_SPACE:
-    case SHARED_TRUSTED_SPACE:
-    case SHARED_TRUSTED_LO_SPACE:
-      // TODO(v8:13267): Ensure that all shared space objects have a memory
-      // barrier after initialization.
-      return false;
-
-    case RO_SPACE:
-      UNREACHABLE();
-  }
-
-  UNREACHABLE();
+  return IsPendingAllocationSlow(object, chunk);
 }
 
 bool Heap::IsPendingAllocation(Tagged<HeapObject> object) {

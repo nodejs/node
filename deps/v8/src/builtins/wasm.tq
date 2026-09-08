@@ -44,6 +44,9 @@ extern runtime WasmI32AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, BigInt, BigInt): Smi;
+extern runtime WasmManagedObjectWait(
+    Context, HeapObject, Smi, Number, HeapObject, BigInt): Smi;
+extern runtime WasmWaitqueueNew(Context): HeapObject;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
 extern runtime WasmAllocateDescriptorStruct(
@@ -57,11 +60,12 @@ extern runtime WasmArrayInitSegment(
 extern runtime WasmStringNewWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String
     |WasmNull;
-extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi): String
-    |WasmNull;
+extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi, Smi):
+    String|WasmNull;
 extern runtime WasmStringNewWtf16(
     Context, WasmTrustedInstanceData, Smi, Number, Number): String;
-extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi): String;
+extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi, Smi):
+    String;
 extern runtime WasmStringConst(Context, WasmTrustedInstanceData, Smi): String;
 extern runtime WasmStringMeasureUtf8(Context, String): Number;
 extern runtime WasmStringMeasureWtf8(Context, String): Number;
@@ -69,7 +73,7 @@ extern runtime WasmStringEncodeWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, String, Number): Number;
 extern runtime WasmStringEncodeWtf8Array(
     Context, Smi, String, WasmArray, Number): Number;
-extern runtime WasmStringToUtf8Array(Context, String): WasmArray;
+extern runtime WasmStringToUtf8Array(Context, String, Smi): WasmArray;
 extern runtime WasmStringEncodeWtf16(
     Context, WasmTrustedInstanceData, Smi, String, Number, Smi, Smi): JSAny;
 extern runtime WasmStringAsWtf8(Context, String): ByteArray;
@@ -78,10 +82,11 @@ extern runtime WasmStringViewWtf8Encode(
     Smi): JSAny;
 extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
     String;
-extern runtime WasmStringFromCodePoint(Context, Number): String;
+extern runtime WasmStringFromCodePoint(Context, Number, Smi): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
-extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
+extern runtime WasmSubstringShared(Context, String, Smi, Smi): String;
+extern runtime WasmStringAdd_NoMapCheck_Shared(Context, String, String): String;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
@@ -96,14 +101,13 @@ extern runtime WasmTypeAssertionFailed(NoContext): never;
 extern operator '.wasm_exported_function_data' macro
     LoadSharedFunctionInfoWasmExportedFunctionData(SharedFunctionInfo):
         WasmExportedFunctionData;
-extern operator '.wasm_js_function_data' macro
-    LoadSharedFunctionInfoWasmJSFunctionData(SharedFunctionInfo):
-        WasmJSFunctionData;
 
 namespace unsafe {
 extern macro Allocate(intptr): HeapObject;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
+
+extern macro Retain(Object): void;
 
 macro NumberToInt32(input: Number): int32 {
   return Convert<int32>(input);
@@ -135,8 +139,6 @@ extern macro WasmBuiltinsAssembler::LoadInstanceDataFromFrame():
 // TODO(bbudge) Eliminate these functions when Torque is ready.
 extern macro WasmBuiltinsAssembler::LoadContextFromInstanceData(
     WasmTrustedInstanceData): NativeContext;
-extern macro WasmBuiltinsAssembler::LoadSharedPartFromInstanceData(
-    WasmTrustedInstanceData): WasmTrustedInstanceData;
 extern macro WasmBuiltinsAssembler::LoadTablesFromInstanceData(
     WasmTrustedInstanceData): FixedArray;
 extern macro WasmBuiltinsAssembler::LoadFuncRefsFromInstanceData(
@@ -157,26 +159,6 @@ macro LoadContextFromFrame(): NativeContext {
   return LoadContextFromInstanceData(LoadInstanceDataFromFrame());
 }
 
-macro LoadMaybeSharedInstanceDataFromFrame(extractSharedData: bool):
-    WasmTrustedInstanceData {
-  const trustedData = LoadInstanceDataFromFrame();
-  if (extractSharedData) {
-    return LoadSharedPartFromInstanceData(trustedData);
-  } else {
-    return trustedData;
-  }
-}
-
-macro LoadMaybeSharedInstanceDataFromFrame(extractSharedData: Smi):
-    WasmTrustedInstanceData {
-  const trustedData = LoadInstanceDataFromFrame();
-  if (extractSharedData == SmiConstant(1)) {
-    return LoadSharedPartFromInstanceData(trustedData);
-  } else {
-    return trustedData;
-  }
-}
-
 builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
 }
@@ -187,23 +169,19 @@ builtin WasmInt32ToSharedHeapNumber(val: int32): HeapNumber {
 
 builtin WasmFuncRefToJS(
     implicit context: Context)(val: WasmFuncRef|WasmNull): JSFunction|Null {
-  typeswitch (val) {
-    case (WasmNull): {
-      return Null;
-    }
-    case (func: WasmFuncRef): {
-      const internal: WasmInternalFunction = func.internal;
-      const maybeExternal: Object = internal.external;
-      if (maybeExternal != Undefined) {
-        return %RawDownCast<JSFunction>(maybeExternal);
-      }
-      tail runtime::WasmInternalFunctionCreateExternal(context, internal);
-    }
+  if (val == kWasmNull) return Null;
+
+  const func = Cast<WasmFuncRef>(val) otherwise unreachable;
+  const internal: WasmInternalFunction = func.internal;
+  const maybeExternal: Object = internal.external;
+  if (maybeExternal != Undefined) {
+    return %RawDownCast<JSFunction>(maybeExternal);
   }
+  tail runtime::WasmInternalFunctionCreateExternal(context, internal);
 }
 
-builtin WasmTaggedNonSmiToInt32(implicit context: Context)(
-                                 val: HeapObject): int32 {
+builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: HeapObject):
+    int32 {
   return ChangeTaggedNonSmiToInt32(val);
 }
 
@@ -255,10 +233,9 @@ builtin WasmMemoryGrow(memIndex: int32, numPages: int32): int32 {
 
 builtin WasmTableInit(
     dstRaw: intptr, srcRaw: uint32, sizeRaw: uint32, tableIndex: Smi,
-    segmentIndex: Smi, extractSharedData: Smi): JSAny {
+    segmentIndex: Smi): JSAny {
   try {
-    const trustedData: WasmTrustedInstanceData =
-        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
     const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
     const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
     const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
@@ -272,10 +249,9 @@ builtin WasmTableInit(
 
 builtin WasmTableCopy(
     dstRaw: intptr, srcRaw: intptr, sizeRaw: intptr, dstTable: Smi,
-    srcTable: Smi, extractSharedData: Smi): JSAny {
+    srcTable: Smi): JSAny {
   try {
-    const trustedData: WasmTrustedInstanceData =
-        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
     const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
     const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
     const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
@@ -288,11 +264,9 @@ builtin WasmTableCopy(
 }
 
 builtin WasmTableFill(
-    startRaw: intptr, countRaw: intptr, extractSharedData: bool, table: Smi,
-    value: Object): JSAny {
+    startRaw: intptr, countRaw: intptr, table: Smi, value: Object): JSAny {
   try {
-    const trustedData: WasmTrustedInstanceData =
-        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
     const start: Smi =
         Convert<PositiveSmi>(startRaw) otherwise TableOutOfBounds;
     const count: Smi =
@@ -305,11 +279,9 @@ builtin WasmTableFill(
   }
 }
 
-builtin WasmTableGrow(
-    table: Smi, deltaRaw: intptr, extractSharedData: bool, value: Object): Smi {
+builtin WasmTableGrow(table: Smi, deltaRaw: intptr, value: Object): Smi {
   try {
-    const trustedData: WasmTrustedInstanceData =
-        LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+    const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
     const delta: Smi =
         Convert<PositiveSmi>(deltaRaw) otherwise TableOutOfBounds;
     tail runtime::WasmTableGrow(
@@ -340,11 +312,9 @@ builtin WasmTableGet(tableIndex: intptr, index: intptr): Object {
   }
 }
 
-builtin WasmTableSet(
-    tableIndex: intptr, extractSharedData: bool, index: intptr,
-    value: Object): Object {
-  const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+builtin WasmTableSet(tableIndex: intptr, index: intptr, value: Object):
+    Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
@@ -381,11 +351,10 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: intptr): Object {
     const entry: HeapObject =
         UnsafeCast<HeapObject>(LoadFixedArrayElement(entries, index));
 
-    dcheck(Is<WasmFuncRef>(entry) || Is<WasmNull>(entry) || Is<Tuple2>(entry));
-    if (IsTuple2Map(entry.map)) goto CallRuntime;
-    if (Is<WasmNull>(entry)) return entry;
-    dcheck(Is<WasmFuncRef>(entry));
-    return entry;
+    if (entry == kWasmNull) return entry;
+    if (Is<WasmFuncRef>(entry)) return entry;
+    dcheck(IsTuple2Map(entry.map));
+    goto CallRuntime;
   } label CallRuntime deferred {
     tail runtime::WasmFunctionTableGet(
         LoadContextFromInstanceData(trustedData), trustedData,
@@ -397,10 +366,8 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: intptr): Object {
 
 // Stub to wrap around the slow path (runtime call) of table.get for funcref
 // tables for which the reference is not yet initialized.
-builtin WasmFunctionTableGet(
-    tableIndex: intptr, index: intptr, extractSharedData: bool): Object {
-  const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+builtin WasmFunctionTableGet(tableIndex: intptr, index: intptr): Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   dcheck(IsValidPositiveSmi(tableIndex));
   dcheck(IsValidPositiveSmi(index));
   tail runtime::WasmFunctionTableGet(
@@ -409,11 +376,9 @@ builtin WasmFunctionTableGet(
 }
 
 builtin WasmTableSetFuncRef(
-    tableIndex: intptr, extractSharedData: bool, index: intptr,
-    value: WasmFuncRef): Object {
-  const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
-  dcheck(Is<WasmFuncRef>(value) || Is<WasmNull>(value));
+    tableIndex: intptr, index: intptr, value: WasmFuncRef): Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+  dcheck(value == kWasmNull || Is<WasmFuncRef>(value));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
 
@@ -433,11 +398,9 @@ builtin WasmTableSetFuncRef(
   }
 }
 
-builtin WasmRefFunc(index: uint32, extractSharedData: bool): Object {
-  const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+builtin WasmRefFunc(instance: WasmTrustedInstanceData, index: uint32): Object {
   try {
-    const funcRefs: FixedArray = LoadFuncRefsFromInstanceData(trustedData);
+    const funcRefs: FixedArray = LoadFuncRefsFromInstanceData(instance);
     const funcref: Object = funcRefs.objects[index];
     // {funcref} is either a WasmFuncRef or Smi::zero(). A Smi check is the
     // fastest way to distinguish these two cases.
@@ -446,8 +409,7 @@ builtin WasmRefFunc(index: uint32, extractSharedData: bool): Object {
     return funcref;
   } label CallRuntime deferred {
     tail runtime::WasmRefFunc(
-        LoadContextFromInstanceData(trustedData), trustedData,
-        SmiFromUint32(index));
+        LoadContextFromInstanceData(instance), instance, SmiFromUint32(index));
   }
 }
 
@@ -509,13 +471,14 @@ extern builtin WasmHandleStackOverflow(RawPtr, uint32): JSAny;
 // {paramSlotsSize} is the size of the incoming stack parameters of the
 // currently-executing function, which have to be copied along with its
 // stack frame if the stack needs to be grown.
-builtin WasmGrowableStackGuard(paramSlotsSize: intptr): JSAny {
+builtin WasmGrowableStackGuard(paramSlotsSize: intptr, gap: intptr): JSAny {
   tail WasmHandleStackOverflow(
-      LoadParentFramePointer() + paramSlotsSize + kFixedFrameSizeAboveFp, 0);
+      LoadParentFramePointer() + paramSlotsSize + kFixedFrameSizeAboveFp,
+      Unsigned(Convert<int32>(gap)));
 }
 
-builtin WasmStackGuard(): JSAny {
-  tail runtime::WasmStackGuard(LoadContextFromFrame(), SmiConstant(0));
+builtin WasmStackGuard(gap: intptr): JSAny {
+  tail runtime::WasmStackGuard(LoadContextFromFrame(), Convert<Smi>(gap));
 }
 
 builtin WasmStackGuardLoop(): JSAny {
@@ -621,9 +584,8 @@ builtin WasmAllocateSharedArray_Uninitialized(
 
 builtin WasmArrayNewSegment(
     segmentIndex: uint32, offset: uint32, length: uint32, isElement: Smi,
-    extractSharedData: Smi, rtt: Map): Object {
-  const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+    rtt: Map): Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   try {
     const smiOffset = Convert<PositiveSmi>(offset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
@@ -644,10 +606,8 @@ builtin WasmArrayNewSegment(
 // {segmentIndex} has to be tagged as a possible stack parameter.
 builtin WasmArrayInitSegment(
     arrayIndex: uint32, segmentOffset: uint32, length: uint32,
-    segmentIndex: Smi, isElement: Smi, extractSharedData: Smi,
-    arrayRaw: HeapObject): JSAny {
-  const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+    segmentIndex: Smi, isElement: Smi, arrayRaw: HeapObject): JSAny {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   if (arrayRaw == kWasmNull) {
     tail ThrowWasmTrapNullDereference();
   }
@@ -744,6 +704,19 @@ builtin WasmI64AtomicWait(
   return Unsigned(SmiToInt32(result));
 }
 
+builtin WasmManagedObjectWait(
+    object: HeapObject, fieldOffset: int32, expectedValue: int32,
+    waitqueue: HeapObject, timeout: BigInt): uint32 {
+  const result: Smi = runtime::WasmManagedObjectWait(
+      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset),
+      ChangeInt32ToTagged(expectedValue), waitqueue, timeout);
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmWaitqueueNew(): HeapObject {
+  tail runtime::WasmWaitqueueNew(LoadContextFromFrame());
+}
+
 // Type feedback collection support for `call_ref` and `call_indirect`.
 
 // See {TransitiveTypeFeedbackProcessor::ProcessFunction} for the vector layout.
@@ -788,7 +761,7 @@ macro UpdateCallRefOrIndirectIC(
     // Polymorphic miss.
     const entries = UnsafeCast<FixedArray>(firstSlot);
     const kMaxSlots = kMaxPolymorphism * 2;  // 2 slots per entry.
-    if (entries.length == SmiConstant(kMaxSlots)) {
+    if (entries.length == Unsigned(Int32Constant(kMaxSlots))) {
       // Polymorphic to megamorphic transition.
       vector.objects[index] = ic::kMegamorphicSymbol;
       // The second slot/counter has already been set to undefined below.
@@ -859,35 +832,6 @@ builtin CallIndirectIC(
       vector, Convert<intptr>(vectorIndex), truncatedTargetOrCrossInstance);
 
   return TargetAndImplicitArg{target: target, implicit_arg: implicitArg};
-}
-
-extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never
-    labels Found, NotFound, Bailout;
-type OnNonExistent constexpr 'OnNonExistent';
-const kReturnUndefined: constexpr OnNonExistent
-    generates 'OnNonExistent::kReturnUndefined';
-extern macro SmiConstant(constexpr OnNonExistent): Smi;
-extern transitioning builtin GetPropertyWithReceiver(
-    implicit context: Context)(JSAny, Name, JSAny, Smi): JSAny;
-
-transitioning builtin WasmGetOwnProperty(
-    implicit context: Context)(object: Object, uniqueName: Name): JSAny {
-  try {
-    const heapObject: HeapObject =
-        TaggedToHeapObject(object) otherwise NotFound;
-    const receiver: JSReceiver =
-        Cast<JSReceiver>(heapObject) otherwise NotFound;
-    try {
-      TryHasOwnProperty(
-          receiver, receiver.map, receiver.instanceType, uniqueName)
-          otherwise Found, NotFound, NotFound;
-    } label Found {
-      return GetPropertyWithReceiver(
-          receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
-    }
-  } label NotFound deferred {
-    return Undefined;
-  }
 }
 
 // Trap builtins.
@@ -985,6 +929,14 @@ builtin ThrowWasmTrapResume(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapResume));
 }
 
+builtin ThrowWasmTrapSuspend(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapSuspend));
+}
+
+builtin ThrowWasmTrapSwitch(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapSwitch));
+}
+
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
   return torque_internal::unsafe::NewOffHeapReference<T>(
       %RawDownCast<RawPtr<T>>(base + offset));
@@ -1002,15 +954,16 @@ builtin WasmStringNewWtf8(
       WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
-    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String
-    |WasmNull {
+    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi,
+    shared: Smi): String|WasmNull {
   // This can be called from Wasm and from "JS String Builtins".
   const context = LoadContextFromWasmOrJsFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
     tail runtime::WasmStringNewWtf8Array(
-        context, utf8Variant, array, SmiFromUint32(start), SmiFromUint32(end));
+        context, utf8Variant, array, SmiFromUint32(start), SmiFromUint32(end),
+        shared);
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
@@ -1139,7 +1092,31 @@ builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
   } label Runtime deferred {
     const context = LoadContextFromWasmOrJsFrame();
     tail runtime::WasmStringNewWtf16Array(
-        context, array, SmiFromUint32(start), SmiFromUint32(end));
+        context, array, SmiFromUint32(start), SmiFromUint32(end),
+        SmiConstant(0) /* shared */);
+  }
+}
+
+builtin WasmStringNewWtf16ArrayShared(
+    array: WasmArray, start: uint32, end: uint32): String {
+  try {
+    if (array.length < end) goto OffsetOutOfRange;
+    if (end < start) goto OffsetOutOfRange;
+    const length: uint32 = end - start;
+    if (length == 0) return kEmptyString;
+    // TODO(448741522): Inline creation of Strings of size 1 and small size
+    // (<32);
+    goto Runtime;
+  } label OffsetOutOfRange deferred {
+    // This can be called from Wasm and from "JS String Builtins".
+    const context = LoadContextFromWasmOrJsFrame();
+    const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
+    runtime::ThrowWasmError(context, SmiConstant(error));
+  } label Runtime deferred {
+    const context = LoadContextFromWasmOrJsFrame();
+    tail runtime::WasmStringNewWtf16Array(
+        context, array, SmiFromUint32(start), SmiFromUint32(end),
+        SmiConstant(1) /* shared */);
   }
 }
 
@@ -1211,8 +1188,9 @@ builtin WasmStringEncodeWtf8Array(
       WasmUint32ToNumber(start));
   return NumberToUint32(result);
 }
-builtin WasmStringToUtf8Array(string: String): WasmArray {
-  return runtime::WasmStringToUtf8Array(LoadContextFromFrame(), string);
+builtin WasmStringToUtf8Array(string: String, shared: int32): WasmArray {
+  return runtime::WasmStringToUtf8Array(
+      LoadContextFromFrame(), string, SmiFromInt32(shared));
 }
 builtin WasmStringEncodeWtf16(string: String, offset: uintptr, memory: uint32):
     uint32 {
@@ -1289,12 +1267,16 @@ builtin ThrowDataViewOutOfBounds(): JSAny {
   runtime::WasmThrowRangeError(context, SmiConstant(error));
 }
 
-extern builtin WasmStringAdd_CheckNone(
+extern builtin WasmStringAdd_NoMapCheck(
     implicit context: Context)(String, String): String;
 
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
-  tail WasmStringAdd_CheckNone(a, b);
+  tail WasmStringAdd_NoMapCheck(a, b);
+}
+
+builtin WasmStringAdd_NoMapCheck_Shared(a: String, b: String): String {
+  tail runtime::WasmStringAdd_NoMapCheck_Shared(LoadContextFromFrame(), a, b);
 }
 
 extern builtin StringEqual(NoContext, String, String, intptr): Boolean;
@@ -1325,7 +1307,7 @@ macro IsWtf8CodepointStart(view: ByteArray, pos: uint32): bool {
   return (view.values[Convert<uintptr>(pos)] & 0xc0) != 0x80;
 }
 macro AlignWtf8PositionForward(view: ByteArray, pos: uint32): uint32 {
-  const length = Unsigned(SmiToInt32(view.length));
+  const length = view.length;
   if (pos >= length) return length;
 
   if (IsWtf8CodepointStart(view, pos)) return pos;
@@ -1354,7 +1336,7 @@ builtin WasmStringViewWtf8Advance(view: ByteArray, pos: uint32, bytes: uint32):
     uint32 {
   const clampedPos = AlignWtf8PositionForward(view, pos);
   if (bytes == 0) return clampedPos;
-  const length = Unsigned(SmiToInt32(view.length));
+  const length = view.length;
   if (bytes >= length - clampedPos) return length;
   return AlignWtf8PositionBackward(view, clampedPos + bytes);
 }
@@ -1449,13 +1431,17 @@ transitioning builtin WasmStringViewWtf16Slice(
       let subslice = Subslice(
           slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
           otherwise unreachable;
-      return AllocateNonEmptySeqOneByteString(
-          clampedLength, subslice.Iterator());
+      const result =
+          AllocateNonEmptySeqOneByteString(clampedLength, subslice.Iterator());
+      Retain(string);
+      return result;
     } label TwoByte(slice: ConstSlice<char16>) {
       let subslice = Subslice(
           slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
           otherwise unreachable;
-      return StringFromTwoByteSlice(clampedLength, subslice);
+      const result = StringFromTwoByteSlice(clampedLength, subslice);
+      Retain(string);
+      return result;
     } label Runtime deferred {
       const context = LoadContextFromWasmOrJsFrame();
       tail runtime::WasmSubstring(
@@ -1465,8 +1451,34 @@ transitioning builtin WasmStringViewWtf16Slice(
   return string::SubString(
       string, Convert<uintptr>(start), Convert<uintptr>(clampedEnd));
 }
+builtin WasmStringSliceShared(string: String, start: uint32, end: uint32):
+    String {
+  const length = Unsigned(string.length);
+  if (start >= length) return kEmptyString;
+  if (end <= start) return kEmptyString;
+  const clampedEnd: uint32 = end <= length ? end : length;
+  tail runtime::WasmSubstringShared(
+      LoadContextFromFrame(), string, SmiFromUint32(start),
+      SmiFromUint32(clampedEnd - start));
+}
+extern macro WasmStringViewIterMapConstant(): Map;
+
+@if(TAGGED_SIZE_8_BYTES)
 builtin WasmStringAsIter(string: String): WasmStringViewIter {
-  return new WasmStringViewIter{string: string, offset: 0, optional_padding: 0};
+  return new WasmStringViewIter{
+    map: WasmStringViewIterMapConstant(),
+    string: string,
+    offset: 0,
+    optional_padding: 0
+  };
+}
+@ifnot(TAGGED_SIZE_8_BYTES)
+builtin WasmStringAsIter(string: String): WasmStringViewIter {
+  return new WasmStringViewIter{
+    map: WasmStringViewIterMapConstant(),
+    string: string,
+    offset: 0
+  };
 }
 macro IsLeadSurrogate(code: char16): bool {
   return (code & 0xfc00) == 0xd800;
@@ -1617,9 +1629,9 @@ builtin WasmStringToDouble(s: String): float64 {
   return StringToFloat64(Flatten(s));
 }
 
-builtin WasmStringFromCodePoint(codePoint: uint32): String {
+builtin WasmStringFromCodePoint(codePoint: uint32, shared: Smi): String {
   tail runtime::WasmStringFromCodePoint(
-      LoadContextFromFrame(), WasmUint32ToNumber(codePoint));
+      LoadContextFromFrame(), WasmUint32ToNumber(codePoint), shared);
 }
 
 builtin WasmStringHash(string: String): int32 {
@@ -1670,38 +1682,39 @@ builtin WasmStringIndexOf(s: String, searchString: String, start: Smi): Smi {
 // TODO(mliedtke): It would be nice to type the result as bool, however that is
 // not supported.
 builtin WasmLiftoffIsEqRefUnshared(obj: Object, nullSucceeds: bool): int32 {
+  if (Is<Smi>(obj)) return 1;
+  if (obj == kWasmNull) return Convert<int32>(nullSucceeds);
   try {
-    if (Is<Smi>(obj)) {
-      return 1;
-    }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
         !InSharedSpace(heapObject) &&
-        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject) ||
-         (nullSucceeds && Is<WasmNull>(heapObject))));
-  } label ReturnFalse {}
-  return 0;
+        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject)));
+  } label ReturnFalse {
+    return 0;
+  }
 }
 
 builtin WasmLiftoffIsArrayRefUnshared(obj: Object, nullSucceeds: bool): int32 {
+  if (obj == kWasmNull) return Convert<int32>(nullSucceeds);
   try {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
-        !InSharedSpace(heapObject) && Is<WasmArray>(heapObject) ||
-        (nullSucceeds && Is<WasmNull>(heapObject)));
-  } label ReturnFalse {}
-  return 0;
+        !InSharedSpace(heapObject) && Is<WasmArray>(heapObject));
+  } label ReturnFalse {
+    return 0;
+  }
 }
 
 builtin WasmLiftoffIsStructRefUnshared(obj: Object, nullSucceeds: bool):
     int32 {
+  if (obj == kWasmNull) return Convert<int32>(nullSucceeds);
   try {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
-        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject) ||
-        (nullSucceeds && Is<WasmNull>(heapObject)));
-  } label ReturnFalse {}
-  return 0;
+        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject));
+  } label ReturnFalse {
+    return 0;
+  }
 }
 
 // Return type JSAny to be able to tail-call ThrowWasmTrapIllegalCast(). It must
@@ -1711,22 +1724,31 @@ builtin WasmLiftoffCastEqRefUnshared(obj: Object, nullSucceeds: bool): JSAny {
   if (Is<Smi>(obj)) {
     return SmiConstant(0);
   }
-  const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
-  if (InSharedSpace(heapObject) ||
-      (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject) &&
-       (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+  try {
+    if (obj == kWasmNull) {
+      if (nullSucceeds) return SmiConstant(0);
+      goto IllegalCast;
+    }
+    const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
+    if (InSharedSpace(heapObject) ||
+        (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject))) {
+      goto IllegalCast;
+    }
+    return SmiConstant(0);
+  } label IllegalCast {
     tail ThrowWasmTrapIllegalCast();
   }
-  return SmiConstant(0);
 }
 
 builtin WasmLiftoffCastArrayRefUnshared(obj: Object, nullSucceeds: bool):
     JSAny {
   try {
+    if (obj == kWasmNull) {
+      if (nullSucceeds) return SmiConstant(0);
+      goto IllegalCast;
+    }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
-    if (InSharedSpace(heapObject) ||
-        (!Is<WasmArray>(heapObject) &&
-         (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+    if (InSharedSpace(heapObject) || (!Is<WasmArray>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);
@@ -1738,10 +1760,12 @@ builtin WasmLiftoffCastArrayRefUnshared(obj: Object, nullSucceeds: bool):
 builtin WasmLiftoffCastStructRefUnshared(obj: Object, nullSucceeds: bool):
     JSAny {
   try {
+    if (obj == kWasmNull) {
+      if (nullSucceeds) return SmiConstant(0);
+      goto IllegalCast;
+    }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
-    if (InSharedSpace(heapObject) ||
-        (!Is<WasmStruct>(heapObject) &&
-         (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+    if (InSharedSpace(heapObject) || (!Is<WasmStruct>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);

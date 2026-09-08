@@ -64,15 +64,9 @@ class V8_EXPORT_PRIVATE Zone final {
     allocation_size_for_tracing_ += size;
 #endif
     if (V8_UNLIKELY(size > limit_ - position_)) {
-      Expand(size);
+      return ExpandAndAllocate(size);
     }
-
-    DCHECK_LE(position_, limit_);
-    DCHECK_LE(size, limit_ - position_);
-    DCHECK_EQ(0, position_ % kAlignmentInBytes);
-    void* result = reinterpret_cast<void*>(position_);
-    position_ += size;
-    return result;
+    return AllocateUnchecked(size);
 #endif  // V8_USE_ADDRESS_SANITIZER
   }
 
@@ -252,6 +246,15 @@ class V8_EXPORT_PRIVATE Zone final {
   // Expand the Zone to hold at least 'size' more bytes.
   // Should only be called if there is not enough room in the Zone already.
   V8_NOINLINE V8_PRESERVE_MOST void Expand(size_t size);
+  V8_NOINLINE V8_PRESERVE_MOST void* ExpandAndAllocate(size_t size);
+  V8_INLINE void* AllocateUnchecked(size_t size) {
+    DCHECK_LE(position_, limit_);
+    DCHECK_LE(size, limit_ - position_);
+    DCHECK_EQ(0, position_ % kAlignmentInBytes);
+    void* result = reinterpret_cast<void*>(position_);
+    position_ += size;
+    return result;
+  }
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable

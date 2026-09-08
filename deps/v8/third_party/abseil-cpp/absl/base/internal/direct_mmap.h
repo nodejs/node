@@ -35,8 +35,10 @@
 
 #include <linux/unistd.h>
 #include <unistd.h>
+
 #include <cerrno>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdint>
 
 #ifdef __mips__

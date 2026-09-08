@@ -14,6 +14,8 @@
 
 #include "absl/random/seed_gen_exception.h"
 
+#include <exception>
+
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 

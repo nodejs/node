@@ -5,11 +5,12 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
+#include <limits>
 #include <string_view>
 
 #include "src/base/strings.h"
 #include "src/execution/frame-constants.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp.h"
 
@@ -20,6 +21,8 @@ class ByteArray;
 class JSRegExp;
 class Label;
 class String;
+
+namespace regexp {
 
 static const base::uc32 kLeadSurrogateStart = 0xd800;
 static const base::uc32 kLeadSurrogateEnd = 0xdbff;
@@ -39,11 +42,12 @@ class RegExpMacroAssembler {
   static constexpr int kMaxCPOffset = (1 << 15) - 1;
   static constexpr int kMinCPOffset = -kMaxCPOffset;
 
+  static constexpr int kMaxEatsAtLeastValue =
+      std::numeric_limits<uint8_t>::max();
+
   static constexpr int kTableSizeBits = 7;
   static constexpr int kTableSize = 1 << kTableSizeBits;
   static constexpr int kTableMask = kTableSize - 1;
-
-  static constexpr int kUseCharactersValue = -1;
 
   // Type of input string to generate code for.
   enum Mode { LATIN1 = 1, UC16 = 2 };
@@ -52,8 +56,11 @@ class RegExpMacroAssembler {
   RegExpMacroAssembler(const RegExpMacroAssembler& other) V8_NOEXCEPT = default;
   virtual ~RegExpMacroAssembler() = default;
 
-  virtual DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
-                                           RegExpFlags flags) = 0;
+  virtual DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
+                                           Flags flags) = 0;
+
+  void LogCode(Isolate* isolate, DirectHandle<Code> code,
+               DirectHandle<RegExpData> re_data, Flags flags);
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
@@ -117,27 +124,57 @@ class RegExpMacroAssembler {
   // array, and if the found byte is non-zero, we jump to the on_bit_set label.
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) = 0;
 
+  // Scan helpers. Each loads the character at |cp_offset| and advances the
+  // position by |advance_by| until its stop condition holds (a single char, one
+  // of two chars, a bit-table test, ...). Position on exit, which SIMD
+  // overrides must preserve:
+  //  - on_match:    stop condition held; position unadvanced, so the matching
+  //                 char is at |cp_offset| (not consumed).
+  //  - on_no_match: bounds check failed first; position left where the load at
+  //                 |cp_offset| went out of bounds, for the caller to step
+  //                 back.
   virtual void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                                    Handle<ByteArray> nibble_table,
-                                   int advance_by, Label* on_match,
-                                   Label* on_no_match) = 0;
+                                   int advance_by, int bounds_check_offset,
+                                   Label* on_match, Label* on_no_match) = 0;
   virtual bool SkipUntilBitInTableUseSimd(int advance_by) { return false; }
 
   virtual void SkipUntilCharAnd(int cp_offset, int advance_by,
                                 unsigned character, unsigned mask,
-                                int eats_at_least, Label* on_match,
+                                int bounds_check_offset, Label* on_match,
                                 Label* on_no_match);
+  virtual bool SkipUntilCharAndUseSimd(int advance_by) { return false; }
+  virtual void SkipUntilCharAndSimd(int cp_offset, int advance_by,
+                                    unsigned character, unsigned mask,
+                                    int bounds_check_offset, Label* on_match,
+                                    Label* on_no_match) {
+    UNREACHABLE();
+  }
   virtual void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
-                             Label* on_match, Label* on_no_match);
-  virtual void SkipUntilCharPosChecked(int cp_offset, int advance_by,
-                                       unsigned character, int eats_at_least,
-                                       Label* on_match, Label* on_no_match);
+                             int bounds_check_offset, Label* on_match,
+                             Label* on_no_match);
+  virtual bool SkipUntilCharUseSimd(int advance_by) { return false; }
+  virtual void SkipUntilCharSimd(int cp_offset, int advance_by,
+                                 unsigned character, int bounds_check_offset,
+                                 Label* on_match, Label* on_no_match) {
+    UNREACHABLE();
+  }
+
   virtual void SkipUntilCharOrChar(int cp_offset, int advance_by,
                                    unsigned char1, unsigned char2,
-                                   Label* on_match, Label* on_no_match);
+                                   int bounds_check_offset, Label* on_match,
+                                   Label* on_no_match);
+  virtual bool SkipUntilCharOrCharUseSimd(int advance_by) { return false; }
+  virtual void SkipUntilCharOrCharSimd(int cp_offset, int advance_by,
+                                       unsigned char1, unsigned char2,
+                                       int bounds_check_offset, Label* on_match,
+                                       Label* on_no_match) {
+    UNREACHABLE();
+  }
   virtual void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
                                           unsigned character,
                                           Handle<ByteArray> table,
+                                          int bounds_check_offset,
                                           Label* on_match, Label* on_no_match);
   virtual void SkipUntilOneOfMasked(int cp_offset, int advance_by,
                                     unsigned both_chars, unsigned both_mask,
@@ -150,21 +187,22 @@ class RegExpMacroAssembler {
     int bc0_advance_by;
     Handle<ByteArray> bc0_table;
     Handle<ByteArray> bc0_nibble_table;
-    int bc1_cp_offset;
+    int bc1_bounds_check_offset;
     Label* bc1_on_failure;
-    int bc2_cp_offset;
-    unsigned bc3_characters;
-    unsigned bc3_mask;
-    int bc4_by;
-    int bc5_cp_offset;
+    int bc1_cp_offset;
+    unsigned bc2_characters;
+    unsigned bc2_mask;
+    int bc3_by;
+    int bc4_bounds_check_offset;
+    int bc4_cp_offset;
+    unsigned bc5_characters;
+    unsigned bc5_mask;
+    Label* bc5_on_equal;
     unsigned bc6_characters;
     unsigned bc6_mask;
     Label* bc6_on_equal;
     unsigned bc7_characters;
     unsigned bc7_mask;
-    Label* bc7_on_equal;
-    unsigned bc8_characters;
-    unsigned bc8_mask;
     Label* fallthrough_jump_target;
   };
   virtual bool SkipUntilOneOfMasked3UseSimd(
@@ -172,6 +210,21 @@ class RegExpMacroAssembler {
     return false;
   }
   virtual void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args);
+
+  // Dispatches on bits [shift, shift + log2(table_size)) of the current
+  // character: control continues at the code offset stored in the table at
+  // index (current_character >> shift) & (table_size - 1). table_size is a
+  // power of two. The caller later emits the table data in place via
+  // EmitTableSwitchTable, once every target label is bound. Only emitted
+  // when CanTableSwitchOnBits() is true.
+  virtual bool CanTableSwitchOnBits() { return false; }
+  virtual void TableSwitchOnBits(int shift, int table_size, Label* table) {
+    UNREACHABLE();
+  }
+  virtual void EmitTableSwitchTable(Label* table,
+                                    base::Vector<Label* const> targets) {
+    UNREACHABLE();
+  }
 
   // Checks whether the given offset from the current position is is in-bounds.
   // May overwrite the current character.
@@ -200,12 +253,19 @@ class RegExpMacroAssembler {
   // Check whether a register is == to the current position and go to a
   // label if it is.
   virtual void IfRegisterEqPos(int reg, Label* if_eq) = 0;
+
+  int CalculateBoundsCheckOffset(int cp_offset, int characters);
+  // Default value for bounds_check_limit.
+  // If set to this default sentinel, bounds_check_offset is computed based on
+  // `cp_offset` and `characters` using `CalculateBoundsCheckOffset()`.
+  static constexpr int kDefaultBoundsCheckOffset =
+      std::numeric_limits<int>::min();
   V8_EXPORT_PRIVATE void LoadCurrentCharacter(
       int cp_offset, Label* on_end_of_input, bool check_bounds = true,
-      int characters = 1, int eats_at_least = kUseCharactersValue);
+      int characters = 1, int bounds_check_offset = kDefaultBoundsCheckOffset);
   virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                         bool check_bounds, int characters,
-                                        int eats_at_least) = 0;
+                                        int bounds_check_offset) = 0;
   virtual void PopCurrentPosition() = 0;
   virtual void PopRegister(int register_index) = 0;
   // Pushes the label on the backtrack stack, so that a following Backtrack
@@ -232,6 +292,9 @@ class RegExpMacroAssembler {
 
   // Check that we are not in the middle of a surrogate pair.
   void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);
+
+  // Step forward by 1 character/code point in the unanchored search loop.
+  void UnanchoredAdvance(bool unicode, Label* on_failure);
 
 #define IMPLEMENTATIONS_LIST(V) \
   V(IA32)                       \
@@ -288,10 +351,6 @@ class RegExpMacroAssembler {
   static uint32_t IsCharacterInRangeArray(uint32_t current_char,
                                           Address raw_byte_array);
 
-  // Controls the generation of large inlined constants in the code.
-  virtual void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
-  bool slow_safe() const { return slow_safe_compiler_; }
-
   // Controls after how many backtracks irregexp should abort execution.  If it
   // can fall back to the experimental engine (see `set_can_fallback`), it will
   // return the appropriate error code, otherwise it will return the number of
@@ -304,6 +363,25 @@ class RegExpMacroAssembler {
   // excessive backtracking.  The number of backtracks considered excessive can
   // be controlled with set_backtrack_limit.
   virtual void set_can_fallback(bool val) { can_fallback_ = val; }
+
+  // Whether any op touched the backtrack stack (a push, pop or stackpointer
+  // transfer) while emitting the body.  Set as the body emits and read back at
+  // GetCode time; a pattern that never backtracks skips the backtrack stack
+  // setup and the fail label push below.
+  bool backtrack_stack_used() const { return backtrack_stack_used_; }
+
+  // The fail label: the bottom-of-stack backtrack target that exhausting all
+  // real backtracks pops to fail the match.  Set once by the compiler; drivers
+  // other than the compiler (the bytecode-to-native code generator, tests)
+  // leave it unset and emit their own as part of the body.
+  virtual void set_fail_label(Label* label) { fail_label_ = label; }
+
+  // Whether GetCode pushes the fail label from the entry prologue instead of
+  // relying on the compiler's up-front PushBacktrack.  Deferring lets the
+  // prologue observe the final backtrack_stack_used() and omit it for patterns
+  // that never backtrack.  Overridden by the assemblers implementing the
+  // elision (x64, arm64).
+  virtual bool prologue_pushes_fail_label() const { return false; }
 
   enum GlobalMode {
     NOT_GLOBAL,
@@ -339,10 +417,17 @@ class RegExpMacroAssembler {
     return static_cast<int>(mode());
   }
 
+  inline uint32_t char_mask() const {
+    return mode() == LATIN1 ? 0xffU : 0xffffU;
+  }
+
   bool has_backtrack_limit() const;
   uint32_t backtrack_limit() const { return backtrack_limit_; }
 
   bool can_fallback() const { return can_fallback_; }
+
+  void set_backtrack_stack_used() { backtrack_stack_used_ = true; }
+  Label* fail_label() const { return fail_label_; }
 
   // Which mode to generate code for (LATIN1 or UC16).
   Mode mode() const { return mode_; }
@@ -354,16 +439,17 @@ class RegExpMacroAssembler {
   static const uint8_t word_character_map_[kWordCharacterMapSize];
 
  private:
-  bool slow_safe_compiler_;
   uint32_t backtrack_limit_;
   bool can_fallback_ = false;
+  bool backtrack_stack_used_ = false;
+  Label* fail_label_ = nullptr;
   GlobalMode global_mode_;
   Isolate* const isolate_;
   Zone* const zone_;
   const Mode mode_;
 };
 
-class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
+class NativeRegExpMacroAssembler : public RegExpMacroAssembler {
  public:
   // Result of calling generated native RegExp code.
   // RETRY: Something significant changed during execution, and the matching
@@ -391,9 +477,9 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   // Returns a {Result} sentinel, or the number of successful matches.
   static int Match(DirectHandle<IrRegExpData> regexp_data,
-                   DirectHandle<String> subject, int* offsets_vector,
-                   int offsets_vector_length, int previous_index,
-                   Isolate* isolate);
+                   DirectHandle<String> subject, bool is_one_byte,
+                   int* offsets_vector, int offsets_vector_length,
+                   int previous_index, Isolate* isolate);
 
   V8_EXPORT_PRIVATE static int ExecuteForTesting(
       Tagged<String> input, int start_offset, const uint8_t* input_start,
@@ -402,7 +488,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,
-                                int eats_at_least) override;
+                                int bounds_check_offset) override;
   // Load a number of characters at the given offset from the
   // current position, into the current-character register.
   virtual void LoadCurrentCharacterUnchecked(int cp_offset,
@@ -431,13 +517,14 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // Returns a {Result} sentinel, or the number of successful matches.
   static int Execute(Tagged<String> input, int start_offset,
                      const uint8_t* input_start, const uint8_t* input_end,
-                     int* output, int output_size, Isolate* isolate,
-                     Tagged<IrRegExpData> regexp_data);
+                     bool is_one_byte, int* output, int output_size,
+                     Isolate* isolate, Tagged<IrRegExpData> regexp_data);
 
   ZoneUnorderedMap<uint32_t, IndirectHandle<FixedUInt16Array>>
       range_array_cache_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

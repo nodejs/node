@@ -57,12 +57,13 @@ void TestInlineElementSize(
     tables.back().insert(values.begin(), values.end());
   }
   size_t new_count = 0;
-  sampler.Iterate([&](const HashtablezInfo& info) {
+  EXPECT_EQ(sampler.Iterate([&](const HashtablezInfo& info) {
     if (preexisting_info.insert(&info).second) {
       EXPECT_EQ(info.inline_element_size, expected_element_size);
       ++new_count;
     }
-  });
+  }),
+            0);
   // Make sure we actually did get a new hashtablez.
   EXPECT_GT(new_count, 0);
 }
@@ -99,8 +100,10 @@ TEST(FlatHashMap, SampleElementSize) {
   // cannot be a flat_hash_set, however, since that would introduce a mutex
   // deadlock.
   std::unordered_set<const HashtablezInfo*> preexisting_info;  // NOLINT
-  sampler.Iterate(
-      [&](const HashtablezInfo& info) { preexisting_info.insert(&info); });
+  EXPECT_EQ(sampler.Iterate([&](const HashtablezInfo& info) {
+    preexisting_info.insert(&info);
+  }),
+            0);
   TestInlineElementSize(sampler, preexisting_info, flat_map_tables, map_values,
                         sizeof(int) + sizeof(bigstruct));
   TestInlineElementSize(sampler, preexisting_info, node_map_tables, map_values,

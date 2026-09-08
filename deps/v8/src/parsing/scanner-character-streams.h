@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE ScannerStream {
   static Utf16CharacterStream* For(Isolate* isolate, Handle<String> data,
                                    int start_pos, int end_pos);
   static Utf16CharacterStream* For(
-      ScriptCompiler::ExternalSourceStream* source_stream,
+      ScriptCompiler::ExternalSourceStreamBase* source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding);
 
   static std::unique_ptr<Utf16CharacterStream> ForTesting(const char* data);

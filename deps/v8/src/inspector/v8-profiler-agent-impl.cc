@@ -82,14 +82,16 @@ std::unique_ptr<protocol::Profiler::ProfileNode> buildInspectorObjectFor(
   const int childrenCount = node->GetChildrenCount();
   if (childrenCount) {
     auto children = std::make_unique<protocol::Array<int>>();
-    for (int i = 0; i < childrenCount; i++)
+    for (int i = 0; i < childrenCount; i++) {
       children->emplace_back(node->GetChild(i)->GetNodeId());
+    }
     result->setChildren(std::move(children));
   }
 
   const char* deoptReason = node->GetBailoutReason();
-  if (deoptReason && deoptReason[0] && strcmp(deoptReason, "no reason"))
+  if (deoptReason && deoptReason[0] && strcmp(deoptReason, "no reason")) {
     result->setDeoptReason(deoptReason);
+  }
 
   auto positionTicks = buildInspectorObjectForPositionTicks(node);
   if (positionTicks) result->setPositionTicks(std::move(positionTicks));
@@ -101,8 +103,9 @@ std::unique_ptr<protocol::Array<int>> buildInspectorObjectForSamples(
     v8::CpuProfile* v8profile) {
   auto array = std::make_unique<protocol::Array<int>>();
   int count = v8profile->GetSamplesCount();
-  for (int i = 0; i < count; i++)
+  for (int i = 0; i < count; i++) {
     array->emplace_back(v8profile->GetSample(i)->GetNodeId());
+  }
   return array;
 }
 
@@ -124,8 +127,9 @@ void flattenNodesTree(V8InspectorImpl* inspector,
                       protocol::Array<protocol::Profiler::ProfileNode>* list) {
   list->emplace_back(buildInspectorObjectFor(inspector, node));
   const int childrenCount = node->GetChildrenCount();
-  for (int i = 0; i < childrenCount; i++)
+  for (int i = 0; i < childrenCount; i++) {
     flattenNodesTree(inspector, node->GetChild(i), list);
+  }
 }
 
 std::unique_ptr<protocol::Profiler::Profile> createCPUProfile(
@@ -145,8 +149,7 @@ std::unique_ptr<protocol::Profiler::Profile> createCPUProfile(
 std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(
     V8InspectorImpl* inspector) {
   auto stackTrace = V8StackTraceImpl::capture(inspector->debugger(), 1);
-  CHECK(stackTrace);
-  CHECK(!stackTrace->isEmpty());
+  if (!stackTrace || stackTrace->isEmpty()) return nullptr;
   return protocol::Debugger::Location::create()
       .setScriptId(String16::fromInteger(stackTrace->topScriptId()))
       .setLineNumber(stackTrace->topLineNumber())
@@ -180,6 +183,8 @@ V8ProfilerAgentImpl::~V8ProfilerAgentImpl() {
 
 void V8ProfilerAgentImpl::consoleProfile(const String16& title) {
   if (!m_enabled) return;
+  auto location = currentDebugLocation(m_session->inspector());
+  if (!location) return;
   String16 id = nextProfileId();
   m_startedProfiles.push_back(ProfileDescriptor(id, title));
   startProfiling(id);
@@ -211,9 +216,10 @@ void V8ProfilerAgentImpl::consoleProfileEnd(const String16& title) {
   std::unique_ptr<protocol::Profiler::Profile> profile =
       stopProfiling(id, true);
   if (!profile) return;
-  m_frontend.consoleProfileFinished(
-      id, currentDebugLocation(m_session->inspector()), std::move(profile),
-      resolvedTitle);
+  auto location = currentDebugLocation(m_session->inspector());
+  if (!location) return;
+  m_frontend.consoleProfileFinished(id, std::move(location), std::move(profile),
+                                    resolvedTitle);
 }
 
 Response V8ProfilerAgentImpl::enable() {
@@ -227,8 +233,9 @@ Response V8ProfilerAgentImpl::enable() {
 
 Response V8ProfilerAgentImpl::disable() {
   if (m_enabled) {
-    for (size_t i = m_startedProfiles.size(); i > 0; --i)
+    for (size_t i = m_startedProfiles.size(); i > 0; --i) {
       stopProfiling(m_startedProfiles[i - 1].m_id, false);
+    }
     m_startedProfiles.clear();
     stop(nullptr);
     stopPreciseCoverage();

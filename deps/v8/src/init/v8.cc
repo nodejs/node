@@ -16,6 +16,7 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/code-memory-access.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
@@ -151,14 +152,15 @@ base::AbortMode ChooseAbortMode() {
     // they may otherwise hide issues.
     return base::AbortMode::kExitWithFailureAndIgnoreDcheckFailures;
   }
-  if (v8_flags.sandbox_testing) {
+  if (v8_flags.sandbox_testing && !v8_flags.run_as_sandbox_security_poc) {
     // Similar to the above case, but here we want to exit with a status
     // indicating success (e.g. zero on unix). This is useful for example for
     // sandbox regression tests, which should "pass" if they crash in a
     // controlled fashion (e.g. in a SBXCHECK).
     return base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
   }
-  if (v8_flags.fuzzing || v8_flags.allow_natives_for_differential_fuzzing) {
+  if (v8_flags.fuzzing || v8_flags.allow_natives_for_differential_fuzzing ||
+      v8_flags.run_as_security_poc || v8_flags.run_as_sandbox_security_poc) {
     // For fuzzing, we want to ignore certain types of crashes that are known
     // to be safe (no security impact), such as OOMs and similar issues.
     return base::AbortMode::kExitIfNoSecurityImpact;
@@ -173,6 +175,8 @@ base::AbortMode ChooseAbortMode() {
 void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
+
+  SynchronizationPointSupport::Initialize();
 
   // Setting `g_abort_mode` needs to happen before `EnforceFlagImplications` so
   // it can apply to flag contradictions.
@@ -218,7 +222,8 @@ void V8::Initialize() {
 
 #ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
-  Sandbox::InitializeDefaultOncePerProcess(GetPlatformVirtualAddressSpace());
+  Sandbox::InitializeDefaultOncePerProcess(GetCurrentPlatform(),
+                                           GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, Sandbox::current()->size());
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API

@@ -64,6 +64,72 @@ Handle<Code> CreateDummyCode(Isolate* isolate) {
 
 }  // namespace
 
+TEST_F(DisasmX64Test, AVX512) {
+  uint8_t buffer[128];
+  // vpcmpb $0,(%rdi),%ymm16,%k0         -> 62 f3 7d 20 3f 07 00
+  // kmovd  %k0,%eax                    -> c5 fb 93 c0
+  // kmovd  %k0,%eax (malformed vex ~R) -> c5 7b 93 c0
+  // vpcmpb $0,%ymm17,%ymm16,%k0         -> 62 b3 7d 20 3f c1 00
+  memcpy(buffer,
+         "\x62\xf3\x7d\x20\x3f\x07\x00"
+         "\xc5\xfb\x93\xc0"
+         "\xc5\x7b\x93\xc0"
+         "\x62\xb3\x7d\x20\x3f\xc1\x00",
+         22);
+
+  disasm::NameConverter converter;
+  disasm::Disassembler d(converter);
+  v8::base::EmbeddedVector<char, 128> out_buffer;
+
+  uint8_t* pc = buffer;
+  int len = d.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 7);
+  EXPECT_STREQ(out_buffer.begin(),
+               "62f37d203f0700       vpcmpb k0,ymm16,[rdi],0x0");
+
+  pc += len;
+  len = d.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 4);
+  EXPECT_STREQ(out_buffer.begin(), "c5fb93c0             kmovd rax,k0");
+
+  // Verify resilient decoding of malformed vex prefix (prevent out of bounds
+  // read).
+  pc += len;
+  len = d.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 4);
+  EXPECT_STREQ(out_buffer.begin(), "c57b93c0             kmovd rax,k0");
+
+  // Verify decoding of upper EVEX AVX-512 register (ymm17) and vector width.
+  pc += len;
+  len = d.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 7);
+  EXPECT_STREQ(out_buffer.begin(),
+               "62b37d203fc100       vpcmpb k0,ymm16,ymm17,0x0");
+}
+
+TEST_F(DisasmX64Test, EVEXVectorW) {
+  uint8_t buffer[] = {
+      0x62, 0xf1, 0x7e, 0x08, 0x2a, 0xc0,  // vcvtlsi2ss xmm0,xmm0,rax
+      0x62, 0xf1, 0xfe, 0x08, 0x2a, 0xc0,  // vcvtqsi2ss xmm0,xmm0,rax
+  };
+
+  disasm::NameConverter converter;
+  disasm::Disassembler disassembler(converter);
+  v8::base::EmbeddedVector<char, 128> out_buffer;
+
+  uint8_t* pc = buffer;
+  int len = disassembler.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 6);
+  EXPECT_STREQ(out_buffer.begin(),
+               "62f17e082ac0         vcvtlsi2ss xmm0,xmm0,rax");
+
+  pc += len;
+  len = disassembler.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 6);
+  EXPECT_STREQ(out_buffer.begin(),
+               "62f1fe082ac0         vcvtqsi2ss xmm0,xmm0,rax");
+}
+
 TEST_F(DisasmX64Test, DisasmX64) {
   HandleScope handle_scope(isolate());
   uint8_t buffer[8192];
@@ -580,6 +646,16 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
 
   COMPARE("48f7ac8b10270000     REX.W imulq [rbx+rcx*4+0x2710]",
           imulq(Operand(rbx, rcx, times_4, 10000)));
+  Label imul_rip;
+  t.assm_.bind(&imul_rip);
+  COMPARE("48f72df9ffffff       REX.W imulq [rip+0xfffffff9]",
+          imulq(Operand(&imul_rip)));
+  COMPARE("48f729               REX.W imulq [rcx]", imulq(Operand(rcx, 0)));
+  COMPARE("48f72c24             REX.W imulq [rsp]", imulq(Operand(rsp, 0)));
+  COMPARE("48f72c39             REX.W imulq [rcx+rdi*1]",
+          imulq(Operand(rcx, rdi, times_1, 0)));
+  COMPARE("48f72c7d00000000     REX.W imulq [rdi*2+0x0]",
+          imulq(Operand(rdi, times_2, 0)));
   COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",
           imulq(rdx, rcx, Immediate(12)));
   COMPARE("4869d1e8030000       REX.W imulq rdx,rcx,0x3e8",
@@ -653,6 +729,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4883eb0c             REX.W subq rbx,0xc", subq(rbx, Immediate(12)));
   COMPARE("4883ac8a102700000c   REX.W subq [rdx+rcx*4+0x2710],0xc",
           subq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("2c80                 subb al,0x80", subb(rax, Immediate(128)));
   COMPARE("4881f339300000       REX.W xorq rbx,0x3039",
           xorq(rbx, Immediate(12345)));
   COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",
@@ -1623,6 +1700,251 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
     COMPARE("c4627d35c6           vpmovzxdq ymm8,ymm6", vpmovzxdq(ymm8, ymm6));
   }
 }
+
+#ifdef V8_ENABLE_APX_F
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAPX) {
+  DisassemblerTester t;
+  std::string actual;
+
+  // --- REX2-based instructions ---
+
+  // pushpq / poppq
+  COMPARE_INSTR("pushpq rax", pushpq(rax));
+  COMPARE_INSTR("pushpq rbx", pushpq(rbx));
+  COMPARE_INSTR("poppq rax", poppq(rax));
+  COMPARE_INSTR("poppq rcx", poppq(rcx));
+
+  // jmpabs (11 bytes, exceeds kHexOffset, use COMPARE with hex)
+  COMPARE("d500a1f0debc9a78563412 jmpabs 0x123456789abcdef0",
+          jmpabs(Immediate64(0x123456789abcdef0)));
+
+  // --- EVEX-based push2/pop2 ---
+
+  // push2q / push2pq
+  COMPARE_INSTR("push2q rbx,rcx", push2q(rbx, rcx));
+  COMPARE_INSTR("push2pq rbx,rcx", push2pq(rbx, rcx));
+
+  // pop2q / pop2pq
+  COMPARE_INSTR("pop2q rbx,rcx", pop2q(rbx, rcx));
+  COMPARE_INSTR("pop2pq rbx,rcx", pop2pq(rbx, rcx));
+
+  // --- CCMP ---
+
+  // ccmpq reg, reg
+  COMPARE_INSTR("ccmpzq rdx,rcx", ccmpq(rdx, rcx, {}, equal));
+  COMPARE_INSTR("ccmplq rdx,rcx", ccmpq(rdx, rcx, {}, less));
+
+  // ccmpq reg, imm8 (sign-extended)
+  COMPARE_INSTR("ccmpzq rdx,0xc", ccmpq(rdx, Immediate(12), {}, equal));
+
+  // ccmpq reg, imm32
+  COMPARE_INSTR("ccmpzq rdx,0x3039", ccmpq(rdx, Immediate(12345), {}, equal));
+
+  // ccmpl reg, reg
+  COMPARE_INSTR("ccmpzl rdx,rcx", ccmpl(rdx, rcx, {}, equal));
+
+  // ccmpq Operand, reg
+  COMPARE_INSTR("ccmpzq [rbx],rcx", ccmpq(Operand(rbx, 0), rcx, {}, equal));
+
+  // --- CTEST ---
+
+  // ctestq reg, reg (disasm prints rm,reg order for opcode 0x85)
+  COMPARE_INSTR("ctestzq rcx,rdx", ctestq(rdx, rcx, {}, equal));
+
+  // ctestq reg, imm32
+  COMPARE_INSTR("ctestzq rdx,0x3039", ctestq(rdx, Immediate(12345), {}, equal));
+
+  // ctestl reg, reg (disasm prints rm,reg order for opcode 0x85)
+  COMPARE_INSTR("ctestzl rcx,rdx", ctestl(rdx, rcx, {}, equal));
+
+  // --- SETZUCC ---
+
+  COMPARE_INSTR("setzuz rdx", setzucc(equal, rdx));
+  COMPARE_INSTR("setzul rdx", setzucc(less, rdx));
+
+  // --- CMOVcc NDD (3-operand) ---
+
+  // cmovq with NDD: cmovzq ndd, reg, rm
+  COMPARE_INSTR("cmovzq rax,rdx,rcx", cmovq(equal, rax, rdx, rcx));
+  COMPARE_INSTR("cmovlq rax,rdx,rcx", cmovq(less, rax, rdx, rcx));
+  // cmovl with NDD
+  COMPARE_INSTR("cmovzl rax,rdx,rcx", cmovl(equal, rax, rdx, rcx));
+  // cmovq with NDD and Operand
+  COMPARE_INSTR("cmovzq rax,rdx,[rbx]",
+                cmovq(equal, rax, rdx, Operand(rbx, 0)));
+
+  // --- CFCMOVcc ---
+
+  // cfcmov 2-operand (reg, reg): ND=0, NF=0
+  COMPARE_INSTR("cfcmovzq rdx,rcx", cfcmovq(equal, rdx, rcx));
+  COMPARE_INSTR("cfcmovlq rdx,rcx", cfcmovq(less, rdx, rcx));
+
+  // cfcmov 2-operand (reg, Operand): ND=0, NF=0
+  COMPARE_INSTR("cfcmovzq rdx,[rbx]", cfcmovq(equal, rdx, Operand(rbx, 0)));
+
+  // cfcmov 2-operand (Operand, reg): ND=1, NF=0
+  COMPARE_INSTR("cfcmovzq [rbx],rdx", cfcmovq(equal, Operand(rbx, 0), rdx));
+
+  // cfcmov 3-operand NDD (ndd, reg, reg): ND=1, NF=1
+  COMPARE_INSTR("cfcmovzq rax,rdx,rcx", cfcmovq(equal, rax, rdx, rcx));
+
+  // cfcmov 3-operand NDD (ndd, reg, Operand): ND=1, NF=1
+  COMPARE_INSTR("cfcmovzq rax,rdx,[rbx]",
+                cfcmovq(equal, rax, rdx, Operand(rbx, 0)));
+
+  // cfcmovl variants
+  COMPARE_INSTR("cfcmovzl rdx,rcx", cfcmovl(equal, rdx, rcx));
+
+  // --- NDD Arithmetic ---
+
+  // addq NDD: 3-operand (dst, src1, src2)
+  COMPARE_INSTR("addq rax,rdx,rcx", addq(rax, rdx, rcx));
+  COMPARE_INSTR("addl rax,rdx,rcx", addl(rax, rdx, rcx));
+
+  // addq NDD with Operand
+  COMPARE_INSTR("addq rax,rdx,[rbx]", addq(rax, rdx, Operand(rbx, 0)));
+
+  // subq NDD
+  COMPARE_INSTR("subq rax,rdx,rcx", subq(rax, rdx, rcx));
+
+  // andq NDD
+  COMPARE_INSTR("andq rax,rdx,rcx", andq(rax, rdx, rcx));
+
+  // orq NDD
+  COMPARE_INSTR("orq rax,rdx,rcx", orq(rax, rdx, rcx));
+
+  // xorq NDD
+  COMPARE_INSTR("xorq rax,rdx,rcx", xorq(rax, rdx, rcx));
+
+  // --- NDD Immediate Arithmetic ---
+
+  // addq NDD with imm8
+  COMPARE_INSTR("addq rax,rdx,0xc", addq(rax, rdx, Immediate(12)));
+
+  // addq NDD with imm32
+  COMPARE_INSTR("addq rax,rdx,0x3039", addq(rax, rdx, Immediate(12345)));
+
+  // subq NDD with imm8
+  COMPARE_INSTR("subq rax,rdx,0xc", subq(rax, rdx, Immediate(12)));
+
+  // andq NDD with imm8
+  COMPARE_INSTR("andq rax,rdx,0x3", andq(rax, rdx, Immediate(3)));
+
+  // orq NDD with imm8
+  COMPARE_INSTR("orq rax,rdx,0x3", orq(rax, rdx, Immediate(3)));
+
+  // xorq NDD with imm8
+  COMPARE_INSTR("xorq rax,rdx,0x3", xorq(rax, rdx, Immediate(3)));
+
+  // --- NDD IMUL ---
+
+  // imulq NDD: 3-operand (dst, src1, src2)
+  COMPARE_INSTR("imulq rax,rdx,rcx", imulq(rax, rdx, rcx));
+  COMPARE_INSTR("imull rax,rdx,rcx", imull(rax, rdx, rcx));
+
+  // imulq NDD with Operand
+  COMPARE_INSTR("imulq rax,rdx,[rbx]", imulq(rax, rdx, Operand(rbx, 0)));
+  COMPARE_INSTR("imull rax,rdx,[rbx]", imull(rax, rdx, Operand(rbx, 0)));
+
+  // --- NDD NOT / NEG ---
+
+  // notq NDD
+  COMPARE_INSTR("notq rax,rdx", notq(rax, rdx));
+  COMPARE_INSTR("notl rax,rdx", notl(rax, rdx));
+  // notq NDD with Operand
+  COMPARE_INSTR("notq rax,[rbx]", notq(rax, Operand(rbx, 0)));
+
+  // negq NDD
+  COMPARE_INSTR("negq rax,rdx", negq(rax, rdx));
+  COMPARE_INSTR("negl rax,rdx", negl(rax, rdx));
+  // negq NDD with Operand
+  COMPARE_INSTR("negq rax,[rbx]", negq(rax, Operand(rbx, 0)));
+
+  // --- NDD Shift ---
+
+  // shlq NDD with immediate
+  COMPARE_INSTR("shlq rax,rdx,0x6", shlq(rax, rdx, Immediate(6)));
+  // shlq NDD with immediate 1 (special encoding)
+  COMPARE_INSTR("shlq rax,rdx,1", shlq(rax, rdx, Immediate(1)));
+  // shlq NDD with cl
+  COMPARE_INSTR("shlq rax,rdx,cl", shlq_cl(rax, rdx));
+  // shll NDD
+  COMPARE_INSTR("shll rax,rdx,0x6", shll(rax, rdx, Immediate(6)));
+
+  // shrq NDD
+  COMPARE_INSTR("shrq rax,rdx,0x7", shrq(rax, rdx, Immediate(7)));
+  COMPARE_INSTR("shrq rax,rdx,1", shrq(rax, rdx, Immediate(1)));
+  COMPARE_INSTR("shrq rax,rdx,cl", shrq_cl(rax, rdx));
+
+  // sarq NDD
+  COMPARE_INSTR("sarq rax,rdx,0x6", sarq(rax, rdx, Immediate(6)));
+  COMPARE_INSTR("sarq rax,rdx,1", sarq(rax, rdx, Immediate(1)));
+  COMPARE_INSTR("sarq rax,rdx,cl", sarq_cl(rax, rdx));
+
+  // rolq NDD
+  COMPARE_INSTR("rolq rax,rdx,0x3", rolq(rax, rdx, Immediate(3)));
+
+  // rorq NDD
+  COMPARE_INSTR("rorq rax,rdx,0x3", rorq(rax, rdx, Immediate(3)));
+
+  // Shift NDD with Operand
+  COMPARE_INSTR("shlq rax,[rbx],0x6", shlq(rax, Operand(rbx, 0), Immediate(6)));
+  COMPARE_INSTR("shlq rax,[rbx],cl", shlq_cl(rax, Operand(rbx, 0)));
+}
+#endif  // V8_ENABLE_APX_F
+
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10) {
+  DisassemblerTester t;
+  std::string actual;
+  CpuFeatureScope fscope(&t.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+
+  // vpmullq: reg-reg, high registers (R'/V'/B'), and reg-mem exercising the
+  // compressed-displacement (disp8*N) paths.
+  COMPARE_INSTR("vpmullq xmm3,xmm2,xmm1", vpmullq(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vpmullq xmm19,xmm18,xmm17", vpmullq(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+0x40]",
+                vpmullq(xmm3, xmm2, Operand(rbx, 64)));
+  COMPARE_INSTR("vpmullq ymm3,ymm2,ymm1", vpmullq(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vpmullq ymm3,ymm2,[rbx+0x80]",
+                vpmullq(ymm3, ymm2, Operand(rbx, 128)));
+  COMPARE_INSTR(
+      "vpmullq xmm3,xmm2,[rbx+0x10]",  // divisible -> compressed disp8
+      vpmullq(xmm3, xmm2, Operand(rbx, 16)));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+0x14]",  // not divisible -> disp32
+                vpmullq(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+0xc80]",  // out of int8 -> disp32
+                vpmullq(xmm3, xmm2, Operand(rbx, 3200)));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+rcx*1+0x40]",  // SIB; CD8 64/16 = 4
+                vpmullq(xmm3, xmm2, Operand(rbx, rcx, times_1, 64)));
+
+  // vpsraq: variable count (xmm/m128) and imm8 (destination in EVEX.vvvv).
+  COMPARE_INSTR("vpsraq xmm3,xmm2,xmm1", vpsraq(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vpsraq xmm3,xmm2,[rbx+0x40]",
+                vpsraq(xmm3, xmm2, Operand(rbx, 64)));
+  COMPARE_INSTR("vpsraq xmm3,xmm2,5", vpsraq(xmm3, xmm2, uint8_t{5}));
+  COMPARE_INSTR("vpsraq ymm3,ymm2,5", vpsraq(ymm3, ymm2, uint8_t{5}));
+  COMPARE_INSTR("vpsraq xmm3,[rbx+0x40],5",
+                vpsraq(xmm3, Operand(rbx, 64), uint8_t{5}));
+
+  // vpabsq: unary.
+  COMPARE_INSTR("vpabsq xmm2,xmm1", vpabsq(xmm2, xmm1));
+  COMPARE_INSTR("vpabsq ymm2,ymm1", vpabsq(ymm2, ymm1));
+  COMPARE_INSTR("vpabsq xmm2,[rbx+0x40]", vpabsq(xmm2, Operand(rbx, 64)));
+
+  // vpminsq: binary.
+  COMPARE_INSTR("vpminsq xmm3,xmm2,xmm1", vpminsq(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vpminsq ymm3,ymm2,ymm1", vpminsq(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vpminsq xmm3,xmm2,[rbx+0x40]",
+                vpminsq(xmm3, xmm2, Operand(rbx, 64)));
+
+  // vpopcntb: unary (W0), including a high-register and a reg-mem case.
+  COMPARE_INSTR("vpopcntb xmm2,xmm1", vpopcntb(xmm2, xmm1));
+  COMPARE_INSTR("vpopcntb ymm18,ymm17", vpopcntb(ymm18, ymm17));
+  COMPARE_INSTR("vpopcntb xmm2,[rbx+0x20]", vpopcntb(xmm2, Operand(rbx, 32)));
+}
+#endif  // V8_ENABLE_AVX10_1
 
 #undef __
 

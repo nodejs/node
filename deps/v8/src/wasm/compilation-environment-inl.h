@@ -23,10 +23,6 @@ inline CompilationEnv CompilationEnv::ForModule(
       native_module->fast_api_data(), native_module->coverage_data());
 }
 
-inline CompilationEnv CompilationEnv::NoModuleAllFeaturesForTesting() {
-  return CompilationEnv(nullptr, WasmEnabledFeatures::All(), nullptr, nullptr);
-}
-
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_COMPILATION_ENVIRONMENT_INL_H_

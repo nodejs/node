@@ -79,11 +79,11 @@ Tagged<HeapObject> UpdateTypedSlotHelper::GetTargetObject(Heap* heap,
     }
     case SlotType::kEmbeddedObjectCompressed: {
       RelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
-      return rinfo.target_object(heap->isolate());
+      return rinfo.target_object();
     }
     case SlotType::kEmbeddedObjectFull: {
       RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT);
-      return rinfo.target_object(heap->isolate());
+      return rinfo.target_object();
     }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {
       Address full = V8HeapCompressionScheme::DecompressTagged(

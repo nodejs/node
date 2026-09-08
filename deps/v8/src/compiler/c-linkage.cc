@@ -190,7 +190,7 @@ void BuildParameterLocations(const MachineSignature* msig,
         ++num_fp_params;
       } else if (num_params < kParamRegisterCount) {
         // ForNullRegister represents a floating-point param that should be put
-        // into the GPR, and reg_code is the the negative of encoding of the
+        // into the GPR, and reg_code is the negative of encoding of the
         // GPR, and the maximum is -4.
         out_locations->AddParam(LinkageLocation::ForNullRegister(
             -kParamRegisters[num_params].code(), type));

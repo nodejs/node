@@ -63,6 +63,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
   V(serialized_objects)                   \
   IF_WASM(V, js_to_wasm_wrappers)         \
   IF_WASM(V, wasm_canonical_rtts)         \
+  IF_WASM(V, wasm_shared_canonical_rtts)  \
   V(weak_refs_keep_during_job)
 
 #define TEST_CAN_BE_READ_ONLY(name) \
@@ -112,6 +113,9 @@ TEST_F(RootsTest, TestHeapNumberList) {
   ReadOnlyRoots roots(isolate());
   for (auto pos = RootIndex::kFirstReadOnlyRoot;
        pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
+#if V8_ENABLE_WEBASSEMBLY
+    if (pos == RootIndex::kWasmNull) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;

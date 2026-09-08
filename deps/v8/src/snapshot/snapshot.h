@@ -196,6 +196,8 @@ class SnapshotCreatorImpl final {
     Address* handle_location = nullptr;  // A GlobalHandle.
     SerializeEmbedderFieldsCallback callback;
   };
+  SnapshotCreatorImpl(Isolate* isolate, bool owns_isolate,
+                      const v8::Isolate::CreateParams& params);
 
   void InitInternal(const StartupData*);
 

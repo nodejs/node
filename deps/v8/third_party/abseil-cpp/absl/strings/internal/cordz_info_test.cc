@@ -14,6 +14,9 @@
 
 #include "absl/strings/internal/cordz_info.h"
 
+#include <cstddef>
+#include <memory>
+#include <string>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -22,6 +25,7 @@
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
 #include "absl/strings/cordz_test_helpers.h"
+#include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_handle.h"
 #include "absl/strings/internal/cordz_statistics.h"

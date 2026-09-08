@@ -46,7 +46,8 @@ TEST(PropertyDetailsTest, ExceedMaxEnumerationIndex) {
   // so just test set_index for a single PropertyDetails instead of all of
   // make_details().
   PropertyDetails details(PropertyKind::kData, NONE, PropertyCellType::kNoCell);
-  EXPECT_DEATH_IF_SUPPORTED(details.set_index(too_large_enum_index), "");
+  EXPECT_DEATH_IF_SUPPORTED(details = details.set_index(too_large_enum_index),
+                            "");
 }
 
 TEST(PropertyDetailsTest, AsByte) {

@@ -13,7 +13,6 @@
 #include "include/v8-local-handle.h"
 #include "src/execution/isolate-inl.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/fuzzer-common.h"
 #include "test/common/wasm/wasm-module-runner.h"

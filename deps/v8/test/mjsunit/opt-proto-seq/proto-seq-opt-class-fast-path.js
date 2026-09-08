@@ -27,7 +27,12 @@ function test_class_fast_path() {
   return new test_class();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_class_fast_path(test_instance) {
+  keep_alive.push(test_instance);
   assertEquals(test_instance.func(), "test_class.prototype.func");
   assertEquals(test_instance.arrow_func(), "test_class.prototype.arrow_func");
   assertEquals(test_instance.smi, 1);

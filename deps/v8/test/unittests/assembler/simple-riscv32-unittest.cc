@@ -54,7 +54,7 @@ TEST_F(SimpleRISCV32Test, RISCV_SIMPLE0) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Addition.
   __ add(a0, a0, a1);
@@ -73,7 +73,7 @@ TEST_F(SimpleRISCV32Test, RISCV_SIMPLE1) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Addition.
   __ addi(a0, a0, -1);
@@ -93,7 +93,7 @@ TEST_F(SimpleRISCV32Test, RISCV_SIMPLE2) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label L, C;
   // input a0, result a1
   __ mv(a1, a0);
@@ -126,7 +126,7 @@ TEST_F(SimpleRISCV32Test, RISCV_SIMPLE3) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ sb(a0, sp, -4);
   __ lb(a0, sp, -4);
@@ -146,7 +146,7 @@ TEST_F(SimpleRISCV32Test, LI) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label error;
 
   // Load 0
@@ -184,7 +184,7 @@ TEST_F(SimpleRISCV32Test, LI_CONST) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label error;
 
   // Load 0

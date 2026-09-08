@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// SKIP_ABSL_INLINE_NAMESPACE_CHECK
-
 #include "absl/debugging/symbolize.h"
+
+#include "absl/base/config.h"
+#include "absl/base/internal/low_level_alloc.h"
+#include "absl/debugging/internal/symbolize.h"
 
 #ifdef _WIN32
 #include <winapifamily.h>
@@ -42,3 +44,19 @@
 #else
 #include "absl/debugging/symbolize_unimplemented.inc"
 #endif
+
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+
+namespace debugging_internal {
+
+void SymbolDecoratorDeleter::operator()(SymbolDecorator* ptr) {
+  ptr->~SymbolDecorator();
+  base_internal::LowLevelAlloc::Free(ptr);
+}
+
+}  // namespace debugging_internal
+
+ABSL_NAMESPACE_END
+}  // namespace absl

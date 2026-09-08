@@ -28,19 +28,25 @@
 // (2) When a new edge (x->y) is inserted, do nothing if rank[x] < rank[y].
 // (3) Otherwise: adjust ranks in the neighborhood of x and y.
 
-#include "absl/base/attributes.h"
+#include "absl/base/internal/low_level_alloc.h"  // IWYU pragma: keep
 // This file is a no-op if the required LowLevelAlloc support is missing.
-#include "absl/base/internal/low_level_alloc.h"
 #ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
 #include <algorithm>
 #include <array>
 #include <cinttypes>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
+#include "absl/algorithm/container.h"
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/hide_ptr.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock.h"
+#include "absl/base/macros.h"
 #include "absl/synchronization/internal/graphcycles.h"
 
 // Do not use STL.   This module does not use standard memory allocation.
@@ -622,7 +628,7 @@ static void Sort(const Vec<Node*>& nodes, Vec<int32_t>* delta) {
   };
   ByRank cmp;
   cmp.nodes = &nodes;
-  std::sort(delta->begin(), delta->end(), cmp);
+  absl::c_sort(*delta, cmp);
 }
 
 static void MoveToList(GraphCycles::Rep* r, Vec<int32_t>* src,
@@ -692,7 +698,8 @@ void GraphCycles::UpdateStackTrace(GraphId id, int priority,
   if (n == nullptr || n->priority >= priority) {
     return;
   }
-  n->nstack = (*get_stack_trace)(n->stack, ABSL_ARRAYSIZE(n->stack));
+  n->nstack =
+      (*get_stack_trace)(n->stack, static_cast<int>(std::size(n->stack)));
   n->priority = priority;
 }
 

@@ -15,16 +15,17 @@
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
@@ -33,8 +34,10 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/sandbox/bytecode-verifier.h"
 #include "src/utils/utils.h"
@@ -97,8 +100,7 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
     PrintF(
         " should be prepared for optimization with "
         "%%PrepareFunctionForOptimization before  "
-        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
-        "%%OptimizeOsr ");
+        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall");
     return false;
   }
   return true;
@@ -126,19 +128,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
 // fuzzing mode.
 #define CONVERT_BOOLEAN_ARG_FUZZ_SAFE(name, index) \
   CHECK_UNLESS_FUZZING(IsBoolean(args[index]));    \
-  bool name = IsTrue(args[index], isolate);
-
-bool IsAsmWasmFunction(Isolate* isolate, Tagged<JSFunction> function) {
-  DisallowGarbageCollection no_gc;
-#if V8_ENABLE_WEBASSEMBLY
-  // For simplicity we include invalid asm.js functions whose code hasn't yet
-  // been updated to CompileLazy but is still the InstantiateAsmJs builtin.
-  return function->shared()->HasAsmWasmData() ||
-         function->code(isolate)->builtin_id() == Builtin::kInstantiateAsmJs;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
+  bool name = IsTrue(args[index]);
 
 }  // namespace
 
@@ -264,7 +254,8 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   }
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    function->code(isolate));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -281,7 +272,8 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   CHECK_UNLESS_FUZZING(!function.is_null());
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    function->code(isolate));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -358,8 +350,6 @@ bool CanOptimizeFunction(CodeKind target_kind,
   if (function->shared()->optimization_disabled(target_kind)) {
     return false;
   }
-
-  CHECK_UNLESS_FUZZING_RETURN_FALSE(!IsAsmWasmFunction(isolate, *function));
 
   // If we're fuzzing, allow having not marked the function for manual
   // optimization (if the steps below succeed).
@@ -462,9 +452,9 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
   IsCompiledScope is_compiled_scope =
-      function->shared(isolate)->is_compiled_scope(isolate);
+      function->shared()->is_compiled_scope(isolate);
 
-  CHECK_UNLESS_FUZZING(function->shared(isolate)->IsUserJavaScript());
+  CHECK_UNLESS_FUZZING(function->shared()->IsUserJavaScript());
 
   // First compile the bytecode, if we have to.
   CHECK_UNLESS_FUZZING(is_compiled_scope.is_compiled() ||
@@ -606,6 +596,27 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
           : CodeKind::TURBOFAN_JS);
 }
 
+RUNTIME_FUNCTION(Runtime_ExhaustInterruptBudget) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsJSFunction(args[0]));
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+
+  if (!function->has_feedback_vector()) {
+    IsCompiledScope is_compiled_scope;
+    CHECK_UNLESS_FUZZING(
+        EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope));
+  }
+
+  CHECK_UNLESS_FUZZING(function->has_feedback_vector());
+  CHECK_UNLESS_FUZZING(function->shared()->HasBytecodeArray());
+
+  function->SetInterruptBudget(isolate, BudgetModification::kReset);
+  function->raw_feedback_cell()->set_interrupt_budget(0);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -635,8 +646,6 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   if (function->shared()->all_optimization_disabled()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
-
-  CHECK_UNLESS_FUZZING(!IsAsmWasmFunction(isolate, *function));
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
@@ -735,10 +744,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   CHECK_UNLESS_FUZZING(!function->shared()->all_optimization_disabled());
 
-  // If we're fuzzing, allow having not marked the function for manual
-  // optimization (if the steps below succeed).
-  if (!v8_flags.fuzzing) {
-    CHECK(CheckMarkedForManualOptimization(isolate, *function));
+  if (!v8_flags.fuzzing &&
+      !ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
+                                                              *function)) {
+    PrintF("Warning: Function ");
+    ShortPrint(*function);
+    PrintF(
+        " might have to be prepared for optimization with "
+        "%%PrepareFunctionForOptimization before  "
+        "%%OptimizeOsr");
   }
 
   if (function->HasAvailableOptimizedCode(isolate) &&
@@ -862,11 +876,10 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
   Handle<Object> function_object = args.at(0);
-  PtrComprCageBase cage_base(isolate);
-  CHECK_UNLESS_FUZZING(IsJSFunction(*function_object, cage_base));
+  CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
-  DirectHandle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
-  CodeKind code_kind = sfi->abstract_code(isolate)->kind(cage_base);
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  CodeKind code_kind = sfi->abstract_code(isolate)->kind();
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
       break;
@@ -905,7 +918,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (v8_flags.deopt_every_n_times) {
+  if (v8_flags.deopt_every_n_times || v8_flags.stress_flush_code ||
+      v8_flags.gc_interval > 0 || v8_flags.random_gc_interval > 0) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
   if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
@@ -1046,7 +1060,7 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
   Handle<Object> function_object = args.at(0);
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
-  Tagged<SharedFunctionInfo> sfi = function->shared(isolate);
+  Tagged<SharedFunctionInfo> sfi = function->shared();
 
   // Don't try to flush functions that cannot be flushed.
   CHECK_UNLESS_FUZZING(sfi->CanDiscardCompiled());
@@ -1122,7 +1136,7 @@ RUNTIME_FUNCTION(Runtime_GetAbstractModuleSource) {
   DisallowGarbageCollection no_gc;
   Tagged<JSFunction> abstract_module_source_function =
       isolate->native_context()->abstract_module_source_function();
-  CHECK(IsJSFunction(*abstract_module_source_function));
+  CHECK(IsJSFunction(abstract_module_source_function));
   return abstract_module_source_function;
 }
 
@@ -1172,7 +1186,14 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   HeapAllocator::SetAllocationGcInterval(interval);
   CONVERT_INT32_ARG_FUZZ_SAFE(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
-#endif
+#else   // !V8_ENABLE_ALLOCATION_TIMEOUT
+  static std::atomic_flag printed_warning = ATOMIC_FLAG_INIT;
+  if (!printed_warning.test_and_set()) {
+    base::OS::PrintError(
+        "Warning: %%SetAllocationTimeout has no effect in this build. Set the "
+        "`v8_enable_test_features` GN arg to enable it.\n");
+  }
+#endif  // !V8_ENABLE_ALLOCATION_TIMEOUT
 #ifdef DEBUG
   if (args.length() == 3) {
     // Enable/disable inline allocation if requested.
@@ -1265,12 +1286,8 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   }
 
   HeapProfiler* heap_profiler = isolate->heap()->heap_profiler();
-  // Since this API is intended for V8 devs, we do not treat globals as roots
-  // here on purpose.
-  v8::HeapProfiler::HeapSnapshotOptions options;
-  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-  heap_profiler->TakeSnapshotToFile(options, filename);
+  heap_profiler->TakeSnapshotToFile(
+      HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage(), filename);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1285,7 +1302,7 @@ static void DebugPrintImpl(Tagged<MaybeObject> maybe_object, std::ostream& os) {
     os << "DebugPrint: ";
     if (weak) os << "[weak] ";
     Print(object, os);
-    if (IsHeapObject(object)) {
+    if (IsHeapObject(object) && !IsInaccessible(Cast<HeapObject>(object))) {
       Print(Cast<HeapObject>(object)->map(), os);
     }
 #else
@@ -1334,10 +1351,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
 
   CHECK_UNLESS_FUZZING(args.length() == 2 + kNum16BitChunks + 1);
 
-  CHECK(IsSmi(args[1]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
   DebugPrintValueType value_type =
       static_cast<DebugPrintValueType>(Cast<Smi>(args[1]).value());
-  CHECK(IsSmi(args[6]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[6]));
   int stream_int = Cast<Smi>(args[6]).value();
   FILE* output_stream = stream_int == fileno(stderr) ? stderr : stdout;
 
@@ -1354,10 +1371,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
   if (value_type != DebugPrintValueType::kTagged) {
     for (int i = 0; i < kNum16BitChunks; ++i) {
       value <<= 16;
-      CHECK(IsSmi(args[2 + i]));
+      CHECK_UNLESS_FUZZING(IsSmi(args[2 + i]));
       uint32_t chunk = Cast<Smi>(args[2 + i]).value();
       // We encode 16 bit per chunk only!
-      CHECK_EQ(chunk & 0xFFFF0000, 0);
+      CHECK_UNLESS_FUZZING((chunk & 0xFFFF0000) == 0);
       value |= chunk;
     }
   }
@@ -1392,7 +1409,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
     }
     case DebugPrintValueType::kTagged: {
       Tagged<Object> tagged = args[5];
-      CHECK(IsHeapObject(tagged));
+      CHECK_UNLESS_FUZZING(IsHeapObject(tagged));
       if (IsString(tagged) && !IsString(args[0])) {
         // We don't have a prefix and just print a string. In this case we don't
         // print the full JS object but just the text.
@@ -1446,10 +1463,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
   uint64_t value = 0;
   for (int i = 0; i < kNum16BitChunks; ++i) {
     value <<= 16;
-    CHECK(IsSmi(args[i]));
+    CHECK_UNLESS_FUZZING(IsSmi(args[i]));
     uint32_t chunk = Cast<Smi>(args[i]).value();
     // We encode 16 bit per chunk only!
-    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    CHECK_UNLESS_FUZZING((chunk & 0xFFFF0000) == 0);
     value |= chunk;
   }
 
@@ -1473,10 +1490,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   uint64_t value = 0;
   for (int i = 0; i < kNum16BitChunks; ++i) {
     value <<= 16;
-    CHECK(IsSmi(args[i]));
+    CHECK_UNLESS_FUZZING(IsSmi(args[i]));
     uint32_t chunk = Cast<Smi>(args[i]).value();
     // We encode 16 bit per chunk only!
-    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    CHECK_UNLESS_FUZZING((chunk & 0xFFFF0000) == 0);
     value |= chunk;
   }
 
@@ -1553,6 +1570,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
     }
   }
 
+  CHECK_UNLESS_FUZZING(args.length() >= 1);
   if (!IsString(args[0])) {
     return args[0];
   }
@@ -1579,13 +1597,13 @@ RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
   SealHandleScope shs(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
   Tagged<Object> arg = args[0];
-  if (IsTrue(arg, isolate)) {
+  if (IsTrue(arg)) {
     isolate->set_force_slow_path(true);
   } else {
     // This function is fuzzer exposed and as such we might not always have an
     // input that IsTrue or IsFalse. In these cases we assume that if !IsTrue
     // then it IsFalse when fuzzing.
-    DCHECK(IsFalse(arg, isolate) || v8_flags.fuzzing);
+    DCHECK(IsFalse(arg) || v8_flags.fuzzing);
     isolate->set_force_slow_path(false);
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1632,8 +1650,8 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
     std::unique_ptr<char[]> message_str = message->ToCString();
     base::OS::PrintError("abort: CSA_DCHECK failed: %s\n\n", message_str.get());
 
-    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(message->ptr()),
-                                  message_str.get());
+    isolate->PushStackTraceAndDie(message_str.get(),
+                                  reinterpret_cast<void*>(message->ptr()));
   }
   base::OS::Abort();
   UNREACHABLE();
@@ -1679,6 +1697,8 @@ int StackSize(Isolate* isolate) {
   return n;
 }
 
+}  // anonymous namespace
+
 void PrintIndentation(int stack_size) {
   const int max_display = 80;
   if (stack_size <= max_display) {
@@ -1687,8 +1707,6 @@ void PrintIndentation(int stack_size) {
     PrintF("%4d:%*s", stack_size, max_display, "...");
   }
 }
-
-}  // namespace
 
 RUNTIME_FUNCTION(Runtime_TraceEnter) {
   SealHandleScope shs(isolate);
@@ -1777,8 +1795,9 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
   Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
       PretenuringHandler::kForRuntime>(heap, object->map(), object);
-  if (memento.is_null())
+  if (memento.is_null()) {
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
+  }
   Tagged<AllocationSite> site = memento->GetAllocationSite();
   pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
   return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
@@ -1837,6 +1856,25 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
     }
   }
   return isolate->heap()->ToBoolean(result);
+}
+
+// Returns true iff the regexp cannot match a string starting with |c|,
+// according to the quick-check filters.  Lets tests assert that a filter was
+// actually built, which exec results alone cannot show.
+RUNTIME_FUNCTION(Runtime_RegexpQuickCheckRejects) {
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsJSRegExp(args[0]));
+  CHECK_UNLESS_FUZZING(IsString(args[1]));
+  auto regexp = args.at<JSRegExp>(0);
+  auto string = args.at<String>(1);
+  CHECK_UNLESS_FUZZING(string->length() == 1);
+  if (!regexp->has_data()) return ReadOnlyRoots(isolate).false_value();
+  DisallowGarbageCollection no_gc;
+  String::FlatContent content = string->GetFlatContent(no_gc);
+  if (!content.IsOneByte()) return ReadOnlyRoots(isolate).false_value();
+  return isolate->heap()->ToBoolean(
+      regexp->data(isolate)->QuickCheckRejects(content.ToOneByteVector(), 0));
 }
 
 RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
@@ -1996,6 +2034,9 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   DirectHandle<Object> object = args.at(0);
 #ifdef VERIFY_HEAP
   Object::ObjectVerify(*object, isolate);
+  if (IsHeapObject(*object)) {
+    Cast<HeapObject>(*object)->map()->MapVerify(isolate);
+  }
 #else
   CHECK(IsObject(*object));
   if (IsHeapObject(*object)) {
@@ -2046,6 +2087,30 @@ RUNTIME_FUNCTION(Runtime_TurbofanStaticAssert) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AssertPeeled) {
+  SealHandleScope shs(isolate);
+  // In Turbolev this is lowered to an AssertPeeled node that the loop peeler
+  // removes when it peels the surrounding loop, so we never reach this in
+  // compiled code once peeling fires.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AssertNotPeeled) {
+  SealHandleScope shs(isolate);
+  // In Turbolev this is lowered to an AssertPeeled node that fails compilation
+  // if the loop peeler peels the surrounding loop, so we never reach this in
+  // compiled code unless the loop was (correctly) left unpeeled.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AssertEscapeAnalysisElided) {
+  SealHandleScope shs(isolate);
+  // Always removed during escape analysis in Turbolev, so we never get here in
+  // compiled code (if it was elided). If it wasn't elided, we crash during
+  // compile. In interpreter, we just return undefined.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsBeingInterpreted) {
   SealHandleScope shs(isolate);
   // Always lowered to false in Turbofan, so we never get here in compiled code.
@@ -2081,7 +2146,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                              Address entry_point) final {}
     void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                                DirectHandle<String> source,
-                               RegExpFlags flags) final {}
+                               regexp::Flags flags) final {}
     void CodeMoveEvent(Tagged<InstructionStream> from,
                        Tagged<InstructionStream> to) final {}
     void BytecodeMoveEvent(Tagged<BytecodeArray> from,
@@ -2133,9 +2198,9 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
+RUNTIME_FUNCTION(Runtime_BigIntMaxBits) {
   HandleScope scope(isolate);
-  return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
+  return *isolate->factory()->NewNumber(BigInt::kMaxBits);
 }
 
 RUNTIME_FUNCTION(Runtime_IsSameHeapObject) {
@@ -2212,7 +2277,7 @@ RUNTIME_FUNCTION(Runtime_StringToCString) {
   DirectHandle<JSArrayBuffer> result =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(output_length,
-                                            InitializedFlag::kUninitialized)
+                                            InitializedFlag{false})
           .ToHandleChecked();
   memcpy(result->backing_store(), bytes.get(), output_length);
   return *result;
@@ -2230,7 +2295,7 @@ RUNTIME_FUNCTION(Runtime_StringUtf8Value) {
   DirectHandle<JSArrayBuffer> result =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(value.length(),
-                                            InitializedFlag::kUninitialized)
+                                            InitializedFlag{false})
           .ToHandleChecked();
   memcpy(result->backing_store(), *value, value.length());
   return *result;
@@ -2393,7 +2458,19 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
       if (interpreter::Bytecodes::IsCompareWithEmbeddedFeedback(bytecode)) {
         out << "CompareOp";
         feedback_value.slot_kind_ = out.str();
-        out << ":" << it.GetEmbeddedCompareOperationHint();
+        out << ":" << it.GetEmbeddedOperationHint<CompareOperationFeedback>();
+        feedback_value.details_ = out.str();
+      } else if (interpreter::Bytecodes::IsBinaryOpWithEmbeddedFeedback(
+                     bytecode)) {
+        out << "BinaryOp";
+        feedback_value.slot_kind_ = out.str();
+        out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
+        feedback_value.details_ = out.str();
+      } else if (interpreter::Bytecodes::IsUnaryOpWithEmbeddedFeedback(
+                     bytecode)) {
+        out << "UnaryOp";
+        feedback_value.slot_kind_ = out.str();
+        out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
         feedback_value.details_ = out.str();
       } else {
         UNREACHABLE();
@@ -2631,8 +2708,7 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
   int length = bytecode_array->length();
   Handle<JSArrayBuffer> bytecode_buffer =
       isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(length,
-                                            InitializedFlag::kUninitialized)
+          ->NewJSArrayBufferAndBackingStore(length, InitializedFlag{false})
           .ToHandleChecked();
   memcpy(
       bytecode_buffer->backing_store(),
@@ -2641,10 +2717,10 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
 
   DirectHandle<TrustedFixedArray> constant_pool(bytecode_array->constant_pool(),
                                                 isolate);
-  int cp_length = constant_pool->length();
+  uint32_t cp_length = constant_pool->ulength().value();
   Handle<JSArray> constant_pool_array =
       isolate->factory()->NewJSArray(cp_length);
-  for (int i = 0; i < cp_length; ++i) {
+  for (uint32_t i = 0; i < cp_length; ++i) {
     Handle<Object> value(constant_pool->get(i), isolate);
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetElement(isolate, constant_pool_array, i, value,
@@ -2653,11 +2729,10 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
 
   DirectHandle<TrustedByteArray> handler_table(bytecode_array->handler_table(),
                                                isolate);
-  int ht_length = handler_table->length();
+  size_t ht_length = static_cast<size_t>(handler_table->ulength().value());
   Handle<JSArrayBuffer> handler_table_buffer =
       isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(ht_length,
-                                            InitializedFlag::kUninitialized)
+          ->NewJSArrayBufferAndBackingStore(ht_length, InitializedFlag{false})
           .ToHandleChecked();
   memcpy(handler_table_buffer->backing_store(), handler_table->begin(),
          ht_length);
@@ -2728,10 +2803,10 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
       JSReceiver::GetProperty(isolate, input, "constant_pool"));
   CHECK_UNLESS_FUZZING(IsJSArray(*cp_obj));
   auto cp_array = Cast<JSArray>(cp_obj);
-  int cp_length = Smi::ToInt(cp_array->length());
+  uint32_t cp_length = Smi::ToUInt(cp_array->length());
   DirectHandle<TrustedFixedArray> constant_pool =
       isolate->factory()->NewTrustedFixedArray(cp_length);
-  for (int i = 0; i < cp_length; ++i) {
+  for (uint32_t i = 0; i < cp_length; ++i) {
     Handle<Object> val;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, val, JSReceiver::GetElement(isolate, cp_array, i));
@@ -2744,7 +2819,7 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
       JSReceiver::GetProperty(isolate, input, "handler_table"));
   CHECK_UNLESS_FUZZING(IsJSArrayBuffer(*ht_obj));
   auto ht_buffer = Cast<JSArrayBuffer>(ht_obj);
-  int ht_length = static_cast<int>(ht_buffer->byte_length());
+  uint32_t ht_length = static_cast<uint32_t>(ht_buffer->byte_length());
   uint8_t* ht_data = static_cast<uint8_t*>(ht_buffer->backing_store());
   DirectHandle<TrustedByteArray> handler_table =
       isolate->factory()->NewTrustedByteArray(ht_length);
@@ -2794,12 +2869,80 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
   shared->set_bytecode_array(*new_bytecode);
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    function->code(isolate));
   }
   function->UpdateCode(isolate,
                        *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
 
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  MaybeHandle<Number> result =
+      Object::ToNumber(isolate, handle(args[0], isolate));
+  DirectHandle<Number> result_handle;
+  if (!result.ToHandle(&result_handle)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Force HeapNumber, even if the value is representable as a Smi.
+  if (IsSmi(*result_handle)) {
+    return *isolate->factory()->NewHeapNumber(i::Smi::ToInt(*result_handle));
+  }
+  return *result_handle;
+}
+
+// Blocks the background compiler (or other background tasks) at the specified
+// synchronization point. The task will remain blocked until %Resume is called.
+// This is primarily used for deterministically testing race conditions.
+RUNTIME_FUNCTION(Runtime_BlockAt) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
+  DCHECK_EQ(2, args.length());
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
+  DirectHandle<String> phase_name = args.at<String>(0);
+  base::TimeDelta timeout =
+      base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
+  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
+                                                     timeout);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// Resumes a background compiler (or other background task) that was previously
+// blocked by %BlockAt at the specified synchronization point.
+RUNTIME_FUNCTION(Runtime_Resume) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
+  DCHECK_EQ(1, args.length());
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> phase_name = args.at<String>(0);
+  bool success =
+      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
+  return isolate->heap()->ToBoolean(success);
+}
+
+// Waits until the given synchronization point is reached. Throws an exception
+// if the point is not armed or if a timeout is reached. The timeout is
+// provided in milliseconds.
+RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
+  DCHECK_EQ(2, args.length());
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
+  DirectHandle<String> phase_name = args.at<String>(0);
+  base::TimeDelta timeout =
+      base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
+
+  bool success = SynchronizationPointSupport::Get()->WaitUntilBlocked(
+      phase_name->ToStdString(), timeout);
+  return isolate->heap()->ToBoolean(success);
 }
 
 }  // namespace internal

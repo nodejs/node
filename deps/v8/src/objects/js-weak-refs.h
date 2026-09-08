@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_JS_WEAK_REFS_H_
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/tagged-field.h"
 #include "src/objects/union.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,14 +19,38 @@ namespace internal {
 class NativeContext;
 class WeakCell;
 
-#include "torque-generated/src/objects/js-weak-refs-tq.inc"
-
 // FinalizationRegistry object from the JS Weak Refs spec proposal:
 // https://github.com/tc39/proposal-weakrefs
-class JSFinalizationRegistry
-    : public TorqueGeneratedJSFinalizationRegistry<JSFinalizationRegistry,
-                                                   JSObject> {
+V8_OBJECT class JSFinalizationRegistry : public JSObject {
  public:
+  inline Tagged<NativeContext> native_context() const;
+  inline void set_native_context(Tagged<NativeContext> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSReceiver> cleanup() const;
+  inline void set_cleanup(Tagged<JSReceiver> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> active_cells() const;
+  inline void set_active_cells(Tagged<UnionOf<WeakCell, Undefined>> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> cleared_cells() const;
+  inline void set_cleared_cells(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> key_map() const;
+  inline void set_key_map(Tagged<Object> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<JSFinalizationRegistry, Undefined>> next_dirty() const;
+  inline void set_next_dirty(
+      Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
+
   DECL_PRINTER(JSFinalizationRegistry)
   EXPORT_DECL_VERIFIER(JSFinalizationRegistry)
 
@@ -79,13 +103,34 @@ class JSFinalizationRegistry
       Isolate* isolate, Tagged<WeakCell> weak_cell);
 
   // Bitfields in flags.
-  DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
+  using ScheduledForCleanupBit = base::BitField<bool, 0, 1, uint32_t>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kScheduledForCleanup = ScheduledForCleanupBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 1;
 
-  TQ_OBJECT_CONSTRUCTORS(JSFinalizationRegistry)
-};
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<NativeContext> native_context_;
+  TaggedMember<JSReceiver> cleanup_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> active_cells_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> cleared_cells_;
+  TaggedMember<Object> key_map_;
+  TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>> next_dirty_;
+  TaggedMember<Smi> flags_;
+
+  friend class Heap;
+  friend class TorqueGeneratedJSFinalizationRegistryAsserts;
+} V8_OBJECT_END;
+
+inline constexpr int JSFinalizationRegistry::kHeaderSize =
+    sizeof(JSFinalizationRegistry);
 
 // Internal object for storing weak references in JSFinalizationRegistry.
-V8_OBJECT class WeakCell : public HeapObjectLayout {
+V8_OBJECT class WeakCell : public HeapObject {
  public:
   inline Tagged<JSFinalizationRegistry> finalization_registry() const;
   inline void set_finalization_registry(
@@ -167,15 +212,20 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   friend class V8HeapExplorer;
 } V8_OBJECT_END;
 
-class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
+V8_OBJECT class JSWeakRef : public JSObject {
  public:
+  inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> target() const;
+  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSWeakRef)
   EXPORT_DECL_VERIFIER(JSWeakRef)
 
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(JSWeakRef)
-};
+ public:
+  TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> target_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

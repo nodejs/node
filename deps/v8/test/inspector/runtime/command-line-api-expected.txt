@@ -113,6 +113,62 @@ Running test: testInspect
     }
 }
 
+Running test: testInspectOmitFocus
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+            omitFocus : true
+        }
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            type : string
+            value : hello
+        }
+    }
+}
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+
 Running test: testQueryObjects
 {
     id : <messageId>

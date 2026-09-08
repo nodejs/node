@@ -8,3 +8,10 @@ Running test: testInvalidSamplingInterval
     }
     id : <messageId>
 }
+{
+    error : {
+        code : -32000
+        message : Invalid sampling interval
+    }
+    id : <messageId>
+}

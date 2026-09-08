@@ -16,13 +16,16 @@
 #define ABSL_STRINGS_INTERNAL_CORD_REP_BTREE_READER_H_
 
 #include <cassert>
+#include <cstddef>
 
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/internal/cord_data_edge.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"
 #include "absl/strings/internal/cord_rep_btree_navigator.h"
 #include "absl/strings/internal/cord_rep_flat.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

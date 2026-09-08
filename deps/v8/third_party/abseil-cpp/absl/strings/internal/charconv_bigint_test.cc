@@ -14,6 +14,8 @@
 
 #include "absl/strings/internal/charconv_bigint.h"
 
+#include <cstdint>
+#include <limits>
 #include <string>
 
 #include "gtest/gtest.h"

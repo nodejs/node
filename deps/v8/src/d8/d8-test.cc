@@ -5,6 +5,7 @@
 #include "src/d8/d8.h"
 
 #include "include/v8-fast-api-calls.h"
+#include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 
@@ -901,6 +902,85 @@ class FastCApiObject {
     }
   }
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType CheckRestrictedFloat32Patch(AnyCType receiver, AnyCType param,
+                                              AnyCType options) {
+    AnyCType ret;
+    CheckRestrictedFloat32FastCallback(receiver.object_value, param.float_value,
+                                       *options.options_value);
+    return ret;
+  }
+  static AnyCType CheckRestrictedFloat64Patch(AnyCType receiver, AnyCType param,
+                                              AnyCType options) {
+    AnyCType ret;
+    CheckRestrictedFloat64FastCallback(
+        receiver.object_value, param.double_value, *options.options_value);
+    return ret;
+  }
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  static void CheckRestrictedFloat32FastCallback(
+      Local<Object> receiver, float param, FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_NOT_NULL(self);
+    self->fast_call_count_++;
+
+    CHECK(std::isfinite(param));
+  }
+
+  static void CheckRestrictedFloat64FastCallback(
+      Local<Object> receiver, double param, FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_NOT_NULL(self);
+    self->fast_call_count_++;
+
+    CHECK(std::isfinite(param));
+  }
+
+  static void CheckRestrictedFloat32SlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1 || !info[0]->IsNumber()) {
+      isolate->ThrowError("Argument must be a number.");
+      return;
+    }
+    float param = static_cast<float>(
+        info[0]->NumberValue(isolate->GetCurrentContext()).FromJust());
+    if (!std::isfinite(param)) {
+      isolate->ThrowError("Argument must be a finite number.");
+      return;
+    }
+  }
+
+  static void CheckRestrictedFloat64SlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1 || !info[0]->IsNumber()) {
+      isolate->ThrowError("Argument must be a number.");
+      return;
+    }
+    double param =
+        info[0]->NumberValue(isolate->GetCurrentContext()).FromJust();
+    if (!std::isfinite(param)) {
+      isolate->ThrowError("Argument must be a finite number.");
+      return;
+    }
+  }
+
   static bool IsFastCApiObjectFastCallback(v8::Local<v8::Object> receiver,
                                            v8::Local<v8::Value> arg,
                                            FastApiCallbackOptions& options) {
@@ -1003,11 +1083,23 @@ class FastCApiObject {
       isolate->ThrowError(
           "wasm_memory was used when the WebAssembly.Memory was not set on the "
           "receiver.");
+      return true;
+    }
+
+    if (!mem->IsWasmMemoryObject()) {
+      isolate->ThrowError(
+          "wasm_memory property is not a WebAssembly.Memory object.");
+      return true;
     }
 
     v8::Local<v8::WasmMemoryObject> wasm_memory =
         mem.As<v8::WasmMemoryObject>();
-    reinterpret_cast<uint8_t*>(wasm_memory->Buffer()->Data())[address] = 42;
+    v8::Local<v8::ArrayBuffer> buffer = wasm_memory->Buffer();
+    if (address >= buffer->ByteLength()) {
+      isolate->ThrowError("Address out of bounds for Wasm memory.");
+      return true;
+    }
+    reinterpret_cast<uint8_t*>(buffer->Data())[address] = 42;
 
     return true;
   }
@@ -1518,7 +1610,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
   PerIsolateData::Get(isolate)->SetTestApiObjectCtor(api_obj_ctor);
   Local<Signature> signature = Signature::New(isolate, api_obj_ctor);
   {
-    CFunction throw_no_fallback_func = CFunction::Make(
+    static CFunction throw_no_fallback_func = CFunction::Make(
         FastCApiObject::ThrowNoFallbackFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::ThrowNoFallbackFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -1528,7 +1620,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Signature>(), 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &throw_no_fallback_func));
 
-    CFunction copy_str_func = CFunction::Make(
+    static CFunction copy_str_func = CFunction::Make(
         FastCApiObject::CopyStringFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::CopyStringFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -1538,7 +1630,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &copy_str_func));
 
-    CFunction add_all_c_func =
+    static CFunction add_all_c_func =
         CFunction::Make(FastCApiObject::AddAllFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAllFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -1548,10 +1640,10 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &add_all_c_func));
 
-    CFunction fast_setter = CFunction::Make(
+    static CFunction fast_setter = CFunction::Make(
         FastCApiObject::AttributeSetterFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::AttributeSetterFastCallback));
-    CFunction fast_getter = CFunction::Make(
+    static CFunction fast_getter = CFunction::Make(
         FastCApiObject::AttributeGetterFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::AttributeGetterFastCallback));
 
@@ -1567,7 +1659,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect, &fast_setter),
         v8::PropertyAttribute::None);
 
-    CFunction add_all_seq_c_func = CFunction::Make(
+    static CFunction add_all_seq_c_func = CFunction::Make(
         FastCApiObject::AddAllSequenceFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAllSequenceFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -1577,7 +1669,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_seq_c_func));
 
-    CFunction add_all_uint8_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_uint8_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<uint8_t>
             V8_IF_USE_SIMULATOR(
                 FastCApiObject::AddAllTypedArrayFastCallbackPatch<uint8_t>));
@@ -1589,7 +1681,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_uint8_typed_array_c_func));
 
-    CFunction add_all_int32_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_int32_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<int32_t>
             V8_IF_USE_SIMULATOR(
                 FastCApiObject::AddAllTypedArrayFastCallbackPatch<int32_t>));
@@ -1601,7 +1693,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_int32_typed_array_c_func));
 
-    CFunction add_all_int64_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_int64_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<int64_t>
             V8_IF_USE_SIMULATOR(
                 FastCApiObject::AddAllTypedArrayFastCallbackPatch<int64_t>));
@@ -1612,7 +1704,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_int64_typed_array_c_func));
 
-    CFunction add_all_uint64_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_uint64_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<uint64_t>
             V8_IF_USE_SIMULATOR(
                 FastCApiObject::AddAllTypedArrayFastCallbackPatch<uint64_t>));
@@ -1624,7 +1716,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_uint64_typed_array_c_func));
 
-    CFunction add_all_uint32_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_uint32_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<uint32_t>
             V8_IF_USE_SIMULATOR(
                 FastCApiObject::AddAllTypedArrayFastCallbackPatch<uint32_t>));
@@ -1636,7 +1728,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_uint32_typed_array_c_func));
 
-    CFunction add_all_float32_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_float32_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<float> V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAllTypedArrayFastCallbackPatch<float>));
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -1647,7 +1739,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_float32_typed_array_c_func));
 
-    CFunction add_all_no_options_c_func = CFunction::Make(
+    static CFunction add_all_no_options_c_func = CFunction::Make(
         FastCApiObject::AddAllFastCallbackNoOptions V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAllFastCallbackNoOptionsPatch),
         CFunctionInfo::Int64Representation::kBigInt);
@@ -1658,7 +1750,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Signature>(), 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_no_options_c_func));
 
-    CFunction add_all_float64_typed_array_c_func = CFunction::Make(
+    static CFunction add_all_float64_typed_array_c_func = CFunction::Make(
         FastCApiObject::AddAllTypedArrayFastCallback<double>
             V8_IF_USE_SIMULATOR(
                 FastCApiObject::AddAllTypedArrayFastCallbackPatch<double>));
@@ -1670,7 +1762,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_float64_typed_array_c_func));
 
-    const CFunction add_all_overloads[] = {
+    static const CFunction add_all_overloads[] = {
         add_all_seq_c_func,
         add_all_no_options_c_func,
     };
@@ -1681,17 +1773,17 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {add_all_overloads, 2}));
 
-    CFunction add_all_32bit_int_8args_c_func = CFunction::Make(
+    static CFunction add_all_32bit_int_8args_c_func = CFunction::Make(
         FastCApiObject::AddAll32BitIntFastCallback_8Args V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAll32BitIntFastCallback_8ArgsPatch));
-    CFunction add_all_32bit_int_6args_c_func = CFunction::Make(
+    static CFunction add_all_32bit_int_6args_c_func = CFunction::Make(
         FastCApiObject::AddAll32BitIntFastCallback_6Args V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAll32BitIntFastCallback_6ArgsPatch));
-    CFunction add_all_32bit_int_5args_c_func = CFunction::Make(
+    static CFunction add_all_32bit_int_5args_c_func = CFunction::Make(
         FastCApiObject::AddAll32BitIntFastCallback_5Args V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch));
-    const CFunction c_function_overloads[] = {add_all_32bit_int_6args_c_func,
-                                              add_all_32bit_int_5args_c_func};
+    static const CFunction c_function_overloads[] = {
+        add_all_32bit_int_6args_c_func, add_all_32bit_int_5args_c_func};
 
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "overloaded_add_all_32bit_int",
@@ -1714,7 +1806,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Signature>(), 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
 
-    CFunction add_32bit_int_c_func = CFunction::Make(
+    static CFunction add_32bit_int_c_func = CFunction::Make(
         FastCApiObject::Add32BitIntFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::Add32BitIntFastCallbackPatch));
     api_obj_ctor->PrototypeTemplate()->Set(
@@ -1724,7 +1816,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_32bit_int_c_func));
 
-    CFunction add_all_annotate_c_func = CFunction::Make(
+    static CFunction add_all_annotate_c_func = CFunction::Make(
         FastCApiObject::AddAllAnnotateFastCallback<
             v8::CTypeInfo::Flags::kEnforceRangeBit>
             V8_IF_USE_SIMULATOR(FastCApiObject::AddAllAnnotateFastCallbackPatch<
@@ -1738,7 +1830,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
 
     // Testing enforce range annotation.
 
-    CFunction enforce_range_compare_i32_c_func =
+    static CFunction enforce_range_compare_i32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int32_t>)
             .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
@@ -1753,7 +1845,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_i32_c_func));
 
-    CFunction enforce_range_compare_u32_c_func =
+    static CFunction enforce_range_compare_u32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<uint32_t>)
             .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
@@ -1768,7 +1860,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_u32_c_func));
 
-    CFunction enforce_range_compare_i64_c_func =
+    static CFunction enforce_range_compare_i64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int64_t>)
             .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
@@ -1783,7 +1875,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_i64_c_func));
 
-    CFunction enforce_range_compare_u64_c_func =
+    static CFunction enforce_range_compare_u64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<uint64_t>)
             .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
@@ -1800,7 +1892,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
 
     // Testing clamp annotation.
 
-    CFunction clamp_compare_i32_c_func =
+    static CFunction clamp_compare_i32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::ClampCompare<int32_t>)
             .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
@@ -1815,7 +1907,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &clamp_compare_i32_c_func));
 
-    CFunction clamp_compare_u32_c_func =
+    static CFunction clamp_compare_u32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::ClampCompare<uint32_t>)
             .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
@@ -1830,7 +1922,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &clamp_compare_u32_c_func));
 
-    CFunction clamp_compare_i64_c_func =
+    static CFunction clamp_compare_i64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::ClampCompare<int64_t>)
             .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
@@ -1845,7 +1937,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &clamp_compare_i64_c_func));
 
-    CFunction clamp_compare_u64_c_func =
+    static CFunction clamp_compare_u64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::ClampCompare<uint64_t>)
             .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
@@ -1860,7 +1952,39 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &clamp_compare_u64_c_func));
 
-    CFunction is_valid_api_object_c_func =
+    // Testing restricted float annotation.
+
+    static CFunction check_restricted_float32_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::CheckRestrictedFloat32FastCallback)
+            .Arg<1, v8::CTypeInfo::Flags::kIsRestrictedBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::CheckRestrictedFloat32Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "check_restricted_float32",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::CheckRestrictedFloat32SlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &check_restricted_float32_c_func));
+
+    static CFunction check_restricted_float64_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::CheckRestrictedFloat64FastCallback)
+            .Arg<1, v8::CTypeInfo::Flags::kIsRestrictedBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::CheckRestrictedFloat64Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "check_restricted_float64",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::CheckRestrictedFloat64SlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &check_restricted_float64_c_func));
+
+    static CFunction is_valid_api_object_c_func =
         CFunction::Make(FastCApiObject::IsFastCApiObjectFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "is_fast_c_api_object",
@@ -1869,7 +1993,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
 
-    CFunction call_to_number_c_func =
+    static CFunction call_to_number_c_func =
         CFunction::Make(FastCApiObject::CallToNumberFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "call_to_number",
@@ -1878,7 +2002,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &call_to_number_c_func));
 
-    CFunction test_wasm_memory_c_func =
+    static CFunction test_wasm_memory_c_func =
         CFunction::Make(FastCApiObject::TestWasmMemoryFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "test_wasm_memory",
@@ -1894,7 +2018,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, nullptr));
 
-    CFunction get_pointer_c_func =
+    static CFunction get_pointer_c_func =
         CFunction::Make(FastCApiObject::GetPointerFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "get_pointer",
@@ -1902,7 +2026,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::GetPointerSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &get_pointer_c_func));
-    CFunction get_null_pointer_c_func =
+    static CFunction get_null_pointer_c_func =
         CFunction::Make(FastCApiObject::GetNullPointerFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "get_null_pointer",
@@ -1910,7 +2034,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::GetNullPointerSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &get_null_pointer_c_func));
-    CFunction pass_pointer_c_func =
+    static CFunction pass_pointer_c_func =
         CFunction::Make(FastCApiObject::PassPointerFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "pass_pointer",
@@ -1918,7 +2042,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::PassPointerSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &pass_pointer_c_func));
-    CFunction compare_pointers_c_func =
+    static CFunction compare_pointers_c_func =
         CFunction::Make(FastCApiObject::ComparePointersFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "compare_pointers",
@@ -1926,7 +2050,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::ComparePointersSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &compare_pointers_c_func));
-    CFunction sum_int64_as_number_c_func =
+    static CFunction sum_int64_as_number_c_func =
         CFunctionBuilder().Fn(FastCApiObject::sumInt64FastCallback).Build();
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "sum_int64_as_number",
@@ -1934,7 +2058,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::sumInt64AsNumberSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &sum_int64_as_number_c_func));
-    CFunction sum_int64_as_bigint_c_func =
+    static CFunction sum_int64_as_bigint_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::sumInt64FastCallback)
             .Build<CFunctionInfo::Int64Representation::kBigInt>();
@@ -1944,7 +2068,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::sumInt64AsBigIntSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &sum_int64_as_bigint_c_func));
-    CFunction sum_uint64_as_number_c_func =
+    static CFunction sum_uint64_as_number_c_func =
         CFunctionBuilder().Fn(FastCApiObject::sumUint64FastCallback).Build();
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "sum_uint64_as_number",
@@ -1952,7 +2076,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::sumUint64AsNumberSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &sum_uint64_as_number_c_func));
-    CFunction sum_uint64_as_bigint_c_func =
+    static CFunction sum_uint64_as_bigint_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::sumUint64FastCallback)
             .Build<CFunctionInfo::Int64Representation::kBigInt>();
@@ -1979,7 +2103,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow));
 
-    CFunction add_all_32bit_int_5args_enforce_range_c_func =
+    static CFunction add_all_32bit_int_5args_enforce_range_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::AddAll32BitIntFastCallback_5Args)
             .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
@@ -2016,6 +2140,146 @@ Local<FunctionTemplate> Shell::CreateLeafInterfaceTypeTemplate(
   leaf_object_ctor->SetClassName(
       String::NewFromUtf8Literal(isolate, "LeafInterfaceType"));
   return leaf_object_ctor;
+}
+
+namespace {
+
+v8::Intercepted D8InterceptCallback(Local<Name> property,
+                                    const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Value> data = info.Data();
+  if (!data->IsFunction()) {
+    isolate->ThrowError("Interceptor callback must be a function");
+    return v8::Intercepted::kYes;
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Function> fn = data.As<Function>();
+  Local<Value> argv[1] = {property};
+  Local<Value> ret;
+  if (fn->Call(context, info.Holder(), 1, argv).ToLocal(&ret)) {
+    info.GetReturnValue().Set(ret);
+  }
+  // TODO(leszeks): Add a mechanism to allow not intercepting.
+  return v8::Intercepted::kYes;
+}
+
+bool D8AccessCheck(Local<Context> accessing_context,
+                   Local<Object> accessed_object, Local<Value> data) {
+  Isolate* isolate = Isolate::GetCurrent();
+  if (!data->IsFunction()) {
+    isolate->ThrowError("Access check callback must be a function");
+    return false;
+  }
+  Local<Function> fn = data.As<Function>();
+  v8::TryCatch try_catch(isolate);
+  Local<Value> ret;
+  if (fn->Call(accessing_context, accessed_object, 0, nullptr).ToLocal(&ret)) {
+    return ret->BooleanValue(isolate);
+  }
+  return false;
+}
+
+}  // namespace
+
+void Shell::CreateInterceptorObject(const FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() == 0 || !info[0]->IsFunction()) {
+    isolate->ThrowError(
+        "d8.test.createInterceptorObject requires a getter function");
+    return;
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<FunctionTemplate> ctor = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> templ = ctor->InstanceTemplate();
+  templ->SetHandler(NamedPropertyHandlerConfiguration(
+      D8InterceptCallback, nullptr, nullptr, nullptr, nullptr, info[0]));
+
+  Local<Function> fn;
+  if (!ctor->GetFunction(context).ToLocal(&fn)) return;
+  Local<Object> instance;
+  if (!fn->NewInstance(context).ToLocal(&instance)) return;
+  info.GetReturnValue().Set(instance);
+}
+
+void Shell::CreateAccessCheckedObject(const FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() == 0 || !info[0]->IsFunction()) {
+    isolate->ThrowError(
+        "d8.test.createAccessCheckedObject requires a callback function");
+    return;
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<FunctionTemplate> ctor = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> templ = ctor->InstanceTemplate();
+  templ->SetAccessCheckCallback(D8AccessCheck, info[0]);
+
+  Local<Function> fn;
+  if (!ctor->GetFunction(context).ToLocal(&fn)) return;
+  Local<Object> instance;
+  if (!fn->NewInstance(context).ToLocal(&instance)) return;
+  info.GetReturnValue().Set(instance);
+}
+
+void Shell::CreateSpecialObject(const FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() == 0 || !info[0]->IsObject()) {
+    isolate->ThrowError(
+        "d8.test.createSpecialObject requires an options object");
+    return;
+  }
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Object> opts = info[0].As<Object>();
+
+  bool has_interceptor = false;
+  bool has_access_check = false;
+  Local<Value> interceptor_data = Undefined(isolate);
+  Local<Value> access_check_data = Undefined(isolate);
+
+  Local<Value> inc;
+  if (opts->Get(context, String::NewFromUtf8Literal(isolate, "interceptor"))
+          .ToLocal(&inc) &&
+      !inc->IsUndefined()) {
+    if (!inc->IsFunction()) {
+      isolate->ThrowError("interceptor option must be a function");
+      return;
+    }
+    has_interceptor = true;
+    interceptor_data = inc;
+  }
+
+  Local<Value> ac;
+  if (opts->Get(context, String::NewFromUtf8Literal(isolate, "accessCheck"))
+          .ToLocal(&ac) &&
+      !ac->IsUndefined()) {
+    if (!ac->IsFunction()) {
+      isolate->ThrowError("accessCheck option must be a function");
+      return;
+    }
+    has_access_check = true;
+    access_check_data = ac;
+  }
+
+  Local<FunctionTemplate> ctor = FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> templ = ctor->InstanceTemplate();
+  if (has_interceptor && has_access_check) {
+    templ->SetAccessCheckCallbackAndHandler(
+        D8AccessCheck,
+        NamedPropertyHandlerConfiguration(D8InterceptCallback, nullptr, nullptr,
+                                          nullptr, nullptr, interceptor_data),
+        IndexedPropertyHandlerConfiguration(), access_check_data);
+  } else if (has_interceptor) {
+    templ->SetHandler(
+        NamedPropertyHandlerConfiguration(D8InterceptCallback, nullptr, nullptr,
+                                          nullptr, nullptr, interceptor_data));
+  } else if (has_access_check) {
+    templ->SetAccessCheckCallback(D8AccessCheck, access_check_data);
+  }
+
+  Local<Function> fn;
+  if (!ctor->GetFunction(context).ToLocal(&fn)) return;
+  Local<Object> instance;
+  if (!fn->NewInstance(context).ToLocal(&instance)) return;
+  info.GetReturnValue().Set(instance);
 }
 
 }  // namespace v8
