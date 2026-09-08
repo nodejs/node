@@ -587,6 +587,33 @@ suite('DatabaseSync.prototype.createModule()', () => {
       }
       assert.strictEqual(cleanedUp, false);
     });
+
+    test('a throwing cleanup does not swallow the next SQLite error', () => {
+      // SQLite discards xClose's return value, so a cleanup error there has no
+      // SQLite error to pair with. Suppressing one would leave the suppression
+      // flag set for the next unrelated statement.
+      const db = new DatabaseSync(':memory:');
+
+      db.createModule('cleanup_leak', {
+        columns: [{ name: 'value', type: 'INTEGER' }],
+        rows() {
+          let i = 0;
+          return {
+            [Symbol.iterator]() { return this; },
+            next() { return { value: [i++], done: i > 50 }; },
+            return() { throw new Error('cleanup boom'); },
+          };
+        },
+      });
+
+      assert.throws(() => {
+        db.prepare('SELECT value FROM cleanup_leak LIMIT 1').all();
+      }, /cleanup boom/);
+
+      assert.throws(() => {
+        db.prepare('SELECT * FROM no_such_table');
+      }, { code: 'ERR_SQLITE_ERROR', message: /no such table: no_such_table/ });
+    });
   });
 
   suite('iteration protocol violations', () => {

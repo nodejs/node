@@ -1236,11 +1236,11 @@ int VirtualTableModule::xClose(sqlite3_vtab_cursor* pCursor) {
           env->context(), iterator, 0, nullptr));
     }
 
-    // Re-throw so that an error already pending when SQLite unwound into
-    // xClose still reaches the caller, and so that a throwing `finally` is not
-    // silently discarded.
+    // Re-throw so that a throwing `finally` is not silently discarded. SQLite
+    // discards xClose's return value, so there is no SQLite error here to
+    // suppress; calling PropagateJSError would leave the suppression flag set
+    // and swallow the next unrelated SQLite error.
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-      mod->PropagateJSError();
       try_catch.ReThrow();
     }
   }
@@ -3019,6 +3019,11 @@ void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
   }
 
   schema_sql += ")";
+
+  // Reading the options bag and the column definitions above can run user
+  // JavaScript through a property getter, which may have closed the database
+  // since it was checked.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
   VirtualTableModule* vtab_mod =
       new VirtualTableModule(env,
