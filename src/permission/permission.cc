@@ -311,37 +311,53 @@ void Permission::EnableWarningOnly() {
   }
 }
 
-bool Permission::is_scope_granted(Environment* env,
+bool Permission::is_granted_quiet(Environment* env,
                                   PermissionScope permission,
                                   std::string_view res) const {
+  if (!enabled_) [[likely]] {
+    return true;
+  }
   CHECK(permission != PermissionScope::kPermissionsRoot &&
         permission != PermissionScope::kPermissionsCount);
   auto& perm_node = nodes_[static_cast<size_t>(permission)];
-  bool result = false;
-  if (perm_node) {
-    result = perm_node->is_granted(env, permission, res);
-  }
+  return perm_node && perm_node->is_granted(env, permission, res);
+}
 
-  if (!result && !publishing_) {
-    auto ch = GetOrCreateChannel(env, permission);
-    if (ch && ch->HasSubscribers()) {
-      publishing_ = true;
-      v8::Isolate* isolate = env->isolate();
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = env->context();
-      v8::MaybeLocal<v8::Value> values[] = {
-          PermissionToString(env, permission),
-          ToV8Value(context, res),
-          Undefined(isolate),
-      };
-      ch->Publish(
-          env,
-          GetPermissionDiagnosticsTemplate(env)->NewInstance(context, values));
-      publishing_ = false;
-    }
-  }
-
+bool Permission::is_scope_granted(Environment* env,
+                                  PermissionScope permission,
+                                  std::string_view res) const {
+  const bool result = is_granted_quiet(env, permission, res);
+  if (!result) Publish(env, permission, res, /*dropped=*/false);
   return result;
+}
+
+void Permission::PublishDenied(Environment* env,
+                               PermissionScope permission,
+                               std::string_view res) const {
+  Publish(env, permission, res, /*dropped=*/false);
+}
+
+void Permission::Publish(Environment* env,
+                         PermissionScope scope,
+                         std::string_view res,
+                         bool dropped) const {
+  // A subscriber's own checks must not publish recursively
+  if (publishing_) return;
+  auto ch = GetOrCreateChannel(env, scope);
+  if (!ch || !ch->HasSubscribers()) return;
+  publishing_ = true;
+  v8::Isolate* isolate = env->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = env->context();
+  v8::MaybeLocal<v8::Value> values[] = {
+      PermissionToString(env, scope),
+      ToV8Value(context, res),
+      dropped ? v8::True(isolate).As<v8::Value>()
+              : Undefined(isolate).As<v8::Value>(),
+  };
+  ch->Publish(
+      env, GetPermissionDiagnosticsTemplate(env)->NewInstance(context, values));
+  publishing_ = false;
 }
 
 BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
@@ -380,25 +396,7 @@ void Permission::Drop(Environment* env,
   }
 
   // Publish to diagnostics channel so observers can track drops
-  if (!publishing_) {
-    auto ch = GetOrCreateChannel(env, scope);
-    if (ch && ch->HasSubscribers()) {
-      publishing_ = true;
-      v8::Isolate* isolate = env->isolate();
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = env->context();
-
-      v8::MaybeLocal<v8::Value> values[] = {
-          PermissionToString(env, scope),
-          ToV8Value(context, param),
-          v8::True(isolate),
-      };
-      ch->Publish(
-          env,
-          GetPermissionDiagnosticsTemplate(env)->NewInstance(context, values));
-      publishing_ = false;
-    }
-  }
+  Publish(env, scope, param, /*dropped=*/true);
 }
 
 void Initialize(Local<Object> target,

@@ -97,6 +97,18 @@ class Permission {
     return is_scope_granted(env, permission, res);
   }
 
+  // The check alone, without the diagnostics channel message a denial
+  // publishes: for threads other than the one that owns `env`, which
+  // report their denials from that thread with PublishDenied(). Only the
+  // file system scopes may be checked this way.
+  bool is_granted_quiet(Environment* env,
+                        PermissionScope permission,
+                        std::string_view res = "") const;
+  // Publishes the diagnostics channel message for a denied check of `res`
+  void PublishDenied(Environment* env,
+                     PermissionScope permission,
+                     std::string_view res) const;
+
   FORCE_INLINE bool enabled() const { return enabled_; }
 
   FORCE_INLINE bool warning_only() const { return warning_only_; }
@@ -128,6 +140,11 @@ class Permission {
 
   BaseObjectPtr<diagnostics_channel::Channel> GetOrCreateChannel(
       Environment* env, PermissionScope scope) const;
+  // Publishes a denial (or a drop) of `res` to the scope's channel
+  void Publish(Environment* env,
+               PermissionScope scope,
+               std::string_view res,
+               bool dropped) const;
 
   static constexpr size_t kPermissionCount =
       static_cast<size_t>(PermissionScope::kPermissionsCount);

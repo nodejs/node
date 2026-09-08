@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <string>
@@ -51,6 +52,31 @@ struct WalkEntry {
   int type = UV_DIRENT_UNKNOWN;
 };
 
+// One call a walk off the main thread needs made to the exclude callback,
+// which only that thread can do. A directory's questions are recorded in
+// the order the callback would see them, together with what decides
+// whether each is asked at all, so the main thread can put exactly the
+// calls the walk on that thread would have made.
+struct Question {
+  static constexpr size_t kNoEntry = SIZE_MAX;
+  // ExcludesEntry(first, parent, type) when set, else ExcludesPath(first)
+  bool entry;
+  std::string first;
+  std::string parent;
+  int type;
+  // The listing entry the question belongs to; kNoEntry for none
+  size_t entry_id;
+  // For an entry question: whether "not excluded" makes the walk descend
+  // into the entry, which raises the entry's path question. For a path
+  // question: whether the walk descends regardless of the entry's answers.
+  bool descends;
+};
+
+struct Answer {
+  bool entry;
+  bool excluded;
+};
+
 class WalkerImpl;
 
 class Walk {
@@ -66,6 +92,16 @@ class Walk {
   bool RunSlice(size_t max_results,
                 bool on_main_thread,
                 std::vector<WalkEntry>* out);
+
+  // A slice that stopped because a directory needs the exclude callback:
+  // the questions for the main thread, then the answers to resume with.
+  bool HasQuestions() const;
+  const std::vector<Question>& questions() const;
+  void SetAnswers(std::vector<Answer> answers);
+
+  // Paths the permission model denied off the main thread since the last
+  // call, for publishing from that thread
+  void TakeDenied(std::vector<std::string>* out);
 
   // Stops background scanning and joins the walk's threads. Idempotent;
   // safe while a slice is in flight (it will wind down promptly). Called

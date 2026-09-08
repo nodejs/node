@@ -124,14 +124,16 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
  private:
   static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args, bool drain);
   v8::MaybeLocal<v8::Value> Settle();
+  // The main-thread half of a slice: publishes the permission denials the
+  // walk met and puts the questions of a directory waiting on the exclude
+  // callback to it, in the order the walk would have.
+  void PublishDenials();
+  void AnswerQuestions();
 
   // Declared before the walk, which points at it.
   std::unique_ptr<JsExcludeFilter> filter_;
   Walk walk_;
   const bool with_file_types_;
-  // Slices run on the main thread when the exclude callback or the
-  // permission model needs to be there; neither can change mid-request.
-  const bool inline_only_;
   // Set by all(): the pull consumes the rest of the walk in one batch.
   bool drain_ = false;
   bool done_ = false;

@@ -668,8 +668,18 @@ class WalkerState {
     }
     Drain(out);
     return aborted_ || pool_.stopping() ||
-           (free_ ? free_stack_.empty() : queue_.empty());
+           (free_ ? free_stack_.empty() : (queue_.empty() && !visiting_));
   }
+
+  bool HasQuestions() const { return !questions_.empty(); }
+  const std::vector<Question>& questions() const { return questions_; }
+  void SetAnswers(std::vector<Answer> answers) {
+    questions_.clear();
+    answers_ = std::move(answers);
+    answered_ = 0;
+    has_answers_ = true;
+  }
+  void TakeDenied(std::vector<std::string>* out) { out->swap(denied_); }
 
   // Runs one visit of the free walk; called from pool threads and from
   // the sequencer when it takes an unstarted visit.
@@ -748,16 +758,21 @@ class WalkerState {
   }
 
   void RunSerial(size_t max_results) {
-    while (!aborted_ && !pool_.stopping() && !queue_.empty() &&
-           results_.size() - emitted_ < max_results) {
-      QueueItem item = std::move(queue_.back());
-      queue_.pop_back();
-      const size_t kept = queue_.size();
-      SerialCtx ctx{this};
-      for (PatternState& pattern : item.patterns) {
-        VisitDirectory(ctx, item.path, pattern);
-        if (aborted_) break;
+    while (!aborted_ && !pool_.stopping()) {
+      if (!visiting_) {
+        if (queue_.empty() || results_.size() - emitted_ >= max_results) {
+          return;
+        }
+        item_ = std::move(queue_.back());
+        queue_.pop_back();
+        kept_ = queue_.size();
+        next_pattern_ = 0;
+        visiting_ = true;
       }
+      // A visit waiting on the exclude callback suspends the walk here;
+      // the next slice resumes it with the answers.
+      if (!VisitItem()) return;
+      visiting_ = false;
       for (std::string& entry : subpatterns_order_) {
         QueueItem next;
         next.patterns = std::move(subpatterns_[entry]);
@@ -766,8 +781,65 @@ class WalkerState {
       }
       subpatterns_.clear();
       subpatterns_order_.clear();
-      PrefetchQueued(kept);
+      PrefetchQueued(kept_);
     }
+  }
+
+  // Visits item_ under each of its patterns. Off the main thread, a
+  // visit that would consult the exclude callback first runs as a probe
+  // to collect its questions; false means they await the main thread.
+  bool VisitItem() {
+    for (; next_pattern_ < item_.patterns.size(); next_pattern_++) {
+      PatternState& pattern = item_.patterns[next_pattern_];
+      if (AsksOffThread() && !has_answers_) {
+        ProbeCtx probe{this};
+        VisitDirectory(probe, item_.path, pattern);
+        if (!probe.questions.empty()) {
+          questions_ = std::move(probe.questions);
+          return false;
+        }
+      }
+      SerialCtx ctx{this};
+      VisitDirectory(ctx, item_.path, pattern);
+      // The visit asks exactly what its probe recorded.
+      CHECK_EQ(answered_, answers_.size());
+      answers_.clear();
+      answered_ = 0;
+      has_answers_ = false;
+      if (aborted_) break;
+    }
+    return true;
+  }
+
+  // Whether the exclude callback is consulted through the main thread
+  bool AsksOffThread() const {
+    return options_.exclude_filter != nullptr && !on_main_thread_;
+  }
+
+  // The exclude callback's verdicts: from the callback itself on the main
+  // thread, or from the answers a probe's questions got there.
+  bool EntryExcluded(const std::string& name,
+                     const std::string& parent,
+                     int type) {
+    if (AsksOffThread()) return NextAnswer(/*entry=*/true);
+    const bool excluded =
+        options_.exclude_filter->ExcludesEntry(name, parent, type);
+    if (options_.exclude_filter->failed()) aborted_ = true;
+    return excluded;
+  }
+
+  bool PathExcluded(const std::string& path) {
+    if (AsksOffThread()) return NextAnswer(/*entry=*/false);
+    const bool excluded = options_.exclude_filter->ExcludesPath(path);
+    if (options_.exclude_filter->failed()) aborted_ = true;
+    return excluded;
+  }
+
+  bool NextAnswer(bool entry) {
+    CHECK_LT(answered_, answers_.size());
+    const Answer& answer = answers_[answered_++];
+    CHECK_EQ(answer.entry, entry);
+    return answer.excluded;
   }
 
   // Consumes finished visits in the exact schedule order the serial walk
@@ -822,10 +894,20 @@ class WalkerState {
     return ids;
   }
 
+  // The permission model's verdict on reading `path`. Audit mode
+  // (--permission-audit) reports a denial but lets the read through.
   bool PermissionGranted(const std::string& path) {
-    if (!env_->permission()->enabled()) return true;
-    return env_->permission()->is_granted(
-        env_, permission::PermissionScope::kFileSystemRead, path);
+    permission::Permission* permission = env_->permission();
+    if (!permission->enabled()) return true;
+    constexpr auto kScope = permission::PermissionScope::kFileSystemRead;
+    if (on_main_thread_) {
+      return permission->is_granted(env_, kScope, path) ||
+             permission->warning_only();
+    }
+    // Off the main thread the denial is published from there later.
+    if (permission->is_granted_quiet(env_, kScope, path)) return true;
+    denied_.push_back(path);
+    return permission->warning_only();
   }
 
   // Runs one libuv filesystem call. Errors are never thrown (since the
@@ -948,6 +1030,20 @@ class WalkerState {
       keys.insert((*pattern.suffix_ids)[clamped]);
     }
     return keys.size() != original + pattern.indexes.size();
+  }
+
+  // MarkSeen() without the insertion
+  bool PeekSeen(const std::string& path, const PatternState& pattern) const {
+    auto it = seen_.find(path);
+    std::unordered_set<uint32_t> fresh;
+    size_t added = 0;
+    for (size_t index : pattern.indexes.values()) {
+      const size_t clamped = std::min(index, pattern.row->parts.size());
+      const uint32_t key = (*pattern.suffix_ids)[clamped];
+      if (it != seen_.end() && it->second.contains(key)) continue;
+      if (fresh.insert(key).second) added++;
+    }
+    return added != pattern.indexes.size();
   }
 
   bool Seen(const std::string& path,
@@ -1100,12 +1196,8 @@ class WalkerState {
       if (IsExcluded(full + '/') && StatSync(full).is_dir) return;
     }
     if (options_.exclude_filter != nullptr) {
-      const bool excluded = options_.exclude_filter->ExcludesPath(path);
-      if (options_.exclude_filter->failed()) {
-        aborted_ = true;
-        return;
-      }
-      if (excluded) return;
+      const bool excluded = PathExcluded(path);
+      if (aborted_ || excluded) return;
     }
     auto it = subpatterns_.find(path);
     if (it == subpatterns_.end()) {
@@ -1124,6 +1216,7 @@ class WalkerState {
   // permission-checked; the seen/'..' machinery is live.
   struct SerialCtx {
     static constexpr bool kSerial = true;
+    static constexpr bool kProbe = false;
     WalkerState* w;
 
     bool follow() const { return w->options_.follow_symlinks; }
@@ -1147,14 +1240,14 @@ class WalkerState {
     const std::vector<DirEntry>* Listing(const std::string& fullpath) {
       return &w->ReaddirSync(fullpath);
     }
+    void BeginEntry() {}
+    void BeginIndex() {}
     bool FilterEntry(const std::string& name,
                      const std::string& parent,
                      int type) {
-      const bool excluded =
-          w->options_.exclude_filter->ExcludesEntry(name, parent, type);
-      if (w->options_.exclude_filter->failed()) w->aborted_ = true;
-      return excluded;
+      return w->EntryExcluded(name, parent, type);
     }
+    void AddSub(IndexSet* set, size_t index) { set->Add(index); }
     void NoteChildStat(const std::string& fullpath, const StatInfo& info) {
       w->AddToStatCache(fullpath, info);
     }
@@ -1176,11 +1269,99 @@ class WalkerState {
     }
   };
 
+  // A dry run of a serial visit for the walk off the main thread: the
+  // same traversal with every exclude callback answer taken as "not
+  // excluded", recording the questions it would put to the callback and
+  // which of them decide a descent, and no other effect. The filesystem
+  // reads it makes are cached for the real visit that follows once the
+  // main thread has the answers.
+  struct ProbeCtx {
+    static constexpr bool kSerial = true;
+    static constexpr bool kProbe = true;
+    static constexpr size_t kNoGate = SIZE_MAX;
+    WalkerState* w;
+    std::vector<Question> questions;
+    size_t entry = Question::kNoEntry;  // the listing entry being visited
+    size_t gate = kNoGate;              // the question gating this index
+    bool descends = false;              // an ungated descent for `entry`
+
+    bool follow() const { return w->options_.follow_symlinks; }
+    bool Aborted() const { return false; }
+    bool HasFilter() const { return true; }
+    std::string FullPathFor(const std::string& path) const {
+      return Resolve(w->root_absolute_, path);
+    }
+    bool MarkSeenVisit(const std::string& path, const PatternState& pattern) {
+      return w->PeekSeen(path, pattern);
+    }
+    StatInfo VisitStat(const std::string& fullpath) {
+      return w->StatSync(fullpath);
+    }
+    bool ExcludedFull(const std::string& fullpath) {
+      return !w->excludes_.empty() && w->IsExcluded(fullpath);
+    }
+    StatInfo ProbeStat(const std::string& fullpath) {
+      return w->StatSync(fullpath);
+    }
+    const std::vector<DirEntry>* Listing(const std::string& fullpath) {
+      return &w->ReaddirSync(fullpath);
+    }
+    void BeginEntry() {
+      entry = entry == Question::kNoEntry ? 0 : entry + 1;
+      descends = false;
+      gate = kNoGate;
+    }
+    void BeginIndex() { gate = kNoGate; }
+    bool FilterEntry(const std::string& name,
+                     const std::string& parent,
+                     int type) {
+      gate = questions.size();
+      questions.push_back({true, name, parent, type, entry, false});
+      return false;
+    }
+    void AddSub(IndexSet* set, size_t index) {
+      set->Add(index);
+      if (gate == kNoGate) {
+        descends = true;
+      } else {
+        questions[gate].descends = true;
+      }
+    }
+    void NoteChildStat(const std::string& fullpath, const StatInfo& info) {
+      w->AddToStatCache(fullpath, info);
+    }
+    bool FollowIsDir(const std::string& fullpath) {
+      return w->FollowStatIsDirectory(fullpath);
+    }
+    void ResultAdd(std::string, int) {}
+    void AddChildEntry(std::string path,
+                       PatternState,
+                       std::string,
+                       const StatInfo&,
+                       const std::string&) {
+      questions.push_back({false,
+                           std::move(path),
+                           std::string(),
+                           UV_DIRENT_UNKNOWN,
+                           entry,
+                           descends});
+    }
+    void AddChildRedirect(std::string path, PatternState) {
+      questions.push_back({false,
+                           std::move(path),
+                           std::string(),
+                           UV_DIRENT_UNKNOWN,
+                           Question::kNoEntry,
+                           true});
+    }
+  };
+
   // The free-running walk: every syscall is raw (nothing can observe it),
   // nothing is cached (every directory is visited once), and results and
   // children collect on the visit for the sequencer.
   struct FreeCtx {
     static constexpr bool kSerial = false;
+    static constexpr bool kProbe = false;
     WalkerState* w;
     FreeVisit* v;
     std::vector<DirEntry> listing;
@@ -1208,9 +1389,12 @@ class WalkerState {
       }
       return &listing;
     }
+    void BeginEntry() {}
+    void BeginIndex() {}
     bool FilterEntry(const std::string&, const std::string&, int) {
       return false;
     }
+    void AddSub(IndexSet* set, size_t index) { set->Add(index); }
     void NoteChildStat(const std::string&, const StatInfo&) {}
     bool FollowIsDir(const std::string&) { return false; }
     void ResultAdd(std::string path, int type) {
@@ -1338,6 +1522,7 @@ class WalkerState {
     Subject name;
     for (const DirEntry& entry : *children) {
       if (ctx.Aborted()) return;
+      ctx.BeginEntry();
       const std::string entry_path = JoinEntry(path, entry.name);
       StatInfo entry_stat;
       entry_stat.exists = true;
@@ -1362,6 +1547,7 @@ class WalkerState {
       IndexSet sub_patterns;
       IndexSet next_symlinks;
       for (size_t index : pattern.indexes.values()) {
+        ctx.BeginIndex();
         const PartMatcher* current = pattern.At(static_cast<ptrdiff_t>(index));
         const size_t next_index = index + 1;
         const PartMatcher* next =
@@ -1389,7 +1575,7 @@ class WalkerState {
           }
 
           if (!from_symlink && entry_is_directory) {
-            sub_patterns.Add(index);
+            ctx.AddSub(&sub_patterns, index);
           } else if (!from_symlink && index == last) {
             ctx.ResultAdd(entry_path, entry.type);
           }
@@ -1397,18 +1583,19 @@ class WalkerState {
           if (next_matches && next_index == last && !is_last) {
             ctx.ResultAdd(entry_path, entry.type);
           } else if (next_matches && entry_is_directory) {
-            sub_patterns.Add(index + 2);
+            ctx.AddSub(&sub_patterns, index + 2);
           }
           if ((next_matches || IsDotFirstPart(pattern)) && entry_is_directory &&
               !from_symlink) {
-            sub_patterns.Add(next_index);
+            ctx.AddSub(&sub_patterns, next_index);
           }
 
           if (!ctx.follow() && entry_stat.is_link) {
             next_symlinks.Add(index);
           }
 
-          if constexpr (Ctx::kSerial) {
+          // A probe records questions only; this raises none.
+          if constexpr (Ctx::kSerial && !Ctx::kProbe) {
             if (IsLiteral(next) && next->literal == u".." &&
                 entry_is_directory) {
               // "**/..": both this directory and its parent stay live.
@@ -1449,13 +1636,13 @@ class WalkerState {
         }
         if (IsLiteral(current)) {
           if (TestIndex(*pattern.row, index, name) && index != last) {
-            sub_patterns.Add(next_index);
+            ctx.AddSub(&sub_patterns, next_index);
           } else if (current->literal == u"." &&
                      TestIndex(*pattern.row, next_index, name)) {
             if (next_index == last) {
               ctx.ResultAdd(entry_path, entry.type);
             } else {
-              sub_patterns.Add(next_index + 1);
+              ctx.AddSub(&sub_patterns, next_index + 1);
             }
           }
         }
@@ -1465,7 +1652,7 @@ class WalkerState {
           if (index == last) {
             ctx.ResultAdd(entry_path, entry.type);
           } else if (entry_is_directory) {
-            sub_patterns.Add(next_index);
+            ctx.AddSub(&sub_patterns, next_index);
           }
         }
       }
@@ -1546,6 +1733,19 @@ class WalkerState {
 
   // Set when an exclude callback threw
   bool aborted_ = false;
+
+  // The item being visited, kept across a suspended visit
+  QueueItem item_;
+  size_t kept_ = 0;          // queue depth under item_, for prefetching
+  size_t next_pattern_ = 0;  // the pattern item_ is visited under next
+  bool visiting_ = false;
+  // The exclude callback protocol for a walk off the main thread
+  std::vector<Question> questions_;
+  std::vector<Answer> answers_;
+  size_t answered_ = 0;
+  bool has_answers_ = false;
+  // Paths the permission model denied off the main thread
+  std::vector<std::string> denied_;
   PatternString scratch_;
 };
 
@@ -1600,6 +1800,22 @@ bool Walk::RunSlice(size_t max_results,
                     bool on_main_thread,
                     std::vector<WalkEntry>* out) {
   return impl_->RunSlice(max_results, on_main_thread, out);
+}
+
+bool Walk::HasQuestions() const {
+  return impl_->HasQuestions();
+}
+
+const std::vector<Question>& Walk::questions() const {
+  return impl_->questions();
+}
+
+void Walk::SetAnswers(std::vector<Answer> answers) {
+  impl_->SetAnswers(std::move(answers));
+}
+
+void Walk::TakeDenied(std::vector<std::string>* out) {
+  impl_->TakeDenied(out);
 }
 
 void Walk::Stop() {

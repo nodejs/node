@@ -434,8 +434,7 @@ GlobRequest::GlobRequest(Environment* env,
       ThreadPoolWork(env, "glob"),
       filter_(std::move(filter)),
       walk_(env, options, includes, excludes),
-      with_file_types_(options.with_file_types),
-      inline_only_(env->permission()->enabled() || filter_ != nullptr) {
+      with_file_types_(options.with_file_types) {
   MakeWeak();
 }
 
@@ -447,9 +446,52 @@ void GlobRequest::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void GlobRequest::DoThreadPoolWork() {
-  const size_t max_results =
-      drain_ ? std::numeric_limits<size_t>::max() : kBatchSize;
-  done_ = walk_.RunSlice(max_results, inline_only_, &batch_);
+  // A pull spans several slices when the exclude callback is consulted
+  // in between; the batch keeps filling across them (and a directory
+  // visited before a stop may already have filled it).
+  size_t max_results = std::numeric_limits<size_t>::max();
+  if (!drain_) {
+    max_results = batch_.size() < kBatchSize ? kBatchSize - batch_.size() : 0;
+  }
+  done_ = walk_.RunSlice(max_results, /*on_main_thread=*/false, &batch_);
+}
+
+void GlobRequest::PublishDenials() {
+  Environment* env = AsyncWrap::env();
+  std::vector<std::string> denied;
+  walk_.TakeDenied(&denied);
+  for (const std::string& path : denied) {
+    env->permission()->PublishDenied(
+        env, permission::PermissionScope::kFileSystemRead, path);
+  }
+}
+
+void GlobRequest::AnswerQuestions() {
+  std::vector<Answer> answers;
+  size_t entry = Question::kNoEntry;
+  bool descends = false;  // whether the walk descends into `entry`
+  for (const Question& question : walk_.questions()) {
+    if (question.entry_id != entry) {
+      entry = question.entry_id;
+      descends = false;
+    }
+    bool excluded;
+    if (question.entry) {
+      excluded = filter_->ExcludesEntry(
+          question.first, question.parent, question.type);
+      if (!excluded && question.descends) descends = true;
+    } else {
+      // A subpattern is only asked about when the walk descends into it.
+      if (entry != Question::kNoEntry && !question.descends && !descends) {
+        continue;
+      }
+      excluded = filter_->ExcludesPath(question.first);
+    }
+    // The callback threw: its exception is pending, the walk is over.
+    if (filter_->failed()) return;
+    answers.push_back({question.entry, excluded});
+  }
+  walk_.SetAnswers(std::move(answers));
 }
 
 // Builds [paths, types|undefined, done]
@@ -469,9 +511,10 @@ MaybeLocal<Value> GlobRequest::Settle() {
 
 void GlobRequest::AfterThreadPoolWork(int status) {
   in_flight_ = false;
+  Environment* env = AsyncWrap::env();
   // Environment teardown or a cancelled queue entry must not call back
   // into JavaScript.
-  if (status == UV_ECANCELED || !AsyncWrap::env()->can_call_into_js()) {
+  if (status == UV_ECANCELED || !env->can_call_into_js()) {
     resolver_.Reset();
     done_ = true;
     walk_.Stop();
@@ -479,20 +522,38 @@ void GlobRequest::AfterThreadPoolWork(int status) {
     return;
   }
   if (cancelled_) done_ = true;
-  // An exclude callback that threw leaves its exception pending
-  if (filter_ != nullptr && filter_->failed()) {
-    resolver_.Reset();
-    done_ = true;
-    walk_.Stop();
-    return;
-  }
-  // A finished walk keeps no threads waiting for garbage collection.
-  if (done_) walk_.Stop();
-  Environment* env = AsyncWrap::env();
+
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
   Context::Scope context_scope(context);
   InternalCallbackScope callback_scope(this);
+
+  PublishDenials();
+
+  if (!done_ && walk_.HasQuestions()) {
+    errors::TryCatchScope try_catch(env);
+    AnswerQuestions();
+    if (try_catch.HasCaught() || filter_->failed()) {
+      // The exclude callback threw: the pull rejects with its exception.
+      done_ = true;
+      walk_.Stop();
+      batch_.clear();
+      Local<Promise::Resolver> resolver = resolver_.Get(env->isolate());
+      resolver_.Reset();
+      MakeWeak();
+      // A terminating isolate (worker shutdown) has nothing to pass on.
+      if (try_catch.HasTerminated() || !try_catch.HasCaught()) return;
+      USE(resolver->Reject(context, try_catch.Exception()));
+      return;
+    }
+    // The walk resumes with the answers.
+    in_flight_ = true;
+    ScheduleWork();
+    return;
+  }
+
+  // A finished walk keeps no threads waiting for garbage collection.
+  if (done_) walk_.Stop();
   Local<Promise::Resolver> resolver = resolver_.Get(env->isolate());
   resolver_.Reset();
   // The request is idle again, so it may be collected with its handle.
@@ -542,11 +603,6 @@ void GlobRequest::Pull(const FunctionCallbackInfo<Value>& args, bool drain) {
 
   request->resolver_.Reset(isolate, resolver);
   request->in_flight_ = true;
-  if (request->inline_only_) {
-    request->DoThreadPoolWork();
-    request->AfterThreadPoolWork(0);
-    return;
-  }
   // Keep the request alive for as long as the worker holds a pointer to it.
   request->ClearWeak();
   request->ScheduleWork();
