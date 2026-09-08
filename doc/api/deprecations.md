@@ -4709,7 +4709,7 @@ successfully before the response closed.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.8.2
     pr-url: https://github.com/nodejs/node/pull/64794
     description: Runtime deprecation.
 -->
@@ -4726,7 +4726,7 @@ calling or overriding `_listen2`.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.8.2
     pr-url: https://github.com/nodejs/node/pull/64342
     description: Documentation-only deprecation.
 -->
