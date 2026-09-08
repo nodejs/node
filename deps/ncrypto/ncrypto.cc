@@ -3955,34 +3955,6 @@ constexpr bool IsASN1Sequence(const unsigned char* data,
   return true;
 }
 
-constexpr bool ReadASN1Element(const unsigned char* data,
-                               size_t size,
-                               unsigned char tag,
-                               size_t* header_size,
-                               size_t* content_size,
-                               size_t* total_size) {
-  if (size < 2 || data[0] != tag) return false;
-
-  size_t offset;
-  size_t length;
-  if (data[1] & 0x80) {
-    size_t n_bytes = data[1] & ~0x80;
-    if (n_bytes + 2 > size || n_bytes > sizeof(size_t)) return false;
-    length = 0;
-    for (size_t i = 0; i < n_bytes; i++) length = (length << 8) | data[i + 2];
-    offset = 2 + n_bytes;
-  } else {
-    offset = 2;
-    length = data[1];
-  }
-
-  if (offset > size || length > size - offset) return false;
-  *header_size = offset;
-  *content_size = length;
-  *total_size = offset + length;
-  return true;
-}
-
 constexpr bool IsEncryptedPrivateKeyInfo(
     const Buffer<const unsigned char>& buffer) {
   // Both PrivateKeyInfo and EncryptedPrivateKeyInfo start with a SEQUENCE.
@@ -6744,147 +6716,48 @@ Rsa::OtherPrimeInfoPointer::OtherPrimeInfoPointer(BignumPointer&& r,
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
 namespace {
-int DigestAlgorithmIdentifierToNid(const unsigned char* data, size_t size) {
-  size_t sequence_header;
-  size_t sequence_len;
-  size_t sequence_total;
-  if (!ReadASN1Element(
-          data, size, 0x30, &sequence_header, &sequence_len, &sequence_total)) {
-    return NID_undef;
-  }
-
-  size_t oid_header;
-  size_t oid_len;
-  size_t oid_total;
-  const unsigned char* oid = data + sequence_header;
-  if (!ReadASN1Element(
-          oid, sequence_len, 0x06, &oid_header, &oid_len, &oid_total)) {
-    return NID_undef;
-  }
-
-  const unsigned char* oid_data = oid;
-  DeleteFnPtr<ASN1_OBJECT, ASN1_OBJECT_free> obj(
-      d2i_ASN1_OBJECT(nullptr, &oid_data, oid_total));
-  if (!obj) return NID_undef;
-  return OBJ_obj2nid(obj.get());
+// Normalizes a provider digest name such as "SHA2-256" to the long name the
+// rest of the key details use ("sha256"). The returned storage has static
+// lifetime, which the string_view fields of PssParams require.
+const char* RsaPssDigestLongName(const char* name) {
+  const EVP_MD* md = EVP_get_digestbyname(name);
+  if (md == nullptr) return nullptr;
+  const int nid = EVP_MD_get_type(md);
+  return nid != NID_undef ? OBJ_nid2ln(nid) : nullptr;
 }
 
 bool ReadRsaPssParams(const EVP_PKEY* pkey, Rsa::PssParams* params) {
-  const int der_len = i2d_PUBKEY(pkey, nullptr);
-  if (der_len <= 0) return false;
-
-  auto der = DataPointer::Alloc(der_len);
-  if (!der) return false;
-
-  auto serialized = static_cast<unsigned char*>(der.get());
-  if (i2d_PUBKEY(pkey, &serialized) != der_len) return false;
-
-  size_t outer_header;
-  size_t outer_len;
-  size_t outer_total;
-  const auto* data = static_cast<const unsigned char*>(der.get());
-  if (!ReadASN1Element(
-          data, der.size(), 0x30, &outer_header, &outer_len, &outer_total)) {
+  // The RSASSA-PSS-params sequence is exposed as a unit. The salt length is
+  // readable whenever the sequence is present, including when it is empty
+  // because every field carried its default, and unreadable when the algorithm
+  // identifier has no parameters at all. That is the distinction between a
+  // restricted key and an unrestricted one.
+  int salt_length = 0;
+  // TODO(panva): In a semver-major, reject malformed RSA-PSS parameters
+  // at key import instead of omitting asymmetricKeyDetails fields.
+  if (EVP_PKEY_get_int_param(
+          pkey, OSSL_PKEY_PARAM_RSA_PSS_SALTLEN, &salt_length) != 1 ||
+      salt_length < 0) {
     return false;
   }
+  params->salt_length = salt_length;
 
-  size_t alg_header;
-  size_t alg_len;
-  size_t alg_total;
-  const unsigned char* alg = data + outer_header;
-  if (!ReadASN1Element(
-          alg, outer_len, 0x30, &alg_header, &alg_len, &alg_total)) {
-    return false;
-  }
-
-  size_t oid_header;
-  size_t oid_len;
-  size_t oid_total;
-  const unsigned char* oid = alg + alg_header;
-  if (!ReadASN1Element(oid, alg_len, 0x06, &oid_header, &oid_len, &oid_total) ||
-      oid_total == alg_len) {
-    return false;
-  }
-
-  size_t pss_header;
-  size_t pss_len;
-  size_t pss_total;
-  const unsigned char* pss = oid + oid_total;
-  if (!ReadASN1Element(
-          pss, alg_len - oid_total, 0x30, &pss_header, &pss_len, &pss_total)) {
-    return false;
-  }
-
-  const unsigned char* cursor = pss + pss_header;
-  size_t remaining = pss_len;
-  while (remaining > 0) {
-    const unsigned char tag = cursor[0];
-    size_t item_header;
-    size_t item_len;
-    size_t item_total;
-    if (!ReadASN1Element(
-            cursor, remaining, tag, &item_header, &item_len, &item_total)) {
-      return false;
+  // The provider may omit default SHA-1 digest parameters. Keep the initialized
+  // defaults when a digest name is absent or cannot be resolved.
+  char name[80];
+  if (EVP_PKEY_get_utf8_string_param(
+          pkey, OSSL_PKEY_PARAM_RSA_DIGEST, name, sizeof(name), nullptr) == 1) {
+    if (const char* long_name = RsaPssDigestLongName(name)) {
+      params->digest = long_name;
     }
+  }
 
-    const unsigned char* item = cursor + item_header;
-    switch (tag) {
-      case 0xa0: {
-        const int nid = DigestAlgorithmIdentifierToNid(item, item_len);
-        if (nid != NID_undef) params->digest = OBJ_nid2ln(nid);
-        break;
-      }
-      case 0xa1: {
-        size_t mgf_header;
-        size_t mgf_len;
-        size_t mgf_total;
-        if (!ReadASN1Element(
-                item, item_len, 0x30, &mgf_header, &mgf_len, &mgf_total)) {
-          return false;
-        }
-        const unsigned char* mgf = item + mgf_header;
-        size_t mgf_oid_header;
-        size_t mgf_oid_len;
-        size_t mgf_oid_total;
-        if (!ReadASN1Element(mgf,
-                             mgf_len,
-                             0x06,
-                             &mgf_oid_header,
-                             &mgf_oid_len,
-                             &mgf_oid_total) ||
-            mgf_oid_total == mgf_len) {
-          return false;
-        }
-        const int nid = DigestAlgorithmIdentifierToNid(mgf + mgf_oid_total,
-                                                       mgf_len - mgf_oid_total);
-        if (nid != NID_undef) params->mgf1_digest = OBJ_nid2ln(nid);
-        break;
-      }
-      case 0xa2: {
-        size_t int_header;
-        size_t int_len;
-        size_t int_total;
-        if (!ReadASN1Element(
-                item, item_len, 0x02, &int_header, &int_len, &int_total)) {
-          return false;
-        }
-        // TODO(panva): In a semver-major, reject malformed RSA-PSS parameters
-        // at key import instead of omitting asymmetricKeyDetails fields.
-        if (int_len == 0 || int_len > sizeof(uint64_t) ||
-            (item[int_header] & 0x80) != 0) {
-          return false;
-        }
-        uint64_t salt_length = 0;
-        for (size_t n = 0; n < int_len; n++) {
-          salt_length = (salt_length << 8) | item[int_header + n];
-        }
-        params->salt_length = static_cast<int64_t>(salt_length);
-        break;
-      }
+  if (EVP_PKEY_get_utf8_string_param(
+          pkey, OSSL_PKEY_PARAM_RSA_MGF1_DIGEST, name, sizeof(name), nullptr) ==
+      1) {
+    if (const char* long_name = RsaPssDigestLongName(name)) {
+      params->mgf1_digest = long_name;
     }
-
-    cursor += item_total;
-    remaining -= item_total;
   }
 
   return true;
