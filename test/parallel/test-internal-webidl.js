@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const webidl = require('internal/webidl');
@@ -511,10 +511,16 @@ assert.throws(() => webidl.requiredArguments(1, 2, opts), {
 }
 
 {
-  class Example {}
+  class Example {
+    #brand;
+
+    static is(value) {
+      return typeof value === 'object' && value !== null && #brand in value;
+    }
+  }
   const converter = webidl.createInterfaceConverter(
     'Example',
-    Example.prototype);
+    Example.is);
   const example = new Example();
 
   assert.strictEqual(converter(example), example);
@@ -523,6 +529,42 @@ assert.throws(() => webidl.requiredArguments(1, 2, opts), {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'Prefix: Context is not of type Example.',
   });
+  assertInvalidArgType(() => converter({ __proto__: Example.prototype }));
+  assertInvalidArgType(() => converter(new Proxy(example, {})));
+  Object.setPrototypeOf(example, null);
+  assert.strictEqual(converter(example), example);
+}
+
+{
+  const signal = AbortSignal.abort('reason');
+  for (const value of [
+    Object.create(AbortSignal.prototype, { aborted: { value: false } }),
+    { __proto__: signal },
+    Object.create(AbortSignal.prototype, Object.getOwnPropertyDescriptors(signal)),
+    new Proxy(signal, {}),
+  ]) {
+    assertInvalidArgType(() => converters.AbortSignal(value));
+    assertInvalidArgType(() => AbortSignal.any([value]));
+  }
+
+  Object.setPrototypeOf(signal, null);
+  assert.strictEqual(converters.AbortSignal(signal), signal);
+  const composite = AbortSignal.any([signal]);
+  assert.strictEqual(composite.aborted, true);
+  assert.strictEqual(composite.reason, 'reason');
+}
+
+{
+  const controller = new AbortController();
+  Object.defineProperties(controller.signal, {
+    aborted: { get: common.mustNotCall('Unexpected aborted getter') },
+    reason: { get: common.mustNotCall('Unexpected reason getter') },
+  });
+  const composite = AbortSignal.any([controller.signal]);
+  assert.strictEqual(composite.aborted, false);
+  controller.abort('reason');
+  assert.strictEqual(composite.aborted, true);
+  assert.strictEqual(composite.reason, 'reason');
 }
 
 {
