@@ -89,6 +89,7 @@ void PipeWrap::Initialize(Local<Object> target,
 
   SetConstructorFunction(context, target, "Pipe", t);
   env->set_pipe_constructor_template(t);
+  SetMethod(context, target, "pairPipes", Pair);
 
   // Create FunctionTemplate for PipeConnectWrap.
   auto cwt = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
@@ -106,6 +107,7 @@ void PipeWrap::Initialize(Local<Object> target,
 
 void PipeWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(New);
+  registry->Register(Pair);
   registry->Register(Bind);
   registry->Register(Listen);
   registry->Register(Connect);
@@ -147,6 +149,50 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   new PipeWrap(env, args.This(), provider, ipc);
+}
+
+void PipeWrap::Pair(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_fs_t req;
+  uv_file fds[2];
+  PipeWrap* read_wrap;
+  PipeWrap* write_wrap;
+  int err;
+
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsObject());
+  ASSIGN_OR_RETURN_UNWRAP(&read_wrap, args[0].As<Object>());
+  ASSIGN_OR_RETURN_UNWRAP(&write_wrap, args[1].As<Object>());
+
+  err = uv_pipe(fds, UV_NONBLOCK_PIPE, UV_NONBLOCK_PIPE);
+  if (err) {
+    env->ThrowUVException(err, "uv_pipe");
+    return;
+  }
+
+  err = uv_pipe_open(&read_wrap->handle_, fds[0]);
+  if (err)
+    goto error_close_fds;
+  read_wrap->set_fd(fds[0]);
+
+  err = uv_pipe_open(&write_wrap->handle_, fds[1]);
+  if (err)
+    goto error_close_read_wrap;
+  write_wrap->set_fd(fds[1]);
+  return;
+
+error_close_read_wrap:
+  read_wrap->Close();
+  goto error_close_write_fd;
+
+error_close_fds:
+  uv_fs_close(nullptr, &req, fds[0], nullptr);
+  uv_fs_req_cleanup(&req);
+
+error_close_write_fd:
+  uv_fs_close(nullptr, &req, fds[1], nullptr);
+  uv_fs_req_cleanup(&req);
+  env->ThrowUVException(err, "uv_pipe_open");
 }
 
 PipeWrap::PipeWrap(Environment* env,

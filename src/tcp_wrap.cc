@@ -118,6 +118,7 @@ void TCPWrap::Initialize(Local<Object> target,
   SetProtoMethod(isolate, t, "setTypeOfService", SetTypeOfService);
   SetProtoMethod(isolate, t, "getTypeOfService", GetTypeOfService);
   SetProtoMethod(isolate, t, "reset", Reset);
+  SetMethod(context, target, "pairSockets", Pair);
 
 #ifdef _WIN32
   SetProtoMethod(isolate, t, "setSimultaneousAccepts", SetSimultaneousAccepts);
@@ -154,6 +155,7 @@ void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetKeepAlive);
   registry->Register(SetTypeOfService);
   registry->Register(GetTypeOfService);
+  registry->Register(Pair);
   registry->Register(Reset);
 #ifdef _WIN32
   registry->Register(SetSimultaneousAccepts);
@@ -219,6 +221,58 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   if (args[3]->IsUint32()) count = args[3].As<Uint32>()->Value();
   int err = uv_tcp_keepalive_ex(&wrap->handle_, enable, delay, interval, count);
   args.GetReturnValue().Set(err);
+}
+
+static void CloseSocket(uv_os_sock_t socket) {
+#ifdef _WIN32
+  closesocket(socket);
+#else
+  close(socket);
+#endif
+}
+
+void TCPWrap::Pair(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_os_sock_t fds[2];
+  TCPWrap* wrap0;
+  TCPWrap* wrap1;
+  int err;
+
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsObject());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap0, args[0].As<Object>());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap1, args[1].As<Object>());
+
+  err = uv_socketpair(SOCK_STREAM,
+                      0,
+                      fds,
+                      UV_NONBLOCK_PIPE,
+                      UV_NONBLOCK_PIPE);
+  if (err) {
+    env->ThrowUVException(err, "uv_socketpair");
+    return;
+  }
+
+  err = uv_tcp_open(&wrap0->handle_, fds[0]);
+  if (err)
+    goto error_close_fds;
+
+  err = uv_tcp_open(&wrap1->handle_, fds[1]);
+  if (err)
+    goto error_close_wrap0;
+
+  return;
+
+error_close_wrap0:
+  wrap0->Close();
+  goto error_close_fd1;
+
+error_close_fds:
+  CloseSocket(fds[0]);
+
+error_close_fd1:
+  CloseSocket(fds[1]);
+  env->ThrowUVException(err, "uv_tcp_open");
 }
 
 // TODO(amyssnippet): This implementation uses raw setsockopt/getsockopt calls
