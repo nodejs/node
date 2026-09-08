@@ -71,6 +71,28 @@ suite('DatabaseSync.prototype.function()', () => {
         message: /The "options\.directOnly" argument must be a boolean/,
       });
     });
+
+    test('throws if function.length is not an integer', () => {
+      // The length property is configurable, so any type can reach the
+      // conversion that derives the function's arity from it.
+      const lengths = ['abc', {}, [], null, undefined, NaN, 1.5,
+                       Symbol.iterator, 10n, true, 2 ** 40];
+
+      for (const length of lengths) {
+        const fn = () => 1;
+        Object.defineProperty(fn, 'length', {
+          configurable: true,
+          value: length,
+        });
+
+        assert.throws(() => {
+          db.function('foo', fn);
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "function\.length" property must be an integer/,
+        }, `length=${String(length)}`);
+      }
+    });
   });
 
   suite('useBigIntArguments', () => {

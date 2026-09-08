@@ -7,6 +7,19 @@ describe('DatabaseSync.prototype.aggregate()', () => {
   describe('input validation', () => {
     const db = new DatabaseSync(':memory:');
 
+    // The length property is configurable, so any type can reach the
+    // conversion that derives the aggregate's arity from it.
+    const lengths = ['abc', {}, [], null, undefined, NaN, 1.5,
+                     Symbol.iterator, 10n, true, 2 ** 40];
+
+    function withLength(fn, length) {
+      Object.defineProperty(fn, 'length', {
+        configurable: true,
+        value: length,
+      });
+      return fn;
+    }
+
     test('throws if options.start is not provided', (t) => {
       t.assert.throws(() => {
         db.aggregate('sum', {
@@ -80,6 +93,37 @@ describe('DatabaseSync.prototype.aggregate()', () => {
         code: 'ERR_INVALID_ARG_TYPE',
         message: /The "options\.inverse" argument must be a function/,
       });
+    });
+
+    test('throws if options.step.length is not an integer', (t) => {
+      for (const length of lengths) {
+        t.assert.throws(() => {
+          db.aggregate('sum', {
+            start: 0,
+            step: withLength((acc, value) => acc + value, length),
+            result: (total) => total
+          });
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "options\.step\.length" property must be an integer/,
+        }, `length=${String(length)}`);
+      }
+    });
+
+    test('throws if options.inverse.length is not an integer', (t) => {
+      for (const length of lengths) {
+        t.assert.throws(() => {
+          db.aggregate('sum', {
+            start: 0,
+            step: (acc, value) => acc + value,
+            inverse: withLength((acc, value) => acc - value, length),
+            result: (total) => total
+          });
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "options\.inverse\.length" property must be an integer/,
+        }, `length=${String(length)}`);
+      }
     });
   });
 });
