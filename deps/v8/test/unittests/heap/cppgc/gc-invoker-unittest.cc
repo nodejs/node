@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/gc-invoker.h"
+#include "src/heap/cppgc-internal/gc-invoker.h"
 
 #include <optional>
 
 #include "include/cppgc/platform.h"
-#include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc-internal/heap.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"

@@ -252,7 +252,7 @@ class ABSL_SCOPED_LOCKABLE [[nodiscard]] SpinLockHolder
     : public std::lock_guard<SpinLock> {
  public:
   inline explicit SpinLockHolder(
-      SpinLock& l ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      SpinLock& l ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : std::lock_guard<SpinLock>(l) {}
   ABSL_DEPRECATE_AND_INLINE()

@@ -122,19 +122,17 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // during execution of sandboxed code. See also https://crbug.com/429173713.
   static bool KernelSupportsSignalDeliveryInSandbox();
 
- private:
-  friend class AllowSandboxAccess;
-  friend class DisallowSandboxAccess;
-  friend class Sandbox;
-
-  static bool TryActivate();
-
   // Returns the pkey used for in-sandbox memory.
   //
-  // This should only be used by the Sandbox class during initialization.
   // TODO(416209124): this should probably return an
   // std::optional<MemoryProtectionKeyId> or similar.
   static int SandboxPkey() { return sandbox_pkey_; }
+
+ private:
+  friend class AllowSandboxAccess;
+  friend class DisallowSandboxAccess;
+
+  static bool TryActivate();
 
   // This PKEY is used for all (writable) memory inside the sandbox. It can be
   // used for two different purposes:

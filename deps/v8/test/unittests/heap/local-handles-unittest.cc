@@ -13,7 +13,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/objects/heap-number.h"
 #include "test/unittests/test-utils.h"

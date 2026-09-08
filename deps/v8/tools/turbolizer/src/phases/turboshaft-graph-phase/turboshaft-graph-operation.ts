@@ -671,12 +671,13 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
   bytecodePosition: BytecodePosition;
   origin: NodeOrigin;
   opEffects: String;
+  properties: string;
 
   compactPrinter: CompactOperationPrinter;
 
   constructor(id: number, title: string, block: TurboshaftGraphBlock,
               sourcePosition: SourcePosition, bytecodePosition: BytecodePosition,
-              origin: NodeOrigin, opEffects: String) {
+              origin: NodeOrigin, opEffects: String, properties: string = "") {
     super(id);
     this.title = title;
     this.block = block;
@@ -684,6 +685,7 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
     this.bytecodePosition = bytecodePosition;
     this.origin = origin;
     this.opEffects = opEffects;
+    this.properties = properties;
     this.visible = true;
     this.compactPrinter = null;
   }
@@ -711,6 +713,9 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
 
   public getTitle(): string {
     let title = `${this.id} ${this.title}`;
+    if (this.properties) {
+      title += `\nProperties:\n${this.properties}`;
+    }
     title += `\nEffects: ${this.opEffects}`;
     if (this.origin) {
       title += `\nOrigin: ${this.origin.toString()}`;

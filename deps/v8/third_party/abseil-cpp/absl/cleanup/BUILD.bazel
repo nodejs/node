@@ -22,7 +22,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -37,8 +37,10 @@ cc_library(
     hdrs = ["internal/cleanup.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],  # Should be private, but cleanup is required.
     deps = [
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/utility",
     ],
 )
@@ -50,10 +52,12 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":cleanup_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
     ],
 )
 

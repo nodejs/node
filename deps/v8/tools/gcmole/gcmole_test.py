@@ -197,6 +197,38 @@ class SuspectCollectorTest(unittest.TestCase):
     call_graph = gcmole.CallGraph.from_files(file1, file2, file3)
     self.assertDictEqual(call_graph.funcs, dict(G=set('F'), **expected))
 
+  def testClassHierarchyPackaging(self):
+    temp_dir = Path(tempfile.mkdtemp('gcmole_test'))
+
+    cg1 = gcmole.CallGraph()
+    cg1.funcs['A'] = set()
+    cg1.class_hierarchies = {"ClassA": {"bases": [], "overrides": {}}}
+
+    cg2 = gcmole.CallGraph()
+    cg2.funcs['B'] = set()
+    cg2.class_hierarchies = {"ClassB": {"bases": ["ClassA"], "overrides": {}}}
+
+    file1 = temp_dir / 'file1.bin'
+    file2 = temp_dir / 'file2.bin'
+    cg1.to_file(file1)
+    cg2.to_file(file2)
+
+    merged = gcmole.CallGraph.from_files(file1, file2)
+    self.assertEqual(len(merged.class_hierarchies), 2)
+    self.assertDictEqual(
+        merged.class_hierarchies, {
+            "ClassA": {
+                "bases": [],
+                "overrides": {},
+                "virtual_methods": []
+            },
+            "ClassB": {
+                "bases": ["ClassA"],
+                "overrides": {},
+                "virtual_methods": []
+            }
+        })
+
   def create_collector(self, outputs):
     Options = collections.namedtuple('OptionsForCollector', ['allowlist'])
     options = Options(True)
@@ -435,6 +467,462 @@ class ArgsTest(unittest.TestCase):
             '-isystem../buildtools/third_party/libc++/trunk/include',
             '--sysroot=build/linux/debian_bullseye_amd64-sysroot',
         ])
+
+
+class DevirtualizationTest(unittest.TestCase):
+
+  def setUp(self):
+    self.temp_dir = Path(tempfile.mkdtemp('gcmole_devirt_test'))
+
+  def tearDown(self):
+    shutil.rmtree(self.temp_dir)
+
+  def write_hierarchy(self, filename, hierarchy_data):
+    import json
+    filepath = self.temp_dir / f"class_hierarchy_{filename}.json"
+    with open(filepath, 'w') as f:
+      json.dump(hierarchy_data, f)
+
+  def test_delimiter_collision(self):
+    self.write_hierarchy(
+        'test', {
+            'Visitor::ON::Heap': {
+                'bases': ['Base'],
+                'overrides': {},
+                'virtual_methods': []
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    callgraph.funcs['Base::Visit,Base::Visit'] = set()
+    synth_key = 'SYNTHOVER-Visitor::ON::Heap-Base::Visit,Visitor::ON::Heap::Visit'
+    callgraph.funcs[synth_key] = set()
+
+    node = gcmole.SynthesizedNode(synth_key)
+    self.assertTrue(node.is_valid)
+    self.assertEqual(node.derived_class_qualified, 'Visitor::ON::Heap')
+    self.assertEqual(node.base_method_mangled, 'Base::Visit')
+
+  def test_transitive_overrides(self):
+    self.write_hierarchy(
+        'test', {
+            'A': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['A_foo', 'A_bar']
+            },
+            'B': {
+                'bases': ['A'],
+                'overrides': {
+                    'A_bar': 'B_bar'
+                },
+                'virtual_methods': ['B_bar']
+            },
+            'C': {
+                'bases': ['B'],
+                'overrides': {
+                    'B_bar': 'C_bar'
+                },
+                'virtual_methods': ['C_bar']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    # A_foo calls A_bar virtually on 'this'
+    callgraph.funcs['VIRTUALTHIS-A-A_bar,A::bar'] = {'A_foo,A::foo'}
+    callgraph.funcs['A_foo,A::foo'] = set()
+
+    # We want to simulate calling A_foo on B receiver virtually
+    callgraph.funcs['VIRTUAL-B-A_foo,B::foo'] = {'Caller'}
+    # We want to simulate calling A_foo on C receiver virtually
+    callgraph.funcs['VIRTUAL-C-A_foo,C::foo'] = {'Caller'}
+
+    callgraph.funcs['B_bar,B::bar'] = set()
+    callgraph.funcs['C_bar,C::bar'] = set()
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    synth_key_b = 'SYNTHOVER-B-A_foo,B::foo'
+    synth_key_c = 'SYNTHOVER-C-A_foo,C::foo'
+
+    # Check synthetic overrides are created and linked to VIRTUAL- callsites
+    self.assertIn('VIRTUAL-B-A_foo,B::foo', callgraph.funcs[synth_key_b])
+    self.assertIn('VIRTUAL-C-A_foo,C::foo', callgraph.funcs[synth_key_c])
+
+    # Check VIRTUALTHIS specialized for B is created and called by synth_key_b
+    vthis_b = 'VIRTUALTHIS-B-A_bar,B::bar'
+    self.assertIn(vthis_b, callgraph.funcs)
+    self.assertIn(synth_key_b, callgraph.funcs[vthis_b])
+
+    # Check VIRTUALTHIS specialized for B resolves to B_bar and C_bar
+    self.assertIn(vthis_b, callgraph.funcs['B_bar,B::bar'])
+    self.assertIn(vthis_b, callgraph.funcs['C_bar,C::bar'])
+
+    # Check VIRTUALTHIS specialized for C is created and called by synth_key_c
+    vthis_c = 'VIRTUALTHIS-C-A_bar,C::bar'
+    self.assertIn(vthis_c, callgraph.funcs)
+    self.assertIn(synth_key_c, callgraph.funcs[vthis_c])
+
+    # Check VIRTUALTHIS specialized for C resolves to C_bar, but NOT B_bar
+    self.assertIn(vthis_c, callgraph.funcs['C_bar,C::bar'])
+    self.assertNotIn(vthis_c, callgraph.funcs['B_bar,B::bar'])
+
+  def test_entry_unoverridden_descendants(self):
+    self.write_hierarchy(
+        'test', {
+            'A': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['A_bar']
+            },
+            'B': {
+                'bases': ['A'],
+                'overrides': {},
+                'virtual_methods': []
+            },
+            'C': {
+                'bases': ['B'],
+                'overrides': {
+                    'A_bar': 'C_bar'
+                },
+                'virtual_methods': ['C_bar']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    # Base method must be in callgraph to resolve qualified name for synthetic overrides
+    callgraph.funcs['A_bar,A::bar'] = set()
+    # Virtual call to A_bar on B receiver
+    callgraph.funcs['VIRTUAL-B-A_bar,B::bar'] = {'Caller'}
+    callgraph.funcs['C_bar,C::bar'] = set()
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    synth_key = 'SYNTHOVER-B-A_bar,B::bar'
+    # The virtual callsite should link to both the active impl (synthetic) and the descendant override
+    self.assertIn('VIRTUAL-B-A_bar,B::bar', callgraph.funcs[synth_key])
+    self.assertIn('VIRTUAL-B-A_bar,B::bar', callgraph.funcs['C_bar,C::bar'])
+
+  def test_unoverridden_virtual_methods_chain(self):
+    self.write_hierarchy(
+        'test', {
+            'A': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['A_bar', 'A_qux', 'A_baz']
+            },
+            'B': {
+                'bases': ['A'],
+                'overrides': {
+                    'A_baz': 'B_baz'
+                },
+                'virtual_methods': ['B_baz']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    # A_bar -> A_qux (virtual self-call)
+    callgraph.funcs['VIRTUALTHIS-A-A_qux,A::qux'] = {'A_bar,A::bar'}
+    callgraph.funcs['A_bar,A::bar'] = set()
+    # A_qux -> A_baz (virtual self-call)
+    callgraph.funcs['VIRTUALTHIS-A-A_baz,A::baz'] = {'A_qux,A::qux'}
+    callgraph.funcs['A_qux,A::qux'] = set()
+    callgraph.funcs['A_baz,A::baz'] = set()
+
+    # Simulate virtual call to A_bar on B receiver
+    callgraph.funcs['VIRTUAL-B-A_bar,B::bar'] = {'Caller'}
+    callgraph.funcs['B_baz,B::baz'] = set()
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    synth_key_bar = 'SYNTHOVER-B-A_bar,B::bar'
+    synth_key_qux = 'SYNTHOVER-B-A_qux,B::qux'
+
+    # Check synthetic overrides are created
+    self.assertIn(synth_key_bar, callgraph.funcs)
+    self.assertIn(synth_key_qux, callgraph.funcs)
+
+    # Check SYNTHOVER-B-A_bar calls VIRTUALTHIS-B-A_qux
+    vthis_qux = 'VIRTUALTHIS-B-A_qux,B::qux'
+    self.assertIn(synth_key_bar, callgraph.funcs[vthis_qux])
+
+    # Check VIRTUALTHIS-B-A_qux resolves to SYNTHOVER-B-A_qux
+    self.assertIn(vthis_qux, callgraph.funcs[synth_key_qux])
+
+    # Check SYNTHOVER-B-A_qux calls VIRTUALTHIS-B-A_baz
+    vthis_baz = 'VIRTUALTHIS-B-A_baz,B::baz'
+    self.assertIn(synth_key_qux, callgraph.funcs[vthis_baz])
+
+    # Check VIRTUALTHIS-B-A_baz resolves to B_baz
+    self.assertIn(vthis_baz, callgraph.funcs['B_baz,B::baz'])
+
+  def test_multiple_inheritance(self):
+    self.write_hierarchy(
+        'mi_test', {
+            'BaseA': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['BaseA_foo']
+            },
+            'BaseB': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['BaseB_bar']
+            },
+            'Derived': {
+                'bases': ['BaseA', 'BaseB'],
+                'overrides': {
+                    'BaseA_foo': 'Derived_foo',
+                    'BaseB_bar': 'Derived_bar'
+                },
+                'virtual_methods': ['Derived_foo', 'Derived_bar']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    callgraph.funcs['BaseA_foo,BaseA::foo'] = {'CallerA'}
+    callgraph.funcs['BaseB_bar,BaseB::bar'] = {'CallerB'}
+    callgraph.funcs['Derived_foo,Derived::foo'] = set()
+    callgraph.funcs['Derived_bar,Derived::bar'] = set()
+
+    synth_key_a = 'VIRTUAL-Derived-BaseA_foo,Derived::foo'
+    synth_key_b = 'VIRTUAL-Derived-BaseB_bar,Derived::bar'
+    callgraph.funcs[synth_key_a] = {'CallerA'}
+    callgraph.funcs[synth_key_b] = {'CallerB'}
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    self.assertIn(synth_key_a, callgraph.funcs['Derived_foo,Derived::foo'])
+    self.assertIn(synth_key_b, callgraph.funcs['Derived_bar,Derived::bar'])
+
+  def test_diamond_inheritance(self):
+    self.write_hierarchy(
+        'diamond_test', {
+            'A': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['A_foo']
+            },
+            'B': {
+                'bases': ['A'],
+                'overrides': {
+                    'A_foo': 'B_foo'
+                },
+                'virtual_methods': ['B_foo']
+            },
+            'C': {
+                'bases': ['A'],
+                'overrides': {
+                    'A_foo': 'C_foo'
+                },
+                'virtual_methods': ['C_foo']
+            },
+            'D': {
+                'bases': ['B', 'C'],
+                'overrides': {
+                    'B_foo': 'D_foo',
+                    'C_foo': 'D_foo'
+                },
+                'virtual_methods': ['D_foo']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    callgraph.funcs['D_foo,D::foo'] = set()
+
+    # Virtual callsite on D receiver
+    synth_key = 'VIRTUAL-D-A_foo,D::foo'
+    callgraph.funcs[synth_key] = {'Caller'}
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    # D transitively overrides A_foo, so it should link directly (no synthetic override needed)
+    self.assertIn(synth_key, callgraph.funcs['D_foo,D::foo'])
+
+  def test_overloaded_virtual_methods(self):
+    self.write_hierarchy(
+        'overload_test', {
+            'Base': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['Base_Visit_Int', 'Base_Visit_Double']
+            },
+            'Derived': {
+                'bases': ['Base'],
+                'overrides': {
+                    'Base_Visit_Int': 'Derived_Visit_Int',
+                    'Base_Visit_Double': 'Derived_Visit_Double'
+                },
+                'virtual_methods':
+                    ['Derived_Visit_Int', 'Derived_Visit_Double']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    callgraph.funcs['Base_Visit_Int,Base::Visit'] = {'CallerInt'}
+    callgraph.funcs['Base_Visit_Double,Base::Visit'] = {'CallerDouble'}
+    callgraph.funcs['Derived_Visit_Int,Derived::Visit'] = set()
+    callgraph.funcs['Derived_Visit_Double,Derived::Visit'] = set()
+
+    synth_key_int = 'VIRTUAL-Derived-Base_Visit_Int,Derived::Visit'
+    synth_key_double = 'VIRTUAL-Derived-Base_Visit_Double,Derived::Visit'
+    callgraph.funcs[synth_key_int] = {'CallerInt'}
+    callgraph.funcs[synth_key_double] = {'CallerDouble'}
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    self.assertIn(synth_key_int,
+                  callgraph.funcs['Derived_Visit_Int,Derived::Visit'])
+    self.assertNotIn(synth_key_int,
+                     callgraph.funcs['Derived_Visit_Double,Derived::Visit'])
+    self.assertIn(synth_key_double,
+                  callgraph.funcs['Derived_Visit_Double,Derived::Visit'])
+    self.assertNotIn(synth_key_double,
+                     callgraph.funcs['Derived_Visit_Int,Derived::Visit'])
+
+  def test_templated_class_sanitization(self):
+    self.write_hierarchy(
+        'temp_test', {
+            'MyTemplate<int>': {
+                'bases': ['Base'],
+                'overrides': {
+                    'Base_foo': 'MyTemplate_foo'
+                },
+                'virtual_methods': ['MyTemplate_foo']
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    callgraph.funcs['Base_foo,Base::foo'] = {'Caller'}
+    callgraph.funcs['MyTemplate_foo,MyTemplate<int>::foo'] = set()
+
+    synth_key = 'VIRTUAL-MyTemplate<int>-Base_foo,MyTemplate<int>::foo'
+    callgraph.funcs[synth_key] = {'Caller'}
+
+    TestOptions = collections.namedtuple('TestOptions', ['out_dir'])
+    opts = TestOptions(self.temp_dir)
+
+    gcmole.synthesize_virtual_links(callgraph, opts)
+
+    # Check that it correctly resolved despite template brackets
+    self.assertIn(synth_key,
+                  callgraph.funcs['MyTemplate_foo,MyTemplate<int>::foo'])
+
+  def test_safe_override_call(self):
+    self.write_hierarchy(
+        'safe_test', {
+            'Base': {
+                'bases': [],
+                'overrides': {},
+                'virtual_methods': ['Base_foo']
+            },
+            'DerivedUnsafe': {
+                'bases': ['Base'],
+                'overrides': {
+                    'Base_foo': 'DerivedUnsafe_foo'
+                },
+                'virtual_methods': ['DerivedUnsafe_foo']
+            },
+            'DerivedSafe': {
+                'bases': ['Base'],
+                'overrides': {
+                    'Base_foo': 'DerivedSafe_foo'
+                },
+                'virtual_methods': ['DerivedSafe_foo']
+            },
+            'SubDerivedSafe': {
+                'bases': ['DerivedSafe'],
+                'overrides': {},
+                'virtual_methods': []
+            }
+        })
+
+    callgraph = gcmole.CallGraph()
+    # We use the new VIRTUAL- nodes to represent virtual callsites.
+    callgraph.funcs['VIRTUAL-Base-Base_foo,Base::foo'] = {'CallerBase'}
+    callgraph.funcs['CallerBase'] = set()
+
+    callgraph.funcs['VIRTUAL-DerivedUnsafe-Base_foo,DerivedUnsafe::foo'] = {
+        'CallerUnsafe'
+    }
+    callgraph.funcs['CallerUnsafe'] = set()
+
+    callgraph.funcs['VIRTUAL-DerivedSafe-Base_foo,DerivedSafe::foo'] = {
+        'CallerSafe'
+    }
+    callgraph.funcs['CallerSafe'] = set()
+
+    callgraph.funcs['VIRTUAL-SubDerivedSafe-Base_foo,SubDerivedSafe::foo'] = {
+        'CallerSubSafe'
+    }
+    callgraph.funcs['CallerSubSafe'] = set()
+
+    # Concrete implementations
+    callgraph.funcs['Base_foo,Base::foo'] = set()
+    callgraph.funcs['DerivedUnsafe_foo,DerivedUnsafe::foo'] = set()
+    callgraph.funcs['DerivedSafe_foo,DerivedSafe::foo'] = set()
+
+    # DerivedUnsafe_foo causes GC
+    callgraph.funcs['CollectGarbage,CollectGarbage'] = {
+        'DerivedUnsafe_foo,DerivedUnsafe::foo'
+    }
+
+    TestOptions = collections.namedtuple(
+        'TestOptions', ['out_dir', 'allowlist', 'v8_root_dir', 'v8_target_cpu'])
+    opts = TestOptions(self.temp_dir, True, self.temp_dir, 'x64')
+
+    gcmole.generate_gc_suspects_from_callgraph(callgraph, opts)
+
+    collector = gcmole.GCSuspectsCollector(opts, callgraph.funcs)
+    collector.propagate()
+
+    # Virtual call on Base receiver can go to DerivedUnsafe_foo, so it is GC.
+    self.assertTrue(collector.gc.get('VIRTUAL-Base-Base_foo,Base::foo', False))
+    # Virtual call on DerivedUnsafe receiver goes to DerivedUnsafe_foo, so it is GC.
+    self.assertTrue(
+        collector.gc.get('VIRTUAL-DerivedUnsafe-Base_foo,DerivedUnsafe::foo',
+                         False))
+    # Virtual call on DerivedSafe receiver goes to DerivedSafe_foo (safe) and
+    # SubDerivedSafe::foo (safe), so it is NOT GC.
+    self.assertFalse(
+        collector.gc.get('VIRTUAL-DerivedSafe-Base_foo,DerivedSafe::foo',
+                         False))
+    # Virtual call on SubDerivedSafe receiver goes to SubDerivedSafe::foo (safe),
+    # so it is NOT GC.
+    self.assertFalse(
+        collector.gc.get('VIRTUAL-SubDerivedSafe-Base_foo,SubDerivedSafe::foo',
+                         False))
+
+    # The concrete implementations themselves:
+    # Base_foo is safe (it doesn't call anything unsafe in its body).
+    self.assertFalse(collector.gc.get('Base_foo,Base::foo', False))
+    # DerivedUnsafe_foo is GC (calls CollectGarbage).
+    self.assertTrue(
+        collector.gc.get('DerivedUnsafe_foo,DerivedUnsafe::foo', False))
+    # DerivedSafe_foo is safe.
+    self.assertFalse(
+        collector.gc.get('DerivedSafe_foo,DerivedSafe::foo', False))
+    # Synthetic override is safe.
+    synth_key = 'SYNTHOVER-SubDerivedSafe-Base_foo,SubDerivedSafe::foo'
+    self.assertFalse(collector.gc.get(synth_key, False))
 
 
 if __name__ == '__main__':

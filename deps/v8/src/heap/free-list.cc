@@ -11,6 +11,7 @@
 #include "src/heap/mutable-page-inl.h"
 #include "src/heap/normal-page-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -54,7 +55,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(const Heap* heap,
   Tagged<FreeSpace> prev_non_evac_node;
   for (Tagged<FreeSpace> cur_node = top(); !cur_node.is_null();
        cur_node = cur_node->next()) {
-    DCHECK(BasePage::FromHeapObject(heap->isolate(), cur_node)
+    DCHECK(BasePage::FromHeapObject(Isolate::FromHeap(heap), cur_node)
                ->CanAllocateOnChunk());
     size_t size = cur_node->size(kRelaxedLoad);
     if (size >= minimum_size) {
@@ -555,12 +556,10 @@ size_t FreeListCategory::SumFreeList() {
   while (!cur.is_null()) {
     // We can't use "cur->map()" here because both cur's map and the
     // root can be null during bootstrapping.
-    DCHECK(
-        cur->map_slot().contains_map_value(NormalPage::FromHeapObject(cur)
-                                               ->heap()
-                                               ->isolate()
-                                               ->root(RootIndex::kFreeSpaceMap)
-                                               .ptr()));
+    DCHECK(cur->map_slot().contains_map_value(
+        Isolate::FromHeap(NormalPage::FromHeapObject(cur)->heap())
+            ->root(RootIndex::kFreeSpaceMap)
+            .ptr()));
     sum += cur->size(kRelaxedLoad);
     cur = cur->next();
   }

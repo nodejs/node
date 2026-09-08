@@ -43,8 +43,8 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   if (!storage) return;
   storage->addMessage(V8ConsoleMessage::createForConsoleAPI(
       context, contextId, groupId, inspector,
-      inspector->client()->currentTimeMS(), ConsoleAPIType::kError,
-      {arguments.begin(), arguments.end()}, String16(), nullptr));
+      inspector->client()->currentTimeMS(), ConsoleAPIType::kError, arguments,
+      String16(), nullptr));
 }
 
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
@@ -59,7 +59,7 @@ InjectedScript* getInjectedScript(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-  InspectedContext* inspectedContext =
+  std::shared_ptr<InspectedContext> inspectedContext =
       inspector->getContext(InspectedContext::contextId(context));
   if (!inspectedContext) return nullptr;
   return inspectedContext->getInjectedScript(sessionId);

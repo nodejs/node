@@ -19,6 +19,10 @@ export class LogEntry {
     return this._type;
   }
 
+  get typeName() {
+    return this.constructor.typeName ?? 'unknown';
+  }
+
   get script() {
     return this.sourcePosition?.script;
   }
@@ -43,6 +47,14 @@ export class LogEntry {
     }
 
     return toolTipDescription;
+  }
+
+  toDetailJSON() {
+    return {
+      time: this.time,
+      type: this.type,
+      sourcePosition: this.sourcePosition?.toDetailJSON()
+    };
   }
 
   // Returns an Array of all possible #type values.

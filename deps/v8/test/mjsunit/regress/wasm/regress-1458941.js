@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff
-
 // Regression test for https://crbug.com/1458941.
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function foo() {
     let builder = new WasmModuleBuilder();
-    let array = builder.addArray(kWasmI32);
+    let array = builder.addArray(kWasmI32, {mutable: false});
     builder.addFunction(`brOnCastFail`,
                         makeSig([], [kWasmI32]))
         .addBody([

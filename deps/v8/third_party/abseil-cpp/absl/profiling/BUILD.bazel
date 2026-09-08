@@ -106,7 +106,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        # TODO(b/304670045): remove after periodic_sampler moves to //spanner/common.
         "//absl:__subpackages__",
     ],
     deps = [

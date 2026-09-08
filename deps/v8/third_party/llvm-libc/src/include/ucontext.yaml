@@ -1,0 +1,37 @@
+header: ucontext.h
+standards:
+  - posix
+types:
+  - type_name: mcontext_t
+  - type_name: ucontext_t
+  - type_name: sigset_t
+  - type_name: stack_t
+functions:
+  - name: getcontext
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: ucontext_t *
+  - name: setcontext
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const ucontext_t *
+  - name: makecontext
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: ucontext_t *
+      - type: void(*)(void)
+      - type: int
+      - type: ...
+  - name: swapcontext
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: ucontext_t *__restrict
+      - type: const ucontext_t *__restrict

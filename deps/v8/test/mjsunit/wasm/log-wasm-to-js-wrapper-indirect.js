@@ -13,24 +13,16 @@ let sampleCollected = false;
 function OnProfilerSampleCallback(profile) {
   profile = profile.replaceAll('\\', '/');
   profile = JSON.parse(profile);
-  let wasm_to_js_index = 0;
-  let js_to_wasm_index = 0;
-  let fib_index = 0;
-  let imp_index = 0;
   let functionNames = profile.nodes.map(n => n.callFrame.functionName);
   for (let i = 0; i < functionNames.length; ++i) {
-    if (functionNames[i].startsWith('js-to-wasm')) {
-      assertTrue(functionNames[i + 1].startsWith('main'));
-      assertTrue(functionNames[i + 2].startsWith('wasm-to-js'));
-      assertTrue(functionNames[i + 3].startsWith('imp'));
-      // {sampleCollected} is set at the end because the asserts above don't
-      // show up in the test runner, probably because this function is called as
-      // a callback from d8.
+    if (functionNames[i].startsWith('js-to-wasm') &&
+        functionNames[i + 1]?.startsWith('main') &&
+        functionNames[i + 2]?.startsWith('wasm-to-js') &&
+        functionNames[i + 3]?.startsWith('imp')) {
       sampleCollected = true;
       return;
     }
   }
-  assertUnreachable();
 }
 
 const builder = new WasmModuleBuilder();
@@ -57,6 +49,15 @@ function imp(i) {
   console.profileEnd();
 }
 let instance = new WebAssembly.Instance(wasm_module, {q: {f: imp}});
-console.profile();
-instance.exports.main(3);
+
+// In its default configuration, this test is deterministic. However, in an
+// isolate test it can happen that the first isolate compiles `main` and the
+// second isolate calls `main` before the first isolate logs it, i.e. the
+// profiler of the second isolate is not yet aware of `main` and therefore does
+// not symbolize it. Therefore we try multiple times.
+for (let i = 0; i < 5; ++i) {
+  console.profile();
+  instance.exports.main(3);
+  if (sampleCollected) break;
+}
 assertTrue(sampleCollected);

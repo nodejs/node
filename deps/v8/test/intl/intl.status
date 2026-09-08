@@ -82,6 +82,8 @@
   'regress-7770': [SKIP],
   # Bug(v8:11922)
   'localematcher/bestfit-supplemental-files': [SKIP],
+  # https://crbug.com/522092467
+  'regress-10960': [SKIP],
 }],  # 'system == android'
 
 ################################################################################
@@ -96,5 +98,16 @@
   # Re-enable this when maglev support all bytecodes.
   'string-localecompare': [SKIP],
 }],  # variant == maglev
+
+################################################################################
+['msan', {
+  # TODO(497880139): We need https://github.com/unicode-org/icu/commit/0cc965c49b9c8766a55b1bc3abd019f90edd9783 to resolve the failures.
+  'collator/de-sort': [FAIL],
+  'collator/check-co-option': [FAIL],
+  'default_locale': [FAIL],
+  'regress-9887': [FAIL],
+  'collator/options': [FAIL],
+  'collator/default-locale': [FAIL],
+}],  # msan
 
 ]

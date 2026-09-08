@@ -75,7 +75,16 @@ case "$1" in
     limit_cores $2
     ;;
   *)
-    echo "Usage: $0 fast|slow|default|singlecore|dualcore|all|limit_cores"
+    echo "Usage: ${0} MODE"
+    echo ""
+    echo "The MODES $(basename $0) understands are:"
+    echo "- fast, performance (alias for fast)"
+    echo "- slow, powersave (alias for slow)"
+    echo "- default, ondemand (alias for default)"
+    echo "- singlecore (disables all but one core), single (alias for singlecore)"
+    echo "- dualcore (disables all but two cores), dual (alias for dualcore)"
+    echo "- allcores (re-enables all available cores), all (alias for allcores)"
+    echo "- limit_cores <num> (disables all but <num> cores)"
     exit 1
     ;;
-esac 
+esac

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/platform.h"
+#include "src/heap/cppgc-internal/platform.h"
 
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"

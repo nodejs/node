@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/base/pointer-with-payload.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 
 namespace v8 {
 
@@ -30,7 +31,7 @@ class AstConsString;
 class AstValueFactory;
 class FunctionLiteral;
 
-enum class InferName { kYes, kNo };
+using InferName = base::StrongAlias<struct InferNameTag, bool>;
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.

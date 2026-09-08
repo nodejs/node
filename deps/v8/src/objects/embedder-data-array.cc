@@ -29,7 +29,7 @@ void StoreTaggedWithoutBarrier(const EmbedderDataSlot& slot,
 DirectHandle<EmbedderDataArray> EmbedderDataArray::EnsureCapacity(
     Isolate* isolate, DirectHandle<EmbedderDataArray> array, int index) {
   if (index < array->length()) return array;
-  DCHECK_LT(index, kMaxLength);
+  DCHECK_LT(index, kEmbedderDataArrayMaxLength);
   DirectHandle<EmbedderDataArray> new_array =
       isolate->factory()->NewEmbedderDataArray(index + 1);
   DisallowGarbageCollection no_gc;

@@ -30,7 +30,7 @@ class RequiredOptimizationReducer : public Next {
   OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
                       RegisterRepresentation rep) {
     LABEL_BLOCK(no_change) { return Next::ReducePhi(inputs, rep); }
-    if (inputs.size() == 0) goto no_change;
+    DCHECK_GT(inputs.size(), 0);
     OpIndex first = inputs.first();
     bool same_inputs = true;
     for (const OpIndex& input : inputs.SubVectorFrom(1)) {

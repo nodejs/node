@@ -64,7 +64,7 @@ class TestApiCallbacks {
                      const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
   static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
-                     const v8::PropertyCallbackInfo<void>& info) {}
+                     const v8::PropertyCallbackInfo<v8::Boolean>& info) {}
 };
 
 static void RunSampler(v8::Local<v8::Context> env,

@@ -1,0 +1,14 @@
+header: stdckdint.h
+standards:
+  - stdc
+macros:
+  - macro_name: ckd_add
+    macro_header: stdckdint-macros.h
+  - macro_name: ckd_sub
+    macro_header: stdckdint-macros.h
+  - macro_name: ckd_mul
+    macro_header: stdckdint-macros.h
+types: []
+enums: []
+objects: []
+functions: []

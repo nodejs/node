@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
@@ -23,9 +21,9 @@ let instance = builder.instantiate();
 // Trigger lazy compilation for one of the functions.
 instance.exports.dummy0(0n);
 
-let badguy0 = new WebAssembly.Function(
+let badguy0 = new WebAssemblyFunction(
     {parameters: ['i64'], results: []}, instance.exports.dummy0);
-let badguy1 = new WebAssembly.Function(
+let badguy1 = new WebAssemblyFunction(
     {parameters: ['i64'], results: []}, instance.exports.dummy1);
 
 instance.exports.main(badguy0, 0n);

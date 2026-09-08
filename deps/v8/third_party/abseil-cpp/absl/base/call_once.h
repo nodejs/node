@@ -160,6 +160,7 @@ template <typename Callable, typename... Args>
         old_control != kOnceRunning &&
         old_control != kOnceWaiter &&
         old_control != kOnceDone) {
+      // Memory corruption may cause this error.
       ABSL_RAW_LOG(FATAL, "Unexpected value for control word: 0x%lx",
                    static_cast<unsigned long>(old_control));  // NOLINT
     }

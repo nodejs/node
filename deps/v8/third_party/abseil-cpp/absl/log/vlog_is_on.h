@@ -60,8 +60,6 @@
 
 #include "absl/log/absl_vlog_is_on.h"  // IWYU pragma: export
 
-// IWYU pragma: private, include "absl/log/log.h"
-
 // Each VLOG_IS_ON call site gets its own VLogSite that registers with the
 // global linked list of sites to asynchronously update its verbosity level on
 // changes to --v or --vmodule. The verbosity can also be set by manually

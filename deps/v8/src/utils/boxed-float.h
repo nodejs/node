@@ -171,6 +171,13 @@ class Float64 {
 #endif
         is_hole_nan();
   }
+  bool has_undefined_or_hole_nan_high_bits() const {
+    return
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        ((get_bits() >> 32) == kUndefinedNanUpper32) ||
+#endif
+        ((get_bits() >> 32) == kHoleNanUpper32);
+  }
 
   bool is_nan() const {
     // Even though {get_scalar()} might set the quiet NaN bit, it's ok here,
@@ -192,6 +199,14 @@ class Float64 {
   }
 
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
+
+  // Explicit static constructor that allows NaN values, when we don't care
+  // about the NaN bitpattern.
+  static constexpr Float64 FromMaybeNaN(double value) {
+    Float64 ret(base::double_to_uint64(value));
+    DCHECK_EQ(std::isnan(value), ret.is_nan());
+    return ret;
+  }
 
   constexpr bool operator==(const Float64&) const = default;
 

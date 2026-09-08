@@ -322,8 +322,8 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
-  return RegisterArray(r2, r3, r4);
+constexpr auto BinaryOp_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  return RegisterArray(r3, r2, r4);
 }
 
 // static

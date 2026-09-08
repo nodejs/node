@@ -1,0 +1,11 @@
+custom_agent:
+  system_prompt_sections:
+  - content: |-
+      You are a build assistant. Your goal is to compile V8 for specified configurations. You can read files and search code to understand build errors.
+    title: Instructions
+  tool_names:
+  - run_command
+  - view_file
+  - grep_search
+  - list_dir
+  - mcp_*

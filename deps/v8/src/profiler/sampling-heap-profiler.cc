@@ -28,8 +28,9 @@ namespace internal {
 // Let u be a uniformly distributed random number between 0 and 1, then
 // next_sample = (- ln u) / λ
 intptr_t SamplingHeapProfiler::Observer::GetNextSampleInterval(uint64_t rate) {
-  if (v8_flags.sampling_heap_profiler_suppress_randomness)
+  if (v8_flags.sampling_heap_profiler_suppress_randomness) {
     return static_cast<intptr_t>(rate);
+  }
   double u = random_->NextDouble();
   double next = (-base::ieee754::log(u)) * rate;
   return next < kTaggedSize
@@ -78,7 +79,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   DisallowGarbageCollection no_gc;
 
   // Check if the area is iterable by confirming that it starts with a map.
-  DCHECK(IsMap(HeapObject::FromAddress(soon_object)->map(isolate_), isolate_));
+  DCHECK(IsMap(HeapObject::FromAddress(soon_object)->map()));
 
   HandleScope scope(isolate_);
   Tagged<HeapObject> heap_object = HeapObject::FromAddress(soon_object);

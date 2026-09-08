@@ -4,8 +4,8 @@
 
 #include "src/handles/local-handles.h"
 
-#include "src/api/api.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handle-scope-implementer.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"

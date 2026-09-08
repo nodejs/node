@@ -24,12 +24,8 @@
 namespace hwy {
 namespace {
 
-// Governs duration of test; avoid timeout in debug builds.
-#if HWY_IS_DEBUG_BUILD
-constexpr size_t kMaxEvals = 3;
-#else
-constexpr size_t kMaxEvals = 4;
-#endif
+// DefaultBenchmarkParams() handles timeout avoidance in debug builds
+
 
 FuncOutput Div(const void*, FuncInput in) {
   // Here we're measuring the throughput because benchmark invocations are
@@ -41,8 +37,7 @@ template <size_t N>
 void MeasureDiv(const FuncInput (&inputs)[N]) {
   printf("Measuring integer division (output on final two lines)\n");
   Result results[N];
-  Params params;
-  params.max_evals = kMaxEvals;
+  Params params = DefaultBenchmarkParams();
   const size_t num_results = Measure(&Div, nullptr, inputs, N, results, params);
   for (size_t i = 0; i < num_results; ++i) {
     printf("%5d: %6.2f ticks; MAD=%4.2f%%\n",
@@ -67,8 +62,7 @@ FuncOutput Random(const void* /*arg*/, FuncInput in) {
 template <size_t N>
 void MeasureRandom(const FuncInput (&inputs)[N]) {
   Result results[N];
-  Params p;
-  p.max_evals = kMaxEvals;
+  Params p = DefaultBenchmarkParams();
   p.verbose = false;
   const size_t num_results = Measure(&Random, nullptr, inputs, N, results, p);
   for (size_t i = 0; i < num_results; ++i) {

@@ -151,7 +151,7 @@ void TestSet(IntKeyHash hash, int size) {
     CHECK(!set.Present(x));
     x = base::AddWithWraparound(base::MulWithWraparound(x, factor), offset);
 
-    // Verify the the expected values are still there.
+    // Verify the expected values are still there.
     int y = start;
     for (uint32_t j = 0; j < n; j++) {
       if (j <= i) {

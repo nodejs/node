@@ -499,15 +499,15 @@ struct DoubleStringPair {
   std::string string;
 };
 
-static DoubleStringPair double_pairs[] = {
-    {0.0, "0"},
-    {kMinInt, "-2147483648"},
-    {kMaxInt, "2147483647"},
-    // ES section 7.1.12.1 #sec-tostring-applied-to-the-number-type:
-    // -0.0 is stringified to "0".
-    {-0.0, "0"},
-    {1.1, "1.1"},
-    {0.1, "0.1"}};
+static DoubleStringPair double_pairs[] = {{0.0, "0"},
+                                          {kMinInt, "-2147483648"},
+                                          {kMaxInt, "2147483647"},
+                                          // ES section 7.1.12.1
+                                          // https://tc39.es/ecma262/#sec-tostring-applied-to-the-number-type:
+                                          // -0.0 is stringified to "0".
+                                          {-0.0, "0"},
+                                          {1.1, "1.1"},
+                                          {0.1, "0.1"}};
 
 TEST_F(ConversionsTest, DoubleToStringView) {
   std::unique_ptr<char[]> buf(new char[4096]);

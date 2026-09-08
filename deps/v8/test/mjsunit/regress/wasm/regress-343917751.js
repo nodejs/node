@@ -9,7 +9,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let instance = (() => {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  let array_type = builder.addArray(kWasmI32, true);
+  let array_type = builder.addArray(kWasmI32);
   builder.endRecGroup();
   builder.startRecGroup();
 

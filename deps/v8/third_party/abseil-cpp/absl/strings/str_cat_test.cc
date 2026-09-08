@@ -140,6 +140,9 @@ TEST(StrCat, Basics) {
   result = absl::StrCat(-1);
   EXPECT_EQ(result, "-1");
 
+  result = absl::StrCat(absl::HighPrecision(0.5));
+  EXPECT_EQ(result, "0.5");
+
   result = absl::StrCat(absl::SixDigits(0.5));
   EXPECT_EQ(result, "0.5");
 
@@ -182,16 +185,27 @@ TEST(StrCat, Basics) {
   EXPECT_EQ(result, "To output a char by ASCII/numeric value, use +: 33");
 
   float f = 100000.5;
+  result = absl::StrCat("A hundred K and a half is ", absl::HighPrecision(f));
+  EXPECT_EQ(result, "A hundred K and a half is 100000.5");
+
   result = absl::StrCat("A hundred K and a half is ", absl::SixDigits(f));
   EXPECT_EQ(result, "A hundred K and a half is 100000");
 
   f = 100001.5;
+  result = absl::StrCat("A hundred K and one and a half is ",
+                        absl::HighPrecision(f));
+  EXPECT_EQ(result, "A hundred K and one and a half is 100001.5");
+
   result =
       absl::StrCat("A hundred K and one and a half is ", absl::SixDigits(f));
   EXPECT_EQ(result, "A hundred K and one and a half is 100002");
 
   double d = 100000.5;
   d *= d;
+  result = absl::StrCat("A hundred K and a half squared is ",
+                        absl::HighPrecision(d));
+  EXPECT_EQ(result, "A hundred K and a half squared is 10000100000.25");
+
   result =
       absl::StrCat("A hundred K and a half squared is ", absl::SixDigits(d));
   EXPECT_EQ(result, "A hundred K and a half squared is 1.00001e+10");
@@ -407,6 +421,20 @@ TEST(StrAppend, Basics) {
                   "To output a char by ASCII/numeric value, use +: ", '!' + 0);
   EXPECT_EQ(result.substr(old_size),
             "To output a char by ASCII/numeric value, use +: 33");
+
+  float f = 100000.5;
+  old_size = result.size();
+  absl::StrAppend(&result, "A hundred K and a half is ",
+                  absl::HighPrecision(f));
+  EXPECT_EQ(result.substr(old_size), "A hundred K and a half is 100000.5");
+
+  double d = f;
+  d *= d;
+  old_size = result.size();
+  absl::StrAppend(&result, "A hundred K and a half squared is ",
+                  absl::HighPrecision(d));
+  EXPECT_EQ(result.substr(old_size),
+            "A hundred K and a half squared is 10000100000.25");
 
   // Test 9 arguments, the old maximum
   old_size = result.size();

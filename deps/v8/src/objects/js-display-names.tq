@@ -9,12 +9,14 @@ type JSDisplayNamesFallback extends int32
     constexpr 'JSDisplayNames::Fallback';
 type JSDisplayNamesLanguageDisplay extends int32
     constexpr 'JSDisplayNames::LanguageDisplay';
+@cppScope('JSDisplayNames')
 bitfield struct JSDisplayNamesFlags extends uint31 {
   style: JSDisplayNamesStyle: 2 bit;
   fallback: JSDisplayNamesFallback: 1 bit;
   language_display: JSDisplayNamesLanguageDisplay: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDisplayNames extends JSObject {
   internal: Foreign;  // Managed<DisplayNamesInternal>
   flags: SmiTagged<JSDisplayNamesFlags>;

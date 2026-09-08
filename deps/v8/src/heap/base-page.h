@@ -39,7 +39,7 @@ class BasePage {
   V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
                                             Tagged<HeapObject> o);
   V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
-                                            const HeapObjectLayout* o);
+                                            const HeapObject* o);
 
   // Updates the high-water mark of the page that corresponds to `mark`. Can be
   // passed a limit which points one byte past the current page.

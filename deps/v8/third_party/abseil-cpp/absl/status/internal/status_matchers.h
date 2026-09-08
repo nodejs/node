@@ -16,12 +16,12 @@
 #define ABSL_STATUS_INTERNAL_STATUS_MATCHERS_H_
 
 #include <ostream>  // NOLINT
-#include <string>
 #include <type_traits>
 #include <utility>
 
 #include "gmock/gmock.h"  // gmock_for_status_matchers.h
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -35,7 +35,7 @@ inline const absl::Status& GetStatus(const absl::Status& status) {
 }
 
 template <typename T>
-inline const absl::Status& GetStatus(const absl::StatusOr<T>& status) {
+const absl::Status& GetStatus(const absl::StatusOr<T>& status) {
   return status.status();
 }
 
@@ -48,8 +48,7 @@ template <typename StatusOrType>
 class IsOkAndHoldsMatcherImpl
     : public ::testing::MatcherInterface<StatusOrType> {
  public:
-  typedef
-      typename std::remove_reference<StatusOrType>::type::value_type value_type;
+  typedef typename std::remove_reference_t<StatusOrType>::value_type value_type;
 
   template <typename InnerMatcher>
   explicit IsOkAndHoldsMatcherImpl(InnerMatcher&& inner_matcher)
@@ -118,18 +117,24 @@ class IsOkAndHoldsMatcher {
 class StatusCode {
  public:
   /*implicit*/ StatusCode(int code)  // NOLINT
-      : code_(static_cast<::absl::StatusCode>(code)) {}
-  /*implicit*/ StatusCode(::absl::StatusCode code) : code_(code) {}  // NOLINT
+      : code_(code) {}
+  /*implicit*/ StatusCode(::absl::StatusCode code)  // NOLINT
+      : code_(static_cast<int>(code)) {}
 
   explicit operator int() const { return static_cast<int>(code_); }
 
   friend inline void PrintTo(const StatusCode& code, std::ostream* os) {
-    // TODO(b/321095377): Change this to print the status code as a string.
-    *os << static_cast<int>(code);
+    absl::string_view text =
+        absl::StatusCodeToStringView(static_cast<absl::StatusCode>(code.code_));
+    if (!text.empty()) {
+      *os << text;
+    } else {
+      *os << code.code_;
+    }
   }
 
  private:
-  ::absl::StatusCode code_;
+  int code_;
 };
 
 // Relational operators to handle matchers like Eq, Lt, etc..

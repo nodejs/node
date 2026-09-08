@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-simd-opt
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 d8.file.execute('test/mjsunit/value-helper.js');
 
@@ -1070,4 +1068,958 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_i).addLocals(kWasmS128, 16).addBody(simd).exportFunc();
   const wasm = builder.instantiate().exports;
   assertEquals(wasm.simd(0), 0);
+})();
+
+(function ExtMulLowWithTwoExtracts() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+  builder.addFunction('extract', kSig_i_ii).addLocals(kWasmS128, 3)
+      .addBody([
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 2,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 3,
+        kSimdPrefix, kExprI8x16Shuffle,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23,
+        kExprLocalGet, 2,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprI8x16Shuffle,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        // ExtMulLow on the two shuffled vectors.
+        ...SimdInstr(kExprI16x8ExtMulLowI8x16S),
+        kExprLocalTee, 4,
+        // Two lane-0 extracts of the ExtMulLow result.
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprLocalGet, 4,
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprI32Add,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_i_ii).addLocals(kWasmI32, 1)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprI32LoadMem8S, 0, 8,
+        kExprLocalTee, 2,
+        kExprLocalGet, 2,
+        kExprI32Mul,
+        kExprI32Const, 2,
+        kExprI32Mul,
+      ])
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const mem = new Uint8Array(wasm.memory.buffer);
+  const base0 = 0;
+  const base1 = 32;
+  for (let i = 0; i < 64; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(wasm.scalar(base0, base1), wasm.extract(base0, base1));
+})();
+
+(function StoreLaneDemandedBytes() {
+  print(arguments.callee.name);
+
+  const left = [
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+  ];
+  const right = [
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+  ];
+
+  const shuffle = [
+    20, 5, 21, 4, 22, 3, 23, 2,
+    0, 1, 2, 3, 4, 5, 6, 7,
+  ];
+
+  const expectedLane = function(bits) {
+    const source = new Uint8Array([...left, ...right]);
+    const out = new Uint8Array(16);
+    for (let i = 0; i < 16; ++i) out[i] = source[shuffle[i]];
+    const view = new DataView(out.buffer);
+    switch (bits) {
+      case 8:
+        return out[0];
+      case 16:
+        return view.getUint16(0, true);
+      case 32:
+        return view.getUint32(0, true);
+      case 64:
+        return view.getBigUint64(0, true);
+      default:
+        throw new Error('Unsupported lane width');
+    }
+  }
+
+  const makeStoreLaneBody = function(storeOpcode, loadOpcode) {
+    return [
+      ...wasmI32Const(0),
+      ...wasmS128Const(left),
+      ...wasmS128Const(right),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle,
+      kSimdPrefix, storeOpcode, 0, 0, 0,
+      ...wasmI32Const(0),
+      loadOpcode, 0, 0,
+    ];
+  }
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+
+  builder.addFunction('store8', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store8Lane, kExprI32LoadMem8U))
+      .exportFunc();
+
+  builder.addFunction('store16', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store16Lane, kExprI32LoadMem16U))
+      .exportFunc();
+
+  builder.addFunction('store32', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store32Lane, kExprI32LoadMem))
+      .exportFunc();
+
+  builder.addFunction('store64', kSig_l_v)
+      .addBody(makeStoreLaneBody(kExprS128Store64Lane, kExprI64LoadMem))
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+
+  assertEquals(expectedLane(8), wasm.store8());
+  assertEquals(expectedLane(16), wasm.store16());
+  assertEquals(expectedLane(32), wasm.store32());
+  assertEquals(expectedLane(64), wasm.store64());
+})();
+
+function RunOneShuffleMaxIndexTest(name, outerShuffle) {
+  print(name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const innerShuffle = [
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+  ];
+
+  builder.addFunction('one_input_shuffle', makeSig(
+    [kWasmI32, kWasmI32, kWasmI32], [])).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprLocalGet, 2,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kExprLocalTee, 3,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprI8x16Shuffle, ...outerShuffle,
+        kSimdPrefix, kExprS128StoreMem, 0, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const memory = new Uint8Array(instance.exports.memory.buffer);
+  const leftAddr = 0;
+  const rightAddr = 16;
+  const dstAddr = 64;
+
+  const srcAddrs = [leftAddr, rightAddr];
+  for (let i = 0; i < dstAddr; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  memory.fill(0, dstAddr, dstAddr + 16);
+
+  instance.exports.one_input_shuffle(leftAddr, rightAddr, dstAddr);
+
+  const applyShuffle = (input, shuf) => Uint8Array.from(shuf.map(i => input[i]));
+  const input = memory.slice(leftAddr, leftAddr + 32);
+  const innerResult = applyShuffle(input, innerShuffle);
+
+  const expected = new Uint8Array(16);
+  for (let i = 0; i < 16; ++i) {
+    const idx = outerShuffle[i];
+    expected[i] = innerResult[idx % 16];
+  }
+
+  for (let i = 0; i < 16; ++i) {
+    assertEquals(expected[i], memory[dstAddr + i]);
+  }
+}
+
+function RunTwoShufflesMaxIndexTest(name, outerShuffle) {
+  print(name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const innerShuffle = [
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+  ];
+
+  builder.addFunction('two_input_shuffles', makeSig(
+    [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 4,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kExprLocalGet, 2,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kSimdPrefix, kExprI8x16Shuffle, ...outerShuffle,
+        kSimdPrefix, kExprS128StoreMem, 0, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const memory = new Uint8Array(instance.exports.memory.buffer);
+  const leftAAddr = 0;
+  const rightAAddr = 16;
+  const leftBAddr = 32;
+  const rightBAddr = 48;
+  const dstAddr = 64;
+
+  const srcAddrs = [leftAAddr, rightAAddr, leftBAddr, rightBAddr];
+  for (let i = 0; i < dstAddr; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  memory.fill(0, dstAddr, dstAddr + 16);
+
+  instance.exports.two_input_shuffles(
+      leftAAddr, rightAAddr, leftBAddr, rightBAddr, dstAddr);
+
+  const applyShuffle = (input, shuf) => Uint8Array.from(shuf.map(i => input[i]));
+  const inputA = memory.slice(leftAAddr, leftAAddr + 32);
+  const inputB = memory.slice(leftBAddr, leftBAddr + 32);
+  const innerResultA = applyShuffle(inputA, innerShuffle);
+  const innerResultB = applyShuffle(inputB, innerShuffle);
+
+  const expected = new Uint8Array(16);
+  for (let i = 0; i < 16; ++i) {
+    const idx = outerShuffle[i];
+    expected[i] = idx < 16 ? innerResultA[idx] : innerResultB[idx - 16];
+  }
+
+  for (let i = 0; i < 16; ++i) {
+    assertEquals(expected[i], memory[dstAddr + i]);
+  }
+}
+
+function RunMaxIndexTests(name, outerShuffle) {
+  RunOneShuffleMaxIndexTest(name, outerShuffle);
+  RunTwoShufflesMaxIndexTest(name, outerShuffle);
+}
+
+// Both inner shuffles should be reduced to I8x2 (max index 1/17).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x2_Positive',
+    [
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+    ]);
+
+// Both inner shuffles should be reduced to I8x4 (max index 3/19).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x4_Positive',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+    ]);
+
+// Both inner shuffles should be reduced to I8x8 (max index 7/23).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x8_Positive',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 5, 21,
+      6, 22, 7, 23,
+    ]);
+
+// Includes index 2/18, so can be reduced to I8x4.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x2_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 0, 16,
+      1, 17, 2, 18,
+      0, 16, 1, 17,
+    ]);
+
+// Includes index 4/20, so can be reduced to I8x8.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x4_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 2, 18,
+      3, 19, 0, 16,
+    ]);
+
+// Includes index 8/24, so it won't be reduced.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x8_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 5, 21,
+      6, 22, 8, 24,
+    ]);
+
+(function TwoByteShuffleOfShuffleLowLanes() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('simd', kSig_l_v).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprI32Const, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 16,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        kExprI32Const, 32,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        12, 16, 17, 18, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        // Chain low-half, so we only need the bottom two bytes of the shuffle.
+        // Lane 12 comes from mem[12]
+        // Lane 16 comes from mem[32]
+        ...SimdInstr(kExprI16x8SConvertI8x16Low),
+        ...SimdInstr(kExprI32x4SConvertI16x8Low),
+        ...SimdInstr(kExprI64x2SConvertI32x4Low),
+        kExprLocalTee, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 1,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_l_v)
+      .addBody([
+        kExprI32Const, 12,
+        kExprI64LoadMem8S, 0, 0,
+        kExprI32Const, 32,
+        kExprI64LoadMem8S, 0, 0,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Uint8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 48; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(instance.exports.scalar(), instance.exports.simd());
+})();
+
+(function FourByteShuffleOfShuffleLowLanes() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('simd', kSig_l_v).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprI32Const, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 16,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+        kExprI32Const, 32,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        12, 13, 17, 18, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        // Chain low-half, so we only need the bottom four bytes of the shuffle.
+        // Lane 12 comes from mem[16 + 12]
+        // Lane 13 comes from mem[16 + 13]
+        // Lane 17 comes from mem[32 + 1]
+        // Lane 18 comes from mem[32 + 2]
+        ...SimdInstr(kExprI32x4SConvertI16x8Low),
+        ...SimdInstr(kExprI64x2SConvertI32x4Low),
+        kExprLocalTee, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 1,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_l_v)
+      .addBody([
+        kExprI32Const, 28,
+        kExprI64LoadMem16S, 0, 0,
+        kExprI32Const, 33,
+        kExprI64LoadMem16S, 0, 0,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Uint8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 48; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(instance.exports.scalar(), instance.exports.simd());
+})();
+
+(function FourByteShuffleOfShuffleLowLanesReverseHalfWords() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('simd', kSig_l_v).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprI32Const, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 16,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+        kExprI32Const, 32,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        13, 12, 18, 17, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        // Chain low-half, so we only need the bottom four bytes of the shuffle.
+        // Lane 13 comes from mem[16 + 13]
+        // Lane 12 comes from mem[16 + 12]
+        // Lane 18 comes from mem[32 + 2]
+        // Lane 17 comes from mem[32 + 1]
+        ...SimdInstr(kExprI32x4UConvertI16x8Low),
+        ...SimdInstr(kExprI64x2UConvertI32x4Low),
+        kExprLocalTee, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 1,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_l_v)
+      .addBody([
+        kExprI32Const, 29,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI32Const, 28,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI64Const, 8,
+        kExprI64Shl,
+        kExprI64Ior,
+        kExprI32Const, 34,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI32Const, 33,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI64Const, 8,
+        kExprI64Shl,
+        kExprI64Ior,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Uint8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 48; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(instance.exports.scalar(), instance.exports.simd());
+})();
+
+(function FourByteShuffleOfShuffleLowLanesReverseWord() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('simd', kSig_l_v).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprI32Const, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 16,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+        kExprI32Const, 32,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        14, 13, 12, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        // Chain low-half, so we only need the bottom four bytes of the shuffle.
+        // Lane 14 comes from mem[16 + 14]
+        // Lane 13 comes from mem[16 + 13]
+        // Lane 12 comes from mem[16 + 12]
+        // Lane 11 comes from mem[16 + 11]
+        ...SimdInstr(kExprI32x4UConvertI16x8Low),
+        ...SimdInstr(kExprI64x2UConvertI32x4Low),
+        kExprLocalTee, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 1,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_l_v)
+      .addBody([
+        kExprI32Const, 30,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI32Const, 29,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI64Const, 8,
+        kExprI64Shl,
+        kExprI64Ior,
+        kExprI32Const, 28,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI32Const, 27,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI64Const, 8,
+        kExprI64Shl,
+        kExprI64Ior,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Uint8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 48; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(instance.exports.scalar(), instance.exports.simd());
+})();
+
+(function FourByteShuffleOfShuffleLowLanesInterleavedWord() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('simd', kSig_l_v).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprI32Const, 32,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 16,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+        kSimdPrefix, kExprI8x16Shuffle,
+        22, 20, 18, 16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        // Chain low-half, so we only need the bottom four bytes of the shuffle.
+        // Lane 22 comes from mem[16 + 6]
+        // Lane 20 comes from mem[16 + 4]
+        // Lane 18 comes from mem[16 + 2]
+        // Lane 16 comes from mem[16 + 0]
+        ...SimdInstr(kExprI32x4UConvertI16x8Low),
+        ...SimdInstr(kExprI64x2UConvertI32x4Low),
+        kExprLocalTee, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI64x2ExtractLane, 1,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_l_v)
+      .addBody([
+        kExprI32Const, 22,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI32Const, 20,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI64Const, 8,
+        kExprI64Shl,
+        kExprI64Ior,
+        kExprI32Const, 18,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI32Const, 16,
+        kExprI64LoadMem8U, 0, 0,
+        kExprI64Const, 8,
+        kExprI64Shl,
+        kExprI64Ior,
+        kExprI64Sub,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Uint8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 48; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(instance.exports.scalar(), instance.exports.simd());
+})();
+
+(function MultipleUsedRanges() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('simd', kSig_i_v).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprI32Const, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprI32Const, 16,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        kExprI32Const, 32,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle,
+        // multiple disjoint ranges of the incoming shuffle.
+        4, 5, 16, 17, 8, 9, 18, 19,
+        24, 25, 20, 21, 0, 1, 22, 23,
+        ...SimdInstr(kExprI16x8SConvertI8x16Low),
+        kExprLocalTee, 0,
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI16x8ExtractLaneS, 4,
+        kExprI32Sub,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_i_v)
+      .addBody([
+        kExprI32Const, 4,
+        kExprI32LoadMem8S, 0, 0,
+        kExprI32Const, 8,
+        kExprI32LoadMem8S, 0, 0,
+        kExprI32Sub,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const mem = new Uint8Array(instance.exports.memory.buffer);
+  for (let i = 0; i < 48; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(instance.exports.scalar(), instance.exports.simd());
+})();
+
+(function TestDisjointWindowsAreNotReduced() {
+  const builder = new WasmModuleBuilder();
+
+  const identity = [...Array(16).keys()];
+  const outer = [
+    0, 1, 2, 3,
+    16, 17, 18, 19,
+    4, 5, 6, 7,
+    16, 17, 18, 19
+  ];
+
+  // inner = [0, 1, 2, ... 15]
+  // outer keeps the first block of inner in lanes 0-3 and another block in
+  // lanes 8-11. Reducing the inner shuffle would move the second block and
+  // corrupt lanes 0-3; the fix adds a pre-window check to prevent that.
+  builder.addFunction('disjoint', kSig_i_v)
+      .addLocals(kWasmS128, 1)
+      .addBody([
+        ...wasmS128Const(identity),                // left for inner
+        ...wasmS128Const(identity),                // right for inner
+        kSimdPrefix, kExprI8x16Shuffle, ...identity,
+
+        ...wasmS128Const(Array.from({length: 16}, (_, i) => 200 + i)),
+        kSimdPrefix, kExprI8x16Shuffle, ...outer,
+
+        kExprLocalSet, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI8x16ExtractLaneU, 8,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI8x16ExtractLaneU, 0,
+        kExprI32Sub,
+      ])
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  assertEquals(4, wasm.disjoint());
+})();
+
+(function TestRepeatedIndexWindowRewritesAllDemandedBytes() {
+  const builder = new WasmModuleBuilder();
+
+  const identity = [...Array(16).keys()];
+  const hot = new Array(16).fill(0);
+  hot[8] = 99;  // Unique byte that must be replicated into the low half.
+
+  const repeatedIndex = [
+    8, 8, 8, 8, 8, 8, 8, 8,  // demanded bytes (low half)
+    16, 17, 18, 19, 20, 21, 22, 23
+  ];
+
+  builder.addFunction('repeated', kSig_i_v)
+      .addLocals(kWasmS128, 1)
+      .addBody([
+        ...wasmS128Const(hot),                      // left for inner
+        ...wasmS128Const(new Array(16).fill(0)),    // right for inner
+        kSimdPrefix, kExprI8x16Shuffle, ...identity,
+
+        ...wasmS128Const(new Array(16).fill(0)),
+        kSimdPrefix, kExprI8x16Shuffle, ...repeatedIndex,
+
+        kExprLocalSet, 0,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprI8x16ExtractLaneU, 7,
+      ])
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  assertEquals(99, wasm.repeated());
+})();
+
+(function ShuffleWindowNeedsOutputOffset() {
+  print(arguments.callee.name);
+
+  const a = Array.from({length: 16}, (_, i) => i);
+  const b = Array.from({length: 16}, (_, i) => 200 + i);
+  const shuffle_in_pattern =
+      Array.from({length: 16}, (_, i) => i);  // identity
+
+  // shuffle_out reads an 8-lane window starting at output lane 4 that only
+  // uses lanes 2 and 3 from shuffle_in so only two bytes are demanded from
+  // shuffle_in.
+  const shuffle_out_pattern =
+      [19, 18, 17, 16, 2, 3, 2, 3, 2, 3, 2, 3, 20, 21, 22, 23];
+
+  // Extract lane 10, which is sourced from shuffle_in (lane 2), which would
+  // become lane 0 if shuffle_in is reduced.
+  const extract_lane = 10;
+
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('test', makeSig([], [kWasmI32])).addBody([
+      ...wasmS128Const(a),
+      ...wasmS128Const(a),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_in_pattern,
+      ...wasmS128Const(b),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_out_pattern,
+      kSimdPrefix, kExprI8x16ExtractLaneU, extract_lane,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const expected = a[2];
+  assertEquals(expected, wasm.test());
+})();
+
+(function ShuffleRightHalfKeepsBaseOffset() {
+  print(arguments.callee.name);
+  const a = Array.from({length: 16}, (_, i) => 10 + i);   // filler
+  const b = Array.from({length: 16}, (_, i) => i);       // distinct
+  const shuffle_in_pattern =
+      Array.from({length: 16}, (_, i) => i);  // identity
+
+  // shuffle_out consumes a four-lane window that starts at input lane 0 of
+  // shuffle_in, the rhs operand, and appears at output lanes 4..7.
+  // Ensure the base offset is maintained so that we still read from the rhs
+  // and not the lhs.
+  const shuffle_out_pattern =
+      [0, 1, 2, 3,
+       16, 17, 18, 19,
+       8, 9, 10, 11,
+       12, 13, 14, 15];
+  const extract_lane = 6;  // lane 18 = lane 2 of b.
+
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('test', makeSig([], [kWasmI32])).addBody([
+      ...wasmS128Const(a),
+      ...wasmS128Const(a),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_in_pattern,
+      ...wasmS128Const(b),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_out_pattern,
+      kSimdPrefix, kExprI8x16ExtractLaneU, extract_lane,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const expected = b[2];
+  assertEquals(expected, wasm.test());
+})();
+
+(function ShuffleWindowRewriteUsesOutputOffset() {
+  print(arguments.callee.name);
+
+  const a = Array.from({length: 16}, (_, i) => i);
+  const b = Array.from({length: 16}, (_, i) => 200 + i);
+  const shuffle_in_pattern = Array.from({length: 16}, (_, i) => i);  // identity
+
+  // Window of lanes 2 and 3 from shuffle_in placed at output lanes 6..9.
+  const shuffle_out_pattern = [
+      16, 17, 18, 19, 20, 21,
+      2, 3, 2, 3,              // window that should be rewritten in-place
+      22, 23, 24, 25, 26, 27
+  ];
+  const extract_lane = 7;  // == 3 == a[3]
+
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('test', makeSig([], [kWasmI32])).addBody([
+      ...wasmS128Const(a),
+      ...wasmS128Const(a),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_in_pattern,
+      ...wasmS128Const(b),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_out_pattern,
+      kSimdPrefix, kExprI8x16ExtractLaneU, extract_lane,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const expected = a[3];
+  assertEquals(expected, wasm.test());
+})();
+
+(function ShuffleRightWindowKeepsBaseAfterShift() {
+  print(arguments.callee.name);
+
+  const a = Array.from({length: 16}, (_, i) => 10 + i);
+  const b = Array.from({length: 16}, (_, i) => 200 + i);
+  const shuffle_in_pattern = Array.from({length: 16}, (_, i) => i);  // identity
+
+  // A two-byte window from the right operand (indices 16, 17) that will be
+  // shifted. The consumer must preserve the base offset so it still reads from
+  // the rhs after rewriting.
+  const shuffle_out_pattern = [
+      16, 17, 16, 17,  // window (begin_input_index = 16)
+      0, 1, 2, 3,
+      20, 21, 22, 23,
+      24, 25, 26, 27
+  ];
+  const extract_lane = 1;  // == 17 == b[1]
+
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('test', makeSig([], [kWasmI32])).addBody([
+      ...wasmS128Const(a),
+      ...wasmS128Const(a),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_in_pattern,
+      ...wasmS128Const(b),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_out_pattern,
+      kSimdPrefix, kExprI8x16ExtractLaneU, extract_lane,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const expected = b[1];
+  assertEquals(expected, wasm.test());
+})();
+
+(function ShuffleLeftWindowCorrectSpan() {
+  print(arguments.callee.name);
+
+  const a = Array.from({length: 16}, (_, i) => 10 + i);
+  const b = Array.from({length: 16}, (_, i) => 200 + i);
+  const shuffle_in_pattern = Array.from({length: 16}, (_, i) => i);  // identity
+
+  // A four-byte window from the left operand (indices 0, 1, 2, 3) that will be
+  // shifted.
+  const shuffle_out_pattern = [
+      16, 17, 16, 17,
+      0, 1, 2, 3,
+      20, 21, 22, 23,
+      24, 25, 26, 27
+  ];
+
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('test', makeSig([], [kWasmI32])).addBody([
+      ...wasmS128Const(a),
+      ...wasmS128Const(a),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_in_pattern,
+      ...wasmS128Const(b),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle_out_pattern,
+      kSimdPrefix, kExprI32x4ExtractLane, 1,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const expected = a[0] | a[1] << 8 | a[2] << 16 | a[3] << 24;
+  assertEquals(expected, wasm.test());
+})();
+
+(function MiddleShuffleIsShiftedInputAndRewrittenOutput() {
+  print(arguments.callee.name);
+
+  const val01 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f];
+  const val02 = [0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+                 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f];
+  const val03 = [0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+                 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f];
+  const val04 = [0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+                 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f];
+
+  const extract_low_i8x4 = [
+    ...SimdInstr(kExprI16x8SConvertI8x16Low),
+    ...SimdInstr(kExprI32x4SConvertI16x8Low),
+    kExprLocalTee, 0,
+    kSimdPrefix, kExprI32x4ExtractLane, 0,
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI32x4ExtractLane, 1,
+    kExprI32Sub,
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI32x4ExtractLane, 2,
+    kExprI32Sub,
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI32x4ExtractLane, 3,
+    kExprI32Sub,
+  ];
+
+  const builder = new WasmModuleBuilder();
+  const simd = [
+    ...wasmS128Const(val01),
+    ...wasmS128Const(val02),
+    kSimdPrefix, kExprI8x16Shuffle,                    // A.
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
+    0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1a, 0x1b,
+    ...wasmS128Const(val03),
+    kSimdPrefix, kExprI8x16Shuffle,                    // B = shuffle(A, val03).
+    // The low lanes read A[4..7], so B will update these indices after A is
+    // shifted. C below reads B[4..7], so B will also shift that window to low.
+    0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13,
+    0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+    ...wasmS128Const(val04),
+    kSimdPrefix, kExprI8x16Shuffle,                    // C = shuffle(B, val04).
+    0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13,
+    0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+    ...extract_low_i8x4,
+  ];
+  const expected = [
+    ...wasmS128Const([0x40, 0x41, 0x42, 0x43, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0, 0]),
+    ...extract_low_i8x4,
+  ];
+  builder.addFunction('simd', kSig_i_v)
+      .addLocals(kWasmS128, 1)
+      .addBody(simd)
+      .exportFunc();
+  builder.addFunction('expected', kSig_i_v)
+      .addLocals(kWasmS128, 1)
+      .addBody(expected)
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  assertEquals(wasm.expected(), wasm.simd());
 })();

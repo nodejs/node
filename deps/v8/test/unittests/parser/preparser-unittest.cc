@@ -706,8 +706,8 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      v8::base::ScopedVector<char> program(len + 1);
-      v8::base::SNPrintF(program, code, inner.params, inner.source);
+      auto program = v8::base::OwnedVector<char>::NewForOverwrite(len + 1);
+      v8::base::SNPrintF(program.as_vector(), code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -745,7 +745,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       using_scope_data.set_consumed_preparse_data(
           i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate,
-                                      i::parsing::ReportStatisticsMode::kYes));
+                                      i::parsing::ReportStatisticsMode{true}));
 
       // Verify that we skipped at least one function inside that scope.
       i::DeclarationScope* scope_with_skipped_functions =
@@ -758,7 +758,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state,
                                         &reusable_state);
       CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate,
-                                      i::parsing::ReportStatisticsMode::kYes));
+                                      i::parsing::ReportStatisticsMode{true}));
 
       // Verify that we didn't skip anything (there's no preparsed scope data,
       // so we cannot skip).
@@ -796,7 +796,7 @@ TEST_F(PreParserTest, Regress753896) {
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.
   i::parsing::ParseProgram(&info, script, isolate,
-                           i::parsing::ReportStatisticsMode::kYes);
+                           i::parsing::ReportStatisticsMode{true});
 }
 
 TEST_F(PreParserTest, TopLevelArrowFunctions) {

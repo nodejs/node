@@ -5,8 +5,8 @@
 namespace string {
 const kBuiltinName: constexpr string = 'String.prototype.repeat';
 
-builtin StringRepeat(implicit context: Context)(string: String,
-                      count: Smi): String {
+builtin StringRepeat(implicit context: Context)(string: String, count: Smi):
+    String {
   dcheck(count >= 0);
   dcheck(string != kEmptyString);
 
@@ -26,7 +26,7 @@ builtin StringRepeat(implicit context: Context)(string: String,
   return result;
 }
 
-// https://tc39.github.io/ecma262/#sec-string.prototype.repeat
+// https://tc39.es/ecma262/#sec-string.prototype.repeat
 transitioning javascript builtin StringPrototypeRepeat(
     js-implicit context: NativeContext, receiver: JSAny)(
     count: JSAny): String {

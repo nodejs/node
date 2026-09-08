@@ -10,12 +10,12 @@
 namespace v8 {
 namespace internal {
 
-// ecma402/#sec-getoptionsobject
+// https://tc39.es/ecma402/#sec-getoptionsobject
 MaybeDirectHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
                                                DirectHandle<Object> options,
                                                const char* method_name) {
   // 1. If options is undefined, then
-  if (IsUndefined(*options, isolate)) {
+  if (IsUndefined(*options)) {
     // a. Return ! ObjectCreate(null).
     return isolate->factory()->NewJSObjectWithNullProto();
   }
@@ -28,11 +28,11 @@ MaybeDirectHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
   THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument));
 }
 
-// ecma402/#sec-coerceoptionstoobject
+// https://tc39.es/ecma402/#sec-coerceoptionstoobject
 MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
     Isolate* isolate, DirectHandle<Object> options, const char* method_name) {
   // 1. If options is undefined, then
-  if (IsUndefined(*options, isolate)) {
+  if (IsUndefined(*options)) {
     // a. Return ! ObjectCreate(null).
     return isolate->factory()->NewJSObjectWithNullProto();
   }
@@ -51,7 +51,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
-  if (IsUndefined(*value, isolate)) {
+  if (IsUndefined(*value)) {
     return Just(false);
   }
 
@@ -77,7 +77,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
       isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
   // 2. If value is not undefined, then
-  if (!IsUndefined(*value, isolate)) {
+  if (!IsUndefined(*value)) {
     // 2. b. i. Let value be ToBoolean(value).
     *result = Object::BooleanValue(*value, isolate);
 
@@ -88,7 +88,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
   return Just(false);
 }
 
-// ecma402/#sec-defaultnumberoption
+// https://tc39.es/ecma402/#sec-defaultnumberoption
 Maybe<int> DefaultNumberOption(Isolate* isolate, DirectHandle<Object> value,
                                int min, int max, int fallback,
                                DirectHandle<String> property) {
@@ -119,7 +119,7 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, DirectHandle<Object> value,
   return Just(FastD2I(floor(Object::NumberValue(*value_num))));
 }
 
-// ecma402/#sec-getnumberoption
+// https://tc39.es/ecma402/#sec-getnumberoption
 Maybe<int> GetNumberOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                            DirectHandle<String> property, int min, int max,
                            int fallback) {
@@ -132,7 +132,7 @@ Maybe<int> GetNumberOption(Isolate* isolate, DirectHandle<JSReceiver> options,
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
 }
 
-// #sec-getoption while type is "number"
+// https://tc39.es/ecma262/#sec-getoption while type is "number"
 Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
                                       DirectHandle<JSReceiver> options,
                                       DirectHandle<String> property,

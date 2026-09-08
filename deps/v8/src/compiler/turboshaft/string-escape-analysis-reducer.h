@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_STRING_ESCAPE_ANALYSIS_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_STRING_ESCAPE_ANALYSIS_REDUCER_H_
 
+#include "src/base/logging.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -44,7 +45,7 @@ class StringEscapeAnalyzer {
     return escaping_operations_and_frame_states_to_reconstruct_[idx];
   }
 
-  bool ShouldReconstructFrameState(V<FrameState> idx) {
+  bool ShouldReconstructFrameState(V<AnyFrameState> idx) {
     return escaping_operations_and_frame_states_to_reconstruct_[idx];
   }
 
@@ -53,7 +54,8 @@ class StringEscapeAnalyzer {
   Zone* zone_;
 
   void ProcessBlock(const Block& block);
-  void ProcessFrameState(V<FrameState> index, const FrameStateOp& framestate);
+  void ProcessFrameState(V<AnyFrameState> index,
+                         const FrameStateOp& framestate);
   void MarkNextFrameStateInputAsEscaping(FrameStateData::Iterator* it);
   void MarkAllInputsAsEscaping(const Operation& op);
   void RecursivelyMarkAllStringConcatInputsAsEscaping(const Operation* concat);
@@ -65,11 +67,11 @@ class StringEscapeAnalyzer {
     escaping_operations_and_frame_states_to_reconstruct_[index] = true;
   }
 
-  void RecursiveMarkAsShouldReconstruct(V<FrameState> idx) {
+  void RecursiveMarkAsShouldReconstruct(V<AnyFrameState> idx) {
     escaping_operations_and_frame_states_to_reconstruct_[idx] = true;
     const FrameStateOp* frame_state = &graph_.Get(idx).Cast<FrameStateOp>();
     while (frame_state->inlined) {
-      V<FrameState> parent = frame_state->parent_frame_state();
+      V<AnyFrameState> parent = frame_state->parent_frame_state();
       escaping_operations_and_frame_states_to_reconstruct_[parent] = true;
       frame_state = &graph_.Get(parent).Cast<FrameStateOp>();
     }
@@ -95,7 +97,7 @@ class StringEscapeAnalyzer {
   // StringConcat that are not in {escaping_operations_} do not indeed escape.
   ZoneVector<V<String>> maybe_non_escaping_string_concats_;
 
-  ZoneVector<V<FrameState>> maybe_to_reconstruct_frame_states_;
+  ZoneVector<V<AnyFrameState>> maybe_to_reconstruct_frame_states_;
 
   uint32_t max_frame_state_input_count_ = 0;
 };
@@ -143,6 +145,7 @@ class StringEscapeAnalysisReducer : public Next {
         case Kind::kNotElided:
           return og_index() == other.og_index();
       }
+      UNREACHABLE();
     }
 
     static ElidedStringPart Invalid() {
@@ -190,8 +193,8 @@ class StringEscapeAnalysisReducer : public Next {
     return V<String>::Invalid();
   }
 
-  V<FrameState> REDUCE_INPUT_GRAPH(FrameState)(
-      V<FrameState> ig_index, const FrameStateOp& frame_state) {
+  V<AnyFrameState> REDUCE_INPUT_GRAPH(FrameState)(
+      V<AnyFrameState> ig_index, const FrameStateOp& frame_state) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphFrameState(ig_index, frame_state);
     }
@@ -263,8 +266,8 @@ class StringEscapeAnalysisReducer : public Next {
     friend class i::Zone;  // For access to private constructor.
   };
 
-  V<FrameState> BuildFrameState(const FrameStateOp& input_frame_state,
-                                OpIndex ig_index) {
+  V<AnyFrameState> BuildFrameState(const FrameStateOp& input_frame_state,
+                                   OpIndex ig_index) {
     DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
 
     const FrameStateInfo& info = input_frame_state.data->frame_state_info;
@@ -275,7 +278,7 @@ class StringEscapeAnalysisReducer : public Next {
 
     Deduplicator* deduplicator;
     if (input_frame_state.inlined) {
-      V<FrameState> parent_ig_index = input_frame_state.parent_frame_state();
+      V<AnyFrameState> parent_ig_index = input_frame_state.parent_frame_state();
       builder.AddParentFrameState(__ MapToNewGraph(parent_ig_index));
 
       // The parent FrameState could contain dematerialized objects, and the
@@ -312,8 +315,9 @@ class StringEscapeAnalysisReducer : public Next {
       BuildFrameStateInput(&builder, &it, deduplicator);
     }
 
-    return __ FrameState(builder.Inputs(), builder.inlined(),
-                         builder.AllocateFrameStateData(info, __ graph_zone()));
+    return __ template FrameState<AnyFrameState>(
+        builder.Inputs(), builder.inlined(),
+        builder.AllocateFrameStateData(info, __ graph_zone()));
   }
 
   void BuildFrameStateInput(FrameStateData::Builder* builder,

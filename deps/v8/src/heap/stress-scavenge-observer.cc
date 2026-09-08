@@ -32,8 +32,9 @@ void StressScavengeObserver::Step(int bytes_allocated, Address soon_object,
     return;
   }
 
-  double current_percent =
-      heap_->new_space()->Size() * 100.0 / heap_->new_space()->TotalCapacity();
+  double current_percent = std::min(
+      heap_->new_space()->Size() * 100.0 / heap_->new_space()->TotalCapacity(),
+      100.0);
 
   if (v8_flags.trace_stress_scavenge) {
     heap_->isolate()->PrintWithTimestamp(

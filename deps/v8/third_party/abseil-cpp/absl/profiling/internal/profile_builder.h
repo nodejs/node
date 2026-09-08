@@ -116,8 +116,31 @@ class ProfileBuilder {
   void set_default_sample_type_id(StringId default_sample_type_id);
 
  private:
-  absl::flat_hash_map<std::string, StringId> string_table_{{"", StringId(0)}};
-  absl::flat_hash_map<uintptr_t, LocationId> location_table_;
+  // We turn off hashtable profiling for the ProfileBuilder's own tables.
+  //
+  // This is necessary since we use this class to construct hashtable profiles,
+  // which entails walking the hashtable profiling data and we don't want to
+  // encounter it reentrantly.
+  template <typename T>
+  struct HashtablezBarrier : std::allocator<T> {
+    HashtablezBarrier() = default;
+
+    template <typename U>
+    HashtablezBarrier(const HashtablezBarrier<U>&) {}
+
+    template <class U>
+    struct rebind {
+      using other = HashtablezBarrier<U>;
+    };
+  };
+
+  template <typename K, typename V>
+  using UnprofiledHashMap = absl::flat_hash_map<
+      K, V, DefaultHashContainerHash<K>, DefaultHashContainerEq<K>,
+      HashtablezBarrier<std::pair<const K, V>>>;
+
+  UnprofiledHashMap<std::string, StringId> string_table_{{"", StringId(0)}};
+  UnprofiledHashMap<uintptr_t, LocationId> location_table_;
   // mapping_table_ stores the start address of each mapping in mapping_
   // to its index.
   absl::btree_map<uintptr_t, size_t> mapping_table_;

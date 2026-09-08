@@ -1,0 +1,4 @@
+Tests that resetting the context group during wrapObject does not UAF.
+Evaluating script in secondary context...
+Secondary session paused. Exception captured successfully.
+Secondary session paused. Exception captured successfully.

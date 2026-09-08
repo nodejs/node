@@ -6,7 +6,7 @@
 #define V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_VERIFIER_H_
 
 #include "include/v8-traced-handle.h"
-#include "src/heap/cppgc/marking-verifier.h"
+#include "src/heap/cppgc-internal/marking-verifier.h"
 
 namespace v8 {
 namespace internal {

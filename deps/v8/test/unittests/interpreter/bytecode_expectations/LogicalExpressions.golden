@@ -30,7 +30,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -70,7 +70,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -536,7 +536,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 212
+bytecode array length: 211
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
@@ -721,7 +721,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 211
+bytecode array length: 210
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),

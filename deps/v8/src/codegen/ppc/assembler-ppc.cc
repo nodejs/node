@@ -43,7 +43,7 @@
 #if V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/ppc/assembler-ppc-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -57,13 +57,13 @@ static CpuFeatureSet CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-bool CpuFeatures::SupportsWasmSimd128() {
-#if V8_ENABLE_WEBASSEMBLY
+bool CpuFeatures::SupportsSimd128() {
+#if V8_ENABLE_SIMD128
   DCHECK(CpuFeatures::IsSupported(PPC_9_PLUS));
   return true;
 #else
   return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
@@ -114,19 +114,17 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
-  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+  CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {
-  const char* ppc_arch = nullptr;
-  ppc_arch = "ppc64";
-  printf("target %s\n", ppc_arch);
-}
-
-void CpuFeatures::PrintFeatures() {
-  printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
-  printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
-  printf("PPC_11_PLUS=%d\n", CpuFeatures::IsSupported(PPC_11_PLUS));
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
+  const char* ppc_arch = "ppc64";
+  printf("CPU target: %s\n", ppc_arch);
+  printf("CPU features: PPC_9_PLUS=%d PPC_10_PLUS=%d PPC_11_PLUS=%d\n",
+         CpuFeatures::IsSupported(PPC_9_PLUS),
+         CpuFeatures::IsSupported(PPC_10_PLUS),
+         CpuFeatures::IsSupported(PPC_11_PLUS));
 }
 
 Register ToRegister(int num) {
@@ -384,8 +382,7 @@ enum {
   kUnboundMovLabelOffsetOpcode = 0 << 26,
   kUnboundAddLabelOffsetOpcode = 1 << 26,
   kUnboundAddLabelLongOffsetOpcode = 2 << 26,
-  kUnboundMovLabelAddrOpcode = 3 << 26,
-  kUnboundJumpTableEntryOpcode = 4 << 26
+  kUnboundJumpTableEntryOpcode = 3 << 26
 };
 
 int Assembler::target_at(int pos) {
@@ -405,7 +402,6 @@ int Assembler::target_at(int pos) {
     case kUnboundMovLabelOffsetOpcode:
     case kUnboundAddLabelOffsetOpcode:
     case kUnboundAddLabelLongOffsetOpcode:
-    case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       link = SIGN_EXT_IMM26(instr & kImm26Mask);
       link <<= 2;
@@ -482,16 +478,6 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       if (opcode == kUnboundAddLabelLongOffsetOpcode) patcher.nop();
       break;
     }
-    case kUnboundMovLabelAddrOpcode: {
-      // Load the address of the label in a register.
-      Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      PatchingAssembler patcher(options(),
-                                reinterpret_cast<uint8_t*>(buffer_start_ + pos),
-                                kMovInstructionsNoConstantPool);
-      // Keep internal references relative until EmitRelocations.
-      patcher.bitwise_mov(dst, target_pos);
-      break;
-    }
     case kUnboundJumpTableEntryOpcode: {
       PatchingAssembler patcher(options(),
                                 reinterpret_cast<uint8_t*>(buffer_start_ + pos),
@@ -518,7 +504,6 @@ int Assembler::max_reach_from(int pos) {
       return 16;
     case kUnboundMovLabelOffsetOpcode:
     case kUnboundAddLabelOffsetOpcode:
-    case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       return 0;  // no limit on reach
   }
@@ -1111,6 +1096,16 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
 }
 
+void Assembler::addpcis(Register dst, const Operand& val) {
+  intptr_t imm16 = val.immediate();
+  DCHECK(is_int16(imm16));
+  imm16 &= kImm16Mask;
+  int d0 = (imm16 & 0xFFC0) >> 6;
+  int d1 = (imm16 & 0x3E) >> 1;
+  int d2 = imm16 & 0x1;
+  emit(ADDPCIS | dst.code() * B21 | d1 * B16 | d0 * B6 | d2);
+}
+
 // Prefixed instructions.
 #define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
   CHECK(is_int34(immediate));                                       \
@@ -1439,15 +1434,6 @@ void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
   }
 }
 
-void Assembler::patch_pc_address(Register dst, int pc_offset,
-                                 int return_address_offset) {
-  DCHECK(is_int16(return_address_offset));
-  Assembler patching_assembler(
-      AssemblerOptions{},
-      ExternalAssemblerBuffer(buffer_start_ + pc_offset, kInstrSize + kGap));
-  patching_assembler.addi(dst, dst, Operand(return_address_offset));
-}
-
 void Assembler::mov_label_offset(Register dst, Label* label) {
   int position = link(label);
   if (label->is_bound()) {
@@ -1500,35 +1486,6 @@ void Assembler::add_label_offset(Register dst, Register base, Label* label,
     if (!is_int22(delta)) {
       emit(delta);
     }
-  }
-}
-
-void Assembler::mov_label_addr(Register dst, Label* label) {
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  int position = link(label);
-  if (label->is_bound()) {
-    // Keep internal references relative until EmitRelocations.
-    bitwise_mov(dst, position);
-  } else {
-    // Encode internal reference to unbound label. We use a dummy opcode
-    // such that it won't collide with any opcode that might appear in the
-    // label's chain.  Encode the destination register in the 2nd instruction.
-    int link = position - pc_offset();
-    DCHECK_EQ(0, link & 3);
-    link >>= 2;
-    DCHECK(is_int26(link));
-
-    // When the label is bound, these instructions will be patched
-    // with a multi-instruction mov sequence that will load the
-    // destination register with the address of the label.
-    //
-    // target_at extracts the link and target_at_put patches the instructions.
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
-    emit(dst.code());
-    DCHECK_GE(kMovInstructionsNoConstantPool, 2);
-    for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
   }
 }
 
@@ -2058,12 +2015,9 @@ void Assembler::GrowBuffer(int needed) {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
   int space = buffer_space() + (new_size - old_size);
   new_size += (space < needed) ? needed - space : 0;
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
   if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
@@ -2197,7 +2151,7 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
-RegList Assembler::DefaultTmpList() { return {r26, ip}; }
+RegList Assembler::DefaultTmpList() { return {ip, r25, r26, r11}; }
 DoubleRegList Assembler::DefaultFPTmpList() {
   return {kScratchDoubleReg, kDoubleRegZero};
 }

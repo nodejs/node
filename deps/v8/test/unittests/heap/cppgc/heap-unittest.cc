@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc-internal/heap.h"
 
 #include <algorithm>
 #include <iterator>
@@ -14,7 +14,7 @@
 #include "include/cppgc/heap-state.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/prefinalizer.h"
-#include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc-internal/globals.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

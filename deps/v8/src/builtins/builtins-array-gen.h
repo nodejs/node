@@ -25,7 +25,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void TypedArrayMapResultGenerator();
 
-  // See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
+  // See https://tc39.es/ecma262/#sec-%typedarray%.prototype.map.
   TNode<JSAny> TypedArrayMapProcessor(TNode<Object> k_value, TNode<UintPtrT> k);
 
   TNode<String> CallJSArrayArrayJoinConcatToSequentialString(

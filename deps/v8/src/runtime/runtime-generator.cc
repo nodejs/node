@@ -67,7 +67,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   raw_generator->set_parameters_and_registers(*parameters_and_registers);
   raw_generator->set_resume_mode(JSGeneratorObject::ResumeMode::kNext);
   raw_generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
-  if (IsJSAsyncGeneratorObject(*raw_generator)) {
+  if (IsJSAsyncGeneratorObject(raw_generator)) {
     Cast<JSAsyncGeneratorObject>(raw_generator)->set_is_awaiting(0);
   }
   return raw_generator;
@@ -112,6 +112,12 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorYieldWithAwait) {
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_GeneratorYieldResult) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();

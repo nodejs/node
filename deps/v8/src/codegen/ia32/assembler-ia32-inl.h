@@ -82,7 +82,7 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
@@ -118,6 +118,16 @@ void WritableRelocInfo::set_target_external_reference(
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
+}
+
+Address RelocInfo::wasm_code_pointer() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  return ReadUnalignedValue<Address>(pc_);
+}
+
+void WritableRelocInfo::set_wasm_code_pointer(Address target) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  WriteUnalignedValue(pc_, target);
 }
 
 WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {

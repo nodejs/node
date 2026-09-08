@@ -244,8 +244,7 @@ static int64_t ReadMonotonicClockNanos() {
   int rc = clock_gettime(CLOCK_MONOTONIC, &t);
 #endif
   if (rc != 0) {
-    ABSL_INTERNAL_LOG(
-        FATAL, "clock_gettime() failed: (" + std::to_string(errno) + ")");
+    ABSL_RAW_LOG(FATAL, "clock_gettime() failed: (%d)", errno);
   }
   return int64_t{t.tv_sec} * 1000000000 + t.tv_nsec;
 }
@@ -379,28 +378,36 @@ ABSL_CONST_INIT static double nominal_cpu_frequency = 1.0;
 // NominalCPUFrequency() may be called before main() and before malloc is
 // properly initialized, therefore this must not allocate memory.
 double NominalCPUFrequency() {
-  base_internal::LowLevelCallOnce(
-      &init_nominal_cpu_frequency_once,
-      []() { nominal_cpu_frequency = GetNominalCPUFrequency(); });
+  base_internal::LowLevelCallOnce(&init_nominal_cpu_frequency_once, []() {
+    nominal_cpu_frequency = GetNominalCPUFrequency();
+  });
   return nominal_cpu_frequency;
 }
 
 #if defined(_WIN32)
 
-pid_t GetTID() {
-  return pid_t{GetCurrentThreadId()};
-}
+pid_t GetTID() { return pid_t{GetCurrentThreadId()}; }
 
 #elif defined(__linux__)
+#ifdef __ANDROID__
+#if __ANDROID_API__ >= 21
+#define ABSL_INTERNAL_HAVE_GETTID 1
+#endif
+#endif
 
+#ifdef ABSL_INTERNAL_HAVE_GETTID
+pid_t GetTID() {
+  return static_cast<pid_t>(gettid());
+}
+#else
 #ifndef SYS_gettid
 #define SYS_gettid __NR_gettid
 #endif
 
-pid_t GetTID() {
-  return static_cast<pid_t>(syscall(SYS_gettid));
-}
+pid_t GetTID() { return static_cast<pid_t>(syscall(SYS_gettid)); }
 
+#endif
+#undef ABSL_INTERNAL_HAVE_GETTID
 #elif defined(__akaros__)
 
 pid_t GetTID() {
@@ -420,9 +427,8 @@ pid_t GetTID() {
   // TODO(dcross): Akaros anticipates moving the thread ID to the uthread
   // structure at some point. We should modify this code to remove the cast
   // when that happens.
-  if (in_vcore_context())
-    return 0;
-  return reinterpret_cast<struct pthread_tcb *>(current_uthread)->id;
+  if (in_vcore_context()) return 0;
+  return reinterpret_cast<struct pthread_tcb*>(current_uthread)->id;
 }
 
 #elif defined(__myriad2__)
@@ -481,12 +487,23 @@ pid_t GetTID() {
 // userspace construct) to avoid unnecessary system calls. Without this caching,
 // it can take roughly 98ns, while it takes roughly 1ns with this caching.
 pid_t GetCachedTID() {
-#ifdef ABSL_HAVE_THREAD_LOCAL
+#ifdef __ANDROID__
+// NDK defaults to emulated TLS for API < 29, and native ELF TLS for API >= 29.
+// Emulated TLS is slower than bionic's internal caching.
+#if __ANDROID_API__ < 29
+#define ABSL_INTERNAL_USING_EMULATED_TLS 1
+#endif
+#endif
+
+#if defined(ABSL_HAVE_THREAD_LOCAL) && \
+    !defined(ABSL_INTERNAL_USING_EMULATED_TLS)
   static thread_local pid_t thread_id = GetTID();
   return thread_id;
 #else
   return GetTID();
-#endif  // ABSL_HAVE_THREAD_LOCAL
+#endif  // defined(ABSL_HAVE_THREAD_LOCAL) &&
+        // !defined(ABSL_INTERNAL_USING_EMULATED_TLS)
+#undef ABSL_INTERNAL_USING_EMULATED_TLS
 }
 
 }  // namespace base_internal

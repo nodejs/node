@@ -22,6 +22,29 @@ function testLogObject() {
   return {getterCalled};
 }
 
+function testLogObjectBoundBuiltin() {
+  let callBindCalled = false;
+  let reflectApplyCalled = false;
+  const obj = {};
+  Object.defineProperty(obj, 'a', {
+    get: Function.prototype.call.bind(() => {
+      callBindCalled = true;
+      return 'value';
+    }),
+  });
+  Object.defineProperty(obj, 'b', {
+    get: Reflect.apply.bind(null, () => {
+      reflectApplyCalled = true;
+      return 'value';
+    }, undefined, []),
+  });
+
+  console.log(obj);
+  console.clear();
+
+  return {callBindCalled, reflectApplyCalled};
+}
+
 //# sourceURL=test.js
 `);
 
@@ -29,6 +52,12 @@ InspectorTest.runAsyncTestSuite([
   async function ObjectGetter() {
     await Protocol.Runtime.enable();
     const result = await Protocol.Runtime.evaluate({expression: 'testLogObject()', returnByValue: true});
+    InspectorTest.logObject(result.result.result.value);
+    await Protocol.Runtime.disable();
+  },
+  async function ObjectGetterBoundBuiltin() {
+    await Protocol.Runtime.enable();
+    const result = await Protocol.Runtime.evaluate({expression: 'testLogObjectBoundBuiltin()', returnByValue: true});
     InspectorTest.logObject(result.result.result.value);
     await Protocol.Runtime.disable();
   }

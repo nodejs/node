@@ -25,12 +25,12 @@ void JSTrampolineAssembler::TailCallJSFunction(TNode<JSFunction> function) {
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
 #else
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
-      function, JSFunction::kDispatchHandleOffset);
+      function, offsetof(JSFunction, dispatch_handle_));
 #endif
-  CSA_DCHECK(this,
-             Word32Equal(dispatch_handle,
-                         LoadObjectField<JSDispatchHandleT>(
-                             function, JSFunction::kDispatchHandleOffset)));
+  CSA_DCHECK(
+      this, Word32Equal(dispatch_handle,
+                        LoadObjectField<JSDispatchHandleT>(
+                            function, offsetof(JSFunction, dispatch_handle_))));
 
   // TailCallJSCode will load the code from the dispatch table.
   TailCallJSCode(context, function, new_target, argc, dispatch_handle);
@@ -45,8 +45,8 @@ void JSTrampolineAssembler::CompileLazy(TNode<JSFunction> function,
   // Check the code object for the SFI. If SFI's code entry points to
   // CompileLazy, then we need to lazy compile regardless of the function or
   // tiering state.
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  TNode<SharedFunctionInfo> shared = CAST(
+      LoadObjectField(function, offsetof(JSFunction, shared_function_info_)));
   TVARIABLE(Uint16T, sfi_data_type);
   TNode<Code> sfi_code =
       GetSharedFunctionInfoCode(shared, &sfi_data_type, &compile_function);
@@ -108,17 +108,17 @@ void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
 #else
   CHECK(!V8_ENABLE_SANDBOX_BOOL);
   auto dispatch_handle = LoadObjectField<JSDispatchHandleT>(
-      function, JSFunction::kDispatchHandleOffset);
+      function, offsetof(JSFunction, dispatch_handle_));
 #endif
 
   // Apply the actual tiering. This function must uninstall the tiering builtin.
   Impl(context, function);
 
   // The dispatch handle of the function shouldn't change.
-  CSA_DCHECK(this,
-             Word32Equal(dispatch_handle,
-                         LoadObjectField<JSDispatchHandleT>(
-                             function, JSFunction::kDispatchHandleOffset)));
+  CSA_DCHECK(
+      this, Word32Equal(dispatch_handle,
+                        LoadObjectField<JSDispatchHandleT>(
+                            function, offsetof(JSFunction, dispatch_handle_))));
 
   // TailCallJSCode will load the code from the dispatch table to guarantee
   // that the signature of the code matches with the number of arguments

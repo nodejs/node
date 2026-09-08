@@ -4,6 +4,12 @@
 
 #include "src/execution/microtask-queue.h"
 
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/visitor.h"
+#include "include/v8-cppgc.h"
+#endif  // V8_CPPGC_MICROTASK_QUEUE
+
 #include <algorithm>
 #include <cstddef>
 #include <optional>
@@ -11,6 +17,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/visitors.h"
@@ -35,13 +42,35 @@ const intptr_t MicrotaskQueue::kMinimumCapacity = 8;
 void MicrotaskQueue::SetUpDefaultMicrotaskQueue(Isolate* isolate) {
   DCHECK_NULL(isolate->default_microtask_queue());
 
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  cppgc::AllocationHandle& handle =
+      isolate->heap()->cpp_heap()->GetAllocationHandle();
+  MicrotaskQueue* microtask_queue =
+      cppgc::MakeGarbageCollected<MicrotaskQueue>(handle);
+  isolate->RegisterMicrotaskQueue(microtask_queue);
+#else
   MicrotaskQueue* microtask_queue = new MicrotaskQueue;
   microtask_queue->next_ = microtask_queue;
   microtask_queue->prev_ = microtask_queue;
+#endif  // V8_CPPGC_MICROTASK_QUEUE
   isolate->set_default_microtask_queue(microtask_queue);
 }
 
 // static
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+MicrotaskQueue* MicrotaskQueue::New(Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate->default_microtask_queue());
+
+  cppgc::AllocationHandle& handle =
+      isolate->heap()->cpp_heap()->GetAllocationHandle();
+  MicrotaskQueue* microtask_queue =
+      cppgc::MakeGarbageCollected<MicrotaskQueue>(handle);
+
+  isolate->RegisterMicrotaskQueue(microtask_queue);
+
+  return microtask_queue;
+}
+#else
 std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->default_microtask_queue());
 
@@ -56,17 +85,26 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
 
   return microtask_queue;
 }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotaskQueue::MicrotaskQueue() = default;
 
 MicrotaskQueue::~MicrotaskQueue() {
+#ifndef V8_CPPGC_MICROTASK_QUEUE
   if (next_ != this) {
     DCHECK_NE(prev_, this);
     next_->prev_ = prev_;
     prev_->next_ = next_;
   }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
   delete[] ring_buffer_;
 }
+
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+void MicrotaskQueue::Trace(cppgc::Visitor* visitor) const {
+  v8::MicrotaskQueue::Trace(visitor);
+}
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 // static
 Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
@@ -97,6 +135,18 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
           reinterpret_cast<Address>(callback)),
       isolate->factory()->NewForeign<kMicrotaskCallbackDataTag>(
           reinterpret_cast<Address>(data)));
+  EnqueueMicrotask(*microtask);
+}
+
+void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
+                                      v8::MicrotaskCallbackWithData callback,
+                                      v8::Local<v8::Data> data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  HandleScope scope(isolate);
+  DirectHandle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
+      isolate->factory()->NewForeign<kMicrotaskCallbackTag>(
+          reinterpret_cast<Address>(callback)),
+      Utils::OpenDirectHandle(*data));
   EnqueueMicrotask(*microtask);
 }
 
@@ -179,15 +229,14 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   {
     HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
         isolate->handle_scope_implementer());
-    TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");
+    TRACE_EVENT_BEGIN("v8.execute", "RunMicrotasks");
     {
       TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
       maybe_result = Execution::TryRunMicrotasks(isolate, this);
       processed_microtask_count =
           static_cast<int>(finished_microtask_count_ - base_count);
     }
-    TRACE_EVENT_END1("v8.execute", "RunMicrotasks", "microtask_count",
-                     processed_microtask_count);
+    TRACE_EVENT_END("v8.execute", "microtask_count", processed_microtask_count);
   }
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -239,6 +288,14 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
   if (new_capacity < capacity_) {
     ResizeBuffer(new_capacity);
   }
+}
+
+void MicrotaskQueue::ClearMicrotasks() {
+  delete[] ring_buffer_;
+  ring_buffer_ = nullptr;
+  capacity_ = 0;
+  size_ = 0;
+  start_ = 0;
 }
 
 void MicrotaskQueue::AddMicrotasksCompletedCallback(

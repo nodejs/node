@@ -178,7 +178,7 @@ function AddFunctions(builder) {
     var module = instanceWithTable(i, 10);
     main = module.exports.main;
     for (var j = 0; j < i; j++) {
-      assertTraps(kTrapFuncSigMismatch, "main(12, " + j + ")");
+      assertTraps(kTrapNullFunc, "main(12, " + j + ")");
     }
     assertEquals(34, main(1, i + 0));
     assertEquals(35, main(2, i + 0));
@@ -216,7 +216,7 @@ function AddFunctions(builder) {
     var instance = new WebAssembly.Instance(module, {fff: {base: i}});
     main = instance.exports.main;
     for (var j = 0; j < i; j++) {
-      assertTraps(kTrapFuncSigMismatch, "main(12, " + j + ")");
+      assertTraps(kTrapNullFunc, "main(12, " + j + ")");
     }
     assertEquals(33, main(1, i + 0));
     assertEquals(66, main(2, i + 0));

@@ -24,7 +24,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -39,8 +39,10 @@ cc_library(
     hdrs = ["algorithm.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
+        "//absl/base:core_headers",
     ],
 )
 
@@ -65,10 +67,13 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
+        "//absl/base:iterator_traits_internal",
         "//absl/meta:type_traits",
     ],
 )
@@ -83,7 +88,9 @@ cc_test(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/memory",
+        "//absl/meta:type_traits",
         "//absl/random",
         "//absl/types:span",
         "@googletest//:gtest",

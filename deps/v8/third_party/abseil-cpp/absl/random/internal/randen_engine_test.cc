@@ -18,6 +18,7 @@
 #include <bitset>
 #include <random>
 #include <sstream>
+#include <type_traits>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -167,19 +168,19 @@ TYPED_TEST(RandenEngineTypedTest, RandomNumberEngineInterface) {
   using E = randen;
   using T = typename E::result_type;
 
-  static_assert(std::is_copy_constructible<E>::value,
+  static_assert(std::is_copy_constructible_v<E>,
                 "randen_engine must be copy constructible");
 
-  static_assert(absl::is_copy_assignable<E>::value,
+  static_assert(std::is_copy_assignable_v<E>,
                 "randen_engine must be copy assignable");
 
-  static_assert(std::is_move_constructible<E>::value,
+  static_assert(std::is_move_constructible_v<E>,
                 "randen_engine must be move constructible");
 
-  static_assert(absl::is_move_assignable<E>::value,
+  static_assert(std::is_move_assignable_v<E>,
                 "randen_engine must be move assignable");
 
-  static_assert(std::is_same<decltype(std::declval<E>()()), T>::value,
+  static_assert(std::is_same_v<decltype(std::declval<E>()()), T>,
                 "return type of operator() must be result_type");
 
   // Names after definition of [rand.req.urbg] in C++ standard.
@@ -225,10 +226,10 @@ TYPED_TEST(RandenEngineTypedTest, RandomNumberEngineInterface) {
 
   e.discard(z);
 
-  static_assert(std::is_same<decltype(x == y), bool>::value,
+  static_assert(std::is_same_v<decltype(x == y), bool>,
                 "return type of operator== must be bool");
 
-  static_assert(std::is_same<decltype(x != y), bool>::value,
+  static_assert(std::is_same_v<decltype(x != y), bool>,
                 "return type of operator== must be bool");
 }
 

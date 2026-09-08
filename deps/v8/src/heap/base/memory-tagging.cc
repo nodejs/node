@@ -4,18 +4,19 @@
 
 #include "src/heap/base/memory-tagging.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/logging.h"
 #include "v8config.h"
 
-#define SUPPORTS_MTE V8_OS_LINUX&& V8_HOST_ARCH_ARM64
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_ARM64)
+#define V8_HAS_MTE_SUPPORT
+#endif
 
 namespace heap::base {
 
 SuspendTagCheckingScope::SuspendTagCheckingScope() noexcept {
-#if SUPPORTS_MTE
-  v8::base::CPU cpu;
-  if (V8_UNLIKELY(cpu.has_mte())) {
+#ifdef V8_HAS_MTE_SUPPORT
+  if (v8::base::CPU::GetInstance().has_mte()) [[unlikely]] {
     uint64_t val;
     // Do a test to see if anything else has interfered with TCO.
     // We expect TCO to be unset here.
@@ -29,9 +30,8 @@ SuspendTagCheckingScope::SuspendTagCheckingScope() noexcept {
 }
 
 SuspendTagCheckingScope::~SuspendTagCheckingScope() {
-#if SUPPORTS_MTE
-  v8::base::CPU cpu;
-  if (V8_UNLIKELY(cpu.has_mte())) {
+#ifdef V8_HAS_MTE_SUPPORT
+  if (v8::base::CPU::GetInstance().has_mte()) [[unlikely]] {
     uint64_t val;
     // Do a test to see if anything else has interfered with TCO.
     // We expect TCO to be set here.

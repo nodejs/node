@@ -58,7 +58,7 @@ void StringEscapeAnalyzer::MarkNextFrameStateInputAsEscaping(
   }
 }
 
-void StringEscapeAnalyzer::ProcessFrameState(V<FrameState> index,
+void StringEscapeAnalyzer::ProcessFrameState(V<AnyFrameState> index,
                                              const FrameStateOp& framestate) {
   max_frame_state_input_count_ =
       std::max<uint32_t>(max_frame_state_input_count_, framestate.input_count);
@@ -87,7 +87,8 @@ void StringEscapeAnalyzer::ProcessBlock(const Block& block) {
     const Operation& op = graph_.Get(index);
     switch (op.opcode) {
       case Opcode::kFrameState:
-        ProcessFrameState(V<FrameState>::Cast(index), op.Cast<FrameStateOp>());
+        ProcessFrameState(V<AnyFrameState>::Cast(index),
+                          op.Cast<FrameStateOp>());
         break;
       case Opcode::kStringConcat:
       case Opcode::kNewConsString:
@@ -166,7 +167,7 @@ void StringEscapeAnalyzer::ReprocessStringConcats() {
 }
 
 void StringEscapeAnalyzer::ComputeFrameStatesToReconstruct() {
-  for (V<FrameState> frame_state_idx : maybe_to_reconstruct_frame_states_) {
+  for (V<AnyFrameState> frame_state_idx : maybe_to_reconstruct_frame_states_) {
     const FrameStateOp& frame_state =
         graph_.Get(frame_state_idx).Cast<FrameStateOp>();
     for (V<Any> input : frame_state.inputs()) {

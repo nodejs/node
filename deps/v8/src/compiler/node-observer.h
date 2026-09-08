@@ -9,7 +9,7 @@
 // which has noop semantics but triggers the invocation of callbacks on a
 // NodeObserver object. The NodeObserver is set on the OptimizedCompilationInfo
 // and callbacks are called when the node generated for 'expr' is created or
-// changed in any phase, until EffectControlLinearization.
+// changed in any phase, until Turboshaft is reached.
 //
 // The modifications currently observed are changes to the observed Node
 // operator and type and its replacement with another Node.

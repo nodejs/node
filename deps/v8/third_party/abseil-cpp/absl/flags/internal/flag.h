@@ -135,7 +135,7 @@ inline size_t Sizeof(FlagOpFn op) {
 }
 // Returns fast type id corresponding to the value type.
 inline FlagFastTypeId FastTypeId(FlagOpFn op) {
-  return reinterpret_cast<FlagFastTypeId>(
+  return absl::bit_cast<FlagFastTypeId>(
       op(FlagOp::kFastTypeId, nullptr, nullptr, nullptr));
 }
 // Returns fast type id corresponding to the value type.
@@ -168,7 +168,7 @@ inline const std::type_info* GenRuntimeTypeId() {
 // Flag help auxiliary structs.
 
 // This is help argument for absl::Flag encapsulating the string literal pointer
-// or pointer to function generating it as well as enum descriminating two
+// or pointer to function generating it as well as enum discriminating two
 // cases.
 using HelpGenFunc = std::string (*)();
 
@@ -178,7 +178,7 @@ struct FixedCharArray {
 
   template <size_t... I>
   static constexpr FixedCharArray<N> FromLiteralString(
-      absl::string_view str, absl::index_sequence<I...>) {
+      absl::string_view str, std::index_sequence<I...>) {
     return (void)str, FixedCharArray<N>({{str[I]..., '\0'}});
   }
 };
@@ -186,7 +186,7 @@ struct FixedCharArray {
 template <typename Gen, size_t N = Gen::Value().size()>
 constexpr FixedCharArray<N + 1> HelpStringAsArray(int) {
   return FixedCharArray<N + 1>::FromLiteralString(
-      Gen::Value(), absl::make_index_sequence<N>{});
+      Gen::Value(), std::make_index_sequence<N>{});
 }
 
 template <typename Gen>
@@ -283,8 +283,7 @@ constexpr T InitDefaultValue(EmptyBraces) {
 }
 
 template <typename ValueT, typename GenT,
-          typename std::enable_if<std::is_integral<ValueT>::value, int>::type =
-              ((void)GenT{}, 0)>
+          std::enable_if_t<std::is_integral_v<ValueT>, int> = ((void)GenT{}, 0)>
 constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
 }
@@ -300,19 +299,19 @@ constexpr FlagDefaultArg DefaultArg(char) {
 
 template <typename T>
 using FlagUseValueAndInitBitStorage =
-    std::integral_constant<bool, std::is_trivially_copyable<T>::value &&
-                                     std::is_default_constructible<T>::value &&
+    std::integral_constant<bool, std::is_trivially_copyable_v<T> &&
+                                     std::is_default_constructible_v<T> &&
                                      (sizeof(T) < 8)>;
 
 template <typename T>
 using FlagUseOneWordStorage =
-    std::integral_constant<bool, std::is_trivially_copyable<T>::value &&
-                                     (sizeof(T) <= 8)>;
+    std::integral_constant<bool,
+                           std::is_trivially_copyable_v<T> && (sizeof(T) <= 8)>;
 
 template <class T>
 using FlagUseSequenceLockStorage =
-    std::integral_constant<bool, std::is_trivially_copyable<T>::value &&
-                                     (sizeof(T) > 8)>;
+    std::integral_constant<bool,
+                           std::is_trivially_copyable_v<T> && (sizeof(T) > 8)>;
 
 enum class FlagValueStorageKind : uint8_t {
   kValueAndInitBit = 0,
@@ -608,7 +607,7 @@ class FlagImpl final : public CommandLineFlag {
     *value = ReadOneBool();
   }
   template <typename T,
-            absl::enable_if_t<flags_internal::StorageKind<T>() ==
+            std::enable_if_t<flags_internal::StorageKind<T>() ==
                                   FlagValueStorageKind::kOneWordAtomic,
                               int> = 0>
   void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
@@ -616,9 +615,9 @@ class FlagImpl final : public CommandLineFlag {
     std::memcpy(value, static_cast<const void*>(&v), sizeof(T));
   }
   template <typename T,
-            typename std::enable_if<flags_internal::StorageKind<T>() ==
-                                        FlagValueStorageKind::kValueAndInitBit,
-                                    int>::type = 0>
+            std::enable_if_t<flags_internal::StorageKind<T>() ==
+                                 FlagValueStorageKind::kValueAndInitBit,
+                             int> = 0>
   void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
     *value = absl::bit_cast<FlagValueAndInitBit<T>>(ReadOneWord()).value;
   }
@@ -901,7 +900,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
     case FlagOp::kSizeof:
       return reinterpret_cast<void*>(static_cast<uintptr_t>(sizeof(T)));
     case FlagOp::kFastTypeId:
-      return const_cast<void*>(absl::FastTypeId<T>());
+      return absl::bit_cast<void*>(absl::FastTypeId<T>());
     case FlagOp::kRuntimeTypeId:
       return const_cast<std::type_info*>(GenRuntimeTypeId<T>());
     case FlagOp::kParse: {

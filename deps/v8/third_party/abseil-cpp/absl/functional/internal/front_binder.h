@@ -31,7 +31,7 @@ namespace functional_internal {
 
 // Invoke the method, expanding the tuple of bound arguments.
 template <class R, class Tuple, size_t... Idx, class... Args>
-R Apply(Tuple&& bound, absl::index_sequence<Idx...>, Args&&... free) {
+R Apply(Tuple&& bound, std::index_sequence<Idx...>, Args&&... free) {
   return std::invoke(std::forward<Tuple>(bound).template get<Idx>()...,
                      std::forward<Args>(free)...);
 }
@@ -39,13 +39,13 @@ R Apply(Tuple&& bound, absl::index_sequence<Idx...>, Args&&... free) {
 template <class F, class... BoundArgs>
 class FrontBinder {
   using BoundArgsT = absl::container_internal::CompressedTuple<F, BoundArgs...>;
-  using Idx = absl::make_index_sequence<sizeof...(BoundArgs) + 1>;
+  using Idx = std::make_index_sequence<sizeof...(BoundArgs) + 1>;
 
   BoundArgsT bound_args_;
 
  public:
   template <class... Ts>
-  constexpr explicit FrontBinder(absl::in_place_t, Ts&&... ts)
+  constexpr explicit FrontBinder(std::in_place_t, Ts&&... ts)
       : bound_args_(std::forward<Ts>(ts)...) {}
 
   template <class... FreeArgs,
@@ -84,7 +84,7 @@ class FrontBinder {
 };
 
 template <class F, class... BoundArgs>
-using bind_front_t = FrontBinder<decay_t<F>, absl::decay_t<BoundArgs>...>;
+using bind_front_t = FrontBinder<std::decay_t<F>, std::decay_t<BoundArgs>...>;
 
 }  // namespace functional_internal
 ABSL_NAMESPACE_END

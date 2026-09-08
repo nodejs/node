@@ -34,7 +34,7 @@
 
 #include "src/codegen/riscv/base-assembler-riscv.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 
 namespace v8 {
 namespace internal {

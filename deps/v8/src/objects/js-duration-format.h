@@ -9,6 +9,7 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
+#include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
@@ -27,10 +28,7 @@ class LocalizedNumberFormatter;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-duration-format-tq.inc"
-
-class JSDurationFormat
-    : public TorqueGeneratedJSDurationFormat<JSDurationFormat, JSObject> {
+V8_OBJECT class JSDurationFormat : public JSObject {
  public:
   // Creates duration format object with properties derived from input
   // locales and options.
@@ -144,9 +142,42 @@ class JSDurationFormat
   inline void set_fractional_digits(int32_t digits);
   inline int32_t fractional_digits() const;
 
-  // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_DURATION_FORMAT_DISPLAY_FLAGS()
-  DEFINE_TORQUE_GENERATED_JS_DURATION_FORMAT_STYLE_FLAGS()
+  // Bit positions in |display_flags|.
+  using YearsDisplayBit =
+      base::BitField<JSDurationFormat::Display, 0, 1, uint32_t>;
+  using MonthsDisplayBit = YearsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using WeeksDisplayBit = MonthsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using DaysDisplayBit = WeeksDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using HoursDisplayBit = DaysDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using MinutesDisplayBit = HoursDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using SecondsDisplayBit =
+      MinutesDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using MillisecondsDisplayBit =
+      SecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using MicrosecondsDisplayBit =
+      MillisecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using NanosecondsDisplayBit =
+      MicrosecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using FractionalDigitsBits = NanosecondsDisplayBit::Next<int32_t, 4>;
+  // Bit positions in |style_flags|.
+  using StyleBits = base::BitField<JSDurationFormat::Style, 0, 2, uint32_t>;
+  using YearsStyleBits = StyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using MonthsStyleBits = YearsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using WeeksStyleBits = MonthsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using DaysStyleBits = WeeksStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using HoursStyleBits = DaysStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using MinutesStyleBits =
+      HoursStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using SecondsStyleBits =
+      MinutesStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using MillisecondsStyleBits =
+      SecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using MicrosecondsStyleBits =
+      MillisecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using NanosecondsStyleBits =
+      MicrosecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using SeparatorBits =
+      NanosecondsStyleBits::Next<JSDurationFormat::Separator, 2>;
 
   static_assert(YearsDisplayBit::is_valid(Display::kMax));
   static_assert(MonthsDisplayBit::is_valid(Display::kMax));
@@ -172,14 +203,35 @@ class JSDurationFormat
   static_assert(MicrosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
   static_assert(NanosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
 
-  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
-  DECL_ACCESSORS(icu_number_formatter,
-                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
+  inline int style_flags() const;
+  inline void set_style_flags(int value);
+
+  inline int display_flags() const;
+  inline void set_display_flags(int value);
+
+  inline Tagged<Managed<icu::Locale>> icu_locale() const;
+  inline void set_icu_locale(Tagged<Managed<icu::Locale>> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+  icu_number_formatter() const;
+  inline void set_icu_number_formatter(
+      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(JSDurationFormat)
+  DECL_VERIFIER(JSDurationFormat)
 
-  TQ_OBJECT_CONSTRUCTORS(JSDurationFormat)
-};
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Smi> style_flags_;
+  TaggedMember<Smi> display_flags_;
+  TaggedMember<Foreign> icu_locale_;
+  TaggedMember<Foreign> icu_number_formatter_;
+} V8_OBJECT_END;
+
+inline constexpr int JSDurationFormat::kHeaderSize = sizeof(JSDurationFormat);
 
 }  // namespace internal
 }  // namespace v8

@@ -208,36 +208,18 @@ enum class Algo {
 };
 
 static inline bool IsVQ(Algo algo) {
-  switch (algo) {
-    case Algo::kVQSort:
-    case Algo::kVQPartialSort:
-    case Algo::kVQSelect:
-      return true;
-    default:
-      return false;
-  }
+  return algo == Algo::kVQSort || algo == Algo::kVQPartialSort ||
+         algo == Algo::kVQSelect;
 }
 
 static inline bool IsSelect(Algo algo) {
-  switch (algo) {
-    case Algo::kStdSelect:
-    case Algo::kVQSelect:
-    case Algo::kHeapSelect:
-      return true;
-    default:
-      return false;
-  }
+  return algo == Algo::kStdSelect || algo == Algo::kVQSelect ||
+         algo == Algo::kHeapSelect;
 }
 
 static inline bool IsPartialSort(Algo algo) {
-  switch (algo) {
-    case Algo::kStdPartialSort:
-    case Algo::kVQPartialSort:
-    case Algo::kHeapPartialSort:
-      return true;
-    default:
-      return false;
-  }
+  return algo == Algo::kStdPartialSort || algo == Algo::kVQPartialSort ||
+         algo == Algo::kHeapPartialSort;
 }
 
 static inline Algo ReferenceAlgoFor(Algo algo) {
@@ -452,8 +434,8 @@ InputStats<T> GenerateInput(const Dist dist, T* v, size_t num_lanes) {
   }
 
   InputStats<T> input_stats;
-  for (size_t i = 0; i < num_lanes; ++i) {
-    input_stats.Notify(v[i]);
+  for (size_t j = 0; j < num_lanes; ++j) {
+    input_stats.Notify(v[j]);
   }
   return input_stats;
 }

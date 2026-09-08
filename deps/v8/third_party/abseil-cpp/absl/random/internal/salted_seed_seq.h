@@ -20,6 +20,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -48,11 +49,11 @@ class SaltedSeedSeq {
   using inner_sequence_type = SSeq;
   using result_type = typename SSeq::result_type;
 
-  SaltedSeedSeq() : seq_(absl::make_unique<SSeq>()) {}
+  SaltedSeedSeq() : seq_(std::make_unique<SSeq>()) {}
 
   template <typename Iterator>
   SaltedSeedSeq(Iterator begin, Iterator end)
-      : seq_(absl::make_unique<SSeq>(begin, end)) {}
+      : seq_(std::make_unique<SSeq>(begin, end)) {}
 
   template <typename T>
   SaltedSeedSeq(std::initializer_list<T> il)
@@ -71,11 +72,11 @@ class SaltedSeedSeq {
     // The common case is that generate is called with ContiguousIterators
     // to uint arrays. Such contiguous memory regions may be optimized,
     // which we detect here.
-    using TagType = absl::conditional_t<
-        (std::is_same<U, uint32_t>::value &&
-         (std::is_pointer<RandomAccessIterator>::value ||
-          std::is_same<RandomAccessIterator,
-                       typename std::vector<U>::iterator>::value)),
+    using TagType = std::conditional_t<
+        (std::is_same_v<U, uint32_t> &&
+         (std::is_pointer_v<RandomAccessIterator> ||
+          std::is_same_v<RandomAccessIterator,
+                         typename std::vector<U>::iterator>)),
         ContiguousAndUint32Tag, DefaultTag>;
     if (begin != end) {
       generate_impl(TagType{}, begin, end, std::distance(begin, end));
@@ -131,8 +132,8 @@ struct is_salted_seed_seq : public std::false_type {};
 
 template <typename T>
 struct is_salted_seed_seq<
-    T, typename std::enable_if<std::is_same<
-           T, SaltedSeedSeq<typename T::inner_sequence_type>>::value>::type>
+    T, std::enable_if_t<
+           std::is_same_v<T, SaltedSeedSeq<typename T::inner_sequence_type>>>>
     : public std::true_type {};
 
 // MakeSaltedSeedSeq returns a salted variant of the seed sequence.
@@ -141,16 +142,16 @@ struct is_salted_seed_seq<
 // non-salted seed parameters.
 template <
     typename SSeq,  //
-    typename EnableIf = absl::enable_if_t<is_salted_seed_seq<SSeq>::value>>
+    typename EnableIf = std::enable_if_t<is_salted_seed_seq<SSeq>::value>>
 SSeq MakeSaltedSeedSeq(SSeq&& seq) {
   return SSeq(std::forward<SSeq>(seq));
 }
 
 template <
     typename SSeq,  //
-    typename EnableIf = absl::enable_if_t<!is_salted_seed_seq<SSeq>::value>>
-SaltedSeedSeq<typename std::decay<SSeq>::type> MakeSaltedSeedSeq(SSeq&& seq) {
-  using sseq_type = typename std::decay<SSeq>::type;
+    typename EnableIf = std::enable_if_t<!is_salted_seed_seq<SSeq>::value>>
+SaltedSeedSeq<std::decay_t<SSeq>> MakeSaltedSeedSeq(SSeq&& seq) {
+  using sseq_type = std::decay_t<SSeq>;
   using result_type = typename sseq_type::result_type;
 
   absl::InlinedVector<result_type, 8> data;

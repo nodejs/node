@@ -4,6 +4,8 @@
 
 #include "src/objects/string-forwarding-table.h"
 
+#include <algorithm>
+
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
@@ -22,8 +24,8 @@ StringForwardingTable::Block::Block(int capacity) : capacity_(capacity) {
   static_assert(sizeof(Record) % sizeof(Address) == 0);
   static_assert(offsetof(Record, original_string_) == 0);
   constexpr int kRecordPointerSize = sizeof(Record) / sizeof(Address);
-  Memset(reinterpret_cast<Address*>(&elements_[0]), 0,
-         capacity_ * kRecordPointerSize);
+  std::fill_n(reinterpret_cast<Address*>(&elements_[0]),
+              capacity_ * kRecordPointerSize, 0);
 }
 
 void* StringForwardingTable::Block::operator new(size_t size, int capacity) {
@@ -204,8 +206,8 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
   return blocks;
 }
 
-int StringForwardingTable::AddForwardString(Tagged<String> string,
-                                            Tagged<String> forward_to) {
+int StringForwardingTable::AddForwardString(
+    Tagged<String> string, Tagged<InternalizedString> forward_to) {
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
                  HeapLayout::InAnySharedSpace(string));
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
@@ -220,8 +222,8 @@ int StringForwardingTable::AddForwardString(Tagged<String> string,
   return index;
 }
 
-void StringForwardingTable::UpdateForwardString(int index,
-                                                Tagged<String> forward_to) {
+void StringForwardingTable::UpdateForwardString(
+    int index, Tagged<InternalizedString> forward_to) {
   CHECK_LT(index, size());
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -280,7 +282,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) bool StringForwardingTable::
     TryUpdateExternalResource(int index,
                               v8::String::ExternalStringResource* resource);
 
-Tagged<String> StringForwardingTable::GetForwardString(
+Tagged<InternalizedString> StringForwardingTable::GetForwardString(
     PtrComprCageBase cage_base, int index) const {
   CHECK_LT(index, size());
   uint32_t index_in_block;

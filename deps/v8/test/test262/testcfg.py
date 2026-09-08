@@ -59,6 +59,7 @@ FEATURE_FLAGS = {
     'import-attributes': '--harmony-import-attributes',
     'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',
     'regexp-modifiers': '--js-regexp-modifiers',
+    'Float16Array': '--js-float16array',
     'explicit-resource-management': '--js-explicit-resource-management',
     'decorators': '--js-decorators',
     'promise-try': '--js-promise-try',
@@ -73,6 +74,11 @@ FEATURE_FLAGS = {
     'immutable-arraybuffer': '--js-immutable-arraybuffer',
     'import-defer': '--js-defer-import-eval',
     'Math.sumPrecise': '--js-sum-precise',
+    'Iterator.prototype.join': '--js-iterator-join',
+    'joint-iteration': '--js-joint-iteration',
+    'import-text': '--js-import-text',
+    'import-bytes': '--js-import-bytes',
+    'iterator-includes': '--js-iterator-includes',
 }
 
 SKIPPED_FEATURES = set([])
@@ -104,7 +110,7 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
     for phase_var in phase_variants:
       for n, variant in enumerate(self._get_variants(test)):
-        flags = flags_set[variant][0]
+        flags = flags_set[variant]
         if 'noStrict' in test_record:
           yield (variant, flags, str(n) + phase_var)
         elif 'onlyStrict' in test_record:

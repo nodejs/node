@@ -6,6 +6,8 @@ import("../../gni/v8.gni")
 
 v8_source_set("inspector_test") {
   sources = [
+    "devtools-session.cc",
+    "devtools-session.h",
     "frontend-channel.h",
     "isolate-data.cc",
     "isolate-data.h",

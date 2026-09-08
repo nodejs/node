@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation
-// Flags: --enable-testing-opcode-in-wasm
+// Flags: --no-wasm-lazy-compilation --enable-testing-opcode-in-wasm
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 d8.file.execute('test/mjsunit/value-helper.js');

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
 #include "test/common/flag-utils.h"
@@ -869,9 +871,10 @@ struct DynamicImportData {
   bool should_resolve;
 };
 
-void DoHostImportModuleDynamically(void* import_data) {
+void DoHostImportModuleDynamically(v8::Local<v8::Data> data) {
   std::unique_ptr<DynamicImportData> import_data_(
-      static_cast<DynamicImportData*>(import_data));
+      static_cast<DynamicImportData*>(
+          data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault)));
   Isolate* isolate(import_data_->isolate);
   HandleScope handle_scope(isolate);
 
@@ -897,7 +900,9 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, true);
-  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  context->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate, DoHostImportModuleDynamically,
+      v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
 
@@ -910,7 +915,9 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, false);
-  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  context->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate, DoHostImportModuleDynamically,
+      v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
 
@@ -1266,6 +1273,53 @@ TEST_F(ModuleTest, IsGraphAsyncImportSource) {
   CHECK_EQ(module->IsGraphAsync(), false);
 }
 
+// Regression test: ResetGraph must handle source phase imports that store a
+// JSReceiver (not a Module) in requested_modules. Previously a DCHECK assumed
+// entries were either Undefined or WasmModuleObject, which is too narrow.
+TEST_F(ModuleTest, ResetGraphWithSourcePhaseImport) {
+  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+
+  HandleScope scope(isolate());
+
+  // A module with both a source phase import and an evaluation phase import.
+  // The evaluation phase import will fail to resolve, triggering ResetGraph
+  // which must safely skip the source phase entry.
+  Local<String> url = NewString("www.google.com");
+  Local<String> source_text = NewString(
+      "import source modSource from 'source-mod';"
+      "import val from 'eval-mod';");
+
+  ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false, false,
+                      true);
+  ScriptCompiler::Source source(source_text, origin);
+
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  // InstantiateModule should fail because the evaluation callback fails.
+  // The source callback succeeds and returns a plain Object (not a Module).
+  // ResetGraph then walks requested_modules which contains that plain Object.
+  CHECK(module
+            ->InstantiateModule(
+                context(),
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Module> {
+                  // Fail to resolve the evaluation phase import.
+                  return {};
+                },
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Object> {
+                  // Return a plain Object for the source phase import.
+                  return Object::New(Isolate::GetCurrent());
+                })
+            .IsNothing());
+
+  // Module should be back to unlinked after the failed instantiation.
+  CHECK_EQ(module->GetStatus(), Module::kUninstantiated);
+}
+
 TEST_F(ModuleTest, HasTopLevelAwait) {
   HandleScope scope(isolate());
   {
@@ -1570,9 +1624,7 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
 
   {
     Local<v8::WasmModuleObject> wasm_module =
-        v8::WasmModuleObject::Compile(
-            isolate(),
-            {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)})
+        v8::WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes)
             .ToLocalChecked();
     wasm_module_global.Reset(isolate(), wasm_module);
   }

@@ -79,7 +79,7 @@ transitioning macro GenericArrayUnshift(
   return newLength;
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.unshift
+// https://tc39.es/ecma262/#sec-array.prototype.unshift
 transitioning javascript builtin ArrayPrototypeUnshift(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

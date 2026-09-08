@@ -32,14 +32,22 @@ class Map;
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
   V(AbstractCode)                        \
+  V(ConsString)                          \
   V(CppHeapPointerWrapperObject)         \
+  V(ExternalOneByteString)               \
   V(ExternalString)                      \
+  V(ExternalTwoByteString)               \
   V(FreeSpaceOrFiller)                   \
   V(GcSafeCode)                          \
   V(InternalizedString)                  \
   V(JSApiWrapperObject)                  \
   V(MaybeReadOnlyJSObject)               \
-  V(PropertyDictionary)
+  V(PropertyDictionary)                  \
+  V(SeqOneByteString)                    \
+  V(SeqString)                           \
+  V(SeqTwoByteString)                    \
+  V(SlicedString)                        \
+  V(ThinString)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \
   INSTANCE_TYPE_CHECKERS_SINGLE(V) \
@@ -52,6 +60,11 @@ namespace InstanceTypeChecker {
   V8_INLINE bool Is##Type(Tagged<Map> map);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
+
+V8_INLINE constexpr bool IsOneByteString(InstanceType instance_type);
+V8_INLINE bool IsOneByteString(Tagged<Map> map_object);
+V8_INLINE constexpr bool IsTwoByteString(InstanceType instance_type);
+V8_INLINE bool IsTwoByteString(Tagged<Map> map_object);
 
 #undef IS_TYPE_FUNCTION_DECL
 

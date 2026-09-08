@@ -4,7 +4,7 @@
 
 namespace string {
 
-// ES6 #sec-string.prototype.substring
+// https://tc39.es/ecma262/#sec-string.prototype.substring
 transitioning javascript builtin StringPrototypeSubstring(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {

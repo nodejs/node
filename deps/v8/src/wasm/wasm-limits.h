@@ -51,6 +51,7 @@ constexpr size_t kV8MaxWasmFunctionLocals = 50'000;
 constexpr size_t kV8MaxWasmFunctionParams = 1'000;
 constexpr size_t kV8MaxWasmFunctionReturns = 1'000;
 constexpr size_t kV8MaxWasmFunctionBrTableSize = 65'520;
+constexpr size_t kV8MaxWasmEffectHandlers = 1'000;
 // Don't use this limit directly, but use the value of
 // v8_flags.wasm_max_table_size.
 constexpr size_t kV8MaxWasmTableSize = 10'000'000;
@@ -59,12 +60,23 @@ constexpr size_t kV8MaxWasmTables = 100'000;
 constexpr size_t kV8MaxWasmMemories = 100'000;
 
 // GC proposal.
+// LINT.IfChange(WasmMaxStructFields)
 constexpr size_t kV8MaxWasmStructFields = 10'000;
+// LINT.ThenChange(/test/mjsunit/wasm/large-struct.js:WasmMaxStructFields)
 constexpr uint32_t kV8MaxRttSubtypingDepth = 63;
 constexpr size_t kV8MaxWasmArrayNewFixedLength = 10'000;
 
+// Custom-descriptors proposal.
+// TODO(403372470): Clarify exact limit values in Spec.
+constexpr size_t kMaxConfigureAllStaticProperties = 100'000;
+constexpr size_t kMaxConfigureAllMethods = 100'000;
+
 // Stringref proposal. This limit is not standardized yet.
 constexpr size_t kV8MaxWasmStringLiterals = 1'000'000;
+
+// Strings in import/export/name sections etc. This limit is not standardized.
+// Discussion: https://github.com/WebAssembly/design/issues/1582
+constexpr size_t kV8MaxWasmStringLength = 100'000'000;
 
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");

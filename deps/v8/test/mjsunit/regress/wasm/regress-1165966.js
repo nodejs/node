@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
-
 // This test case is simplified slightly from a fuzzer-generated test case. It
 // causes spills for one of the inputs to kExprI64x2ExtMulHighI32x4U, which the
 // codegen incorrectly assumes will always be a register.
