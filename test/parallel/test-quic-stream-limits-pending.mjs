@@ -6,7 +6,7 @@
 //         and open when existing streams close.
 // initialMaxStreamsUni limits concurrent uni streams (same behavior).
 
-import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
 if (!hasQuic) {
@@ -80,7 +80,7 @@ await s1.closed;
 const err = new Error('Test error');
 s3.destroy(err);
 
-await assert.rejects(stream.closed, err);
+await Promise.all([assert.rejects(s3.opened, err), assert.rejects(s3.closed, err)]);
 
 
 // After s1 closes, the server sends MAX_STREAMS which opens s2.
