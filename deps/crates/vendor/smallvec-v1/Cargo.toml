@@ -12,9 +12,16 @@
 [package]
 edition = "2018"
 name = "smallvec"
-version = "1.15.1"
+version = "1.15.2"
 authors = ["The Servo Project Developers"]
 build = false
+include = [
+    "Cargo.toml",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "README.md",
+    "src/**/*.rs",
+]
 autolib = false
 autobins = false
 autoexamples = false
@@ -60,20 +67,6 @@ write = []
 [lib]
 name = "smallvec"
 path = "src/lib.rs"
-
-[[test]]
-name = "debugger_visualizer"
-path = "tests/debugger_visualizer.rs"
-test = false
-required-features = ["debugger_visualizer"]
-
-[[test]]
-name = "macro"
-path = "tests/macro.rs"
-
-[[bench]]
-name = "bench"
-path = "benches/bench.rs"
 
 [dependencies.arbitrary]
 version = "1"
