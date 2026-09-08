@@ -387,6 +387,104 @@ The `--throw-deprecation` command-line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
+## `util.debounce(fn, wait[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to debounce.
+* `wait` {integer} The number of milliseconds to delay `fn`.
+* `options` {Object}
+  * `leading` {boolean} When `true`, invokes `fn` immediately when a new
+    debounce window begins. **Default:** `false`.
+  * `rejectOnCancel` {boolean} When `true`, a call superseded by a later call
+    rejects with an `AbortError`. **Default:** `false`.
+  * `signal` {AbortSignal} An `AbortSignal` that cancels pending calls and
+    prevents future calls when aborted.
+* Returns: {Function} The debounced function.
+
+Creates a function that delays calling `fn` until `wait` milliseconds have
+elapsed since the most recent invocation. The debounced function returns a
+{Promise} for the value returned by `fn`. If `fn` throws or returns a rejected
+promise, the returned promise is rejected with the same reason.
+
+When the debounced function is called more than once before the delay expires,
+`fn` receives the arguments from the most recent call. By default, the promises
+from all calls resolve or reject with the result of that invocation. If
+`options.rejectOnCancel` is `true`, the promises from superseded calls reject
+with an `AbortError` instead.
+
+When `options.leading` is `true`, the first call in a debounce window invokes
+`fn` immediately. Calls made during that window are delayed until `wait`
+milliseconds have elapsed since the most recent call. A trailing invocation
+only occurs if the debounced function was called again during the window.
+The window begins before `fn` is invoked, so recursive calls and calls made
+while an asynchronous `fn` is pending are part of the same window if they occur
+before the delay expires. This also applies to calls made after a synchronous
+`fn` returns but before the delay expires.
+
+If `options.signal` is aborted, pending and future calls reject with an
+`AbortError`, with the signal's reason set as the error's `cause`, and `fn` is
+not invoked by those calls. If the signal is already aborted, `debounce()`
+throws an `AbortError`.
+
+The returned function has the following properties:
+
+* `cancel([reason])` cancels the current debounce window. Its pending promises
+  reject with an `AbortError`. If provided, `reason` is set as the error's
+  `cause`.
+* `flush()` cancels the delay and invokes `fn` immediately. It has no effect if
+  no invocation is pending.
+* `pending` {Promise|null} is the promise returned by the most recent call in
+  the current debounce window, or `null` if no invocation is pending.
+* `pendingCount` {integer} is the number of calls awaiting the invocation in
+  the current debounce window.
+* `ref()` makes the pending and future timeout keep the Node.js event loop
+  active. Returns the debounced function.
+* `unref()` allows the event loop to exit while a timeout is pending. This also
+  applies to future timeouts. Returns the debounced function.
+
+When invoked, `fn` has the debounced function as its `this` value. After a
+trailing invocation, a new debounce window can begin even if a promise returned
+by `fn` is still pending. The debounced function preserves the `name` and
+`length` of `fn`.
+
+```mjs
+import { setTimeout as wait } from 'node:timers/promises';
+import { debounce } from 'node:util';
+
+const fn = debounce(async (value) => {
+  await wait(100);
+  return value;
+}, 50);
+
+const first = fn(1);
+const second = fn(2);
+
+console.log(await first);  // 2
+console.log(await second); // 2
+```
+
+A debounced function can be used to trigger an action after a period of
+inactivity. Each call resets the timeout:
+
+```cjs
+const { debounce } = require('node:util');
+
+const onInactivity = debounce(() => {
+  console.log('No activity for 5 seconds');
+}, 5_000).unref();
+
+process.stdin.on('data', (data) => {
+  console.log(`Received ${data.length} bytes`);
+  onInactivity();
+});
+
+// Start the initial inactivity timeout.
+onInactivity();
+```
+
 ## `util.diff(actual, expected)`
 
 <!-- YAML
