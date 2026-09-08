@@ -3168,7 +3168,8 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // Dates could be supported by converting them to numbers. However, there
   // would not be a good way to read the values back from SQLite with the
   // original type. JS Boolean binds to 1 and 0 because SQLite maps true and
-  // false keywords to 1 and 0.
+  // false keywords to 1 and 0. JS undefined binds to NULL so that passing it
+  // explicitly matches omitting the parameter altogether.
   Isolate* isolate = env()->isolate();
   int r;
   if (value->IsNumber()) {
@@ -3192,7 +3193,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
                               SQLITE_TRANSIENT,
                               SQLITE_UTF8);
     }
-  } else if (value->IsNull()) {
+  } else if (value->IsNullOrUndefined()) {
     r = sqlite3_bind_null(statement_.get(), index);
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
