@@ -72,9 +72,10 @@ declare namespace InternalFSBinding {
   function close(fd: number, req: FSReqCallback): void;
   function close(fd: number): void;
 
-  function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: FSReqCallback): void;
-  function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
-  function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
+  function copyFile(src: unknown, dest: unknown, mode?: unknown): void;
+  function copyFile(src: unknown, dest: unknown, mode: unknown, req: FSReqCallback): void;
+  function copyFile(src: unknown, dest: unknown, mode: unknown, req: undefined, ctx: FSSyncContext): void;
+  function copyFile(src: unknown, dest: unknown, mode: unknown, usePromises: typeof kUsePromises): Promise<void>;
 
   function cpSyncCheckPaths(src: StringOrBuffer, dest: StringOrBuffer, dereference: boolean, recursive: boolean): void;
   function cpSyncOverrideFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, preserveTimestamps: boolean): void;
