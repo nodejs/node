@@ -510,6 +510,39 @@ assert.throws(() => webidl.requiredArguments(1, 2, opts), {
   }), []);
 }
 
+for (const [prototype, value] of [
+  [Number.prototype, 1],
+  [String.prototype, 'iterator'],
+  [Boolean.prototype, true],
+  [BigInt.prototype, 1n],
+  [Symbol.prototype, Symbol()],
+]) {
+  let nextReads = 0;
+  Object.defineProperty(prototype, 'next', {
+    configurable: true,
+    get() {
+      nextReads++;
+      return () => ({ done: true });
+    },
+  });
+  try {
+    const iterable = { [Symbol.iterator]: () => value };
+    assertInvalidArgType(() => converters['sequence<DOMString>'](iterable));
+    assertInvalidArgType(() => structuredClone(null, { transfer: iterable }));
+    assert.strictEqual(nextReads, 0);
+  } finally {
+    delete prototype.next;
+  }
+}
+
+{
+  function iterator() {}
+  iterator.next = () => ({ done: true });
+  assert.deepStrictEqual(converters['sequence<DOMString>']({
+    [Symbol.iterator]: () => iterator,
+  }), []);
+}
+
 {
   class Example {
     #brand;
