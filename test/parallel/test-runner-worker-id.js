@@ -1,8 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
+const { readFileSync, writeFileSync } = require('node:fs');
 const { test } = require('node:test');
 
 test('NODE_TEST_WORKER_ID is set for concurrent test files', async () => {
@@ -87,8 +89,6 @@ test('context.workerId matches NODE_TEST_WORKER_ID', async () => {
 });
 
 test('worker IDs are reused when more tests than concurrency', async () => {
-  const tmpdir = require('../common/tmpdir');
-  const { writeFileSync } = require('node:fs');
   tmpdir.refresh();
 
   // Create 9 separate test files dynamically
@@ -119,7 +119,6 @@ test('track worker ${i}', () => {
   assert.strictEqual(result.status, 0, `Test failed: ${result.stderr.toString()}`);
 
   // Read and analyze worker IDs used
-  const { readFileSync } = require('node:fs');
   const workerIds = readFileSync(usageFile, 'utf8').trim().split('\n');
 
   // Count occurrences of each worker ID
@@ -129,13 +128,115 @@ test('track worker ${i}', () => {
   });
 
   const uniqueWorkers = Object.keys(workerCounts);
-  assert.strictEqual(
-    uniqueWorkers.length,
-    3,
-    `Should have exactly 3 unique worker IDs, got ${uniqueWorkers.length}: ${uniqueWorkers.join(', ')}`
-  );
+  assert.strictEqual(workerIds.length, 9,
+                     `Expected 9 worker IDs, got ${workerIds.length}: ${workerIds.join(', ')}`);
+  assert.ok(uniqueWorkers.length <= 3,
+            `Should use at most 3 worker IDs, got ${uniqueWorkers.length}: ${uniqueWorkers.join(', ')}`);
 
-  Object.entries(workerCounts).forEach(([id, count]) => {
-    assert.strictEqual(count, 3, `Worker ID ${id} should be used 3 times, got ${count}`);
+  uniqueWorkers.forEach((id) => {
+    assert.ok(Number(id) >= 1 && Number(id) <= 3, `Worker ID outside 1..3: ${uniqueWorkers.join(', ')}`);
   });
+});
+
+// Generates a test file that appends `<kind> <name> <workerId>` lines to a
+// shared log, which is replayed below to find IDs held by two live files at
+// once.
+function testFile(name, { block = false, release = false } = {}) {
+  let body = '';
+
+  if (release) {
+    body += "writeFileSync(process.env.MARKER_FILE, '');\n";
+  }
+  if (block) {
+    const deadline = common.platformTimeout(10_000);
+    body += `const buf = new Int32Array(new SharedArrayBuffer(4));
+  const deadline = Date.now() + ${deadline};
+  while (!existsSync(process.env.MARKER_FILE) && Date.now() < deadline) {
+    Atomics.wait(buf, 0, 0, 20);
+  }\n`;
+  }
+
+  return `
+import { test } from 'node:test';
+import { appendFileSync, writeFileSync, existsSync } from 'node:fs';
+
+const log = (kind) => appendFileSync(process.env.WORKER_LOG,
+  kind + ' ${name} ' + process.env.NODE_TEST_WORKER_ID + '\\n');
+
+test('${name}', () => {
+  log('start');
+  ${body}
+  log('end');
+});
+`;
+}
+
+// Replays the log and reports every ID that was held by two files at once.
+function findConflicts(events) {
+  const live = new Map();
+  const conflicts = [];
+
+  for (const event of events) {
+    const [kind, name, id] = event.split(' ');
+    if (kind === 'start') {
+      if (live.has(id)) {
+        conflicts.push(`worker ID ${id} held by both '${live.get(id)}' and '${name}'`);
+      }
+      live.set(id, name);
+    } else {
+      live.delete(id);
+    }
+  }
+
+  return conflicts;
+}
+
+test('worker IDs are exclusive to concurrently running test files', () => {
+  tmpdir.refresh();
+
+  // `slow` pins one ID for the whole run while the remaining files churn
+  // through the other slots, so IDs are released and reacquired several times
+  // with one of them permanently taken.
+  const sources = [['slow', { block: true }]];
+  for (let i = 1; i <= 4; i++) {
+    sources.push([`file-${i}`]);
+  }
+  sources.push(['last', { release: true }]);
+
+  const concurrency = 3;
+  const logFile = tmpdir.resolve('worker-id-log.txt');
+  const markerFile = tmpdir.resolve('worker-id-release.marker');
+  writeFileSync(logFile, '');
+
+  const files = sources.map(([name, options], index) => {
+    const file = tmpdir.resolve(`worker-id-${index}-${name}.mjs`);
+    writeFileSync(file, testFile(name, options));
+    return file;
+  });
+
+  const result = spawnSync(
+    process.execPath,
+    ['--test', `--test-concurrency=${concurrency}`, ...files],
+    { env: { ...process.env, WORKER_LOG: logFile, MARKER_FILE: markerFile } },
+  );
+  assert.strictEqual(result.status, 0, `Runner failed: ${result.stderr.toString()}`);
+
+  const events = readFileSync(logFile, 'utf8').trim().split('\n');
+  assert.strictEqual(events.length, sources.length * 2,
+                     `Unexpected event log:\n${events.join('\n')}`);
+
+  // The blocking file must still be running when the last file starts
+  const eventsAt = (line) => events.findIndex((event) => event.startsWith(line));
+  assert.ok(eventsAt('start last') < eventsAt('end slow'),
+            `Files did not overlap:\n${events.join('\n')}`);
+
+  const conflicts = findConflicts(events);
+  assert.deepStrictEqual(
+    conflicts, [], `Worker IDs were not exclusive:\n${events.join('\n')}\n\n${conflicts.join('\n')}`);
+
+  for (const event of events) {
+    const id = Number(event.split(' ')[2]);
+    assert.ok(Number.isInteger(id) && id >= 1 && id <= concurrency,
+              `Worker ID outside 1..${concurrency}:\n${events.join('\n')}`);
+  }
 });
