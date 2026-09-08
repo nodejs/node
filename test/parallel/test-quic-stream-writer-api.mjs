@@ -130,8 +130,8 @@ await clientSession.opened;
 {
   const stream = await clientSession.createBidirectionalStream();
   const w = stream.writer;
-  const testError = new Error('writer fail test');
-  w.fail(testError);
+  const reason = null;
+  w.fail(reason);
   // After fail, canWrite is null.
   assert.strictEqual(w.canWrite, null);
   // drainableProtocol returns null when errored.
@@ -141,8 +141,12 @@ await clientSession.opened;
   assert.strictEqual(w.endSync(), -1);
   // WriteSync after fail returns false.
   assert.strictEqual(w.writeSync(encoder.encode('x')), false);
-  // Write after fail throws with the original error.
-  await assert.rejects(w.write(encoder.encode('x')), testError);
+  // Stored failure takes precedence over per-operation cancellation.
+  const signal = AbortSignal.abort('operation cancelled');
+  await assert.rejects(
+    w.write(encoder.encode('x'), { signal }),
+    (error) => error === reason);
+  await assert.rejects(w.end({ signal }), (error) => error === reason);
   // Don't await stream.closed here — the reset stream may not trigger
   // server onstream (no data was sent before fail), so the server
   // won't count it. The stream is cleaned up when the session closes.
