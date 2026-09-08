@@ -1419,14 +1419,14 @@ class [[nodiscard]] EqHelper {
   }
 
   // With this overloaded version, we allow anonymous enums to be used
-  // in {ASSERT|EXPECT}_EQ when compiled with gcc 4, as anonymous
-  // enums can be implicitly cast to BiggestInt.
+  // in {ASSERT|EXPECT}_EQ when compiled with gcc 4, as anonymous enums can be
+  // implicitly cast to intmax_t.
   //
   // Even though its body looks the same as the above version, we
   // cannot merge the two, as it will make anonymous enums unhappy.
   static AssertionResult Compare(const char* lhs_expression,
-                                 const char* rhs_expression, BiggestInt lhs,
-                                 BiggestInt rhs) {
+                                 const char* rhs_expression, intmax_t lhs,
+                                 intmax_t rhs) {
     return CmpHelperEQ(lhs_expression, rhs_expression, lhs, rhs);
   }
 
