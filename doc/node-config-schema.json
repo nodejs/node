@@ -45,6 +45,63 @@
         "$schema": {
           "type": "string"
         },
+        "bench": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {
+            "bench": {
+              "type": "boolean",
+              "description": "launch benchmark runner on startup"
+            },
+            "bench-isolation": {
+              "type": "string",
+              "description": "configures the type of benchmark isolation used in the benchmark runner"
+            },
+            "bench-name-pattern": {
+              "type": "string",
+              "description": "run benchmarks whose name matches this regular expression"
+            },
+            "bench-reporter": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report benchmark output using the given reporter"
+            },
+            "bench-reporter-destination": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report the given benchmark reporter to the given destination"
+            },
+            "bench-samples": {
+              "type": "number",
+              "description": "specify the number of measured benchmark samples"
+            },
+            "bench-warmup": {
+              "type": "number",
+              "description": "specify the number of unreported benchmark warmup samples"
+            }
+          }
+        },
         "nodeOptions": {
           "additionalProperties": false,
           "required": [],
@@ -118,6 +175,52 @@
             "async-context-frame": {
               "type": "boolean",
               "description": "Improve AsyncLocalStorage performance with AsyncContextFrame"
+            },
+            "bench-isolation": {
+              "type": "string",
+              "description": "configures the type of benchmark isolation used in the benchmark runner"
+            },
+            "bench-name-pattern": {
+              "type": "string",
+              "description": "run benchmarks whose name matches this regular expression"
+            },
+            "bench-reporter": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report benchmark output using the given reporter"
+            },
+            "bench-reporter-destination": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "report the given benchmark reporter to the given destination"
+            },
+            "bench-samples": {
+              "type": "number",
+              "description": "specify the number of measured benchmark samples"
+            },
+            "bench-warmup": {
+              "type": "number",
+              "description": "specify the number of unreported benchmark warmup samples"
             },
             "conditions": {
               "oneOf": [
@@ -208,6 +311,10 @@
             "experimental-addon-modules": {
               "type": "boolean",
               "description": "experimental import support for addons"
+            },
+            "experimental-bench": {
+              "type": "boolean",
+              "description": "experimental node:bench module and benchmark runner"
             },
             "experimental-detect-module": {
               "type": "boolean",

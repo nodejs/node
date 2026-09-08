@@ -484,9 +484,12 @@ Starts the Node.js command-line benchmark runner. At least one explicit file or
 glob pattern is required:
 
 ```console
-node --bench benchmark.mjs
-node --bench 'benchmarks/**/*.js'
+node --experimental-bench --bench benchmark.mjs
+node --experimental-bench --bench 'benchmarks/**/*.js'
 ```
+
+The `--experimental-bench` flag is required to use this flag or any other
+`--bench-*` option.
 
 Quote glob patterns to prevent expansion by the shell. Matching files are
 sorted and executed serially. By default, each file runs in a separate child
@@ -1216,6 +1219,16 @@ changes:
 > Stability: 1.2 - Release candidate
 
 Enable experimental import support for `.node` addons.
+
+### `--experimental-bench`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental `node:bench` module and command-line benchmark runner.
 
 ### `--experimental-config-file=path`, `--experimental-config-file`
 
@@ -4076,6 +4089,7 @@ one is included in the list below.
 * `--entry-url`
 * `--experimental-abortcontroller`
 * `--experimental-addon-modules`
+* `--experimental-bench`
 * `--experimental-detect-module`
 * `--experimental-dtls`
 * `--experimental-eventsource`

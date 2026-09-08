@@ -12,7 +12,8 @@ added: REPLACEME
 
 The `node:bench` module supports defining and running JavaScript benchmarks in
 the current process, and running one benchmark file in a fresh child process.
-To access it:
+The module is only available when Node.js is started with the
+`--experimental-bench` flag and can only be imported with the `node:` scheme:
 
 ```mjs
 import { bench, suite } from 'node:bench';
@@ -21,8 +22,6 @@ import { bench, suite } from 'node:bench';
 ```cjs
 const { bench, suite } = require('node:bench');
 ```
-
-This module is only available under the `node:` scheme.
 
 ## Example benchmark
 
@@ -57,7 +56,7 @@ suite('URL', () => {
 Run the benchmark from the command line:
 
 ```console
-node --bench benchmark.mjs
+node --experimental-bench --bench benchmark.mjs
 ```
 
 Benchmarks are executed serially in declaration order. Declared benchmarks are
@@ -183,8 +182,8 @@ declarations and a second call to `run()` is an error.
 The `--bench` flag runs one or more explicit benchmark files or glob patterns:
 
 ```console
-node --bench benchmark.mjs
-node --bench --bench-reporter=json 'benchmarks/**/*.js'
+node --experimental-bench --bench benchmark.mjs
+node --experimental-bench --bench --bench-reporter=json 'benchmarks/**/*.js'
 ```
 
 Files are sorted and executed serially. The default

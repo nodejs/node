@@ -243,6 +243,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("invalid value for --trace-require-module");
   }
 
+  // NOTE: `has_bench_options` is deliberately *not* validated against
+  // `experimental_bench` here; see CheckBenchOptions(), which callers invoke
+  // once every option source has been parsed.
+
   if (bench_runner && test_runner) {
     errors->push_back("either --bench or --test can be used, not both");
   }
@@ -365,6 +369,14 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
 
   debug_options_.CheckOptions(errors, argv);
 #endif  // HAVE_INSPECTOR
+}
+
+void EnvironmentOptions::CheckBenchOptions(
+    std::vector<std::string>* errors) const {
+  if (has_bench_options && !experimental_bench) {
+    errors->push_back(
+        "--experimental-bench is required to use --bench or related options");
+  }
 }
 
 namespace options_parser {
@@ -631,6 +643,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-addon-modules",
             "experimental import support for addons",
             BOOL_FIELD(experimental_addon_modules),
+            kAllowedInEnvvar);
+  AddOption("--experimental-bench",
+            "experimental node:bench module and benchmark runner",
+            BOOL_FIELD(experimental_bench),
             kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-eventsource",
@@ -985,33 +1001,39 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "use the specified file for package map resolution",
             &EnvironmentOptions::experimental_package_map_path,
             kAllowedInEnvvar);
+  AddOption("[has_bench_options]", "", BOOL_FIELD(has_bench_options));
   AddOption("--bench",
             "launch benchmark runner on startup",
             BOOL_FIELD(bench_runner),
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench", "[has_bench_options]");
   AddOption("--bench-isolation",
             "configures the type of benchmark isolation used in the benchmark "
             "runner",
             &EnvironmentOptions::bench_isolation,
             kAllowedInEnvvar,
             OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench-isolation", "[has_bench_options]");
   AddOption("--bench-name-pattern",
             "run benchmarks whose name matches this regular expression",
             &EnvironmentOptions::bench_name_pattern,
             kAllowedInEnvvar,
             OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench-name-pattern", "[has_bench_options]");
   AddOption("--bench-reporter",
             "report benchmark output using the given reporter",
             &EnvironmentOptions::bench_reporter,
             kAllowedInEnvvar,
             OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench-reporter", "[has_bench_options]");
   AddOption("--bench-reporter-destination",
             "report the given benchmark reporter to the given destination",
             &EnvironmentOptions::bench_reporter_destination,
             kAllowedInEnvvar,
             OptionNamespaces::kBenchRunnerNamespace);
+  Implies("--bench-reporter-destination", "[has_bench_options]");
   AddOption("[has_bench_samples]", "", BOOL_FIELD(has_bench_samples));
   AddOption("--bench-samples",
             "specify the number of measured benchmark samples",
@@ -1019,6 +1041,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             OptionNamespaces::kBenchRunnerNamespace,
             kStrictOptionParsing);
+  Implies("--bench-samples", "[has_bench_options]");
   Implies("--bench-samples", "[has_bench_samples]");
   AddOption("[has_bench_warmup]", "", BOOL_FIELD(has_bench_warmup));
   AddOption("--bench-warmup",
@@ -1027,6 +1050,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             OptionNamespaces::kBenchRunnerNamespace,
             kStrictOptionParsing);
+  Implies("--bench-warmup", "[has_bench_options]");
   Implies("--bench-warmup", "[has_bench_warmup]");
   AddOption("--test",
             "launch test runner on startup",
@@ -2186,6 +2210,12 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
     const std::string& option_name = item.first;
     const auto& option_info = item.second;
     auto field = option_info.field;
+
+    if (option_info.namespace_id ==
+            NamespaceEnumToString(OptionNamespaces::kBenchRunnerNamespace) &&
+        !opts->per_isolate->per_env->experimental_bench) {
+      continue;
+    }
 
     // TODO(pmarchini): Skip internal options for the moment as probably not
     // required

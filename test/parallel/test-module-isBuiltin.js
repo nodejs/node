@@ -7,12 +7,12 @@ const { isBuiltin } = require('module');
 assert(isBuiltin('http'));
 assert(isBuiltin('sys'));
 assert(isBuiltin('node:fs'));
-assert(isBuiltin('node:bench'));
-assert(isBuiltin('node:bench/reporters'));
 assert(isBuiltin('node:test'));
 
-// Does not include internal modules
+// Does not include internal or disabled experimental modules
 assert(!isBuiltin('internal/errors'));
+assert(!isBuiltin('node:bench'));
+assert(!isBuiltin('node:bench/reporters'));
 assert(!isBuiltin('bench'));
 assert(!isBuiltin('bench/reporters'));
 assert(!isBuiltin('test'));

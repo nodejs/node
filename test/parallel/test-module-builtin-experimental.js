@@ -4,6 +4,8 @@ const common = require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 
 const experimentalBuiltins = [
+  ['bench', '--experimental-bench', true],
+  ['bench/reporters', '--experimental-bench', true],
   ['dtls', '--experimental-dtls', common.hasDtls],
   ['quic', '--experimental-quic', common.hasQuic],
   ['vfs', '--experimental-vfs', true],
