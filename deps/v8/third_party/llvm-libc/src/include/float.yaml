@@ -1,0 +1,88 @@
+header: float.h
+standards:
+  - stdc
+macros:
+  - macro_name: FLT_RADIX
+    macro_header: float-macros.h
+  - macro_name: FLT_EVAL_METHOD
+    macro_header: float-macros.h
+  - macro_name: FLT_ROUNDS
+    macro_header: float-macros.h
+  - macro_name: FLT_DECIMAL_DIG
+    macro_header: float-macros.h
+  - macro_name: DBL_DECIMAL_DIG
+    macro_header: float-macros.h
+  - macro_name: LDBL_DECIMAL_DIG
+    macro_header: float-macros.h
+  - macro_name: DECIMAL_DIG
+    macro_header: float-macros.h
+  - macro_name: FLT_DIG
+    macro_header: float-macros.h
+  - macro_name: DBL_DIG
+    macro_header: float-macros.h
+  - macro_name: LDBL_DIG
+    macro_header: float-macros.h
+  - macro_name: FLT_MANT_DIG
+    macro_header: float-macros.h
+  - macro_name: DBL_MANT_DIG
+    macro_header: float-macros.h
+  - macro_name: LDBL_MANT_DIG
+    macro_header: float-macros.h
+  - macro_name: FLT_MIN
+    macro_header: float-macros.h
+  - macro_name: DBL_MIN
+    macro_header: float-macros.h
+  - macro_name: LDBL_MIN
+    macro_header: float-macros.h
+  - macro_name: FLT_MAX
+    macro_header: float-macros.h
+  - macro_name: DBL_MAX
+    macro_header: float-macros.h
+  - macro_name: LDBL_MAX
+    macro_header: float-macros.h
+  - macro_name: FLT_TRUE_MIN
+    macro_header: float-macros.h
+  - macro_name: DBL_TRUE_MIN
+    macro_header: float-macros.h
+  - macro_name: LDBL_TRUE_MIN
+    macro_header: float-macros.h
+  - macro_name: FLT_EPSILON
+    macro_header: float-macros.h
+  - macro_name: DBL_EPSILON
+    macro_header: float-macros.h
+  - macro_name: LDBL_EPSILON
+    macro_header: float-macros.h
+  - macro_name: FLT_MIN_EXP
+    macro_header: float-macros.h
+  - macro_name: DBL_MIN_EXP
+    macro_header: float-macros.h
+  - macro_name: LDBL_MIN_EXP
+    macro_header: float-macros.h
+  - macro_name: FLT_MIN_10_EXP
+    macro_header: float-macros.h
+  - macro_name: DBL_MIN_10_EXP
+    macro_header: float-macros.h
+  - macro_name: LDBL_MIN_10_EXP
+    macro_header: float-macros.h
+  - macro_name: FLT_MAX_EXP
+    macro_header: float-macros.h
+  - macro_name: DBL_MAX_EXP
+    macro_header: float-macros.h
+  - macro_name: LDBL_MAX_EXP
+    macro_header: float-macros.h
+  - macro_name: FLT_MAX_10_EXP
+    macro_header: float-macros.h
+  - macro_name: DBL_MAX_10_EXP
+    macro_header: float-macros.h
+  - macro_name: LDBL_MAX_10_EXP
+    macro_header: float-macros.h
+  - macro_name: FLT_HAS_SUBNORM
+    macro_header: float-macros.h
+  - macro_name: DBL_HAS_SUBNORM
+    macro_header: float-macros.h
+  - macro_name: LDBL_HAS_SUBNORM
+    macro_header: float-macros.h
+types: []
+enums: []
+objects: []
+functions: []

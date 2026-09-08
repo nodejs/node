@@ -67,7 +67,6 @@ MaybeDirectHandle<Object> ContextDeserializer::Deserialize(
     DeserializeApiWrapperFields(
         embedder_fields_deserializer.api_wrapper_callback);
     LogNewMapEvents();
-    WeakenDescriptorArrays();
   }
 
   if (should_rehash()) Rehash();

@@ -198,6 +198,11 @@ void Zone::Expand(size_t size) {
   DCHECK_LE(size, limit_ - position_);
 }
 
+void* Zone::ExpandAndAllocate(size_t size) {
+  Expand(size);
+  return AllocateUnchecked(size);
+}
+
 ZoneSnapshot::ZoneSnapshot(const Zone* zone)
     :
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS

@@ -282,6 +282,7 @@ class V8_EXPORT ThreadIsolation {
     base::Address StartOfAllocationAt(base::Address inner_pointer);
     std::pair<base::Address, JitAllocation&> AllocationContaining(
         base::Address addr);
+    base::Address EndOfLastAllocation();
 
     bool Empty() const { return jit_page_->allocations_.empty(); }
     void Shrink(class JitPage* tail);
@@ -419,7 +420,8 @@ class WritableJitAllocation {
   V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                  RelaxedStoreTag);
   template <typename T>
-  V8_INLINE void WriteHeaderSlot(Address address, T value, RelaxedStoreTag);
+  V8_INLINE void WriteHeaderSlot(Address address, Tagged<T> value,
+                                 RelaxedStoreTag);
 
   // CopyCode and CopyData have the same implementation at the moment, but
   // they will diverge once we implement validation.

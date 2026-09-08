@@ -1,0 +1,45 @@
+header: dirent.h
+standards:
+  - posix
+types:
+  - type_name: struct_dirent
+  - type_name: DIR
+  - type_name: ino_t
+functions:
+  - name: alphasort
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const struct dirent **
+      - type: const struct dirent **
+  - name: closedir
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: DIR *
+  - name: dirfd
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: DIR *
+  - name: fdopendir
+    standards:
+      - posix
+    return_type: DIR *
+    arguments:
+      - type: int
+  - name: opendir
+    standards:
+      - posix
+    return_type: DIR *
+    arguments:
+      - type: const char *
+  - name: readdir
+    standards:
+      - posix
+    return_type: struct dirent *
+    arguments:
+      - type: DIR *

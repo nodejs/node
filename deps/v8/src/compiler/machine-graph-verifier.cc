@@ -93,7 +93,7 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kLoad:
           case IrOpcode::kLoadImmutable:
-          case IrOpcode::kProtectedLoad:
+          case IrOpcode::kTrappingLoad:
           case IrOpcode::kLoadTrapOnNull:
             representation_vector_[node->id()] = PromoteRepresentation(
                 LoadRepresentationOf(node->op()).representation());
@@ -161,7 +161,7 @@ class MachineRepresentationInferrer {
                 AtomicOpType(node->op()).representation());
             break;
           case IrOpcode::kStore:
-          case IrOpcode::kProtectedStore:
+          case IrOpcode::kTrappingStore:
           case IrOpcode::kStoreTrapOnNull:
           case IrOpcode::kStoreIndirectPointer:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -864,7 +864,7 @@ class MachineRepresentationChecker {
     }
     switch (node->opcode()) {
       case IrOpcode::kLoad:
-      case IrOpcode::kProtectedLoad:
+      case IrOpcode::kTrappingLoad:
       case IrOpcode::kLoadTrapOnNull:
       case IrOpcode::kUnalignedLoad:
       case IrOpcode::kLoadImmutable:

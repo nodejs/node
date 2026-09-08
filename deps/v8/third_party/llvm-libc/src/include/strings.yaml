@@ -1,0 +1,87 @@
+header: strings.h
+standards:
+  - bsd
+  - posix
+types:
+  - type_name: size_t
+  - type_name: locale_t
+functions:
+  - name: bcmp
+    standards:
+      - bsd
+    return_type: int
+    arguments:
+      - type: const void *
+      - type: const void *
+      - type: size_t
+  - name: bcopy
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: const void *
+      - type: void *
+      - type: size_t
+  - name: bzero
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: void *
+      - type: size_t
+  - name: ffs
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: ffsl
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: long
+  - name: ffsll
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: long long
+  - name: index
+    standards:
+      - bsd
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: int
+  - name: rindex
+    standards:
+      - bsd
+    return_type: char *
+    arguments:
+      - type: const char *
+      - type: int
+  - name: strcasecmp
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: strcasecmp_l
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: locale_t
+  - name: strncasecmp
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: size_t
+  - name: strncasecmp_l
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: size_t
+      - type: locale_t

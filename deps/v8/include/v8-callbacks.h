@@ -342,6 +342,10 @@ using WasmCustomDescriptorsEnabledCallback = bool (*)(Local<Context> context);
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
 
+// --- Callback for getting high resolution timestamps in Temporal ---
+using TemporalHostSystemUTCEpochNanosecondsCallback =
+    int64_t (*)(Local<Context> context);
+
 /**
  * Import phases in import requests.
  */

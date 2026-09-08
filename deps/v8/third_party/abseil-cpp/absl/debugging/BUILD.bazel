@@ -25,7 +25,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -34,33 +34,6 @@ package(
 )
 
 licenses(["notice"])
-
-cc_library(
-    name = "borrowed_fixup_buffer",
-    srcs = ["internal/borrowed_fixup_buffer.cc"],
-    hdrs = ["internal/borrowed_fixup_buffer.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:malloc_internal",
-        "//absl/hash",
-    ],
-)
-
-cc_test(
-    name = "borrowed_fixup_buffer_test",
-    srcs = ["internal/borrowed_fixup_buffer_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":borrowed_fixup_buffer",
-        "//absl/base:config",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
 
 cc_library(
     name = "stacktrace",
@@ -80,8 +53,8 @@ cc_library(
     hdrs = ["stacktrace.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
-        ":borrowed_fixup_buffer",
         ":debugging_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -97,7 +70,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":borrowed_fixup_buffer",
         ":stacktrace",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -132,6 +104,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
+    visibility = ["//visibility:public"],
     deps = [
         ":debugging_internal",
         ":demangle_internal",
@@ -164,10 +137,13 @@ cc_test(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:malloc_internal",
+        "//absl/cleanup",
         "//absl/log",
         "//absl/log:check",
         "//absl/memory",
         "//absl/strings",
+        "//absl/strings:str_format",
         "@googletest//:gtest",
     ],
 )
@@ -182,7 +158,10 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//absl/log/internal:__pkg__"],
+    visibility = [
+        "//absl/log/internal:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
+    ],
     deps = [
         ":stacktrace",
         ":symbolize",
@@ -198,6 +177,7 @@ cc_library(
     hdrs = ["failure_signal_handler.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":examine_stack",
         ":stacktrace",
@@ -244,7 +224,9 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
+    visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -263,6 +245,7 @@ cc_library(
     visibility = [
         "//absl/container:__pkg__",
         "//absl/debugging:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
     ],
     deps = [
         ":demangle_rust",
@@ -348,6 +331,9 @@ cc_library(
     hdrs = ["internal/demangle_rust.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/util/symbolize:__pkg__",
+    ],
     deps = [
         ":decode_rust_punycode",
         "//absl/base:config",
@@ -397,6 +383,7 @@ cc_library(
     hdrs = ["leak_check.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -443,7 +430,6 @@ cc_library(
     hdrs = ["internal/stack_consumption.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",

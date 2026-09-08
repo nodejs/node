@@ -20,13 +20,29 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-number-format-tq-inl.inc"
+Tagged<String> JSNumberFormat::locale() const { return locale_.load(); }
+void JSNumberFormat::set_locale(Tagged<String> value, WriteBarrierMode mode) {
+  locale_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat)
+Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+JSNumberFormat::icu_number_formatter() const {
+  return Cast<Managed<icu::number::LocalizedNumberFormatter>>(
+      icu_number_formatter_.load());
+}
+void JSNumberFormat::set_icu_number_formatter(
+    Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+    WriteBarrierMode mode) {
+  icu_number_formatter_.store(this, value, mode);
+}
 
-ACCESSORS(JSNumberFormat, icu_number_formatter,
-          Tagged<Managed<icu::number::LocalizedNumberFormatter>>,
-          kIcuNumberFormatterOffset)
+Tagged<UnionOf<JSFunction, Undefined>> JSNumberFormat::bound_format() const {
+  return bound_format_.load();
+}
+void JSNumberFormat::set_bound_format(
+    Tagged<UnionOf<JSFunction, Undefined>> value, WriteBarrierMode mode) {
+  bound_format_.store(this, value, mode);
+}
 
 }  // namespace internal
 }  // namespace v8

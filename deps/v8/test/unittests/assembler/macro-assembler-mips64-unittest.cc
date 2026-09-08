@@ -46,7 +46,7 @@ class MacroAssemblerTest : public TestWithIsolate {
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -65,7 +65,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
 
 TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -116,7 +116,7 @@ TEST_F(MacroAssemblerTest, BYTESWAP) {
                             0x0000000080000000,
                             0x0000000000008000};
 
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Ld(a4, MemOperand(a0, offsetof(T, s8)));
   __ nop();
@@ -186,7 +186,7 @@ TEST_F(MacroAssemblerTest, LoadConstants) {
     refConstants[i] = ~(mask << i);
   }
 
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ mov(a4, a0);
   for (int i = 0; i < 64; i++) {
@@ -216,7 +216,7 @@ TEST_F(MacroAssemblerTest, LoadAddress) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label to_jump, skip;
   __ mov(a4, a0);
@@ -256,7 +256,7 @@ TEST_F(MacroAssemblerTest, jump_tables4) {
   // Regression test for v8:4294.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -315,7 +315,7 @@ TEST_F(MacroAssemblerTest, jump_tables5) {
   // compact branch instruction before emission of the dd table.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -384,7 +384,7 @@ TEST_F(MacroAssemblerTest, jump_tables6) {
   // instructions is close to 32K)
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kSwitchTableCases = 40;
 
@@ -465,7 +465,7 @@ TEST_F(MacroAssemblerTest, jump_tables6) {
 uint64_t MacroAssemblerTest::run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Lsa(v0, a0, a1, sa);
   __ jr(ra);
@@ -541,7 +541,7 @@ TEST_F(MacroAssemblerTest, Lsa) {
 uint64_t MacroAssemblerTest::run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Dlsa(v0, a0, a1, sa);
   __ jr(ra);
@@ -688,7 +688,7 @@ RET_TYPE MacroAssemblerTest::run_Cvt(IN_TYPE x,
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   GenerateConvertInstructionFunc(masm);
   __ dmfc1(v0, f2);
@@ -822,7 +822,7 @@ TEST_F(MacroAssemblerTest, OverflowInstructions) {
       int32_t jj32 = static_cast<int32_t>(jj);
       int32_t expected_mul;
       int64_t expected_add_ovf, expected_sub_ovf, expected_mul_ovf;
-      MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+      MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
       __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
@@ -899,7 +899,7 @@ TEST_F(MacroAssemblerTest, OverflowInstructions) {
 TEST_F(MacroAssemblerTest, min_max_nan) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -1012,7 +1012,7 @@ bool MacroAssemblerTest::run_Unaligned(char* memory_buffer, int32_t in_offset,
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
   IN_TYPE res;
 
   GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
@@ -1363,7 +1363,7 @@ bool MacroAssemblerTest::run_Sltu(uint64_t rs, uint64_t rd,
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   GenerateSltuInstructionFunc(masm, rd);
   __ jr(ra);
@@ -1475,7 +1475,7 @@ TEST_F(MacroAssemblerTest, macro_float_minmax_f32) {
   // Test the Float32Min and Float32Max macros.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Inputs {
     float src1_;
@@ -1618,7 +1618,7 @@ TEST_F(MacroAssemblerTest, macro_float_minmax_f64) {
   // Test the Float64Min and Float64Max macros.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Inputs {
     double src1_;
@@ -1688,7 +1688,7 @@ TEST_F(MacroAssemblerTest, DeoptExitSizeIsFixed) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       buffer->CreateView());
   static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {

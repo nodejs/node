@@ -23,6 +23,10 @@
 namespace v8 {
 namespace internal {
 
+template <typename T>
+class DirectHandle;
+class JSReceiver;
+
 struct AssemblerOptions;
 class OptimizedCompilationInfo;
 class TurbofanCompilationJob;
@@ -124,18 +128,13 @@ class Pipeline : public AllStatic {
   static wasm::WasmCompilationResult
   GenerateCodeForWasmNativeStubFromTurboshaft(
       const wasm::CanonicalSig* sig, wasm::WrapperCompilationInfo wrapper_info,
-      const char* debug_name, const AssemblerOptions& assembler_options);
+      const char* debug_name, const AssemblerOptions& assembler_options,
+      DirectHandle<JSReceiver> callable = {});
 
   static wasm::WasmCompilationResult GenerateWasmCode(
       wasm::CompilationEnv* env, WasmCompilationData& compilation_data,
       wasm::WasmDetectedFeatures* detected,
       DelayedCounterUpdates* counter_updates);
-
-  // Returns a new compilation job for a wasm heap stub.
-  static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
-      Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 
   static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
   NewWasmTurboshaftWrapperCompilationJob(

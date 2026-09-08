@@ -5,6 +5,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
@@ -75,9 +76,10 @@ double ValueOfOperator<double>(const Operator* op) {
 
 class ReducerTester : public HandleAndZoneScope {
  public:
-  explicit ReducerTester(int num_parameters = 0,
-                         MachineOperatorBuilder::Flags flags =
-                             MachineOperatorBuilder::kAllOptionalOps)
+  explicit ReducerTester(
+      int num_parameters = 0,
+      MachineOperatorBuilder::Flags flags =
+          InstructionSelector::SupportedMachineOperatorFlags())
       : isolate(main_isolate()),
         binop(nullptr),
         unop(nullptr),
@@ -464,7 +466,7 @@ static void CheckJsShift(ReducerTester* R) {
 
 
 TEST(ReduceJsShifts) {
-  ReducerTester R(0, MachineOperatorBuilder::kWord32ShiftIsSafe);
+  ReducerTester R(0, {MachineOperatorBuilder::kWord32ShiftIsSafe});
 
   R.binop = R.machine.Word32Shl();
   CheckJsShift(&R);

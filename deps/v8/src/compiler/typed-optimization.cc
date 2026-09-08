@@ -346,7 +346,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
   Type const object_type = NodeProperties::GetType(object);
   FieldAccess const& access = FieldAccessOf(node->op());
   if (access.base_is_tagged == kTaggedBase &&
-      access.offset == HeapObject::kMapOffset) {
+      access.offset == offsetof(HeapObject, map_)) {
     // We can replace LoadField[Map](o) with map if is stable, and
     // o has type Constant(object) and map == object->map, and either
     //  (1) map cannot transition further, or
@@ -796,6 +796,7 @@ Reduction TypedOptimization::ReduceTypedArrayLength(Node* node) {
     if (!IsRabGsabTypedArrayElementsKind(elements_kind)) {
       Node* value = jsgraph()->ConstantNoHole(
           byte_length >> ElementsKindToShiftSize(elements_kind));
+      ReplaceWithValue(node, value);
       return Replace(value);
     }
   }

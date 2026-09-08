@@ -33,14 +33,6 @@ void WasmCodePointerTableEntry::UpdateCodePointerEntry(
   entrypoint_.store(entrypoint, std::memory_order_relaxed);
 }
 
-Address WasmCodePointerTableEntry::GetEntrypoint(
-    uint64_t signature_hash) const {
-#ifdef V8_ENABLE_SANDBOX
-  SBXCHECK_EQ(signature_hash_, signature_hash);
-#endif
-  return entrypoint_.load(std::memory_order_relaxed);
-}
-
 Address WasmCodePointerTableEntry::GetEntrypointWithoutSignatureCheck() const {
   return entrypoint_.load(std::memory_order_relaxed);
 }
@@ -56,21 +48,9 @@ uint32_t WasmCodePointerTableEntry::GetNextFreelistEntryIndex() const {
   return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
 }
 
-Address WasmCodePointerTable::GetEntrypoint(WasmCodePointer index,
-                                            uint64_t signature_hash) const {
-  return at(index.value()).GetEntrypoint(signature_hash);
-}
-
 Address WasmCodePointerTable::GetEntrypointWithoutSignatureCheck(
     WasmCodePointer index) const {
   return at(index.value()).GetEntrypointWithoutSignatureCheck();
-}
-
-void WasmCodePointerTable::UpdateEntrypoint(WasmCodePointer index,
-                                            Address value,
-                                            uint64_t signature_hash) {
-  WriteScope write_scope("WasmCodePointerTable write");
-  return UpdateEntrypointUnlocked(index, value, signature_hash);
 }
 
 void WasmCodePointerTable::UpdateEntrypointUnlocked(WasmCodePointer index,

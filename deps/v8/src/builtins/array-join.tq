@@ -206,11 +206,6 @@ struct Buffer {
 
     const nofSeparatorsInt: intptr = nofSeparators;
     const sepsLen: intptr = separatorLength * nofSeparatorsInt;
-    // Detect integer overflow
-    // TODO(turbofan): Replace with overflow-checked multiplication.
-    if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
-        ThrowInvalidStringLength(context);
-      }
 
     this.totalStringLength = AddStringLength(this.totalStringLength, sepsLen);
     if (write) deferred {
@@ -320,8 +315,8 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
   };
 }
 
-macro BufferJoin(implicit context: Context)(buffer: Buffer,
-                    sep: String): String {
+macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
+    String {
   dcheck(IsValidPositiveSmi(buffer.totalStringLength));
   if (buffer.totalStringLength == 0) return kEmptyString;
 
@@ -357,11 +352,33 @@ macro BufferJoin(implicit context: Context)(buffer: Buffer,
 transitioning macro FastArrayJoin(
     implicit context: Context)(kind: constexpr ElementsKind,
     array: FastJSArrayForRead, sep: String, lengthNumber: Number): String {
-  const elements = array.elements;
-
+  // Check early if the separators might overflow.
   let len: uintptr = Convert<uintptr>(lengthNumber);
+  // Fast array length is guaranteed to fit in Smi.
+  dcheck(len <= Convert<uintptr>(kMaxFastArrayLength));
+  static_assert(Convert<uintptr>(kMaxFastArrayLength) < kSmiMaxValue);
+  // If separatorLength <= 1, fast arrays cannot overflow the separator counter
+  // or exceed kStringMaxLength from separators alone, because their maximum
+  // length is bounded by kMaxFastArrayLength (32MB) which is much smaller
+  // than kStringMaxLength (268MB/536MB). Thus we only need to perform checks
+  // if separatorLength > 1.
+  static_assert(
+      (Convert<uintptr>(kMaxFastArrayLength) - 1) <=
+      Convert<uintptr>(kStringMaxLength));
 
   const separatorLength: intptr = sep.length_intptr;
+  if (separatorLength > 1 && len > 1) {
+    const lenInt: int32 = Convert<int32>(Signed(len));
+    const sepLenInt: int32 = Convert<int32>(separatorLength);
+    try {
+      const res = TryInt32Mul(lenInt - 1, sepLenInt) otherwise IfOverflow;
+      if (res > Convert<int32>(kStringMaxLength)) goto IfOverflow;
+    } label IfOverflow {
+      ThrowInvalidStringLength(context);
+    }
+  }
+
+  const elements = array.elements;
   let nofSeparators: intptr = 0;
   let buffer: Buffer = NewBuffer(len, sep);
 
@@ -529,11 +546,13 @@ transitioning ArrayJoin<JSArray>(
 
     if (IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_ELEMENTS)) {
       loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
-    } else if (IsElementsKindLessThanOrEqual(
-                   kind, ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
+    } else if (
+        IsElementsKindLessThanOrEqual(
+            kind, ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
       loadFn = LoadJoinElement<array::FastDoubleElements>;
-    } else if (IsElementsKindLessThanOrEqual(
-                   kind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)) {
+    } else if (
+        IsElementsKindLessThanOrEqual(
+            kind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)) {
       loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
     } else if (kind == ElementsKind::DICTIONARY_ELEMENTS)
       deferred {
@@ -684,8 +703,8 @@ builtin JoinStackPush(
 
 // Fast path the common non-nested calls. If the receiver is not already on
 // the stack, add it to the stack and return true. Otherwise return false.
-macro JoinStackPushInline(implicit context: Context)(
-                             receiver: JSReceiver): bool {
+macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
+    bool {
   try {
     const stack: FixedArray = LoadJoinStack()
         otherwise IfUninitialized;
@@ -729,8 +748,8 @@ builtin JoinStackPop(
 }
 
 // Fast path the common non-nested calls.
-macro JoinStackPopInline(implicit context: Context)(
-                            receiver: JSReceiver): void {
+macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
+    void {
   const stack: FixedArray = LoadJoinStack()
       otherwise unreachable;
   const len: intptr = stack.length_intptr;
@@ -750,6 +769,38 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
     implicit context: Context)(useToLocaleString: constexpr bool,
     o: JSReceiver, len: Number, sep: String, locales: JSAny,
     options: JSAny): JSAny {
+  // Check early if the separators might overflow.
+  const separatorLength: intptr = sep.length_intptr;
+  if (separatorLength >= 1) {
+    typeswitch (len) {
+      case (lenSmi: Smi): {
+        const lenInt: int32 = Convert<int32>(lenSmi);
+        if (lenInt > 1) {
+          try {
+            // Optimization for the most common case of 1-character separators
+            // (e.g. ',').  In this case, the total separator length is simply
+            // `len - 1`. We can bypass the multiplication entirely and perform
+            // a direct comparison on `len`.
+            if (separatorLength == 1 && len - 1 > kStringMaxLength) {
+              goto IfOverflow;
+            }
+            const sepLenInt: int32 = Convert<int32>(separatorLength);
+            const res = TryInt32Mul(lenInt - 1, sepLenInt) otherwise IfOverflow;
+            if (res > Convert<int32>(kStringMaxLength)) goto IfOverflow;
+          } label IfOverflow {
+            ThrowInvalidStringLength(context);
+          }
+        }
+      }
+      case (HeapNumber): {
+        // If len is a HeapNumber (and positive), it must be > kSmiMaxValue.
+        // Since kSmiMaxValue > kStringMaxLength, any join with a non-empty
+        // separator will inevitably exceed the maximum string length.
+        static_assert(kSmiMaxValue > Convert<uintptr>(kStringMaxLength));
+        ThrowInvalidStringLength(context);
+      }
+    }
+  }
   // If the receiver is not empty and not already being joined, continue with
   // the normal join algorithm.
   if (len > 0 && JoinStackPushInline(o)) {
@@ -767,7 +818,7 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.join
+// https://tc39.es/ecma262/#sec-array.prototype.join
 transitioning javascript builtin ArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const sepObj: JSAny = arguments[0];
@@ -827,6 +878,7 @@ transitioning builtin ArrayPrototypeJoinImpl(
   } label NotFastJSArray {
     // Fall through.
   }
+
   // TODO(ishell): perform stack checks rarely.
   PerformStackCheck(context);
   return CycleProtectedArrayJoin<JSArray>(
@@ -859,7 +911,7 @@ transitioning macro ArrayPrototypeToString_Inline(
 }
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
+// https://tc39.es/ecma262/#sec-array.prototype.tolocalestring
 transitioning javascript builtin ArrayPrototypeToLocaleString(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const locales: JSAny = arguments[0];
@@ -880,7 +932,7 @@ transitioning javascript builtin ArrayPrototypeToLocaleString(
   return CycleProtectedArrayJoin<JSArray>(true, o, len, ',', locales, options);
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.tostring
+// https://tc39.es/ecma262/#sec-array.prototype.tostring
 transitioning javascript builtin ArrayPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let array be ? ToObject(this value).
@@ -900,7 +952,7 @@ transitioning javascript builtin ArrayPrototypeToString(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.join
 transitioning javascript builtin TypedArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const sepObj: JSAny = arguments[0];
@@ -921,7 +973,7 @@ transitioning javascript builtin TypedArrayPrototypeJoin(
       Undefined);
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.tolocalestring
 transitioning javascript builtin TypedArrayPrototypeToLocaleString(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const locales: JSAny = arguments[0];

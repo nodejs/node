@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -95,7 +96,7 @@ class IntDigits {
   // Supports all integral types.
   template <typename T>
   void PrintAsDec(T v) {
-    static_assert(std::is_integral<T>::value, "");
+    static_assert(std::is_integral_v<T>, "");
     start_ = storage_;
     size_ = static_cast<size_t>(numbers_internal::FastIntToBuffer(v, storage_) -
                                 storage_);
@@ -309,19 +310,38 @@ inline bool ConvertStringArg(string_view v, const FormatConversionSpecImpl conv,
                                conv.has_left_flag());
 }
 
+inline bool IsLowSurrogate(uint32_t c) { return c >= 0xDC00 && c <= 0xDFFF; }
+
 inline bool ConvertStringArg(const wchar_t *v,
                              size_t len,
                              const FormatConversionSpecImpl conv,
                              FormatSinkImpl *sink) {
-  FixedArray<char> mb(len * 4);
+  // Each wide character may result in up to 4 bytes (UTF-8 code units).
+  constexpr size_t kMaxUtf8CodeUnitsPerWideChar = 4;
+  if (len > (std::numeric_limits<decltype(len)>::max)() /
+                kMaxUtf8CodeUnitsPerWideChar) {
+    // Size too large; we can't handle this.
+    return false;
+  }
+  FixedArray<char> mb(len * kMaxUtf8CodeUnitsPerWideChar);
   strings_internal::ShiftState s;
   size_t chars_written = 0;
   for (size_t i = 0; i < len; ++i) {
+    // A high surrogate must be immediately followed by a low surrogate. If it
+    // isn't, the UTF-16 input is malformed and WideToUtf8() would otherwise
+    // leave a partial sequence in the buffer. The single wchar_t path already
+    // rejects an unpaired surrogate, so reject it here too.
+    if (s.saw_high_surrogate) {
+      const uint32_t cu = static_cast<uint32_t>(v[i]);
+      if (!IsLowSurrogate(cu)) return false;
+    }
     const size_t chars =
         strings_internal::WideToUtf8(v[i], &mb[chars_written], s);
     if (chars == static_cast<size_t>(-1)) { return false; }
     chars_written += chars;
   }
+  // A trailing high surrogate has no low surrogate to complete it.
+  if (s.saw_high_surrogate) return false;
   return ConvertStringArg(string_view(mb.data(), chars_written), conv, sink);
 }
 
@@ -356,8 +376,7 @@ bool ConvertIntArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
   // FormatConversionChar is declared, but not defined.
   switch (static_cast<uint8_t>(conv.conversion_char())) {
     case static_cast<uint8_t>(FormatConversionCharInternal::c):
-      return (std::is_same<T, wchar_t>::value ||
-              (conv.length_mod() == LengthMod::l))
+      return (std::is_same_v<T, wchar_t> || (conv.length_mod() == LengthMod::l))
                  ? ConvertWCharTImpl(static_cast<wchar_t>(v), conv, sink)
                  : ConvertCharImpl(static_cast<char>(v), conv, sink);
 

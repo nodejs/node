@@ -564,7 +564,7 @@ void OS::ExitProcess(int exit_code) {
 // for output. However, if the application is linked as a GUI application,
 // the process doesn't have a console, and therefore (debugging) output is lost.
 // This is the case if we are embedded in a windows program (like a browser).
-// In order to be able to get debug output in this case the the debugging
+// In order to be able to get debug output in this case the debugging
 // facility using OutputDebugString. This output goes to the active debugger
 // for the process (if any). Else the output can be monitored using DBMON.EXE.
 
@@ -610,7 +610,7 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
 }
 
 // Convert utf-8 encoded string to utf-16 encoded.
-static std::wstring ConvertUtf8StringToUtf16(const char* str) {
+std::wstring OS::ConvertUtf8StringToUtf16(const char* str) {
   // On Windows wchar_t must be a 16-bit value.
   static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
   std::wstring utf16_str;
@@ -1880,6 +1880,57 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   return reinterpret_cast<void*>(highLimit);
 #else
 #error Unsupported ObtainCurrentThreadStackStart.
+#endif
+}
+
+// static
+Stack::StackSlot Stack::GetCommittedStackLimit() {
+#if defined(V8_TARGET_ARCH_X64)
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackLimit);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackLimit);
+#elif defined(V8_TARGET_ARCH_ARM64)
+  ULONG_PTR lowLimit, highLimit;
+  ::GetCurrentThreadStackLimits(&lowLimit, &highLimit);
+  return reinterpret_cast<void*>(lowLimit);
+#else
+#error Unsupported GetCommittedStackLimit.
+#endif
+}
+
+// static
+Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
+  // On Windows, "StackLimit" (see function above) is the limit of the stack
+  // pages committed so far and grows dynamically. The absolute limit of the
+  // reserved stack memory is called "DeallocationStack". It does not have an
+  // associated symbol in the struct, and its offset is not very well
+  // documented, but it has been stable for a long time.
+  // Sources for the offsets:
+  // https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
+  // https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/pebteb/teb/index.htm
+#ifdef V8_TARGET_ARCH_64_BIT
+  constexpr unsigned kDeallocationStackOffset = 0x1478;
+#else
+  constexpr unsigned kDeallocationStackOffset = 0xe0c;
+#endif
+  return *reinterpret_cast<void**>(reinterpret_cast<char*>(NtCurrentTeb()) +
+                                   kDeallocationStackOffset);
+}
+
+// static
+void Stack::SetCurrentThreadStackBounds(uintptr_t limit, uintptr_t base) {
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+  reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase = base;
+  reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackLimit = limit;
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackBase =
+      reinterpret_cast<void*>(base);
+  reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackLimit =
+      reinterpret_cast<void*>(limit);
+#else
+#error Unsupported SetCurrentThreadStackBounds.
 #endif
 }
 

@@ -116,8 +116,9 @@ class MutablePage : public BasePage {
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
-    if constexpr (access_mode == AccessMode::ATOMIC)
+    if constexpr (access_mode == AccessMode::ATOMIC) {
       return base::AsAtomicPointer::Acquire_Load(&slot_set_[type]);
+    }
     return slot_set_[type];
   }
 
@@ -128,8 +129,9 @@ class MutablePage : public BasePage {
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   TypedSlotSet* typed_slot_set() {
-    if constexpr (access_mode == AccessMode::ATOMIC)
+    if constexpr (access_mode == AccessMode::ATOMIC) {
       return base::AsAtomicPointer::Acquire_Load(&typed_slot_set_[type]);
+    }
     return typed_slot_set_[type];
   }
 

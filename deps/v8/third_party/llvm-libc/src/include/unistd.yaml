@@ -1,0 +1,438 @@
+header: unistd.h
+standards:
+  - posix
+macros:
+  - macro_name: SEEK_SET
+    macro_header: file-seek-macros.h
+  - macro_name: SEEK_CUR
+    macro_header: file-seek-macros.h
+  - macro_name: SEEK_END
+    macro_header: file-seek-macros.h
+  - macro_name: STDIN_FILENO
+    macro_header: unistd-macros.h
+  - macro_name: STDOUT_FILENO
+    macro_header: unistd-macros.h
+  - macro_name: STDERR_FILENO
+    macro_header: unistd-macros.h
+  - macro_name: _SC_ARG_MAX
+    macro_header: unistd-macros.h
+  - macro_name: _SC_PAGESIZE
+    macro_header: unistd-macros.h
+  - macro_name: _SC_PAGE_SIZE
+    macro_header: unistd-macros.h
+  - macro_name: _SC_OPEN_MAX
+    macro_header: unistd-macros.h
+  - macro_name: _SC_THREADS
+    macro_header: unistd-macros.h
+  - macro_name: _SC_NPROCESSORS_CONF
+    macro_header: unistd-macros.h
+  - macro_name: _SC_NPROCESSORS_ONLN
+    macro_header: unistd-macros.h
+  - macro_name: _SC_PHYS_PAGES
+    macro_header: unistd-macros.h
+  - macro_name: _POSIX_THREADS
+    macro_header: unistd-macros.h
+types:
+  - type_name: uid_t
+  - type_name: gid_t
+  - type_name: ssize_t
+  - type_name: size_t
+  - type_name: pid_t
+  - type_name: off_t
+  - type_name: __getoptargv_t
+  - type_name: __exec_envp_t
+  - type_name: __exec_argv_t
+enums: []
+objects:
+  - object_name: environ
+    object_type: char **
+  - object_name: optarg
+    object_type: char *
+  - object_name: optind
+    object_type: int
+  - object_name: opterr
+    object_type: int
+  - object_name: optopt
+    object_type: int
+functions:
+  - name: __llvm_libc_syscall
+    standards:
+      - posix
+    return_type: long
+    arguments:
+      - type: long
+      - type: long
+      - type: long
+      - type: long
+      - type: long
+      - type: long
+      - type: long
+  - name: _exit
+    standards:
+      - posix
+    return_type: _Noreturn void
+    arguments:
+      - type: int
+  - name: alarm
+    standards:
+      - posix
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: access
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: int
+  - name: chdir
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: chown
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: uid_t
+      - type: gid_t
+  - name: close
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: dup
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: dup2
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: dup3
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: int
+  - name: execv
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: __exec_argv_t
+  - name: execve
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: __exec_argv_t
+      - type: __exec_envp_t
+  - name: faccessat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: int
+      - type: int
+  - name: fchdir
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: fchown
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: uid_t
+      - type: gid_t
+  - name: fpathconf
+    standards:
+      - posix
+    return_type: long
+    arguments:
+      - type: int
+      - type: int
+  - name: fork
+    standards:
+      - posix
+    return_type: pid_t
+    arguments:
+      - type: void
+  - name: fsync
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: ftruncate
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: off_t
+  - name: getcwd
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: char *
+      - type: size_t
+  - name: getentropy
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+  - name: geteuid
+    standards:
+      - posix
+    return_type: uid_t
+    arguments:
+      - type: void
+  - name: gethostname
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: char *
+      - type: size_t
+  - name: getpagesize
+    standards:
+      - bsd
+    return_type: int
+    arguments:
+      - type: void
+  - name: getopt
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: __getoptargv_t
+      - type: const char *
+  - name: getpid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void
+  - name: getppid
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void
+  - name: getsid
+    standards:
+      - posix
+    return_type: pid_t
+    arguments:
+      - type: pid_t
+  - name: gettid
+    standards:
+      - linux
+    return_type: pid_t
+    arguments:
+      - type: void
+  - name: getuid
+    standards:
+      - posix
+    return_type: uid_t
+    arguments:
+      - type: void
+  - name: getgid
+    standards:
+      - posix
+    return_type: gid_t
+    arguments:
+      - type: void
+  - name: isatty
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+    guard: null
+    attributes: []
+  - name: link
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: linkat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: int
+      - type: const char *
+      - type: int
+  - name: lseek
+    standards:
+      - posix
+    return_type: off_t
+    arguments:
+      - type: int
+      - type: off_t
+      - type: int
+  - name: pathconf
+    standards:
+      - posix
+    return_type: long
+    arguments:
+      - type: const char *
+      - type: int
+  - name: pipe
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int *
+  - name: pipe2
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int *
+      - type: int
+  - name: pread
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: void *
+      - type: size_t
+      - type: off_t
+  - name: pwrite
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const void *
+      - type: size_t
+      - type: off_t
+  - name: read
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: void *
+      - type: size_t
+  - name: readlink
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: const char *__restrict
+      - type: char *__restrict
+      - type: size_t
+  - name: readlinkat
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const char *__restrict
+      - type: char *__restrict
+      - type: size_t
+  - name: rmdir
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: swab
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: const void *__restrict
+      - type: void *
+      - type: ssize_t
+  - name: setsid
+    standards:
+      - posix
+    return_type: pid_t
+    arguments:
+      - type: void
+  - name: symlink
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: symlinkat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: int
+      - type: const char *
+  - name: sysconf
+    standards:
+      - posix
+    return_type: long
+    arguments:
+      - type: int
+  - name: truncate
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: off_t
+  - name: unlink
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: unlinkat
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: int
+  - name: write
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const void *
+      - type: size_t
+    guard: null
+    attributes: []

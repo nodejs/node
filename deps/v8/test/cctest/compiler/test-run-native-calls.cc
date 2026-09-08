@@ -138,9 +138,9 @@ class Allocator {
   }
   void Reset() {
     stack_offset_ = 0;
-    reg_allocator_.reset(
-        new wasm::LinkageAllocator(gp_.data(), static_cast<int>(gp_.size()),
-                                   fp_.data(), static_cast<int>(fp_.size())));
+    reg_allocator_.reset(new wasm::LinkageAllocator(
+        gp_.data(), static_cast<int>(gp_.size()), fp_.data(),
+        static_cast<int>(fp_.size()), nullptr, 0));
   }
 
  private:
