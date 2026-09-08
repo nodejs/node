@@ -34,7 +34,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-let ready = 0;
+let opened = 0;
 
 // First uni stream opens immediately.
 const s1 = await clientSession.createUnidirectionalStream({
@@ -42,8 +42,8 @@ const s1 = await clientSession.createUnidirectionalStream({
 });
 
 // eslint-disable-next-line node-core/must-call-assert
-s1.ready.then(() => {
-  ready++;
+s1.opened.then(() => {
+  opened++;
 });
 
 // Second uni stream is pending (limit = 1).
@@ -52,17 +52,17 @@ const s2 = await clientSession.createUnidirectionalStream({
 });
 
 // eslint-disable-next-line node-core/must-call-assert
-s2.ready.then(() => {
-  ready++;
+s2.opened.then(() => {
+  opened++;
 });
-assert.strictEqual(ready, 1);
+assert.strictEqual(opened, 1);
 
 assert.strictEqual(s2.pending, true);
 
 // Wait for both to complete.
 await s1.closed;
 await allDone.promise;
-assert.strictEqual(ready, 2);
+assert.strictEqual(opened, 2);
 await s2.closed;
 
 await clientSession.close();

@@ -38,7 +38,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-let ready = 0;
+let opened = 0;
 
 // First stream opens immediately (within the limit).
 const s1 = await clientSession.createBidirectionalStream({
@@ -46,8 +46,8 @@ const s1 = await clientSession.createBidirectionalStream({
 });
 
 // eslint-disable-next-line node-core/must-call-assert
-s1.ready.then(() => {
-  ready++;
+s1.opened.then(() => {
+  opened++;
 });
 
 // Second stream is created but queued as pending because the
@@ -57,14 +57,14 @@ const s2 = await clientSession.createBidirectionalStream({
 });
 
 // eslint-disable-next-line node-core/must-call-assert
-s2.ready.then(() => {
-  ready++;
+s2.opened.then(() => {
+  opened++;
 });
 
 // s2 should be pending until s1 closes and the server grants
 // more stream credits.
 assert.strictEqual(s2.pending, true);
-assert.strictEqual(ready, 1);
+assert.strictEqual(opened, 1);
 
 // Drain and close the first stream.
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
@@ -73,7 +73,7 @@ await s1.closed;
 // After s1 closes, the server sends MAX_STREAMS which opens s2.
 // Wait for the server to receive both streams.
 await allDone.promise;
-assert.strictEqual(ready, 2);
+assert.strictEqual(opened, 2);
 
 // s2 should no longer be pending.
 for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars

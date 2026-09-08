@@ -1921,7 +1921,7 @@ Either `'application'` or `'transport'`. Indicates the namespace of
 added: v23.8.0
 -->
 
-### `stream.ready`
+### `stream.open`
 
 <!-- YAML
 added: REPLACEME
