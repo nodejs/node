@@ -36,6 +36,7 @@ import { SignalWrapBinding } from './internalBinding/signal_wrap';
 import { StreamPipeBinding } from './internalBinding/stream_pipe';
 import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
+import { TaskQueueBinding } from './internalBinding/task_queue';
 import { TimersBinding } from './internalBinding/timers';
 import { TypesBinding } from './internalBinding/types';
 import { URLBinding } from './internalBinding/url';
@@ -86,6 +87,7 @@ interface InternalBindingMap {
   stream_pipe: StreamPipeBinding;
   string_decoder: StringDecoderBinding;
   symbols: SymbolsBinding;
+  task_queue: TaskQueueBinding;
   timers: TimersBinding;
   types: TypesBinding;
   url: URLBinding;
