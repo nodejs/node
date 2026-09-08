@@ -1,6 +1,8 @@
 import platform
 import sys
 import os
+import shutil
+import subprocess
 
 # TODO: In next version, it will be a JSON file listing all the patches, and then it will iterate through to apply them.
 def patch_android():
@@ -18,8 +20,8 @@ if len(sys.argv) == 2 and sys.argv[1] == "patch":
     patch_android()
     sys.exit(0)
 
-if len(sys.argv) != 4:
-    print("Usage: ./android-configure [patch] <path to the Android NDK> <Android SDK version> <target architecture>")
+if len(sys.argv) < 4:
+    print("Usage: ./android-configure [patch] <path to the Android NDK> <Android SDK version> <target architecture> [configure options...]")
     sys.exit(1)
 
 if not os.path.exists(sys.argv[1]) or not os.listdir(sys.argv[1]):
@@ -33,6 +35,7 @@ if int(sys.argv[2]) < 24:
 android_ndk_path = sys.argv[1]
 android_sdk_version = sys.argv[2]
 arch = sys.argv[3]
+configure_options = sys.argv[4:]
 
 if arch == "arm":
     DEST_CPU = "arm"
@@ -63,8 +66,26 @@ elif platform.system() == "Linux":
     toolchain_path = android_ndk_path + "/toolchains/llvm/prebuilt/linux-x86_64"
 
 os.environ['PATH'] += os.pathsep + toolchain_path + "/bin"
-os.environ['CC'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" +  "clang"
-os.environ['CXX'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" + "clang++"
+target_cc = os.path.join(toolchain_path, "bin",
+                         TOOLCHAIN_PREFIX + android_sdk_version + "-clang")
+target_cxx = os.path.join(toolchain_path, "bin",
+                          TOOLCHAIN_PREFIX + android_sdk_version + "-clang++")
+
+# configure.py uses CC/CXX for compiler detection, while GYP uses the
+# toolset-specific variables when generating host and target rules.
+os.environ['CC_target'] = (os.environ.get('CC_target') or
+                           os.environ.get('CC') or target_cc)
+os.environ['CXX_target'] = (os.environ.get('CXX_target') or
+                            os.environ.get('CXX') or target_cxx)
+os.environ['CC'] = os.environ['CC_target']
+os.environ['CXX'] = os.environ['CXX_target']
+
+host_cc_name = 'cc' if platform.system() == "Darwin" else 'gcc'
+host_cxx_name = 'c++' if platform.system() == "Darwin" else 'g++'
+os.environ['CC_host'] = (os.environ.get('CC_host') or
+                          shutil.which(host_cc_name) or host_cc_name)
+os.environ['CXX_host'] = (os.environ.get('CXX_host') or
+                           shutil.which(host_cxx_name) or host_cxx_name)
 
 GYP_DEFINES = "target_arch=" + arch
 GYP_DEFINES += " v8_target_arch=" + arch
@@ -74,4 +95,11 @@ GYP_DEFINES += " android_ndk_path=" + android_ndk_path
 os.environ['GYP_DEFINES'] = GYP_DEFINES
 
 if os.path.exists("./configure"):
-    os.system("./configure --dest-cpu=" + DEST_CPU + " --dest-os=android --openssl-no-asm --cross-compiling")
+    command = [
+        "./configure",
+        "--dest-cpu=" + DEST_CPU,
+        "--dest-os=android",
+        "--openssl-no-asm",
+        "--cross-compiling",
+    ] + configure_options
+    subprocess.run(command, check=True)
