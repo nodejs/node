@@ -490,6 +490,10 @@ generated commit message will not have a subsystem and might violate line length
 rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
 metadata. Raise a pull request like any other change.
 
+Apply `dont-land-on-v?.x` labels to the revert pull request and to its
+corresponding original pull request,
+unless the original pull request has already been backported.
+
 ### Introducing new modules
 
 Treat commits that introduce new core modules with extra care.
