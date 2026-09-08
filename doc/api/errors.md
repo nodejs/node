@@ -417,7 +417,7 @@ example, `'AbortError'`). Unlike most errors in Node.js, the
 
 Node.js-specific APIs that support {AbortSignal} (such as
 [`events.once()`][]) throw a Node.js `AbortError` (a native {errors.Error} with
-`name` of `'AbortError'` and `code` of [`'ABORT_ERR'`][]) rather than a
+`name` of `'AbortError'` and `code` of [`'ABORT_ERR'`][ABORT_ERR]) rather than a
 {DOMException}. To identify abort errors in either case, checking
 `err?.name === 'AbortError'` is sufficient.
 
@@ -4653,6 +4653,7 @@ The public key in the certificate SubjectPublicKeyInfo could not be read.
 
 An error occurred trying to allocate memory. This should never happen.
 
+[ABORT_ERR]: #abort_err
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
@@ -4669,7 +4670,6 @@ An error occurred trying to allocate memory. This should never happen.
 [Web IDL error names]: https://webidl.spec.whatwg.org/#dfn-error-names-table
 [`"exports"`]: packages.md#exports
 [`"imports"`]: packages.md#imports
-[`'ABORT_ERR'`]: #abort_err
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--disable-proto=throw`]: cli.md#--disable-protomode
 [`--force-fips`]: cli.md#--force-fips
