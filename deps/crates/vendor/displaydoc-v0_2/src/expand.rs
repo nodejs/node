@@ -9,7 +9,7 @@ use syn::{
     TypeParamBound, TypePath, WhereClause, WherePredicate,
 };
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub(crate) fn derive(input: &DeriveInput) -> Result<TokenStream> {
     let impls = match &input.data {
@@ -92,11 +92,12 @@ fn impl_struct(input: &DeriveInput, data: &DataStruct) -> Result<TokenStream> {
         quote! {
             impl #impl_generics ::core::fmt::Display for #ty #ty_generics #where_clause {
                 fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                    // NB: This destructures the fields of `self` into named variables (for unnamed
-                    // fields, it uses _0, _1, etc as above). The `#[allow(unused_variables)]`
-                    // section means it doesn't have to parse the individual field references out of
-                    // the docstring.
-                    #[allow(unused_variables)]
+                    // NB: This destructures the fields of `self` into named
+                    // variables (for unnamed fields, it uses _0, _1, etc as
+                    // above). The `#[allow(unused_variables, unused_assignments)]`
+                    // section means it doesn't have to parse the individual field
+                    // references out of the docstring.
+                    #[allow(unused_variables, unused_assignments)]
                     let #pat = self;
                     #display
                 }
@@ -224,9 +225,9 @@ fn add_display_constraint_to_type_predicate(
 fn extract_trait_constraints_from_source(
     where_clause: &WhereClause,
     type_params: &[&TypeParam],
-) -> HashMap<Ident, Vec<TraitBound>> {
+) -> BTreeMap<Ident, Vec<TraitBound>> {
     // Add trait bounds provided at the declaration site of type parameters for the struct/enum.
-    let mut param_constraint_mapping: HashMap<Ident, Vec<TraitBound>> = type_params
+    let mut param_constraint_mapping: BTreeMap<Ident, Vec<TraitBound>> = type_params
         .iter()
         .map(|type_param| {
             let trait_bounds: Vec<TraitBound> = type_param
@@ -396,7 +397,7 @@ fn impl_enum(input: &DeriveInput, data: &DataEnum) -> Result<TokenStream> {
         Ok(quote! {
             impl #impl_generics ::core::fmt::Display for #ty #ty_generics #where_clause {
                 fn fmt(&self, formatter: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                    #[allow(unused_variables)]
+                    #[allow(unused_variables, unused_assignments)]
                     match self {
                         #(#arms,)*
                     }
