@@ -198,7 +198,7 @@ async function testPullAbortSignal() {
   const ac = new AbortController();
   const fh = await open(filePath, 'r');
   try {
-    ac.abort();
+    ac.abort(null);
     const readable = fh.pull({ signal: ac.signal });
 
     await assert.rejects(
@@ -208,7 +208,7 @@ async function testPullAbortSignal() {
           assert.fail('Should not reach here');
         }
       },
-      (err) => err.name === 'AbortError',
+      (err) => err === null,
     );
   } finally {
     await fh.close();

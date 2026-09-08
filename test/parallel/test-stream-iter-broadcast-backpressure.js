@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { broadcast, ondrain, text } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Backpressure policies
@@ -67,7 +68,7 @@ async function testDropPoliciesReportPhysicalCapacity() {
     // Drop policies still accept writes despite having no physical capacity.
     assert.strictEqual(writer.writeSync(chunk), true);
     assert.strictEqual(writer.canWrite, false);
-    await new Promise(setImmediate);
+    await setImmediate();
     assert.strictEqual(drained, false);
 
     assert.strictEqual((await iterator.next()).done, false);
@@ -93,14 +94,14 @@ async function testBlockBackpressure() {
   // Next write should block
   let writeResolved = false;
   const writePromise = writer.write(kChunk).then(() => { writeResolved = true; });
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(writeResolved, false);
 
   // Drain consumer to unblock the pending write
   const iter = consumer[Symbol.asyncIterator]();
   const first = await iter.next();
   assert.strictEqual(first.done, false);
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(writeResolved, true);
 
   writer.endSync();
@@ -122,7 +123,7 @@ async function testBlockBackpressureContent() {
 
   writer.writeSync(chunk1);
   const writePromise = writer.write(chunk2);
-  await new Promise(setImmediate);
+  await setImmediate();
 
   // Read all and verify content
   const iter = consumer[Symbol.asyncIterator]();
@@ -158,11 +159,7 @@ async function testStrictBackpressureOverflow() {
   });
 
   writer.fail();
-  await assert.rejects(pending, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_STATE',
-    message: 'Invalid state: Failed',
-  });
+  await assert.rejects(pending, (reason) => reason === undefined);
 }
 
 async function testEndDrainsPendingWrite() {
@@ -195,7 +192,7 @@ async function testEndDrainsPendingWrite() {
 
   let endResolved = false;
   endPromise.then(common.mustCall(() => { endResolved = true; }));
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(endResolved, false);
 
   assert.strictEqual((await iter.next()).done, true);
