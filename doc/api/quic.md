@@ -322,9 +322,14 @@ There are two ways to write data to a stream:
 * **Writer** — access [`stream.writer`][] to push data incrementally. The
   writer exposes synchronous methods (`writeSync()`, `writevSync()`,
   `endSync()`) that return immediately, as well as async equivalents
-  (`write()`, `writev()`, `end()`) that wait for drain when backpressured.
+  (`write()`, `writev()`, `end()`). The asynchronous write methods use the
+  stream/iter strict backpressure policy: when the write buffer is full, they
+  reject with `ERR_INVALID_STATE` instead of waiting for capacity. Check
+  `writer.canWrite` before writing and use the stream's `onblocked` callback
+  to observe when flow control prevents progress, retrying once capacity is
+  available again.
   `writeSync()` returns `false` when the write buffer is full; the caller
-  should wait for drain before retrying.
+  should also wait for `onblocked` before retrying.
 
 These two approaches are mutually exclusive for a given stream.
 
@@ -2436,10 +2441,13 @@ The Writer has the following methods:
 
 * `writeSync(chunk)` — Synchronous write. Returns `true` if accepted,
   `false` if flow-controlled. Data is NOT accepted on `false`.
-* `write(chunk[, options])` — Async write with drain wait. `options.signal`
-  is checked at entry but not observed during the write.
+* `write(chunk[, options])` — Async write. Rejects with `ERR_INVALID_STATE`
+  when the stream is flow-controlled rather than waiting for capacity.
+  `options.signal` is checked at entry but not observed during the write.
 * `writevSync(chunks)` — Synchronous vectored write. All-or-nothing.
-* `writev(chunks[, options])` — Async vectored write.
+* `writev(chunks[, options])` — Async vectored write. Rejects with
+  `ERR_INVALID_STATE` when the stream is flow-controlled rather than waiting
+  for capacity.
 * `endSync()` — Synchronous close. Returns total bytes or `-1`.
 * `end([options])` — Async close.
 * `fail(reason)` — Errors the stream (sends `RESET_STREAM` to peer).
@@ -2451,7 +2459,8 @@ The Writer has the following methods:
   See [`stream.destroy()`][] for a full-stream abort that also resets
   the readable side via `STOP_SENDING`.
 * `canWrite` — `true` if writes will be accepted, `false` if at capacity,
-  or `null` if closed/errored.
+  or `null` if closed/errored. Use this property with `stream.onblocked` to
+  avoid attempting an asynchronous write while the stream is flow-controlled.
 
 The bytes from each `writeSync()` / `writevSync()` / `write()` / `writev()`
 input chunk are copied into an internal buffer, so the caller's source
