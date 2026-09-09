@@ -2985,6 +2985,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version:
      - v26.8.0
      - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/63851
@@ -3123,6 +3124,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version:
      - v26.8.0
      - v24.21.0
     pr-url: https://github.com/nodejs/node/pull/63851
