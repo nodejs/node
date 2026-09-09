@@ -462,6 +462,42 @@ test('database.applyChangeset() - changeset detached by filter', (t) => {
   ]);
 });
 
+test('database.applyChangeset() - changeset detached by SQL function', (t) => {
+  const database1 = new DatabaseSync(':memory:');
+  const database2 = new DatabaseSync(':memory:');
+  let changeset;
+  let detached = false;
+
+  database1.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+  database2.function('validate_changeset_value', (value) => {
+    if (!detached) {
+      detached = true;
+      const transferred = structuredClone(changeset.buffer, {
+        transfer: [changeset.buffer],
+      });
+      new Uint8Array(transferred).fill(0);
+    }
+    return value.length;
+  });
+  database2.exec(`
+    CREATE TABLE data(
+      key INTEGER PRIMARY KEY,
+      value TEXT CHECK (validate_changeset_value(value))
+    )
+  `);
+
+  const session = database1.createSession();
+  database1.exec("INSERT INTO data VALUES (1, 'hello'), (2, 'world')");
+  changeset = session.changeset();
+
+  t.assert.strictEqual(database2.applyChangeset(changeset), true);
+  t.assert.strictEqual(changeset.byteLength, 0);
+  deepStrictEqual(t)(database2.prepare('SELECT * FROM data').all(), [
+    { key: 1, value: 'hello' },
+    { key: 2, value: 'world' },
+  ]);
+});
+
 test('database.createSession() - filter changes', (t) => {
   const database1 = new DatabaseSync(':memory:');
   const database2 = new DatabaseSync(':memory:');
