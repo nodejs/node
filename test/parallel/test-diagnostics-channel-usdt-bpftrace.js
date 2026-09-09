@@ -18,7 +18,7 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fixtures = require('../common/fixtures');
 
-// bpftrace requires root.
+// The bpftrace tool requires root to attach uprobes.
 if (process.getuid() !== 0)
   common.skip('bpftrace requires root privileges');
 
@@ -28,7 +28,7 @@ if (bpftrace.error)
 
 const fixtureScript = fixtures.path('diagnostics-channel-usdt-publish.js');
 
-// bpftrace program: attach to the dc__publish probe, print the channel name,
+// The bpftrace program: attach to the dc__publish probe, print the channel name,
 // then exit after the traced process finishes.
 const bpfProgram = `
 usdt:${process.execPath}:node:dc__publish {
@@ -44,8 +44,7 @@ const result = spawnSync('bpftrace', [
   encoding: 'utf-8',
 });
 
-if (result.error)
-  throw result.error;
+assert.ifError(result.error);
 
 if (result.status !== 0) {
   const stderr = result.stderr || '';
