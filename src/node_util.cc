@@ -498,6 +498,25 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   {
+    const Local<Object> prototype =
+        SharedArrayBuffer::New(isolate, 0)->GetPrototypeV2().As<Object>();
+    const Local<Object> descriptor =
+        prototype
+            ->GetOwnPropertyDescriptor(
+                context, FIXED_ONE_BYTE_STRING(isolate, "growable"))
+            .ToLocalChecked()
+            .As<Object>();
+    const Local<Value> getter =
+        descriptor->Get(context, env->get_string()).ToLocalChecked();
+    CHECK(getter->IsFunction());
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "getSharedArrayBufferGrowable"),
+              getter)
+        .Check();
+  }
+
+  {
     Local<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
 #define V(PropertyName, _)                                                     \
   tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #PropertyName),              \
