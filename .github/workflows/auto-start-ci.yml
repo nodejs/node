@@ -1,7 +1,7 @@
 # This action uses the following secrets:
 #   JENKINS_USER: GitHub user whose Jenkins token is defined below
-#   JENKINS_TOKEN: Jenkins token, to be used to start CI
-name: Auto Start CI
+#   JENKINS_TOKEN: Jenkins token, to be used to start or resume CI
+name: Auto Start or Resume CI
 
 on:
   schedule:
@@ -27,13 +27,21 @@ jobs:
     runs-on: ubuntu-slim
     outputs:
       numbers: ${{ steps.get_prs_for_ci.outputs.numbers }}
+      resume_numbers: ${{ steps.get_prs_for_ci.outputs.resume_numbers }}
     steps:
       - name: Get Pull Requests
         id: get_prs_for_ci
-        run: >
+        run: |
           echo "numbers=$(gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
                   --label 'request-ci' \
+                  --json 'number' \
+                  --search 'review:approved' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 5)" >> "$GITHUB_OUTPUT"
+          echo "resume_numbers=$(gh pr list \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --label 'resume-ci' \
                   --json 'number' \
                   --search 'review:approved' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
@@ -47,7 +55,9 @@ jobs:
       pull-requests: write
       statuses: read
     needs: get-prs-for-ci
-    if: needs.get-prs-for-ci.outputs.numbers != ''
+    if: >-
+      needs.get-prs-for-ci.outputs.numbers != '' ||
+      needs.get-prs-for-ci.outputs.resume_numbers != ''
     runs-on: ubuntu-slim
     steps:
       - name: Install Node.js
@@ -71,8 +81,17 @@ jobs:
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the CI
+        if: needs.get-prs-for-ci.outputs.numbers != ''
         run: |
           curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
           | sh -s -- ${{ needs.get-prs-for-ci.outputs.numbers }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Resume the CI
+        if: needs.get-prs-for-ci.outputs.resume_numbers != ''
+        run: |
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/resume-ci.sh" \
+          | sh -s -- ${{ needs.get-prs-for-ci.outputs.resume_numbers }}
         env:
           GH_TOKEN: ${{ github.token }}
