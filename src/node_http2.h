@@ -39,6 +39,8 @@ constexpr size_t kDefaultMaxSettings = 10;
 // Default maximum total memory cap for Http2Session.
 constexpr uint64_t kDefaultMaxSessionMemory = 10000000;
 
+constexpr int32_t kDefaultConnectionWindowSize = 65535;
+
 // These are the standard HTTP/2 defaults as specified by the RFC
 constexpr uint32_t DEFAULT_SETTINGS_HEADER_TABLE_SIZE = 4096;
 constexpr uint32_t DEFAULT_SETTINGS_ENABLE_PUSH = 1;
@@ -236,9 +238,16 @@ class Http2Options {
     return max_session_memory_;
   }
 
+  void set_connection_window_size(int32_t size) {
+    connection_window_size_ = size;
+  }
+
+  int32_t connection_window_size() const { return connection_window_size_; }
+
  private:
   Nghttp2OptionPointer options_;
   uint64_t max_session_memory_ = kDefaultMaxSessionMemory;
+  int32_t connection_window_size_ = kDefaultConnectionWindowSize;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   PaddingStrategy padding_strategy_ = PADDING_STRATEGY_NONE;
   size_t max_outstanding_pings_ = kDefaultMaxPings;
