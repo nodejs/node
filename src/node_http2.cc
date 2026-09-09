@@ -217,6 +217,11 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
         static_cast<size_t>(buffer[IDX_OPTIONS_MAX_SETTINGS]));
   }
 
+  if (flags & (1 << IDX_OPTIONS_CONNECTION_WINDOW_SIZE)) {
+    set_connection_window_size(
+        static_cast<int32_t>(buffer[IDX_OPTIONS_CONNECTION_WINDOW_SIZE]));
+  }
+
   if ((flags & (1 << IDX_OPTIONS_STREAM_RESET_BURST)) &&
       (flags & (1 << IDX_OPTIONS_STREAM_RESET_RATE))) {
     nghttp2_option_set_stream_reset_rate_limit(
@@ -612,15 +617,13 @@ Http2Session::Http2Session(Http2State* http2_state,
       &alloc_info), 0);
   session_.reset(session);
 
-  // Increase the default local connection window to improve throughput
-  // on high-latency connections. The default 64KB window limits throughput
-  // to window_size / RTT. With a 32MB connection window, throughput is
-  // significantly improved. See https://github.com/nodejs/node/issues/38426
+  // The default connection window is larger than the 64KB required by the
+  // spec to improve throughput on high-latency connections, where throughput
+  // is limited to window_size / RTT. User settings have to be applied here
+  // initially rather than updating later as windows cannot be shrunk after
+  // they've been advertised.
   CHECK_EQ(nghttp2_session_set_local_window_size(
-               session,
-               NGHTTP2_FLAG_NONE,
-               0,
-               DEFAULT_SETTINGS_LOCAL_CONNECTION_WINDOW_SIZE),
+               session, NGHTTP2_FLAG_NONE, 0, opts.connection_window_size()),
            0);
 
   outgoing_storage_.reserve(1024);
