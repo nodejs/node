@@ -86,6 +86,9 @@ const vfs = require('node:vfs');
 
   // FileHandle via fsp.open
   const handle = await fsp.open(p('src/hello.txt'), 'r');
+  assert.strictEqual(handle.constructor.name, 'FileHandle');
+  assert.strictEqual(typeof handle.fd, 'number');
+  assert.strictEqual(typeof handle.createReadStream, 'function');
   assert.strictEqual(await handle.readFile('utf8'), 'hello');
   await handle.close();
 
