@@ -1307,8 +1307,10 @@ void TLSWrap::ScheduleDeferredCycle() {
 void TLSWrap::FlushPendingShutdown() {
   if (!pending_shutdown_ || !ssl_) return;
 
-  if (!SSL_is_init_finished(ssl_.get())) {
-    Debug(this, "Holding deferred shutdown, handshake still in progress");
+  const bool can_send_close_notify =
+      SSL_is_init_finished(ssl_.get()) && !is_awaiting_new_session();
+  if (!can_send_close_notify) {
+    Debug(this, "Holding deferred shutdown, cannot send close_notify yet");
     return;
   }
 
