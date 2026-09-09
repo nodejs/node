@@ -2681,12 +2681,11 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // A callback may detach/modify the input buffer mid-apply, so copy it.
-  // With no callbacks, no JS runs during sqlite3changeset_apply(), so no
-  // copy is needed.
+  // SQLite may invoke JavaScript through explicit callbacks or user-defined
+  // SQL functions while applying the changeset. Copy the input so JavaScript
+  // cannot detach or modify the memory while SQLite is still reading it.
   std::unique_ptr<BackingStore> changeset;
-  if (buf.length() > 0 &&
-      (context.filterCallback || context.conflictCallback)) {
+  if (buf.length() > 0) {
     changeset = ArrayBuffer::NewBackingStore(
         env->isolate(),
         buf.length(),
