@@ -2,6 +2,9 @@ import '../common/index.mjs';
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert';
 import { cp } from 'node:fs/promises';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir as osTmpdir } from 'node:os';
+import { join } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
 import { spawnSyncAndAssert } from '../common/child_process.js';
@@ -95,6 +98,112 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     }, {
       stderr: '',
       stdout: assertDefaultExclusions,
+    });
+  });
+
+  it('should not exclude files based on ancestor directories named "test"', async () => {
+    // Regression test for https://github.com/nodejs/node/issues/58654: the
+    // default coverage exclusion globs must only be evaluated against paths
+    // relative to the project, never against the absolute filesystem path.
+    // Otherwise, a project living anywhere underneath a directory that
+    // happens to be named "test" (a container WORKDIR, a "test" home
+    // directory, a CI checkout path, etc.) would have every one of its
+    // files spuriously match `**/test/**/*.js` and silently disappear from
+    // the coverage report, even though none of those files are actually
+    // part of the project's own test suite.
+    //
+    // This is deliberately set up outside of `tmpdir.path` (which is nested
+    // under this repository's own `test/` directory as `test/.tmp.N`)
+    // because the `.` prefix on `.tmp.N` happens to block the buggy
+    // absolute-path glob match by itself (globs don't cross dotfile/dotdir
+    // segments unless `dot: true`), which would mask the very bug this test
+    // exists to catch.
+    const base = mkdtempSync(join(osTmpdir(), 'node-test-coverage-ancestor-'));
+    const projectDir = join(base, 'test', 'project');
+    mkdirSync(projectDir, { recursive: true });
+
+    try {
+      await cp(fixtures.path('test-runner', 'coverage-default-exclusion'), projectDir, { recursive: true });
+
+      const args = [
+        '--no-experimental-strip-types',
+        '--test',
+        '--experimental-test-coverage',
+        '--test-reporter=tap',
+      ];
+      spawnSyncAndAssert(process.execPath, args, {
+        env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+        cwd: projectDir,
+      }, {
+        stderr: '',
+        stdout(output) {
+          assertDefaultExclusions(output);
+          // logic-file.js is not a test file and lives directly in the
+          // project root, so it must still be reported with its real
+          // (non-zero, partial) coverage numbers rather than being
+          // silently excluded because an ancestor directory is named
+          // "test".
+          assert.match(output, /# logic-file\.js\s+\|\s*66\.67\s+\|\s*100\.00\s+\|\s*50\.00\s+\|\s*5-7/);
+        },
+      });
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('should exclude a file matched by an absolute --test-coverage-exclude pattern', async () => {
+    // Coverage for the isAbsolute(pattern) branch in createCoverageMatcher:
+    // a pattern that is itself an absolute path must still be matched
+    // against each file's absolute path, even though every relative-style
+    // pattern (including all of the defaults) is now evaluated only
+    // against the cwd-relative path. Passing --test-coverage-exclude
+    // replaces the default exclude patterns entirely, so if the absolute
+    // match didn't work, nothing would be excluded and logic-file.js would
+    // show up in the report.
+    const absoluteLogicFilePath = join(tmpdir.path, 'logic-file.js');
+    const args = [
+      '--no-experimental-strip-types',
+      '--test',
+      '--experimental-test-coverage',
+      `--test-coverage-exclude=${absoluteLogicFilePath}`,
+      '--test-reporter=tap',
+    ];
+    spawnSyncAndAssert(process.execPath, args, {
+      env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+      cwd: tmpdir.path,
+    }, {
+      stderr: '',
+      stdout(output) {
+        assert.match(output, /# start of coverage report/);
+        assert.doesNotMatch(output, /# logic-file\.js\s+\|/);
+        assert.match(output, /# file-test\.js\s+\|/);
+      },
+    });
+  });
+
+  it('should include a file matched by an absolute --test-coverage-include pattern', async () => {
+    // Coverage for the isAbsolute(pattern) branch on the include-glob side:
+    // an absolute --test-coverage-include pattern must match by absolute
+    // path. Combined with the (still relative-only) default exclude
+    // patterns, only logic-file.js should end up in the report.
+    const absoluteLogicFilePath = join(tmpdir.path, 'logic-file.js');
+    const args = [
+      '--no-experimental-strip-types',
+      '--test',
+      '--experimental-test-coverage',
+      `--test-coverage-include=${absoluteLogicFilePath}`,
+      '--test-reporter=tap',
+    ];
+    spawnSyncAndAssert(process.execPath, args, {
+      env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+      cwd: tmpdir.path,
+    }, {
+      stderr: '',
+      stdout(output) {
+        assert.match(output, /# logic-file\.js\s+\|/);
+        assert.doesNotMatch(output, /# file-test\.js\s+\|/);
+        assert.doesNotMatch(output, /# test\.cjs\s+\|/);
+      },
     });
   });
 

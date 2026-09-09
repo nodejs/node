@@ -3046,8 +3046,11 @@ added:
 
 > Stability: 1 - Experimental
 
-Excludes specific files from code coverage using a glob pattern, which can match
-both absolute and relative file paths.
+Excludes specific files from code coverage using a glob pattern. A pattern
+that is itself an absolute path (for example, one starting with `/` or a
+drive letter) is matched against each file's absolute path; any other
+pattern is matched against each file's path relative to the current working
+directory.
 
 This option may be specified multiple times to exclude multiple glob patterns.
 
@@ -3077,8 +3080,11 @@ added:
 
 > Stability: 1 - Experimental
 
-Includes specific files in code coverage using a glob pattern, which can match
-both absolute and relative file paths.
+Includes specific files in code coverage using a glob pattern. A pattern
+that is itself an absolute path (for example, one starting with `/` or a
+drive letter) is matched against each file's absolute path; any other
+pattern is matched against each file's path relative to the current working
+directory.
 
 This option may be specified multiple times to include multiple glob patterns.
 
