@@ -290,11 +290,6 @@ enum class Side : uint8_t {
   SERVER,
 };
 
-enum class EndpointLabel : uint8_t {
-  LOCAL,
-  REMOTE,
-};
-
 enum class Direction : uint8_t {
   BIDIRECTIONAL,
   UNIDIRECTIONAL,
