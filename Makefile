@@ -81,6 +81,23 @@ EXEEXT := $(shell $(PYTHON) -c \
 
 NODE_EXE = node$(EXEEXT)
 NODE_G_EXE = node_g$(EXEEXT)
+
+# Recursive CI targets set this after the main build has completed. Only the
+# expected recursive goals may omit the addon dependency on $(NODE_EXE).
+NODEJS_INTERNAL_CI_AFTER_BUILD :=
+ADDON_NODE_EXE_PREREQ := $(NODE_EXE)
+ifeq ($(origin NODEJS_INTERNAL_CI_AFTER_BUILD),command line)
+ifeq ($(NODEJS_INTERNAL_CI_AFTER_BUILD),1)
+ifneq ($(MAKELEVEL),0)
+ifeq ($(words $(MAKECMDGOALS)),1)
+ifneq ($(filter build-ffi-tests test-ci,$(MAKECMDGOALS)),)
+ADDON_NODE_EXE_PREREQ :=
+endif
+endif
+endif
+endif
+endif
+
 NPM ?= ./deps/npm/bin/npm-cli.js
 
 # Release build of node.
@@ -459,7 +476,7 @@ test/addons/.buildstamp: $(ADDONS_PREREQS) \
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp update.
-build-addons: | $(NODE_EXE) test/addons/.buildstamp ## Build addons for Node.js.
+build-addons: | $(ADDON_NODE_EXE_PREREQ) test/addons/.buildstamp ## Build addons for Node.js.
 
 JS_NATIVE_API_BINDING_GYPS := \
 	$(filter-out test/js-native-api/??_*/binding.gyp, \
@@ -483,7 +500,7 @@ test/js-native-api/.buildstamp: $(ADDONS_PREREQS) \
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
-build-js-native-api-tests: | $(NODE_EXE) test/js-native-api/.buildstamp ## Build JS Native-API tests.
+build-js-native-api-tests: | $(ADDON_NODE_EXE_PREREQ) test/js-native-api/.buildstamp ## Build JS Native-API tests.
 
 NODE_API_BINDING_GYPS := \
 	$(filter-out test/node-api/??_*/binding.gyp, \
@@ -507,7 +524,7 @@ test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
-build-node-api-tests: | $(NODE_EXE) test/node-api/.buildstamp ## Build Node-API tests.
+build-node-api-tests: | $(ADDON_NODE_EXE_PREREQ) test/node-api/.buildstamp ## Build Node-API tests.
 
 BENCHMARK_NAPI_BINDING_GYPS := $(wildcard benchmark/napi/*/binding.gyp)
 
@@ -540,7 +557,7 @@ ifndef NOSQLITE
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
-build-sqlite-tests: | $(NODE_EXE) test/sqlite/.buildstamp ## Build SQLite tests.
+build-sqlite-tests: | $(ADDON_NODE_EXE_PREREQ) test/sqlite/.buildstamp ## Build SQLite tests.
 else
 build-sqlite-tests:
 endif
@@ -552,10 +569,10 @@ FFI_BINDING_SOURCES := \
 	$(wildcard test/ffi/*/*.def)
 
 ifndef NOFFI
-# Depends on $(NODE_EXE) as order-only to avoid ETXTBSY on AIX when make
-# tries to execute node while it is still being linked in parallel.
+# Normally depends on $(NODE_EXE) as order-only to avoid ETXTBSY on AIX when
+# make tries to execute node while it is still being linked in parallel.
 test/ffi/.buildstamp: $(ADDONS_PREREQS) \
-	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES) | $(NODE_EXE)
+	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES) | $(ADDON_NODE_EXE_PREREQ)
 	@$(call run_build_addons,"$$PWD/test/ffi",$@)
 else
 test/ffi/.buildstamp:
@@ -660,7 +677,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 build-ci: ## Build everything (CI).
 	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
 	$(MAKE)
-	$(MAKE) build-ffi-tests
+	$(MAKE) build-ffi-tests NODEJS_INTERNAL_CI_AFTER_BUILD=1
 
 .PHONY: run-ci
 # Run by CI tests, exceptions:
@@ -673,7 +690,7 @@ build-ci: ## Build everything (CI).
 # Using -j1 as the sub target in `test-ci` already have internal parallelism.
 # Refs: https://github.com/nodejs/node/pull/23733
 run-ci: build-ci ## Build and run all tests (CI).
-	$(MAKE) test-ci -j1
+	$(MAKE) test-ci -j1 NODEJS_INTERNAL_CI_AFTER_BUILD=1
 
 .PHONY: test-release
 .PHONY: test-debug
@@ -1476,7 +1493,7 @@ bench bench-all: bench-addons-build
 	$(warning Please use benchmark/run.js or benchmark/compare.js to run the benchmarks.)
 
 .PHONY: bench-addons-build
-bench-addons-build: | $(NODE_EXE) benchmark/napi/.buildstamp ## Build required addons for benchmark before running it.
+bench-addons-build: | $(ADDON_NODE_EXE_PREREQ) benchmark/napi/.buildstamp ## Build required addons for benchmark before running it.
 
 .PHONY: bench-addons-clean
 .NOTPARALLEL: bench-addons-clean
