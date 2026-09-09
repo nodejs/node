@@ -1764,7 +1764,11 @@
         }],
         ['v8_use_perfetto==1', {
           'sources!': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\-= ")',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-writer.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-writer.h',
+            '<(V8_ROOT)/src/tracing/trace-event-no-perfetto.h',
           ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\+= ")',
