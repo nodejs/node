@@ -280,6 +280,7 @@
       'src/node_diagnostics_channel.h',
       'src/node_usdt.h',
       'src/node_provider.d',
+      'src/node_provider_linux.h',
       'src/node_modules.h',
       'src/node_object_wrap.h',
       'src/node_options.h',
@@ -910,37 +911,8 @@
         }],
         [ 'node_use_dtrace=="true"', {
           'defines': [ 'NODE_HAVE_DTRACE=1' ],
-          'conditions': [
-            [ 'OS=="linux"', {
-              'actions': [
-                {
-                  'action_name': 'node_dtrace_header',
-                  'inputs': [ 'src/node_provider.d' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
-                  'action': [
-                    'dtrace', '-h',
-                    '-s', 'src/node_provider.d',
-                    '-o', '<(SHARED_INTERMEDIATE_DIR)/node_provider.h',
-                  ],
-                },
-              ],
-            }, {
-              # macOS, FreeBSD, illumos: native DTrace requires -xnolibs
-              # to avoid loading kernel D libraries during header generation.
-              'actions': [
-                {
-                  'action_name': 'node_dtrace_header',
-                  'inputs': [ 'src/node_provider.d' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
-                  'action': [
-                    'dtrace', '-h', '-xnolibs',
-                    '-s', 'src/node_provider.d',
-                    '-o', '<(SHARED_INTERMEDIATE_DIR)/node_provider.h',
-                  ],
-                },
-              ],
-            }],
-          ],
+          'dependencies': [ 'node_dtrace_header' ],
+          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
         }],
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ],
@@ -1665,6 +1637,33 @@
         }],
       ]
     }, # overlapped-checker
+    {
+      'target_name': 'node_dtrace_header',
+      'type': 'none',
+      'conditions': [
+        [ 'node_use_dtrace=="true"', {
+          'actions': [
+            {
+              # Native DTrace (macOS, opt-in via ./configure
+              # --with-dtrace): generate the probe header at build time.
+              # On Linux the probe header is pre-generated and committed
+              # at src/node_provider_linux.h, so no dtrace tool is
+              # needed there (see tools/usdt/generate_headers.py).
+              # -xnolibs avoids loading standard D libraries during
+              # header generation.
+              'action_name': 'node_dtrace_header',
+              'inputs': [ 'src/node_provider.d' ],
+              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
+              'action': [
+                'dtrace', '-h', '-xnolibs',
+                '-s', '<@(_inputs)',
+                '-o', '<@(_outputs)',
+              ],
+            },
+          ],
+        } ],
+      ],
+    }, # node_dtrace_header
     {
       'target_name': 'nop',
       'type': 'executable',

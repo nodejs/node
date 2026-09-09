@@ -9,16 +9,15 @@
 
 #include <cstdint>
 
-#if defined(NODE_HAVE_DTRACE) && defined(STAP_HAS_SEMAPHORES)
-// Definition of the USDT probe semaphore declared in the dtrace-generated
-// node_provider.h.  STAP_HAS_SEMAPHORES is only defined by the SystemTap
-// dtrace wrapper (Linux), where the .probes ELF section attribute is valid.
-// On macOS/FreeBSD/illumos (native DTrace) there is no semaphore variable;
-// the kernel handles probe enabling directly.
-// The generated header declares this symbol with C++ linkage (no extern "C"
-// wrapper), so this definition must also use C++ linkage to ensure the
-// linker resolves the same mangled symbol.
-unsigned short node_dc__publish_semaphore
+#if NODE_HAVE_USDT && defined(NODE_USDT_HAVE_SEMAPHORE)
+// Definition of the USDT probe semaphore declared in the committed,
+// SystemTap-generated src/node_provider_linux.h (Linux Tier 1).  The
+// .probes ELF section attribute is only valid there.  On native DTrace
+// platforms there is no semaphore variable; the kernel handles probe
+// enabling directly.  The generated header declares this symbol with
+// C++ linkage (no extern "C" wrapper), so this definition must also use
+// C++ linkage to ensure the linker resolves the same mangled symbol.
+unsigned short node_dc__publish_semaphore  // NOLINT(runtime/int)
     __attribute__((section(".probes")));
 #endif
 
@@ -187,7 +186,7 @@ void BindingData::SetupProbeSemaphore(Isolate* isolate, Local<Object> target) {
 #else
   auto backing = ArrayBuffer::NewBackingStore(
       NodeDCPublishSemaphore(),
-      sizeof(unsigned short),
+      sizeof(unsigned short),       // NOLINT(runtime/int)
       [](void*, size_t, void*) {},  // no-op deleter — memory is static
       nullptr);
 #endif
