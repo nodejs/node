@@ -1,6 +1,6 @@
 # This action uses the following secrets:
 #   JENKINS_USER: GitHub user whose Jenkins token is defined below
-#   JENKINS_TOKEN: Jenkins token, to be used to start CI
+#   JENKINS_TOKEN: Jenkins token, to be used to start or resume CI
 name: Auto Start CI
 
 on:
@@ -30,14 +30,14 @@ jobs:
     steps:
       - name: Get Pull Requests
         id: get_prs_for_ci
-        run: >
-          echo "numbers=$(gh pr list \
+        run: |
+          numbers=$(gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
-                  --label 'request-ci' \
                   --json 'number' \
-                  --search 'review:approved' \
+                  --search 'review:approved label:request-ci,resume-ci' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 5)" >> "$GITHUB_OUTPUT"
+                  --limit 5)
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
   start-ci:
@@ -70,7 +70,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
-      - name: Start the CI
+      - name: Start or resume the CI
         run: |
           read -r -a numbers <<< "$PULL_REQUESTS"
           curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
