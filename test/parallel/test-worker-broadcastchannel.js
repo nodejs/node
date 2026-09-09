@@ -183,3 +183,30 @@ assert.throws(() => new BroadcastChannel(), {
     "BroadcastChannel { name: 'channel5', active: false }"
   );
 }
+
+{
+  const bc = new BroadcastChannel('channel6');
+
+  const worker = new Worker(`
+    const { BroadcastChannel } = require('worker_threads');
+
+    const bc = new BroadcastChannel('channel6');
+
+    // Keep the BroadcastChannel alive long enough for the exit
+    // notification to be observed by the parent.
+    setImmediate(() => {
+      process.exit(42);
+    });
+  `, { eval: true });
+
+  bc.onworkerexited = common.mustCall((event) => {
+    assert.strictEqual(event.data.threadId, worker.threadId);
+    assert.strictEqual(event.data.exitCode, 42);
+
+    bc.close();
+  });
+
+  worker.on('exit', common.mustCall((exitCode) => {
+    assert.strictEqual(exitCode, 42);
+  }));
+}
