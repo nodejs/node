@@ -47,6 +47,7 @@ export interface UtilBinding {
   styleText(format: Array<string> | string, text: string): string;
   isInsideNodeModules(frameLimit?: number): boolean;
   constructSharedArrayBuffer(length?: number): SharedArrayBuffer;
+  getSharedArrayBufferGrowable(this: SharedArrayBuffer): boolean;
 
   constants: {
     kPending: 0;
