@@ -1954,19 +1954,19 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
                            nullptr);
 
     switch (sign_nid) {
-      case EVP_PKEY_RSA:
+      case NID_rsaEncryption:
         sig_with_md = "RSA+";
         break;
 
-      case EVP_PKEY_RSA_PSS:
+      case NID_rsassaPss:
         sig_with_md = "RSA-PSS+";
         break;
 
-      case EVP_PKEY_DSA:
+      case NID_dsa:
         sig_with_md = "DSA+";
         break;
 
-      case EVP_PKEY_EC:
+      case NID_X9_62_id_ecPublicKey:
         sig_with_md = "ECDSA+";
         break;
 

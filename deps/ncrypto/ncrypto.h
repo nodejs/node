@@ -12,6 +12,7 @@
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -118,53 +119,6 @@
 #define OPENSSL_WITH_AES_GCM_SIV 1
 #else
 #define OPENSSL_WITH_AES_GCM_SIV 0
-#endif
-
-#if defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_PREREQ(3, 2)
-#define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 1
-#else
-#define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 0
-#endif
-
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 2)
-#define OPENSSL_WITH_OPENSSL_DHKEM 1
-#else
-#define OPENSSL_WITH_OPENSSL_DHKEM 0
-#endif
-
-#if OPENSSL_WITH_KEM && !defined(OPENSSL_IS_BORINGSSL) &&                      \
-    !OPENSSL_VERSION_PREREQ(3, 5)
-#define OPENSSL_WITH_KEM_OPERATION_PARAM 1
-#else
-#define OPENSSL_WITH_KEM_OPERATION_PARAM 0
-#endif
-
-// Post-quantum cryptography support. Keep these explicit so code can
-// distinguish provider API shape from the available algorithm set.
-#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 5)
-#define OPENSSL_WITH_OPENSSL_PQC 1
-#else
-#define OPENSSL_WITH_OPENSSL_PQC 0
-#endif
-
-#ifdef OPENSSL_IS_BORINGSSL
-#define OPENSSL_WITH_BORINGSSL_PQC 1
-#else
-#define OPENSSL_WITH_BORINGSSL_PQC 0
-#endif
-
-#define OPENSSL_WITH_PQC                                                       \
-  (OPENSSL_WITH_OPENSSL_PQC || OPENSSL_WITH_BORINGSSL_PQC)
-#define OPENSSL_WITH_PQC_ML_KEM_512 OPENSSL_WITH_OPENSSL_PQC
-#define OPENSSL_WITH_PQC_SLH_DSA OPENSSL_WITH_OPENSSL_PQC
-
-#if OPENSSL_WITH_OPENSSL_PQC
-#define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
-#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
-#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
-#elif OPENSSL_WITH_BORINGSSL_PQC
-#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
-#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #endif
 
 #if OPENSSL_VERSION_PREREQ(3, 0)
@@ -366,6 +320,7 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class KeyAlgorithm;
 class MacCache;
 class EVPMacCtxPointer;
 class EVPMacPointer;
@@ -750,6 +705,8 @@ class Rsa final {
   const PublicKey getPublicKey() const;
   const PrivateKey getPrivateKey() const;
   const OtherPrimeInfos getOtherPrimeInfos() const;
+  // Check that n is the product of all private-key prime factors.
+  bool checkPrimeProduct() const;
   const std::optional<PssParams> getPssParams() const;
 
   bool setPublicKey(BignumPointer&& n, BignumPointer&& e);
@@ -821,6 +778,7 @@ class Ec final {
                                BignumPointer* y,
                                BignumPointer* priv,
                                int* degree);
+  static const KeyAlgorithm* GetNamedKeyAlgorithm(const char* name);
 
   using GetCurveCallback = std::function<bool(const char*)>;
   static bool GetCurves(GetCurveCallback callback);
@@ -1094,6 +1052,79 @@ class CipherCtxPointer final {
   DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
 };
 
+// Known key algorithms are identified by provider names, never synthetic NIDs.
+// Descriptors have static lifetime; availability is queried from the backend.
+class KeyAlgorithm final {
+ public:
+  static const KeyAlgorithm RSA;
+  static const KeyAlgorithm RSA_PSS;
+  static const KeyAlgorithm DSA;
+  static const KeyAlgorithm DH;
+  static const KeyAlgorithm EC;
+  static const KeyAlgorithm ED25519;
+  static const KeyAlgorithm ED448;
+  static const KeyAlgorithm X25519;
+  static const KeyAlgorithm X448;
+  static const KeyAlgorithm SM2;
+  static const KeyAlgorithm ML_DSA_44;
+  static const KeyAlgorithm ML_DSA_65;
+  static const KeyAlgorithm ML_DSA_87;
+  static const KeyAlgorithm ML_KEM_512;
+  static const KeyAlgorithm ML_KEM_768;
+  static const KeyAlgorithm ML_KEM_1024;
+  static const KeyAlgorithm SLH_DSA_SHA2_128F;
+  static const KeyAlgorithm SLH_DSA_SHA2_128S;
+  static const KeyAlgorithm SLH_DSA_SHA2_192F;
+  static const KeyAlgorithm SLH_DSA_SHA2_192S;
+  static const KeyAlgorithm SLH_DSA_SHA2_256F;
+  static const KeyAlgorithm SLH_DSA_SHA2_256S;
+  static const KeyAlgorithm SLH_DSA_SHAKE_128F;
+  static const KeyAlgorithm SLH_DSA_SHAKE_128S;
+  static const KeyAlgorithm SLH_DSA_SHAKE_192F;
+  static const KeyAlgorithm SLH_DSA_SHAKE_192S;
+  static const KeyAlgorithm SLH_DSA_SHAKE_256F;
+  static const KeyAlgorithm SLH_DSA_SHAKE_256S;
+
+  // Look up a canonical name case-insensitively, including unavailable
+  // algorithms.
+  static const KeyAlgorithm* FromName(const char* name);
+  using Callback = std::function<void(const KeyAlgorithm&)>;
+  static void ForEachPqc(Callback callback);
+
+  const char* name() const { return name_; }
+  const char* keyTypeName() const {
+    return key_type_name_[0] == '\0' ? nullptr : key_type_name_.data();
+  }
+  bool isRsa() const;
+  bool isAvailable() const;
+  bool isPqc() const;
+  bool isOkp() const;
+  bool isOneShot() const;
+  bool supportsRawPublic() const;
+  bool supportsRawPrivate() const;
+  size_t seedSize() const;
+
+ private:
+  enum class Family { Other, EdDSA, XDH, MLDSA, MLKEM, SLHDSA };
+  static constexpr size_t kMaxKeyTypeNameLength = 32;
+  template <size_t N>
+  constexpr KeyAlgorithm(const char (&name)[N],
+                         Family family,
+                         bool has_key_type = true)
+      : name_(name), family_(family) {
+    static_assert(N <= kMaxKeyTypeNameLength);
+    if (has_key_type) {
+      for (size_t i = 0; i < N; i++) {
+        key_type_name_[i] =
+            name[i] >= 'A' && name[i] <= 'Z' ? name[i] + ('a' - 'A') : name[i];
+      }
+    }
+  }
+  const char* name_;
+  std::array<char, kMaxKeyTypeNameLength> key_type_name_{};
+  Family family_;
+};
+
 class EVPKeyCtxPointer final {
  public:
   EVPKeyCtxPointer();
@@ -1156,7 +1187,8 @@ class EVPKeyCtxPointer final {
   int initForSign();
 
   static EVPKeyCtxPointer New(const EVPKeyPointer& key);
-  static EVPKeyCtxPointer NewFromID(int id);
+  static EVPKeyCtxPointer NewFromName(const char* name);
+  static EVPKeyCtxPointer NewFromAlgorithm(const KeyAlgorithm& algorithm);
 
  private:
   DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> ctx_;
@@ -1165,14 +1197,12 @@ class EVPKeyCtxPointer final {
 class EVPKeyPointer final {
  public:
   static EVPKeyPointer New();
-  static EVPKeyPointer NewRawPublic(int id,
+  static EVPKeyPointer NewRawPublic(const KeyAlgorithm& algorithm,
                                     const Buffer<const unsigned char>& data);
-  static EVPKeyPointer NewRawPrivate(int id,
+  static EVPKeyPointer NewRawPrivate(const KeyAlgorithm& algorithm,
                                      const Buffer<const unsigned char>& data);
-#if OPENSSL_WITH_PQC
-  static EVPKeyPointer NewRawSeed(int id,
+  static EVPKeyPointer NewRawSeed(const KeyAlgorithm& algorithm,
                                   const Buffer<const unsigned char>& data);
-#endif
   static EVPKeyPointer NewDH(DHPointer&& dh);
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   static EVPKeyPointer NewRSA(const Rsa& rsa);
@@ -1277,11 +1307,19 @@ class EVPKeyPointer final {
   void reset(EVP_PKEY* pkey = nullptr);
   EVP_PKEY* release();
 
-  static int id(const EVP_PKEY* key);
-  static int base_id(const EVP_PKEY* key);
-
-  int id() const;
-  int base_id() const;
+  static bool isA(const EVP_PKEY* key, const char* name);
+  bool isA(const char* name) const;
+  static bool isA(const EVP_PKEY* key, const KeyAlgorithm& algorithm);
+  bool isA(const KeyAlgorithm& algorithm) const;
+  // Resolve a known algorithm without caching key or provider state.
+  const KeyAlgorithm* getAlgorithm() const;
+  // Stable public key-type name, or nullptr for an unsupported key type.
+  const char* getKeyTypeName() const;
+  bool supportsRawPublic() const;
+  bool supportsRawPrivate() const;
+  bool supportsContextString() const;
+  bool hasSmallOrderEdDsaPoint(
+      const Buffer<const unsigned char>& signature) const;
   int bits() const;
   size_t size() const;
 
@@ -1291,9 +1329,22 @@ class EVPKeyPointer final {
   DataPointer rawPrivateKey() const;
   BIOPointer derPublicKey() const;
 
-#if OPENSSL_WITH_PQC
-  DataPointer rawSeed() const;
-#endif
+  enum class RawExportError { UNSUPPORTED_KEY_TYPE, MISSING_SEED, FAILED };
+  Result<DataPointer, RawExportError> rawSeed() const;
+
+  struct RawJwkData {
+    const KeyAlgorithm* algorithm = nullptr;
+    DataPointer public_key;
+    DataPointer private_key;
+  };
+  // Raw JWK material for OKP and AKP keys. Private bytes use the JWK
+  // representation (a seed for ML-DSA/ML-KEM, a raw private key otherwise).
+  Result<RawJwkData, RawExportError> exportRawJwk(bool include_private) const;
+  static EVPKeyPointer NewRawJwk(
+      const KeyAlgorithm& algorithm,
+      const Buffer<const unsigned char>& public_key,
+      const std::optional<Buffer<const unsigned char>>& private_key =
+          std::nullopt);
 
   Result<BIOPointer, bool> writePrivateKey(
       const PrivateKeyEncodingConfig& config) const;
@@ -1309,9 +1360,10 @@ class EVPKeyPointer final {
   operator Rsa() const;
   operator Dsa() const;
 
+  static bool isRsaVariant(const EVP_PKEY* key);
   bool isRsaVariant() const;
-  bool isOneShotVariant() const;
   bool isSigVariant() const;
+  bool mayBeSM2() const;
   bool validateDsaParameters() const;
 
  private:
@@ -2079,6 +2131,10 @@ class EnginePointer final {
 // FIPS
 bool isFipsEnabled();
 
+// Configure seed-preserving PQC private-key encoding when the backend supports
+// it.
+void ConfigurePqcEncoding();
+
 bool setFipsEnabled(bool enabled, CryptoErrorList* errors);
 
 uint64_t getFipsStateGeneration();
@@ -2190,7 +2246,7 @@ class KEM final {
                                  const Buffer<const void>& ciphertext);
 
  private:
-#if OPENSSL_WITH_KEM_OPERATION_PARAM
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   static bool SetOperationParameter(EVP_PKEY_CTX* ctx,
                                     const EVPKeyPointer& key);
 #endif

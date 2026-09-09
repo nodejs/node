@@ -42,6 +42,7 @@ using ncrypto::Digest;
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
 using ncrypto::EVPKeyPointer;
+using ncrypto::KeyAlgorithm;
 using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfX509;
@@ -1948,7 +1949,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
     EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
-    if (params && params.id() == EVP_PKEY_DH) dh.reset(params.release());
+    if (params && params.isA(KeyAlgorithm::DH)) dh.reset(params.release());
 #else
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
 #endif

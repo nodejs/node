@@ -3,35 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_keys.h"
-#include "env.h"
 #include "v8.h"
 
 namespace node {
 namespace crypto {
-#if OPENSSL_WITH_PQC
-bool ExportJwkPqcKey(Environment* env,
-                     const KeyObjectData& key,
-                     v8::Local<v8::Object> target);
-
-KeyObjectData ImportJWKPqcKey(Environment* env, v8::Local<v8::Object> jwk);
-
-// Returns true for PQC algorithms that support raw private key export/import.
-bool IsPqcRawPrivateKeyId(int id);
-// Returns true if the given EVP_PKEY id is a PQC algorithm known to Node.
-bool IsPqcKeyId(int id);
-// Returns true for PQC algorithms that carry the private key as a seed
-// (ML-DSA, ML-KEM). Returns false for algorithms that use the expanded
-// private key (SLH-DSA), or for non-PQC ids.
-bool IsPqcSeedKeyId(int id);
-// Returns true for PQC signature algorithms (ML-DSA, SLH-DSA). Returns false
-// for ML-KEM or for non-PQC ids.
-bool IsPqcSignatureKeyId(int id);
-// Returns the EVP_PKEY id for the given PQC algorithm name, or NID_undef.
-int GetPqcNidFromName(const char* name);
-// Returns the JS asymmetricKeyType string for a PQC id, or undefined.
-v8::Local<v8::Value> GetPqcAsymmetricKeyType(Environment* env, int id);
-#endif
+void GetPqcKeyTypes(const v8::FunctionCallbackInfo<v8::Value>& args);
 }  // namespace crypto
 }  // namespace node
 
