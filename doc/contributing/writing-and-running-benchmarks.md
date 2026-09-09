@@ -416,6 +416,8 @@ module, you can use the `--filter` option:_
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
   --analyze                     perform statistical analysis inline (no R needed)
+  --csv      filename           write csv output to filename (can be combined
+                                with --analyze)
   --scale    1000               rate multiplier for --analyze precision
   --max-regression  N           exit with code 1 if any significant regression
                                 exceeds N% (implies --analyze)
@@ -429,6 +431,14 @@ The simplest way to get statistical results is to pass `--analyze`:
 node benchmark/compare.js --old ./node-main --new ./node-pr-5134 --analyze string_decoder
 ```
 
+Use `--csv` to retain the raw benchmark results. If you pass both `--csv` and
+`--analyze`, both the raw results and the analysis are printed:
+
+```bash
+node benchmark/compare.js --old ./node-main --new ./node-pr-5134 \
+  --analyze --csv compare-pr-5134.csv string_decoder
+```
+
 This runs the benchmarks and prints the analysis directly:
 
 ```console
@@ -436,6 +446,13 @@ This runs the benchmarks and prints the analysis directly:
 string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='ascii'            ***            -3.76 %   ±1.36%  ±1.82%  ±2.40%
 string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='utf8'              **            -0.81 %   ±0.53%  ±0.71%  ±0.93%
 ...
+```
+
+Use `-csv -` to output the raw results to stdout with the analysis.
+
+```bash
+node benchmark/compare.js --old ./node-main --new ./node-pr-5134 \
+  --analyze --csv - string_decoder
 ```
 
 The `--analyze` mode uses the histogram API's `welchTest()` method to perform
