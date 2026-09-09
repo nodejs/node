@@ -458,6 +458,9 @@ console.log(diff('same', 'same'));
 <!-- YAML
 added: v0.5.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65942
+    description: The `%c` specifier is supported now.
   - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29606
     description: The `%c` specifier is ignored now.
@@ -516,7 +519,9 @@ corresponding argument. Supported specifiers are:
 * `%O`: `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
-* `%c`: `CSS`. This specifier is ignored and will skip any CSS passed in.
+* `%c`: `CSS`. Applies provided CSS. Supported CSS properties are `color`,
+  `background-color`, `background`, `font-weight`, `font-style`, `text-decoration`,
+  `text-decoration-line`, and `text-decoration-color`.
 * `%%`: single percent sign (`'%'`). This does not consume an argument.
 * Returns: {string} The formatted string
 
