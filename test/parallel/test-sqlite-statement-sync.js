@@ -405,7 +405,7 @@ suite('StatementSync.prototype.run()', () => {
     t.assert.deepStrictEqual(stmt.run(), { changes: 1, lastInsertRowid: 1 });
   });
 
-  test('SQLite throws when trying to bind too many parameters', (t) => {
+  test('throws when trying to bind too many parameters', (t) => {
     using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -415,10 +415,33 @@ suite('StatementSync.prototype.run()', () => {
     t.assert.throws(() => {
       stmt.run(1, 2, 3);
     }, {
-      code: 'ERR_SQLITE_ERROR',
-      message: 'column index out of range',
-      errcode: 25,
-      errstr: 'column index out of range',
+      code: 'ERR_INVALID_STATE',
+      message: 'Too many anonymous parameter values were provided. ' +
+               'The statement accepts 2, but received 3',
+    });
+
+    t.assert.throws(() => {
+      db.prepare('SELECT 1').run(5);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: 'Too many anonymous parameter values were provided. ' +
+               'The statement accepts 0, but received 1',
+    });
+
+    t.assert.throws(() => {
+      db.prepare('SELECT $a AS a, ? AS b').run({ $a: 1 }, 2, 3);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: 'Too many anonymous parameter values were provided. ' +
+               'The statement accepts 1, but received 2',
+    });
+
+    t.assert.throws(() => {
+      db.prepare('SELECT $a AS a').run(1);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: 'Too many anonymous parameter values were provided. ' +
+               'The statement accepts 0, but received 1',
     });
   });
 
