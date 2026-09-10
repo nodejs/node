@@ -792,7 +792,7 @@ class WalkerState {
     for (; next_pattern_ < item_.patterns.size(); next_pattern_++) {
       PatternState& pattern = item_.patterns[next_pattern_];
       if (AsksOffThread() && !has_answers_) {
-        ProbeCtx probe{this};
+        ProbeCtx probe{this, {}};
         VisitDirectory(probe, item_.path, pattern);
         if (!probe.questions.empty()) {
           questions_ = std::move(probe.questions);
