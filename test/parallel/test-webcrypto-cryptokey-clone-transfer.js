@@ -17,6 +17,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('node:assert');
+const { KeyObject } = require('node:crypto');
 const { inspect } = require('node:util');
 const { once } = require('node:events');
 const { Worker, MessageChannel } = require('node:worker_threads');
@@ -320,6 +321,17 @@ async function checkRsaPssTransferToWorker({ publicKey, privateKey }) {
         { name: 'AES-GCM', iv }, k, ciphertext);
       assert.deepStrictEqual(Buffer.from(decrypted), plaintext);
     }
+
+    const bytes = new Uint8Array(await subtle.exportKey('raw', key));
+    const nullPrototypeClone = structuredClone(key);
+    Object.setPrototypeOf(nullPrototypeClone, null);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey('raw', nullPrototypeClone)), bytes);
+    const typeGetter = Object.getOwnPropertyDescriptor(key.constructor.prototype, 'type').get;
+    const customInspect = key[inspect.custom];
+    assert.strictEqual(typeGetter.call(nullPrototypeClone), 'secret');
+    assert.strictEqual(typeof customInspect.call(nullPrototypeClone, 0, {}), 'string');
+    assert.deepStrictEqual(KeyObject.from(structuredClone(key)).export(), Buffer.from(bytes));
   }
 
   // ECDSA keypair (public extractable, private non-extractable)
