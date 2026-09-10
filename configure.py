@@ -2266,7 +2266,7 @@ def configure_v8(o, configs):
         options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
-  o['variables']['v8_use_perfetto'] = 0 if options.without_perfetto else 1
+  o['variables']['v8_use_perfetto'] = 0 if options.without_perfetto or not perfetto_supported() else 1
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
@@ -2389,11 +2389,19 @@ def configure_lief(o):
 
   configure_library('lief', o, pkgname='LIEF')
 
+def perfetto_supported():
+  return flavor not in ('aix', 'cloudabi', 'openbsd', 'os400', 'solaris')
+
 def configure_perfetto(o):
   if options.without_perfetto:
     if options.shared_perfetto:
       error('--without-perfetto is incompatible with --shared-perfetto')
     o['variables']['node_shared_perfetto'] = b(False)
+    return
+  if options.without_perfetto is None and not perfetto_supported():
+    warn(f'Perfetto is disabled for {flavor}: the bundled perfetto integration '
+           'is not available on this platform. Pass --without-perfetto to '
+           'silence this warning.')
     return
 
   configure_library('perfetto', o)
