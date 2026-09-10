@@ -266,6 +266,10 @@ class DatabaseSync : public BaseObject {
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
+  // SQL functions are one of several paths by which SQLite can invoke JS.
+  size_t GetUserDefinedFunctionCount() const {
+    return user_defined_functions_.size();
+  }
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
   bool return_arrays() const { return open_config_.get_return_arrays(); }
   bool allow_bare_named_params() const {
@@ -340,11 +344,16 @@ class DatabaseSync : public BaseObject {
   int trace_suppression_depth_ = 0;
   std::vector<sqlite3_stmt*> stepping_statements_;
 
+  // SQLite owns these scalar and aggregate/window function registrations. Its
+  // destroy callbacks untrack replaced functions and failed registrations.
+  std::unordered_set<const void*> user_defined_functions_;
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
   BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
 
+  friend class UserDefinedFunction;
+  friend class CustomAggregate;
   friend class DatabaseSyncLimits;
   friend class Session;
   friend class SQLTagStore;

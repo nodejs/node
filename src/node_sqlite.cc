@@ -404,7 +404,13 @@ class CustomAggregate {
         start_(env->isolate(), start),
         step_fn_(env->isolate(), step_fn),
         inverse_fn_(env->isolate(), inverse_fn),
-        result_fn_(env->isolate(), result_fn) {}
+        result_fn_(env->isolate(), result_fn) {
+    db_->user_defined_functions_.insert(this);
+  }
+
+  ~CustomAggregate() {
+    if (db_) db_->user_defined_functions_.erase(this);
+  }
 
   static void xStep(sqlite3_context* ctx, int argc, sqlite3_value** argv) {
     xStepBase(ctx, argc, argv, &CustomAggregate::step_fn_);
@@ -772,9 +778,13 @@ UserDefinedFunction::UserDefinedFunction(Environment* env,
     : env_(env),
       fn_(env->isolate(), fn),
       db_(std::move(db)),
-      use_bigint_args_(use_bigint_args) {}
+      use_bigint_args_(use_bigint_args) {
+  db_->user_defined_functions_.insert(this);
+}
 
-UserDefinedFunction::~UserDefinedFunction() {}
+UserDefinedFunction::~UserDefinedFunction() {
+  if (db_) db_->user_defined_functions_.erase(this);
+}
 
 void UserDefinedFunction::xFunc(sqlite3_context* ctx,
                                 int argc,
@@ -1071,6 +1081,8 @@ DatabaseSync::~DatabaseSync() {
 }
 
 void DatabaseSync::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("user_defined_functions",
+                              user_defined_functions_.size() * sizeof(void*));
   // TODO(tniessen): more accurately track the size of all fields
   tracker->TrackFieldWithSize(
       "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
@@ -1615,6 +1627,8 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_close_v2(db->connection_.get());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
+  // Backups can defer SQLite destruction until after the connection is closed.
+  db->user_defined_functions_.clear();
 }
 
 void DatabaseSync::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
