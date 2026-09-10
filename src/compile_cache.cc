@@ -476,6 +476,23 @@ void CompileCacheHandler::Persist() {
       continue;
     }
     Debug(" -> %s\n", mkstemp_req.path);
+
+    // Avoid leaking the descriptor or the temporary file if persistence
+    // does not complete below.
+    bool tmp_fd_needs_close = true;
+    bool tmp_renamed = false;
+    auto cleanup_tmp_file = OnScopeLeave([&]() {
+      if (tmp_fd_needs_close) {
+        uv_fs_t req;
+        uv_fs_close(nullptr, &req, mkstemp_req.result, nullptr);
+        uv_fs_req_cleanup(&req);
+      }
+      if (!tmp_renamed) {
+        uv_fs_t req;
+        uv_fs_unlink(nullptr, &req, mkstemp_req.path, nullptr);
+        uv_fs_req_cleanup(&req);
+      }
+    });
     Debug("[compile cache] writing cache for %s %s to temporary file %s [%d "
           "%d %d "
           "%d %d]...",
@@ -508,6 +525,7 @@ void CompileCacheHandler::Persist() {
     auto cleanup_close =
         OnScopeLeave([&close_req]() { uv_fs_req_cleanup(&close_req); });
     err = uv_fs_close(nullptr, &close_req, mkstemp_req.result, nullptr);
+    tmp_fd_needs_close = false;
 
     if (err < 0) {
       Debug("failed: %s\n", uv_strerror(err));
@@ -533,6 +551,7 @@ void CompileCacheHandler::Persist() {
       Debug("failed: %s\n", uv_strerror(err));
       continue;
     }
+    tmp_renamed = true;
     Debug("success\n");
     entry->persisted = true;
   }
