@@ -72,7 +72,7 @@ commit_queue_failed() {
 Add https://github.com/nodejs/node/labels/commit-queue-squash to land it as one commit, or https://github.com/nodejs/node/labels/commit-queue-rebase to land the commits separately.'
   else
     if [ -z "$reported_failure" ]; then
-      reported_failure=$(grep -e '✘' -e '⚠' output | tail -n 10)
+      reported_failure=$(grep -e '✘' -e '✖' -e '⚠' output | tail -n 10)
     fi
     if [ -z "$reported_failure" ]; then
       reported_failure=$(tail -n 10 output)
