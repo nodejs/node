@@ -85,6 +85,15 @@ describe('v8 deserializer', common.mustCall(() => {
     assert.deepStrictEqual(reported, [reportedDiagnosticEvent]);
   });
 
+  it('should serialize a repeated object as independent messages', async () => {
+    const repeatedChunks = await toArray(serializer([diagnosticEvent, diagnosticEvent]));
+    const reported = await collectReported(repeatedChunks);
+    assert.deepStrictEqual(reported, [
+      reportedDiagnosticEvent,
+      reportedDiagnosticEvent,
+    ]);
+  });
+
   it('should deserialize a serialized chunk after non-serialized chunk', async () => {
     const reported = await collectReported([Buffer.concat([Buffer.from('unknown'), ...chunks])]);
     assert.deepStrictEqual(reported, [
