@@ -989,5 +989,43 @@ async function tests() {
   })().then(common.mustCall());
 }
 
+{
+  // An `undefined` chunk is a value, not end-of-stream. Here it is already
+  // buffered, so it is read on the synchronous fast path.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    r.push(undefined);
+    r.push(null);
+
+    const it = r[Symbol.asyncIterator]();
+    assert.deepStrictEqual(await it.next(), { done: false, value: undefined });
+    assert.strictEqual((await it.next()).done, true);
+  })().then(common.mustCall());
+}
+
+{
+  // An `undefined` chunk pushed after next() is delivered once it arrives.
+  (async () => {
+    const r = new Readable({ objectMode: true, read() {} });
+    const it = r[Symbol.asyncIterator]();
+    const next = it.next();
+    setImmediate(() => {
+      r.push(undefined);
+      r.push(null);
+    });
+
+    assert.deepStrictEqual(await next, { done: false, value: undefined });
+    assert.strictEqual((await it.next()).done, true);
+  })().then(common.mustCall());
+}
+
+{
+  // Readable.from() delivers `undefined` values.
+  (async () => {
+    assert.deepStrictEqual(await Readable.from([undefined]).toArray(),
+                           [undefined]);
+  })().then(common.mustCall());
+}
+
 // To avoid missing some tests if a promise does not resolve
 tests().then(common.mustCall());
