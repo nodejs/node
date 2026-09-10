@@ -30,7 +30,7 @@ function skipSubtests(...entries) {
   }
 }
 
-if (!hasOpenSSL(3, 0)) {
+if (isBoringSSL) {
   skip(
     'encrypt_decrypt/aes_ocb.tentative.https.any.js',
     'generateKey/failures_AES-OCB.tentative.https.any.js',

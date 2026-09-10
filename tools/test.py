@@ -1460,7 +1460,7 @@ def BuildOptions():
       help='Send SIGABRT instead of SIGTERM to kill processes that time out',
       default=False, action="store_true", dest="abort_on_timeout")
   result.add_argument("--type",
-      help="Type of build (simple, fips, coverage)",
+      help="Type of build (simple, coverage)",
       default=None)
   result.add_argument("--error-reporter",
       help="use error reporter if the test uses node:test",
@@ -1622,14 +1622,9 @@ def ArgsToTestPaths(test_root, args, suites):
 
 def get_env_type(vm, options_type, context):
   if options_type is not None:
-    env_type = options_type
-  else:
-    # 'simple' is the default value for 'env_type'.
-    env_type = 'simple'
-    ssl_ver = Execute([vm, '-p', 'process.versions.openssl'], context).stdout
-    if 'fips' in ssl_ver:
-      env_type = 'fips'
-  return env_type
+    return options_type
+  # 'simple' is the default value for 'env_type'.
+  return 'simple'
 
 
 def get_asan_state(vm, context):

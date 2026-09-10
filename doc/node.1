@@ -575,9 +575,8 @@ The default is \fBverbatim\fR and \fBdns.setDefaultResultOrder()\fR have higher
 priority than \fB--dns-result-order\fR.
 .
 .It Fl -enable-fips
-Enable FIPS mode at startup. With OpenSSL 3, a configured provider named
-\fBfips\fR must be available and initialize successfully. With OpenSSL 1.1.1,
-Node.js must be built against a FIPS-capable OpenSSL.
+Enable FIPS mode at startup. A configured provider named \fBfips\fR must be
+available and initialize successfully.
 .
 .It Fl -enable-fips-indicator-events
 Publish OpenSSL FIPS indicator results to the
@@ -1231,12 +1230,11 @@ usually only useful for developers debugging Node.js itself.
 .
 .It Fl -openssl-config Ns = Ns Ar file
 Load an OpenSSL configuration file on startup. The file can activate an
-OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
-FIPS mode.
+OpenSSL FIPS provider. See FIPS mode.
 This option takes precedence over the \fBOPENSSL_CONF\fR environment variable.
 .
 .It Fl -openssl-legacy-provider
-Enable OpenSSL 3.0 legacy provider. For more information please see
+Enable OpenSSL's legacy provider. For more information please see
 OSSL_PROVIDER-legacy.
 .
 .It Fl -openssl-shared-config

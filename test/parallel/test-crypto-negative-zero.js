@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 
 function getOutcome(fn) {
   try {
@@ -88,9 +88,9 @@ function assertSameErrorOrSuccess(actual, expected) {
     );
   }
 
-  if (!hasOpenSSL(3)) {
+  if (isBoringSSL) {
     common.printSkipMessage(
-      'Skipping DSA divisorLength 0 key generation on OpenSSL 1.1.1');
+      'BoringSSL does not support DSA key pair generation');
   } else {
     assertSameErrorOrSuccess(
       getOutcome(() => crypto.generateKeyPairSync('dsa', {

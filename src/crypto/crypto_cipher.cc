@@ -830,8 +830,8 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       static_cast<size_t>(ctx_.getBlockSize()),
       BackingStoreInitializationMode::kUninitialized);
 
-#if !OPENSSL_VERSION_PREREQ(3, 0)
-  // OpenSSL v1.x doesn't verify the presence of the auth tag so do
+#ifdef OPENSSL_IS_BORINGSSL
+  // BoringSSL doesn't verify the presence of the auth tag so do
   // it ourselves, see https://github.com/nodejs/node/issues/45874.
   if (kind_ == kDecipher && ctx_.isChaCha20Poly1305() &&
       auth_tag_state_ != kAuthTagSetByUser) {

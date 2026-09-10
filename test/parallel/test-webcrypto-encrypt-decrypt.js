@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { isBoringSSL } = require('../common/crypto');
 const { getFips } = require('crypto');
 const { subtle } = globalThis.crypto;
 
@@ -185,7 +185,7 @@ if (!isBoringSSL) {
 }
 
 // Test Encrypt/Decrypt AES-OCB
-if (hasOpenSSL(3)) {
+if (!isBoringSSL) {
   const buf = globalThis.crypto.getRandomValues(new Uint8Array(50));
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
 
@@ -218,5 +218,5 @@ if (hasOpenSSL(3)) {
     test().then(common.mustCall());
   }
 } else {
-  common.printSkipMessage('Skipping unsupported AES-OCB test cases');
+  common.printSkipMessage('Skipping AES-OCB test cases unsupported by BoringSSL');
 }
