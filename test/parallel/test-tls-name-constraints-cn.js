@@ -2,6 +2,11 @@
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
 
+const { isBoringSSL } = require('../common/crypto');
+// BoringSSL rejects DNS-like CNs without SANs under name constraints,
+// even when the CN is permitted by those constraints.
+if (isBoringSSL) common.skip('requires OpenSSL CN name constraints');
+
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
