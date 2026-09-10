@@ -901,6 +901,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 			$(if $(JOBS),-p $(JOBS)) \
 		) \
 	fi
+endif
 
 out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
