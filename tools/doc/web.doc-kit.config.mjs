@@ -22,7 +22,6 @@ export default {
     output: 'out/doc/api',
 
     changelog: fromRoot('CHANGELOG.md'),
-    threads: 1
   },
 
   metadata: {
