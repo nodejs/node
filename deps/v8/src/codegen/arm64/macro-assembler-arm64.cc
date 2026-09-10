@@ -1518,14 +1518,15 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     FrameScope scope(this, StackFrame::INTERNAL);
     // Push a copy of the target function, the new target, the actual
     // argument count, and the dispatch handle.
-    Register lastreg = V8_ENABLE_LEAPTIERING_BOOL
-                           ? kJavaScriptCallDispatchHandleRegister
-                           : padreg;
+    Register maybe_dispatch_handle = V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL
+                                         ? kJavaScriptCallDispatchHandleRegister
+                                         : padreg;
     SmiTag(kJavaScriptCallArgCountRegister);
     // No need to SmiTag the dispatch handle as it always looks like a Smi.
     static_assert(kJSDispatchHandleShift > 0);
+    AssertSmi(maybe_dispatch_handle);
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-         kJavaScriptCallArgCountRegister, lastreg);
+         kJavaScriptCallArgCountRegister, maybe_dispatch_handle);
     // Push another copy as a parameter to the runtime call.
     PushArgument(kJavaScriptCallTargetRegister);
 
@@ -1534,7 +1535,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
     // Restore target function, new target, actual argument count, and dispatch
     // handle.
-    Pop(lastreg, kJavaScriptCallArgCountRegister,
+    Pop(maybe_dispatch_handle, kJavaScriptCallArgCountRegister,
         kJavaScriptCallNewTargetRegister, kJavaScriptCallTargetRegister);
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
