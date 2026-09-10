@@ -65,6 +65,7 @@ constexpr int kStreamStateReadPaused = 0x4;
 constexpr int kStreamStateClosed = 0x8;
 constexpr int kStreamStateDestroyed = 0x10;
 constexpr int kStreamStateTrailers = 0x20;
+constexpr int kStreamStatePeerReset = 0x40;
 
 // Http2Session internal states
 constexpr int kSessionStateNone = 0x0;
@@ -75,9 +76,8 @@ constexpr int kSessionStateClosing = 0x8;
 constexpr int kSessionStateSending = 0x10;
 constexpr int kSessionStateWriteInProgress = 0x20;
 constexpr int kSessionStateReadingStopped = 0x40;
-constexpr int kSessionStateReceivePaused = 0x80;
-constexpr int kSessionStateReceiving = 0x100;
-constexpr int kSessionStateClosePending = 0x200;
+constexpr int kSessionStateReceiving = 0x80;
+constexpr int kSessionStateClosePending = 0x100;
 
 // The Padding Strategy determines the method by which extra padding is
 // selected for HEADERS and DATA frames. These are configurable via the
@@ -352,6 +352,10 @@ class Http2Stream : public AsyncWrap,
   bool is_closed() const {
     return flags_ & kStreamStateClosed;
   }
+
+  bool peer_reset() const { return flags_ & kStreamStatePeerReset; }
+
+  void set_peer_reset() { flags_ |= kStreamStatePeerReset; }
 
   bool has_trailers() const {
     return flags_ & kStreamStateTrailers;
@@ -664,7 +668,6 @@ class Http2Session : public AsyncWrap,
   IS_FLAG(sending, kSessionStateSending)
   IS_FLAG(write_in_progress, kSessionStateWriteInProgress)
   IS_FLAG(reading_stopped, kSessionStateReadingStopped)
-  IS_FLAG(receive_paused, kSessionStateReceivePaused)
   IS_FLAG(receiving, kSessionStateReceiving)
   IS_FLAG(close_pending, kSessionStateClosePending)
 
@@ -945,7 +948,6 @@ class Http2Session : public AsyncWrap,
   // will be set. stream_buf_ab_ is lazily created from stream_buf_allocation_.
   v8::Global<v8::ArrayBuffer> stream_buf_ab_;
   std::unique_ptr<v8::BackingStore> stream_buf_allocation_;
-  size_t stream_buf_offset_ = 0;
   // Custom error code for errors that originated inside one of the callbacks
   // called by nghttp2_session_mem_recv.
   const char* custom_recv_error_code_ = nullptr;
