@@ -319,15 +319,22 @@ class ThreadSafeFunction {
     }
   }
 
+  // Runs on JS thread.
   void MaybeDelete() {
+    CHECK_EQ(state, kClosing);
+    // Release the resources like napi_env reference and maybe call into
+    // user code. `state` must be `kClosing` when calling into user here
+    // to avoid the `delete` below racing with re-entrant finalization.
+    ReleaseResources();
+
     {
       node::Mutex::ScopedLock lock(this->mutex);
+      // Mark the TSFN as ready to be deleted.
+      state = kClosed;
       if (thread_count > 0) {
         // At this point this TSFN is effectively done, but we need to keep
         // it alive for other threads that still have pointers to it until
         // they release them.
-        // But we already release all the resources that we can at this point
-        ReleaseResources();
         return;
       }
     }
@@ -383,9 +390,10 @@ class ThreadSafeFunction {
   inline void* Context() { return context; }
 
  protected:
+  // This calls into user code via `env->Unref()`, which may trigger finalizers,
+  // and calls back into `napi_release_threadsafe_function`.
   void ReleaseResources() {
     if (state != kClosed) {
-      state = kClosed;
       ref.Reset();
       node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
       env->Unref();
