@@ -26,7 +26,7 @@ New Node.js contributors should avoid using AI agents to interact with the proje
 
 ### Requirements
 
-* All commits must be signed off by the human user using `Signed-off-by: <your name> (<your email>)`
+* All commits must be signed off by the human user using `Signed-off-by: Your Name <your@email.example>`
   as an attestation to the [Developer Certificate of Origin](https://developercertificate.org/).
 * AI-assistance must be acknowledged using the `Assisted-by: <agent name>` annotation.
 * AI-authored code contributions must be compatible with the project's licensing and
