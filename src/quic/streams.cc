@@ -1191,9 +1191,6 @@ void Stream::NotifyStreamOpened(stream_id id) {
   // yet, but just for completeness, let's make sure.
   if (outbound_) session().ResumeStream(id);
 
-  // We inform, the js side that the pending stream is now available
-  EmitStreamAvailable();
-
   // This may make application data sendable, so keep it as the final action:
   // sending can eventually call into JavaScript and destroy the stream.
   BaseObjectPtr<Stream> self(this);
@@ -1202,6 +1199,9 @@ void Stream::NotifyStreamOpened(stream_id id) {
     error_code internal_error = application.GetInternalErrorCode();
     Destroy(QuicError::ForApplication(internal_error));
   }
+
+  // We inform, the js side that the pending stream is now available
+  if (!is_destroyed()) EmitStreamAvailable();
 }
 
 void Stream::NotifyReadableEnded(error_code code) {
