@@ -22,3 +22,6 @@ if (getFips()) {
   common.skip('this test cannot be run in FIPS mode');
 }
 providers.testProviderPresent('legacy');
+// The explicit legacy load disables OpenSSL's provider fallback, so the
+// default provider has to be active before it runs.
+providers.testProviderPresent('default');
