@@ -15,12 +15,12 @@ function cleanupStaleProcess(filename) {
   process.once('beforeExit', () => {
     const basename = filename.replace(/.*[/\\]/g, '');
     try {
-      execFileSync(`${process.env.SystemRoot}\\System32\\wbem\\WMIC.exe`, [
-        'process',
-        'where',
-        `commandline like '%${basename}%child'`,
-        'delete',
-        '/nointeractive',
+      execFileSync(`${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`, [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%${basename}%child'" | ` +
+        'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }',
       ]);
     } catch {
       // Ignore failures, there might not be any stale process to clean up.
