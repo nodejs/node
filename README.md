@@ -761,6 +761,8 @@ maintaining the Node.js project.
   **Wiyeong Seo** <<hbsps.dev@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
+* [inoway46](https://github.com/inoway46) -
+  **Yuya Inoue** <<inoueyuya416@gmail.com>> (he/him)
 * [milesguicent](https://github.com/milesguicent) -
   **Miles Guicent** <<guicent@pm.me>> (he/him)
 * [preveen-stack](https://github.com/preveen-stack) -
