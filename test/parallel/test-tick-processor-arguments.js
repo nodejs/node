@@ -19,6 +19,17 @@ const files = fs.readdirSync(tmpdir.path);
 const logfile = files.find((name) => /\.log$/.test(name));
 assert(logfile);
 
+// Drop the shared-library entries: the tick processor resolves the C++
+// symbols of every listed library through nm (and c++filt on macOS), which is
+// slow on builds that link many shared libraries and depends on the host
+// toolchain. This test only checks that CLI arguments reach the tick
+// processor; C++ symbol resolution is covered by test/tick-processor.
+const logpath = tmpdir.resolve(logfile);
+fs.writeFileSync(logpath, fs.readFileSync(logpath, 'utf8')
+  .split('\n')
+  .filter((line) => !line.startsWith('shared-library,'))
+  .join('\n'));
+
 // Make sure that the --preprocess argument is passed through correctly,
 // as an example flag listed in deps/v8/tools/tickprocessor.js.
 // Any of the other flags there should work for this test too, if --preprocess
