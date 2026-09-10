@@ -175,9 +175,21 @@ const der = Buffer.from(
 
   assert.strictEqual(x509.checkIP('127.0.0.1'), undefined);
   assert.strictEqual(x509.checkIP('::'), undefined);
-  assert.strictEqual(x509.checkHost('agent1'), 'agent1');
+  // OpenSSL 4.1 no longer checks the subject DN by default.
+  // https://github.com/openssl/openssl/pull/31982
+  for (const options of [undefined, { subject: 'default' }]) {
+    assert.strictEqual(x509.checkHost('agent1', options),
+                       hasOpenSSL(4, 1) ? undefined : 'agent1');
+    assert.strictEqual(x509.checkEmail('ry@tinyclouds.org', options),
+                       hasOpenSSL(4, 1) ? undefined : 'ry@tinyclouds.org');
+  }
+  assert.strictEqual(x509.checkHost('agent1', { subject: 'always' }), 'agent1');
+  assert.strictEqual(x509.checkHost('agent1', { subject: 'never' }), undefined);
   assert.strictEqual(x509.checkHost('agent2'), undefined);
-  assert.strictEqual(x509.checkEmail('ry@tinyclouds.org'), 'ry@tinyclouds.org');
+  assert.strictEqual(x509.checkEmail('ry@tinyclouds.org', { subject: 'always' }),
+                     'ry@tinyclouds.org');
+  assert.strictEqual(x509.checkEmail('ry@tinyclouds.org', { subject: 'never' }),
+                     undefined);
   assert.strictEqual(x509.checkEmail('sally@example.com'), undefined);
   assert.throws(() => x509.checkHost('agent\x001'), {
     code: 'ERR_INVALID_ARG_VALUE'

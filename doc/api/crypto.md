@@ -3034,8 +3034,7 @@ changes:
 Checks whether the certificate matches the given email address.
 
 If the `'subject'` option is undefined or set to `'default'`, the certificate
-subject is only considered if the subject alternative name extension either does
-not exist or does not contain any email addresses.
+subject is considered according to OpenSSL's default behavior.
 
 If the `'subject'` option is set to `'always'` and if the subject alternative
 name extension either does not exist or does not contain a matching email
@@ -3079,9 +3078,7 @@ comparisons are case-insensitive, the returned subject name might also differ
 from the given `name` in capitalization.
 
 If the `'subject'` option is undefined or set to `'default'`, the certificate
-subject is only considered if the subject alternative name extension either does
-not exist or does not contain any DNS names. This behavior is consistent with
-[RFC 2818][] ("HTTP Over TLS").
+subject is considered according to OpenSSL's default behavior.
 
 If the `'subject'` option is set to `'always'` and if the subject alternative
 name extension either does not exist or does not contain a matching DNS name,
@@ -7607,7 +7604,6 @@ See the [list of SSL OP Flags][] for details.
 [Permission Model]: permissions.md#permission-model
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
-[RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
