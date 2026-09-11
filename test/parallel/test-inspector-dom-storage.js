@@ -14,3 +14,9 @@ spawnSyncAndExitWithoutError(process.execPath, [
   '--localstorage-file=./localstorage.db',
   fixtures.path('test-inspector-dom-storage.mjs'),
 ], { cwd: tmpdir.path });
+
+spawnSyncAndExitWithoutError(process.execPath, [
+  '--inspect=0',
+  '--experimental-storage-inspection',
+  fixtures.path('test-inspector-dom-storage-unavailable.mjs'),
+], { cwd: tmpdir.path });
