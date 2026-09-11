@@ -6,7 +6,10 @@ import { pathToFileURL } from 'node:url';
 //
 // TODO(@avivkeller): Lower the amount of memory
 // we use.
+// TODO(@avivkeller): Fall back to WASM on machines
+// without native implementations of our dependencies
 const hasEnoughMemory = totalmem() > 5 * (1024 ** 3);
+const canRunNative = !['s390x', 'ppc64'].includes(process.arch);
 
 const fromRoot = (path) =>
   pathToFileURL(join(import.meta.dirname, '..', '..', path)).href;
@@ -14,7 +17,7 @@ const fromRoot = (path) =>
 export default {
   extends: '@node-core/doc-kit/config',
 
-  target: ['legacy-json-all', hasEnoughMemory && 'section-pages'].filter(Boolean),
+  target: ['legacy-json-all', canRunNative && hasEnoughMemory && 'section-pages'].filter(Boolean),
 
   global: {
     input: ['doc/api/*.md'],
