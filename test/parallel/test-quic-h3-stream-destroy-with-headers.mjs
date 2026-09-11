@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -20,19 +20,22 @@ const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall(async (ss) => {
+const serverEndpoint = await listen(mustCall(async (quicSession) => {
+  const ss = new Http3Session(quicSession);
   // The server may or may not see the stream depending on timing.
   // Either way, it should not crash.
   await ss.closed;
   serverDone.resolve();
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
-const clientSession = await connect(serverEndpoint.address, {
+const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-});
+}));
 await clientSession.opened;
 
 // Create a stream with headers, then immediately destroy it.

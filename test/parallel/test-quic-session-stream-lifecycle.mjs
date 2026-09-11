@@ -31,7 +31,7 @@ const serverEndpoint = await quic.listen(mustCall(async (serverSession) => {
 
   serverDone.resolve();
   serverSession.close();
-}), { sni: { '*': { keys, certs } } });
+}), { alpn: ['quic-test'], sni: { '*': { keys, certs } } });
 
 assert.strictEqual(serverEndpoint.busy, false);
 assert.strictEqual(serverEndpoint.closing, false);
@@ -50,6 +50,7 @@ assert.ok(epStats.createdAt > 0n);
 
 // Connect with a client
 const clientSession = await quic.connect(serverEndpoint.address, {
+  alpn: 'quic-test',
   verifyPeer: 'manual',
 });
 
@@ -59,7 +60,7 @@ assert.strictEqual(clientSession.stats.isConnected, true);
 
 const clientInfo = await clientSession.opened;
 assert.strictEqual(clientInfo.servername, 'localhost');
-assert.strictEqual(clientInfo.protocol, 'h3');
+assert.strictEqual(clientInfo.protocol, 'quic-test');
 assert.strictEqual(clientInfo.cipherVersion, 'TLSv1.3');
 assert.ok(clientInfo.local !== undefined);
 assert.ok(clientInfo.remote !== undefined);
