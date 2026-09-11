@@ -1,9 +1,11 @@
 import { test } from 'node:test';
-import { setTimeout as sleep } from 'node:timers/promises';
+import { once } from 'node:events';
+import { connect } from 'node:net';
 
 test('slow', async () => {
-  // Long enough that fast-fail's process can spawn, run, and round-trip its
-  // bypassed test:complete to the host on slow CI, but short enough that the
-  // test does not waste much time when the bypass is working.
-  await sleep(30_000);
+  // The host closes this connection after receiving fast-fail's bypassed
+  // test:complete event, so this test cannot finish before that event arrives.
+  const socket = connect(Number(process.argv[2]), '127.0.0.1');
+  socket.resume();
+  await once(socket, 'end');
 });
