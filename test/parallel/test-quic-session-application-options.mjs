@@ -1,9 +1,9 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
 // Test: session.applicationOptions
-// Verifies that applicationOptions is available after ALPN negotiation
-// completes (i.e., once the application has been selected), returns a
-// null-prototype object, and reflects the configured values.
+// Verifies that the settings an HTTP/3 session was given are reported back by
+// applicationOptions as a null-prototype object on both peers, and become
+// null once the session is gone.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -13,8 +13,9 @@ if (!hasQuic) {
 }
 
 const { listen, connect } = await import('../common/quic.mjs');
+const { Http3Session } = await import('node:quic');
 
-const customAppOptions = {
+const customSettings = {
   maxHeaderPairs: 50n,
   maxHeaderLength: 8192n,
   maxFieldSectionSize: 16384n,
@@ -25,79 +26,71 @@ const customAppOptions = {
   enableDatagrams: false,
 };
 
+// Both peers advertise the same settings, so the values stay put when the
+// peer's SETTINGS frame is applied on top of them.
+function check(settings, side) {
+  assert.ok(settings != null, `${side} settings should be available`);
+  assert.strictEqual(typeof settings, 'object');
+  assert.strictEqual(Object.getPrototypeOf(settings), null);
+  assert.strictEqual(settings.maxHeaderPairs, customSettings.maxHeaderPairs);
+  assert.strictEqual(settings.maxHeaderLength, customSettings.maxHeaderLength);
+  assert.strictEqual(settings.maxFieldSectionSize,
+                     customSettings.maxFieldSectionSize);
+  assert.strictEqual(settings.qpackMaxDtableCapacity,
+                     customSettings.qpackMaxDTableCapacity);
+  assert.strictEqual(settings.qpackEncoderMaxDtableCapacity,
+                     customSettings.qpackEncoderMaxDTableCapacity);
+  assert.strictEqual(settings.qpackBlockedStreams,
+                     customSettings.qpackBlockedStreams);
+  assert.strictEqual(settings.enableConnectProtocol,
+                     customSettings.enableConnectProtocol);
+  assert.strictEqual(settings.enableDatagrams, customSettings.enableDatagrams);
+}
+
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall(async (stream) => {
-    // After the stream arrives, the handshake and ALPN negotiation are
-    // complete, so applicationOptions should be available.
-    const opts = serverSession.applicationOptions;
-
-    assert.ok(opts != null, 'server applicationOptions should be available after handshake');
-    assert.strictEqual(typeof opts, 'object');
-    assert.strictEqual(Object.getPrototypeOf(opts), null);
-
-    // Verify configured values are reflected.
-    assert.strictEqual(opts.maxHeaderPairs, BigInt(customAppOptions.maxHeaderPairs));
-    assert.strictEqual(opts.maxHeaderLength, BigInt(customAppOptions.maxHeaderLength));
-    assert.strictEqual(opts.maxFieldSectionSize,
-                       BigInt(customAppOptions.maxFieldSectionSize));
-    assert.strictEqual(opts.qpackMaxDtableCapacity,
-                       BigInt(customAppOptions.qpackMaxDTableCapacity));
-    assert.strictEqual(opts.qpackEncoderMaxDtableCapacity,
-                       BigInt(customAppOptions.qpackEncoderMaxDTableCapacity));
-    assert.strictEqual(opts.qpackBlockedStreams,
-                       BigInt(customAppOptions.qpackBlockedStreams));
-    assert.strictEqual(opts.enableConnectProtocol,
-                       customAppOptions.enableConnectProtocol);
-    assert.strictEqual(opts.enableDatagrams, customAppOptions.enableDatagrams);
-
-    stream.writer.endSync();
+const serverEndpoint = await listen(mustCall((quicSession) => {
+  const server = new Http3Session(quicSession, { settings: customSettings });
+  quicSession.onstream = mustCall(async (stream) => {
+    check(quicSession.applicationOptions, 'server');
     await stream.closed;
-    serverSession.close();
+    server.close();
     serverDone.resolve();
   });
 }), {
-  application: customAppOptions,
+  alpn: ['h3'],
+  onheaders: mustCall(function() {
+    this.sendHeaders({ ':status': '200' });
+    this.writer.endSync();
+  }),
 });
 
-const clientSession = await connect(serverEndpoint.address, {
-  application: customAppOptions,
+const client = new Http3Session(
+  await connect(serverEndpoint.address, { alpn: 'h3' }),
+  { settings: customSettings });
+
+// The settings are in effect from the attach onwards: before the handshake
+// completes, and before any SETTINGS frame from the peer can have arrived.
+check(client.quicSession.applicationOptions, 'client');
+await client.opened;
+check(client.quicSession.applicationOptions, 'client');
+
+// Exchange a request to let the server side run its assertions.
+const stream = await client.createBidirectionalStream({
+  headers: {
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  },
+  onheaders: mustCall(),
 });
-await clientSession.opened;
-
-// After opened, ALPN negotiation is complete and applicationOptions
-// should be available on the client session.
-const clientOpts = clientSession.applicationOptions;
-assert.ok(clientOpts != null, 'client applicationOptions should be available after handshake');
-assert.strictEqual(typeof clientOpts, 'object');
-assert.strictEqual(Object.getPrototypeOf(clientOpts), null);
-
-// Verify configured values on the client side.
-assert.strictEqual(clientOpts.maxHeaderPairs, BigInt(customAppOptions.maxHeaderPairs));
-assert.strictEqual(clientOpts.maxHeaderLength, BigInt(customAppOptions.maxHeaderLength));
-assert.strictEqual(clientOpts.maxFieldSectionSize,
-                   customAppOptions.maxFieldSectionSize);
-assert.strictEqual(clientOpts.qpackMaxDtableCapacity,
-                   customAppOptions.qpackMaxDTableCapacity);
-assert.strictEqual(clientOpts.qpackEncoderMaxDtableCapacity,
-                   customAppOptions.qpackEncoderMaxDTableCapacity);
-assert.strictEqual(clientOpts.qpackBlockedStreams,
-                   customAppOptions.qpackBlockedStreams);
-assert.strictEqual(clientOpts.enableConnectProtocol,
-                   customAppOptions.enableConnectProtocol);
-assert.strictEqual(clientOpts.enableDatagrams, customAppOptions.enableDatagrams);
-
-// Exchange data to let the server side run its assertions.
-const stream = await clientSession.createBidirectionalStream();
-stream.writer.endSync();
 
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream) { /* drain */ }
 await Promise.all([stream.closed, serverDone.promise]);
 
-// After close, applicationOptions should return null.
-await clientSession.close();
-assert.strictEqual(clientSession.applicationOptions, null);
+await client.close();
+assert.strictEqual(client.quicSession.applicationOptions, null);
 
 await serverEndpoint.close();

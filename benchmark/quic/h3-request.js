@@ -22,7 +22,7 @@ const bench = common.createBenchmark(main, {
              '--no-warnings'] });
 
 async function main({ mode, n }) {
-  const { listen, connect } = require('node:quic');
+  const { listen, connect, Http3Session } = require('node:quic');
   const { bytes } = require('stream/iter');
 
   const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -37,11 +37,13 @@ async function main({ mode, n }) {
     ':authority': 'localhost',
   };
 
-  const endpoint = await listen((session) => {
+  const endpoint = await listen((quicSession) => {
+    const session = new Http3Session(quicSession);
     session.opened.catch(() => {});
     session.closed.catch(() => {});
     session.onstream = (stream) => { stream.closed.catch(() => {}); };
   }, {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders() {
       this.sendHeaders({ ':status': '200' });
@@ -63,12 +65,12 @@ async function main({ mode, n }) {
   // A full handshake, one request, one response. When resume is supplied the
   // request goes out in the first flight, before the handshake completes.
   async function exchange(resume) {
-    const session = await connect(address, {
+    const session = new Http3Session(await connect(address, {
       servername: 'localhost',
       verifyPeer: 'manual',
       alpn: 'h3',
       ...resume,
-    });
+    }));
     const stream = await session.createBidirectionalStream({
       headers: request,
       onheaders,
@@ -89,7 +91,7 @@ async function main({ mode, n }) {
     const { promise, resolve } = Promise.withResolvers();
     let ticket;
     let token;
-    const session = await connect(address, {
+    const session = new Http3Session(await connect(address, {
       servername: 'localhost',
       verifyPeer: 'manual',
       alpn: 'h3',
@@ -101,7 +103,7 @@ async function main({ mode, n }) {
         token ??= value;
         if (ticket !== undefined) resolve();
       },
-    });
+    }));
     await session.opened;
     await promise;
     session.close();
@@ -115,12 +117,12 @@ async function main({ mode, n }) {
   // otherwise a ticket the server stopped accepting would quietly turn this
   // into a measurement of the 1-RTT path.
   async function checkEarlyDataAccepted() {
-    const session = await connect(address, {
+    const session = new Http3Session(await connect(address, {
       servername: 'localhost',
       verifyPeer: 'manual',
       alpn: 'h3',
       ...resume,
-    });
+    }));
     const stream = await session.createBidirectionalStream({
       headers: request,
       onheaders,

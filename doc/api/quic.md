@@ -239,20 +239,20 @@ counter tracks how many packets have been dropped by the filter.
 
 ### Applications
 
-Every `QuicSession` is associated with a single application protocol, negotiated
-via ALPN during the TLS handshake. The `quic` module is designed to be
-application-agnostic in general but includes built-in support for HTTP/3 as a
-specific application protocol. When using HTTP/3, the `quic` module provides
+Every active `QuicSession` is associated with a single application protocol
+implementation. The `quic` module is designed to be application-agnostic
+in general, but includes optional built-in support for HTTP/3 as a specific
+application protocol. When using HTTP/3, the `quic` module provides
 additional APIs for handling HTTP/3-specific features such as headers, trailers,
 and prioritization. For other application protocols, users can implement their
 own message framing and multiplexing on top of the core QUIC transport features.
 
 When initiating a TLS handshake, the client will include a list of supported
 ALPN protocols in the `ClientHello`. The server selects one of these protocols
-(if any) and includes it in the `ServerHello`. The negotiated protocol determines
-how the `QuicSession` and `QuicStream` APIs behave. For example, when the `h3`
-protocol is negotiated for HTTP/3, the `QuicSession` and `QuicStream` will support
-HTTP/3-specific features.
+(if any) and includes it in the `ServerHello`. The negotiated protocol does not
+automatically change how the session behaves: HTTP/3 is attached explicitly
+using the [`Http3Session`][] API, and a session it is never attached to uses
+the raw QUIC protocol directly.
 
 Currently, the `quic` module only supports HTTP/3 as a built-in application protocol.
 All other protocols must be implemented by the user on top of the provided JavaScript
@@ -498,7 +498,10 @@ const endpoint = new QuicEndpoint({
   address: '127.0.0.1:1234',
 });
 
-const client = await connect('123.123.123.123:8888', { endpoint });
+const client = await connect('123.123.123.123:8888', {
+  alpn: 'h3',
+  endpoint,
+});
 ```
 
 ## `quic.listen(onsession[, options])`
@@ -520,7 +523,7 @@ import { listen } from 'node:quic';
 
 const endpoint = await listen((session) => {
   // ... handle the session
-});
+}, { alpn: ['h3'] });
 
 // Closing the endpoint allows any sessions open when close is called
 // to complete naturally while preventing new sessions from being
@@ -954,8 +957,9 @@ added:
 * Type: {quic.ApplicationOptions}
 
 The current application-level options for this session. These include settings
-that are specific to the negotiated application protocol (e.g. HTTP/3) and may
-be negotiated separately from the transport parameters. Read only.
+that are specific to the installed application protocol (e.g. HTTP/3) and may
+be negotiated separately from the transport parameters. `undefined` until an
+application is installed. Read only.
 You can use the callback [`session.onapplication`][] to be informed, when settings
 from the remote arrive.
 
@@ -2665,7 +2669,8 @@ added:
 
 * Type: {Object}
 
-The application specific options.
+The application specific options, configured for HTTP/3 with
+[`new Http3Session()`][].
 
 #### `applicationOptions.maxHeaderPairs`
 
@@ -3065,36 +3070,7 @@ preference order that the server supports (e.g. `['h3', 'h3-29']`).
 During the TLS handshake, the server selects the first protocol from its
 list that the client also supports.
 
-The negotiated ALPN determines which Application implementation is used
-for the session. `'h3'` and `'h3-*'` variants select the HTTP/3
-application; all other values select the default application.
-
-Default: `'h3'`
-
-#### `sessionOptions.application`
-
-<!-- YAML
-added:
- - v26.2.0
- - v24.20.0
--->
-
-* Type: {quic.ApplicationOptions}
-
-Application-specific options.
-
-```mjs
-const { listen } = await import('node:quic');
-
-await listen((session) => { /* ... */ }, {
-  application: {
-    maxHeaderPairs: 64,
-    qpackMaxDTableCapacity: 8192,
-    enableDatagrams: true,
-  },
-  // ... other session options
-});
-```
+This option is required; omitting it throws `ERR_MISSING_OPTION`.
 
 #### `sessionOptions.ca`
 
@@ -3492,6 +3468,7 @@ contain:
 
 ```mjs
 const endpoint = await listen(callback, {
+  alpn: ['h3'],
   sni: {
     '*': { keys: [defaultKey], certs: [defaultCert] },
     'api.example.com': { keys: [apiKey], certs: [apiCert], port: 8443 },
@@ -4073,13 +4050,12 @@ added:
  - v24.20.0
 -->
 
-When the negotiated ALPN identifier is `'h3'` (or one of the `'h3-*'`
-draft variants), the QUIC session runs the HTTP/3 application backed
-by `nghttp3`. `'h3'` is the default ALPN for `quic.connect()` and
-`quic.listen()`, so HTTP/3 is what you get unless you select a
-different ALPN explicitly.
+HTTP/3, backed by `nghttp3`, can run on top of a QUIC session by attaching
+an [`Http3Session`][]. Negotiating the `'h3'` ALPN tells the peer which
+protocol to speak, but does not change how the connection works locally,
+so both are needed. See [`new Http3Session()`][] for more details.
 
-Selecting the HTTP/3 application enables a number of stream- and
+Attaching the HTTP/3 application enables a number of stream- and
 session-level capabilities that are not available to non-HTTP/3
 applications:
 
@@ -4115,13 +4091,13 @@ applications:
 ### Minimal HTTP/3 client
 
 ```mjs
-import { connect } from 'node:quic';
+import { connect, Http3Session } from 'node:quic';
 import process from 'node:process';
 
-const session = await connect('example.com:443', {
-  // ALPN defaults to 'h3'.
+const session = new Http3Session(await connect('example.com:443', {
+  alpn: 'h3',
   servername: 'example.com',
-});
+}));
 await session.opened;
 
 const stream = await session.createBidirectionalStream({
@@ -4166,17 +4142,21 @@ A few things to note:
 ### Minimal HTTP/3 server
 
 ```mjs
-import { listen } from 'node:quic';
+import { listen, Http3Session } from 'node:quic';
 
 const encoder = new TextEncoder();
 
-const endpoint = await listen((session) => {
+const endpoint = await listen((quicSession) => {
+  // Attaching HTTP/3 has to happen here, synchronously, before the
+  // callback returns.
+  const session = new Http3Session(quicSession);
+
   // The session.onstream callback fires for each new client-initiated
   // stream. It is optional here: with `onheaders` configured below,
   // request streams are consumed through that callback.
 }, {
+  alpn: ['h3'],
   sni: { '*': { keys: [defaultKey], certs: [defaultCert] } },
-  // ALPN defaults to 'h3'.
   onheaders(headers) {
     // `this` is the QuicStream. Pseudo-headers are available on the
     // request header block (`:method`, `:path`, `:scheme`,
@@ -4224,6 +4204,151 @@ Server-side notes:
   negotiation, body-type coercion, redirect following, or
   cookie handling. These are deliberately left to higher-level
   libraries built on top of `node:quic`.
+
+## Class: `Http3Session`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This class wraps a [`QuicSession`][], attaching an HTTP/3 application protocol
+implementation which interprets the raw QUIC data and exposes APIs to allow
+you to use HTTP/3 over QUIC. Once the HTTP/3 application is attached, this
+session should be used instead of the raw QUIC session for all HTTP/3
+interactions. The streams that this session exposes are still `QuicStream`
+instances, but they gain HTTP/3 APIs and functionality from the application.
+
+The HTTP/3 session API exposes all key HTTP/3 session details: the settings,
+statistics, TLS identity, and HTTP/3-level events. The QUIC transport details
+underneath (e.g. paths, transport parameters, and key updates) remain on the
+QUIC session, accessible as [`http3session.quicSession`][].
+
+HTTP/3 frames every stream on the connection, so once this is attached,
+streams cannot be opened on the QUIC session directly:
+[`session.createBidirectionalStream()`][] and
+[`session.createUnidirectionalStream()`][] will throw `ERR_INVALID_STATE`,
+and request streams should be opened with
+[`http3session.createBidirectionalStream()`][] instead.
+
+### `new Http3Session(session[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `session` {quic.QuicSession} The QUIC session to attach HTTP/3 to.
+* `options` {Object}
+  * `settings` {quic.ApplicationOptions} The HTTP/3 settings to use.
+    Defaults apply to anything left out.
+  * `ongoaway` {Function} See [`http3session.ongoaway`][].
+  * `onorigin` {Function} See [`session.onorigin`][].
+  * `onsettings` {Function} See [`http3session.onsettings`][].
+
+HTTP/3 can only be attached before the session becomes **active**. A session
+becomes active when: a stream is created on it; a datagram is sent with
+[`session.sendDatagram()`][]; immediately after a server session's
+[`quic.listen()`][] callback returns; or immediately after a client's
+`session.opened` promise resolves.
+
+Only what this side does is listed, because nothing the peer sends can arrive
+any earlier: its streams and datagrams need keys that are only unlocked once
+the session is already active.
+
+In practice this means a server session should be attached synchronously
+inside the [`quic.listen()`][] callback, and a client session should be
+attached synchronously when the [`session.opened`][] promise resolves (or
+before), and in both cases before anything is sent on the session.
+
+Attaching to a session that is already active throws `ERR_INVALID_STATE`, and
+leaves the session untouched.
+
+### Members forwarded to the QUIC session
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Each of the following behaves exactly as the member of the same name on the
+underlying [`QuicSession`][]: `alpnProtocol`, `certificate`, `close()`,
+`closed`, `destroy()`, `destroyed`, `ephemeralKeyInfo`, `onerror`, `opened`,
+`peerCertificate`, `servername`, and `stats`.
+
+### `http3session.createBidirectionalStream([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} fulfilled with a {quic.QuicStream}
+
+Opens an HTTP/3 request stream. Equivalent to
+[`session.createBidirectionalStream()`][] on the underlying session.
+
+HTTP/3 has no server-initiated request streams, so calling this on a server
+session throws `ERR_INVALID_STATE`.
+
+### `http3session.ongoaway`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function}
+
+See [`session.ongoaway`][].
+
+### `http3session.onorigin`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnOriginCallback}
+
+See [`session.onorigin`][].
+
+### `http3session.onsettings`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnApplicationCallback}
+
+See [`session.onapplication`][].
+
+### `http3session.onstream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function}
+
+Called with each request stream the peer opens, as a {quic.QuicStream}. See
+[`session.onstream`][].
+
+### `http3session.quicSession`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.QuicSession}
+
+The QUIC session on which this HTTP/3 session is running.
+
+### `http3session.settings`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.ApplicationOptions|null}
+
+The HTTP/3 settings in effect, including any update received from the peer's
+SETTINGS frame, which may arrive after the session opens. `null` once the
+session is destroyed.
 
 ## Performance measurement
 
@@ -4760,13 +4885,15 @@ throughput issues caused by flow control.
 [RFC 9369]: https://www.rfc-editor.org/rfc/rfc9369
 [RFC 9412]: https://www.rfc-editor.org/rfc/rfc9412
 [RFC 9443]: https://www.rfc-editor.org/rfc/rfc9443
+[`Http3Session`]: #class-http3session
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
 [`QuicEndpoint`]: #class-quicendpoint
 [`QuicError`]: #class-quicerror
-[`application.enableConnectProtocol`]: #sessionoptionsapplication
-[`application.enableDatagrams`]: #sessionoptionsapplication
-[`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`QuicSession`]: #class-quicsession
+[`application.enableConnectProtocol`]: #applicationoptionsenableconnectprotocol
+[`application.enableDatagrams`]: #applicationoptionsenabledatagrams
+[`application.qpackMaxDTableCapacity`]: #applicationoptionsqpackmaxdtablecapacity
 [`certificateCompression`]: #sessionoptionscertificatecompression
 [`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
@@ -4786,8 +4913,13 @@ throughput issues caused by flow control.
 [`endpointOptions.versionNegotiationRate`]: #endpointoptionsversionnegotiationrate
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
+[`http3session.createBidirectionalStream()`]: #http3sessioncreatebidirectionalstreamoptions
+[`http3session.ongoaway`]: #http3sessionongoaway
+[`http3session.onsettings`]: #http3sessiononsettings
+[`http3session.quicSession`]: #http3sessionquicsession
 [`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
 [`net.BlockList`]: net.md#class-netblocklist
+[`new Http3Session()`]: #new-http3sessionsession-options
 [`quic.connect()`]: #quicconnectaddress-options
 [`quic.listen()`]: #quiclistenonsession-options
 [`session.close()`]: #sessioncloseoptions
@@ -4807,6 +4939,7 @@ throughput issues caused by flow control.
 [`session.onqlog`]: #sessiononqlog
 [`session.onsessionticket`]: #sessiononsessionticket
 [`session.onstream`]: #sessiononstream
+[`session.opened`]: #sessionopened
 [`session.sendDatagram()`]: #sessionsenddatagramdatagram-encoding
 [`sessionOptions.cc`]: #sessionoptionscc
 [`sessionOptions.ciphers`]: #sessionoptionsciphers

@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -50,12 +50,15 @@ async function makeRequest(clientSession, path) {
   const serverDone = Promise.withResolvers();
   let requestCount = 0;
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    // Server disables QPACK dynamic table.
+    const ss = new Http3Session(quicSession, {
+      settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
+    });
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
-    // Server disables QPACK dynamic table.
-    application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync(encoder.encode(headers[':path']));
@@ -66,11 +69,14 @@ async function makeRequest(clientSession, path) {
     }, 2),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  // Client also disables QPACK dynamic table.
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-    // Client also disables QPACK dynamic table.
-    application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
+  });
+  const clientSession = new Http3Session(quicSession, {
+    settings: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
   await clientSession.opened;
 
@@ -89,11 +95,14 @@ async function makeRequest(clientSession, path) {
   const serverDone = Promise.withResolvers();
   let requestCount = 0;
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession, {
+      settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
+    });
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
-    application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
       this.writer.writeSync(encoder.encode(headers[':path']));
@@ -104,10 +113,13 @@ async function makeRequest(clientSession, path) {
     }, 2),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-    application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
+  });
+  const clientSession = new Http3Session(quicSession, {
+    settings: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
   await clientSession.opened;
 

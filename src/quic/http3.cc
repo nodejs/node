@@ -23,9 +23,12 @@ namespace node {
 
 using v8::Array;
 using v8::Global;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::LocalVector;
+using v8::Object;
+using v8::TryCatch;
 using v8::Value;
 
 namespace quic {
@@ -210,9 +213,6 @@ class Http3ApplicationImpl final : public Session::Application {
     started_ = false;
     session().DestroyAllStreams(
         QuicError::ForApplication(GetInternalErrorCode()));
-    if (!session().is_destroyed()) {
-      session().EmitEarlyDataRejected();
-    }
   }
 
   bool ReceiveStreamOpen(stream_id id) override {
@@ -1567,10 +1567,46 @@ class Http3ApplicationImpl final : public Session::Application {
       on_stream_close};
 };
 
-std::unique_ptr<Session::Application> CreateHttp3Application(
-    Session* session, const Session::Application_Options& options) {
-  Debug(session, "Selecting HTTP/3 application");
-  return std::make_unique<Http3ApplicationImpl>(session, options);
+Session::Application_Options Http3SettingsFromHandle(const Session& session) {
+  Environment* env = session.env();
+  HandleScope scope(env->isolate());
+
+  Local<Value> stored;
+  if (!session.object()
+           ->Get(env->context(), BindingData::Get(env).http3_settings_symbol())
+           .ToLocal(&stored) ||
+      !stored->IsObject()) {
+    return Session::Application_Options::kDefault;
+  }
+
+  Session::Application_Options options;
+  {
+    TryCatch try_catch(env->isolate());
+    if (Session::Application_Options::From(env, stored).To(&options)) {
+      return options;
+    }
+  }
+  return Session::Application_Options::kDefault;
+}
+
+void InitHttp3PerContext(Realm* realm, Local<Object> target) {
+  Environment* env = realm->env();
+  // The application id JavaScript writes into the session's application_type
+  // to request HTTP/3, and the symbol it leaves the settings under.
+  constexpr int QUIC_APPLICATION_HTTP3 =
+      static_cast<int>(Session::Application::Type::HTTP3);
+  NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_HTTP3);
+  target
+      ->Set(realm->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kHttp3Settings"),
+            BindingData::Get(env).http3_settings_symbol())
+      .Check();
+}
+
+std::unique_ptr<Session::Application> CreateHttp3Application(Session* session) {
+  Debug(session, "Installing HTTP/3 application");
+  return std::make_unique<Http3ApplicationImpl>(
+      session, Http3SettingsFromHandle(*session));
 }
 
 }  // namespace quic
