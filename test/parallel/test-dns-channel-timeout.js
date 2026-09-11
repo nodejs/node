@@ -22,10 +22,11 @@ for (const ctor of [dns.Resolver, dns.promises.Resolver]) {
   for (const timeout of [-1, 0, 1]) new ctor({ timeout });  // OK
 }
 
+// One attempt is enough to exercise the timeout without retry backoff.
 for (const timeout of [0, 1, 2]) {
   const server = dgram.createSocket('udp4');
   server.bind(0, '127.0.0.1', common.mustCall(() => {
-    const resolver = new dns.Resolver({ timeout });
+    const resolver = new dns.Resolver({ timeout, tries: 1 });
     resolver.setServers([`127.0.0.1:${server.address().port}`]);
     resolver.resolve4('nodejs.org', common.mustCall((err) => {
       assert.throws(() => { throw err; }, {
@@ -40,7 +41,7 @@ for (const timeout of [0, 1, 2]) {
 for (const timeout of [0, 1, 2]) {
   const server = dgram.createSocket('udp4');
   server.bind(0, '127.0.0.1', common.mustCall(() => {
-    const resolver = new dns.promises.Resolver({ timeout });
+    const resolver = new dns.promises.Resolver({ timeout, tries: 1 });
     resolver.setServers([`127.0.0.1:${server.address().port}`]);
     resolver.resolve4('nodejs.org').catch(common.mustCall((err) => {
       assert.throws(() => { throw err; }, {
