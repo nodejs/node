@@ -16,7 +16,13 @@ const simpleWasmBytes = fixtures.readSync('simple.wasm');
 // Sets up an HTTP server with the given response handler and calls fetch() to
 // obtain a Response from the newly created server.
 async function testRequest(handler) {
-  const server = createServer((_, res) => handler(res)).unref().listen(0);
+  const server = createServer(common.mustCall((_, res) => {
+    res.setHeader('Connection', 'close');
+    res.once('close', common.mustCall(() => {
+      server.close(common.mustCall());
+    }));
+    handler(res);
+  })).listen(0);
   await events.once(server, 'listening');
   const { port } = server.address();
   return fetch(`http://127.0.0.1:${port}/foo.wasm`);
