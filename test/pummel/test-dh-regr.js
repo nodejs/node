@@ -32,7 +32,7 @@ if (common.isPi()) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasFIPS } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 let iterations = 2000;
 if (hasFIPS(3)) {
@@ -45,10 +45,20 @@ if (hasFIPS(3)) {
   iterations = 100;
 }
 
+let createDH;
+if (hasOpenSSL(3)) {
+  // OpenSSL 3 recognizes named groups without validating their primes.
+  createDH = () => crypto.getDiffieHellman('modp14');
+} else {
+  // Other backends validate each peer's parameters, so keep them small.
+  const length = crypto.getFips() === 1 ? 1024 : 256;
+  const prime = crypto.createDiffieHellman(length).getPrime();
+  createDH = () => crypto.createDiffieHellman(prime);
+}
+
 for (let i = 0; i < iterations; i++) {
-  // A named group avoids generating and validating custom parameters.
-  const a = crypto.getDiffieHellman('modp14');
-  const b = crypto.getDiffieHellman('modp14');
+  const a = createDH();
+  const b = createDH();
 
   a.generateKeys();
   b.generateKeys();
