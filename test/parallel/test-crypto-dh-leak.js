@@ -9,13 +9,11 @@ if (common.isASan)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 const before = process.memoryUsage.rss();
 {
-  const size = hasFIPS(3) ?
-    2048 : (crypto.getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
-  const dh = crypto.createDiffieHellman(size);
+  const prime = crypto.getDiffieHellman('modp14').getPrime();
+  const dh = crypto.createDiffieHellman(prime);
   const publicKey = dh.generateKeys();
   const privateKey = dh.getPrivateKey();
   for (let i = 0; i < 5e4; i += 1) {
