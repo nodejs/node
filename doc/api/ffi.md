@@ -210,6 +210,11 @@ const path = `libsqlite3.${suffix}`;
 
 <!-- YAML
 added: v26.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65909
+    description: Library paths inside a mounted virtual file system are now
+                 supported.
 -->
 
 * `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
@@ -220,6 +225,13 @@ added: v26.1.0
 Loads a dynamic library and resolves the requested function definitions.
 
 On Windows passing `null` is not supported.
+
+A `path` inside a mounted [virtual file system][] is supported: the
+operating system's dynamic loader cannot open a virtual path, so the
+library's bytes are read from the VFS and loaded from a private,
+self-cleaning temporary image instead, while `lib.path` keeps reporting
+the virtual path. Libraries on the real file system are unaffected and
+load directly.
 
 When `definitions` is omitted, `functions` is returned as an empty object until
 symbols are resolved explicitly.
@@ -302,12 +314,23 @@ Represents a loaded dynamic library.
 
 ### `new DynamicLibrary(path)`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65909
+    description: Library paths inside a mounted virtual file system are now
+                 supported.
+-->
+
 * `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
   from the current process image.
 
 Loads the dynamic library without resolving any functions eagerly.
 
 On Windows passing `null` is not supported.
+
+A `path` inside a mounted [virtual file system][] loads the same way as
+with [`ffi.dlopen()`][].
 
 ```cjs
 const { DynamicLibrary, suffix } = require('node:ffi');
@@ -798,7 +821,9 @@ and keep callback and pointer lifetimes explicit on the native side.
 
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
+[`ffi.dlopen()`]: #ffidlopenpath-definitions
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`library.functions`]: #libraryfunctions
 [`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [type names]: #type-names
+[virtual file system]: vfs.md

@@ -10,6 +10,7 @@
 #include "ffi/data.h"
 #include "ffi/fast.h"
 #include "ffi/types.h"
+#include "node_binding.h"
 #include "node_errors.h"
 
 namespace node {
@@ -525,9 +526,44 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
     library_path = lib->path_.c_str();
   }
 
+  // On the internal path args[1] carries the library's bytes, for a library
+  // that lives somewhere the dynamic loader cannot open by path (a virtual
+  // file system). Materialize them into a private, self-cleaning image - the
+  // same mechanism process.dlopen() uses for such native addons - and load
+  // that, while still reporting the library's own path in `library.path` and
+  // any error.
+  binding::AddonImage image;
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsArrayBufferView()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Library binary must be a Buffer, TypedArray, or DataView");
+      return;
+    }
+    // Loading from bytes materializes them into an image in the temporary
+    // directory, so this needs write access there on top of the FFI
+    // permission checked above. The check does not depend on whether the
+    // image actually reaches the file system on this platform (Linux uses an
+    // anonymous memfd): what a program must be granted should not vary by
+    // platform.
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kFileSystemWrite,
+        binding::AddonImage::TempDir());
+    ArrayBufferViewContents<char> binary(args[1]);
+    if (!image.Materialize(binary.data(), binary.length())) {
+      THROW_ERR_FFI_CALL_FAILED(
+          env, "dlopen failed: %s: %s", image.errmsg().c_str(), library_path);
+      return;
+    }
+    library_path = image.path().c_str();
+  }
+
   CHECK(lib->is_closed());
   // Open the library
-  if (uv_dlopen(library_path, &lib->lib_) != 0) {
+  const bool opened = uv_dlopen(library_path, &lib->lib_) == 0;
+  image.AfterOpen(opened,
+                  opened ? static_cast<void*>(lib->lib_.handle) : nullptr);
+  if (!opened) {
     THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
     return;
   }
