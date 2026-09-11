@@ -83,6 +83,24 @@ async function buildArchive(entries, comment) {
     assert.strictEqual(await archiveVfs.promises.readFile('/new.txt', 'utf8'), 'brand new');
     assert.strictEqual(zip.has('new.txt'), true);
 
+    // Entries cannot be created beneath a file.
+    await assert.rejects(
+      archiveVfs.promises.writeFile('/a.txt/child.txt', 'child'),
+      { code: 'ENOTDIR' },
+    );
+    await assert.rejects(
+      archiveVfs.promises.mkdir('/a.txt/child'),
+      { code: 'ENOTDIR' },
+    );
+    await assert.rejects(
+      archiveVfs.promises.rename('/new.txt', '/a.txt/renamed.txt'),
+      { code: 'ENOTDIR' },
+    );
+    assert.strictEqual(zip.has('a.txt/child.txt'), false);
+    assert.strictEqual(zip.has('a.txt/child/'), false);
+    assert.strictEqual(zip.has('a.txt/renamed.txt'), false);
+    assert.strictEqual(zip.has('new.txt'), true);
+
     // Overwriting an existing file.
     await archiveVfs.promises.writeFile('/a.txt', 'overwritten');
     assert.strictEqual(await archiveVfs.promises.readFile('/a.txt', 'utf8'), 'overwritten');
@@ -194,6 +212,24 @@ async function buildArchive(entries, comment) {
     assert.strictEqual(archiveVfs.readFileSync('/new.txt', 'utf8'), 'brand new');
     archiveVfs.appendFileSync('/new.txt', '!');
     assert.strictEqual(archiveVfs.readFileSync('/new.txt', 'utf8'), 'brand new!');
+
+    // Entries cannot be created beneath a file.
+    assert.throws(
+      () => archiveVfs.writeFileSync('/a.txt/child.txt', 'child'),
+      { code: 'ENOTDIR' },
+    );
+    assert.throws(
+      () => archiveVfs.mkdirSync('/a.txt/child'),
+      { code: 'ENOTDIR' },
+    );
+    assert.throws(
+      () => archiveVfs.renameSync('/new.txt', '/a.txt/renamed.txt'),
+      { code: 'ENOTDIR' },
+    );
+    assert.strictEqual(zip.has('a.txt/child.txt'), false);
+    assert.strictEqual(zip.has('a.txt/child/'), false);
+    assert.strictEqual(zip.has('a.txt/renamed.txt'), false);
+    assert.strictEqual(zip.has('new.txt'), true);
 
     // mkdir/rmdir.
     archiveVfs.mkdirSync('/newdir');
