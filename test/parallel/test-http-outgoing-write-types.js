@@ -20,5 +20,5 @@ const httpServer = http.createServer(common.mustCall(function(req, res) {
 }));
 
 httpServer.listen(0, common.mustCall(function() {
-  http.get({ port: this.address().port });
+  http.get({ port: this.address().port, agent: false });
 }));

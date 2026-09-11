@@ -49,6 +49,7 @@ function test() {
   }));
 
   const req = http.get({
+    agent: false,
     socketPath: common.PIPE,
     headers: { 'Content-Length': '1' },
     method: 'POST',

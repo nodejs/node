@@ -5,6 +5,7 @@ const http = require('http');
 
 function request(server) {
   http.get({
+    agent: false,
     port: server.address().port,
     path: '/',
   }, (res) => {
