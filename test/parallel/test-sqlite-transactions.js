@@ -1,12 +1,12 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
 suite('manual transactions', () => {
   test('a transaction is committed', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(`
       CREATE TABLE data(
@@ -33,7 +33,7 @@ suite('manual transactions', () => {
   });
 
   test('a transaction is rolled back', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(`
       CREATE TABLE data(

@@ -1,6 +1,6 @@
-import { backup, DatabaseSync } from 'node:sqlite';
+import { backup, Database } from 'node:sqlite';
 
-const source = new DatabaseSync(':memory:');
+const source = new Database(':memory:');
 source.exec(`
   CREATE TABLE data(value);
   INSERT INTO data VALUES (zeroblob(1048576));

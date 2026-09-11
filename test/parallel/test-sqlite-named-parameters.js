@@ -1,12 +1,12 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
 suite('named parameters', () => {
   test('throws on unknown named parameters', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -23,7 +23,7 @@ suite('named parameters', () => {
   });
 
   test('bare named parameters are supported', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -38,7 +38,7 @@ suite('named parameters', () => {
   });
 
   test('duplicate bare named parameters are supported', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -53,7 +53,7 @@ suite('named parameters', () => {
   });
 
   test('bare named parameters throw on ambiguous names', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -72,7 +72,7 @@ suite('named parameters', () => {
 
 suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
   test('unknown named parameter support can be toggled', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
@@ -95,7 +95,7 @@ suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -111,7 +111,7 @@ suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
   });
 
   test('throws if the statement is already finalized', (t) => {
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -129,7 +129,7 @@ suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
 
 suite('options.allowUnknownNamedParameters', () => {
   test('unknown named parameters are allowed when input is true', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
@@ -147,7 +147,7 @@ suite('options.allowUnknownNamedParameters', () => {
   });
 
   test('unknown named parameters throw when input is false', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
@@ -167,7 +167,7 @@ suite('options.allowUnknownNamedParameters', () => {
   });
 
   test('unknown named parameters throws error by default', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
@@ -184,7 +184,7 @@ suite('options.allowUnknownNamedParameters', () => {
   });
 
   test('throws when option is not a boolean', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -202,7 +202,7 @@ suite('options.allowUnknownNamedParameters', () => {
   });
 
   test('setAllowUnknownNamedParameters can override prepare option', (t) => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
