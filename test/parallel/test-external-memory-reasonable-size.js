@@ -8,7 +8,6 @@ require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 
 // Despite the "default" label, --v8-options prints the parsed flag values.
-// Inspect them without allocating over a gigabyte and crashing the child.
 for (const [flags, expected] of [
   [[], 0],
   [['--external-memory-max-reasonable-size=1'], 1],
