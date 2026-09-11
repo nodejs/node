@@ -39,7 +39,7 @@ const server = http.createServer(function(request, response) {
 });
 
 server.listen(0, common.mustCall(() => {
-  http.get({ port: server.address().port }, common.mustCall((res) => {
+  http.get({ port: server.address().port, agent: false }, common.mustCall((res) => {
     let response = '';
 
     assert.strictEqual(res.statusCode, 200);
