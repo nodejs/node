@@ -3,6 +3,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "node_external_reference.h"
+#include "node_internals.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -94,6 +95,7 @@ void BindingData::LinkNativeChannel(const FunctionCallbackInfo<Value>& args) {
       }
     }
   }
+  realm->env()->InitializeThreadPoolWorkChannel();
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
@@ -102,6 +104,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
   internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
   internal_field_info_->subscribers = subscribers_.Serialize(context, creator);
   internal_field_info_->subscribers_capacity = subscribers_.Length();
+  channel_status_callbacks_.clear();
   link_callback_.Reset();
   channel_wrap_template_.Reset();
   channels_.clear();
