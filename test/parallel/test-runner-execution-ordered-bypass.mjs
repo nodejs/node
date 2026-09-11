@@ -1,8 +1,10 @@
 // Flags: --no-warnings
 
-import '../common/index.mjs';
+import { mustCall, platformTimeout } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
+import { once } from 'node:events';
+import { createServer } from 'node:net';
 import { test, run } from 'node:test';
 
 const files = [
@@ -10,15 +12,29 @@ const files = [
   fixtures.path('test-runner', 'execution-ordered-bypass', 'fast-fail.mjs'),
 ];
 
-test('execution-ordered events bypass FileTest declaration-order buffer', async () => {
+test('execution-ordered events bypass FileTest declaration-order buffer', {
+  timeout: platformTimeout(30_000),
+}, async (t) => {
+  const { promise: fastCompleted, resolve: releaseSlow } = Promise.withResolvers();
+  const server = createServer(mustCall((socket) => {
+    t.after(() => socket.destroy());
+    fastCompleted.then(mustCall(() => {
+      socket.end();
+    }));
+  }));
+  t.after(() => server.close());
+  await once(server.listen(0, '127.0.0.1'), 'listening');
+
   // Concurrency must be a number so the runner does not collapse it to 1 on
   // single-core CI runners (where `concurrency: true` resolves to
   // `availableParallelism() - 1`). Without two slots the runner spawns the
-  // files sequentially and fast-fail never starts while slow is sleeping.
+  // files sequentially and fast-fail never starts while slow is waiting.
   const stream = run({
     files,
     isolation: 'process',
     concurrency: 2,
+    argv: [String(server.address().port)],
+    signal: t.signal,
   });
 
   const events = [];
@@ -26,6 +42,9 @@ test('execution-ordered events bypass FileTest declaration-order buffer', async 
   stream.on('test:complete', (data) => {
     if (data.name === 'slow' || data.name === 'fast-fail') {
       events.push(`complete:${data.name}`);
+    }
+    if (data.name === 'fast-fail') {
+      releaseSlow();
     }
   });
 
