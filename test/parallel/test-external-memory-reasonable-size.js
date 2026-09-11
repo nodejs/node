@@ -15,6 +15,6 @@ for (const [flags, expected] of [
   [['--external_memory_max_reasonable_size=1'], 1],
 ]) {
   spawnSyncAndAssert(process.execPath, [...flags, '--v8-options'], {
-    stdout: new RegExp(`default: --external-memory-max-reasonable-size=${expected}\\r?$`, 'm'),
+    stdout: new RegExp(`default: --external-memory-max-reasonable-size=${expected}$`, 'm'),
   });
 }
