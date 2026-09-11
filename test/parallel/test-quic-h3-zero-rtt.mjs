@@ -14,7 +14,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -31,7 +31,8 @@ const gotToken = Promise.withResolvers();
 let serverSessionCount = 0;
 const secondDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((ss) => {
+const serverEndpoint = await listen(mustCall((quicSession) => {
+  const ss = new Http3Session(quicSession);
   const num = ++serverSessionCount;
   ss.onstream = mustCall(async (stream) => {
     if (num === 2) {
@@ -44,6 +45,7 @@ const serverEndpoint = await listen(mustCall((ss) => {
     ss.close();
   });
 }, 2), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function(headers) {
     this.sendHeaders({ ':status': '200' });
@@ -53,7 +55,8 @@ const serverEndpoint = await listen(mustCall((ss) => {
 });
 
 // --- First connection: establish H3 session, receive ticket ---
-const cs1 = await connect(serverEndpoint.address, {
+const cs1 = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   onsessionticket: mustCall(function(ticket) {
@@ -67,7 +70,7 @@ const cs1 = await connect(serverEndpoint.address, {
     savedToken = token;
     gotToken.resolve();
   }),
-});
+}));
 
 const info1 = await cs1.opened;
 assert.strictEqual(info1.earlyDataAttempted, false);
@@ -95,12 +98,13 @@ assert.ok(savedTicket);
 assert.ok(savedToken);
 
 // --- Second connection: 0-RTT with H3 ---
-const cs2 = await connect(serverEndpoint.address, {
+const cs2 = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
-});
+}));
 
 // Send H3 request BEFORE handshake completes — true 0-RTT.
 const s2 = await cs2.createBidirectionalStream({

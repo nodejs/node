@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -26,13 +26,15 @@ const decoder = new TextDecoder();
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       // Headers were enqueued before the stream opened
@@ -46,10 +48,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
 
   // Create the stream BEFORE awaiting opened. The stream is pending
   // until the handshake completes and the QUIC stream can be opened.

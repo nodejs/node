@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -35,7 +35,8 @@ writeFileSync(testFile, testContent);
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const serverSession = new Http3Session(quicSession);
     serverSession.onstream = mustCall(async (stream) => {
       const body = await bytes(stream);
       assert.strictEqual(decoder.decode(body), testContent);
@@ -45,6 +46,7 @@ writeFileSync(testFile, testContent);
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':method'], 'POST');
@@ -56,10 +58,11 @@ writeFileSync(testFile, testContent);
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
 
   const info = await clientSession.opened;
   assert.strictEqual(info.protocol, 'h3');

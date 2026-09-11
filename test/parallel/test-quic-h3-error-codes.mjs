@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -25,7 +25,8 @@ const decoder = new TextDecoder();
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       // Close with an explicit H3 application error code.
@@ -33,6 +34,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -41,10 +43,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -77,13 +80,15 @@ const decoder = new TextDecoder();
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -92,10 +97,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

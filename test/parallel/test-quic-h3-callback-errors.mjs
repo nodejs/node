@@ -15,7 +15,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -24,7 +24,8 @@ const encoder = new TextEncoder();
 
 async function makeServer(onheadersHandler, extraOpts = {}) {
   const done = Promise.withResolvers();
-  const ep = await listen(mustCall(async (ss) => {
+  const ep = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall((stream) => {
       // The server completes its response before the client's
       // callback throws, so the server stream always resolves.
@@ -33,6 +34,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     await ss.closed;
     done.resolve();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxIdleTimeout: 1 },
     onheaders: onheadersHandler,
@@ -51,11 +53,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   );
 
-  const c = await connect(ep.address, {
+  const c = new Http3Session(await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  });
+  }));
   await c.opened;
 
   const s = await c.createBidirectionalStream({
@@ -91,11 +94,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   );
 
-  const c = await connect(ep.address, {
+  const c = new Http3Session(await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  });
+  }));
   await c.opened;
 
   const s = await c.createBidirectionalStream({
@@ -136,11 +140,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     },
   );
 
-  const c = await connect(ep.address, {
+  const c = new Http3Session(await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  });
+  }));
   await c.opened;
 
   const s = await c.createBidirectionalStream({
@@ -171,9 +176,11 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
 // Sync throw in onorigin callback destroys the session.
 {
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     await ss.closed;
   }), {
+    alpn: ['h3'],
     sni: {
       '*': { keys: [key], certs: [cert] },
       'example.com': { keys: [key], certs: [cert] },
@@ -185,17 +192,19 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     },
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'example.com',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-    onorigin: mustCall(function() {
-      throw new Error('onorigin error');
-    }),
     onerror: mustCall(function(error) {
       assert.strictEqual(error.message, 'onorigin error');
     }),
+    onorigin: mustCall(function() {
+      throw new Error('onorigin error');
+    }),
   });
+  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -226,7 +235,8 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   const serverStreamRejected = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       // The server stream rejects because onwanttrailers threw.
       await assert.rejects(stream.closed, mustCall((err) => {
@@ -238,6 +248,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     await ss.closed;
     serverDone.resolve();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxIdleTimeout: 1 },
     onheaders: mustCall(function(headers) {
@@ -250,11 +261,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  });
+  }));
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

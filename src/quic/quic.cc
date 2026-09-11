@@ -1,6 +1,7 @@
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 
+#include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -9,6 +10,7 @@
 #include <v8.h>
 #include "bindingdata.h"
 #include "endpoint.h"
+#include "http3.h"
 #include "node_external_reference.h"
 
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
@@ -48,6 +50,7 @@ void CreatePerContextProperties(Local<Object> target,
   Endpoint::InitPerContext(realm, target);
   Session::InitPerContext(realm, target);
   Stream::InitPerContext(realm, target);
+  InitHttp3PerContext(realm, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

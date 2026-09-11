@@ -23,7 +23,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { makePayload } = await import('../common/quic.mjs');
 
@@ -41,12 +41,14 @@ const responseBody = makePayload(kResponseSize, 17);
 assert.ok(kResponseSize * kRequests > kConnWindow * 4,
           'aggregate response data must far exceed the connection window');
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
+const serverEndpoint = await listen(mustCall((quicSession) => {
+  const serverSession = new Http3Session(quicSession);
   serverSession.onstream = mustCall((stream) => {
     // The client destroys these early; the truncated write is expected.
     stream.onerror = () => {};
   }, kRequests);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function() {
     this.sendHeaders({ ':status': '200' });
@@ -54,14 +56,15 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   }, kRequests),
 });
 
-const clientSession = await connect(serverEndpoint.address, {
+const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   transportParams: {
     initialMaxData: kConnWindow,
     initialMaxStreamDataBidiLocal: kResponseSize * 2,
   },
-});
+}));
 
 // The client opens every stream itself; the server opens none. Any onstream
 // here is a destroyed request stream being resurrected and misreported as
@@ -91,7 +94,8 @@ for (let i = 0; i < kRequests; i++) {
 }
 
 // Exactly one locally-opened stream per request.
-assert.strictEqual(Number(clientSession.stats.bidiOutStreamCount), kRequests);
+assert.strictEqual(Number(clientSession.stats.bidiOutStreamCount),
+                   kRequests);
 
 await clientSession.close();
 await serverEndpoint.close();

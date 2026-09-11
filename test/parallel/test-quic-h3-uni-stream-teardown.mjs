@@ -1,11 +1,13 @@
 // Flags: --experimental-quic --no-warnings
 
 // Regression test for https://github.com/nodejs/node/issues/65408.
-// A client-created unidirectional stream is not a valid HTTP/3 request stream,
-// but nghttp3 handles it internally. Destroying the endpoint after receiving
-// data on that stream must not crash during process teardown.
+// A client-created unidirectional stream is not a valid HTTP/3 request
+// stream, and data arriving on one could crash during process teardown.
+// HTTP/3 frames its own streams, so the QUIC session now refuses to open
+// streams directly at all, which puts that state out of reach.
 
 import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
+import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
 if (!hasQuic) {
@@ -13,22 +15,28 @@ if (!hasQuic) {
 }
 
 const { createPrivateKey } = await import('node:crypto');
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 
 const endpoint = await listen(mustNotCall(), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
-const session = await connect(endpoint.address, {
+const session = new Http3Session(await connect(endpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-});
+}));
 
-const stream = await session.createUnidirectionalStream();
-stream.writer.writeSync('x');
+const refused = {
+  code: 'ERR_INVALID_STATE',
+  message: /Raw QUIC streams cannot be created/,
+};
+await assert.rejects(session.quicSession.createUnidirectionalStream(), refused);
+await assert.rejects(session.quicSession.createBidirectionalStream(), refused);
 
 endpoint.destroy();
 await endpoint.closed;

@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -27,18 +27,20 @@ const sni = { '*': { keys: [key], certs: [cert] } };
 const decoder = new TextDecoder();
 
 // Helper: establish an H3 session, get a ticket, close.
-async function getTicket(endpointOptions) {
+async function getTicket({ settings, ...endpointOptions }) {
   let savedTicket;
   let savedToken;
   const gotTicket = Promise.withResolvers();
   const gotToken = Promise.withResolvers();
 
-  const ep = await listen(mustCall(async (ss) => {
+  const ep = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession, { settings });
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
     });
   }), {
+    alpn: ['h3'],
     sni,
     ...endpointOptions,
     onheaders: mustCall(function(headers) {
@@ -48,7 +50,8 @@ async function getTicket(endpointOptions) {
     }),
   });
 
-  const cs = await connect(ep.address, {
+  const cs = new Http3Session(await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
@@ -62,7 +65,7 @@ async function getTicket(endpointOptions) {
       savedToken = token;
       gotToken.resolve();
     }),
-  });
+  }), { settings });
   await cs.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
 
@@ -90,21 +93,26 @@ async function getTicket(endpointOptions) {
 // recreated (EarlyDataRejected destroys the nghttp3 connection).
 // The initial 0-RTT stream may not survive this transition, so we
 // only verify earlyDataAccepted is false and close cleanly.
-async function attemptRejected0RTT(endpointOptions, ticket, token) {
-  const ep = await listen(mustCall(async (ss) => {
+async function attemptRejected0RTT({ settings, ...endpointOptions },
+                                   ticket, token) {
+  const ep = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession, { settings });
     await ss.closed;
   }), {
+    alpn: ['h3'],
     sni,
     ...endpointOptions,
   });
 
-  const cs = await connect(ep.address, {
+  const quicSession = await connect(ep.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
     sessionTicket: ticket,
     token,
   });
+  const cs = new Http3Session(quicSession, { settings });
 
   // Trigger the deferred handshake by opening a stream.
   // With 0-RTT, the handshake is deferred until the first stream
@@ -137,13 +145,13 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { enableConnectProtocol: true },
+    settings: { enableConnectProtocol: true },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // EnableConnectProtocol reduced from true to false.
-    application: { enableConnectProtocol: false },
+    settings: { enableConnectProtocol: false },
   }, ticket, token);
 }
 
@@ -151,13 +159,13 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { enableDatagrams: true },
+    settings: { enableDatagrams: true },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // EnableDatagrams reduced from true to false.
-    application: { enableDatagrams: false },
+    settings: { enableDatagrams: false },
   }, ticket, token);
 }
 
@@ -165,12 +173,12 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { maxFieldSectionSize: 10000 },
+    settings: { maxFieldSectionSize: 10000 },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // MaxFieldSectionSize reduced from 10000 to 100.
-    application: { maxFieldSectionSize: 100 },
+    settings: { maxFieldSectionSize: 100 },
   }, ticket, token);
 }

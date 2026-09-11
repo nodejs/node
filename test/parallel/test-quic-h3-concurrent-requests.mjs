@@ -16,7 +16,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -29,7 +29,8 @@ const REQUEST_COUNT = 5;
 let serverStreamsCompleted = 0;
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall(async (serverSession) => {
+const serverEndpoint = await listen(mustCall(async (quicSession) => {
+  const serverSession = new Http3Session(quicSession);
   serverSession.onstream = mustCall((stream) => {
     stream.closed.then(mustCall(() => {
       if (++serverStreamsCompleted === REQUEST_COUNT) {
@@ -39,6 +40,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     }));
   }, REQUEST_COUNT);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function(headers) {
     const path = headers[':path'];
@@ -52,10 +54,11 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   }, REQUEST_COUNT),
 });
 
-const clientSession = await connect(serverEndpoint.address, {
+const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-});
+}));
 await clientSession.opened;
 
 // Open all requests concurrently.

@@ -11,21 +11,23 @@ const { createPrivateKey } = require('crypto');
 
 const bench = common.createBenchmark(main, {
   // 'raw' negotiates a non-HTTP ALPN and does no application work.
-  // 'h3' negotiates HTTP/3, so the server also builds an nghttp3 connection
-  // and its control/QPACK streams for every session.
+  // 'h3' installs HTTP/3 on every session, so each peer also builds an
+  // nghttp3 connection and its control/QPACK streams.
   protocol: ['raw', 'h3'],
   concurrency: [1, 10],
   n: [1000],
 }, { flags: ['--experimental-quic', '--no-warnings'] });
 
 async function main({ protocol, concurrency, n }) {
-  const { listen, connect } = require('node:quic');
+  const { listen, connect, Http3Session } = require('node:quic');
 
   const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
   const cert = fixtures.readKey('agent1-cert.pem');
-  const alpn = protocol === 'h3' ? 'h3' : 'quic-bench';
+  const http3 = protocol === 'h3';
+  const alpn = http3 ? 'h3' : 'quic-bench';
 
-  const endpoint = await listen((session) => {
+  const endpoint = await listen((quicSession) => {
+    const session = http3 ? new Http3Session(quicSession) : quicSession;
     // A benchmark peer never reads these; swallow so a torn-down session
     // cannot produce an unhandled rejection.
     session.opened.catch(() => {});
@@ -46,11 +48,12 @@ async function main({ protocol, concurrency, n }) {
   const address = endpoint.address;
 
   async function handshake() {
-    const session = await connect(address, {
+    const quicSession = await connect(address, {
       servername: 'localhost',
       verifyPeer: 'manual',
       alpn,
     });
+    const session = http3 ? new Http3Session(quicSession) : quicSession;
     await session.opened;
     session.close();
     await session.closed.catch(() => {});
