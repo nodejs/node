@@ -119,6 +119,37 @@ async function buildArchive(entries, comment) {
     await assert.rejects(archiveVfs.promises.open('/does-not-exist.txt', 'r'), { code: 'ENOENT' });
     await assert.rejects(archiveVfs.promises.open('/a.txt', 'wx'), { code: 'EEXIST' });
     await assert.rejects(archiveVfs.promises.open('/dir', 'r'), { code: 'EISDIR' });
+
+    await archiveVfs.promises.rename('/dir', '/renamed-dir');
+    await assert.rejects(archiveVfs.promises.stat('/dir'), { code: 'ENOENT' });
+    assert.strictEqual(await archiveVfs.promises.readFile('/renamed-dir/b.txt', 'utf8'), 'nested');
+  }
+
+  // Renaming an explicit directory also renames its children.
+  {
+    const archive = await buildArchive([
+      await zlib.ZipEntry.create('async-dir/', Buffer.alloc(0)),
+      await zlib.ZipEntry.create('async-dir/child.txt', Buffer.from('async')),
+      await zlib.ZipEntry.create('sync-dir/', Buffer.alloc(0)),
+      await zlib.ZipEntry.create('sync-dir/child.txt', Buffer.from('sync')),
+    ]);
+    const zip = new zlib.ZipBuffer(archive);
+    const archiveVfs = vfs.create(new vfs.ZipProvider(zip));
+
+    await archiveVfs.promises.rename('/async-dir', '/renamed-async-dir');
+    assert.strictEqual(zip.has('async-dir/'), false);
+    assert.strictEqual(zip.has('async-dir/child.txt'), false);
+    assert.strictEqual(zip.has('renamed-async-dir/'), true);
+    assert.strictEqual(
+      await archiveVfs.promises.readFile('/renamed-async-dir/child.txt', 'utf8'),
+      'async',
+    );
+
+    archiveVfs.renameSync('/sync-dir', '/renamed-sync-dir');
+    assert.strictEqual(zip.has('sync-dir/'), false);
+    assert.strictEqual(zip.has('sync-dir/child.txt'), false);
+    assert.strictEqual(zip.has('renamed-sync-dir/'), true);
+    assert.strictEqual(archiveVfs.readFileSync('/renamed-sync-dir/child.txt', 'utf8'), 'sync');
   }
 
   // --- ZipFile-backed, read-only: writes rejected with EROFS ----------------
@@ -220,6 +251,10 @@ async function buildArchive(entries, comment) {
     assert.throws(() => archiveVfs.openSync('/does-not-exist.txt', 'r'), { code: 'ENOENT' });
     assert.throws(() => archiveVfs.openSync('/a.txt', 'wx'), { code: 'EEXIST' });
     assert.throws(() => archiveVfs.openSync('/dir', 'r'), { code: 'EISDIR' });
+
+    archiveVfs.renameSync('/dir', '/renamed-dir');
+    assert.throws(() => archiveVfs.statSync('/dir'), { code: 'ENOENT' });
+    assert.strictEqual(archiveVfs.readFileSync('/renamed-dir/b.txt', 'utf8'), 'nested');
   }
 
   // --- ZipFile-backed via openSync: sync-only round trip on disk -----------
