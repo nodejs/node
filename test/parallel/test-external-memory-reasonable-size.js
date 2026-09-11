@@ -1,6 +1,6 @@
 'use strict';
 
-// Node disables V8's external memory reasonable size check by default, but
+// Node.js disables V8's external memory reasonable size check by default, but
 // explicit values on the command line must still be honored.
 // Refs: https://github.com/nodejs/node/issues/65534
 
