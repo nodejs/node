@@ -14,7 +14,6 @@
 namespace node {
 namespace performance {
 
-using v8::Array;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
@@ -57,7 +56,12 @@ PerformanceState::PerformanceState(Isolate* isolate,
                 offsetof(performance_state_internal, observers),
                 NODE_PERFORMANCE_ENTRY_TYPE_INVALID,
                 root,
-                MAYBE_FIELD_PTR(info, observers)) {
+                MAYBE_FIELD_PTR(info, observers)),
+      uv_metrics(isolate,
+                 offsetof(performance_state_internal, uv_metrics),
+                 3,
+                 root,
+                 MAYBE_FIELD_PTR(info, uv_metrics)) {
   if (info == nullptr) {
     // For performance states initialized from scratch, reset
     // all the milestones and initialize the time origin.
@@ -81,9 +85,15 @@ PerformanceState::SerializeInfo PerformanceState::Serialize(
   // We'll re-initialize them after deserialization.
   ResetMilestones();
 
+  // Do not retain runtime metrics in the snapshot.
+  for (size_t i = 0; i < uv_metrics.Length(); ++i) {
+    uv_metrics[i] = 0;
+  }
+
   SerializeInfo info{root.Serialize(context, creator),
                      milestones.Serialize(context, creator),
-                     observers.Serialize(context, creator)};
+                     observers.Serialize(context, creator),
+                     uv_metrics.Serialize(context, creator)};
   return info;
 }
 
@@ -105,6 +115,7 @@ void PerformanceState::Deserialize(v8::Local<v8::Context> context,
   root.Deserialize(context);
   milestones.Deserialize(context);
   observers.Deserialize(context);
+  uv_metrics.Deserialize(context);
 
   // Re-initialize the time origin and timestamp i.e. the process start time.
   Initialize(time_origin, time_origin_timestamp);
@@ -116,6 +127,7 @@ std::ostream& operator<<(std::ostream& o,
     << "  " << i.root << ",  // root\n"
     << "  " << i.milestones << ",  // milestones\n"
     << "  " << i.observers << ",  // observers\n"
+    << "  " << i.uv_metrics << ",  // uv_metrics\n"
     << "}";
   return o;
 }
@@ -265,17 +277,13 @@ void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
 
 void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
   uv_metrics_t metrics;
   // uv_metrics_info always return 0
   CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
-  Local<Value> data[] = {
-      Integer::New(isolate, metrics.loop_count),
-      Integer::New(isolate, metrics.events),
-      Integer::New(isolate, metrics.events_waiting),
-  };
-  Local<Array> arr = Array::New(env->isolate(), data, arraysize(data));
-  args.GetReturnValue().Set(arr);
+  AliasedInt32Array& buffer = env->performance_state()->uv_metrics;
+  buffer[0] = static_cast<int32_t>(metrics.loop_count);
+  buffer[1] = static_cast<int32_t>(metrics.events);
+  buffer[2] = static_cast<int32_t>(metrics.events_waiting);
 }
 
 void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
@@ -366,6 +374,11 @@ void CreatePerContextProperties(Local<Object> target,
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "milestones"),
               state->milestones.GetJSArray()).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "uvMetricsBuffer"),
+            state->uv_metrics.GetJSArray())
+      .Check();
 
   Local<Object> constants = Object::New(isolate);
 

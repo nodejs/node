@@ -392,6 +392,7 @@ size_t SnapshotSerializer::Write(const ImmediateInfo::SerializeInfo& data) {
 // [ 4/8 bytes ]  snapshot index of root
 // [ 4/8 bytes ]  snapshot index of milestones
 // [ 4/8 bytes ]  snapshot index of observers
+// [ 4/8 bytes ]  snapshot index of uv_metrics
 template <>
 performance::PerformanceState::SerializeInfo SnapshotDeserializer::Read() {
   Debug("Read<PerformanceState::SerializeInfo>()\n");
@@ -400,6 +401,7 @@ performance::PerformanceState::SerializeInfo SnapshotDeserializer::Read() {
   result.root = ReadArithmetic<AliasedBufferIndex>();
   result.milestones = ReadArithmetic<AliasedBufferIndex>();
   result.observers = ReadArithmetic<AliasedBufferIndex>();
+  result.uv_metrics = ReadArithmetic<AliasedBufferIndex>();
   if (is_debug) {
     std::string str = ToStr(result);
     Debug("Read<PerformanceState::SerializeInfo>() %s\n", str);
@@ -418,6 +420,7 @@ size_t SnapshotSerializer::Write(
   size_t written_total = WriteArithmetic<AliasedBufferIndex>(data.root);
   written_total += WriteArithmetic<AliasedBufferIndex>(data.milestones);
   written_total += WriteArithmetic<AliasedBufferIndex>(data.observers);
+  written_total += WriteArithmetic<AliasedBufferIndex>(data.uv_metrics);
 
   Debug("Write<PerformanceState::SerializeInfo>() wrote %d bytes\n",
         written_total);
