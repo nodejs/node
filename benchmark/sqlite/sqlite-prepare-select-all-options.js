@@ -19,7 +19,7 @@ function main(conf) {
     return acc;
   }, {});
 
-  const db = new sqlite.DatabaseSync(':memory:', optionsObj);
+  const db = new sqlite.Database(':memory:', optionsObj);
 
   db.exec(
     'CREATE TABLE foo (text_column TEXT, integer_column INTEGER, real_column REAL, blob_column BLOB)',

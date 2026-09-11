@@ -2,12 +2,12 @@
 const { skipIfSQLiteMissing, mustCall } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
-suite('DatabaseSync.prototype.function()', () => {
+suite('Database.prototype.function()', () => {
   suite('input validation', () => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
 
     test('throws if name is not a string', () => {
       assert.throws(() => {
@@ -97,7 +97,7 @@ suite('DatabaseSync.prototype.function()', () => {
 
   suite('useBigIntArguments', () => {
     test('converts arguments to BigInts when true', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let value;
       const r = db.function('custom', { useBigIntArguments: true }, (arg) => {
         value = arg;
@@ -108,7 +108,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('uses number primitives when false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let value;
       const r = db.function('custom', { useBigIntArguments: false }, (arg) => {
         value = arg;
@@ -119,7 +119,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('defaults to false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let value;
       const r = db.function('custom', (arg) => {
         value = arg;
@@ -130,7 +130,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('throws if value cannot fit in a number', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       const value = Number.MAX_SAFE_INTEGER + 1;
       db.function('custom', (arg) => {});
       assert.throws(() => {
@@ -144,7 +144,7 @@ suite('DatabaseSync.prototype.function()', () => {
 
   suite('varargs', () => {
     test('supports variable number of arguments when true', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let value;
       const r = db.function('custom', { varargs: true }, (...args) => {
         value = args;
@@ -155,7 +155,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('uses function.length when false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let value;
       const r = db.function('custom', { varargs: false }, (a, b, c) => {
         value = [a, b, c];
@@ -166,7 +166,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('defaults to false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let value;
       const r = db.function('custom', (a, b, c) => {
         value = [a, b, c];
@@ -177,7 +177,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('throws if an incorrect number of arguments is provided', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('custom', (a, b, c, d) => {});
       assert.throws(() => {
         db.prepare('SELECT custom(1, 2, 3) AS custom').get();
@@ -190,7 +190,7 @@ suite('DatabaseSync.prototype.function()', () => {
 
   suite('deterministic', () => {
     test('creates a deterministic function when true', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('isDeterministic', { deterministic: true }, () => {
         return 42;
       });
@@ -204,7 +204,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('creates a non-deterministic function when false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('isNonDeterministic', { deterministic: false }, () => {
         return 42;
       });
@@ -222,7 +222,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('deterministic defaults to false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('isNonDeterministic', () => {
         return 42;
       });
@@ -242,7 +242,7 @@ suite('DatabaseSync.prototype.function()', () => {
 
   suite('directOnly', () => {
     test('sets SQLite direct only flag when true', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('fn', { deterministic: true, directOnly: true }, () => {
         return 42;
       });
@@ -260,7 +260,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('does not set SQLite direct only flag when false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('fn', { deterministic: true, directOnly: false }, () => {
         return 42;
       });
@@ -274,7 +274,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('directOnly defaults to false', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('fn', { deterministic: true }, () => {
         return 42;
       });
@@ -290,7 +290,7 @@ suite('DatabaseSync.prototype.function()', () => {
 
   suite('return types', () => {
     test('supported return types', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('retUndefined', () => {});
       db.function('retNull', () => { return null; });
       db.function('retNumber', () => { return 3; });
@@ -323,7 +323,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('throws if returned BigInt is too large for SQLite', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('retBigInt', () => {
         return BigInt(Number.MAX_SAFE_INTEGER + 1);
       });
@@ -336,7 +336,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('does not support Promise return values', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('retPromise', async () => {});
       const stmt = db.prepare('SELECT retPromise() AS retPromise');
       assert.throws(() => {
@@ -348,7 +348,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('throws on unsupported return types', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.function('retFunction', () => {
         return () => {};
       });
@@ -364,7 +364,7 @@ suite('DatabaseSync.prototype.function()', () => {
 
   suite('handles conflicting errors from SQLite and JavaScript', () => {
     test('throws if value cannot fit in a number', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       const expected = { __proto__: null, id: 5, data: 'foo' };
       db.function('custom', (arg) => {});
       db.exec('CREATE TABLE test (id NUMBER NOT NULL PRIMARY KEY, data TEXT)');
@@ -380,7 +380,7 @@ suite('DatabaseSync.prototype.function()', () => {
     });
 
     test('propagates JavaScript errors', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       const expected = { __proto__: null, id: 5, data: 'foo' };
       const err = new Error('boom');
       db.function('throws', () => {
@@ -397,7 +397,7 @@ suite('DatabaseSync.prototype.function()', () => {
   });
 
   test('supported argument types', () => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     db.function('arguments', mustCall((i, f, s, n, b) => {
       assert.strictEqual(i, 5);
       assert.strictEqual(f, 3.14);
@@ -413,7 +413,7 @@ suite('DatabaseSync.prototype.function()', () => {
   });
 
   test('propagates thrown errors', () => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
     const err = new Error('boom');
     db.function('throws', () => {
       throw err;
@@ -425,7 +425,7 @@ suite('DatabaseSync.prototype.function()', () => {
   });
 
   test('throws if database is not open', () => {
-    const db = new DatabaseSync(':memory:', { open: false });
+    const db = new Database(':memory:', { open: false });
     assert.throws(() => {
       db.function('foo', () => {});
     }, {
