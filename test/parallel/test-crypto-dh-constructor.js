@@ -5,17 +5,14 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const { hasFIPS } = require('../common/crypto');
 
-const size = hasFIPS(3) ?
-  2048 : (crypto.getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
-const dh1 = crypto.createDiffieHellman(size);
-const p1 = dh1.getPrime('buffer');
+const prime = crypto.getDiffieHellman('modp14').getPrime('buffer');
 
 {
   const DiffieHellman = crypto.DiffieHellman;
 
-  const dh = DiffieHellman(p1, 'buffer');
+  const dh = DiffieHellman(prime, 'buffer');
   assert(dh instanceof DiffieHellman, 'DiffieHellman is expected to return a ' +
                                       'new instance when called without `new`');
 }
