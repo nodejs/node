@@ -45,6 +45,10 @@ struct sockaddr;
 
 namespace node {
 
+namespace diagnostics_channel {
+class Channel;
+}
+
 namespace builtins {
 class BuiltinLoader;
 }
@@ -312,9 +316,18 @@ class ThreadPoolWork {
   Environment* env() const { return env_; }
 
  private:
+  inline bool IsObserved() const { return enqueued_at_ != 0; }
+
+  inline void PublishDiagnostics(diagnostics_channel::Channel& channel);
+
   Environment* env_;
   uv_work_t work_req_;
   const char* type_;
+
+  // libuv synchronizes these marks between the loop and worker threads.
+  uint64_t enqueued_at_ = 0;
+  uint64_t work_start_ = 0;
+  uint64_t work_end_ = 0;
 };
 
 // Functions defined in node.cc that are exposed via the bootstrapper object

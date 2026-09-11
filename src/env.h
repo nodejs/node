@@ -76,6 +76,10 @@ class MacCache;
 
 namespace node {
 
+namespace diagnostics_channel {
+class Channel;
+}
+
 namespace shadow_realm {
 class ShadowRealm;
 }
@@ -714,6 +718,14 @@ class Environment final : public MemoryRetainer {
   void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
+  void InitializeThreadPoolWorkChannel();
+  inline bool has_threadpool_work_subscribers() const {
+    return threadpool_work_channel_active_;
+  }
+  inline const BaseObjectWeakPtr<diagnostics_channel::Channel>&
+  threadpool_work_channel() const {
+    return threadpool_work_channel_;
+  }
 
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
@@ -1216,6 +1228,8 @@ class Environment final : public MemoryRetainer {
   AliasedInt32Array timeout_info_;
   TickInfo tick_info_;
   permission::Permission permission_;
+  BaseObjectWeakPtr<diagnostics_channel::Channel> threadpool_work_channel_;
+  bool threadpool_work_channel_active_ = false;
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;

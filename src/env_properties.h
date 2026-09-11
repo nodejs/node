@@ -487,6 +487,7 @@
   V(srv_record_template, v8::DictionaryTemplate)                               \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
+  V(threadpool_work_template, v8::DictionaryTemplate)                          \
   V(tlsa_record_template, v8::DictionaryTemplate)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(txt_record_template, v8::DictionaryTemplate)                               \
