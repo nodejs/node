@@ -144,6 +144,10 @@ changes:
 This class represents a single [connection][] to a SQLite database. All APIs
 exposed by this class execute synchronously.
 
+`DatabaseSync` is a deprecated alias for `Database`, kept for backward
+compatibility with the class's previous name. See
+[DEP0210](deprecations.md#dep0210-sqlitedatabasesync).
+
 ### `new Database(path[, options])`
 
 <!-- YAML
