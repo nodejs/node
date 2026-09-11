@@ -24,6 +24,12 @@ const inputs = {
     '[2001:db8::1]:8080',
     '[::ffff:127.0.0.1]:65535',
   ],
+  'invalid': [
+    'localhost',
+    '0x7f.1',
+    '127.0.0.1:99999',
+    '[::1',
+  ],
 };
 
 const bench = common.createBenchmark(main, {
