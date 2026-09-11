@@ -4806,6 +4806,7 @@ async function example() {
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65988
     description: Runtime deprecation.
 -->
 
