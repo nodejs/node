@@ -3,7 +3,7 @@ const { skipIfSQLiteMissing } = require('../common/index.mjs');
 const { test } = require('node:test');
 const assert = require('node:assert');
 skipIfSQLiteMissing();
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
 function checkDefensiveMode(db) {
   function journalMode() {
@@ -21,32 +21,32 @@ function checkDefensiveMode(db) {
 }
 
 test('by default, defensive mode is on', (t) => {
-  const db = new DatabaseSync(':memory:');
+  const db = new Database(':memory:');
   t.assert.strictEqual(checkDefensiveMode(db), true);
 });
 
 test('when passing { defensive: true } as config, defensive mode is on', (t) => {
-  const db = new DatabaseSync(':memory:', {
+  const db = new Database(':memory:', {
     defensive: true
   });
   t.assert.strictEqual(checkDefensiveMode(db), true);
 });
 
 test('when passing { defensive: false } as config, defensive mode is off', (t) => {
-  const db = new DatabaseSync(':memory:', {
+  const db = new Database(':memory:', {
     defensive: false
   });
   t.assert.strictEqual(checkDefensiveMode(db), false);
 });
 
 test('defensive mode on after calling db.enableDefensive(true)', (t) => {
-  const db = new DatabaseSync(':memory:');
+  const db = new Database(':memory:');
   db.enableDefensive(true);
   t.assert.strictEqual(checkDefensiveMode(db), true);
 });
 
 test('defensive mode off after calling db.enableDefensive(false)', (t) => {
-  const db = new DatabaseSync(':memory:', {
+  const db = new Database(':memory:', {
     defensive: true
   });
   db.enableDefensive(false);
@@ -55,7 +55,7 @@ test('defensive mode off after calling db.enableDefensive(false)', (t) => {
 
 test('throws if options.defensive is provided but is not a boolean', (t) => {
   t.assert.throws(() => {
-    new DatabaseSync(':memory:', { defensive: 42 });
+    new Database(':memory:', { defensive: 42 });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "options.defensive" argument must be a boolean.',
@@ -63,7 +63,7 @@ test('throws if options.defensive is provided but is not a boolean', (t) => {
 });
 
 test('enableLoadExtension() throws if database is not open', (t) => {
-  const db = new DatabaseSync(':memory:', { allowExtension: true });
+  const db = new Database(':memory:', { allowExtension: true });
   db.close();
 
   t.assert.throws(() => {

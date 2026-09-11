@@ -162,8 +162,8 @@ class DatabaseOpenConfiguration {
   std::array<std::optional<int>, kLimitMapping.size()> initial_limits_{};
 };
 
-class DatabaseSync;
-class DatabaseSyncLimits;
+class Database;
+class DatabaseLimits;
 class StatementSyncIterator;
 class StatementSync;
 class BackupJob;
@@ -191,7 +191,7 @@ class StatementExecutionHelper {
                                        StatementSync* statement);
 };
 
-class DatabaseSync;
+class Database;
 
 class BindingData : public BaseObject {
  public:
@@ -203,7 +203,7 @@ class BindingData : public BaseObject {
   SET_MEMORY_INFO_NAME(BindingData)
   SET_SELF_SIZE(BindingData)
 
-  std::unordered_set<DatabaseSync*> open_databases;
+  std::unordered_set<Database*> open_databases;
 
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
                                          v8::Local<v8::Value> unused,
@@ -212,7 +212,7 @@ class BindingData : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 };
 
-class DatabaseSync : public BaseObject {
+class Database : public BaseObject {
  public:
   enum InternalFields {
     kAuthorizerCallback = BaseObject::kInternalFieldCount,
@@ -220,11 +220,11 @@ class DatabaseSync : public BaseObject {
     kInternalFieldCount
   };
 
-  DatabaseSync(Environment* env,
-               v8::Local<v8::Object> object,
-               DatabaseOpenConfiguration&& open_config,
-               bool open,
-               bool allow_load_extension);
+  Database(Environment* env,
+           v8::Local<v8::Object> object,
+           DatabaseOpenConfiguration&& open_config,
+           bool open,
+           bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -328,14 +328,14 @@ class DatabaseSync : public BaseObject {
   void DecrementTraceSuppressionDepth() { --trace_suppression_depth_; }
   bool AreTraceEventsSuppressed() const { return trace_suppression_depth_ > 0; }
 
-  SET_MEMORY_INFO_NAME(DatabaseSync)
-  SET_SELF_SIZE(DatabaseSync)
+  SET_MEMORY_INFO_NAME(Database)
+  SET_SELF_SIZE(Database)
 
  private:
   bool Open();
   void DeleteSessions();
 
-  ~DatabaseSync() override;
+  ~Database() override;
   DatabaseOpenConfiguration open_config_;
   bool allow_load_extension_;
   bool enable_load_extension_;
@@ -360,7 +360,7 @@ class DatabaseSync : public BaseObject {
 
   friend class UserDefinedFunction;
   friend class CustomAggregate;
-  friend class DatabaseSyncLimits;
+  friend class DatabaseLimits;
   friend class Session;
   friend class SQLTagStore;
   friend class StatementExecutionHelper;
@@ -371,13 +371,13 @@ class StatementSync : public BaseObject {
  public:
   StatementSync(Environment* env,
                 v8::Local<v8::Object> object,
-                BaseObjectPtr<DatabaseSync> db,
+                BaseObjectPtr<Database> db,
                 StatementPtr stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<StatementSync> Create(Environment* env,
-                                             BaseObjectPtr<DatabaseSync> db,
+                                             BaseObjectPtr<Database> db,
                                              StatementPtr stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -409,7 +409,7 @@ class StatementSync : public BaseObject {
  private:
   ~StatementSync() override;
   void Close();
-  BaseObjectPtr<DatabaseSync> db_;
+  BaseObjectPtr<Database> db_;
   StatementPtr statement_;
   bool return_arrays_ = false;
   bool use_big_ints_;
@@ -424,7 +424,7 @@ class StatementSync : public BaseObject {
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 
-  friend class DatabaseSync;
+  friend class Database;
   friend class StatementSyncIterator;
   friend class SQLTagStore;
   friend class StatementExecutionHelper;
@@ -459,7 +459,7 @@ class Session : public BaseObject {
  public:
   Session(Environment* env,
           v8::Local<v8::Object> object,
-          BaseObjectPtr<DatabaseSync> database,
+          BaseObjectPtr<Database> database,
           sqlite3_session* session);
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
@@ -469,7 +469,7 @@ class Session : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
-                                       BaseObjectPtr<DatabaseSync> database,
+                                       BaseObjectPtr<Database> database,
                                        sqlite3_session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -482,10 +482,10 @@ class Session : public BaseObject {
     void operator()(sqlite3_session* s) const { sqlite3session_delete(s); }
   };
   std::unique_ptr<sqlite3_session, SessionDeleter> session_;
-  BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
+  BaseObjectPtr<Database> database_;  // The Parent Database
   bool is_generating_changeset_ = false;
 
-  friend class DatabaseSync;
+  friend class Database;
 };
 
 class SQLTagStore : public BaseObject {
@@ -497,11 +497,12 @@ class SQLTagStore : public BaseObject {
 
   SQLTagStore(Environment* env,
               v8::Local<v8::Object> object,
-              BaseObjectWeakPtr<DatabaseSync> database,
+              BaseObjectWeakPtr<Database> database,
               int capacity);
   ~SQLTagStore() override;
-  static BaseObjectPtr<SQLTagStore> Create(
-      Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
+  static BaseObjectPtr<SQLTagStore> Create(Environment* env,
+                                           BaseObjectWeakPtr<Database> database,
+                                           int capacity);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -523,7 +524,7 @@ class SQLTagStore : public BaseObject {
       Environment* env,
       StatementSync* stmt,
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  BaseObjectWeakPtr<DatabaseSync> database_;
+  BaseObjectWeakPtr<Database> database_;
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
   friend class StatementExecutionHelper;
 };
@@ -533,7 +534,7 @@ class SQLTagStore : public BaseObject {
 // below are what keep a garbage collection during that window safe.
 class CallbackDepthGuard {
  public:
-  explicit CallbackDepthGuard(DatabaseSync* db)
+  explicit CallbackDepthGuard(Database* db)
       : db_(db), pinned_sessions_(db->PinSessions()) {
     db_->IncrementCallbackDepth();
   }
@@ -542,7 +543,7 @@ class CallbackDepthGuard {
   CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
 
  private:
-  DatabaseSync* db_;
+  Database* db_;
   std::vector<BaseObjectPtr<Session>> pinned_sessions_;
 };
 
@@ -552,7 +553,7 @@ class CallbackDepthGuard {
 // into JavaScript.
 class DestructorScope {
  public:
-  explicit DestructorScope(DatabaseSync* db) : db_(db) {
+  explicit DestructorScope(Database* db) : db_(db) {
     db_->IncrementDestructorDepth();
   }
   ~DestructorScope() { db_->DecrementDestructorDepth(); }
@@ -560,12 +561,12 @@ class DestructorScope {
   DestructorScope& operator=(const DestructorScope&) = delete;
 
  private:
-  DatabaseSync* db_;
+  Database* db_;
 };
 
 class TraceEventSuppressionGuard {
  public:
-  explicit TraceEventSuppressionGuard(DatabaseSync* db) : db_(db) {
+  explicit TraceEventSuppressionGuard(Database* db) : db_(db) {
     db_->IncrementTraceSuppressionDepth();
   }
   ~TraceEventSuppressionGuard() { db_->DecrementTraceSuppressionDepth(); }
@@ -574,12 +575,12 @@ class TraceEventSuppressionGuard {
       delete;
 
  private:
-  DatabaseSync* db_;
+  Database* db_;
 };
 
 class SteppingStatementGuard {
  public:
-  SteppingStatementGuard(DatabaseSync* db, sqlite3_stmt* stmt) : db_(db) {
+  SteppingStatementGuard(Database* db, sqlite3_stmt* stmt) : db_(db) {
     db_->PushSteppingStatement(stmt);
   }
   ~SteppingStatementGuard() { db_->PopSteppingStatement(); }
@@ -587,12 +588,12 @@ class SteppingStatementGuard {
   SteppingStatementGuard& operator=(const SteppingStatementGuard&) = delete;
 
  private:
-  DatabaseSync* db_;
+  Database* db_;
 };
 
 class AuthorizerDepthGuard {
  public:
-  explicit AuthorizerDepthGuard(DatabaseSync* db) : db_(db) {
+  explicit AuthorizerDepthGuard(Database* db) : db_(db) {
     db_->IncrementAuthorizerDepth();
   }
   ~AuthorizerDepthGuard() { db_->DecrementAuthorizerDepth(); }
@@ -600,14 +601,14 @@ class AuthorizerDepthGuard {
   AuthorizerDepthGuard& operator=(const AuthorizerDepthGuard&) = delete;
 
  private:
-  DatabaseSync* db_;
+  Database* db_;
 };
 
 class UserDefinedFunction {
  public:
   UserDefinedFunction(Environment* env,
                       v8::Local<v8::Function> fn,
-                      BaseObjectWeakPtr<DatabaseSync> db,
+                      BaseObjectWeakPtr<Database> db,
                       bool use_bigint_args);
   ~UserDefinedFunction();
   static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
@@ -616,21 +617,21 @@ class UserDefinedFunction {
  private:
   Environment* env_;
   v8::Global<v8::Function> fn_;
-  BaseObjectWeakPtr<DatabaseSync> db_;
+  BaseObjectWeakPtr<Database> db_;
   bool use_bigint_args_;
 };
 
-class DatabaseSyncLimits : public BaseObject {
+class DatabaseLimits : public BaseObject {
  public:
-  DatabaseSyncLimits(Environment* env,
-                     v8::Local<v8::Object> object,
-                     BaseObjectWeakPtr<DatabaseSync> database);
-  ~DatabaseSyncLimits() override;
+  DatabaseLimits(Environment* env,
+                 v8::Local<v8::Object> object,
+                 BaseObjectWeakPtr<Database> database);
+  ~DatabaseLimits() override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::ObjectTemplate> GetTemplate(Environment* env);
-  static BaseObjectPtr<DatabaseSyncLimits> Create(
-      Environment* env, BaseObjectWeakPtr<DatabaseSync> database);
+  static BaseObjectPtr<DatabaseLimits> Create(
+      Environment* env, BaseObjectWeakPtr<Database> database);
 
   static v8::Intercepted LimitsGetter(
       v8::Local<v8::Name> property,
@@ -644,11 +645,11 @@ class DatabaseSyncLimits : public BaseObject {
       const v8::PropertyCallbackInfo<v8::Integer>& info);
   static void LimitsEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
 
-  SET_MEMORY_INFO_NAME(DatabaseSyncLimits)
-  SET_SELF_SIZE(DatabaseSyncLimits)
+  SET_MEMORY_INFO_NAME(DatabaseLimits)
+  SET_SELF_SIZE(DatabaseLimits)
 
  private:
-  BaseObjectWeakPtr<DatabaseSync> database_;
+  BaseObjectWeakPtr<Database> database_;
 };
 
 struct NodeVTab {
@@ -672,7 +673,7 @@ struct NodeVTabCursor {
 class VirtualTableModule {
  public:
   VirtualTableModule(Environment* env,
-                     BaseObjectWeakPtr<DatabaseSync> db,
+                     BaseObjectWeakPtr<Database> db,
                      v8::Local<v8::Function> rows_fn,
                      std::string&& schema_sql,
                      int num_columns,
@@ -720,7 +721,7 @@ class VirtualTableModule {
   static void ReleaseHiddenValues(NodeVTabCursor* cursor);
 
   Environment* env_;
-  BaseObjectWeakPtr<DatabaseSync> db_;
+  BaseObjectWeakPtr<Database> db_;
   v8::Global<v8::Function> rows_fn_;
   std::string schema_sql_;
   int num_columns_;
@@ -732,7 +733,7 @@ class VirtualTableModule {
   bool direct_only_;
   sqlite3_module module_def_;
 
-  friend class DatabaseSync;
+  friend class Database;
 };
 
 }  // namespace sqlite

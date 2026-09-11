@@ -3,7 +3,7 @@
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const {
-  DatabaseSync,
+  Database,
   constants,
 } = require('node:sqlite');
 const { it, test, suite } = require('node:test');
@@ -36,7 +36,7 @@ test('creating and applying a changeset', (t) => {
       ) STRICT`;
 
   const createDatabase = () => {
-    const database = new DatabaseSync(':memory:');
+    const database = new Database(':memory:');
     database.exec(createDataTableSql);
     return database;
   };
@@ -60,7 +60,7 @@ test('creating and applying a changeset', (t) => {
 });
 
 test('database.createSession() - closed database results in exception', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.close();
   t.assert.throws(() => {
     database.createSession();
@@ -71,7 +71,7 @@ test('database.createSession() - closed database results in exception', (t) => {
 });
 
 test('session.changeset() - closed database results in exception', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   database.close();
   t.assert.throws(() => {
@@ -84,7 +84,7 @@ test('session.changeset() - closed database results in exception', (t) => {
 
 test('session methods - reopened database results in exception', (t) => {
   for (const method of ['changeset', 'close']) {
-    const database = new DatabaseSync(':memory:');
+    const database = new Database(':memory:');
     const session = database.createSession();
     database.close();
     database.open();
@@ -99,7 +99,7 @@ test('session methods - reopened database results in exception', (t) => {
 });
 
 test('database.applyChangeset() - closed database results in exception', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   const changeset = session.changeset();
   database.close();
@@ -112,8 +112,8 @@ test('database.applyChangeset() - closed database results in exception', (t) => 
 });
 
 test('database.createSession() - use table option to track specific table', (t) => {
-  const database1 = new DatabaseSync(':memory:');
-  const database2 = new DatabaseSync(':memory:');
+  const database1 = new Database(':memory:');
+  const database2 = new Database(':memory:');
 
   const createData1TableSql = `CREATE TABLE data1 (
       key INTEGER PRIMARY KEY,
@@ -156,8 +156,8 @@ suite('conflict resolution', () => {
     ) STRICT`;
 
   const prepareConflict = () => {
-    const database1 = new DatabaseSync(':memory:');
-    const database2 = new DatabaseSync(':memory:');
+    const database1 = new Database(':memory:');
+    const database2 = new Database(':memory:');
 
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
@@ -174,8 +174,8 @@ suite('conflict resolution', () => {
   };
 
   const prepareDataConflict = () => {
-    const database1 = new DatabaseSync(':memory:');
-    const database2 = new DatabaseSync(':memory:');
+    const database1 = new Database(':memory:');
+    const database2 = new Database(':memory:');
 
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
@@ -192,8 +192,8 @@ suite('conflict resolution', () => {
   };
 
   const prepareNotFoundConflict = () => {
-    const database1 = new DatabaseSync(':memory:');
-    const database2 = new DatabaseSync(':memory:');
+    const database1 = new Database(':memory:');
+    const database2 = new Database(':memory:');
 
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
@@ -209,8 +209,8 @@ suite('conflict resolution', () => {
   };
 
   const prepareFkConflict = () => {
-    const database1 = new DatabaseSync(':memory:');
-    const database2 = new DatabaseSync(':memory:');
+    const database1 = new Database(':memory:');
+    const database2 = new Database(':memory:');
 
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
@@ -240,8 +240,8 @@ suite('conflict resolution', () => {
   };
 
   const prepareConstraintConflict = () => {
-    const database1 = new DatabaseSync(':memory:');
-    const database2 = new DatabaseSync(':memory:');
+    const database1 = new Database(':memory:');
+    const database2 = new Database(':memory:');
 
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
@@ -403,8 +403,8 @@ suite('conflict resolution', () => {
 });
 
 test('filter handler throws', (t) => {
-  const database1 = new DatabaseSync(':memory:');
-  const database2 = new DatabaseSync(':memory:');
+  const database1 = new Database(':memory:');
+  const database2 = new Database(':memory:');
   const createTableSql = 'CREATE TABLE data1(key INTEGER PRIMARY KEY); CREATE TABLE data2(key INTEGER PRIMARY KEY);';
   database1.exec(createTableSql);
   database2.exec(createTableSql);
@@ -434,8 +434,8 @@ test('filter handler throws', (t) => {
 });
 
 test('database.applyChangeset() - changeset detached by filter', (t) => {
-  const database1 = new DatabaseSync(':memory:');
-  const database2 = new DatabaseSync(':memory:');
+  const database1 = new Database(':memory:');
+  const database2 = new Database(':memory:');
   database1.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
   database2.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
 
@@ -463,8 +463,8 @@ test('database.applyChangeset() - changeset detached by filter', (t) => {
 });
 
 test('database.applyChangeset() - changeset detached by SQL function', (t) => {
-  const database1 = new DatabaseSync(':memory:');
-  const database2 = new DatabaseSync(':memory:');
+  const database1 = new Database(':memory:');
+  const database2 = new Database(':memory:');
   let changeset;
   let detached = false;
 
@@ -499,8 +499,8 @@ test('database.applyChangeset() - changeset detached by SQL function', (t) => {
 });
 
 test('database.createSession() - filter changes', (t) => {
-  const database1 = new DatabaseSync(':memory:');
-  const database2 = new DatabaseSync(':memory:');
+  const database1 = new Database(':memory:');
+  const database2 = new Database(':memory:');
   const createTableSql = 'CREATE TABLE data1(key INTEGER PRIMARY KEY); CREATE TABLE data2(key INTEGER PRIMARY KEY);';
   database1.exec(createTableSql);
   database2.exec(createTableSql);
@@ -524,7 +524,7 @@ test('database.createSession() - filter changes', (t) => {
 });
 
 test('database.createSession() - specify other database', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   const sessionMain = database.createSession({
     db: 'main'
@@ -541,7 +541,7 @@ test('database.createSession() - specify other database', (t) => {
 });
 
 test('database.createSession() - wrong arguments', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   t.assert.throws(() => {
     database.createSession(null);
   }, {
@@ -569,7 +569,7 @@ test('database.createSession() - wrong arguments', (t) => {
 });
 
 test('database.applyChangeset() - wrong arguments', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   t.assert.throws(() => {
     database.applyChangeset(null);
@@ -608,7 +608,7 @@ test('database.applyChangeset() - malformed changeset returns SQLITE_CORRUPT', {
   skip: process.config.variables.node_shared_sqlite ?
     'requires the bundled SQLite session fix' : false,
 }, (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.exec('CREATE TABLE t1(a INTEGER PRIMARY KEY, b, c, d)');
 
   const changeset = Buffer.from(
@@ -626,7 +626,7 @@ test('database.applyChangeset() - malformed changeset returns SQLITE_CORRUPT', {
 });
 
 test('session.patchset()', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
   database.exec("INSERT INTO data VALUES ('1', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')");
@@ -649,7 +649,7 @@ test('session.patchset()', (t) => {
 });
 
 test('session.close() - using session after close throws exception', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
   database.exec("INSERT INTO data VALUES ('1', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')");
@@ -668,7 +668,7 @@ test('session.close() - using session after close throws exception', (t) => {
 });
 
 test('session.close() - after closing database throws exception', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
   database.exec("INSERT INTO data VALUES ('1', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')");
@@ -685,7 +685,7 @@ test('session.close() - after closing database throws exception', (t) => {
 });
 
 test('session.close() - closing twice', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   session.close();
 
@@ -700,7 +700,7 @@ test('session.close() - closing twice', (t) => {
 test('session close and dispose - while generating changes throws exception', (t) => {
   for (const close of ['close', Symbol.dispose]) {
     for (const method of ['changeset', 'patchset']) {
-      const database = new DatabaseSync(':memory:');
+      const database = new Database(':memory:');
       database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
       const session = database.createSession({ table: 'data' });
@@ -722,7 +722,7 @@ test('session close and dispose - while generating changes throws exception', (t
 });
 
 test('session[Symbol.dispose]() - closed session is a no-op', () => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   session.close();
 
@@ -730,7 +730,7 @@ test('session[Symbol.dispose]() - closed session is a no-op', () => {
 });
 
 test('session[Symbol.dispose]() - after closing database is a no-op', () => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   const session = database.createSession();
   database.close();
 
@@ -755,7 +755,7 @@ suite('session.close() - from a callback', () => {
     };
 
     it(`rejects ${method} from an authorizer callback`, (t) => {
-      const database = new DatabaseSync(':memory:');
+      const database = new Database(':memory:');
       database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
       const session = database.createSession();
       let outcome = 'callback did not run';
@@ -782,7 +782,7 @@ suite('session.close() - from a callback', () => {
     });
 
     it(`rejects ${method} from a 'sqlite.db.query' subscriber`, (t) => {
-      const database = new DatabaseSync(':memory:');
+      const database = new Database(':memory:');
       database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
       const session = database.createSession();
       let outcome = 'callback did not run';
@@ -813,7 +813,7 @@ suite('session.close() - from a callback', () => {
     // is inside that hook, so every callback is rejected. This pins the
     // trade-off rather than leaving it to be discovered as a regression.
     it(`rejects ${method} from a user-defined function`, (t) => {
-      const database = new DatabaseSync(':memory:');
+      const database = new Database(':memory:');
       database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
       const session = database.createSession();
       let outcome = 'callback did not run';
@@ -842,7 +842,7 @@ suite('session.close() - from a callback', () => {
   // with StatementSync's disposal, which throws for a busy statement the same
   // way. Pinned here so the trade-off is visible rather than surprising.
   it('demotes a callback error when disposal is rejected', (t) => {
-    const database = new DatabaseSync(':memory:');
+    const database = new Database(':memory:');
     database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
     let caught;
 
@@ -867,7 +867,7 @@ suite('session.close() - from a callback', () => {
   });
 
   it('leaves an already closed session disposable from a callback', (t) => {
-    const database = new DatabaseSync(':memory:');
+    const database = new Database(':memory:');
     database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
     const session = database.createSession();
     session.close();
@@ -891,11 +891,11 @@ suite('session.close() - from a callback', () => {
 test('session - keeps its database alive after the db handle is dropped', async (t) => {
   const { gcUntil, onGC } = require('../common/gc');
 
-  // The DatabaseSync handle is created in a nested scope and never referenced
+  // The Database handle is created in a nested scope and never referenced
   // again, so the returned session is the only thing keeping it reachable.
   let dbCollected = false;
   const session = (() => {
-    const database = new DatabaseSync(':memory:');
+    const database = new Database(':memory:');
     database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
     onGC(database, { ongc: () => { dbCollected = true; } });
     const s = database.createSession();
@@ -923,7 +923,7 @@ test('session - keeps its database alive after the db handle is dropped', async 
 // GC during a callback that the PRAGMA triggers could collect a session that
 // JavaScript no longer references and free memory the walk is still using.
 test('session - survives GC during an authorizer callback', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
   database.createSession(); // Never referenced again, so it is collectable.
 
@@ -943,7 +943,7 @@ test('session - survives GC during an authorizer callback', (t) => {
 
 test("session - survives GC during a 'sqlite.db.query' subscriber", (t) => {
   const dc = require('node:diagnostics_channel');
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
   database.createSession(); // Never referenced again, so it is collectable.
 
@@ -963,7 +963,7 @@ test("session - survives GC during a 'sqlite.db.query' subscriber", (t) => {
 });
 
 test('session supports ERM', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
   let afterDisposeSession;
   {
     using session = database.createSession();
@@ -988,8 +988,8 @@ test('concurrent applyChangeset with workers', async (t) => {
   }
 
   const dbPath = nextDb();
-  const db1 = new DatabaseSync(dbPath);
-  const db2 = new DatabaseSync(':memory:');
+  const db1 = new Database(dbPath);
+  const db2 = new Database(':memory:');
   const createTable = `
     CREATE TABLE data(
       key INTEGER PRIMARY KEY,

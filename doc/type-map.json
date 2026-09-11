@@ -35,7 +35,7 @@
   "CryptoKeyPair": "webcrypto.html#class-cryptokeypair",
   "CShakeParams": "webcrypto.html#class-cshakeparams",
   "CustomEvent": "events.html#class-customevent",
-  "DatabaseSync": "sqlite.html#class-databasesync",
+  "Database": "sqlite.html#class-database",
   "Decipher": "crypto.html#class-decipher",
   "Decipheriv": "crypto.html#class-decipheriv",
   "DiffieHellman": "crypto.html#class-diffiehellman",
