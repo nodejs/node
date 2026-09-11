@@ -22,7 +22,7 @@ enum class HeadersFlags : uint8_t {
   TERMINAL,
 };
 
-// An Application implements the ALPN-protocol specific semantics on behalf
+// An Application implements the protocol-specific semantics on behalf
 // of a QUIC Session.
 class Session::Application : public MemoryRetainer {
  public:
@@ -35,14 +35,21 @@ class Session::Application : public MemoryRetainer {
   // options passed at construction time since some options can be negotiated.
   virtual const Options& options() const = 0;
 
-  // The type of Application, exposed via the session state so JS
-  // can observe which Application was selected after ALPN negotiation.
-  // This is used primarily for testing/debugging.
+  // The type of Application, exposed via the session state so JS can observe
+  // which Application the session ended up with. This is used primarily for
+  // testing/debugging.
   enum class Type : uint8_t {
-    NONE = 0,     // Not yet selected (server pre-negotiation)
-    DEFAULT = 1,  // DefaultApplication (non-h3 ALPN)
-    HTTP3 = 2,    // Http3ApplicationImpl (h3 / h3-XX ALPN)
+    NONE = 0,     // None installed yet
+    DEFAULT = 1,  // DefaultApplication (raw QUIC streams)
+    HTTP3 = 2,    // Http3ApplicationImpl
   };
+
+  // Set alongside a Type in the session's shared application_type state to
+  // mean "requested but not yet attached". JavaScript sets it to trigger the
+  // application attach later, SetApplication clears it by writing the bare
+  // Type. Keeping type & pending/installed in one place avoids duplicating
+  // type definition and simplifies application checks.
+  static constexpr uint8_t kTypePending = 0x80;
   virtual Type type() const = 0;
 
   virtual bool Start();

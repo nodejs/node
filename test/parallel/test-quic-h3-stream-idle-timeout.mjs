@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -29,7 +29,8 @@ const encoder = new TextEncoder();
 {
   const streamDestroyed = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const serverSession = new Http3Session(quicSession);
     serverSession.onstream = mustCall(async (stream) => {
       // Don't read — let the stream sit idle after the initial headers.
       // The stream idle timeout should destroy it, rejecting stream.closed.
@@ -39,6 +40,7 @@ const encoder = new TextEncoder();
       streamDestroyed.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 100,
     onheaders() {
@@ -46,11 +48,12 @@ const encoder = new TextEncoder();
     },
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
-  });
+  }));
 
   await clientSession.opened;
 
@@ -86,7 +89,8 @@ const encoder = new TextEncoder();
 {
   const serverGotData = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const serverSession = new Http3Session(quicSession);
     serverSession.onstream = mustCall(async (stream) => {
       const data = await text(stream);
       assert.strictEqual(data, 'xy');
@@ -94,6 +98,7 @@ const encoder = new TextEncoder();
       await serverSession.close();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 500,
     onheaders: mustCall(function(headers) {
@@ -103,10 +108,11 @@ const encoder = new TextEncoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -136,7 +142,8 @@ const encoder = new TextEncoder();
 {
   const streamSurvived = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (serverSession) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const serverSession = new Http3Session(quicSession);
     serverSession.onstream = mustCall(async (stream) => {
       const data = await text(stream);
       assert.strictEqual(data, 'xy');
@@ -146,6 +153,7 @@ const encoder = new TextEncoder();
     await setTimeout(700);
     await serverSession.close();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 0,  // Disabled
     onheaders: mustCall(function(headers) {
@@ -153,10 +161,11 @@ const encoder = new TextEncoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

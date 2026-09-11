@@ -11,7 +11,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -21,7 +21,8 @@ const codes = [200, 204, 404];
 let serverResponses = 0;
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall(async (ss) => {
+const serverEndpoint = await listen(mustCall(async (quicSession) => {
+  const ss = new Http3Session(quicSession);
   ss.onstream = mustCall(() => {
     if (++serverResponses === codes.length) {
       ss.close();
@@ -29,6 +30,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     }
   }, codes.length);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function() {
     const status = codes[serverResponses - 1];
@@ -37,10 +39,11 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
   }, codes.length),
 });
 
-const clientSession = await connect(serverEndpoint.address, {
+const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-});
+}));
 await clientSession.opened;
 
 for (const expected of codes) {

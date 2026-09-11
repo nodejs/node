@@ -11,7 +11,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { drainableProtocol } = await import('stream/iter');
 
@@ -30,13 +30,15 @@ const BODY = WINDOW - 11;
 let letServerRead;
 const serverMayRead = new Promise((resolve) => { letServerRead = resolve; });
 
-const endpoint = await listen((session) => {
+const endpoint = await listen((quicSession) => {
+  const session = new Http3Session(quicSession);
   session.onstream = async (stream) => {
     await serverMayRead;
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream) { /* reading extends the window */ }
   };
 }, {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   transportParams: {
     initialMaxStreamDataBidiRemote: WINDOW,
@@ -45,10 +47,11 @@ const endpoint = await listen((session) => {
   onheaders() { this.sendHeaders({ ':status': '200' }); },
 });
 
-const session = await connect(endpoint.address, {
+const session = new Http3Session(await connect(endpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-});
+}));
 await session.opened;
 
 // Budget well above the window, so the window is what stops the writer.

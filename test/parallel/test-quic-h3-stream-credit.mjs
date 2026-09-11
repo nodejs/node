@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -29,13 +29,15 @@ const kRequests = 6;
 let liveServerStreams = 0;
 let peakLiveServerStreams = 0;
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
+const serverEndpoint = await listen(mustCall((quicSession) => {
+  const serverSession = new Http3Session(quicSession);
   serverSession.onstream = mustCall((stream) => {
     liveServerStreams++;
     peakLiveServerStreams = Math.max(peakLiveServerStreams, liveServerStreams);
     stream.closed.then(mustCall(() => { liveServerStreams--; }));
   }, kRequests);
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   // Only one client-initiated bidi stream may be open at a time.
   transportParams: { initialMaxStreamsBidi: 1 },
@@ -47,10 +49,11 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   }, kRequests),
 });
 
-const clientSession = await connect(serverEndpoint.address, {
+const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
-});
+}));
 
 const info = await clientSession.opened;
 assert.strictEqual(info.protocol, 'h3');

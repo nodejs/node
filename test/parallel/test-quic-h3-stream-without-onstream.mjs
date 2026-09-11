@@ -19,7 +19,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { text } = await import('stream/iter');
 
@@ -42,9 +42,11 @@ function failOnConsumerWarning(warning) {
   const serverDone = Promise.withResolvers();
 
   // Note: no `onstream` callback anywhere on this session.
-  const serverEndpoint = await listen(mustCall((serverSession) => {
+  const serverEndpoint = await listen(mustCall((quicSession) => {
+    const serverSession = new Http3Session(quicSession);
     serverSession.onerror = () => {};
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':path'], '/test');
@@ -59,10 +61,11 @@ function failOnConsumerWarning(warning) {
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const headersReceived = Promise.withResolvers();
@@ -147,13 +150,19 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   // QuicStream is not exported; obtain its prototype from a stream instance,
   // then offer every `on*` accessor to listen() and see which ones the
   // session actually attaches to a received stream.
-  const bootstrap = await listen(mustCall((session) => {
+  const bootstrap = await listen(mustCall((quicSession) => {
+    const session = new Http3Session(quicSession);
     session.onerror = () => {};
-  }), { sni: { '*': { keys: [key], certs: [cert] } }, onstream: () => {} });
-  const bootSession = await connect(bootstrap.address, {
+  }), {
+    alpn: ['h3'],
+    sni: { '*': { keys: [key], certs: [cert] } },
+    onstream: () => {},
+  });
+  const bootSession = new Http3Session(await connect(bootstrap.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await bootSession.opened;
   const probeStream = await bootSession.createBidirectionalStream();
   probeStream.onerror = () => {};
@@ -166,21 +175,24 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
   for (const name of candidates) probes[name] = () => {};
 
   const applied = Promise.withResolvers();
-  const serverEndpoint = await listen(mustCall((session) => {
+  const serverEndpoint = await listen(mustCall((quicSession) => {
+    const session = new Http3Session(quicSession);
     session.onerror = () => {};
   }), {
     __proto__: null,
     ...probes,
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onstream: mustCall((stream) => {
       applied.resolve(candidates.filter((n) => typeof stream[n] === 'function'));
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
   const stream = await clientSession.createBidirectionalStream({
     headers: {
@@ -215,17 +227,20 @@ for (const callbackName of kNonConsumerCallbacks) {
     }
   });
 
-  const serverEndpoint = await listen(mustCall((serverSession) => {
+  const serverEndpoint = await listen(mustCall((quicSession) => {
+    const serverSession = new Http3Session(quicSession);
     serverSession.onerror = () => {};
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     [callbackName]: mustNotCall(),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

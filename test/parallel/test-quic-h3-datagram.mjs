@@ -15,7 +15,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 const { setTimeout: sleep } = await import('timers/promises');
@@ -31,7 +31,10 @@ const decoder = new TextDecoder();
   const clientGotDatagram = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession, {
+      settings: { enableDatagrams: true },
+    });
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
     });
@@ -40,8 +43,8 @@ const decoder = new TextDecoder();
     ss.close();
     serverDone.resolve();
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
-    application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
     // Server echoes received datagram back to client.
     ondatagram: mustCall(function(data) {
@@ -61,10 +64,10 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-    application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
     // Client receives datagram from server.
     ondatagram: mustCall(function(data) {
@@ -76,6 +79,7 @@ const decoder = new TextDecoder();
       clientGotDatagram.resolve();
     }),
   });
+  const clientSession = new Http3Session(quicSession, { settings: { enableDatagrams: true } });
   await clientSession.opened;
 
   // Datagrams work alongside H3 request/response.
@@ -92,7 +96,7 @@ const decoder = new TextDecoder();
   });
 
   // Send datagram from client.
-  await clientSession.sendDatagram(new Uint8Array([10, 20, 30]));
+  await clientSession.quicSession.sendDatagram(new Uint8Array([10, 20, 30]));
 
   // H3 response body is received.
   const body = await bytes(stream);
@@ -114,16 +118,19 @@ const decoder = new TextDecoder();
 {
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    // Server explicitly disables H3 datagrams.
+    const ss = new Http3Session(quicSession, {
+      settings: { enableDatagrams: false },
+    });
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
-    // Server explicitly disables H3 datagrams.
-    application: { enableDatagrams: false },
     // But transport-level datagrams ARE supported.
     transportParams: { maxDatagramFrameSize: 100 },
     // Server should NOT receive any datagrams.
@@ -135,12 +142,13 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-    application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
   });
+  const clientSession = new Http3Session(quicSession, { settings: { enableDatagrams: true } });
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -163,7 +171,8 @@ const decoder = new TextDecoder();
 
   // Attempt to send a datagram. Since the peer's H3 SETTINGS
   // indicate h3_datagram=0, this should return 0 (not sent).
-  const dgId = await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
+  const dgId =
+    await clientSession.quicSession.sendDatagram(new Uint8Array([1, 2, 3]));
   assert.strictEqual(dgId, 0n);
 
   await Promise.all([stream.closed, serverDone.promise]);

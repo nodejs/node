@@ -172,7 +172,13 @@ assert.strictEqual(sessionState.isHandshakeCompleted, false);
 assert.strictEqual(sessionState.isHandshakeConfirmed, false);
 assert.strictEqual(sessionState.isStreamOpenAllowed, false);
 assert.strictEqual(sessionState.isPrioritySupported, false);
-assert.strictEqual(sessionState.headersSupported, 0);
+// No application has been installed on this session, so everything an
+// application populates reads as undefined rather than as a stand-in value.
+assert.strictEqual(sessionState.headersSupported, undefined);
+assert.strictEqual(sessionState.streamCallbacksSupported, undefined);
+assert.strictEqual(sessionState.noErrorCode, undefined);
+assert.strictEqual(sessionState.internalErrorCode, undefined);
+assert.strictEqual(sessionState.requestRejectedCode, undefined);
 assert.strictEqual(sessionState.isWrapped, false);
 assert.strictEqual(sessionState.maxDatagramSize, 0);
 assert.strictEqual(sessionState.lastDatagramId, 0n);

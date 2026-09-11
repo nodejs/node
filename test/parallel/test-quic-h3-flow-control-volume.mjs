@@ -24,7 +24,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { makePayload, hashBytes } = await import('../common/quic.mjs');
 const { bytes } = await import('stream/iter');
@@ -48,7 +48,8 @@ assert.notStrictEqual(requestHash, responseHash);
 
 const serverDone = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall(async (serverSession) => {
+const serverEndpoint = await listen(mustCall(async (quicSession) => {
+  const serverSession = new Http3Session(quicSession);
   serverSession.onstream = mustCall(async (stream) => {
     // Read the large request body. This is the path where DATA payload
     // credit is deferred until consumption.
@@ -62,6 +63,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverDone.resolve();
   });
 }), {
+  alpn: ['h3'],
   sni: { '*': { keys: [key], certs: [cert] } },
   transportParams: {
     initialMaxStreamDataBidiRemote: kStreamWindow,
@@ -78,7 +80,8 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   }),
 });
 
-const clientSession = await connect(serverEndpoint.address, {
+const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+  alpn: 'h3',
   servername: 'localhost',
   verifyPeer: 'manual',
   transportParams: {
@@ -87,7 +90,7 @@ const clientSession = await connect(serverEndpoint.address, {
   },
   maxStreamWindow: kStreamWindow,
   maxWindow: kConnWindow,
-});
+}));
 
 const info = await clientSession.opened;
 assert.strictEqual(info.protocol, 'h3');
