@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shlex
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -23,6 +24,14 @@ class WPTTestCase(testpy.SimpleTestCase):
 
   def GetReportingName(self, command):
     return self.GetName()
+
+  def GetFailureCommand(self, command):
+    command = list(command)
+    command.insert(command.index(self.file) + 1, self.group['selector'])
+    if sys.platform == 'win32':
+      # PowerShell quoting also protects query metacharacters such as | and &.
+      return '& ' + ' '.join("'" + arg.replace("'", "''") + "'" for arg in command)
+    return shlex.join(command)
 
   def GetRunConfiguration(self):
     configuration = super(WPTTestCase, self).GetRunConfiguration()
@@ -67,7 +76,7 @@ class WPTTestConfiguration(testpy.SimpleTestConfiguration):
           not isinstance(manifest.get('serial'), bool) or
           not isinstance(manifest.get('tests'), list) or
           any(not isinstance(group.get(field), str)
-              for group in manifest['tests'] for field in ['source', 'key', 'id']) or
+              for group in manifest['tests'] for field in ['source', 'key', 'id', 'selector']) or
           any('variant' in group and not isinstance(group['variant'], str)
               for group in manifest['tests'])):
         raise ValueError('invalid WPT manifest')

@@ -461,12 +461,14 @@ class WPTTestSpec {
   /**
    * Whether a command line argument selects this spec. Accepts the source file
    * name, which selects every global and variant generated from it, or a test
-   * path as printed alongside the results, which selects only this one.
+   * path as printed alongside the results. Omitting its query selects all
+   * variants of that global.
    * @param {string} arg
    * @returns {boolean}
    */
   isSelectedBy(arg) {
-    if (arg === this.getTestPath()) {
+    const testPath = this.getTestPath();
+    if (arg === testPath || arg === testPath.split('?')[0]) {
       return true;
     }
     const [filename, variant = ''] = arg.split('?');
@@ -829,7 +831,7 @@ class WPTRunner {
            (['source', 'key'].some((key) =>
              typeof this.managed[key] !== 'string' || !this.managed[key]) ||
             (this.managed.variant !== undefined && typeof this.managed.variant !== 'string')))) {
-        throw new Error('Invalid NODE_TEST_WPT configuration');
+        throw new Error('Invalid WPT runner configuration');
       }
     }
     this.isListing = this.managed?.mode === 'list';
@@ -987,12 +989,13 @@ class WPTRunner {
         const grouped = specs.some((spec) =>
           spec.failedTests.some((name) => isUnexpectedPass(spec, name)));
         return (grouped ? [specs[0]] : specs).map((spec) => {
-          const id = spec.getTestPath().slice(this.path.length + 1);
+          const selector = grouped ? spec.getTestPath().split('?')[0] : spec.getTestPath();
           return {
             source: spec.filename.split(path.sep).join('/'),
             key: spec.getStatusKey(),
             ...(grouped ? {} : { variant: spec.variant }),
-            id: grouped ? id.split('?')[0] : id,
+            id: selector.slice(this.path.length + 1),
+            selector,
           };
         });
       });

@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import shlex
 import sys
 import tempfile
 import unittest
@@ -31,10 +32,11 @@ class WPTConfigurationTest(unittest.TestCase):
       False, False, 1, False)
     self.config = wpt.GetConfiguration(self.context, self.root)
     self.manifest = {'version': 1, 'serial': False, 'tests': [
-      {'source': 'nested/a.any.js', 'key': 'nested/a.any.html', 'id': 'nested/a.any.html'},
+      {'source': 'nested/a.any.js', 'key': 'nested/a.any.html', 'id': 'nested/a.any.html',
+       'selector': 'example/nested/a.any.html'},
       {'source': 'nested/a.any.js', 'key': 'nested/a.any.worker.html',
-       'id': 'nested/a.any.worker.html'},
-      {'source': 'z.any.js', 'key': 'z.any.html', 'id': 'z.any.html'},
+       'id': 'nested/a.any.worker.html', 'selector': 'example/nested/a.any.worker.html'},
+      {'source': 'z.any.js', 'key': 'z.any.html', 'id': 'z.any.html', 'selector': 'example/z.any.html'},
     ]}
     self.discovery = self.stack.enter_context(mock.patch.object(
       runner, 'Execute', side_effect=self.discover))
@@ -82,7 +84,8 @@ class WPTConfigurationTest(unittest.TestCase):
     group = self.manifest['tests'][0]
     variants = ['', '?q=[a]+(b)|c', '?q=aaab', '?q=*', '?q=source.js']
     self.manifest['tests'] = [
-      {**group, 'id': group['id'] + variant, 'variant': variant} for variant in variants]
+      {**group, 'id': group['id'] + variant, 'selector': group['selector'] + variant,
+       'variant': variant} for variant in variants]
     base = 'wpt/test-example/' + group['id']
     self.assertEqual([case.group['variant'] for case in self.cases(base)], variants)
     for variant in variants[1:]:
@@ -123,6 +126,44 @@ class WPTConfigurationTest(unittest.TestCase):
     self.manifest['tests'] = 'not a list'
     with self.assertRaisesRegex(RuntimeError, 'WPT discovery failed'):
       self.cases()
+
+  def test_failure_commands_preserve_actual_command_and_selection(self):
+    self.config.additional_flags = ["--title=space ' $|?", '--trace-warnings']
+    query = "?q=space ' | $(echo)"
+    for group in self.manifest['tests'][:2]:
+      group.update(id=group['id'] + query, selector=group['selector'] + query, variant=query)
+    self.manifest['tests'].append({'source': 'empty.any.js', 'key': 'empty.any.html',
+                                   'id': 'empty.any.html', 'selector': 'example/empty.any.html', 'variant': ''})
+    cases = self.cases()
+    self.assertEqual(len(cases), 4)
+    self.context.processor = lambda args: ['valgrind', '--tool=memcheck', *args, 'suffix with |']
+    with mock.patch.object(sys, 'platform', 'linux'):
+      for case, group in zip(cases, self.manifest['tests']):
+        command = case.GetRunConfiguration()['command']
+        expected = [sys.executable, '--expose-gc', "--title=space ' $|?", '--trace-warnings',
+                    self.wrapper]
+        self.assertEqual(command, expected)
+        command = self.context.processor(command)
+        rerun = ['valgrind', '--tool=memcheck', *expected, group['selector'], 'suffix with |']
+        self.assertEqual(shlex.split(case.GetFailureCommand(command)), rerun)
+        failure = runner.TestOutput(case, command,
+                                    runner.CommandOutput(1, False, '', 'probe failure'), False)
+        printer = runner.ProgressIndicator([], runner.RUN, 0)
+        self.assertIn('Command: ' + shlex.join(rerun), printer.GetFailureOutput(failure))
+
+  def test_failure_command_quotes_powershell_metacharacters(self):
+    case = self.cases()[0]
+    case.file = 'test driver.js'
+    case.group['selector'] = "example/a.any.html?q=O'Brien|x"
+    command = ['node', case.file]
+    with mock.patch.object(sys, 'platform', 'win32'):
+      self.assertEqual(case.GetFailureCommand(command),
+                       "& 'node' 'test driver.js' 'example/a.any.html?q=O''Brien|x'")
+
+  def test_ordinary_failure_command_is_unchanged(self):
+    case = runner.TestCase(self.context, ['parallel', 'test-example'], 'none', 'release')
+    command = [sys.executable, '--expose-gc', 'test/parallel/path with spaces.js']
+    self.assertEqual(case.GetFailureCommand(command), runner.EscapeCommand(command))
 
 
 if __name__ == '__main__':

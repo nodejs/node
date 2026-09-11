@@ -126,7 +126,7 @@ class ProgressIndicator(object):
     if failure.output.stdout:
       output += ["--- stdout ---"]
       output += [failure.output.stdout.strip()]
-    output += ["Command: %s" % EscapeCommand(failure.command)]
+    output += ["Command: %s" % failure.test.GetFailureCommand(failure.command)]
     if failure.HasCrashed():
       output += ["--- %s ---" % PrintCrashed(failure.output.exit_code)]
     if failure.HasTimedOut():
@@ -423,9 +423,7 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
     # hard to decipher what test is running when only the filename is printed.
-    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
-    command = output.command[-1]
-    command = NormalizePath(command, prefix)
+    command = output.test.GetReportingName(output.command)
 
     stdout = output.output.stdout.strip()
     printed_file = False
@@ -471,7 +469,7 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = output.output.stderr.strip()
       if len(stderr):
         print(self.templates['stderr'] % stderr)
-      print("Command: %s" % EscapeCommand(output.command))
+      print("Command: %s" % output.test.GetFailureCommand(output.command))
       if output.HasCrashed():
         print("--- %s ---" % PrintCrashed(output.output.exit_code))
       if output.HasTimedOut():
@@ -574,6 +572,9 @@ class TestCase(object):
   def GetReportingName(self, command):
     prefix = abspath(join(dirname(__file__), '../test')) + os.sep
     return NormalizePath(command[-1], prefix)
+
+  def GetFailureCommand(self, command):
+    return EscapeCommand(command)
 
   def IsNegative(self):
     return self.context.expect_fail
@@ -1864,7 +1865,7 @@ def Main():
   elif result['failed']:
     print("\nFailed tests:")
     for failure in result['failed']:
-      print(EscapeCommand(failure.command))
+      print(failure.test.GetFailureCommand(failure.command))
   else:
     print("\nTest aborted.")
   return exitcode

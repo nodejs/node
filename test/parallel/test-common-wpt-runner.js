@@ -15,7 +15,7 @@ if (process.env.NODE_TEST_WPT_REPORT_DIR) {
 } else if (process.env.NODE_TEST_WPT_QUERY_PROBE) {
   const { WPTRunner, WPTTestSpec } = require('../common/wpt');
   const runner = new WPTRunner('compression');
-  if (!runner.isListing) assert.strictEqual(runner.concurrency, 1);
+  if (runner.managed?.mode === 'run') assert.strictEqual(runner.concurrency, 1);
   runner.specs = new Set(['?pass', '?fail'].map((query) => {
     const spec = new WPTTestSpec('compression', 'compression-bad-chunks.any.js', [], query, 'window');
     spec.failedTests = ['expected across queries'];
@@ -116,7 +116,9 @@ function main() {
   const config = { mode: 'run', source: 'compression-bad-chunks.any.js', key: 'compression-bad-chunks.any.html' };
   for (const probe of ['combined', 'mixed']) {
     const strict = discover('compression', { NODE_TEST_WPT_QUERY_PROBE: probe }, __filename);
-    assert.deepStrictEqual(strict.tests, [{ source: config.source, key: config.key, id: config.key }]);
+    assert.deepStrictEqual(strict.tests, [{
+      source: config.source, key: config.key, id: config.key, selector: `compression/${config.key}`,
+    }]);
   }
   const flaky = discover('compression', { NODE_TEST_WPT_QUERY_PROBE: 'flaky' }, __filename);
   assert.deepStrictEqual(flaky.tests.map((test) => test.variant).sort(), ['?fail', '?pass']);
@@ -130,4 +132,16 @@ function main() {
   assert.match(combined, /\.any\.html\?fail:/);
   const missing = invoke(__filename, config, { NODE_TEST_WPT_QUERY_PROBE: 'missing' }, 1);
   assert.match(missing, /Found 2 unexpected passes/);
+
+  for (const query of ['', '?fail']) {
+    const direct = spawnSync(process.execPath, [__filename, `compression/${config.key}${query}`], {
+      env: { ...env, NODE_TEST_WPT_QUERY_PROBE: 'combined' },
+      encoding: 'utf8', timeout: common.platformTimeout(10_000),
+    });
+    assert.ifError(direct.error);
+    assert.strictEqual(direct.status, 0, direct.stdout + direct.stderr);
+    assert.match(direct.stdout, /\.any\.html\?fail:/);
+    if (query) assert.doesNotMatch(direct.stdout, /\.any\.html\?pass:/);
+    else assert.match(direct.stdout, /\.any\.html\?pass:/);
+  }
 }
