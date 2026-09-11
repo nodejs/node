@@ -47,7 +47,7 @@ function httpsTest() {
   });
 
   server.listen(0, function() {
-    const opts = { port: this.address().port, rejectUnauthorized: false };
+    const opts = { port: this.address().port, rejectUnauthorized: false, agent: false };
     https.get(opts).on('response', function(res) {
       test(res);
     });
