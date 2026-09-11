@@ -14,6 +14,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
 }));
 server.listen(0, common.localhostIPv4, function() {
   http.request({
+    agent: false,
     method: 'POST',
     host: common.localhostIPv4,
     port: this.address().port,

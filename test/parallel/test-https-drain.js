@@ -45,6 +45,7 @@ const server = https.createServer(options, function(req, res) {
 server.listen(0, common.mustCall(function() {
   let resumed = false;
   const req = https.request({
+    agent: false,
     method: 'POST',
     port: this.address().port,
     rejectUnauthorized: false

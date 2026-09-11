@@ -43,6 +43,6 @@ for (const testCase of testCases) {
   server.listen(0, function() {
     // make the request
     const url = new URL(`http://${testCase.username}:${testCase.password}@localhost:${this.address().port}`);
-    http.request(url).end();
+    http.request(url, { agent: false }).end();
   });
 }

@@ -45,7 +45,6 @@ const server = https.createServer(httpsOptions, function(request, response) {
   check(request);
   response.writeHead(200, {});
   response.end('ok');
-  server.close();
 });
 
 server.listen(0, common.mustCall(function() {
@@ -57,5 +56,9 @@ server.listen(0, common.mustCall(function() {
   // Since there is a little magic with the agent
   // make sure that the request uses the https.Agent
   assert.ok(clientRequest.agent instanceof https.Agent);
+  clientRequest.on('response', common.mustCall((response) => {
+    response.on('end', common.mustCall(() => server.close()));
+    response.resume();
+  }));
   clientRequest.end();
 }));

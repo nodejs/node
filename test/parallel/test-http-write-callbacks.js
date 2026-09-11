@@ -71,6 +71,7 @@ server.on('checkContinue', common.mustCall((req, res) => {
 
 server.listen(0, common.mustCall(function() {
   const req = http.request({
+    agent: false,
     port: this.address().port,
     method: 'PUT',
     headers: { 'expect': '100-continue' }
