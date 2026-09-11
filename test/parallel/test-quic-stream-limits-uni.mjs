@@ -37,6 +37,7 @@ await clientSession.opened;
 // First uni stream opens immediately.
 const s1 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 1'),
+  waitUntilAvailable: false,
 });
 
 // Second uni stream is pending (limit = 1).
