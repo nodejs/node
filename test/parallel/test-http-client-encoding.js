@@ -29,6 +29,7 @@ const server = http.createServer((req, res) => {
   server.close();
 }).listen(0, common.mustCall(() => {
   http.request({
+    agent: false,
     port: server.address().port,
     encoding: 'utf8'
   }, common.mustCall((res) => {
