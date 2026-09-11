@@ -35,7 +35,7 @@ const {
   stripVTControlCharacters
 } = require('internal/util/inspect');
 const { EventEmitter, listenerCount } = require('events');
-const { Writable, Readable } = require('stream');
+const { Writable, Readable, PassThrough } = require('stream');
 
 class FakeInput extends EventEmitter {
   resume() {}
@@ -1482,4 +1482,40 @@ for (let i = 0; i < 12; i++) {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE'
   });
+}
+
+// Regression test for https://github.com/nodejs/node/issues/59431
+// [kMultilineMove] used getCursorPos() (visual terminal rows) to index into
+// splitLines (logical '\n'-delimited rows). When one logical line wraps across
+// multiple terminal-columns, visual rows > logical rows, making
+// splitLines[visualRows] undefined and throwing:
+//   TypeError: Cannot read properties of undefined (reading 'length')
+{
+  // Simulate the crash scenario:
+  //   1. Submit a very long single-line entry (no '\n') so it wraps across
+  //      many visual rows in an 80-column terminal.
+  //   2. Press UP to recall it from history.
+  //   3. Press UP again — this is where the crash occurred before the fix.
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const rl = readline.createInterface({
+    input,
+    output,
+    terminal: true,
+  });
+  rl.columns = 80; // force narrow terminal so the long line wraps many times
+
+  const longEntry = 'x'.repeat(400); // one logical line, ~5 visual rows
+  rl.write(longEntry);
+  rl.write(null, { name: 'return' }); // commit to history
+
+  // First UP: recalls the long entry (enters multiline-history mode).
+  assert.doesNotThrow(() => rl.write(null, { name: 'up' }));
+
+  // Second UP from inside the recalled entry: previously threw
+  //   TypeError: Cannot read properties of undefined (reading 'length')
+  //   at [_multilineMove] (node:internal/readline/interface:...)
+  assert.doesNotThrow(() => rl.write(null, { name: 'up' }));
+
+  rl.close();
 }
