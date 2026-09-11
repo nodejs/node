@@ -122,8 +122,8 @@ async function testBroadcastFromCancelWhileBlocked() {
   async function* slowSource() {
     const enc = new TextEncoder();
     yield [enc.encode('chunk1')];
-    // Simulate a long delay - the cancel should unblock this
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    // Simulate a long delay without keeping the cancelled source alive.
+    await new Promise((resolve) => setTimeout(resolve, 10000).unref());
     yield [enc.encode('chunk2')];
     sourceFinished = true;
   }
