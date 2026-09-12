@@ -958,6 +958,10 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
       case kKeyNormOffset: {
         uint64_t v;
         if (!CborReadUint(p, end, &v)) return nullptr;
+        // Reject values that cannot be represented as int32_t; the
+        // static_cast below would wrap and produce an arbitrary offset.
+        if (v > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()))
+          return nullptr;
         norm_offset = static_cast<int32_t>(v);
         break;
       }
@@ -1048,6 +1052,13 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
 
   // Validate counts_len matches what the options produce.
   if (histogram->histogram_->counts_len != counts_len) return nullptr;
+
+  // The normalization offset must index into the allocated counts array.
+  // normalize_index() in hdr_histogram.c applies at most one wrap
+  // adjustment of +/-counts_len, so any offset outside [0, counts_len)
+  // can leave normalized_index out of bounds and a later record() would
+  // perform an out-of-bounds write in counts_inc_normalised().
+  if (norm_offset < 0 || norm_offset >= counts_len) return nullptr;
 
   // Restore counts directly.
   for (const auto& [idx, cnt] : sparse_counts) {
