@@ -1414,7 +1414,9 @@ added: v23.8.0
   * `local` {net.SocketAddress}
   * `remote` {net.SocketAddress}
 
-The local and remote socket addresses associated with the session. Read only.
+The local and remote socket addresses associated with the session. The object is
+cached, and its read-only `local` and `remote` properties are refreshed from the
+current path whenever `session.path` is accessed.
 
 ### `session.remoteTransportParams`
 
