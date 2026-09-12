@@ -1924,9 +1924,12 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
         permission_denied_error, "rm", message.c_str(), path_c_str);
   }
 
-  std::string message = "Unknown error: " + error.message();
-  return env->ThrowErrnoException(
-      UV_UNKNOWN, "rm", message.c_str(), path_c_str);
+#ifdef _WIN32
+  int errorno = uv_translate_sys_error(error.value());
+#else
+  int errorno = -error.value();
+#endif
+  return env->ThrowUVException(errorno, "rm", nullptr, path_c_str);
 }
 
 int MKDirpSync(uv_loop_t* loop,
