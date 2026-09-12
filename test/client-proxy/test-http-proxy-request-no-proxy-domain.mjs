@@ -10,7 +10,7 @@ import { runProxiedRequest } from '../common/proxy-server.js';
 const server = http.createServer(common.mustCall((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
-}, 5));
+}, 8));
 server.on('error', common.mustNotCall((err) => { console.error('Server error', err); }));
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
@@ -78,6 +78,62 @@ await once(proxy, 'listening');
   assert.strictEqual(signal, null);
 }
 
+{
+  // Test NO_PROXY with a plain domain also matching subdomains.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://test.example.com:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${proxy.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'test.example.com',
+    NO_PROXY: 'example.com',
+  });
+
+  // The request should succeed and bypass proxy.
+  assert.match(stdout, /Status Code: 200/);
+  assert.match(stdout, /Hello World/);
+  assert.match(stdout, /Resolving lookup for test\.example\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  // Test NO_PROXY with a plain domain should NOT match partial domain names.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://badexample.com:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${server.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'badexample.com',
+    NO_PROXY: 'example.com',
+  });
+
+  // The request should go through the proxy (not bypass it),
+  // because badexample.com is not a subdomain of example.com.
+  assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for badexample\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  // Test that an empty plain entry does not match a hostname ending in a dot.
+  const { code, signal, stderr, stdout } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: `http://evil.com.:${server.address().port}/test`,
+    HTTP_PROXY: `http://localhost:${server.address().port}`,
+    RESOLVE_TO_LOCALHOST: 'evil.com.',
+    NO_PROXY: 'example.com,',
+  });
+
+  // The request should go through the proxy (not bypass it).
+  assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for evil\.com/);
+  assert.strictEqual(stderr.trim(), '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+}
+
 // Test NO_PROXY with leading-dot entry should NOT match partial domain names.
 // Regression test: .example.com must not match notexample.com or badexample.com.
 {
@@ -92,6 +148,7 @@ await once(proxy, 'listening');
   // The request should go through the proxy (not bypass it),
   // because notexample.com is not a subdomain of example.com.
   assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for notexample\.com/);
   assert.strictEqual(stderr.trim(), '');
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
@@ -109,6 +166,7 @@ await once(proxy, 'listening');
   // The request should go through the proxy (not bypass it),
   // because badexample.com is not a subdomain of example.com.
   assert.match(stdout, /Status Code: 200/);
+  assert.doesNotMatch(stdout, /Resolving lookup for badexample\.com/);
   assert.strictEqual(stderr.trim(), '');
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);

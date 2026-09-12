@@ -4559,6 +4559,10 @@ A browser-compatible implementation of {WebSocket}.
 added:
  - v24.5.0
  - v22.21.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65617
+    description: Plain domain entries in `NO_PROXY` now match subdomains.
 -->
 
 > Stability: 1.1 - Active development
@@ -4615,7 +4619,7 @@ Proxy URLs can use either HTTP or HTTPS protocols:
 The `NO_PROXY` environment variable supports several formats:
 
 * `*` - Bypass proxy for all hosts
-* `example.com` - Exact host name match
+* `example.com` - Host and subdomain match (matches `sub.example.com`)
 * `.example.com` - Domain suffix match (matches `sub.example.com`)
 * `*.example.com` - Wildcard domain match
 * `192.168.1.100` - Exact IP address match
