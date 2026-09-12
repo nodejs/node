@@ -5,6 +5,20 @@ require('../common');
 const assert = require('assert');
 const { URLPattern } = require('url');
 
+{
+  assert.deepStrictEqual(
+    Object.getOwnPropertyDescriptor(URLPattern.prototype, Symbol.toStringTag),
+    {
+      configurable: true,
+      enumerable: false,
+      value: 'URLPattern',
+      writable: false,
+    });
+  assert.strictEqual(
+    Object.prototype.toString.call(new URLPattern()),
+    '[object URLPattern]');
+}
+
 // Verify that if an error is thrown while accessing any of the
 // init options, the error is appropriately propagated.
 assert.throws(() => {
