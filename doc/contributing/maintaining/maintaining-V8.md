@@ -308,6 +308,10 @@ Revision_ from the 5.4 branch that can be useful in the update process above.
 We upgrade the version of V8 in Node.js `main` whenever a V8 release goes stable
 upstream, that is, whenever a new release of Chrome comes out.
 
+V8 updates can require a `NODE_MODULE_VERSION` bump if they change the native
+addon ABI. See the release process documentation for when
+`NODE_MODULE_VERSION` may be updated during a release line.
+
 Upgrading major versions would be much harder to do with the patch mechanism
 above. A better strategy is to
 
