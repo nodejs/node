@@ -57,16 +57,33 @@ bool AddCRL(Environment* env,
             X509_STORE** cache) {
   if (!bio) return false;
 
-  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
-      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
-  if (!crl) return false;
+  using CRLPointer = DeleteFnPtr<X509_CRL, X509_CRL_free>;
 
-  X509_STORE* cert_store = GetOrCreateOwnedCertStore(env, ctx, cache);
-  CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
-  CHECK_EQ(1,
-           X509_STORE_set_flags(
-               cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
-  return true;
+  // So that ERR_peek_last_error() below only reports errors from this loop.
+  ERR_clear_error();
+
+  bool added = false;
+  while (CRLPointer crl = CRLPointer(PEM_read_bio_X509_CRL(
+             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
+    X509_STORE* cert_store = GetOrCreateOwnedCertStore(env, ctx, cache);
+    CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
+    CHECK_EQ(
+        1,
+        X509_STORE_set_flags(
+            cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
+    added = true;
+  }
+
+  // The loop stops either because the BIO is exhausted, which OpenSSL reports
+  // as PEM_R_NO_START_LINE, or because a CRL failed to parse. Only the former
+  // means every CRL in the bundle made it into the store.
+  unsigned long err = ERR_peek_last_error();  // NOLINT(runtime/int)
+  if (ERR_GET_LIB(err) != ERR_LIB_PEM ||
+      ERR_GET_REASON(err) != PEM_R_NO_START_LINE) {
+    return false;
+  }
+
+  return added;
 }
 
 PrivateKeyResult UsePrivateKey(SSL_CTX* ctx,
