@@ -508,10 +508,39 @@ assert.strictEqual(util.format('%i', 1, 'number'), '1 number');
 assert.strictEqual(util.format('%i', 1, () => {}), '1 [Function (anonymous)]');
 
 // %c from https://console.spec.whatwg.org/
-assert.strictEqual(util.format('%c'), '%c');
-assert.strictEqual(util.format('%cab'), '%cab');
-assert.strictEqual(util.format('%cab', 'color: blue'), 'ab');
-assert.strictEqual(util.format('%cab', 'color: blue', 'c'), 'ab c');
+assert.strictEqual(
+  util.formatWithOptions({ colors: true }, '%cfoo', 'color: red'),
+  '\x1b[31mfoo\x1b[0m'
+);
+
+assert.strictEqual(
+  util.formatWithOptions(
+    { colors: true },
+    '%cfoo',
+    'color: red; background-color: blue'
+  ),
+  '\x1B[31;44mfoo\x1B[0m'
+);
+
+assert.strictEqual(
+  util.formatWithOptions({ colors: true }, '%cfoo', 'color: red', 'bar'),
+  '\x1b[31mfoo\x1b[0m bar'
+);
+
+assert.strictEqual(
+  util.formatWithOptions({ colors: true }, '%cfoo%c bar', 'color: red', ''),
+  '\x1B[31mfoo\x1B[0m bar'
+);
+
+assert.strictEqual(
+  util.formatWithOptions(
+    { colors: true },
+    '%cfoo %cbar',
+    'color: red',
+    'color: blue'
+  ),
+  '\x1B[31mfoo \x1B[0m\x1B[34mbar\x1B[0m'
+);
 
 {
   const o = {};
