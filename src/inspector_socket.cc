@@ -360,7 +360,8 @@ static ws_decode_result decode_frame_hybi17(const std::vector<char>& buffer,
   }
   size_t payload_length = static_cast<size_t>(payload_length64);
 
-  if (buffer.size() - kMaskingKeyWidthInBytes < payload_length)
+  if (static_cast<size_t>(buffer.end() - it) <
+      kMaskingKeyWidthInBytes + payload_length)
     return FRAME_INCOMPLETE;
 
   std::vector<char>::const_iterator masking_key = it;
