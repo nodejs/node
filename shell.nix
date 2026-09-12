@@ -19,7 +19,7 @@
   withFFI ? true,
   withSSL ? true,
   withTemporal ? false,
-  withPerfetto ? false,
+  withPerfetto ? true,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -84,7 +84,7 @@ let
   ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) "--shared-highway"
   ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) "--shared-perfetto"
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
-  ++ pkgs.lib.optional withPerfetto "--with-perfetto";
+  ++ pkgs.lib.optional (!withPerfetto) "--without-perfetto";
 in
 pkgs.mkShell {
   inherit nativeBuildInputs;
