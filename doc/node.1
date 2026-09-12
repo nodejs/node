@@ -296,9 +296,11 @@ Error: Access to this API has been restricted
 Starts the Node.js command-line benchmark runner. At least one explicit file or
 glob pattern is required:
 .Bd -literal
-node --bench benchmark.mjs
-node --bench 'benchmarks/**/*.js'
+node --experimental-bench --bench benchmark.mjs
+node --experimental-bench --bench 'benchmarks/**/*.js'
 .Ed
+The \fB--experimental-bench\fR flag is required to use this flag or any other
+\fB--bench-*\fR option.
 Quote glob patterns to prevent expansion by the shell. Matching files are
 sorted and executed serially. By default, each file runs in a separate child
 process. Benchmark files declare benchmarks using \fBnode:bench\fR; they must not
@@ -676,6 +678,9 @@ It is possible to run code containing inline types unless the
 .
 .It Fl -experimental-addon-modules
 Enable experimental import support for \fB.node\fR addons.
+.
+.It Fl -experimental-bench
+Enable the experimental \fBnode:bench\fR module and command-line benchmark runner.
 .
 .It Fl -experimental-config-file Ns = Ns Ar path , Fl -experimental-config-file
 If present, Node.js will look for a configuration file at the specified path.
@@ -2091,6 +2096,8 @@ one is included in the list below.
 \fB--experimental-abortcontroller\fR
 .It
 \fB--experimental-addon-modules\fR
+.It
+\fB--experimental-bench\fR
 .It
 \fB--experimental-detect-module\fR
 .It

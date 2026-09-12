@@ -728,6 +728,14 @@ void ResetStdio() {
 #endif  // __POSIX__
 }
 
+// Validates the benchmark runner options of the global (per-process) options
+// once every option source has been parsed. See
+// EnvironmentOptions::CheckBenchOptions().
+static void CheckGlobalBenchOptions(std::vector<std::string>* errors) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  per_process::cli_options->per_isolate->per_env->CheckBenchOptions(errors);
+}
+
 static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                                           std::vector<std::string>* exec_args,
                                           std::vector<std::string>* errors,
@@ -830,8 +838,16 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
                       std::vector<std::string>* exec_args,
                       std::vector<std::string>* errors,
                       OptionEnvvarSettings settings) {
-  return static_cast<int>(
-      ProcessGlobalArgsInternal(args, exec_args, errors, settings));
+  const ExitCode exit_code =
+      ProcessGlobalArgsInternal(args, exec_args, errors, settings);
+  if (exit_code != ExitCode::kNoFailure) return static_cast<int>(exit_code);
+  // Embedders parse every option source in a single pass, so the benchmark
+  // options can be validated right away.
+  CheckGlobalBenchOptions(errors);
+  if (!errors->empty()) {
+    return static_cast<int>(ExitCode::kInvalidCommandLineArgument);
+  }
+  return static_cast<int>(ExitCode::kNoFailure);
 }
 
 static std::atomic_bool init_called{false};
@@ -1011,6 +1027,11 @@ static ExitCode InitializeNodeWithArgsInternal(
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }
+
+  // Every option source has now been parsed, so cross-source option
+  // constraints can finally be validated.
+  CheckGlobalBenchOptions(errors);
+  if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
   // Set the process.title immediately after processing argv if --title is set.
   if (!per_process::cli_options->title.empty())

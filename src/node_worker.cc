@@ -676,6 +676,11 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                           kDisallowedInEnvvar,
                           &errors);
 
+    // All of the worker's option sources (the env options, NODE_OPTIONS and
+    // execArgv) have now been parsed, so the benchmark options can be
+    // validated against --experimental-bench.
+    per_isolate_opts->per_env->CheckBenchOptions(&errors);
+
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
     // Only fail for explicitly provided execArgv, this protects from failures

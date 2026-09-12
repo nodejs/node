@@ -206,6 +206,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(require_module) = true;
   DEFINE_BOOL_FIELD(enable_source_maps) = false;
   DEFINE_BOOL_FIELD(experimental_addon_modules) = true;
+  DEFINE_BOOL_FIELD(experimental_bench) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_ffi) = HAVE_FFI;
   DEFINE_BOOL_FIELD(experimental_web_worker) = EXPERIMENTALS_DEFAULT_VALUE;
@@ -251,6 +252,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(prof_process) = false;
   DEFINE_BOOL_FIELD(has_env_file_string) = false;
   DEFINE_BOOL_FIELD(bench_runner) = false;
+  DEFINE_BOOL_FIELD(has_bench_options) = false;
   DEFINE_BOOL_FIELD(has_bench_samples) = false;
   DEFINE_BOOL_FIELD(has_bench_warmup) = false;
   DEFINE_BOOL_FIELD(test_runner) = false;
@@ -313,6 +315,15 @@ class EnvironmentOptions : public Options {
 
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  // `--bench` and the other benchmark runner options are gated behind
+  // `--experimental-bench`, but the gate and the options it guards can come
+  // from different option sources, each of which is parsed in its own
+  // options_parser::Parse() pass. CheckOptions() runs at the end of every
+  // pass, so this constraint cannot be validated there: the gate may still
+  // arrive in a later pass. Callers must invoke this once all of their option
+  // sources have been parsed.
+  void CheckBenchOptions(std::vector<std::string>* errors) const;
 
  private:
   DebugOptions debug_options_;
