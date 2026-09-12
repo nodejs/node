@@ -47,6 +47,19 @@ function makeIterableFunc(array) {
   params = new URLSearchParams({ hasOwnProperty: 1 });
   assert.strictEqual(params.get('hasOwnProperty'), '1');
   assert.strictEqual(params.toString(), 'hasOwnProperty=1');
+  // A malformed key can collide with a valid key collected before the map
+  // exists.
+  params = new URLSearchParams({
+    'before': '0',
+    '\uFFFDx': 'first',
+    '\uD835x': 'last',
+    'after': '3'
+  });
+  assert.deepStrictEqual([...params], [
+    ['before', '0'],
+    ['\uFFFDx', 'last'],
+    ['after', '3'],
+  ]);
   assert.throws(() => new URLSearchParams([[1]]), tupleError);
   assert.throws(() => new URLSearchParams([[1, 2, 3]]), tupleError);
   assert.throws(() => new URLSearchParams({ [Symbol('test')]: 42 }),
