@@ -36,6 +36,7 @@ using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -307,6 +308,16 @@ uint32_t ConvertType(Local<Value> value) {
 }
 
 template <>
+bool CheckType<int32_t>(Local<Value> value) {
+  return value->IsInt32();
+}
+
+template <>
+int32_t ConvertType(Local<Value> value) {
+  return value.As<Int32>()->Value();
+}
+
+template <>
 bool CheckType<uint64_t>(Local<Value> value) {
   return value->IsBigInt();
 }
@@ -486,14 +497,17 @@ uint32_t WASI::ClockTimeGet(WASI& wasi,
                             WasmMemory memory,
                             uint32_t clock_id,
                             uint64_t precision,
-                            uint32_t time_ptr) {
-  Debug(wasi, "clock_time_get(%d, %d, %d)\n", clock_id, precision, time_ptr);
-  CHECK_BOUNDS_OR_RETURN(memory.size, time_ptr, UVWASI_SERDES_SIZE_timestamp_t);
+                            int32_t time_ptr) {
+  const auto time_ptr_u32 = static_cast<uint32_t>(time_ptr);
+  Debug(
+      wasi, "clock_time_get(%d, %d, %d)\n", clock_id, precision, time_ptr_u32);
+  CHECK_BOUNDS_OR_RETURN(
+      memory.size, time_ptr_u32, UVWASI_SERDES_SIZE_timestamp_t);
   uvwasi_timestamp_t time;
   uvwasi_errno_t err =
       uvwasi_clock_time_get(&wasi.uvw_, clock_id, precision, &time);
   if (err == UVWASI_ESUCCESS)
-    uvwasi_serdes_write_timestamp_t(memory.data, time_ptr, time);
+    uvwasi_serdes_write_timestamp_t(memory.data, time_ptr_u32, time);
 
   return err;
 }
