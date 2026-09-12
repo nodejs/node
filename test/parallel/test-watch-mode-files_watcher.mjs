@@ -6,7 +6,7 @@ import path from 'node:path';
 import assert from 'node:assert';
 import process from 'node:process';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, appendFileSync, rmSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
@@ -44,12 +44,38 @@ describe('watch mode file watcher', () => {
     });
   }
 
+  function replaceAndWaitForChanges(watcher, file) {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        rmSync(file, { force: true });
+        writeFileSync(file, `replace ${counter++}`);
+      }, 100);
+      watcher.once('changed', () => {
+        clearInterval(interval);
+        resolve();
+      });
+    });
+  }
+
   it('should watch changed files', async () => {
     const file = tmpdir.resolve('file1');
     writeFileSync(file, 'written');
     watcher.filterFile(file);
     await writeAndWaitForChanges(watcher, file);
     assert.strictEqual(changesCount, 1);
+  });
+
+  it('should keep detecting files replaced via unlink and create', async () => {
+    // Regression test for https://github.com/nodejs/node/issues/51621: a watch
+    // bound to the file inode stops firing after the first replacement, so the
+    // second `replaceAndWaitForChanges` call would hang on the buggy behavior.
+    const file = tmpdir.resolve('replaced.js');
+    writeFileSync(file, 'written');
+    watcher.filterFile(file);
+    await replaceAndWaitForChanges(watcher, file);
+    await replaceAndWaitForChanges(watcher, file);
+    await replaceAndWaitForChanges(watcher, file);
+    assert.ok(changesCount >= 3, `expected at least 3 changes, got ${changesCount}`);
   });
 
   it('should watch changed files with same prefix path string', async () => {
@@ -204,10 +230,9 @@ describe('watch mode file watcher', () => {
     const child = spawn(process.execPath, [file], { stdio: ['pipe', 'pipe', 'pipe', 'ipc'], encoding: 'utf8' });
     watcher.watchChildProcessModules(child);
     await once(child, 'exit');
-    let expected = [file, tmpdir.resolve('file')];
-    if (supportsRecursiveWatching) {
-      expected = expected.map((file) => path.dirname(file));
-    }
+    // The parent directory is watched on every platform so that files replaced
+    // via unlink+create or rename are still detected.
+    const expected = [file, tmpdir.resolve('file')].map((file) => path.dirname(file));
     assert.deepStrictEqual(watcher.watchedPaths, expected);
   });
 });
