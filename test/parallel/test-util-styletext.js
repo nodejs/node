@@ -199,8 +199,23 @@ if (fd !== -1) {
     { isTTY: true, env: { NO_COLOR: '1' }, expected: noChange },
     { isTTY: true, env: { FORCE_COLOR: '1' }, expected: styled },
     { isTTY: true, env: { FORCE_COLOR: '1', NODE_DISABLE_COLORS: '1' }, expected: styled },
+    // FORCE_COLOR overrides isTTY for a stream — this is intentional: the user
+    // can always force colours at the process level via FORCE_COLOR.
     { isTTY: false, env: { FORCE_COLOR: '1', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' }, expected: styled },
     { isTTY: true, env: { FORCE_COLOR: '1', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' }, expected: styled },
+    // NODE_TEST_CONTEXT with colorize=true enables colour for non-TTY streams
+    // without clobbering FORCE_COLOR.
+    // Regression test for https://github.com/nodejs/node/issues/57921
+    {
+      isTTY: false,
+      env: { NODE_TEST_CONTEXT: JSON.stringify({ context: 'child-v8', colorize: true }) },
+      expected: styled,
+    },
+    {
+      isTTY: false,
+      env: { NODE_TEST_CONTEXT: JSON.stringify({ context: 'child-v8', colorize: false }) },
+      expected: noChange,
+    },
   ].forEach((testCase) => {
     writeStream.isTTY = testCase.isTTY;
     process.env = {
@@ -220,4 +235,47 @@ if (fd !== -1) {
   });
 } else {
   common.skip('Could not create TTY fd');
+}
+
+// Regression test for https://github.com/nodejs/node/issues/57921:
+// When `node --test` runs a file in isolation mode it used to inject
+// FORCE_COLOR=1 into the child process, causing util.styleText() to
+// colorise streams whose isTTY is explicitly false.
+// The fix encodes the colorize intent in NODE_TEST_CONTEXT instead,
+// so that FORCE_COLOR is no longer clobbered and user code is unaffected.
+{
+  const originalEnv = process.env;
+
+  // With NODE_TEST_CONTEXT.colorize=true (new mechanism) a non-TTY stream
+  // should be colorised when no explicit stream isTTY override is present,
+  // but FORCE_COLOR must NOT be set.
+  process.env = {
+    ...process.env,
+    NODE_TEST_CONTEXT: JSON.stringify({ context: 'child-v8', colorize: true }),
+  };
+  delete process.env.FORCE_COLOR;
+
+  // No stream supplied — falls through to NODE_TEST_CONTEXT.colorize
+  assert.strictEqual(
+    util.styleText('red', 'test', { validateStream: false }),
+    styled,
+    'NODE_TEST_CONTEXT.colorize=true should colorize when no stream is supplied',
+  );
+
+  process.env = originalEnv;
+
+  // Without FORCE_COLOR and without NODE_TEST_CONTEXT, a non-TTY stream
+  // should produce no colour — the original bug would only appear under --test.
+  process.env = { ...process.env };
+  delete process.env.FORCE_COLOR;
+  delete process.env.NODE_TEST_CONTEXT;
+
+  const nonTTYStream = { isTTY: false };
+  assert.strictEqual(
+    util.styleText('red', 'test', { stream: nonTTYStream, validateStream: false }),
+    noChange,
+    'A non-TTY stream with no FORCE_COLOR or NODE_TEST_CONTEXT must not be colourised',
+  );
+
+  process.env = originalEnv;
 }
