@@ -1696,7 +1696,9 @@ corresponding system default unchanged.
 
 `initialDelay` and `interval` are specified in milliseconds but the
 underlying socket options are configured in whole seconds; the values are
-divided by `1000` and rounded down before being applied.
+divided by `1000` and rounded down before being applied. For example,
+setting `initialDelay` to `400` will result in a `TCP_KEEPIDLE` of `0`
+seconds (since `400 / 1000` rounds down to `0`).
 
 Enabling the keep-alive functionality will set the following socket options:
 
