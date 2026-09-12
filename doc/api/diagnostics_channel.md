@@ -2026,6 +2026,27 @@ statement is garbage collected. Subscribers must not close the database or the
 statement, since both are still in use while the event is being delivered; see
 [`database.close()`][] and [`statement.close()`][].
 
+#### Thread Pool
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'threadpool.work'`
+
+* `type` {string} The kind of work that ran. Values include `'zlib'`,
+  `'crypto'`, `'node_api'`, `'fs.readfile'`, `'fs.writefile'`, `'fs.cp'`,
+  `'readdir_recursive'`, and `'node_sqlite3.BackupJob'`.
+* `enqueued` {number} When the work was submitted to the pool.
+* `started` {number|null} When execution started, or `null` if cancelled.
+* `ended` {number|null} When execution ended, or `null` if cancelled.
+
+Emitted after the work finishes and before its completion callback. Timestamps
+use the [`performance.now()`][] timeline. `started - enqueued` is queue time;
+`ended - started` is execution time.
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -2051,6 +2072,7 @@ statement, since both are still in use while the event is being delivered; see
 [`error` event]: #errorevent
 [`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
+[`performance.now()`]: perf_hooks.md#performancenow
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [`statement.close()`]: sqlite.md#statementclose
