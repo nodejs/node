@@ -39,7 +39,7 @@ Maybe<size_t> GetValidatedSize(Environment* env,
                                Local<Value> value,
                                const char* label) {
   if (!value->IsNumber()) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "The %s must be a number", label);
+    THROW_ERR_INVALID_ARG_TYPE(env, "The %s must be a number", label);
     return Nothing<size_t>();
   }
 
@@ -62,7 +62,7 @@ Maybe<uintptr_t> GetValidatedPointerAddress(Environment* env,
                                             Local<Value> value,
                                             const char* label) {
   if (!value->IsBigInt()) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "The %s must be a bigint", label);
+    THROW_ERR_INVALID_ARG_TYPE(env, "The %s must be a bigint", label);
     return Nothing<uintptr_t>();
   }
 
