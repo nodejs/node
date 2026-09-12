@@ -1948,6 +1948,24 @@ an `ERR_QUIC_APPLICATION_ERROR` or `ERR_QUIC_TRANSPORT_ERROR` when the
 stream is closed due to a QUIC error (e.g., stream reset by the peer,
 CONNECTION\_CLOSE with a non-zero error code).
 
+### `stream.cancel([reason])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `reason` {string} Optional human-readable reason.
+
+Cancels the stream: abruptly terminates both directions, signaling to the
+peer that the request or response was deliberately abandoned. `STOP_SENDING`
+is sent for a still-open readable side and `RESET_STREAM` for a still-open
+writable side. When the negotiated application protocol defines a
+cancellation code ([RFC 9114 section 4.1.1][] defines `H3_REQUEST_CANCELLED`
+for HTTP/3) the frames carry it; other application protocols use their
+"no error" code.
+
+The call does nothing if the stream is already destroyed.
+
 ### `stream.destroy([error[, options]])`
 
 <!-- YAML
@@ -4761,6 +4779,7 @@ throughput issues caused by flow control.
 [RFC 9001]: https://www.rfc-editor.org/rfc/rfc9001
 [RFC 9002]: https://www.rfc-editor.org/rfc/rfc9002
 [RFC 9114]: https://www.rfc-editor.org/rfc/rfc9114
+[RFC 9114 section 4.1.1]: https://www.rfc-editor.org/rfc/rfc9114.html#section-4.1.1
 [RFC 9204]: https://www.rfc-editor.org/rfc/rfc9204
 [RFC 9218]: https://www.rfc-editor.org/rfc/rfc9218
 [RFC 9220]: https://www.rfc-editor.org/rfc/rfc9220
