@@ -2202,6 +2202,11 @@ until this stream has been closed via `end()`.
 If the child process was spawned with `stdio[0]` set to anything other than `'pipe'`,
 then this will be `null`.
 
+On non-Windows platforms, when `stdio[0]` is `'pipe'`, Node.js watches for the
+child process closing its end of the stdin pipe and destroys `subprocess.stdin`
+when that happens. This helps surface pipe peer-close semantics consistently for
+the writable side of the stream.
+
 `subprocess.stdin` is an alias for `subprocess.stdio[0]`. Both properties will
 refer to the same value.
 
