@@ -9,7 +9,7 @@ const http = require('http');
 // parser instances.
 
 const N = 50;
-const KEEP_ALIVE = 100;
+const KEEP_ALIVE = 1000;
 
 const createdIdsIncomingMessage = [];
 const createdIdsClientRequest = [];
