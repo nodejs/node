@@ -360,6 +360,60 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   static v8::CFunction fast_record_delta_;
 };
 
+// BaseObject disallows cloning and transfer, so ring state is confined to the
+// owning Environment's thread.
+class SlidingWindowHistogram final : public BaseObject {
+ public:
+  static void Initialize(IsolateData* isolate_data,
+                         v8::Local<v8::ObjectTemplate> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SlidingWindowHistogram)
+  SET_SELF_SIZE(SlidingWindowHistogram)
+
+ private:
+  static constexpr uint64_t kNoGeneration =
+      std::numeric_limits<uint64_t>::max();
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastRecord(v8::Local<v8::Value> receiver,
+                         int64_t value,
+                         v8::FastApiCallbackOptions& options);
+  static void Snapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Reset(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SlidingWindowHistogram(Environment* env,
+                         v8::Local<v8::Object> wrap,
+                         const Histogram::Options& options,
+                         size_t chunk_count,
+                         bool time_based,
+                         uint64_t rotate_at,
+                         std::shared_ptr<Histogram> spare);
+  ~SlidingWindowHistogram() override;
+
+  Histogram* GetChunk(uint64_t generation);
+  bool RecordValue(int64_t value);
+  std::shared_ptr<Histogram> CreateSnapshot() const;
+  void ResetWindow();
+  uint64_t CurrentTimeGeneration() const;
+
+  Histogram::Options options_;
+  std::vector<std::shared_ptr<Histogram>> chunks_;
+  std::vector<uint64_t> generations_;
+  std::shared_ptr<Histogram> spare_;
+  bool time_based_;
+  uint64_t rotate_at_;
+  uint64_t origin_;
+  uint64_t current_generation_ = 0;
+  uint64_t records_in_current_chunk_ = 0;
+  size_t external_memory_ = 0;
+  bool has_count_records_ = false;
+
+  static v8::CFunction fast_record_;
+};
+
 // CRTP mixin for HandleWrap-based histograms with start/stop support.
 // Provides: StartFlags enum, Start/Stop slow-path handlers, enabled_ flag,
 // and InitTemplate (shared GetConstructorTemplate body).
