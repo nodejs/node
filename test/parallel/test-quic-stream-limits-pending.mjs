@@ -38,9 +38,16 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
+let opened = 0;
+
 // First stream opens immediately (within the limit).
 const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
+});
+
+// eslint-disable-next-line node-core/must-call-assert
+s1.opened.then(() => {
+  opened++;
 });
 
 // Second stream is created but queued as pending because the
@@ -49,17 +56,37 @@ const s2 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 2'),
 });
 
+// eslint-disable-next-line node-core/must-call-assert
+s2.opened.then(() => {
+  opened++;
+});
+
+// Third stream is created but queued as pending because the
+// server only allows 1 concurrent bidi stream.
+const s3 = await clientSession.createBidirectionalStream({
+  body: encoder.encode('stream 3'),
+});
+
+
 // s2 should be pending until s1 closes and the server grants
 // more stream credits.
 assert.strictEqual(s2.pending, true);
+assert.strictEqual(opened, 1);
 
 // Drain and close the first stream.
 for await (const _ of s1) { /* drain */ } // eslint-disable-line no-unused-vars
 await s1.closed;
 
+const err = new Error('Test error');
+s3.destroy(err);
+
+await Promise.all([assert.rejects(s3.opened, err), assert.rejects(s3.closed, err)]);
+
+
 // After s1 closes, the server sends MAX_STREAMS which opens s2.
 // Wait for the server to receive both streams.
 await allDone.promise;
+assert.strictEqual(opened, 2);
 
 // s2 should no longer be pending.
 for await (const _ of s2) { /* drain */ } // eslint-disable-line no-unused-vars

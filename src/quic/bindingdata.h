@@ -55,6 +55,7 @@ class SessionManager;
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
+  V(stream_available, StreamAvailable)                                         \
   V(stream_blocked, StreamBlocked)                                             \
   V(stream_close, StreamClose)                                                 \
   V(stream_created, StreamCreated)                                             \

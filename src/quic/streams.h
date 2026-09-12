@@ -433,6 +433,10 @@ class Stream final : public AsyncWrap,
 
   // JavaScript callouts
 
+  // Notifies the JavaScript side that a previously pending stream
+  // is now available.
+  void EmitStreamAvailable();
+
   // Notifies the JavaScript side that the stream has been destroyed.
   void EmitClose(const QuicError& error);
 
