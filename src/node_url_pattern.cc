@@ -686,7 +686,13 @@ static void Initialize(Local<Object> target,
   auto ctor_tmpl = NewFunctionTemplate(isolate, URLPattern::New);
   auto instance_template = ctor_tmpl->InstanceTemplate();
   auto prototype_template = ctor_tmpl->PrototypeTemplate();
-  ctor_tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "URLPattern"));
+  Local<String> url_pattern_string =
+      FIXED_ONE_BYTE_STRING(isolate, "URLPattern");
+  ctor_tmpl->SetClassName(url_pattern_string);
+  prototype_template->Set(
+      v8::Symbol::GetToStringTag(isolate),
+      url_pattern_string,
+      static_cast<PropertyAttribute>(ReadOnly | v8::DontEnum));
 
   // The signature is used to prevent the property accessors from being
   // called on the wrong receiver object (`this`)
