@@ -5515,6 +5515,39 @@ const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ```
 
+### `crypto.parsePKCS12(bundle[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `bundle` {ArrayBuffer|Buffer|TypedArray|DataView} A DER-encoded PKCS#12
+  (`.p12` or `.pfx`) bundle.
+* `options` {Object}
+  * `passphrase` {string|ArrayBuffer|Buffer|TypedArray|DataView} The passphrase
+    protecting the bundle. Omitting this option is equivalent to passing `''`.
+* Returns: {Object}
+  * `privateKey` {KeyObject|null} The first private key in the bundle, or
+    `null` if none is present.
+  * `certificate` {X509Certificate|null} The certificate matching `privateKey`,
+    or `null` if no matching certificate is present.
+  * `additionalCertificates` {X509Certificate\[]} All other certificates in
+    the bundle. If there is no private key, this contains all certificates.
+    May be empty.
+
+Parses a PKCS#12 bundle, commonly stored with a `.p12` or `.pfx` extension,
+and returns its private key and certificates.
+
+```mjs
+import { parsePKCS12 } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+const { privateKey, certificate, additionalCertificates } = parsePKCS12(
+  readFileSync('bundle.p12'),
+  { passphrase: 'secret' },
+);
+```
+
 ### `crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)`
 
 <!-- YAML

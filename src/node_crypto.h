@@ -50,6 +50,7 @@
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_mac.h"
 #include "crypto/crypto_pbkdf2.h"
+#include "crypto/crypto_pkcs12.h"
 #include "crypto/crypto_pqc.h"
 #include "crypto/crypto_random.h"
 #include "crypto/crypto_rsa.h"
