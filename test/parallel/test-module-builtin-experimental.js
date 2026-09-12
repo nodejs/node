@@ -5,6 +5,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
 
 const experimentalBuiltins = [
   ['dtls', '--experimental-dtls', common.hasDtls],
+  ['logger', '--experimental-logger', true],
   ['quic', '--experimental-quic', common.hasQuic],
   ['vfs', '--experimental-vfs', true],
 ].filter(([, , available]) => available);
