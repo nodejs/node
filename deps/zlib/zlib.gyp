@@ -201,6 +201,29 @@
                 'USE_FILE32API'
               ],
             }],
+            ['OS=="android"', {
+              'actions': [
+                {
+                  'action_name': 'copy_android_cpufeatures',
+                  'inputs': [
+                    '<(android_ndk_path)/sources/android/cpufeatures/cpu-features.c',
+                  ],
+                  'outputs': [
+                    '<(SHARED_INTERMEDIATE_DIR)/android_cpufeatures.c',
+                  ],
+                  'action': [
+                    '<(python)',
+                    '-c',
+                    'import os, shutil, sys; os.makedirs(os.path.dirname(sys.argv[2]), exist_ok=True); shutil.copyfile(sys.argv[1], sys.argv[2])',
+                    '<@(_inputs)',
+                    '<@(_outputs)',
+                  ],
+                },
+              ],
+              'sources': [
+                '<(SHARED_INTERMEDIATE_DIR)/android_cpufeatures.c',
+              ],
+            }],
             # Incorporate optimizations where possible.
             ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
               'dependencies': [ 'zlib_data_chunk_simd' ],
