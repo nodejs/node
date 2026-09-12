@@ -461,9 +461,21 @@
         'defines': ['V8_ENABLE_SEEDED_ARRAY_INDEX_HASH',],
       }],
       ['dcheck_always_on!=0', {
-        'defines': ['DEBUG',],
+        'defines': [
+          'DEBUG',
+          'V8_LOGGING_LEVEL=2',  # Print file, line, message on fatal checks
+        ],
       }, {
         'defines': ['NDEBUG',],
+        'configurations': {
+          'Debug': {
+            'defines': ['V8_LOGGING_LEVEL=2',],
+          },
+          'Release': {
+            # Only log message (without file or line) on fatal checks
+            'defines': ['V8_LOGGING_LEVEL=1',],
+          },
+        },
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
