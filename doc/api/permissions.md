@@ -31,6 +31,12 @@ If you find a potential security vulnerability, please refer to our
 <!-- YAML
 added: v20.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65359
+    description: >-
+      When the Permission Model is enabled in the parent, an explicit
+      `worker_threads.Worker` `execArgv` (including `[]`) cannot obtain a
+      wider permission-related grant set than the parent.
   - version:
     - v23.5.0
     - v22.13.0
@@ -338,7 +344,11 @@ easy to configure permissions as needed when using `npx`.
 
 There are constraints you need to know before using this system:
 
-* The model does not inherit to a worker thread.
+* By default the model does not inherit to a worker thread. When the parent
+  process has the Permission Model enabled, an explicit `worker_threads.Worker`
+  `execArgv` (including an empty array) is clamped so the worker cannot obtain
+  a wider permission-related grant set than the parent. Omitting `execArgv` is
+  unchanged. Non-permission `execArgv` flags are unaffected.
 * When using the Permission Model the following features will be restricted:
   * Native modules
   * Network

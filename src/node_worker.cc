@@ -10,6 +10,7 @@
 #include "node_perf.h"
 #include "node_profiling.h"
 #include "node_snapshot_builder.h"
+#include "path.h"
 #include "permission/permission.h"
 #include "util-inl.h"
 #include "v8-cppgc.h"
@@ -503,6 +504,263 @@ Worker::~Worker() {
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
 
+// SEMVER-MAJOR: Permission ceiling for Worker when execArgv is explicit
+// (including []). Default Worker (no execArgv) is unchanged.
+//
+// After options parse, NODE_OPTIONS and repeated --allow-* are already in
+// EnvironmentOptions. Runtime FSPermission remains authoritative for FS
+// checks; path filtering here is create-time only (prefix / exact / *).
+//
+// Boolean --allow-* dimensions are listed once in PERMISSION_BOOL_FLAGS so
+// ceiling / intersect / CLI token / rebuild cannot drift.
+
+namespace {
+
+// Single source of truth for boolean permission dimensions (not fs path
+// lists, which are handled separately since they're not simple booleans).
+#define PERMISSION_BOOL_FLAGS(V)                                               \
+  V(allow_fs_vfs, "--allow-fs-vfs")                                            \
+  V(allow_addons, "--allow-addons")                                            \
+  V(allow_inspector, "--allow-inspector")                                      \
+  V(allow_child_process, "--allow-child-process")                              \
+  V(allow_net, "--allow-net")                                                  \
+  V(allow_wasi, "--allow-wasi")                                                \
+  V(allow_ffi, "--allow-ffi")                                                  \
+  V(allow_openssl_store, "--allow-openssl-store")                              \
+  V(allow_worker_threads, "--allow-worker")
+
+bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
+  if (w == nullptr) return false;
+  if (w->permission || w->permission_audit) return true;
+  if (!w->allow_fs_read.empty() || !w->allow_fs_write.empty()) return true;
+#define V(field, flag) || w->field
+  return false PERMISSION_BOOL_FLAGS(V);
+#undef V
+}
+
+void ApplyParentPermissionCeiling(EnvironmentOptions* w,
+                                  const EnvironmentOptions* parent) {
+  w->permission = true;
+  w->permission_audit = parent->permission_audit;
+#define V(field, flag) w->field = parent->field;
+  PERMISSION_BOOL_FLAGS(V)
+#undef V
+  w->allow_fs_read = parent->allow_fs_read;
+  w->allow_fs_write = parent->allow_fs_write;
+}
+
+void NormalizePathForCompare(std::string* s) {
+  while (s->size() > 1 &&
+         (s->back() == '/' || s->back() == static_cast<char>(92))) {
+    s->pop_back();
+  }
+#ifdef _WIN32
+  for (char& c : *s) {
+    if (c >= 'A' && c <= 'Z') {
+      c = static_cast<char>(c - 'A' + 'a');
+    }
+    if (c == '/') c = static_cast<char>(92);
+  }
+#endif
+}
+
+std::string ResolveForCompare(Environment* env, const std::string& in) {
+  if (in.empty() || in == "*") return in;
+  std::string resolved =
+      PathResolve(env, std::vector<std::string_view>{std::string_view(in)});
+  if (resolved.empty()) resolved = in;
+  NormalizePathForCompare(&resolved);
+  return resolved;
+}
+
+bool ParentEntryCoversResolvedPath(Environment* env,
+                                   const std::string& parent_raw,
+                                   const std::string& resolved_requested) {
+  if (parent_raw == "*") return true;
+  const std::string parent = ResolveForCompare(env, parent_raw);
+  if (parent.empty()) return false;
+  if (resolved_requested == parent) return true;
+  if (resolved_requested.size() <= parent.size()) return false;
+  if (resolved_requested.compare(0, parent.size(), parent) != 0) return false;
+  const char next = resolved_requested[parent.size()];
+  return next == '/' || next == static_cast<char>(92);
+}
+
+bool ParentListHasWildcard(const std::vector<std::string>& parent) {
+  for (const std::string& entry : parent) {
+    if (entry == "*") return true;
+  }
+  return false;
+}
+
+void FilterPathListToParentSubset(Environment* env,
+                                  std::vector<std::string>* worker,
+                                  const std::vector<std::string>& parent) {
+  if (worker == nullptr) return;
+  // Worker listed no fs paths → keep empty (restrict).
+  if (worker->empty()) return;
+  // Parent "*" → FS already unrestricted; worker paths cannot exceed parent.
+  if (ParentListHasWildcard(parent)) return;
+
+  std::vector<std::string> out;
+  out.reserve(worker->size());
+  bool saw_star = false;
+  for (const std::string& wpath : *worker) {
+    if (wpath == "*") {
+      saw_star = true;
+      continue;
+    }
+    const std::string resolved_wpath = ResolveForCompare(env, wpath);
+    for (const std::string& entry : parent) {
+      if (ParentEntryCoversResolvedPath(env, entry, resolved_wpath)) {
+        // Keep the worker's original grant string so the list stays
+        // consistent with parent raw entries (e.g. when copying parent
+        // for "*") and with CLI rebuild.
+        out.push_back(wpath);
+        break;
+      }
+    }
+  }
+  // "*" alone or combined with concrete paths still means "everything the
+  // parent allows" here, not "just the concrete paths that also matched" —
+  // treating it as a subset would silently grant *less* than requesting "*"
+  // by itself, which is backwards. See PR discussion for why this needs to
+  // be unconditional on saw_star, not just "saw_star && out.empty()".
+  if (saw_star) {
+    *worker = parent;
+    return;
+  }
+  *worker = std::move(out);
+}
+
+void IntersectPermissionGrants(Environment* env,
+                               EnvironmentOptions* w,
+                               const EnvironmentOptions* parent) {
+  w->permission = true;
+  w->permission_audit = w->permission_audit || parent->permission_audit;
+#define V(field, flag) w->field = w->field && parent->field;
+  PERMISSION_BOOL_FLAGS(V)
+#undef V
+  FilterPathListToParentSubset(env, &w->allow_fs_read, parent->allow_fs_read);
+  FilterPathListToParentSubset(env, &w->allow_fs_write, parent->allow_fs_write);
+}
+
+bool IsPermissionCliToken(const std::string& a) {
+  if (a == "--permission" || a == "--permission-audit") return true;
+  if (a == "--allow-fs-read" || a == "--allow-fs-write") return true;
+  if (a.rfind("--allow-fs-read=", 0) == 0) return true;
+  if (a.rfind("--allow-fs-write=", 0) == 0) return true;
+#define V(field, flag)                                                         \
+  if (a == flag) return true;                                                  \
+  {                                                                            \
+    const size_t n = sizeof(flag) - 1;                                         \
+    if (a.size() > n && a.compare(0, n, flag) == 0 && a[n] == '=')             \
+      return true;                                                             \
+  }
+  PERMISSION_BOOL_FLAGS(V)
+#undef V
+  return false;
+}
+
+bool ExecArgvHasPermissionToken(const std::vector<std::string>& argv) {
+  for (const std::string& tok : argv) {
+    if (IsPermissionCliToken(tok)) return true;
+  }
+  return false;
+}
+
+void ClampWorkerPermissionToParent(
+    Environment* env,
+    PerIsolateOptions* worker_opts,
+    const std::vector<std::string>& exec_argv_out) {
+  if (worker_opts == nullptr || env == nullptr ||
+      !env->permission()->enabled()) {
+    return;
+  }
+  EnvironmentOptions* parent =
+      env->isolate_data()->options()->get_per_env_options();
+  EnvironmentOptions* w = worker_opts->get_per_env_options();
+  if (parent == nullptr || w == nullptr) return;
+
+  // Ceiling (inherit parent grants) only when the worker did not ask for any
+  // permission-related configuration. If execArgv contains permission tokens
+  // (or options already reflect them), intersect so an explicit
+  // `--permission` without fs grants stays restrictive instead of being
+  // widened back to the parent allowlist.
+  const bool permission_requested = WorkerConfiguredPermission(w) ||
+                                    ExecArgvHasPermissionToken(exec_argv_out);
+  if (!permission_requested) {
+    ApplyParentPermissionCeiling(w, parent);
+  } else {
+    if (!w->permission && !w->permission_audit) {
+      w->permission = true;
+    }
+    IntersectPermissionGrants(env, w, parent);
+  }
+}
+
+bool PermissionFlagTakesNextArg(const std::string& a) {
+  return a == "--allow-fs-read" || a == "--allow-fs-write";
+}
+
+bool PathSafeForAllowFlag(const std::string& path) {
+  if (path.empty()) return false;
+  for (unsigned char c : path) {
+    if (c == 0 || c == 10 || c == 13) return false;
+  }
+  return true;
+}
+
+void RebuildExecArgvOutFromPermissionOptions(
+    PerIsolateOptions* worker_opts, std::vector<std::string>* exec_argv_out) {
+  if (worker_opts == nullptr || exec_argv_out == nullptr) return;
+  EnvironmentOptions* w = worker_opts->get_per_env_options();
+  if (w == nullptr || !w->permission) return;
+
+  std::vector<std::string> kept;
+  kept.reserve(exec_argv_out->size());
+  for (size_t i = 0; i < exec_argv_out->size(); ++i) {
+    const std::string& tok = (*exec_argv_out)[i];
+    if (tok.empty()) continue;
+    if (IsPermissionCliToken(tok)) {
+      // Space-form --allow-fs-read/--allow-fs-write always consume the next
+      // token as their argument, regardless of its first character — paths
+      // are legal starting with '-' on Unix, so gating on that would leave
+      // a stray token behind instead of consuming it as the flag's value.
+      if (PermissionFlagTakesNextArg(tok) && i + 1 < exec_argv_out->size()) {
+        ++i;
+      }
+      continue;
+    }
+    kept.push_back(tok);
+  }
+
+  std::vector<std::string> out;
+  out.reserve(kept.size() + 16 + w->allow_fs_read.size() +
+              w->allow_fs_write.size());
+  for (const std::string& tok : kept) out.push_back(tok);
+
+  out.push_back("--permission");
+  if (w->permission_audit) out.push_back("--permission-audit");
+#define V(field, flag)                                                         \
+  if (w->field) out.push_back(flag);
+  PERMISSION_BOOL_FLAGS(V)
+#undef V
+  for (const std::string& p : w->allow_fs_read) {
+    if (!PathSafeForAllowFlag(p)) continue;
+    out.push_back("--allow-fs-read=" + p);
+  }
+  for (const std::string& p : w->allow_fs_write) {
+    if (!PathSafeForAllowFlag(p)) continue;
+    out.push_back("--allow-fs-write=" + p);
+  }
+  *exec_argv_out = std::move(out);
+}
+
+#undef PERMISSION_BOOL_FLAGS
+
+}  // namespace
+
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -558,6 +816,11 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   if (!env_vars) {
     THROW_ERR_OPERATION_FAILED(env, "Failed to copy environment variables");
   }
+
+  // Keep the main-branch gate so custom env / NODE_OPTIONS and execArgv
+  // (including []) still go through fresh option parsing. Empty execArgv
+  // must not skip that path — only the permission ceiling below differs.
+  const bool explicit_exec_argv = args[2]->IsArray();
 
   if (args[1]->IsObject() || args[2]->IsArray()) {
     per_isolate_opts.reset(new PerIsolateOptions());
@@ -680,6 +943,50 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     // Copy the parent's execArgv.
     exec_argv_out = env->exec_argv();
     per_isolate_opts = env->isolate_data()->options()->Clone();
+  }
+
+  // Any explicit execArgv (including []): clamp permission grants to the
+  // parent. [] stays on the fresh-parse path above so NODE_OPTIONS still
+  // applies; the ceiling then re-attaches parent permission grants.
+  if (env->permission()->enabled() && per_isolate_opts && explicit_exec_argv) {
+    // Prefer the original JS execArgv strings for "did the caller ask for
+    // permission flags?" — Parse may consume known tokens out of
+    // exec_argv_out, which would otherwise make a restrictive
+    // `--permission` (no fs grants) look unconfigured and hit the ceiling.
+    std::vector<std::string> permission_argv_probe = exec_argv_out;
+    if (args[2]->IsArray()) {
+      Local<Array> array = args[2].As<Array>();
+      uint32_t length = array->Length();
+      for (uint32_t i = 0; i < length; i++) {
+        Local<Value> arg;
+        if (!array->Get(env->context(), i).ToLocal(&arg)) {
+          return;
+        }
+        Local<String> arg_v8;
+        if (!arg->ToString(env->context()).ToLocal(&arg_v8)) {
+          return;
+        }
+        Utf8Value arg_utf8_value(args.GetIsolate(), arg_v8);
+        permission_argv_probe.emplace_back(arg_utf8_value.out(),
+                                           arg_utf8_value.length());
+      }
+    }
+    ClampWorkerPermissionToParent(
+        env, per_isolate_opts.get(), permission_argv_probe);
+    // Match permissions.md: --permission wins over --permission-audit.
+    EnvironmentOptions* clamped =
+        per_isolate_opts->get_per_env_options();
+    if (clamped != nullptr && clamped->permission) {
+      clamped->permission_audit = false;
+    }
+    RebuildExecArgvOutFromPermissionOptions(per_isolate_opts.get(),
+                                            &exec_argv_out);
+    // Workers load via LOAD_SCRIPT after Environment construction, so
+    // argv_ has no script path yet. Without this, Environment's implicit
+    // entrypoint grant pushes empty argv[1], PathResolve turns that into
+    // cwd, and a restrictive `--permission` (no fs grants) still allows
+    // reading anything under cwd — which broke the empty-grant cases.
+    per_isolate_opts->get_per_env_options()->has_eval_string = true;
   }
 
   // Internal workers should not wait for inspector frontend to connect or
