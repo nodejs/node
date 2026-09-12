@@ -11,7 +11,7 @@ agenda to ensure they are active and have the support they need.
 | QUIC / HTTP3           | [James M Snell][jasnell]         | <https://github.com/nodejs/node>              |
 | Unified HTTP API       | [James M Snell][jasnell]         | <https://github.com/nodejs/node>              |
 | Shadow Realm           | [Chengzhong Wu][legendecas]      | <https://github.com/nodejs/node/issues/42528> |
-| V8 Currency            |                                  |                                               |
+| V8 Currency            | [Joyee Cheung][joyeecheung]      |                                               |
 | Next-10                | [Jacob Smith][JakobJingleheimer] | <https://github.com/nodejs/next-10>           |
 | Single executable apps | [Darshan Sen][RaisinTen]         | <https://github.com/nodejs/single-executable> |
 | Performance            | [Rafael Gonzaga][RafaelGSS]      | <https://github.com/nodejs/performance>       |
