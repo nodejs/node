@@ -7,6 +7,7 @@
   pkgs.gh
   pkgs.git
   pkgs.jq
+  pkgs.nixfmt-tree
   pkgs.ruff
   pkgs.shellcheck
   pkgs.yamllint
