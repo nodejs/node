@@ -111,9 +111,10 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
       - name: Lint Nix files
         run: |
-          nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
-            treefmt --quiet --ci
-          ' && EXIT_CODE="$?" || EXIT_CODE="$?"
+          NIX_LINTER=$(nix-instantiate --eval --raw -E '(import ./shell.nix {}).NIX_LINTER')
+          # Attempt to get it from cache, and fallback to building `devTools.nix` otherwise.
+          nix-store --realise "${NIX_LINTER%/bin/*}" || nix-build -I nixpkgs=tools/nix/pkgs.nix ./tools/nix/devTools.nix --no-out-link
+          "$NIX_LINTER" --quiet --ci && EXIT_CODE="$?" || EXIT_CODE="$?"
           if [ "$EXIT_CODE" != "0" ]
           then
             git --no-pager diff || true

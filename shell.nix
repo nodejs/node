@@ -167,6 +167,14 @@ pkgs.mkShell {
       YAMLLINT = pkgs.lib.getExe yamllint;
     }
   )
+  // (
+    let
+      treefmt = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "treefmt") null devTools;
+    in
+    pkgs.lib.optionalAttrs (treefmt != null) {
+      NIX_LINTER = pkgs.lib.getExe treefmt;
+    }
+  )
   // pkgs.lib.optionalAttrs (!withSQLite) {
     NOSQLITE = "1";
   }
