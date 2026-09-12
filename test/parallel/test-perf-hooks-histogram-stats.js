@@ -653,6 +653,60 @@ const { createHistogram, importHistogram } = require('perf_hooks');
     0x09, 0x18, 0x40,                             // 9 (countsLen) = 64
     0x0a, 0x82, 0x18, 0x64, 0x01,                 // 10 (counts) = [100, 1]
   ])), { code: 'ERR_INVALID_ARG_VALUE' });
+
+  // --- Normalization offset validation ---
+
+  // lowest=1, highest=100, figures=1 produces counts_len=64. An offset
+  // at or beyond counts_len leaves normalize_index() out of bounds after
+  // its single wrap adjustment and would corrupt memory on a later
+  // record(), so it must be rejected.
+  assert.throws(() => importHistogram(new Uint8Array([
+    0xa4,                                         // map(4)
+    0x02, 0x18, 0x64,                             // 2 (highest) = 100
+    0x03, 0x01,                                   // 3 (figures) = 1
+    0x09, 0x18, 0x40,                             // 9 (countsLen) = 64
+    0x07, 0x18, 0x40,                             // 7 (normOffset) = 64
+  ])), { code: 'ERR_INVALID_ARG_VALUE' });
+  // Offset just beyond the accepted range.
+  assert.throws(() => importHistogram(new Uint8Array([
+    0xa4,                                         // map(4)
+    0x02, 0x18, 0x64,                             // 2 (highest) = 100
+    0x03, 0x01,                                   // 3 (figures) = 1
+    0x09, 0x18, 0x40,                             // 9 (countsLen) = 64
+    0x07, 0x18, 0x65,                             // 7 (normOffset) = 101
+  ])), { code: 'ERR_INVALID_ARG_VALUE' });
+  // Offset that cannot be represented as int32_t (2**32). Without the
+  // representability check the static_cast would wrap to 0 and accept it.
+  assert.throws(() => importHistogram(new Uint8Array([
+    0xa4,                                         // map(4)
+    0x02, 0x18, 0x64,                             // 2 (highest) = 100
+    0x03, 0x01,                                   // 3 (figures) = 1
+    0x09, 0x18, 0x40,                             // 9 (countsLen) = 64
+    0x07, 0x1b, 0x00, 0x00, 0x00, 0x01,           // 7 (normOffset) = 2**32
+    0x00, 0x00, 0x00, 0x00,
+  ])), { code: 'ERR_INVALID_ARG_VALUE' });
+
+  // Valid offsets within [0, counts_len) are still accepted: 0 and the
+  // highest valid offset (counts_len - 1).
+  const offsetZero = importHistogram(new Uint8Array([
+    0xa4,                                         // map(4)
+    0x02, 0x18, 0x64,                             // 2 (highest) = 100
+    0x03, 0x01,                                   // 3 (figures) = 1
+    0x09, 0x18, 0x40,                             // 9 (countsLen) = 64
+    0x07, 0x00,                                   // 7 (normOffset) = 0
+  ]));
+  assert.strictEqual(offsetZero.count, 0);
+  const offsetMax = importHistogram(new Uint8Array([
+    0xa4,                                         // map(4)
+    0x02, 0x18, 0x64,                             // 2 (highest) = 100
+    0x03, 0x01,                                   // 3 (figures) = 1
+    0x09, 0x18, 0x40,                             // 9 (countsLen) = 64
+    0x07, 0x18, 0x3f,                             // 7 (normOffset) = 63
+  ]));
+  assert.strictEqual(offsetMax.count, 0);
+  // The imported histogram with the max valid offset is recordable.
+  offsetMax.record(1);
+  assert.strictEqual(offsetMax.count, 1);
 }
 
 // ---------------------------------------------------------------------------
