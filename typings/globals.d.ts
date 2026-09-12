@@ -33,6 +33,7 @@ import { ProfilerBinding } from './internalBinding/profiler';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
 import { SignalWrapBinding } from './internalBinding/signal_wrap';
+import { SpawnSyncBinding } from './internalBinding/spawn_sync';
 import { StreamPipeBinding } from './internalBinding/stream_pipe';
 import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
@@ -84,6 +85,7 @@ interface InternalBindingMap {
   sea: SeaBinding;
   serdes: SerdesBinding;
   signal_wrap: SignalWrapBinding;
+  spawn_sync: SpawnSyncBinding;
   stream_pipe: StreamPipeBinding;
   string_decoder: StringDecoderBinding;
   symbols: SymbolsBinding;
