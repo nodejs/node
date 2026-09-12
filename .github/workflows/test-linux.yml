@@ -98,3 +98,83 @@ jobs:
           ./tools/test.py --flaky-tests keep_retrying -p actions -j 4
         env:
           DIR: dir%20with $unusual"chars?'åß∂ƒ©∆¬…`
+
+  # End-to-end coverage for the diagnostics_channel USDT probes:
+  # a real bpftrace attach against a default (USDT-enabled) build, plus
+  # a --without-dtrace build that pins the no-op tier.  Only runs when
+  # USDT-related paths change, so ordinary PRs do not pay for it.
+  test-usdt:
+    name: USDT probes (${{ matrix.cfg }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg: [default, without-dtrace]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+          path: node
+      - name: Detect USDT-related changes
+        id: changes
+        run: |
+          cd node
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "usdt=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # For pull_request events, HEAD is GitHub's merge ref; HEAD^1 is the
+          # tip of the base branch, so no additional fetch is needed.
+          FILES=$(git diff --name-only HEAD^1 HEAD)
+          echo "$FILES"
+          if echo "$FILES" | grep -qE '^(src/node_(usdt|provider|diagnostics_channel)\.(h|cc|d)|src/node_provider_linux\.h|lib/diagnostics_channel\.js|tools/usdt/|test/parallel/test-diagnostics-channel-usdt.*\.js|\.github/workflows/test-linux\.yml|configure\.py|node\.gyp|doc/api/diagnostics_channel\.md)'; then
+            echo "usdt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "usdt=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        if: steps.changes.outputs.usdt == 'true'
+        uses: ./node/.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        if: steps.changes.outputs.usdt == 'true'
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
+      - name: Set up sccache
+        if: steps.changes.outputs.usdt == 'true' && (github.base_ref == 'main' || github.ref_name == 'main')
+        uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
+        with:
+          version: v0.17.0
+      - name: Install bpftrace and systemtap-sdt-dev
+        if: steps.changes.outputs.usdt == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bpftrace systemtap-sdt-dev
+      - name: Check committed probe header is in sync
+        if: steps.changes.outputs.usdt == 'true'
+        run: |
+          cd node
+          python3 tools/usdt/generate_headers.py --check
+      - name: Configure
+        if: steps.changes.outputs.usdt == 'true'
+        run: |
+          cd node
+          ./configure ${{ matrix.cfg == 'without-dtrace' && '--without-dtrace' || '' }}
+      - name: Build
+        if: steps.changes.outputs.usdt == 'true'
+        run: make -C node -j4
+      - name: USDT binding tests
+        if: steps.changes.outputs.usdt == 'true'
+        run: |
+          cd node
+          python3 tools/test.py test/parallel/test-diagnostics-channel-usdt.js
+      - name: bpftrace end-to-end test
+        if: steps.changes.outputs.usdt == 'true' && matrix.cfg == 'default'
+        # Run as root: the test skips itself when not root, and bpftrace
+        # needs root to attach (BTF is available on GH-hosted images).
+        run: |
+          cd node
+          sudo -E python3 tools/test.py test/parallel/test-diagnostics-channel-usdt-bpftrace.js

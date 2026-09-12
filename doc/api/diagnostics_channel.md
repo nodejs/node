@@ -1529,6 +1529,84 @@ another async task is triggered internally which fails and then the sync part
 of the function then throws and error two `error` events will be emitted, one
 for the sync error and one for the async error.
 
+### USDT probes
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Node.js exposes a USDT (User-Level Statically Defined Tracing) probe for
+diagnostics channel publish events, enabling external observability tools
+such as `bpftrace`, DTrace, and `perf` to trace channel activity without
+modifying application code or adding JavaScript subscribers.
+
+#### Probe: `node:dc__publish`
+
+Fired when a message is published to a string-named diagnostics channel.
+When published from native (C++) code and a tracer is attached, the probe
+fires regardless of subscriber state.  When published from JavaScript, the
+probe fires only if the channel has active subscribers.
+
+* `arg0` {const char\*} The channel name (UTF-8).
+* `arg1` {const void\*} An opaque pointer to the V8 message object, or `NULL`
+  if the published message is not a JavaScript object (e.g., a string, number,
+  or `null`).  **Warning:** This pointer is unstable and must NOT be
+  dereferenced by tracing scripts.  V8's garbage collector may move the
+  underlying object at any time.  The pointer is valid only for the
+  duration of the probe callback and must not be stored or compared
+  across separate probe firings.
+
+#### Platform support
+
+USDT support is platform-gated and, on Linux, does not require a
+`dtrace` tool at build time.  Pass `--without-dtrace` to `./configure`
+to disable probe support entirely.
+
+* **Linux** (on by default): the probe header is pre-generated and
+  committed (`src/node_provider_linux.h`, regenerated with
+  `tools/usdt/generate_headers.py`), so only `<sys/sdt.h>` is required
+  at build time — install the `systemtap-sdt-dev` package
+  (Debian/Ubuntu) or `systemtap-sdt-devel` (Fedora/RHEL).  The SystemTap
+  semaphore gives the probe effectively zero overhead when no tracer is
+  attached.  When `<sys/sdt.h>` is absent, the probe silently compiles
+  to a no-op.  A dedicated CI job runs an end-to-end bpftrace test on
+  Linux and verifies the committed header is in sync with
+  `src/node_provider.d`.
+* **macOS** (opt-in): pass `--with-dtrace` to `./configure` to enable.
+  Requires a working `dtrace -h` at build time (always present with
+  Xcode/CLT).  The probe instruction is patched to a no-op by the
+  kernel when no tracer is attached, but the JS-to-C++ call for
+  `emitPublishProbe` is still incurred on every publish to a
+  string-named channel with subscribers, which is why this tier is
+  opt-in.
+* **FreeBSD/illumos**: not supported yet.  Native DTrace there requires
+  a `dtrace -G` link step that is not implemented.
+
+On platforms where probes are not available, they compile to no-ops
+with zero runtime overhead.
+
+#### Example: bpftrace (Linux)
+
+```bash
+sudo bpftrace -e '
+  usdt:./out/Release/node:node:dc__publish {
+    printf("channel: %s\n", str(arg0));
+  }
+' -c './out/Release/node app.js'
+```
+
+#### Example: DTrace (macOS)
+
+```bash
+sudo dtrace -n '
+  node*:::dc__publish {
+    printf("channel: %s\n", copyinstr(arg0));
+  }
+' -c './out/Release/node app.js'
+```
+
 ### Built-in Channels
 
 #### Console
