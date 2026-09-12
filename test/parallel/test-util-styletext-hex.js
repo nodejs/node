@@ -6,6 +6,15 @@ const { describe, it } = require('node:test');
 const util = require('node:util');
 const { WriteStream } = require('node:tty');
 
+// Hex colors are downgraded to the color depth reported by `FORCE_COLOR`, so
+// run with an environment that does not set it. Every helper below builds its
+// environment from this one, which keeps the expectations independent of the
+// environment running the test.
+const { FORCE_COLOR, ...envWithoutForceColor } = process.env;
+if (FORCE_COLOR !== undefined) {
+  process.env = envWithoutForceColor;
+}
+
 describe('util.styleText hex color support', () => {
   describe('valid 6-digit hex colors', () => {
     it('should parse #ffcc00 as RGB(255, 204, 0)', () => {
@@ -143,8 +152,18 @@ describe('util.styleText hex color support', () => {
   });
 
   describe('environment variable behavior', () => {
+    // #ffcc00 in each of the supported color depths.
     const styledHex = '\u001b[38;2;255;204;0mtest\u001b[39m';
+    const styledHex256 = '\u001b[38;5;220mtest\u001b[39m';
+    const styledHex16 = '\u001b[93mtest\u001b[39m';
     const noChange = 'test';
+
+    // The output expected from a terminal supporting `depth` bits of color.
+    function styledForDepth(depth) {
+      if (depth >= 24) return styledHex;
+      if (depth >= 8) return styledHex256;
+      return styledHex16;
+    }
 
     const fd = common.getTTYfd();
     if (fd === -1) {
@@ -157,7 +176,8 @@ describe('util.styleText hex color support', () => {
         {
           isTTY: true,
           env: {},
-          expected: styledHex,
+          // Depends on the color depth of the terminal running the test.
+          expected: () => styledForDepth(writeStream.getColorDepth()),
           description: 'isTTY=true with no env vars',
         },
         {
@@ -181,26 +201,56 @@ describe('util.styleText hex color support', () => {
         {
           isTTY: true,
           env: { FORCE_COLOR: '1' },
+          expected: styledHex16,
+          description: 'FORCE_COLOR=1 downgrading to 16 colors',
+        },
+        {
+          isTTY: true,
+          env: { FORCE_COLOR: 'true' },
+          expected: styledHex16,
+          description: 'FORCE_COLOR=true downgrading to 16 colors',
+        },
+        {
+          isTTY: true,
+          env: { FORCE_COLOR: '' },
+          expected: styledHex16,
+          description: 'an empty FORCE_COLOR downgrading to 16 colors',
+        },
+        {
+          isTTY: true,
+          env: { FORCE_COLOR: '2' },
+          expected: styledHex256,
+          description: 'FORCE_COLOR=2 downgrading to 256 colors',
+        },
+        {
+          isTTY: true,
+          env: { FORCE_COLOR: '3' },
           expected: styledHex,
-          description: 'FORCE_COLOR=1',
+          description: 'FORCE_COLOR=3 keeping 24-bit colors',
+        },
+        {
+          isTTY: false,
+          env: { FORCE_COLOR: '3' },
+          expected: styledHex,
+          description: 'FORCE_COLOR=3 with isTTY=false',
         },
         {
           isTTY: true,
           env: { FORCE_COLOR: '1', NODE_DISABLE_COLORS: '1' },
-          expected: styledHex,
+          expected: styledHex16,
           description: 'FORCE_COLOR=1 overrides NODE_DISABLE_COLORS',
         },
         {
           isTTY: false,
-          env: { FORCE_COLOR: '1', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' },
-          expected: styledHex,
-          description: 'FORCE_COLOR=1 overrides all disable flags',
+          env: { FORCE_COLOR: '2', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' },
+          expected: styledHex256,
+          description: 'FORCE_COLOR=2 overrides all disable flags',
         },
         {
           isTTY: true,
-          env: { FORCE_COLOR: '1', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' },
+          env: { FORCE_COLOR: '3', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' },
           expected: styledHex,
-          description: 'FORCE_COLOR=1 wins with all flags',
+          description: 'FORCE_COLOR=3 wins with all flags',
         },
         {
           isTTY: true,
@@ -217,12 +267,111 @@ describe('util.styleText hex color support', () => {
             ...originalEnv,
             ...testCase.env,
           };
+          const expected = typeof testCase.expected === 'function' ?
+            testCase.expected() :
+            testCase.expected;
           const output = util.styleText('#ffcc00', 'test', { stream: writeStream });
-          assert.strictEqual(output, testCase.expected);
+          assert.strictEqual(output, expected);
+          // Combining the hex color with another format applies the same depth.
+          const combined = util.styleText(['bold', '#ffcc00'], 'test', { stream: writeStream });
+          assert.strictEqual(
+            combined,
+            expected === noChange ? noChange : `\u001b[1m${expected}\u001b[22m`,
+          );
           process.env = originalEnv;
         });
       }
     }
+  });
+
+  describe('color depth downgrade without stream validation', () => {
+    const originalEnv = { ...process.env };
+
+    function styled(format, forceColor) {
+      // `originalEnv` never has `FORCE_COLOR`, so leaving it out is enough to
+      // test the case where it is unset.
+      process.env = forceColor === undefined ?
+        { ...originalEnv } :
+        { ...originalEnv, FORCE_COLOR: forceColor };
+      try {
+        return util.styleText(format, 'test', { validateStream: false });
+      } finally {
+        process.env = originalEnv;
+      }
+    }
+
+    it('should keep 24-bit colors when FORCE_COLOR is not set', () => {
+      assert.strictEqual(styled('#ffcc00'), '\u001b[38;2;255;204;0mtest\u001b[39m');
+    });
+
+    it('should downgrade to 16 colors with FORCE_COLOR=1', () => {
+      assert.strictEqual(styled('#ffcc00', '1'), '\u001b[93mtest\u001b[39m');
+    });
+
+    it('should downgrade to 256 colors with FORCE_COLOR=2', () => {
+      assert.strictEqual(styled('#ffcc00', '2'), '\u001b[38;5;220mtest\u001b[39m');
+    });
+
+    it('should keep 24-bit colors with FORCE_COLOR=3', () => {
+      assert.strictEqual(styled('#ffcc00', '3'), '\u001b[38;2;255;204;0mtest\u001b[39m');
+    });
+
+    it('should disable colors with FORCE_COLOR=0', () => {
+      assert.strictEqual(styled('#ffcc00', '0'), 'test');
+      // Also via the array path, which goes through the shared loop.
+      assert.strictEqual(styled(['bold', '#ffcc00'], '0'), 'test');
+    });
+
+    it('should downgrade every color of an array of formats', () => {
+      assert.strictEqual(
+        styled(['#ff0000', 'underline', '#00ff00'], '2'),
+        '\u001b[38;5;196m\u001b[4m\u001b[38;5;46mtest\u001b[39m\u001b[24m\u001b[39m',
+      );
+    });
+  });
+
+  describe('closest color for each depth', () => {
+    const originalEnv = { ...process.env };
+
+    function styled(format, forceColor) {
+      process.env = { ...originalEnv, FORCE_COLOR: forceColor };
+      try {
+        return util.styleText(format, 'x', { validateStream: false });
+      } finally {
+        process.env = originalEnv;
+      }
+    }
+
+    it('should map colors to the closest of the 16 basic colors', () => {
+      assert.strictEqual(styled('#000000', '1'), '\u001b[30mx\u001b[39m');
+      assert.strictEqual(styled('#ff0000', '1'), '\u001b[91mx\u001b[39m');
+      assert.strictEqual(styled('#00ff00', '1'), '\u001b[92mx\u001b[39m');
+      assert.strictEqual(styled('#0000ff', '1'), '\u001b[94mx\u001b[39m');
+      assert.strictEqual(styled('#00ffff', '1'), '\u001b[96mx\u001b[39m');
+      assert.strictEqual(styled('#ff00ff', '1'), '\u001b[95mx\u001b[39m');
+      assert.strictEqual(styled('#ffffff', '1'), '\u001b[97mx\u001b[39m');
+      assert.strictEqual(styled('#808080', '1'), '\u001b[37mx\u001b[39m');
+      // Only a fully saturated channel switches to the bright variant, so
+      // mid-tones keep the normal colors.
+      assert.strictEqual(styled('#aabbcc', '1'), '\u001b[37mx\u001b[39m');
+      assert.strictEqual(styled('#f0f0f0', '1'), '\u001b[37mx\u001b[39m');
+      assert.strictEqual(styled('#ffcc00', '1'), '\u001b[93mx\u001b[39m');
+      // Colors too dark to be told apart end up black.
+      assert.strictEqual(styled('#123456', '1'), '\u001b[30mx\u001b[39m');
+    });
+
+    it('should map colors to the closest of the 256 color palette', () => {
+      // Both ends of the 6x6x6 color cube.
+      assert.strictEqual(styled('#000000', '2'), '\u001b[38;5;16mx\u001b[39m');
+      assert.strictEqual(styled('#ffffff', '2'), '\u001b[38;5;231mx\u001b[39m');
+      assert.strictEqual(styled('#ff0000', '2'), '\u001b[38;5;196mx\u001b[39m');
+      assert.strictEqual(styled('#00ff00', '2'), '\u001b[38;5;46mx\u001b[39m');
+      assert.strictEqual(styled('#0000ff', '2'), '\u001b[38;5;21mx\u001b[39m');
+      // Grayscale ramp.
+      assert.strictEqual(styled('#080808', '2'), '\u001b[38;5;232mx\u001b[39m');
+      assert.strictEqual(styled('#808080', '2'), '\u001b[38;5;244mx\u001b[39m');
+      assert.strictEqual(styled('#f8f8f8', '2'), '\u001b[38;5;255mx\u001b[39m');
+    });
   });
 
   describe('nested hex colors', () => {
