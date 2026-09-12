@@ -682,6 +682,7 @@ static int uv__spawn_resolve_and_spawn(const uv_process_options_t* options,
   const char *p;
   const char *z;
   const char *path;
+  const char *parent_path;
   size_t l;
   size_t k;
   int err;
@@ -701,10 +702,7 @@ static int uv__spawn_resolve_and_spawn(const uv_process_options_t* options,
   if (options->env != NULL)
     env = options->env;
 
-  /* If options->file contains a slash, posix_spawn/posix_spawnp should behave
-   * the same, and do not involve PATH resolution at all. The libc
-   * `posix_spawnp` provided by Apple is buggy (since 10.15), so we now emulate it
-   * here, per https://github.com/libuv/libuv/pull/3583. */
+  /* If options->file contains a slash, PATH resolution is not needed. */
   if (strchr(options->file, '/') != NULL) {
     do
       err = posix_spawn(pid, options->file, actions, attrs, options->args, env);
@@ -714,6 +712,21 @@ static int uv__spawn_resolve_and_spawn(const uv_process_options_t* options,
 
   /* Look for the definition of PATH in the provided env */
   path = uv__spawn_find_path_in_env(env);
+
+  /* Apple's posix_spawnp() resolves PATH from the parent's environment rather
+   * than env. It is safe to use when no cwd change is requested and both PATH
+   * values are identical. This avoids one posix_spawn() call per PATH entry in
+   * the common case. */
+  parent_path = getenv("PATH");
+  if (options->cwd == NULL &&
+      path != NULL &&
+      parent_path != NULL &&
+      strcmp(path, parent_path) == 0) {
+    do
+      err = posix_spawnp(pid, options->file, actions, attrs, options->args, env);
+    while (err == EINTR);
+    return err;
+  }
 
   /* The following resolution logic (execvpe emulation) is copied from
    * https://git.musl-libc.org/cgit/musl/tree/src/process/execvp.c
