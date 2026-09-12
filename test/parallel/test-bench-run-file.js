@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -315,6 +315,7 @@ function testEvalParent() {
   `;
   const result = spawnSync(process.execPath, [
     '--no-warnings',
+    '--experimental-bench',
     '-e',
     script,
   ], { encoding: 'utf8' });
@@ -350,6 +351,7 @@ function testPermissions() {
   `;
   const result = spawnSync(process.execPath, [
     '--no-warnings',
+    '--experimental-bench',
     '--permission',
     '--allow-child-process',
     '-e',
@@ -378,6 +380,7 @@ function testPermissions() {
   `;
   const childProcessResult = spawnSync(process.execPath, [
     '--no-warnings',
+    '--experimental-bench',
     '--permission',
     `--allow-fs-read=${fixture}`,
     '-e',

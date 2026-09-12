@@ -1,3 +1,4 @@
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 // This tests that when builtins that demand the `node:` prefix are

@@ -24,7 +24,9 @@ function spawnNode(args, options = undefined) {
 }
 
 function spawnBench(args, options = undefined) {
-  return spawnNode(['--no-warnings', '--bench', ...args], options);
+  return spawnNode([
+    '--no-warnings', '--experimental-bench', '--bench', ...args,
+  ], options);
 }
 
 function parseRecords(result) {

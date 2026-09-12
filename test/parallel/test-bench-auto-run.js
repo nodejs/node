@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -8,6 +8,7 @@ const { bench } = require('node:bench');
 
 const child = spawnSync(process.execPath, [
   '--no-warnings',
+  '--experimental-bench',
   '-e',
   'require("node:bench").bench("failure", () => { throw new Error(); })',
 ]);

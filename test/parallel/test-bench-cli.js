@@ -25,7 +25,9 @@ function spawnNode(args, options = undefined) {
 }
 
 function spawnBench(args, options = undefined) {
-  return spawnNode(['--no-warnings', '--bench', ...args], options);
+  return spawnNode([
+    '--no-warnings', '--experimental-bench', '--bench', ...args,
+  ], options);
 }
 
 function parseRecords(result) {
@@ -35,6 +37,20 @@ function parseRecords(result) {
 
 function parseOutput(output) {
   return output.trim().split('\n').map((line) => JSON.parse(line));
+}
+
+for (const option of [
+  '--bench',
+  '--bench-isolation=process',
+  '--bench-name-pattern=benchmark',
+  '--bench-reporter=spec',
+  '--bench-reporter-destination=stdout',
+  '--bench-samples=1',
+  '--bench-warmup=0',
+]) {
+  const result = spawnNode([option]);
+  assert.notStrictEqual(result.status, 0);
+  assert.match(result.stderr, /--experimental-bench is required/);
 }
 
 {
@@ -75,6 +91,7 @@ for (const { patterns, message } of [
 ]) {
   const result = spawnNode([
     '--no-warnings',
+    '--experimental-bench',
     '--require', fixtures.path('bench-runner/fake-ipc.cjs'),
     '--bench',
     ...patterns,
@@ -405,8 +422,12 @@ if (common.hasInspector) {
 }
 
 {
+  // --experimental-bench is passed on the command line rather than via the
+  // config file's "nodeOptions" section because builds configured with
+  // --without-node-options ignore that section entirely.
   const result = spawnNode([
     '--no-warnings',
+    '--experimental-bench',
     `--experimental-config-file=${fixtures.path('bench-runner/node.config.json')}`,
     fixtures.path('bench-runner/a.cjs'),
   ]);
