@@ -84,10 +84,37 @@ size_t SocketAddress::Hash::operator()(const SocketAddress& addr) const {
     case AF_INET6: {
       const sockaddr_in6* ipv6 =
           reinterpret_cast<const sockaddr_in6*>(addr.raw());
-      uint8_t buf[18];
+      // Must hash exactly what Equal compares, scope_id included.
+      uint8_t buf[22];
       memcpy(buf, &ipv6->sin6_port, 2);
       memcpy(buf + 2, &ipv6->sin6_addr, 16);
+      memcpy(buf + 18, &ipv6->sin6_scope_id, 4);
       return HashBytes(buf, sizeof(buf));
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+bool SocketAddress::Equal::operator()(const SocketAddress& a,
+                                      const SocketAddress& b) const {
+  if (a.family() != b.family()) return false;
+  switch (a.family()) {
+    case AF_INET: {
+      const sockaddr_in* a4 = reinterpret_cast<const sockaddr_in*>(a.raw());
+      const sockaddr_in* b4 = reinterpret_cast<const sockaddr_in*>(b.raw());
+      return a4->sin_port == b4->sin_port &&
+             memcmp(&a4->sin_addr, &b4->sin_addr, 4) == 0;
+    }
+    case AF_INET6: {
+      const sockaddr_in6* a6 = reinterpret_cast<const sockaddr_in6*>(a.raw());
+      const sockaddr_in6* b6 = reinterpret_cast<const sockaddr_in6*>(b.raw());
+      // scope_id is part of a link-local address's identity: fe80::1 on one
+      // interface is a different peer from fe80::1 on another. flowinfo is a
+      // QoS label and is not.
+      return a6->sin6_port == b6->sin6_port &&
+             a6->sin6_scope_id == b6->sin6_scope_id &&
+             memcmp(&a6->sin6_addr, &b6->sin6_addr, 16) == 0;
     }
     default:
       UNREACHABLE();

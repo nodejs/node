@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --experimental-dtls --no-warnings
+// Flags: --permission --allow-fs-read=* --experimental-dtls --no-warnings --expose-internals
 import { hasCrypto, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
@@ -14,6 +14,11 @@ if (!process.features.dtls) {
 }
 
 const { connect, listen, DTLSEndpoint } = await import('node:dtls');
+
+// bind() is not public API -- it is symbol-keyed, so that an endpoint cannot
+// be bound a second time from outside. Reached here the way the other DTLS
+// tests reach internals.
+const { kBind } = (await import('internal/dtls/symbols')).default;
 
 // Verify that the permission system correctly reports no net access.
 assert.ok(!process.permission.has('net'));
@@ -57,7 +62,7 @@ const ca = readFileSync(join(fixturesDir, 'ca1-cert.pem')).toString();
   const endpoint = new DTLSEndpoint();
   assert.ok(endpoint);
   assert.throws(
-    () => endpoint.bind('127.0.0.1', 0),
+    () => endpoint[kBind]('127.0.0.1', 0),
     {
       code: 'ERR_ACCESS_DENIED',
       permission: 'Net',

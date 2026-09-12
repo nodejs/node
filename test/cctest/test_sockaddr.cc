@@ -43,6 +43,93 @@ TEST(SocketAddress, SocketAddress) {
   CHECK_EQ(map[addr], 2);
 }
 
+TEST(SocketAddress, HashAndEqualAgree) {
+  // Hash covers family, port and address. operator== memcmps the whole
+  // sockaddr, so it also sees sin_zero, which is padding the kernel is not
+  // obliged to zero for us. Two datagrams from one peer can therefore compare
+  // unequal, which for a session table means one peer with two sessions.
+  //
+  // Not a broken container: operator== is stricter than Hash, so equal keys
+  // still hash equal and unordered_map's invariant holds. Map keeps that
+  // pairing. PeerMap is for callers that need one peer to mean one entry.
+  sockaddr_storage s1, s2;
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s2);
+
+  // Same peer, dirty padding.
+  reinterpret_cast<sockaddr_in*>(&s2)->sin_zero[0] = 0x01;
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+
+  SocketAddress::Equal equal;
+
+  // They hash the same...
+  CHECK_EQ(SocketAddress::Hash()(addr1), SocketAddress::Hash()(addr2));
+  // ...and operator== disagrees, which is the inconsistency Equal exists to
+  // avoid. If this ever starts passing, Equal is no longer needed.
+  CHECK(!(addr1 == addr2));
+  // Equal agrees with Hash.
+  CHECK(equal(addr1, addr2));
+
+  // Map pairs Hash with the default std::equal_to, which splits this single
+  // peer across two entries of one bucket. Unchanged deliberately: it is what
+  // SocketAddressLRU uses, and QUIC counts entries in one of those.
+  SocketAddress::Map<size_t> split;
+  split[addr1]++;
+  split[addr2]++;
+  CHECK_EQ(split.size(), 2);
+
+  // PeerMap is the one that treats them as the peer they are.
+  SocketAddress::PeerMap<size_t> map;
+  map[addr1]++;
+  map[addr2]++;
+  CHECK_EQ(map.size(), 1);
+  CHECK_EQ(map[addr1], 2);
+
+  // Port is still part of the key.
+  sockaddr_storage s3;
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 8080, &s3);
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&s3));
+  CHECK(!equal(addr1, addr3));
+  map[addr3]++;
+  CHECK_EQ(map.size(), 2);
+}
+
+TEST(SocketAddress, HashAndEqualAgreeIPv6) {
+  sockaddr_storage s1, s2;
+  SocketAddress::ToSockAddr(AF_INET6, "fe80::1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET6, "fe80::1", 443, &s2);
+
+  // flowinfo is a QoS label, not identity. It must not split the key.
+  reinterpret_cast<sockaddr_in6*>(&s2)->sin6_flowinfo = 0xabcd;
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+
+  SocketAddress::Equal equal;
+
+  CHECK_EQ(SocketAddress::Hash()(addr1), SocketAddress::Hash()(addr2));
+  CHECK(equal(addr1, addr2));
+
+  SocketAddress::PeerMap<size_t> map;
+  map[addr1]++;
+  map[addr2]++;
+  CHECK_EQ(map.size(), 1);
+
+  // scope_id *is* identity: the same link-local address on two interfaces is
+  // two different peers, and must not collapse into one entry.
+  sockaddr_storage s3;
+  SocketAddress::ToSockAddr(AF_INET6, "fe80::1", 443, &s3);
+  reinterpret_cast<sockaddr_in6*>(&s3)->sin6_scope_id = 2;
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&s3));
+
+  CHECK(!equal(addr1, addr3));
+  CHECK_NE(SocketAddress::Hash()(addr1), SocketAddress::Hash()(addr3));
+  map[addr3]++;
+  CHECK_EQ(map.size(), 2);
+}
+
 TEST(SocketAddress, IpHashAndIpEqual) {
   sockaddr_storage s1, s2, s3;
   // Same IP, different ports.

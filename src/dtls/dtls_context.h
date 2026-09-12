@@ -13,6 +13,9 @@
 #include <openssl/dtls1.h>
 #include <openssl/ssl.h>
 
+#include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace node::dtls {
@@ -22,6 +25,11 @@ namespace node::dtls {
 // ALPN, and automatic cookie generation/verification for servers.
 class DTLSContext final : public BaseObject {
  public:
+  // Whether a value is a DTLSContext. ASSIGN_OR_RETURN_UNWRAP only DCHECKs
+  // the internal field count, so in a release build it will happily
+  // reinterpret some other BaseObject as this one.
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void InitPerContext(v8::Local<v8::Object> target,
@@ -35,6 +43,11 @@ class DTLSContext final : public BaseObject {
               bool is_server);
 
   SSL_CTX* ssl_ctx() const { return ctx_.get(); }
+
+  // Record this context as the one an SSL was created from, so the callbacks
+  // OpenSSL invokes without an argument of their own can find it again. Bound
+  // to the SSL rather than the SSL_CTX because SNI reassigns the latter.
+  void BindToSSL(SSL* ssl);
 
   // Set the peer address for cookie generation during DTLSv1_listen().
   void set_cookie_peer(const SocketAddress& addr) {
@@ -56,6 +69,42 @@ class DTLSContext final : public BaseObject {
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadDefaultCAs(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSessionIdContext(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetSNIContexts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPSK(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // RFC 4279 pre-shared keys. The identity map is consulted first and needs
+  // no call into JavaScript; the callback, if there is one, is only reached
+  // when the map does not answer. Both are synchronous -- OpenSSL wants the
+  // key returned from the callback, and node:tls does the same.
+  static unsigned int PSKServerCallback(SSL* ssl,
+                                        const char* identity,
+                                        unsigned char* psk,
+                                        unsigned int max_psk_len);
+  static unsigned int PSKClientCallback(SSL* ssl,
+                                        const char* hint,
+                                        char* identity,
+                                        unsigned int max_identity_len,
+                                        unsigned char* psk,
+                                        unsigned int max_psk_len);
+
+  static void ReportCallbackError(SSL* ssl, v8::TryCatch* try_catch);
+
+  // Report a PSK callback that did not throw but gave back something
+  // unusable. Returning 0 to OpenSSL is the "no PSK" signal, so without this
+  // the caller's mistake arrives as a handshake failure naming no cause.
+  static void ReportPSKError(SSL* ssl, std::string_view message);
+
+  DTLSContext* SelectSNIContextFromCallback(SSL* ssl, const char* servername);
+  // Recover the context a callback without an argument slot belongs to.
+  static DTLSContext* FromSSL(SSL* ssl);
+
+  // Server Name Indication. Selection is a lookup in sni_contexts_ with no
+  // call into JavaScript, so a handshake never has to be suspended and
+  // re-entered the way node:tls does it.
+  static int SNISelectCallback(SSL* ssl, int* ad, void* arg);
 
   // Compute the address-and-time-window-bound cookie for |window| into |out|
   // (which must have room for EVP_MAX_MD_SIZE bytes). Shared by the cookie
@@ -90,10 +139,34 @@ class DTLSContext final : public BaseObject {
   // Peer address for current DTLSv1_listen cookie exchange.
   // Set synchronously before DTLSv1_listen() and consumed by the
   // cookie generate/verify callbacks during that call.
-  SocketAddress current_cookie_peer_;
+  //
+  // Value-initialised: SocketAddress's default constructor is `= default`,
+  // which leaves its sockaddr_storage holding whatever was on the heap. Every
+  // path sets this before the callbacks run, so reading it uninitialised is
+  // not reachable today, but a zeroed family makes CanonicalizeAddress fail
+  // closed instead of deriving a cookie from stale bytes.
+  SocketAddress current_cookie_peer_{};
 
   // ALPN protocols (server-side selection list)
   std::vector<uint8_t> alpn_protos_;
+
+  // Host name -> context, for SNI. Empty unless the application supplied an
+  // sni map. The "*" key, if present, is the fallback for names that do not
+  // match; without it an unmatched name is refused.
+  // Weak: a context may appear in its own map, or in a cycle with another,
+  // and a strong count would never reach zero. The JavaScript wrapper holds
+  // these so the collector can trace and break such a cycle.
+  std::unordered_map<std::string, BaseObjectWeakPtr<DTLSContext>> sni_contexts_;
+
+  // PSK identity -> key (server), and the single identity a client presents.
+  std::unordered_map<std::string, std::vector<unsigned char>> psk_identities_;
+  std::string psk_identity_hint_;
+  std::string psk_client_identity_;
+  std::vector<unsigned char> psk_client_key_;
+
+  // Consulted only when the map does not answer.
+  v8::Global<v8::Function> psk_callback_;
+  v8::Global<v8::Function> sni_callback_;
 };
 
 }  // namespace node::dtls
