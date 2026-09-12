@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <algorithm>
+#include <csignal>
 
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
@@ -34,6 +35,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
@@ -226,6 +228,88 @@ void TraceSigintWatchdog::HandleInterrupt() {
   SigintWatchdogHelper::GetInstance()->Unregister(this);
   SigintWatchdogHelper::GetInstance()->Stop();
   raise(SIGINT);
+}
+
+// Whether the main event loop watches `SIGTERM`, i.e. whether the application
+// installed its own handler through `process.on('SIGTERM')`.
+static bool HasSigtermListener(uv_loop_t* loop) {
+  bool found = false;
+  uv_walk(
+      loop,
+      [](uv_handle_t* handle, void* arg) {
+        if (handle->type == UV_SIGNAL && uv_is_active(handle) &&
+            reinterpret_cast<uv_signal_t*>(handle)->signum == SIGTERM) {
+          *static_cast<bool*>(arg) = true;
+        }
+      },
+      &found);
+  return found;
+}
+
+void TraceSigtermWatchdog::Enable(Environment* env) {
+  env->AddCleanupHook(
+      [](void* arg) { delete static_cast<TraceSigtermWatchdog*>(arg); },
+      new TraceSigtermWatchdog(env));
+}
+
+TraceSigtermWatchdog::TraceSigtermWatchdog(Environment* env) : env_(env) {
+  CHECK_EQ(uv_loop_init(&loop_), 0);
+  CHECK_EQ(uv_signal_init(&loop_, &signal_), 0);
+  signal_.data = this;
+  CHECK_EQ(uv_signal_start(
+               &signal_,
+               [](uv_signal_t* handle, int) {
+                 static_cast<TraceSigtermWatchdog*>(handle->data)->OnSignal();
+               },
+               SIGTERM),
+           0);
+  CHECK_EQ(
+      uv_async_init(
+          &loop_, &stop_, [](uv_async_t* handle) { uv_stop(handle->loop); }),
+      0);
+  CHECK_EQ(uv_thread_create(&thread_, Run, this), 0);
+}
+
+TraceSigtermWatchdog::~TraceSigtermWatchdog() {
+  CHECK_EQ(uv_async_send(&stop_), 0);
+  CHECK_EQ(uv_thread_join(&thread_), 0);
+
+  uv_close(reinterpret_cast<uv_handle_t*>(&signal_), nullptr);
+  uv_close(reinterpret_cast<uv_handle_t*>(&stop_), nullptr);
+
+  // UV_RUN_DEFAULT so that libuv has a chance to clean up.
+  uv_run(&loop_, UV_RUN_DEFAULT);
+
+  CheckedUvLoopClose(&loop_);
+}
+
+void TraceSigtermWatchdog::Run(void* arg) {
+  uv_thread_setname("SigtermWatchdog");
+  TraceSigtermWatchdog* wd = static_cast<TraceSigtermWatchdog*>(arg);
+
+  // The loop is stopped by the async handle.
+  uv_run(&wd->loop_, UV_RUN_DEFAULT);
+}
+
+void TraceSigtermWatchdog::OnSignal() {
+  // The callback runs on the main thread, either from a V8 interrupt (while
+  // JavaScript is running, which is where the stack trace comes from) or from
+  // the event loop, whichever gets there first.
+  env_->RequestInterrupt([](Environment* env) {
+    HandleScope handle_scope(env->isolate());
+    FPrintF(stderr,
+            "TERMINATE: Script execution was interrupted by `SIGTERM`\n");
+    PrintCurrentStackTrace(env->isolate());
+
+    // Watching the signal took the default disposition away, so restore it
+    // here. Applications that handle `SIGTERM` themselves are not affected:
+    // libuv has already delivered this signal to their handler as well.
+    if (!HasSigtermListener(env->event_loop())) {
+      ResetStdio();
+      signal(SIGTERM, SIG_DFL);
+      raise(SIGTERM);
+    }
+  });
 }
 
 #ifdef __POSIX__
