@@ -496,6 +496,52 @@ substituted into a target pattern.
 }
 ```
 
+### Target fallback arrays
+
+An export target can be an array of targets. Node.js tries each item in order
+and uses the first one it can resolve:
+
+```json
+// package.json
+{
+  "name": "my-package",
+  "exports": {
+    ".": [
+      {
+        "import": "./index.mjs",
+        "require": "./index.cjs"
+      },
+      "./index.cjs"
+    ]
+  }
+}
+```
+
+An item is skipped, and resolution continues with the next one, when:
+
+* Node.js does not recognize the target's syntax. A Node.js version released
+  before a given target form existed treats that form as invalid and falls
+  through to the next item. This is what makes fallback arrays useful for
+  compatibility: a newer form can be listed first and a target understood by
+  older versions second.
+* The target is an object and none of its conditions match the current
+  environment.
+* The target is `null`.
+
+A missing file does **not** trigger the fallback. Targets are matched
+without checking whether the file they point to exists, so an array of
+paths that are all valid always resolves to the first one.
+
+If every item is skipped, the result depends on why:
+
+* An empty array, or an array in which every item is `null`, makes the
+  subpath behave as if it were not exported.
+* If an item was skipped because its syntax was invalid and no later item
+  resolved, that error is thrown.
+
+Fallback arrays are also supported in [`"imports"`][] and in
+[conditional exports][], including within [nested conditions][].
+
 ### Exports sugar
 
 <!-- YAML
@@ -1378,6 +1424,7 @@ This field defines [subpath imports][] for the current package.
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
 [merve]: https://github.com/anonrig/merve
+[nested conditions]: #nested-conditions
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [resolution algorithm pseudo-code]: modules.md#all-together
 [self-reference]: #self-referencing-a-package-using-its-name
