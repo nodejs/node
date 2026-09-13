@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "include/v8-internal.h"  // For Address.
-#include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
 #include "src/sandbox/isolate.h"
 
 namespace v8 {
@@ -56,10 +56,11 @@ class ICStats {
 
   ICStats();
   void Dump();
-  void Begin();
+  bool Begin();
   void End();
   void Reset();
   V8_INLINE ICInfo& Current() {
+    mutex_.AssertHeld();
     DCHECK(pos_ >= 0 && pos_ < MAX_IC_INFO);
     return ic_infos_[pos_];
   }
@@ -70,7 +71,7 @@ class ICStats {
 
  private:
   static base::LazyInstance<ICStats>::type instance_;
-  base::Atomic32 enabled_;
+  base::Mutex mutex_;
   std::vector<ICInfo> ic_infos_;
   // Keys are Script pointers; uses raw Address to keep includes light.
   std::unordered_map<Address, std::unique_ptr<char[]>> script_name_map_;

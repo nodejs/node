@@ -24,7 +24,7 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
   void CallOrConstructDoubleVarargs(TNode<JSAny> target,
                                     std::optional<TNode<Object>> new_target,
                                     TNode<FixedDoubleArray> elements,
-                                    TNode<Int32T> length,
+                                    TNode<Uint32T> length,
                                     TNode<Int32T> args_count,
                                     TNode<Context> context, TNode<Int32T> kind);
   void CallOrConstructWithSpread(TNode<JSAny> target,

@@ -10,14 +10,16 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-class RegExpNode;
+class Node;
 
 class DotPrinter final : public AllStatic {
  public:
-  static void DotPrint(const char* label, RegExpNode* node);
+  static void DotPrint(const char* label, Node* node);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS

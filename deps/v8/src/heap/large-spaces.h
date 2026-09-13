@@ -92,17 +92,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   void Print() override;
 #endif
 
-  // The last allocated object that is not guaranteed to be initialized when the
-  // concurrent marker visits it.
-  Address pending_object() const {
-    return pending_object_.load(std::memory_order_acquire);
-  }
-
-  void ResetPendingObject() {
-    pending_object_.store(0, std::memory_order_release);
-  }
-
-  base::Mutex* pending_allocation_mutex() { return &pending_allocation_mutex_; }
 
   void UpdateAccountingAfterResizingObject(size_t old_size, size_t new_size);
 
@@ -116,7 +105,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   LargePage* AllocateLargePage(int object_size, Executability executable,
                                AllocationHint hint);
 
-  void UpdatePendingObject(Tagged<HeapObject> object);
 
   std::atomic<size_t> size_;  // allocated bytes
   int page_count_;       // number of chunks
@@ -127,12 +115,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   // trying to lock the mutex for a second time.
   base::RecursiveMutex allocation_mutex_;
 
-  // Current potentially uninitialized object. Protected by
-  // pending_allocation_mutex_.
-  std::atomic<Address> pending_object_;
-
-  // Used to protect pending_object_.
-  base::Mutex pending_allocation_mutex_;
 
   AllocationCounter allocation_counter_;
 

@@ -21,8 +21,11 @@ namespace v8::internal::compiler::turboshaft {
 //     CASE(V<Number>, num): { ... use num ... }
 //     CASE(V<BigInt>, bi):  { ... use bi  ... }
 //     CASE(V<String>, str): { ... use str ... }
-//     CASE(V<Union<Undefined, Symbol>>, oth): {
-//       ... use oth ...
+//     CASE(V<Union<Undefined, Symbol>>, u_or_s): {
+//       ... use u_or_s ...
+//     }
+//     DEFAULT: {
+//       ... remaining cases ...
 //     }
 //   }
 //
@@ -44,8 +47,9 @@ namespace v8::internal::compiler::turboshaft {
 // at the very end. While the above handles types would not reach this case,
 // this is exaplicitly allowed as a "all others"-case.
 //
-// There is no default case and exhaustiveness is not enforced, so if you need
-// this, a CASE(V<Object>, other) is the way to achieve this.
+// Notice, that the switch has to be exhaustive and all unhandled cases will
+// lead to an Unreachable trigger. You can use a DEFAULT label to (not) handle
+// the rest of the possibilities.
 //
 // Now for the actual matching: As checking for different object types is most
 // efficient using different means (e.g. checking the map, comparing instance
@@ -417,10 +421,41 @@ class TypeswitchBuilder {
     UNREACHABLE();
   }
 
+  // BeginDefault is invoked similarly to BeginCase but for the DEFAULT label.
+  bool BeginDefault() {
+    switch (control_state_) {
+      case ControlState::kUninitialized:
+      case ControlState::kDone:
+        UNREACHABLE();
+      case ControlState::kCollectCases:
+        DCHECK_NULL(default_block_);
+        default_block_ = assembler_.NewBlock();
+        return false;
+      case ControlState::kEmitBranches:
+        // Nothing to do here, the goto is emitted by NextState.
+        return false;
+      case ControlState::kEmitCases: {
+        DCHECK_NOT_NULL(default_block_);
+        const bool bound = assembler_.Bind(default_block_);
+        if (!bound) FATAL("DEFAULT of TYPESWITCH is unreachable");
+        return true;
+      }
+    }
+    UNREACHABLE();
+  }
+
   // EndCase is invoked for a CASE when we have emitted that case's code and if
   // the case is not terminated unconditionally, we set control flow to continue
   // after the TYPESWITCH.
   void EndCase(int case_ref) {
+    DCHECK_NOT_NULL(exit_block_);
+    if (!assembler_.generating_unreachable_operations()) {
+      assembler_.Goto(exit_block_);
+    }
+  }
+
+  // EndDefault is invoked similarly to EndCase but for the DEFAULT label.
+  void EndDefault() {
     DCHECK_NOT_NULL(exit_block_);
     if (!assembler_.generating_unreachable_operations()) {
       assembler_.Goto(exit_block_);
@@ -440,17 +475,25 @@ class TypeswitchBuilder {
 
         // We explicitly handle smi case here if applicable.
         if (can_be_smi_) {
-          if (!smi_target_) smi_target_ = exit_block_;
+          if (!smi_target_) {
+            CHECK(default_block_);
+            smi_target_ = default_block_;
+          }
           assembler_.GotoIf(assembler_.IsSmi(value_), smi_target_);
         }
         return true;
       }
       case ControlState::kEmitCases: {
         // Now we are emitting the code for the cases. Before the first case,
-        // though, we emit a jump to the exit block, so that we jump to after
-        // the TYPESWITCH for all types that are not handled.
+        // though, we emit a jump to the default block, so that we jump to that
+        // for all types that are not handled. If the implementation didn't
+        // provide a default block, we assume that it's unreachable.
         if (!assembler_.generating_unreachable_operations()) {
-          assembler_.Goto(exit_block_);
+          if (default_block_) {
+            assembler_.Goto(default_block_);
+          } else {
+            assembler_.Unreachable();
+          }
         }
         return true;
       }
@@ -474,6 +517,7 @@ class TypeswitchBuilder {
   base::SmallMap<std::map<int, Block*>, 8> cases_;
   Block* smi_target_ = nullptr;
   Block* exit_block_ = nullptr;
+  Block* default_block_ = nullptr;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

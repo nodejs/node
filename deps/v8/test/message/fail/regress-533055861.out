@@ -1,0 +1,4 @@
+*A.mjs:1: SyntaxError: The requested module './B.mjs' does not provide an export named 'x'
+import { x } from './B.mjs';
+         ^
+SyntaxError: The requested module './B.mjs' does not provide an export named 'x'

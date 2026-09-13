@@ -81,7 +81,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
     let builder = new WasmModuleBuilder();
 
     let struct = builder.addStruct([makeField(kWasmI64, true)]);
-    let array = builder.addArray(wasmRefNullType(struct), true);
+    let array = builder.addArray(wasmRefNullType(struct));
     let sig = builder.addType(kSig_i_ii);
 
     let struct_builder =
@@ -129,7 +129,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let consumer = (function () {
     let builder = new WasmModuleBuilder();
     let struct = builder.addStruct([makeField(kWasmI64, true)]);
-    builder.addArray(wasmRefNullType(struct), true);
+    builder.addArray(wasmRefNullType(struct));
     let sig = builder.addType(kSig_i_ii);
     let tag_sig = builder.addType(makeSig([
       kWasmExternRef, kWasmFuncRef, kWasmAnyRef, kWasmEqRef, kWasmI31Ref,

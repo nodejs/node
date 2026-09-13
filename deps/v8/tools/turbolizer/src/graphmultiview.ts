@@ -110,7 +110,7 @@ export class GraphMultiView extends View {
     this.sourceResolver.instructionsPhase = phase.instructionsPhase;
     if (phase.type == PhaseType.Graph) {
       this.displayPhaseView(this.graph, phase, selection);
-    } else if (phase.type == PhaseType.TurboshaftGraph) {
+    } else if (phase.type == PhaseType.TurboshaftGraph || phase.type == PhaseType.MaglevGraph) {
       this.displayPhaseView(this.turboshaftGraph, phase, selection);
     } else if (phase.type == PhaseType.Schedule) {
       this.displayPhaseView(this.schedule, phase, selection);

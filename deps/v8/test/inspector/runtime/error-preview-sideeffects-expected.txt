@@ -6,3 +6,9 @@ Running test: ErrorStack
     stackCalledOnBase : false
     stackCalledOnProxy : false
 }
+
+Running test: ErrorStackBoundBuiltin
+{
+    stackCalledViaBoundApply : false
+    stackCalledViaBoundCall : false
+}

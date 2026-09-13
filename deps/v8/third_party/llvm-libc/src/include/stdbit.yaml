@@ -1,0 +1,427 @@
+header: stdbit.h
+header_template: stdbit.h.def
+macros: []
+types: []
+enums: []
+objects: []
+functions:
+  - name: stdc_bit_ceil_uc
+    standards:
+      - stdc
+    return_type: unsigned char
+    arguments:
+      - type: unsigned char
+  - name: stdc_bit_ceil_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_bit_ceil_ul
+    standards:
+      - stdc
+    return_type: unsigned long
+    arguments:
+      - type: unsigned long
+  - name: stdc_bit_ceil_ull
+    standards:
+      - stdc
+    return_type: unsigned long long
+    arguments:
+      - type: unsigned long long
+  - name: stdc_bit_ceil_us
+    standards:
+      - stdc
+    return_type: unsigned short
+    arguments:
+      - type: unsigned short
+  - name: stdc_bit_floor_uc
+    standards:
+      - stdc
+    return_type: unsigned char
+    arguments:
+      - type: unsigned char
+  - name: stdc_bit_floor_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_bit_floor_ul
+    standards:
+      - stdc
+    return_type: unsigned long
+    arguments:
+      - type: unsigned long
+  - name: stdc_bit_floor_ull
+    standards:
+      - stdc
+    return_type: unsigned long long
+    arguments:
+      - type: unsigned long long
+  - name: stdc_bit_floor_us
+    standards:
+      - stdc
+    return_type: unsigned short
+    arguments:
+      - type: unsigned short
+  - name: stdc_bit_width_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_bit_width_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_bit_width_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_bit_width_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_bit_width_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_count_ones_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_count_ones_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_count_ones_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_count_ones_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_count_ones_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_count_zeros_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_count_zeros_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_count_zeros_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_count_zeros_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_count_zeros_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_first_leading_one_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_first_leading_one_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_first_leading_one_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_first_leading_one_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_first_leading_one_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_first_leading_zero_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_first_leading_zero_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_first_leading_zero_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_first_leading_zero_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_first_leading_zero_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_first_trailing_one_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_first_trailing_one_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_first_trailing_one_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_first_trailing_one_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_first_trailing_one_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_first_trailing_zero_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_first_trailing_zero_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_first_trailing_zero_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_first_trailing_zero_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_first_trailing_zero_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_has_single_bit_uc
+    standards:
+      - stdc
+    return_type: bool
+    arguments:
+      - type: unsigned char
+  - name: stdc_has_single_bit_ui
+    standards:
+      - stdc
+    return_type: bool
+    arguments:
+      - type: unsigned int
+  - name: stdc_has_single_bit_ul
+    standards:
+      - stdc
+    return_type: bool
+    arguments:
+      - type: unsigned long
+  - name: stdc_has_single_bit_ull
+    standards:
+      - stdc
+    return_type: bool
+    arguments:
+      - type: unsigned long long
+  - name: stdc_has_single_bit_us
+    standards:
+      - stdc
+    return_type: bool
+    arguments:
+      - type: unsigned short
+  - name: stdc_leading_ones_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_leading_ones_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_leading_ones_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_leading_ones_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_leading_ones_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_leading_zeros_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_leading_zeros_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_leading_zeros_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_leading_zeros_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_leading_zeros_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_trailing_ones_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_trailing_ones_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_trailing_ones_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_trailing_ones_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_trailing_ones_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short
+  - name: stdc_trailing_zeros_uc
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned char
+  - name: stdc_trailing_zeros_ui
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned int
+  - name: stdc_trailing_zeros_ul
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long
+  - name: stdc_trailing_zeros_ull
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned long long
+  - name: stdc_trailing_zeros_us
+    standards:
+      - stdc
+    return_type: unsigned int
+    arguments:
+      - type: unsigned short

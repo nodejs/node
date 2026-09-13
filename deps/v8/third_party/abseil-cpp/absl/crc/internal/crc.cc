@@ -47,6 +47,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/prefetch.h"
 #include "absl/crc/internal/crc_internal.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -410,16 +411,13 @@ void CRC32::Scramble(uint32_t* crc) const {
   // Rotate by near half the word size plus 1.  See the scramble comment in
   // crc_internal.h for an explanation.
   constexpr int scramble_rotate = (32 / 2) + 1;
-  *crc = RotateRight<uint32_t>(static_cast<unsigned int>(*crc + kScrambleLo),
-                               32, scramble_rotate) &
-         MaskOfLength<uint32_t>(32);
+  *crc = absl::rotr(static_cast<uint32_t>(*crc + kScrambleLo), scramble_rotate);
 }
 
 void CRC32::Unscramble(uint32_t* crc) const {
   constexpr int scramble_rotate = (32 / 2) + 1;
-  uint64_t rotated = RotateRight<uint32_t>(static_cast<unsigned int>(*crc), 32,
-                                           32 - scramble_rotate);
-  *crc = (rotated - kScrambleLo) & MaskOfLength<uint32_t>(32);
+  uint64_t rotated = absl::rotl(*crc, scramble_rotate);
+  *crc = static_cast<uint32_t>(rotated - kScrambleLo);
 }
 
 // Constructor and destructor for base class CRC.

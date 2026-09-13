@@ -127,7 +127,7 @@ void WriteBarrier::SharedSlow(Tagged<TrustedObject> host,
   if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
     MutablePage* host_chunk_metadata =
         MutablePage::FromHeapObject(Isolate::Current(), host);
-    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::ATOMIC>(
         host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
   }
 }
@@ -136,12 +136,6 @@ void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
                                ArrayBufferExtension* extension) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write(host, extension);
-}
-
-void WriteBarrier::MarkingSlow(Tagged<DescriptorArray> descriptor_array,
-                               int number_of_own_descriptors) {
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(descriptor_array);
-  marking_barrier->Write(descriptor_array, number_of_own_descriptors);
 }
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
@@ -160,6 +154,13 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());
+
+  if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {
+    MutablePage* host_page =
+        MutablePage::FromHeapObject(marking_barrier->heap()->isolate(), host);
+    RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::Insert<AccessMode::ATOMIC>(
+        host_page, host_page->Offset(slot.address()));
+  }
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -190,7 +191,6 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   // Mark both the table entry and its content.
   Isolate* isolate = Isolate::Current();
   JSDispatchTable& jdt = isolate->js_dispatch_table();
-  static_assert(JSDispatchTable::kWriteBarrierSetsEntryMarkBit);
 #ifdef DEBUG
   Heap* heap = isolate->heap();
   jdt.VerifyEntry(handle, heap->js_dispatch_table_space(),
@@ -511,10 +511,9 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
 
 // Instantiate `WriteBarrier::WriteBarrierForRange()` for `ObjectSlot` and
 // `MaybeObjectSlot`.
-template void WriteBarrier::ForRange<ObjectSlot>(Heap* heap,
-                                                 Tagged<HeapObject> object,
-                                                 ObjectSlot start_slot,
-                                                 ObjectSlot end_slot);
+template V8_EXPORT_PRIVATE void WriteBarrier::ForRange<ObjectSlot>(
+    Heap* heap, Tagged<HeapObject> object, ObjectSlot start_slot,
+    ObjectSlot end_slot);
 template void WriteBarrier::ForRange<MaybeObjectSlot>(
     Heap* heap, Tagged<HeapObject> object, MaybeObjectSlot start_slot,
     MaybeObjectSlot end_slot);
@@ -534,7 +533,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
     mode |= kDoGenerationalOrShared;
   }
 
-  if (heap->incremental_marking()->IsMarking()) {
+  if (source_chunk->IsMarking()) {
     mode |= kDoMarking;
     if (!source_chunk->ShouldSkipEvacuationSlotRecording()) {
       mode |= kDoEvacuationSlotRecording;
@@ -574,42 +573,36 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
 #if V8_VERIFY_WRITE_BARRIERS
 
 // static
-bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
+void WriteBarrier::VerifyDispatchHandleWriteBarrier(Tagged<HeapObject> host,
                                                     JSDispatchHandle handle,
                                                     WriteBarrierMode mode) {
   JSDispatchTable& jdt = Isolate::Current()->js_dispatch_table();
   Tagged<Code> value = jdt.GetCode(handle);
 
   if (mode == SKIP_WRITE_BARRIER) {
+    // Builtins do not need write barriers, neither do their JSDispatch handles
+    // as the handles don't move and are immortal. This additional check is
+    // needed since in some configurations and cctests the builtins Code objects
+    // are not in R/O space.
     if (value->is_builtin()) {
-      // Builtins are immortal and immovable, so no write barrier needed.
-      BasePage* page = BasePage::FromHeapObject(value);
-      DCHECK(page->never_evacuate());
-      return true;
+      static_assert(!JSDispatchTable::kSupportsCompaction);
+      return;
     }
 
-    if (WriteBarrier::IsRequired(host, value)) {
-      return false;
+    // First check the barrier for the value
+    VerifySkipWriteBarrier(host, value, mode);
+
+    // Now check the barrier for the handle itself
+    if (jdt.InReadOnlySegment(handle)) {
+      return;
     }
+    if (IsMostRecentYoungAllocation(host->address())) {
+      return;
+    }
+    UNREACHABLE();
+  } else {
+    DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
   }
-
-  if (CurrentMarkingBarrier(host)->is_not_major()) return true;
-
-  // Ensure we don't have a black -> white -> black edge. This could happen when
-  // skipping a write barrier while concurrently the dispatch entry is marked
-  // from another JSFunction.
-  if (ReadOnlyHeap::Contains(host) ||
-      (IsMarking(host) && mode != SKIP_WRITE_BARRIER) ||
-      !CurrentMarkingBarrier(host)->IsMarked(host)) {
-    return true;
-  }
-  if (jdt.IsMarked(handle)) {
-    return true;
-  }
-  if (ReadOnlyHeap::Contains(value)) {
-    return true;
-  }
-  return !CurrentMarkingBarrier(host)->IsMarked(value);
 }
 
 #endif  // V8_VERIFY_WRITE_BARRIERS

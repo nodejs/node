@@ -315,7 +315,7 @@ TEST(EmptyWeakArray) {
   DirectHandle<WeakFixedArray> array = factory->empty_weak_fixed_array();
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
-  CHECK_EQ(array->length(), 0);
+  CHECK_EQ(array->length().value(), 0u);
 }
 
 TEST(WeakArraysBasic) {
@@ -329,15 +329,15 @@ TEST(WeakArraysBasic) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
 
-  const int length = 4;
+  const uint32_t length = 4;
   IndirectHandle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
-  CHECK_EQ(array->length(), length);
+  CHECK_EQ(array->length().value(), length);
 
   CHECK(HeapLayout::InYoungGeneration(*array));
 
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     Tagged<HeapObject> heap_object;
     CHECK(array->get(i).GetHeapObjectIfStrong(&heap_object));
     CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());
@@ -406,7 +406,7 @@ TEST(WeakArrayListBasic) {
   CHECK(IsWeakArrayList(*array));
   CHECK(!IsFixedArray(*array));
   CHECK(!IsWeakFixedArray(*array));
-  CHECK_EQ(array->length(), 0);
+  CHECK_EQ(array->length().value(), 0u);
 
   DirectHandle<FixedArray> index2 = factory->NewFixedArray(1);
   index2->set(0, Smi::FromInt(2017));
@@ -424,25 +424,25 @@ TEST(WeakArrayListBasic) {
                                     MaybeObjectDirectHandle::Weak(index0));
     array = WeakArrayList::AddToEnd(
         isolate, array, MaybeObjectDirectHandle(Smi::FromInt(1), isolate));
-    CHECK_EQ(array->length(), 2);
+    CHECK_EQ(array->length().value(), 2u);
 
     array = WeakArrayList::AddToEnd(isolate, array,
                                     MaybeObjectDirectHandle::Weak(index2));
     array = WeakArrayList::AddToEnd(
         isolate, array, MaybeObjectDirectHandle(Smi::FromInt(3), isolate));
-    CHECK_EQ(array->length(), 4);
+    CHECK_EQ(array->length().value(), 4u);
 
     array = WeakArrayList::AddToEnd(isolate, array,
                                     MaybeObjectDirectHandle::Weak(index4));
     array = WeakArrayList::AddToEnd(
         isolate, array, MaybeObjectDirectHandle(Smi::FromInt(5), isolate));
-    CHECK_EQ(array->length(), 6);
+    CHECK_EQ(array->length().value(), 6u);
 
     array = WeakArrayList::AddToEnd(isolate, array,
                                     MaybeObjectDirectHandle::Weak(index6));
     array = WeakArrayList::AddToEnd(
         isolate, array, MaybeObjectDirectHandle(Smi::FromInt(7), isolate));
-    CHECK_EQ(array->length(), 8);
+    CHECK_EQ(array->length().value(), 8u);
 
     CHECK(InCorrectGeneration(*array));
 
@@ -467,7 +467,7 @@ TEST(WeakArrayListBasic) {
   // space.
   heap::InvokeMinorGC(heap);
   Tagged<HeapObject> heap_object;
-  CHECK_EQ(array->length(), 8);
+  CHECK_EQ(array->length().value(), 8u);
   CHECK(array->get(0).GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2016);
   CHECK_EQ(array->get(1).ToSmi().value(), 1);
@@ -486,7 +486,7 @@ TEST(WeakArrayListBasic) {
 
   heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*array));
-  CHECK_EQ(array->length(), 8);
+  CHECK_EQ(array->length().value(), 8u);
   CHECK(array->get(0).IsCleared());
   CHECK_EQ(array->get(1).ToSmi().value(), 1);
 
@@ -523,31 +523,31 @@ TEST(WeakArrayListRemove) {
   array = WeakArrayList::AddToEnd(isolate, array,
                                   MaybeObjectDirectHandle::Weak(elem2));
 
-  CHECK_EQ(array->length(), 3);
+  CHECK_EQ(array->length().value(), 3u);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem1));
   CHECK_EQ(array->get(2), MakeWeak(*elem2));
 
   CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem1)));
 
-  CHECK_EQ(array->length(), 2);
+  CHECK_EQ(array->length().value(), 2u);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem2));
 
   CHECK(!array->RemoveOne(MaybeObjectDirectHandle::Weak(elem1)));
 
-  CHECK_EQ(array->length(), 2);
+  CHECK_EQ(array->length().value(), 2u);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem2));
 
   CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem0)));
 
-  CHECK_EQ(array->length(), 1);
+  CHECK_EQ(array->length().value(), 1u);
   CHECK_EQ(array->get(0), MakeWeak(*elem2));
 
   CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem2)));
 
-  CHECK_EQ(array->length(), 0);
+  CHECK_EQ(array->length().value(), 0u);
 }
 
 TEST(ProtectedWeakFixedArray) {
@@ -652,7 +652,7 @@ TEST(PrototypeUsersBasic) {
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
-    CHECK_EQ(array->length(), index + 1);
+    CHECK_EQ(array->length().value(), index + 1);
   }
   CHECK_EQ(index, 1);
 
@@ -661,13 +661,13 @@ TEST(PrototypeUsersBasic) {
 
   // Even though we have an empty slot, we still add to the end.
   int last_index = index;
-  int old_capacity = array->capacity();
+  uint32_t old_capacity = array->capacity().value();
   while (!array->IsFull()) {
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
     CHECK_EQ(index, last_index + 1);
-    CHECK_EQ(array->length(), index + 1);
+    CHECK_EQ(array->length().value(), index + 1);
     last_index = index;
   }
 
@@ -684,10 +684,10 @@ TEST(PrototypeUsersBasic) {
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
-    CHECK_EQ(array->length(), index + 1);
+    CHECK_EQ(array->length().value(), index + 1);
     last_index = index;
   }
-  CHECK_GT(array->capacity(), old_capacity);
+  CHECK_GT(array->capacity().value(), old_capacity);
 
   // Make multiple slots empty.
   int empty_index1 = 1;
@@ -696,13 +696,13 @@ TEST(PrototypeUsersBasic) {
   PrototypeUsers::MarkSlotEmpty(*array, empty_index2);
 
   // Fill the array (still adding to the end)
-  old_capacity = array->capacity();
+  old_capacity = array->capacity().value();
   while (!array->IsFull()) {
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
     CHECK_EQ(index, last_index + 1);
-    CHECK_EQ(array->length(), index + 1);
+    CHECK_EQ(array->length().value(), index + 1);
     last_index = index;
   }
 
@@ -774,10 +774,10 @@ TEST(PrototypeUsersCompacted) {
   heap::InvokeMajorGC(heap);
   CHECK(array->get(3).IsCleared());
 
-  CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);
+  CHECK_EQ(array->length().value(), 3 + PrototypeUsers::kFirstIndex);
   Tagged<WeakArrayList> new_array =
       PrototypeUsers::Compact(array, heap, TestCompactCallback);
-  CHECK_EQ(new_array->length(), 1 + PrototypeUsers::kFirstIndex);
+  CHECK_EQ(new_array->length().value(), 1 + PrototypeUsers::kFirstIndex);
   CHECK_EQ(saved_heap_object, *live_map);
 }
 

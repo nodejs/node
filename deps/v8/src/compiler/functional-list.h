@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_FUNCTIONAL_LIST_H_
 #define V8_COMPILER_FUNCTIONAL_LIST_H_
 
+#include "include/v8config.h"
 #include "src/base/iterator.h"
 #include "src/zone/zone.h"
 
@@ -100,7 +101,8 @@ class FunctionalList {
 
   void Clear() { elements_ = nullptr; }
 
-  class iterator : public base::iterator<std::forward_iterator_tag, A> {
+  class V8_GSL_POINTER iterator
+      : public base::iterator<std::forward_iterator_tag, A> {
    public:
     explicit iterator(Cons* cur) : current_(cur) {}
 

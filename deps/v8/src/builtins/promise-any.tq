@@ -326,7 +326,7 @@ Reject(JSAny) {
       // After this point, errors escapes to user code. Clear the slot.
       *errorsRef = kEmptyFixedArray;
 
-      check(errors.length == index - 1);
+      check(errors.length_intptr == Convert<intptr>(index - 1));
       const error = ConstructAggregateError(errors);
       // 3. Return ThrowCompletion(error).
       goto Reject(error);

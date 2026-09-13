@@ -6,10 +6,10 @@
 #include "include/cppgc/default-platform.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/marking-visitor.h"
-#include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/marking-visitor.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -158,8 +158,9 @@ struct NotConcurrentlyTraceable
             [](Visitor*, const void*) {
               ++NotConcurrentlyTraceable::trace_counter;
             },
-            sizeof(NotConcurrentlyTraceable)))
+            sizeof(NotConcurrentlyTraceable))) {
       return;
+    }
     ++trace_counter;
   }
 };

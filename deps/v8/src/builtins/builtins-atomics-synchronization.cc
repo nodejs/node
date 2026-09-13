@@ -192,7 +192,7 @@ BUILTIN(AtomicsConditionWait) {
   }
 
   std::optional<base::TimeDelta> timeout = std::nullopt;
-  if (!IsUndefined(*timeout_obj, isolate)) {
+  if (!IsUndefined(*timeout_obj)) {
     if (!IsNumber(*timeout_obj)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kIsNotNumber, timeout_obj,
@@ -236,7 +236,7 @@ BUILTIN(AtomicsConditionNotify) {
   }
 
   uint32_t count;
-  if (IsUndefined(*count_obj, isolate)) {
+  if (IsUndefined(*count_obj)) {
     count = JSAtomicsCondition::kAllWaiters;
   } else {
     double count_double;

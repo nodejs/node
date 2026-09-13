@@ -1,0 +1,41 @@
+header: endian.h
+standards:
+  - posix
+macros:
+  - macro_name: BYTE_ORDER
+    macro_header: endian-macros.h
+  - macro_name: LITTLE_ENDIAN
+    macro_header: endian-macros.h
+  - macro_name: BIG_ENDIAN
+    macro_header: endian-macros.h
+  - macro_name: be16toh
+    macro_header: endian-macros.h
+  - macro_name: be32toh
+    macro_header: endian-macros.h
+  - macro_name: be64toh
+    macro_header: endian-macros.h
+  - macro_name: htobe16
+    macro_header: endian-macros.h
+  - macro_name: htobe32
+    macro_header: endian-macros.h
+  - macro_name: htobe64
+    macro_header: endian-macros.h
+  - macro_name: htole16
+    macro_header: endian-macros.h
+  - macro_name: htole32
+    macro_header: endian-macros.h
+  - macro_name: htole64
+    macro_header: endian-macros.h
+  - macro_name: le16toh
+    macro_header: endian-macros.h
+  - macro_name: le32toh
+    macro_header: endian-macros.h
+  - macro_name: le64toh
+    macro_header: endian-macros.h
+types:
+  - type_name: uint16_t
+  - type_name: uint32_t
+  - type_name: uint64_t
+enums: []
+objects: []
+functions: []

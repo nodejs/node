@@ -11,7 +11,7 @@ let invalid_nu = [
   "traditio",
 ];
 
-// https://tc39.github.io/ecma402/#table-numbering-system-digits
+// https://tc39.es/ecma402/#table-numbering-system-digits
 let valid_nu= [
   "arab",
   "arabext",

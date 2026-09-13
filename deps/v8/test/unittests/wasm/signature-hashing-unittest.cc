@@ -44,7 +44,12 @@ TEST_F(WasmSignatureHashingTest, SignatureHashing) {
       // untagged params can be passed in registers; the 9th must be on the
       // stack.
       H({d, d, d, d, d, d, d, d, d}, {}),  // --
+#if !defined(V8_TARGET_ARCH_RISCV32) && !defined(V8_TARGET_ARCH_RISCV64) && \
+    !defined(V8_TARGET_ARCH_PPC64)
+      // These platforms have separate SIMD registers and thus doesn't use a
+      // slot.
       H({d, d, d, d, d, d, d, d, s}, {}),  // --
+#endif  // V8_TARGET_RISCV32 || V8_TARGET_RISCV64
 
 #if V8_TARGET_ARCH_32_BIT
       // Same, but only relevant for 32-bit platforms.
@@ -72,6 +77,18 @@ TEST_F(WasmSignatureHashingTest, SignatureHashing) {
       EXPECT_NE(hash_j, hash_k);
     }
   }
+}
+
+TEST_F(WasmSignatureHashingTest, NoPaddingSlotCollision) {
+  // Regression test for https://crbug.com/513314150.
+  ValueType l = kWasmI64;
+  ValueType r = kWasmExternRef;
+  uint64_t sigA = H({l, l, l, l, l, l, l}, {});
+  uint64_t sigB = H({l, l, l, l, l, l, l, r}, {});
+  // On ARM64, sigA has 1 untagged stack slot, padded to 2.
+  // sigB has 1 untagged stack slot and 1 tagged stack slot (total 2).
+  // The bug was that sigA's padding slot was counted as tagged.
+  EXPECT_NE(sigA, sigB) << "arm64 padding slot counted as tagged stack param";
 }
 
 #endif  // V8_ENABLE_SANDBOX

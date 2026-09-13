@@ -7,6 +7,7 @@
 type DateTimeStyle extends int32
     constexpr 'JSDateTimeFormat::DateTimeStyle';
 type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
+@cppScope('JSDateTimeFormat')
 bitfield struct JSDateTimeFormatFlags extends uint31 {
   hour_cycle: HourCycle: 3 bit;
   date_style: DateTimeStyle: 3 bit;
@@ -16,6 +17,7 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
   explicit_components_in_options: int32: 11 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDateTimeFormat extends JSObject {
   locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>

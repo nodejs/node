@@ -182,8 +182,8 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     DCHECK(ValidateCallbackInfo(info));
     if (!IsValidConnectSessionArgs(info)) return;
     v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-    std::unique_ptr<FrontendChannelImpl> channel =
-        std::make_unique<FrontendChannelImpl>(
+    std::shared_ptr<FrontendChannelImpl> channel =
+        std::make_shared<FrontendChannelImpl>(
             InspectorIsolateData::FromContext(context)->task_runner(),
             InspectorIsolateData::FromContext(context)->GetContextGroupId(
                 context),
@@ -465,9 +465,9 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     isolate->ThrowError("Getter is called");
   }
 
-  static void AccessorSetter(v8::Local<v8::Name> property,
-                             v8::Local<v8::Value> value,
-                             const v8::PropertyCallbackInfo<void>& info) {
+  static void AccessorSetter(
+      v8::Local<v8::Name> property, v8::Local<v8::Value> value,
+      const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     isolate->ThrowError("Setter is called");
   }

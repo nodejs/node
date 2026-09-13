@@ -130,6 +130,30 @@ TEST(RunSelectWord32AddOvf) {
   }
 }
 
+TEST(RunSelectWord32AddNotOvf) {
+  for (int64_t k = -50; k < 50; k++) {
+    int64_t v_true = k % 5, v_false = k % 11;
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int32(),
+                                                 MachineType::Int32());
+    if (!m.machine()->Word64Select().IsSupported()) {
+      return;
+    }
+    Node* cal = m.Int32AddWithOverflow(m.Parameter(0), m.Parameter(1));
+    Node* ovf = m.Projection(1, cal);
+    Node* not_ovf = m.Word32Equal(ovf, m.Int32Constant(0));
+    m.Return(m.Word64Select(not_ovf, m.Int64Constant(v_true),
+                            m.Int64Constant(v_false)));
+    int result;
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        CHECK_EQ(m.Call(i, j), base::bits::SignedAddOverflow32(i, j, &result)
+                                   ? v_false
+                                   : v_true);
+      }
+    }
+  }
+}
+
 TEST(RunSelectWord32SubOvf) {
   for (int64_t k = -50; k < 50; k++) {
     int64_t v_true = k % 5, v_false = k % 11;
@@ -148,6 +172,30 @@ TEST(RunSelectWord32SubOvf) {
         CHECK_EQ(m.Call(i, j), base::bits::SignedSubOverflow32(i, j, &result)
                                    ? v_true
                                    : v_false);
+      }
+    }
+  }
+}
+
+TEST(RunSelectWord32SubNotOvf) {
+  for (int64_t k = -50; k < 50; k++) {
+    int64_t v_true = k % 5, v_false = k % 11;
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int32(),
+                                                 MachineType::Int32());
+    if (!m.machine()->Word64Select().IsSupported()) {
+      return;
+    }
+    Node* cal = m.Int32SubWithOverflow(m.Parameter(0), m.Parameter(1));
+    Node* ovf = m.Projection(1, cal);
+    Node* not_ovf = m.Word32Equal(ovf, m.Int32Constant(0));
+    m.Return(m.Word64Select(not_ovf, m.Int64Constant(v_true),
+                            m.Int64Constant(v_false)));
+    int result;
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        CHECK_EQ(m.Call(i, j), base::bits::SignedSubOverflow32(i, j, &result)
+                                   ? v_false
+                                   : v_true);
       }
     }
   }
@@ -176,6 +224,30 @@ TEST(RunSelectWord32MulOvf) {
   }
 }
 
+TEST(RunSelectWord32MulNotOvf) {
+  for (int64_t k = -50; k < 50; k++) {
+    int64_t v_true = k % 5, v_false = k % 11;
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int32(),
+                                                 MachineType::Int32());
+    if (!m.machine()->Word64Select().IsSupported()) {
+      return;
+    }
+    Node* cal = m.Int32MulWithOverflow(m.Parameter(0), m.Parameter(1));
+    Node* ovf = m.Projection(1, cal);
+    Node* not_ovf = m.Word32Equal(ovf, m.Int32Constant(0));
+    m.Return(m.Word64Select(not_ovf, m.Int64Constant(v_true),
+                            m.Int64Constant(v_false)));
+    int result;
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        CHECK_EQ(m.Call(i, j), base::bits::SignedMulOverflow32(i, j, &result)
+                                   ? v_false
+                                   : v_true);
+      }
+    }
+  }
+}
+
 TEST(RunSelectWord64AddOvf) {
   for (int64_t k = -50; k < 50; k++) {
     int64_t v_true = k % 5, v_false = k % 11;
@@ -194,6 +266,30 @@ TEST(RunSelectWord64AddOvf) {
         CHECK_EQ(m.Call(i, j), base::bits::SignedAddOverflow64(i, j, &result)
                                    ? v_true
                                    : v_false);
+      }
+    }
+  }
+}
+
+TEST(RunSelectWord64AddNotOvf) {
+  for (int64_t k = -50; k < 50; k++) {
+    int64_t v_true = k % 5, v_false = k % 11;
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                                 MachineType::Int64());
+    if (!m.machine()->Word64Select().IsSupported()) {
+      return;
+    }
+    Node* cal = m.Int64AddWithOverflow(m.Parameter(0), m.Parameter(1));
+    Node* ovf = m.Projection(1, cal);
+    Node* not_ovf = m.Word32Equal(ovf, m.Int32Constant(0));
+    m.Return(m.Word64Select(not_ovf, m.Int64Constant(v_true),
+                            m.Int64Constant(v_false)));
+    int64_t result;
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(m.Call(i, j), base::bits::SignedAddOverflow64(i, j, &result)
+                                   ? v_false
+                                   : v_true);
       }
     }
   }
@@ -222,6 +318,30 @@ TEST(RunSelectWord64SubOvf) {
   }
 }
 
+TEST(RunSelectWord64SubNotOvf) {
+  for (int64_t k = -50; k < 50; k++) {
+    int64_t v_true = k % 5, v_false = k % 11;
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                                 MachineType::Int64());
+    if (!m.machine()->Word64Select().IsSupported()) {
+      return;
+    }
+    Node* cal = m.Int64SubWithOverflow(m.Parameter(0), m.Parameter(1));
+    Node* ovf = m.Projection(1, cal);
+    Node* not_ovf = m.Word32Equal(ovf, m.Int32Constant(0));
+    m.Return(m.Word64Select(not_ovf, m.Int64Constant(v_true),
+                            m.Int64Constant(v_false)));
+    int64_t result;
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(m.Call(i, j), base::bits::SignedSubOverflow64(i, j, &result)
+                                   ? v_false
+                                   : v_true);
+      }
+    }
+  }
+}
+
 TEST(RunSelectWord64MulOvf) {
   for (int64_t k = -50; k < 50; k++) {
     int64_t v_true = k % 5, v_false = k % 11;
@@ -240,6 +360,30 @@ TEST(RunSelectWord64MulOvf) {
         CHECK_EQ(m.Call(i, j), base::bits::SignedMulOverflow64(i, j, &result)
                                    ? v_true
                                    : v_false);
+      }
+    }
+  }
+}
+
+TEST(RunSelectWord64MulNotOvf) {
+  for (int64_t k = -50; k < 50; k++) {
+    int64_t v_true = k % 5, v_false = k % 11;
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                                 MachineType::Int64());
+    if (!m.machine()->Word64Select().IsSupported()) {
+      return;
+    }
+    Node* cal = m.Int64MulWithOverflow(m.Parameter(0), m.Parameter(1));
+    Node* ovf = m.Projection(1, cal);
+    Node* not_ovf = m.Word32Equal(ovf, m.Int32Constant(0));
+    m.Return(m.Word64Select(not_ovf, m.Int64Constant(v_true),
+                            m.Int64Constant(v_false)));
+    int64_t result;
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(m.Call(i, j), base::bits::SignedMulOverflow64(i, j, &result)
+                                   ? v_false
+                                   : v_true);
       }
     }
   }

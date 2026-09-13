@@ -18,7 +18,7 @@ function doTest(scripts, expectedError) {
 
 var tests = [
   {
-    // ES#sec-globaldeclarationinstantiation 5.a:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.a:
     // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
     // exception.
     scripts: [
@@ -28,7 +28,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-globaldeclarationinstantiation 6.a:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 6.a:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
     scripts: [
@@ -38,7 +38,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-globaldeclarationinstantiation 5.b:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.b:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
     scripts: [
@@ -48,7 +48,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-evaldeclarationinstantiation 5.a.i.1:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 5.a.i.1:
     // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
     scripts: [
@@ -57,7 +57,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-evaldeclarationinstantiation 5.a.i.1:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 5.a.i.1:
     // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
     scripts: [
@@ -66,7 +66,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-evaldeclarationinstantiation 5.d.ii.2.a.i:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 5.d.ii.2.a.i:
     // Throw a SyntaxError exception.
     scripts: [
       '(function() { let a; eval("var a;"); })();',
@@ -74,7 +74,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-evaldeclarationinstantiation 5.d.ii.2.a.i:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 5.d.ii.2.a.i:
     // Throw a SyntaxError exception.
     scripts: [
       '(function() { let a; eval("function a() {}"); })();',
@@ -82,7 +82,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-globaldeclarationinstantiation 5.d:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
     scripts: [
       'let NaN;',
@@ -90,7 +90,7 @@ var tests = [
     expectedError: "SyntaxError",
   },
   {
-    // ES#sec-globaldeclarationinstantiation 5.d:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
     scripts: [
       'function NaN() {}',
@@ -99,7 +99,7 @@ var tests = [
   },
 
   {
-    // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 8.a.iv.1.b:
     // If fnDefinable is false, throw a TypeError exception.
     scripts: [
       'eval("function NaN() {}");',
@@ -107,7 +107,7 @@ var tests = [
     expectedError: "TypeError",
   },
   {
-    // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 8.a.iv.1.b:
     // If fnDefinable is false, throw a TypeError exception.
     scripts: [
       `
@@ -121,7 +121,7 @@ var tests = [
     expectedError: "TypeError",
   },
   {
-    // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 8.a.iv.1.b:
     // If fnDefinable is false, throw a TypeError exception.
     scripts: [
       `

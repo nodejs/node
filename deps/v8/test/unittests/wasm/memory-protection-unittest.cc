@@ -86,7 +86,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
     WasmDetectedFeatures detected_features;
     ModuleResult result =
         DecodeWasmModule(WasmEnabledFeatures::All(), bytes.as_vector(), false,
-                         kWasmOrigin, &detected_features);
+                         &detected_features);
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");

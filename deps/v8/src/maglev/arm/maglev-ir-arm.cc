@@ -126,8 +126,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   Register result_string = ToRegister(result());
   if (Int32Constant* constant =
           CharCodeInput().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value() & 0xFFFF;
-    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+    uint32_t char_code = constant->value() & 0xFFFF;
+    if (char_code <= String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       DCHECK_NE(scratch, result_string);
@@ -439,8 +439,8 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): peephole optimise division by a constant.
 
   // Pre-check for overflow, since idiv throws a division exception on overflow
-  // rather than setting the overflow flag. Logic copied from
-  // effect-control-linearizer.cc
+  // rather than setting the overflow flag. Logic is identical to
+  // REDUCE(WordBinopDeoptOnOverflow) in machine-lowering-reducer-inl.h
 
   // Check if {right} is positive (and not zero).
   __ cmp(right, Operand(0));
@@ -552,7 +552,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //   deopt if lhs < 0  // Minus zero.
   //   0
   //
-  // Using same algorithm as in EffectControlLinearizer:
+  // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
@@ -796,6 +796,15 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ vabs(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  UseScratchRegisterScope temps(masm);
+  SwVfpRegister temp_vfps = temps.AcquireS();
+  __ vcvt_f32_f64(temp_vfps, input);
+  __ vcvt_f64_f32(result, temp_vfps);
+}
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -823,6 +832,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ vrintp(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ vrintm(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ vrintz(out, in);
   }
 }
 
@@ -847,11 +858,20 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -868,11 +888,20 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -944,7 +973,7 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
                         AbortReason::kUnexpectedValue);
   }
   __ LoadBoundedSizeFromObject(result_register, object,
-                               JSTypedArray::kRawByteLengthOffset);
+                               offsetof(JSArrayBufferView, raw_byte_length_));
   int shift_size = ElementsKindToShiftSize(elements_kind_);
   if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
@@ -1109,11 +1138,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register budget = temps.Acquire();
-  __ ldr(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ ldr(budget, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
   __ sub(budget, budget, Operand(amount), SetCC);
-  __ str(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ str(budget, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);
   __ bind(*done);

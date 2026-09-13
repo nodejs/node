@@ -1,0 +1,14 @@
+header: byteswap.h
+standards:
+  - linux
+macros:
+  - macro_name: bswap_16
+    macro_header: byteswap-macros.h
+  - macro_name: bswap_32
+    macro_header: byteswap-macros.h
+  - macro_name: bswap_64
+    macro_header: byteswap-macros.h
+types: []
+enums: []
+objects: []
+functions: []

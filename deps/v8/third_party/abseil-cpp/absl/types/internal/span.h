@@ -23,7 +23,6 @@
 
 #include "absl/algorithm/algorithm.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -55,7 +54,7 @@ constexpr auto GetData(C& c) noexcept  // NOLINT(runtime/references)
 // Detection idioms for size() and data().
 template <typename C>
 using HasSize =
-    std::is_integral<absl::decay_t<decltype(std::declval<C&>().size())>>;
+    std::is_integral<std::decay_t<decltype(std::declval<C&>().size())>>;
 
 // We want to enable conversion from vector<T*> to Span<const T* const> but
 // disable conversion from vector<Derived> to Span<Base>. Here we use
@@ -65,13 +64,13 @@ using HasSize =
 // which returns a reference.
 template <typename T, typename C>
 using HasData =
-    std::is_convertible<absl::decay_t<decltype(GetData(std::declval<C&>()))>*,
+    std::is_convertible<std::decay_t<decltype(GetData(std::declval<C&>()))>*,
                         T* const*>;
 
 // Extracts value type from a Container
 template <typename C>
 struct ElementType {
-  using type = typename absl::remove_reference_t<C>::value_type;
+  using type = typename std::remove_reference_t<C>::value_type;
 };
 
 template <typename T, size_t N>
@@ -83,26 +82,24 @@ template <typename C>
 using ElementT = typename ElementType<C>::type;
 
 template <typename T>
-using EnableIfMutable =
-    typename std::enable_if<!std::is_const<T>::value, int>::type;
+using EnableIfMutable = std::enable_if_t<!std::is_const_v<T>, int>;
 
 template <template <typename> class SpanT, typename T>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool EqualImpl(SpanT<T> a, SpanT<T> b) {
-  static_assert(std::is_const<T>::value, "");
+constexpr bool EqualImpl(SpanT<T> a, SpanT<T> b) {
+  static_assert(std::is_const_v<T>, "");
   return std::equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
 template <template <typename> class SpanT, typename T>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool LessThanImpl(SpanT<T> a, SpanT<T> b) {
+constexpr bool LessThanImpl(SpanT<T> a, SpanT<T> b) {
   // We can't use value_type since that is remove_cv_t<T>, so we go the long way
   // around.
-  static_assert(std::is_const<T>::value, "");
+  static_assert(std::is_const_v<T>, "");
   return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
 }
 
 template <typename From, typename To>
-using EnableIfConvertibleTo =
-    typename std::enable_if<std::is_convertible<From, To>::value>::type;
+using EnableIfConvertibleTo = std::enable_if_t<std::is_convertible_v<From, To>>;
 
 // IsView is true for types where the return type of .data() is the same for
 // mutable and const instances. This isn't foolproof, but it's only used to
@@ -114,8 +111,8 @@ struct IsView {
 
 template <typename T>
 struct IsView<
-    T, absl::void_t<decltype(span_internal::GetData(std::declval<const T&>()))>,
-    absl::void_t<decltype(span_internal::GetData(std::declval<T&>()))>> {
+    T, std::void_t<decltype(span_internal::GetData(std::declval<const T&>()))>,
+    std::void_t<decltype(span_internal::GetData(std::declval<T&>()))>> {
  private:
   using Container = std::remove_const_t<T>;
   using ConstData =
@@ -123,7 +120,7 @@ struct IsView<
   using MutData = decltype(span_internal::GetData(std::declval<Container&>()));
 
  public:
-  static constexpr bool value = std::is_same<ConstData, MutData>::value;
+  static constexpr bool value = std::is_same_v<ConstData, MutData>;
 };
 
 // These enablers result in 'int' so they can be used as typenames or defaults

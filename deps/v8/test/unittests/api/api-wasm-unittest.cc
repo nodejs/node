@@ -16,6 +16,7 @@
 #include "src/handles/global-handles.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-module.h"
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -124,22 +125,6 @@ void WasmStreamingMoreFunctionsCanBeSerializedCallback(
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
-TEST_F(ApiWasmTest, GetWasmMemoryReservationSizeInBytes) {
-  constexpr size_t kCapacity = 64 * 1024;  // 64 KiB
-  size_t reservation = V8::GetWasmMemoryReservationSizeInBytes(
-      V8::WasmMemoryType::kMemory32, kCapacity);
-  size_t reservation64 = V8::GetWasmMemoryReservationSizeInBytes(
-      V8::WasmMemoryType::kMemory64, kCapacity);
-
-#if V8_TRAP_HANDLER_SUPPORTED
-  EXPECT_GE(reservation, kCapacity);
-  EXPECT_GE(reservation64, kCapacity);
-#else
-  EXPECT_EQ(reservation, kCapacity);
-  EXPECT_EQ(reservation64, kCapacity);
-#endif  // V8_TRAP_HANDLER_SUPPORTED
-}
-
 TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
@@ -181,9 +166,105 @@ TEST_F(ApiWasmTest, WasmStreamingAbortWithoutReject) {
 TEST_F(ApiWasmTest, WasmCompileToWasmModuleObject) {
   Local<Context> context = Context::New(isolate());
   Context::Scope context_scope(context);
-  auto maybe_module = WasmModuleObject::Compile(
-      isolate(), {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)});
+  auto maybe_module =
+      WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes);
   CHECK(!maybe_module.IsEmpty());
+}
+
+namespace {
+// Number of imports reflected by `WebAssembly.Module.imports`. Compile-time
+// imports are bound during compilation and are not reflected here.
+int ReflectedImportCount(Isolate* isolate, Local<WasmModuleObject> module) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::DirectHandle<i::WasmModuleObject> module_object =
+      i::Cast<i::WasmModuleObject>(Utils::OpenDirectHandle(*module));
+  i::DirectHandle<i::JSArray> imports =
+      i::wasm::GetImports(i_isolate, module_object);
+  return static_cast<int>(i::Object::NumberValue(imports->length()));
+}
+}  // namespace
+
+TEST_F(ApiWasmTest, WasmCompileWithJsStringBuiltins) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  // Imports `charCodeAt` from the "wasm:js-string" builtins module with the
+  // signature (externref, i32) -> i32, matching the builtin.
+  const uint8_t valid_module[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(1),
+              SIG_ENTRY_x_xx(kI32Code, kExternRefCode, kI32Code)),
+      SECTION(Import, ENTRY_COUNT(1),
+              // module name: "wasm:js-string"
+              14, 'w', 'a', 's', 'm', ':', 'j', 's', '-', 's', 't', 'r', 'i',
+              'n', 'g',
+              // field name: "charCodeAt"
+              10, 'c', 'h', 'a', 'r', 'C', 'o', 'd', 'e', 'A', 't',
+              kExternalFunction, 0)};
+  // The same import but declaring an i64 result, which no builtin provides.
+  const uint8_t invalid_module[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(1),
+              SIG_ENTRY_x_xx(kI64Code, kExternRefCode, kI32Code)),
+      SECTION(Import, ENTRY_COUNT(1), 14, 'w', 'a', 's', 'm', ':', 'j', 's',
+              '-', 's', 't', 'r', 'i', 'n', 'g', 10, 'c', 'h', 'a', 'r', 'C',
+              'o', 'd', 'e', 'A', 't', kExternalFunction, 0)};
+
+  WasmModuleObject::CompileTimeImports imports;
+  imports.builtins = WasmModuleObject::CompileTimeImports::Builtins::kJsString;
+
+  // Without compile-time imports the "wasm:js-string" import is an ordinary
+  // import resolved at instantiation, so it is reflected and both modules
+  // compile.
+  Local<WasmModuleObject> plain =
+      WasmModuleObject::Compile(isolate(), valid_module).ToLocalChecked();
+  CHECK_EQ(1, ReflectedImportCount(isolate(), plain));
+  CHECK(!WasmModuleObject::Compile(isolate(), invalid_module).IsEmpty());
+
+  // With the builtins enabled the valid import is bound at compile time, so it
+  // is no longer reflected.
+  Local<WasmModuleObject> bound =
+      WasmModuleObject::Compile(isolate(), valid_module, imports)
+          .ToLocalChecked();
+  CHECK_EQ(0, ReflectedImportCount(isolate(), bound));
+
+  // The invalid signature is rejected at compile time.
+  {
+    TryCatch try_catch(isolate());
+    CHECK(WasmModuleObject::Compile(isolate(), invalid_module, imports)
+              .IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+}
+
+TEST_F(ApiWasmTest, WasmCompileWithImportedStringConstants) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  // Imports an externref global "foo" from the "strings" module, which is
+  // turned into a string constant when the constants module is provided.
+  const uint8_t module[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Import, ENTRY_COUNT(1),
+              // module name: "strings"
+              7, 's', 't', 'r', 'i', 'n', 'g', 's',
+              // field name: "foo"
+              3, 'f', 'o', 'o', kExternalGlobal, kExternRefCode, 0)};
+
+  // Without a constants module the global is an ordinary reflected import.
+  Local<WasmModuleObject> plain =
+      WasmModuleObject::Compile(isolate(), module).ToLocalChecked();
+  CHECK_EQ(1, ReflectedImportCount(isolate(), plain));
+
+  // Naming "strings" as the constants module binds the import at compile time,
+  // so it is no longer reflected.
+  WasmModuleObject::CompileTimeImports imports;
+  imports.imported_string_constants_module = "strings";
+  Local<WasmModuleObject> bound =
+      WasmModuleObject::Compile(isolate(), module, imports).ToLocalChecked();
+  CHECK_EQ(0, ReflectedImportCount(isolate(), bound));
 }
 
 TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
@@ -246,8 +327,8 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
       v8::Utils::OpenDirectHandle(*context_local);
   // Test enabling/disabling via flag.
   {
-    i::FlagScope<bool> flag_descriptors(
-        &i::v8_flags.experimental_wasm_custom_descriptors, true);
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        true);
     EXPECT_TRUE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
 
     // When flag is on, callback return value has no effect.
@@ -263,8 +344,8 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
                     .has_custom_descriptors());
   }
   {
-    i::FlagScope<bool> flag_descriptors(
-        &i::v8_flags.experimental_wasm_custom_descriptors, false);
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        false);
     EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
 
     // Test enabling/disabling via callback.
@@ -273,6 +354,14 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
     EXPECT_TRUE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
     EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
                     .has_custom_descriptors());
+    {
+      // Test that the kill switch overrides any Origin Trial.
+      i::FlagScope<bool> flag_kill_switch(
+          &i::v8_flags.wasm_custom_descriptors_permitted, false);
+      EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
+      EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                       .has_custom_descriptors());
+    }
     isolate()->SetWasmCustomDescriptorsEnabledCallback(
         [](auto) { return false; });
     EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
@@ -315,6 +404,22 @@ TEST_F(ApiWasmTest, WasmModuleCompilation_Basic) {
   CHECK(!module_object.IsEmpty());
   CHECK(!try_catch.HasCaught());
   CHECK(!isolate()->HasPendingException());
+}
+
+TEST_F(ApiWasmTest, GetWasmMemoryReservationSizeInBytes) {
+  constexpr size_t kCapacity = 64 * 1024;  // 64 KiB
+  size_t reservation = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory32, kCapacity);
+  size_t reservation64 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory64, kCapacity);
+
+#if V8_TRAP_HANDLER_SUPPORTED
+  EXPECT_GE(reservation, kCapacity);
+  EXPECT_GE(reservation64, kCapacity);
+#else
+  EXPECT_EQ(reservation, kCapacity);
+  EXPECT_EQ(reservation64, kCapacity);
+#endif  // V8_TRAP_HANDLER_SUPPORTED
 }
 
 TEST_F(ApiWasmTest, WasmModuleCompilation_MultiThreaded) {

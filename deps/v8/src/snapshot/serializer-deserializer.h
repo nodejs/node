@@ -33,7 +33,7 @@ class SerializerDeserializer : public RootVisitor {
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   /* Free range 0x22..0x2f */                                     \
-                  V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
+                          V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
@@ -78,7 +78,7 @@ class SerializerDeserializer : public RootVisitor {
 
   enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x1f ----------
+    // ---------- byte code range 0x00..0x22 ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
@@ -142,6 +142,12 @@ class SerializerDeserializer : public RootVisitor {
     // simply introduce this new bytecode.
     kNewContextlessMetaMap,
     kNewContextfulMetaMap,
+    // Extended maps store their actual size in bit_field_ex_, which would be
+    // written after tagged fields without special handling. As a result
+    // during deserialization of those tagged fields GC might happen and
+    // observe an extended map with not-yet initialized size.
+    // This bytecode must be serialized right after the map field.
+    kExtendedMapBitFieldEx,
     // When the sandbox is enabled, a prefix indicating that the following
     // object is referenced through an indirect pointer, i.e. through an entry
     // in a pointer table.

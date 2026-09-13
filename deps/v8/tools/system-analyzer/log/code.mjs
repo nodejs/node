@@ -23,6 +23,10 @@ class CodeString {
 }
 
 export class DeoptLogEntry extends LogEntry {
+  static get typeName() {
+    return 'deopt';
+  }
+
   constructor(
       type, time, entry, deoptReason, deoptLocation, scriptOffset,
       instructionStart, codeSize, inliningId) {
@@ -44,12 +48,47 @@ export class DeoptLogEntry extends LogEntry {
     this.fileSourcePosition = undefined;
   }
 
+  toDetailJSON() {
+    let loc = this.location;
+    if (typeof loc === 'string' && loc.startsWith('<') && loc.endsWith('>')) {
+      loc = loc.substring(1, loc.length - 1);
+    }
+
+    const res = {
+      ...super.toDetailJSON(),
+      reason: this.reason,
+      location: loc,
+      scriptOffset: this.scriptOffset,
+      instructionStart: this.instructionStart,
+      codeSize: this.codeSize,
+      inliningId: this.inliningId
+    };
+
+    return res;
+  }
+
   get reason() {
     return this._reason;
   }
 
   get location() {
     return this._location;
+  }
+
+  get scriptOffset() {
+    return this._scriptOffset;
+  }
+
+  get instructionStart() {
+    return this._instructionStart;
+  }
+
+  get codeSize() {
+    return this._codeSize;
+  }
+
+  get inliningId() {
+    return this._inliningId;
   }
 
   get entry() {
@@ -96,6 +135,10 @@ class CodeLikeLogEntry extends LogEntry {
 }
 
 export class CodeLogEntry extends CodeLikeLogEntry {
+  static get typeName() {
+    return 'code';
+  }
+
   constructor(type, time, kindName, kind, name, profilerEntry) {
     super(type, time, profilerEntry);
     this._kind = kind;
@@ -105,6 +148,23 @@ export class CodeLogEntry extends CodeLikeLogEntry {
     this._feedbackVector = undefined;
     /** @type {string} */
     this._name = name;
+  }
+
+  toDetailJSON() {
+    const source = this.entry?.getSourceCode();
+    const related = this.relatedEntries();
+
+    return {
+      ...super.toDetailJSON(),
+      name: this.name,
+      kindName: this.kindName,
+      size: this.size,
+      sourceLines: source?.split('\n') ?? [],
+      code: this.code ?? '',
+      related: related?.map(entry => entry.toString()) ?? [],
+      invocationCount: this.feedbackVector?.invocationCount ?? 0,
+      profilerTicks: this.feedbackVector?.profilerTicks ?? 0
+    };
   }
 
   get name() {

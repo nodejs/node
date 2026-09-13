@@ -20,12 +20,15 @@
 #include <cstddef>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 
 namespace {
 
@@ -46,9 +49,7 @@ TEST(StatusCode, InsertionOperator) {
 // its creator, and its classifier.
 struct ErrorTest {
   absl::StatusCode code;
-  using Creator = absl::Status (*)(
-      absl::string_view
-  );
+  using Creator = absl::Status (*)(absl::string_view, absl::SourceLocation);
   using Classifier = bool (*)(const absl::Status&);
   Creator creator;
   Classifier classifier;
@@ -90,9 +91,8 @@ TEST(Status, CreateAndClassify) {
     // expected error code and message.
     std::string message =
         absl::StrCat("error code ", test.code, " test message");
-    absl::Status status = test.creator(
-        message
-    );
+    absl::Status status =
+        test.creator(message, absl::SourceLocation::current());
     EXPECT_EQ(test.code, status.code());
     EXPECT_EQ(message, status.message());
 
@@ -342,32 +342,45 @@ TEST(Status, OstreamOperator) {
   absl::Status status(absl::StatusCode::kInternal, "fail");
   { std::stringstream stream;
     stream << status;
-    EXPECT_EQ("INTERNAL: fail", stream.str());
+    EXPECT_THAT(stream.str(),
+                AllOf(HasSubstr("INTERNAL: fail"),
+                      HasSubstr("status_test.cc:")));
   }
   status.SetPayload("foo", absl::Cord("bar"));
   { std::stringstream stream;
     stream << status;
-    EXPECT_EQ("INTERNAL: fail [foo='bar']", stream.str());
+    EXPECT_THAT(stream.str(),
+                AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+                      HasSubstr("status_test.cc:")));
   }
   status.SetPayload("bar", absl::Cord("\377"));
   { std::stringstream stream;
     stream << status;
     EXPECT_THAT(stream.str(),
                 AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                      HasSubstr("[bar='\\xff']")));
+                      HasSubstr("[bar='\\xff']"),
+                      HasSubstr("status_test.cc:")));
   }
 }
 
 TEST(Status, AbslStringify) {
   absl::Status status(absl::StatusCode::kInternal, "fail");
-  EXPECT_EQ("INTERNAL: fail", absl::StrCat(status));
-  EXPECT_EQ("INTERNAL: fail", absl::StrFormat("%v", status));
+  EXPECT_THAT(absl::StrCat(status),
+              AllOf(HasSubstr("INTERNAL: fail"),
+                    HasSubstr("status_test.cc:")));
+  EXPECT_THAT(absl::StrFormat("%v", status),
+              AllOf(HasSubstr("INTERNAL: fail"),
+                    HasSubstr("status_test.cc:")));
+  EXPECT_EQ(absl::StrCat(status), absl::StrFormat("%v", status));
   status.SetPayload("foo", absl::Cord("bar"));
-  EXPECT_EQ("INTERNAL: fail [foo='bar']", absl::StrCat(status));
+  EXPECT_THAT(absl::StrCat(status),
+              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+                    HasSubstr("status_test.cc:")));
   status.SetPayload("bar", absl::Cord("\377"));
   EXPECT_THAT(absl::StrCat(status),
               AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
-                    HasSubstr("[bar='\\xff']")));
+                    HasSubstr("[bar='\\xff']"),
+                    HasSubstr("status_test.cc:")));
 }
 
 TEST(Status, OstreamEqStringify) {
@@ -575,6 +588,423 @@ TEST(StatusErrno, ErrnoToStatus) {
   absl::Status status = absl::ErrnoToStatus(ENOENT, "Cannot open 'path'");
   EXPECT_EQ(status.code(), absl::StatusCode::kNotFound);
   EXPECT_EQ(status.message(), "Cannot open 'path': No such file or directory");
+}
+
+#ifdef ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE
+#define GET_SOURCE_LOCATION(offset) __builtin_LINE() - offset
+#else
+#define GET_SOURCE_LOCATION(offset) 1
+#endif
+
+void CheckSourceLocation(
+    const absl::Status& status, std::vector<int> lines = {},
+    absl::SourceLocation loc = absl::SourceLocation::current()) {
+  ASSERT_EQ(status.GetSourceLocations().size(), lines.size())
+      << "Size check failed at " << loc.line();
+  for (size_t i = 0; i < lines.size(); ++i) {
+    EXPECT_EQ(absl::string_view(status.GetSourceLocations()[i].file_name()),
+              absl::string_view(loc.file_name()))
+        << "File name check failed at " << loc.line();
+    EXPECT_EQ(status.GetSourceLocations()[i].line(), lines[i])
+        << "Line check failed at " << loc.line();
+  }
+}
+
+TEST(Status, ConstructorCheckSourceLocation) {
+  {
+    const absl::Status a;
+    const absl::Status b = a;
+    for (const absl::Status& status : {a, b}) {
+      EXPECT_TRUE(status.ok());
+      EXPECT_EQ(absl::StatusCode::kOk, status.code());
+      CheckSourceLocation(status);
+    }
+  }
+  {
+    const absl::Status a(absl::StatusCode::kInternal, "message",
+                         absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    const absl::Status b = a;
+    for (const absl::Status& status : {a, b}) {
+      EXPECT_FALSE(status.ok());
+      EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+      CheckSourceLocation(status, {line});
+    }
+  }
+  {
+    const absl::Status a(absl::StatusCode::kInternal, "message",
+                         absl::SourceLocation());
+    const absl::Status b = a;
+    for (const absl::Status& status : {a, b}) {
+      EXPECT_FALSE(status.ok());
+      EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+      CheckSourceLocation(status);
+    }
+  }
+  {
+    const absl::Status a(absl::StatusCode::kInternal, "",
+                         absl::SourceLocation::current());
+    const absl::Status b = a;
+    for (const absl::Status& status : {a, b}) {
+      EXPECT_FALSE(status.ok());
+      EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+      CheckSourceLocation(status);
+    }
+  }
+  {
+    const absl::Status a(absl::StatusCode::kInternal, "",
+                         absl::SourceLocation());
+    const absl::Status b = a;
+    for (const absl::Status& status : {a, b}) {
+      EXPECT_FALSE(status.ok());
+      EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+      CheckSourceLocation(status);
+    }
+  }
+}
+
+TEST(Status, SourceLocationConstructor) {
+  {
+    // OK status doesn't save source locations.
+    const absl::Status original;
+    const absl::Status status(original, absl::SourceLocation());
+    EXPECT_TRUE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kOk, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // OK status doesn't save source locations.
+    const absl::Status original;
+    const absl::Status status(original, absl::SourceLocation::current());
+    EXPECT_TRUE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kOk, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-ok Status with non-empty msg can save source locations with
+    // non-nullptr filename.
+    const absl::Status original(absl::StatusCode::kInternal, "message",
+                                absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    // Default absl::SourceLocation cannot be saved into the chain.
+    const absl::Status status(original, absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status, {line});
+  }
+  {
+    const absl::Status original(absl::StatusCode::kInternal, "message",
+                                absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+
+    const absl::Status status(original, absl::SourceLocation::current());
+    int line2 = GET_SOURCE_LOCATION(1);
+
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status, {line, line2});
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations.
+    const absl::Status original(absl::StatusCode::kInternal, "",
+                                absl::SourceLocation::current());
+    const absl::Status status(original, absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations.
+    const absl::Status original(absl::StatusCode::kInternal, "",
+                                absl::SourceLocation::current());
+    const absl::Status status(original, absl::SourceLocation::current());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations from default
+    // constructor.
+    const absl::Status original(absl::StatusCode::kInternal, "",
+                                absl::SourceLocation());
+    const absl::Status status(original, absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations.
+    const absl::Status original(absl::StatusCode::kInternal, "",
+                                absl::SourceLocation());
+    const absl::Status status(original, absl::SourceLocation::current());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    const absl::Status original(absl::StatusCode::kInternal, "message",
+                                absl::SourceLocation());
+    const absl::Status status(original, absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    const absl::Status original(absl::StatusCode::kInternal, "message",
+                                absl::SourceLocation());
+    const absl::Status status(original, absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status, {line});
+  }
+}
+
+TEST(Status, SourceLocationWithMoveConstructor) {
+  {
+    // OK status doesn't save source locations.
+    absl::Status original;
+    const absl::Status status(std::move(original), absl::SourceLocation());
+    EXPECT_TRUE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kOk, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // OK status doesn't save source locations.
+    absl::Status original;
+    const absl::Status status(std::move(original),
+                              absl::SourceLocation::current());
+    EXPECT_TRUE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kOk, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-ok Status with non-empty msg can save source locations with
+    // non-nullptr filename.
+    absl::Status original(absl::StatusCode::kInternal, "message",
+                          absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    // Default absl::SourceLocation cannot be saved into the chain.
+    const absl::Status status(std::move(original), absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status, {line});
+  }
+  {
+    absl::Status original(absl::StatusCode::kInternal, "message",
+                          absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+
+    const absl::Status status(std::move(original),
+                              absl::SourceLocation::current());
+    int line2 = GET_SOURCE_LOCATION(1);
+
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status, {line, line2});
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations.
+    absl::Status original(absl::StatusCode::kInternal, "",
+                          absl::SourceLocation::current());
+    const absl::Status status(std::move(original), absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations.
+    absl::Status original(absl::StatusCode::kInternal, "",
+                          absl::SourceLocation::current());
+    const absl::Status status(std::move(original),
+                              absl::SourceLocation::current());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations from default
+    // constructor.
+    absl::Status original(absl::StatusCode::kInternal, "",
+                          absl::SourceLocation());
+    const absl::Status status(std::move(original), absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    // Non-OK status with empty msg doesn't save source locations.
+    absl::Status original(absl::StatusCode::kInternal, "",
+                          absl::SourceLocation());
+    const absl::Status status(std::move(original),
+                              absl::SourceLocation::current());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    absl::Status original(absl::StatusCode::kInternal, "message",
+                          absl::SourceLocation());
+    const absl::Status status(std::move(original), absl::SourceLocation());
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status);
+  }
+  {
+    absl::Status original(absl::StatusCode::kInternal, "message",
+                          absl::SourceLocation());
+    const absl::Status status(std::move(original),
+                              absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+    CheckSourceLocation(status, {line});
+  }
+}
+
+TEST(Status, AddSourceLocation) {
+  int max_iter = 10;
+  {
+    // Status that ignores source location.
+    absl::Status status_ignores_source_location[] = {
+        absl::Status(),
+        absl::Status(absl::StatusCode::kInternal, "")};
+    for (absl::Status& s : status_ignores_source_location) {
+      for (int i = 0; i < max_iter; ++i) {
+        s.AddSourceLocation(absl::SourceLocation::current());
+        s.AddSourceLocation(absl::SourceLocation());
+      }
+      CheckSourceLocation(s);
+    }
+  }
+  {
+    // Default SourceLocation is not added.
+    absl::Status status(absl::StatusCode::kInternal, "foo",
+                        absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    for (int i = 0; i < max_iter; ++i) {
+      status.AddSourceLocation(absl::SourceLocation());
+    }
+    CheckSourceLocation(status, {line});
+  }
+  {
+    // Default SourceLocation is not added.
+    absl::Status status(absl::StatusCode::kInternal, "foo",
+                        absl::SourceLocation::current());
+    int line = GET_SOURCE_LOCATION(1);
+    std::vector<int> lines = {line};
+    lines.reserve(1 + max_iter);
+    for (int i = 0; i < max_iter; ++i) {
+      status.AddSourceLocation(absl::SourceLocation::current());
+      lines.push_back(GET_SOURCE_LOCATION(1));
+    }
+    CheckSourceLocation(status, lines);
+  }
+}
+
+TEST(Status, WithSourceLocationCopy) {
+  absl::Status original(absl::StatusCode::kInternal, "message",
+                        absl::SourceLocation::current());
+  int line = GET_SOURCE_LOCATION(1);
+
+  const absl::Status status =
+      original.WithSourceLocation(absl::SourceLocation::current());
+  int line2 = GET_SOURCE_LOCATION(1);
+
+  CheckSourceLocation(original, {line});
+  CheckSourceLocation(status, {line, line2});
+  EXPECT_EQ(original, status);
+}
+
+absl::Status&& IsRvalueStatus(absl::Status&& s) { return std::move(s); }
+
+TEST(Status, WithSourceLocationMove) {
+  absl::Status original(absl::StatusCode::kInternal, "message",
+                        absl::SourceLocation::current());
+  int line = GET_SOURCE_LOCATION(1);
+
+  const absl::Status status = IsRvalueStatus(
+      std::move(original).WithSourceLocation(absl::SourceLocation::current()));
+  int line2 = GET_SOURCE_LOCATION(1);
+
+  CheckSourceLocation(status, {line, line2});
+  EXPECT_FALSE(status.ok());
+  EXPECT_EQ(absl::StatusCode::kInternal, status.code());
+}
+
+TEST(Status, CopyOnWriteSourceLocations) {
+  absl::Status source(absl::StatusCode::kInvalidArgument, "fail",
+                      absl::SourceLocation::current());
+  EXPECT_EQ(source.GetSourceLocations().size(), 1);
+  absl::Status copy = source;
+  EXPECT_EQ(copy.GetSourceLocations().size(), 1);
+  copy.AddSourceLocation(absl::SourceLocation::current());  // Copy rep.
+  EXPECT_EQ(copy.GetSourceLocations().size(), 2);
+  EXPECT_EQ(source.GetSourceLocations().size(), 1);
+}
+
+TEST(Status, SourceLocationToStringMode) {
+  absl::Status s(absl::StatusCode::kInternal, "fail",
+                 absl::SourceLocation::current());
+  int line = GET_SOURCE_LOCATION(1);
+  std::string source_location_string = "\n=== Source Location Trace: ===";
+  std::string source_location_stack = absl::StrCat(
+      absl::SourceLocation::current().file_name(), ":", line, "\n");
+
+  s.SetPayload("foo", absl::Cord("bar"));
+
+  EXPECT_EQ("INTERNAL: fail",
+            s.ToString(absl::StatusToStringMode::kWithNoExtraData));
+
+  EXPECT_EQ("INTERNAL: fail",
+            s.ToString(~absl::StatusToStringMode::kWithSourceLocation &
+                       ~absl::StatusToStringMode::kWithPayload));
+  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithSourceLocation |
+                         absl::StatusToStringMode::kWithPayload),
+              AllOf(HasSubstr("INTERNAL: fail [foo='bar']"),
+                    HasSubstr(source_location_string),
+                    HasSubstr(source_location_stack)));
+
+  s.SetPayload("bar", absl::Cord("\377"));
+
+  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithEverything),
+              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+                    HasSubstr("[bar='\\xff']"),
+                    HasSubstr(source_location_string),
+                    HasSubstr(source_location_stack)));
+  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithPayload |
+                         absl::StatusToStringMode::kWithSourceLocation),
+              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+                    HasSubstr("[bar='\\xff']"),
+                    HasSubstr(source_location_string),
+                    HasSubstr(source_location_stack)));
+  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithSourceLocation),
+              AllOf(HasSubstr("INTERNAL: fail"), Not(HasSubstr("[foo='bar']")),
+                    Not(HasSubstr("[bar='\\xff']")),
+                    HasSubstr(source_location_string),
+                    HasSubstr(source_location_stack)));
+  EXPECT_THAT(s.ToString(absl::StatusToStringMode::kWithPayload),
+              AllOf(HasSubstr("INTERNAL: fail"), HasSubstr("[foo='bar']"),
+                    HasSubstr("[bar='\\xff']"),
+                    Not(HasSubstr(source_location_string)),
+                    Not(HasSubstr(source_location_stack))));
+}
+
+TEST(Status, StackTracePayloadOverflow) {
+  // Stack must have the same layout as status_internal::StackTracePayload.
+  struct Stack {
+    size_t size;
+    void* frames[20];
+  } stack;
+  stack.size = 200;  // Overflows frames.
+
+  absl::Status status = absl::CancelledError();
+  status.SetPayload("AbslStatusStackTracePayload",
+                    absl::Cord(absl::string_view(
+                        reinterpret_cast<const char*>(&stack), sizeof(stack))));
+
+  // An unchecked overflow should be detected by ASAN/MSAN on the next line.
+  static_cast<void>(status.ToString(absl::StatusToStringMode::kWithEverything));
 }
 
 }  // namespace

@@ -53,7 +53,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
-    Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
+    Tagged<DescriptorArray> descriptors = map->instance_descriptors();
     DCHECK(descriptors->IsSortedNoDuplicates());
     int nof_descriptors = descriptors->number_of_descriptors();
 
@@ -88,7 +88,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 
     for (size_t i = 0; i < maps.size(); ++i) {
       Tagged<Map> expected_map = *maps[i];
-      Tagged<Name> name = expected_map->instance_descriptors(isolate)->GetKey(
+      Tagged<Name> name = expected_map->instance_descriptors()->GetKey(
           expected_map->LastAdded());
 
       Tagged<Map> map = transitions->SearchAndGetTargetForTesting(
@@ -102,7 +102,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   if (!v8_flags.jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
       DirectHandle<Map> expected_map = maps[i];
-      Handle<Name> name(expected_map->instance_descriptors(isolate)->GetKey(
+      Handle<Name> name(expected_map->instance_descriptors()->GetKey(
                             expected_map->LastAdded()),
                         isolate);
 
@@ -122,7 +122,7 @@ DirectHandle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
-  Handle<JSFunction> result_function(JSFunction{}, isolate);
+  Handle<JSFunction> result_function(Tagged<JSFunction>{}, isolate);
 
   const int kNumParams = 2;
 
@@ -167,7 +167,7 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
-  Handle<JSFunction> result_function(JSFunction{}, isolate);
+  Handle<JSFunction> result_function(Tagged<JSFunction>{}, isolate);
 
   const int kNumParams = 2;
   compiler::CodeAssemblerTester asm_tester(isolate,
@@ -257,7 +257,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(isolate)->Sort();
+  map->instance_descriptors()->Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
@@ -308,7 +308,7 @@ TEST(DescriptorArrayHashCollision) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(isolate)->Sort();
+  map->instance_descriptors()->Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 

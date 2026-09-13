@@ -564,6 +564,12 @@ class Simulator : public SimulatorBase {
   inline int32_t fd_reg() const { return instr_.FdValue(); }
   inline int32_t sa() const { return instr_.SaValue(); }
   inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
+  // Variable shifts and rotates take their distance from the low bits of rs:
+  // GPR[rs]4..0 for the word forms, GPR[rs]5..0 for the doubleword forms.
+  // Masking is not just an optimization here; the generated code may hold any
+  // value in rs, and shifting a C++ int by more than its width is undefined.
+  inline uint32_t shift_amount_w() const { return rs_u() & 0x1f; }
+  inline uint32_t shift_amount_d() const { return rs_u() & 0x3f; }
   inline int32_t ws_reg() const { return instr_.WsValue(); }
   inline int32_t wt_reg() const { return instr_.WtValue(); }
   inline int32_t wd_reg() const { return instr_.WdValue(); }

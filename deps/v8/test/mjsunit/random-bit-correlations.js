@@ -4,9 +4,9 @@
 
 // Overwrite the random seed provided by the test runner to make this test less
 // flaky. Due to flag contradiction checking, this requires
-// --allow-overwriting-for-next-flag to avoid an error.
-// Flags: --allow-overwriting-for-next-flag --random-seed=20
+// --flag-processing-mode=ignore-contradictions to avoid an error.
 // Flags: --predictable
+// Flags: --flag-processing-mode=ignore-contradictions --random-seed=20
 
 (function() {
   var kHistory = 2;

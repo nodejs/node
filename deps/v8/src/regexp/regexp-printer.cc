@@ -11,33 +11,33 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-RegExpDiagnostics::RegExpDiagnostics(std::ostream& os, Zone* zone)
-    : os_(os), zone_(zone) {}
-RegExpDiagnostics::~RegExpDiagnostics() = default;
+Diagnostics::Diagnostics(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
+Diagnostics::~Diagnostics() = default;
 
-void RegExpDiagnostics::set_graph_labeller(
-    std::unique_ptr<RegExpGraphLabeller<RegExpNode>> graph_labeller) {
+void Diagnostics::set_graph_labeller(
+    std::unique_ptr<GraphLabeller<Node>> graph_labeller) {
   graph_labeller_ = std::move(graph_labeller);
 }
 
-void RegExpDiagnostics::set_tree_labeller(
-    std::unique_ptr<RegExpGraphLabeller<RegExpTree>> tree_labeller) {
+void Diagnostics::set_tree_labeller(
+    std::unique_ptr<GraphLabeller<Tree>> tree_labeller) {
   tree_labeller_ = std::move(tree_labeller);
 }
 
-void RegExpDiagnostics::set_graph_printer(
-    std::unique_ptr<RegExpGraphPrinter> graph_printer) {
+void Diagnostics::set_graph_printer(
+    std::unique_ptr<GraphPrinter> graph_printer) {
   graph_printer_ = std::move(graph_printer);
 }
 
-void RegExpDiagnostics::set_ast_printer(
-    std::unique_ptr<RegExpAstNodePrinter> ast_printer) {
+void Diagnostics::set_ast_printer(std::unique_ptr<AstNodePrinter> ast_printer) {
   ast_printer_ = std::move(ast_printer);
 }
 #endif
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

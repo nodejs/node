@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --wasm-wrapper-tiering-budget=1
+// Flags: --wasm-wrapper-tiering-budget=1
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -18,7 +18,7 @@ builder.addFunction("test", makeSig([wasmRefType(sig0)], []))
 
 let instance = builder.instantiate();
 
-let tier_up = new WebAssembly.Function(
+let tier_up = new WebAssemblyFunction(
     {parameters: [], results: []}, (() => {}).bind(null));
 
 // Bug #1: make sure we compile a wrapper that doesn't crash when called.
@@ -27,10 +27,10 @@ instance.exports.test(tier_up);
 
 // Bug #2: make sure we don't retrieve the wrong wrapper from the cache.
 let prepare_wrapper =
-    new WebAssembly.Function({parameters: [], results: []}, () => 42);
+    new WebAssemblyFunction({parameters: [], results: []}, () => 42);
 instance.exports.test(prepare_wrapper);
 instance.exports.test(prepare_wrapper);
-let use_cached_wrapper = new WebAssembly.Function(
+let use_cached_wrapper = new WebAssemblyFunction(
     {parameters: [], results: []}, (() => {}).bind(null));
 instance.exports.test(use_cached_wrapper);
 instance.exports.test(use_cached_wrapper);

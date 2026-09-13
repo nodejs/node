@@ -14,106 +14,81 @@
 
 #include "absl/strings/internal/resize_uninitialized.h"
 
+#include <cstddef>
+#include <limits>
+
 #include "gtest/gtest.h"
 
 namespace {
 
 int resize_call_count = 0;
-int append_call_count = 0;
 
 // A mock string class whose only purpose is to track how many times its
-// resize()/append() methods have been called.
+// resize() method has been called.
 struct resizable_string {
   using value_type = char;
+  using size_type = size_t;
   size_t size() const { return 0; }
   size_t capacity() const { return 0; }
-  char& operator[](size_t) {
-    static char c = '\0';
-    return c;
-  }
+  char* data() { return buffer; }
+  char& operator[](size_t) { return buffer[0]; }
   void resize(size_t) { resize_call_count += 1; }
-  void append(size_t, value_type) { append_call_count += 1; }
   void reserve(size_t) {}
   resizable_string& erase(size_t = 0, size_t = 0) { return *this; }
+  size_t max_size() const { return std::numeric_limits<size_t>::max(); }
+  char buffer[1] = {};
 };
 
 int resize_default_init_call_count = 0;
-int append_default_init_call_count = 0;
 
 // A mock string class whose only purpose is to track how many times its
-// resize()/__resize_default_init()/append()/__append_default_init() methods
-// have been called.
+// resize()/__resize_default_init() methods have been called.
 struct default_init_string {
+  using value_type = char;
+  using size_type = size_t;
   size_t size() const { return 0; }
   size_t capacity() const { return 0; }
-  char& operator[](size_t) {
-    static char c = '\0';
-    return c;
-  }
+  char* data() { return buffer; }
+  char& operator[](size_t) { return buffer[0]; }
   void resize(size_t) { resize_call_count += 1; }
   void __resize_default_init(size_t) { resize_default_init_call_count += 1; }
-  void __append_default_init(size_t) { append_default_init_call_count += 1; }
   void reserve(size_t) {}
   default_init_string& erase(size_t = 0, size_t = 0) { return *this; }
+  size_t max_size() const { return std::numeric_limits<size_t>::max(); }
+  char buffer[1];
 };
 
 TEST(ResizeUninit, WithAndWithout) {
   resize_call_count = 0;
-  append_call_count = 0;
   resize_default_init_call_count = 0;
-  append_default_init_call_count = 0;
   {
     resizable_string rs;
 
     EXPECT_EQ(resize_call_count, 0);
-    EXPECT_EQ(append_call_count, 0);
     EXPECT_EQ(resize_default_init_call_count, 0);
-    EXPECT_EQ(append_default_init_call_count, 0);
     EXPECT_FALSE(
         absl::strings_internal::STLStringSupportsNontrashingResize(&rs));
     EXPECT_EQ(resize_call_count, 0);
-    EXPECT_EQ(append_call_count, 0);
     EXPECT_EQ(resize_default_init_call_count, 0);
-    EXPECT_EQ(append_default_init_call_count, 0);
     absl::strings_internal::STLStringResizeUninitialized(&rs, 237);
     EXPECT_EQ(resize_call_count, 1);
-    EXPECT_EQ(append_call_count, 0);
     EXPECT_EQ(resize_default_init_call_count, 0);
-    EXPECT_EQ(append_default_init_call_count, 0);
-    absl::strings_internal::STLStringResizeUninitializedAmortized(&rs, 1000);
-    EXPECT_EQ(resize_call_count, 1);
-    EXPECT_EQ(append_call_count, 1);
-    EXPECT_EQ(resize_default_init_call_count, 0);
-    EXPECT_EQ(append_default_init_call_count, 0);
   }
 
   resize_call_count = 0;
-  append_call_count = 0;
   resize_default_init_call_count = 0;
-  append_default_init_call_count = 0;
   {
     default_init_string rus;
 
     EXPECT_EQ(resize_call_count, 0);
-    EXPECT_EQ(append_call_count, 0);
     EXPECT_EQ(resize_default_init_call_count, 0);
-    EXPECT_EQ(append_default_init_call_count, 0);
     EXPECT_TRUE(
         absl::strings_internal::STLStringSupportsNontrashingResize(&rus));
     EXPECT_EQ(resize_call_count, 0);
-    EXPECT_EQ(append_call_count, 0);
     EXPECT_EQ(resize_default_init_call_count, 0);
-    EXPECT_EQ(append_default_init_call_count, 0);
     absl::strings_internal::STLStringResizeUninitialized(&rus, 237);
     EXPECT_EQ(resize_call_count, 0);
-    EXPECT_EQ(append_call_count, 0);
     EXPECT_EQ(resize_default_init_call_count, 1);
-    EXPECT_EQ(append_default_init_call_count, 0);
-    absl::strings_internal::STLStringResizeUninitializedAmortized(&rus, 1000);
-    EXPECT_EQ(resize_call_count, 0);
-    EXPECT_EQ(append_call_count, 0);
-    EXPECT_EQ(resize_default_init_call_count, 1);
-    EXPECT_EQ(append_default_init_call_count, 1);
   }
 }
 

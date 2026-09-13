@@ -49,7 +49,8 @@
 //   * A `FormatSpec` class template fully encapsulates a format string and its
 //     type arguments and is usually provided to `str_format` functions as a
 //     variadic argument of type `FormatSpec<Arg...>`. The `FormatSpec<Args...>`
-//     template is evaluated at compile-time, providing type safety.
+//     template is evaluated at compile-time, providing type safety (supported
+//     on GCC and Clang; on MSVC, these checks are deferred to runtime).
 //   * A `ParsedFormat` instance, which encapsulates a specific, pre-compiled
 //     format string for a specific set of type(s), and which can be passed
 //     between API boundaries. (The `FormatSpec` type should not be used
@@ -275,7 +276,9 @@ class FormatCountCapture {
 // any string-like argument, so `std::string`, `std::wstring`,
 // `absl::string_view`, `const char*`, and `const wchar_t*` are all accepted.
 // Likewise, `%d` accepts any integer-like argument, etc.
-
+//
+// Note: Compile-time format string checking is supported on GCC and
+// Clang. On MSVC, these checks are performed at runtime instead.
 template <typename... Args>
 using FormatSpec = str_format_internal::FormatSpecTemplate<
     str_format_internal::ArgumentToConv<Args>()...>;
@@ -497,9 +500,8 @@ class FormatRawSink {
  public:
   // Implicitly convert from any type that provides the hook function as
   // described above.
-  template <typename T,
-            typename = typename std::enable_if<std::is_constructible<
-                str_format_internal::FormatRawSinkImpl, T*>::value>::type>
+  template <typename T, typename = std::enable_if_t<std::is_constructible_v<
+                            str_format_internal::FormatRawSinkImpl, T*>>>
   FormatRawSink(T* absl_nonnull raw)  // NOLINT
       : sink_(raw) {}
 

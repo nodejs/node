@@ -1,0 +1,13 @@
+Tests Runtime.evaluate returns object with undefined property.
+CommandLineAPI can be overridden by Object.defineProperty:
+{
+    description : 239
+    type : number
+    value : 239
+}
+CommandLineAPI doesn't override Object.defineProperty:
+{
+    description : 239
+    type : number
+    value : 239
+}

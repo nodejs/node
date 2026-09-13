@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --reuse-scope-infos --expose-gc --stress-flush-code
+// Flags: --expose-gc --stress-flush-code
 
   function executeCode(code) {
     if (typeof code === 'function') return code();

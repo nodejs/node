@@ -20,9 +20,14 @@
 // inclusion by foreach_target.h.
 
 // Add to #if conditions to prevent IDE from graying out code.
+// Note for clangd users: There is no predefined macro in clangd, so you must
+// manually add these two lines (without the preceding '// ') to your project's
+// `.clangd` file:
+// CompileFlags:
+//   Add: [-D__CLANGD__]
 #if (defined __CDT_PARSER__) || (defined __INTELLISENSE__) || \
     (defined Q_CREATOR_RUN) || (defined __CLANGD__) ||        \
-    (defined GROK_ELLIPSIS_BUILD)
+    (defined GROK_ELLIPSIS_BUILD) || (defined __JETBRAINS_IDE__)
 #define HWY_IDE 1
 #else
 #define HWY_IDE 0
@@ -187,19 +192,30 @@
 #define HWY_CXX_LANG __cplusplus
 #endif
 
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
-#define HWY_CXX17_CONSTEXPR constexpr
-#else
-#define HWY_CXX17_CONSTEXPR
-#endif
-
+// Use instead of constexpr to avoid compiler errors for older compilers. This
+// macro is for when a constexpr function involves multiple statements and
+// loops, which is allowed in C++14 but not before. If the compiler does not
+// support C++14 constexpr, this evaluates to nothing.
 #if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
 #define HWY_CXX14_CONSTEXPR constexpr
 #else
 #define HWY_CXX14_CONSTEXPR
 #endif
 
-#if HWY_CXX_LANG >= 201703L
+// Same as above, but for C++17 constexpr, which adds support for lambdas, the
+// standard library, and capturing *this.
+// Note that C++17 constexpr still disallows allocating and virtual functions,
+// which are allowed in C++20, but we do not have a use case yet.
+#if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
+#define HWY_CXX17_CONSTEXPR constexpr
+#else
+#define HWY_CXX17_CONSTEXPR
+#endif
+
+// Use instead of `if constexpr` to avoid compiler errors for older compilers.
+// When compilers lack C++17 support, this evaluates to a normal if statement.
+#if HWY_CXX_LANG >= 201703L || \
+    (defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L)
 #define HWY_IF_CONSTEXPR if constexpr
 #else
 #define HWY_IF_CONSTEXPR if
@@ -215,6 +231,58 @@
 #else
 #define HWY_INLINE_VAR
 #endif
+#endif
+
+//------------------------------------------------------------------------------
+// Sanitizers
+
+#if HWY_HAS_FEATURE(memory_sanitizer) || defined(MEMORY_SANITIZER) || \
+    defined(__SANITIZE_MEMORY__)
+#define HWY_IS_MSAN 1
+#else
+#define HWY_IS_MSAN 0
+#endif
+
+#if HWY_HAS_FEATURE(address_sanitizer) || defined(ADDRESS_SANITIZER) || \
+    defined(__SANITIZE_ADDRESS__)
+#define HWY_IS_ASAN 1
+#else
+#define HWY_IS_ASAN 0
+#endif
+
+#if HWY_HAS_FEATURE(hwaddress_sanitizer) || defined(HWADDRESS_SANITIZER) || \
+    defined(__SANITIZE_HWADDRESS__)
+#define HWY_IS_HWASAN 1
+#else
+#define HWY_IS_HWASAN 0
+#endif
+
+#if HWY_HAS_FEATURE(thread_sanitizer) || defined(THREAD_SANITIZER) || \
+    defined(__SANITIZE_THREAD__)
+#define HWY_IS_TSAN 1
+#else
+#define HWY_IS_TSAN 0
+#endif
+
+#if HWY_HAS_FEATURE(undefined_behavior_sanitizer) || \
+    defined(UNDEFINED_BEHAVIOR_SANITIZER)
+#define HWY_IS_UBSAN 1
+#else
+#define HWY_IS_UBSAN 0
+#endif
+
+// MSAN may cause lengthy build times or false positives e.g. in AVX3 DemoteTo.
+// You can disable MSAN by adding this attribute to the function that fails.
+#if HWY_IS_MSAN
+#define HWY_ATTR_NO_MSAN __attribute__((no_sanitize_memory))
+#else
+#define HWY_ATTR_NO_MSAN
+#endif
+
+#if HWY_IS_ASAN || HWY_IS_HWASAN || HWY_IS_MSAN || HWY_IS_TSAN || HWY_IS_UBSAN
+#define HWY_IS_SANITIZER 1
+#else
+#define HWY_IS_SANITIZER 0
 #endif
 
 //------------------------------------------------------------------------------
@@ -347,11 +415,34 @@
 #define HWY_ARCH_LOONGARCH 0
 #endif
 
+#if defined(__hexagon__) || defined(__HEXAGON_ARCH__)
+#define HWY_ARCH_HEXAGON 1
+#else
+#define HWY_ARCH_HEXAGON 0
+#endif
+
 // It is an error to detect multiple architectures at the same time, but OK to
 // detect none of the above.
-#if (HWY_ARCH_X86 + HWY_ARCH_PPC + HWY_ARCH_ARM + HWY_ARCH_ARM_OLD + \
-     HWY_ARCH_WASM + HWY_ARCH_RISCV + HWY_ARCH_S390X + HWY_ARCH_LOONGARCH) > 1
+#if (HWY_ARCH_X86 + HWY_ARCH_PPC + HWY_ARCH_ARM + HWY_ARCH_ARM_OLD +        \
+     HWY_ARCH_WASM + HWY_ARCH_RISCV + HWY_ARCH_S390X + HWY_ARCH_LOONGARCH + \
+     HWY_ARCH_HEXAGON) > 1
 #error "Must not detect more than one architecture"
+#endif
+
+#if HWY_ARCH_RISCV
+#define HWY_ARCH_MAX_BYTES 65536
+#elif HWY_ARCH_ARM_A64
+#define HWY_ARCH_MAX_BYTES 256
+#elif HWY_ARCH_HEXAGON
+#define HWY_ARCH_MAX_BYTES 128
+#elif HWY_ARCH_X86
+#define HWY_ARCH_MAX_BYTES 64
+#elif HWY_ARCH_WASM || HWY_ARCH_LOONGARCH
+#define HWY_ARCH_MAX_BYTES 32
+#elif HWY_ARCH_PPC || HWY_ARCH_S390X || HWY_ARCH_ARM_V7 || HWY_ARCH_ARM_OLD
+#define HWY_ARCH_MAX_BYTES 16
+#else
+#error "Missing case for HWY_ARCH_*"
 #endif
 
 //------------------------------------------------------------------------------
@@ -415,6 +506,22 @@
 
 #if (HWY_IS_LITTLE_ENDIAN + HWY_IS_BIG_ENDIAN) != 1
 #error "Must only detect one byte order"
+#endif
+
+//------------------------------------------------------------------------------
+// Features checked in set_macros-inl.h
+
+// Compiler supports ACLE __bf16, not necessarily with operators.
+//
+// Disable the __bf16 type on AArch64 with GCC 13 or earlier as there is a bug
+// in GCC 13 and earlier that sometimes causes BF16 constant values to be
+// incorrectly loaded on AArch64, and this GCC bug on AArch64 is
+// described at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111867.
+#if HWY_ARCH_ARM_A64 && \
+    (HWY_COMPILER_CLANG >= 1700 || HWY_COMPILER_GCC_ACTUAL >= 1400)
+#define HWY_ARM_HAVE_SCALAR_BF16_TYPE 1
+#else
+#define HWY_ARM_HAVE_SCALAR_BF16_TYPE 0
 #endif
 
 #endif  // HIGHWAY_HWY_DETECT_COMPILER_ARCH_H_

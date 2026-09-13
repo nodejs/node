@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-generic-wrapper --expose-gc --allow-natives-syntax
-// Flags: --experimental-wasm-stack-switching
 
 // Test the stack-switching export wrapper in combination with the generic
 // import wrapper, in particular to test that the generic wrapper switches to

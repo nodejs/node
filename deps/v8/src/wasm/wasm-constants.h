@@ -23,6 +23,8 @@ constexpr uint32_t kWasmMagic = 0x6d736100;
 constexpr uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of value and heap types.
+// TODO(manoskouk): The spec now defines kWaitQueueCode as 0x68 which is the
+// same as kContRefCode. Fix it when the spec adjusts.
 enum ValueTypeCode : uint8_t {
   // Current value types
   kVoidCode = 0x40,
@@ -56,10 +58,13 @@ enum ValueTypeCode : uint8_t {
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
+  // The following two are tentative, waiting for spec finalization.
+  kWaitqueueRefCode = 0x5c,  // -0x24
+  kNoWaitqueueCode = 0x5b,   // -0x25
 
   // For decoding, we build an array for all heap types with these bounds:
-  kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
-  kLastHeapTypeCode = kNoContCode,            // Highest assigned code.
+  kFirstHeapTypeCode = kNoWaitqueueCode,  // Lowest assigned code.
+  kLastHeapTypeCode = kNoContCode,        // Highest assigned code.
 };
 
 // Binary encoding of type definitions.
@@ -83,6 +88,11 @@ enum ImportExportKindCode : uint8_t {
   kExternalGlobal = 3,
   kExternalTag = 4,
   kExternalExactFunction = kExternalFunction | kExternalExactBit,
+};
+
+enum CompactImportCode : uint8_t {
+  kCompactImportByModule = 0x7F,
+  kCompactImportByModuleAndType = 0x7E,
 };
 
 // The limits structure: valid for both memory and table limits.
@@ -159,8 +169,6 @@ constexpr char kCallTargetsString[] = "metadata.code.call_targets";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
-// TODO(403372470): Rename to "descriptors" when finalized.
-constexpr char kDescriptorsString[] = "experimental-descriptors";
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {
@@ -240,7 +248,9 @@ constexpr int kMaxPolymorphism = 4;
 
 // A struct field beyond this limit needs an explicit null check (trapping null
 // access not guaranteed to behave properly).
+// LINT.IfChange(WasmMaxFieldIndexImplicitNullCheck)
 constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
+// LINT.ThenChange(/test/mjsunit/wasm/large-struct.js:WasmMaxFieldIndexImplicitNullCheck)
 
 // Compilation-hints proposal: This optimization-priority value signifies that
 // the function is only executed once, thus we only compile it eagerly with the
@@ -253,6 +263,15 @@ constexpr int kOptimizationPriorityNotSpecifiedSentinel = -1;
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif
+
+enum CWasmEntryParameters {
+  kCodeEntry,
+  kObjectRef,
+  kArgumentsBuffer,
+  kCEntryFp,
+  // marker:
+  kNumParameters
+};
 
 }  // namespace wasm
 }  // namespace internal

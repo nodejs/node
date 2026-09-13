@@ -5,6 +5,9 @@
 #ifndef V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_
 
+#include <stdint.h>
+
+#include "src/base/logging.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
@@ -477,6 +480,7 @@ class IntBinopWrapper {
       BINOP_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   T eval(T a, T b) const {
@@ -500,6 +504,7 @@ class IntBinopWrapper {
       case TurboshaftBinop::kWord64BitwiseXor:
         return a ^ b;
     }
+    UNREACHABLE();
   }
   TurboshaftBinop op;
 };
@@ -546,6 +551,7 @@ class CompareWrapper {
       COMPARE_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   bool Int32Compare(int32_t a, int32_t b) const {

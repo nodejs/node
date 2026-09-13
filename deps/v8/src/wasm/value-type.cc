@@ -39,7 +39,8 @@ static_assert(kWasmTop.is_top());
 static_assert(kWasmBottom.is_none_or_bottom());
 static_assert(kWasmNullRef.is_none_or_bottom());
 static_assert(kWasmRefNone.is_none_or_bottom());
-static_assert(ValueType::Generic(GenericKind::kNone, kNullable, true)
+static_assert(ValueType::Generic(GenericKind::kNone, kNullable,
+                                 SharedFlag{true})
                   .is_none_or_bottom());
 
 ValueTypeCode ValueTypeBase::value_type_code_numeric() const {

@@ -16,31 +16,18 @@ namespace internal {
 
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/struct-tq.inc"
-
 // An abstract superclass, a marker class really, for simple structure classes.
 // It doesn't carry any functionality but allows struct classes to be
 // identified in the type system.
-class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
+V8_OBJECT class Struct : public HeapObject {
  public:
   void BriefPrintDetails(std::ostream& os);
-  static_assert(kHeaderSize == HeapObject::kHeaderSize);
-
-  TQ_OBJECT_CONSTRUCTORS(Struct)
-};
-
-// Temporary mirror of Struct for subtypes with the new layout.
-V8_OBJECT class StructLayout : public HeapObjectLayout {
- public:
-  void BriefPrintDetails(std::ostream& os);
-
-  DECL_VERIFIER(Struct)
 
   using BodyDescriptor = StructBodyDescriptor;
 } V8_OBJECT_END;
-static_assert(sizeof(StructLayout) == sizeof(HeapObjectLayout));
+static_assert(sizeof(Struct) == sizeof(HeapObject));
 
-V8_OBJECT class Tuple2 : public StructLayout {
+V8_OBJECT class Tuple2 : public Struct {
  public:
   void BriefPrintDetails(std::ostream& os);
 
@@ -62,6 +49,7 @@ V8_OBJECT class Tuple2 : public StructLayout {
   DECL_PRINTER(Tuple2)
 
  private:
+  friend class CodeStubAssembler;
   friend class TorqueGeneratedTuple2Asserts;
   TaggedMember<Object> value1_;
   TaggedMember<Object> value2_;
@@ -73,7 +61,7 @@ V8_OBJECT class Tuple2 : public StructLayout {
 //   * a FunctionTemplateInfo: a real (lazy) accessor
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * null: an accessor which has not been set
-V8_OBJECT class AccessorPair : public StructLayout {
+V8_OBJECT class AccessorPair : public Struct {
  public:
   static DirectHandle<AccessorPair> Copy(Isolate* isolate,
                                          DirectHandle<AccessorPair> pair);
@@ -120,7 +108,7 @@ V8_OBJECT class AccessorPair : public StructLayout {
   TaggedMember<Object> setter_;
 } V8_OBJECT_END;
 
-V8_OBJECT class ClassPositions : public StructLayout {
+V8_OBJECT class ClassPositions : public Struct {
  public:
   inline int start() const;
   inline void set_start(int value);

@@ -10,4 +10,8 @@ specific_include_rules = {
   "bigint.h": [
     "-src/bigint",
   ],
+  "bigint-inl.h": [
+    "-src/bigint",
+    "+src/bigint/bigint.h",
+  ],
 }

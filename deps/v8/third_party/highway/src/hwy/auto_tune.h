@@ -263,11 +263,15 @@ class CostDistribution {
       OnlineNotify(copy[i]);
     }
     HWY_DASSERT(IsOnline());
+
+#if SIZE_MAX == 0xFFFFFFFFu
+    (void)padding_;
+#endif
   }
 
   size_t num_values_ = 0;  // size of `values_` <= `kMaxValues`
 #if SIZE_MAX == 0xFFFFFFFFu
-  HWY_MAYBE_UNUSED uint32_t padding_ = 0;
+  uint32_t padding_ = 0;
 #endif
 
   double online_n_ = 0.0;  // number of calls to `OnlineNotify`.
@@ -441,7 +445,7 @@ class AutoTune {
 
   // Returns the current `Config` to measure.
   const Config& NextConfig() const {
-    HWY_DASSERT(!Best() && HasCandidates());
+    HWY_DASSERT(HasCandidates());
     return candidates_[config_idx_];
   }
 

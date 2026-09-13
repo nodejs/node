@@ -41,13 +41,7 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   static constexpr bool kUseContiguousMemory = true;
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
-#if defined(V8_TARGET_OS_WIN)
-  // On windows the allocation granularity is 64KB and thus we cannot make a
-  // segment smaller than that.
   static constexpr bool kUseSegmentPool = false;
-#else
-  static constexpr bool kUseSegmentPool = kMinimumOSPageSize <= 16 * KB;
-#endif
   static constexpr size_t kSegmentSize = kUseSegmentPool ? 16 * KB : 64 * KB;
 #else
   // On 32 bit, segments are individually mapped.

@@ -39,13 +39,13 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 #include <string>
 
 #include "absl/base/casts.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 static constexpr uint8_t kUnhex[256] = {
     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,  //
@@ -85,10 +85,10 @@ static constexpr uint8_t kUnhex[256] = {
     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,  //
 };
 
-static absl::optional<std::string> ReadFileToString(const char* filename) {
+static std::optional<std::string> ReadFileToString(const char* filename) {
   FILE* f = fopen(filename, "rb");
   if (!f) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   fseek(f, 0, SEEK_END);
   size_t size = ftell(f);
@@ -97,13 +97,13 @@ static absl::optional<std::string> ReadFileToString(const char* filename) {
   size_t n = fread(&s[0], 1, size, f);
   fclose(f);
   if (n != size) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return s;
 }
 
 static bool ProcessOneTestFile(const char* filename) {
-  absl::optional<std::string> contents = ReadFileToString(filename);
+  std::optional<std::string> contents = ReadFileToString(filename);
   if (!contents) {
     absl::FPrintF(stderr, "Invalid file: %s\n", filename);
     return false;

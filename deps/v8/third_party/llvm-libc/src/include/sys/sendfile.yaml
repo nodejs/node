@@ -1,0 +1,11 @@
+header: sys/sendfile.h
+standards:
+  - linux
+functions:
+  - name: sendfile
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: int
+      - type: off_t *
+      - type: size_t

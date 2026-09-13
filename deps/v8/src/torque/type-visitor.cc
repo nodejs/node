@@ -59,21 +59,15 @@ const Type* TypeVisitor::ComputeType(TypeAliasDeclaration* decl,
 }
 
 namespace {
-std::string ComputeGeneratesType(std::optional<std::string> opt_gen,
-                                 bool enforce_tnode_type) {
+std::string ComputeGeneratesType(std::optional<std::string> opt_gen) {
   if (!opt_gen) return "";
-  const std::string& generates = *opt_gen;
-  if (enforce_tnode_type) {
-    return UnwrapTNodeTypeName(generates);
-  }
-  return generates;
+  return *opt_gen;
 }
 }  // namespace
 
 const AbstractType* TypeVisitor::ComputeType(
     AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from) {
-  std::string generates =
-      ComputeGeneratesType(decl->generates, !decl->IsConstexpr());
+  std::string generates = ComputeGeneratesType(decl->generates);
 
   const Type* parent_type = nullptr;
   if (decl->extends) {
@@ -211,6 +205,7 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
+            false,
             FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
@@ -280,34 +275,13 @@ const ClassType* TypeVisitor::ComputeType(
             " because superclass is neither @export or extern");
     }
   }
-  if ((flags & ClassFlag::kGenerateBodyDescriptor ||
-       flags & ClassFlag::kExport) &&
-      flags & ClassFlag::kUndefinedLayout) {
+  if ((flags & ClassFlag::kExport) && flags & ClassFlag::kUndefinedLayout) {
     Error("Class \"", decl->name->value,
           "\" requires a layout but doesn't have one");
   }
-  if (flags & ClassFlag::kGenerateUniqueMap) {
-    if (!(flags & ClassFlag::kExtern)) {
-      Error("No need to specify ", ANNOTATION_GENERATE_UNIQUE_MAP,
-            ", non-extern classes always have a unique map.");
-    }
-    if (flags & ClassFlag::kAbstract) {
-      Error(ANNOTATION_ABSTRACT, " and ", ANNOTATION_GENERATE_UNIQUE_MAP,
-            " shouldn't be used together, because abstract classes are never "
-            "instantiated.");
-    }
-  }
-  if ((flags & ClassFlag::kGenerateFactoryFunction) &&
-      (flags & ClassFlag::kAbstract)) {
-    Error(ANNOTATION_ABSTRACT, " and ", ANNOTATION_GENERATE_FACTORY_FUNCTION,
-          " shouldn't be used together, because abstract classes are never "
-          "instantiated.");
-  }
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
-      bool enforce_tnode_type = true;
-      std::string explicit_generates =
-          ComputeGeneratesType(decl->generates, enforce_tnode_type);
+      std::string explicit_generates = ComputeGeneratesType(decl->generates);
       if (explicit_generates == generates) {
         Lint("Unnecessary 'generates' clause for class ", decl->name->value);
       }
@@ -398,8 +372,9 @@ Signature TypeVisitor::MakeSignature(const CallableDeclaration* declaration) {
     definition_vector.push_back(def);
   }
   std::optional<std::string> arguments_variable;
-  if (declaration->parameters.has_varargs)
+  if (declaration->parameters.has_varargs) {
     arguments_variable = declaration->parameters.arguments_variable;
+  }
   Signature result{declaration->parameters.names,
                    arguments_variable,
                    {ComputeTypeVector(declaration->parameters.types),
@@ -438,6 +413,21 @@ void TypeVisitor::VisitClassFieldsAndMethods(
       }
     }
     std::optional<ClassFieldIndexInfo> array_length = field_expression.index;
+    bool index_is_constant = false;
+    if (array_length) {
+      if (IntegerLiteralExpression::DynamicCast(array_length->expr)) {
+        index_is_constant = true;
+      } else if (auto identifier =
+                     IdentifierExpression::DynamicCast(array_length->expr)) {
+        QualifiedName qualified_name{identifier->namespace_qualification,
+                                     identifier->name->value};
+        auto values = Declarations::TryLookup<Value>(qualified_name);
+        if (values.size() == 1 && (values[0]->IsNamespaceConstant() ||
+                                   values[0]->IsExternConstant())) {
+          index_is_constant = true;
+        }
+      }
+    }
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
          class_type,
@@ -446,6 +436,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.custom_weak_marking,
          field_expression.const_qualified,
+         index_is_constant,
          field_expression.synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {

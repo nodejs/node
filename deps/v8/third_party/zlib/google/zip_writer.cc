@@ -90,9 +90,12 @@ bool ZipWriter::CloseNewFileEntry() {
 }
 
 bool ZipWriter::AddFileEntry(const base::FilePath& path, base::File file) {
-  base::File::Info info;
-  if (!file.GetInfo(&info))
-    return false;
+  FileAccessor::Info info;
+  if (!file_accessor_->GetInfo(path, &info)) {
+    LOG(ERROR) << "Cannot get info: " << Redact(path);
+    progress_.errors++;
+    return continue_on_error_;
+  }
 
   if (!OpenNewFileEntry(path, /*is_directory=*/false, info.last_modified))
     return false;

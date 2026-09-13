@@ -20,13 +20,34 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-relative-time-format-tq-inl.inc"
+Tagged<String> JSRelativeTimeFormat::locale() const { return locale_.load(); }
+void JSRelativeTimeFormat::set_locale(Tagged<String> value,
+                                      WriteBarrierMode mode) {
+  locale_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat)
+Tagged<String> JSRelativeTimeFormat::numberingSystem() const {
+  return numberingSystem_.load();
+}
+void JSRelativeTimeFormat::set_numberingSystem(Tagged<String> value,
+                                               WriteBarrierMode mode) {
+  numberingSystem_.store(this, value, mode);
+}
 
-// Base relative time format accessors.
-ACCESSORS(JSRelativeTimeFormat, icu_formatter,
-          Tagged<Managed<icu::RelativeDateTimeFormatter>>, kIcuFormatterOffset)
+Tagged<Managed<icu::RelativeDateTimeFormatter>>
+JSRelativeTimeFormat::icu_formatter() const {
+  return Cast<Managed<icu::RelativeDateTimeFormatter>>(icu_formatter_.load());
+}
+void JSRelativeTimeFormat::set_icu_formatter(
+    Tagged<Managed<icu::RelativeDateTimeFormatter>> value,
+    WriteBarrierMode mode) {
+  icu_formatter_.store(this, value, mode);
+}
+
+int JSRelativeTimeFormat::flags() const { return flags_.load().value(); }
+void JSRelativeTimeFormat::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 inline void JSRelativeTimeFormat::set_numeric(Numeric numeric) {
   DCHECK(NumericBit::is_valid(numeric));

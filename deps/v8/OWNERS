@@ -20,6 +20,7 @@ per-file WATCHLISTS=file:COMMON_OWNERS
 # Needed by the auto_tag builder
 per-file WATCHLISTS=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com
 per-file DEPS=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com
+per-file DEPS=chromium-autoroll@skia-public.iam.gserviceaccount.com
 
 per-file ...-loong64*=file:LOONG_OWNERS
 per-file ...-mips*=file:MIPS_OWNERS

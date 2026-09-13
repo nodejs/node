@@ -462,7 +462,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32Extractps) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope41(&assm, SSE4_1);
@@ -493,7 +493,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32SSE) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     __ movss(xmm0, Operand(esp, kSystemPointerSize));
@@ -528,7 +528,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32SSE3) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, SSE3);
@@ -561,7 +561,7 @@ TEST_F(AssemblerIa32Test, AssemblerX64FMA_sd) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, FMA3);
@@ -786,7 +786,7 @@ TEST_F(AssemblerIa32Test, AssemblerX64FMA_ss) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, FMA3);
@@ -1009,7 +1009,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32BMI1) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, BMI1);
@@ -1115,7 +1115,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32LZCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, LZCNT);
@@ -1161,7 +1161,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32POPCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, POPCNT);
@@ -1207,7 +1207,7 @@ TEST_F(AssemblerIa32Test, AssemblerIa32BMI2) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[2048];
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&assm, BMI2);
@@ -1480,7 +1480,7 @@ TEST_F(AssemblerIa32Test, DeoptExitSizeIsFixed) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   uint8_t buffer[256];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
 
   static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);

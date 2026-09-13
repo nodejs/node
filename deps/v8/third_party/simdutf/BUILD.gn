@@ -15,6 +15,12 @@ source_set("simdutf") {
     "-Wno-unused-const-variable",
     "-Wno-unused-function",
   ]
+
+  # TODO(crbug.com/483020951): Replace this with `-Wno-array-bounds-member` if
+  # that gets implemented. Then patch simdutf and remove this completely.
+  # Upstream issue: https://github.com/simdutf/simdutf/issues/938
+  cflags = [ "-Wno-array-bounds" ]
+
   defines = []
   if (!allow_avx512) {
     defines += [ "SIMDUTF_IMPLEMENTATION_ICELAKE=0" ]

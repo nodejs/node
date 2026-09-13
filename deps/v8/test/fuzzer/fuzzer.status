@@ -35,4 +35,12 @@
   'wasm/module/regress-419922463.wasm': [PASS, SLOW]
 }],  # 'simulator_run and arch == ppc64'
 
+##############################################################################
+['msan == True', {
+  # Too slow.
+  'wasm/module/regress-406925416.wasm': [SKIP],
+  'wasm/module/regress-419085592.wasm': [SKIP],
+  'wasm/module/regress-419922463.wasm': [SKIP],
+}],  # 'msan == True'
+
 ]

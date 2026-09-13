@@ -20,7 +20,7 @@ class V8_EXPORT_PRIVATE WasmAddressReassociation final {
  public:
   WasmAddressReassociation(JSGraph* jsgraph, Zone* zone) {}
   void Optimize() {}
-  void VisitProtectedMemOp(Node* node, uint32_t effect_chain) {}
+  void VisitTrappingMemOp(Node* node, uint32_t effect_chain) {}
 };
 
 }  // namespace compiler
@@ -78,8 +78,8 @@ class MemoryOptimizer final {
   void VisitLoadFromObject(Node*, AllocationState const*, NodeId);
   void VisitLoadElement(Node*, AllocationState const*, NodeId);
   void VisitLoadField(Node*, AllocationState const*, NodeId);
-  void VisitProtectedLoad(Node*, AllocationState const*, NodeId);
-  void VisitProtectedStore(Node*, AllocationState const*, NodeId);
+  void VisitTrappingLoad(Node*, AllocationState const*, NodeId);
+  void VisitTrappingStore(Node*, AllocationState const*, NodeId);
   void VisitStoreToObject(Node*, AllocationState const*, NodeId);
   void VisitStoreElement(Node*, AllocationState const*, NodeId);
   void VisitStoreField(Node*, AllocationState const*, NodeId);

@@ -196,7 +196,7 @@ class TestDotF32BF16 {
       b[i] = ConvertScalarTo<T2>(GetLane(NaN(df1)));
     }
 
-    const double expected = SimpleDot(a, b, num);
+    double expected = SimpleDot(a, b, num);
     const double magnitude = expected > 0.0 ? expected : -expected;
     const double actual =
         ConvertScalarTo<double>(Dot::Compute<kAssumptions>(d, a, b, num));
@@ -204,8 +204,15 @@ class TestDotF32BF16 {
     HWY_ASSERT(-max <= actual && actual <= max);
     const double tolerance =
         64.0 * ConvertScalarTo<double>(Epsilon<T2>()) * HWY_MAX(magnitude, 1.0);
-    HWY_ASSERT(expected - tolerance <= actual &&
-               actual <= expected + tolerance);
+    // Workaround for GCC 15 bug causing test failure. Without this, the
+    // `expected` value is way off.
+#if HWY_COMPILER_GCC_ACTUAL
+    __asm__ volatile("" : "+r"(expected));
+#endif
+    if (!(expected - tolerance <= actual && actual <= expected + tolerance)) {
+      HWY_ABORT("expected: %E actual: %E tolerance: %E", expected, actual,
+                tolerance);
+    }
   }
 
   // Runs tests with various alignments.

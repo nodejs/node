@@ -50,6 +50,8 @@
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/source_location.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -86,6 +88,11 @@ class LogMessage {
   // Overrides the location inferred from the callsite.  The string pointed to
   // by `file` must be valid until the end of the statement.
   LogMessage& AtLocation(absl::string_view file, int line);
+  // `loc` doesn't default to `absl::SourceLocation::current()` here since the
+  // callsite is already the default location for `LOG` statements.
+  LogMessage& AtLocation(absl::SourceLocation loc) {
+    return AtLocation(loc.file_name(), static_cast<int>(loc.line()));
+  }
   // Omits the prefix from this line.  The prefix includes metadata about the
   // logged data such as source code location and timestamp.
   LogMessage& NoPrefix();
@@ -171,6 +178,13 @@ class LogMessage {
   // `const wchar_t*` is handled by `operator<< <const wchar_t*>`.
   LogMessage& operator<<(wchar_t* absl_nullable v);
   LogMessage& operator<<(wchar_t v);
+
+  // Overload for absl::SourceLocation or the std::source_location alias.
+  LogMessage& operator<<(const absl::SourceLocation& loc) {
+    OstreamView view(*data_);
+    view.stream() << loc.file_name() << ':' << loc.line();
+    return *this;
+  }
 
   // Handle stream manipulators e.g. std::endl.
   LogMessage& operator<<(std::ostream& (*absl_nonnull m)(std::ostream& os));

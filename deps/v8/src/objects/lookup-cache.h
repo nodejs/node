@@ -35,7 +35,7 @@ class DescriptorLookupCache {
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {
-      keys_[i].source = Tagged<Map>();
+      keys_[i].source = {};
       keys_[i].name = Tagged<Name>();
       results_[i] = kAbsent;
     }

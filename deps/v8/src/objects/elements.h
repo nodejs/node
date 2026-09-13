@@ -92,8 +92,9 @@ class ElementsAccessor {
 
   virtual Maybe<bool> CollectValuesOrEntries(
       Isolate* isolate, DirectHandle<JSObject> object,
-      DirectHandle<FixedArray> values_or_entries, bool get_entries,
-      uint32_t* nof_items, PropertyFilter filter = ALL_PROPERTIES) = 0;
+      DirectHandle<FixedArray> values_or_entries, uint32_t max_nof_items,
+      bool get_entries, uint32_t* nof_items,
+      PropertyFilter filter = ALL_PROPERTIES) = 0;
 
   virtual MaybeHandle<FixedArray> PrependElementIndices(
       Isolate* isolate, DirectHandle<JSObject> object,

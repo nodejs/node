@@ -8,11 +8,11 @@
 
 #include <string.h>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/div-helpers.h"
+#include "src/bigint/div-helpers-inl.h"
 #include "src/bigint/util.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -57,7 +57,10 @@ class BZ {
  public:
   BZ(ProcessorImpl* proc, uint32_t scratch_space)
       : proc_(proc),
-        scratch_mem_(scratch_space >= kBurnikelThreshold ? scratch_space : 0) {}
+        platform_(proc->platform()),
+        scratch_mem_(
+            scratch_space >= config::kBurnikelThreshold ? scratch_space : 0,
+            platform_) {}
 
   void DivideBasecase(RWDigits Q, RWDigits R, Digits A, Digits B);
   void D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B);
@@ -65,6 +68,7 @@ class BZ {
 
  private:
   ProcessorImpl* proc_;
+  Platform* platform_;
   Storage scratch_mem_;
 };
 
@@ -86,7 +90,9 @@ void BZ::DivideBasecase(RWDigits Q, RWDigits R, Digits A, Digits B) {
     return;
   }
   if (B.len() == 1) {
-    return proc_->DivideSingle(Q, R.digits(), A, B[0]);
+    DivideSingle(Q, R.digits(), A, B[0]);
+    proc_->AddWorkEstimate(A.len());
+    return;
   }
   return proc_->DivideSchoolbook(Q, R, A, B);
 }
@@ -125,7 +131,7 @@ void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
     // guarding this else-branch, and always has a one-digit result because
     // of this function's preconditions.
     RWDigits temp = R1;
-    Subtract(temp, A1, B1);
+    SubtractWithNormalization(temp, A1, B1);
     temp.Normalize();
     DCHECK(temp.len() <= 1);
     if (temp.len() > 0) r1_high = temp[0];
@@ -143,12 +149,12 @@ void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
   // 6. As long as Rhat < 0, repeat:
   while (SpecialCompare(r1_high, R, D) < 0) {
     // 6a. Rhat = Rhat + B
-    r1_high += AddAndReturnCarry(R, R, B);
+    r1_high += InplaceAddAndReturnCarry(R, B);
     // 6b. Qhat = Qhat - 1
     Subtract(Qhat, 1);
   }
   // 5. Compute Rhat = R1*2^(kDigitBits * n) + A3 - D = [R1, A3] - D.
-  digit_t borrow = SubtractAndReturnBorrow(R, R, D);
+  digit_t borrow = InplaceSubAndReturnBorrow(R, D);
   DCHECK(borrow == r1_high);
   DCHECK(Compare(R, B) < 0);
   USE(borrow);
@@ -166,7 +172,7 @@ void BZ::D2n1n(RWDigits Q, RWDigits R, Digits A, Digits B) {
   DCHECK(R.len() == n);
   // 1. If n is odd or smaller than some convenient constant, compute Q and R
   //    by school division and return.
-  if ((n & 1) == 1 || n < kBurnikelThreshold) {
+  if ((n & 1) == 1 || n < config::kBurnikelThreshold) {
     return DivideBasecase(Q, R, A, B);
   }
   // 2. Split A into four parts A = [A1, ..., A4] with
@@ -179,7 +185,7 @@ void BZ::D2n1n(RWDigits Q, RWDigits R, Digits A, Digits B) {
   //    Q1 = floor([A1, A2, A3] / [B1, B2]) with remainder R1 = [R11, R12],
   //    using algorithm D3n2n.
   RWDigits Q1(Q, n / 2, n / 2);
-  ScratchDigits R1(n);
+  ScratchDigits R1(n, platform_);
   D3n2n(Q1, R1, A1A2, A3, B);
   if (proc_->should_terminate()) return;
   // 4. Compute the low part Q2 of floor(A/B) as
@@ -206,7 +212,7 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   // - n >= s, n as small as possible.
   // - m must be a power of two.
   // 1. Set m = min {2^k | 2^k * kBurnikelThreshold > s}.
-  uint32_t m = 1 << BitLength(s / kBurnikelThreshold);
+  uint32_t m = 1 << BitLength(s / config::kBurnikelThreshold);
   // 2. Set j = roundup(s/m) and n = j * m.
   uint32_t j = DIV_CEIL(s, m);
   uint32_t n = j * m;
@@ -214,7 +220,9 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   int sigma = CountLeadingZeros(B[s - 1]);
   uint32_t digit_shift = n - s;
   // 4. Set B = B * 2^sigma to normalize B. Shift A by the same amount.
-  ScratchDigits B_shifted(n);
+  // Usage of temp: B[n], Z[2n], Ri[n], Qi[n].
+  ScratchDigits temp(n * 5, platform());
+  RWDigits B_shifted(temp, 0, n);
   LeftShift(B_shifted + digit_shift, B, sigma);
   for (uint32_t i = 0; i < digit_shift; i++) B_shifted[i] = 0;
   B = B_shifted;
@@ -224,7 +232,7 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   // B's top bit is 1) ensures the preconditions of the helper functions.
   int extra_digit = CountLeadingZeros(A[r - 1]) < (sigma + 1) ? 1 : 0;
   r = A.len() + digit_shift + extra_digit;
-  ScratchDigits A_shifted(r);
+  ScratchDigits A_shifted(r, platform());
   LeftShift(A_shifted + digit_shift, A, sigma);
   for (uint32_t i = 0; i < digit_shift; i++) A_shifted[i] = 0;
   A = A_shifted;
@@ -233,16 +241,16 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   // 6. Split A conceptually into t blocks.
   // 7. Set Z_(t-2) = [A_(t-1), A_(t-2)].
   uint32_t z_len = n * 2;
-  ScratchDigits Z(z_len);
+  RWDigits Z(temp, n, z_len);
   PutAt(Z, A + n * (t - 2), z_len);
   // 8. For i from t-2 downto 0 do:
   BZ bz(this, n);
-  ScratchDigits Ri(n);
+  RWDigits Ri(temp, 3 * n, n);
   {
     // First iteration unrolled and specialized.
     // We might not have n digits at the top of Q, so use temporary storage
     // for Qi...
-    ScratchDigits Qi(n);
+    RWDigits Qi(temp, 4 * n, n);
     bz.D2n1n(Qi, Ri, Z, B);
     if (should_terminate()) return;
     // ...but there *will* be enough space for any non-zero result digits!

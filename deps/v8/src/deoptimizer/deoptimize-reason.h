@@ -22,13 +22,10 @@ namespace internal {
   V(ArrayBufferWasDetached, "array buffer was detached or immutable")          \
   V(ArrayLengthChanged, "the array length changed")                            \
   V(BigIntTooBig, "BigInt too big")                                            \
-  V(ConstTrackingLet, "const tracking let constness invalidated")              \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
-  V(DeprecatedMap, "deprecated map")                                           \
   V(DivisionByZero, "division by zero")                                        \
-  V(Float16NotYetSupported, "float16 is not supported as machine operation")   \
   V(GreaterThanMaxFastElementArray,                                            \
     "length is greater than the maximum for fast elements array")              \
   V(Hole, "hole")                                                              \
@@ -59,11 +56,10 @@ namespace internal {
   V(InsufficientTypeFeedbackForUnaryOperation,                                 \
     "Insufficient type feedback for unary operation")                          \
   V(KeyedAccessChanged, "unexpected name in keyed access")                     \
+  V(LoopSpeculationFailed, "loop speculation failed")                          \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \
   V(MinusZero, "minus zero")                                                   \
-  V(NaN, "NaN")                                                                \
-  V(NoCache, "no cache")                                                       \
   V(NoInitialElement, "no initial element")                                    \
   V(NotABigInt, "not a BigInt")                                                \
   V(NotABigInt64, "not a BigInt64")                                            \
@@ -77,9 +73,7 @@ namespace internal {
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \
-  V(NotASeqOneByteString, "not a sequential one-byte String")                  \
   V(NotAStringOrStringWrapper, "not a String or a string wrapper")             \
-  V(NotAStringWrapper, "not a string wrapper")                                 \
   V(NotAStringOrOddball, "not a String or oddball")                            \
   V(NotASymbol, "not a Symbol")                                                \
   V(NotAdditiveSafeInteger, "not AdditiveSafeInteger")                         \
@@ -93,10 +87,8 @@ namespace internal {
   V(Smi, "Smi")                                                                \
   V(StoreToConstant, "Storing to a constant field")                            \
   V(StringTooLarge, "Result string larger than String::kMaxLength")            \
-  V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
   V(UnexpectedContextExtension, "unexpected context extension")                \
   V(Unknown, "(unknown)")                                                      \
-  V(UnoptimizedCatch, "First use of catch block")                              \
   V(ValueMismatch, "value mismatch")                                           \
   V(WrongCallTarget, "wrong call target")                                      \
   V(WrongConstructor, "wrong call target constructor")                         \

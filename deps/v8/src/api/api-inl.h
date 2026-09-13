@@ -208,7 +208,7 @@ class V8_NODISCARD CallDepthScope {
         microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto &&
         !isolate_->is_execution_terminating();
     return !did_perform_microtask_checkpoint ||
-           IsUndefined(isolate_->heap()->weak_refs_keep_during_job(), isolate_);
+           IsUndefined(isolate_->heap()->weak_refs_keep_during_job());
   }
 #endif
 
@@ -501,19 +501,6 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
                                                           uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<type_info_id, T>(src, dst, max_length);
 }
-
-namespace internal {
-
-void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
-  entered_contexts_.push_back(context);
-}
-
-DirectHandle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.empty()) return {};
-  return direct_handle(entered_contexts_.back(), isolate_);
-}
-
-}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_API_API_INL_H_

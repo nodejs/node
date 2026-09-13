@@ -24,9 +24,9 @@
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/simd-shuffle.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
+#include "src/compiler/backend/simd-shuffle.h"
+#endif  // V8_ENABLE_SIMD128
 
 namespace v8 {
 namespace internal {
@@ -96,7 +96,7 @@ class FlagsContinuation final {
   static FlagsContinuation ForDeoptimize(
       FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
       FeedbackSource const& feedback,
-      turboshaft::V<turboshaft::FrameState> frame_state) {
+      turboshaft::V<turboshaft::EagerFrameState> frame_state) {
     DCHECK(frame_state.valid());
     return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
                              feedback, frame_state);
@@ -104,7 +104,7 @@ class FlagsContinuation final {
   static FlagsContinuation ForDeoptimizeForTesting(
       FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
       FeedbackSource const& feedback,
-      turboshaft::OptionalV<turboshaft::FrameState> frame_state = {}) {
+      turboshaft::OptionalV<turboshaft::EagerFrameState> frame_state = {}) {
     // Tests (e.g. test-instruction-scheduler.cc) may not pass a valid
     // frame_state as that doesn't matter for the test.
     return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
@@ -520,6 +520,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       InstructionOperand* temps, FlagsContinuation* cont);
 
   void EmitIdentity(turboshaft::OpIndex node);
+  void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -541,8 +542,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // users, and fusing is unlikely to improve performance.
   bool CanCover(turboshaft::OpIndex user, turboshaft::OpIndex node) const;
 
-  bool CanCoverProtectedLoad(turboshaft::OpIndex user,
-                             turboshaft::OpIndex node) const;
+  bool CanCoverTrappingLoad(turboshaft::OpIndex user,
+                            turboshaft::OpIndex node) const;
+
+  // Checks that node is in the current schedule block.
+  bool InCurrentBlock(turboshaft::OpIndex node) const;
 
   // Used in pattern matching during code generation.
   // This function checks that {node} and {user} are in the same basic block,
@@ -641,18 +645,18 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   //     won't be able to use the 1st projection that will now be defined later.
   bool CanDoBranchIfOverflowFusion(turboshaft::OpIndex node);
 
-  // Records that this ProtectedLoad node can be deleted if not used, even
+  // Records that this TrappingLoad node can be deleted if not used, even
   // though it has a required_when_unused effect.
-  void SetProtectedLoadToRemove(turboshaft::OpIndex node) {
-    DCHECK(this->IsProtectedLoad(node));
-    protected_loads_to_remove_->Add(node.id());
+  void SetTrappingLoadToRemove(turboshaft::OpIndex node) {
+    DCHECK(this->IsTrappingLoad(node));
+    trapping_loads_to_remove_->Add(node.id());
   }
 
-  // Records that this node embeds a ProtectedLoad as operand, and so it is
-  // itself a "protected" instruction, for which we'll need to record the source
+  // Records that this node embeds a TrappingLoad as operand, and so it is
+  // itself a trapping instruction, for which we'll need to record the source
   // position.
-  void MarkAsProtected(turboshaft::OpIndex node) {
-    additional_protected_instructions_->Add(node.id());
+  void MarkAsTrappingInstruction(turboshaft::OpIndex node) {
+    additional_trapping_instructions_->Add(node.id());
   }
 
   void UpdateSourcePosition(Instruction* instruction, turboshaft::OpIndex node);
@@ -723,18 +727,18 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   bool IsLoadOrLoadImmutable(turboshaft::OpIndex node) const {
     return Get(node).opcode == turboshaft::Opcode::kLoad;
   }
-  bool IsProtectedLoad(turboshaft::OpIndex node) const;
+  bool IsTrappingLoad(turboshaft::OpIndex node) const;
 
   bool is_load(turboshaft::OpIndex node) const {
     const turboshaft::Operation& op = Get(node);
     return op.Is<turboshaft::LoadOp>()
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
            || op.Is<turboshaft::Simd128LoadTransformOp>()
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
            || op.Is<turboshaft::Simd256LoadTransformOp>()
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
-        ;  // NOLINT(whitespace/semicolon)
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
+        ;
   }
 
   class LoadView {
@@ -744,18 +748,18 @@ class V8_EXPORT_PRIVATE InstructionSelector final
         case turboshaft::Opcode::kLoad:
           load_ = &graph->Get(node_).Cast<turboshaft::LoadOp>();
           break;
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
         case turboshaft::Opcode::kSimd128LoadTransform:
           load_transform_ =
               &graph->Get(node_).Cast<turboshaft::Simd128LoadTransformOp>();
           break;
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
         case turboshaft::Opcode::kSimd256LoadTransform:
           load_transform256_ =
               &graph->Get(node_).Cast<turboshaft::Simd256LoadTransformOp>();
           break;
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
         default:
           UNREACHABLE();
       }
@@ -772,13 +776,13 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       DCHECK_NOT_NULL(load_);
       return load_->result_rep;
     }
-    bool is_protected(bool* traps_on_null) const {
+    bool is_trapping(bool* traps_on_null) const {
       if (kind().with_trap_handler) {
         if (load_) {
           *traps_on_null = load_->kind.trap_on_null;
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
         } else {
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
           DCHECK(
               (load_transform_ && !load_transform_->load_kind.trap_on_null) ||
               (load_transform256_ &&
@@ -786,9 +790,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 #else
           DCHECK(load_transform_);
           DCHECK(!load_transform_->load_kind.trap_on_null);
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_SIMD256
           *traps_on_null = false;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
         }
         return true;
       }
@@ -798,22 +802,22 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
     turboshaft::OpIndex base() const {
       if (load_) return load_->base();
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
       if (load_transform_) return load_transform_->base();
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
       if (load_transform256_) return load_transform256_->base();
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
       UNREACHABLE();
     }
     turboshaft::OpIndex index() const {
       if (load_) return load_->index().value_or_invalid();
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
       if (load_transform_) return load_transform_->index();
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
       if (load_transform256_) return load_transform256_->index();
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
       UNREACHABLE();
     }
     int32_t displacement() const {
@@ -827,18 +831,18 @@ class V8_EXPORT_PRIVATE InstructionSelector final
           offset -= kHeapObjectTag;
         }
         return offset;
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
       } else if (load_transform_) {
         int32_t offset = load_transform_->offset;
         DCHECK(!load_transform_->load_kind.tagged_base);
         return offset;
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
       } else if (load_transform256_) {
         int32_t offset = load_transform256_->offset;
         DCHECK(!load_transform256_->load_kind.tagged_base);
         return offset;
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
       }
       UNREACHABLE();
     }
@@ -847,12 +851,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final
           std::is_same_v<decltype(turboshaft::StoreOp::element_size_log2),
                          uint8_t>);
       if (load_) return load_->element_size_log2;
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
       if (load_transform_) return 0;
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
       if (load_transform256_) return 0;
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
       UNREACHABLE();
     }
 
@@ -861,23 +865,23 @@ class V8_EXPORT_PRIVATE InstructionSelector final
    private:
     turboshaft::LoadOp::Kind kind() const {
       if (load_) return load_->kind;
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
       if (load_transform_) return load_transform_->load_kind;
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
       if (load_transform256_) return load_transform256_->load_kind;
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
       UNREACHABLE();
     }
 
     turboshaft::OpIndex node_;
     const turboshaft::LoadOp* load_ = nullptr;
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
     const turboshaft::Simd128LoadTransformOp* load_transform_ = nullptr;
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
     const turboshaft::Simd256LoadTransformOp* load_transform256_ = nullptr;
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#endif
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
   };
 
   LoadView load_view(turboshaft::OpIndex node) {
@@ -900,14 +904,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->stored_rep;
     }
     std::optional<AtomicMemoryOrder> memory_order() const {
-      // TODO(nicohartmann@): Currently we don't support memory orders.
-      if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
-      return std::nullopt;
+      return op_->memory_order();
     }
     MemoryAccessKind access_kind() const {
-      return op_->kind.with_trap_handler
-                 ? MemoryAccessKind::kProtectedByTrapHandler
-                 : MemoryAccessKind::kNormal;
+      return op_->kind.with_trap_handler ? MemoryAccessKind::kTrapping
+                                         : MemoryAccessKind::kNormal;
     }
     bool is_atomic() const { return op_->kind.is_atomic; }
 
@@ -949,7 +950,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     return StoreView(schedule_, node);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
   // TODO(391750831): Inline this.
   class SimdShuffleView {
    public:
@@ -993,7 +994,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   SimdShuffleView simd_shuffle_view(turboshaft::OpIndex node) {
     return SimdShuffleView(schedule_, node);
   }
-#endif
+#endif  // V8_ENABLE_SIMD128
 
  private:
   friend OperandGenerator;
@@ -1195,7 +1196,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(Load)
   DECLARE_GENERATOR_T(StackPointerGreaterThan)
   DECLARE_GENERATOR_T(Store)
-  DECLARE_GENERATOR_T(ProtectedStore)
+  DECLARE_GENERATOR_T(TrappingStore)
   DECLARE_GENERATOR_T(BitcastTaggedToWord)
   DECLARE_GENERATOR_T(BitcastWordToTagged)
   DECLARE_GENERATOR_T(BitcastSmiToWord)
@@ -1326,7 +1327,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(LoadStackCheckOffset)
   DECLARE_GENERATOR_T(LoadFramePointer)
   DECLARE_GENERATOR_T(LoadParentFramePointer)
-  DECLARE_GENERATOR_T(ProtectedLoad)
+  DECLARE_GENERATOR_T(TrappingLoad)
   DECLARE_GENERATOR_T(Word32AtomicAdd)
   DECLARE_GENERATOR_T(Word32AtomicSub)
   DECLARE_GENERATOR_T(Word32AtomicAnd)
@@ -1365,6 +1366,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(turboshaft::OpIndex node, turboshaft::OpIndex value,
                  InstructionCode opcode);
+#ifdef V8_ENABLE_SANDBOX
+  void VisitLoadTrustedPointer(turboshaft::OpIndex node);
+#endif
   void VisitParameter(turboshaft::OpIndex node);
   void VisitIfException(turboshaft::OpIndex node);
   void VisitOsrValue(turboshaft::OpIndex node);
@@ -1375,7 +1379,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       turboshaft::OpIndex call, turboshaft::Block* exception_handler = {},
       base::Vector<turboshaft::EffectHandler> wasm_effect_handlers = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
+#if V8_ENABLE_WEBASSEMBLY
   void VisitTrapIf(turboshaft::OpIndex node);
+  void VisitWasmTrap(turboshaft::OpIndex node);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
   void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,
@@ -1390,6 +1397,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitUnreachable(turboshaft::OpIndex node);
   void VisitStaticAssert(turboshaft::OpIndex node);
   void VisitBitcastWord32PairToFloat64(turboshaft::OpIndex node);
+  void VisitWord64MulWide(turboshaft::OpIndex node, bool is_signed);
+  void VisitUint64Add128(turboshaft::OpIndex node);
+  void VisitUint64Sub128(turboshaft::OpIndex node);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
 
@@ -1427,7 +1437,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // ===========================================================================
   void VisitI8x16RelaxedSwizzle(turboshaft::OpIndex node);
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   template <const int simd_size = kSimd128Size,
@@ -1454,7 +1464,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     bool needs_swap;
     bool inputs_equal =
         GetVirtualRegister(view.input(0)) == GetVirtualRegister(view.input(1));
-    wasm::SimdShuffle::CanonicalizeShuffle<simd_size, shuffle_size>(
+    SimdShuffle::CanonicalizeShuffle<simd_size, shuffle_size>(
         inputs_equal, shuffle, &needs_swap, is_swizzle);
     if (needs_swap) {
       SwapShuffleInputs(view);
@@ -1471,10 +1481,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void SwapShuffleInputs(SimdShuffleView& node);
 
   void VisitSimd128LoadPairDeinterleave(turboshaft::OpIndex node);
-  void VisitMemoryCopy(turboshaft::OpIndex node);
-  void VisitMemoryFill(turboshaft::OpIndex node);
 
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
   void VisitSimd256LoadTransform(turboshaft::OpIndex node);
 
 #ifdef V8_TARGET_ARCH_X64
@@ -1483,12 +1491,17 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitSimd256Unpack(turboshaft::OpIndex node);
   void VisitSimdPack128To256(turboshaft::OpIndex node);
 #endif  // V8_TARGET_ARCH_X64
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_SIMD256
 
 #ifdef V8_TARGET_ARCH_X64
   bool CanOptimizeF64x2PromoteLowF32x4(turboshaft::OpIndex node);
 #endif
 
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_WEBASSEMBLY
+  void VisitMemoryCopy(turboshaft::OpIndex node);
+  void VisitMemoryFill(turboshaft::OpIndex node);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
@@ -1513,6 +1526,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       const turboshaft::ComparisonOp& op) const;
 
   void MarkPairProjectionsAsWord32(turboshaft::OpIndex node);
+  void MarkPairProjectionsAsWord64(turboshaft::OpIndex node);
   bool IsSourcePositionUsed(turboshaft::OpIndex node);
   void VisitWord32AtomicBinaryOperation(turboshaft::OpIndex node,
                                         ArchOpcode int8_op, ArchOpcode uint8_op,
@@ -1609,8 +1623,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   // Turboshaft-adapter only.
   std::optional<turboshaft::UseMap> turboshaft_use_map_;
-  std::optional<BitVector> protected_loads_to_remove_;
-  std::optional<BitVector> additional_protected_instructions_;
+  std::optional<BitVector> trapping_loads_to_remove_;
+  std::optional<BitVector> additional_trapping_instructions_;
 
 #if V8_TARGET_ARCH_64_BIT
   size_t node_count_;

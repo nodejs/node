@@ -77,7 +77,7 @@ impl PotentialCodePoint {
         char::try_from(u32::from(self))
     }
 
-    /// Convert a [`PotentialCodePoint`] to a `char', returning [`char::REPLACEMENT_CHARACTER`]
+    /// Convert a [`PotentialCodePoint`] to a [`char`], returning [`char::REPLACEMENT_CHARACTER`]
     /// if the `PotentialCodePoint` does not represent a valid Unicode scalar value.
     ///
     /// # Examples

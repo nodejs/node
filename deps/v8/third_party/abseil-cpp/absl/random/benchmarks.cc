@@ -97,7 +97,7 @@ class DefaultConstructorSeedSeq {};
 template <typename Engine, typename SSeq = DefaultConstructorSeedSeq>
 Engine make_engine() {
   constexpr bool use_default_initialization =
-    std::is_same_v<SSeq, DefaultConstructorSeedSeq>;
+      std::is_same_v<SSeq, DefaultConstructorSeedSeq>;
   if constexpr (use_default_initialization) {
     return Engine();
   } else {

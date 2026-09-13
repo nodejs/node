@@ -15,6 +15,8 @@
 #include "absl/strings/internal/generic_printer.h"
 
 #include <array>
+#include <cinttypes>
+#include <clocale>
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -32,10 +34,12 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/substitute.h"
 
 namespace generic_logging_test {
@@ -231,6 +235,32 @@ TEST(GenericPrinterTest, PreciseLongDouble) {
   EXPECT_THAT(GenericPrintToString(0.L), EndsWith("L"));
 }
 
+TEST(GenericPrinterTest, PreciseFPUnderCommaRadixLocale) {
+  // The values are formatted with locale-independent absl::StrFormat (a '.'
+  // radix), so the round-trip shortening must not depend on LC_NUMERIC. Under a
+  // comma-radix locale a locale-sensitive reader stops at the '.', which used
+  // to defeat the shortened output.
+  const char* saved = std::setlocale(LC_NUMERIC, nullptr);
+  std::string saved_locale = saved ? saved : "C";
+  absl::Cleanup restore = [&] {
+    std::setlocale(LC_NUMERIC, saved_locale.c_str());
+  };
+
+  bool set = false;
+  for (const char* name : {"de_DE.UTF-8", "fr_FR.UTF-8", "de_DE", "fr_FR"}) {
+    if (std::setlocale(LC_NUMERIC, name) != nullptr) {
+      set = true;
+      break;
+    }
+  }
+  if (!set) {
+    GTEST_SKIP() << "No comma-radix locale available on this system.";
+  }
+
+  EXPECT_EQ("1.1f", GenericPrintToString(1.1f));
+  EXPECT_EQ("1.1", GenericPrintToString(1.1));
+}
+
 TEST(GenericPrinterTest, StreamableLvalue) {
   generic_logging_test::Streamable x{234};
   EXPECT_EQ("Streamable{234}", GenericPrintToString(x));
@@ -296,10 +326,9 @@ TEST(GenericPrinterTest, Map) {
 TEST(GenericPrinterTest, StreamAdapter) {
   std::stringstream ss;
   static_assert(
-      std::is_same<
-          typename std::remove_reference<decltype(ss << GenericPrint())>::type,
-          internal_generic_printer::GenericPrintStreamAdapter::Impl<
-              std::stringstream>>::value,
+      std::is_same<std::remove_reference_t<decltype(ss << GenericPrint())>,
+                   internal_generic_printer::GenericPrintStreamAdapter::Impl<
+                       std::stringstream>>::value,
       "expected ostream << GenericPrint() to yield adapter impl");
 
   ss << GenericPrint() << "again, " << "back-up, " << "cue, "
@@ -373,6 +402,10 @@ TEST(GenericPrinterTest, Optional) {
                                    generic_logging_test::Streamable{3})));
 }
 
+TEST(GenericPrinterTest, Monostate) {
+  EXPECT_EQ("monostate", GenericPrintToString(std::monostate{}));
+}
+
 TEST(GenericPrinterTest, Tuple) {
   EXPECT_EQ("<1, two, 3>", GenericPrintToString(std::make_tuple(1, "two", 3)));
 }
@@ -396,8 +429,8 @@ TEST(GenericPrinterTest, Variant) {
 }
 
 TEST(GenericPrinterTest, VariantMonostate) {
-  EXPECT_THAT(GenericPrintToString(std::variant<std::monostate, std::string>()),
-              IsUnprintable());
+  EXPECT_EQ("('(index = 0)' monostate)",
+            GenericPrintToString(std::variant<std::monostate, std::string>()));
 }
 
 TEST(GenericPrinterTest, VariantNonStreamable) {
@@ -490,23 +523,26 @@ TEST(GenericPrinterTest, SmartPointerPrintsAddressOfPointee) {
   auto cp = std::make_unique<char*>(memory);
 
   EXPECT_THAT(GenericPrintToString(i),
-              AnyOf(Eq(absl::StrFormat("<%016X pointing to 5>",
-                                       reinterpret_cast<intptr_t>(&*i))),
+              AnyOf(Eq(absl::StrFormat("<%0*" PRIXPTR " pointing to 5>",
+                                       sizeof(void*) * 2,
+                                       reinterpret_cast<uintptr_t>(&*i))),
                     Eq(absl::StrFormat("<%#x pointing to 5>",
-                                       reinterpret_cast<intptr_t>(&*i)))));
+                                       reinterpret_cast<uintptr_t>(&*i)))));
 
   EXPECT_THAT(
       GenericPrintToString(c),
-      AnyOf(HasSubstr(absl::StrFormat("<%016X pointing to 'z'",
-                                      reinterpret_cast<intptr_t>(&*c))),
+      AnyOf(HasSubstr(absl::StrFormat("<%0*" PRIXPTR " pointing to 'z'",
+                                      sizeof(void*) * 2,
+                                      reinterpret_cast<uintptr_t>(&*c))),
             HasSubstr(absl::StrFormat("<%#x pointing to 'z'",
-                                      reinterpret_cast<intptr_t>(&*c)))));
+                                      reinterpret_cast<uintptr_t>(&*c)))));
 
   EXPECT_THAT(GenericPrintToString(cp),
-              AnyOf(Eq(absl::StrFormat("<%016X pointing to abcdefg>",
-                                       reinterpret_cast<intptr_t>(&*cp))),
+              AnyOf(Eq(absl::StrFormat("<%0*" PRIXPTR " pointing to abcdefg>",
+                                       sizeof(void*) * 2,
+                                       reinterpret_cast<uintptr_t>(&*cp))),
                     Eq(absl::StrFormat("<%#x pointing to abcdefg>",
-                                       reinterpret_cast<intptr_t>(&*cp)))));
+                                       reinterpret_cast<uintptr_t>(&*cp)))));
 }
 
 TEST(GenericPrinterTest, SmartPointerToArrayOnlyPrintsAddressAndHelpText) {
@@ -521,18 +557,20 @@ TEST(GenericPrinterTest, SmartPointerToArrayOnlyPrintsAddressAndHelpText) {
   EXPECT_THAT(
       GenericPrintToString(nonempty),
       AllOf(AnyOf(HasSubstr(absl::StrFormat(
-                      "%016X", reinterpret_cast<intptr_t>(nonempty.get()))),
+                      "%0*" PRIXPTR, sizeof(void*) * 2,
+                      reinterpret_cast<uintptr_t>(nonempty.get()))),
                   HasSubstr(absl::StrFormat(
-                      "%#x", reinterpret_cast<intptr_t>(nonempty.get())))),
+                      "%#x", reinterpret_cast<uintptr_t>(nonempty.get())))),
             HasSubstr("array"), Not(HasSubstr("to 54321")),
             Not(HasSubstr("to 12345"))));
 
   EXPECT_THAT(
       GenericPrintToString(empty),
       AllOf(AnyOf(HasSubstr(absl::StrFormat(
-                      "%016X", reinterpret_cast<intptr_t>(empty.get()))),
+                      "%0*" PRIXPTR, sizeof(void*) * 2,
+                      reinterpret_cast<uintptr_t>(empty.get()))),
                   HasSubstr(absl::StrFormat(
-                      "%#x", reinterpret_cast<intptr_t>(empty.get())))),
+                      "%#x", reinterpret_cast<uintptr_t>(empty.get())))),
             HasSubstr("array")));
 }
 

@@ -4,11 +4,6 @@
 
 // Flags: --sandbox-testing
 
-const kTypedArrayType = Sandbox.getInstanceTypeIdFor("JS_TYPED_ARRAY_TYPE");
-const kTypedArrayByteOffsetOffset =
-  Sandbox.getFieldOffset(kTypedArrayType, "byte_offset");
-const kTypedArrayByteLengthOffset =
-  Sandbox.getFieldOffset(kTypedArrayType, "byte_length");
 const GB = 1024 * 1024 * 1024;
 const kMaxInSandboxBufferSize = 32*GB - 1;
 // Something reasonable, must be smaller than the maximum module size.
@@ -18,15 +13,10 @@ const kBufferSize = 1 * GB;
 const kBoundedSizeShift = 29;
 const kShiftedBufferSize = BigInt(kBufferSize) << BigInt(kBoundedSizeShift);
 
-let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
-
 let array = new Uint8Array(new ArrayBuffer(0));
-let array_address = Sandbox.getAddressOf(array);
 
-let byte_offset_address = array_address + kTypedArrayByteOffsetOffset;
-memory.setBigUint64(byte_offset_address, 0xffffffffffffffffn, true);
-let byte_length_offset_address = array_address + kTypedArrayByteLengthOffset;
-memory.setBigUint64(byte_length_offset_address, kShiftedBufferSize, true);
+Sandbox.corruptObjectField(array, 'byte_offset', 0xffffffffffffffffn, 64);
+Sandbox.corruptObjectField(array, 'byte_length', kShiftedBufferSize, 64);
 
 assertEquals(array.byteOffset, kMaxInSandboxBufferSize);
 assertEquals(array.byteLength, kBufferSize);

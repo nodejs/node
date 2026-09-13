@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared
+// Flags: --wasm-shared
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestSharedInAnyRefToAbstractSubtype() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sharedArrayT = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+  let sharedArrayT = builder.addArray(kWasmI32, {shared: true});
   let sharedStructT = builder.addStruct(
-      [makeField(kWasmI32, true)], kNoSuperType, false, true);
-  let arrayT = builder.addArray(kWasmI32, true);
+      {fields: [makeField(kWasmI32, true)], shared: true});
+  let arrayT = builder.addArray(kWasmI32);
   let structT = builder.addStruct([makeField(kWasmI32, true)]);
   builder.addFunction("newSharedStruct",
       makeSig([kWasmI32], [wasmRefType(sharedStructT)]))
