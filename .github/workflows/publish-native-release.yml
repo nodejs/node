@@ -144,6 +144,7 @@ jobs:
             '## 本次更新' \
             '' \
             '- 补全 Mode 浏览器环境的 DOM 对象标签、构造器和集合描述符，降低普通 JavaScript 对象特征。' \
+            '- 新增源码诊断器：可不重新编译而直接以当前工作区的浏览器环境源码执行缓存挑战，用于发布前定位环境差异。' \
             '- `rs_mode_server` 的挑战 Worker 现在隔离 `global`、`process`、`module`、`require`、`setImmediate` 等 Node 全局别名，并取消向挑战脚本注入 CommonJS `require`；保留 `Buffer` 兼容既有挑战脚本。' \
             '- 保持 `document.all`、原始 HTML、动态 UA、Cookie、Storage、location/history 与每请求独立 Worker 的兼容行为。' \
             '' \
