@@ -186,12 +186,16 @@ v8::StartupData SnapshotDeserializer::Read() {
   int raw_size = ReadArithmetic<int>();
   Debug("size=%d\n", raw_size);
 
-  CHECK_GT(raw_size, 0);  // There should be no startup data of size 0.
+  if (raw_size <= 0 ||
+      static_cast<size_t>(raw_size) > sink.size() - read_total) {
+    ok = false;
+    return v8::StartupData{nullptr, 0};
+  }
   // The data pointer of v8::StartupData would be deleted so it must be new'ed.
-  std::unique_ptr<char> buf = std::unique_ptr<char>(new char[raw_size]);
-  ReadArithmetic<char>(buf.get(), raw_size);
+  char* buf = new char[raw_size];
+  ReadArithmetic<char>(buf, raw_size);
 
-  return v8::StartupData{buf.release(), raw_size};
+  return v8::StartupData{buf, raw_size};
 }
 
 template <>
@@ -645,10 +649,14 @@ bool SnapshotData::FromBlob(SnapshotData* out, std::string_view in) {
   // Metadata
   uint32_t magic = r.ReadArithmetic<uint32_t>();
   r.Debug("Read magic %" PRIx32 "\n", magic);
-  CHECK_EQ(magic, kMagic);
+  if (!r.ok || magic != kMagic) {
+    fprintf(stderr, "The startup snapshot is not a Node.js snapshot blob.\n");
+    return false;
+  }
   out->metadata = r.Read<SnapshotMetadata>();
   r.Debug("Read metadata\n");
-  if (!out->Check()) {
+  if (!r.ok || !out->Check()) {
+    if (!r.ok) fprintf(stderr, "The startup snapshot is truncated.\n");
     return false;
   }
 
@@ -660,13 +668,17 @@ bool SnapshotData::FromBlob(SnapshotData* out, std::string_view in) {
   out->code_cache = r.ReadVector<builtins::CodeCacheInfo>();
 
   r.Debug("SnapshotData::FromBlob() read %d bytes\n", r.read_total);
+  if (!r.ok) {
+    fprintf(stderr, "The startup snapshot is truncated.\n");
+    return false;
+  }
   return true;
 }
 
 bool SnapshotData::Check() const {
   if (metadata.node_version != per_process::metadata.versions.node) {
     fprintf(stderr,
-            "Failed to load the startup snapshot because it was built with"
+            "Failed to load the startup snapshot because it was built with "
             "Node.js version %s and the current Node.js version is %s.\n",
             metadata.node_version.c_str(),
             NODE_VERSION);
@@ -675,7 +687,7 @@ bool SnapshotData::Check() const {
 
   if (metadata.node_arch != per_process::metadata.arch) {
     fprintf(stderr,
-            "Failed to load the startup snapshot because it was built with"
+            "Failed to load the startup snapshot because it was built with "
             "architecture %s and the architecture is %s.\n",
             metadata.node_arch.c_str(),
             NODE_ARCH);
@@ -684,7 +696,7 @@ bool SnapshotData::Check() const {
 
   if (metadata.node_platform != per_process::metadata.platform) {
     fprintf(stderr,
-            "Failed to load the startup snapshot because it was built with"
+            "Failed to load the startup snapshot because it was built with "
             "platform %s and the current platform is %s.\n",
             metadata.node_platform.c_str(),
             NODE_PLATFORM);
