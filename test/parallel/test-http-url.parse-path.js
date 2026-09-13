@@ -40,6 +40,7 @@ const server = http.createServer(function(request, response) {
 
 server.listen(0, function() {
   const testURL = url.parse(`http://localhost:${this.address().port}/asdf`);
+  testURL.agent = false;
 
   // make the request
   http.request(testURL).end();

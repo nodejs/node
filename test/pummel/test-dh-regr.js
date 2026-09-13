@@ -34,7 +34,6 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
-let p;
 let iterations = 2000;
 if (hasFIPS(3)) {
   assert.throws(() => crypto.createDiffieHellman(1024), {
@@ -42,22 +41,24 @@ if (hasFIPS(3)) {
     name: 'TypeError',
   });
 
-  // Use a precomputed approved group instead of generating a 2048-bit prime
-  // for every test run. Its larger keys also make each pummel iteration more
-  // expensive, so use enough iterations to exercise the regression without
-  // making the FIPS job excessively slow.
-  p = crypto.getDiffieHellman('modp14').getPrime();
+  // Keep a lower iteration count for FIPS jobs.
   iterations = 100;
+}
+
+let createDH;
+if (hasOpenSSL(3)) {
+  // OpenSSL 3 recognizes named groups without validating their primes.
+  createDH = () => crypto.getDiffieHellman('modp14');
 } else {
-  // FIPS requires length >= 1024, but small parameters keep this pummel test
-  // from timing out in ordinary CI.
-  const length = crypto.getFips() === 1 ? 1024 : (hasOpenSSL(3) ? 512 : 256);
-  p = crypto.createDiffieHellman(length).getPrime();
+  // Other backends validate each peer's parameters, so keep them small.
+  const length = crypto.getFips() === 1 ? 1024 : 256;
+  const prime = crypto.createDiffieHellman(length).getPrime();
+  createDH = () => crypto.createDiffieHellman(prime);
 }
 
 for (let i = 0; i < iterations; i++) {
-  const a = crypto.createDiffieHellman(p);
-  const b = crypto.createDiffieHellman(p);
+  const a = createDH();
+  const b = createDH();
 
   a.generateKeys();
   b.generateKeys();

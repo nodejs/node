@@ -20,30 +20,29 @@ const { test } = require('node:test');
 tmpdir.refresh();
 
 const GiB = 1024 * 1024 * 1024;
-const MEMBER_SIZE = 500 * 1024 * 1024; // Four ~500 MiB stored members...
-const STORED_MEMBER_COUNT = 4;
-const STREAMED_MEMBER_SIZE = 4.5 * GiB; // ...plus one >4 GiB streamed member:
-// the total archive size (~6.5 GiB) pushes offsets over the 4 GiB Zip64
-// threshold, and the streamed member's own sizes exceed 32 bits too, so the
-// per-entry Zip64 size fields (central header and data descriptor) are
-// exercised as well as the offset promotion. Required free space includes
-// generous slack over that total.
-const REQUIRED_FREE_BYTES = 12 * GiB;
 const CHUNK_SIZE = 16 * 1024 * 1024;
-
-function fillChunk(seed) {
-  const chunk = Buffer.allocUnsafe(CHUNK_SIZE);
-  chunk.fill(seed & 0xff);
-  return chunk;
-}
+const STREAMED_MEMBER_SIZE = 4 * GiB + CHUNK_SIZE;
+const TAIL_MEMBER_SIZE = 64 * 1024;
+// The leading member needs Zip64 sizes; the small member after it needs a
+// Zip64 offset. Only one member has to be large to exercise both paths.
+const REQUIRED_FREE_BYTES = 8 * GiB;
+const CENTRAL_FILE_HEADER_SIGNATURE = Buffer.from([0x50, 0x4b, 0x01, 0x02]);
 
 async function* repeatingChunks(totalSize, seed) {
+  const chunk = Buffer.alloc(Math.min(CHUNK_SIZE, totalSize), seed);
   let remaining = totalSize;
   while (remaining > 0) {
-    const size = Math.min(CHUNK_SIZE, remaining);
-    const chunk = fillChunk(seed);
+    const size = Math.min(chunk.length, remaining);
     remaining -= size;
     yield size === chunk.length ? chunk : chunk.subarray(0, size);
+  }
+}
+
+function assertZip64Extra(buffer, offset, values) {
+  assert.strictEqual(buffer.readUInt16LE(offset), 0x0001);
+  assert.strictEqual(buffer.readUInt16LE(offset + 2), values.length * 8);
+  for (let i = 0; i < values.length; i++) {
+    assert.strictEqual(buffer.readBigUInt64LE(offset + 4 + i * 8), BigInt(values[i]));
   }
 }
 
@@ -63,15 +62,14 @@ test('an archive larger than 4 GiB round-trips and triggers Zip64 via offset', a
   const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-slow-'));
   const archivePath = path.join(dir, 'large.zip');
   try {
-    const entries = [];
-    for (let i = 0; i < STORED_MEMBER_COUNT; i++) {
-      entries.push(zlib.ZipEntry.createStream(`stored-${i}.bin`, repeatingChunks(MEMBER_SIZE, i), {
+    const entries = [
+      zlib.ZipEntry.createStream('streamed.bin', repeatingChunks(STREAMED_MEMBER_SIZE, 0xaa), {
         method: 'store',
-      }));
-    }
-    entries.push(zlib.ZipEntry.createStream('streamed.bin', repeatingChunks(STREAMED_MEMBER_SIZE, 0xaa), {
-      method: 'store',
-    }));
+      }),
+      zlib.ZipEntry.createStream('tail.bin', repeatingChunks(TAIL_MEMBER_SIZE, 2), {
+        method: 'store',
+      }),
+    ];
 
     const handle = await fs.open(archivePath, 'w');
     try {
@@ -85,9 +83,38 @@ test('an archive larger than 4 GiB round-trips and triggers Zip64 via offset', a
     const stat = await fs.stat(archivePath);
     assert.ok(stat.size > 4 * GiB, `archive is only ${stat.size} bytes`);
 
+    const reader = await fs.open(archivePath, 'r');
+    try {
+      // Read only the leading local header and the archive tail. The two
+      // central headers and the trailer fit comfortably in these 1024 bytes.
+      const local = Buffer.alloc(30);
+      const tail = Buffer.alloc(1024);
+      await reader.read(local, 0, local.length, 0);
+      await reader.read(tail, 0, tail.length, stat.size - tail.length);
+      assert.strictEqual(local.readUInt32LE(0), 0x04034b50);
+      const tailOffset = local.length + local.readUInt16LE(26) +
+        local.readUInt16LE(28) + STREAMED_MEMBER_SIZE + 24; // Zip64 data descriptor.
+      assert.ok(tailOffset > 0xffffffff);
+
+      const bigCentral = tail.indexOf(CENTRAL_FILE_HEADER_SIGNATURE);
+      assert.notStrictEqual(bigCentral, -1);
+      assert.strictEqual(tail.readUInt32LE(bigCentral + 20), 0xffffffff);
+      assert.strictEqual(tail.readUInt32LE(bigCentral + 24), 0xffffffff);
+      assertZip64Extra(tail, bigCentral + 46 + tail.readUInt16LE(bigCentral + 28),
+                       [STREAMED_MEMBER_SIZE, STREAMED_MEMBER_SIZE]);
+
+      const tailCentral = tail.indexOf(CENTRAL_FILE_HEADER_SIGNATURE, bigCentral + 4);
+      assert.notStrictEqual(tailCentral, -1);
+      assert.strictEqual(tail.readUInt32LE(tailCentral + 42), 0xffffffff);
+      assertZip64Extra(tail, tailCentral + 46 + tail.readUInt16LE(tailCentral + 28),
+                       [tailOffset]);
+    } finally {
+      await reader.close();
+    }
+
     const zip = await zlib.ZipFile.open(archivePath);
     try {
-      assert.strictEqual(zip.size, STORED_MEMBER_COUNT + 1);
+      assert.strictEqual(zip.size, 2);
 
       let seen = 0;
       for await (const chunk of await zip.stream('streamed.bin')) {
@@ -96,12 +123,12 @@ test('an archive larger than 4 GiB round-trips and triggers Zip64 via offset', a
       }
       assert.strictEqual(seen, STREAMED_MEMBER_SIZE);
 
-      let storedSeen = 0;
-      for await (const chunk of await zip.stream('stored-2.bin')) {
-        storedSeen += chunk.length;
+      let tailSeen = 0;
+      for await (const chunk of await zip.stream('tail.bin')) {
+        tailSeen += chunk.length;
         assert.strictEqual(chunk[0], 2);
       }
-      assert.strictEqual(storedSeen, MEMBER_SIZE);
+      assert.strictEqual(tailSeen, TAIL_MEMBER_SIZE);
 
       // The streamed member's sizes genuinely exceed 32 bits (stored, so
       // compressed === uncompressed), which the reader must have resolved
@@ -116,6 +143,13 @@ test('an archive larger than 4 GiB round-trips and triggers Zip64 via offset', a
       // descriptor) without needing a second copy on disk.
       let reserialized = 0;
       for await (const chunk of zlib.createZipArchive([big])) {
+        if (reserialized === 0) {
+          assert.strictEqual(chunk.readUInt16LE(6) & 0x08, 0); // No data descriptor.
+          assert.strictEqual(chunk.readUInt32LE(18), 0xffffffff);
+          assert.strictEqual(chunk.readUInt32LE(22), 0xffffffff);
+          assertZip64Extra(chunk, 30 + chunk.readUInt16LE(26),
+                           [STREAMED_MEMBER_SIZE, STREAMED_MEMBER_SIZE]);
+        }
         reserialized += chunk.length;
       }
       assert.ok(reserialized > STREAMED_MEMBER_SIZE,
