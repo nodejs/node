@@ -42,7 +42,7 @@ jobs:
           persist-credentials: false
           path: node
       - name: Install Clang ${{ env.CLANG_VERSION }}
-        uses: ./node/.github/actions/install-clang
+        uses: $/.github/actions/install-clang
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Install Rust ${{ env.RUSTC_VERSION }}
