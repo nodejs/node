@@ -47,7 +47,9 @@ jobs:
     steps:
       - name: Mark token input as sensitive
         if: inputs.token != ''
-        run: echo "::add-mask::${{ inputs.token }}"
+        run: printf '::add-mask::%s\n' "$COMMENT_TOKEN"
+        env:
+          COMMENT_TOKEN: ${{ inputs.token }}
       - name: Add link to the current run
         id: comment
         run: |
@@ -155,7 +157,7 @@ jobs:
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure --keep FILTER --keep LC_ALL --keep LANG \
+            --pure --keep CATEGORIES --keep FILTER --keep RUNS --keep LC_ALL --keep LANG \
             --arg loadJSBuiltinsDynamically false \
             --arg ccache 'null' \
             --arg icu 'null' \
@@ -163,11 +165,12 @@ jobs:
             --arg devTools '[]' \
             --run '
                 set -o pipefail
+                read -r -a categories <<< "$CATEGORIES"
                 ./base_node benchmark/compare.js \
                   --filter "$FILTER" \
-                  --runs ${{ inputs.runs }} \
+                  --runs "$RUNS" \
                   --old ./base_node --new ./node \
-                  -- ${{ inputs.category }} \
+                  -- "${categories[@]}" \
                 | tee /dev/stderr \
                 > ${{ matrix.system }}.csv
                 echo "> [!WARNING] "
@@ -185,7 +188,9 @@ jobs:
                 echo "> using a dedicated machine, e.g. Jenkins CI."
             ' | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
         env:
+          CATEGORIES: ${{ inputs.category }}
           FILTER: ${{ inputs.filter }}
+          RUNS: ${{ inputs.runs }}
 
       - name: Upload raw benchmark results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -246,7 +251,9 @@ jobs:
             ' | tee /dev/stderr ${{ inputs.post-comment && 'body.txt' || '' }} >> "$GITHUB_STEP_SUMMARY"
       - name: Mark token input as sensitive
         if: inputs.token != ''
-        run: echo "::add-mask::${{ inputs.token }}"
+        run: printf '::add-mask::%s\n' "$COMMENT_TOKEN"
+        env:
+          COMMENT_TOKEN: ${{ inputs.token }}
       - name: Edit comment
         if: inputs.post-comment
         run: |

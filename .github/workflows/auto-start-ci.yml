@@ -72,7 +72,9 @@ jobs:
 
       - name: Start the CI
         run: |
+          read -r -a numbers <<< "$PULL_REQUESTS"
           curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
-          | sh -s -- ${{ needs.get-prs-for-ci.outputs.numbers }}
+          | sh -s -- "${numbers[@]}"
         env:
           GH_TOKEN: ${{ github.token }}
+          PULL_REQUESTS: ${{ needs.get-prs-for-ci.outputs.numbers }}
