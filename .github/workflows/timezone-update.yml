@@ -40,14 +40,14 @@ jobs:
 
       - name: Compare versions
         run: |
-          echo "Comparing current version ${{ env.current_version }} to new version ${{ env.new_version }}"
+          echo "Comparing current version $current_version to new version $new_version"
 
       - run: ./tools/dep_updaters/update-timezone.mjs
         if: ${{ env.new_version != env.current_version }}
 
       - name: Update the expected timezone version in test
         if: ${{ env.new_version != env.current_version }}
-        run: echo "${{ env.new_version }}" > test/fixtures/tz-version.txt
+        run: printf '%s\n' "$new_version" > test/fixtures/tz-version.txt
 
       - name: Open Pull Request
         if: ${{ env.new_version != env.current_version }}
