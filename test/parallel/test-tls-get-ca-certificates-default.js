@@ -18,3 +18,6 @@ assert.strictEqual(certs, certs2);
 
 // It's cached on subsequent accesses.
 assert.strictEqual(certs, tls.getCACertificates('default'));
+
+// The options form with format: 'pem' returns the same result.
+assert.deepStrictEqual(certs, tls.getCACertificates('default', { format: 'pem' }));
