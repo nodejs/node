@@ -450,22 +450,17 @@ bool IsCertificateTrustValid(SecCertificateRef ref) {
       CFArrayCreateMutable(nullptr, 1, &kCFTypeArrayCallBacks);
   CFArraySetValueAtIndex(subj_certs, 0, ref);
 
-  // SecTrustEvaluateWithError is used to check whether an individual
-  // certificate is trusted by the system — not to validate it for a
-  // specific role (server, intermediate, etc.). We just need a minimal
-  // policy that guarantees the certificate can be chained to a known
-  // trust anchor while filtering out irrelevant certificates.
-  //
-  // Refs
-  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/OSX/sec/Security/SecPolicy.c#L1855-L1890
-  // SecPolicyCreateSSL (both mark EKU optional):
-  //   server=true  -> BasicX509 + serverAuth + anyExtendedKeyUsage + SGC
-  //   server=false -> BasicX509 + clientAuth + anyExtendedKeyUsage
+  // Use the SSL client policy to preserve the existing certificate filtering,
+  // but disable network access to avoid AIA and revocation requests during
+  // certificate enumeration.
   SecPolicyRef policy = SecPolicyCreateSSL(false, nullptr);
   OSStatus ortn =
       SecTrustCreateWithCertificates(subj_certs, policy, &sec_trust);
   bool result = false;
   if (ortn) {
+    /* should never happen */
+  } else if (SecTrustSetNetworkFetchAllowed(sec_trust, false) !=
+             errSecSuccess) {
     /* should never happen */
   } else {
     result = SecTrustEvaluateWithError(sec_trust, nullptr);
