@@ -159,7 +159,7 @@ jobs:
           - runner: macos-latest
             system: aarch64-darwin
     name: '${{ matrix.system }}: with shared libraries${{ matrix.perfetto && '' and perfetto'' || '''' }}'
-    uses: ./.github/workflows/build-shared.yml
+    uses: $/.github/workflows/build-shared.yml
     with:
       runner: ${{ matrix.runner }}
       with-sccache: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
@@ -250,7 +250,7 @@ jobs:
       matrix:
         openssl: ${{ fromJSON(needs.build-aarch64-linux-v8.outputs.matrix) }}
     name: 'aarch64-linux: with shared ${{ matrix.openssl.name }}'
-    uses: ./.github/workflows/build-shared.yml
+    uses: $/.github/workflows/build-shared.yml
     with:
       runner: ubuntu-24.04-arm
       v8-nar: ${{ needs.build-aarch64-linux-v8.outputs.local-cache && 'libv8-aarch64-linux.nar' }}
