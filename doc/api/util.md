@@ -481,6 +481,115 @@ process.stdin.on('data', (data) => {
 onInactivity();
 ```
 
+## `util.throttle(fn, limit, interval[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to throttle.
+* `limit` {integer} The maximum number of times to invoke `fn` during an
+  interval. Must be greater than `0`.
+* `interval` {integer} The length of each interval in milliseconds.
+* `options` {Object}
+  * `concurrency` {number} The maximum number of invocations of `fn` whose
+    return values may be unsettled at once. Must be a positive integer or
+    `Infinity`. **Default:** `Infinity`.
+  * `maxPending` {number} The maximum number of calls that may be queued when
+    `overflow` is `'queue'`. Must be a non-negative integer or `Infinity`.
+    **Default:** `Infinity`.
+  * `overflow` {string} Determines how calls exceeding the limit are handled.
+    **Default:** `'queue'`.
+    * `'queue'`: Queue calls in the order received.
+    * `'drop'`: Reject calls immediately without queueing them.
+  * `signal` {AbortSignal} An `AbortSignal` that cancels pending calls and
+    prevents future calls when aborted.
+  * `strict` {boolean} When `true`, ensures that `limit` is not exceeded during
+    any rolling interval. **Default:** `false`.
+* Returns: {Function} The throttled function.
+
+Creates a function that limits how often `fn` is invoked. By default, calls that
+exceed the limit are queued in the order received rather than discarded. The
+throttled function returns a {Promise} for the value returned by `fn`. If `fn`
+throws or returns a rejected promise, the returned promise is rejected with the
+same reason.
+
+An invocation starts only when both rate and concurrency capacity are
+available. Rate capacity is consumed when `fn` starts, not when a call enters
+the queue. Concurrency capacity is released when the value returned by `fn`
+settles. Non-promise values settle during the next microtask.
+
+When `options.overflow` is `'drop'`, calls made without available rate or
+concurrency capacity are rejected immediately. When `options.overflow` is
+`'queue'` and `options.maxPending` calls are already queued, additional calls
+are also rejected immediately. `maxPending` has no effect when `overflow` is
+`'drop'`.
+
+In both cases, rejected calls return a promise rejected with an
+`ERR_THROTTLED` error. The rejected promise is marked as handled, so ignoring it
+does not emit an `'unhandledRejection'` event. Awaiting or explicitly handling
+the promise still observes the rejection. Rejected calls do not consume rate
+or concurrency capacity, enter the queue, or schedule a timeout.
+
+By default, the interval begins when the first call in a new window invokes
+`fn`. Up to `limit` calls can invoke `fn` during that window. Queued calls are
+processed in groups of up to `limit` as each subsequent window begins. This
+windowed behavior can result in calls occurring close together at a window
+boundary.
+
+When `options.strict` is `true`, invocation times are tracked individually.
+This ensures that no more than `limit` calls begin during any rolling interval,
+at the cost of additional bookkeeping.
+
+If `options.signal` is aborted, pending and future calls reject with an
+`AbortError`, with the signal's reason set as the error's `cause`, and `fn` is
+not invoked by those calls. If the signal is already aborted, `throttle()`
+throws an `AbortError`.
+
+The returned function has the following properties:
+
+* `cancel([reason])` cancels all queued calls and resets the current throttle
+  window. The queued promises reject with an `AbortError`. If provided,
+  `reason` is set as the error's `cause`. Does not cancel invocations that have
+  already started.
+* `hasImmediateCapacity()` returns `true` if a call made at that moment could
+  invoke `fn` without being queued or rejected. The check does not reserve
+  capacity, and the throttled function always checks again when called. It
+  returns `false` while calls are queued to preserve their order. Callers can
+  avoid creating a timeout by only calling the throttled function when this
+  method returns `true`.
+* `pending` {Promise|null} is the promise returned by the most recently queued
+  call, or `null` if no invocation is queued.
+* `pendingCount` {integer} is the number of calls awaiting invocation.
+* `activeCount` {integer} is the number of invocations whose return values have
+  not settled.
+* `ref()` makes the pending and future timeout keep the Node.js event loop
+  active. Returns the throttled function.
+* `unref()` allows the event loop to exit while a timeout is pending. This also
+  applies to future timeouts. Returns the throttled function.
+
+Calls that have already invoked `fn` are not affected by `cancel()` or by an
+aborted signal. When invoked, `fn` has the throttled function as its `this`
+value. The throttled function preserves the `name` and `length` of `fn`.
+
+```mjs
+import { throttle } from 'node:util';
+
+const request = throttle(async (id) => {
+  const response = await fetch(`https://example.com/items/${id}`);
+  return response.json();
+}, 2, 1_000);
+
+// At most two requests begin during each one-second interval. All other calls
+// remain queued and retain their original arguments.
+const results = await Promise.all([
+  request(1),
+  request(2),
+  request(3),
+  request(4),
+]);
+```
+
 ## `util.diff(actual, expected)`
 
 <!-- YAML

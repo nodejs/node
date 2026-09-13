@@ -3180,6 +3180,13 @@ This error represents a failed test. Additional information about the failure
 is available via the `cause` property. The `failureType` property specifies
 what the test was doing when the failure occurred.
 
+<a id="ERR_THROTTLED"></a>
+
+### `ERR_THROTTLED`
+
+A call was dropped because a throttled function could not invoke it immediately
+or its pending queue was full.
+
 <a id="ERR_TLS_ALPN_CALLBACK_INVALID_RESULT"></a>
 
 ### `ERR_TLS_ALPN_CALLBACK_INVALID_RESULT`
