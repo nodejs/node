@@ -4119,6 +4119,9 @@ changes:
     E.G. `'/index.html?page=12'`. An exception is thrown when the request path
     contains illegal characters. Currently, only spaces are rejected but that
     may change in the future. **Default:** `'/'`.
+    With `method` set to `'CONNECT'`, `path` must be an authority in the form
+    `host:port`, such as `'www.example.com:80'` or `'[2001:db8::1]:443'`.
+    Invalid values throw an `ERR_INVALID_ARG_VALUE` error.
     The content in `path` is sent as the [request target][] in the HTTP 1.1 message.
     When `path` is an absolute URL, this means the request target in the message in [absolute form][].
     If the receiving server is a proxy, the server typically forwards the request to the
