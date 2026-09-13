@@ -105,33 +105,15 @@ jobs:
           else
             echo "UNDICI_WPT=legacy" >> $GITHUB_ENV
           fi
-      # Checkout composite actions from the default branch since the
-      # version-specific checkout above overwrites .github/actions/
-      - name: Checkout undici WPT actions
-        if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          sparse-checkout: |
-            .github/actions/undici-wpt-current
-            .github/actions/undici-wpt-legacy
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-          path: _wpt_actions
-          clean: false
-      - name: Place undici WPT actions
-        if: ${{ env.WPT_REPORT != '' }}
-        run: |
-          mkdir -p .github/actions
-          cp -r _wpt_actions/.github/actions/undici-wpt-* .github/actions/
       - name: Run undici WPT (current)
         if: ${{ env.UNDICI_WPT == 'current' }}
-        uses: ./.github/actions/undici-wpt-current
+        uses: $/.github/actions/undici-wpt-current
         with:
           undici-version: ${{ env.UNDICI_VERSION }}
           wpt-report: ${{ env.WPT_REPORT }}
       - name: Run undici WPT (legacy)
         if: ${{ env.UNDICI_WPT == 'legacy' }}
-        uses: ./.github/actions/undici-wpt-legacy
+        uses: $/.github/actions/undici-wpt-legacy
         with:
           undici-version: ${{ env.UNDICI_VERSION }}
           wpt-report: ${{ env.WPT_REPORT }}
