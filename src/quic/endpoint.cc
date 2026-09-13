@@ -2010,9 +2010,11 @@ void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
   // exists but it is in a destroyed state. Care should be taken accessing
   // session after this point.
 
-  // Deliver any qlog written while processing the packets that carried the
-  // ClientHello, which is the only output that can predate this callback.
+  // At this point, the session is active and JS has had its chance to request
+  // an application. We attach the application now, and then deliver any qlog
+  // written during the ClientHello - the only output that can predate this.
   if (!session->is_destroyed()) {
+    session->EnsureApplication();
     session->FlushPendingQlog();
   }
 }

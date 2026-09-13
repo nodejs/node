@@ -15,7 +15,7 @@ The stack is layered as:
 ├─────────────────────────────────────────────┤
 │  Endpoint      — UDP socket, packet I/O     │
 │  Session       — QUIC connection (ngtcp2)   │
-│  Application   — ALPN protocol logic        │
+│  Application   — Protocol logic (e.g. h3)   │
 │  Stream        — Bidirectional data flow    │
 ├─────────────────────────────────────────────┤
 │  ngtcp2 / nghttp3 / OpenSSL                 │
@@ -26,9 +26,9 @@ The stack is layered as:
 
 An **Endpoint** binds a UDP socket and dispatches incoming packets to
 **Sessions**. Each Session wraps an `ngtcp2_conn` and delegates
-protocol-specific behavior to an **Application** (selected by ALPN
-negotiation). Sessions contain **Streams** — bidirectional or unidirectional
-data channels that carry application data.
+protocol-specific behavior to an **Application**. Sessions contain
+**Streams** — bidirectional or unidirectional data channels that carry
+application data.
 
 ## File Map
 
@@ -135,20 +135,20 @@ re-reading from the source.
 ### Application Abstraction
 
 `Session::Application` is a virtual interface that the Session delegates
-ALPN-specific behavior to. Two implementations exist:
+protocol-specific behavior to. Two implementations exist:
 
-* **`DefaultApplication`** (`application.cc`): Used for non-HTTP/3 ALPN
-  protocols. Maintains its own stream scheduling queue. Streams are scheduled
-  via an intrusive linked list.
+* **`DefaultApplication`** (`application.cc`): Raw QUIC streams, with no
+  framing of its own. Maintains its own stream scheduling queue. Streams are
+  scheduled via an intrusive linked list.
 
-* **`Http3ApplicationImpl`** (`http3.cc`): Used when ALPN negotiates `h3`.
-  Wraps `nghttp3_conn` for HTTP/3 framing, header compression (QPACK),
-  server push, and stream prioritization. Manages unidirectional control
-  streams internally.
+* **`Http3ApplicationImpl`** (`http3.cc`): Wraps `nghttp3_conn` for HTTP/3
+  framing, header compression (QPACK), server push, and stream
+  prioritization. Manages unidirectional control streams internally.
 
-The Application is selected as soon as the ALPN protocol is known:
-immediately for clients, and for servers from the `OnClientHello` TLS
-callback (see [Server handshake ordering](#server-handshake-ordering)).
+A Session starts without an Application. JavaScript schedules an attach (that
+is what `new Http3Session(session)` does) by writing to the shared state, and
+the Session attaches it - or the `DefaultApplication` - when it becomes active,
+meaning the first time an Application is needed.
 
 ### Thread-Local Allocator
 
@@ -179,21 +179,19 @@ succeed but memory tracking is silently skipped.
 
 **Client**: `Endpoint::Connect()` builds a `Session::Config` with
 `Side::CLIENT`, creates a `TLSContext`, and calls `Session::Create()` →
-`ngtcp2_conn_client_new()`. The Application is selected immediately.
+`ngtcp2_conn_client_new()`.
 
 **Server**: `Endpoint::Receive()` processes an Initial packet through
 address validation (retry tokens, LRU cache), then calls `Session::Create()`
-→ `ngtcp2_conn_server_new()`. The Application is selected later, once the
-ClientHello names an ALPN protocol.
+→ `ngtcp2_conn_server_new()`.
 
 ### Server handshake ordering
 
 A server has to make several decisions from the ClientHello, and the order
-matters: the ALPN protocol depends on which identity SNI selected, the
-Application depends on the ALPN protocol, and JavaScript needs a
-`QuicSession` object before any 0-RTT request arrives on it. TLS is
-therefore stopped at the ClientHello, before the point where a session
-ticket could be accepted and early data could start flowing:
+matters: the ALPN protocol depends on which identity SNI selected, and
+JavaScript needs a `QuicSession` object before any 0-RTT request arrives on
+it. TLS is therefore stopped at the ClientHello, before the point where a
+session ticket could be accepted and early data could start flowing:
 
 ```text
 ngtcp2_conn_read_pkt()
@@ -201,7 +199,6 @@ ngtcp2_conn_read_pkt()
     → TLSContext::OnClientHello()        // SSL_CTX_set_client_hello_cb
        ├── SelectSNIContext() + SSL_set_SSL_CTX()
        ├── crypto::SelectNextProtocol()  // against that identity's list
-       ├── Session::InstallApplicationForAlpn()
        └── return SSL_CLIENT_HELLO_RETRY  // handshake suspended here
     ← SSL_ERROR_WANT_CLIENT_HELLO_CB     // ngtcp2 treats this as "not done"
  ← 0

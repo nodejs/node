@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -27,10 +27,12 @@ const decoder = new TextDecoder();
   let requestCount = 0;
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     serverSession = ss;
     ss.onstream = mustCall(2);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall((headers, stream) => {
       stream.sendHeaders({ ':status': '200' });
@@ -48,10 +50,11 @@ const decoder = new TextDecoder();
     }, 2),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   const stream1 = await clientSession.createBidirectionalStream({

@@ -2,18 +2,24 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <v8.h>
 #include <memory>
 #include "application.h"
 #include "session.h"
 
-namespace node::quic {
+namespace node {
+class ExternalReferenceRegistry;
+class Realm;
+namespace quic {
 
 // Create an HTTP/3 Application implementation for the given session.
-// Uses the Application_Options from the session's config for HTTP/3
-// specific settings (qpack, max header length, etc.).
-std::unique_ptr<Session::Application> CreateHttp3Application(
-    Session* session, const Session::Application_Options& options);
+std::unique_ptr<Session::Application> CreateHttp3Application(Session* session);
 
-}  // namespace node::quic
+Session::Application_Options Http3SettingsFromHandle(const Session& session);
+
+void InitHttp3PerContext(Realm* realm, v8::Local<v8::Object> target);
+
+}  // namespace quic
+}  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
