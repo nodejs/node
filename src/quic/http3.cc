@@ -235,7 +235,6 @@ class Http3ApplicationImpl final : public Session::Application {
 
   bool Start() override {
     if (started_) return true;
-    started_ = true;
     Debug(&session(), "Starting HTTP/3 application.");
 
     const auto params = session().remote_transport_params();
@@ -269,7 +268,7 @@ class Http3ApplicationImpl final : public Session::Application {
     }
 
     Debug(&session(), "Creating and binding HTTP/3 control streams");
-    bool ret =
+    started_ =
         session().OpenUnidirectionalStream(&control_stream_id_) &&
         session().OpenUnidirectionalStream(&qpack_enc_stream_id_) &&
         session().OpenUnidirectionalStream(&qpack_dec_stream_id_) &&
@@ -277,7 +276,7 @@ class Http3ApplicationImpl final : public Session::Application {
         nghttp3_conn_bind_qpack_streams(
             *this, qpack_enc_stream_id_, qpack_dec_stream_id_) == 0;
 
-    if (env()->enabled_debug_list()->enabled(DebugCategory::QUIC) && ret) {
+    if (env()->enabled_debug_list()->enabled(DebugCategory::QUIC) && started_) {
       Debug(&session(),
             "Created and bound control stream %" PRIi64,
             control_stream_id_);
@@ -289,7 +288,7 @@ class Http3ApplicationImpl final : public Session::Application {
             qpack_dec_stream_id_);
     }
 
-    return ret;
+    return started_;
   }
 
   void BeginShutdown() override {
@@ -658,18 +657,16 @@ class Http3ApplicationImpl final : public Session::Application {
             offsetof(ngtcp2_vec, base) == offsetof(nghttp3_vec, base) &&
             offsetof(ngtcp2_vec, len) == offsetof(nghttp3_vec, len),
         "ngtcp2_vec and nghttp3_vec must have identical layout");
-    data->count = kMaxVectorCount;
-    ssize_t ret = 0;
     Debug(&session(), "HTTP/3 application getting stream data");
     if (conn_ && session().max_data_left()) {
       // nghttp3 reports fin through an int out-param; bridge it to the bool.
       int fin = 0;
-      ret =
+      ssize_t ret =
           nghttp3_conn_writev_stream(*this,
                                      &data->id,
                                      &fin,
                                      reinterpret_cast<nghttp3_vec*>(data->data),
-                                     data->count);
+                                     kMaxVectorCount);
       // A negative return value indicates an error.
       if (ret < 0) {
         return static_cast<int>(ret);
