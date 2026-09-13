@@ -1,4 +1,9 @@
 all: \
+  name-constraints-ca-cert.pem \
+  name-constraints-permitted-cert.pem \
+  name-constraints-excluded-cert.pem \
+  name-constraints-dns-san-cert.pem \
+  name-constraints-email-san-cert.pem \
   ca1-cert.pem \
   ca2-cert.pem \
   ca2-crl.pem \
@@ -1255,6 +1260,30 @@ irrelevant_san_correct_subject-cert.pem: irrelevant_san_correct_subject-key.pem
 
 irrelevant_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
+
+# Certificates for DNS name constraints with CN fallback.
+# Reuse the existing ca1 and agent1 private keys.
+name-constraints-ca-cert.pem: name-constraints.cnf ca1-key.pem
+	openssl req -new -x509 -sha256 -days 99999 -set_serial 1 \
+		-config name-constraints.cnf -key ca1-key.pem \
+		-passin "pass:password" -out $@
+
+name-constraints-permitted-cert.pem: CN = www.example.com
+name-constraints-permitted-cert.pem: SERIAL = 2
+name-constraints-excluded-cert.pem: SERIAL = 3
+name-constraints-dns-san-cert.pem: SERIAL = 4
+name-constraints-email-san-cert.pem: SERIAL = 5
+name-constraints-%-cert.pem: CN = outside.invalid
+name-constraints-%-cert.pem: name-constraints.cnf name-constraints-ca-cert.pem ca1-key.pem agent1-key.pem
+	openssl req -new -config name-constraints.cnf -key agent1-key.pem \
+		-subj "/CN=$(CN)/emailAddress=subject@example.com" \
+		-out name-constraints-$*-csr.pem
+	openssl x509 -req -sha256 -days 99999 -set_serial $(SERIAL) \
+		-in name-constraints-$*-csr.pem \
+		-CA name-constraints-ca-cert.pem -CAkey ca1-key.pem \
+		-passin "pass:password" -extfile name-constraints.cnf \
+		-extensions $* -out $@
+	rm name-constraints-$*-csr.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
