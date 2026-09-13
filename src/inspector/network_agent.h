@@ -81,6 +81,8 @@ class NetworkAgent : public protocol::Network::Backend {
  private:
   std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
       v8::Local<v8::Context> context, v8::Local<v8::Object> headers_obj);
+  std::unique_ptr<protocol::Network::Initiator> createInitiatorFromObject(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> initiator_obj);
   std::unique_ptr<protocol::Network::Request> createRequestFromObject(
       v8::Local<v8::Context> context, v8::Local<v8::Object> request);
   std::unique_ptr<protocol::Network::Response> createResponseFromObject(
