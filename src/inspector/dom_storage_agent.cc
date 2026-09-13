@@ -101,10 +101,12 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
   std::optional<StorageMap> storage_map_fallback;
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
-    if (web_storage_obj) {
-      storage_map_fallback = web_storage_obj.value()->GetAll();
-      storage_map = &storage_map_fallback.value();
+    if (!web_storage_obj) {
+      return protocol::DispatchResponse::ServerError(
+          "Could not read DOM storage items");
     }
+    storage_map_fallback = web_storage_obj.value()->GetAll();
+    storage_map = &storage_map_fallback.value();
   }
 
   auto result =
