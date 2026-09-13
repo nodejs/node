@@ -391,6 +391,21 @@ Once this label is added, `github-actions bot` will start
 the `node-test-pull-request` automatically. If the `github-actions bot`
 is unable to start the job, it will update the label with `request-ci-failed`.
 
+To resume an existing CI run, add the `resume-ci` label to the pull request.
+As with `request-ci`, the pull request must have an approving review. The bot
+removes `resume-ci` when processing the request. If it cannot resume the job, it
+adds `resume-ci-failed` and posts the command output with a link to the workflow
+run.
+
+Do not combine `request-ci` and `resume-ci`. Each script checks the current labels
+and reports a failure if the other request label is present, without starting or
+resuming CI.
+
+The job must be failed or aborted and resumable, and its CI-approved commit must
+still match the pull request's HEAD. Resuming is refused when available failure
+diagnostics reference files changed by the pull request. Use `request-ci` when a
+fresh CI run is needed instead.
+
 ### Internal vs. public API
 
 All functionality in the official Node.js documentation is part of the public
@@ -1011,6 +1026,8 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 * `never-stale`: Issues and pull requests exempt from automatic stale handling
 * `request-ci`: When this label is added to a PR, CI will be started
   automatically. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
+* `resume-ci`: When this label is added to a PR, the latest linked CI run will be
+  resumed if eligible. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
 * `stale`: Issues and pull requests with no activity for 90 days. See
   [Stale issues and pull requests](#stale-issues-and-pull-requests)
 * `tsc-agenda`: Open issues and pull requests with this label will be added to

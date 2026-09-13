@@ -7,11 +7,18 @@ REQUEST_CI_FAILED_LABEL="request-ci-failed"
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
 for pr in "$@"; do
+  resume_requested=$(gh -R "$GITHUB_REPOSITORY" pr view "$pr" --json labels \
+    --jq 'any(.labels[]; .name == "resume-ci")')
   gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --remove-label "$REQUEST_CI_LABEL"
 
   ci_started=yes
   rm -f output;
-  ncu-ci run --check-for-duplicates "$pr" >output 2>&1 || ci_started=no
+  if [ "$resume_requested" = "true" ]; then
+    echo 'Refusing to start CI while the resume-ci label is present' >output
+    ci_started=no
+  else
+    ncu-ci run --check-for-duplicates "$pr" >output 2>&1 || ci_started=no
+  fi
   cat output
 
   if [ "$ci_started" = "no" ]; then
