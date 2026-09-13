@@ -1829,23 +1829,38 @@ setTimeout(() => {
 }, 10000);
 ```
 
-### `server.closeIdleConnections()`
+### `server.closeIdleConnections([closeWhenIdle])`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Added the `closeWhenIdle` parameter.
 -->
+
+* `closeWhenIdle` {boolean} If `true`, connections that are currently sending a
+  request or waiting for a response are marked to close as soon as that
+  request/response finishes, instead of being reused for a subsequent
+  keep-alive request. Without this, such a connection stays open until
+  `server.keepAliveTimeout` elapses. **Default:** `false`.
 
 Closes all connections connected to this server which are not sending a request
 or waiting for a response.
 
 > Starting with Node.js 19.0.0, there's no need for calling this method in
-> conjunction with `server.close` to reap `keep-alive` connections. Using it
-> won't cause any harm though, and it can be useful to ensure backwards
-> compatibility for libraries and applications that need to support versions
-> older than 19.0.0. Whenever using this in conjunction with `server.close`,
-> calling this _after_ `server.close` is recommended as to avoid race
-> conditions where new connections are created between a call to this and a
-> call to `server.close`.
+> conjunction with `server.close` to reap already-idle `keep-alive`
+> connections — `server.close()` does so automatically. It does not, however,
+> cover a connection that is still active when `server.close()` is called and
+> only becomes idle afterward; pass `closeWhenIdle: true` for that. Using
+> `closeIdleConnections()` explicitly won't cause any harm though, and it can
+> be useful to ensure backwards compatibility for libraries and applications
+> that need to support versions older than 19.0.0. Whenever using this in
+> conjunction with `server.close`, calling this _after_ `server.close` is
+> recommended as to avoid race conditions where new connections are created
+> between a call to this and a call to `server.close`.
 
 ```js
 const http = require('node:http');
