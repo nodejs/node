@@ -1237,6 +1237,7 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
         static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
     tmpl = NewFunctionTemplate(isolate, DynamicLibrary::New);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "DynamicLibrary"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         DynamicLibrary::kInternalFieldCount);
     Local<Signature> signature = Signature::New(isolate, tmpl);
@@ -1308,7 +1309,11 @@ static void Initialize(Local<Object> target,
 
   // Create the DynamicLibrary template
   Local<FunctionTemplate> dl_tmpl = DynamicLibrary::GetConstructorTemplate(env);
-  SetConstructorFunction(context, target, "DynamicLibrary", dl_tmpl);
+  SetConstructorFunction(context,
+                         target,
+                         "DynamicLibrary",
+                         dl_tmpl,
+                         SetConstructorFunctionFlag::NONE);
   SetMethod(context, target, "toString", ToString);
   SetMethod(context, target, "toBuffer", ToBuffer);
   SetMethod(context, target, "toArrayBuffer", ToArrayBuffer);

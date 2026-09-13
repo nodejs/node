@@ -131,8 +131,11 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
 void DTLSSession::InitPerContext(Local<Object> target,
                                  Local<Context> context,
                                  Environment* env) {
-  SetConstructorFunction(
-      context, target, "DTLSSession", GetConstructorTemplate(env));
+  SetConstructorFunction(context,
+                         target,
+                         "DTLSSession",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 }
 
 void DTLSSession::RegisterExternalReferences(

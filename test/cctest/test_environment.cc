@@ -411,6 +411,27 @@ TEST_F(EnvironmentTest, CollectExternalReferencesFromSeveralThreads) {
   EXPECT_EQ(node::SnapshotBuilder::CollectExternalReferences().back(), 0);
 }
 
+TEST_F(EnvironmentTest, SharedIsolateDataLoadsBindingsTwice) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  const char* script =
+      "for (const m of require('module').builtinModules) {"
+      "  try { require(m); } catch {}"
+      "}"
+      "new (require('net').Socket)();"
+#if HAVE_OPENSSL
+      "require('tls').createSecureContext();"
+      "require('crypto').createSecretKey(Buffer.alloc(8));"
+#endif
+      "new (require('worker_threads').MessageChannel)().port1.close();";
+  Env env1{handle_scope, argv};
+  node::LoadEnvironment(*env1, script).ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env1).FromJust(), 0);
+  Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+  node::LoadEnvironment(*env2, script).ToLocalChecked();
+  EXPECT_EQ(node::SpinEventLoop(*env2).FromJust(), 0);
+}
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
