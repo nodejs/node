@@ -3381,7 +3381,8 @@ category.
 ### `ERR_TRACE_EVENTS_UNAVAILABLE`
 
 The `node:trace_events` module could not be loaded because Node.js was compiled
-with the `--without-v8-platform` flag.
+with the `--without-v8-platform` flag, or because the process was initialized by
+an embedder that provides its own V8 platform.
 
 <a id="ERR_TRAILING_JUNK_AFTER_STREAM_END"></a>
 
