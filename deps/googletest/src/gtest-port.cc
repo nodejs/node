@@ -766,249 +766,46 @@ void RE::Init(const char* regex) {
   delete[] full_pattern;
 }
 
-#elif defined(GTEST_USES_SIMPLE_RE)
-
-// Returns true if and only if ch appears anywhere in str (excluding the
-// terminating '\0' character).
-bool IsInSet(char ch, const char* str) {
-  return ch != '\0' && strchr(str, ch) != nullptr;
-}
-
-// Returns true if and only if ch belongs to the given classification.
-// Unlike similar functions in <ctype.h>, these aren't affected by the
-// current locale.
-bool IsAsciiDigit(char ch) { return '0' <= ch && ch <= '9'; }
-bool IsAsciiPunct(char ch) {
-  return IsInSet(ch, "^-!\"#$%&'()*+,./:;<=>?@[\\]_`{|}~");
-}
-bool IsRepeat(char ch) { return IsInSet(ch, "?*+"); }
-bool IsAsciiWhiteSpace(char ch) { return IsInSet(ch, " \f\n\r\t\v"); }
-bool IsAsciiWordChar(char ch) {
-  return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') ||
-         ('0' <= ch && ch <= '9') || ch == '_';
-}
-
-// Returns true if and only if "\\c" is a supported escape sequence.
-bool IsValidEscape(char c) {
-  return (IsAsciiPunct(c) || IsInSet(c, "dDfnrsStvwW"));
-}
-
-// Returns true if and only if the given atom (specified by escaped and
-// pattern) matches ch.  The result is undefined if the atom is invalid.
-bool AtomMatchesChar(bool escaped, char pattern_char, char ch) {
-  if (escaped) {  // "\\p" where p is pattern_char.
-    switch (pattern_char) {
-      case 'd':
-        return IsAsciiDigit(ch);
-      case 'D':
-        return !IsAsciiDigit(ch);
-      case 'f':
-        return ch == '\f';
-      case 'n':
-        return ch == '\n';
-      case 'r':
-        return ch == '\r';
-      case 's':
-        return IsAsciiWhiteSpace(ch);
-      case 'S':
-        return !IsAsciiWhiteSpace(ch);
-      case 't':
-        return ch == '\t';
-      case 'v':
-        return ch == '\v';
-      case 'w':
-        return IsAsciiWordChar(ch);
-      case 'W':
-        return !IsAsciiWordChar(ch);
-    }
-    return IsAsciiPunct(pattern_char) && pattern_char == ch;
-  }
-
-  return (pattern_char == '.' && ch != '\n') || pattern_char == ch;
-}
-
-// Helper function used by ValidateRegex() to format error messages.
-static std::string FormatRegexSyntaxError(const char* regex, int index) {
-  return (Message() << "Syntax error at index " << index
-                    << " in simple regular expression \"" << regex << "\": ")
-      .GetString();
-}
-
-// Generates non-fatal failures and returns false if regex is invalid;
-// otherwise returns true.
-bool ValidateRegex(const char* regex) {
-  if (regex == nullptr) {
-    ADD_FAILURE() << "NULL is not a valid simple regular expression.";
-    return false;
-  }
-
-  bool is_valid = true;
-
-  // True if and only if ?, *, or + can follow the previous atom.
-  bool prev_repeatable = false;
-  for (int i = 0; regex[i]; i++) {
-    if (regex[i] == '\\') {  // An escape sequence
-      i++;
-      if (regex[i] == '\0') {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i - 1)
-                      << "'\\' cannot appear at the end.";
-        return false;
-      }
-
-      if (!IsValidEscape(regex[i])) {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i - 1)
-                      << "invalid escape sequence \"\\" << regex[i] << "\".";
-        is_valid = false;
-      }
-      prev_repeatable = true;
-    } else {  // Not an escape sequence.
-      const char ch = regex[i];
-
-      if (ch == '^' && i > 0) {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i)
-                      << "'^' can only appear at the beginning.";
-        is_valid = false;
-      } else if (ch == '$' && regex[i + 1] != '\0') {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i)
-                      << "'$' can only appear at the end.";
-        is_valid = false;
-      } else if (IsInSet(ch, "()[]{}|")) {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i) << "'" << ch
-                      << "' is unsupported.";
-        is_valid = false;
-      } else if (IsRepeat(ch) && !prev_repeatable) {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i) << "'" << ch
-                      << "' can only follow a repeatable token.";
-        is_valid = false;
-      }
-
-      prev_repeatable = !IsInSet(ch, "^$?*+");
-    }
-  }
-
-  return is_valid;
-}
-
-// Matches a repeated regex atom followed by a valid simple regular
-// expression.  The regex atom is defined as c if escaped is false,
-// or \c otherwise.  repeat is the repetition meta character (?, *,
-// or +).  The behavior is undefined if str contains too many
-// characters to be indexable by size_t, in which case the test will
-// probably time out anyway.  We are fine with this limitation as
-// std::string has it too.
-bool MatchRepetitionAndRegexAtHead(bool escaped, char c, char repeat,
-                                   const char* regex, const char* str) {
-  const size_t min_count = (repeat == '+') ? 1 : 0;
-  const size_t max_count = (repeat == '?') ? 1 : static_cast<size_t>(-1) - 1;
-  // We cannot call numeric_limits::max() as it conflicts with the
-  // max() macro on Windows.
-
-  for (size_t i = 0; i <= max_count; ++i) {
-    // We know that the atom matches each of the first i characters in str.
-    if (i >= min_count && MatchRegexAtHead(regex, str + i)) {
-      // We have enough matches at the head, and the tail matches too.
-      // Since we only care about *whether* the pattern matches str
-      // (as opposed to *how* it matches), there is no need to find a
-      // greedy match.
-      return true;
-    }
-    if (str[i] == '\0' || !AtomMatchesChar(escaped, c, str[i])) return false;
-  }
-  return false;
-}
-
-// Returns true if and only if regex matches a prefix of str. regex must
-// be a valid simple regular expression and not start with "^", or the
-// result is undefined.
-bool MatchRegexAtHead(const char* regex, const char* str) {
-  if (*regex == '\0')  // An empty regex matches a prefix of anything.
-    return true;
-
-  // "$" only matches the end of a string.  Note that regex being
-  // valid guarantees that there's nothing after "$" in it.
-  if (*regex == '$') return *str == '\0';
-
-  // Is the first thing in regex an escape sequence?
-  const bool escaped = *regex == '\\';
-  if (escaped) ++regex;
-  if (IsRepeat(regex[1])) {
-    // MatchRepetitionAndRegexAtHead() calls MatchRegexAtHead(), so
-    // here's an indirect recursion.  It terminates as the regex gets
-    // shorter in each recursion.
-    return MatchRepetitionAndRegexAtHead(escaped, regex[0], regex[1], regex + 2,
-                                         str);
-  } else {
-    // regex isn't empty, isn't "$", and doesn't start with a
-    // repetition.  We match the first atom of regex with the first
-    // character of str and recurse.
-    return (*str != '\0') && AtomMatchesChar(escaped, *regex, *str) &&
-           MatchRegexAtHead(regex + 1, str + 1);
-  }
-}
-
-// Returns true if and only if regex matches any substring of str.  regex must
-// be a valid simple regular expression, or the result is undefined.
-//
-// The algorithm is recursive, but the recursion depth doesn't exceed
-// the regex length, so we won't need to worry about running out of
-// stack space normally.  In rare cases the time complexity can be
-// exponential with respect to the regex length + the string length,
-// but usually it's must faster (often close to linear).
-bool MatchRegexAnywhere(const char* regex, const char* str) {
-  if (regex == nullptr || str == nullptr) return false;
-
-  if (*regex == '^') return MatchRegexAtHead(regex + 1, str);
-
-  // A successful match can be anywhere in str.
-  do {
-    if (MatchRegexAtHead(regex, str)) return true;
-  } while (*str++ != '\0');
-  return false;
-}
-
-// Implements the RE class.
+#elif defined(GTEST_USES_STD_RE)
 
 RE::~RE() = default;
 
 // Returns true if and only if regular expression re matches the entire str.
 bool RE::FullMatch(const char* str, const RE& re) {
-  return re.is_valid_ && MatchRegexAnywhere(re.full_pattern_.c_str(), str);
+  if (!re.is_valid_ || str == nullptr) return false;
+  return std::regex_match(str, re.regex_);
 }
 
 // Returns true if and only if regular expression re matches a substring of
 // str (including str itself).
 bool RE::PartialMatch(const char* str, const RE& re) {
-  return re.is_valid_ && MatchRegexAnywhere(re.pattern_.c_str(), str);
+  if (!re.is_valid_ || str == nullptr) return false;
+  return std::regex_search(str, re.regex_);
 }
 
 // Initializes an RE from its string representation.
 void RE::Init(const char* regex) {
-  full_pattern_.clear();
-  pattern_.clear();
+  pattern_ = regex == nullptr ? "" : regex;
+  is_valid_ = false;
 
-  if (regex != nullptr) {
-    pattern_ = regex;
-  }
-
-  is_valid_ = ValidateRegex(regex);
-  if (!is_valid_) {
-    // No need to calculate the full pattern when the regex is invalid.
+  if (regex == nullptr) {
+    ADD_FAILURE() << "NULL is not a valid regular expression.";
     return;
   }
 
-  // Reserves enough bytes to hold the regular expression used for a
-  // full match: we need space to prepend a '^' and append a '$'.
-  full_pattern_.reserve(pattern_.size() + 2);
-
-  if (pattern_.empty() || pattern_.front() != '^') {
-    full_pattern_.push_back('^');  // Makes sure full_pattern_ starts with '^'.
+#if GTEST_HAS_EXCEPTIONS
+  try {
+    regex_ = std::regex(regex, std::regex_constants::ECMAScript);
+  } catch (const std::regex_error& e) {
+    ADD_FAILURE() << "Regular expression \"" << regex
+                  << "\" is not a valid regular expression: " << e.what();
+    return;
   }
+#else
+  regex_ = std::regex(regex, std::regex_constants::ECMAScript);
+#endif
 
-  full_pattern_.append(pattern_);
-
-  if (pattern_.empty() || pattern_.back() != '$') {
-    full_pattern_.push_back('$');  // Makes sure full_pattern_ ends with '$'.
-  }
+  is_valid_ = true;
 }
 
 #endif  // GTEST_USES_POSIX_RE
