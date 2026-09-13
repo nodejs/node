@@ -122,16 +122,22 @@ describe('when there is a long-lived signal', () => {
     }, true);
   });
 
-  it('does not keep retained dependent signals without listeners', (t, done) => {
+  it('propagates abort to retained dependent signals without listeners', (t, done) => {
     const ac = new AbortController();
     const retainedSignals = [];
-    const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
-      (s) => s.toString() === 'Symbol(kDependantSignals)'
-    );
 
     function run(iteration) {
       if (iteration > limit) {
-        t.assert.strictEqual(ac.signal[kDependantSignals]?.size ?? 0, 0);
+        const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
+          (s) => s.toString() === 'Symbol(kDependantSignals)'
+        );
+        t.assert.strictEqual(ac.signal[kDependantSignals].size, limit);
+        ac.abort('stop');
+        for (const signal of retainedSignals) {
+          t.assert.strictEqual(signal.aborted, true);
+          t.assert.strictEqual(signal.reason, 'stop');
+          t.assert.throws(() => signal.throwIfAborted(), (err) => err === 'stop');
+        }
         done();
         return;
       }
@@ -141,6 +147,24 @@ describe('when there is a long-lived signal', () => {
     }
 
     run(1);
+  });
+
+  it('drops unreachable dependent signals without listeners', async () => {
+    const ac = new AbortController();
+    const size = () => {
+      const sym = Object.getOwnPropertySymbols(ac.signal).find(
+        (s) => s.toString() === 'Symbol(kDependantSignals)'
+      );
+      return ac.signal[sym]?.size ?? 0;
+    };
+
+    // Reuse a long-lived source across batches to catch accumulating WeakRefs.
+    for (let batch = 0; batch < 3; batch++) {
+      for (let i = 0; i < limit; i++) {
+        AbortSignal.any([ac.signal]);
+      }
+      await gcUntil('unreachable dependents are dropped', () => size() === 0);
+    }
   });
 
   it('drops observed dependent signals once they are transitively aborted', async () => {
