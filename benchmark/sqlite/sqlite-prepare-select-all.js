@@ -24,7 +24,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  const db = new sqlite.DatabaseSync(':memory:');
+  const db = new sqlite.Database(':memory:');
 
   // Create only the necessary table for the benchmark type.
   // If the statement includes 'foo_large', create the foo_large table; otherwise, create the foo table.

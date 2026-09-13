@@ -4801,6 +4801,20 @@ async function example() {
 }
 ```
 
+### DEP0210: `sqlite.DatabaseSync`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65988
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+`node:sqlite`'s `DatabaseSync` class was renamed to `Database`. `DatabaseSync`
+is kept as a deprecated alias. Use `Database` instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf

@@ -40,8 +40,8 @@ The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
-const database = new DatabaseSync(':memory:');
+import { Database } from 'node:sqlite';
+const database = new Database(':memory:');
 
 // Execute SQL statements from strings.
 database.exec(`
@@ -66,8 +66,8 @@ query.close();
 ```
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
-const database = new DatabaseSync(':memory:');
+const { Database } = require('node:sqlite');
+const database = new Database(':memory:');
 
 // Execute SQL statements from strings.
 database.exec(`
@@ -124,7 +124,7 @@ option for user-defined functions. If Node.js reads an `INTEGER` value from
 SQLite that is outside the JavaScript [safe integer][] range, and the option to
 read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
 
-## Class: `DatabaseSync`
+## Class: `Database`
 
 <!-- YAML
 added: v22.5.0
@@ -144,7 +144,11 @@ changes:
 This class represents a single [connection][] to a SQLite database. All APIs
 exposed by this class execute synchronously.
 
-### `new DatabaseSync(path[, options])`
+`DatabaseSync` is a deprecated alias for `Database`, kept for backward
+compatibility with the class's previous name. See
+[DEP0210](deprecations.md#dep0210-sqlitedatabasesync).
+
+### `new Database(path[, options])`
 
 <!-- YAML
 added: v22.5.0
@@ -223,7 +227,7 @@ changes:
     * `variableNumber` {number} Maximum number of SQL variables.
     * `triggerDepth` {number} Maximum trigger recursion depth.
 
-Constructs a new `DatabaseSync` instance.
+Constructs a new `Database` instance.
 
 ### `database.aggregate(name, options)`
 
@@ -266,9 +270,9 @@ Registers a new aggregate function with the SQLite database. This method is a wr
 When used as a window function, the `result` function will be called multiple times.
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 db.exec(`
   CREATE TABLE t3(x, y);
   INSERT INTO t3 VALUES ('a', 4),
@@ -288,9 +292,9 @@ query.get(); // { total: 21 }
 ```
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
+import { Database } from 'node:sqlite';
 
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 db.exec(`
   CREATE TABLE t3(x, y);
   INSERT INTO t3 VALUES ('a', 4),
@@ -336,11 +340,11 @@ added:
 
 Loads a shared library into the database connection. This method is a wrapper
 around [`sqlite3_load_extension()`][]. It is required to enable the
-`allowExtension` option when constructing the `DatabaseSync` instance.
+`allowExtension` option when constructing the `Database` instance.
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
-const database = new DatabaseSync(':memory:', { allowExtension: true });
+import { Database } from 'node:sqlite';
+const database = new Database(':memory:', { allowExtension: true });
 
 // Load using the entry point derived from the filename.
 database.loadExtension('./decimal.dylib');
@@ -350,8 +354,8 @@ database.loadExtension('./base64.dylib', 'sqlite3_base64_init');
 ```
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
-const database = new DatabaseSync(':memory:', { allowExtension: true });
+const { Database } = require('node:sqlite');
+const database = new Database(':memory:', { allowExtension: true });
 
 // Load using the entry point derived from the filename.
 database.loadExtension('./decimal.dylib');
@@ -506,8 +510,8 @@ Operations that touch no SQLite state stay available from the callback:
 `{ done: true }`.
 
 ```cjs
-const { DatabaseSync, constants } = require('node:sqlite');
-const db = new DatabaseSync(':memory:');
+const { Database, constants } = require('node:sqlite');
+const db = new Database(':memory:');
 
 // Set up an authorizer that denies all table creation
 db.setAuthorizer((actionCode) => {
@@ -530,8 +534,8 @@ try {
 ```
 
 ```mjs
-import { DatabaseSync, constants } from 'node:sqlite';
-const db = new DatabaseSync(':memory:');
+import { Database, constants } from 'node:sqlite';
+const db = new Database(':memory:');
 
 // Set up an authorizer that denies all table creation
 db.setAuthorizer((actionCode) => {
@@ -588,7 +592,7 @@ An object for getting and setting SQLite database limits at runtime.
 Each property corresponds to an SQLite limit and can be read or written.
 
 ```js
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 
 // Read current limit
 console.log(db.limits.length);
@@ -612,7 +616,7 @@ Setting a property to `Infinity` resets the limit to its compile-time maximum va
 added: v22.5.0
 -->
 
-Opens the database specified in the `path` argument of the `DatabaseSync`
+Opens the database specified in the `path` argument of the `Database`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
@@ -634,9 +638,9 @@ Serializes the database into a binary representation, returned as a
 database. This method is a wrapper around [`sqlite3_serialize()`][].
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
+import { Database } from 'node:sqlite';
 
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 db.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
 db.exec("INSERT INTO t VALUES (1, 'hello')");
 const buffer = db.serialize();
@@ -644,9 +648,9 @@ console.log(buffer.length); // Prints the byte length of the database
 ```
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 db.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
 db.exec("INSERT INTO t VALUES (1, 'hello')");
 const buffer = db.serialize();
@@ -676,15 +680,15 @@ function, an aggregate function, an authorizer, or a changeset filter or conflic
 handler. This method is a wrapper around [`sqlite3_deserialize()`][].
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
+import { Database } from 'node:sqlite';
 
-const original = new DatabaseSync(':memory:');
+const original = new Database(':memory:');
 original.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
 original.exec("INSERT INTO t VALUES (1, 'hello')");
 const buffer = original.serialize();
 original.close();
 
-const clone = new DatabaseSync(':memory:');
+const clone = new Database(':memory:');
 clone.deserialize(buffer);
 using query = clone.prepare('SELECT value FROM t');
 console.log(query.get());
@@ -692,15 +696,15 @@ console.log(query.get());
 ```
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
-const original = new DatabaseSync(':memory:');
+const original = new Database(':memory:');
 original.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
 original.exec("INSERT INTO t VALUES (1, 'hello')");
 const buffer = original.serialize();
 original.close();
 
-const clone = new DatabaseSync(':memory:');
+const clone = new Database(':memory:');
 clone.deserialize(buffer);
 using query = clone.prepare('SELECT value FROM t');
 console.log(query.get());
@@ -817,9 +821,9 @@ syntax. Do not add parameter binding placeholders (`?` etc.) to the SQL query
 string itself.
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
+import { Database } from 'node:sqlite';
 
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 const sql = db.createTagStore();
 
 db.exec('CREATE TABLE users (id INT, name TEXT)');
@@ -844,9 +848,9 @@ console.log(allUsers);
 ```
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
-const db = new DatabaseSync(':memory:');
+const db = new Database(':memory:');
 const sql = db.createTagStore();
 
 db.exec('CREATE TABLE users (id INT, name TEXT)');
@@ -930,10 +934,10 @@ An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
 
 ```mjs
-import { DatabaseSync } from 'node:sqlite';
+import { Database } from 'node:sqlite';
 
-const sourceDb = new DatabaseSync(':memory:');
-const targetDb = new DatabaseSync(':memory:');
+const sourceDb = new Database(':memory:');
+const targetDb = new Database(':memory:');
 
 sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
@@ -950,10 +954,10 @@ targetDb.applyChangeset(changeset);
 ```
 
 ```cjs
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 
-const sourceDb = new DatabaseSync(':memory:');
-const targetDb = new DatabaseSync(':memory:');
+const sourceDb = new Database(':memory:');
+const targetDb = new Database(':memory:');
 
 sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
@@ -1650,9 +1654,9 @@ A read-only property that returns the maximum number of prepared statements the 
 added: v24.9.0
 -->
 
-* Type: {DatabaseSync}
+* Type: {Database}
 
-A read-only property that returns the `DatabaseSync` object associated with this `SQLTagStore`.
+A read-only property that returns the `Database` object associated with this `SQLTagStore`.
 
 ### `sqlTagStore.clear()`
 
@@ -1674,7 +1678,7 @@ changes:
     description: The `path` argument now supports Buffer and URL objects.
 -->
 
-* `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
+* `sourceDb` {Database} The database to backup. The source database must be open.
 * `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
   the contents will be overwritten.
 * `options` {Object} Optional configuration for the backup. The
@@ -1694,14 +1698,14 @@ This method makes a database backup. This method abstracts the [`sqlite3_backup_
 and [`sqlite3_backup_finish()`][] functions.
 
 The backed-up database can be used normally during the backup process. Mutations coming from the same connection - same
-{DatabaseSync} - object will be reflected in the backup right away. However, mutations from other connections will cause
+{Database} - object will be reflected in the backup right away. However, mutations from other connections will cause
 the backup process to restart.
 
 ```cjs
-const { backup, DatabaseSync } = require('node:sqlite');
+const { backup, Database } = require('node:sqlite');
 
 (async () => {
-  const sourceDb = new DatabaseSync('source.db');
+  const sourceDb = new Database('source.db');
   const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
     rate: 1, // Copy one page at a time.
     progress: ({ totalPages, remainingPages }) => {
@@ -1714,9 +1718,9 @@ const { backup, DatabaseSync } = require('node:sqlite');
 ```
 
 ```mjs
-import { backup, DatabaseSync } from 'node:sqlite';
+import { backup, Database } from 'node:sqlite';
 
-const sourceDb = new DatabaseSync('source.db');
+const sourceDb = new Database('source.db');
 const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
   rate: 1, // Copy one page at a time.
   progress: ({ totalPages, remainingPages }) => {

@@ -430,14 +430,14 @@ the community they pose.
 
 * Examples of scenarios that are **not** Node.js vulnerabilities:
   * Allowing untrusted users to register SQLite user-defined functions via
-    `node:sqlite` (`DatabaseSync`) that can perform arbitrary operations
+    `node:sqlite` (`Database`) that can perform arbitrary operations
     (e.g., closing database connections during query execution, causing crashes
     or use-after-free conditions).
   * Loading SQLite extensions using the `allowExtension` option in
-    `DatabaseSync` — this option must be explicitly set to `true` by the
+    `Database` — this option must be explicitly set to `true` by the
     application, and enabling it is the application operator's responsibility.
   * Using `node:sqlite` built-in SQL functions or pragmas (e.g.,
-    `ATTACH DATABASE`) to read or write files — `DatabaseSync` operates with
+    `ATTACH DATABASE`) to read or write files — `Database` operates with
     the same file-system access as the process itself, and it is the
     application's responsibility to restrict what SQL is executed.
   * Exposing `child_process.exec()` or similar APIs to untrusted users without
@@ -524,7 +524,7 @@ The following are **not** vulnerabilities in Node.js:
   responsibility. The permission model does not restrict how Node.js behaves
   when the operator intentionally configures it.
 
-* **`node:sqlite` and the permission model**: `DatabaseSync` operates with the
+* **`node:sqlite` and the permission model**: `Database` operates with the
   same file-system privileges as the process. Using SQL pragmas or built-in
   SQLite mechanisms (e.g., `ATTACH DATABASE`) to access files does not bypass
   the permission model — the permission model does not intercept SQL-level

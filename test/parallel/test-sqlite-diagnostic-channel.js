@@ -6,14 +6,14 @@ skipIfSQLiteMissing();
 
 const assert = require('node:assert');
 const dc = require('node:diagnostics_channel');
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { suite, it } = require('node:test');
 const { gcUntil } = require('../common/gc');
 
 suite('sqlite.db.query diagnostics channel', () => {
   it('subscriber receives SQL string for exec() statements', (t) => {
     const calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -29,7 +29,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('subscriber receives SQL string for prepared INSERT statements', (t) => {
     let calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -47,7 +47,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('subscriber receives SQL string for prepared SELECT statements', (t) => {
     let calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -66,7 +66,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('subscriber receives SQL string for prepared UPDATE statements', (t) => {
     let calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -85,7 +85,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('subscriber receives SQL string for prepared DELETE statements', (t) => {
     let calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -104,7 +104,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('no calls received after unsubscribe', (t) => {
     const calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -119,7 +119,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('falls back to source SQL when expansion fails', (t) => {
     let calls = [];
-    using db = new DatabaseSync(':memory:', { limits: { length: 1000 } });
+    using db = new Database(':memory:', { limits: { length: 1000 } });
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -140,8 +140,8 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('database property identifies the correct database', (t) => {
     const calls = [];
-    using db1 = new DatabaseSync(':memory:');
-    using db2 = new DatabaseSync(':memory:');
+    using db1 = new Database(':memory:');
+    using db2 = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -158,7 +158,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('duration is a number', (t) => {
     const calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -172,7 +172,7 @@ suite('sqlite.db.query diagnostics channel', () => {
 
   it('duration is non-negative', (t) => {
     const calls = [];
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -194,7 +194,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const registry = new FinalizationRegistry(() => { collected = true; });
 
     (() => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.exec('CREATE TABLE t (x INTEGER)');
       for (let i = 0; i < 10; i++) {
         db.exec(`INSERT INTO t VALUES (${i})`);
@@ -212,7 +212,7 @@ suite('sqlite.db.query diagnostics channel', () => {
   });
 
   it('subscriber cannot close the database or statement', (t) => {
-    using db = new DatabaseSync(':memory:');
+    using db = new Database(':memory:');
 
     db.exec('CREATE TABLE t (x INTEGER)');
     using stmt = db.prepare('INSERT INTO t VALUES (?)');
