@@ -88,43 +88,49 @@ void TCPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()->SetInternalFieldCount(TCPWrap::kInternalFieldCount);
+  Local<FunctionTemplate> t = env->tcp_constructor_template();
+  if (t.IsEmpty()) {
+    t = NewFunctionTemplate(isolate, New);
+    t->InstanceTemplate()->SetInternalFieldCount(TCPWrap::kInternalFieldCount);
 
-  // Init properties
-  t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
-                             Boolean::New(env->isolate(), false));
-  t->InstanceTemplate()->Set(env->owner_symbol(), Null(env->isolate()));
-  t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
+    // Init properties
+    t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "reading"),
+                               Boolean::New(isolate, false));
+    t->InstanceTemplate()->Set(env->owner_symbol(), Null(isolate));
+    t->InstanceTemplate()->Set(env->onconnection_string(), Null(isolate));
 
-  t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
+    t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
-  SetProtoMethod(isolate, t, "open", Open);
-  SetProtoMethod(isolate, t, "bind", Bind);
-  SetProtoMethod(isolate, t, "listen", Listen);
-  SetProtoMethod(isolate, t, "connect", Connect);
-  SetProtoMethod(isolate, t, "bind6", Bind6);
-  SetProtoMethod(isolate, t, "connect6", Connect6);
-  SetProtoMethod(isolate,
-                 t,
-                 "getsockname",
-                 GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
-  SetProtoMethod(isolate,
-                 t,
-                 "getpeername",
-                 GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
-  SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
-  SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
-  SetProtoMethod(isolate, t, "setTypeOfService", SetTypeOfService);
-  SetProtoMethod(isolate, t, "getTypeOfService", GetTypeOfService);
-  SetProtoMethod(isolate, t, "reset", Reset);
+    SetProtoMethod(isolate, t, "open", Open);
+    SetProtoMethod(isolate, t, "bind", Bind);
+    SetProtoMethod(isolate, t, "listen", Listen);
+    SetProtoMethod(isolate, t, "connect", Connect);
+    SetProtoMethod(isolate, t, "bind6", Bind6);
+    SetProtoMethod(isolate, t, "connect6", Connect6);
+    SetProtoMethod(isolate,
+                   t,
+                   "getsockname",
+                   GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
+    SetProtoMethod(isolate,
+                   t,
+                   "getpeername",
+                   GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
+    SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
+    SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
+    SetProtoMethod(isolate, t, "setTypeOfService", SetTypeOfService);
+    SetProtoMethod(isolate, t, "getTypeOfService", GetTypeOfService);
+    SetProtoMethod(isolate, t, "reset", Reset);
 
 #ifdef _WIN32
-  SetProtoMethod(isolate, t, "setSimultaneousAccepts", SetSimultaneousAccepts);
+    SetProtoMethod(
+        isolate, t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  SetConstructorFunction(context, target, "TCP", t);
-  env->set_tcp_constructor_template(t);
+    t->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "TCP"));
+    env->set_tcp_constructor_template(t);
+  }
+  SetConstructorFunction(
+      context, target, "TCP", t, SetConstructorFunctionFlag::NONE);
 
   // Create FunctionTemplate for TCPConnectWrap.
   Local<FunctionTemplate> cwt = AsyncWrap::MakeLazilyInitializedJSTemplate(env);

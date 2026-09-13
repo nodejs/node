@@ -1692,12 +1692,13 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
   Local<Value> callback = args[0];
   CHECK(callback->IsFunction());
 
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate, NativeKeyObject::New);
-  t->InstanceTemplate()->SetInternalFieldCount(
-      NativeKeyObject::kInternalFieldCount);
-  CHECK(env->crypto_key_object_constructor_template().IsEmpty());
-  env->set_crypto_key_object_constructor_template(t);
+  Local<FunctionTemplate> t = env->crypto_key_object_constructor_template();
+  if (t.IsEmpty()) {
+    t = NewFunctionTemplate(isolate, NativeKeyObject::New);
+    t->InstanceTemplate()->SetInternalFieldCount(
+        NativeKeyObject::kInternalFieldCount);
+    env->set_crypto_key_object_constructor_template(t);
+  }
 
   Local<Value> ctor;
   if (!t->GetFunction(env->context()).ToLocal(&ctor))
@@ -1929,12 +1930,13 @@ void NativeCryptoKey::CreateCryptoKeyClass(
   Local<Value> callback = args[0];
   CHECK(callback->IsFunction());
 
-  Local<FunctionTemplate> t =
-      NewFunctionTemplate(isolate, NativeCryptoKey::New);
-  t->InstanceTemplate()->SetInternalFieldCount(
-      NativeCryptoKey::kInternalFieldCount);
-  CHECK(env->crypto_cryptokey_constructor_template().IsEmpty());
-  env->set_crypto_cryptokey_constructor_template(t);
+  Local<FunctionTemplate> t = env->crypto_cryptokey_constructor_template();
+  if (t.IsEmpty()) {
+    t = NewFunctionTemplate(isolate, NativeCryptoKey::New);
+    t->InstanceTemplate()->SetInternalFieldCount(
+        NativeCryptoKey::kInternalFieldCount);
+    env->set_crypto_cryptokey_constructor_template(t);
+  }
 
   Local<Value> ctor;
   if (!t->GetFunction(env->context()).ToLocal(&ctor)) return;

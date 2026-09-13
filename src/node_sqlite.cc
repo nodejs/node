@@ -5372,9 +5372,13 @@ static void Initialize(Local<Object> target,
   SetConstructorFunction(context,
                          target,
                          "StatementSync",
-                         StatementSync::GetConstructorTemplate(env));
-  SetConstructorFunction(
-      context, target, "Session", Session::GetConstructorTemplate(env));
+                         StatementSync::GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+  SetConstructorFunction(context,
+                         target,
+                         "Session",
+                         Session::GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 
   target->Set(context, env->constants_string(), constants).Check();
 

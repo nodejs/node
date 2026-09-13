@@ -48,6 +48,7 @@ int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
 
   if (req_wrap_obj.IsEmpty()) {
     if (!env->shutdown_wrap_template()
+             ->InstanceTemplate()
              ->NewInstance(env->context())
              .ToLocal(&req_wrap_obj)) {
       return UV_EBUSY;
@@ -103,6 +104,7 @@ StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
 
   if (req_wrap_obj.IsEmpty()) {
     if (!env->write_wrap_template()
+             ->InstanceTemplate()
              ->NewInstance(env->context())
              .ToLocal(&req_wrap_obj)) {
       return StreamWriteResult{false, UV_EBUSY, nullptr, 0, {}};
@@ -332,6 +334,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     if (lazy_req) {
       // Sending a handle requires a request object up front to reference it.
       if (!env->write_wrap_template()
+               ->InstanceTemplate()
                ->NewInstance(env->context())
                .ToLocal(&req_wrap_obj)) {
         return UV_EBUSY;
@@ -447,6 +450,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     if (lazy_req && req_wrap_obj.IsEmpty()) {
       // Sending a handle requires a request object up front to reference it.
       if (!env->write_wrap_template()
+               ->InstanceTemplate()
                ->NewInstance(env->context())
                .ToLocal(&req_wrap_obj)) {
         return UV_EBUSY;

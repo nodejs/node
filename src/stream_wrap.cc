@@ -53,6 +53,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
@@ -70,48 +71,54 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> sw =
-      NewFunctionTemplate(isolate, IsConstructCallCallback);
-  sw->InstanceTemplate()->SetInternalFieldCount(
-      ShutdownWrap::kInternalFieldCount);
+  Local<FunctionTemplate> sw = env->shutdown_wrap_template();
+  if (sw.IsEmpty()) {
+    sw = NewFunctionTemplate(isolate, IsConstructCallCallback);
+    sw->InstanceTemplate()->SetInternalFieldCount(
+        ShutdownWrap::kInternalFieldCount);
 
-  // we need to set handle and callback to null,
-  // so that those fields are created and functions
-  // do not become megamorphic
-  // Fields:
-  // - oncomplete
-  // - callback
-  // - handle
-  sw->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
-  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
-                              v8::Null(isolate));
-  sw->InstanceTemplate()->Set(env->handle_string(), v8::Null(isolate));
+    // we need to set handle and callback to null,
+    // so that those fields are created and functions
+    // do not become megamorphic
+    // Fields:
+    // - oncomplete
+    // - callback
+    // - handle
+    sw->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
+    sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
+                                v8::Null(isolate));
+    sw->InstanceTemplate()->Set(env->handle_string(), v8::Null(isolate));
 
-  sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    sw->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "ShutdownWrap"));
+    env->set_shutdown_wrap_template(sw);
+  }
+  SetConstructorFunction(
+      context, target, "ShutdownWrap", sw, SetConstructorFunctionFlag::NONE);
 
-  SetConstructorFunction(context, target, "ShutdownWrap", sw);
-  env->set_shutdown_wrap_template(sw->InstanceTemplate());
-
-  Local<FunctionTemplate> ww =
-      FunctionTemplate::New(isolate, IsConstructCallCallback);
-  ww->InstanceTemplate()->SetInternalFieldCount(WriteWrap::kInternalFieldCount);
-  // Pre-create the fields that JS attaches to write requests, so that they
-  // are in-object properties and the object shape stays monomorphic.
-  ww->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
-  ww->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
-                              v8::Null(isolate));
-  ww->InstanceTemplate()->Set(env->handle_string(), v8::Null(isolate));
-  ww->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "async"),
-                              v8::False(isolate));
-  ww->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "bytes"),
-                              v8::Integer::New(isolate, 0));
-  ww->InstanceTemplate()->Set(env->buffer_string(), v8::Null(isolate));
-  // Slot for a completion that fires before JS attaches `oncomplete`; see
-  // ReportWritesToJSStreamListener::OnStreamAfterReqFinished().
-  ww->InstanceTemplate()->Set(env->write_status_string(), v8::Null(isolate));
-  ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  SetConstructorFunction(context, target, "WriteWrap", ww);
-  env->set_write_wrap_template(ww->InstanceTemplate());
+  Local<FunctionTemplate> ww = env->write_wrap_template();
+  if (ww.IsEmpty()) {
+    ww = FunctionTemplate::New(isolate, IsConstructCallCallback);
+    Local<ObjectTemplate> wwt = ww->InstanceTemplate();
+    wwt->SetInternalFieldCount(WriteWrap::kInternalFieldCount);
+    // Pre-create the fields that JS attaches to write requests, so that they
+    // are in-object properties and the object shape stays monomorphic.
+    wwt->Set(env->oncomplete_string(), v8::Null(isolate));
+    wwt->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"), v8::Null(isolate));
+    wwt->Set(env->handle_string(), v8::Null(isolate));
+    wwt->Set(FIXED_ONE_BYTE_STRING(isolate, "async"), v8::False(isolate));
+    wwt->Set(FIXED_ONE_BYTE_STRING(isolate, "bytes"),
+             v8::Integer::New(isolate, 0));
+    wwt->Set(env->buffer_string(), v8::Null(isolate));
+    // Slot for a completion that fires before JS attaches `oncomplete`; see
+    // ReportWritesToJSStreamListener::OnStreamAfterReqFinished().
+    wwt->Set(env->write_status_string(), v8::Null(isolate));
+    ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    ww->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "WriteWrap"));
+    env->set_write_wrap_template(ww);
+  }
+  SetConstructorFunction(
+      context, target, "WriteWrap", ww, SetConstructorFunctionFlag::NONE);
 
   NODE_DEFINE_CONSTANT(target, kReadBytesOrError);
   NODE_DEFINE_CONSTANT(target, kArrayBufferOffset);
