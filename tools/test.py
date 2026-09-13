@@ -126,7 +126,7 @@ class ProgressIndicator(object):
     if failure.output.stdout:
       output += ["--- stdout ---"]
       output += [failure.output.stdout.strip()]
-    output += ["Command: %s" % EscapeCommand(failure.command)]
+    output += ["Command: %s" % failure.test.GetFailureCommand(failure.command)]
     if failure.HasCrashed():
       output += ["--- %s ---" % PrintCrashed(failure.output.exit_code)]
     if failure.HasTimedOut():
@@ -360,9 +360,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
     # hard to decipher what test is running when only the filename is printed.
-    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
-    command = output.command[-1]
-    command = NormalizePath(command, prefix)
+    command = output.test.GetReportingName(output.command)
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
@@ -425,9 +423,7 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
     # hard to decipher what test is running when only the filename is printed.
-    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
-    command = output.command[-1]
-    command = NormalizePath(command, prefix)
+    command = output.test.GetReportingName(output.command)
 
     stdout = output.output.stdout.strip()
     printed_file = False
@@ -473,7 +469,7 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = output.output.stderr.strip()
       if len(stderr):
         print(self.templates['stderr'] % stderr)
-      print("Command: %s" % EscapeCommand(output.command))
+      print("Command: %s" % output.test.GetFailureCommand(output.command))
       if output.HasCrashed():
         print("--- %s ---" % PrintCrashed(output.output.exit_code))
       if output.HasTimedOut():
@@ -572,6 +568,13 @@ class TestCase(object):
     self.max_virtual_memory = None
     self.serial_id = 0
     self.thread_id = 0
+
+  def GetReportingName(self, command):
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
+    return NormalizePath(command[-1], prefix)
+
+  def GetFailureCommand(self, command):
+    return EscapeCommand(command)
 
   def IsNegative(self):
     return self.context.expect_fail
@@ -1544,6 +1547,8 @@ def NormalizePath(path, prefix='test/'):
   path = path.replace('\\', '/')
   if path.startswith(prefix):
     path = path[len(prefix):]
+  if '?' in path or '#' in path:
+    return path
   if path.endswith('.js'):
     path = path[:-3]
   elif path.endswith('.mjs'):
@@ -1799,7 +1804,8 @@ def Main():
         sys.exit(1)
 
   def should_keep(case):
-    if any((s in case.file) for s in options.skip_tests):
+    if any(s in case.file or s in '/'.join(case.path)
+           for s in options.skip_tests):
       return False
     elif SKIP in case.outcomes:
       return False
@@ -1825,7 +1831,7 @@ def Main():
     # Must ensure the list of tests is sorted before selecting, to avoid
     # silent errors if this file is changed to list the tests in a way that
     # can be different in different machines
-    cases_to_run.sort(key=lambda c: (c.arch, c.mode, c.file))
+    cases_to_run.sort(key=lambda c: (c.arch, c.mode, c.file, c.path))
     cases_to_run = [ cases_to_run[i] for i
                      in range(options.run[0],
                                len(cases_to_run),
@@ -1859,7 +1865,7 @@ def Main():
   elif result['failed']:
     print("\nFailed tests:")
     for failure in result['failed']:
-      print(EscapeCommand(failure.command))
+      print(failure.test.GetFailureCommand(failure.command))
   else:
     print("\nTest aborted.")
   return exitcode
