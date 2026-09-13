@@ -15,8 +15,7 @@ try {
 }
 
 if (supportsSimd) {
-  // Runs each spec in its own process; this suite has crashed the runner in CI.
-  const runner = new WPTRunner('wasm/jsapi', { backend: 'process' });
+  const runner = new WPTRunner('wasm/jsapi');
   runner.setFlags(['--experimental-wasm-modules']);
 
   runner.runJsTests();
