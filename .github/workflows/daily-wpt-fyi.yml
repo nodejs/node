@@ -122,7 +122,9 @@ jobs:
       - name: Clone report for upload
         if: ${{ env.WPT_REPORT != '' }}
         working-directory: out/wpt
-        run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
+        run: cp wptreport.json "wptreport-$NODE_VERSION.json"
+        env:
+          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -133,12 +135,13 @@ jobs:
       - name: Upload WPT Report to wpt.fyi API
         if: ${{ env.WPT_REPORT != '' }}
         env:
+          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
           WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
           WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
         working-directory: out/wpt
         run: |
           gzip wptreport.json
-          echo "## Node.js ${{ steps.setup-node.outputs.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Node.js $NODE_VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "WPT Revision: [\`${WPT_REVISION:0:7}\`](https://github.com/web-platform-tests/wpt/commits/$WPT_REVISION)" >> $GITHUB_STEP_SUMMARY
           for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
