@@ -262,6 +262,11 @@ class DefaultApplication final : public Session::Application {
     return GetNoErrorCode();
   }
 
+  // Raw QUIC has no "request cancelled" semantic; reuse the no-error code.
+  error_code GetRequestCancelledCode() const override {
+    return GetNoErrorCode();
+  }
+
   void EarlyDataRejected() override {
     // Destroy all open streams — ngtcp2 has already discarded their
     // internal state when it rejected the early data. Use the
