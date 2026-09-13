@@ -34,7 +34,7 @@ jobs:
           fi
 
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58  # 2.4.0
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58  # v2.4.0
         env:
           MSG_MINIMAL: actions url
           SLACK_COLOR: '#3d85c6'
