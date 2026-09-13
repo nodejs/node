@@ -866,6 +866,24 @@ void Environment::set_process_exit_handler(
 #undef V
 #undef VM
 
+  inline v8::Local<v8::Symbol> IsolateData::ffi_fast_arguments_symbol() const {
+    return ffi_fast_arguments_symbol_.Get(isolate_);
+  }
+  inline void IsolateData::set_ffi_fast_arguments_symbol(
+      v8::Local<v8::Symbol> value) {
+    CHECK(ffi_fast_arguments_symbol_.IsEmpty());
+    ffi_fast_arguments_symbol_.Set(isolate_, value);
+  }
+  inline v8::Local<v8::Symbol> IsolateData::ffi_fast_buffer_invoke_symbol()
+      const {
+    return ffi_fast_buffer_invoke_symbol_.Get(isolate_);
+  }
+  inline void IsolateData::set_ffi_fast_buffer_invoke_symbol(
+      v8::Local<v8::Symbol> value) {
+    CHECK(ffi_fast_buffer_invoke_symbol_.IsEmpty());
+    ffi_fast_buffer_invoke_symbol_.Set(isolate_, value);
+  }
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -880,6 +898,22 @@ void Environment::set_process_exit_handler(
 #undef VS
 #undef VY
 #undef VP
+
+  inline v8::Local<v8::Symbol> Environment::ffi_fast_arguments_symbol() const {
+    return isolate_data()->ffi_fast_arguments_symbol();
+  }
+  inline void Environment::set_ffi_fast_arguments_symbol(
+      v8::Local<v8::Symbol> value) {
+    isolate_data()->set_ffi_fast_arguments_symbol(value);
+  }
+  inline v8::Local<v8::Symbol> Environment::ffi_fast_buffer_invoke_symbol()
+      const {
+    return isolate_data()->ffi_fast_buffer_invoke_symbol();
+  }
+  inline void Environment::set_ffi_fast_buffer_invoke_symbol(
+      v8::Local<v8::Symbol> value) {
+    isolate_data()->set_ffi_fast_buffer_invoke_symbol(value);
+  }
 
 #define V(Name, label, _, __)                                                  \
   inline v8::Local<v8::String> Environment::Name##_permission_string() const { \
