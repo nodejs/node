@@ -188,6 +188,7 @@ jobs:
           # to be set here because `checkout` configures GitHub authentication
           # for push as well.
           token: ${{ secrets.GH_USER_TOKEN }}
+          persist-credentials: true
 
       - name: Start the Commit Queue
         if: steps.get_mergeable_prs.outputs.numbers != ''
