@@ -1453,6 +1453,8 @@ void Environment::CleanupHandles() {
   for (HandleWrap* handle : handle_wrap_queue_)
     handle->Close();
 
+  isolate_data()->handle_cleanup_depth++;
+  auto done = OnScopeLeave([&]() { isolate_data()->handle_cleanup_depth--; });
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {
