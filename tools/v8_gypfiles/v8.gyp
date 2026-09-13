@@ -650,7 +650,10 @@
         }],
         ['node_shared_highway=="false"', {
           'dependencies': ['highway.gyp:highway'],
-        }]
+        }],
+        ['node_shared_simdutf=="false"', {
+          'dependencies': ['simdutf.gyp:simdutf'],
+        }],
       ],
       'direct_dependent_settings': {
         'sources': [
@@ -1118,7 +1121,6 @@
         'v8_maybe_icu',
         'v8_zlib',
         'v8_pch',
-        'simdutf',
       ],
       'includes': ['inspector.gypi'],
       'direct_dependent_settings': {
@@ -2479,19 +2481,5 @@
         ],
       },
     },  # fp16
-    {
-      'target_name': 'simdutf',
-      'type': 'static_library',
-      'toolsets': ['host', 'target'],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '<(V8_ROOT)/third_party/simdutf',
-        ],
-      },
-      'include_dirs': ['.'],
-      'sources': [
-        '<(V8_ROOT)/third_party/simdutf/simdutf.cpp',
-      ],
-    },  # simdutf
   ],
 }

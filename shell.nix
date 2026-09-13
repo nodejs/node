@@ -48,14 +48,24 @@
   benchmarkTools ? import ./tools/nix/benchmarkTools.nix { inherit pkgs; },
 }:
 
+assert pkgs.lib.assertMsg (
+  withTemporal || !(builtins.hasAttr "temporal_capi" sharedLibDeps)
+) "`sharedLibDeps` must not contain `temporal_capi` when `withTemporal` is false";
+assert pkgs.lib.assertMsg (
+  withPerfetto || !(builtins.hasAttr "perfetto" sharedLibDeps)
+) "`sharedLibDeps` must not contain `perfetto` when `withPerfetto` is false";
+
 let
   useSharedICU = if builtins.isString icu then icu == "system" else icu != null;
-  useSharedAda = builtins.hasAttr "ada" sharedLibDeps;
-  useSharedOpenSSL = builtins.hasAttr "openssl" sharedLibDeps;
+  needsRustCompiler = withTemporal && !(builtins.hasAttr "temporal_capi" sharedLibDeps);
 
-  useSharedPerfetto = builtins.hasAttr "perfetto" sharedLibDeps;
-  useSharedTemporal = builtins.hasAttr "temporal_capi" sharedLibDeps;
-  needsRustCompiler = withTemporal && !useSharedTemporal;
+  sharedV8Deps = builtins.filter (depName: builtins.hasAttr depName sharedLibDeps) ([
+    "abseil"
+    "highway"
+    "perfetto"
+    "simdutf"
+    "temporal_capi"
+  ]);
 
   nativeBuildInputs =
     pkgs.nodejs-slim_latest.nativeBuildInputs
@@ -64,11 +74,7 @@ let
       pkgs.rustc
     ];
   buildInputs =
-    pkgs.lib.optional useSharedICU icu
-    ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) sharedLibDeps.abseil
-    ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) sharedLibDeps.highway
-    ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) sharedLibDeps.perfetto
-    ++ pkgs.lib.optional (withTemporal && useSharedTemporal) sharedLibDeps.temporal_capi;
+    pkgs.lib.optional useSharedICU icu ++ builtins.map (depName: sharedLibDeps.${depName}) sharedV8Deps;
 
   # Put here only the configure flags that affect the V8 build
   configureFlags = [
@@ -80,10 +86,7 @@ let
     )
     "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
-  ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) "--shared-abseil"
-  ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) "--shared-highway"
-  ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) "--shared-perfetto"
-  ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
+  ++ builtins.map (depName: "--shared-${depName}") sharedV8Deps
   ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
 pkgs.mkShell {
@@ -129,26 +132,14 @@ pkgs.mkShell {
       ++ pkgs.lib.optional (!withSSL) "--without-ssl"
       ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
       ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"
-      ++
-        pkgs.lib.concatMap
-          (name: [
-            "--shared-${name}"
-            "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
-            "--shared-${name}-include=${pkgs.lib.getInclude sharedLibDeps.${name}}/include"
-          ])
-          (
-            builtins.attrNames (
-              if (useSeparateDerivationForV8 != false) then
-                builtins.removeAttrs sharedLibDeps [
-                  "abseil"
-                  "highway"
-                  "simdutf"
-                  "temporal_capi"
-                ]
-              else
-                sharedLibDeps
-            )
-          )
+      ++ builtins.map (name: "--shared-${name}") (
+        builtins.attrNames (
+          if (useSeparateDerivationForV8 != false) then
+            builtins.removeAttrs sharedLibDeps sharedV8Deps
+          else
+            sharedLibDeps
+        )
+      )
     );
   }
   // (

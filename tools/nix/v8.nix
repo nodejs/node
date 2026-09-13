@@ -25,6 +25,7 @@
 let
   useSharedAbseil = builtins.elem "--shared-abseil" configureFlags;
   useSharedHighway = builtins.elem "--shared-highway" configureFlags;
+  useSharedSimdutf = builtins.elem "--shared-simdutf" configureFlags;
   src =
     let
       inherit (lib) fileset;
@@ -47,6 +48,7 @@ let
       ]
       ++ lib.optional (!useSharedAbseil) ../../tools/v8_gypfiles/abseil.gyp
       ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
+      ++ lib.optional (!useSharedSimdutf) ../../tools/v8_gypfiles/simdutf.gyp
       ++ lib.optional (
         builtins.elem "--with-perfetto" configureFlags
         && !(builtins.elem "--shared-perfetto" configureFlags)
@@ -76,6 +78,7 @@ let
           ]
           ++ lib.optional useSharedAbseil ../../deps/v8/third_party/abseil-cpp
           ++ lib.optional useSharedHighway ../../deps/v8/third_party/highway
+          ++ lib.optional useSharedSimdutf ../../deps/v8/third_party/simdutf
         ));
       trackedFiles =
         ({
@@ -201,7 +204,9 @@ stdenv.mkDerivation (finalAttrs: {
         ''
     }
 
-    install -Dm644 deps/v8/third_party/simdutf/simdutf.h -t $out/include
+    ${lib.optionalString (
+      !useSharedSimdutf
+    ) "install -Dm644 deps/v8/third_party/simdutf/simdutf.h -t $out/include"}
     find deps/v8/include -name '*.h' -print0 | while read -r -d "" file; do
       install -Dm644 "$file" -T "$out/include/''${file#deps/v8/include/}"
     done
