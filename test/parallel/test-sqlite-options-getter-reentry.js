@@ -84,6 +84,40 @@ suite('closing the database from an options getter', () => {
     }, invalidState);
   });
 
+  test('createModule() throws instead of using a closed connection', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      db.createModule('mod', {
+        columns: [{ name: 'value', type: 'INTEGER' }],
+        *rows() {
+          yield [1];
+        },
+        get directOnly() {
+          db.close();
+          return false;
+        },
+      });
+    }, invalidState);
+  });
+
+  test('createModule() throws when a column getter closes the database', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      db.createModule('mod', {
+        columns: [{
+          name: 'value',
+          get type() {
+            db.close();
+            return 'INTEGER';
+          },
+        }],
+        *rows() {
+          yield [1];
+        },
+      });
+    }, invalidState);
+  });
+
   test('deserialize() throws instead of using a closed connection', (t) => {
     const source = new DatabaseSync(':memory:');
     source.exec('CREATE TABLE data(value TEXT)');
