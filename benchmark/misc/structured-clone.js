@@ -4,7 +4,7 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  type: ['string', 'object', 'arraybuffer'],
+  type: ['int', 'string', 'object', 'arraybuffer'],
   n: [1e4],
 });
 
@@ -12,6 +12,11 @@ function main({ n, type }) {
   const data = [];
 
   switch (type) {
+    case 'int':
+      for (let i = 0; i < n; ++i) {
+        data.push(i);
+      }
+      break;
     case 'string':
       for (let i = 0; i < n; ++i) {
         data.push(new Date().toISOString());
