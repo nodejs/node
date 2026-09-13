@@ -41,7 +41,11 @@ jobs:
               '--no-validate-metadata', '--tap', '-',
             ], {
               cwd: process.env.RUNNER_TEMP,
-              input: Buffer.from(JSON.stringify([{ id: commit.sha, message: commit.commit.message }])),
+              input: Buffer.from(JSON.stringify([{
+                id: commit.sha,
+                message: commit.commit.message,
+                author: commit.commit.author,
+              }])),
               silent: true,
               ignoreReturnCode: true,
             });
