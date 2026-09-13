@@ -367,7 +367,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       // For embedder ESM in a SEA, use the bundled code cache if available.
       if (id_symbol == realm->isolate_data()->embedder_module_hdo() &&
           sea::IsSingleExecutable()) {
-        sea::SeaResource sea = sea::FindSingleExecutableResource();
+        const sea::SeaResource& sea = sea::FindSingleExecutableResource();
         if (sea.use_code_cache()) {
           std::string_view data = sea.code_cache.value();
           user_cached_data = new ScriptCompiler::CachedData(

@@ -31,6 +31,7 @@ enum class SeaFlags : uint32_t {
   kIncludeAssets = 1 << 3,
   kIncludeExecArgv = 1 << 4,
   kEnableVfs = 1 << 5,
+  kVfsArchive = 1 << 6,
 };
 
 enum class SeaExecArgvExtension : uint8_t {
@@ -48,6 +49,7 @@ struct SeaConfig {
   ModuleFormat main_format = ModuleFormat::kCommonJS;
   std::unordered_map<std::string, std::string> assets;
   std::vector<std::string> exec_argv;
+  std::string vfs_archive_path;
 };
 
 struct SeaResource {
@@ -70,7 +72,7 @@ struct SeaResource {
 
 bool IsSingleExecutable();
 std::string_view FindSingleExecutableBlob();
-SeaResource FindSingleExecutableResource();
+const SeaResource& FindSingleExecutableResource();
 std::tuple<int, char**> FixupArgsForSEA(int argc,
                                         char** argv,
                                         std::vector<std::string>* errors);
