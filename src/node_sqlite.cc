@@ -2938,8 +2938,11 @@ int DatabaseSync::TraceCallback(unsigned int type,
   Environment* env = db->env();
 
   diagnostics_channel::Channel* ch = db->trace_channel_.get();
-  if (ch == nullptr || !ch->HasSubscribers() ||
-      db->AreTraceEventsSuppressed()) {
+  // Checked before the channel, so that a suppressed callback does not
+  // dereference it at all. Statement finalization suppresses trace events, and
+  // that is the path SQLite takes during environment teardown.
+  if (db->AreTraceEventsSuppressed() || ch == nullptr ||
+      !ch->HasSubscribers()) {
     return 0;
   }
 
