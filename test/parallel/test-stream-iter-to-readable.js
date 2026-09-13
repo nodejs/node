@@ -8,6 +8,7 @@ const common = require('../common');
 const assert = require('assert');
 const { Writable } = require('stream');
 const {
+  dump,
   from,
   fromSync,
   pull,
@@ -100,10 +101,8 @@ async function testErrorAsync() {
   const readable = toReadable(gen());
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const chunk of readable) {
-      // Consume until error
-    }
+    // Consume until error
+    await dump(readable);
   }, { message: 'source failed' });
 }
 
@@ -399,10 +398,8 @@ async function testSignalAlreadyAborted() {
   const readable = toReadable(gen(), { signal: AbortSignal.abort() });
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const chunk of readable) {
-      // Should not receive any data
-    }
+    // Should not receive any data
+    await dump(readable);
   }, { name: 'AbortError' });
   assert.ok(readable.destroyed);
 }
@@ -550,10 +547,8 @@ async function testErrorSync() {
   const readable = toReadableSync(gen());
 
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const chunk of readable) {
-      // Consume until error
-    }
+    // Consume until error
+    await dump(readable);
   }, { message: 'sync source failed' });
 }
 

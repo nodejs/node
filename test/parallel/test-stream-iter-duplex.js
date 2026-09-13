@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { duplex, text, bytes } = require('stream/iter');
+const { bytes, dump, duplex, text } = require('stream/iter');
 
 // =============================================================================
 // Basic duplex
@@ -204,8 +204,7 @@ async function testChannelFail() {
   const [a, b] = duplex();
   a.writer.fail(new Error('channel failed'));
   await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of b.readable) { /* consume */ }
+    await dump(b.readable);
   }, { message: 'channel failed' });
   await b.close();
 }

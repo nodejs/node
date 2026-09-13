@@ -7,6 +7,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -49,7 +50,7 @@ const encoder = new TextEncoder();
 
   // Wait for the stream to complete normally.
   await serverDone.promise;
-  for await (const batch of stream) { /* drain server FIN */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await stream.closed;
 
   // Now the closed promise should resolve.

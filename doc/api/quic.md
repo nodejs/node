@@ -343,6 +343,10 @@ Only one async iterator can be obtained per stream. The stream is also
 compatible with `node:stream/iter` utilities such as `Stream.bytes()`,
 `Stream.text()`, and `Stream.pipeTo()`.
 
+Consuming a stream is what returns flow-control credit to the peer, so a
+stream whose payload is not wanted should still be read to completion. Use
+`Stream.dump()` to read the stream without retaining any of it.
+
 ### Datagrams
 
 In addition to streams, QUIC supports unreliable datagrams ([RFC 9221][]) for

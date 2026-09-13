@@ -3,6 +3,7 @@
 // Test: stream.closed promise resolves after normal completion.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -32,7 +33,7 @@ const stream = await clientSession.createBidirectionalStream({
   body: encoder.encode('normal close'),
 });
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 
 // Closed should resolve (not reject).
 await Promise.all([stream.closed, serverDone.promise]);
