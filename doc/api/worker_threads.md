@@ -1566,6 +1566,12 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65359
+    description: >-
+      When the parent has the Permission Model enabled, an explicit
+      `execArgv` (including `[]`) cannot obtain a wider permission-related
+      grant set than the parent.
   - version:
     - v19.8.0
     - v18.16.0
@@ -1632,7 +1638,10 @@ changes:
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this is provided
     as [`process.execArgv`][] inside the worker. By default, options are
-    inherited from the parent thread.
+    inherited from the parent thread. When the parent runs with the
+    [Permission Model](permissions.md#permission-model) enabled,
+    permission-related grants for an explicit `execArgv` (including `[]`)
+    cannot exceed the parent's.
   * `stdin` {boolean} If this is set to `true`, then `worker.stdin`
     provides a writable stream whose contents appear as `process.stdin`
     inside the Worker. By default, no data is provided.
