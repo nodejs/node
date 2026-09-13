@@ -1567,7 +1567,11 @@ bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
       std::unique_ptr<SnapshotData> read_data =
           std::make_unique<SnapshotData>();
       std::string_view snapshot = sea.main_code_or_snapshot;
-      if (SnapshotData::FromBlob(read_data.get(), snapshot)) {
+      // The SEA resource remains mapped for the process lifetime, so V8 can
+      // consume the startup data directly from the executable image.
+      if (SnapshotData::FromBlob(read_data.get(),
+                                 snapshot,
+                                 SnapshotData::DataOwnership::kNotOwned)) {
         *snapshot_data_ptr = read_data.release();
         return true;
       } else {
