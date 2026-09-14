@@ -30,10 +30,10 @@ test_async.Test(5, {}, common.mustCall(function(err, val) {
 // Async work item cancellation with callback.
 const events = [];
 const onThreadPoolWork = (event) => events.push(event);
-dc.subscribe('threadpool.work', onThreadPoolWork);
+dc.subscribe('threadpool.work.node_api', onThreadPoolWork);
 test_async.TestCancel(common.mustCall(() => {
-  dc.unsubscribe('threadpool.work', onThreadPoolWork);
-  const event = events.find(({ type, started, ended }) =>
-    type === 'node_api' && started === null && ended === null);
+  dc.unsubscribe('threadpool.work.node_api', onThreadPoolWork);
+  const event = events.find(({ started, ended }) =>
+    started === null && ended === null);
   assert.ok(event);
 }));
