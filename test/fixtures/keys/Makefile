@@ -857,7 +857,8 @@ dsa_private.pem: dsa_params.pem
 	openssl gendsa -out dsa_private.pem dsa_params.pem
 
 dsa_private_encrypted.pem: dsa_private.pem
-	openssl dsa -aes256 -in dsa_private.pem -passout 'pass:password' -out dsa_private_encrypted.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256 -iter 2048 -saltlen 16 \
+	  -in $< -passout 'pass:password' -out $@
 
 dsa_private_pkcs8.pem: dsa_private.pem
 	openssl pkcs8 -topk8 -inform PEM -outform PEM -in dsa_private.pem -out dsa_private_pkcs8.pem -nocrypt
@@ -881,7 +882,8 @@ rsa_private.pem:
 	openssl genrsa -out rsa_private.pem 2048
 
 rsa_private_encrypted.pem: rsa_private.pem
-	openssl rsa -aes256 -in rsa_private.pem -passout 'pass:password' -out rsa_private_encrypted.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256 -iter 2048 -saltlen 16 \
+	  -in $< -passout 'pass:password' -out $@
 
 rsa_private_pkcs8.pem: rsa_private.pem
 	openssl pkcs8 -topk8 -inform PEM -outform PEM -in rsa_private.pem -out rsa_private_pkcs8.pem -nocrypt
