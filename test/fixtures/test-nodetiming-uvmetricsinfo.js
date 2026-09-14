@@ -40,6 +40,14 @@ function safeMetricsInfo(cb) {
     fs.open(__filename, 'r', (err) => {
       assert.ifError(err);
     });
+
+    const saved = { ...info };
+    safeMetricsInfo((nextInfo) => {
+      assert.notStrictEqual(nextInfo, info);
+      assert.ok(nextInfo.loopCount > saved.loopCount);
+      // Updating the shared buffer must not change earlier results.
+      assert.deepStrictEqual(info, saved);
+    });
   }
 
   safeMetricsInfo(openFile);
