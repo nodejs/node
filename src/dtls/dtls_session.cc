@@ -7,6 +7,7 @@
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_common.h>
 #include <crypto/crypto_x509.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -1037,31 +1038,8 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = session->env();
 
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(session->ssl_.get());
-  if (cipher == nullptr) return;
-
-  // Build the three strings up front so a failure leaves the return value
-  // untouched rather than a half-populated object.
-  Local<Value> name;
-  Local<Value> standard_name;
-  Local<Value> version;
-  if (!ToV8Value(env->context(), SSL_CIPHER_get_name(cipher)).ToLocal(&name) ||
-      !ToV8Value(env->context(), SSL_CIPHER_standard_name(cipher))
-           .ToLocal(&standard_name) ||
-      !ToV8Value(env->context(), SSL_CIPHER_get_version(cipher))
-           .ToLocal(&version)) {
-    return;
-  }
-
-  Local<Object> info = Object::New(env->isolate());
-  info->Set(env->context(), env->name_string(), name).Check();
-  info->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "standardName"),
-            standard_name)
-      .Check();
-  info->Set(env->context(), env->version_string(), version).Check();
-
-  args.GetReturnValue().Set(info);
+  args.GetReturnValue().Set(
+      crypto::GetCipherInfo(env, session->ssl_).FromMaybe(Local<Object>()));
 }
 
 void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
