@@ -2331,6 +2331,89 @@ This function is used to customize the location of the snapshot file used for
 snapshot testing. By default, the snapshot filename is the same as the entry
 point filename with a `.snapshot` file extension.
 
+## Class: `MockFSContext`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The `MockFSContext` class is returned by [`mock.fs()`][] and is used to
+inspect and extend a mock file system.
+
+### `mockFs.addDirectory(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string} The path of the directory, relative to the mount point.
+* Returns: {string} The absolute path of the created directory.
+
+Adds a directory to the mock file system. Missing parent directories are
+created automatically.
+
+### `mockFs.addFile(path, content)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string} The path of the file, relative to the mount point.
+* `content` {string|Buffer|TypedArray|DataView} The file content.
+* Returns: {string} The absolute path of the created file.
+
+Adds a file to the mock file system. Missing parent directories are
+created automatically.
+
+### `mockFs.existsSync(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string} The path to check, relative to the mount point.
+* Returns: {boolean}
+
+Returns `true` if the path exists in the mock file system, and `false`
+otherwise, including once the mock has been restored.
+
+### `mockFs.mountPoint`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|null}
+
+The absolute path where the mock file system is mounted, or `null` once
+the mock has been restored. The mount point is a reserved path assigned
+by the [virtual file system][] when the mock is created; it never
+shadows real files or directories. Join it with relative paths to access
+the mock's files through the `node:fs` APIs.
+
+### `mockFs.restore()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Unmounts the mock file system. Once restored, the mock's files are no
+longer accessible and files can no longer be added. Calling this
+function more than once has no effect. This function is called
+automatically when the associated test finishes.
+
+### `mockFs.vfs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {VirtualFileSystem}
+
+The underlying [`VirtualFileSystem`][] instance.
+
 ## Class: `MockFunctionContext`
 
 <!-- YAML
@@ -2655,6 +2738,64 @@ test('mocks a counting function', (t) => {
   assert.strictEqual(fn(), 4);
   assert.strictEqual(fn(), 5);
   assert.strictEqual(fn(), 6);
+});
+```
+
+### `mock.fs([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `options` {Object} Optional configuration options for the mock file
+  system. The following properties are supported:
+  * `files` {Object} Initial files to create. Keys are file paths relative
+    to the mount point, and values are the file contents as {string} or
+    {Buffer}. Missing parent directories are created automatically.
+* Returns: {MockFSContext} An object that can be used to manage the mock
+  file system.
+
+This function creates an in-memory mock file system backed by the
+[virtual file system][]. The mock is mounted at a reserved mount point
+that is assigned when the mock is created and exposed as
+[`mockFs.mountPoint`][], so it never shadows real files or directories.
+Paths obtained by joining the mount point with a relative path work with
+the regular `node:fs` APIs and can be loaded with `require()` and
+`import`.
+
+If this function is invoked through a `TestContext`, the mock file
+system is unmounted automatically when the test finishes.
+
+```js
+const { test } = require('node:test');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
+
+test('reads configuration from a mock file', (t) => {
+  const mockFs = t.mock.fs({
+    files: {
+      'config.json': JSON.stringify({ debug: true }),
+      'data/users.txt': 'user1\nuser2\nuser3',
+    },
+  });
+
+  // Files are accessible via standard fs APIs under the mount point.
+  const configPath = path.join(mockFs.mountPoint, 'config.json');
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  assert.strictEqual(config.debug, true);
+
+  // Files can be added after creation. addFile() returns the
+  // absolute path of the new file.
+  const readmePath = mockFs.addFile('README.md', '# Hello');
+  assert.strictEqual(fs.readFileSync(readmePath, 'utf8'), '# Hello');
+
+  // Modules in the mock file system can be loaded with require()
+  // and import.
+  const modPath = mockFs.addFile('mod.js', 'module.exports = 42;');
+  assert.strictEqual(require(modPath), 42);
 });
 ```
 
@@ -5035,6 +5176,7 @@ test.describe('my suite', (suite) => {
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
 [`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
+[`VirtualFileSystem`]: vfs.md#class-virtualfilesystem
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.log`]: #contextlogmessage-data
@@ -5045,6 +5187,8 @@ test.describe('my suite', (suite) => {
 [`diagnostics_channel`]: diagnostics_channel.md
 [`glob(7)`]: https://man7.org/linux/man-pages/man7/glob.7.html
 [`it()`]: #itname-options-fn
+[`mock.fs()`]: #mockfsoptions
+[`mockFs.mountPoint`]: #mockfsmountpoint
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
@@ -5059,3 +5203,4 @@ test.describe('my suite', (suite) => {
 [suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model
+[virtual file system]: vfs.md

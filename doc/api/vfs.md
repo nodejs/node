@@ -456,6 +456,12 @@ The SEA configuration parser will error if either combination is detected.
 See the [Single Executable Application][] documentation for more information
 on creating SEA builds with assets.
 
+## Use with the test runner
+
+The [`mock.fs()`][] API of the `node:test` module creates a mock file
+system backed by a mounted `VirtualFileSystem`, which is unmounted
+automatically when the associated test finishes.
+
 ## Class: `VirtualProvider`
 
 <!-- YAML
@@ -637,6 +643,7 @@ fields use synthetic but stable values:
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
+[`mock.fs()`]: test.md#mockfsoptions
 [`node:fs`]: fs.md
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options
