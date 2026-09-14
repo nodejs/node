@@ -741,7 +741,7 @@ changes:
     be retained for a long time and likely reused many times. SQLite currently
     responds to this hint by avoiding lookaside memory. Corresponds to the
     [`SQLITE_PREPARE_PERSISTENT`][] flag. **Default:** `false`.
-* Returns: {StatementSync} The prepared statement.
+* Returns: {Statement} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v3()`][].
@@ -1043,7 +1043,7 @@ Closes the session. If the session is already closed, then this is a no-op. An
 a changeset or patchset, or if the method is called from a callback that SQLite
 invoked, under the same conditions as [`session.close()`][].
 
-## Class: `StatementSync`
+## Class: `Statement`
 
 <!-- YAML
 added: v22.5.0
@@ -1053,6 +1053,10 @@ This class represents a single [prepared statement][]. This class cannot be
 instantiated via its constructor. Instead, instances are created via the
 `database.prepare()` method. All APIs exposed by this class execute
 synchronously.
+
+`StatementSync` is a deprecated alias for `Statement`, kept for backward
+compatibility with the class's previous name. See
+[DEP0211](deprecations.md#dep0211-sqlitestatementsync).
 
 A prepared statement is an efficient binary representation of the SQL used to
 create it. Prepared statements are parameterizable, and can be invoked multiple

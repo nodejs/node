@@ -164,8 +164,8 @@ class DatabaseOpenConfiguration {
 
 class Database;
 class DatabaseLimits;
-class StatementSyncIterator;
-class StatementSync;
+class StatementIterator;
+class Statement;
 class BackupJob;
 class Session;
 
@@ -177,18 +177,15 @@ using StatementPtr = DeleteFnPtr<sqlite3_stmt, FinalizeStatement>;
 
 class StatementExecutionHelper {
  public:
-  static v8::MaybeLocal<v8::Value> All(Environment* env,
-                                       StatementSync* statement);
-  static v8::MaybeLocal<v8::Object> Run(Environment* env,
-                                        StatementSync* statement);
-  static BaseObjectPtr<StatementSyncIterator> Iterate(
-      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static v8::MaybeLocal<v8::Value> All(Environment* env, Statement* statement);
+  static v8::MaybeLocal<v8::Object> Run(Environment* env, Statement* statement);
+  static BaseObjectPtr<StatementIterator> Iterate(
+      Environment* env, BaseObjectPtr<Statement> stmt);
   static v8::MaybeLocal<v8::Value> ColumnToValue(Environment* env,
                                                  sqlite3_stmt* stmt,
                                                  const int column,
                                                  bool use_big_ints);
-  static v8::MaybeLocal<v8::Value> Get(Environment* env,
-                                       StatementSync* statement);
+  static v8::MaybeLocal<v8::Value> Get(Environment* env, Statement* statement);
 };
 
 class Database;
@@ -264,7 +261,7 @@ class Database : public BaseObject {
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
   void FinalizeBackups();
-  void UntrackStatement(StatementSync* statement);
+  void UntrackStatement(Statement* statement);
   bool IsOpen();
   // SQL functions are one of several paths by which SQLite can invoke JS.
   size_t GetUserDefinedFunctionCount() const {
@@ -349,7 +346,7 @@ class Database : public BaseObject {
   std::unordered_set<const void*> user_defined_functions_;
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
-  std::unordered_set<StatementSync*> statements_;
+  std::unordered_set<Statement*> statements_;
   BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
 
   friend class UserDefinedFunction;
@@ -360,18 +357,18 @@ class Database : public BaseObject {
   friend class StatementExecutionHelper;
 };
 
-class StatementSync : public BaseObject {
+class Statement : public BaseObject {
  public:
-  StatementSync(Environment* env,
-                v8::Local<v8::Object> object,
-                BaseObjectPtr<Database> db,
-                StatementPtr stmt);
+  Statement(Environment* env,
+            v8::Local<v8::Object> object,
+            BaseObjectPtr<Database> db,
+            StatementPtr stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static BaseObjectPtr<StatementSync> Create(Environment* env,
-                                             BaseObjectPtr<Database> db,
-                                             StatementPtr stmt);
+  static BaseObjectPtr<Statement> Create(Environment* env,
+                                         BaseObjectPtr<Database> db,
+                                         StatementPtr stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -396,11 +393,11 @@ class StatementSync : public BaseObject {
   void Finalize();
   bool IsFinalized();
 
-  SET_MEMORY_INFO_NAME(StatementSync)
-  SET_SELF_SIZE(StatementSync)
+  SET_MEMORY_INFO_NAME(Statement)
+  SET_SELF_SIZE(Statement)
 
  private:
-  ~StatementSync() override;
+  ~Statement() override;
   void Close();
   BaseObjectPtr<Database> db_;
   StatementPtr statement_;
@@ -418,30 +415,30 @@ class StatementSync : public BaseObject {
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 
   friend class Database;
-  friend class StatementSyncIterator;
+  friend class StatementIterator;
   friend class SQLTagStore;
   friend class StatementExecutionHelper;
 };
 
-class StatementSyncIterator : public BaseObject {
+class StatementIterator : public BaseObject {
  public:
-  StatementSyncIterator(Environment* env,
-                        v8::Local<v8::Object> object,
-                        BaseObjectPtr<StatementSync> stmt);
+  StatementIterator(Environment* env,
+                    v8::Local<v8::Object> object,
+                    BaseObjectPtr<Statement> stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static BaseObjectPtr<StatementSyncIterator> Create(
-      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static BaseObjectPtr<StatementIterator> Create(Environment* env,
+                                                 BaseObjectPtr<Statement> stmt);
   static void Next(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Return(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  SET_MEMORY_INFO_NAME(StatementSyncIterator)
-  SET_SELF_SIZE(StatementSyncIterator)
+  SET_MEMORY_INFO_NAME(StatementIterator)
+  SET_SELF_SIZE(StatementIterator)
 
  private:
-  ~StatementSyncIterator() override;
-  BaseObjectPtr<StatementSync> stmt_;
+  ~StatementIterator() override;
+  BaseObjectPtr<Statement> stmt_;
   bool done_;
   uint64_t statement_reset_generation_;
 };
@@ -511,14 +508,14 @@ class SQLTagStore : public BaseObject {
   SET_SELF_SIZE(SQLTagStore)
 
  private:
-  static BaseObjectPtr<StatementSync> PrepareStatement(
+  static BaseObjectPtr<Statement> PrepareStatement(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool ResetAndBindStatement(
       Environment* env,
-      StatementSync* stmt,
+      Statement* stmt,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   BaseObjectWeakPtr<Database> database_;
-  LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
+  LRUCache<std::string, BaseObjectPtr<Statement>> sql_tags_;
   friend class StatementExecutionHelper;
 };
 

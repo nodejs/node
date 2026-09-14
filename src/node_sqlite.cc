@@ -1210,7 +1210,7 @@ void Database::FinalizeStatements() {
   statements_.clear();
 }
 
-void Database::UntrackStatement(StatementSync* statement) {
+void Database::UntrackStatement(Statement* statement) {
   statements_.erase(statement);
 }
 
@@ -1780,8 +1780,8 @@ void Database::Prepare(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  BaseObjectPtr<StatementSync> stmt = StatementSync::Create(
-      env, BaseObjectPtr<Database>(db), std::move(stmt_ptr));
+  BaseObjectPtr<Statement> stmt =
+      Statement::Create(env, BaseObjectPtr<Database>(db), std::move(stmt_ptr));
   if (!stmt) {
     return;
   }
@@ -2987,10 +2987,10 @@ int Database::TraceCallback(unsigned int type,
   return 0;
 }
 
-StatementSync::StatementSync(Environment* env,
-                             Local<Object> object,
-                             BaseObjectPtr<Database> db,
-                             StatementPtr stmt)
+Statement::Statement(Environment* env,
+                     Local<Object> object,
+                     BaseObjectPtr<Database> db,
+                     StatementPtr stmt)
     : BaseObject(env, object), db_(std::move(db)), statement_(std::move(stmt)) {
   MakeWeak();
   use_big_ints_ = db_->use_big_ints();
@@ -3001,11 +3001,11 @@ StatementSync::StatementSync(Environment* env,
   bare_named_params_ = std::nullopt;
 }
 
-StatementSync::~StatementSync() {
+Statement::~Statement() {
   Close();
 }
 
-void StatementSync::Close() {
+void Statement::Close() {
   db_->UntrackStatement(this);
 
   if (!IsFinalized()) {
@@ -3013,23 +3013,23 @@ void StatementSync::Close() {
   }
 }
 
-void StatementSync::Finalize() {
+void Statement::Finalize() {
   TraceEventSuppressionGuard trace_guard(db_.get());
   statement_.reset();
   InvalidateColumnNameCache();
 }
 
-void StatementSync::InvalidateColumnNameCache() {
+void Statement::InvalidateColumnNameCache() {
   cached_column_names_.clear();
   cached_column_names_reprepare_count_ = -1;
 }
 
-inline bool StatementSync::IsFinalized() {
+inline bool Statement::IsFinalized() {
   return statement_ == nullptr;
 }
 
-void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Close(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3039,8 +3039,8 @@ void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
   stmt->Close();
 }
 
-void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Dispose(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   // Disposal is idempotent, so an already-finalized statement is a no-op even
@@ -3053,12 +3053,12 @@ void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
   stmt->Close();
 }
 
-inline int StatementSync::ResetStatement() {
+inline int Statement::ResetStatement() {
   reset_generation_++;
   return sqlite3_reset(statement_.get());
 }
 
-bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
+bool Statement::BindParams(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_clear_bindings(statement_.get());
   CHECK_ERROR_OR_THROW(env()->isolate(), db_.get(), r, SQLITE_OK, false);
 
@@ -3162,7 +3162,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   return true;
 }
 
-bool StatementSync::BindValue(const Local<Value>& value, const int index) {
+bool Statement::BindValue(const Local<Value>& value, const int index) {
   // SQLite only supports a subset of JavaScript types. Some JS types such as
   // functions don't make sense to support. Other JS types such as
   // Dates could be supported by converting them to numbers. However, there
@@ -3225,12 +3225,12 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   return true;
 }
 
-MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
+MaybeLocal<Value> Statement::ColumnToValue(const int column) {
   return StatementExecutionHelper::ColumnToValue(
       env(), statement_.get(), column, use_big_ints_);
 }
 
-MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
+MaybeLocal<Name> Statement::ColumnNameToName(const int column) {
   const char* col_name = sqlite3_column_name(statement_.get(), column);
   if (col_name == nullptr) {
     THROW_ERR_INVALID_STATE(env(), "Cannot get name of column %d", column);
@@ -3244,7 +3244,7 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
 
 // Populates `keys` with cached column names, rebuilding the cache if the
 // statement was re-prepared.
-bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
+bool Statement::GetCachedColumnNames(LocalVector<Name>* keys) {
   Isolate* isolate = env()->isolate();
 
   const int reprepare_count =
@@ -3285,7 +3285,7 @@ MaybeLocal<Value> StatementExecutionHelper::ColumnToValue(Environment* env,
   return js_val;
 }
 
-void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
+void Statement::MemoryInfo(MemoryTracker* tracker) const {}
 
 Maybe<void> ExtractRowValues(Environment* env,
                              sqlite3_stmt* stmt,
@@ -3306,7 +3306,7 @@ Maybe<void> ExtractRowValues(Environment* env,
 }
 
 MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
-                                                StatementSync* statement) {
+                                                Statement* statement) {
   Database* db = statement->db_.get();
   sqlite3_stmt* stmt = statement->statement_.get();
   const bool return_arrays = statement->return_arrays_;
@@ -3354,7 +3354,7 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
 }
 
 MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
-                                                 StatementSync* statement) {
+                                                 Statement* statement) {
   Database* db = statement->db_.get();
   sqlite3_stmt* stmt = statement->statement_.get();
   const bool use_big_ints = statement->use_big_ints_;
@@ -3407,27 +3407,26 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   return scope.Escape(result);
 }
 
-BaseObjectPtr<StatementSyncIterator> StatementExecutionHelper::Iterate(
-    Environment* env, BaseObjectPtr<StatementSync> stmt) {
+BaseObjectPtr<StatementIterator> StatementExecutionHelper::Iterate(
+    Environment* env, BaseObjectPtr<Statement> stmt) {
   Local<Context> context = env->context();
   Local<Object> global = context->Global();
   Local<Value> js_iterator;
   Local<Value> js_iterator_prototype;
   if (!global->Get(context, env->iterator_string()).ToLocal(&js_iterator)) {
-    return BaseObjectPtr<StatementSyncIterator>();
+    return BaseObjectPtr<StatementIterator>();
   }
   if (!js_iterator.As<Object>()
            ->Get(context, env->prototype_string())
            .ToLocal(&js_iterator_prototype)) {
-    return BaseObjectPtr<StatementSyncIterator>();
+    return BaseObjectPtr<StatementIterator>();
   }
 
-  BaseObjectPtr<StatementSyncIterator> iter =
-      StatementSyncIterator::Create(env, stmt);
+  BaseObjectPtr<StatementIterator> iter = StatementIterator::Create(env, stmt);
 
   if (!iter) {
     // Error in iterator creation, likely already threw in Create
-    return BaseObjectPtr<StatementSyncIterator>();
+    return BaseObjectPtr<StatementIterator>();
   }
 
   if (iter->object()
@@ -3435,14 +3434,14 @@ BaseObjectPtr<StatementSyncIterator> StatementExecutionHelper::Iterate(
           .As<Object>()
           ->SetPrototypeV2(context, js_iterator_prototype)
           .IsNothing()) {
-    return BaseObjectPtr<StatementSyncIterator>();
+    return BaseObjectPtr<StatementIterator>();
   }
 
   return iter;
 }
 
 MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
-                                                StatementSync* statement) {
+                                                Statement* statement) {
   Database* db = statement->db_.get();
   sqlite3_stmt* stmt = statement->statement_.get();
   const bool return_arrays = statement->return_arrays_;
@@ -3499,8 +3498,8 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
   return scope.Escape(result);
 }
 
-void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::All(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3528,8 +3527,8 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Iterate(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3544,8 +3543,8 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  BaseObjectPtr<StatementSyncIterator> iter = StatementExecutionHelper::Iterate(
-      env, BaseObjectPtr<StatementSync>(stmt));
+  BaseObjectPtr<StatementIterator> iter =
+      StatementExecutionHelper::Iterate(env, BaseObjectPtr<Statement>(stmt));
 
   if (!iter) {
     return;
@@ -3554,8 +3553,8 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(iter->object());
 }
 
-void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Get(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3576,8 +3575,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Run(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3598,8 +3597,8 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Columns(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3641,8 +3640,8 @@ void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Array::New(isolate, cols.data(), cols.size()));
 }
 
-void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3655,8 +3654,8 @@ void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(sql);
 }
 
-void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3677,8 +3676,8 @@ void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::Stat(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3706,8 +3705,8 @@ void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Integer::New(isolate, value));
 }
 
-void StatementSync::ResetStats(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::ResetStats(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3731,9 +3730,9 @@ void StatementSync::ResetStats(const FunctionCallbackInfo<Value>& args) {
   stmt->InvalidateColumnNameCache();
 }
 
-void StatementSync::SetAllowBareNamedParameters(
+void Statement::SetAllowBareNamedParameters(
     const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3749,9 +3748,9 @@ void StatementSync::SetAllowBareNamedParameters(
   stmt->allow_bare_named_params_ = args[0]->IsTrue();
 }
 
-void StatementSync::SetAllowUnknownNamedParameters(
+void Statement::SetAllowUnknownNamedParameters(
     const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3766,8 +3765,8 @@ void StatementSync::SetAllowUnknownNamedParameters(
   stmt->allow_unknown_named_params_ = args[0]->IsTrue();
 }
 
-void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3782,8 +3781,8 @@ void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
   stmt->use_big_ints_ = args[0]->IsTrue();
 }
 
-void StatementSync::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
+void Statement::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -3885,7 +3884,7 @@ void SQLTagStore::SizeGetter(const FunctionCallbackInfo<Value>& args) {
 
 bool SQLTagStore::ResetAndBindStatement(
     Environment* env,
-    StatementSync* stmt,
+    Statement* stmt,
     const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   int r = stmt->ResetStatement();
@@ -3921,7 +3920,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
-  BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
+  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
@@ -3948,7 +3947,7 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
-  BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
+  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
@@ -3960,8 +3959,8 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  BaseObjectPtr<StatementSyncIterator> iter = StatementExecutionHelper::Iterate(
-      env, BaseObjectPtr<StatementSync>(stmt));
+  BaseObjectPtr<StatementIterator> iter =
+      StatementExecutionHelper::Iterate(env, BaseObjectPtr<Statement>(stmt));
 
   if (!iter) {
     return;
@@ -3979,7 +3978,7 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
-  BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
+  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
@@ -4006,7 +4005,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
-  BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
+  BaseObjectPtr<Statement> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
@@ -4041,14 +4040,14 @@ void SQLTagStore::Clear(const FunctionCallbackInfo<Value>& args) {
   store->sql_tags_.Clear();
 }
 
-BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
+BaseObjectPtr<Statement> SQLTagStore::PrepareStatement(
     const FunctionCallbackInfo<Value>& args) {
   SQLTagStore* session = BaseObject::FromJSObject<SQLTagStore>(args.This());
   if (!session) {
     THROW_ERR_INVALID_ARG_TYPE(
         Environment::GetCurrent(args)->isolate(),
         "This method can only be called on SQLTagStore instances.");
-    return BaseObjectPtr<StatementSync>();
+    return BaseObjectPtr<Statement>();
   }
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -4058,7 +4057,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
     THROW_ERR_INVALID_ARG_TYPE(
         isolate,
         "First argument must be an array of strings (template literal).");
-    return BaseObjectPtr<StatementSync>();
+    return BaseObjectPtr<Statement>();
   }
 
   Local<Array> strings = args[0].As<Array>();
@@ -4071,7 +4070,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
     if (!strings->Get(context, i).ToLocal(&str_val) || !str_val->IsString()) {
       THROW_ERR_INVALID_ARG_TYPE(isolate,
                                  "Template literal parts must be strings.");
-      return BaseObjectPtr<StatementSync>();
+      return BaseObjectPtr<Statement>();
     }
     Utf8Value part(isolate, str_val);
     sql += part.ToStringView();
@@ -4080,7 +4079,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
     }
   }
 
-  BaseObjectPtr<StatementSync> stmt = nullptr;
+  BaseObjectPtr<Statement> stmt = nullptr;
   if (session->sql_tags_.Exists(sql)) {
     stmt = session->sql_tags_.Get(sql);
     if (stmt->IsFinalized()) {
@@ -4101,22 +4100,22 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
-      return BaseObjectPtr<StatementSync>();
+      return BaseObjectPtr<Statement>();
     }
 
     // As in Database::Prepare(), reject input that holds no SQL rather
     // than caching a statement that can never be bound or stepped.
     if (s == nullptr) {
       THROW_ERR_INVALID_ARG_VALUE(env, "The SQL query contains no statements.");
-      return BaseObjectPtr<StatementSync>();
+      return BaseObjectPtr<Statement>();
     }
 
-    BaseObjectPtr<StatementSync> stmt_obj = StatementSync::Create(
+    BaseObjectPtr<Statement> stmt_obj = Statement::Create(
         env, BaseObjectPtr<Database>(session->database_), std::move(stmt_ptr));
 
     if (!stmt_obj) {
-      THROW_ERR_SQLITE_ERROR(isolate, "Failed to create StatementSync");
-      return BaseObjectPtr<StatementSync>();
+      THROW_ERR_SQLITE_ERROR(isolate, "Failed to create Statement");
+      return BaseObjectPtr<Statement>();
     }
 
     session->database_->statements_.insert(stmt_obj.get());
@@ -4138,54 +4137,51 @@ void SQLTagStore::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("sql_tags_cache", cache_content_size);
 }
 
-Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl =
       env->sqlite_statement_sync_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementSync"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Statement"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StatementSync::kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "iterate", StatementSync::Iterate);
-    SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
-    SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
-    SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "columns", StatementSync::Columns);
+        Statement::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "iterate", Statement::Iterate);
+    SetProtoMethod(isolate, tmpl, "all", Statement::All);
+    SetProtoMethod(isolate, tmpl, "get", Statement::Get);
+    SetProtoMethod(isolate, tmpl, "run", Statement::Run);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "columns", Statement::Columns);
     SetSideEffectFreeGetter(isolate,
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "sourceSQL"),
-                            StatementSync::SourceSQLGetter);
+                            Statement::SourceSQLGetter);
     SetSideEffectFreeGetter(isolate,
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
-                            StatementSync::ExpandedSQLGetter);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "stat", StatementSync::Stat);
-    SetProtoMethod(isolate, tmpl, "resetStats", StatementSync::ResetStats);
+                            Statement::ExpandedSQLGetter);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "stat", Statement::Stat);
+    SetProtoMethod(isolate, tmpl, "resetStats", Statement::ResetStats);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",
-                   StatementSync::SetAllowBareNamedParameters);
+                   Statement::SetAllowBareNamedParameters);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowUnknownNamedParameters",
-                   StatementSync::SetAllowUnknownNamedParameters);
+                   Statement::SetAllowUnknownNamedParameters);
+    SetProtoMethod(isolate, tmpl, "setReadBigInts", Statement::SetReadBigInts);
     SetProtoMethod(
-        isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
-    SetProtoMethod(
-        isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
-    SetProtoMethod(isolate, tmpl, "close", StatementSync::Close);
-    SetProtoDispose(isolate, tmpl, StatementSync::Dispose);
+        isolate, tmpl, "setReturnArrays", Statement::SetReturnArrays);
+    SetProtoMethod(isolate, tmpl, "close", Statement::Close);
+    SetProtoDispose(isolate, tmpl, Statement::Dispose);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
-                                                   BaseObjectPtr<Database> db,
-                                                   StatementPtr stmt) {
+BaseObjectPtr<Statement> Statement::Create(Environment* env,
+                                           BaseObjectPtr<Database> db,
+                                           StatementPtr stmt) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -4194,54 +4190,53 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
     return nullptr;
   }
 
-  return MakeBaseObject<StatementSync>(
-      env, obj, std::move(db), std::move(stmt));
+  return MakeBaseObject<Statement>(env, obj, std::move(db), std::move(stmt));
 }
 
-StatementSyncIterator::StatementSyncIterator(Environment* env,
-                                             Local<Object> object,
-                                             BaseObjectPtr<StatementSync> stmt)
+StatementIterator::StatementIterator(Environment* env,
+                                     Local<Object> object,
+                                     BaseObjectPtr<Statement> stmt)
     : BaseObject(env, object), stmt_(std::move(stmt)) {
   MakeWeak();
   done_ = false;
   statement_reset_generation_ = stmt_->reset_generation_;
 }
 
-StatementSyncIterator::~StatementSyncIterator() {}
-void StatementSyncIterator::MemoryInfo(MemoryTracker* tracker) const {}
+StatementIterator::~StatementIterator() {}
+void StatementIterator::MemoryInfo(MemoryTracker* tracker) const {}
 
-Local<FunctionTemplate> StatementSyncIterator::GetConstructorTemplate(
+Local<FunctionTemplate> StatementIterator::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl =
       env->sqlite_statement_sync_iterator_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementSyncIterator"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementIterator"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StatementSyncIterator::kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "next", StatementSyncIterator::Next);
-    SetProtoMethod(isolate, tmpl, "return", StatementSyncIterator::Return);
+        StatementIterator::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "next", StatementIterator::Next);
+    SetProtoMethod(isolate, tmpl, "return", StatementIterator::Return);
     env->set_sqlite_statement_sync_iterator_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-BaseObjectPtr<StatementSyncIterator> StatementSyncIterator::Create(
-    Environment* env, BaseObjectPtr<StatementSync> stmt) {
+BaseObjectPtr<StatementIterator> StatementIterator::Create(
+    Environment* env, BaseObjectPtr<Statement> stmt) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<StatementSyncIterator>();
+    return BaseObjectPtr<StatementIterator>();
   }
 
-  return MakeBaseObject<StatementSyncIterator>(env, obj, std::move(stmt));
+  return MakeBaseObject<StatementIterator>(env, obj, std::move(stmt));
 }
 
-void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
-  StatementSyncIterator* iter;
+void StatementIterator::Next(const FunctionCallbackInfo<Value>& args) {
+  StatementIterator* iter;
   ASSIGN_OR_RETURN_UNWRAP(&iter, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -4329,8 +4324,8 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
-  StatementSyncIterator* iter;
+void StatementIterator::Return(const FunctionCallbackInfo<Value>& args) {
+  StatementIterator* iter;
   ASSIGN_OR_RETURN_UNWRAP(&iter, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -4617,8 +4612,8 @@ static void Initialize(Local<Object> target,
   SetConstructorFunction(context, target, "Database", db_tmpl);
   SetConstructorFunction(context,
                          target,
-                         "StatementSync",
-                         StatementSync::GetConstructorTemplate(env),
+                         "Statement",
+                         Statement::GetConstructorTemplate(env),
                          SetConstructorFunctionFlag::NONE);
   SetConstructorFunction(context,
                          target,

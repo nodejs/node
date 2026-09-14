@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
-suite('StatementSync.prototype.columns()', () => {
+suite('Statement.prototype.columns()', () => {
   test('returns column metadata for core SQLite types', () => {
     const db = new Database(':memory:');
     db.exec(`CREATE TABLE test (

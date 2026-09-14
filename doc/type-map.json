@@ -125,7 +125,7 @@
   "Shareable": "stream_iter.html#interface-shareable",
   "Sign": "crypto.html#class-sign",
   "SQLTagStore": "sqlite.html#class-sqltagstore",
-  "StatementSync": "sqlite.html#class-statementsync",
+  "Statement": "sqlite.html#class-statement",
   "Stream": "stream.html#stream",
   "SubtleCrypto": "webcrypto.html#class-subtlecrypto",
   "SuiteContext": "test.html#class-suitecontext",

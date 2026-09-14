@@ -70,7 +70,7 @@ suite('named parameters', () => {
   });
 });
 
-suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
+suite('Statement.prototype.setAllowUnknownNamedParameters()', () => {
   test('unknown named parameter support can be toggled', (t) => {
     const db = new Database(':memory:');
     t.after(() => { db.close(); });

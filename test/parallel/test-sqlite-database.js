@@ -4,7 +4,7 @@ skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { existsSync, mkdirSync } = require('node:fs');
 const { join } = require('node:path');
-const { Database, StatementSync } = require('node:sqlite');
+const { Database, Statement } = require('node:sqlite');
 const { suite, test } = require('node:test');
 let cnt = 0;
 
@@ -373,7 +373,7 @@ suite('Database.prototype.prepare()', () => {
   test('returns a prepared statement', (t) => {
     using db = new Database(nextDb());
     const stmt = db.prepare('CREATE TABLE webstorage(key TEXT)');
-    t.assert.ok(stmt instanceof StatementSync);
+    t.assert.ok(stmt instanceof Statement);
   });
 
   test('throws if database is not open', (t) => {
