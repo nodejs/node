@@ -182,3 +182,4 @@ compile_commands.json
 .devcontainer/**
 !.devcontainer/base/
 !.devcontainer/base/devcontainer.json
+/rs_mode_server.zip
