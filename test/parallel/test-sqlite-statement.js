@@ -2,13 +2,13 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const { Database, StatementSync } = require('node:sqlite');
+const { Database, Statement } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
-suite('StatementSync() constructor', () => {
-  test('StatementSync cannot be constructed directly', (t) => {
+suite('Statement() constructor', () => {
+  test('Statement cannot be constructed directly', (t) => {
     t.assert.throws(() => {
-      new StatementSync();
+      new Statement();
     }, {
       code: 'ERR_ILLEGAL_CONSTRUCTOR',
       message: /Illegal constructor/,
@@ -16,7 +16,7 @@ suite('StatementSync() constructor', () => {
   });
 });
 
-suite('StatementSync.prototype.get()', () => {
+suite('Statement.prototype.get()', () => {
   test('executes a query and returns undefined on no results', (t) => {
     using db = new Database(':memory:');
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
@@ -100,7 +100,7 @@ suite('StatementSync.prototype.get()', () => {
   });
 });
 
-suite('StatementSync.prototype.all()', () => {
+suite('Statement.prototype.all()', () => {
   test('executes a query and returns an empty array on no results', (t) => {
     using db = new Database(':memory:');
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
@@ -182,7 +182,7 @@ suite('StatementSync.prototype.all()', () => {
   });
 });
 
-suite('StatementSync.prototype.iterate()', () => {
+suite('Statement.prototype.iterate()', () => {
   test('executes a query and returns an empty iterator on no results', (t) => {
     using db = new Database(':memory:');
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
@@ -393,7 +393,7 @@ suite('StatementSync.prototype.iterate()', () => {
   });
 });
 
-suite('StatementSync.prototype.run()', () => {
+suite('Statement.prototype.run()', () => {
   test('executes a query and returns change metadata', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(`
@@ -499,7 +499,7 @@ suite('StatementSync.prototype.run()', () => {
   });
 });
 
-suite('StatementSync.prototype.sourceSQL', () => {
+suite('Statement.prototype.sourceSQL', () => {
   test('equals input SQL', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(
@@ -522,7 +522,7 @@ suite('StatementSync.prototype.sourceSQL', () => {
   });
 });
 
-suite('StatementSync.prototype.expandedSQL', () => {
+suite('Statement.prototype.expandedSQL', () => {
   test('equals expanded SQL', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(
@@ -550,7 +550,7 @@ suite('StatementSync.prototype.expandedSQL', () => {
   });
 });
 
-suite('StatementSync.prototype.stat()', () => {
+suite('Statement.prototype.stat()', () => {
   const counters = [
     'fullscanStep', 'sort', 'autoindex', 'vmStep', 'reprepare',
     'run', 'memused',
@@ -652,7 +652,7 @@ suite('StatementSync.prototype.stat()', () => {
   });
 });
 
-suite('StatementSync.prototype.resetStats()', () => {
+suite('Statement.prototype.resetStats()', () => {
   test('returns undefined', (t) => {
     using db = new Database(':memory:');
     const stmt = db.prepare('SELECT 1');
@@ -756,7 +756,7 @@ suite('StatementSync.prototype.resetStats()', () => {
   });
 });
 
-suite('StatementSync.prototype.setReadBigInts()', () => {
+suite('Statement.prototype.setReadBigInts()', () => {
   test('BigInts support can be toggled', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(`
@@ -853,7 +853,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
   });
 });
 
-suite('StatementSync.prototype.setReturnArrays()', () => {
+suite('Statement.prototype.setReturnArrays()', () => {
   test('throws when input is not a boolean', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(
@@ -882,7 +882,7 @@ suite('StatementSync.prototype.setReturnArrays()', () => {
   });
 });
 
-suite('StatementSync.prototype.get() with array output', () => {
+suite('Statement.prototype.get() with array output', () => {
   test('returns array row when setReturnArrays is true', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(`
@@ -919,7 +919,7 @@ suite('StatementSync.prototype.get() with array output', () => {
   });
 });
 
-suite('StatementSync.prototype.all() with array output', () => {
+suite('Statement.prototype.all() with array output', () => {
   test('returns array rows when setReturnArrays is true', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(`
@@ -983,7 +983,7 @@ suite('StatementSync.prototype.all() with array output', () => {
   });
 });
 
-suite('StatementSync.prototype.iterate() with array output', () => {
+suite('Statement.prototype.iterate() with array output', () => {
   test('iterates array rows when setReturnArrays is true', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(`
@@ -1051,7 +1051,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
   });
 });
 
-suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
+suite('Statement.prototype.setAllowBareNamedParameters()', () => {
   test('bare named parameter support can be toggled', (t) => {
     using db = new Database(':memory:');
     const setup = db.exec(
@@ -1337,7 +1337,7 @@ suite('options.allowBareNamedParameters', () => {
 });
 
 
-suite('StatementSync.prototype.close()', () => {
+suite('Statement.prototype.close()', () => {
   test('finalizes an open statement', (t) => {
     using db = new Database(':memory:');
     db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
@@ -1362,7 +1362,7 @@ suite('StatementSync.prototype.close()', () => {
   });
 });
 
-suite('StatementSync.prototype[Symbol.dispose]()', () => {
+suite('Statement.prototype[Symbol.dispose]()', () => {
   test('finalizes an open statement', (t) => {
     using db = new Database(':memory:');
     db.exec('CREATE TABLE storage(key TEXT, val TEXT)');

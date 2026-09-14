@@ -24,7 +24,7 @@ const TypedArrays = [
   ['DataView', DataView],
 ];
 
-suite('StatementSync with TypedArray/DataView', () => {
+suite('Statement with TypedArray/DataView', () => {
   for (const [displayName, TypedArray] of TypedArrays) {
     test(displayName, (t) => {
       const db = new Database(':memory:');
@@ -56,7 +56,7 @@ suite('StatementSync with TypedArray/DataView', () => {
   }
 });
 
-suite('StatementSync with ArrayBuffer and SharedArrayBuffer', () => {
+suite('Statement with ArrayBuffer and SharedArrayBuffer', () => {
   const buffers = [
     ['ArrayBuffer', arrayBuffer],
     ['SharedArrayBuffer', sharedArrayBuffer],

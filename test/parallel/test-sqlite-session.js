@@ -839,7 +839,7 @@ suite('session.close() - from a callback', () => {
 
   // Rejecting disposal has a cost: a `using` declaration inside a callback
   // demotes the block's own error to SuppressedError. Accepted for symmetry
-  // with StatementSync's disposal, which throws for a busy statement the same
+  // with Statement's disposal, which throws for a busy statement the same
   // way. Pinned here so the trade-off is visible rather than surprising.
   it('demotes a callback error when disposal is rejected', (t) => {
     const database = new Database(':memory:');
