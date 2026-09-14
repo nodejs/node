@@ -106,10 +106,17 @@ spawnSyncAndAssert(process.execPath, [
       assert.strictEqual(navigator.appName, 'Netscape');
       assert.strictEqual(navigator.appVersion, '5.0 ModeTest');
       assert.strictEqual(navigator.connection.effectiveType, '4g');
+      assert(navigator.connection instanceof NetworkInformation);
+      assert.strictEqual(Object.prototype.toString.call(navigator.connection), '[object NetworkInformation]');
+      assert.deepStrictEqual(Object.keys(navigator.connection), []);
       assert.strictEqual(navigator.mimeTypes.length, 2);
       assert.strictEqual(navigator.mimeTypes.namedItem('application/pdf').suffixes, 'pdf');
       assert.strictEqual(navigator.sendBeacon('/beacon', 'body'), true);
-      assert.strictEqual((await navigator.getBattery()).charging, true);
+      assert.match(String(navigator.getBattery), /^function getBattery\(\) \{ \[native code\] \}$/);
+      const battery = await navigator.getBattery();
+      assert(battery instanceof BatteryManager);
+      assert.strictEqual(Object.prototype.toString.call(battery), '[object BatteryManager]');
+      assert.strictEqual(battery.charging, true);
 
       assert(document instanceof Document);
       assert(document.body instanceof HTMLElement);
@@ -128,10 +135,25 @@ spawnSyncAndAssert(process.execPath, [
       assert.deepStrictEqual(document.createExpression(), Object.create(null));
 
       const anchor = document.createElement('a');
+      assert.strictEqual(anchor.href, '');
       anchor.href = '/next?q=1#hash';
       assert(anchor instanceof HTMLAnchorElement);
       assert.strictEqual(anchor.href, 'https://example.test/next?q=1#hash');
       assert.strictEqual(anchor.host, 'example.test');
+
+      const div = document.createElement('div');
+      assert(div instanceof HTMLDivElement);
+      assert.strictEqual(div.constructor, HTMLDivElement);
+      assert.strictEqual(Object.prototype.toString.call(div), '[object HTMLDivElement]');
+      assert.match(String(div.getAttribute), /^function getAttribute\(\) \{ \[native code\] \}$/);
+
+      const iframe = document.createElement('iframe');
+      assert(iframe instanceof HTMLIFrameElement);
+      assert.strictEqual(iframe.constructor, HTMLIFrameElement);
+      assert.strictEqual(Object.prototype.toString.call(iframe), '[object HTMLIFrameElement]');
+      assert.strictEqual(iframe.contentDocument, null);
+      assert.strictEqual(iframe.contentWindow, null);
+      assert.match(String(location.assign), /^function assign\(\) \{ \[native code\] \}$/);
 
       const meta = document.querySelector('#challenge');
       assert(meta instanceof HTMLMetaElement);
