@@ -4827,18 +4827,9 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
     }
   }
 
-  auto file_copy_opts = std::filesystem::copy_options::recursive;
-  if (options.force) {
-    file_copy_opts |= std::filesystem::copy_options::overwrite_existing;
-  } else if (options.error_on_exist) {
-    file_copy_opts |= std::filesystem::copy_options::none;
-  } else {
-    file_copy_opts |= std::filesystem::copy_options::skip_existing;
-  }
-
   std::function<CpError(std::filesystem::path, std::filesystem::path)>
       copy_dir_contents;
-  copy_dir_contents = [&options, &copy_dir_contents, file_copy_opts](
+  copy_dir_contents = [&options, &copy_dir_contents](
                           std::filesystem::path src,
                           std::filesystem::path dest) -> CpError {
     std::error_code error;
@@ -4989,20 +4980,41 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
           CpError fresh = CopyFileFresh(
               dir_entry.path(), dest_file_path, options.copyfile_flags);
           if (fresh.kind != CpError::kNone) return fresh;
+        } else if (!options.force && !options.error_on_exist &&
+                   std::filesystem::exists(dest_file_path, error)) {
+          copied = false;
         } else {
-          copied = std::filesystem::copy_file(
-              dir_entry.path(), dest_file_path, file_copy_opts, error);
+          // uv_fs_copyfile() instead of std::filesystem::copy_file():
+          // libstdc++ implements copy_file() by creating dest with mode
+          // 0200 and then fchmod(), which VirtioFS bind mounts reject
+          // with EACCES. uv_fs_copyfile() opens dest with the final mode
+          // directly, matching the single-file cpSync path.
+          error.clear();
+          auto src_str = ConvertPathToUTF8(dir_entry.path());
+          auto dest_file_str = ConvertPathToUTF8(dest_file_path);
+          uv_fs_t req;
+          auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+          int flags = options.error_on_exist ? UV_FS_COPYFILE_EXCL : 0;
+          int rc = uv_fs_copyfile(nullptr,
+                                  &req,
+                                  src_str.c_str(),
+                                  dest_file_str.c_str(),
+                                  flags,
+                                  nullptr);
+          if (is_uv_error(rc)) {
+            if (rc == UV_EEXIST) {
+              return {CpError::kEexist,
+                      0,
+                      "cp",
+                      SPrintF("[ERR_FS_CP_EEXIST]: Target already exists: "
+                              "cp returned EEXIST (%s already exists)",
+                              dest_file_path),
+                      {}};
+            }
+            return CpError::Uv(rc, "cp", dest_file_str);
+          }
         }
         if (error) {
-          if (error == std::errc::file_exists) {
-            return {CpError::kEexist,
-                    0,
-                    "cp",
-                    SPrintF("[ERR_FS_CP_EEXIST]: Target already exists: "
-                            "cp returned EEXIST (%s already exists)",
-                            dest_file_path),
-                    {}};
-          }
           return CpError::Std(error, dest_str);
         }
 
