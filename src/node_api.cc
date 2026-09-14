@@ -1209,7 +1209,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
             env->isolate,
             async_resource,
             node::Utf8Value(env->isolate, async_resource_name).ToStringView()),
-        ThreadPoolWork(env->node_env(), "node_api"),
+        ThreadPoolWork(env->node_env(), node::ThreadPoolWorkType::kNodeApi),
         _env(env),
         _data(data),
         _execute(execute),

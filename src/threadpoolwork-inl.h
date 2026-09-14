@@ -43,7 +43,7 @@ void ThreadPoolWork::ScheduleWork() {
   work_start_ = 0;
   work_end_ = 0;
 
-  if (env_->has_threadpool_work_subscribers()) [[unlikely]] {
+  if (channel_ != nullptr && channel_->active) [[unlikely]] {
     enqueued_at_ = uv_hrtime();
   }
 
@@ -71,7 +71,9 @@ void ThreadPoolWork::ScheduleWork() {
             status);
         // AfterThreadPoolWork() may unsubscribe or delete `self`.
         if (self->IsObserved()) {
-          auto* channel = self->env_->threadpool_work_channel().get();
+          auto* channel = self->channel_ == nullptr
+                              ? nullptr
+                              : self->channel_->channel.get();
           if (channel != nullptr) self->PublishDiagnostics(*channel);
         }
         self->AfterThreadPoolWork(status);
@@ -96,13 +98,12 @@ void ThreadPoolWork::PublishDiagnostics(diagnostics_channel::Channel& channel) {
   v8::Local<v8::DictionaryTemplate> tmpl = env_->threadpool_work_template();
   if (tmpl.IsEmpty()) {
     static constexpr std::string_view names[] = {
-        "type", "enqueued", "started", "ended"};
+        "enqueued", "started", "ended"};
     tmpl = v8::DictionaryTemplate::New(isolate, names);
     env_->set_threadpool_work_template(tmpl);
   }
 
   v8::MaybeLocal<v8::Value> values[] = {
-      OneByteString(isolate, type_, -1, v8::NewStringType::kInternalized),
       to_milliseconds(enqueued_at_),
       to_milliseconds(work_start_),
       to_milliseconds(work_end_),

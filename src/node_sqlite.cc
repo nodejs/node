@@ -596,7 +596,7 @@ class BackupJob : public ThreadPoolWork {
                      std::string dest_db,
                      int pages,
                      Local<Function> progressFunc)
-      : ThreadPoolWork(env, "node_sqlite3.BackupJob"),
+      : ThreadPoolWork(env, ThreadPoolWorkType::kSQLiteBackup),
         env_(env),
         source_(source),
         pages_(pages),

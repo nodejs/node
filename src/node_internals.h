@@ -301,8 +301,10 @@ class DebugSealHandleScope {
 
 class ThreadPoolWork {
  public:
-  explicit inline ThreadPoolWork(Environment* env, const char* type)
-      : env_(env), type_(type) {
+  explicit inline ThreadPoolWork(Environment* env, ThreadPoolWorkType type)
+      : env_(env),
+        type_(kThreadPoolWorkNames[static_cast<size_t>(type)].data()),
+        channel_(env->threadpool_work_channel(type)) {
     CHECK_NOT_NULL(env);
   }
   inline virtual ~ThreadPoolWork() = default;
@@ -323,6 +325,7 @@ class ThreadPoolWork {
   Environment* env_;
   uv_work_t work_req_;
   const char* type_;
+  ThreadPoolWorkChannel* channel_ = nullptr;
 
   // libuv synchronizes these marks between the loop and worker threads.
   uint64_t enqueued_at_ = 0;

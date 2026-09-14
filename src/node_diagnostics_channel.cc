@@ -95,7 +95,7 @@ void BindingData::LinkNativeChannel(const FunctionCallbackInfo<Value>& args) {
       }
     }
   }
-  realm->env()->InitializeThreadPoolWorkChannel();
+  realm->env()->InitializeThreadPoolWorkChannels();
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,

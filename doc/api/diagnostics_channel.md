@@ -2034,11 +2034,11 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-##### Event: `'threadpool.work'`
+##### Event: `'threadpool.work.<type>'`
 
-* `type` {string} The kind of work that ran. Values include `'zlib'`,
-  `'crypto'`, `'node_api'`, `'fs.readfile'`, `'fs.writefile'`, `'fs.cp'`,
-  `'readdir_recursive'`, and `'node_sqlite3.BackupJob'`.
+Each kind of thread pool work has a separate channel named by appending its
+`type` to `'threadpool.work.'`.
+
 * `enqueued` {number} When the work was submitted to the pool.
 * `started` {number|null} When execution started, or `null` if cancelled.
 * `ended` {number|null} When execution ended, or `null` if cancelled.

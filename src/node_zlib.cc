@@ -459,7 +459,7 @@ class CompressionStream : public AsyncWrap,
 
   CompressionStream(Environment* env, Local<Object> wrap)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
-        ThreadPoolWork(env, "zlib"),
+        ThreadPoolWork(env, ThreadPoolWorkType::kZlib),
         write_result_(nullptr) {
     MakeWeak();
   }

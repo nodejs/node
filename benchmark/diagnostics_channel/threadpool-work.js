@@ -16,11 +16,19 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, mode, operation }) {
   const subscriber = () => {};
+  const type = {
+    crypto: 'crypto',
+    zlib: 'zlib',
+    readFile: 'fs.readfile',
+    writeFile: 'fs.writefile',
+  }[operation];
+  assert(type);
+  const channel = `threadpool.work.${type}`;
   if (mode === 'subscribed') {
-    dc.subscribe('threadpool.work', subscriber);
+    dc.subscribe(channel, subscriber);
   } else if (mode === 'unsubscribed') {
-    dc.subscribe('threadpool.work', subscriber);
-    dc.unsubscribe('threadpool.work', subscriber);
+    dc.subscribe(channel, subscriber);
+    dc.unsubscribe(channel, subscriber);
   }
 
   tmpdir.refresh();
@@ -54,7 +62,7 @@ function main({ n, mode, operation }) {
 
       bench.end(n);
       if (mode === 'subscribed') {
-        dc.unsubscribe('threadpool.work', subscriber);
+        dc.unsubscribe(channel, subscriber);
       }
     });
   }
