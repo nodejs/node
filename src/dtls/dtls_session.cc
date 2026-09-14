@@ -7,6 +7,7 @@
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_common.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <node_buffer.h>
@@ -626,28 +627,8 @@ void DTLSSession::GetCipher(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = session->env();
 
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(session->ssl_.get());
-  if (cipher == nullptr) return;
-
-  Local<Object> info = Object::New(env->isolate());
-  info->Set(env->context(),
-            env->name_string(),
-            String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_name(cipher))
-                .ToLocalChecked())
-      .Check();
-  info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "standardName"),
-          String::NewFromUtf8(env->isolate(), SSL_CIPHER_standard_name(cipher))
-              .ToLocalChecked())
-      .Check();
-  info->Set(env->context(),
-            env->version_string(),
-            String::NewFromUtf8(env->isolate(), SSL_CIPHER_get_version(cipher))
-                .ToLocalChecked())
-      .Check();
-
-  args.GetReturnValue().Set(info);
+  args.GetReturnValue().Set(
+      crypto::GetCipherInfo(env, session->ssl_).FromMaybe(Local<Object>()));
 }
 
 void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
