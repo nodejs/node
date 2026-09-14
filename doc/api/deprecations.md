@@ -4807,10 +4807,10 @@ async function example() {
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65988
-    description: Runtime deprecation.
+    description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Documentation-only
 
 `node:sqlite`'s `DatabaseSync` class was renamed to `Database`. `DatabaseSync`
 is kept as a deprecated alias. Use `Database` instead.
