@@ -5,7 +5,7 @@ runtime environment. It is intended for running JavaScript that expects common
 browser globals, without embedding Chromium or rendering a page.
 
 > The executable keeps the upstream Node.js version string. Mode releases use
-> one date-stamped tag, such as `mode_20260911_v22.0.5`; the `v22.0.5` part is
+> one date-stamped tag, such as `mode_20260914_v22.0.10`; the `v22.0.10` part is
 > the Mode release label, not a claim about the embedded upstream Node.js version.
 
 ## Mode browser environment
@@ -16,21 +16,21 @@ Download the archive that matches the host CPU from [GitHub Releases][mode-relea
 
 | Platform | Unified release | Archive |
 | --- | --- | --- |
-| macOS Apple Silicon (ARM64) | [mode_20260912_v22.0.7][mode-release] | `mode_mac_arm_20260912_v22.0.7.tar.gz` |
-| Windows x64 | [mode_20260912_v22.0.7][mode-release] | `mode_win_x64_20260912_v22.0.7.zip` |
-| Linux x64 | [mode_20260912_v22.0.7][mode-release] | `mode_linux_x64_20260912_v22.0.7.tar.gz` |
+| macOS Apple Silicon (ARM64) | [mode_20260914_v22.0.10][mode-release] | `mode_mac_arm_20260914_v22.0.10.tar.gz` |
+| Windows x64 | [mode_20260914_v22.0.10][mode-release] | `mode_win_x64_20260914_v22.0.10.zip` |
+| Linux x64 | [mode_20260914_v22.0.10][mode-release] | `mode_linux_x64_20260914_v22.0.10.tar.gz` |
 
 On macOS or Linux, extract the archive and place `mode` on `PATH`:
 
 ```bash
-tar -xzf mode_linux_x64_20260911_v22.0.5.tar.gz
+tar -xzf mode_linux_x64_20260914_v22.0.10.tar.gz
 mkdir -p "$HOME/.local/bin"
-install -m 755 mode_linux_x64_20260911_v22.0.5/mode "$HOME/.local/bin/mode"
+install -m 755 mode_linux_x64_20260914_v22.0.10/mode "$HOME/.local/bin/mode"
 export PATH="$HOME/.local/bin:$PATH"
 mode --version
 ```
 
-Use `mode_mac_arm_20260911_v22.0.5` in the commands above for macOS Apple Silicon.
+Use `mode_mac_arm_20260914_v22.0.10` in the commands above for macOS Apple Silicon.
 Add the `export PATH=...` line to the shell startup file if the command should
 remain available in future terminals.
 
@@ -38,8 +38,8 @@ On Windows, extract the ZIP, then run `mode.exe` from its directory or add that
 directory to `PATH`:
 
 ```powershell
-Expand-Archive .\mode_win_x64_20260911_v22.0.5.zip
-.\mode_win_x64_20260911_v22.0.5\mode.exe --version
+Expand-Archive .\mode_win_x64_20260914_v22.0.10.zip
+.\mode_win_x64_20260914_v22.0.10\mode.exe --version
 ```
 
 Verify that the installed executable has the Mode extension:
@@ -76,6 +76,33 @@ It deliberately does **not** provide a renderer, layout engine, Canvas pixel
 output, WebGL, XHR emulation that makes network requests, real navigation, or
 automatic execution of `<script>` tags contained in the initial HTML. It is a
 script compatibility environment, not a headless browser.
+
+### 相对官方 Node.js 的改动（Mode v22.0.10）
+
+官方 Node.js 保持服务器端 JavaScript 运行时定位：没有 `window`、`document`
+或浏览器启动配置。本仓库在不嵌入 Chromium 的前提下，新增了下面的可选浏览器
+兼容层；未启用时普通 Node.js 的运行方式不变。
+
+| 范围 | 官方 Node.js | Mode 的新增/修改 |
+| --- | --- | --- |
+| 启动与模块 | 没有内置浏览器环境模块或对应 CLI 参数。 | 新增公开内置模块 `node:browser-env`（CommonJS 与 ESM 均可加载）和 `--browser-env-profile=file`；profile 会在入口脚本运行前安装环境。 |
+| Realm 生命周期 | 没有浏览器环境安装状态。 | `install(options)` 仅影响当前 Realm、只能安装一次，并返回 `window`、`document`、`navigator`、`location`；可用 JSON profile 或代码对象配置 URL、HTML、UA、screen、Cookie、Storage 与自定义属性。 |
+| DOM | 没有 `document` 或 HTML 树。 | 新增轻量 DOM：解析传入的 HTML，支持节点增删改、属性、文本、`getElementById()`、`getElementsBy*()`、`querySelector()`、`querySelectorAll()`、事件接口及 `DOMParser`。提供 `HTMLHtmlElement`、`HTMLHeadElement`、`HTMLBodyElement`、`HTMLDivElement`、`HTMLAnchorElement`、`HTMLFormElement`、`HTMLInputElement`、`HTMLIFrameElement`、`HTMLMetaElement`、`HTMLScriptElement`、`HTMLTitleElement` 等常用构造器。 |
+| `window` 与 BOM | 没有 `window`、`location`、`history`、`navigator`、`screen`。 | 安装后 `window`、`self`、`top`、`parent` 与 `globalThis` 指向同一对象；提供虚拟 `location/history`、可配置的 `navigator/screen`、窗口尺寸、`NetworkInformation`、`BatteryManager`、MIME 类型及 `sendBeacon()`。 |
+| Cookie 与存储 | 没有浏览器 Cookie/Storage 接口。 | 每个已安装 Realm 有内存 `document.cookie`、`localStorage` 与 `sessionStorage`；`rs_mode_server` 会为每个请求创建独立 Worker，状态不会跨请求泄漏。 |
+| 浏览器特征兼容 | 没有 `document.all`，也没有 DOM/BOM 方法形态。 | 通过 Node/V8 内部 binding 实现不可检测对象语义的 `document.all`，覆盖特殊 `typeof`、布尔值、宽松相等、索引、命名查找与调用；常见的 `fn.toString()` 检查会看到原生函数形态。 |
+| 兼容存根 | 没有这些浏览器全局。 | 提供 `XMLHttpRequest` 状态/参数记录、`MutationObserver`、`indexedDB`、`chrome` 元数据、`open()`、`prompt()`、`msCrypto` 别名和确定性的 Canvas 表面，供常见探测脚本继续运行。它们不是完整浏览器实现。 |
+| Node 特征隔离 | Node 全局默认可见。 | `install({ hideNodeGlobals: true })` 可在该 Realm 删除可配置的 `global`、`process`、`require`、`module`、`exports`、路径与 immediate 别名。默认关闭，普通 Mode 脚本仍保留 Node 入口；`rs_mode_server` 的挑战 Worker 会开启它，同时保留 `Buffer` 以兼容实际挑战脚本。 |
+
+当前版本已用真实目标的连续请求验证可得到 HTTP 200；这证明已覆盖该目标读取到的
+环境路径，不代表 Mode 已成为完整 Chromium 或保证所有站点都能通过指纹检测。
+
+#### 明确边界
+
+Mode 不提供页面渲染、CSS/layout、真实 iframe 文档、Canvas 像素/图形指纹、WebGL、
+WebRTC、AudioContext、Worker 浏览器 API、真实页面导航，或初始 HTML 中 `<script>` 的
+自动执行。`XMLHttpRequest` 仅记录 `open()`/`send()` 状态和参数，不发出网络请求；如需
+这些能力，应使用真实浏览器或在目标代码外自行完成网络调用。
 
 ### Start an existing script with a JSON profile
 
@@ -1090,7 +1117,7 @@ additions comply with the project’s license guidelines.
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [browser-env-api]: doc/api/browser-env.md
-[mode-release]: https://github.com/wen2go/mode/releases/tag/mode_20260912_v22.0.7
+[mode-release]: https://github.com/wen2go/mode/releases/tag/mode_20260914_v22.0.10
 [mode-releases]: https://github.com/wen2go/mode/releases
 [Node.js website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
