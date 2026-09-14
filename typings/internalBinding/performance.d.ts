@@ -145,6 +145,7 @@ export interface PerformanceBinding {
     samplePerIteration: boolean,
   ): InternalPerformanceBinding.ELDHistogram;
   markBootstrapComplete(): void;
-  uvMetricsInfo(): [number, number, number];
+  uvMetricsInfo(): void;
+  uvMetricsBuffer: Int32Array;
   now(): number;
 }

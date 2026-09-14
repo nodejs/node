@@ -62,6 +62,7 @@ class PerformanceState {
     AliasedBufferIndex root;
     AliasedBufferIndex milestones;
     AliasedBufferIndex observers;
+    AliasedBufferIndex uv_metrics;
   };
 
   explicit PerformanceState(v8::Isolate* isolate,
@@ -78,6 +79,7 @@ class PerformanceState {
   AliasedUint8Array root;
   AliasedFloat64Array milestones;
   AliasedUint32Array observers;
+  AliasedInt32Array uv_metrics;
 
   uint64_t performance_last_gc_start_mark = 0;
   uint16_t current_gc_type = 0;
@@ -92,6 +94,7 @@ class PerformanceState {
     // doubles first so that they are always sizeof(double)-aligned
     double milestones[NODE_PERFORMANCE_MILESTONE_INVALID];
     uint32_t observers[NODE_PERFORMANCE_ENTRY_TYPE_INVALID];
+    int32_t uv_metrics[3];
   };
 };
 
