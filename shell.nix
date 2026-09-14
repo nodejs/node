@@ -92,6 +92,9 @@ in
 pkgs.mkShell {
   inherit nativeBuildInputs;
 
+  # `_FORTIFY_SOURCE` requires optimization, which debug builds do not have.
+  hardeningDisable = [ "fortify" ];
+
   buildInputs =
     builtins.attrValues sharedLibDeps
     ++ buildInputs
