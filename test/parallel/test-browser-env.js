@@ -112,7 +112,7 @@ spawnSyncAndAssert(process.execPath, [
       assert.strictEqual(navigator.mimeTypes.length, 2);
       assert.strictEqual(navigator.mimeTypes.namedItem('application/pdf').suffixes, 'pdf');
       assert.strictEqual(navigator.sendBeacon('/beacon', 'body'), true);
-      assert.match(String(navigator.getBattery), /^function getBattery\(\) \{ \[native code\] \}$/);
+      assert.strictEqual(String(navigator.getBattery), 'function getBattery() { [native code] }');
       const battery = await navigator.getBattery();
       assert(battery instanceof BatteryManager);
       assert.strictEqual(Object.prototype.toString.call(battery), '[object BatteryManager]');
@@ -145,7 +145,7 @@ spawnSyncAndAssert(process.execPath, [
       assert(div instanceof HTMLDivElement);
       assert.strictEqual(div.constructor, HTMLDivElement);
       assert.strictEqual(Object.prototype.toString.call(div), '[object HTMLDivElement]');
-      assert.match(String(div.getAttribute), /^function getAttribute\(\) \{ \[native code\] \}$/);
+      assert.strictEqual(String(div.getAttribute), 'function getAttribute() { [native code] }');
 
       const iframe = document.createElement('iframe');
       assert(iframe instanceof HTMLIFrameElement);
@@ -153,7 +153,7 @@ spawnSyncAndAssert(process.execPath, [
       assert.strictEqual(Object.prototype.toString.call(iframe), '[object HTMLIFrameElement]');
       assert.strictEqual(iframe.contentDocument, null);
       assert.strictEqual(iframe.contentWindow, null);
-      assert.match(String(location.assign), /^function assign\(\) \{ \[native code\] \}$/);
+      assert.strictEqual(String(location.assign), 'function assign() { [native code] }');
 
       const meta = document.querySelector('#challenge');
       assert(meta instanceof HTMLMetaElement);
