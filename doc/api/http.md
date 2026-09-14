@@ -1129,7 +1129,9 @@ const hasContentType = request.hasHeader('content-type');
 
 * Type: {number} **Default:** `1000`
 
-Limits maximum response headers count. If set to 0, no limit will be applied.
+Limits the maximum response headers count. Responses exceeding this limit are
+rejected with an [`HPE_HEADER_OVERFLOW`][] error. If set to `0`, no limit will
+be applied.
 
 ### `request.path`
 
