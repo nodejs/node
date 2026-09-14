@@ -2039,8 +2039,34 @@ added: REPLACEME
 Each kind of thread pool work has a separate channel named by appending its
 `type` to `'threadpool.work.'`.
 
+Supported values for `<type>` are:
+
+* `'crypto'`
+
+* `'fs.cp'`
+
+* `'fs.readfile'`
+
+* `'fs.writefile'`
+
+* `'glob'`
+
+* `'histogram.qrde'`
+
+* `'node_api'`
+
+* `'readdir_recursive'`
+
+* `'node_sqlite3.BackupJob'`
+
+* `'zlib'`
+
+Messages contain:
+
 * `enqueued` {number} When the work was submitted to the pool.
+
 * `started` {number|null} When execution started, or `null` if cancelled.
+
 * `ended` {number|null} When execution ended, or `null` if cancelled.
 
 Emitted after the work finishes and before its completion callback. Timestamps

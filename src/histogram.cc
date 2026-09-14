@@ -873,7 +873,7 @@ class QrdeJob final : public ThreadPoolWork {
           Histogram::RecordedSnapshotSource snapshot_source,
           std::vector<double> probabilities,
           QrdeDequantization dequantization)
-      : ThreadPoolWork(env, "histogram.qrde"),
+      : ThreadPoolWork(env, ThreadPoolWorkType::kHistogramQrde),
         histogram_(std::move(histogram)),
         snapshot_source_(std::move(snapshot_source)),
         probabilities_(std::move(probabilities)),
