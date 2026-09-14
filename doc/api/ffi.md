@@ -144,7 +144,7 @@ pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
 strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are converted
 on the JavaScript side before calling the optimized native wrapper.
 
-Optimized Fast FFI calls fall back to the generic FFI call path when a
+Optimized Fast FFI calls fall back to another [call path][call paths] when a
 function's arguments or return type do not fit the platform-specific fast
 trampoline. Fast FFI calls support at most 8 total arguments, and the
 register and argument limits differ per architecture:
@@ -162,8 +162,8 @@ register and argument limits differ per architecture:
 PPC64BE has no fast-call trampoline and always uses the generic call path.
 "Buffer-shaped args" means `Buffer`, typed array, `DataView`, or `ArrayBuffer`
 values passed as pointer-like arguments. Functions whose argument or return
-types exceed the limits for the current platform use the generic FFI call
-path instead.
+types exceed the limits for the current platform use one of the other
+[call paths][] instead.
 
 ## Signature objects
 
@@ -554,6 +554,139 @@ For pointer-like arguments:
 
 Pointer return values are exposed as `bigint` addresses.
 
+## Call paths
+
+When a symbol is resolved through [`ffi.dlopen()`][],
+[`library.getFunction()`][], or [`library.getFunctions()`][], Node.js selects
+one of three native call paths for the returned wrapper. The selection is based
+on the declared signature, on the current platform, and on the capabilities of
+the current process. It is made once when the function is created, cannot be
+configured, and is not observable from JavaScript.
+
+The call paths are designed to accept the same JavaScript values for each
+[type name][type names], to perform the same validation, and to throw the same
+errors, so that applications do not need to know which call path a particular
+function uses. They differ in how much work is done per call. The paths exist
+so that common signatures can be called with as little overhead as possible
+while every supported signature keeps working.
+
+Node.js tries the call paths in the following order and uses the first one that
+supports the signature:
+
+1. The [Fast API call path][], which lets optimized JavaScript call the native
+   symbol directly through a generated per-signature trampoline.
+2. The [shared buffer call path][], which passes arguments through a
+   preallocated buffer instead of converting each argument across the
+   JavaScript and C++ boundary on every call.
+3. The [generic call path][], which converts each argument in C++ and calls the
+   symbol through `libffi`. This path supports every signature.
+
+The contributor guide [FFI Fast API internals][] describes the implementation of
+these call paths in detail.
+
+### Fast API call path
+
+The Fast API call path binds the wrapper as a V8 Fast API function. When
+JavaScript code calling the wrapper is optimized by V8, the call goes from the
+optimized code straight into a small native trampoline that Node.js generates
+for the exact signature when the function is created. The trampoline moves the
+arguments into the registers expected by the native symbol and calls it. For
+the scalar entry point, there is no intermediate argument conversion in C++.
+
+Functions on this path keep a conventional native entry point as well. Calls
+from code that V8 has not optimized, or that V8 deoptimizes, use that entry
+point, which behaves like the [generic call path][]. This is transparent to the
+caller.
+
+Pointer-like arguments are prepared in JavaScript before the trampoline runs:
+
+* `null` and `undefined` become null pointers.
+* `string` values are copied into temporary NUL-terminated UTF-8 buffers for
+  the duration of the call.
+* `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are converted to
+  raw pointer `bigint` values, unless the alternate entry point described below
+  handles them.
+* `bigint` values are passed through unchanged.
+
+For signatures with a single `pointer`, `buffer`, or `arraybuffer` argument,
+Node.js also creates an alternate Fast API entry point that receives `Buffer`,
+typed array, `DataView`, and `ArrayBuffer` values directly. The JavaScript
+wrapper dispatches to it when the argument is such a value, and a native helper
+extracts the pointer from the backing store instead of converting the value in
+JavaScript.
+
+A function uses this call path only when all of the following conditions are
+met:
+
+* The process runs on a supported 64-bit architecture: AArch64, x86-64,
+  PPC64LE, LoongArch64, RISC-V 64, or s390x. 32-bit platforms and big-endian
+  PPC64 always use another call path.
+* The process can allocate executable memory. Node.js checks once per process
+  whether it can allocate memory and mark it executable. If that check fails,
+  this path is disabled for the entire process.
+* Neither the return type nor any argument type is `function`.
+* The signature has at most 8 arguments, and every argument fits in the
+  argument registers available to the trampoline on the current platform.
+  Arguments that would have to be passed on the native stack are not supported.
+
+The register limits are platform-specific. Integer and pointer-like arguments
+share one set of registers, and floating-point arguments share another. The
+limits for each architecture are listed in [Type names][].
+
+A signature that fails any of these checks is not an error. The function is
+created on the next call path that supports it.
+
+### Shared buffer call path
+
+The shared buffer call path is used for signatures that the Fast API call path
+does not support. When the function is created, Node.js allocates a small
+per-function buffer with one 8-byte slot for the return value and one 8-byte
+slot for each argument. On every call, the JavaScript wrapper validates the
+arguments, writes them into their slots, invokes the native symbol through
+`libffi` without passing any JavaScript arguments, and then reads the return
+value back from the buffer. This avoids converting each argument individually
+across the JavaScript and C++ boundary.
+
+A function uses this call path when all of the following conditions are met:
+
+* The Fast API call path is not available for the signature.
+* The host is little-endian.
+* The signature has at least one argument. Zero-argument functions gain nothing
+  from the shared buffer and use another call path instead.
+
+All type names are supported on this path, and there is no limit on the number
+of arguments.
+
+Pointer-like arguments (`pointer`, `string`, `buffer`, `arraybuffer`, and
+`function`) are written to the shared buffer only when the value is a `bigint`,
+`null`, or `undefined`. When a call passes a string, `Buffer`, typed array,
+`DataView`, or `ArrayBuffer` to a pointer-like parameter, that individual call
+is handed off to the [generic call path][], which performs the conversion in
+C++. The function itself stays on the shared buffer call path for later calls.
+
+The shared buffer is private to each function. Reentrant calls to the same
+function, for example from an FFI callback, are safe because the native side
+copies the arguments out of the buffer before invoking the symbol.
+
+### Generic call path
+
+The generic call path converts each JavaScript argument to its native
+representation in C++ and calls the symbol through `libffi`. It supports every
+signature that `node:ffi` accepts and is the reference implementation for the
+argument validation and error behavior that the other call paths reproduce.
+
+A function is created directly on this call path when the Fast API call path
+is unavailable and either the host is big-endian or the signature has no
+arguments.
+
+The generic call path also serves individual calls handed off by the other call
+paths, such as unoptimized or deoptimized call sites of a Fast API function and
+shared buffer calls that pass non-`bigint` pointer-like values.
+
+Callbacks created with [`library.registerCallback()`][] are always implemented
+with `libffi` closures. They are independent of the call path used by any
+function.
+
 ## Primitive memory access helpers
 
 The following helpers read and write primitive values at a native pointer,
@@ -819,11 +952,19 @@ In particular:
 As a general rule, prefer copied values unless zero-copy access is required,
 and keep callback and pointer lifetimes explicit on the native side.
 
+[FFI Fast API internals]: https://github.com/nodejs/node/blob/HEAD/doc/contributing/ffi-fast-api-internals.md
+[Fast API call path]: #fast-api-call-path
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.dlopen()`]: #ffidlopenpath-definitions
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`library.functions`]: #libraryfunctions
+[`library.getFunction()`]: #librarygetfunctionname-signature
+[`library.getFunctions()`]: #librarygetfunctionsdefinitions
+[`library.registerCallback()`]: #libraryregistercallbacksignature-callback
 [`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
+[call paths]: #call-paths
+[generic call path]: #generic-call-path
+[shared buffer call path]: #shared-buffer-call-path
 [type names]: #type-names
 [virtual file system]: vfs.md
