@@ -522,7 +522,15 @@ The following are **not** vulnerabilities in Node.js:
 * **Operator-controlled flags**: Behavior unlocked by flags the operator
   explicitly passes (e.g., `--localstorage-file`) is the operator's
   responsibility. The permission model does not restrict how Node.js behaves
-  when the operator intentionally configures it.
+  when the operator intentionally configures it. This includes any file or
+  resource that Node.js itself creates, writes, or reads at a location the
+  operator selected through a flag, including every path derived from a
+  template or pattern in that flag. For example, trace files rotated by
+  `--trace-event-file-pattern` (`${rotation}`) being written without a
+  matching `--allow-fs-write` entry is not a permission model bypass. Such
+  paths are part of the operator's configuration, not application file-system
+  access. Inconsistent checks on these paths are treated as regular bugs and
+  should be reported through the public issue tracker.
 
 * **`node:sqlite` and the permission model**: `DatabaseSync` operates with the
   same file-system privileges as the process. Using SQL pragmas or built-in

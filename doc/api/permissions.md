@@ -354,6 +354,14 @@ There are constraints you need to know before using this system:
   to read files before environment initialization. As a result, such flags are
   not subject to the rules of the Permission Model. The same applies for V8
   flags that can be set via runtime through `v8.setFlagsFromString`.
+* Files that Node.js itself creates, writes, or reads at a location selected
+  by an operator flag may not be consistently checked against the Permission
+  Model, in particular when the flag accepts a template or pattern that
+  expands to several paths. For example, trace files rotated by
+  `--trace-event-file-pattern` (`${rotation}`) can be written even when the
+  expanded path is not covered by `--allow-fs-write`. Because the location is
+  chosen by the operator, gaps like this are treated as regular bugs rather
+  than vulnerabilities. Please report them through the regular issue tracker.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Run-Time Loadable Extensions cannot be loaded when the Permission Model is
