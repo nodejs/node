@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const { n, mode } = conf;
 
-  const db = new sqlite.DatabaseSync(':memory:');
+  const db = new sqlite.Database(':memory:');
   db.exec('CREATE TABLE t (x INTEGER)');
   const insert = db.prepare('INSERT INTO t VALUES (?)');
 
