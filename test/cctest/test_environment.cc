@@ -432,6 +432,19 @@ TEST_F(EnvironmentTest, SharedIsolateDataLoadsBindingsTwice) {
   EXPECT_EQ(node::SpinEventLoop(*env2).FromJust(), 0);
 }
 
+TEST_F(EnvironmentTest, HeapSnapshotWithCppgcWrappersDoesNotLeak) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+  node::LoadEnvironment(*env,
+                        "const vm = require('vm');"
+                        "globalThis.script = new vm.Script('1');"
+                        "globalThis.context = vm.createContext();")
+      .ToLocalChecked();
+  node::heap::HeapSnapshotPointer snapshot{
+      isolate_->GetHeapProfiler()->TakeHeapSnapshot()};
+}
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
