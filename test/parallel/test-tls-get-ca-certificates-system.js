@@ -30,3 +30,6 @@ assert.deepStrictEqual(defaultSet.intersection(systemSet), systemSet);
 
 // It's cached on subsequent accesses.
 assert.strictEqual(systemCerts, tls.getCACertificates('system'));
+
+// The options form with format: 'pem' returns the same result.
+assert.deepStrictEqual(systemCerts, tls.getCACertificates('system', { format: 'pem' }));
