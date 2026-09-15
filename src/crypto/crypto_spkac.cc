@@ -11,6 +11,7 @@
 namespace node {
 
 using ncrypto::BIOPointer;
+using ncrypto::MarkPopErrorOnReturn;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
@@ -40,8 +41,13 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (!input.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "spkac is too large");
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   BIOPointer bio = ncrypto::ExportPublicKey(input.data(), input.size());
-  if (!bio) return args.GetReturnValue().SetEmptyString();
+  if (!bio) {
+    return ThrowCryptoError(env,
+                            mark_pop_error_on_return.peekError(),
+                            "Failed to export public key from SPKAC");
+  }
 
   auto pkey = ByteSource::FromBIO(bio);
   args.GetReturnValue().Set(pkey.ToBuffer(env).FromMaybe(Local<Value>()));
