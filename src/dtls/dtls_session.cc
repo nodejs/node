@@ -193,6 +193,7 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getSession", GetSession);
     SetProtoMethod(isolate, tmpl, "wasReused", WasReused);
     SetProtoMethod(isolate, tmpl, "getVerifyError", GetVerifyError);
+    SetProtoMethod(isolate, tmpl, "start", DoStart);
 
     env->set_dtls_session_constructor_template(tmpl);
   }
@@ -229,6 +230,7 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(GetVerifyError);
   registry->Register(GetSession);
   registry->Register(WasReused);
+  registry->Register(DoStart);
 }
 
 BaseObjectPtr<DTLSSession> DTLSSession::Create(
@@ -280,13 +282,17 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(
     SSL_set_connect_state(ssl.get());
 
     // Offer a previous session for resumption. Like SNI this has to happen
-    // before Cycle() emits the ClientHello, since the session id and ticket
+    // before Start() emits the ClientHello, since the session id and ticket
     // ride in it.
     //
     // A session that OpenSSL rejects is not an error: it falls back to a full
     // handshake, which is what an expired or unknown ticket should do. Only a
     // blob that will not parse is worth reporting, and that is the caller
     // handing over something that is not a session at all.
+    //
+    // This also copies the recorded verification result onto the connection,
+    // where a resumed handshake leaves it: PeerVerificationPassed() is what
+    // stops it standing in for verification that never ran.
     if (resume.len > 0) {
       const unsigned char* p = resume.data;
       ncrypto::SSLSessionPointer sess(d2i_SSL_SESSION(nullptr, &p, resume.len));
@@ -300,10 +306,10 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(
     }
 
     // Configure SNI and peer identity verification BEFORE the handshake
-    // starts. The caller (DTLSEndpoint::Connect) runs Cycle() immediately
-    // after Create() returns, which emits the ClientHello, so anything that
-    // must appear in that flight (SNI) has to be set here rather than via a
-    // post-construction setter.
+    // starts. Start() emits the ClientHello and is called as soon as the
+    // JavaScript wrapper is built, so anything that must appear in that
+    // flight (SNI) has to be set here rather than via a post-construction
+    // setter.
     if (servername != nullptr && servername[0] != '\0') {
       if (!SSL_set_tlsext_host_name(ssl.get(), servername)) {
         THROW_ERR_CRYPTO_OPERATION_FAILED(env,
@@ -412,6 +418,16 @@ void DTLSSession::Receive(const uint8_t* data, size_t len) {
   Cycle();
 }
 
+void DTLSSession::Start() {
+  // A datagram can arrive for a server session between the new-session emit
+  // and this call, and Receive() runs the pump. Starting again after that is
+  // harmless but pointless, and a start() reaching the binding twice should
+  // not re-enter the handshake.
+  if (started_ || destroyed_) return;
+  started_ = true;
+  Cycle();
+}
+
 void DTLSSession::Cycle() {
   if (destroyed_) return;
 
@@ -484,6 +500,19 @@ void DTLSSession::CycleInner() {
 
     // Check if handshake just completed.
     if (SSL_is_init_finished(ssl_.get()) && !handshake_complete_) {
+      // A resumed handshake carries no Certificate message, so OpenSSL runs
+      // no verification and the verify mode has nothing to abort on. What it
+      // does instead is restore the result recorded when the session was
+      // first established -- SSL_set_session() copies verify_result straight
+      // onto the connection, and both it and the peer certificate round-trip
+      // through the DER blob. A session authenticated under
+      // rejectUnauthorized: false therefore arrives here carrying its
+      // original failure alongside a handshake that succeeded, and nothing
+      // downstream re-checks it: a caller that asked for a verified peer
+      // would be handed one that never verified. node:tls checks
+      // verifyError() after a resumption for this reason.
+      if (!PeerVerificationPassed()) return;
+
       handshake_complete_ = true;
       state_->handshaking = 0;
       state_->open = 1;
@@ -623,6 +652,74 @@ void DTLSSession::EncOut() {
 bool DTLSSession::HandshakeDeadlineExpired() const {
   if (handshake_deadline_ == 0 || handshake_complete_) return false;
   return uv_hrtime() / 1000000 >= handshake_deadline_;
+}
+
+long DTLSSession::PeerVerifyResult() const {  // NOLINT(runtime/int)
+  // SSL_get_verify_result() reports X509_V_OK when the peer sent no
+  // certificate at all, because there was nothing to find fault with. Route
+  // through ncrypto, which reports std::nullopt for that case (allowing for
+  // PSK, where the identity was authenticated by the key instead) so it can
+  // be distinguished from a certificate that actually verified.
+  return ssl_.verifyPeerCertificate().value_or(
+      X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
+}
+
+bool DTLSSession::PeerVerificationPassed() {
+  // Consulted on every completed handshake rather than only a resumed one. It
+  // costs nothing where OpenSSL already enforced -- there the handshake
+  // failed and never reached here -- and it also covers a resumption the
+  // server refused, where the result restored by SSL_set_session() stays on
+  // the connection unless the full handshake that replaced it verified
+  // something of its own.
+  //
+  // Whether a failure is fatal is decided by the verify mode OpenSSL itself
+  // was given, read back off the SSL rather than tracked beside it, so the
+  // two cannot disagree -- including after an SNI callback swapped the
+  // SSL_CTX out from under this connection.
+  //
+  // A client aborts on a bad chain whenever the mode is not SSL_VERIFY_NONE.
+  // That is the test OpenSSL itself applies when processing the server's
+  // certificate -- it validates "if any flag is set", not only for
+  // SSL_VERIFY_PEER -- and it is the whole of what rejectUnauthorized selects
+  // between.
+  //
+  // A server sets SSL_VERIFY_PEER for requestCert and adds
+  // SSL_VERIFY_FAIL_IF_NO_PEER_CERT only when rejectUnauthorized is set too:
+  // requestCert on its own installs a permissive verify callback precisely so
+  // the application can judge the certificate itself, so it is the added flag
+  // and not SSL_VERIFY_PEER that marks a failure fatal there.
+  int mode = SSL_get_verify_mode(ssl_.get());
+  bool fatal = is_server_ ? (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT) != 0
+                          : mode != SSL_VERIFY_NONE;
+  if (!fatal) return true;
+
+  // Exactly the result session.authorized reports, so what is refused here
+  // and what reads as unauthorized there cannot drift apart. It is also the
+  // predicate node:tls applies -- TLSWrap::VerifyError() is the same
+  // verifyPeerCertificate().value_or() -- so a peer authenticated by a PSK
+  // rather than a certificate passes on the strength of the cipher's auth
+  // method, as it does there.
+  //
+  // One difference from node:tls, which additionally requires a peer
+  // certificate because ncrypto reports X509_V_OK for a TLS 1.3 resumption
+  // without one: a DTLS 1.2 resumption restores the peer certificate along
+  // with the result, so there is a real result to read here. Enabling DTLS
+  // 1.3, once the bundled OpenSSL offers it, means revisiting this.
+  long verify_error = PeerVerifyResult();  // NOLINT(runtime/int)
+  if (verify_error == X509_V_OK) return true;
+
+  // enc_out_ is deliberately not flushed, unlike the alert path in
+  // CycleInner(): there is no alert queued to get out, and what is queued is
+  // this side's own Finished. The peer is left to time out, as it is for
+  // every other handshake failure that OpenSSL did not itself alert on.
+  std::string message = "Peer certificate verification failed: ";
+  message += ncrypto::X509Pointer::ErrorCode(verify_error);
+  Local<Value> str;
+  if (ToV8Value(env()->context(), message).ToLocal(&str)) {
+    Local<Value> argv[] = {str};
+    EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+  }
+  return false;
 }
 
 void DTLSSession::EmitHandshakeTimeout() {
@@ -860,6 +957,12 @@ MaybeLocal<Value> DTLSSession::EmitCallback(int cb_index,
 }
 
 // --- JS binding methods ---
+
+void DTLSSession::DoStart(const FunctionCallbackInfo<Value>& args) {
+  DTLSSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  session->Start();
+}
 
 void DTLSSession::DoSend(const FunctionCallbackInfo<Value>& args) {
   DTLSSession* session;
@@ -1114,14 +1217,7 @@ void DTLSSession::GetVerifyError(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // SSL_get_verify_result() reports X509_V_OK when the peer sent no
-  // certificate at all, because there was nothing to find fault with. Route
-  // through ncrypto, which reports std::nullopt for that case (allowing for
-  // PSK and resumption, where the absence is legitimate) so it can be
-  // distinguished from a certificate that actually verified.
-  long verify_error =  // NOLINT(runtime/int)
-      session->ssl_.verifyPeerCertificate().value_or(
-          X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
+  long verify_error = session->PeerVerifyResult();  // NOLINT(runtime/int)
 
   // undefined means authorized; anything else is the short error code, e.g.
   // "UNABLE_TO_GET_ISSUER_CERT" or "CERT_HAS_EXPIRED".

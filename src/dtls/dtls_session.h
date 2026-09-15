@@ -144,6 +144,7 @@ class DTLSSession final : public AsyncWrap {
   static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WasReused(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetVerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoStart(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  public:
   // The core state machine pump. Processes pending OpenSSL I/O:
@@ -152,6 +153,14 @@ class DTLSSession final : public AsyncWrap {
   //   3. EncOut()   - read enc_out_ BIO -> send via endpoint UDP
   //   4. UpdateTimer() - schedule retransmit timer if needed
   void Cycle();
+
+  // Run the first flight. Separate from creation because nothing a session
+  // reports has anywhere to go until its JavaScript wrapper is in place: the
+  // callback dispatch reaches the wrapper through the handle, and a session
+  // still being constructed has no wrapper attached. The server emits its new
+  // session and then starts it; the client's wrapper calls this once it is
+  // built. Repeat calls do nothing.
+  void Start();
 
  private:
   // Read decrypted application data from OpenSSL and emit to JS.
@@ -186,6 +195,17 @@ class DTLSSession final : public AsyncWrap {
  private:
   bool HandshakeDeadlineExpired() const;
   void EmitHandshakeTimeout();
+
+  // The peer's chain verification result, with "no certificate, and none was
+  // needed" (PSK) told apart from "a certificate that verified". Shared by
+  // session.authorizationError and the gate below so the two agree.
+  long PeerVerifyResult() const;  // NOLINT(runtime/int)
+
+  // Refuse a completed handshake whose peer was never verified, emitting the
+  // error. True to carry on. Exists for resumption, which skips verification
+  // and restores the result from the session being resumed, so the verify
+  // mode has nothing to act on.
+  bool PeerVerificationPassed();
 
   // Emit a callback to JS via the endpoint's callback dispatch.
   v8::MaybeLocal<v8::Value> EmitCallback(int cb_index,
@@ -224,6 +244,7 @@ class DTLSSession final : public AsyncWrap {
 
   SocketAddress remote_address_;
   bool is_server_;
+  bool started_ = false;
   bool handshake_complete_ = false;
   bool closed_ = false;
   bool destroyed_ = false;

@@ -254,9 +254,14 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(
     }
   }
 
-  // Initiate the DTLS handshake by running Cycle.
-  session->Cycle();
-
+  // The handshake is not started here. Cycle() emits the ClientHello and can
+  // report a failure doing it -- a send error, or an exception from a
+  // callback -- and there is nothing to report it to yet: the callback
+  // dispatch finds the JavaScript session through the handle, and the wrapper
+  // that attaches itself to the handle is built from the value this returns.
+  // An error from the first flight was raised against a wrapper that did not
+  // exist, dropped, and then left to look like a handshake that timed out.
+  // The wrapper calls start() once it is in place.
   return session;
 }
 
@@ -724,7 +729,7 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   }
 
   // Drive the handshake forward — produces ServerHello etc.
-  session->Cycle();
+  session->Start();
 }
 
 // --- JS binding methods ---

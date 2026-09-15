@@ -580,6 +580,37 @@ skip verification while appearing to succeed. For the same reason a `session`
 that did not come from [`session.session`][] is rejected outright: nothing
 records which identity it belongs to, so it cannot be checked.
 
+### Resuming under `rejectUnauthorized`
+
+A session carries the verification result it was established with, so a session
+established with `rejectUnauthorized: false` cannot be resumed by a connection
+that asked for a verified peer. The handshake fails:
+
+```mjs
+import { connect } from 'node:dtls';
+
+// Connected without verifying anything.
+const first = connect('192.0.2.1', 5684, { rejectUnauthorized: false });
+await first.opened;
+console.log(first.authorized);         // False.
+const ticket = first.session;
+await first.close();
+
+const second = connect('192.0.2.1', 5684, {
+  rejectUnauthorized: true,
+  session: ticket,
+});
+await second.opened;                   // Rejects: verification failed.
+```
+
+The host is the same in both, so binding the session to its authenticated
+identity does not cover this on its own; what differs is whether the caller
+asked for the peer to be verified. Because a resumed handshake runs no
+verification of its own, the recorded result is re-checked once it completes,
+and a session whose peer never verified is refused wherever verification is
+required. [`session.authorized`][] and [`session.authorizationError`][] report
+the recorded result on a resumed session either way.
+
 ### Ticket keys
 
 The key that encrypts session tickets is generated at random for each context,
