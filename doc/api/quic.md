@@ -321,10 +321,17 @@ There are two ways to write data to a stream:
   up front or can be expressed as an iterable.
 * **Writer** — access [`stream.writer`][] to push data incrementally. The
   writer exposes synchronous methods (`writeSync()`, `writevSync()`,
-  `endSync()`) that return immediately, as well as async equivalents
-  (`write()`, `writev()`, `end()`) that wait for drain when backpressured.
+  `endSync()`) that return immediately, as well as asynchronous counterparts
+  (`write()`, `writev()`, `end()`). The asynchronous `write()` and `writev()`
+  methods use the stream/iter strict backpressure policy: when the write buffer
+  is full, they reject with `ERR_INVALID_STATE` instead of waiting for capacity.
+  If a drain is already pending, `end()` waits for it before closing. Check
+  `writer.canWrite` before writing. To wait for capacity, use `ondrain()` from
+  `node:stream/iter`, then retry the write. The stream's `onblocked` callback
+  reports that transport flow control has blocked progress, but does not
+  signal that writer capacity is available again.
   `writeSync()` returns `false` when the write buffer is full; the caller
-  should wait for drain before retrying.
+  should wait with `ondrain()` before retrying.
 
 These two approaches are mutually exclusive for a given stream.
 
@@ -2449,12 +2456,16 @@ The Writer has the following methods:
 
 * `writeSync(chunk)` — Synchronous write. Returns `true` if accepted,
   `false` if flow-controlled. Data is NOT accepted on `false`.
-* `write(chunk[, options])` — Async write with drain wait. `options.signal`
-  is checked at entry but not observed during the write.
+* `write(chunk[, options])` — Async write. Rejects with `ERR_INVALID_STATE`
+  when the stream is flow-controlled rather than waiting for capacity.
+  `options.signal` is checked at entry but not observed during the write.
 * `writevSync(chunks)` — Synchronous vectored write. All-or-nothing.
-* `writev(chunks[, options])` — Async vectored write.
+* `writev(chunks[, options])` — Async vectored write. Rejects with
+  `ERR_INVALID_STATE` when the stream is flow-controlled rather than waiting
+  for capacity.
 * `endSync()` — Synchronous close. Returns total bytes or `-1`.
-* `end([options])` — Async close.
+* `end([options])` — Async close. If a drain is already pending, waits for it
+  before closing.
 * `fail(reason)` — Errors the stream (sends `RESET_STREAM` to peer).
   When `reason` is a [`QuicError`][], its [`error.errorCode`][] is used
   as the wire code on the resulting `RESET_STREAM` frame; otherwise
@@ -2464,7 +2475,20 @@ The Writer has the following methods:
   See [`stream.destroy()`][] for a full-stream abort that also resets
   the readable side via `STOP_SENDING`.
 * `canWrite` — `true` if writes will be accepted, `false` if at capacity,
-  or `null` if closed/errored.
+  or `null` if closed/errored. When `writeSync()` returns `false`, use
+  `ondrain()` from `node:stream/iter` to wait before retrying. If `ondrain()`
+  returns `null`, no drain wait is available and the write should not be
+  retried.
+
+```mjs
+import { ondrain } from 'node:stream/iter';
+
+while (!writer.writeSync(chunk)) {
+  const drain = ondrain(writer);
+  if (drain === null) break;
+  await drain;
+}
+```
 
 The bytes from each `writeSync()` / `writevSync()` / `write()` / `writev()`
 input chunk are copied into an internal buffer, so the caller's source
