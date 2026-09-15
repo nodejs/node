@@ -4,7 +4,7 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { createHook } = require('node:async_hooks');
-const { setImmediate, setTimeout } = require('node:timers/promises');
+const { setImmediate } = require('node:timers/promises');
 const { throttle } = require('node:util');
 const { TIMEOUT_MAX } = require('internal/timers');
 
@@ -95,55 +95,9 @@ throttle(() => {}, 1, 1, {
   );
 }
 
+// Keep windows open across synchronous assertions, even if the process is
+// descheduled. Window expiration is covered in test-util-throttle-timing.js.
 (async () => {
-  {
-    const values = [];
-    const times = [];
-    const start = Date.now();
-    const throttled = throttle(common.mustCall(function(value) {
-      assert.strictEqual(this, throttled);
-      values.push(value);
-      times.push(Date.now() - start);
-      return value;
-    }, 5), 2, 40);
-
-    assert.strictEqual(typeof throttled.cancel, 'function');
-    assert.strictEqual(typeof throttled.hasImmediateCapacity, 'function');
-    assert.strictEqual(typeof throttled.ref, 'function');
-    assert.strictEqual(typeof throttled.unref, 'function');
-    assert.strictEqual(throttled.pending, null);
-    assert.strictEqual(throttled.pendingCount, 0);
-    assert.strictEqual(throttled.activeCount, 0);
-    assert.strictEqual(throttled.hasImmediateCapacity(), true);
-
-    const first = throttled(1);
-    const second = throttled(2);
-    const third = throttled(3);
-    const fourth = throttled(4);
-    const fifth = throttled(5);
-
-    assert(first instanceof Promise);
-    assert(second instanceof Promise);
-    assert.notStrictEqual(first, second);
-    assert.deepStrictEqual(values, [1, 2]);
-    assert.strictEqual(throttled.hasImmediateCapacity(), false);
-    assert.strictEqual(throttled.pending, fifth);
-    assert.strictEqual(throttled.pendingCount, 3);
-    assert.strictEqual(throttled.unref(), throttled);
-    assert.strictEqual(throttled.ref(), throttled);
-
-    assert.deepStrictEqual(
-      await Promise.all([first, second, third, fourth, fifth]),
-      [1, 2, 3, 4, 5],
-    );
-    assert.deepStrictEqual(values, [1, 2, 3, 4, 5]);
-    assert.strictEqual(throttled.pending, null);
-    assert.strictEqual(throttled.pendingCount, 0);
-    assert.strictEqual(throttled.activeCount, 0);
-    assert(times[2] - times[0] >= 30);
-    assert(times[4] - times[2] >= 30);
-  }
-
   {
     let running = 0;
     let maxRunning = 0;
@@ -221,24 +175,6 @@ throttle(() => {}, 1, 1, {
   }
 
   {
-    const values = [];
-    const throttled = throttle(common.mustCall((value) => {
-      values.push(value);
-      return value;
-    }, 2), 1, 20, { maxPending: 1 });
-    const first = throttled(1);
-    const second = throttled(2);
-    const dropped = throttled(3);
-
-    assert.deepStrictEqual(values, [1]);
-    assert.strictEqual(throttled.pendingCount, 1);
-    await setImmediate();
-    await assert.rejects(dropped, { code: 'ERR_THROTTLED' });
-    assert.deepStrictEqual(await Promise.all([first, second]), [1, 2]);
-    assert.deepStrictEqual(values, [1, 2]);
-  }
-
-  {
     let timeoutCount = 0;
     const hook = createHook({
       init(_asyncId, type) {
@@ -249,7 +185,7 @@ throttle(() => {}, 1, 1, {
     const throttled = throttle(common.mustCall((value) => {
       values.push(value);
       return value;
-    }, 3), 2, 30, { overflow: 'drop' });
+    }, 3), 2, TIMEOUT_MAX, { overflow: 'drop' });
 
     hook.enable();
     const first = throttled(1);
@@ -265,37 +201,14 @@ throttle(() => {}, 1, 1, {
     await assert.rejects(dropped, { code: 'ERR_THROTTLED' });
     assert.deepStrictEqual(await Promise.all([first, second]), [1, 2]);
 
-    await setTimeout(30);
+    throttled.cancel();
     assert.strictEqual(await throttled(4), 4);
     assert.deepStrictEqual(values, [1, 2, 4]);
   }
 
   {
-    const times = [];
-    const start = Date.now();
-    const throttled = throttle(common.mustCall((value) => {
-      times.push(Date.now() - start);
-      return value;
-    }, 4), 2, 80, { strict: true });
-
-    const first = throttled(1);
-    await setTimeout(40);
-    const second = throttled(2);
-    const third = throttled(3);
-    const fourth = throttled(4);
-
-    assert.deepStrictEqual(
-      await Promise.all([first, second, third, fourth]),
-      [1, 2, 3, 4],
-    );
-    assert(times[2] - times[0] >= 65);
-    assert(times[3] - times[1] >= 65);
-    assert(times[3] - times[2] >= 25);
-  }
-
-  {
     const reason = new Error('cancelled');
-    const throttled = throttle(common.mustCall((value) => value, 2), 1, 100);
+    const throttled = throttle(common.mustCall((value) => value, 2), 1, TIMEOUT_MAX);
     const first = throttled(1);
     const second = throttled(2);
     const third = throttled(3);
@@ -322,7 +235,7 @@ throttle(() => {}, 1, 1, {
   {
     const reason = new Error('stop');
     const controller = new AbortController();
-    const throttled = throttle(common.mustCall((value) => value), 1, 100, {
+    const throttled = throttle(common.mustCall((value) => value), 1, TIMEOUT_MAX, {
       signal: controller.signal,
     });
     const first = throttled(1);
@@ -364,23 +277,6 @@ throttle(() => {}, 1, 1, {
   }
 
   {
-    let recursive;
-    const values = [];
-    const throttled = throttle(common.mustCall((value) => {
-      values.push(value);
-      if (value === 1) recursive = throttled(2);
-      return value;
-    }, 2), 1, 20);
-
-    const first = throttled(1);
-    assert.deepStrictEqual(values, [1]);
-    assert.strictEqual(throttled.pending, recursive);
-    assert.strictEqual(throttled.pendingCount, 1);
-    assert.deepStrictEqual(await Promise.all([first, recursive]), [1, 2]);
-    assert.deepStrictEqual(values, [1, 2]);
-  }
-
-  {
     function original(first, second) {
       return first + second;
     }
@@ -409,7 +305,7 @@ throttle(() => {}, 1, 1, {
         if (type === 'Timeout') timeoutCount++;
       },
     });
-    const throttled = throttle(common.mustCall((value) => value), 1, 100);
+    const throttled = throttle(common.mustCall((value) => value), 1, TIMEOUT_MAX);
 
     hook.enable();
     assert.strictEqual(throttled.hasImmediateCapacity(), true);
@@ -430,7 +326,7 @@ throttle(() => {}, 1, 1, {
         if (type === 'Timeout') timeoutCount++;
       },
     });
-    const throttled = throttle(common.mustCall((value) => value), 1, 100);
+    const throttled = throttle(common.mustCall((value) => value), 1, TIMEOUT_MAX);
     hook.enable();
     const first = throttled(1);
     const second = throttled(2);
@@ -440,6 +336,8 @@ throttle(() => {}, 1, 1, {
     const thirdRejection = assert.rejects(third, { code: 'ABORT_ERR' });
 
     assert.strictEqual(timeoutCount, 1);
+    assert.strictEqual(throttled.unref(), throttled);
+    assert.strictEqual(throttled.ref(), throttled);
     throttled.cancel();
     assert.strictEqual(await first, 1);
     await Promise.all([secondRejection, thirdRejection]);
