@@ -4648,7 +4648,7 @@ std::string JsonUnitTestResultPrinter::EscapeJson(const std::string& str) {
         m << "\\r";
         break;
       default:
-        if (ch < ' ') {
+        if (static_cast<unsigned char>(ch) < ' ' || ch == '\x7F') {
           m << "\\u00" << String::FormatByte(static_cast<unsigned char>(ch));
         } else {
           m << ch;
