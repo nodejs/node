@@ -98,6 +98,8 @@ all: \
   incorrect_san_correct_subject-key.pem \
   irrelevant_san_correct_subject-cert.pem \
   irrelevant_san_correct_subject-key.pem \
+  non-canonical-ip-dns-cert.pem \
+  non-canonical-ip-dns-key.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -916,6 +918,28 @@ irrelevant_san_correct_subject-cert.pem: irrelevant_san_correct_subject-key.pem
 
 irrelevant_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
+
+non-canonical-ip-dns-cert.pem: non-canonical-ip-dns-key.pem ca1-cert.pem ca1-key.pem
+	openssl req -new \
+	            -key non-canonical-ip-dns-key.pem \
+	            -out non-canonical-ip-dns-cert.csr \
+	            -sha256 \
+	            -subj "/CN=Example Operator" \
+	            -addext "subjectAltName = DNS:87.0.0.1"
+	openssl x509 -req \
+	             -in non-canonical-ip-dns-cert.csr \
+	             -CA ca1-cert.pem \
+	             -CAkey ca1-key.pem \
+	             -passin "pass:password" \
+	             -set_serial 0x1001 \
+	             -out non-canonical-ip-dns-cert.pem \
+	             -days 99999 \
+	             -copy_extensions copy \
+	             -sha256
+	rm non-canonical-ip-dns-cert.csr
+
+non-canonical-ip-dns-key.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out non-canonical-ip-dns-key.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem

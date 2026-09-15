@@ -394,6 +394,42 @@ const tests = [
     },
     error: 'IP: 127.0.0.1 is not in the cert\'s list: '
   },
+  // Non-canonical IP addresses are rejected instead of being matched against
+  // an address produced by domainToASCII().
+  ...[
+    ['0127.0.0.1', '87.0.0.1'],
+    ['0177.0.0.1', '127.0.0.1'],
+    ['0x7f.0.0.1', '127.0.0.1'],
+    ['2130706433', '127.0.0.1'],
+    ['127.1', '127.0.0.1'],
+  ].map(([host, normalized]) => ({
+    host,
+    cert: {
+      subjectaltname: `DNS:${normalized}`,
+      subject: {},
+    },
+    error: 'Host is a non-canonical IP address',
+  })),
+  {
+    host: '0127.0.0.1', cert: {
+      subjectaltname: 'IP Address:87.0.0.1',
+      subject: { CN: '87.0.0.1' },
+    },
+    error: 'Host is a non-canonical IP address',
+  },
+  {
+    host: '0127.0.0.1', cert: {
+      subjectaltname: 'IP Address:87.0.0.1',
+      subject: { CN: 'Example Operator' },
+    },
+    error: 'Host is a non-canonical IP address',
+  },
+  {
+    host: '1.2.3.example', cert: {
+      subjectaltname: 'DNS:1.2.3.example',
+      subject: {},
+    },
+  },
   {
     host: 'localhost', cert: {
       subjectaltname: 'DNS:a.com',
