@@ -10,9 +10,11 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "src/api/api-inl.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
@@ -53,6 +55,7 @@
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/timezone.h"
+#include "unicode/unistr.h"
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/uvernum.h"  // U_ICU_VERSION_MAJOR_NUM
@@ -229,6 +232,37 @@ MaybeDirectHandle<T> New(Isolate* isolate, DirectHandle<JSFunction> constructor,
   return T::New(isolate, map, locales, options, method_name);
 }
 }  // namespace
+
+IcuBreakIteratorWithText::IcuBreakIteratorWithText(
+    std::unique_ptr<icu::BreakIterator> iterator)
+    : iterator_(std::move(iterator)) {
+  DCHECK_NOT_NULL(iterator_);
+  DCHECK_EQ(iterator_->getText().getLength(), 0);
+}
+
+IcuBreakIteratorWithText::IcuBreakIteratorWithText(
+    Isolate* isolate, std::unique_ptr<icu::BreakIterator> iterator,
+    DirectHandle<String> string)
+    : iterator_(std::move(iterator)) {
+  DCHECK_NOT_NULL(iterator_);
+  SetText(isolate, string);
+}
+
+IcuBreakIteratorWithText::IcuBreakIteratorWithText(IcuBreakIteratorWithText&&)
+    V8_NOEXCEPT = default;
+
+IcuBreakIteratorWithText& IcuBreakIteratorWithText::operator=(
+    IcuBreakIteratorWithText&&) V8_NOEXCEPT = default;
+
+IcuBreakIteratorWithText::~IcuBreakIteratorWithText() = default;
+
+void IcuBreakIteratorWithText::SetText(Isolate* isolate,
+                                       DirectHandle<String> string) {
+  string = String::Flatten(isolate, string);
+  text_.reset(Intl::ToICUUnicodeString(isolate, string).clone());
+  DCHECK_NOT_NULL(text_);
+  iterator_->setText(*text_);
+}
 
 const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 
@@ -426,11 +460,13 @@ MaybeDirectHandle<String> Intl::ConvertToUpper(Isolate* isolate,
     {
       DisallowGarbageCollection no_gc;
       String::FlatContent flat = s->GetFlatContent(no_gc);
-      prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
-          reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
-          length);
-      if (prefix == length) {
-        return indirect_handle(s, isolate);
+      if (flat.IsOneByte()) {
+        prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
+            reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
+            length);
+        if (prefix == length) {
+          return indirect_handle(s, isolate);
+        }
       }
     }
     Handle<SeqOneByteString> result =
@@ -683,7 +719,7 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   return Just(res);
 }
 
-// See ecma402/#legacy-constructor.
+// See https://tc39.es/ecma402/#legacy-constructor.
 MaybeDirectHandle<Object> Intl::LegacyUnwrapReceiver(
     Isolate* isolate, DirectHandle<JSReceiver> receiver,
     DirectHandle<JSFunction> constructor, bool has_initialized_slot) {
@@ -827,7 +863,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     Isolate* isolate, DirectHandle<Object> locales,
     bool only_return_one_result) {
   // 1. If locales is undefined, then
-  if (IsUndefined(*locales, isolate)) {
+  if (IsUndefined(*locales)) {
     // 1a. Return a new empty List.
     return Just(std::vector<std::string>());
   }
@@ -912,14 +948,15 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   return Just(seen);
 }
 
-// ecma402 #sup-string.prototype.tolocalelowercase
-// ecma402 #sup-string.prototype.tolocaleuppercase
+// https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
+// https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
 MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
     Isolate* isolate, DirectHandle<String> s, bool to_upper,
     DirectHandle<Object> locales) {
   std::vector<std::string> requested_locales;
-  if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales))
+  if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales)) {
     return {};
+  }
   std::string_view requested_locale = requested_locales.empty()
                                           ? isolate->DefaultLocale()
                                           : requested_locales[0];
@@ -964,7 +1001,7 @@ template <class IsolateT>
 Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
     IsolateT* isolate, DirectHandle<Object> locales,
     DirectHandle<Object> options) {
-  if (!IsUndefined(*options, isolate)) {
+  if (!IsUndefined(*options)) {
     return CompareStringsOptions::kNone;
   }
 
@@ -982,7 +1019,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
       "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
   };
 
-  if (IsUndefined(*locales, isolate)) {
+  if (IsUndefined(*locales)) {
     const std::string& default_locale = isolate->DefaultLocale();
     for (const char* fast_locale : kFastLocales) {
       if (strcmp(fast_locale, default_locale.c_str()) == 0) {
@@ -1021,8 +1058,7 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
   const bool can_cache =
-      (IsString(*locales) || IsUndefined(*locales, isolate)) &&
-      IsUndefined(*options, isolate);
+      (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   // We may be able to take the fast path, depending on the `locales` and
   // `options` arguments.
   const CompareStringsOptions compare_strings_options =
@@ -1048,13 +1084,13 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
   MaybeDirectHandle<JSCollator> maybe_collator =
       New<JSCollator>(isolate, constructor, locales, options, method_name);
   if (!maybe_collator.ToHandle(&collator)) return {};
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
-        std::static_pointer_cast<icu::UMemory>(
-            collator->icu_collator()->get()));
+        icu_collator.as_shared_ptr());
   }
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+
   return Intl::CompareStrings(isolate, *icu_collator, string1, string2,
                               compare_strings_options);
 }
@@ -1125,6 +1161,22 @@ constexpr uint8_t kCollationWeightsL3[256] = {
 constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
 static_assert(kCollationWeightsLength == arraysize(kCollationWeightsL3));
 // clang-format on
+
+// The inlined localeCompare fast path bails on a byte >= 128 in the
+// byte-equality prefix loop, rather than entering L1 weight lookup. This is
+// sound only as long as kCollationWeightsL1[i] == 0 for all i >= 128, in
+// which case the Torque path also bails (via the weight==0 check). If
+// non-zero L1 weights are ever introduced for high-byte indices, the
+// inlined fast path must be updated to match.
+static_assert(
+    []() constexpr {
+      for (int i = 128; i < kCollationWeightsLength; ++i) {
+        if (kCollationWeightsL1[i] != 0) return false;
+      }
+      return true;
+    }(),
+    "kCollationWeightsL1 entries with index >= 128 must be 0; the inlined "
+    "ASCII localeCompare fast path depends on this invariant.");
 
 // Converts the result of lhs vs. rhs comparison to UCollationResult.
 constexpr UCollationResult ToUCollationResult(uint32_t lhs, uint32_t rhs) {
@@ -1461,7 +1513,7 @@ const uint8_t* Intl::AsciiCollationWeightsL3() {
 // static
 const int Intl::kAsciiCollationWeightsLength = kCollationWeightsLength;
 
-// ecma402/#sec-collator-comparestrings
+// https://tc39.es/ecma402/#sec-collator-comparestrings
 int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
                          DirectHandle<String> string1,
                          DirectHandle<String> string2,
@@ -1507,7 +1559,7 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
   return result;
 }
 
-// ecma402/#sup-properties-of-the-number-prototype-object
+// https://tc39.es/ecma402/#sup-properties-of-the-number-prototype-object
 MaybeDirectHandle<String> Intl::NumberToLocaleString(
     Isolate* isolate, Handle<Object> num, DirectHandle<Object> locales,
     DirectHandle<Object> options, const char* method_name) {
@@ -1518,8 +1570,8 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (IsString(*locales) || IsUndefined(*locales, isolate)) &&
-                   IsUndefined(*options, isolate);
+  bool can_cache =
+      (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
     icu::number::LocalizedNumberFormatter* cached_number_format =
         static_cast<icu::number::LocalizedNumberFormatter*>(
@@ -1530,7 +1582,7 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
       std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt =
           std::make_shared<icu::number::LocalizedNumberFormatter>(
               *cached_number_format);
-      return JSNumberFormat::FormatNumeric(isolate, lfmt, numeric_obj);
+      return JSNumberFormat::FormatNumeric(isolate, lfmt.get(), numeric_obj);
     }
   }
 
@@ -1551,17 +1603,18 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name));
 
+  Managed<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
+      number_format->icu_number_formatter()->ptr();
+
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales,
-        std::static_pointer_cast<icu::UMemory>(
-            number_format->icu_number_formatter()->get()));
+        lfmt.as_shared_ptr());
   }
 
   // Return FormatNumber(numberFormat, x).
 
-  return JSNumberFormat::FormatNumeric(
-      isolate, number_format->icu_number_formatter()->get(), numeric_obj);
+  return JSNumberFormat::FormatNumeric(isolate, lfmt.raw(), numeric_obj);
 }
 
 namespace {
@@ -1712,15 +1765,13 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // a. Set hasSd to true.
   // 18. Else,
   // a. Set hasSd to false.
-  bool has_sd =
-      (!IsUndefined(*mnsd_obj, isolate)) || (!IsUndefined(*mxsd_obj, isolate));
+  bool has_sd = (!IsUndefined(*mnsd_obj)) || (!IsUndefined(*mxsd_obj));
 
   // 19. If mnfd is not undefined or mxfd is not undefined, then
   // a. Set hasFd to true.
   // 22. Else,
   // a. Set hasFd to false.
-  bool has_fd =
-      (!IsUndefined(*mnfd_obj, isolate)) || (!IsUndefined(*mxfd_obj, isolate));
+  bool has_fd = (!IsUndefined(*mnfd_obj)) || (!IsUndefined(*mxfd_obj));
 
   // 21. Let needSd be true.
   bool need_sd = true;
@@ -1787,9 +1838,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
         return Nothing<NumberFormatDigitOptions>();
       }
       // iii. If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
-      if (IsUndefined(*mnfd_obj, isolate)) {
+      if (IsUndefined(*mnfd_obj)) {
         mnfd = std::min(mnfd_default, mxfd);
-      } else if (IsUndefined(*mxfd_obj, isolate)) {
+      } else if (IsUndefined(*mxfd_obj)) {
         // iv. Else if mxfd is undefined, set mxfd to max(mxfdDefault,
         // mnfd).
         mxfd = std::max(mxfd_default, mnfd);
@@ -1864,7 +1915,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
 namespace {
 
-// ecma402/#sec-bestavailablelocale
+// https://tc39.es/ecma402/#sec-bestavailablelocale
 std::string BestAvailableLocale(const std::set<std::string>& available_locales,
                                 const std::string& locale) {
   // 1. Let candidate be locale.
@@ -1963,7 +2014,7 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
   return parsed_locale;
 }
 
-// ecma402/#sec-lookupsupportedlocales
+// https://tc39.es/ecma402/#sec-lookupsupportedlocales
 std::vector<std::string> LookupSupportedLocales(
     const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales) {
@@ -2017,7 +2068,7 @@ icu::LocaleMatcher BuildLocaleMatcher(
 
 class Iterator : public icu::Locale::Iterator {
  public:
-  Iterator(const std::vector<icu::Locale>& locales)
+  explicit Iterator(const std::vector<icu::Locale>& locales)
       : locales_(locales), iter_(locales.cbegin()) {}
   ~Iterator() override = default;
 
@@ -2030,7 +2081,7 @@ class Iterator : public icu::Locale::Iterator {
   std::vector<icu::Locale>::const_iterator iter_;
 };
 
-// ecma402/#sec-bestfitmatcher
+// https://tc39.es/ecma402/#sec-bestfitmatcher
 // The BestFitMatcher abstract operation compares requestedLocales, which must
 // be a List as returned by CanonicalizeLocaleList, against the locales in
 // availableLocales and determines the best available language to meet the
@@ -2068,7 +2119,7 @@ std::string BestFitMatcher(Isolate* isolate,
 }
 
 // ECMA 402 9.2.8 BestFitSupportedLocales(availableLocales, requestedLocales)
-// https://tc39.github.io/ecma402/#sec-bestfitsupportedlocales
+// https://tc39.es/ecma402/#sec-bestfitsupportedlocales
 std::vector<std::string> BestFitSupportedLocales(
     Isolate* isolate, const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales) {
@@ -2099,7 +2150,7 @@ std::vector<std::string> BestFitSupportedLocales(
   return result;
 }
 
-// ecma262 #sec-createarrayfromlist
+// https://tc39.es/ecma262/#sec-createarrayfromlist
 MaybeDirectHandle<JSArray> CreateArrayFromList(
     Isolate* isolate, std::vector<std::string> elements,
     PropertyAttributes attr) {
@@ -2123,7 +2174,7 @@ MaybeDirectHandle<JSArray> CreateArrayFromList(
 }
 
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
-// https://tc39.github.io/ecma402/#sec-supportedlocales
+// https://tc39.es/ecma402/#sec-supportedlocales
 MaybeDirectHandle<JSObject> SupportedLocales(
     Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales,
@@ -2166,7 +2217,7 @@ MaybeDirectHandle<JSObject> SupportedLocales(
 
 }  // namespace
 
-// ecma-402 #sec-intl.getcanonicallocales
+// ecma-402 https://tc39.es/ecma262/#sec-intl.getcanonicallocales
 MaybeDirectHandle<JSArray> Intl::GetCanonicalLocales(
     Isolate* isolate, DirectHandle<Object> locales) {
   // 1. Let ll be ? CanonicalizeLocaleList(locales).
@@ -2316,7 +2367,7 @@ MaybeDirectHandle<JSArray> AvailableUnits(Isolate* isolate) {
 
 }  // namespace
 
-// ecma-402 #sec-intl.supportedvaluesof
+// ecma-402 https://tc39.es/ecma262/#sec-intl.supportedvaluesof
 MaybeDirectHandle<JSArray> Intl::SupportedValuesOf(
     Isolate* isolate, DirectHandle<Object> key_obj) {
   Factory* factory = isolate->factory();
@@ -2421,7 +2472,7 @@ bool Intl::IsWellFormedCalendar(std::string_view value) {
   return JSLocale::Is38AlphaNumList(value);
 }
 
-// ecma402/#sec-iswellformedcurrencycode
+// https://tc39.es/ecma402/#sec-iswellformedcurrencycode
 bool Intl::IsWellFormedCurrency(std::string_view currency) {
   return JSLocale::Is3Alpha(currency);
 }
@@ -2530,7 +2581,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
   return extensions;
 }
 
-// ecma402/#sec-lookupmatcher
+// https://tc39.es/ecma402/#sec-lookupmatcher
 std::string LookupMatcher(Isolate* isolate,
                           const std::set<std::string>& available_locales,
                           const std::vector<std::string>& requested_locales) {
@@ -2589,7 +2640,7 @@ std::string LookupMatcher(Isolate* isolate,
 // collation). Instead of doing this here, we let the callers of
 // this method perform such normalization.
 //
-// ecma402/#sec-resolvelocale
+// https://tc39.es/ecma402/#sec-resolvelocale
 Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     Isolate* isolate, const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
@@ -2616,27 +2667,13 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
       Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions});
 }
 
-DirectHandle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
-    Isolate* isolate, DirectHandle<String> text,
-    icu::BreakIterator* break_iterator) {
-  text = String::Flatten(isolate, text);
-  std::shared_ptr<icu::UnicodeString> u_text{static_cast<icu::UnicodeString*>(
-      Intl::ToICUUnicodeString(isolate, text).clone())};
-
-  DirectHandle<Managed<icu::UnicodeString>> new_u_text =
-      Managed<icu::UnicodeString>::From(isolate, 0, u_text);
-
-  break_iterator->setText(*u_text);
-  return new_u_text;
-}
-
-// ecma262 #sec-string.prototype.normalize
+// https://tc39.es/ecma262/#sec-string.prototype.normalize
 MaybeDirectHandle<String> Intl::Normalize(Isolate* isolate,
                                           DirectHandle<String> string,
                                           DirectHandle<Object> form_input) {
   const char* form_name;
   UNormalization2Mode form_mode;
-  if (IsUndefined(*form_input, isolate)) {
+  if (IsUndefined(*form_input)) {
     // default is FNC
     form_name = "nfc";
     form_mode = UNORM2_COMPOSE;
@@ -2942,7 +2979,7 @@ bool Intl::RemoveCollation(const char* collation) {
   return strcmp("standard", collation) == 0 || strcmp("search", collation) == 0;
 }
 
-// See the list in ecma402 #sec-issanctionedsimpleunitidentifier
+// See the list in https://tc39.es/ecma402/#sec-issanctionedsimpleunitidentifier
 std::set<std::string> Intl::SanctionedSimpleUnits() {
   return std::set<std::string>(
       {"acre",        "bit",         "byte",        "celsius",
@@ -3072,6 +3109,7 @@ DirectHandle<String> Intl::SourceString(Isolate* isolate,
     case FormatRangeSource::kEndRange:
       return isolate->factory()->endRange_string();
   }
+  UNREACHABLE();
 }
 
 MaybeHandle<String> Intl::TimeZoneIdToString(Isolate* isolate,
@@ -3207,10 +3245,10 @@ DirectHandle<Object> Intl::GetTimeZoneOffsetTransitionNanoseconds(
   if (!has_transition) {
     return isolate->factory()->null_value();
   }
-  // #sec-temporal-getianatimezonenexttransition and
-  // #sec-temporal-getianatimezoneprevioustransition states:
-  // "The operation returns null if no such transition exists for which t ≤
-  // ℤ(nsMaxInstant)." and "The operation returns null if no such transition
+  // https://tc39.es/ecma262/#sec-temporal-getianatimezonenexttransition and
+  // https://tc39.es/ecma262/#sec-temporal-getianatimezoneprevioustransition
+  // states: "The operation returns null if no such transition exists for which
+  // t ≤ ℤ(nsMaxInstant)." and "The operation returns null if no such transition
   // exists for which t ≥ ℤ(nsMinInstant)."
   //
   // nsMinInstant = -nsMaxInstant = -8.64 × 10^21 => msMinInstant = -8.64 x

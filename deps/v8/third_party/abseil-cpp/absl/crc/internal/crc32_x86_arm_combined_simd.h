@@ -15,6 +15,7 @@
 #ifndef ABSL_CRC_INTERNAL_CRC32_X86_ARM_COMBINED_SIMD_H_
 #define ABSL_CRC_INTERNAL_CRC32_X86_ARM_COMBINED_SIMD_H_
 
+#include <array>
 #include <cstdint>
 
 #include "absl/base/config.h"
@@ -63,6 +64,13 @@ using V128 = uint64x2_t;
 // Note: Do not use __m128i_u, it is not portable.
 // Use V128_LoadU() perform an unaligned load from __m128i*.
 using V128 = __m128i;
+#endif
+
+#if defined(__AVX__)
+using V256 = __m256i;
+#else
+// Placeholder for V256 when AVX is not available.
+using V256 = std::array<uint64_t, 4>;
 #endif
 
 // Starting with the initial value in |crc|, accumulates a CRC32 value for
@@ -118,6 +126,17 @@ int64_t V128_Low64(const V128 l);
 
 // Add packed 64-bit integers in |l| and |r|.
 V128 V128_Add64(const V128 l, const V128 r);
+
+#if defined(__AVX__)
+inline V256 V256_LoadU(const V256* src);
+inline V256 V256_Broadcast128(const V128* src);
+#else
+template <typename T = V256>
+T V256_LoadU(const T* src);
+
+template <typename T = V256>
+T V256_Broadcast128(const V128* src);
+#endif
 
 #endif
 
@@ -269,6 +288,28 @@ inline int64_t V128_Low64(const V128 l) {
 
 inline V128 V128_Add64(const V128 l, const V128 r) { return vaddq_u64(l, r); }
 
+#endif
+
+#if defined(__AVX__) && defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
+inline V256 V256_LoadU(const V256* src) { return _mm256_loadu_si256(src); }
+
+inline V256 V256_Broadcast128(const V128* src) {
+  return _mm256_castps_si256(
+      _mm256_broadcast_ps(reinterpret_cast<const __m128*>(src)));
+}
+#elif defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) || \
+    defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD)
+template <typename T>
+inline T V256_LoadU(const T* src) {
+  (void)src;
+  return T{};
+}
+
+template <typename T>
+inline T V256_Broadcast128(const V128* src) {
+  (void)src;
+  return T{};
+}
 #endif
 
 }  // namespace crc_internal

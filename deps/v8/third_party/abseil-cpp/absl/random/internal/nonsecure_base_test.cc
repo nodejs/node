@@ -74,19 +74,19 @@ TEST(NonsecureURBGBase, StandardInterface) {
 
   using T = typename E::result_type;
 
-  static_assert(!std::is_copy_constructible<E>::value,
+  static_assert(!std::is_copy_constructible_v<E>,
                 "NonsecureURBGBase should not be copy constructible");
 
-  static_assert(!absl::is_copy_assignable<E>::value,
+  static_assert(!std::is_copy_assignable_v<E>,
                 "NonsecureURBGBase should not be copy assignable");
 
-  static_assert(std::is_move_constructible<E>::value,
+  static_assert(std::is_move_constructible_v<E>,
                 "NonsecureURBGBase should be move constructible");
 
-  static_assert(absl::is_move_assignable<E>::value,
+  static_assert(std::is_move_assignable_v<E>,
                 "NonsecureURBGBase should be move assignable");
 
-  static_assert(std::is_same<decltype(std::declval<E>()()), T>::value,
+  static_assert(std::is_same_v<decltype(std::declval<E>()()), T>,
                 "return type of operator() must be result_type");
 
   {
@@ -94,10 +94,10 @@ TEST(NonsecureURBGBase, StandardInterface) {
     Use(x);
     Use(y);
 
-    static_assert(std::is_same<decltype(x == y), bool>::value,
+    static_assert(std::is_same_v<decltype(x == y), bool>,
                   "return type of operator== must be bool");
 
-    static_assert(std::is_same<decltype(x != y), bool>::value,
+    static_assert(std::is_same_v<decltype(x != y), bool>,
                   "return type of operator== must be bool");
   }
 

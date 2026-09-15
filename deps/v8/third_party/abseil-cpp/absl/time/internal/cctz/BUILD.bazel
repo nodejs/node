@@ -160,6 +160,23 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "time_zone_name_win_test",
+    size = "small",
+    srcs = select({
+        "@platforms//os:windows": ["src/time_zone_name_win_test.cc"],
+        "//conditions:default": [],
+    }),
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":time_zone",
+        "//absl/base:config",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 ### benchmarks
 
 cc_test(

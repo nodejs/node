@@ -34,6 +34,9 @@ ABSL_NAMESPACE_BEGIN
 // Now()
 //
 // Returns the current time, expressed as an `absl::Time` absolute time value.
+//
+// To improve testability, consider injecting an absl::Clock and using
+// absl::Clock::TimeNow() instead.
 absl::Time Now();
 
 // GetCurrentTimeNanos()

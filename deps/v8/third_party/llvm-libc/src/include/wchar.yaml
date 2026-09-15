@@ -1,0 +1,440 @@
+header: wchar.h
+standards:
+  - stdc
+macros:
+  - macro_name: "NULL"
+    macro_header: null-macro.h
+  - macro_name: WEOF
+    macro_header: wchar-macros.h
+types:
+  - type_name: FILE
+  - type_name: rsize_t
+  - type_name: size_t
+  # TODO: Remove this once we have a function declaration using "struct tm"
+  # (wcsftime). We're declaring it here now, since libc++ expects
+  # forward-declaration of "struct tm" in the <wchar.h> header.
+  - type_name: struct_tm
+  - type_name: wint_t
+  - type_name: wchar_t
+  - type_name: mbstate_t
+enums: []
+objects: []
+functions:
+  - name: wcslen
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const wchar_t *
+  - name: wcsnlen
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const wchar_t *
+      - type: size_t
+  - name: wctob
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: btowc
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: int
+  - name: mbrtowc
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const char *__restrict
+      - type: size_t
+      - type: mbstate_t *__restrict
+  - name: mbsnrtowcs
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const char **__restrict
+      - type: size_t
+      - type: size_t
+      - type: mbstate_t *__restrict
+  - name: mbsrtowcs
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const char **__restrict
+      - type: size_t
+      - type: mbstate_t *__restrict
+  - name: mbsinit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: mbstate_t *
+  - name: mbrlen
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const char *__restrict
+      - type: size_t
+      - type: mbstate_t *__restrict
+  - name: wmemset
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *
+      - type: wchar_t
+      - type: size_t
+  - name: wcschr
+    standards:
+      - stdc
+    return_type: const wchar_t *
+    arguments:
+      - type: const wchar_t *
+      - type: wchar_t
+  - name: wcsncmp
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+      - type: size_t
+  - name: wcscmp
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+  - name: wcscoll
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+  - name: wcspbrk
+    standards:
+      - stdc
+    return_type: const wchar_t *
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+  - name: wcsrchr
+    standards:
+      - stdc
+    return_type: const wchar_t *
+    arguments:
+      - type: const wchar_t *
+      - type: wchar_t
+  - name: wcsspn
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+  - name: wcscspn
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+  - name: wmemcmp
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+      - type: size_t
+  - name: wmemchr
+    standards:
+      - stdc
+    return_type: const wchar_t *
+    arguments:
+      - type: const wchar_t *
+      - type: wchar_t
+      - type: size_t
+  - name: wmempcpy
+    standards:
+      - gnu
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *
+      - type: const wchar_t *
+      - type: size_t
+  - name: wmemcpy
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: wmemmove
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *
+      - type: const wchar_t *
+      - type: size_t
+  - name: wcsncpy
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: wcscat
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+  - name: wcslcat
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: wcsstr
+    standards:
+      - stdc
+    return_type: const wchar_t *
+    arguments:
+      - type: const wchar_t *
+      - type: const wchar_t *
+  - name: wcsncat
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: wcsnrtombs
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: char *__restrict
+      - type: const wchar_t **__restrict
+      - type: size_t
+      - type: size_t
+      - type: mbstate_t *__restrict
+  - name: wcsrtombs
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: char *__restrict
+      - type: const wchar_t **__restrict
+      - type: size_t
+      - type: mbstate_t *__restrict
+  - name: wcrtomb
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: char *__restrict
+      - type: wchar_t
+      - type: mbstate_t *__restrict
+  - name: wcscpy
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+  - name: wcsdup
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: const wchar_t *
+  - name: wcslcpy
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: wcstok
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+  - name: wcpcpy
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+  - name: wcpncpy
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: wcstol
+    standards:
+      - stdc
+    return_type: long
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+      - type: int
+  - name: wcstoll
+    standards:
+      - stdc
+    return_type: long long
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+      - type: int
+  - name: wcstoul
+    standards:
+      - stdc
+    return_type: unsigned long
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+      - type: int
+  - name: wcstoull
+    standards:
+      - stdc
+    return_type: unsigned long long
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+      - type: int
+  - name: wcstof
+    standards:
+      - stdc
+    return_type: float
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+  - name: wcstod
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+  - name: wcstold
+    standards:
+      - stdc
+    return_type: long double
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: wchar_t **__restrict
+  - name: wcsxfrm
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: wchar_t *__restrict
+      - type: const wchar_t *__restrict
+      - type: size_t
+  - name: fgetwc
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: FILE *
+  - name: fgetws
+    standards:
+      - stdc
+    return_type: wchar_t *
+    arguments:
+      - type: wchar_t *__restrict
+      - type: int
+      - type: FILE *__restrict
+  - name: fputwc
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: wchar_t
+      - type: FILE *
+  - name: fputws
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const wchar_t *__restrict
+      - type: FILE *__restrict
+  - name: fwide
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+      - type: int
+  - name: getwc
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: FILE *
+  - name: getwchar
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: void
+  - name: putwc
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: wchar_t
+      - type: FILE *
+  - name: putwchar
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: wchar_t
+  - name: ungetwc
+    standards:
+      - stdc
+    return_type: wint_t
+    arguments:
+      - type: wint_t
+      - type: FILE *
+  - name: swprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wchar_t *__restrict
+      - type: size_t
+      - type: const wchar_t *__restrict
+      - type: '...'

@@ -1,0 +1,22 @@
+header: sys/param.h
+standards:
+  - bsd
+macros:
+  - macro_name: NBBY
+    macro_header: sys-param-macros.h
+  - macro_name: MIN
+    macro_header: sys-param-macros.h
+  - macro_name: MAX
+    macro_header: sys-param-macros.h
+  - macro_name: howmany
+    macro_header: sys-param-macros.h
+  - macro_name: roundup
+    macro_header: sys-param-macros.h
+  - macro_name: powerof2
+    macro_header: sys-param-macros.h
+  - macro_name: MAXPATHLEN
+    macro_header: sys-param-macros.h
+types: []
+enums: []
+objects: []
+functions: []

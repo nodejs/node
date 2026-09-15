@@ -44,7 +44,6 @@ MaybeDirectHandle<HeapObject> ObjectDeserializer::Deserialize() {
     CHECK(new_instruction_stream_objects().empty());
     LinkAllocationSites();
     CHECK(new_maps().empty());
-    WeakenDescriptorArrays();
   }
 
   Rehash();
@@ -120,7 +119,6 @@ MaybeDirectHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
     CHECK(new_instruction_stream_objects().empty());
     CHECK(new_allocation_sites().empty());
     CHECK(new_maps().empty());
-    WeakenDescriptorArrays();
   }
 
   Rehash();

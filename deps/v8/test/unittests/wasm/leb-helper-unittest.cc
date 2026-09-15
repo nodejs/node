@@ -94,13 +94,10 @@ TEST_F(LEBHelperTest, sizeof_i32v) {
     static uint8_t buffer[kSize];                                          \
     uint8_t* ptr = buffer;                                                 \
     LEBHelper::write_##name(&ptr, val);                                    \
-    EXPECT_EQ(LEBHelper::sizeof_##name(val),                               \
-              static_cast<size_t>(ptr - buffer));                          \
     Decoder decoder(buffer, buffer + kSize);                               \
     auto [result, length] =                                                \
         decoder.read_##name<Decoder::NoValidationTag>(buffer);             \
     EXPECT_EQ(val, result);                                                \
-    EXPECT_EQ(LEBHelper::sizeof_##name(val), static_cast<size_t>(length)); \
   }
 
 DECLARE_ENCODE_DECODE_CHECKER(int32_t, i32v)

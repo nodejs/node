@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/free-list.h"
+#include "src/heap/cppgc-internal/free-list.h"
 
 #include <memory>
 #include <numeric>
@@ -10,8 +10,8 @@
 
 #include "src/base/bits.h"
 #include "src/base/iterator.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {

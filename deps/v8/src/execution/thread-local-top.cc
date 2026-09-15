@@ -20,8 +20,9 @@ void ThreadLocalTop::Clear() {
   isolate_ = nullptr;
   c_entry_fp_ = kNullAddress;
   c_function_ = kNullAddress;
-  context_ = Context();
-  topmost_script_having_context_ = Context();
+  context_ = {};
+  last_entered_context_ = {};
+  topmost_script_having_context_ = {};
   thread_id_ = ThreadId();
   pending_handler_entrypoint_ = kNullAddress;
   pending_handler_constant_pool_ = kNullAddress;
@@ -41,8 +42,6 @@ void ThreadLocalTop::Clear() {
   failed_access_check_callback_ = nullptr;
   central_stack_limit_ = kNullAddress;
   central_stack_sp_ = kNullAddress;
-  secondary_stack_sp_ = kNullAddress;
-  secondary_stack_limit_ = kNullAddress;
 }
 
 void ThreadLocalTop::Initialize(Isolate* isolate) {

@@ -21,15 +21,57 @@
 
 ['variant in (jitless, nooptimization)', {
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
+  'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
+  'js-wasm-wrapper-inlining-type-combos': [SKIP],
 }],  # variant in (jitless, nooptimization)
+
+['variant == jitless', {
+  # Deopt tests are not supported in jitless mode.
+  'wasm-deopt-multi-instance': [SKIP],
+  'deopt-too-much-feedback': [SKIP],
+  'wasm-deopt-max-limit': [SKIP],
+  'wasm-deopt-max-input-count': [SKIP],
+}], # variant == jitless
 
 ['single_generation', {
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
   'wasm/pause': [SKIP],
+  'wasm/turbofan-inlining-shared': [SKIP],
 }], # single_generation
 
 ['official_build', {
   'wasm/crash/failed-type-assertion': [SKIP],
+  'wasm/crash/regress-481074858': [SKIP],
+  'wasm/regress-509312806': [SKIP],
 }], # official_build
+
+# There are two sources of output differences between 32 and 64 bit platforms:
+# First, on 32 bit platforms we can't inline JS-to-Wasm wrappers with i64 args,
+# and second, the wrapper inlining tests also enable Wasm-into-JS body inlining,
+# which is not supported on 32 bit platforms.
+['arch in (ia32, arm, riscv32)', {
+  'wasm-in-js-inlining-turboshaft': [SKIP],
+  'wasm-in-js-inlining-turboshaft-stacktrace-api': [SKIP],
+  'wasm-gc-inlining-turboshaft': [SKIP],
+  'wasm-in-js-inlining-turboshaft-opt': [SKIP],
+  'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
+  'js-wasm-wrapper-inlining-type-combos': [SKIP],
+}],
+
+['not sandbox', {
+  'wasm/regress-509312806': [SKIP],
+}],
+
+['not memory_corruption_api', {
+  'wasm/corrupted-function-data': [SKIP],
+}],
+
+['mode == release and dcheck_always_on == False', {
+  # The optimizations test requires `--turboshaft-trace-reduction` to verify
+  # Turboshaft reducer traces, which is a developer-only flag not supported
+  # in standard release builds.
+  'wasm-in-js-inlining-turboshaft-opt': [SKIP],
+}],
+
 ]

@@ -1074,5 +1074,97 @@ Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
   *(out) = new_envelope_size & 0xff;
   return Status();
 }
+
+span<uint8_t> GetString8ValueFromMap(span<uint8_t> message,
+                                     span<uint8_t> string8_key) {
+  CBORTokenizer tokenizer(message);
+  if (tokenizer.TokenTag() != CBORTokenTag::ENVELOPE) {
+    return {};
+  }
+  tokenizer.EnterEnvelope();
+  if (tokenizer.TokenTag() != CBORTokenTag::MAP_START) {
+    return {};
+  }
+  tokenizer.Next();
+  span<uint8_t> result;
+  bool found_key = false;
+  bool found_value = false;
+  bool is_key = true;
+  while (tokenizer.TokenTag() != CBORTokenTag::STOP &&
+         tokenizer.TokenTag() != CBORTokenTag::DONE &&
+         tokenizer.TokenTag() != CBORTokenTag::ERROR_VALUE) {
+    if (tokenizer.TokenTag() == CBORTokenTag::MAP_START ||
+        tokenizer.TokenTag() == CBORTokenTag::ARRAY_START) {
+      return {};
+    }
+    if (is_key) {
+      if (tokenizer.TokenTag() == CBORTokenTag::STRING8 &&
+          SpanEquals(tokenizer.GetString8(), string8_key)) {
+        if (found_key) {
+          return {};  // Duplicate key
+        }
+        found_key = true;
+      }
+    } else if (found_key && !found_value) {
+      if (tokenizer.TokenTag() == CBORTokenTag::STRING8) {
+        result = tokenizer.GetString8();
+      }
+      found_value = true;
+    }
+    tokenizer.Next();
+    is_key = !is_key;
+  }
+  if (tokenizer.TokenTag() != CBORTokenTag::STOP) {
+    return {};
+  }
+  return result;
+}
+
+bool HasKeyInMap(span<uint8_t> message, span<uint8_t> key) {
+  CBORTokenizer tokenizer(message);
+  if (tokenizer.TokenTag() != CBORTokenTag::ENVELOPE) {
+    return false;
+  }
+  tokenizer.EnterEnvelope();
+  if (tokenizer.TokenTag() != CBORTokenTag::MAP_START) {
+    return false;
+  }
+  tokenizer.Next();
+  bool is_key = true;
+  size_t nested_depth = 0;
+  while (tokenizer.TokenTag() != CBORTokenTag::DONE &&
+         tokenizer.TokenTag() != CBORTokenTag::ERROR_VALUE) {
+    if (tokenizer.TokenTag() == CBORTokenTag::STOP) {
+      if (nested_depth == 0) {
+        break;
+      }
+      nested_depth--;
+      if (nested_depth == 0) {
+        is_key = !is_key;
+      }
+      tokenizer.Next();
+      continue;
+    }
+    if (tokenizer.TokenTag() == CBORTokenTag::MAP_START ||
+        tokenizer.TokenTag() == CBORTokenTag::ARRAY_START) {
+      nested_depth++;
+      tokenizer.Next();
+      continue;
+    }
+    if (nested_depth > 0) {
+      tokenizer.Next();
+      continue;
+    }
+    if (is_key) {
+      if (tokenizer.TokenTag() == CBORTokenTag::STRING8 &&
+          SpanEquals(tokenizer.GetString8(), key)) {
+        return true;
+      }
+    }
+    tokenizer.Next();
+    is_key = !is_key;
+  }
+  return false;
+}
 }  // namespace cbor
 }  // namespace v8_crdtp

@@ -117,3 +117,18 @@ fn test_locale_strict_cmp() {
         }
     }
 }
+
+#[test]
+fn test_locale_total_cmp() {
+    let l_1_bar = "und-1-bar".parse::<Locale>().unwrap();
+    let l_a_foo = "und-a-foo".parse::<Locale>().unwrap();
+    let l_2_baz = "und-2-baz".parse::<Locale>().unwrap();
+
+    assert_eq!(l_1_bar.total_cmp(&l_a_foo), std::cmp::Ordering::Less);
+    assert_eq!(l_1_bar.total_cmp(&l_2_baz), std::cmp::Ordering::Less);
+    assert_eq!(l_2_baz.total_cmp(&l_a_foo), std::cmp::Ordering::Less);
+
+    let l_en_1 = "en-1-ext-value".parse::<Locale>().unwrap();
+    let l_en_a = "en-a-ext-value".parse::<Locale>().unwrap();
+    assert_eq!(l_en_1.total_cmp(&l_en_a), std::cmp::Ordering::Less);
+}

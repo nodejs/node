@@ -10,11 +10,14 @@
 #include "src/builtins/builtins.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/strings/string-builder-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal {
@@ -42,19 +45,17 @@ DirectHandle<CallSiteInfo> CallSiteInfo::ConstructFromRawData(
   }
 
   int offset = Smi::ToInt(frames->get(base_index + Fields::kOffset));
-  DirectHandle<FixedArray> parameters(
-      Cast<FixedArray>(frames->get(base_index + Fields::kParameters)), isolate);
   int flags = Smi::ToInt(frames->get(base_index + Fields::kFlags));
 
   return isolate->factory()->NewCallSiteInfo(
       Cast<JSAny>(receiver), Cast<UnionOf<Smi, JSFunction>>(function),
-      resolved_code, offset, flags, parameters);
+      resolved_code, offset, flags);
 }
 
 // static
 Handle<FixedArray> CallSiteInfo::ExpandDeferredFrames(
     Isolate* isolate, Handle<FixedArray> raw_data) {
-  int entry_count = raw_data->length() / Fields::kCount;
+  int entry_count = raw_data->length().value() / Fields::kCount;
 
   // Resolve deferred baseline frames in-place (PC offset → bytecode offset).
   for (int i = 0; i < entry_count; i++) {
@@ -66,11 +67,11 @@ Handle<FixedArray> CallSiteInfo::ExpandDeferredFrames(
       Tagged<Object> code_obj = raw_data->get(base + Fields::kCode);
       CHECK(IsCodeWrapper(code_obj));
       Tagged<Code> code = Cast<CodeWrapper>(code_obj)->code(isolate);
-      int pc_offset = Smi::ToInt(raw_data->get(base + Fields::kOffset));
-      Tagged<BytecodeArray> bytecode_array =
-          Cast<JSFunction>(raw_data->get(base + Fields::kFunction))
-              ->shared()
-              ->GetBytecodeArray(isolate);
+      uint32_t pc_offset = Smi::ToUInt(raw_data->get(base + Fields::kOffset));
+      // pc_offset is not trusted, make sure it matches the code.
+      SBXCHECK_LT(pc_offset, code->instruction_size());
+
+      Tagged<BytecodeArray> bytecode_array = code->GetBaselineBytecodeArray();
       int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
           code->instruction_start() + pc_offset, bytecode_array);
 
@@ -146,9 +147,7 @@ bool CallSiteInfo::IsToplevel() const {
 int CallSiteInfo::GetLineNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm() && !info->IsAsmJsWasm()) {
-    return 1;
-  }
+  if (info->IsWasm()) return 1;
 #endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
@@ -167,9 +166,7 @@ int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> callsite_info) {
   Isolate* isolate = Isolate::Current();
   int position = GetSourcePosition(callsite_info);
 #if V8_ENABLE_WEBASSEMBLY
-  if (callsite_info->IsWasm() && !callsite_info->IsAsmJsWasm()) {
-    return position + 1;
-  }
+  if (callsite_info->IsWasm()) return position + 1;
 #endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<Script> script;
   if (GetScript(isolate, callsite_info).ToHandle(&script)) {
@@ -189,23 +186,12 @@ int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> callsite_info) {
 int CallSiteInfo::GetEnclosingLineNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm() && !info->IsAsmJsWasm()) {
-    return 1;
-  }
+  if (info->IsWasm()) return 1;
 #endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<Script> script;
   if (!GetScript(isolate, info).ToHandle(&script)) {
     return Message::kNoLineNumberInfo;
   }
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->IsAsmJsWasm()) {
-    auto* module = info->GetWasmInstance()->module();
-    auto func_index = info->GetWasmFunctionIndex();
-    int position = wasm::GetSourcePosition(module, func_index, 0,
-                                           info->IsAsmJsAtNumberConversion());
-    return Script::GetLineNumber(script, position) + 1;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
   int position = info->GetSharedFunctionInfo()->function_token_position();
   return Script::GetLineNumber(script, position) + 1;
 }
@@ -214,8 +200,9 @@ int CallSiteInfo::GetEnclosingLineNumber(DirectHandle<CallSiteInfo> info) {
 int CallSiteInfo::GetEnclosingColumnNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm() && !info->IsAsmJsWasm()) {
-    auto* module = info->GetWasmInstance()->module();
+  if (info->IsWasm()) {
+    // TODO(clemensb): This can load the wrong module via in-sandbox corruption.
+    auto* module = info->GetWasmInstance()->trusted_data(isolate)->module();
     auto func_index = info->GetWasmFunctionIndex();
     return GetWasmFunctionOffset(module, func_index);
   }
@@ -224,15 +211,6 @@ int CallSiteInfo::GetEnclosingColumnNumber(DirectHandle<CallSiteInfo> info) {
   if (!GetScript(isolate, info).ToHandle(&script)) {
     return Message::kNoColumnInfo;
   }
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->IsAsmJsWasm()) {
-    auto* module = info->GetWasmInstance()->module();
-    auto func_index = info->GetWasmFunctionIndex();
-    int position = wasm::GetSourcePosition(module, func_index, 0,
-                                           info->IsAsmJsAtNumberConversion());
-    return Script::GetColumnNumber(script, position) + 1;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
   int position = info->GetSharedFunctionInfo()->function_token_position();
   return Script::GetColumnNumber(script, position) + 1;
 }
@@ -429,7 +407,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     Tagged<PrimitiveHeapObject> name) {
   ReadOnlyRoots roots(isolate);
   Tagged<Map> map = receiver->map();
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   for (auto i : map->IterateOwnDescriptors()) {
     Tagged<PrimitiveHeapObject> key = descriptors->GetKey(i);
     if (IsSymbol(key)) continue;
@@ -437,10 +415,9 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     if (details.IsDontEnum()) continue;
     Tagged<Object> value;
     if (details.location() == PropertyLocation::kField) {
-      auto field_index = FieldIndex::ForPropertyIndex(
-          map, details.field_index(), details.representation());
+      auto field_index = FieldIndex::ForDetails(map, details);
       if (field_index.is_double()) continue;
-      value = receiver->RawFastPropertyAt(isolate, field_index);
+      value = receiver->RawFastPropertyAt(field_index);
     } else {
       value = descriptors->GetStrongValue(i);
     }
@@ -450,7 +427,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
-      name = IsUndefined(name, isolate)
+      name = IsUndefined(name)
                  ? key
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
@@ -476,7 +453,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromDictionary(
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
-      name = IsUndefined(name, isolate)
+      name = IsUndefined(name)
                  ? Cast<PrimitiveHeapObject>(key)
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
@@ -514,7 +491,7 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
           isolate, object->property_dictionary(), fun, name);
     }
   }
-  if (IsUndefined(name, isolate)) return roots.null_value();
+  if (IsUndefined(name)) return roots.null_value();
   return name;
 }
 
@@ -529,7 +506,7 @@ DirectHandle<Object> CallSiteInfo::GetMethodName(
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) return isolate->factory()->null_value();
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (IsNullOrUndefined(*receiver_or_instance, isolate)) {
+  if (IsNullOrUndefined(*receiver_or_instance)) {
     return isolate->factory()->null_value();
   }
 
@@ -695,17 +672,16 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
 #if V8_ENABLE_WEBASSEMBLY
 #if V8_ENABLE_DRUMBRAKE
   if (info->IsWasmInterpretedFrame()) {
-    auto module = info->GetWasmInstance()->module();
+    // TODO(clemensb): This can load the wrong module via in-sandbox corruption.
+    auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
     uint32_t func_index = info->GetWasmFunctionIndex();
-    return wasm::GetSourcePosition(module, func_index, offset,
-                                   info->IsAsmJsAtNumberConversion());
+    return wasm::GetSourcePosition(module, func_index, offset);
   } else {
 #endif  // V8_ENABLE_DRUMBRAKE
     if (info->IsWasm()) {
       auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
       uint32_t func_index = info->GetWasmFunctionIndex();
-      return wasm::GetSourcePosition(module, func_index, offset,
-                                     info->IsAsmJsAtNumberConversion());
+      return wasm::GetSourcePosition(module, func_index, offset);
     }
 #if V8_ENABLE_DRUMBRAKE
   }
@@ -957,7 +933,7 @@ void SerializeBuiltinStackFrame(Isolate* isolate,
 void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (frame->IsWasm() && !frame->IsAsmJsWasm()) {
+  if (frame->IsWasm()) {
     SerializeWasmStackFrame(isolate, frame, builder);
     return;
   }

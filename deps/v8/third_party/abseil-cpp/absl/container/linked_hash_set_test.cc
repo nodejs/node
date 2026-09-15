@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -28,6 +30,7 @@
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/hash_policy_testing.h"
 #include "absl/container/internal/heterogeneous_lookup_testing.h"
+#include "absl/container/internal/test_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
@@ -91,6 +94,21 @@ TEST(LinkedHashSetTest, Assign) {
   FAIL() << "Assigned set's find method returned an invalid iterator.";
 }
 
+// Tests that self-assignment works.
+TEST(LinkedHashSetTest, SelfAssign) {
+  linked_hash_set<int> a{1, 2, 3};
+  auto& a_ref = a;
+  a = a_ref;
+
+  EXPECT_TRUE(a.contains(2));
+  auto found = a.find(2);
+  ASSERT_TRUE(found != a.end());
+  for (auto iter = a.begin(); iter != a.end(); ++iter) {
+    if (iter == found) return;
+  }
+  FAIL() << "Assigned set's find method returned an invalid iterator.";
+}
+
 // Tests that move constructor works.
 TEST(LinkedHashSetTest, Move) {
   // Use unique_ptr as an example of a non-copyable type.
@@ -99,6 +117,14 @@ TEST(LinkedHashSetTest, Move) {
   m.insert(std::make_unique<int>(3));
   linked_hash_set<std::unique_ptr<int>> n = std::move(m);
   EXPECT_THAT(n, ElementsAre(Pointee(2), Pointee(3)));
+}
+
+// Tests that self-moving works.
+TEST(LinkedHashSetTest, SelfMove) {
+  linked_hash_set<int> a{1, 2, 3};
+  auto& a_ref = a;
+  a = std::move(a_ref);
+  EXPECT_THAT(a, ElementsAre(1, 2, 3));
 }
 
 struct IntUniquePtrHash {
@@ -521,6 +547,13 @@ TEST(LinkedHashSetTest, Swap) {
   ASSERT_EQ(2, m2.size());
 }
 
+TEST(LinkedHashSetTest, SelfSwap) {
+  linked_hash_set<int> a{1, 2, 3};
+  using std::swap;
+  swap(a, a);
+  EXPECT_THAT(a, ElementsAre(1, 2, 3));
+}
+
 TEST(LinkedHashSetTest, InitializerList) {
   linked_hash_set<int> m{1, 3};
   ASSERT_EQ(2, m.size());
@@ -793,6 +826,29 @@ TEST(LinkedHashSet, ExtractInsert) {
   EXPECT_EQ(node.value(), 9);
   EXPECT_THAT(s, ElementsAre(7, 2, 17));
   EXPECT_FALSE(s.contains(9));
+}
+
+// Verify that emplacing and extracting nodes results in the same stateful
+// allocator being used for splicing purposes, rather than another instance
+// (say, a default-constructed one), which could otherwise silently corrupt
+// memory.
+TEST(LinkedHashSet, ExtractAndEmplaceUseSameStatefulAllocator) {
+  using Alloc = absl::container_internal::CountingAllocator<int>;
+  int64_t bytes_used = 0;
+  Alloc alloc(&bytes_used);
+  linked_hash_set<int, linked_hash_set<int>::hasher, std::equal_to<>, Alloc>
+      set(alloc);
+
+  set.emplace(1);
+  EXPECT_GT(bytes_used, 0) << "emplace() failed to use the same allocator";
+
+  auto node = set.extract(set.begin());
+  EXPECT_EQ(node.get_allocator(), alloc)
+      << "extract(iter) failed to use the same allocator";
+
+  set.insert(std::move(node));
+  EXPECT_EQ(set.extract(1).get_allocator(), alloc)
+      << "extract(key) failed to use the same allocator";
 }
 
 TEST(LinkedHashSet, Merge) {

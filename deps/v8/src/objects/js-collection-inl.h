@@ -8,12 +8,9 @@
 #include "src/objects/js-collection.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-collection-iterator-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
-#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,28 +18,16 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-collection-tq-inl.inc"
+Tagged<Object> JSCollection::table() const { return table_.load(); }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSCollection)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSMap)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSet)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakCollection)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakMap)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakSet)
-
-template <class Derived, class TableType>
-OrderedHashTableIterator<Derived, TableType>::OrderedHashTableIterator(
-    Address ptr)
-    : JSCollectionIterator(ptr) {}
-
-JSMapIterator::JSMapIterator(Address ptr)
-    : OrderedHashTableIterator<JSMapIterator, OrderedHashMap>(ptr) {
-  SLOW_DCHECK(IsJSMapIterator(*this));
+void JSCollection::set_table(Tagged<Object> value, WriteBarrierMode mode) {
+  table_.store(this, value, mode);
 }
 
-JSSetIterator::JSSetIterator(Address ptr)
-    : OrderedHashTableIterator<JSSetIterator, OrderedHashSet>(ptr) {
-  SLOW_DCHECK(IsJSSetIterator(*this));
+Tagged<Object> JSWeakCollection::table() const { return table_.load(); }
+
+void JSWeakCollection::set_table(Tagged<Object> value, WriteBarrierMode mode) {
+  table_.store(this, value, mode);
 }
 
 Tagged<Object> JSMapIterator::CurrentValue() {

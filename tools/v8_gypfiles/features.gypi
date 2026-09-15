@@ -238,9 +238,6 @@
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
 
-    # Enable leaptiering
-    'v8_enable_leaptiering%': 1,
-
     # Enable support for external code range relative to the pointer compression
     # cage.
     # Sets -DV8_EXTERNAL_CODE_SPACE.
@@ -293,6 +290,9 @@
     # Whether custom embedder snapshots may extend (= allocate new objects in)
     # ReadOnlySpace.
     'v8_enable_extensible_ro_snapshot%': 1,
+
+    # Use the encoding of undefined in double values.
+    'v8_enable_undefined_double%': 1,
 
     # Variables from v8.gni
 
@@ -461,9 +461,21 @@
         'defines': ['V8_ENABLE_SEEDED_ARRAY_INDEX_HASH',],
       }],
       ['dcheck_always_on!=0', {
-        'defines': ['DEBUG',],
+        'defines': [
+          'DEBUG',
+          'V8_LOGGING_LEVEL=2',  # Print file, line, message on fatal checks
+        ],
       }, {
         'defines': ['NDEBUG',],
+        'configurations': {
+          'Debug': {
+            'defines': ['V8_LOGGING_LEVEL=2',],
+          },
+          'Release': {
+            # Only log message (without file or line) on fatal checks
+            'defines': ['V8_LOGGING_LEVEL=1',],
+          },
+        },
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
@@ -504,8 +516,8 @@
       ['v8_enable_extensible_ro_snapshot==1', {
         'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
       }],
-      ['v8_enable_leaptiering==1', {
-        'defines': ['V8_ENABLE_LEAPTIERING',],
+      ['v8_enable_undefined_double==1', {
+        'defines': ['V8_ENABLE_UNDEFINED_DOUBLE',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],

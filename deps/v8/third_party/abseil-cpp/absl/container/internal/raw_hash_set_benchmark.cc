@@ -22,6 +22,7 @@
 #include <random>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -76,8 +77,8 @@ struct IntPolicy {
 
 class StringPolicy {
   template <class F, class K, class V,
-            class = typename std::enable_if<
-                std::is_convertible<const K&, absl::string_view>::value>::type>
+            class = std::enable_if_t<
+                std::is_convertible_v<const K&, absl::string_view>>>
   decltype(std::declval<F>()(
       std::declval<const absl::string_view&>(), std::piecewise_construct,
       std::declval<std::tuple<K>>(),
@@ -212,8 +213,7 @@ void BM_CacheInSteadyState(benchmark::State& state) {
   state.SetLabel(absl::StrFormat("load_factor=%.2f", t.load_factor()));
 }
 
-template <typename Benchmark>
-void CacheInSteadyStateArgs(Benchmark* bm) {
+void CacheInSteadyStateArgs(::benchmark::Benchmark* bm) {
   // The default.
   const float max_load_factor = 0.875;
   // When the cache is at the steady state, the probe sequence will equal
@@ -244,6 +244,30 @@ void BM_EraseEmplace(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_EraseEmplace)->Arg(1)->Arg(2)->Arg(4)->Arg(8)->Arg(16)->Arg(100);
+
+void BM_EraseEmplaceString(benchmark::State& state) {
+  StringTable t;
+  int64_t size = state.range(0);
+  for (int64_t i = 0; i < size; ++i) {
+    std::string s = std::to_string(i);
+    t.emplace(s, s);
+  }
+  while (state.KeepRunningBatch(size)) {
+    for (int64_t i = 0; i < size; ++i) {
+      benchmark::DoNotOptimize(t);
+      std::string s = std::to_string(i);
+      t.erase(s);
+      t.emplace(s, s);
+    }
+  }
+}
+BENCHMARK(BM_EraseEmplaceString)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Arg(100);
 
 void BM_EndComparison(benchmark::State& state) {
   StringTable t = {{"a", "a"}, {"b", "b"}};

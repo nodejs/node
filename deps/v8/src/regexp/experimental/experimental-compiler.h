@@ -12,23 +12,23 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-class ExperimentalRegExpCompiler final : public AllStatic {
+class ExperimentalCompiler final : public AllStatic {
  public:
-  // Checks whether a given RegExpTree can be compiled into an experimental
+  // Checks whether a given Tree can be compiled into an experimental
   // bytecode program.  This mostly amounts to the absence of back references,
   // but see the definition.
   // TODO(mbid,v8:10765): Currently more things are not handled, e.g. some
   // quantifiers and unicode.
-  static bool CanBeHandled(RegExpTree* tree, RegExpFlags flags,
-                           int capture_count);
+  static bool CanBeHandled(Tree* tree, Flags flags, int capture_count);
   // Compile regexp into a bytecode program.  The regexp must be handlable by
   // the experimental engine; see`CanBeHandled`.  The program is returned as a
-  // ZoneList backed by the same Zone that is used in the RegExpTree argument.
-  static ZoneList<RegExpInstruction> Compile(RegExpTree* tree,
-                                             RegExpFlags flags, Zone* zone);
+  // ZoneList backed by the same Zone that is used in the Tree argument.
+  static ZoneList<Instruction> Compile(Tree* tree, Flags flags, Zone* zone);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

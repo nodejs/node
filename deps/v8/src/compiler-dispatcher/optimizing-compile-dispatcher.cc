@@ -32,7 +32,7 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
       : task_executor_(task_executor) {}
 
   void Run(JobDelegate* delegate) override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
     DCHECK_LT(delegate->GetTaskId(), task_executor_->task_states_.size());
     OptimizingCompileTaskState& task_state =
         task_executor_->task_states_[delegate->GetTaskId()];
@@ -147,9 +147,8 @@ OptimizingCompileTaskExecutor::NextInputIfIsolateMatches(
 void OptimizingCompileTaskExecutor::RunCompilationJob(
     OptimizingCompileTaskState& task_state, Isolate* isolate,
     LocalIsolate& local_isolate, TurbofanCompilationJob* job) {
-  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                         "V8.OptimizeBackground", job->trace_id(),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
+              perfetto::Flow::ProcessScoped(job->trace_id()));
   TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
 
   if (recompilation_delay_ != 0) {
@@ -408,13 +407,19 @@ void OptimizingCompileInputQueue::Prioritize(
 }
 
 void OptimizingCompileInputQueue::FlushJobsForIsolate(Isolate* isolate) {
-  base::MutexGuard access(&mutex_);
-  std::erase_if(queue_, [isolate](TurbofanCompilationJob* job) {
-    if (job->isolate() != isolate) return false;
-    Compiler::DisposeTurbofanCompilationJob(isolate, job);
-    delete job;
-    return true;
-  });
+  // Destructing a Turbofan job may end up back in this queue via scheduling
+  // APIs. We use `to_delete` to ensure that jobs are deleted outside of the
+  // `mutex_` lock.
+  std::vector<std::unique_ptr<TurbofanCompilationJob>> to_delete;
+  {
+    base::MutexGuard access(&mutex_);
+    std::erase_if(queue_, [isolate, &to_delete](TurbofanCompilationJob* job) {
+      if (job->isolate() != isolate) return false;
+      Compiler::DisposeTurbofanCompilationJob(isolate, job);
+      to_delete.emplace_back(job);
+      return true;
+    });
+  }
 }
 
 bool OptimizingCompileInputQueue::HasJobForIsolate(Isolate* isolate) {

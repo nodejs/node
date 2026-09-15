@@ -1,0 +1,23 @@
+header: sys/uio.h
+standards:
+  - posix
+types:
+  - type_name: struct_iovec
+  - type_name: ssize_t
+functions:
+  - name: writev
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const struct iovec *
+      - type: int
+  - name: readv
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: const struct iovec *
+      - type: int

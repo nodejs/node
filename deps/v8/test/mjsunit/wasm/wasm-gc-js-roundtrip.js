@@ -7,7 +7,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let instance = (() => {
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(kWasmF64, true);
+  let array = builder.addArray(kWasmF64);
   let sig = builder.addType(makeSig([kWasmI32], [kWasmI32]));
 
   let func = builder.addFunction('inc', sig)

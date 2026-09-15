@@ -33,8 +33,8 @@ using ::testing::StaticAssertTypeEq;
 
 template <typename T>
 using IsOwnerAndNotView =
-    absl::conjunction<absl::type_traits_internal::IsOwner<T>,
-                      absl::negation<absl::type_traits_internal::IsView<T>>>;
+    std::conjunction<absl::type_traits_internal::IsOwner<T>,
+                      std::negation<absl::type_traits_internal::IsView<T>>>;
 
 static_assert(
     IsOwnerAndNotView<std::pair<std::vector<int>, std::string>>::value,
@@ -69,14 +69,12 @@ struct StructB {};
 struct StructC {};
 
 struct TypeWithBarFunction {
-  template <class T,
-            absl::enable_if_t<std::is_same<T&&, StructA&>::value, int> = 0>
+  template <class T, std::enable_if_t<std::is_same_v<T&&, StructA&>, int> = 0>
   ReturnType bar(T&&, const StructB&, StructC&&) &&;  // NOLINT
 };
 
 struct TypeWithBarFunctionAndConvertibleReturnType {
-  template <class T,
-            absl::enable_if_t<std::is_same<T&&, StructA&>::value, int> = 0>
+  template <class T, std::enable_if_t<std::is_same_v<T&&, StructA&>, int> = 0>
   ConvertibleToReturnType bar(T&&, const StructB&, StructC&&) &&;  // NOLINT
 };
 
@@ -110,31 +108,29 @@ TEST(VoidTTest, BasicUsage) {
 }
 
 TEST(TypeTraitsTest, TestRemoveCVRef) {
+  EXPECT_TRUE((std::is_same_v<typename absl::remove_cvref<int>::type, int>));
+  EXPECT_TRUE((std::is_same_v<typename absl::remove_cvref<int&>::type, int>));
+  EXPECT_TRUE((std::is_same_v<typename absl::remove_cvref<int&&>::type, int>));
   EXPECT_TRUE(
-      (std::is_same<typename absl::remove_cvref<int>::type, int>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename absl::remove_cvref<int&>::type, int>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename absl::remove_cvref<int&&>::type, int>::value));
-  EXPECT_TRUE((
-      std::is_same<typename absl::remove_cvref<const int&>::type, int>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename absl::remove_cvref<int*>::type, int*>::value));
+      (std::is_same_v<typename absl::remove_cvref<const int&>::type, int>));
+  EXPECT_TRUE((std::is_same_v<typename absl::remove_cvref<int*>::type, int*>));
   // Does not remove const in this case.
-  EXPECT_TRUE((std::is_same<typename absl::remove_cvref<const int*>::type,
-                            const int*>::value));
+  EXPECT_TRUE((std::is_same_v<typename absl::remove_cvref<const int*>::type,
+                              const int*>));
   EXPECT_TRUE(
-      (std::is_same<typename absl::remove_cvref<int[2]>::type, int[2]>::value));
-  EXPECT_TRUE((std::is_same<typename absl::remove_cvref<int(&)[2]>::type,
-                            int[2]>::value));
-  EXPECT_TRUE((std::is_same<typename absl::remove_cvref<int(&&)[2]>::type,
-                            int[2]>::value));
-  EXPECT_TRUE((std::is_same<typename absl::remove_cvref<const int[2]>::type,
-                            int[2]>::value));
-  EXPECT_TRUE((std::is_same<typename absl::remove_cvref<const int(&)[2]>::type,
-                            int[2]>::value));
-  EXPECT_TRUE((std::is_same<typename absl::remove_cvref<const int(&&)[2]>::type,
-                            int[2]>::value));
+      (std::is_same_v<typename absl::remove_cvref<int[2]>::type, int[2]>));
+  EXPECT_TRUE(
+      (std::is_same_v<typename absl::remove_cvref<int (&)[2]>::type, int[2]>));
+  EXPECT_TRUE(
+      (std::is_same_v<typename absl::remove_cvref<int (&&)[2]>::type, int[2]>));
+  EXPECT_TRUE((
+      std::is_same_v<typename absl::remove_cvref<const int[2]>::type, int[2]>));
+  EXPECT_TRUE(
+      (std::is_same_v<typename absl::remove_cvref<const int (&)[2]>::type,
+                      int[2]>));
+  EXPECT_TRUE(
+      (std::is_same_v<typename absl::remove_cvref<const int (&&)[2]>::type,
+                      int[2]>));
 }
 
 TEST(TypeTraitsTest, TestTypeIdentity) {
@@ -159,20 +155,17 @@ struct Wrap {};
 enum class TypeEnum { A, B, C, D };
 
 struct GetTypeT {
-  template <typename T,
-            absl::enable_if_t<std::is_same<T, TypeA>::value, int> = 0>
+  template <typename T, std::enable_if_t<std::is_same_v<T, TypeA>, int> = 0>
   TypeEnum operator()(Wrap<T>) const {
     return TypeEnum::A;
   }
 
-  template <typename T,
-            absl::enable_if_t<std::is_same<T, TypeB>::value, int> = 0>
+  template <typename T, std::enable_if_t<std::is_same_v<T, TypeB>, int> = 0>
   TypeEnum operator()(Wrap<T>) const {
     return TypeEnum::B;
   }
 
-  template <typename T,
-            absl::enable_if_t<std::is_same<T, TypeC>::value, int> = 0>
+  template <typename T, std::enable_if_t<std::is_same_v<T, TypeC>, int> = 0>
   TypeEnum operator()(Wrap<T>) const {
     return TypeEnum::C;
   }

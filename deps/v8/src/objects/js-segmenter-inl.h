@@ -20,13 +20,23 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-segmenter-tq-inl.inc"
+Tagged<String> JSSegmenter::locale() const { return locale_.load(); }
+void JSSegmenter::set_locale(Tagged<String> value, WriteBarrierMode mode) {
+  locale_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmenter)
+Tagged<Managed<icu::BreakIterator>> JSSegmenter::icu_break_iterator() const {
+  return Cast<Managed<icu::BreakIterator>>(icu_break_iterator_.load());
+}
+void JSSegmenter::set_icu_break_iterator(
+    Tagged<Managed<icu::BreakIterator>> value, WriteBarrierMode mode) {
+  icu_break_iterator_.store(this, value, mode);
+}
 
-// Base segmenter accessors.
-ACCESSORS(JSSegmenter, icu_break_iterator, Tagged<Managed<icu::BreakIterator>>,
-          kIcuBreakIteratorOffset)
+int JSSegmenter::flags() const { return flags_.load().value(); }
+void JSSegmenter::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {
   DCHECK(GranularityBits::is_valid(granularity));

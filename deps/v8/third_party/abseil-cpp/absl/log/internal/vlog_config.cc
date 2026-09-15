@@ -19,26 +19,24 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
-#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/const_init.h"
+#include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/log/internal/fnmatch.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "absl/synchronization/mutex.h"
-#include "absl/types/optional.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -189,7 +187,7 @@ int AppendVModuleLocked(absl::string_view module_pattern, int log_level)
 // Allocates memory.
 int PrependVModuleLocked(absl::string_view module_pattern, int log_level)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex) {
-  absl::optional<int> old_log_level;
+  std::optional<int> old_log_level;
   for (const auto& info : get_vmodule_info()) {
     if (FNMatch(info.module_pattern, module_pattern)) {
       old_log_level = info.vlog_level;

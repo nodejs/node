@@ -23,29 +23,29 @@
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/cppgc-internal/concurrent-marker.h"
+#include "src/heap/cppgc-internal/gc-info-table.h"
+#include "src/heap/cppgc-internal/heap-base.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/marking-state.h"
+#include "src/heap/cppgc-internal/marking-visitor.h"
+#include "src/heap/cppgc-internal/metric-recorder.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
+#include "src/heap/cppgc-internal/page-memory.h"
+#include "src/heap/cppgc-internal/platform.h"
+#include "src/heap/cppgc-internal/prefinalizer-handler.h"
+#include "src/heap/cppgc-internal/raw-heap.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
+#include "src/heap/cppgc-internal/sweeper.h"
+#include "src/heap/cppgc-internal/unmarker.h"
+#include "src/heap/cppgc-internal/visitor.h"
 #include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/cppgc-js/cpp-snapshot.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state-inl.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/cppgc-js/unified-heap-marking-verifier.h"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
-#include "src/heap/cppgc/concurrent-marker.h"
-#include "src/heap/cppgc/gc-info-table.h"
-#include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/marking-state.h"
-#include "src/heap/cppgc/marking-visitor.h"
-#include "src/heap/cppgc/metric-recorder.h"
-#include "src/heap/cppgc/object-allocator.h"
-#include "src/heap/cppgc/page-memory.h"
-#include "src/heap/cppgc/platform.h"
-#include "src/heap/cppgc/prefinalizer-handler.h"
-#include "src/heap/cppgc/raw-heap.h"
-#include "src/heap/cppgc/stats-collector.h"
-#include "src/heap/cppgc/sweeper.h"
-#include "src/heap/cppgc/unmarker.h"
-#include "src/heap/cppgc/visitor.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
@@ -103,9 +103,9 @@ class MinorGCHeapGrowing
 // static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
-  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces,
-                                             params.marking_support,
-                                             params.sweeping_support);
+  return std::make_unique<internal::CppHeap>(
+      platform, params.custom_spaces, params.marking_support,
+      params.sweeping_support, params.stack_start_marker);
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -232,11 +232,10 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
   auto* cpp_heap = static_cast<v8::internal::CppHeap*>(heap);
   auto* isolate = cpp_heap->isolate();
   DCHECK_NOT_NULL(isolate);
-  if (v8_flags.heap_snapshot_on_oom) {
+  if (v8_flags.heap_snapshot_on_oom && !isolate->has_active_deserializer()) {
     cppgc::internal::ClassNameAsHeapObjectNameScope names_scope(
         cpp_heap->AsBase());
-    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC(
-        v8::HeapProfiler::HeapSnapshotMode::kExposeInternals);
+    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
   V8::FatalProcessOutOfMemory(isolate, reason.c_str());
 }
@@ -501,8 +500,9 @@ Isolate* CppHeap::MetricRecorderAdapter::GetIsolate() const {
 v8::metrics::Recorder::ContextId CppHeap::MetricRecorderAdapter::GetContextId()
     const {
   DCHECK_NOT_NULL(GetIsolate());
-  if (GetIsolate()->context().is_null())
+  if (GetIsolate()->context().is_null()) {
     return v8::metrics::Recorder::ContextId::Empty();
+  }
   HandleScope scope(GetIsolate());
   return GetIsolate()->GetOrRegisterRecorderContextId(
       GetIsolate()->native_context());
@@ -518,12 +518,13 @@ CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
     cppgc::Heap::MarkingType marking_support,
-    cppgc::Heap::SweepingType sweeping_support)
+    cppgc::Heap::SweepingType sweeping_support,
+    std::optional<cppgc::StackStartMarker> stack_start_marker)
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          marking_support, sweeping_support, *this),
+          marking_support, sweeping_support, *this, stack_start_marker),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
       cross_heap_remembered_set_(*this) {
@@ -634,8 +635,6 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   static_cast<CppgcPlatformAdapter*>(platform())
       ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
   if (auto* heap_profiler = heap()->heap_profiler()) {
-    heap_profiler->SetInternalBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
-                                                         this);
     heap_profiler->set_native_move_listener(
         std::make_unique<MoveListenerImpl>(heap_profiler, this));
   }
@@ -682,7 +681,6 @@ void CppHeap::DetachIsolate() {
   sweeping_on_mutator_thread_observer_.reset();
 
   if (auto* heap_profiler = heap()->heap_profiler()) {
-    heap_profiler->SetInternalBuildEmbedderGraphCallback(nullptr, nullptr);
     heap_profiler->set_native_move_listener(nullptr);
   }
   SetMetricRecorder(nullptr);
@@ -729,8 +727,9 @@ CppHeap::MarkingType CppHeap::SelectMarkingType() const {
   // For now, force atomic marking for minor collections.
   if (*collection_type_ == CollectionType::kMinor) return MarkingType::kAtomic;
 
-  if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_)
+  if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_) {
     return MarkingType::kAtomic;
+  }
 
   const MarkingType marking_type = marking_support();
 
@@ -788,10 +787,11 @@ void CppHeap::InitializeMarking(
   // Check that previous cycle metrics for the same collection type have been
   // reported.
   if (GetMetricRecorder()) {
-    if (collection_type == CollectionType::kMajor)
+    if (collection_type == CollectionType::kMajor) {
       DCHECK(!GetMetricRecorder()->FullGCMetricsReportPending());
-    else
+    } else {
       DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
+    }
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -1349,7 +1349,8 @@ bool CppHeap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
     return false;
   }
   return isolate_->heap()->allocator()->RetryCustomAllocate(
-      std::move(allocate), AllocationType::kOld);
+      std::move(allocate), AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
 }
 
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }

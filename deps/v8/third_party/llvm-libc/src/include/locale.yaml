@@ -1,0 +1,63 @@
+header: locale.h
+standards:
+  - stdc
+macros:
+  - macro_name: "NULL"
+    macro_header: null-macro.h
+  - macro_name: LC_ALL
+    macro_header: locale-macros.h
+  - macro_name: LC_COLLATE
+    macro_header: locale-macros.h
+  - macro_name: LC_CTYPE
+    macro_header: locale-macros.h
+  - macro_name: LC_MESSAGES
+    macro_header: locale-macros.h
+  - macro_name: LC_MONETARY
+    macro_header: locale-macros.h
+  - macro_name: LC_NUMERIC
+    macro_header: locale-macros.h
+  - macro_name: LC_TIME
+    macro_header: locale-macros.h
+types:
+  - type_name: locale_t
+  - type_name: struct_lconv
+functions:
+  - name: localeconv
+    standards:
+      - stdc
+    return_type: struct lconv *
+    arguments:
+      - type: void
+  - name: duplocale
+    standards:
+      - stdc
+    return_type: locale_t
+    arguments:
+      - type: locale_t
+  - name: freelocale
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: locale_t
+  - name: newlocale
+    standards:
+      - stdc
+    return_type: locale_t
+    arguments:
+      - type: int
+      - type: const char *
+      - type: locale_t
+  - name: setlocale
+    standards:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: int
+      - type: const char *
+  - name: uselocale
+    standards:
+      - stdc
+    return_type: locale_t
+    arguments:
+      - type: locale_t

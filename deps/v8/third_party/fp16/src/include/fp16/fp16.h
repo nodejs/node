@@ -71,7 +71,7 @@ static inline uint32_t fp16_ieee_to_fp32_bits(uint16_t h) {
 	_BitScanReverse(&nonsign_bsr, (unsigned long) nonsign);
 	uint32_t renorm_shift = (uint32_t) nonsign_bsr ^ 31;
 #else
-	uint32_t renorm_shift = __builtin_clz(nonsign);
+	uint32_t renorm_shift = (uint32_t) __builtin_clz(nonsign);
 #endif
 	renorm_shift = renorm_shift > 5 ? renorm_shift - 5 : 0;
 	/*
@@ -102,7 +102,7 @@ static inline uint32_t fp16_ieee_to_fp32_bits(uint16_t h) {
 	 * 6. Binary ANDNOT with zero_mask to turn the mantissa and exponent into zero if the input was zero. 
 	 * 7. Combine with the sign of the input number.
 	 */
-	return sign | ((((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) | inf_nan_mask) & ~zero_mask);
+	return sign | ((((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) | (uint32_t) inf_nan_mask) & ~(uint32_t) zero_mask);
 }
 
 /*
@@ -306,7 +306,7 @@ static inline uint16_t fp16_ieee_from_fp32_value(float f) {
 	const uint32_t exp_bits = (bits >> 13) & UINT32_C(0x00007C00);
 	const uint32_t mantissa_bits = bits & UINT32_C(0x00000FFF);
 	const uint32_t nonsign = exp_bits + mantissa_bits;
-	return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
+	return (uint16_t) ((sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign));
 #endif
 }
 
@@ -357,7 +357,7 @@ static inline uint32_t fp16_alt_to_fp32_bits(uint16_t h) {
 	_BitScanReverse(&nonsign_bsr, (unsigned long) nonsign);
 	uint32_t renorm_shift = (uint32_t) nonsign_bsr ^ 31;
 #else
-	uint32_t renorm_shift = __builtin_clz(nonsign);
+	uint32_t renorm_shift = (uint32_t) __builtin_clz(nonsign);
 #endif
 	renorm_shift = renorm_shift > 5 ? renorm_shift - 5 : 0;
 	/*
@@ -379,7 +379,7 @@ static inline uint32_t fp16_alt_to_fp32_bits(uint16_t h) {
 	 * 5. Binary ANDNOT with zero_mask to turn the mantissa and exponent into zero if the input was zero. 
 	 * 6. Combine with the sign of the input number.
 	 */
-	return sign | (((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) & ~zero_mask);
+	return sign | (((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) & ~(uint32_t) zero_mask);
 }
 
 /*

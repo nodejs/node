@@ -1236,13 +1236,11 @@ mod value {
                     }
                 }
                 // true, false
-                b't' | b'f' => {
-                    if repr == "true" || repr == "false" {
-                        return Lit::Bool(LitBool {
-                            value: repr == "true",
-                            span: token.span(),
-                        });
-                    }
+                b't' | b'f' if repr == "true" || repr == "false" => {
+                    return Lit::Bool(LitBool {
+                        value: repr == "true",
+                        span: token.span(),
+                    });
                 }
                 b'(' if repr == "(/*ERROR*/)" => return Lit::Verbatim(token),
                 _ => {}

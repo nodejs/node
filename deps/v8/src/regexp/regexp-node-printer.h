@@ -11,33 +11,32 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 template <typename T>
-class RegExpNodePrinter;
+class NodePrinter;
 
 template <>
-class RegExpNodePrinter<RegExpNode> : public RegExpNodePrinterBase<RegExpNode>,
-                                      public NodeVisitor {
+class NodePrinter<Node> : public NodePrinterBase<Node>, public NodeVisitor {
  public:
-  RegExpNodePrinter(std::ostream& os, RegExpGraphLabeller<RegExpNode>* labeller,
-                    Zone* zone)
-      : RegExpNodePrinterBase(os, labeller, zone, 'n') {}
-  RegExpNodePrinter(const RegExpPrinterBase& other,
-                    RegExpGraphLabeller<RegExpNode>* labeller)
-      : RegExpNodePrinterBase(other, labeller, 'n') {}
+  NodePrinter(std::ostream& os, GraphLabeller<Node>* labeller, Zone* zone)
+      : NodePrinterBase(os, labeller, zone, 'n') {}
+  NodePrinter(const PrinterBase& other, GraphLabeller<Node>* labeller)
+      : NodePrinterBase(other, labeller, 'n') {}
 
-  using RegExpNodePrinterBase<RegExpNode>::PrintNodeLabel;
+  using NodePrinterBase<Node>::PrintNodeLabel;
 
 #define DECLARE_VISIT(Type) void Visit##Type(Type##Node* that) override;
   FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
   void PrintGuard(const Guard* guard);
-  void PrintNodeLabel(const RegExpNode* node, const char* name);
-  void PrintSuccess(const SeqRegExpNode* node);
+  void PrintNodeLabel(const Node* node, const char* name);
+  void PrintSuccess(const SeqNode* node);
 };
 
-using RegExpGraphNodePrinter = RegExpNodePrinter<RegExpNode>;
+using RegExpGraphNodePrinter = NodePrinter<Node>;
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS

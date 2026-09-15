@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <vector>
 
+void fuzzilli_cov_enable();
 void sanitizer_cov_reset_edgeguards();
 uint32_t sanitizer_cov_count_discovered_edges();
 void cov_init_builtins_edges(uint32_t num_edges);

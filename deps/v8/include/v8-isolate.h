@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "cppgc/common.h"
+#include "cppgc/macros.h"
 #include "v8-array-buffer.h"       // NOLINT(build/include_directory)
 #include "v8-callbacks.h"          // NOLINT(build/include_directory)
 #include "v8-data.h"               // NOLINT(build/include_directory)
@@ -438,6 +439,8 @@ class V8_EXPORT Isolate {
    * automatically executed otherwise.
    */
   class V8_EXPORT V8_NODISCARD SuppressMicrotaskExecutionScope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     explicit SuppressMicrotaskExecutionScope(
         Isolate* isolate, MicrotaskQueue* microtask_queue = nullptr);
@@ -659,7 +662,9 @@ class V8_EXPORT Isolate {
     kWithStatement = 180,
     kHtmlWrapperMethods = 181,
     kWasmCustomDescriptors = 182,
-    kWasmResizableBuffers = 183,
+    kOBSOLETE_WasmResizableBuffers = 183,
+    kInvalidatedArrayBufferMutableProtector = 184,
+    kHoleyArrayReadthrough = 185,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -1402,11 +1407,13 @@ class V8_EXPORT Isolate {
   /**
    * Enqueues the callback to the default MicrotaskQueue
    */
+  V8_DEPRECATE_SOON("Use *MicrotaskQueue::EnqueueMicrotask* instead")
   void EnqueueMicrotask(Local<Function> microtask);
 
   /**
-   * Enqueues the callback to the default MicrotaskQueue
+   * Enqueues the callback to the default MicrotaskQueue.
    */
+  V8_DEPRECATE_SOON("Use *MicrotaskQueue::EnqueueMicrotask* instead")
   void EnqueueMicrotask(MicrotaskCallback callback, void* data = nullptr);
 
   /**
@@ -1892,7 +1899,6 @@ class V8_EXPORT Isolate {
   internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
       size_t index);
   int64_t AdjustAmountOfExternalAllocatedMemoryImpl(int64_t change_in_bytes);
-  void HandleExternalMemoryInterrupt();
 };
 
 void Isolate::SetData(uint32_t slot, void* data) {

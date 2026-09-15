@@ -38,6 +38,9 @@ TEST_F(TypeswitchTest, Simple) {
       CASE_(V<Undefined>, ud): {
         GOTO(done, 1003);
       }
+      DEFAULT: {
+        // Fall through.
+      }
     }
 
     GOTO(done, 0);

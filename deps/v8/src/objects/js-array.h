@@ -7,6 +7,7 @@
 
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -15,18 +16,18 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-array-tq.inc"
-
 // The JSArray describes JavaScript Arrays
 //  Such an array can be in one of two modes:
 //    - fast, backing storage is a FixedArray and length <= elements.length();
 //       Please note: push and pop can be used to grow and shrink the array.
 //    - slow, backing storage is a HashTable with numbers as keys.
-class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
+V8_OBJECT class JSArray : public JSObject {
  public:
   // [length]: The length property.
-  DECL_ACCESSORS(length, Tagged<Number>)
-  DECL_RELAXED_GETTER(length, Tagged<Number>)
+  inline Tagged<Number> length() const;
+  inline Tagged<Number> length(RelaxedLoadTag) const;
+  inline void set_length(Tagged<Number> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Acquire/release semantics on this field are explicitly forbidden to avoid
   // confusion, since the default setter uses relaxed semantics. If
@@ -34,7 +35,7 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
   Tagged<Number> length(PtrComprCageBase cage_base,
-                        AcquireLoadTag tag) const = delete;
+                        AcquireLoadTag) const = delete;
   void set_length(Tagged<Number> value, ReleaseStoreTag tag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
@@ -131,6 +132,11 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // Max. number of elements being copied in Array builtins.
   static const int kMaxCopyElements = 100;
 
+  // Maximum array length for which Maglev/TurboFan inline an insertion sort
+  // instead of calling the generic PowerSort builtin.  PowerSort itself uses
+  // BinaryInsertionSort below this threshold too.
+  static constexpr int kMaxInlineSortLength = 16;
+
   // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
   static constexpr uint32_t kMaxArrayLength = JSObject::kMaxElementCount;
   static constexpr uint32_t kMaxArrayIndex = JSObject::kMaxElementIndex;
@@ -139,26 +145,38 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
 
   // This constant is somewhat arbitrary. Any large enough value would work.
   static constexpr uint32_t kMaxFastArrayLength =
-      V8_LOWER_LIMITS_MODE_BOOL ? (8 * 1024 * 1024) : (32 * 1024 * 1024);
+      V8_LOWER_LIMITS_MODE_BOOL ? (1 * 1024 * 1024) : (32 * 1024 * 1024);
   static_assert(kMaxFastArrayLength <= kMaxArrayLength);
   static_assert(kMaxFastArrayLength <= kMaxFixedArrayCapacity);
 
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;
 
-  static const int kInitialMaxFastElementArray =
-      (kMaxRegularHeapObjectSize - sizeof(FixedArray) - kHeaderSize -
-       sizeof(AllocationMemento)) >>
-      kDoubleSizeLog2;
+  static const int kHeaderSize;
+  static const int kInitialMaxFastElementArray;
 
-  TQ_OBJECT_CONSTRUCTORS(JSArray)
-};
+ public:
+  TaggedMember<Number> length_;
+} V8_OBJECT_END;
+
+inline constexpr int JSArray::kHeaderSize = sizeof(JSArray);
+inline constexpr int JSArray::kInitialMaxFastElementArray =
+    (kMaxRegularHeapObjectSize - static_cast<int>(sizeof(FixedArray)) -
+     JSArray::kHeaderSize - static_cast<int>(sizeof(AllocationMemento))) >>
+    kDoubleSizeLog2;
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as
-// defined in ES section #sec-array-iterator-objects.
-class JSArrayIterator
-    : public TorqueGeneratedJSArrayIterator<JSArrayIterator, JSObject> {
+// defined in https://tc39.es/ecma262/#sec-array-iterator-objects.
+V8_OBJECT class JSArrayIterator : public JSObject {
  public:
+  inline Tagged<JSReceiver> iterated_object() const;
+  inline void set_iterated_object(Tagged<JSReceiver> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Number> next_index() const;
+  inline void set_next_index(Tagged<Number> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSArrayIterator)
   DECL_VERIFIER(JSArrayIterator)
 
@@ -167,19 +185,42 @@ class JSArrayIterator
   inline void set_kind(IterationKind kind);
 
  private:
-  DECL_INT_ACCESSORS(raw_kind)
+  inline int raw_kind() const;
+  inline void set_raw_kind(int value);
 
-  TQ_OBJECT_CONSTRUCTORS(JSArrayIterator)
-};
+ public:
+  TaggedMember<JSReceiver> iterated_object_;
+  TaggedMember<Number> next_index_;
+  // SmiTagged<IterationKind>.
+  TaggedMember<Smi> kind_;
+} V8_OBJECT_END;
 
 // Helper class for JSArrays that are template literal objects
-class TemplateLiteralObject
-    : public TorqueGeneratedTemplateLiteralObject<TemplateLiteralObject,
-                                                  JSArray> {
+V8_OBJECT class TemplateLiteralObject : public JSArray {
  public:
- private:
-  TQ_OBJECT_CONSTRUCTORS(TemplateLiteralObject)
-};
+  inline Tagged<JSArray> raw() const;
+  inline void set_raw(Tagged<JSArray> value,
+                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int function_literal_id() const;
+  inline void set_function_literal_id(int value);
+
+  inline int slot_id() const;
+  inline void set_slot_id(int value);
+
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<JSArray> raw_;
+  TaggedMember<Smi> function_literal_id_;
+  TaggedMember<Smi> slot_id_;
+} V8_OBJECT_END;
+
+inline constexpr int TemplateLiteralObject::kHeaderSize =
+    sizeof(TemplateLiteralObject);
+
+V8_OBJECT class JSArrayConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

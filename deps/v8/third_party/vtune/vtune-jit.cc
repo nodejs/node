@@ -143,11 +143,11 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
           // Get the source file name and set it to jmethod.source_file_name
           if ((*script->GetScriptName())->IsString()) {
             Local<String> script_name = script->GetScriptName().As<String>();
-            size_t name_length = script_name->Utf8LengthV2(event->isolate) + 1;
+            size_t name_length = script_name->Utf8Length(event->isolate) + 1;
             temp_file_name.reset(new char[name_length]);
-            script_name->WriteUtf8V2(event->isolate, temp_file_name.get(),
-                                     name_length,
-                                     v8::String::WriteFlags::kNullTerminate);
+            script_name->WriteUtf8(event->isolate, temp_file_name.get(),
+                                   name_length,
+                                   v8::String::WriteFlags::kNullTerminate);
             jmethod.source_file_name = temp_file_name.get();
           }
 
