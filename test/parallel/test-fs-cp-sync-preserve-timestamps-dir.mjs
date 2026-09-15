@@ -1,5 +1,6 @@
-// This tests that cpSync with a filter preserves directory timestamps
-// when preserveTimestamps is true.
+// This tests that cpSync preserves directory timestamps
+// when preserveTimestamps is true, both on the JS fallback path (with filter)
+// and the native fast path (without filter).
 import '../common/index.mjs';
 import { nextdir } from '../common/fs.js';
 import assert from 'node:assert';
@@ -40,3 +41,21 @@ assert.strictEqual(srcDirStat.mtime.getTime(), destDirStat.mtime.getTime());
 const srcRootStat = statSync(src);
 const destRootStat = statSync(dest);
 assert.strictEqual(srcRootStat.mtime.getTime(), destRootStat.mtime.getTime());
+
+// Copy with preserveTimestamps and NO filter (to exercise the native fast path).
+const destFast = nextdir();
+cpSync(src, destFast, {
+  recursive: true,
+  preserveTimestamps: true,
+});
+
+// Verify file timestamps are preserved.
+const destFastFileStat = statSync(join(destFast, 'subdir', 'file.txt'));
+assert.strictEqual(srcFileStat.mtime.getTime(), destFastFileStat.mtime.getTime());
+
+// Verify directory timestamps are preserved.
+const destFastDirStat = statSync(join(destFast, 'subdir'));
+assert.strictEqual(srcDirStat.mtime.getTime(), destFastDirStat.mtime.getTime());
+
+const destFastRootStat = statSync(destFast);
+assert.strictEqual(srcRootStat.mtime.getTime(), destFastRootStat.mtime.getTime());
