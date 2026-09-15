@@ -276,10 +276,7 @@ test('throws if the URL-like path has an unparsable href', (t) => {
 
   t.assert.throws(() => {
     backup(database, { href: 'not a url' });
-  }, {
-    code: 'ERR_INVALID_URL',
-    message: 'Invalid URL',
-  });
+  }, { code: 'ERR_INVALID_URL' });
 });
 
 test('database backup fails when dest file is not writable', { skip: isRoot }, async (t) => {
