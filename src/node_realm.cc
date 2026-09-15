@@ -17,6 +17,7 @@ using v8::MaybeLocal;
 using v8::Object;
 using v8::SnapshotCreator;
 using v8::String;
+using v8::TryCatch;
 using v8::Value;
 
 Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
@@ -47,11 +48,22 @@ void Realm::CreateProperties() {
   Local<Context> ctx = context();
 
   // Store primordials setup by the per-context script in the environment.
-  Local<Object> per_context_bindings =
-      GetPerContextExports(ctx, env_->isolate_data()).ToLocalChecked();
-  Local<Value> primordials =
-      per_context_bindings->Get(ctx, env_->primordials_string())
-          .ToLocalChecked();
+  TryCatch try_catch(isolate_);
+  Local<Object> per_context_bindings;
+  Local<Value> primordials;
+  if (!GetPerContextExports(ctx, env_->isolate_data())
+           .ToLocal(&per_context_bindings) ||
+      !per_context_bindings->Get(ctx, env_->primordials_string())
+           .ToLocal(&primordials)) {
+    // In general, this should only throw exceptions during local development
+    // when there's a temporary bug in the scripts. Print the exception here to
+    // facilitate debugging.
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      PrintCaughtException(isolate_, ctx, try_catch);
+    }
+    env_->Exit(ExitCode::kBootstrapFailure);
+    return;
+  }
   CHECK(primordials->IsObject());
   set_primordials(primordials.As<Object>());
 
