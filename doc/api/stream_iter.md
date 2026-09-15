@@ -1374,7 +1374,8 @@ added:
 
 * `input` {AsyncIterable|Iterable|BroadcastChannel}
 * `options` {Object} Same as `broadcast()`.
-* Returns: {Object} `{ writer, broadcast }`
+* Returns: {BroadcastChannel|Object} A `broadcastProtocol` input returns its
+  {BroadcastChannel} directly. Other inputs return `{ writer, broadcast }`.
 
 Create a {BroadcastChannel} from an existing source. The source is consumed
 automatically and pushed to all subscribers.
@@ -1875,7 +1876,7 @@ class MessageBus {
 }
 
 const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
+const broadcast = Broadcast.from(bus);
 const consumer = broadcast.push();
 bus.send('hello');
 bus.close();
@@ -1911,7 +1912,7 @@ class MessageBus {
 }
 
 const bus = new MessageBus();
-const { broadcast } = Broadcast.from(bus);
+const broadcast = Broadcast.from(bus);
 const consumer = broadcast.push();
 bus.send('hello');
 bus.close();
