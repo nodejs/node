@@ -271,7 +271,7 @@ process.permission.has('fs.read', 'custom-require-2.js'); // true
 ### `--allow-fs-vfs`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1.1 - Active development
@@ -473,7 +473,7 @@ Error: Access to this API has been restricted
 ### `--bench`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -501,7 +501,7 @@ This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
 ### `--bench-isolation=mode`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -520,7 +520,7 @@ The supported modes are `'process'` and `'none'`.
 ### `--bench-name-pattern=pattern`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -531,7 +531,7 @@ regular expression `pattern`. Non-matching benchmarks are reported as skipped.
 ### `--bench-reporter-destination=destination`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -543,7 +543,7 @@ can be `stdout`, `stderr`, or a file path. A single reporter defaults to
 ### `--bench-reporter=reporter`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -559,7 +559,7 @@ have a corresponding `--bench-reporter-destination`. The default reporter is
 ### `--bench-samples=count`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -571,7 +571,7 @@ selected benchmark. A benchmark may finish earlier by calling
 ### `--bench-warmup=count`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1017,7 +1017,7 @@ Node.js must be built against a FIPS-capable OpenSSL.
 ### `--enable-fips-indicator-events`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Publish OpenSSL FIPS indicator results to the
@@ -1216,7 +1216,7 @@ Enable experimental import support for `.node` addons.
 ### `--experimental-bench`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1397,7 +1397,7 @@ configuration file.
 ### `--experimental-dtls`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1694,7 +1694,7 @@ Enable experimental WebAssembly System Interface (WASI) support.
 ### `--experimental-web-worker`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Enable experimental support for the Web Worker API.
@@ -1724,7 +1724,7 @@ Disable loading native addons that are not [context-aware][].
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65645
     description: Added the optional `provider` and `strict` modes.
 -->
@@ -2436,7 +2436,7 @@ Silence all process warnings (including deprecations).
 ### `--no-worker-snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -2858,7 +2858,7 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/64606
     description: Passing `--run` without a command lists the available scripts.
   - version: v22.3.0
@@ -3668,7 +3668,7 @@ added:
  - v13.6.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65389
     description: This option is now a no-op.
 -->

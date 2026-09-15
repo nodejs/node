@@ -1,10 +1,10 @@
 # DTLS
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
-<!-- introduced_in=REPLACEME -->
+<!-- introduced_in=v26.9.0 -->
 
 > Stability: 1 - Experimental
 
@@ -65,7 +65,7 @@ DTLS is designed for UDP transport and differs from TLS in several key ways:
 ## `dtls.listen(callback, options)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `callback` {Function} Called for each new DTLS session accepted by the
@@ -114,7 +114,7 @@ console.log('DTLS server listening on', endpoint.address);
 ## `dtls.connect(host, port[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * `host` {string} Remote host to connect to.
@@ -161,7 +161,7 @@ session.onmessage = (data) => {
 ## Class: `DTLSEndpoint`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Manages a UDP socket and multiplexes DTLS sessions.
@@ -188,7 +188,7 @@ Shared state object with properties:
 ### `endpoint.stats`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {DTLSEndpoint.Stats}
@@ -225,7 +225,7 @@ Equivalent to calling `endpoint.close()`.
 ## Class: `DTLSEndpoint.Stats`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 A view of the collected statistics for an endpoint.
@@ -233,7 +233,7 @@ A view of the collected statistics for an endpoint.
 ### `endpointStats.createdAt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} A timestamp indicating when the endpoint was created. Read only.
@@ -241,7 +241,7 @@ added: REPLACEME
 ### `endpointStats.destroyedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} A timestamp indicating when the endpoint was destroyed. Read only.
@@ -249,7 +249,7 @@ added: REPLACEME
 ### `endpointStats.bytesReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of bytes received by this endpoint. Read only.
@@ -257,7 +257,7 @@ added: REPLACEME
 ### `endpointStats.bytesSent`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of bytes sent by this endpoint. Read only.
@@ -265,7 +265,7 @@ added: REPLACEME
 ### `endpointStats.packetsReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of UDP packets received by this endpoint. Read only.
@@ -273,7 +273,7 @@ added: REPLACEME
 ### `endpointStats.packetsSent`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of UDP packets sent by this endpoint. Read only.
@@ -281,7 +281,7 @@ added: REPLACEME
 ### `endpointStats.serverSessions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of peer-initiated sessions accepted by this
@@ -290,7 +290,7 @@ added: REPLACEME
 ### `endpointStats.clientSessions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of sessions initiated by this endpoint. Read only.
@@ -298,7 +298,7 @@ added: REPLACEME
 ### `endpointStats.serverBusyCount`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of incoming connections rejected because the
@@ -307,7 +307,7 @@ added: REPLACEME
 ### `endpointStats.isConnected`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {boolean}
@@ -318,7 +318,7 @@ Once the endpoint is destroyed, the stats become a stale snapshot.
 ## Class: `DTLSSession`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 Represents a DTLS association with a single remote peer.
@@ -378,7 +378,7 @@ Immediately destroys the session without sending `close_notify`.
 ### `session.stats`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {DTLSSession.Stats}
@@ -400,7 +400,7 @@ encryption keys for media streams.
 ## Class: `DTLSSession.Stats`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 A view of the collected statistics for a session.
@@ -408,7 +408,7 @@ A view of the collected statistics for a session.
 ### `sessionStats.createdAt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} A timestamp indicating when the session was created. Read only.
@@ -416,7 +416,7 @@ added: REPLACEME
 ### `sessionStats.destroyedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} A timestamp indicating when the session was destroyed. Read only.
@@ -424,7 +424,7 @@ added: REPLACEME
 ### `sessionStats.closingAt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} A timestamp indicating when `close()` was called. Read only.
@@ -432,7 +432,7 @@ added: REPLACEME
 ### `sessionStats.handshakeCompletedAt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} A timestamp indicating when the DTLS handshake completed. Read only.
@@ -440,7 +440,7 @@ added: REPLACEME
 ### `sessionStats.bytesReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of application data bytes received. Read only.
@@ -448,7 +448,7 @@ added: REPLACEME
 ### `sessionStats.bytesSent`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of application data bytes sent. Read only.
@@ -456,7 +456,7 @@ added: REPLACEME
 ### `sessionStats.messagesReceived`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of application messages received. Read only.
@@ -464,7 +464,7 @@ added: REPLACEME
 ### `sessionStats.messagesSent`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of application messages sent. Read only.
@@ -472,7 +472,7 @@ added: REPLACEME
 ### `sessionStats.retransmitCount`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {bigint} The total number of DTLS handshake retransmissions. Read only.
@@ -480,7 +480,7 @@ added: REPLACEME
 ### `sessionStats.isConnected`
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 * Type: {boolean}

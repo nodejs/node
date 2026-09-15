@@ -1573,7 +1573,7 @@ passed to `console.error()`.
 #### Crypto
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1 - Experimental
