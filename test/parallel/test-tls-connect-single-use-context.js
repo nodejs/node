@@ -21,12 +21,14 @@ const cert = fixtures.readKey('agent1-cert.pem');
 
 const server = tls.createServer({ key, cert }, (conn) => conn.end());
 
-// Bound to a single address so that the addresses the last case retries
-// through are refused rather than answered by this server.
+// Bound to a single address so that the addresses the handle-swap case
+// retries through are refused rather than answered by this server.
 server.listen(0, '127.0.0.1', common.mustCall(() => {
   connectWithOwnContext(common.mustCall(() => {
     connectWithSharedContext(common.mustCall(() => {
-      connectAcrossHandleSwaps(common.mustCall(() => server.close()));
+      connectAcrossHandleSwaps(common.mustCall(() => {
+        connectWithKeepAlive(common.mustCall(() => server.close()));
+      }));
     }));
   }));
 }));
@@ -101,6 +103,29 @@ function connectAcrossHandleSwaps(done) {
 
     afterDestroySSL(socket, common.mustCall(() => {
       assert.strictEqual(secureContext.context, null);
+      done();
+    }));
+  }));
+}
+
+function connectWithKeepAlive(done) {
+  // tls.connect() only asks for a single-use context when TCP keepalive is
+  // off, so a client that enables it leaves its context to the garbage
+  // collector. Pinned here as the current behaviour: whether the context
+  // should be released early in this case too is the open question in the
+  // issue, and is deliberately not decided by this change.
+  const socket = tls.connect({
+    host: '127.0.0.1',
+    port: server.address().port,
+    rejectUnauthorized: false,
+    keepAlive: true,
+  }, common.mustCall(() => {
+    const secureContext = socket.ssl._secureContext;
+    assert.strictEqual(secureContext.singleUse, undefined);
+    assert.notStrictEqual(secureContext.context, null);
+
+    afterDestroySSL(socket, common.mustCall(() => {
+      assert.notStrictEqual(secureContext.context, null);
       done();
     }));
   }));
