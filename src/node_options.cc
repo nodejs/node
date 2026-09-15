@@ -1106,6 +1106,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_isolation,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-inspect-depth",
+            "specify the inspect depth for error formatting in test reporters",
+            &EnvironmentOptions::test_inspect_depth,
+            kDisallowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   // TODO(cjihrig): Remove this alias in a semver major.
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
