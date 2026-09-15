@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include <climits>
 #include <cstring>
+#include <vector>
 #include "nbytes.h"
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
@@ -1025,6 +1026,22 @@ int64_t IndexOfOffset(size_t length,
   }
 }
 
+// A Buffer can be a view starting at an odd byte offset, in which case its
+// data cannot be reinterpreted as uint16_t. Copy it into an aligned buffer
+// so the two byte search does not read through a misaligned pointer.
+const uint16_t* AlignedTwoByteHaystack(const char* haystack,
+                                       size_t byte_length,
+                                       std::vector<uint16_t>* storage) {
+  if (reinterpret_cast<uintptr_t>(haystack) % alignof(uint16_t) == 0) {
+    return reinterpret_cast<const uint16_t*>(haystack);
+  }
+  storage->resize(byte_length / 2);
+  if (byte_length >= 2) {
+    memcpy(storage->data(), haystack, byte_length & ~static_cast<size_t>(1));
+  }
+  return storage->data();
+}
+
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -1100,6 +1117,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       return args.GetReturnValue().Set(-1);
     }
 
+    std::vector<uint16_t> aligned_storage;
+    const uint16_t* haystack16 =
+        AlignedTwoByteHaystack(haystack, search_end, &aligned_storage);
+
     if constexpr (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
       if (decoder.Decode(env, needle, enc).IsNothing()) return;
@@ -1109,14 +1130,14 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       if (decoded_string == nullptr)
         return args.GetReturnValue().Set(-1);
 
-      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+      result = nbytes::SearchString(haystack16,
                                     search_end / 2,
                                     decoded_string,
                                     decoder.size() / 2,
                                     offset / 2,
                                     is_forward);
     } else {
-      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+      result = nbytes::SearchString(haystack16,
                                     search_end / 2,
                                     needle_value.out(),
                                     needle_value.length(),
@@ -1225,12 +1246,15 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     if (search_end < 2 || needle_length < 2) {
       return args.GetReturnValue().Set(-1);
     }
-    result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                  search_end / 2,
-                                  reinterpret_cast<const uint16_t*>(needle),
-                                  needle_length / 2,
-                                  offset / 2,
-                                  is_forward);
+    std::vector<uint16_t> haystack_storage;
+    std::vector<uint16_t> needle_storage;
+    result = nbytes::SearchString(
+        AlignedTwoByteHaystack(haystack, search_end, &haystack_storage),
+        search_end / 2,
+        AlignedTwoByteHaystack(needle, needle_length, &needle_storage),
+        needle_length / 2,
+        offset / 2,
+        is_forward);
     result *= 2;
   } else {
     result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
