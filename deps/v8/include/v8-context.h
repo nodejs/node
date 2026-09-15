@@ -7,14 +7,15 @@
 
 #include <stdint.h>
 
+#include <type_traits>
 #include <vector>
 
 #include "cppgc/type-traits.h"  // NOLINT(build/include_directory)
-#include "v8-data.h"          // NOLINT(build/include_directory)
-#include "v8-local-handle.h"  // NOLINT(build/include_directory)
-#include "v8-maybe.h"         // NOLINT(build/include_directory)
-#include "v8-snapshot.h"      // NOLINT(build/include_directory)
-#include "v8config.h"         // NOLINT(build/include_directory)
+#include "v8-data.h"            // NOLINT(build/include_directory)
+#include "v8-local-handle.h"    // NOLINT(build/include_directory)
+#include "v8-maybe.h"           // NOLINT(build/include_directory)
+#include "v8-snapshot.h"        // NOLINT(build/include_directory)
+#include "v8config.h"           // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -328,7 +329,7 @@ class V8_EXPORT Context : public Data {
                                        EmbedderDataTypeTag tag);
 
   template <typename T>
-    requires cppgc::IsGarbageCollectedTypeV<T>
+    requires(!std::is_void_v<T>) && cppgc::IsGarbageCollectedTypeV<T>
   void SetAlignedPointerInEmbedderData(int index, T* value,
                                        CppHeapPointerTag tag) {
     SetAlignedPointerInEmbedderDataInternal(index, static_cast<void*>(value),
