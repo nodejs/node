@@ -187,6 +187,7 @@ class EnvironmentOptions : public Options {
   uint64_t bench_warmup = 0;
   uint64_t test_runner_concurrency = 0;
   uint64_t test_runner_timeout = 0;
+  int test_inspect_depth = -1;
   uint64_t test_coverage_branches = 0;
   uint64_t test_coverage_functions = 0;
   uint64_t test_coverage_lines = 0;
