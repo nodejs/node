@@ -394,46 +394,43 @@ const tests = [
     },
     error: 'IP: 127.0.0.1 is not in the cert\'s list: '
   },
-  // A host that net.isIP() rejects but that normalizes to an IPv4 address is
-  // an IP address, not a DNS name: it is matched against "IP Address:" SANs,
-  // never against DNS names or the CN.
+  // Non-canonical IP addresses are rejected instead of being matched against
+  // an address produced by domainToASCII().
+  ...[
+    ['0127.0.0.1', '87.0.0.1'],
+    ['0177.0.0.1', '127.0.0.1'],
+    ['0x7f.0.0.1', '127.0.0.1'],
+    ['2130706433', '127.0.0.1'],
+    ['127.1', '127.0.0.1'],
+    ['\uFF11\uFF12\uFF17.0.0.1', '127.0.0.1'], // Fullwidth digits.
+    ['127\u30020.0.1', '127.0.0.1'], // Ideographic full stop.
+  ].map(([host, normalized]) => ({
+    host,
+    cert: {
+      subjectaltname: `DNS:${normalized}`,
+      subject: {},
+    },
+    error: 'Host is a non-canonical IP address',
+  })),
   {
-    host: '\uFF11\uFF12\uFF17.0.0.1', // "127.0.0.1" with fullwidth digits.
-    cert: { subjectaltname: 'DNS:127.0.0.1', subject: {} },
-    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: '
+    host: '0127.0.0.1', cert: {
+      subjectaltname: 'IP Address:87.0.0.1',
+      subject: { CN: '87.0.0.1' },
+    },
+    error: 'Host is a non-canonical IP address',
   },
   {
-    host: '\uFF11\uFF12\uFF17.0.0.1',
-    cert: { subjectaltname: 'DNS:*.0.0.1', subject: {} },
-    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: '
+    host: '0127.0.0.1', cert: {
+      subjectaltname: 'IP Address:87.0.0.1',
+      subject: { CN: 'Example Operator' },
+    },
+    error: 'Host is a non-canonical IP address',
   },
   {
-    host: '\uFF11\uFF12\uFF17.0.0.1',
-    cert: { subject: { CN: '127.0.0.1' } },
-    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: '
-  },
-  {
-    host: '\uFF11\uFF12\uFF17.0.0.1',
-    cert: { subjectaltname: 'IP Address:127.0.0.1', subject: {} }
-  },
-  {
-    host: '\uFF11\uFF12\uFF17.0.0.1',
-    cert: { subjectaltname: 'IP Address:127.0.0.2', subject: {} },
-    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: 127.0.0.2'
-  },
-  {
-    host: '127\u30020.0.1', // "127.0.0.1" with an ideographic full stop.
-    cert: { subjectaltname: 'DNS:127.0.0.1', subject: {} },
-    error: 'IP: 127\u30020.0.1 is not in the cert\'s list: '
-  },
-  {
-    host: '127.1',
-    cert: { subjectaltname: 'DNS:127.0.0.1', subject: {} },
-    error: 'IP: 127.1 is not in the cert\'s list: '
-  },
-  {
-    host: '127.1',
-    cert: { subjectaltname: 'IP Address:127.0.0.1', subject: {} }
+    host: '1.2.3.example', cert: {
+      subjectaltname: 'DNS:1.2.3.example',
+      subject: {},
+    },
   },
   {
     host: 'localhost', cert: {
