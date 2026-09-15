@@ -4,9 +4,12 @@
 # (Release\node.exe) and merges the resulting .profraw files into
 # node.profdata for use with -fprofile-use.
 #
-# Usage (from a VS Developer Command Prompt):
-#   .\pgo.ps1                     # Run workloads (15s each) and merge
-#   .\pgo.ps1 -Duration 30        # Run workloads (30s each) and merge
+# Usage (from a VS Developer Command Prompt, at the repo root):
+#   powershell -ExecutionPolicy Bypass -File .\tools\pgo\pgo.ps1
+#   powershell -ExecutionPolicy Bypass -File .\tools\pgo\pgo.ps1 -Duration 30
+#
+# The script is unsigned, so the default execution policy blocks it without
+# -ExecutionPolicy Bypass. Default duration is 15s per workload.
 #
 # Prerequisites:
 #   - Release\node.exe must be an instrumented build (built with pgo-generate)
@@ -21,6 +24,10 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# The instrumented binary and the merged profile both live at the repo root,
+# two levels up from tools\pgo. common.gypi reads node.profdata from there.
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 
 # ---------------------------------------------------------------------------
 # Locate llvm-profdata shipped with Visual Studio's LLVM toolset
@@ -64,13 +71,13 @@ function Find-LlvmProfdata {
 # Validate prerequisites
 # ---------------------------------------------------------------------------
 
-$instrumentedNode = Join-Path $PSScriptRoot "Release\node.exe"
+$instrumentedNode = Join-Path $repoRoot "Release\node.exe"
 if (-not (Test-Path $instrumentedNode)) {
     Write-Error "Instrumented binary not found: $instrumentedNode`nBuild with: vcbuild.bat pgo-generate"
     exit 1
 }
 
-$pgoRunAll = Join-Path $PSScriptRoot "tools\pgo\pgo-run-all.js"
+$pgoRunAll = Join-Path $PSScriptRoot "pgo-run-all.js"
 if (-not (Test-Path $pgoRunAll)) {
     Write-Error "PGO training script not found: $pgoRunAll"
     exit 1
@@ -90,7 +97,7 @@ Write-Host "`n=== STEP 1: Collect PGO profiles ===" -ForegroundColor Cyan
 
 # Directory that will receive .profraw files from the instrumented binary.
 # %p (PID) and %m (module hash) keep concurrent/fork'd processes from colliding.
-$profileDir = Join-Path $PSScriptRoot "pgo-profiles"
+$profileDir = Join-Path $repoRoot "pgo-profiles"
 
 if (Test-Path $profileDir) {
     Remove-Item -Recurse -Force $profileDir
@@ -137,7 +144,7 @@ $totalSize = ($profrawFiles | Measure-Object -Property Length -Sum).Sum
 $totalSizeMB = [math]::Round($totalSize / 1MB, 1)
 Write-Host "Found $($profrawFiles.Count) .profraw file(s), ${totalSizeMB} MB total"
 
-$profdata = Join-Path $PSScriptRoot "node.profdata"
+$profdata = Join-Path $repoRoot "node.profdata"
 $mergeArgs = @("merge", "--output=$profdata") + ($profrawFiles | Select-Object -ExpandProperty FullName)
 
 $mergeStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
