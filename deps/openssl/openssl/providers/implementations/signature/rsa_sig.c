@@ -591,7 +591,7 @@ rsa_signverify_init(PROV_RSA_CTX *prsactx, void *vrsa,
 
         break;
     default:
-        ERR_raise(ERR_LIB_RSA, PROV_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+        ERR_raise(ERR_LIB_PROV, PROV_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return 0;
     }
 
@@ -1015,7 +1015,13 @@ static int rsa_verify_recover(void *vprsactx,
         }
         ret = RSA_public_decrypt((int)siglen, sig, rout, prsactx->rsa,
             prsactx->pad_mode);
-        if (ret <= 0) {
+        /*
+         * RSA_public_decrypt() returns -1 on error and otherwise the number
+         * of recovered bytes, which may legitimately be zero for a raw
+         * PKCS#1 v1.5 signature that encodes an empty payload.  Treat only
+         * a negative result as an error.
+         */
+        if (ret < 0) {
             ERR_raise(ERR_LIB_PROV, ERR_R_RSA_LIB);
             return 0;
         }
@@ -1947,7 +1953,7 @@ static int rsa_sigalg_signverify_init(void *vprsactx, void *vrsa,
 
     /* PSS is currently not supported as a sigalg */
     if (prsactx->pad_mode == RSA_PKCS1_PSS_PADDING) {
-        ERR_raise(ERR_LIB_RSA, PROV_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+        ERR_raise(ERR_LIB_PROV, PROV_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return 0;
     }
 

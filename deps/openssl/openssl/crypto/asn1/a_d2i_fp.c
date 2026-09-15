@@ -139,7 +139,20 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
             }
             i = BIO_read(in, &(b->data[len]), want);
             if (i <= 0) {
-                ERR_raise(ERR_LIB_ASN1, ASN1_R_NOT_ENOUGH_DATA);
+                /*
+                 * A read error (i < 0), an EOF in the middle of an object
+                 * (diff != 0, some bytes already buffered), or an EOF while
+                 * still inside an indefinite-length constructed value awaiting
+                 * its end-of-contents octets (eos != 0) all mean the input is
+                 * truncated.  Only a clean EOF at a top-level object boundary
+                 * (i == 0, diff == 0, eos == 0) is the normal end of input:
+                 * fail without queuing an error so that callers looping over
+                 * concatenated DER values (e.g. the libcrypto d2i_*_bio()
+                 * consumers in CPython's ssl module) terminate cleanly instead
+                 * of seeing a spurious ASN1_R_NOT_ENOUGH_DATA.
+                 */
+                if (i < 0 || diff != 0 || eos != 0)
+                    ERR_raise(ERR_LIB_ASN1, ASN1_R_NOT_ENOUGH_DATA);
                 goto err;
             }
             if (i > 0) {

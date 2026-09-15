@@ -1,5 +1,5 @@
 {
-  "version": "10.9.8",
+  "version": "10.9.9",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -112,7 +112,7 @@
     "spdx-expression-parse": "^4.0.0",
     "ssri": "^12.0.0",
     "supports-color": "^9.4.0",
-    "tar": "^7.5.11",
+    "tar": "^7.5.22",
     "text-table": "~0.2.0",
     "tiny-relative-date": "^1.3.0",
     "treeverse": "^3.0.0",

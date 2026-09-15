@@ -112,11 +112,11 @@ void ares_check_cleanup_conns(const ares_channel_t *channel)
         do_cleanup = ARES_TRUE;
       }
 
-      /* If the associated server has failures, close it out. Resetting the
-       * connection (and specifically the source port number) can help resolve
-       * situations where packets are being dropped.
+      /* If the connection has been retired for new queries, close it out once
+       * idle.  Resetting the connection (and specifically the source port
+       * number) can help resolve situations where packets are being dropped.
        */
-      if (conn->server->consec_failures > 0) {
+      if (conn->flags & ARES_CONN_FLAG_NONEW) {
         do_cleanup = ARES_TRUE;
       }
 

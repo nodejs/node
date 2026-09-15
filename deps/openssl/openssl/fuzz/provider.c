@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,11 @@
     {                                                                    \
         STACK_OF(evp) *obj_stack = stack;                                \
                                                                          \
-        if (sk_##evp##_push(obj_stack, obj) > 0)                         \
-            evp##_up_ref(obj);                                           \
+        if (!evp##_up_ref(obj))                                          \
+            return;                                                      \
+                                                                         \
+        if (sk_##evp##_push(obj_stack, obj) <= 0)                        \
+            evp##_free(obj);                                             \
     }                                                                    \
     static void init_##name(OSSL_LIB_CTX *libctx)                        \
     {                                                                    \

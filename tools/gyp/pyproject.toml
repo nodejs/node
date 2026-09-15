@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gyp-next"
-version = "0.21.1"
+version = "0.22.1"
 authors = [
   { name="Node.js contributors", email="ryzokuken@disroot.org" },
 ]
 description = "A fork of the GYP build system for use in the Node.js projects"
 readme = "README.md"
 license = { file="LICENSE" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = ["packaging>=24.0", "setuptools>=69.5.1"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,10 +21,12 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 [project.optional-dependencies]

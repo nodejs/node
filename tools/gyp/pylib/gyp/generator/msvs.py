@@ -857,7 +857,7 @@ def _EscapeCommandLineArgumentForMSBuild(s):
     """Escapes a Windows command-line argument for use by MSBuild."""
 
     def _Replace(match):
-        return (len(match.group(1)) / 2 * 4) * "\\" + '\\"'
+        return (len(match.group(1)) // 2 * 4) * "\\" + '\\"'
 
     # Escape all quotes so that they are interpreted literally.
     s = quote_replacer_regex2.sub(_Replace, s)

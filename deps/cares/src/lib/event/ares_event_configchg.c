@@ -207,12 +207,14 @@ void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 
 #  ifdef HAVE_REGISTERWAITFORSINGLEOBJECT
   if (configchg->regip4_wait != NULL) {
-    UnregisterWait(configchg->regip4_wait);
+    /* Use INVALID_HANDLE_VALUE to wait for any running callback to complete
+     * before returning, preventing use-after-free of configchg */
+    UnregisterWaitEx(configchg->regip4_wait, INVALID_HANDLE_VALUE);
     configchg->regip4_wait = NULL;
   }
 
   if (configchg->regip6_wait != NULL) {
-    UnregisterWait(configchg->regip6_wait);
+    UnregisterWaitEx(configchg->regip6_wait, INVALID_HANDLE_VALUE);
     configchg->regip6_wait = NULL;
   }
 

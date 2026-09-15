@@ -117,7 +117,13 @@ static void ares_pipeevent_signal(const ares_event_t *e)
   }
 
   p = e->data;
-  (void)write(p->filedes[1], "1", 1);
+  /* Best-effort wakeup.  A failed or short write is harmless: it can only
+   * happen when the pipe buffer is already full, which means a wakeup is
+   * already pending.  The result is consumed to satisfy warn_unused_result
+   * (a plain (void) cast does not silence it under _FORTIFY_SOURCE). */
+  if (write(p->filedes[1], "1", 1) < 0) {
+    return;
+  }
 }
 
 static void ares_pipeevent_cb(ares_event_thread_t *e, ares_socket_t fd,

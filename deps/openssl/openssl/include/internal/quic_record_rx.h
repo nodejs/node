@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -51,14 +51,21 @@ typedef struct ossl_qrx_args_st {
 OSSL_QRX *ossl_qrx_new(const OSSL_QRX_ARGS *args);
 
 /*
- * Frees the QRX. All packets obtained using ossl_qrx_read_pkt must already
- * have been released by calling ossl_qrx_release_pkt.
+ * Frees the QRX/reference to QRX. Frees the QRX object, if all references are
+ * gone. All packets obtained using ossl_qrx_read_pkt must already have been
+ * released by calling ossl_qrx_release_pkt.
  *
  * You do not need to call ossl_qrx_remove_dst_conn_id first; this function will
  * unregister the QRX from the demuxer for all registered destination connection
  * IDs (DCIDs) automatically.
  */
 void ossl_qrx_free(OSSL_QRX *qrx);
+
+/*
+ * Obtains a new reference to QRX object. Returns NULL if reference can not
+ * be obtained.
+ */
+OSSL_QRX *ossl_qrx_newref(OSSL_QRX *qrx);
 
 /* Setters for the msg_callback and msg_callback_arg */
 void ossl_qrx_set_msg_callback(OSSL_QRX *qrx, ossl_msg_cb msg_callback,

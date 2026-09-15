@@ -82,7 +82,7 @@ static size_t poly1305_size(void)
 static int poly1305_setkey(struct poly1305_data_st *ctx,
     const unsigned char *key, size_t keylen)
 {
-    if (keylen != POLY1305_KEY_SIZE) {
+    if (key == NULL || keylen != POLY1305_KEY_SIZE) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
         return 0;
     }
@@ -111,6 +111,10 @@ static int poly1305_update(void *vmacctx, const unsigned char *data,
 {
     struct poly1305_data_st *ctx = vmacctx;
 
+    if (!ctx->key_set) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NO_KEY_SET);
+        return 0;
+    }
     ctx->updated = 1;
     if (datalen == 0)
         return 1;

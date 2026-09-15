@@ -371,9 +371,11 @@ static ares_status_t ares_qcache_insert_int(ares_qcache_t           *qcache,
 
 /* LCOV_EXCL_START: OutOfMemory */
 fail:
-  if (entry != NULL && entry->key != NULL) {
-    ares_htable_strvp_remove(qcache->cache, entry->key);
-    ares_free(entry->key);
+  if (entry != NULL) {
+    if (entry->key != NULL) {
+      ares_htable_strvp_remove(qcache->cache, entry->key);
+      ares_free(entry->key);
+    }
     ares_free(entry);
   }
   return ARES_ENOMEM;

@@ -21,27 +21,10 @@ from typing import (
 from . import requirements, specifiers, utils, version as version_module
 
 T = typing.TypeVar("T")
-if sys.version_info[:2] >= (3, 8):  # pragma: no cover
-    from typing import Literal, TypedDict
-else:  # pragma: no cover
-    if typing.TYPE_CHECKING:
-        from typing_extensions import Literal, TypedDict
-    else:
-        try:
-            from typing_extensions import Literal, TypedDict
-        except ImportError:
-
-            class Literal:
-                def __init_subclass__(*_args, **_kwargs):
-                    pass
-
-            class TypedDict:
-                def __init_subclass__(*_args, **_kwargs):
-                    pass
-
+from typing import Literal, TypedDict
 
 try:
-    ExceptionGroup
+    ExceptionGroup  # Added in Python 3.11+
 except NameError:  # pragma: no cover
 
     class ExceptionGroup(Exception):  # noqa: N818
@@ -504,7 +487,7 @@ class _Validator(Generic[T]):
         self.raw_name = _RAW_TO_EMAIL_MAPPING[name]
 
     def __get__(self, instance: "Metadata", _owner: Type["Metadata"]) -> T:
-        # With Python 3.8, the caching can be replaced with functools.cached_property().
+        # With Python 3.8+, the caching can be replaced with functools.cached_property().
         # No need to check the cache as attribute lookup will resolve into the
         # instance's __dict__ before __get__ is called.
         cache = instance.__dict__

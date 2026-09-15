@@ -509,6 +509,10 @@ static int aes_ocb_cipher(void *vctx, unsigned char *out, size_t *outl,
     if (!ossl_prov_is_running())
         return 0;
 
+    /* NULL input indicates Final, which must generate or check the tag. */
+    if (in == NULL)
+        return aes_ocb_block_final(vctx, out, outl, outsize);
+
     if (outsize < inl) {
         ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);
         return 0;

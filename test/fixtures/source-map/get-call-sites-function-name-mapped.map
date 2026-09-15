@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["get-call-sites-function-name-original.js"],
+  "sourcesContent": ["const { getCallSites } = require('node:util'); function foo() { process.stdout.write(JSON.stringify(getCallSites({ sourceMap: true })[0])); } foo();"],
+  "mappings": "AAAA,KAAM,CAAE,YAAa,EAAI,QAAQ,WAAW,EAAG,SAAS,KAAM,CAAE,QAAQ,OAAO,MAAM,KAAK,UAAU,aAAa,CAAE,UAAW,EAAK,CAAC,EAAE,CAAC,CAAC,CAAC,CAAG,CAAE,IAAI",
+  "names": []
+}

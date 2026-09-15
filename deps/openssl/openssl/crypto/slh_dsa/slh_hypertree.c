@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include <string.h>
+#include <openssl/crypto.h>
 #include "slh_dsa_local.h"
 #include "slh_dsa_key.h"
 
@@ -33,6 +34,7 @@ int ossl_slh_ht_sign(SLH_DSA_HASH_CTX *ctx,
     const uint8_t *pk_seed,
     uint64_t tree_id, uint32_t leaf_id, WPACKET *sig_wpkt)
 {
+    int ret = 0;
     const SLH_DSA_KEY *key = ctx->key;
     SLH_ADRS_FUNC_DECLARE(key, adrsf);
     SLH_ADRS_DECLARE(adrs);
@@ -70,7 +72,7 @@ int ossl_slh_ht_sign(SLH_DSA_HASH_CTX *ctx,
         psig = WPACKET_get_curr(sig_wpkt);
         if (!ossl_slh_xmss_sign(ctx, root, sk_seed, leaf_id, pk_seed, adrs,
                 sig_wpkt))
-            return 0;
+            goto err;
         /*
          * On the last loop it skips getting the public key since it is not needed
          * to calculate another signature. If this was called it should equal
@@ -79,15 +81,18 @@ int ossl_slh_ht_sign(SLH_DSA_HASH_CTX *ctx,
         if (layer < d - 1) {
             if (!PACKET_buf_init(xmss_sig_rpkt, psig,
                     WPACKET_get_curr(sig_wpkt) - psig))
-                return 0;
+                goto err;
             if (!ossl_slh_xmss_pk_from_sig(ctx, leaf_id, xmss_sig_rpkt, root,
                     pk_seed, adrs, root, sizeof(root)))
-                return 0;
+                goto err;
             leaf_id = tree_id & mask;
             tree_id >>= hm;
         }
     }
-    return 1;
+    ret = 1;
+err:
+    OPENSSL_cleanse(root, sizeof(root));
+    return ret;
 }
 
 /**
@@ -108,6 +113,7 @@ int ossl_slh_ht_verify(SLH_DSA_HASH_CTX *ctx, const uint8_t *msg, PACKET *sig_pk
     const uint8_t *pk_seed, uint64_t tree_id, uint32_t leaf_id,
     const uint8_t *pk_root)
 {
+    int ret = 0;
     const SLH_DSA_KEY *key = ctx->key;
     SLH_ADRS_FUNC_DECLARE(key, adrsf);
     SLH_ADRS_DECLARE(adrs);
@@ -127,9 +133,12 @@ int ossl_slh_ht_verify(SLH_DSA_HASH_CTX *ctx, const uint8_t *msg, PACKET *sig_pk
         adrsf->set_tree_address(adrs, tree_id);
         if (!ossl_slh_xmss_pk_from_sig(ctx, leaf_id, sig_pkt, node,
                 pk_seed, adrs, node, sizeof(node)))
-            return 0;
+            goto err;
         leaf_id = tree_id & mask;
         tree_id >>= tree_height;
     }
-    return (memcmp(node, pk_root, n) == 0);
+    ret = (memcmp(node, pk_root, n) == 0);
+err:
+    OPENSSL_cleanse(node, sizeof(node));
+    return ret;
 }

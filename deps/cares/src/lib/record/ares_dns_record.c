@@ -929,13 +929,22 @@ ares_status_t ares_dns_rr_add_abin(ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
   ares_dns_datatype_t datatype = ares_dns_rr_key_datatype(key);
   ares_bool_t         is_nullterm =
     (datatype == ARES_DATATYPE_ABINP) ? ARES_TRUE : ARES_FALSE;
-  size_t                   alloclen = is_nullterm ? len + 1 : len;
+  size_t                   alloclen;
   unsigned char           *temp;
   ares_dns_multistring_t **strs;
 
   if (ares_dns_rr_key_datatype(key) != ARES_DATATYPE_ABINP) {
     return ARES_EFORMERR;
   }
+
+  if (val == NULL && len != 0) {
+    return ARES_EFORMERR;
+  }
+
+  if (is_nullterm && len == SIZE_MAX) {
+    return ARES_ENOMEM;
+  }
+  alloclen = is_nullterm ? len + 1 : len;
 
   strs = ares_dns_rr_data_ptr(dns_rr, key, NULL);
   if (strs == NULL) {
@@ -954,7 +963,9 @@ ares_status_t ares_dns_rr_add_abin(ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
     return ARES_ENOMEM;
   }
 
-  memcpy(temp, val, len);
+  if (len != 0) {
+    memcpy(temp, val, len);
+  }
 
   /* NULL-term ABINP */
   if (is_nullterm) {
@@ -1237,14 +1248,32 @@ ares_status_t ares_dns_rr_set_bin(ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
     (datatype == ARES_DATATYPE_BINP || datatype == ARES_DATATYPE_ABINP)
               ? ARES_TRUE
               : ARES_FALSE;
-  size_t         alloclen = is_nullterm ? len + 1 : len;
-  unsigned char *temp     = ares_malloc(alloclen);
+  size_t         alloclen;
+  unsigned char *temp;
+
+  if (datatype != ARES_DATATYPE_BIN && datatype != ARES_DATATYPE_BINP &&
+      datatype != ARES_DATATYPE_ABINP) {
+    return ARES_EFORMERR;
+  }
+
+  if (val == NULL && len != 0) {
+    return ARES_EFORMERR;
+  }
+
+  if (is_nullterm && len == SIZE_MAX) {
+    return ARES_ENOMEM;
+  }
+  alloclen = is_nullterm ? len + 1 : len;
+
+  temp = ares_malloc(alloclen);
 
   if (temp == NULL) {
     return ARES_ENOMEM;
   }
 
-  memcpy(temp, val, len);
+  if (len != 0) {
+    memcpy(temp, val, len);
+  }
 
   /* NULL-term BINP */
   if (is_nullterm) {
@@ -1400,12 +1429,23 @@ ares_status_t ares_dns_rr_set_opt(ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
   ares_status_t  status;
 
   if (val != NULL) {
-    temp = ares_malloc(val_len + 1);
+    size_t alloclen;
+
+    if (val_len == SIZE_MAX) {
+      return ARES_ENOMEM;
+    }
+    alloclen = val_len + 1;
+
+    temp = ares_malloc(alloclen);
     if (temp == NULL) {
       return ARES_ENOMEM;
     }
-    memcpy(temp, val, val_len);
+    if (val_len != 0) {
+      memcpy(temp, val, val_len);
+    }
     temp[val_len] = 0;
+  } else if (val_len != 0) {
+    return ARES_EFORMERR;
   }
 
   status = ares_dns_rr_set_opt_own(dns_rr, key, opt, temp, val_len);

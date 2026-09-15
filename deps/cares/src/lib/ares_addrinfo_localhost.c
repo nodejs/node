@@ -67,13 +67,8 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
                                   struct ares_addrinfo_node **nodes)
 {
   struct ares_addrinfo_node *node;
-
-  node = ares_append_addrinfo_node(nodes);
-  if (!node) {
-    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-
-  memset(node, 0, sizeof(*node));
+  struct sockaddr           *sa;
+  socklen_t                  salen;
 
   if (aftype == AF_INET) {
     struct sockaddr_in *sin = ares_malloc(sizeof(*sin));
@@ -86,14 +81,9 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
     sin->sin_family = AF_INET;
     sin->sin_port   = htons(port);
 
-    node->ai_addr    = (struct sockaddr *)sin;
-    node->ai_family  = AF_INET;
-    node->ai_addrlen = sizeof(*sin);
-    node->ai_addr    = (struct sockaddr *)sin;
-    node->ai_ttl     = (int)ttl;
-  }
-
-  if (aftype == AF_INET6) {
+    sa    = (struct sockaddr *)sin;
+    salen = sizeof(*sin);
+  } else if (aftype == AF_INET6) {
     struct sockaddr_in6 *sin6 = ares_malloc(sizeof(*sin6));
     if (!sin6) {
       return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
@@ -104,12 +94,22 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
     sin6->sin6_family = AF_INET6;
     sin6->sin6_port   = htons(port);
 
-    node->ai_addr    = (struct sockaddr *)sin6;
-    node->ai_family  = AF_INET6;
-    node->ai_addrlen = sizeof(*sin6);
-    node->ai_addr    = (struct sockaddr *)sin6;
-    node->ai_ttl     = (int)ttl;
+    sa    = (struct sockaddr *)sin6;
+    salen = sizeof(*sin6);
+  } else {
+    return ARES_EFORMERR;
   }
+
+  node = ares_append_addrinfo_node(nodes);
+  if (!node) {
+    ares_free(sa);                /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM;           /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  node->ai_addr    = sa;
+  node->ai_family  = aftype;
+  node->ai_addrlen = salen;
+  node->ai_ttl     = (int)ttl;
 
   return ARES_SUCCESS;
 }

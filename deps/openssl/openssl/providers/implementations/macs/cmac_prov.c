@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -275,7 +275,7 @@ static int cmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
                 && !EVP_CIPHER_is_a(cipher, "AES-192-CBC")
                 && !EVP_CIPHER_is_a(cipher, "AES-128-CBC")
                 && !EVP_CIPHER_is_a(cipher, "DES-EDE3-CBC")) {
-                ERR_raise(ERR_LIB_PROV, EVP_R_UNSUPPORTED_CIPHER);
+                ERR_raise(ERR_LIB_PROV, PROV_R_NOT_SUPPORTED);
                 return 0;
             }
         }

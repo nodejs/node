@@ -54,8 +54,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps
         run: choco install nasm
-      - name: Environment Information
-        run: npx envinfo
       - name: Build
         run: ./vcbuild.bat
       # TODO(bcoe): investigate tests that fail with coverage enabled

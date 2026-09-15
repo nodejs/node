@@ -22,8 +22,6 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Environment Information
-        run: npx envinfo
       - name: Build lto
         run: |
           sudo apt-get update && sudo apt-get install ninja-build -y

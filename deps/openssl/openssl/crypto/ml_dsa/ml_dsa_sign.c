@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -197,6 +197,7 @@ err:
     EVP_MD_CTX_free(md_ctx);
     OPENSSL_clear_free(alloc, alloc_len);
     OPENSSL_cleanse(rho_prime, sizeof(rho_prime));
+    OPENSSL_cleanse(c_tilde, sizeof(c_tilde));
     return ret;
 }
 
@@ -387,7 +388,13 @@ int ossl_ml_dsa_sign(const ML_DSA_KEY *priv, int msg_is_mu,
                 alloced_m = m;
         }
         ret = ml_dsa_sign_internal(priv, msg_is_mu, m, m_len, rand, rand_len, sig);
-        OPENSSL_free(alloced_m);
+        /* The encoded message may contain confidential message content */
+        if (m != msg) {
+            if (m != m_tmp)
+                OPENSSL_clear_free(alloced_m, m_len);
+            else
+                OPENSSL_cleanse(m_tmp, sizeof(m_tmp));
+        }
     }
     if (sig_len != NULL)
         *sig_len = priv->params->sig_len;
@@ -424,6 +431,12 @@ int ossl_ml_dsa_verify(const ML_DSA_KEY *pub, int msg_is_mu,
     }
 
     ret = ml_dsa_verify_internal(pub, msg_is_mu, m, m_len, sig, sig_len);
-    OPENSSL_free(alloced_m);
+    /* The encoded message may contain confidential message content */
+    if (m != msg) {
+        if (m != m_tmp)
+            OPENSSL_clear_free(alloced_m, m_len);
+        else
+            OPENSSL_cleanse(m_tmp, sizeof(m_tmp));
+    }
     return ret;
 }

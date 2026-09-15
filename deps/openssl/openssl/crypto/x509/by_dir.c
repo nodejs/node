@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -228,7 +228,7 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
         X509 st_x509;
         X509_CRL crl;
     } data;
-    int ok = 0;
+    int res, ok = 0;
     int i, j, k;
     unsigned long h;
     BUF_MEM *b = NULL;
@@ -320,25 +320,35 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
             }
 #ifndef OPENSSL_NO_POSIX_IO
 #ifdef _WIN32
+#define lstat _stat
 #define stat _stat
 #endif
             {
                 struct stat st;
-                if (stat(b->data, &st) < 0)
-                    break;
+                if (lstat(b->data, &st) < 0)
+                    break; /* file does not exist, not even a symlink */
+#ifndef _WIN32
+                if (stat(b->data, &st) < 0) {
+                    k++;
+                    continue; /* symlink is broken: following it went wrong */
+                }
+#endif
             }
 #endif
-            /* found one. */
-            if (type == X509_LU_X509) {
-                if ((X509_load_cert_file_ex(xl, b->data, ent->dir_type, libctx,
-                        propq))
-                    == 0)
-                    break;
-            } else if (type == X509_LU_CRL) {
-                if ((X509_load_crl_file(xl, b->data, ent->dir_type)) == 0)
-                    break;
-            }
+            res = 0;
+            ERR_set_mark();
+            if (type == X509_LU_X509)
+                res = X509_load_cert_file_ex(xl, b->data, ent->dir_type, libctx, propq);
+            else if (type == X509_LU_CRL)
+                res = X509_load_crl_file(xl, b->data, ent->dir_type);
             /* else case will caught higher up */
+            ERR_pop_to_mark();
+            /* unless OPENSSL_NO_POSIX_IO, gracefully skip found file if cert/CRL fails to load. */
+#ifndef OPENSSL_NO_POSIX_IO
+            res = 1;
+#endif
+            if (res == 0)
+                break;
             k++;
         }
 

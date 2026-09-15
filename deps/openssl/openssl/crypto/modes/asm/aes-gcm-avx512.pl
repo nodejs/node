@@ -1,4 +1,4 @@
-# Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2021, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -69,6 +69,13 @@ if (!$avx512vaes && `$ENV{CC} -v 2>&1`
         $avx512vaes = ($ver>=10.0001)
     } else {
         $avx512vaes = ($ver>=7.0);
+    }
+}
+
+if (!$avx512vaes && `$ENV{CC} -x c /dev/null -dM -E|grep __clang_major__`
+    =~ /#define __clang_major__.([0-9]+)/) {
+    if ($1) {
+        $avx512vaes = ($1>=11); #icx started with clang 11
     }
 }
 
