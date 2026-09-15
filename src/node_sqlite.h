@@ -289,6 +289,13 @@ class DatabaseSync : public BaseObject {
   void DecrementCallbackDepth() { --callback_depth_; }
   bool IsInCallback() const { return callback_depth_ > 0; }
 
+  // SQLite reaches back into JavaScript from inside its pre-update hook, while
+  // it is still walking this connection's session list. Session objects are
+  // weak, so a garbage collection during such a callback could collect one and
+  // free memory SQLite is still using. Returns a strong reference to every
+  // attached session so that a callback can hold them for its duration.
+  std::vector<BaseObjectPtr<Session>> PinSessions() const;
+
   // SQLite forbids an authorizer callback from doing anything that modifies
   // the database connection that invoked it, which includes preparing and
   // stepping statements. See https://www.sqlite.org/c3ref/set_authorizer.html.
@@ -323,7 +330,10 @@ class DatabaseSync : public BaseObject {
   DatabaseOpenConfiguration open_config_;
   bool allow_load_extension_;
   bool enable_load_extension_;
-  sqlite3* connection_;
+  struct ConnectionDeleter {
+    void operator()(sqlite3* db) const { sqlite3_close_v2(db); }
+  };
+  std::unique_ptr<sqlite3, ConnectionDeleter> connection_;
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
   int authorizer_depth_ = 0;
@@ -452,7 +462,10 @@ class Session : public BaseObject {
 
  private:
   void Delete();
-  sqlite3_session* session_;
+  struct SessionDeleter {
+    void operator()(sqlite3_session* s) const { sqlite3session_delete(s); }
+  };
+  std::unique_ptr<sqlite3_session, SessionDeleter> session_;
   BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
   bool is_generating_changeset_ = false;
 
@@ -499,9 +512,13 @@ class SQLTagStore : public BaseObject {
   friend class StatementExecutionHelper;
 };
 
+// Guards a window in which SQLite hands control back to JavaScript. Construct
+// it before allocating anything on the V8 heap, since the pinned sessions
+// below are what keep a garbage collection during that window safe.
 class CallbackDepthGuard {
  public:
-  explicit CallbackDepthGuard(DatabaseSync* db) : db_(db) {
+  explicit CallbackDepthGuard(DatabaseSync* db)
+      : db_(db), pinned_sessions_(db->PinSessions()) {
     db_->IncrementCallbackDepth();
   }
   ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
@@ -510,6 +527,7 @@ class CallbackDepthGuard {
 
  private:
   DatabaseSync* db_;
+  std::vector<BaseObjectPtr<Session>> pinned_sessions_;
 };
 
 class TraceEventSuppressionGuard {

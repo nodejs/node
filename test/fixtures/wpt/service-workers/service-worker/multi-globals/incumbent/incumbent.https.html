@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Incumbent page used as a test helper</title>
+
+<iframe src="../current/current.https.html" id="c"></iframe>
+<iframe src="../relevant/relevant.https.html" id="r"></iframe>
+
+<script>
+'use strict';
+
+const current = document.querySelector('#c').contentWindow;
+const relevant = document.querySelector('#r').contentWindow;
+
+window.testRegister = options => {
+    return current.navigator.serviceWorker.register.call(relevant.navigator.serviceWorker, 'test-sw.js', options);
+};
+
+window.testGetRegistration = () => {
+    return current.navigator.serviceWorker.getRegistration.call(relevant.navigator.serviceWorker, 'test-sw.js');
+};
+</script>

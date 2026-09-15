@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title> WorkerLocation href attribute </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var worker = new Worker("./support/WorkerLocation.js?srch%20#hash");
+  worker.onmessage = t.step_func_done(function(e) {
+    var href = location.href;
+    var expected = href.substring(0, href.lastIndexOf('/')) + "/support/WorkerLocation.js?srch%20#hash";
+    assert_equals(e.data.href, expected);
+  });
+});
+</script>

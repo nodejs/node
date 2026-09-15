@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>Service Worker: Partitioned Cookies</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/partitioned-cookies-test-helpers.js"></script>
+</head>
+
+<!--
+  This test exercises partitioned service workers' interaction with partitioned
+  cookies. Partitioned service workers should only be able to interact with
+  partitioned cookies whose partition key matches the worker's partition.
+-->
+
+<body>
+<script>
+
+promise_test(async t => {
+  const script = './resources/partitioned-cookies-sw.js'
+  const scope = './resources/partitioned-cookies-'
+  const absolute_scope = new URL(scope, window.location).href;
+
+  // Set a Partitioned cookie.
+  document.cookie =
+      '__Host-partitioned=123; Secure; Path=/; SameSite=None; Partitioned;';
+  assert_true(document.cookie.includes('__Host-partitioned=123'));
+
+  // Set an unpartitioned cookie.
+  document.cookie = 'unpartitioned=456; Secure; Path=/; SameSite=None;';
+  assert_true(document.cookie.includes('unpartitioned=456'));
+
+  const reg = await service_worker_unregister_and_register(t, script, scope);
+  await wait_for_state(t, reg.installing, 'activated');
+  t.add_cleanup(() => reg.unregister());
+
+  const next_message = worker_message_generator();
+
+  const retrieved_registrations =
+        await navigator.serviceWorker.getRegistrations();
+  // It's possible that other tests have left behind other service workers.
+  // This steps filters those other SWs out.
+  const filtered_registrations =
+    retrieved_registrations.filter(reg => reg.scope == absolute_scope);
+
+  // First test that the worker script started correctly and message passing
+  // is enabed.
+  filtered_registrations[0].active.postMessage({type: 'test_message'});
+  const msg1 = await next_message();
+  assert_true(msg1.ok, 'Message passing');
+
+  // Test that the partitioned cookie is available to this worker via HTTP.
+  filtered_registrations[0].active.postMessage({type: 'echo_cookies_http'});
+  const msg2 = await next_message();
+  assert_true(msg2.ok, 'Get cookies');
+  assert_true(
+      msg2.cookies.includes('__Host-partitioned'),
+      'Can access partitioned cookie via HTTP');
+  assert_true(
+      msg2.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via HTTP');
+
+  // Test that the partitioned cookie is available to this worker via
+  // CookieStore API.
+  filtered_registrations[0].active.postMessage({type: 'echo_cookies_js'});
+  const msg3 = await next_message();
+  assert_true(msg3.ok, 'Get cookies');
+  assert_true(
+      msg3.cookies.includes('__Host-partitioned'),
+      'Can access partitioned cookie via JS');
+  assert_true(
+      msg3.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via JS');
+
+  // Test that the partitioned cookie is not available to this worker in HTTP
+  // requests from importScripts.
+  filtered_registrations[0].active.postMessage({type: 'echo_cookies_import'});
+  const msg4 = await next_message();
+  assert_true(msg4.ok, 'Get cookies');
+  assert_true(
+      msg4.cookies.includes('__Host-partitioned'),
+      'Can access partitioned cookie via importScripts');
+  assert_true(
+      msg4.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via importScripts');
+
+  const popup = window.open(
+      new URL(
+          `./resources/partitioned-cookies-3p-window.html?origin=${
+              encodeURIComponent(self.location.origin)}`,
+          get_host_info().HTTPS_NOTSAMESITE_ORIGIN + self.location.pathname));
+  await fetch_tests_from_window(popup);
+});
+
+</script>
+</body>
+</html>

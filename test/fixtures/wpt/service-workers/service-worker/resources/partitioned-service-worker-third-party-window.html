@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Service Worker: 3P window for partitioned service workers</title>
+<script src="./test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+
+
+<body>
+This page should be opened as a third-party window. It then loads an iframe
+specified by the query parameter. Finally it forwards the postMessage from the
+iframe up to the opener (the test).
+
+<script>
+
+async function onLoad() {
+  const message_promise = new Promise(resolve => {
+    self.addEventListener('message', evt => {
+      resolve(evt.data);
+    });
+  });
+
+  const search_param = new URLSearchParams(window.location.search);
+  const iframe_url = search_param.get('target');
+
+  var frame = document.createElement('iframe');
+  frame.src = iframe_url;
+  frame.style.position = 'absolute';
+  document.body.appendChild(frame);
+
+
+  await message_promise.then(data => {
+    // We're done, forward the message and clean up.
+    window.opener.postMessage(data, '*');
+
+    frame.remove();
+  });
+}
+
+self.addEventListener('load', onLoad);
+
+</script>
+</body>

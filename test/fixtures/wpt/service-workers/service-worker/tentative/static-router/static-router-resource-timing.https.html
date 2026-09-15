@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: timing information should be shown when used.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script src="/service-workers/service-worker/resources/static-router-helpers.sub.js"></script>
+<body>
+<script>
+const ROUTER_RULE_KEY = 'condition-urlpattern-constructed-source-network';
+const ROUTER_RULE_KEY_URLPATTERN_CACHE =
+  'condition-urlpattern-string-source-cache';
+const ROUTER_RULE_KEY_REQUEST_CACHE = 'condition-request-navigate-source-cache';
+const ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_MATCH_ALL_CACHE =
+  'condition-urlpattern-constructed-match-all-source-cache';
+const ROUTER_RULE_KEY_REQUEST_FETCH = 'condition-urlpattern-string-source-fetch-event';
+const REGISTERED_ROUTE = '/service-workers/service-worker/resources/direct.txt';
+const CACHED_ROUTE = '/service-workers/service-worker/resources/cache.txt';
+const NON_REGISTERED_ROUTE = '/service-workers/service-worker/resources/simple.html';
+
+const RACE_ROUTER_KEY =
+  'condition-urlpattern-string-source-race-network-and-fetch-handler';
+const RACE_SW_SRC = '/service-workers/service-worker/resources/static-router-race-network-and-fetch-handler-sw.js';
+const RACE_ROUTE = '/service-workers/service-worker/resources/direct.py';
+
+const host_info = get_host_info();
+
+function resourceUrl(resource) {
+  return `${host_info['HTTPS_ORIGIN']}${resource}`;
+}
+
+// Verify existance of a PerformanceEntry and the order between the timings of
+// ServiceWorker Static routing API.
+//
+// |options| has these properties:
+// performance: Performance interface to verify existance of the entry.
+// url: the URL of resource
+// description: the description passed to each assertion.
+// matched_source: the expected matched source of router evaluation.
+// actual_source: the expected actual source used to get the resource.
+function test_resource_timing(options) {
+  const description = options.description;
+  const entryList = options.performance.getEntriesByName(resourceUrl(options.url));
+  assert_equals(entryList.length, 1, description);
+  const entry = entryList[0];
+
+  // FIXME: Remove workerMatchedSourceType and workerFinalSourceType when moved out of tentative.
+  const workerMatchedRouterSource = "workerMatchedRouterSource" in entry ? entry.workerMatchedRouterSource : entry.workerMatchedSourceType;
+  const workerFinalRouterSource = "workerFinalRouterSource" in entry ? entry.workerFinalRouterSource : entry.workerFinalSourceType;
+
+  assert_equals(workerMatchedRouterSource, options.matched_source_type, description);
+  assert_equals(workerFinalRouterSource, options.final_source_type, description);
+
+  assert_greater_than(entry.workerRouterEvaluationStart, 0, description);
+  switch (entry.matchedSouceType) {
+    case 'network':
+      assert_equals(entry.workerStart, 0, description);
+      assert_equals(entry.workerCacheLookupStart, 0, description);
+      assert_less_than_equal(entry.workerRouterEvaluationStart, entry.fetchStart, description);
+      assert_greater_than(entry.encodedBodySize, 0, description);
+      break;
+    case 'cache':
+      assert_equals(entry.workerStart, 0, description);
+      assert_greater_than_equal(entry.workerCacheLookupStart, entry.workerRouterEvaluationStart, description);
+      assert_greater_than(entry.encodedBodySize, 0, description);
+      if (entry.workerFinalSourceType === 'cache') {
+        assert_equals(entry.fetchStart, entry.responseStart, description);
+        assert_less_than_equal(entry.workerCacheLookupStart, entry.responseStart, description);
+        assert_equals(entry.deliveryType, 'cache-storage', description);
+      } else {
+        assert_less_than_equal(entry.workerCacheLookupStart, entry.fetchStart, description);
+      }
+      break;
+    case 'race-network-and-fetch-handler':
+      assert_equals(entry.workerCacheLookupStart, 0, description);
+      assert_greater_than(entry.encodedBodySize, 0, description);
+      if (entry.workerFinalSourceType === 'network') {
+        assert_equals(entry.workerStart, 0, description);
+        assert_less_than_equal(entry.workerRouterEvaluationStart, entry.fetchStart, description);
+      } else {
+        assert_greater_than_equal(entry.workerStart, entry.workerRouterEvaluationStart, description);
+        assert_greater_than_equal(entry.fetchStart, entry.workerStart, description);
+      }
+      break;
+    case 'fetch-event':
+      assert_greater_than(entry.encodedBodySize, 0, description);
+      break;
+    case '':  // i.e. no matching rules
+      assert_equals(entry.workerCacheLookupStart, 0, description);
+      assert_greater_than_equal(entry.workerStart, entry.workerRouterEvaluationStart, description);
+      assert_greater_than_equal(entry.fetchStart, entry.workerStart, description);
+      break;
+  }
+}
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_RULE_KEY_REQUEST_FETCH);
+  const rnd = randomString();
+  const url = `${NON_REGISTERED_ROUTE}?nonce=${rnd}`;
+  const iframe = await createIframe(t, url);
+  const {errors, requests} = await get_info_from_worker(worker);
+
+  assert_equals(errors.length, 0);
+  assert_equals(requests.length, 1);
+  assert_equals(iframe.contentWindow.document.body.innerText, rnd);
+
+  test_resource_timing({
+    performance: iframe.contentWindow.performance,
+    url: url,
+    matched_source_type: 'fetch-event',
+    final_source_type: 'fetch-event',
+    description: "fetch-event as source on main resource"
+  });
+}, 'Main resource matched the rule with fetch-event source');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_KEY, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "Network\n");
+  test_resource_timing({
+    performance: iwin.performance,
+    url: REGISTERED_ROUTE,
+    matched_source_type: 'network',
+    final_source_type: 'network',
+    description: "network as source on main resource"
+  });
+}, 'Main resource load matched with the condition and resource timing');
+
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(
+    requests[0].url,
+    resourceUrl(NON_REGISTERED_ROUTE));
+  assert_equals(requests[0].mode, 'navigate');
+  test_resource_timing({
+    performance: iwin.performance,
+    url: NON_REGISTERED_ROUTE,
+    matched_source_type: '',
+    final_source_type: '',
+    description: "no rule matched on main resource"
+  });
+}, 'Main resource load not matched with the condition and resource timing');
+
+iframeTest(CACHED_ROUTE, ROUTER_RULE_KEY_URLPATTERN_CACHE, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "From cache");
+  test_resource_timing({
+    performance: iwin.performance,
+    url: CACHED_ROUTE,
+    matched_source_type: 'cache',
+    final_source_type: 'cache',
+    description: "cache as source on main resource and cache hit"
+  });
+}, 'Main resource load matched with the cache source and resource timing');
+
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY_REQUEST_CACHE, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  // When the request matched to the rule with the "cache" source but failed to
+  // get the cache entry, the fetch handler is not involved and the network
+  // fallback is triggered instead.
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "Here's a simple html file.");
+  test_resource_timing({
+    performance: iwin.performance,
+    url: NON_REGISTERED_ROUTE,
+    matched_source_type: 'cache',
+    final_source_type: 'network',
+    description: "cache as source on main resource and cache miss, fallback to network"
+  });
+}, 'Main resource fallback to the network when there is no cache entry and resource timing');
+
+// Subresource
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY_REQUEST_FETCH, async (t, iwin, worker) => {
+  const rnd = randomString();
+  const subresource = `?nonce=${rnd}`;
+  const response = await iwin.fetch(subresource);
+
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), rnd);
+  const {requests} = await get_info_from_worker(worker);
+  // Main resource request + subreosurce request = 2.
+  assert_equals(requests.length, 2);
+
+  test_resource_timing({
+    performance: iwin.performance,
+    url: `${NON_REGISTERED_ROUTE}${subresource}`,
+    matched_source_type: 'fetch-event',
+    final_source_type: 'fetch-event',
+    description: "fetch-event as source on sub resource"
+  });
+}, 'Subresource load matched the rule fetch-event source');
+
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY, async (t, iwin) => {
+  const rnd = randomString();
+  const subresource = `?nonce=${rnd}`;
+  const response = await iwin.fetch(subresource);
+  assert_equals(await response.text(), rnd);
+  test_resource_timing({
+    performance: iwin.performance,
+    url: NON_REGISTERED_ROUTE + subresource,
+    matched_source_type: '',
+    final_source_type: '',
+    description: "no source type matched"
+  });
+}, 'Subresource load not matched with URLPattern condition');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_KEY, async (t, iwin) => {
+  const rnd = randomString();
+  const subresource = `?nonce=${rnd}`;
+  const response = await iwin.fetch(subresource);
+  assert_equals(await response.text(), "Network\n");
+  test_resource_timing({
+    performance: iwin.performance,
+    url: REGISTERED_ROUTE + subresource,
+    matched_source_type: 'network',
+    final_source_type: 'network',
+    description: "network as source on subresource"
+  });
+}, 'Subresource load matched with URLPattern condition');
+
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY_URLPATTERN_CACHE, async (t, iwin) => {
+  // No need to set `resources/` because the request is dispatched from iframe.
+  const CACHED_FILE = 'cache.txt';
+  const response = await iwin.fetch(CACHED_FILE);
+  assert_equals(await response.text(), "From cache");
+  test_resource_timing({
+    performance: iwin.performance,
+    url: CACHED_ROUTE, // We need a path including `resources/` to get the resource
+    matched_source_type: 'cache',
+    final_source_type: 'cache',
+    description: "cache as source on subresource and cache hits"
+  });
+}, 'Subresource load matched with the cache source rule');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_KEY_URL_PATTERN_CONSTRUCTED_MATCH_ALL_CACHE, async (t, iwin, worker) => {
+  // Send a request, which is not stored in the cache, but it exists over the network.
+  const rnd = randomString();
+  let subresource = `?nonce=${rnd}`;
+  let response = await iwin.fetch(subresource);
+  assert_equals(await response.text(), "Network\n");
+  assert_equals(response.status, 200);
+
+  // Request is not handled by ServiceWorker.
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  test_resource_timing({
+    performance: iwin.performance,
+    url: `${REGISTERED_ROUTE}${subresource}`,
+    matched_source_type: 'cache',
+    final_source_type: 'network',
+    description: "cache as source on subresource and cache misses"
+  });
+}, 'Subresource load did not match with the cache and fallback to the network');
+
+// Race Tests
+promise_test(async t => {
+  const rnd = randomString();
+  const url = `${RACE_ROUTE}?nonce=${rnd}&server_slow`;
+  const worker = await registerAndActivate(t, RACE_ROUTER_KEY, RACE_SW_SRC);
+  const iframe = await createIframe(t, url);
+  // Expect the response from the fetch handler.
+  assert_equals(iframe.contentWindow.document.body.innerText, rnd);
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  test_resource_timing({
+    performance: iframe.contentWindow.performance,
+    url: url,
+    matched_source_type: 'race-network-and-fetch-handler',
+    final_source_type: 'fetch-event',
+    description: "race as source on main resource, and fetch-event wins"
+  });
+}, 'Main resource load matched the rule with race-network-and-fetch-handler source, and the fetch handler response is faster than the server response');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const url = `${RACE_ROUTE}?nonce=${rnd}&sw_slow`;
+  const worker = await registerAndActivate(t, RACE_ROUTER_KEY, RACE_SW_SRC);
+  const iframe = await createIframe(t, url);
+  // Expect the response from the netowrk request.
+  assert_equals(iframe.contentWindow.document.body.innerText, "Network with GET request");
+  // Ensure the fetch handler is also executed.
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  test_resource_timing({
+    performance: iframe.contentWindow.performance,
+    url: url,
+    matched_source_type: 'race-network-and-fetch-handler',
+    final_source_type: 'network',
+    description: "race as source on main resource, and network wins"
+  });
+}, 'Main resource load matched the rule with race-network-and-fetch-handler source, and the server reseponse is faster than the fetch handler');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, RACE_ROUTER_KEY, RACE_SW_SRC);
+  const iframe = await createIframe(t, RACE_ROUTE);
+  const subresource = `?nonce=${rnd}&server_slow`;
+  // Expect the response from the fetch handler.
+  const response = await iframe.contentWindow.fetch(subresource);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), rnd);
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 2);
+
+  test_resource_timing({
+    performance: iframe.contentWindow.performance,
+    url: `${RACE_ROUTE}${subresource}`,
+    matched_source_type: 'race-network-and-fetch-handler',
+    final_source_type: 'fetch-event',
+    description: "race as source on subresource and fetch wins"
+  });
+}, 'Subresource load matched the rule with race-network-and-fetch-handler source, and the fetch handler response is faster than the server response');
+
+promise_test(async t => {
+  const rnd = randomString();
+  const worker = await registerAndActivate(t, RACE_ROUTER_KEY, RACE_SW_SRC);
+  const iframe = await createIframe(t, RACE_ROUTE);
+  const subresource = `?nonce=${rnd}&sw_slow`;
+  // Expect the response from the network request.
+  const response = await iframe.contentWindow.fetch(subresource);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), "Network with GET request");
+  // Ensure the fetch handler is also executed.
+  const {requests}  = await get_info_from_worker(worker);
+  assert_equals(requests.length, 2);
+
+  test_resource_timing({
+    performance: iframe.contentWindow.performance,
+    url: `${RACE_ROUTE}${subresource}`,
+    matched_source_type: 'race-network-and-fetch-handler',
+    final_source_type: 'network',
+    description: "race as source on subresource and network wins"
+  });
+}, 'Subresource load matched the rule with race-network-and-fetch-handler source, and the server reseponse is faster than the fetch handler');
+</script>
+</body>

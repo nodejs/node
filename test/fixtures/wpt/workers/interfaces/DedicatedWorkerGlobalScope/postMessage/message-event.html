@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>'message' event properties</title>
+<link rel=help href="http://www.whatwg.org/html/#dom-dedicatedworkerglobalscope-postmessage">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+async_test("Properties of the 'message' event").step(function() {
+  var worker = new Worker("message-event.js");
+  worker.onmessage = this.step_func_done(function (evt) {
+    assert_class_string(evt, "MessageEvent");
+    assert_equals(evt.type, "message");
+    assert_false(evt.bubbles, "bubbles should be false");
+    assert_false(evt.cancelable, "cancelable should be false");
+    assert_equals(evt.data, "test");
+    assert_equals(evt.origin, "", "origin");
+    assert_equals(evt.lastEventId, "", "lastEventId");
+    assert_equals(evt.source, null, "source");
+    assert_array_equals(evt.ports, [], "ports");
+  });
+});
+</script>

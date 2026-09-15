@@ -46,7 +46,7 @@ const expectedJsons = linkedHtmls
                        .map((name) => name.replace('.html', '.json'));
 const expectedDocs = linkedHtmls.concat(expectedJsons);
 const renamedDocs = ['policy.json', 'policy.html'];
-const skipedDocs = ['quic.json', 'quic.html'];
+const skipedDocs = ['dtls.json', 'dtls.html', 'quic.json', 'quic.html'];
 
 // Test that all the relative links in the TOC match to the actual documents.
 for (const expectedDoc of expectedDocs) {
@@ -61,7 +61,8 @@ for (const actualDoc of actualDocs) {
   // Unless the old file is still available pointing to the correct location
   // 301 redirects are not yet automated. So keeping the old URL is a
   // reasonable workaround.
-  if (renamedDocs.includes(actualDoc) || actualDoc === 'apilinks.json') continue;
+  if (renamedDocs.includes(actualDoc) || skipedDocs.includes(actualDoc) ||
+      actualDoc === 'apilinks.json') continue;
   assert.ok(
     expectedDocs.includes(actualDoc), `${actualDoc} does not match TOC`);
 

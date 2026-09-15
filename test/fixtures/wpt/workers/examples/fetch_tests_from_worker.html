@@ -1,0 +1,21 @@
+<!doctype html>
+<!--
+  This file is an example of a hand-written test using
+  fetch_tests_from_worker().
+  Unlike *.any.js or *.worker.js tests, fetch_tests_from_worker.html/js files
+  are manually written and no generated glue code are involved.
+-->
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+fetch_tests_from_worker(new Worker("fetch_tests_from_worker.js"));
+
+// If you want to test on SharedWorker,
+// fetch_tests_from_worker(new SharedWorker("fetch_tests_from_worker.js"));
+
+// See ServiceWorkersHandler in
+// https://github.com/web-platform-tests/wpt/blob/master/tools/serve/serve.py
+// for the generated snippet used in .any.js for service workers.
+// Note: when testing service workers, also add ".https." file flag in the
+// main HTML's file name to run the test on HTTPS.
+</script>

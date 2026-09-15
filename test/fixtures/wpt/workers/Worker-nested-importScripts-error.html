@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>This tests that errors from nested importScripts have the expected provenance.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+promise_test(t => {
+  let worker;
+
+  return new Promise((resolve) => {
+    worker = new Worker("support/importScripts-1.js");
+    worker.onerror = resolve;
+  }).then(e => {
+    assert_equals(e.type, "error");
+    assert_true(e.filename.indexOf('invalidScript.js') >= 0);
+    e.preventDefault();
+  });
+}, 'Tests that errors from the import scripts come from the expected file.')
+</script>

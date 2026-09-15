@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: Update should be triggered after redirects during navigation</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(async t => {
+  // This test does a navigation that goes through a redirect chain. Each
+  // request in the chain has a service worker. Each service worker has no
+  // fetch event handler. The redirects are performed by redirect.py.
+  const script = 'resources/update-nocookie-worker.py';
+  const scope1 = 'resources/redirect.py?scope1';
+  const scope2 = 'resources/redirect.py?scope2';
+  const scope3 = 'resources/empty.html';
+  let registration1;
+  let registration2;
+  let registration3;
+  let frame;
+
+  async function cleanup() {
+    if (frame)
+      frame.remove();
+    if (registration1)
+      return registration1.unregister();
+    if (registration2)
+      return registration2.unregister();
+    if (registration3)
+      return registration3.unregister();
+  }
+
+  async function make_active_registration(scope) {
+    const registration =
+        await service_worker_unregister_and_register(t, script, scope);
+    await wait_for_state(t, registration.installing, 'activated');
+    return registration;
+  }
+
+  async function run() {
+    // Make the registrations.
+    registration1 = await make_active_registration(scope1);
+    registration2 = await make_active_registration(scope2);
+    registration3 = await make_active_registration(scope3);
+
+    // Make the promises that resolve on update.
+    const saw_update1 = wait_for_update(t, registration1);
+    const saw_update2 = wait_for_update(t, registration2);
+    const saw_update3 = wait_for_update(t, registration3);
+
+    // Create a URL for the redirect chain: scope1 -> scope2 -> scope3.
+    // Build the URL in reverse order.
+    let url = `${base_path()}${scope3}`;
+    url = `${base_path()}${scope2}&Redirect=${encodeURIComponent(url)}`
+    url = `${base_path()}${scope1}&Redirect=${encodeURIComponent(url)}`
+
+    // Navigate to the URL.
+    frame = await with_iframe(url);
+
+    // Each registration should update.
+    await saw_update1;
+    await saw_update2;
+    await saw_update3;
+  }
+
+  try {
+    await run();
+  } finally {
+    await cleanup();
+  }
+}, 'service workers are updated on redirects during navigation');
+
+</script>

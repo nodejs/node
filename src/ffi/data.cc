@@ -163,8 +163,7 @@ Maybe<void> ValidateStringLength(Environment* env, size_t len) {
 Maybe<std::pair<uint8_t*, size_t>> GetValidatedPointerAndOffset(
     Environment* env, const FunctionCallbackInfo<Value>& args) {
   uintptr_t raw_ptr;
-  if (args.Length() < 1 ||
-      !GetValidatedPointerAddress(env, args[0], "pointer").To(&raw_ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "pointer").To(&raw_ptr)) {
     return {};
   }
 
@@ -204,8 +203,7 @@ Maybe<PointerOffsetAndValue> GetValidatedPointerOffsetAndValue(
   size_t offset;
   Local<Value> value;
   uintptr_t raw_ptr;
-  if (args.Length() < 1 ||
-      !GetValidatedPointerAddress(env, args[0], "pointer").To(&raw_ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "pointer").To(&raw_ptr)) {
     return {};
   }
 
@@ -556,7 +554,7 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   size_t len;
-  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length").To(&len)) {
+  if (!GetValidatedSize(env, args[1], "length").To(&len)) {
     return;
   }
 
@@ -618,7 +616,7 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   size_t len;
-  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length").To(&len)) {
+  if (!GetValidatedSize(env, args[1], "length").To(&len)) {
     return;
   }
 
@@ -671,7 +669,8 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1) {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
-        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+        "The first argument must be a Buffer, ArrayBuffer, SharedArrayBuffer, "
+        "or ArrayBufferView");
     return;
   }
 
@@ -689,18 +688,18 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
-        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+        "The first argument must be a Buffer, ArrayBuffer, SharedArrayBuffer, "
+        "or ArrayBufferView");
     return;
   }
 
   uintptr_t ptr;
-  if (args.Length() < 2 ||
-      !GetValidatedPointerAddress(env, args[1], "pointer").To(&ptr)) {
+  if (!GetValidatedPointerAddress(env, args[1], "pointer").To(&ptr)) {
     return;
   }
 
   size_t len;
-  if (args.Length() < 3 || !GetValidatedSize(env, args[2], "length").To(&len)) {
+  if (!GetValidatedSize(env, args[2], "length").To(&len)) {
     return;
   }
 

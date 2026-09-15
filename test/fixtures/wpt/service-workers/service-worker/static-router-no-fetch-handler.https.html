@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are evaluated when there is no fetch handler.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const RULE_KEY_SOURCE_CACHE = 'condition-urlpattern-string-source-cache';
+const RULE_KEY_SOURCE_FETCH_EVENT =
+    'condition-request-source-fetch-event';
+const RULE_KEY_SOURCE_RACE_NETWORK_AND_FETCH_HANDLER =
+    'condition-urlpattern-string-source-race-network-and-fetch-handler';
+const SW_SRC = 'resources/static-router-no-fetch-handler-sw.js';
+const CACHED_FILE = 'cache.txt';
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, RULE_KEY_SOURCE_CACHE, SW_SRC);
+
+  // Matched with the main reosurce load.
+  const {contentWindow} = await createIframe(t, `resources/${CACHED_FILE}`);
+  assert_equals(contentWindow.document.body.innerText, "From cache");
+
+  // Matched with the subreosurce load.
+  const response = await contentWindow.fetch(CACHED_FILE);
+  assert_equals(response.status, 200);
+  assert_equals(await response.text(), "From cache");
+
+  // Both requests are served from cache.
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+}, 'The router rule is evaluated without fetch handlers in service worker');
+
+promise_test(async t => {
+  const worker =
+      await registerAndActivate(t, RULE_KEY_SOURCE_FETCH_EVENT, SW_SRC);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if the fetch-event source is used without onfetch')
+
+promise_test(async t => {
+  const worker =
+      await registerAndActivate(t,
+          RULE_KEY_SOURCE_RACE_NETWORK_AND_FETCH_HANDLER, SW_SRC);
+  t.add_cleanup(() => {reset_info_in_worker(worker)});
+
+  const {errors} = await get_info_from_worker(worker);
+  assert_equals(errors.length, 1);
+}, 'addRoutes should raise if the race-network-and-fetch-handler source is used without onfetch')
+
+</script>
+</body>

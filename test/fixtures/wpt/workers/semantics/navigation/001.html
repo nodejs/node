@@ -1,0 +1,39 @@
+<!--
+
+/*
+-->
+<!doctype html>
+<title>navigating</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({ single_test: true });
+var date;
+var newDate;
+</script>
+<iframe></iframe>
+<script>
+var iframe = document.querySelector('iframe');
+onload = function() {
+  iframe.src = "001-1.html?" + Math.random();
+};
+var start_test = function() {
+  window[0].document.links[0].click();
+};
+var after_load = function(event) {
+  history.back();
+  newDate = new Date();
+  setTimeout(function() {
+    assert_greater_than(Number(date), Number(newDate));
+    assert_equals(window[0].document.title, '001-1');
+    window.removeEventListener("message", after_load);
+    done();
+  }, 2000);
+};
+window.addEventListener("message", after_load);
+</script>
+<!--
+*/
+//-->
+

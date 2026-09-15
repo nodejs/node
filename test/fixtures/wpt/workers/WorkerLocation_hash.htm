@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title> WorkerLocation URL decomposition IDL attribute: hash </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var worker = new Worker("./support/WorkerLocation.js#HashString");
+  worker.onmessage = t.step_func_done(function(e) {
+    assert_equals(e.data.hash, "#HashString");
+  });
+});
+</script>

@@ -43,3 +43,12 @@ const path = require('path');
     permission: 'FileSystemWrite',
   }));
 }
+
+{
+  assert.throws(() => {
+    v8.setHeapProfileNearHeapLimit(1);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
+}

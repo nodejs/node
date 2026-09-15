@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<body>
+<script>
+// Step 3 (workers/same-site-cookies/third-party.{})
+test_driver.set_test_context(window.top);
+const type = (new URLSearchParams(window.location.search)).get("type");
+let iframe = document.createElement("iframe");
+iframe.src = "https://{{hosts[][]}}:{{ports[https][0]}}/workers/same-site-cookies/resources/iframe-iframe.html?type=" + type;
+document.body.appendChild(iframe);
+</script>
+</body>

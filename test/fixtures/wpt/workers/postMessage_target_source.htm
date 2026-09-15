@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title> postMessage(): target port and source port </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var channel = new MessageChannel();
+  var source = channel.port1;
+  var target = channel.port2;
+  target.start();
+  target.addEventListener("message", t.step_func_done(function(e) {
+    assert_equals(e.target, target);
+    assert_not_equals(e.target, source);
+  }), true);
+  source.postMessage("ping");
+});
+</script>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: import.meta</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+promise_test(() => {
+  const script_url = 'resources/import-meta-url-worker.js';
+  const worker = new Worker(script_url, { type: 'module' });
+  return new Promise((resolve, reject) => {
+        worker.onmessage = resolve;
+        worker.onerror = error => {
+          const msg = error instanceof ErrorEvent ? error.message
+                                                  : 'unknown error';
+          reject(msg);
+        };
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url)));
+}, 'Test import.meta.url on the top-level module script.');
+
+promise_test(() => {
+  const script_url = 'import-meta-url-export.js';
+  const worker = new Worker('resources/dynamic-import-given-url-worker.js',
+                            { type: 'module' });
+  worker.postMessage('./' + script_url);
+  return new Promise((resolve, reject) => {
+        worker.onmessage = resolve;
+        worker.onerror = error => {
+          const msg = error instanceof ErrorEvent ? error.message
+                                                  : 'unknown error';
+          reject(msg);
+        };
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url)));
+}, 'Test import.meta.url on the imported module script.');
+
+promise_test(() => {
+  const script_url = 'import-meta-url-export.js';
+  const worker = new Worker('resources/dynamic-import-given-url-worker.js',
+                            { type: 'module' });
+  worker.postMessage('./' + script_url);
+
+  return new Promise((resolve, reject) => {
+        worker.onmessage = resolve;
+        worker.onerror = error => {
+          const msg = error instanceof ErrorEvent ? error.message
+                                                  : 'unknown error';
+          reject(msg);
+        };
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url)))
+      .then(() => {
+        worker.postMessage('./' + script_url + '#1');
+        return new Promise(resolve => worker.onmessage = resolve);
+      })
+      .then(msg_event => assert_true(msg_event.data.endsWith(script_url + "#1")));
+}, 'Test import.meta.url on the imported module script with a fragment.');
+
+</script>

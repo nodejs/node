@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+promise_test(function(t) {
+    var scope = 'resources/scope/installing-waiting-active-after-registration';
+    var worker_url = 'resources/empty-worker.js';
+    var expected_url = normalizeURL(worker_url);
+    var newest_worker;
+    var registration;
+
+    return service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return r.unregister();
+            });
+          registration = r;
+          newest_worker = registration.installing;
+          assert_equals(registration.installing.scriptURL, expected_url,
+                        'installing before updatefound');
+          assert_equals(registration.waiting, null,
+                        'waiting before updatefound');
+          assert_equals(registration.active, null,
+                        'active before updatefound');
+          return wait_for_update(t, registration);
+        })
+      .then(function() {
+          assert_equals(registration.installing, newest_worker,
+                        'installing after updatefound');
+          assert_equals(registration.waiting, null,
+                        'waiting after updatefound');
+          assert_equals(registration.active, null,
+                        'active after updatefound');
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'installing after installed');
+          assert_equals(registration.waiting, newest_worker,
+                        'waiting after installed');
+          assert_equals(registration.active, null,
+                        'active after installed');
+          return wait_for_state(t, registration.waiting, 'activated');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'installing after activated');
+          assert_equals(registration.waiting, null,
+                        'waiting after activated');
+          assert_equals(registration.active, newest_worker,
+                        'active after activated');
+          return Promise.all([
+              wait_for_state(t, registration.active, 'redundant'),
+              registration.unregister()
+            ]);
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'installing after redundant');
+          assert_equals(registration.waiting, null,
+                        'waiting after redundant');
+          // According to spec, Clear Registration runs Update State which is
+          // immediately followed by setting active to null, which means by the
+          // time the event loop turns and the Promise for statechange is
+          // resolved, this will be gone.
+          assert_equals(registration.active, null,
+                        'active should be null after redundant');
+        });
+  }, 'installing/waiting/active after registration');
+</script>

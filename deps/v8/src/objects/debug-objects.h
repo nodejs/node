@@ -254,8 +254,8 @@ class ErrorStackData
  public:
   inline bool HasFormattedStack() const;
   DECL_ACCESSORS(formatted_stack, Tagged<Object>)
-  inline bool HasCallSiteInfos() const;
-  DECL_GETTER(call_site_infos, Tagged<FixedArray>)
+  inline bool HasRawDataForCallSiteInfos() const;
+  DECL_GETTER(raw_data_for_call_site_infos, Tagged<FixedArray>)
 
   DECL_VERIFIER(ErrorStackData)
 

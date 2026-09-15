@@ -15,10 +15,12 @@
     'node_lib_target_name%': 'libnode',
     'node_module_version%': '',
     'node_no_browser_globals%': 'false',
+    'node_shared_abseil%': 'false',
     'node_shared_brotli%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
     'node_shared_hdr_histogram%': 'false',
+    'node_shared_highway%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_lief%': 'false',
@@ -26,6 +28,7 @@
     'node_shared_nbytes%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',
+    'node_shared_perfetto%': 'false',
     'node_shared_sqlite%': 'false',
     'node_shared_ffi%': 'false',
     'node_shared_temporal_capi%': 'false',
@@ -40,6 +43,7 @@
     'node_use_node_snapshot%': 'false',
     'node_use_openssl%': 'true',
     'node_use_quic%': 'false',
+    'node_use_dtls%': 'false',
     'node_use_sqlite%': 'true',
     'node_use_ffi%': 'false',
     'node_use_v8_platform%': 'true',
@@ -234,8 +238,6 @@
       'src/histogram-inl.h',
       'src/js_stream.h',
       'src/json_utils.h',
-      'src/large_pages/node_large_page.cc',
-      'src/large_pages/node_large_page.h',
       'src/memory_tracker.h',
       'src/memory_tracker-inl.h',
       'src/module_wrap.h',
@@ -370,6 +372,16 @@
       'src/quic/tlscontext.h',
       'src/quic/guard.h',
     ],
+    'node_dtls_sources': [
+      'src/dtls/dtls.cc',
+      'src/dtls/dtls_context.cc',
+      'src/dtls/dtls_endpoint.cc',
+      'src/dtls/dtls_session.cc',
+      'src/dtls/dtls.h',
+      'src/dtls/dtls_context.h',
+      'src/dtls/dtls_endpoint.h',
+      'src/dtls/dtls_session.h',
+    ],
     'node_crypto_sources': [
       'src/crypto/crypto_aes.cc',
       'src/crypto/crypto_argon2.cc',
@@ -382,12 +394,15 @@
       'src/crypto/crypto_sig.cc',
       'src/crypto/crypto_timing.cc',
       'src/crypto/crypto_cipher.cc',
+      'src/crypto/crypto_client_hello.cc',
       'src/crypto/crypto_context.cc',
+      'src/crypto/crypto_tls_certificates.cc',
       'src/crypto/crypto_ec.cc',
       'src/crypto/crypto_pqc.cc',
       'src/crypto/crypto_kem.cc',
       'src/crypto/crypto_hmac.cc',
       'src/crypto/crypto_kmac.cc',
+      'src/crypto/crypto_mac.cc',
       'src/crypto/crypto_turboshake.cc',
       'src/crypto/crypto_random.cc',
       'src/crypto/crypto_rsa.cc',
@@ -405,11 +420,13 @@
       'src/crypto/crypto_dh.h',
       'src/crypto/crypto_hmac.h',
       'src/crypto/crypto_kmac.h',
+      'src/crypto/crypto_mac.h',
       'src/crypto/crypto_turboshake.h',
       'src/crypto/crypto_rsa.h',
       'src/crypto/crypto_spkac.h',
       'src/crypto/crypto_util.h',
       'src/crypto/crypto_cipher.h',
+      'src/crypto/crypto_client_hello.h',
       'src/crypto/crypto_common.h',
       'src/crypto/crypto_dsa.h',
       'src/crypto/crypto_hash.h',
@@ -418,6 +435,7 @@
       'src/crypto/crypto_scrypt.h',
       'src/crypto/crypto_tls.h',
       'src/crypto/crypto_context.h',
+      'src/crypto/crypto_tls_certificates.h',
       'src/crypto/crypto_ec.h',
       'src/crypto/crypto_pqc.h',
       'src/crypto/crypto_hkdf.h',
@@ -490,11 +508,6 @@
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
     'conditions': [
-      ['GENERATOR == "ninja"', {
-        'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
-      }, {
-        'node_text_start_object_path': 'node_text_start/src/large_pages/node_text_start.o'
-      }],
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
         'node_lib_type': 'shared_library',
@@ -572,19 +585,6 @@
   },
 
   'targets': [
-    {
-      'target_name': 'node_text_start',
-      'type': 'none',
-      'conditions': [
-        [ 'OS in "linux freebsd solaris openharmony" and '
-          'target_arch=="x64"', {
-          'type': 'static_library',
-          'sources': [
-            'src/large_pages/node_text_start.S'
-          ]
-        }],
-      ]
-    },
     {
       'target_name': '<(node_core_target_name)',
       'type': 'executable',
@@ -756,14 +756,6 @@
             },
           },
         }],
-        [ 'OS in "linux freebsd openharmony" and '
-          'target_arch=="x64"', {
-          'dependencies': [ 'node_text_start' ],
-          'ldflags+': [
-            '<(obj_dir)/<(node_text_start_object_path)'
-          ]
-        }],
-
         ['node_fipsinstall=="true"', {
           'variables': {
             'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
@@ -912,7 +904,7 @@
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ],
         }],
-        [ 'node_use_bundled_v8!="false"', {
+        [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],
         }],
         [ 'node_shared_gtest=="false"', {
@@ -951,8 +943,12 @@
           'sources': [
             '<@(node_tracing_perfetto_sources)',
           ],
-          'dependencies': [
-            'deps/perfetto/perfetto.gyp:perfetto_sdk',
+          'conditions': [
+            ['node_shared_perfetto=="false"', {
+              'dependencies': [
+                'deps/perfetto/perfetto.gyp:perfetto_sdk',
+              ],
+            }],
           ],
         }, {
           'sources': [
@@ -992,10 +988,13 @@
             '<@(node_quic_sources)',
           ],
         }],
-        [ 'OS in "linux freebsd mac solaris openharmony" and '
-          'target_arch=="x64" and '
-          'node_target_type=="executable"', {
-          'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
+        [ 'node_use_dtls=="true"', {
+          'sources': [
+            '<@(node_dtls_sources)',
+          ],
+          'defines': [
+            'HAVE_DTLS=1',
+          ],
         }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
@@ -1377,7 +1376,7 @@
         [ 'node_shared_gtest=="true"', {
           'libraries': [ '-lgtest_main' ],
         }],
-        [ 'node_use_bundled_v8!="false"', {
+        [ 'node_use_bundled_v8!="false" and node_shared_abseil=="false"', {
           'dependencies': [ 'tools/v8_gypfiles/abseil.gyp:abseil' ],
         }],
         [ 'node_shared_hdr_histogram=="false"', {
@@ -1407,7 +1406,7 @@
         }, {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
-        [ 'v8_use_perfetto==1', {
+        [ 'v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],
@@ -1737,7 +1736,7 @@
             'NODE_USE_NODE_CODE_CACHE=1',
           ],
         }],
-        [ 'v8_use_perfetto==1', {
+        [ 'v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],

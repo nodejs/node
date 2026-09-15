@@ -1,0 +1,18 @@
+<!doctype html>
+<script>
+parent.t.step(function() {
+  window.onerror = this.step_func(function(a) {
+    assert_unreached('(inner) window.onerror invoked: ' + a);
+  });
+  var worker = new SharedWorker('004.js', '');
+  worker.addEventListener('error', this.step_func(function(e) {
+    parent.assert_unreached('(inner) error on worker');
+  }), false);
+  worker.port.addEventListener('error', this.step_func(function(e) {
+    parent.assert_unreached('(inner) error on port');
+  }), false);
+  worker.port.onmessage = this.step_func_done(function(e) {
+    parent.assert_equals(e.data, 2);
+  });
+});
+</script>

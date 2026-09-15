@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>SharedWorker: Partitioned Cookies</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="support/shared-worker-partitioned-cookies-helper.js"></script>
+</head>
+
+<body>
+<script>
+
+promise_test(async () => {
+  // Set a Partitioned cookie.
+  document.cookie =
+      '__Host-partitioned=123; Secure; Path=/; SameSite=None; Partitioned;';
+  assert_true(document.cookie.includes('__Host-partitioned=123'));
+
+  // Set an unpartitioned cookie.
+  document.cookie = 'unpartitioned=456; Secure; Path=/; SameSite=None;';
+  assert_true(document.cookie.includes('unpartitioned=456'));
+
+  const worker = new SharedWorker('support/shared-worker-echo-cookies.js');
+  const next_message = worker_message_generator(worker);
+
+  worker.port.postMessage({type: 'test_message'});
+  const msg1 = await next_message();
+  assert_true(msg1.ok, 'Message passing');
+
+  worker.port.postMessage({type: 'echo_cookies_http'});
+  const msg2 = await next_message();
+  assert_true(msg2.ok, 'Get cookies');
+  assert_true(
+      msg2.cookies.includes('__Host-partitioned'),
+      'Can access partitioned cookie via HTTP');
+  assert_true(
+      msg2.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via HTTP');
+
+  worker.port.postMessage({type: 'echo_cookies_import'});
+  const msg3 = await next_message();
+  assert_true(msg3.ok, 'Get cookies');
+  assert_true(msg3.cookies.includes(
+      '__Host-partitioned'),
+      'Can access partitioned cookie via importScripts');
+  assert_true(
+      msg3.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via importScripts');
+
+  const popup = window.open(
+      new URL(
+          `./support/shared-worker-partitioned-cookies-3p-window.html?origin=${
+              encodeURIComponent(self.location.origin)}`,
+          get_host_info().HTTPS_NOTSAMESITE_ORIGIN + self.location.pathname));
+  await fetch_tests_from_window(popup);
+});
+
+</script>
+</body>

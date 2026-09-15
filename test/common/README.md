@@ -28,6 +28,7 @@ several other tasks:
 ## Table of contents
 
 * [ArrayStream module](#arraystream-module)
+* [Bench module](#bench-module)
 * [Benchmark module](#benchmark-module)
 * [Child process module](#child-process-module)
 * [Common module API](#common-module-api)
@@ -48,6 +49,21 @@ several other tasks:
 * [tmpdir module](#tmpdir-module)
 * [UDP pair helper](#udp-pair-helper)
 * [WPT module](#wpt-module)
+
+## Bench module
+
+The `bench` module has helpers for tests of `node:bench`.
+
+### `completeSample(b[, operations[, options]])`
+
+* `b` The `BenchContext` passed to a `node:bench` benchmark function.
+* `operations` [\<number>][<number>] Passed to `b.end()`. **Default:** `1`.
+* `options` [\<Object>][<Object>] Passed to `b.end()`.
+* return the sample returned by `b.end()`.
+
+Calls `b.start()` and `b.end()` with at least one `process.hrtime.bigint()`
+tick in between, so the sample has a non-zero duration on hosts whose
+monotonic clock is coarse.
 
 ## Benchmark module
 

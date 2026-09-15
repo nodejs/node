@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Post a file in a navigation controlled by a service worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<iframe id=testframe name=testframe></iframe>
+<form id=testform method=post action="/html/semantics/forms/form-submission-0/resources/file-submission.py" target=testframe enctype="multipart/form-data">
+<input name=testinput id=testinput type=file>
+</form>
+<script>
+// Test that DataTransfer with a File entry works when posted to a
+// service worker that falls back to network. Regression test for
+// https://crbug.com/944145.
+promise_test(async (t) => {
+  const scope = '/html/semantics/forms/form-submission-0/resources/';
+  const header = `pipe=header(Service-Worker-Allowed,${scope})`;
+  const script = `resources/fetch-event-network-fallback-worker.js?${header}`;
+
+  const registration = await service_worker_unregister_and_register(
+      t, script, scope);
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(new File(['foobar'], 'name'));
+  assert_equals(1, dataTransfer.files.length);
+
+  testinput.files = dataTransfer.files;
+  testform.submit();
+
+  const data = await new Promise(resolve => {
+    onmessage = e => {
+      if (e.source !== testframe) return;
+      resolve(e.data);
+    };
+  });
+  assert_equals(data, "foobar");
+}, 'Posting a File in a navigation handled by a service worker');
+</script>
+</body>

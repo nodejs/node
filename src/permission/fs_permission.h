@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <memory>
 #include <vector>
 #include "permission/permission_base.h"
 #include "util.h"
@@ -24,8 +25,8 @@ class FSPermission final : public PermissionBase {
   struct RadixTree {
     struct Node {
       std::string prefix;
-      std::vector<std::pair<char, Node*>> children;
-      Node* wildcard_child = nullptr;
+      std::vector<std::pair<char, std::unique_ptr<Node>>> children;
+      std::unique_ptr<Node> wildcard_child;
       bool is_leaf = false;
 
       explicit Node(std::string_view pre) : prefix(pre) {}
@@ -34,19 +35,19 @@ class FSPermission final : public PermissionBase {
 
       Node* FindChild(char label) const {
         for (const auto& [c, node] : children) {
-          if (c == label) return node;
+          if (c == label) return node.get();
         }
         return nullptr;
       }
 
-      void SetChild(char label, Node* node) {
+      void SetChild(char label, std::unique_ptr<Node> node) {
         for (auto& [c, n] : children) {
           if (c == label) {
-            n = node;
+            n = std::move(node);
             return;
           }
         }
-        children.emplace_back(label, node);
+        children.emplace_back(label, std::move(node));
       }
 
       Node* CreateChild(std::string_view path_prefix) {
@@ -60,8 +61,9 @@ class FSPermission final : public PermissionBase {
 
         Node* child = FindChild(label);
         if (child == nullptr) {
-          child = new Node(path_prefix);
-          children.emplace_back(label, child);
+          auto new_child = std::make_unique<Node>(path_prefix);
+          child = new_child.get();
+          children.emplace_back(label, std::move(new_child));
           return child;
         }
         bool child_was_end_node = child->IsEndNode();
@@ -75,11 +77,20 @@ class FSPermission final : public PermissionBase {
             std::string child_prefix(child->prefix.substr(i));
 
             child->prefix = child_prefix;
-            Node* split_child = new Node(parent_prefix);
-            split_child->children.emplace_back(child_prefix[0], child);
-            SetChild(parent_prefix[0], split_child);
+            auto split_child = std::make_unique<Node>(parent_prefix);
+            Node* split_raw = split_child.get();
+            std::unique_ptr<Node> detached;
+            for (auto& [c, n] : children) {
+              if (c == label) {
+                detached = std::move(n);
+                break;
+              }
+            }
+            split_child->children.emplace_back(child_prefix[0],
+                                               std::move(detached));
+            SetChild(parent_prefix[0], std::move(split_child));
 
-            return split_child->CreateChild(path_prefix.substr(i));
+            return split_raw->CreateChild(path_prefix.substr(i));
           }
         }
         if (child_was_end_node) {
@@ -90,10 +101,10 @@ class FSPermission final : public PermissionBase {
 
       Node* CreateWildcardChild() {
         if (wildcard_child != nullptr) {
-          return wildcard_child;
+          return wildcard_child.get();
         }
-        wildcard_child = new Node();
-        return wildcard_child;
+        wildcard_child = std::make_unique<Node>();
+        return wildcard_child.get();
       }
 
       Node* NextNode(std::string_view path, size_t idx) const {
@@ -165,7 +176,7 @@ class FSPermission final : public PermissionBase {
     bool Lookup(std::string_view s, bool when_empty_return) const;
 
    private:
-    Node* root_node_;
+    std::unique_ptr<Node> root_node_;
   };
 
  private:
@@ -179,11 +190,11 @@ class FSPermission final : public PermissionBase {
   std::vector<std::string> granted_paths_in_;
   std::vector<std::string> granted_paths_out_;
 
-  bool deny_all_in_ = true;
-  bool deny_all_out_ = true;
+  bool deny_all_in_ : 1 = true;
+  bool deny_all_out_ : 1 = true;
 
-  bool allow_all_in_ = false;
-  bool allow_all_out_ = false;
+  bool allow_all_in_ : 1 = false;
+  bool allow_all_out_ : 1 = false;
 };
 
 }  // namespace node::permission

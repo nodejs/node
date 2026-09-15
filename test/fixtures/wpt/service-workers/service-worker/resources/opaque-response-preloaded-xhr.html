@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body></body>
+<script>
+const URL = 'opaque-response?from=opaque-response-preloaded-xhr.html';
+function runTest() {
+  var l = document.createElement('link');
+  // Use link rel=preload to try to get the browser to cache the opaque
+  // response.
+  l.setAttribute('rel', 'preload');
+  l.setAttribute('href', URL);
+  l.setAttribute('as', 'fetch');
+  l.onload = function() {
+    xhr = new XMLHttpRequest;
+    xhr.withCredentials = true;
+    xhr.open('GET', URL);
+    // opaque-response returns an opaque response from serviceworker and thus
+    // the XHR must fail because it is not no-cors request.
+    // Particularly, the XHR must not reuse the opaque response from the
+    // preload request.
+    xhr.onerror = function() {
+      parent.done('PASS');
+    };
+    xhr.onload = function() {
+      parent.done('FAIL: ' + xhr.responseText);
+    };
+    xhr.send();
+  };
+  l.onerror = function() {
+    parent.done('FAIL: preload failed unexpectedly');
+  };
+  document.body.appendChild(l);
+}
+</script>
+<body onload="setTimeout(runTest, 100)"></body>

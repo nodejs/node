@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Navigation Preload with chunked encoding</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script>
+promise_test(t => {
+    var script = 'resources/broken-chunked-encoding-worker.js';
+    var scope = 'resources/broken-chunked-encoding-scope.asis';
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(registration => {
+          add_completion_callback(_ => registration.unregister());
+          var worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(_ => with_iframe(scope))
+      .then(frame => {
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'PASS: preloadResponse resolved');
+        });
+  }, 'FetchEvent#preloadResponse resolves even if the body is sent with broken chunked encoding.');
+
+promise_test(t => {
+    var script = 'resources/broken-chunked-encoding-worker.js';
+    var scope = 'resources/chunked-encoding-scope.py?use_broken_body';
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(registration => {
+          add_completion_callback(_ => registration.unregister());
+          var worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(_ => with_iframe(scope))
+      .then(frame => {
+          assert_equals(
+            frame.contentDocument.body.textContent,
+            'PASS: preloadResponse resolved');
+        });
+  }, 'FetchEvent#preloadResponse resolves even if the body is sent with broken chunked encoding with some delays');
+
+</script>

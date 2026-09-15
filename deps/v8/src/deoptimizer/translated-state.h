@@ -511,6 +511,17 @@ class TranslatedState {
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback(DeoptimizeReason reason);
 
+  // Resolves one deopt translation value opcode to a raw Tagged<Object>,
+  // reading from the live frame if needed.  Only LITERAL and
+  // TAGGED_STACK_SLOT can be resolved cheaply; for any other opcode the
+  // iterator is left positioned just past the opcode and std::nullopt is
+  // returned so the caller can fall back to the full materialization path.
+  static std::optional<Tagged<Object>> TryResolveTaggedValue(
+      DeoptTranslationIterator* it, Address fp,
+      Tagged<DeoptimizationLiteralArray> literals);
+
+  static Address DecompressIfNeeded(intptr_t value);
+
  private:
   friend TranslatedValue;
 
@@ -529,7 +540,6 @@ class TranslatedState {
       int frame_index, DeoptTranslationIterator* iterator,
       const DeoptimizationLiteralProvider& literal_array, Address fp,
       RegisterValues* registers, FILE* trace_file);
-  Address DecompressIfNeeded(intptr_t value);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
                                                CreateArgumentsType type,

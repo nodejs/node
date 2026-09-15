@@ -1,0 +1,19 @@
+<script>
+function load_multipart_image(src) {
+    return new Promise((resolve, reject) => {
+        const img = document.createElement('img');
+        img.addEventListener('load', () => resolve(img));
+        img.addEventListener('error', (e) => reject(new DOMException('load failed', 'NetworkError')));
+        img.src = src;
+    });
+}
+
+function get_image_data(img) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    context.drawImage(img, 0, 0);
+    // When |img.src| is cross origin, this should throw a SecurityError.
+    const imageData = context.getImageData(0, 0, 1, 1);
+    return imageData;
+}
+</script>

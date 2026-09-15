@@ -1211,11 +1211,9 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   STAT_SET(Stats, max_offset, params->initial_max_data);
 }
 
-Stream::~Stream() {
-  // Make sure that Destroy() was called before Stream is actually destructed.
-  DCHECK_NE(stats()->destroyed_at, 0);
+Stream::~Stream() = default;
 
-  // Release arena slots back to the freelist.
+void Stream::ReleaseArenaSlots() {
   auto& binding = BindingData::Get(env());
   if (stats_slot_) {
     GetStreamStatsArena(binding).ReleaseSlot(stats_slot_);
@@ -1306,6 +1304,7 @@ bool Stream::is_pending() const {
 }
 
 bool Stream::is_destroyed() const {
+  if (!stats_slot_) return true;
   return stats()->destroyed_at != 0;
 }
 
@@ -1499,12 +1498,37 @@ void Stream::EndWriting() {
   if (!is_pending()) session_->ResumeStream(id());
 }
 
+void Stream::ReturnFlowControlCredit(uint64_t amount, CreditScope scope) {
+  if (amount == 0) return;
+  // The stream can outlive a destroyed session (the JS side may still hold a
+  // reader over the inbound queue), leaving no window to extend.
+  if (!session_ || session_->is_destroyed()) return;
+  // Extending a window queues MAX_STREAM_DATA / MAX_DATA. The scope flushes
+  // them; inside an ngtcp2 callback the flush is a no-op and they go out with
+  // the next scheduled send instead.
+  Session::SendPendingDataScope send_scope(&session());
+  if (scope == CreditScope::STREAM_AND_CONNECTION) {
+    // Receiving data requires an id, so this should always hold.
+    DCHECK(!is_pending());
+    session().Consume(id(), amount);
+  } else {
+    session().ExtendOffset(amount);
+  }
+}
+
+void Stream::CreditConsumedBytes(uint64_t amount) {
+  // Clamped because Destroy() returns the outstanding credit in bulk and the
+  // flush that triggers can re-enter JS, which may then report some of those
+  // same bytes as read. Never give the peer more credit than we took.
+  amount = std::min(uncredited_bytes_, amount);
+  uncredited_bytes_ -= amount;
+  ReturnFlowControlCredit(amount, CreditScope::STREAM_AND_CONNECTION);
+}
+
 void Stream::EntryRead(size_t amount) {
   // Called when the JS consumer reads data from the inbound DataQueue.
   // Extend the flow control window so the sender can transmit more.
-  if (session().is_destroyed()) return;
-  Session::SendPendingDataScope send_scope(&session());
-  session().Consume(id(), amount);
+  CreditConsumedBytes(amount);
 }
 
 void Stream::BeforePull() {
@@ -1517,16 +1541,26 @@ void Stream::BeforePull() {
 
 void Stream::FlushAccumulation() {
   if (!recv_accumulator_ || recv_accumulator_->available() == 0) return;
+  size_t flushed = recv_accumulator_->available();
   auto entry = recv_accumulator_->Flush(env());
-  if (entry) {
-    inbound_->append(std::move(entry));
+  // Flush() always drains the accumulator, so the stat is reset either way.
+  STAT_SET(Stats, bytes_accumulated, 0);
+  if (entry && inbound_->append(std::move(entry)).value_or(false)) {
     // Notify the reader that data is now available in the DataQueue.
     // This is the only place we notify — not on every ReceiveData call —
     // so the reader only wakes up when there is a well-sized entry to
     // consume.
     if (reader_) reader_->NotifyPull();
+    return;
   }
-  STAT_SET(Stats, bytes_accumulated, 0);
+  // Should be unreachable: append() only fails once the queue has been capped,
+  // EndReadable() flushes before capping, and ReceiveData() accumulates
+  // nothing once read_ended is set. Reaching here means received stream data
+  // is being dropped on the floor, so say so and at least do not also leak
+  // the flow control credit for it.
+  DCHECK(false);
+  Debug(this, "Inbound queue rejected %zu accumulated bytes", flushed);
+  CreditConsumedBytes(flushed);
 }
 
 int Stream::DoPull(bob::Next<ngtcp2_vec> next,
@@ -1614,14 +1648,13 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
   FlushAccumulation();
   set_final_size(maybe_final_size.value_or(STAT_GET(Stats, bytes_received)));
   inbound_->cap(STAT_GET(Stats, final_size));
-  // Notify the JS reader so it can see EOS. Pass fin=true so the
-  // wakeup promise resolves with a value the iterator can check to
-  // avoid waiting for another wakeup that will never come.
-  if (reader_) reader_->NotifyPull(true);
+  // Notify the JS reader so it can see EOS. The subsequent pull observes
+  // the now-capped DataQueue and returns EOS.
+  if (reader_) reader_->NotifyPull();
 }
 
 void Stream::Destroy(QuicError error) {
-  if (stats()->destroyed_at != 0) return;
+  if (is_destroyed()) return;
 
   // Record the destroyed at timestamp before notifying the JavaScript side
   // that the stream is being destroyed.
@@ -1652,6 +1685,16 @@ void Stream::Destroy(QuicError error) {
   // the ring buffer memory.
   recv_accumulator_.reset();
 
+  // Data that was received but never consumed still holds connection-level
+  // flow control credit, and EntryRead() will never fire for it once the
+  // listener is detached below. Leaking it would permanently shrink the
+  // session's shared receive window and, over enough streams, deadlock the
+  // connection. Zero the counter first: returning credit flushes packets,
+  // which can re-enter JS and report some of these bytes as read.
+  const uint64_t outstanding = uncredited_bytes_;
+  uncredited_bytes_ = 0;
+  ReturnFlowControlCredit(outstanding, CreditScope::CONNECTION_ONLY);
+
   // We reset the inbound here also. However, it's important to note that
   // the JavaScript side could still have a reader on the inbound DataQueue,
   // which may keep that data alive a bit longer.
@@ -1666,6 +1709,9 @@ void Stream::Destroy(QuicError error) {
   // handle.
   EmitClose(error);
 
+  stream_id id_to_remove = id();
+  ReleaseArenaSlots();
+
   auto session = session_;
   session_.reset();
   // EmitClose above triggers MakeCallback which can destroy the session
@@ -1673,7 +1719,7 @@ void Stream::Destroy(QuicError error) {
   // Session BaseObject can be kept alive by a BaseObjectPtr elsewhere,
   // e.g. OnTimeout's ref) even though impl_ has been reset. We must
   // check is_destroyed() to avoid dereferencing the null impl_.
-  if (session && !session->is_destroyed()) session->RemoveStream(id());
+  if (session && !session->is_destroyed()) session->RemoveStream(id_to_remove);
 
   // Critically, make sure that the RemoveStream call is the last thing
   // trying to use this stream object. Once that call is made, the stream
@@ -1691,6 +1737,13 @@ void Stream::ReceiveData(const uint8_t* data,
   Debug(this, "Receiving %zu bytes of data", len);
   if (state()->read_ended == 1 || len == 0) {
     if (flags.fin) EndReadable();
+    // Nothing will ever consume these bytes, so return the connection-level
+    // credit ngtcp2 charged for them. The stream window is deliberately left
+    // alone: there is no point inviting more data onto a stream we have
+    // stopped reading. Reachable when, for example, HTTP/3 replays DATA
+    // payload it had buffered for QPACK head-of-line blocking after the
+    // readable side was shut down.
+    ReturnFlowControlCredit(len, CreditScope::CONNECTION_ONLY);
     return;
   }
 
@@ -1698,6 +1751,9 @@ void Stream::ReceiveData(const uint8_t* data,
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_SET(Stats, max_offset_received, STAT_GET(Stats, bytes_received));
   STAT_RECORD_TIMESTAMP(Stats, received_at);
+
+  // These bytes now hold inbound flow control credit. See uncredited_bytes_.
+  uncredited_bytes_ += len;
 
   // Lazy-allocate the receive accumulation buffer on first data-carrying
   // call. Streams that never receive data (write-only, immediately reset)

@@ -1,6 +1,7 @@
 #include "libplatform/libplatform.h"
 #include "node_buffer.h"
 #include "node_internals.h"
+#include "node_realm-inl.h"
 #include "node_url.h"
 #include "util.h"
 
@@ -27,6 +28,12 @@ static void at_exit_callback_ordered1(void* arg);
 static void at_exit_callback_ordered2(void* arg);
 static void at_exit_js(void* arg);
 static std::string cb_1_arg;  // NOLINT(runtime/string)
+
+struct SelfRemovingCleanupHookState {
+  v8::Isolate* isolate;
+  bool ran = false;
+};
+static void self_removing_cleanup_hook(void* arg);
 
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
@@ -310,6 +317,27 @@ TEST_F(EnvironmentTest, AtExitRunsJS) {
   EXPECT_TRUE(called_at_exit_js);
 }
 
+// A cleanup hook that removes itself while the environment cleanup queue is
+// being drained must not cause a use-after-free. This registers such a hook
+// directly rather than through node::ObjectWrap, whose destructor removes
+// its own hook and is what makes this reachable for addons since #63642.
+// The use-after-free is silent in ordinary builds; it is caught by the
+// ASan/Valgrind CI, which is also how the original assertion (#63923)
+// surfaced. Regression test for https://github.com/nodejs/node/issues/65195.
+TEST_F(EnvironmentTest, RemoveEnvironmentCleanupHookDuringCleanup) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  SelfRemovingCleanupHookState state{isolate_};
+  {
+    Env env{handle_scope, argv};
+    node::AddEnvironmentCleanupHook(
+        isolate_, self_removing_cleanup_hook, &state);
+    // Destroying `env` runs FreeEnvironment() -> RunCleanup(), which drains
+    // the cleanup queue and invokes CleanupHookThunkRun() for the hook above.
+  }
+  EXPECT_TRUE(state.ran);
+}
+
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -391,6 +419,19 @@ static void at_exit_js(void* arg) {
   EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
   EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
+}
+
+// Reproduces the sequence node::ObjectWrap performs since
+// https://github.com/nodejs/node/pull/63642, without using ObjectWrap
+// itself: the hook removes its own environment cleanup hook. When that runs
+// while the cleanup queue is being drained, CleanupHookThunkRun() must not
+// read the CleanupHookThunk after invoking the hook -- the hook has already
+// erased and freed it. See https://github.com/nodejs/node/issues/65195.
+static void self_removing_cleanup_hook(void* arg) {
+  auto* state = static_cast<SelfRemovingCleanupHookState*>(arg);
+  state->ran = true;
+  node::RemoveEnvironmentCleanupHook(
+      state->isolate, self_removing_cleanup_hook, state);
 }
 
 TEST_F(EnvironmentTest, SetImmediateCleanup) {
@@ -867,6 +908,41 @@ TEST_F(EnvironmentTest, RequestInterruptAtExit) {
   EXPECT_TRUE(interrupted);
 
   context->Exit();
+}
+
+TEST_F(EnvironmentTest, EmbedderBuiltinCodeCache) {
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = node::NewContext(isolate_);
+  v8::Context::Scope context_scope(context);
+
+  std::vector<node::EmbedderBuiltinCodeCache::Entry> entries =
+      node::EmbedderBuiltinCodeCache::Generate(context);
+  ASSERT_GT(entries.size(), 100u);
+  {
+    node::EmbedderBuiltinCodeCache cache(std::move(entries));
+    EXPECT_EQ(node::SetBuiltinCodeCache(isolate_data_, &cache),
+              v8::ScriptCompiler::CachedData::kSuccess);
+  }
+  std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)> env(
+      node::CreateEnvironment(isolate_data_, context, {}, {}),
+      node::FreeEnvironment);
+  node::Realm* realm = env->principal_realm();
+  EXPECT_EQ(realm->builtins_with_cache.count("internal/bootstrap/node"), 1u);
+  for (const std::string& id : realm->builtins_without_cache) {
+    EXPECT_EQ(id.rfind("internal/per_context/", 0), 0u) << id;
+  }
+
+  uint8_t* bytes = new uint8_t[64]();
+  std::vector<node::EmbedderBuiltinCodeCache::Entry> bad;
+  bad.push_back({"internal/bootstrap/node",
+                 std::make_unique<v8::ScriptCompiler::CachedData>(
+                     bytes, 64, v8::ScriptCompiler::CachedData::BufferOwned)});
+  node::EmbedderBuiltinCodeCache bad_cache(std::move(bad));
+  EXPECT_NE(node::SetBuiltinCodeCache(isolate_data_, &bad_cache),
+            v8::ScriptCompiler::CachedData::kSuccess);
+  EXPECT_FALSE(isolate_data_->builtin_code_cache().empty());
+  node::SetBuiltinCodeCache(isolate_data_, nullptr);
+  EXPECT_TRUE(isolate_data_->builtin_code_cache().empty());
 }
 
 TEST_F(EnvironmentTest, EmbedderPreload) {

@@ -44,6 +44,21 @@ test('close() waits for an in-flight read instead of closing under it', async ()
   assert.ok(data.equals(payload));
 });
 
+test('close() resolves with a paused contentIterator()', async () => {
+  tmpdir.refresh();
+  const file = tmpdir.resolve('paused-iterator.zip');
+  const payload = Buffer.alloc(8 * 1024 * 1024, 0x61);
+  writeArchive(file, [zlib.ZipEntry.createSync('big', payload, { method: 'store' })]);
+
+  const zf = zlib.ZipFile.openSync(file);
+  const iterator = zf.getSync('big').contentIterator();
+  const first = await iterator.next();
+  assert.strictEqual(first.done, false);
+
+  await zf.close();
+  await assert.rejects(iterator.next(), { code: 'ERR_INVALID_STATE' });
+});
+
 // 2. A failed central-directory rewrite during add() is rolled back.
 test('a failed directory rewrite during addEntrySync is rolled back', () => {
   tmpdir.refresh();

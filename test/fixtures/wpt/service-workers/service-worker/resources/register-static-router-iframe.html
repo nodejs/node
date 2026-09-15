@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script>
+  const params = new URLSearchParams(location.search);
+  const key = params.get('key');
+  async function setup() {
+    try {
+      const reg = await navigator.serviceWorker.register('static-router-sw.js?key=' + key, {scope: './', type: 'module'});
+      const worker = reg.installing || reg.waiting || reg.active;
+
+      // Wait for activation to ensure the SW controls the page and doesn't
+      // overwrite the cache entry in its install handler.
+      await new Promise(resolve => {
+        if (worker.state === 'activated') {
+          resolve();
+          return;
+        }
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'activated') resolve();
+        });
+      });
+
+      // Put a custom response for 'cache.html' that sends a message back.
+      const cache = await caches.open('v1');
+      await cache.put('cache.html', new Response(
+        '<html><body><script>window.parent.postMessage({type: "loaded_from_cache"}, "*");<\/script><\/body><\/html>',
+        {headers: {'Content-Type': 'text/html'}}
+      ));
+
+      window.parent.postMessage({type: 'registered'}, '*');
+    } catch (err) {
+      window.parent.postMessage({type: 'error', error: err.message}, '*');
+    }
+  }
+  setup();
+</script>

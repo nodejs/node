@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Service Worker: Middle nested iframe for partitioned service workers</title>
+<script src="./test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="./partitioned-utils.js"></script>
+
+<body>
+Middle of the nested iframes (3p ancestor or B in A1-B-A2).
+<script>
+
+async function onLoad() {
+  // The innermost iframe will recieve a message from the
+  // ServiceWorker and pass it to this iframe. We need to
+  // then pass that message to the main frame to complete
+  // the test.
+  self.addEventListener('message', evt => {
+      window.parent.postMessage(evt.data, '*');
+  });
+
+  // Embed the innermost iframe and set-up the service worker there.
+  const innermost_iframe_url = new URL('./partitioned-service-worker-nested-iframe-child.html',
+    get_host_info().HTTPS_ORIGIN + self.location.pathname);
+  var frame = document.createElement('iframe');
+  frame.src = innermost_iframe_url;
+  document.body.appendChild(frame);
+}
+
+self.addEventListener('load', onLoad);
+</script>
+</body>

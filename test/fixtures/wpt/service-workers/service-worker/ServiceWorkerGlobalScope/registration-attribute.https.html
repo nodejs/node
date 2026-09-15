@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<title>ServiceWorkerGlobalScope: registration</title>
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+<script src='../resources/test-helpers.sub.js'></script>
+<script>
+
+promise_test(function(t) {
+    var script = 'resources/registration-attribute-worker.js';
+    var scope = 'resources/scope/registration-attribute';
+    var registration;
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(reg) {
+          registration = reg;
+          add_result_callback(function() { registration.unregister(); });
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(frame) {
+          var expected_events_seen = [
+            'updatefound',
+            'install',
+            'statechange(installed)',
+            'statechange(activating)',
+            'activate',
+            'statechange(activated)',
+            'fetch',
+          ];
+
+          assert_equals(
+              frame.contentDocument.body.textContent,
+              expected_events_seen.toString(),
+              'Service Worker should respond to fetch');
+          frame.remove();
+          return registration.unregister();
+        });
+  }, 'Verify registration attributes on ServiceWorkerGlobalScope');
+
+promise_test(function(t) {
+    var script = 'resources/registration-attribute-worker.js';
+    var newer_script = 'resources/registration-attribute-newer-worker.js';
+    var scope = 'resources/scope/registration-attribute';
+    var newer_worker;
+    var registration;
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(reg) {
+          registration = reg;
+          add_result_callback(function() { registration.unregister(); });
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return navigator.serviceWorker.register(newer_script, {scope: scope});
+        })
+      .then(function(reg) {
+          assert_equals(reg, registration);
+          newer_worker = registration.installing;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          var channel = new MessageChannel;
+          var saw_message = new Promise(function(resolve) {
+              channel.port1.onmessage = function(e) { resolve(e.data); };
+            });
+          newer_worker.postMessage({port: channel.port2}, [channel.port2]);
+          return saw_message;
+        })
+      .then(function(results) {
+          var script_url = normalizeURL(script);
+          var newer_script_url = normalizeURL(newer_script);
+          var expectations = [
+            'evaluate',
+            '  installing: empty',
+            '  waiting: empty',
+            '  active: ' + script_url,
+            'updatefound',
+            '  installing: ' + newer_script_url,
+            '  waiting: empty',
+            '  active: ' + script_url,
+            'install',
+            '  installing: ' + newer_script_url,
+            '  waiting: empty',
+            '  active: ' + script_url,
+            'statechange(installed)',
+            '  installing: empty',
+            '  waiting: ' + newer_script_url,
+            '  active: ' + script_url,
+            'statechange(activating)',
+            '  installing: empty',
+            '  waiting: empty',
+            '  active: ' + newer_script_url,
+            'activate',
+            '  installing: empty',
+            '  waiting: empty',
+            '  active: ' + newer_script_url,
+            'statechange(activated)',
+            '  installing: empty',
+            '  waiting: empty',
+            '  active: ' + newer_script_url,
+          ];
+          assert_array_equals(results, expectations);
+          return registration.unregister();
+        });
+  }, 'Verify registration attributes on ServiceWorkerGlobalScope of the ' +
+     'newer worker');
+
+</script>

@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Service Worker intercepted navigation preserves document.referrer</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+
+<body>
+<h1>Service Worker intercepted navigation preserves document.referrer</h1>
+<script>
+promise_test(async t => {
+  // Scope where the SW will control navigations.
+  // This lives under the same directory as the SW script below.
+  const scope = 'resources/referrer-scope/';
+
+  // Ensure a clean registration, then register the SW.
+  const reg = await service_worker_unregister_and_register(
+      t, 'resources/intercepted-referrer-sw.js', scope);
+
+  // Wait for activation (handles fresh or already-active cases).
+  const worker = reg.installing || reg.waiting || reg.active;
+  await wait_for_state(t, worker, 'activated');
+
+  // We’ll get one message back from the intercepted document.
+  const messagePromise = new Promise(resolve => {
+    window.addEventListener('message', e => resolve(e.data), { once: true });
+  });
+
+  // Create a navigation under the SW’s scope. The SW will synthesize the page.
+  const iframe = document.createElement('iframe');
+  t.add_cleanup(() => iframe.remove());
+  iframe.src = scope + 'navigated.html';
+  document.body.append(iframe);
+
+  const data = await messagePromise;
+
+  // Basic sanity from the child payload.
+  assert_equals(data && data.source, 'sw-intercepted', 'Child payload is from SW response');
+
+  // document.referrer should be the full URL of this test page (same-origin default policy).
+  // WPT servers send same-origin requests with full referrer (default "strict-origin-when-cross-origin").
+  const expectedReferrer = location.href;
+
+  assert_equals(data.referrer, expectedReferrer,
+    'document.referrer inside the SW-synthesized document equals the parent test page URL');
+
+  // Clean up: unregister the SW.
+  t.add_cleanup(() => reg.unregister());
+}, 'document.referrer for a navigation intercepted by a Service Worker is unchanged and matches the parent URL');
+</script>
+</body>

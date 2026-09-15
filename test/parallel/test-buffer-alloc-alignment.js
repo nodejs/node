@@ -111,6 +111,24 @@ for (const alloc of [Buffer.allocUnsafe, Buffer.allocUnsafeSlow]) {
   assert.strictEqual(buf.buffer.byteLength, 100);
 }
 
+// The padding an aligned allocation needs does not leave a partial element
+// behind it, so a typed array view running from the buffer to the end of its
+// ArrayBuffer can be created without an explicit length.
+{
+  const bufs = [Buffer.allocUnsafe(8), Buffer.allocUnsafeSlow(4096, 4096)];
+  for (const alignment of alignments) {
+    bufs.push(Buffer.allocUnsafe(8, alignment),
+              Buffer.allocUnsafeSlow(8, alignment));
+  }
+  for (const buf of bufs) {
+    const rest = buf.buffer.byteLength - buf.byteOffset;
+    assert.strictEqual(new BigUint64Array(buf.buffer, buf.byteOffset).byteLength,
+                       rest);
+    assert.strictEqual(new Uint32Array(buf.buffer, buf.byteOffset).byteLength,
+                       rest);
+  }
+}
+
 // Buffer.allocUnsafeSlow() is never pooled, even when aligned.
 {
   const a = Buffer.allocUnsafeSlow(64, 64);

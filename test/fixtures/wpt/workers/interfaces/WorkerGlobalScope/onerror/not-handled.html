@@ -1,0 +1,28 @@
+<!doctype html>
+<title>onerror, "not handled"</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+function createHandler(t) {
+  return t.step_func(function(e) {
+    assert_true(e instanceof ErrorEvent, 'e instanceof ErrorEvent');
+    assert_equals(typeof e.message, 'string', 'typeof e.message');
+    assert_equals(e.filename, document.URL.replace('.html', '.js'), 'e.filename');
+    assert_equals(typeof e.lineno, 'number', 'typeof e.lineno');
+    assert_equals(typeof e.colno, 'number', 'typeof e.column');
+    e.preventDefault(); // "handled"
+    t.done();
+  });
+}
+
+async_test(function(t) {
+  var worker = new Worker('not-handled.js');
+  worker.onerror = createHandler(t);
+}, 'Not handled evaluation error => Worker.onerror handler');
+
+async_test(function(t) {
+  var worker = new Worker('not-handled.js');
+  worker.addEventListener('error', createHandler(t));
+}, 'Not handled evaluation error => Worker error listener');
+</script>

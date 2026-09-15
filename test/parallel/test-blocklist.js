@@ -340,6 +340,34 @@ const util = require('util');
 }
 
 {
+  // addAddresses() and addCIDRs() must throw the same errors for non-array
+  // input regardless of how the checks are implemented internally.
+  const blockList = new BlockList();
+  for (const [value, received] of [
+    ['x', "type string ('x')"],
+    [123, 'type number (123)'],
+    [{}, 'an instance of Object'],
+    [null, 'null'],
+    [undefined, 'undefined'],
+    [1n, 'type bigint (1n)'],
+    [true, 'type boolean (true)'],
+  ]) {
+    assert.throws(() => blockList.addAddresses(value), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "addresses" argument must be an instance of Array. ' +
+               `Received ${received}`,
+    });
+    assert.throws(() => blockList.addCIDRs(value), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "cidrs" argument must be an instance of Array. ' +
+               `Received ${received}`,
+    });
+  }
+}
+
+{
   // Test addAddresses() batch insert.
   const blockList = new BlockList();
   blockList.addAddresses(['1.1.1.1', '2.2.2.2', '3.3.3.3']);
@@ -926,4 +954,41 @@ const util = require('util');
   // Address outside /16 but inside old /8 should no longer match.
   assert(!blockList.check('10.2.0.1'));
   assert.strictEqual(blockList.rules.length, 1);
+}
+
+{
+  // IPv4-mapped / mixed-notation IPv6 rules must survive a toJSON/fromJSON
+  // round-trip. toJSON() emits these addresses in mixed dotted-quad form
+  // (e.g. "::ffff:192.0.2.128"), so the rule parser must accept the "." used
+  // in that notation.
+  const bl = new BlockList();
+  bl.addAddress('::ffff:192.0.2.128', 'ipv6');
+  bl.addSubnet('::ffff:10.0.0.0', 120, 'ipv6');
+  bl.addRange('::ffff:172.16.0.1', '::ffff:172.16.0.10', 'ipv6');
+
+  const expected = [
+    'Address: IPv6 ::ffff:192.0.2.128',
+    'Range: IPv6 ::ffff:172.16.0.1-::ffff:172.16.0.10',
+    'Subnet: IPv6 ::ffff:10.0.0.0/120',
+  ];
+  assert.deepStrictEqual(bl.toJSON().sort(), expected);
+
+  const restored = new BlockList();
+  restored.fromJSON(bl.toJSON());
+
+  // The restored rules must be identical (lossless round-trip).
+  assert.deepStrictEqual(restored.toJSON().sort(), expected);
+
+  // And it must still match the same addresses as the original.
+  [
+    ['::ffff:192.0.2.128', true],  // the single address
+    ['::ffff:192.0.2.129', false],
+    ['::ffff:10.0.0.50', true],    // inside the subnet
+    ['::ffff:10.0.1.0', false],
+    ['::ffff:172.16.0.5', true],   // inside the range
+    ['::ffff:172.16.0.20', false],
+  ].forEach(([address, result]) => {
+    assert.strictEqual(bl.check(address, 'ipv6'), result);
+    assert.strictEqual(restored.check(address, 'ipv6'), result);
+  });
 }

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: Referrer</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+async function openWindow(url) {
+  const win = window.open(url, '_blank');
+  add_result_callback(() => win.close());
+  const msg_event = await new Promise(resolve => window.onmessage = resolve);
+  assert_equals(msg_event.data, 'LOADED');
+  return win;
+}
+
+// Removes URL parameters from the given URL string and returns it.
+function removeParams(url_string) {
+  if (!url_string)
+    return url_string;
+  let url = new URL(url_string);
+  for (var key of url.searchParams.keys())
+    url.searchParams.delete(key);
+  return url.href;
+}
+
+// Generates a referrer given a fetchType, referrer policy, and a request URL
+// (used to determine whether request is remote-origin or not). This function
+// is used to generate expected referrers.
+function generateExpectedReferrer(referrerURL, referrerPolicy, requestURL) {
+  let generatedReferrer = "";
+  if (referrerPolicy === 'no-referrer')
+    generatedReferrer = "";
+  else if (referrerPolicy === 'origin')
+    generatedReferrer = new URL('resources/' + referrerURL, location.href).origin + '/';
+  else if (referrerPolicy === 'same-origin')
+    generatedReferrer = requestURL.includes('remote') ? "" : new URL('resources/' + referrerURL, location.href).href;
+  else
+    generatedReferrer = new URL('resources/' + referrerURL, location.href).href;
+
+  return generatedReferrer;
+}
+
+// Runs a referrer policy test with the given settings. This opens a new window
+// that starts a dedicated worker.
+//
+// |settings| has options as follows:
+//
+//   settings = {
+//     scriptURL: 'resources/referrer-checker.sub.js',
+//     windowReferrerPolicy: 'no-referrer',
+//     workerReferrerPolicy: 'same-origin',
+//     fetchType: 'top-level' or 'descendant-static' or 'descendant-dynamic'
+//   };
+//
+// - |scriptURL| is used for starting a new worker.
+// - |windowReferrerPolicy| is to set the ReferrerPolicy HTTP header of the
+//   window. This policy should be applied to top-level worker module script
+//   loading and static imports.
+// - |workerReferrerPolicy| is to set the ReferrerPolicy HTTP header of the
+//   worker. This policy should be applied to dynamic imports.
+// - |fetchType| indicates a script whose referrer will be tested.
+function import_referrer_test(settings, description) {
+  promise_test(async () => {
+    let windowURL = 'resources/new-worker-window.html';
+    if (settings.windowReferrerPolicy) {
+      windowURL +=
+          `?pipe=header(Referrer-Policy, ${settings.windowReferrerPolicy})`;
+    }
+
+    let scriptURL = settings.scriptURL;
+    if (settings.workerReferrerPolicy) {
+      // 'sub' is necessary even if the |scriptURL| contains the '.sub'
+      // extension because the extension doesn't work with the 'pipe' parameter.
+      // See an issue on the WPT's repository:
+      // https://github.com/web-platform-tests/wpt/issues/9345
+      scriptURL +=
+          `?pipe=sub|header(Referrer-Policy, ${settings.workerReferrerPolicy})`;
+    }
+
+    const win = await openWindow(windowURL);
+    win.postMessage(scriptURL, '*');
+    const msgEvent = await new Promise(resolve => window.onmessage = resolve);
+
+    // Generate the expected referrer, given:
+    //   - The fetchType of the test
+    //   - Referrer URL to be used
+    //   - Relevant referrer policy
+    //   - Request URL
+    let expectedReferrer;
+    if (settings.fetchType === 'top-level') {
+      // Top-level worker requests have their outgoing referrers set given their
+      // containing window's URL and referrer policy.
+      expectedReferrer = generateExpectedReferrer('new-worker-window.html', settings.windowReferrerPolicy, settings.scriptURL);
+    } else if (settings.fetchType === 'descendant-static') {
+      // Static descendant script requests from a worker have their outgoing
+      // referrer set given their containing script's URL and containing
+      // window's referrer policy.
+
+      // In the below cases, the referrer URL and the request URLs are the same
+      // because the initial request (for the top-level worker script) should
+      // act as the referrer for future descendant requests.
+      expectedReferrer = generateExpectedReferrer(settings.scriptURL, settings.windowReferrerPolicy, settings.scriptURL);
+    } else if (settings.fetchType === 'descendant-dynamic') {
+      // Dynamic descendant script requests from a worker have their outgoing
+      // referrer set given their containing script's URL and referrer policy.
+      expectedReferrer = generateExpectedReferrer(settings.scriptURL, settings.workerReferrerPolicy, settings.scriptURL);
+    }
+
+    // Delete query parameters from the actual referrer to make it easy to match
+    // it with the expected referrer.
+    const actualReferrer = removeParams(msgEvent.data);
+
+    assert_equals(actualReferrer, expectedReferrer);
+  }, description);
+}
+
+// Tests for top-level worker module script loading.
+//
+// Top-level worker module scripts should inherit the containing window's
+// referrer policy when using the containing window's URL as the referrer.
+//
+// [Current document]
+// --(open)--> [Window] whose referrer policy is |windowReferrerPolicy|.
+//   --(new Worker)--> [Worker] should respect [windowReferrerPolicy| when
+//                     using [Window]'s URL as the referrer.
+
+import_referrer_test(
+    { scriptURL: 'postmessage-referrer-checker.py',
+      windowReferrerPolicy: 'no-referrer',
+      fetchType: 'top-level' },
+    'Same-origin top-level module script loading with "no-referrer" referrer ' +
+        'policy');
+
+import_referrer_test(
+    { scriptURL: 'postmessage-referrer-checker.py',
+      windowReferrerPolicy: 'origin',
+      fetchType: 'top-level' },
+    'Same-origin top-level module script loading with "origin" referrer ' +
+        'policy');
+
+import_referrer_test(
+    { scriptURL: 'postmessage-referrer-checker.py',
+      windowReferrerPolicy: 'same-origin',
+      fetchType: 'top-level' },
+    'Same-origin top-level module script loading with "same-origin" referrer ' +
+        'policy');
+
+// Tests for static imports.
+//
+// Static imports should inherit the containing window's referrer policy when
+// using the containing module script's URL as the referrer.
+// Note: This is subject to change in the future; see
+// https://github.com/w3c/webappsec-referrer-policy/issues/111.
+//
+// [Current document]
+// --(open)--> [Window] whose referrer policy is |windowReferrerPolicy|.
+//   --(new Worker)--> [Worker]
+//     --(static import)--> [Script] should respect |windowReferrerPolicy| when
+//                          using [Worker]'s URL as the referrer.
+
+import_referrer_test(
+    { scriptURL: 'static-import-same-origin-referrer-checker-worker.js',
+      windowReferrerPolicy: 'no-referrer',
+      fetchType: 'descendant-static' },
+    'Same-origin static import with "no-referrer" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'static-import-same-origin-referrer-checker-worker.js',
+      windowReferrerPolicy: 'origin',
+      fetchType: 'descendant-static' },
+    'Same-origin static import with "origin" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'static-import-same-origin-referrer-checker-worker.js',
+      windowReferrerPolicy: 'same-origin',
+      fetchType: 'descendant-static' },
+    'Same-origin static import with "same-origin" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'static-import-remote-origin-referrer-checker-worker.sub.js',
+      windowReferrerPolicy: 'no-referrer',
+      fetchType: 'descendant-static' },
+    'Cross-origin static import with "no-referrer" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'static-import-remote-origin-referrer-checker-worker.sub.js',
+      windowReferrerPolicy: 'origin',
+      fetchType: 'descendant-static' },
+    'Cross-origin static import with "origin" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'static-import-remote-origin-referrer-checker-worker.sub.js',
+      windowReferrerPolicy: 'same-origin',
+      fetchType: 'descendant-static' },
+    'Cross-origin static import with "same-origin" referrer policy.');
+
+// Tests for dynamic imports.
+//
+// Dynamic imports should inherit the containing script's referrer policy if
+// set, and use the default referrer policy otherwise, when using the
+// containing script's URL as the referrer.
+//
+// [Current document]
+// --(open)--> [Window]
+//   --(new Worker)--> [Worker] whose referrer policy is |workerReferrerPolicy|.
+//     --(dynamic import)--> [Script] should respect |workerReferrerPolicy| when
+//                           using [Worker]'s URL as the referrer.
+
+import_referrer_test(
+    { scriptURL: 'dynamic-import-same-origin-referrer-checker-worker.js',
+      workerReferrerPolicy: 'no-referrer',
+      fetchType: 'descendant-dynamic' },
+    'Same-origin dynamic import with "no-referrer" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'dynamic-import-same-origin-referrer-checker-worker.js',
+      workerReferrerPolicy: 'origin',
+      fetchType: 'descendant-dynamic' },
+    'Same-origin dynamic import with "origin" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'dynamic-import-same-origin-referrer-checker-worker.js',
+      workerReferrerPolicy: 'same-origin',
+      fetchType: 'descendant-dynamic' },
+    'Same-origin dynamic import with "same-origin" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'dynamic-import-remote-origin-referrer-checker-worker.sub.js',
+      workerReferrerPolicy: 'no-referrer',
+      fetchType: 'descendant-dynamic' },
+    'Cross-origin dynamic import with "no-referrer" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'dynamic-import-remote-origin-referrer-checker-worker.sub.js',
+      workerReferrerPolicy: 'origin',
+      fetchType: 'descendant-dynamic' },
+    'Cross-origin dynamic import with "origin" referrer policy.');
+
+import_referrer_test(
+    { scriptURL: 'dynamic-import-remote-origin-referrer-checker-worker.sub.js',
+      workerReferrerPolicy: 'same-origin',
+      fetchType: 'descendant-dynamic' },
+    'Cross-origin dynamic import with "same-origin" referrer policy.');
+</script>

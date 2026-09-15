@@ -1,15 +1,14 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 
 function isOnlcrEnabled() {
-  const { stdout, stderr, status } = spawnSync('stty', ['-a'], {
+  const { child: { stdout } } = spawnSyncAndExitWithoutError('stty', ['-a'], {
     encoding: 'utf8',
     stdio: ['inherit', 'pipe', 'pipe'],
   });
 
-  assert.strictEqual(status, 0, stderr);
   return /(?:^|[\s;])onlcr(?:[\s;]|$)/.test(stdout);
 }
 

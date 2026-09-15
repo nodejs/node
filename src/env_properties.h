@@ -240,12 +240,15 @@
   V(jwk_n_string, "n")                                                         \
   V(jwk_oct_string, "oct")                                                     \
   V(jwk_okp_string, "OKP")                                                     \
+  V(jwk_oth_string, "oth")                                                     \
   V(jwk_p_string, "p")                                                         \
   V(jwk_priv_string, "priv")                                                   \
   V(jwk_pub_string, "pub")                                                     \
   V(jwk_q_string, "q")                                                         \
   V(jwk_qi_string, "qi")                                                       \
+  V(jwk_r_string, "r")                                                         \
   V(jwk_rsa_string, "RSA")                                                     \
+  V(jwk_t_string, "t")                                                         \
   V(jwk_x_string, "x")                                                         \
   V(jwk_y_string, "y")                                                         \
   V(kill_signal_string, "killSignal")                                          \
@@ -433,11 +436,15 @@
   V(ephemeral_key_template, v8::DictionaryTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(dns_ns_record_template, v8::DictionaryTemplate)                            \
+  V(dtls_context_constructor_template, v8::FunctionTemplate)                   \
+  V(dtls_endpoint_constructor_template, v8::FunctionTemplate)                  \
+  V(dtls_session_constructor_template, v8::FunctionTemplate)                   \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
   V(ffi_function_constructor_template, v8::FunctionTemplate)                   \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(fips_indicator_event_template, v8::DictionaryTemplate)                     \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
@@ -504,6 +511,7 @@
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
   V(crypto_internal_cryptokey_constructor, v8::Function)                       \
+  V(crypto_internal_x509_certificate_constructor, v8::Function)                \
   V(crypto_key_object_private_constructor, v8::Function)                       \
   V(crypto_key_object_public_constructor, v8::Function)                        \
   V(crypto_key_object_secret_constructor, v8::Function)                        \

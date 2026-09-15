@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>service worker: activation</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+// Returns {registration, iframe}, where |registration| has an active and
+// waiting worker. The active worker controls |iframe| and has an inflight
+// message event that can be finished by calling
+// |registration.active.postMessage('go')|.
+function setup_activation_test(t, scope, worker_url) {
+  var registration;
+  var iframe;
+  return navigator.serviceWorker.getRegistration(scope)
+    .then(r => {
+        if (r)
+          return r.unregister();
+      })
+    .then(() => {
+        // Create an in-scope iframe. Do this prior to registration to avoid
+        // racing between an update triggered by navigation and the update()
+        // call below.
+        return with_iframe(scope);
+      })
+    .then(f => {
+        iframe = f;
+        // Create an active worker.
+        return navigator.serviceWorker.register(worker_url, { scope: scope });
+      })
+    .then(r => {
+        registration = r;
+        add_result_callback(() => registration.unregister());
+        return wait_for_state(t, r.installing, 'activated');
+      })
+    .then(() => {
+        // Check that the frame was claimed.
+        assert_not_equals(
+            iframe.contentWindow.navigator.serviceWorker.controller, null);
+        // Create an in-flight request.
+        registration.active.postMessage('wait');
+        // Now there is both a controllee and an in-flight request.
+        // Initiate an update.
+        return registration.update();
+      })
+    .then(() => {
+        // Wait for a waiting worker.
+        return wait_for_state(t, registration.installing, 'installed');
+      })
+    .then(() => {
+        return wait_for_activation_on_sample_scope(t, self);
+      })
+    .then(() => {
+        assert_not_equals(registration.waiting, null);
+        assert_not_equals(registration.active, null);
+        return Promise.resolve({registration: registration, iframe: iframe});
+      });
+}
+promise_test(t => {
+    var scope = 'resources/no-controllee';
+    var worker_url = 'resources/mint-new-worker.py';
+    var registration;
+    var iframe;
+    var new_worker;
+    return setup_activation_test(t, scope, worker_url)
+      .then(result => {
+          registration = result.registration;
+          iframe = result.iframe;
+          // Finish the in-flight request.
+          registration.active.postMessage('go');
+          return wait_for_activation_on_sample_scope(t, self);
+        })
+      .then(() => {
+          // The new worker is still waiting. Remove the frame and it should
+          // activate.
+          new_worker = registration.waiting;
+          assert_equals(new_worker.state, 'installed');
+          var reached_active = wait_for_state(t, new_worker, 'activating');
+          iframe.remove();
+          return reached_active;
+        })
+      .then(() => {
+          assert_equals(new_worker, registration.active);
+        });
+  }, 'loss of controllees triggers activation');
+promise_test(t => {
+    var scope = 'resources/no-request';
+    var worker_url = 'resources/mint-new-worker.py';
+    var registration;
+    var iframe;
+    var new_worker;
+    return setup_activation_test(t, scope, worker_url)
+      .then(result => {
+          registration = result.registration;
+          iframe = result.iframe;
+          // Remove the iframe.
+          iframe.remove();
+          return new Promise(resolve => setTimeout(resolve, 0));
+        })
+      .then(() => {
+          // Finish the request.
+          new_worker = registration.waiting;
+          var reached_active = wait_for_state(t, new_worker, 'activating');
+          registration.active.postMessage('go');
+          return reached_active;
+        })
+      .then(() => {
+          assert_equals(registration.active, new_worker);
+        });
+  }, 'finishing a request triggers activation');
+promise_test(t => {
+    var scope = 'resources/skip-waiting';
+    var worker_url = 'resources/mint-new-worker.py?skip-waiting';
+    var registration;
+    var iframe;
+    var new_worker;
+    return setup_activation_test(t, scope, worker_url)
+      .then(result => {
+          registration = result.registration;
+          iframe = result.iframe;
+          // Finish the request. The iframe does not need to be removed because
+          // skipWaiting() was called.
+          new_worker = registration.waiting;
+          var reached_active = wait_for_state(t, new_worker, 'activating');
+          registration.active.postMessage('go');
+          return reached_active;
+        })
+      .then(() => {
+          assert_equals(registration.active, new_worker);
+          // Remove the iframe.
+          iframe.remove();
+        });
+  }, 'skipWaiting bypasses no controllee requirement');
+
+// This test is not really about activation, but otherwise is very
+// similar to the other tests here.
+promise_test(t => {
+    var scope = 'resources/unregister';
+    var worker_url = 'resources/mint-new-worker.py';
+    var registration;
+    var iframe;
+    var new_worker;
+    return setup_activation_test(t, scope, worker_url)
+      .then(result => {
+          registration = result.registration;
+          iframe = result.iframe;
+          // Remove the iframe.
+          iframe.remove();
+          return registration.unregister();
+        })
+      .then(() => {
+          // The unregister operation should wait for the active worker to
+          // finish processing its events before clearing the registration.
+          new_worker = registration.waiting;
+          var reached_redundant = wait_for_state(t, new_worker, 'redundant');
+          registration.active.postMessage('go');
+          return reached_redundant;
+        })
+      .then(() => {
+          assert_equals(registration.installing, null);
+          assert_equals(registration.waiting, null);
+          assert_equals(registration.active, null);
+        });
+  }, 'finishing a request triggers unregister');
+</script>
+</body>

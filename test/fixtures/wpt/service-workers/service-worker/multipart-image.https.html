@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<title>Tests for cross-origin multipart image returned by service worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+
+<script>
+// This tests loading a multipart image via service worker. The service worker responds with
+// an opaque or a non-opaque response. The content of opaque response should not be readable.
+
+const script = 'resources/multipart-image-worker.js';
+const scope = 'resources/multipart-image-iframe.html';
+let frame;
+
+function check_image_data(data) {
+    assert_equals(data[0], 255);
+    assert_equals(data[1], 0);
+    assert_equals(data[2], 0);
+    assert_equals(data[3], 255);
+}
+
+promise_test(t => {
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(registration => {
+          promise_test(() => {
+              if (frame) {
+                  frame.remove();
+              }
+              return registration.unregister();
+            }, 'restore global state');
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => with_iframe(scope))
+      .then(f => {
+          frame = f;
+      });
+  }, 'initialize global state');
+
+promise_test(t => {
+    return frame.contentWindow.load_multipart_image('same-origin-multipart-image')
+      .then(img => frame.contentWindow.get_image_data(img))
+      .then(img_data => {
+          check_image_data(img_data.data);
+      });
+  }, 'same-origin multipart image via SW should be readable');
+
+promise_test(t => {
+    return frame.contentWindow.load_multipart_image('cross-origin-multipart-image-with-cors-approved')
+      .then(img => frame.contentWindow.get_image_data(img))
+      .then(img_data => {
+          check_image_data(img_data.data);
+      });
+  }, 'cross-origin multipart image via SW with approved CORS should be readable');
+
+promise_test(t => {
+    return frame.contentWindow.load_multipart_image('cross-origin-multipart-image-with-no-cors')
+      .then(img => {
+        assert_throws_dom('SecurityError', frame.contentWindow.DOMException,
+                          () => frame.contentWindow.get_image_data(img));
+      });
+  }, 'cross-origin multipart image with no-cors via SW should not be readable');
+
+promise_test(t => {
+    const promise = frame.contentWindow.load_multipart_image('cross-origin-multipart-image-with-cors-rejected');
+    return promise_rejects_dom(t, 'NetworkError', frame.contentWindow.DOMException, promise);
+  }, 'cross-origin multipart image via SW with rejected CORS should fail to load');
+</script>

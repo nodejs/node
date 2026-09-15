@@ -1,3 +1,4 @@
+// Flags: --experimental-bench --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -35,6 +36,8 @@ hook.deregister();
 // the one with the `node:` prefix. The one with the prefix
 // stripped for internal lookups should not get passed into the hooks.
 const schemelessBlockList = new Set([
+  'bench',
+  'bench/reporters',
   'sea',
   'test',
   'test/reporters',

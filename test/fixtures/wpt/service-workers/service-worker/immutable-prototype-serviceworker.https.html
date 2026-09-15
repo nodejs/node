@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+'use strict';
+
+let expected = ['immutable', 'immutable', 'immutable', 'immutable', 'immutable'];
+
+promise_test(t =>
+  navigator.serviceWorker.register('resources/immutable-prototype-serviceworker.js', {scope: './resources/'})
+      .then(registration => {
+    let worker = registration.installing || registration.waiting || registration.active;
+    let channel = new MessageChannel()
+    worker.postMessage(channel.port2, [channel.port2]);
+    let resolve;
+    let promise = new Promise(r => resolve = r);
+    channel.port1.onmessage = resolve;
+    return promise.then(result => assert_array_equals(expected, result.data));
+  }),
+'worker prototype chain should be immutable');
+</script>
+</html>

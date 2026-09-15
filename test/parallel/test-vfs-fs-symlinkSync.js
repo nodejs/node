@@ -10,11 +10,10 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-symlinkSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 fs.symlinkSync('hello.txt', path.join(mountPoint, 'src/link.txt'));
 assert.strictEqual(

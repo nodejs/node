@@ -12,6 +12,7 @@
 #include "v8.h"
 
 #include <limits>
+#include <vector>
 
 namespace node {
 
@@ -36,7 +37,12 @@ class Histogram : public MemoryRetainer {
                             // exceeding this threshold.
   };
 
-  explicit Histogram(const Options& options);
+  using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
+
+  // Factory method that returns nullptr on hdr_init failure.
+  static std::shared_ptr<Histogram> Create(const Options& options);
+
+  Histogram(HistogramPointer histogram, const Options& options);
   virtual ~Histogram() = default;
 
   inline bool Record(int64_t value);
@@ -74,7 +80,13 @@ class Histogram : public MemoryRetainer {
                      int64_t* values,
                      size_t length) const;
 
-  // Statistical hypothesis testing
+  // Statistical analysis
+  struct MeanCIResult {
+    double mean;
+    double lower;
+    double upper;
+  };
+
   struct WelchTestResult {
     double t_statistic;
     double degrees_of_freedom;
@@ -95,6 +107,7 @@ class Histogram : public MemoryRetainer {
     int64_t upper;
   };
 
+  MeanCIResult MeanCI(double confidence = 0.95) const;
   WelchTestResult WelchTest(const Histogram& other,
                             double confidence = 0.95) const;
   MannWhitneyResult MannWhitneyTest(const Histogram& other) const;
@@ -102,6 +115,10 @@ class Histogram : public MemoryRetainer {
   double CliffsD(const Histogram& other) const;
   PercentileCIResult PercentileCI(double percentile,
                                   double confidence = 0.95) const;
+
+  // CBOR-encoded export/import for histogram exchange.
+  std::vector<uint8_t> Export() const;
+  static std::shared_ptr<Histogram> Import(const uint8_t* data, size_t len);
 
   inline bool RecordCorrected(int64_t value, int64_t expected_interval);
 
@@ -120,7 +137,6 @@ class Histogram : public MemoryRetainer {
  private:
   inline void UpdateEwma(double value);
 
-  using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
   HistogramPointer histogram_;
   uint64_t prev_ = 0;
   size_t exceeds_ = 0;
@@ -180,6 +196,7 @@ class HistogramImpl {
   static void GetPercentilesAt(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetLinearBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetLogBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMeanCI(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetWelchTest(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMannWhitneyTest(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -189,6 +206,8 @@ class HistogramImpl {
   static void GetEwmaMean(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEwmaStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEwmaErrorRate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoExport(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoImport(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void FastReset(v8::Local<v8::Value> receiver);
   static double FastGetCount(v8::Local<v8::Value> receiver);

@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc --allow-natives-syntax
+// Flags: --expose-gc --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
@@ -121,6 +121,24 @@ test('DynamicLibrary exposes functions and symbols', () => {
     assert.strictEqual(lib.functions.add_i64.pointer, functions.add_i64.pointer);
   } finally {
     ffi.dlclose(lib);
+  }
+});
+
+test('DynamicLibrary getters reject incompatible receivers', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    const invalidGets = [
+      () => Reflect.get(lib, 'path', {}),
+      () => Reflect.get(lib, 'symbols', {}),
+      () => Reflect.get(ffi.DynamicLibrary.prototype, 'functions', {}),
+    ];
+
+    for (const invalidGet of invalidGets) {
+      assert.throws(invalidGet, TypeError);
+    }
+  } finally {
+    lib.close();
   }
 });
 

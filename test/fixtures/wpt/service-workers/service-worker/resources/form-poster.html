@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<meta name="referrer" content="origin">
+<form method="POST" id="form"></form>
+<script>
+function onLoad() {
+  const params = new URLSearchParams(self.location.search);
+  const form = document.getElementById('form');
+  form.action = params.get('target');
+  form.submit();
+}
+self.addEventListener('load', onLoad);
+</script>

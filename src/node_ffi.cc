@@ -35,6 +35,7 @@ using v8::MaybeLocal;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::Signature;
 using v8::String;
 using v8::TryCatch;
 using v8::Value;
@@ -1238,16 +1239,19 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, DynamicLibrary::New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         DynamicLibrary::kInternalFieldCount);
+    Local<Signature> signature = Signature::New(isolate, tmpl);
 
     tmpl->InstanceTemplate()->SetAccessorProperty(
         env->path_string(),
-        FunctionTemplate::New(env->isolate(), DynamicLibrary::GetPath),
+        FunctionTemplate::New(
+            isolate, DynamicLibrary::GetPath, Local<Value>(), signature),
         Local<FunctionTemplate>(),
         attributes);
 
     tmpl->InstanceTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "symbols"),
-        FunctionTemplate::New(env->isolate(), DynamicLibrary::GetSymbols),
+        FunctionTemplate::New(
+            isolate, DynamicLibrary::GetSymbols, Local<Value>(), signature),
         Local<FunctionTemplate>(),
         attributes);
 
@@ -1257,7 +1261,8 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
     // reason.
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "functions"),
-        FunctionTemplate::New(env->isolate(), DynamicLibrary::GetFunctions),
+        FunctionTemplate::New(
+            isolate, DynamicLibrary::GetFunctions, Local<Value>(), signature),
         Local<FunctionTemplate>(),
         static_cast<PropertyAttribute>(ReadOnly));
 

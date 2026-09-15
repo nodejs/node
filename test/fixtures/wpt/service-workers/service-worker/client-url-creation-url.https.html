@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<title>Service Worker: Client.url is Window creation URL tests</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// These tests all validate that the Service Worker's Client.url property is
+// correct for different types of Window client navigations.
+// All test cases involve an iframe navigating in some manner and then
+// the service worker validating that the Client.url property is correct.
+
+// Waits for and returns the next postMessage from `frame` to this window.
+function wait_for_message_from_frame(frame) {
+  return new Promise(resolve => {
+    const message_handler = e => {
+      if (e.source === frame.contentWindow) {
+        frame.removeEventListener('message', message_handler);
+        resolve(e.data);
+      }
+    };
+    window.addEventListener('message', message_handler);
+  });
+}
+
+// Returns a promise to get a client URL under the ServiceWorker's
+// (client-url-creation-url-sw.js) control. `target` should be an active
+// ServiceWorker to post message.  We expect it to send back the client URL
+// via the given channel.
+function post_message_and_wait_for_response(
+    target, data) {
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = e => {
+      resolve(e.data);
+    };
+    target.postMessage(
+        {message: data, port: channel.port2},
+        [channel.port2]);
+  });
+}
+
+const SCOPE = 'resources/client-url-creation-url';
+const IFRAME_URL = SCOPE + '-iframe.html?step=1';
+
+// The test helper function implements a test case by
+// using an iframe to navigate in various ways described by `navigation_kinds`
+// and then validates the ServiceWorker Client.url property of the iframe
+// against the provided `expected_client_url`.
+// `navigation_kinds` is an array of strings each of which is one of the
+// navigation actions supported by client-url-creation-url-iframe.html.
+async function test_client_url_helper(
+    t, navigation_kinds, expected_client_url) {
+  const registration = await service_worker_unregister_and_register(
+      t, 'resources/client-url-creation-url-sw.js', SCOPE);
+  t.add_cleanup(_ => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const frame = await with_iframe(IFRAME_URL);
+  t.add_cleanup(_ => frame.remove());
+  const message = await wait_for_message_from_frame(frame);
+  assert_equals(message, 'done', 'iframe loaded successfully');
+
+  for (let navigation_kind_idx = 0;
+      navigation_kind_idx < navigation_kinds.length;
+      ++navigation_kind_idx) {
+    const navigation_kind = navigation_kinds[navigation_kind_idx];
+
+    frame.contentWindow.postMessage(navigation_kind);
+    const result = await wait_for_message_from_frame(frame);
+    assert_equals(result, 'done', 'iframe navigation successfully completed');
+  }
+
+  const actual_client_url = await post_message_and_wait_for_response(
+      registration.active, "get_client_url");
+
+  assert_equals(
+      actual_client_url, expected_client_url, 'Client.url should match');
+}
+
+const EXPECTED_URL_STEP_1 = new URL(
+    './resources/client-url-creation-url-iframe.html?step=1', location).href;
+const EXPECTED_URL_STEP_2 = new URL(
+    './resources/client-url-creation-url-iframe.html?step=2', location).href;
+
+// Tests that perform navigations that don't create a new document
+promise_test(async t => {
+  await test_client_url_helper(t, [], EXPECTED_URL_STEP_1);
+}, 'No navigation creation URL is same as window URL');
+
+promise_test(async t => {
+  await test_client_url_helper(t, ['fragment'], EXPECTED_URL_STEP_1);
+}, 'Fragment only navigation doesn\'t change creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(t, ['pushstate'], EXPECTED_URL_STEP_1);
+}, 'Pushstate doesn\'t change creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(t, ['replacestate'], EXPECTED_URL_STEP_1);
+}, 'Replacestate doesn\'t change creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(
+      t, ['pushstate', 'pushstate', 'back-within-same-document'], EXPECTED_URL_STEP_1);
+}, 'Going back over pushstate to other pushstate via back');
+
+// Tests that perform navigations that create new document(s)
+promise_test(async t => {
+  await test_client_url_helper(t, ['query'], EXPECTED_URL_STEP_2);
+}, 'Query navigation changes creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(t, ['reload'], EXPECTED_URL_STEP_1);
+}, 'Reloading doesn\'t change creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(t, ['pushstate', 'reload'], EXPECTED_URL_STEP_2);
+}, 'Reloading pushstate URL changes creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(
+      t, ['query', 'pushstate', 'back-within-same-document'], EXPECTED_URL_STEP_2);
+}, 'Going back over pushstate to creation URL');
+
+promise_test(async t => {
+  await test_client_url_helper(
+      t, ['query', 'query', 'back-cross-document'], EXPECTED_URL_STEP_2);
+}, 'Going back to new document changes creation URL');
+</script>

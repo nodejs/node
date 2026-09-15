@@ -30,20 +30,6 @@ std::string WildcardIfDir(const std::string& res) noexcept {
   return res;
 }
 
-void FreeRecursivelyNode(
-    node::permission::FSPermission::RadixTree::Node* node) {
-  if (node == nullptr) {
-    return;
-  }
-
-  for (auto& [label, child] : node->children) {
-    FreeRecursivelyNode(child);
-  }
-
-  delete node->wildcard_child;
-  delete node;
-}
-
 bool is_tree_granted(
     node::Environment* env,
     const node::permission::FSPermission::RadixTree* granted_tree,
@@ -118,7 +104,7 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
     for (const auto& [label, child] : node->children) {
       count++;
       bool child_is_last = (count == total);
-      PrintTree(child, depth + 1, next_branch_prefix, child_is_last);
+      PrintTree(child.get(), depth + 1, next_branch_prefix, child_is_last);
     }
   }
 }
@@ -266,25 +252,19 @@ bool FSPermission::is_granted(Environment* env,
   }
 }
 
-FSPermission::RadixTree::RadixTree() : root_node_(new Node("")) {}
+FSPermission::RadixTree::RadixTree() : root_node_(std::make_unique<Node>("")) {}
 
-FSPermission::RadixTree::~RadixTree() {
-  FreeRecursivelyNode(root_node_);
-}
+FSPermission::RadixTree::~RadixTree() = default;
 
 void FSPermission::RadixTree::Clear() {
-  for (auto& [label, child] : root_node_->children) {
-    FreeRecursivelyNode(child);
-  }
   root_node_->children.clear();
-  delete root_node_->wildcard_child;
-  root_node_->wildcard_child = nullptr;
+  root_node_->wildcard_child.reset();
   root_node_->is_leaf = false;
 }
 
 bool FSPermission::RadixTree::Lookup(std::string_view s,
                                      bool when_empty_return) const {
-  FSPermission::RadixTree::Node* current_node = root_node_;
+  FSPermission::RadixTree::Node* current_node = root_node_.get();
   if (current_node->children.empty()) {
     return when_empty_return;
   }
@@ -311,7 +291,7 @@ bool FSPermission::RadixTree::Lookup(std::string_view s,
 }
 
 void FSPermission::RadixTree::Insert(const std::string& path) {
-  FSPermission::RadixTree::Node* current_node = root_node_;
+  FSPermission::RadixTree::Node* current_node = root_node_.get();
 
   size_t parent_node_prefix_len = current_node->prefix.length();
   size_t path_len = path.length();
@@ -334,7 +314,7 @@ void FSPermission::RadixTree::Insert(const std::string& path) {
   if (per_process::enabled_debug_list.enabled(DebugCategory::PERMISSION_MODEL))
       [[unlikely]] {
     per_process::Debug(DebugCategory::PERMISSION_MODEL, "Inserting %s\n", path);
-    PrintTree(root_node_);
+    PrintTree(root_node_.get());
   }
 }
 

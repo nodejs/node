@@ -29,10 +29,13 @@ on:
       - deps/nghttp2/**
       - deps/ngtcp2/**
       - deps/openssl/*/**
+      - deps/perfetto/**
       - deps/simdjson/**
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
+      - deps/v8/third_party/abseil-cpp/**
+      - deps/v8/third_party/highway/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
@@ -82,10 +85,13 @@ on:
       - deps/nghttp2/**
       - deps/ngtcp2/**
       - deps/openssl/*/**
+      - deps/perfetto/**
       - deps/simdjson/**
       - deps/sqlite/**
       - deps/uv/**
       - deps/uvwasi/**
+      - deps/v8/third_party/abseil-cpp/**
+      - deps/v8/third_party/highway/**
       - deps/zlib/**
       - deps/zstd/**
       - doc/**

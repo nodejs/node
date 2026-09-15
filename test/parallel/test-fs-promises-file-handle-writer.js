@@ -1060,6 +1060,27 @@ async function testWriterArgumentValidation() {
   }
 }
 
+async function testWriterWebIDLConversion() {
+  const filePath = path.join(tmpDir, 'writer-webidl.txt');
+  const fh = await open(filePath, 'w');
+  const w = fh.writer();
+
+  await w.write(42, null);
+  await w.writev(new Set([true, { toString: () => 'object' }]));
+  assert.throws(
+    () => w.write(Symbol('invalid')),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.throws(
+    () => w.write('invalid options', 1),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.strictEqual(await w.end(null), 12);
+  await fh.close();
+
+  assert.strictEqual(fs.readFileSync(filePath, 'utf8'), '42trueobject');
+}
+
 // =============================================================================
 // Run all tests
 // =============================================================================
@@ -1114,4 +1135,5 @@ Promise.all([
   testWriterLimitWritevSync(),
   testWriterLimitAndStart(),
   testWriterArgumentValidation(),
+  testWriterWebIDLConversion(),
 ]).then(common.mustCall());

@@ -90,9 +90,12 @@ static void Drop(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    Utf8Value utf8_arg(env->isolate(), args[1]);
-    if (utf8_arg.length() > 0) {
-      env->permission()->Drop(env, scope, utf8_arg.ToStringView());
+    // BufferValue copies raw bytes out of a Buffer/TypedArray as-is instead
+    // of forcing a (potentially lossy) UTF-8 string conversion, since paths
+    // are not guaranteed to be valid UTF-8.
+    BufferValue resource(env->isolate(), args[1]);
+    if (resource.length() > 0) {
+      env->permission()->Drop(env, scope, resource.ToStringView());
       return;
     }
   }
@@ -113,13 +116,16 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    Utf8Value utf8_arg(env->isolate(), args[1]);
-    if (utf8_arg.length() == 0) {
+    // BufferValue copies raw bytes out of a Buffer/TypedArray as-is instead
+    // of forcing a (potentially lossy) UTF-8 string conversion, since paths
+    // are not guaranteed to be valid UTF-8.
+    BufferValue resource(env->isolate(), args[1]);
+    if (resource.length() == 0) {
       args.GetReturnValue().Set(false);
       return;
     }
     return args.GetReturnValue().Set(
-        env->permission()->is_granted(env, scope, utf8_arg.ToStringView()));
+        env->permission()->is_granted(env, scope, resource.ToStringView()));
   }
 
   return args.GetReturnValue().Set(env->permission()->is_granted(env, scope));
@@ -174,16 +180,22 @@ static bool FastHasResource(
     return false;
   }
 
-  Local<String> res_str;
-  if (!resource_arg->ToString(context).ToLocal(&res_str)) {
-    return false;
+  // The JS wrapper always calls this with 2 arguments, passing undefined
+  // when no resource was given, so this path (unlike Has()) has to check
+  // for that explicitly and fall back to the scope-only check.
+  if (resource_arg->IsUndefined()) {
+    return env->permission()->is_granted(env, scope);
   }
-  Utf8Value utf8_res(isolate, res_str);
-  if (utf8_res.length() == 0) {
+
+  // BufferValue is constructed directly from resource_arg (not from a
+  // pre-converted String) so that a Buffer/TypedArray's raw bytes are
+  // copied as-is instead of going through a lossy UTF-8 string conversion.
+  BufferValue resource(isolate, resource_arg);
+  if (resource.length() == 0) {
     return false;
   }
 
-  return env->permission()->is_granted(env, scope, utf8_res.ToStringView());
+  return env->permission()->is_granted(env, scope, resource.ToStringView());
 }
 
 static CFunction fast_has_methods_[] = {CFunction::Make(FastHas),

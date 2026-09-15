@@ -3,12 +3,42 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pullSync, fromSync, bytesSync, tapSync } = require('stream/iter');
+const {
+  pullSync,
+  fromSync,
+  bytesSync,
+  tapSync,
+  toStreamable,
+} = require('stream/iter');
 
 function testPullSyncIdentity() {
   // No transforms - just pass through
   const data = bytesSync(pullSync(fromSync('hello')));
   assert.deepStrictEqual(data, new TextEncoder().encode('hello'));
+}
+
+function testPullSyncNormalizesSourceAtCallTime() {
+  let protocolCalls = 0;
+  let iteratorCalls = 0;
+  const source = {
+    [toStreamable]() {
+      protocolCalls++;
+      return {
+        *[Symbol.iterator]() {
+          iteratorCalls++;
+          yield 'data';
+        },
+      };
+    },
+  };
+
+  const result = pullSync(source);
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 0);
+  assert.strictEqual(new TextDecoder().decode(bytesSync(result)), 'data');
+  assert.strictEqual(protocolCalls, 1);
+  assert.strictEqual(iteratorCalls, 1);
+  assert.throws(() => pullSync(null), { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
 function testPullSyncStatelessTransform() {
@@ -42,6 +72,20 @@ function testPullSyncStatefulTransform() {
   const result = pullSync(source, stateful);
   const data = new TextDecoder().decode(bytesSync(result));
   assert.strictEqual(data, 'data-END');
+}
+
+function testPullSyncStatefulTransformReceiver() {
+  const descriptor = {};
+  descriptor.transform = common.mustCall(
+    function*(source) {
+      assert.strictEqual(this, descriptor);
+      yield* source;
+    });
+
+  assert.strictEqual(
+    new TextDecoder().decode(bytesSync(pullSync(fromSync('receiver'), descriptor))),
+    'receiver',
+  );
 }
 
 function testPullSyncChainedTransforms() {
@@ -177,8 +221,10 @@ function testPullSyncInvalidTransform() {
 
 Promise.all([
   testPullSyncIdentity(),
+  testPullSyncNormalizesSourceAtCallTime(),
   testPullSyncStatelessTransform(),
   testPullSyncStatefulTransform(),
+  testPullSyncStatefulTransformReceiver(),
   testPullSyncChainedTransforms(),
   testPullSyncSourceError(),
   testPullSyncEmptySource(),

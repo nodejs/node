@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: XHR responseURL uses the response url</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const scope = 'resources/xhr-iframe.html';
+const script = 'resources/xhr-response-url-worker.js';
+let iframe;
+
+function build_url(options) {
+  const url = new URL('test', window.location);
+  const opts = options ? options : {};
+  if (opts.respondWith)
+    url.searchParams.set('respondWith', opts.respondWith);
+  if (opts.url)
+    url.searchParams.set('url', opts.url.href);
+  return url.href;
+}
+
+promise_test(async (t) => {
+  const registration =
+      await service_worker_unregister_and_register(t, script, scope);
+  await wait_for_state(t, registration.installing, 'activated');
+  iframe = await with_iframe(scope);
+}, 'global setup');
+
+// Test that XMLHttpRequest.responseURL uses the response URL from the service
+// worker.
+promise_test(async (t) => {
+  // Build a URL that tells the service worker to respondWith(fetch(|target|)).
+  const target = new URL('resources/sample.txt', window.location);
+  const url = build_url({
+    respondWith: 'fetch',
+    url: target
+  });
+
+  // Perform the XHR.
+  const xhr = await iframe.contentWindow.xhr(url);
+  assert_equals(xhr.responseURL, target.href, 'responseURL');
+}, 'XHR responseURL should be the response URL');
+
+// Same as above with a generated response.
+promise_test(async (t) => {
+  // Build a URL that tells the service worker to respondWith(new Response()).
+  const url = build_url({respondWith: 'string'});
+
+  // Perform the XHR.
+  const xhr = await iframe.contentWindow.xhr(url);
+  assert_equals(xhr.responseURL, url, 'responseURL');
+}, 'XHR responseURL should be the response URL (generated response)');
+
+// Test that XMLHttpRequest.responseXML is a Document whose URL is the
+// response URL from the service worker.
+promise_test(async (t) => {
+  // Build a URL that tells the service worker to respondWith(fetch(|target|)).
+  const target = new URL('resources/blank.html', window.location);
+  const url = build_url({
+    respondWith: 'fetch',
+    url: target
+  });
+
+  // Perform the XHR.
+  const xhr = await iframe.contentWindow.xhr(url, {responseType: 'document'});
+  assert_equals(xhr.responseURL, target.href, 'responseURL');
+
+  // The document's URL uses the response URL:
+  // "Set |document|’s URL to |response|’s url."
+  // https://xhr.spec.whatwg.org/#document-response
+  assert_equals(xhr.responseXML.URL, target.href, 'responseXML.URL');
+
+  // The document's base URL falls back to the document URL:
+  // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#document-base-url
+  assert_equals(xhr.responseXML.baseURI, target.href, 'responseXML.baseURI');
+}, 'XHR Document should use the response URL');
+
+// Same as above with a generated response from the service worker.
+promise_test(async (t) => {
+  // Build a URL that tells the service worker to
+  // respondWith(new Response()) with a document response.
+  const url = build_url({respondWith: 'document'});
+
+  // Perform the XHR.
+  const xhr = await iframe.contentWindow.xhr(url, {responseType: 'document'});
+  assert_equals(xhr.responseURL, url, 'responseURL');
+
+  // The document's URL uses the response URL, which is the request URL:
+  // "Set |document|’s URL to |response|’s url."
+  // https://xhr.spec.whatwg.org/#document-response
+  assert_equals(xhr.responseXML.URL, url, 'responseXML.URL');
+
+  // The document's base URL falls back to the document URL:
+  // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#document-base-url
+  assert_equals(xhr.responseXML.baseURI, url, 'responseXML.baseURI');
+}, 'XHR Document should use the response URL (generated response)');
+
+promise_test(async (t) => {
+  if (iframe)
+    iframe.remove();
+  await service_worker_unregister(t, scope);
+}, 'global cleanup');
+</script>

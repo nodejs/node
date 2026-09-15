@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>respondWith with a response whose body is being loaded from the network by chunks</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+const WORKER = 'resources/fetch-event-respond-with-body-loaded-in-chunk-worker.js';
+const SCOPE = 'resources/fetch-event-respond-with-body-loaded-in-chunk-iframe.html';
+
+promise_test(async t => {
+    var reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+    add_completion_callback(() => reg.unregister());
+    await wait_for_state(t, reg.installing, 'activated');
+    let iframe = await with_iframe(SCOPE);
+    t.add_cleanup(() => iframe.remove());
+
+    let response = await iframe.contentWindow.fetch('body-in-chunk');
+    assert_equals(await response.text(), 'TEST_TRICKLE\nTEST_TRICKLE\nTEST_TRICKLE\nTEST_TRICKLE\n');
+}, 'Respond by chunks with a Response being loaded');
+</script>

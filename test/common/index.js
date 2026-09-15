@@ -73,6 +73,7 @@ const hasSQLite = Boolean(process.versions.sqlite);
 const hasFFI = Boolean(process.config.variables.node_use_ffi);
 const hasPerfetto = Boolean(process.config.variables.v8_use_perfetto);
 
+const hasDtls = hasCrypto && !!process.features.dtls;
 const hasQuic = hasCrypto && !!process.features.quic;
 
 const hasLocalStorage = (() => {
@@ -854,8 +855,9 @@ function invalidArgTypeHelper(input) {
     return ` Received function ${input.name}`;
   }
   if (typeof input === 'object') {
-    if (input.constructor?.name) {
-      return ` Received an instance of ${input.constructor.name}`;
+    const name = input.constructor?.name;
+    if (typeof name === 'string' && name !== '') {
+      return ` Received an instance of ${name}`;
     }
     return ` Received ${inspect(input, { depth: -1 })}`;
   }
@@ -1019,6 +1021,7 @@ const common = {
   hasTemporal,
   hasFullICU,
   hasCrypto,
+  hasDtls,
   hasQuic,
   hasInspector,
   hasSQLite,

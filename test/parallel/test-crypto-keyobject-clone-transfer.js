@@ -53,23 +53,25 @@ async function roundTripViaMessageChannel(key) {
   return received;
 }
 
-async function roundTripViaWorker(key) {
-  const worker = new Worker(`
-    'use strict';
-    const { parentPort } = require('node:worker_threads');
-    const { types: { isKeyObject } } = require('node:util');
+function workerMain() {
+  const { parentPort } = require('node:worker_threads');
+  const { types: { isKeyObject: workerIsKeyObject } } = require('node:util');
 
-    parentPort.once('message', ({ key, expectedType }) => {
-      try {
-        if (!isKeyObject(key) || key.type !== expectedType) {
-          throw new Error('KeyObject slot mismatch in worker');
-        }
-        parentPort.postMessage({ key });
-      } catch (err) {
-        parentPort.postMessage({ error: err.stack || err.message });
+  parentPort.once('message', ({ key, expectedType }) => {
+    try {
+      if (!workerIsKeyObject(key) || key.type !== expectedType) {
+        throw new Error('KeyObject slot mismatch in worker');
       }
-    });
-  `, { eval: true });
+      parentPort.postMessage({ key });
+    } catch (err) {
+      parentPort.postMessage({ error: err.stack || err.message });
+    }
+  });
+}
+
+async function roundTripViaWorker(key) {
+  const worker = new Worker(
+    `'use strict';(${workerMain.toString()})()`, { eval: true });
 
   worker.postMessage({ key, expectedType: key.type });
   const [msg] = await once(worker, 'message');

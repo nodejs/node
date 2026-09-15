@@ -53,10 +53,6 @@
 #include "v8-profiler.h"
 #include "v8.h"
 
-#if HAVE_OPENSSL
-#include <openssl/evp.h>
-#endif
-
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -71,6 +67,12 @@
 #include <unordered_set>
 #include <variant>
 #include <vector>
+
+namespace ncrypto {
+class CipherCache;
+class DigestCache;
+class MacCache;
+}  // namespace ncrypto
 
 namespace node {
 
@@ -166,6 +168,13 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
   inline const SnapshotData* snapshot_data() const;
+  // See node::SetBuiltinCodeCache().
+  const std::vector<builtins::CodeCacheInfo>& builtin_code_cache() const {
+    return builtin_code_cache_;
+  }
+  void set_builtin_code_cache(std::vector<builtins::CodeCacheInfo> entries) {
+    builtin_code_cache_ = std::move(entries);
+  }
   inline std::shared_ptr<PerIsolateOptions> options();
 
   inline NodeArrayBufferAllocator* node_allocator() const;
@@ -255,6 +264,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   MultiIsolatePlatform* platform_;
 
   const SnapshotData* snapshot_data_;
+  std::vector<builtins::CodeCacheInfo> builtin_code_cache_;
   std::optional<SnapshotConfig> snapshot_config_;
 
   std::shared_ptr<PerIsolateOptions> options_;
@@ -997,6 +1007,12 @@ class Environment final : public MemoryRetainer {
   static size_t NearHeapLimitCallback(void* data,
                                       size_t current_heap_limit,
                                       size_t initial_heap_limit);
+  static size_t HeapSnapshotNearHeapLimitCallback(void* data,
+                                                  size_t current_heap_limit,
+                                                  size_t initial_heap_limit);
+  static size_t HeapProfileNearHeapLimitCallback(void* data,
+                                                 size_t current_heap_limit,
+                                                 size_t initial_heap_limit);
   static void BuildEmbedderGraph(v8::Isolate* isolate,
                                  v8::EmbedderGraph* graph,
                                  void* data);
@@ -1074,12 +1090,16 @@ class Environment final : public MemoryRetainer {
 
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
   inline bool is_in_heapsnapshot_heap_limit_callback() const;
+  inline void set_heap_profile_near_heap_limit(uint32_t limit);
+  inline bool is_in_heap_profile_near_heap_limit_callback() const;
 
   inline bool report_exclude_env() const;
 
   inline void AddHeapSnapshotNearHeapLimitCallback();
-
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
+
+  inline void AddHeapProfileNearHeapLimitCallback();
+  inline void RemoveHeapProfileNearHeapLimitCallback(size_t heap_limit);
 
   v8::CpuProfilingResult StartCpuProfile(const CpuProfileOptions& options);
   v8::CpuProfile* StopCpuProfile(v8::ProfilerId profile_id);
@@ -1093,13 +1113,14 @@ class Environment final : public MemoryRetainer {
   };
 
 #if HAVE_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
-  // We declare another alias here to avoid having to include crypto_util.h
-  using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
-  std::vector<EVPMDPointer> evp_md_cache;
-#endif  // OPENSSL_VERSION_MAJOR >= 3
-  std::unordered_map<std::string, size_t> alias_to_md_id_map;
+  uint64_t hash_cache_generation = 0;
+  std::unique_ptr<ncrypto::DigestCache> provider_digest_cache;
+  std::unique_ptr<ncrypto::CipherCache> provider_cipher_cache;
   std::vector<std::string> supported_hash_algorithms;
+  uint64_t mac_cache_generation = 0;
+  std::unique_ptr<ncrypto::MacCache> provider_mac_cache;
+  std::vector<std::string> supported_mac_algorithms;
+  bool supported_mac_algorithms_initialized = false;
 #endif  // HAVE_OPENSSL
 
   v8::Global<v8::Module> temporary_required_module_facade_original;
@@ -1114,7 +1135,7 @@ class Environment final : public MemoryRetainer {
 
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
-  v8::ExternalMemoryAccounter* const external_memory_accounter_;
+  const std::unique_ptr<v8::ExternalMemoryAccounter> external_memory_accounter_;
   IsolateData* const isolate_data_;
 
   bool env_handle_initialized_ = false;
@@ -1178,6 +1199,11 @@ class Environment final : public MemoryRetainer {
   uint32_t heap_limit_snapshot_taken_ = 0;
   uint32_t heap_snapshot_near_heap_limit_ = 0;
   bool heapsnapshot_near_heap_limit_callback_added_ = false;
+
+  bool is_in_heap_profile_near_heap_limit_callback_ = false;
+  uint32_t heap_limit_profile_taken_ = 0;
+  uint32_t heap_profile_near_heap_limit_ = 0;
+  bool heap_profile_near_heap_limit_callback_added_ = false;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;

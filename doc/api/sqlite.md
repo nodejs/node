@@ -241,7 +241,8 @@ Registers a new aggregate function with the SQLite database. This method is a wr
     JavaScript numbers. **Default:** `false`.
   * `varargs` {boolean} If `true`, `options.step` and `options.inverse` may be invoked with any number of
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
-    `inverse` and `step` must be invoked with exactly `length` arguments.
+    `inverse` and `step` must be invoked with exactly `length` arguments, and
+    their `length` properties must be integers.
     **Default:** `false`.
   * `start` {number | string | null | Array | Object | Function} The identity
     value for the aggregation function. This value is used when the aggregation
@@ -428,7 +429,8 @@ added:
     JavaScript numbers. **Default:** `false`.
   * `varargs` {boolean} If `true`, `function` may be invoked with any number of
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
-    `function` must be invoked with exactly `function.length` arguments.
+    `function` must be invoked with exactly `function.length` arguments, which
+    must be an integer.
     **Default:** `false`.
 * `fn` {Function} The JavaScript function to call when the SQLite function is
   invoked. The return value of this function should be a valid SQLite data type:
@@ -1006,8 +1008,11 @@ wrapper around [`sqlite3session_patchset()`][].
 ### `session.close()`
 
 Closes the session. An exception is thrown if the database or the session is not open,
-or if the session is currently generating a changeset or patchset. This method is a
-wrapper around [`sqlite3session_delete()`][].
+or if the session is currently generating a changeset or patchset. An
+[`ERR_INVALID_STATE`][] error is thrown if the method is called from a callback that
+SQLite invoked, such as an authorizer callback, a user-defined function, or a
+[`'sqlite.db.query'`][] subscriber, because SQLite may still be using the session.
+This method is a wrapper around [`sqlite3session_delete()`][].
 
 ### `session[Symbol.dispose]()`
 
@@ -1015,7 +1020,10 @@ wrapper around [`sqlite3session_delete()`][].
 added: v24.9.0
 -->
 
-Closes the session. If the session is already closed, does nothing.
+Closes the session. If the session is already closed, then this is a no-op. An
+[`ERR_INVALID_STATE`][] error is thrown if the session is currently generating
+a changeset or patchset, or if the method is called from a callback that SQLite
+invoked, under the same conditions as [`session.close()`][].
 
 ## Class: `StatementSync`
 
@@ -1907,6 +1915,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`diagnostics_channel`]: diagnostics_channel.md
+[`session.close()`]: #sessionclose
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep

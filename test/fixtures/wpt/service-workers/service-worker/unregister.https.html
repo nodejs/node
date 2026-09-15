@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+async_test(function(t) {
+    var scope = 'resources/scope/unregister-twice';
+    var registration;
+    navigator.serviceWorker.register('resources/empty-worker.js',
+                                     {scope: scope})
+      .then(function(r) {
+          registration = r;
+          return registration.unregister();
+        })
+      .then(function() {
+          return registration.unregister();
+        })
+      .then(function(value) {
+          assert_equals(value, false,
+                        'unregistering twice should resolve with false');
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Unregister twice');
+
+async_test(function(t) {
+    var scope = 'resources/scope/successful-unregister/';
+    navigator.serviceWorker.register('resources/empty-worker.js',
+                                     {scope: scope})
+      .then(function(registration) {
+          return registration.unregister();
+        })
+      .then(function(value) {
+          assert_equals(value, true,
+                        'unregistration should resolve with true');
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register then unregister');
+</script>

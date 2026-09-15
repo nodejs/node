@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<script>
+  navigator.serviceWorker.onmessage = event => parent.postMessage(event.data, '*', event.ports);
+</script>
+<iframe id='child'></iframe>

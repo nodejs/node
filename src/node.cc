@@ -81,8 +81,6 @@
 #include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
 
-#include "large_pages/node_large_page.h"
-
 #if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
 #define NODE_USE_V8_WASM_TRAP_HANDLER 1
 #else
@@ -384,6 +382,10 @@ MaybeLocal<Value> StartExecution(Environment* env,
 
   if (env->options()->syntax_check_only) {
     return StartExecution(env, "internal/main/check_syntax");
+  }
+
+  if (env->options()->bench_runner) {
+    return StartExecution(env, "internal/main/bench_runner");
   }
 
   if (env->options()->test_runner) {
@@ -723,6 +725,14 @@ void ResetStdio() {
 #endif  // __POSIX__
 }
 
+// Validates the benchmark runner options of the global (per-process) options
+// once every option source has been parsed. See
+// EnvironmentOptions::CheckBenchOptions().
+static void CheckGlobalBenchOptions(std::vector<std::string>* errors) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  per_process::cli_options->per_isolate->per_env->CheckBenchOptions(errors);
+}
+
 static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                                           std::vector<std::string>* exec_args,
                                           std::vector<std::string>* errors,
@@ -786,6 +796,20 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     v8_args.emplace_back("--js-source-phase-imports");
   }
 
+  // V8 aborts the process when external memory grows by more than
+  // --external-memory-max-reasonable-size gigabytes in a single step. That
+  // limit is a Chromium-oriented sanity check; allocating a buffer larger
+  // than it is a legitimate thing to do in Node, and should raise a
+  // RangeError rather than crash. Disable the check unless the user asked
+  // for a specific limit.
+  // Refs: https://github.com/nodejs/node/issues/65534
+  if (std::ranges::none_of(v8_args, [](const std::string& arg) {
+        return arg.starts_with("--external-memory-max-reasonable-size") ||
+               arg.starts_with("--external_memory_max_reasonable_size");
+      })) {
+    v8_args.emplace_back("--external-memory-max-reasonable-size=0");
+  }
+
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
   // performance penalty of frequent EINTR wakeups when the profiler is running.
@@ -818,8 +842,16 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
                       std::vector<std::string>* exec_args,
                       std::vector<std::string>* errors,
                       OptionEnvvarSettings settings) {
-  return static_cast<int>(
-      ProcessGlobalArgsInternal(args, exec_args, errors, settings));
+  const ExitCode exit_code =
+      ProcessGlobalArgsInternal(args, exec_args, errors, settings);
+  if (exit_code != ExitCode::kNoFailure) return static_cast<int>(exit_code);
+  // Embedders parse every option source in a single pass, so the benchmark
+  // options can be validated right away.
+  CheckGlobalBenchOptions(errors);
+  if (!errors->empty()) {
+    return static_cast<int>(ExitCode::kInvalidCommandLineArgument);
+  }
+  return static_cast<int>(ExitCode::kNoFailure);
 }
 
 static std::atomic_bool init_called{false};
@@ -1000,6 +1032,11 @@ static ExitCode InitializeNodeWithArgsInternal(
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }
 
+  // Every option source has now been parsed, so cross-source option
+  // constraints can finally be validated.
+  CheckGlobalBenchOptions(errors);
+  if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
+
   // Set the process.title immediately after processing argv if --title is set.
   if (!per_process::cli_options->title.empty())
     uv_set_process_title(per_process::cli_options->title.c_str());
@@ -1125,15 +1162,12 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoUseLargePages) &&
-      (per_process::cli_options->use_largepages == "on" ||
-       per_process::cli_options->use_largepages == "silent")) {
-    int lp_result = node::MapStaticCodeToLargePages();
-    if (per_process::cli_options->use_largepages == "on" && lp_result != 0) {
-      result->errors_.emplace_back(node::LargePagesError(lp_result));
-    }
+      (per_process::cli_options->use_largepages == "on")) {
+    result->errors_.emplace_back("--use-largepages is no longer supported.");
   }
 
-  if (!per_process::cli_options->run.empty()) {
+  // A bare `--run` (empty value) lists the available scripts; a value runs it.
+  if (per_process::cli_options->has_run) {
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(
@@ -1221,6 +1255,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    CHECK_NOT_NULL(settings);
     OPENSSL_INIT_set_config_filename(settings, conf_file);
     OPENSSL_INIT_set_config_appname(settings, conf_section_name);
     OPENSSL_INIT_set_config_file_flags(settings,
@@ -1250,6 +1285,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       result->errors_.emplace_back(std::move(*fips_error));
       return result;
     }
+    crypto::InstallFipsIndicatorCallback();
 
     // Ensure CSPRNG is properly seeded.
     CHECK(ncrypto::CSPRNG(nullptr, 0));
@@ -1284,6 +1320,10 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       allocator = result->platform_->GetPageAllocator();
     }
     cppgc::InitializeProcess(allocator);
+  }
+
+  if (flags & ProcessInitializationFlags::kNoHarvestBuiltinCodeCache) {
+    builtins::BuiltinLoader::SetHarvestCodeCache(false);
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
