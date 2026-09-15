@@ -2015,6 +2015,12 @@ void Session::SendPendingData() {
     }
 
     // The stream_data is the next block of data from the application stream.
+    // It is reused across iterations, so we reset before it's populated:
+    stream_data.count = 0;
+    stream_data.id = -1;
+    stream_data.fin = false;
+    stream_data.stream.reset();
+
     if (application().GetStreamData(&stream_data) < 0) {
       Debug(this, "Application failed to get stream data");
       SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
