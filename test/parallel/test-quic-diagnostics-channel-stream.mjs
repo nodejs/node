@@ -9,6 +9,7 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import dc from 'node:diagnostics_channel';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -59,7 +60,7 @@ const stream = await clientSession.createBidirectionalStream({
   body: encoder.encode('diagnostics test'),
 });
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 
 await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
 await serverEndpoint.close();
