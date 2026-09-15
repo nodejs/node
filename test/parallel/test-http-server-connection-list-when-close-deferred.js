@@ -3,6 +3,9 @@
 const common = require('../common');
 const http = require('http');
 
+// Keep this case in a separate process from the immediate-close case so
+// their modified parsers cannot be reused across cases.
+
 function request(server) {
   http.get({
     agent: false,
@@ -14,11 +17,17 @@ function request(server) {
 }
 
 const server = http.createServer(common.mustCallAtLeast((req, res) => {
-  //  Hack to not remove parser out of server.connectionList
-  //  See `freeParser` in _http_common.js
-  req.socket.parser.free = common.mustCall();
+  // See `freeParser` in _http_common.js
+  const { parser } = req.socket;
+  parser.free = common.mustCall(() => {
+    setImmediate(common.mustCall(() => {
+      parser.close();
+    }));
+  });
   req.socket.on('close', common.mustCall(() => {
-    server.close();
+    setImmediate(common.mustCall(() => {
+      server.close();
+    }));
   }));
   res.end('ok');
 })).listen(0, common.mustCall(() => {
