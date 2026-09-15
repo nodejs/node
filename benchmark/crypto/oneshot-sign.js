@@ -25,9 +25,6 @@ if (hasOpenSSL(3, 5)) {
 
 const data = crypto.randomBytes(256);
 
-let pems;
-let keyObjects;
-
 const bench = common.createBenchmark(main, {
   keyType: Object.keys(keyFixtures),
   mode: ['sync', 'async', 'async-parallel'],
@@ -39,6 +36,9 @@ const bench = common.createBenchmark(main, {
     // assess whether mutexes over the key material impact the operation
     if (p.keyFormat === 'keyObject.unique')
       return p.mode === 'async-parallel';
+    // Compare execution modes with pre-imported keys; measure parsing synchronously.
+    if (p.mode !== 'sync' && p.keyFormat !== 'keyObject')
+      return false;
     // raw-private is not supported for rsa and ml-dsa
     if (p.keyFormat === 'raw-private')
       return p.keyType !== 'rsa' && !p.keyType.startsWith('ml-');
@@ -97,8 +97,9 @@ function measureAsyncParallel(n, digest, privateKey, keys) {
 }
 
 function main({ n, mode, keyFormat, keyType }) {
-  pems ||= [...Buffer.alloc(n)].map(() => keyFixtures[keyType]);
-  keyObjects ||= pems.map(crypto.createPrivateKey);
+  const count = keyFormat === 'keyObject.unique' ? n : 1;
+  const pems = Array(count).fill(keyFixtures[keyType]);
+  const keyObjects = pems.map(crypto.createPrivateKey);
 
   // Warm up OpenSSL's provider operation cache for each key object
   for (const keyObject of keyObjects) {

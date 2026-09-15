@@ -19,6 +19,7 @@ using ncrypto::DataPointer;
 using ncrypto::Digest;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
+using ncrypto::KeyAlgorithm;
 #if NCRYPTO_USE_LEGACY_KEY_TYPES
 using ncrypto::RSAPointer;
 #endif
@@ -57,9 +58,9 @@ bool IsRsaPssDigestEncodable(const Digest& digest) {
 }  // namespace
 
 EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
-  auto ctx = EVPKeyCtxPointer::NewFromID(
-      params->params.variant == kKeyVariantRSA_PSS ? EVP_PKEY_RSA_PSS
-                                                   : EVP_PKEY_RSA);
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(
+      params->params.variant == kKeyVariantRSA_PSS ? KeyAlgorithm::RSA_PSS
+                                                   : KeyAlgorithm::RSA);
 
   if (!ctx.initForKeygen() ||
       !ctx.setRsaKeygenBits(params->params.modulus_bits)) {
@@ -504,25 +505,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
       return {};
     }
 
-    // Verify that n is the product of all prime factors.
-    const auto& pub = rsa_view.getPublicKey();
-    const auto& priv = rsa_view.getPrivateKey();
-    auto product = BignumPointer::New();
-    BN_CTX* ctx = BN_CTX_new();
-    bool n_valid =
-        ctx && product && BN_mul(product.get(), priv.p, priv.q, ctx) == 1;
-    for (const auto& info : rsa_view.getOtherPrimeInfos()) {
-      auto next = BignumPointer::New();
-      if (!n_valid || !next ||
-          BN_mul(next.get(), product.get(), info.r, ctx) != 1) {
-        n_valid = false;
-        break;
-      }
-      product = std::move(next);
-    }
-    n_valid = n_valid && BN_cmp(product.get(), pub.n) == 0;
-    BN_CTX_free(ctx);
-    if (!n_valid) {
+    if (!rsa_view.checkPrimeProduct()) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return {};
     }
@@ -582,7 +565,7 @@ bool GetRsaKeyDetail(Environment* env,
     return false;
   }
 
-  if (m_pkey.id() == EVP_PKEY_RSA_PSS) {
+  if (m_pkey.isA(KeyAlgorithm::RSA_PSS)) {
     // Due to the way ASN.1 encoding works, default values are omitted when
     // encoding the data structure. However, there are also RSA-PSS keys for
     // which no parameters are set. In that case, the ASN.1 RSASSA-PSS-params

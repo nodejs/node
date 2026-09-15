@@ -21,6 +21,7 @@ using ncrypto::DataPointer;
 using ncrypto::DHPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
+using ncrypto::KeyAlgorithm;
 using v8::ArrayBuffer;
 using v8::ConstructorBehavior;
 using v8::Context;
@@ -452,17 +453,13 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
 
     key_params = EVPKeyPointer::NewDH(std::move(dh));
   } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
-    auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
-#ifndef OPENSSL_IS_BORINGSSL
+    auto param_ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::DH);
     if (!param_ctx.initForParamgen() ||
         !param_ctx.setDhParameters(*prime_size, params->params.generator)) {
       return {};
     }
 
     key_params = param_ctx.paramgen();
-#else
-    return {};
-#endif
   } else {
     UNREACHABLE();
   }
@@ -519,7 +516,7 @@ bool DHBitsTraits::DeriveBits(Environment* env,
 bool GetDhKeyDetail(Environment* env,
                     const KeyObjectData& key,
                     Local<Object> target) {
-  CHECK_EQ(key.GetAsymmetricKey().id(), EVP_PKEY_DH);
+  DCHECK(key.GetAsymmetricKey().isA(KeyAlgorithm::DH));
   return true;
 }
 
