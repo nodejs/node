@@ -2,7 +2,7 @@
 const common = require('./index.js');
 const tmpdir = require('./tmpdir.js');
 const fixtures = require('./fixtures.js');
-const { writeFileSync, renameSync, unlinkSync, cpSync } = require('node:fs');
+const { writeFileSync, readdirSync, readFileSync, renameSync, unlinkSync } = require('node:fs');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 const assert = require('node:assert');
@@ -37,7 +37,14 @@ const fixtureContent = {};
 
 function refreshForTestRunnerWatch() {
   tmpdir.refresh();
-  cpSync(fixtures.path('test-runner-watch'), tmpdir.path, { recursive: true });
+  const files = readdirSync(fixtures.path('test-runner-watch'));
+  for (const file of files) {
+    const src = fixtures.path('test-runner-watch', file);
+    const dest = tmpdir.resolve(file);
+    fixturePaths[file] = dest;
+    fixtureContent[file] = readFileSync(src, 'utf8');
+    writeFileSync(dest, fixtureContent[file]);
+  }
 }
 
 async function performFileOperation(operation, useRunApi, timeout = 1000) {
