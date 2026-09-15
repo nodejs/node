@@ -287,6 +287,37 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
       message: 'database is not open',
     });
   });
+
+  it('remains installed after close() and open()', (t) => {
+    const db = new DatabaseSync(':memory:');
+    const authorizer = t.mock.fn(() => constants.SQLITE_DENY);
+    db.setAuthorizer(authorizer);
+
+    assert.throws(() => {
+      db.exec('CREATE TABLE x (a)');
+    }, { code: 'ERR_SQLITE_ERROR' });
+    const callsBefore = authorizer.mock.callCount();
+    assert.ok(callsBefore > 0);
+
+    db.close();
+    db.open();
+
+    assert.throws(() => {
+      db.exec('CREATE TABLE x (a)');
+    }, { code: 'ERR_SQLITE_ERROR' });
+    assert.ok(authorizer.mock.callCount() > callsBefore);
+  });
+
+  it('stays cleared after close() and open()', () => {
+    const db = new DatabaseSync(':memory:');
+    db.setAuthorizer(() => constants.SQLITE_DENY);
+    db.setAuthorizer(null);
+
+    db.close();
+    db.open();
+
+    db.exec('CREATE TABLE x (a)');
+  });
 });
 
 // SQLite forbids an authorizer callback from modifying the connection that

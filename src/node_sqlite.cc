@@ -968,8 +968,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
     }
   }
 
-  sqlite3_limit(
-      limits->database_->Connection(), limit_info->sqlite_limit_id, new_value);
+  limits->database_->SetLimit(limit_info->sqlite_limit_id, new_value);
   return Intercepted::kYes;
 }
 
@@ -1149,15 +1148,14 @@ bool DatabaseSync::Open() {
 
   sqlite3_busy_timeout(connection_.get(), open_config_.get_timeout());
 
-  // Apply initial limits
   for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
-    const auto& limit_value = open_config_.initial_limits()[sqlite_limit_id];
+    const auto& limit_value = open_config_.limits()[sqlite_limit_id];
     if (limit_value.has_value()) {
       sqlite3_limit(connection_.get(), sqlite_limit_id, *limit_value);
     }
   }
 
-  if (allow_load_extension_) {
+  if (enable_load_extension_) {
     if (env()->permission()->enabled()) [[unlikely]] {
       THROW_ERR_LOAD_SQLITE_EXTENSION(env(),
                                       "Cannot load SQLite extensions when the "
@@ -1174,6 +1172,15 @@ bool DatabaseSync::Open() {
   if (trace_channel_ && trace_channel_->HasSubscribers()) {
     sqlite3_trace_v2(
         connection_.get(), SQLITE_TRACE_PROFILE, TraceCallback, this);
+  }
+
+  // The authorizer outlives the connection, so reopening must reinstall it.
+  Local<Value> authorizer =
+      object()->GetInternalField(kAuthorizerCallback).template As<Value>();
+  if (authorizer->IsFunction()) {
+    r = sqlite3_set_authorizer(
+        connection_.get(), DatabaseSync::AuthorizerCallback, this);
+    CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
   }
 
   opened = true;
@@ -1221,6 +1228,11 @@ inline bool DatabaseSync::IsOpen() {
 
 inline sqlite3* DatabaseSync::Connection() {
   return connection_.get();
+}
+
+void DatabaseSync::SetLimit(int sqlite_limit_id, int value) {
+  sqlite3_limit(connection_.get(), sqlite_limit_id, value);
+  open_config_.set_limit(sqlite_limit_id, value);
 }
 
 void DatabaseSync::SetIgnoreNextSQLiteError(bool ignore) {
@@ -1564,7 +1576,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
             return;
           }
 
-          open_config.set_initial_limit(sqlite_limit_id, limit_val);
+          open_config.set_limit(sqlite_limit_id, limit_val);
         }
       }
     }
