@@ -94,6 +94,52 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
                          { code: 'EACCES' });
   }
 
+  // Regression test (sandbox escape via symlink): read/stat/open/write through
+  // a symlink whose target is OUTSIDE the root must be rejected, never silently
+  // followed. Previously the containment rejection was thrown inside the
+  // `try { fs.realpathSync() }` block in RealFSProvider.#resolvePath and, since
+  // it carried an ENOENT code, was swallowed by the "path doesn't exist yet"
+  // catch -- so the raw (symlink-containing) path was returned and the caller's
+  // real fs op followed it out of the root.
+  {
+    // esc-link (created above) -> <tmpdir>/outside.txt, which contains
+    // 'forbidden' and lives outside the provider root.
+    assert.throws(() => myVfs.readFileSync('/esc-link'), { code: 'EACCES' });
+    assert.throws(() => myVfs.statSync('/esc-link'), { code: 'EACCES' });
+    assert.throws(() => myVfs.openSync('/esc-link', 'r'), { code: 'EACCES' });
+    await assert.rejects(myVfs.promises.readFile('/esc-link'),
+                         { code: 'EACCES' });
+    await assert.rejects(myVfs.promises.open('/esc-link', 'r'),
+                         { code: 'EACCES' });
+
+    // A write through the symlink must not touch the out-of-root file.
+    assert.throws(() => myVfs.writeFileSync('/esc-link', 'pwned'),
+                  { code: 'EACCES' });
+    assert.strictEqual(
+      fs.readFileSync(path.join(tmpdir.path, 'outside.txt'), 'utf8'),
+      'forbidden');
+  }
+
+  // Regression test: creating a NEW file underneath a directory symlink that
+  // points outside the root must be rejected (the ENOENT "create" branch,
+  // which relied on #verifyAncestorInRoot -- previously a no-op because it
+  // swallowed its own containment rejection).
+  {
+    const outsideDir = path.join(tmpdir.path, 'outside-dir');
+    fs.mkdirSync(outsideDir, { recursive: true });
+    fs.symlinkSync(outsideDir, path.join(root, 'esc-dir'));
+
+    assert.throws(() => myVfs.writeFileSync('/esc-dir/pwned.txt', 'x'),
+                  { code: 'EACCES' });
+    assert.throws(() => myVfs.openSync('/esc-dir/pwned.txt', 'w'),
+                  { code: 'EACCES' });
+    await assert.rejects(myVfs.promises.writeFile('/esc-dir/pwned.txt', 'x'),
+                         { code: 'EACCES' });
+
+    // Nothing must have been created outside the root.
+    assert.strictEqual(fs.existsSync(path.join(outsideDir, 'pwned.txt')), false);
+  }
+
   // Realpath on root and on a subdir
   {
     fs.mkdirSync(path.join(root, 'sub2'), { recursive: true });
