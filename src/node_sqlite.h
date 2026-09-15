@@ -350,7 +350,9 @@ class DatabaseSync : public BaseObject {
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
-  BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
+  // Weak ref: BindingData is the sole owner of Channels, so a strong ref here
+  // would outlive the binding that backs it during environment cleanup.
+  BaseObjectWeakPtr<diagnostics_channel::Channel> trace_channel_;
 
   friend class UserDefinedFunction;
   friend class CustomAggregate;
