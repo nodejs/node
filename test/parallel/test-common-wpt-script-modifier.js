@@ -18,8 +18,8 @@ if (process.env.NODE_TEST_WPT_MODIFIER_PROBE === '1') {
   }, 2));
   runner.runJsTests();
 } else {
-  const env = { ...process.env, NODE_TEST_WPT_MODIFIER_PROBE: '1' };
-  for (const key of ['NODE_TEST_WPT', 'WPT_REPORT', 'WPT_INSPECT']) delete env[key];
+  // eslint-disable-next-line no-unused-vars
+  const { NODE_TEST_WPT, WPT_REPORT, WPT_INSPECT, ...env } = { ...process.env, NODE_TEST_WPT_MODIFIER_PROBE: '1' };
   for (const backend of ['thread', 'process']) {
     const result = spawnSync(process.execPath, [__filename, 'base64.any.js'], {
       env: { ...env, WPT_BACKEND: backend },
