@@ -17,3 +17,11 @@ test(String.fromCharCode(55296), (t) => {
 test(String.fromCharCode(57343), (t) => {
   t.assert.snapshot({ key: 'value' });
 });
+
+test('carriage return in value', (t) => {
+  t.assert.snapshot('a\rb', { serializers: [String] });
+});
+
+test('CRLF in value', (t) => {
+  t.assert.snapshot('a\r\nb', { serializers: [String] });
+});
