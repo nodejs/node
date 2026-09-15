@@ -557,10 +557,10 @@ include_rules = [
   '+third_party/fp16/src/include',
   '+third_party/fuzztest',
   '+third_party/ittapi/include',
-  '+third_party/simdutf',
   '+third_party/v8/codegen',
   '+third_party/vtune',
   '+hwy/highway.h',
+  '+simdutf.h',
   # Abseil features are allow-listed. Please use your best judgement when adding
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to
   # the Chromium guidelines (though note that some requirements in V8 may be

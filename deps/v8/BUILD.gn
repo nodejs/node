@@ -2507,6 +2507,16 @@ group("v8_abseil") {
   ]
 }
 
+group("v8_simdutf") {
+  public_deps = [ "//third_party/simdutf" ]
+  public_configs = [ ":simdutf_include_config" ]
+
+  visibility = [ "./*" ]
+}
+config("simdutf_include_config") {
+  include_dirs = [ "//third_party/simdutf" ]
+}
+
 group("zoslib") {
   if (current_os == "zos") {
     deps = [ "//third_party/zoslib" ]
@@ -5297,6 +5307,7 @@ v8_header_set("v8_internal_headers") {
     ":v8_headers",
     ":v8_maybe_icu",
     ":v8_shared_internal_headers",
+    ":v8_simdutf",
     "//third_party/fp16",
   ]
 
@@ -5312,7 +5323,6 @@ v8_header_set("v8_internal_headers") {
     ":v8_heap_base_headers",
     ":v8_libbase",
     ":v8_maybe_temporal",
-    "//third_party/simdutf",
   ]
   if (v8_enable_experimental_tq_to_tsa) {
     deps += [ ":run_torque_to_tsa" ]
@@ -6716,7 +6726,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_headers",
     ":v8_internal_headers",
     ":v8_maybe_icu",
-    "//third_party/simdutf",
+    ":v8_simdutf",
   ]
   if (v8_enable_experimental_tq_to_tsa) {
     public_deps += [ ":run_torque_to_tsa" ]
@@ -8276,9 +8286,9 @@ v8_executable("d8") {
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
+    ":v8_simdutf",
     ":v8_tracing",
     "//build/win:default_exe_manifest",
-    "//third_party/simdutf",
   ]
 
   if (is_posix || is_fuchsia) {
