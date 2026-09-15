@@ -85,6 +85,8 @@ class Channel : public BaseObject {
 
   static BaseObjectPtr<Channel> Get(Environment* env, std::string_view name);
 
+  uint32_t index() const { return index_; }
+
   inline bool HasSubscribers() const {
     return binding_data_ != nullptr && binding_data_->subscribers_[index_] > 0;
   }

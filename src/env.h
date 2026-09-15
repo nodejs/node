@@ -63,6 +63,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
@@ -75,6 +76,42 @@ class MacCache;
 }  // namespace ncrypto
 
 namespace node {
+
+namespace diagnostics_channel {
+class Channel;
+}
+
+struct ThreadPoolWorkChannel {
+  BaseObjectWeakPtr<diagnostics_channel::Channel> channel;
+  bool active = false;
+};
+
+enum class ThreadPoolWorkType : uint8_t {
+  kCrypto,
+  kFsCp,
+  kFsReadFile,
+  kFsWriteFile,
+  kGlob,
+  kHistogramQrde,
+  kNodeApi,
+  kReadDirRecursive,
+  kSQLiteBackup,
+  kZlib,
+  kCount,
+};
+
+inline constexpr std::array<std::string_view,
+                            static_cast<size_t>(ThreadPoolWorkType::kCount)>
+    kThreadPoolWorkNames = {"crypto",
+                            "fs.cp",
+                            "fs.readfile",
+                            "fs.writefile",
+                            "glob",
+                            "histogram.qrde",
+                            "node_api",
+                            "readdir_recursive",
+                            "node_sqlite3.BackupJob",
+                            "zlib"};
 
 namespace shadow_realm {
 class ShadowRealm;
@@ -733,6 +770,11 @@ class Environment final : public MemoryRetainer {
   void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
+  void InitializeThreadPoolWorkChannels();
+  inline ThreadPoolWorkChannel* threadpool_work_channel(
+      ThreadPoolWorkType type) {
+    return &threadpool_work_channels_[static_cast<size_t>(type)];
+  }
 
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
@@ -1241,6 +1283,9 @@ class Environment final : public MemoryRetainer {
   AliasedInt32Array timeout_info_;
   TickInfo tick_info_;
   permission::Permission permission_;
+  std::array<ThreadPoolWorkChannel,
+             static_cast<size_t>(ThreadPoolWorkType::kCount)>
+      threadpool_work_channels_;
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;

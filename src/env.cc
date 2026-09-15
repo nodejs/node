@@ -8,6 +8,7 @@
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
+#include "node_diagnostics_channel.h"
 #include "node_errors.h"
 #include "node_file_utils.h"
 #include "node_internals.h"
@@ -1272,6 +1273,30 @@ Environment::~Environment() {
     }
     cpu_profiler_->Dispose();
     cpu_profiler_ = nullptr;
+  }
+}
+
+void Environment::InitializeThreadPoolWorkChannels() {
+  if (isolate_data()->is_building_snapshot()) return;
+
+  auto* binding =
+      principal_realm()->GetBindingData<diagnostics_channel::BindingData>();
+  CHECK_NOT_NULL(binding);
+  for (size_t i = 0; i < threadpool_work_channels_.size(); i++) {
+    ThreadPoolWorkChannel* entry = &threadpool_work_channels_[i];
+    if (entry->channel.get() != nullptr) continue;
+
+    std::string name = "threadpool.work.";
+    name += kThreadPoolWorkNames[i];
+    BaseObjectPtr<diagnostics_channel::Channel> channel =
+        diagnostics_channel::Channel::Get(this, name);
+    if (!channel) continue;
+
+    binding->SetChannelStatusCallback(
+        channel->index(), [entry](bool active) { entry->active = active; });
+    entry->channel =
+        BaseObjectWeakPtr<diagnostics_channel::Channel>(channel.get());
+    entry->active = channel->HasSubscribers();
   }
 }
 
