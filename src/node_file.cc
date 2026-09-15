@@ -4857,7 +4857,24 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
       auto dest_file_path = dest / dir_entry.path().filename();
       auto dest_str = ConvertPathToUTF8(dest);
 
-      if (dir_entry.is_symlink(error)) {
+      // With dereference, links that resolve to a directory or a regular file
+      // fall through to the branches below, which follow symlinks. A link
+      // whose target cannot be reached has nothing to copy, and stat() reports
+      // why. std::filesystem::status() does not: it folds ENOTDIR into
+      // not_found, and on Windows its error_code carries a Win32 value where
+      // an errno is expected.
+      const bool is_symlink = dir_entry.is_symlink(error);
+      if (is_symlink && options.dereference) {
+        uv_fs_t req;
+        auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+        auto entry_str = ConvertPathToUTF8(dir_entry.path());
+        int rc = uv_fs_stat(nullptr, &req, entry_str.c_str(), nullptr);
+        if (rc < 0) {
+          return CpError::Uv(rc, "stat", entry_str);
+        }
+      }
+
+      if (is_symlink && !options.dereference) {
         if (options.verbatim_symlinks) {
           std::filesystem::copy_symlink(
               dir_entry.path(), dest_file_path, error);
@@ -4960,6 +4977,19 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
         if (options.fresh_destination) {
           CpError made = MakeFreshDirectory(dest_file_path);
           if (made.kind != CpError::kNone) return made;
+        } else if (is_symlink) {
+          // Mirror the JavaScript walk: create the destination only when it
+          // does not exist, otherwise recurse into the existing path.
+          created = !std::filesystem::exists(dest_file_path, error);
+          if (error) {
+            return CpError::Std(error, ConvertPathToUTF8(dest_file_path));
+          }
+          if (created) {
+            std::filesystem::create_directory(dest_file_path, error);
+            if (error) {
+              return CpError::Std(error, ConvertPathToUTF8(dest_file_path));
+            }
+          }
         } else {
           created = std::filesystem::create_directory(dest_file_path, error);
           if (error) {
@@ -4984,6 +5014,41 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
           if (stamped.kind != CpError::kNone) return stamped;
         }
       } else if (dir_entry.is_regular_file(error)) {
+        if (is_symlink && !options.fresh_destination) {
+          // Only a dereferenced link reaches this branch as a link, so what an
+          // occupied destination means here is settled the way the JavaScript
+          // walk settles it: replaced under force, left untouched otherwise.
+          // Replacing an existing destination unlinks the entry first, which is
+          // what keeps an existing link there from being written through.
+          std::error_code dest_error;
+          const bool dest_exists =
+              std::filesystem::exists(dest_file_path, dest_error);
+          if (dest_error) {
+            return CpError::Std(dest_error, ConvertPathToUTF8(dest_file_path));
+          }
+
+          if (dest_exists) {
+            if (!options.force) {
+              if (options.error_on_exist) {
+                return {CpError::kEexist,
+                        0,
+                        "cp",
+                        SPrintF("[ERR_FS_CP_EEXIST]: Target already exists: "
+                                "cp returned EEXIST (%s already exists)",
+                                dest_file_path),
+                        {}};
+              }
+              continue;
+            }
+
+            std::filesystem::remove(dest_file_path, dest_error);
+            if (dest_error) {
+              return CpError::Std(dest_error,
+                                  ConvertPathToUTF8(dest_file_path));
+            }
+          }
+        }
+
         bool copied = true;
         if (options.fresh_destination) {
           CpError fresh = CopyFileFresh(
