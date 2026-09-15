@@ -49,7 +49,7 @@ const net = require('net');
   });
 
   let serverRead = '';
-  for await (const chunk of serverSocket) {
+  for await (const chunk of serverSocket.iterator({ destroyOnReturn: false })) {
     serverRead += chunk;
   }
 
