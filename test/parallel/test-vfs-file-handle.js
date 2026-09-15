@@ -42,10 +42,17 @@ myVfs.writeFileSync('/file.txt', 'hello world');
   assert.strictEqual(b1.toString(), 'hello');
   assert.strictEqual(b2.toString(), ' world');
 
+  // Metadata methods reach the entry the way fchmod(2)/futimes(2) do, and
+  // validate their arguments the way a FileHandle would.
+  await handle.chmod(0o600);
+  assert.strictEqual((await handle.stat()).mode & 0o777, 0o600);
+  await handle.utimes(1000, 2000);
+  assert.strictEqual((await handle.stat()).mtimeMs, 2000 * 1000);
+  await assert.rejects(handle.chmod(), { code: 'ERR_INVALID_ARG_TYPE' });
+  await assert.rejects(handle.utimes(), { code: 'ERR_INVALID_ARG_TYPE' });
+
   // no-op metadata methods
-  await handle.chmod();
   await handle.chown();
-  await handle.utimes();
   await handle.datasync();
   await handle.sync();
 
