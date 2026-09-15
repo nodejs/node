@@ -226,6 +226,8 @@ class DatabaseSync : public BaseObject {
                bool open,
                bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
