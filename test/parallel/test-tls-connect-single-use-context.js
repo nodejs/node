@@ -14,15 +14,20 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { createMockedLookup } = require('../common/dns');
 
 const key = fixtures.readKey('agent1-key.pem');
 const cert = fixtures.readKey('agent1-cert.pem');
 
 const server = tls.createServer({ key, cert }, (conn) => conn.end());
 
-server.listen(0, common.mustCall(() => {
+// Bound to a single address so that the addresses the last case retries
+// through are refused rather than answered by this server.
+server.listen(0, '127.0.0.1', common.mustCall(() => {
   connectWithOwnContext(common.mustCall(() => {
-    connectWithSharedContext(common.mustCall(() => server.close()));
+    connectWithSharedContext(common.mustCall(() => {
+      connectAcrossHandleSwaps(common.mustCall(() => server.close()));
+    }));
   }));
 }));
 
@@ -33,6 +38,7 @@ function afterDestroySSL(socket, fn) {
 
 function connectWithOwnContext(done) {
   const socket = tls.connect({
+    host: '127.0.0.1',
     port: server.address().port,
     rejectUnauthorized: false,
   }, common.mustCall(() => {
@@ -55,6 +61,7 @@ function connectWithSharedContext(done) {
 
   (function connectOnce() {
     const socket = tls.connect({
+      host: '127.0.0.1',
       port: server.address().port,
       rejectUnauthorized: false,
       secureContext,
@@ -69,4 +76,32 @@ function connectWithSharedContext(done) {
       }));
     }));
   })();
+}
+
+function connectAcrossHandleSwaps(done) {
+  // autoSelectFamily reinitializes the handle on every failed attempt, and the
+  // successive TLSWraps share the socket's context. Releasing it with the old
+  // handle leaves the next attempt without a context. Two failing addresses
+  // are needed: the close happens on the first swap, and the next swap is what
+  // trips over it.
+  const socket = tls.connect({
+    host: 'example.org',
+    port: server.address().port,
+    rejectUnauthorized: false,
+    autoSelectFamily: true,
+    autoSelectFamilyAttemptTimeout:
+      common.defaultAutoSelectFamilyAttemptTimeout,
+    lookup: createMockedLookup('::1', '127.0.0.2', '127.0.0.1'),
+  }, common.mustCall(() => {
+    // `ssl` is cleared while the handle is swapped, so read the context from
+    // the handle the socket ended up with.
+    const secureContext = socket._handle._secureContext;
+    assert.strictEqual(secureContext.singleUse, true);
+    assert.notStrictEqual(secureContext.context, null);
+
+    afterDestroySSL(socket, common.mustCall(() => {
+      assert.strictEqual(secureContext.context, null);
+      done();
+    }));
+  }));
 }
