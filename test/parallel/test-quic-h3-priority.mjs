@@ -36,6 +36,7 @@ const decoder = new TextDecoder();
       const pri = stream.priority;
       assert.strictEqual(typeof pri, 'object');
       assert.strictEqual(typeof pri.level, 'string');
+      assert.strictEqual(typeof pri.sendOrder, 'number');
       assert.strictEqual(typeof pri.incremental, 'boolean');
     }, 4);
   }), {
@@ -72,7 +73,7 @@ const decoder = new TextDecoder();
   });
 
   // Priority reflects what was set at creation.
-  assert.deepStrictEqual(stream1.priority, { level: 'high', incremental: false });
+  assert.deepStrictEqual(stream1.priority, { level: 'high', sendOrder: 0, incremental: false });
 
   // Priority 'low' + incremental at creation.
   const stream2 = await clientSession.createBidirectionalStream({
@@ -88,7 +89,7 @@ const decoder = new TextDecoder();
       assert.strictEqual(headers[':status'], 200);
     }),
   });
-  assert.deepStrictEqual(stream2.priority, { level: 'low', incremental: true });
+  assert.deepStrictEqual(stream2.priority, { level: 'low', sendOrder: 7, incremental: true });
 
   // Default priority at creation.
   const stream3 = await clientSession.createBidirectionalStream({
@@ -102,7 +103,7 @@ const decoder = new TextDecoder();
       assert.strictEqual(headers[':status'], 200);
     }),
   });
-  assert.deepStrictEqual(stream3.priority, { level: 'default', incremental: false });
+  assert.deepStrictEqual(stream3.priority, { level: 'default', sendOrder: 3, incremental: false });
 
   // setPriority after creation.
   const stream4 = await clientSession.createBidirectionalStream({
@@ -117,19 +118,19 @@ const decoder = new TextDecoder();
     }),
   });
   // Default priority initially.
-  assert.deepStrictEqual(stream4.priority, { level: 'default', incremental: false });
+  assert.deepStrictEqual(stream4.priority, { level: 'default', sendOrder: 3, incremental: false });
 
   // Change to high.
   stream4.setPriority({ level: 'high' });
-  assert.deepStrictEqual(stream4.priority, { level: 'high', incremental: false });
+  assert.deepStrictEqual(stream4.priority, { level: 'high', sendOrder: 0, incremental: false });
 
   // Change to incremental.
   stream4.setPriority({ level: 'low', incremental: true });
-  assert.deepStrictEqual(stream4.priority, { level: 'low', incremental: true });
+  assert.deepStrictEqual(stream4.priority, { level: 'low', sendOrder: 7, incremental: true });
 
   // Back to default.
   stream4.setPriority({ level: 'default', incremental: false });
-  assert.deepStrictEqual(stream4.priority, { level: 'default', incremental: false });
+  assert.deepStrictEqual(stream4.priority, { level: 'default', sendOrder: 3, incremental: false });
 
   // Read all bodies.
   const allBodies = await Promise.all([
@@ -174,7 +175,7 @@ const decoder = new TextDecoder();
 
       // The server's priority getter should reflect the
       // client's PRIORITY_UPDATE (high, incremental).
-      assert.deepStrictEqual(stream.priority, { level: 'high', incremental: true });
+      assert.deepStrictEqual(stream.priority, { level: 'high', sendOrder: 0, incremental: true });
       serverSawHighPriority.resolve();
 
       await stream.closed;
@@ -218,14 +219,14 @@ const decoder = new TextDecoder();
       assert.strictEqual(headers[':status'], 200);
     }),
   });
-  assert.deepStrictEqual(stream.priority, { level: 'default', incremental: false });
+  assert.deepStrictEqual(stream.priority, { level: 'default', sendOrder: 3, incremental: false });
 
   // Change priority — this sends a PRIORITY_UPDATE frame on the
   // control stream. The body data was already provided at creation
   // but the PRIORITY_UPDATE travels on the control stream which
   // nghttp3 prioritizes over bidi streams.
   stream.setPriority({ level: 'high', incremental: true });
-  assert.deepStrictEqual(stream.priority, { level: 'high', incremental: true });
+  assert.deepStrictEqual(stream.priority, { level: 'high', sendOrder: 0, incremental: true });
 
   // Read the response.
   const body = await bytes(stream);
@@ -235,6 +236,78 @@ const decoder = new TextDecoder();
   await Promise.all([serverSawHighPriority.promise,
                      stream.closed,
                      serverDone.promise]);
+  await clientSession.close();
+  await serverEndpoint.close();
+}
+
+// Test: sendOrder option and validation.
+{
+  const serverEndpoint = await listen(mustCall(async (ss) => {
+    ss.onstream = mustCall((stream) => {
+      assert.deepStrictEqual(stream.priority, { level: 'high', sendOrder: 1, incremental: false });
+    });
+  }), {
+    sni: { '*': { keys: [key], certs: [cert] } },
+    onheaders: mustCall(function(headers) {
+      this.sendHeaders({ ':status': '200' });
+      this.writer.writeSync(encoder.encode('ok'));
+      this.writer.endSync();
+    }),
+  });
+
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+  });
+  await clientSession.opened;
+
+  // Set sendOrder at creation time.
+  const stream1 = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET',
+      ':path': '/',
+      ':scheme': 'https',
+      ':authority': 'localhost',
+    },
+    sendOrder: 1,
+    incremental: false,
+  });
+  assert.deepStrictEqual(stream1.priority, { level: 'high', sendOrder: 1, incremental: false });
+
+  // Update sendOrder via setPriority.
+  stream1.setPriority({ sendOrder: 6, incremental: true });
+  assert.deepStrictEqual(stream1.priority, { level: 'low', sendOrder: 6, incremental: true });
+
+  // sendOrder accepts any integer per W3C long long semantics;
+  // values outside [0, 7] are clamped to the QUIC urgency range.
+  const streamNeg = await clientSession.createBidirectionalStream({ sendOrder: -100 });
+  // Clamped to 0 (highest urgency)
+  assert.deepStrictEqual(streamNeg.priority, { level: 'high', sendOrder: 0, incremental: false });
+
+  const streamLarge = await clientSession.createBidirectionalStream({ sendOrder: 999 });
+  // Clamped to 7 (lowest urgency)
+  assert.deepStrictEqual(streamLarge.priority, { level: 'low', sendOrder: 7, incremental: false });
+
+  // Non-integer values are still rejected.
+  await assert.rejects(
+    clientSession.createBidirectionalStream({ sendOrder: 1.5 }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+  await assert.rejects(
+    clientSession.createBidirectionalStream({ sendOrder: '3' }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+
+  // setPriority also accepts and clamps out-of-range integers.
+  stream1.setPriority({ sendOrder: -5 });
+  assert.deepStrictEqual(stream1.priority, { level: 'high', sendOrder: 0, incremental: false });
+  stream1.setPriority({ sendOrder: 100 });
+  assert.deepStrictEqual(stream1.priority, { level: 'low', sendOrder: 7, incremental: false });
+
+  const body = await bytes(stream1);
+  assert.strictEqual(decoder.decode(body), 'ok');
+
+  await Promise.all([stream1.closed]);
   await clientSession.close();
   await serverEndpoint.close();
 }
