@@ -1,3 +1,4 @@
+import subprocess
 import platform
 import sys
 import os
@@ -7,7 +8,12 @@ def patch_android():
     print("- Patches List -")
     print("[1] [deps/v8/src/trap-handler/trap-handler.h] related to https://github.com/nodejs/node/issues/36287")
     if platform.system() == "Linux":
-        os.system('patch -f ./deps/v8/src/trap-handler/trap-handler.h < ./android-patches/trap-handler.h.patch')
+        with open("./android-patches/trap-handler.h.patch", "rb") as patch_file:
+            subprocess.run(
+                ["patch", "-f", "./deps/v8/src/trap-handler/trap-handler.h"],
+                stdin=patch_file,
+                check=True,
+            )
     print("\033[92mInfo: \033[0m" + "Tried to patch.")
 
 if platform.system() != "Linux" and platform.system() != "Darwin":
@@ -55,7 +61,7 @@ else:
 print("\033[92mInfo: \033[0m" + "Configuring for " + DEST_CPU + "...")
 
 if platform.system() == "Darwin":
-    host_os = "darwin"
+    host_os = "mac"
     toolchain_path = android_ndk_path + "/toolchains/llvm/prebuilt/darwin-x86_64"
 
 elif platform.system() == "Linux":
@@ -65,6 +71,18 @@ elif platform.system() == "Linux":
 os.environ['PATH'] += os.pathsep + toolchain_path + "/bin"
 os.environ['CC'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" +  "clang"
 os.environ['CXX'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" + "clang++"
+os.environ.setdefault('CC_target', os.environ['CC'])
+os.environ.setdefault('CXX_target', os.environ['CXX'])
+os.environ.setdefault('CC_host', 'cc')
+os.environ.setdefault('CXX_host', 'c++')
+
+# macOS /usr/bin/ar cannot consume the @file-list syntax emitted by GYP for
+# large archives. llvm-ar can archive both host Mach-O objects and Android
+# target objects.
+llvm_ar = toolchain_path + "/bin/llvm-ar"
+os.environ.setdefault('AR', llvm_ar)
+os.environ.setdefault('AR_host', llvm_ar)
+os.environ.setdefault('AR_target', llvm_ar)
 
 GYP_DEFINES = "target_arch=" + arch
 GYP_DEFINES += " v8_target_arch=" + arch
@@ -74,4 +92,12 @@ GYP_DEFINES += " android_ndk_path=" + android_ndk_path
 os.environ['GYP_DEFINES'] = GYP_DEFINES
 
 if os.path.exists("./configure"):
-    os.system("./configure --dest-cpu=" + DEST_CPU + " --dest-os=android --openssl-no-asm --cross-compiling")
+  subprocess.run([
+      "./configure",
+      "--dest-cpu=" + DEST_CPU,
+      "--dest-os=android",
+      "--openssl-no-asm",
+      "--cross-compiling",
+      "--enable-static",
+      "--v8-disable-temporal-support",
+  ], check=True)
