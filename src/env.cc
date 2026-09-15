@@ -1082,7 +1082,9 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->permission || options_->permission_audit) {
     permission()->EnablePermissions();
     static const std::array args = {std::string("*")};
-    if (options_->permission_audit) {
+    // Docs: when both --permission and --permission-audit are set,
+    // --permission takes precedence (enforce mode, not warning-only).
+    if (options_->permission_audit && !options_->permission) {
       permission()->EnableWarningOnly();
     }
     // The process shouldn't be able to neither
