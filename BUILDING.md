@@ -991,9 +991,9 @@ that works for both your host and target environments.
 ### Build with a specific ICU
 
 You can find other ICU releases at
-[the ICU homepage](https://icu.unicode.org/download).
-Download the file named something like `icu4c-**##.#**-src.tgz` (or
-`.zip`).
+[the ICU homepage](https://unicode-org.github.io/icu/download/).
+Download the source archive named something like
+`icu4c-**##.#**-sources.tgz` (or `.zip`).
 
 To check the minimum recommended ICU, run `./configure --help` and see
 the help for the `--with-icu-source` option. A warning will be printed
@@ -1001,11 +1001,14 @@ during configuration if the ICU version is too old.
 
 #### Unix/macOS
 
-From an already-unpacked ICU:
+From an already-unpacked ICU source archive:
 
 ```bash
 ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
 ```
+
+(Simply cloning the icu4c repository will not work here; the source directory
+must have been unpacked from the compiled `-sources` archive.)
 
 From a local ICU tarball:
 
@@ -1022,7 +1025,7 @@ From a tarball URL:
 #### Windows
 
 First unpack latest ICU to `deps/icu`
-[icu4c-**##.#**-src.tgz](https://icu.unicode.org/download) (or `.zip`)
+[icu4c-**##.#**-sources.tgz](https://unicode-org.github.io/icu/download/) (or `.zip`)
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```powershell
