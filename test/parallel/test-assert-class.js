@@ -187,7 +187,7 @@ test('Assert class non strict with full diff', () => {
         assertInstance.strictEqual(
           err.message,
           `Expected values to be strictly equal:\n+ actual - expected\n\n` +
-            `+ '${longStringOfAs}'\n- '${longStringOfBs}'\n`
+            `+ '${'A'.repeat(15)}...\n- '${'B'.repeat(15)}...\n`
         );
         assertInstance.ok(
           inspect(err).includes(`actual: '${longLinesOfAsWithEllipsis}'`)
@@ -341,7 +341,7 @@ test('Assert class non strict with simple diff', () => {
         assertInstance.strictEqual(
           err.message,
           `Expected values to be strictly equal:\n+ actual - expected\n\n` +
-            `+ '${longStringOfAs}'\n- '${longStringOfBs}'\n`
+            `+ '${'A'.repeat(15)}...\n- '${'B'.repeat(15)}...\n`
         );
         assertInstance.ok(
           inspect(err).includes(`actual: '${longLinesOfAsWithEllipsis}'`)
