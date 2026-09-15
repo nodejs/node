@@ -874,16 +874,7 @@ Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
 should notice that obj file will be bigger than the normal one.
 
 First, install ccache. Assuming the installation of ccache is in `c:\ccache`
-(where you can find `ccache.exe`), copy `c:\ccache\ccache.exe` to `c:\ccache\cl.exe`
-with this command.
-
-```powershell
-cp c:\ccache\ccache.exe c:\ccache\cl.exe
-```
-
-With newer version of Visual Studio, it may need the copy to be `clang-cl.exe`
-instead. If the output of `vcbuild.bat` suggests missing `clang-cl.exe`, copy
-it differently:
+(where you can find `ccache.exe`), setup aliases as the following commands:
 
 ```powershell
 cp c:\ccache\ccache.exe c:\ccache\clang-cl.exe
@@ -897,12 +888,6 @@ When building Node.js, provide a path to your ccache via the option:
 
 This will allow for near-instantaneous rebuilds when switching branches back
 and forth that were built with cache.
-
-To use it with ClangCL, run this instead:
-
-```powershell
-.\vcbuild.bat clang-cl ccache c:\ccache\
-```
 
 ### Android
 
