@@ -7,6 +7,8 @@
 #include <dlfcn.h>
 #endif
 
+#include <string>
+
 #include "node.h"
 #include "node_api.h"
 #include "quic/guard.h"
@@ -169,6 +171,60 @@ void GetInternalBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetLinkedBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);
 void DLOpenBinary(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+// Materializes the bytes of a dynamically shared object into a form
+// dlopen()/LoadLibrary() can load, with the smallest, most private on-disk
+// footprint each platform allows:
+//   Linux:        an anonymous in-memory memfd, loaded via /proc/self/fd/N -
+//                 the bytes never touch the filesystem.
+//   other POSIX:  a 0700 mkdtemp() directory plus an O_EXCL|O_NOFOLLOW file,
+//                 unlink()ed right after the load (the mapping keeps it alive).
+//   Windows:      a temp file, written and closed before the load because the
+//                 loader shares read alone. It cannot be unlinked while its
+//                 image is mapped, so it is kept with the module it loaded as
+//                 and both are released at process exit.
+// Used for a native addon or an FFI library that lives somewhere the dynamic
+// loader cannot open by path, such as a virtual file system. Call exactly one
+// of Materialize()+AfterOpen() around the load; a destroyed image that never
+// reached AfterOpen() cleans up after itself.
+class AddonImage {
+ public:
+  AddonImage() = default;
+  ~AddonImage();
+  AddonImage(const AddonImage&) = delete;
+  AddonImage& operator=(const AddonImage&) = delete;
+
+  // The directory a temporary image would be written to, with a trailing
+  // separator; empty when it cannot be determined. Names the resource for the
+  // file-system permission check.
+  static std::string TempDir();
+
+  // On success sets path() to a real, loadable path for `data`.
+  bool Materialize(const char* data, size_t len);
+  const std::string& path() const { return path_; }
+  const std::string& errmsg() const { return errmsg_; }
+
+  // Call exactly once, right after the load; `opened` says whether the load
+  // succeeded and `module` is the module handle it produced. Releases what is
+  // no longer needed: on POSIX closes the memfd or unlinks the temp file, which
+  // a successful load keeps alive through its own mapping. Windows cannot
+  // unlink a mapped image, so there the file is removed at once only when the
+  // load failed; otherwise it is kept, with `module`, until process exit, where
+  // the module is unloaded and the file finally deleted.
+  void AfterOpen(bool opened, void* module);
+
+ private:
+  std::string path_;
+  std::string errmsg_;
+  bool consumed_ = false;
+#ifdef _WIN32
+  std::wstring wpath_;  // the path of the image, to delete it again at exit
+#else
+  bool MaterializeTempFile(const char* data, size_t len);
+  int fd_ = -1;
+  std::string temp_dir_;
+#endif
+};
 
 }  // namespace binding
 
