@@ -3,8 +3,12 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <array>
+#include <memory>
 #include <optional>
+#include <string>
 #include "aliased_buffer.h"
+#include "node_diagnostics_channel.h"
 #include "node_messaging.h"
 #include "node_snapshotable.h"
 #include "stream_base.h"
@@ -56,6 +60,86 @@ enum class FsStatFsOffset {
 constexpr size_t kFsStatFsBufferLength =
     static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber);
 
+// Built-in diagnostics channels for filesystem operations. Each operation has
+// its own channel family named `tracing:fs.<operation>:<event>`, following the
+// tracing channel convention so that subscribers can use
+// `diagnostics_channel.tracingChannel('fs.open')` to subscribe to all events
+// of one operation, or subscribe to individual channels by name.
+enum class FSOperationChannel {
+  kStart,
+  kEnd,
+  kAsyncStart,
+  kAsyncEnd,
+  kError,
+  kChannelCount,
+};
+
+static constexpr size_t kNumFSOperationChannels =
+    static_cast<size_t>(FSOperationChannel::kChannelCount);
+
+class FSReqBase;
+class BindingData;
+
+// The event channels of one operation's channel family, all created when the
+// operation is first seen.
+using FSOperationChannels =
+    std::array<BaseObjectPtr<diagnostics_channel::Channel>,
+               kNumFSOperationChannels>;
+
+// Returns the channel set for `operation`, fetching it once per call site so
+// that publishing several events for one operation costs a single lookup.
+// `operation` must be a string literal: the cache is keyed on its identity.
+// The returned reference stays valid for the lifetime of the BindingData.
+FSOperationChannels& GetFSOperationChannels(BindingData* binding,
+                                            Environment* env,
+                                            const char* operation);
+
+// Returns true if the given event channel has subscribers. Check before
+// calling PublishFSOperationEvent so the no-subscriber fast path stays free
+// of out-of-line calls and payload preparation.
+inline bool FSOperationChannelHasSubscribers(FSOperationChannels& channels,
+                                             FSOperationChannel channel) {
+  diagnostics_channel::Channel* ch =
+      channels[static_cast<size_t>(channel)].get();
+  return ch != nullptr && ch->HasSubscribers();
+}
+
+// Returns true if any of the operation's event channels has subscribers.
+inline bool AnyFSOperationChannelHasSubscribers(FSOperationChannels& channels) {
+  for (size_t i = 0; i < kNumFSOperationChannels; i++) {
+    diagnostics_channel::Channel* ch = channels[i].get();
+    if (ch != nullptr && ch->HasSubscribers()) return true;
+  }
+  return false;
+}
+
+// Publishes an event on one of the operation's channels. Payload fields are
+// set only when applicable: `path`/`dest` (which may be null or empty) for
+// path-based operations, `fd` for operations that operate on an existing file
+// descriptor, and `result`/`error` on the matching end/error channels,
+// following the TracingChannel conventions.
+void PublishFSOperationEvent(Environment* env,
+                             FSOperationChannels& channels,
+                             FSOperationChannel channel,
+                             const char* api,
+                             const char* path,
+                             const char* dest,
+                             int fd,
+                             const char* value_key,
+                             v8::Local<v8::Value> value);
+
+// Publishes a completion event (asyncStart/asyncEnd/error) for an in-flight
+// async fs operation, deriving the event context from the request wrap.
+void PublishFSOpCompletionEvent(FSReqBase* req_wrap,
+                                FSOperationChannel channel,
+                                const char* value_key,
+                                v8::Local<v8::Value> value);
+
+// Returns true if the libuv fs request type operates on an existing file
+// descriptor (as opposed to taking a path), i.e. its `file` field holds the
+// input descriptor.
+bool OperationUsesFd(uv_fs_type fs_type);
+
 class BindingData : public SnapshotableObject {
  public:
   struct InternalFieldInfo : public node::InternalFieldInfoBase {
@@ -80,6 +164,17 @@ class BindingData : public SnapshotableObject {
 
   AliasedFloat64Array statfs_field_array;
   AliasedBigInt64Array statfs_field_bigint_array;
+
+  // Lazily created built-in per-operation fs tracing channel sets, recreated
+  // after snapshot deserialization (fresh BindingData). The names vector is
+  // scanned by pointer identity of the operation name string literal — the
+  // number of distinct operations is small and hot operations sit near the
+  // front, so the scan beats hashing. Distinct literals with equal contents
+  // would only create duplicate entries resolving to the same channels. The
+  // sets are heap-allocated so references handed out by
+  // GetFSOperationChannels stay stable.
+  std::vector<const char*> fs_op_channel_names_;
+  std::vector<std::unique_ptr<FSOperationChannels>> fs_op_channel_sets_;
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>> file_handle_read_wrap_freelist;
 
@@ -164,6 +259,25 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   bool is_plain_open() const { return is_plain_open_; }
   bool with_file_types() const { return with_file_types_; }
 
+  // Whether this request was created for the promise-based fs API.
+  bool is_promise() const { return is_promise_; }
+  void set_is_promise(bool value) { is_promise_ = value; }
+  // The operation's tracing channel set, captured at dispatch time so
+  // completion events publish without further lookups. Null for requests
+  // dispatched outside the instrumented call paths, which therefore publish
+  // no events. Points into the BindingData-owned cache, which outlives the
+  // request.
+  FSOperationChannels* op_channels() const { return op_channels_; }
+  void set_op_channels(FSOperationChannels* channels) {
+    op_channels_ = channels;
+  }
+  // Path and file descriptor captured at dispatch time, used to publish
+  // fs operation tracing events even after the uv request is cleaned up.
+  const std::string& op_path() const { return op_path_; }
+  void set_op_path(std::string value) { op_path_ = std::move(value); }
+  int fd() const { return fd_; }
+  void set_fd(int value) { fd_ = value; }
+
   void set_is_plain_open(bool value) { is_plain_open_ = value; }
   void set_with_file_types(bool value) { with_file_types_ = value; }
 
@@ -192,6 +306,10 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   bool use_bigint_ = false;
   bool is_plain_open_ = false;
   bool with_file_types_ = false;
+  bool is_promise_ = false;
+  FSOperationChannels* op_channels_ = nullptr;
+  std::string op_path_;
+  int fd_ = -1;
   const char* syscall_ = nullptr;
 
   BaseObjectPtr<BindingData> binding_data_;
