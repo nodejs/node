@@ -4,6 +4,8 @@ prefix test-runner
 # below, without ".js", followed by ": PASS,FLAKY". Example:
 # sample-test                        : PASS,FLAKY
 
+[true] # This section applies to all platforms
+
 [$system==macos && $arch==x64]
 # https://github.com/nodejs/node/issues/54534#issuecomment-5423551021
 test-run-watch-cwd-isolation-none: PASS, FLAKY

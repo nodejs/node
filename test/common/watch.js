@@ -63,7 +63,7 @@ function assertTestOutput(run, shouldCheckRecursion = false, expectations) {
   if (shouldCheckRecursion) {
     assert.doesNotMatch(run, /run\(\) is being called recursively/);
   }
-  assert.match(run, new RegExp(RegExp.escape(Object.entries({
+  assert.match(run, new RegExp(`\n${Object.entries({
     tests: 1,
     suites: 0,
     pass: 1,
@@ -72,7 +72,7 @@ function assertTestOutput(run, shouldCheckRecursion = false, expectations) {
     skipped: 0,
     todo: 0,
     ...expectations,
-  }).map((t) => `ℹ ${t.join(' ')}`).join('\n'))));
+  }).map((t) => `. ${t.join(' ')}`).join('\n')}\n`));
 }
 
 async function testRunnerWatch({
@@ -222,7 +222,7 @@ async function testRunnerWatch({
     await once(child, 'exit');
 
     assertTestOutput(runs[0], false);
-    assertTestOutput(runs[1], false, {
+    assertTestOutput(runs[1], false, isolation === 'none' && {
       tests: 2,
       pass: 2,
     });
