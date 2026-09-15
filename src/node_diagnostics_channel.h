@@ -11,6 +11,7 @@
 #include "aliased_buffer.h"
 #include "base_object.h"
 #include "node_snapshotable.h"
+#include "node_usdt.h"
 
 namespace node {
 class ExternalReferenceRegistry;
@@ -52,6 +53,9 @@ class BindingData : public SnapshotableObject {
 
   static void LinkNativeChannel(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+#if NODE_HAVE_USDT
+  static void EmitPublishProbe(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
 
   using ChannelStatusCallback = std::function<void(bool is_active)>;
   void SetChannelStatusCallback(uint32_t index, ChannelStatusCallback cb);
@@ -70,6 +74,10 @@ class BindingData : public SnapshotableObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  private:
+#if NODE_HAVE_USDT
+  static void SetupProbeSemaphore(v8::Isolate* isolate,
+                                  v8::Local<v8::Object> target);
+#endif
   InternalFieldInfo* internal_field_info_ = nullptr;
   std::unordered_map<uint32_t, ChannelStatusCallback> channel_status_callbacks_;
 };

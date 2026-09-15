@@ -1066,6 +1066,19 @@ parser.add_argument('--without-amaro',
     default=None,
     help='do not install the bundled Amaro (TypeScript utils)')
 
+parser.add_argument('--with-dtrace',
+    action='store_true',
+    dest='with_dtrace',
+    default=None,
+    help='build with native DTrace/USDT probe support '
+         '(opt-in on macOS; Linux probes need no dtrace tool)')
+
+parser.add_argument('--without-dtrace',
+    action='store_true',
+    dest='without_dtrace',
+    default=None,
+    help='build without DTrace/USDT probe support')
+
 parser.add_argument('--without-lief',
     action='store_true',
     dest='without_lief',
@@ -1359,6 +1372,32 @@ def B(value):
 
 def to_utf8(s):
   return s if isinstance(s, str) else s.decode("utf-8")
+
+def has_working_dtrace_h():
+  """Check whether a dtrace tool that supports -h is available.
+
+  Supported on macOS (native DTrace).  Non-Linux platforms require
+  -xnolibs to avoid loading standard D libraries during header generation.
+  Linux never needs this check: the probe header is pre-generated and
+  committed (see tools/usdt/generate_headers.py)."""
+  dtrace = shutil.which('dtrace')
+  if dtrace is None:
+    return False
+  # -xnolibs is required on macOS/FreeBSD/illumos (native DTrace) to avoid
+  # loading standard D libraries.  Linux (SystemTap wrapper) does not
+  # recognise this flag, so only pass it on non-Linux platforms.
+  cmd = [dtrace, '-h', '-s', '/dev/stdin', '-o', '/dev/null']
+  if sys.platform != 'linux':
+    cmd.insert(2, '-xnolibs')
+  try:
+    proc = subprocess.run(
+        cmd,
+        input=b'provider _test { probe _test(); };',
+        capture_output=True, timeout=10)
+    return proc.returncode == 0
+  except (OSError, subprocess.TimeoutExpired) as e:
+    warn('dtrace probe check failed: %s' % e)
+    return False
 
 def pkg_config(pkg):
   """Run pkg-config on the specified package
@@ -2179,6 +2218,41 @@ def configure_node(o):
   if options.node_builtin_modules_path:
     print('Warning! Loading builtin modules from disk is for development')
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
+
+  o['variables']['node_no_usdt'] = b(options.without_dtrace)
+  # USDT probe support for diagnostics_channel:
+  #
+  # * Linux: on by default whenever <sys/sdt.h> is available.  The probe
+  #   header is pre-generated and committed (src/node_provider_linux.h),
+  #   so no dtrace tool is needed at build time.
+  # * macOS: opt-in via --with-dtrace; needs a working `dtrace -h` at
+  #   build time (always present with Xcode/CLT).
+  # * FreeBSD/illumos: not supported yet; native DTrace there requires
+  #   a `dtrace -G` link step that is not implemented.
+  if options.without_dtrace:
+    use_dtrace = False
+  elif options.with_dtrace:
+    if flavor == 'mac':
+      if not has_working_dtrace_h():
+        raise Exception('dtrace -h is not working; cannot use --with-dtrace')
+      use_dtrace = True
+    else:
+      use_dtrace = False
+      warn('--with-dtrace is only supported on macOS. On Linux, USDT '
+           'probes are enabled automatically whenever <sys/sdt.h> is '
+           'available.')
+  else:
+    use_dtrace = False
+  o['variables']['node_use_dtrace'] = b(use_dtrace)
+  if options.without_dtrace:
+    print('USDT probes: disabled (--without-dtrace)')
+  elif flavor == 'linux':
+    print('USDT probes: enabled when <sys/sdt.h> is available '
+          '(systemtap-sdt-dev on Debian/Ubuntu)')
+  elif use_dtrace:
+    print('USDT probes: enabled (--with-dtrace, dtrace -h)')
+  else:
+    print('USDT probes: disabled (enable with --with-dtrace)')
 
 def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
