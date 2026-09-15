@@ -1120,6 +1120,13 @@ parser.add_argument('--without-ffi',
     default=None,
     help='build without FFI (Foreign Function Interface) support')
 
+parser.add_argument('--without-libatomic', '--without_libatomic',
+    action='store_true',
+    dest='without_libatomic',
+    default=None,
+    help='do not link against libatomic when the compiler runtime ' +
+         'provides atomic builtins (e.g. compiler-rt)')
+
 parser.add_argument('--experimental-quic',
     action='store_true',
     dest='experimental_quic',
@@ -1907,6 +1914,7 @@ def configure_node(o):
   o['variables']['node_install_corepack'] = b(options.with_corepack)
   o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
+  o['variables']['node_use_libatomic'] = b(not options.without_libatomic)
   o['variables']['debug_node'] = b(options.debug_node)
   o['variables']['debug_symbols'] = b(options.debug_symbols)
   if options.debug_symbols:
