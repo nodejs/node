@@ -1579,13 +1579,15 @@ struct Session::Impl final : public MemoryRetainer {
                              void* user_data,
                              void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
+    // If the peer closes a stream, we return the credit to allow a new one:
+    session->ExtendMaxStreams(stream_id);
+    if (!session->has_application()) return NGTCP2_SUCCESS;
     auto* stream = Stream::From(stream_user_data);
-    if (stream == nullptr) return NGTCP2_SUCCESS;
     if (flags & NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET) {
       session->application().ReceiveStreamClose(
-          stream, QuicError::ForApplication(app_error_code));
+          stream_id, stream, QuicError::ForApplication(app_error_code));
     } else {
-      session->application().ReceiveStreamClose(stream);
+      session->application().ReceiveStreamClose(stream_id, stream);
     }
     return NGTCP2_SUCCESS;
   }
@@ -3320,16 +3322,10 @@ void Session::AddStream(BaseObjectPtr<Stream> stream,
 void Session::RemoveStream(stream_id id) {
   DCHECK(!is_destroyed());
   Debug(this, "Removing stream %" PRIi64 " from session", id);
-  if (!is_in_draining_period() && !is_in_closing_period() &&
-      !ngtcp2_conn_is_local_stream(*this, id)) {
-    if (ngtcp2_is_bidi_stream(id)) {
-      ngtcp2_conn_extend_max_streams_bidi(*this, 1);
-    } else {
-      ngtcp2_conn_extend_max_streams_uni(*this, 1);
-    }
-  }
 
   ngtcp2_conn_set_stream_user_data(*this, id, nullptr);
+
+  if (has_application()) application().StreamRemoved(id);
 
   // Note that removing the stream from the streams map likely releases
   // the last BaseObjectPtr holding onto the Stream instance, at which
@@ -3479,14 +3475,15 @@ bool Session::OpenUnidirectionalStream(stream_id* id) {
   return ngtcp2_conn_open_uni_stream(*this, id, nullptr) == 0;
 }
 
-void Session::ExtendMaxStreams(Direction direction, uint64_t max) {
-  switch (direction) {
-    case Direction::BIDIRECTIONAL:
-      ngtcp2_conn_extend_max_streams_bidi(*this, static_cast<size_t>(max));
-      break;
-    case Direction::UNIDIRECTIONAL:
-      ngtcp2_conn_extend_max_streams_uni(*this, static_cast<size_t>(max));
-      break;
+void Session::ExtendMaxStreams(stream_id id) {
+  // MAX_STREAMS only limits what the peer opens, and there is nothing to
+  // grant once the connection is going away.
+  if (is_in_draining_period() || is_in_closing_period()) return;
+  if (ngtcp2_conn_is_local_stream(*this, id)) return;
+  if (ngtcp2_is_bidi_stream(id)) {
+    ngtcp2_conn_extend_max_streams_bidi(*this, 1);
+  } else {
+    ngtcp2_conn_extend_max_streams_uni(*this, 1);
   }
 }
 

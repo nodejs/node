@@ -126,14 +126,6 @@ class Session::Application : public MemoryRetainer {
   // to send for the given stream.
   virtual void ResumeStream(stream_id id) {}
 
-  // Called when the Session determines that the maximum number of
-  // remotely-initiated unidirectional streams has been extended. Not all
-  // Application types will require this notification so the default is to do
-  // nothing.
-  virtual void ExtendMaxStreams(EndpointLabel label,
-                                Direction direction,
-                                uint64_t max_streams) {}
-
   // Returns true if the application manages stream FIN internally (e.g.,
   // HTTP/3 uses nghttp3 which sends FIN via the fin flag in writev_stream).
   // When true, the stream infrastructure must NOT call
@@ -166,8 +158,14 @@ class Session::Application : public MemoryRetainer {
       SessionTicket::AppData::Source::Flag flag);
 
   // Notifies the Application that the identified stream has been closed.
-  virtual void ReceiveStreamClose(Stream* stream,
+  virtual void ReceiveStreamClose(stream_id id,
+                                  Stream* stream,
                                   QuicError&& error = QuicError());
+
+  // Notifies the Application that the Stream for the identified stream has
+  // been removed from the session and may be freed immediately afterwards.
+  // Applications caching the Stream pointer must drop it here.
+  virtual void StreamRemoved(stream_id id) {}
 
   // Notifies the Application that the identified stream has been reset.
   virtual void ReceiveStreamReset(Stream* stream,

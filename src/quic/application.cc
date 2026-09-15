@@ -207,9 +207,10 @@ Session::Application::ExtractSessionTicketAppData(
              : SessionTicket::AppData::Status::TICKET_USE;
 }
 
-void Session::Application::ReceiveStreamClose(Stream* stream,
+void Session::Application::ReceiveStreamClose(stream_id id,
+                                              Stream* stream,
                                               QuicError&& error) {
-  DCHECK_NOT_NULL(stream);
+  if (stream == nullptr) return;
   stream->Destroy(std::move(error));
 }
 
