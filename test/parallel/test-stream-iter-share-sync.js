@@ -149,7 +149,7 @@ function testShareSyncRejectsUnbounded() {
 function testShareSyncDropNewest() {
   let pulls = 0;
   function* source() {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       pulls++;
       const chunk = new Uint8Array(16384);
       chunk[0] = i;
@@ -165,11 +165,50 @@ function testShareSyncDropNewest() {
   const slow = shared.pull()[Symbol.iterator]();
 
   assert.strictEqual(fast.next().value[0][0], 0);
-  assert.strictEqual(fast.next().done, true);
-  assert.strictEqual(pulls, 3);
 
+  // The budget is exhausted and the slow consumer cannot advance while this
+  // call is running, so exactly one entry is dropped and no value is
+  // available. The consumer is not detached.
+  assert.strictEqual(fast.next().done, true);
+  assert.strictEqual(pulls, 2);
+
+  // The slow consumer still sees the buffered entry, which releases budget.
   assert.strictEqual(slow.next().value[0][0], 0);
-  assert.strictEqual(slow.next().done, true);
+
+  // Entry 1 was dropped for every consumer, so both resume at entry 2.
+  assert.strictEqual(slow.next().value[0][0], 2);
+  assert.strictEqual(pulls, 3);
+  assert.strictEqual(fast.next().value[0][0], 2);
+}
+
+// Regression test: a full buffer must not spin pulling-and-discarding from an
+// unbounded source, since discarding never reclaims budget.
+function testShareSyncDropNewestUnboundedSource() {
+  let pulls = 0;
+  function* source() {
+    for (;;) {
+      pulls++;
+      yield [new Uint8Array(16384)];
+    }
+  }
+
+  const shared = shareSync(source(), {
+    budget: 16384,
+    backpressure: 'drop-newest',
+  });
+  const fast = shared.pull()[Symbol.iterator]();
+  shared.pull();
+
+  assert.strictEqual(fast.next().done, false);
+  assert.strictEqual(pulls, 1);
+
+  // Each blocked call drops at most one entry and returns without a value.
+  for (let i = 0; i < 3; i++) {
+    assert.strictEqual(fast.next().done, true);
+    assert.strictEqual(pulls, 2 + i);
+  }
+
+  shared.cancel();
 }
 
 // shareSync() accepts string source directly (normalized via fromSync())
@@ -189,5 +228,6 @@ Promise.all([
   testShareSyncSourceError(),
   testShareSyncRejectsUnbounded(),
   testShareSyncDropNewest(),
+  testShareSyncDropNewestUnboundedSource(),
   testShareSyncStringSource(),
 ]).then(common.mustCall());
