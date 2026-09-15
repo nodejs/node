@@ -1424,7 +1424,22 @@ static void Initialize(Local<Object> target,
             env->ffi_sb_return_symbol())
       .Check();
   // Fast API wrappers use separate metadata Symbols so pointer-conversion
-  // routing does not depend on SharedBuffer internals.
+  // routing does not depend on SharedBuffer internals. These are created here
+  // (at runtime, on first `internalBinding('ffi')`) instead of being declared
+  // in env_properties.h, so they are not allocated while the startup snapshot
+  // is being built. Allocating Symbols during snapshot serialization advances
+  // the isolate's identity-hash RNG and shifts the identity hashes baked into
+  // the snapshot for Object.prototype / Function.prototype, which can make a
+  // function map and a plain-object map collide in V8's NormalizedMapCache.
+  if (env->ffi_fast_arguments_symbol().IsEmpty()) {
+    env->set_ffi_fast_arguments_symbol(v8::Symbol::New(
+        isolate, FIXED_ONE_BYTE_STRING(isolate, "ffi_fast_arguments_symbol")));
+  }
+  if (env->ffi_fast_buffer_invoke_symbol().IsEmpty()) {
+    env->set_ffi_fast_buffer_invoke_symbol(v8::Symbol::New(
+        isolate,
+        FIXED_ONE_BYTE_STRING(isolate, "ffi_fast_buffer_invoke_symbol")));
+  }
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kFastArguments"),
