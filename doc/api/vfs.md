@@ -453,6 +453,11 @@ is loaded from inside the mount through the ESM loader, and
 `"useVfs"` cannot be used together with `"useSnapshot"` or `"useCodeCache"`.
 The SEA configuration parser will error if either combination is detected.
 
+Instead of listing individual `"assets"`, the SEA configuration can point
+`"vfsArchive"` at a prebuilt ZIP archive; the mount is then backed by a
+[`ZipProvider`][] over the embedded archive, and each file is inflated when
+it is read. See [Serving the assets from a ZIP archive][] for details.
+
 See the [Single Executable Application][] documentation for more information
 on creating SEA builds with assets.
 
@@ -628,6 +633,7 @@ fields use synthetic but stable values:
 [CommonJS resolution algorithm]: modules.md#all-together
 [ES modules resolution algorithm]: esm.md#resolution-algorithm
 [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
+[Serving the assets from a ZIP archive]: single-executable-applications.md#serving-the-assets-from-a-zip-archive-with-vfsarchive
 [Single Executable Application]: single-executable-applications.md
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider

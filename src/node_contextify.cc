@@ -1768,7 +1768,7 @@ static void CompileFunctionForCJSLoader(
   ScriptCompiler::CachedData* cached_data = nullptr;
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (is_sea_main) {
-    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    const sea::SeaResource& sea = sea::FindSingleExecutableResource();
     // Use the "main" field in SEA config for the filename.
     Local<Value> filename_from_sea;
     if (!ToV8Value(context, sea.code_path).ToLocal(&filename_from_sea)) {
