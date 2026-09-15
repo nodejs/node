@@ -7,6 +7,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
+const assert = require('assert');
 const http2 = require('http2');
 
 const key = fixtures.readKey('agent8-key.pem', 'binary');
@@ -23,11 +24,24 @@ let client_stream;
 
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
-    stream.resume();
+    // Client destroys mid-stream without END_STREAM (clean RST code).
+    // Peer reset before END_STREAM surfaces as ERR_HTTP2_STREAM_ABORTED.
+    stream.on('error', common.mustNotCall());
+
+    // Every write dispatched before close must have its callback invoked.
+    let writes = 0;
+    let writeCallbacks = 0;
     stream.on('data', function() {
-      this.write(Buffer.alloc(1));
+      writes++;
+      this.write(Buffer.alloc(1), () => {
+        writeCallbacks++;
+      });
       process.nextTick(() => client_stream.destroy());
     });
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(writeCallbacks, writes);
+    }));
+    stream.resume();
   }));
 }));
 
