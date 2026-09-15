@@ -1424,7 +1424,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/64003
     description: Add support for the `maxDepth` option.
   - version:
@@ -3654,7 +3654,7 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/64003
     description: Add support for the `maxDepth` option.
   - version:
@@ -6311,7 +6311,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/64003
     description: Add support for the `maxDepth` option.
   - version:

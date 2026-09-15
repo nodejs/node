@@ -179,7 +179,7 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 ### Virtual file system (VFS) for assets
 
 <!-- YAML
-added: REPLACEME
+added: v26.9.0
 -->
 
 > Stability: 1.0 - Early development
