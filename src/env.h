@@ -214,6 +214,17 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
+  // Symbols used by the FFI fast-call API to key per-function metadata on raw
+  // FFI functions. Kept out of env_properties.h so they are created lazily at
+  // runtime, not while the startup snapshot is built (allocating Symbols during
+  // serialization advances the isolate's identity-hash RNG, which can shift the
+  // snapshot hashes for Object.prototype/Function.prototype and make a function
+  // map and a plain-object map collide in V8's NormalizedMapCache).
+  inline v8::Local<v8::Symbol> ffi_fast_arguments_symbol() const;
+  inline void set_ffi_fast_arguments_symbol(v8::Local<v8::Symbol> value);
+  inline v8::Local<v8::Symbol> ffi_fast_buffer_invoke_symbol() const;
+  inline void set_ffi_fast_buffer_invoke_symbol(v8::Local<v8::Symbol> value);
+
   size_t max_young_gen_size = 1;
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
 
@@ -253,6 +264,9 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   v8::Eternal<v8::String> Name##_permission_string##_;
   PERMISSIONS(V)
 #undef V
+
+  v8::Eternal<v8::Symbol> ffi_fast_arguments_symbol_;
+  v8::Eternal<v8::Symbol> ffi_fast_buffer_invoke_symbol_;
 
   // Keep a list of all Persistent strings used for AsyncWrap Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
@@ -962,6 +976,12 @@ class Environment final : public MemoryRetainer {
 #undef VS
 #undef VY
 #undef VP
+
+  // Runtime-created FFI fast-call API Symbols (see IsolateData).
+  inline v8::Local<v8::Symbol> ffi_fast_arguments_symbol() const;
+  inline void set_ffi_fast_arguments_symbol(v8::Local<v8::Symbol> value);
+  inline v8::Local<v8::Symbol> ffi_fast_buffer_invoke_symbol() const;
+  inline void set_ffi_fast_buffer_invoke_symbol(v8::Local<v8::Symbol> value);
 
 #define V(Name, label, _, __)                                                  \
   inline v8::Local<v8::String> Name##_permission_string() const;
