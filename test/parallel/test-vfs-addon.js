@@ -34,4 +34,12 @@ if (process.platform !== 'win32') {
   assert.deepStrictEqual(leaked, [], `addon temp not cleaned up: ${leaked}`);
 }
 
+// Regression check: while a VFS is mounted, process.dlopen() of a
+// real-file-system addon without a flags argument must keep the default
+// flags rather than forwarding `undefined`, which coerces to 0 - not a
+// valid dlopen(2) mode.
+const realMod = { exports: {} };
+process.dlopen(realMod, addonPath);
+assert.strictEqual(realMod.exports.hello(), 'world');
+
 myVfs.unmount();

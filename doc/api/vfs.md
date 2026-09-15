@@ -425,6 +425,12 @@ addon's bytes are read from the VFS and loaded from a private, self-cleaning
 temporary image instead. Addons on the real file system are unaffected and
 load directly.
 
+Shared libraries opened through [`ffi.dlopen()`][] (or
+[`new ffi.DynamicLibrary()`][]) work the same way: a library path inside a
+mounted VFS is detected, its bytes are read from the VFS, and the library is
+loaded from a private, self-cleaning image while `library.path` keeps
+reporting the virtual path. Libraries on the real file system load directly.
+
 ## Use with Single Executable Applications
 
 When running as a [Single Executable Application][] built with
@@ -634,9 +640,11 @@ fields use synthetic but stable values:
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
 [`ZipProvider`]: #class-zipprovider
+[`ffi.dlopen()`]: ffi.md#ffidlopenpath-definitions
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
+[`new ffi.DynamicLibrary()`]: ffi.md#new-dynamiclibrarypath
 [`node:fs`]: fs.md
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options

@@ -8,7 +8,9 @@
 #include "permission/permission.h"
 #include "util.h"
 
+#include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -17,7 +19,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
-#include <cstdlib>
 #if defined(__linux__)
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -475,63 +476,59 @@ int NodeMemfdCreate(const char* name, unsigned int flags) {
   return static_cast<int>(syscall(SYS_memfd_create, name, flags));
 }
 #endif  // __linux__
+#else   // _WIN32
+
+// Windows refuses to unlink a file that backs a mapped image section: neither
+// delete-on-close, nor DeleteFile(), nor a POSIX-semantics disposition can
+// remove it while the DLL is loaded. A materialized image therefore has to
+// outlive its load, and the only moment it can go is once the module is
+// unloaded again. Node keeps addons loaded for the life of the process, so
+// that moment is process exit: each image is kept here with the module it was
+// loaded as, and released together at exit.
+struct RetainedAddonImage {
+  HMODULE module;
+  std::wstring path;
+};
+Mutex g_retained_addon_images_mutex;
+std::vector<RetainedAddonImage>* g_retained_addon_images = nullptr;
+
+// Unloads the images this process materialized -- and only those; addons loaded
+// from a real path are left alone -- so that each file can finally be deleted.
+// This has to happen after everything that might still call into an addon, so
+// it is registered during static initialisation below: atexit() runs handlers
+// last-registered-first, so registering before main() puts this behind every
+// handler that is registered while running.
+void ReleaseRetainedAddonImages() {
+  Mutex::ScopedLock lock(g_retained_addon_images_mutex);
+  if (g_retained_addon_images == nullptr) return;
+  for (auto it = g_retained_addon_images->rbegin();
+       it != g_retained_addon_images->rend();
+       ++it) {
+    // Deleting first doubles as the test for whether the image is still
+    // mapped, because that is the only thing that can stop it: an FFI library
+    // the caller already close()d is gone by now, and unloading it a second
+    // time through a stale module handle would be wrong.
+    if (DeleteFileW(it->path.c_str())) continue;
+    if (it->module != nullptr) FreeLibrary(it->module);
+    DeleteFileW(it->path.c_str());
+  }
+  g_retained_addon_images->clear();
+}
+
+// Arms the hook before main() rather than at the first load; see above.
+const struct RetainedAddonImageExitHook {
+  RetainedAddonImageExitHook() { atexit(ReleaseRetainedAddonImages); }
+} g_retained_addon_image_exit_hook;
+
 #endif  // !_WIN32
 
-// Materializes native-addon bytes into a form dlopen()/LoadLibrary() can load,
-// with the smallest, most private on-disk footprint each platform allows:
-//   Linux:        an anonymous in-memory memfd, loaded via /proc/self/fd/N -
-//                 the bytes never touch the filesystem.
-//   other POSIX:  a 0700 mkdtemp() directory plus an O_EXCL|O_NOFOLLOW file,
-//                 unlink()ed right after the load (the mapping keeps it alive).
-//   Windows:      a temp file opened FILE_FLAG_DELETE_ON_CLOSE; its handle is
-//                 retained for the process lifetime so the file is removed
-//                 automatically once the process (and the loaded DLL) exit.
-// Used for an addon that lives somewhere dlopen() cannot open by path, such as
-// a virtual file system.
-class AddonImage {
- public:
-  AddonImage() = default;
-  ~AddonImage();
-  AddonImage(const AddonImage&) = delete;
-  AddonImage& operator=(const AddonImage&) = delete;
+}  // namespace
 
-  // The directory a temporary image would be written to, with a trailing
-  // separator; empty when it cannot be determined. Names the resource for the
-  // file-system permission check.
-  static std::string TempDir();
-
-  // On success sets path() to a real, loadable path for `data`.
-  bool Materialize(const char* data, size_t len);
-  const std::string& path() const { return path_; }
-  const std::string& errmsg() const { return errmsg_; }
-
-  // Call exactly once, right after DLib::Open(); `opened` says whether the load
-  // succeeded. Releases the transient resources that are no longer needed (a
-  // successful load holds its own mapping): on POSIX closes the memfd or
-  // unlinks the temp file; on Windows retains the delete-on-close handle for
-  // the process lifetime when opened, or closes it (deleting the file) on
-  // failure.
-  void AfterOpen(bool opened);
-
- private:
-  std::string path_;
-  std::string errmsg_;
-  bool consumed_ = false;
-#ifdef _WIN32
-  HANDLE handle_ = INVALID_HANDLE_VALUE;
-#else
-  bool MaterializeTempFile(const char* data, size_t len);
-  int fd_ = -1;
-  std::string temp_dir_;  // non-empty only for the temp-file (non-memfd) path
-#endif
-};
+// AddonImage is declared in node_binding.h so that the other loader of
+// dynamically shared objects, node_ffi.cc, can reuse it; see the header for
+// the platform-by-platform description.
 
 #ifdef _WIN32
-
-// Delete-on-close handles kept alive until process exit so their temp files
-// outlive the loaded DLLs and are removed once the process ends.
-Mutex g_retained_addon_handles_mutex;
-std::vector<HANDLE>* g_retained_addon_handles = nullptr;
 
 // static
 std::string AddonImage::TempDir() {
@@ -559,18 +556,22 @@ bool AddonImage::Materialize(const char* data, size_t len) {
     errmsg_ = "could not create a temporary file name";
     return false;
   }
-  // Reopen the just-created file delete-on-close, sharing delete so the loader
-  // can map it while it is delete-pending; the file is removed when this handle
-  // and the loader's section are both released (i.e. at process exit).
-  handle_ = CreateFileW(file,
-                        GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                        nullptr,
-                        CREATE_ALWAYS,
-                        FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
-                        nullptr);
-  if (handle_ == INVALID_HANDLE_VALUE) {
+  // Write the image and close it again: nothing may still hold the file open
+  // when the loader gets to it. Sharing is checked in both directions, and the
+  // loader opens a DLL for read and execute while sharing read alone, so any
+  // handle of ours holding write access fails the load with
+  // ERROR_SHARING_VIOLATION however permissive this side's share mode is.
+  HANDLE writer =
+      CreateFileW(file,
+                  GENERIC_WRITE,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                  nullptr,
+                  CREATE_ALWAYS,
+                  FILE_ATTRIBUTE_TEMPORARY,
+                  nullptr);
+  if (writer == INVALID_HANDLE_VALUE) {
     errmsg_ = "could not create a temporary file for the native addon";
+    DeleteFileW(file);
     return false;
   }
   size_t off = 0;
@@ -578,48 +579,52 @@ bool AddonImage::Materialize(const char* data, size_t len) {
     DWORD chunk =
         len - off > MAXDWORD ? MAXDWORD : static_cast<DWORD>(len - off);
     DWORD written = 0;
-    if (!WriteFile(handle_, data + off, chunk, &written, nullptr)) {
+    if (!WriteFile(writer, data + off, chunk, &written, nullptr)) {
       errmsg_ = "could not write the native addon to a temporary file";
-      CloseHandle(handle_);
-      handle_ = INVALID_HANDLE_VALUE;
+      CloseHandle(writer);
+      DeleteFileW(file);
       return false;
     }
     off += written;
   }
+  CloseHandle(writer);
+
   int utf8_len =
       WideCharToMultiByte(CP_UTF8, 0, file, -1, nullptr, 0, nullptr, nullptr);
   if (utf8_len <= 0) {
     errmsg_ = "could not encode the temporary file path";
-    CloseHandle(handle_);
-    handle_ = INVALID_HANDLE_VALUE;
+    DeleteFileW(file);
     return false;
   }
   path_.resize(utf8_len - 1);
   WideCharToMultiByte(
       CP_UTF8, 0, file, -1, path_.data(), utf8_len, nullptr, nullptr);
+  wpath_ = file;
   return true;
 }
 
-void AddonImage::AfterOpen(bool opened) {
+void AddonImage::AfterOpen(bool opened, void* module) {
   consumed_ = true;
-  if (handle_ == INVALID_HANDLE_VALUE) return;
+  if (wpath_.empty()) return;
   if (!opened) {
-    CloseHandle(handle_);  // delete-on-close removes the file
-    handle_ = INVALID_HANDLE_VALUE;
+    DeleteFileW(wpath_.c_str());  // nothing mapped it, so it can go now
+    wpath_.clear();
     return;
   }
-  Mutex::ScopedLock lock(g_retained_addon_handles_mutex);
-  if (g_retained_addon_handles == nullptr) {
-    g_retained_addon_handles = new std::vector<HANDLE>();
+  // The load mapped it, so it has to stay until that module is unloaded again.
+  Mutex::ScopedLock lock(g_retained_addon_images_mutex);
+  if (g_retained_addon_images == nullptr) {
+    g_retained_addon_images = new std::vector<RetainedAddonImage>();
   }
-  g_retained_addon_handles->push_back(handle_);
-  handle_ = INVALID_HANDLE_VALUE;
+  g_retained_addon_images->push_back(
+      {static_cast<HMODULE>(module), std::move(wpath_)});
+  wpath_.clear();
 }
 
 AddonImage::~AddonImage() {
-  // Materialized but Open() was never reached (e.g. an exception in between):
-  // closing the delete-on-close handle removes the file.
-  if (!consumed_ && handle_ != INVALID_HANDLE_VALUE) CloseHandle(handle_);
+  // Materialized but the load was never reached (e.g. an exception in
+  // between): nothing mapped the file, so remove it now.
+  if (!consumed_ && !wpath_.empty()) DeleteFileW(wpath_.c_str());
 }
 
 #else  // !_WIN32
@@ -701,10 +706,12 @@ bool AddonImage::MaterializeTempFile(const char* data, size_t len) {
   return true;
 }
 
-void AddonImage::AfterOpen(bool opened) {
+void AddonImage::AfterOpen(bool opened, void* module) {
   consumed_ = true;
-  // The right cleanup is the same whether or not the load worked.
+  // The right cleanup is the same whether or not the load worked, and the
+  // module never has to be unloaded: the name is already gone by now.
   (void)opened;
+  (void)module;
   // memfd: the load's mapping (or nothing, on failure) owns it from here.
   if (fd_ != -1) {
     close(fd_);
@@ -730,8 +737,6 @@ AddonImage::~AddonImage() {
 }
 
 #endif  // _WIN32
-
-}  // namespace
 
 // Shared by process.dlopen() and the internal dlopenBinary(). `allow_binary`
 // says whether args[3] may carry the addon's bytes; it is false for
@@ -815,7 +820,7 @@ static void DLOpenImpl(const FunctionCallbackInfo<Value>& args,
     Mutex::ScopedLock lock(dlib_load_mutex);
 
     const bool is_opened = dlib->Open();
-    image.AfterOpen(is_opened);
+    image.AfterOpen(is_opened, is_opened ? dlib->handle_ : nullptr);
 
     // Objects containing v14 or later modules will have registered themselves
     // on the pending list.  Activate all of them now.  At present, only one
