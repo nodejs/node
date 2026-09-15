@@ -962,8 +962,12 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<InspectorSession>{};
   }
+  if (!parent_handle_) {
+    THROW_ERR_INSPECTOR_NOT_AVAILABLE(
+        parent_env_, "The parent thread's inspector is not available");
+    return std::unique_ptr<InspectorSession>{};
+  }
 
-  CHECK_NOT_NULL(parent_handle_);
   CHECK_NOT_NULL(client_);
   auto thread_safe_delegate =
       client_->getThreadHandle()->MakeDelegateThreadSafe(std::move(delegate));
