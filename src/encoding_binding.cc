@@ -86,9 +86,19 @@ constexpr bool isSurrogatePair(uint16_t lead, uint16_t trail) {
   return (lead & 0xfc00) == 0xd800 && (trail & 0xfc00) == 0xdc00;
 }
 
-constexpr size_t simpleUtfEncodingLength(uint16_t c) {
+// V8 exposes one-byte strings as unsigned Latin-1. Keeping that type here
+// prevents bytes >= 0x80 from being sign-extended before their length is
+// calculated. Every non-ASCII Latin-1 code unit takes two UTF-8 bytes.
+constexpr size_t simpleUtfEncodingLength(uint8_t c) {
+  return c < 0x80 ? 1 : 2;
+}
+
+// UTF-16 code units below U+0800 take at most two UTF-8 bytes. Surrogates
+// reach this helper only when they are unpaired and therefore encode as the
+// three-byte replacement character; valid pairs are handled below.
+constexpr size_t simpleUtfEncodingLength(char16_t c) {
   if (c < 0x80) return 1;
-  if (c < 0x400) return 2;
+  if (c < 0x800) return 2;
   return 3;
 }
 
@@ -114,6 +124,12 @@ constexpr size_t simpleUtfEncodingLength(uint16_t c) {
 // multi-byte heavy content.
 template <typename Char>
 size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
+  // TODO(XadillaX): Replace prefix sizing with a bounded simdutf conversion
+  // that returns both input code units consumed and output bytes written,
+  // while replacing invalid UTF-16. The current safe conversion APIs return
+  // only the number of output bytes, but encodeInto() requires both values.
+  // Such an API would let this function and the separate conversion pass be
+  // replaced by one SIMD operation.
   size_t pos = 0;
   size_t utf8Accumulated = 0;
   constexpr size_t CHUNK = 257;
@@ -141,14 +157,19 @@ size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
 
     size_t chunkUtf8Len;
     if constexpr (UTF16) {
-      // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
-      // available For now, validate and use utf8_length_from_utf16
+      // Keep valid surrogate pairs in the same chunk. Otherwise the lead and
+      // trail would each be measured as an unpaired U+FFFD replacement.
       size_t newPos = pos + chunkSize;
       if (newPos < length && isSurrogatePair(data[newPos - 1], data[newPos]))
         chunkSize--;
-      chunkUtf8Len = simdutf::utf8_length_from_utf16(data + pos, chunkSize);
+      // Replacement-aware sizing matches TextEncoder for malformed UTF-16 and
+      // avoids a separate validation pass over the entire input.
+      chunkUtf8Len = simdutf::utf8_length_from_utf16_with_replacement(
+                         data + pos, chunkSize)
+                         .count;
     } else {
-      chunkUtf8Len = simdutf::utf8_length_from_latin1(data + pos, chunkSize);
+      chunkUtf8Len = simdutf::utf8_length_from_latin1(
+          reinterpret_cast<const char*>(data + pos), chunkSize);
     }
 
     if (utf8Accumulated + chunkUtf8Len > bufferSize) {
@@ -161,20 +182,27 @@ size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
     }
   }
 
+  // Finish near the destination boundary without invoking a SIMD length
+  // routine for each remaining code unit.
   while (pos < length && utf8Accumulated < bufferSize) {
-    size_t extra = simpleUtfEncodingLength(data[pos]);
-    if (utf8Accumulated + extra > bufferSize) break;
-    pos++;
-    utf8Accumulated += extra;
-  }
-
-  if (UTF16 && pos != 0 && pos != length &&
-      isSurrogatePair(data[pos - 1], data[pos])) {
-    if (utf8Accumulated < bufferSize) {
-      pos++;
+    size_t codeUnits = 1;
+    size_t extra;
+    if constexpr (UTF16) {
+      // Consume a valid pair atomically and keep scanning if space remains.
+      // Counting its halves separately as three bytes each would underfill
+      // the destination because the pair encodes to four bytes in total.
+      if (pos + 1 < length && isSurrogatePair(data[pos], data[pos + 1])) {
+        codeUnits = 2;
+        extra = 4;
+      } else {
+        extra = simpleUtfEncodingLength(data[pos]);
+      }
     } else {
-      pos--;
+      extra = simpleUtfEncodingLength(data[pos]);
     }
+    if (utf8Accumulated + extra > bufferSize) break;
+    pos += codeUnits;
+    utf8Accumulated += extra;
   }
   return pos;
 }
@@ -239,9 +267,11 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       std::min(static_cast<size_t>(view.length()), dest_length);
 
   if (view.is_one_byte()) {
-    auto data = reinterpret_cast<const char*>(view.data8());
-    simdutf::result result =
-        simdutf::validate_ascii_with_errors(data, length_that_fits);
+    // Keep V8's unsigned representation while doing scalar length checks.
+    // simdutf accepts const char* but interprets the same bytes as Latin-1.
+    const uint8_t* data = view.data8();
+    simdutf::result result = simdutf::validate_ascii_with_errors(
+        reinterpret_cast<const char*>(data), length_that_fits);
     written = read = result.count;
     memcpy(write_result, data, read);
     write_result += read;
@@ -250,8 +280,9 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
     dest_length -= read;
     if (length_that_fits != 0 && dest_length != 0) {
       if (size_t rest = findBestFit(data, length_that_fits, dest_length)) {
-        DCHECK_LE(simdutf::utf8_length_from_latin1(data, rest), dest_length);
-        written += simdutf::convert_latin1_to_utf8(data, rest, write_result);
+        const char* latin1 = reinterpret_cast<const char*>(data);
+        DCHECK_LE(simdutf::utf8_length_from_latin1(latin1, rest), dest_length);
+        written += simdutf::convert_latin1_to_utf8(latin1, rest, write_result);
         read += rest;
       }
     }
@@ -266,34 +297,24 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       length_that_fits--;
     }
 
-    // Check if input has unpaired surrogates - if so, convert to well-formed
-    // first
-    simdutf::result validation_result =
-        simdutf::validate_utf16_with_errors(data, length_that_fits);
-
-    if (validation_result.error == simdutf::SUCCESS) {
-      // Valid UTF-16 - use the fast path
-      read = findBestFit(data, length_that_fits, dest_length);
-      if (read != 0) {
-        DCHECK_LE(simdutf::utf8_length_from_utf16(data, read), dest_length);
-        written = simdutf::convert_utf16_to_utf8(data, read, write_result);
-      }
-    } else {
-      // Invalid UTF-16 with unpaired surrogates - convert to well-formed first
-      // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
-      // available
-      MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer(
-          length_that_fits);
-      simdutf::to_well_formed_utf16(
-          data, length_that_fits, conversion_buffer.out());
-
-      // Now use findBestFit with the well-formed data
-      read =
-          findBestFit(conversion_buffer.out(), length_that_fits, dest_length);
-      if (read != 0) {
-        DCHECK_LE(
-            simdutf::utf8_length_from_utf16(conversion_buffer.out(), read),
-            dest_length);
+    // Prefix sizing already accounts for replacement characters. Validate
+    // while converting so well-formed UTF-16 needs no separate validation
+    // scan.
+    read = findBestFit(data, length_that_fits, dest_length);
+    if (read != 0) {
+      DCHECK_LE(
+          simdutf::utf8_length_from_utf16_with_replacement(data, read).count,
+          dest_length);
+      simdutf::result conversion_result =
+          simdutf::convert_utf16_to_utf8_with_errors(data, read, write_result);
+      if (conversion_result.error == simdutf::SUCCESS) {
+        written = conversion_result.count;
+      } else {
+        // The failed conversion may have written a valid prefix. Overwrite it
+        // with a well-formed copy where every unpaired surrogate is U+FFFD.
+        MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer(
+            read);
+        simdutf::to_well_formed_utf16(data, read, conversion_buffer.out());
         written = simdutf::convert_utf16_to_utf8(
             conversion_buffer.out(), read, write_result);
       }
