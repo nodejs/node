@@ -7,10 +7,13 @@
 #include "node_errors.h"
 #include "node_hash.h"
 #include "node_sockaddr-inl.h"  // NOLINT(build/include_inline)
+#include "node_sockaddr_parser.h"
 #include "uv.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace node {
@@ -67,6 +70,19 @@ bool SocketAddress::New(int32_t family,
                         SocketAddress* addr) {
   return ToSockAddr(
       family, host, port, reinterpret_cast<sockaddr_storage*>(addr->storage()));
+}
+
+bool SocketAddress::Parse(std::string_view input, SocketAddress* addr) {
+  std::optional<sockaddr_parser::parse_result> parsed =
+      sockaddr_parser::ParseSocketAddress(input);
+  if (!parsed.has_value()) return false;
+
+  CHECK_LE(parsed->host.size(), sockaddr_parser::kMaxHostLength);
+
+  char host[sockaddr_parser::kMaxHostLength + 1];
+  host[parsed->host.copy(host, parsed->host.size())] = '\0';
+
+  return New(parsed->is_ipv6 ? AF_INET6 : AF_INET, host, parsed->port, addr);
 }
 
 size_t SocketAddress::Hash::operator()(const SocketAddress& addr) const {
@@ -1126,6 +1142,8 @@ void SocketAddressBase::Initialize(Environment* env, Local<Object> target) {
                          "SocketAddress",
                          GetConstructorTemplate(env),
                          SetConstructorFunctionFlag::NONE);
+
+  SetMethod(env->context(), target, "parseSocketAddress", Parse);
 }
 
 BaseObjectPtr<SocketAddressBase> SocketAddressBase::Create(
@@ -1162,6 +1180,20 @@ void SocketAddressBase::New(const FunctionCallbackInfo<Value>& args) {
   addr->set_flow_label(flow_label);
 
   new SocketAddressBase(env, args.This(), std::move(addr));
+}
+
+void SocketAddressBase::Parse(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());  // input
+
+  Utf8Value input(env->isolate(), args[0]);
+
+  auto addr = std::make_shared<SocketAddress>();
+  if (!SocketAddress::Parse(input.ToStringView(), addr.get())) return;
+
+  BaseObjectPtr<SocketAddressBase> base =
+      SocketAddressBase::Create(env, std::move(addr));
+  if (base) args.GetReturnValue().Set(base->object());
 }
 
 void SocketAddressBase::Detail(const FunctionCallbackInfo<Value>& args) {
