@@ -1086,6 +1086,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   } else if (is_forward && offset >= search_end) {
     return args.GetReturnValue().Set(-1);
   }
+  if (enc == UCS2 && is_forward) {
+    offset += offset % sizeof(uint16_t);
+    if (offset >= search_end) return args.GetReturnValue().Set(-1);
+  }
   CHECK_LT(offset, haystack_length);
   if ((is_forward && needle_length + offset > search_end) ||
       needle_length > search_end) {
