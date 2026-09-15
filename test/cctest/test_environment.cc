@@ -432,6 +432,32 @@ TEST_F(EnvironmentTest, SharedIsolateDataLoadsBindingsTwice) {
   EXPECT_EQ(node::SpinEventLoop(*env2).FromJust(), 0);
 }
 
+TEST_F(EnvironmentTest, FreeEnvironmentWhileSiblingHasActiveHandles) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env1{handle_scope, argv};
+  node::LoadEnvironment(*env1,
+                        "globalThis.ticks = 0;"
+                        "const t = setInterval(() => {"
+                        "  if (++globalThis.ticks == 20) clearInterval(t);"
+                        "}, 1);")
+      .ToLocalChecked();
+  {
+    Env env2{handle_scope, argv, node::EnvironmentFlags::kNoCreateInspector};
+    node::LoadEnvironment(*env2, "setInterval(() => {}, 1);").ToLocalChecked();
+    uv_sleep(5);
+  }
+  v8::Context::Scope context_scope(env1.context());
+  EXPECT_EQ(node::SpinEventLoop(*env1).FromJust(), 0);
+  v8::Local<v8::Value> ticks =
+      env1.context()
+          ->Global()
+          ->Get(env1.context(),
+                v8::String::NewFromUtf8Literal(isolate_, "ticks"))
+          .ToLocalChecked();
+  EXPECT_EQ(ticks->Int32Value(env1.context()).FromJust(), 20);
+}
+
 TEST_F(EnvironmentTest, NoEnvironmentSanity) {
   const v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
