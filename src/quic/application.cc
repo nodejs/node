@@ -269,9 +269,6 @@ class DefaultApplication final : public Session::Application {
     // condition (code 0 would be treated as a clean close).
     session().DestroyAllStreams(
         QuicError::ForApplication(GetInternalErrorCode()));
-    if (!session().is_destroyed()) {
-      session().EmitEarlyDataRejected();
-    }
   }
 
   bool ReceiveStreamOpen(stream_id id) override {

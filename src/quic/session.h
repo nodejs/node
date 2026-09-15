@@ -11,6 +11,7 @@
 #include <node_sockaddr.h>
 #include <timer_wrap.h>
 #include <util.h>
+#include <memory>
 #include <optional>
 #include <span>
 #include "bindingdata.h"
@@ -101,7 +102,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     static const Application_Options kDefault;
   };
 
-  // An Application implements the ALPN-protocol specific semantics on behalf
+  // An Application implements the protocol-specific semantics on behalf
   // of a QUIC Session.
   class Application;
 
@@ -157,10 +158,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // If the CID::Factory is a base object, we keep a reference to it
     // so that it cannot be garbage collected.
     BaseObjectPtr<BaseObject> cid_factory_ref;
-
-    // Application-specific options (used for HTTP/3 if the negotiated
-    // ALPN selects Http3ApplicationImpl).
-    Application_Options application_options = Application_Options::kDefault;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -347,8 +344,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   TLSSession& tls_session() const;
   bool has_application() const;
   Application& application() const;
+
   const Config& config() const;
   const Options& options() const;
+
+  uint8_t application_type() const;
   const SocketAddress& remote_address() const;
   const SocketAddress& local_address() const;
 
@@ -423,21 +423,17 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // (ngtcp2_conn_read_pkt or ngtcp2_conn_continue_handshake).
   bool AfterNgtcp2Read(int err);
 
-  // Decode the first ALPN protocol name from wire format (length-prefixed).
-  static std::string_view DecodeAlpn(std::string_view wire);
-
-  // Select the Application implementation based on the negotiated ALPN.
-  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
-  // to DefaultApplication. Sets the application_type state field.
-  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
-
-  // Install the Application on the session. Called at construction for
-  // clients (ALPN known upfront) or from the ClientHello callback for
-  // servers (ALPN negotiated during handshake). Must be called before any
+  // Attach the Application to the session. Must be called before any
   // application data is received.
   void SetApplication(std::unique_ptr<Application> app);
 
-  void InstallApplicationForAlpn(std::string_view alpn);
+  // Attach the Application that JavaScript requested in the session's shared
+  // state, or the DefaultApplication if it named none. Called at every point
+  // an Application is first needed - a stream created on the session, a
+  // datagram sent, or the session handed to JavaScript - so one is always in
+  // place before anything can arrive from the peer. False if the application
+  // could not be started, which is fatal to the session.
+  bool EnsureApplication();
 
   // ngtcp2 ignores the duplicate when the TLS stack reports these again.
   void SetEarlyRemoteTransportParams(std::span<const uint8_t> params);
@@ -522,6 +518,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void StreamDataBlocked(stream_id id);
   void ShutdownStream(stream_id id, QuicError error = QuicError());
   void ShutdownStreamWrite(stream_id id, QuicError code = QuicError());
+
+  bool stream_fin_managed_by_application() const;
 
   // Use the configured CID::Factory to generate a new CID.
   CID new_cid(size_t len = CID::kMaxLength) const;
@@ -741,6 +739,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   Flags flags_;
 
   bool hello_processed_ = false;
+
+  // Set once the encryption keys an application needs in order to start are
+  // installed. An application attached before this point is started by the
+  // key callbacks; after this it misses those so starts itself.
+  bool keys_ready_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
