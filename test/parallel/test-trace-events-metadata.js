@@ -4,6 +4,8 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+// A perfetto build drops the legacy metadata events, so none of the
+// process_name, version or node entries checked here are recorded.
 common.skipIfPerfettoEnabled();
 
 const CODE =

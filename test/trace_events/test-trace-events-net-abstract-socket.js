@@ -5,8 +5,15 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+  traceCategory,
+} = require('../common/trace_events');
+
 if (!common.isLinux) common.skip();
-common.skipIfPerfettoEnabled();
+checkTraceProcessor();
 
 const CODE = `
   const net = require('net');
@@ -15,7 +22,7 @@ const CODE = `
 `;
 
 tmpdir.refresh();
-const FILE_NAME = tmpdir.resolve('node_trace.1.log');
+const FILE_NAME = tmpdir.resolve(defaultTraceFileName);
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-events-enabled',
@@ -25,20 +32,18 @@ const proc = cp.spawn(process.execPath,
 
 proc.once('exit', common.mustCall(() => {
   assert(fs.existsSync(FILE_NAME));
-  fs.readFile(FILE_NAME, common.mustCall((err, data) => {
-    const traces = JSON.parse(data.toString()).traceEvents;
-    assert(traces.length > 0);
-    let count = 0;
-    traces.forEach((trace) => {
-      if (trace.cat === 'node,node.net,node.net.native' &&
-          trace.name === 'connect') {
-        count++;
-        if (trace.ph === 'b') {
-          assert.ok(!!trace.args.path_type);
-          assert.ok(!!trace.args.pipe_path);
-        }
+  const traces = readTraceEvents(FILE_NAME);
+  assert(traces.length > 0);
+  let count = 0;
+  traces.forEach((trace) => {
+    if (trace.cat === traceCategory('node.net.native') &&
+        trace.name === 'connect') {
+      count++;
+      if (trace.ph === 'b') {
+        assert.ok(!!trace.args.path_type);
+        assert.ok(!!trace.args.pipe_path);
       }
-    });
-    assert.strictEqual(count, 4);
-  }));
+    }
+  });
+  assert.strictEqual(count, 4);
 }));

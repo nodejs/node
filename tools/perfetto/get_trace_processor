@@ -1,0 +1,39 @@
+#!/bin/sh
+# Downloads perfetto's trace_processor_shell, matching the SDK version vendored
+# in deps/perfetto. The trace events tests read back the binary traces that
+# perfetto builds write through this tool.
+set -e
+
+tools_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+version=$(cat "$tools_dir/../../deps/perfetto/VERSION")
+trace_processor="$1"
+stamp="$tools_dir/.version"
+
+if [ -x "$trace_processor" ] && [ "$(cat "$stamp" 2>/dev/null)" = "$version" ]; then
+  echo "trace_processor_shell v$version is already downloaded"
+  exit 0
+fi
+
+# Perfetto names its release archives <os>-<arch>, which does not match uname.
+case "$(uname -s)" in
+  Darwin) os=mac ;;
+  Linux) os=linux ;;
+  *) echo "No perfetto release for $(uname -s)" >&2; exit 1 ;;
+esac
+
+case "$(uname -m)" in
+  x86_64 | amd64) arch=amd64 ;;
+  arm64 | aarch64) arch=arm64 ;;
+  *) echo "No perfetto release for $(uname -m)" >&2; exit 1 ;;
+esac
+
+url="https://github.com/google/perfetto/releases/download/v$version/$os-$arch.zip"
+archive="$tools_dir/$os-$arch.zip"
+
+rm -f "$trace_processor" "$stamp"
+echo "Downloading $url"
+curl -sSfL -o "$archive" "$url"
+unzip -q -j -o "$archive" '*/trace_processor_shell' -d "$tools_dir"
+rm -f "$archive"
+chmod +x "$trace_processor"
+printf '%s\n' "$version" > "$stamp"

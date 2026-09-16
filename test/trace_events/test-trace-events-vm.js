@@ -5,7 +5,13 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
-common.skipIfPerfettoEnabled();
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 const names = [
   'ContextifyScript::New',
@@ -24,20 +30,18 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--trace-event-categories',
                            'node.vm.script',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = tmpdir.resolve('node_trace.1.log');
+    const file = tmpdir.resolve(defaultTraceFileName);
 
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustCall((err, data) => {
-      const traces = JSON.parse(data.toString()).traceEvents
-        .filter((trace) => trace.cat !== '__metadata');
-      for (const trace of traces) {
-        assert.strictEqual(trace.pid, proc.pid);
-        assert(names.includes(trace.name));
-      }
-    }));
+    const traces = readTraceEvents(file)
+      .filter((trace) => trace.cat !== '__metadata');
+    for (const trace of traces) {
+      assert.strictEqual(trace.pid, proc.pid);
+      assert(names.includes(trace.name));
+    }
   }));
 }
