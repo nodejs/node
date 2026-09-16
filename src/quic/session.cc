@@ -1582,7 +1582,11 @@ struct Session::Impl final : public MemoryRetainer {
     // If the peer closes a stream, we return the credit to allow a new one:
     session->ExtendMaxStreams(stream_id);
     if (!session->has_application()) return NGTCP2_SUCCESS;
+
+    // Stream here may be null (e.g. if already destroyed locally) so we also
+    // pass stream_id to the calls below as well.
     auto* stream = Stream::From(stream_user_data);
+
     if (flags & NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET) {
       session->application().ReceiveStreamClose(
           stream_id, stream, QuicError::ForApplication(app_error_code));

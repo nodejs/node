@@ -210,6 +210,7 @@ Session::Application::ExtractSessionTicketAppData(
 void Session::Application::ReceiveStreamClose(stream_id id,
                                               Stream* stream,
                                               QuicError&& error) {
+  // Stream may be nullptr if our side is already gone
   if (stream == nullptr) return;
   stream->Destroy(std::move(error));
 }
