@@ -162,6 +162,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "bench/reporters",  // Experimental.
         "dtls",             // Experimental.
         "ffi",              // Experimental.
+        "logger",           // Experimental.
         "quic",             // Experimental.
         "sqlite",           // Experimental.
         "stream/iter",      // Experimental.

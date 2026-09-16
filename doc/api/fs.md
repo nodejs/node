@@ -8549,12 +8549,13 @@ Close the stream gracefully, flushing the internal buffer before closing.
 * `callback` {Function}
   * `err` {Error|null} An error if the flush failed, otherwise `null`.
 
-Writes the current buffer to the file if a write was not in progress. Do
-nothing if `minLength` is zero or if it is already writing.
+Writes the current buffer to the file. The callback is invoked after pending
+writes complete.
 
 #### `utf8Stream.flushSync()`
 
-Flushes the buffered data synchronously. This is a costly operation.
+Flushes the buffered data synchronously. This is a costly operation. An
+`ERR_INVALID_STATE` error is thrown if the stream is currently writing.
 
 #### `utf8Stream.fsync`
 
