@@ -89,5 +89,23 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   return nullptr;
 }
 
+// static
+Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
+  pthread_attr_t attr;
+  int error;
+  pthread_attr_init(&attr);
+  error = pthread_attr_get_np(pthread_self(), &attr);
+  if (!error) {
+    void* base;
+    size_t size;
+    error = pthread_attr_getstack(&attr, &base, &size);
+    CHECK(!error);
+    pthread_attr_destroy(&attr);
+    return base;
+  }
+  pthread_attr_destroy(&attr);
+  return nullptr;
+}
+
 }  // namespace base
 }  // namespace v8
