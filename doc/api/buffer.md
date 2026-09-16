@@ -1015,6 +1015,59 @@ console.log(`${str}: ${str.length} characters, ` +
 When `string` is a {Buffer|DataView|TypedArray|ArrayBuffer|SharedArrayBuffer},
 the byte length as reported by `.byteLength` is returned.
 
+### Static method: `Buffer.stringLength(input[, encoding])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {Buffer | ArrayBuffer | TypedArray} The bytes that would be decoded.
+* `encoding` {string} The character encoding `input` would be decoded with.
+  **Default:** `'utf8'`.
+* Returns: {integer}
+
+Returns the length, in UTF-16 code units, of the string that
+`buf.toString(encoding)` would produce for the same bytes, without decoding
+them. This is the counterpart of [`Buffer.byteLength()`][], which returns the
+number of bytes a string would encode to.
+
+For `'utf8'`, invalid byte sequences are counted as they would be decoded:
+each maximal invalid subsequence becomes one `U+FFFD` replacement character.
+For every other encoding the result is computed from `input.byteLength` alone.
+
+A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
+
+The result is not capped: compare it with
+[`buffer.constants.MAX_STRING_LENGTH`][] before decoding to know whether the
+decode can succeed at all. A string of `n` code units occupies between `n` and
+`2 * n` bytes of memory.
+
+```mjs
+import { Buffer, constants } from 'node:buffer';
+
+const buf = Buffer.from('€ 100', 'utf8');
+
+console.log(Buffer.stringLength(buf));
+// Prints: 5
+console.log(Buffer.stringLength(buf, 'hex'));
+// Prints: 14
+console.log(Buffer.stringLength(buf) <= constants.MAX_STRING_LENGTH);
+// Prints: true
+```
+
+```cjs
+const { Buffer, constants } = require('node:buffer');
+
+const buf = Buffer.from('€ 100', 'utf8');
+
+console.log(Buffer.stringLength(buf));
+// Prints: 5
+console.log(Buffer.stringLength(buf, 'hex'));
+// Prints: 14
+console.log(Buffer.stringLength(buf) <= constants.MAX_STRING_LENGTH);
+// Prints: true
+```
+
 ### Static method: `Buffer.compare(buf1, buf2)`
 
 <!-- YAML
@@ -5715,6 +5768,7 @@ or after startup, if the alignment has to hold at run time.
 [`Buffer.alloc()`]: #static-method-bufferallocsize-fill-encoding
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize-alignment
 [`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize-alignment
+[`Buffer.byteLength()`]: #static-method-bufferbytelengthstring-encoding
 [`Buffer.concat()`]: #static-method-bufferconcatlist-totallength
 [`Buffer.copyBytesFrom()`]: #static-method-buffercopybytesfromview-offset-length
 [`Buffer.from(array)`]: #static-method-bufferfromarray
