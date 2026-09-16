@@ -9,7 +9,7 @@
 // Native addon loading from a mount is not exercised here (it needs a compiled
 // .node), only the startup wiring around it.
 
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
@@ -207,6 +207,34 @@ require('worker_threads').parentPort.postMessage('hello from worker in mount');
   assert.match(res.stdout, /hello from worker in mount/);
 }
 
+// The same, for a worker whose nearest package.json inside the mount says
+// "module": the entry point's type is read from the mount rather than from
+// the real file system above the reserved mount point.
+{
+  const dir = fixture('worker-esm-app');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'package.json'),
+                   '{"type":"module","main":"index.js"}\n');
+  fs.writeFileSync(path.join(dir, 'index.js'), `
+import path from 'node:path';
+import { Worker } from 'node:worker_threads';
+import { fileURLToPath } from 'node:url';
+const here = path.dirname(fileURLToPath(import.meta.url));
+const w = new Worker(path.join(here, 'worker.js'));
+w.on('message', (m) => { console.log(m); process.exit(0); });
+w.on('error', (e) => { console.error(e); process.exit(1); });
+`);
+  // No extension hint and no CJS wrapper: this only parses if the worker is
+  // loaded as ESM, which takes reading "type" out of the mount's package.json.
+  fs.writeFileSync(path.join(dir, 'worker.js'), `
+import { parentPort } from 'node:worker_threads';
+parentPort.postMessage('hello from esm worker in mount');
+`);
+  const res = run([`--vfs-load=${dir}`]);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /hello from esm worker in mount/);
+}
+
 // --vfs-load names the source it loads, so it always takes a value.
 {
   const res = run(['--vfs-load']);
@@ -354,9 +382,12 @@ if (hasNodeOptions) {
 }
 
 // A mount source holding spaces or quotes survives NODE_OPTIONS when quoted,
-// which is the only way such a path can be expressed there at all.
+// which is the only way such a path can be expressed there at all. Windows
+// forbids `"` in a file name, so only the spaces and the `$` can be exercised
+// there; the quote escaping itself stays covered on every other platform.
 if (hasNodeOptions) {
-  const dir = path.join(tmpdir.path, `${id++}-od d "q" $x`);
+  const oddName = common.isWindows ? `${id++}-od d $x` : `${id++}-od d "q" $x`;
+  const dir = path.join(tmpdir.path, oddName);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index.js'), 'console.log("ran:odd");\n');
 
