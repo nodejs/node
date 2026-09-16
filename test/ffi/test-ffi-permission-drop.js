@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const { fixtureSymbols, libraryPath } = require('../ffi/ffi-test-common');
+const { fixtureSymbols, libraryPath } = require('./ffi-test-common');
 
 common.skipIfFFIMissing();
 
