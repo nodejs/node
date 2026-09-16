@@ -1885,7 +1885,7 @@ Print node's version.
 .It Fl -vfs-load Ns = Ns Ar source
 .Bl -bullet
 .It
-\fBsource\fR \fB<string>\fR A directory or an archive file to mount and run.
+\fBsource\fR \fB{string}\fR A directory or an archive file to mount and run.
 .El
 Requires \fB--experimental-vfs\fR. May be given at most once.
 Mounts \fBsource\fR exactly as \fB--vfs-mount\fR does, and additionally runs the
@@ -1912,7 +1912,7 @@ $ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
 .It Fl -vfs-mount Ns = Ns Ar source
 .Bl -bullet
 .It
-\fBsource\fR \fB<string>\fR A directory or an archive file to mount.
+\fBsource\fR \fB{string}\fR A directory or an archive file to mount.
 .El
 Requires \fB--experimental-vfs\fR. May be repeated to mount several sources.
 Mounts \fBsource\fR as a virtual file system (\fBnode:vfs\fR). Each mount is placed
