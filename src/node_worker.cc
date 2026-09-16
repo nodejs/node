@@ -743,6 +743,10 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     worker->environment_flags_ |= EnvironmentFlags::kNoGlobalSearchPaths;
   if (env->no_browser_globals())
     worker->environment_flags_ |= EnvironmentFlags::kNoBrowserGlobals;
+  if (env->no_addon_permission_for_linked_bindings()) {
+    worker->environment_flags_ |=
+        EnvironmentFlags::kNoAddonPermissionForLinkedBindings;
+  }
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
