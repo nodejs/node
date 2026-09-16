@@ -1029,6 +1029,7 @@ const common = {
   hasSQLite,
   hasFFI,
   hasLocalStorage,
+  hasPerfetto,
   invalidArgTypeHelper,
   isAlive,
   isASan,

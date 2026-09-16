@@ -5,6 +5,9 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+// console.count() throws on a perfetto build once node.console is enabled:
+// internal/trace_events picks the nestable async instant phase for counters,
+// which V8's trace() builtin rejects there.
 common.skipIfPerfettoEnabled();
 
 // Tests that node.console trace events for counters and time methods are

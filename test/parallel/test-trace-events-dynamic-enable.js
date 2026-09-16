@@ -4,6 +4,8 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+// Needs two things a perfetto build does not have: the inspector NodeTracing
+// domain, and recording for a category enabled after the session started.
 common.skipIfPerfettoEnabled();
 
 const { isMainThread } = require('worker_threads');

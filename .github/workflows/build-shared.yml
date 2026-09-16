@@ -27,6 +27,11 @@ on:
         required: false
         type: boolean
         default: false
+      perfetto:
+        description: Whether the build links perfetto, which the trace event tests need trace_processor_shell for.
+        required: false
+        type: boolean
+        default: false
     secrets:
       CACHIX_AUTH_TOKEN:
         description: Cachix auth token for nodejs.cachix.org.
@@ -77,6 +82,11 @@ jobs:
             core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
             core.exportVariable('NIX_SCCACHE', '(import <nixpkgs> {}).sccache');
+
+      - name: Get trace_processor
+        if: inputs.perfetto
+        shell: bash
+        run: make -C "$TAR_DIR" trace-processor
 
       - name: Build Node.js and run tests
         shell: bash
