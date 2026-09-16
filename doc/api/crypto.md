@@ -3664,15 +3664,15 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Additional ciphers available through OpenSSL providers (e.g.
                  SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63188
-    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
@@ -3776,15 +3776,15 @@ and can be transmitted with the ciphertext.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63188
+    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Additional ciphers available through OpenSSL providers (e.g.
                  SM4-GCM, SM4-CCM, SM4-XTS, CBC-CTS, and AES key-wrap variants)
                  are now supported. The `ctsMode` and `xtsStandard` options
                  were added.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63188
-    description: Passing a CryptoKey as `key` is no longer supported.
   - version: v26.8.0
     pr-url: https://github.com/nodejs/node/pull/63411
     description: Ciphers in SIV and GCM-SIV modes are now supported.
@@ -3957,15 +3957,15 @@ and description of each available elliptic curve.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Hash algorithms exposed by OpenSSL providers are now
                  supported. The `functionName` and `customization` options
                  were added for cSHAKE hash functions.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/64000
-    description: The `outputLength` option is now required for XOF
-                 hash functions without default output lengths.
   - version: v12.8.0
     pr-url: https://github.com/nodejs/node/pull/28805
     description: The `outputLength` option was added for XOF hash functions.
@@ -5292,15 +5292,15 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64000
+    description: The `outputLength` option is now required for XOF
+                 hash functions without default output lengths.
   - version: v26.9.0
     pr-url: https://github.com/nodejs/node/pull/65484
     description: Hash algorithms exposed by OpenSSL providers are now
                  supported. The `functionName` and `customization` options
                  were added for cSHAKE hash functions.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/64000
-    description: The `outputLength` option is now required for XOF
-                 hash functions without default output lengths.
   - version:
      - v25.5.0
      - v24.13.1
