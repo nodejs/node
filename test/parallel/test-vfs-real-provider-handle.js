@@ -34,10 +34,132 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
     assert.strictEqual(handle.statSync().isFile(), true);
     assert.strictEqual(handle.readFileSync('utf8'), 'zzllo world');
 
+    // Like `filehandle.writeFile()`, this writes from the handle's current
+    // position rather than replacing the file, so a shorter write over an
+    // "r+" handle leaves the tail of the old content in place.
     handle.writeFileSync('replaced');
-    assert.strictEqual(handle.readFileSync('utf8'), 'replaced');
+    assert.strictEqual(handle.readFileSync('utf8'), 'replacedrld');
 
     myVfs.closeSync(fd);
+  }
+
+  // ===== writeFile goes through the file description, not the path =====
+  {
+    fs.writeFileSync(path.join(root, 'renamed-away.txt'), 'aaaaaa');
+    const handle = await myVfs.provider.open('/renamed-away.txt', 'r+');
+    fs.renameSync(path.join(root, 'renamed-away.txt'),
+                  path.join(root, 'renamed-to.txt'));
+
+    handle.writeFileSync('bb');
+    await handle.writeFile('cc');
+    await handle.close();
+
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, 'renamed-to.txt'), 'utf8'), 'bbccaa');
+    assert.strictEqual(fs.existsSync(path.join(root, 'renamed-away.txt')),
+                       false);
+  }
+
+  // ===== writeFile takes the iterables filehandle.writeFile() takes =====
+  {
+    const handle = await myVfs.provider.open('/iterable.txt', 'w');
+    await handle.writeFile(['one ', 'two ']);
+    await handle.writeFile(async function* () {
+      yield 'three ';
+      yield Buffer.from('four');
+    }());
+    // A chunk that is not a view is converted the way writeFileHandle() does.
+    await handle.writeFile([[32, 65], Uint8Array.of(66).buffer]);
+    await handle.close();
+
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, 'iterable.txt'), 'utf8'),
+      'one two three four AB');
+  }
+
+  // ===== options are validated before the source is consumed =====
+  {
+    const handle = await myVfs.provider.open('/opts.txt', 'w');
+
+    // The signal is read before the first next(), so a source that never
+    // yields cannot leave the write pending.
+    const neverYields = {
+      [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}) }),
+    };
+    await assert.rejects(
+      handle.writeFile(neverYields, { signal: AbortSignal.abort() }),
+      { name: 'AbortError' });
+
+    // The rest of `options` is validated there too, so a bad value is
+    // reported instead of waiting on a source that never produces.
+    await assert.rejects(handle.writeFile(neverYields, { mode: 'invalid' }),
+                         { code: 'ERR_INVALID_ARG_VALUE' });
+
+    await handle.close();
+  }
+
+  // ===== flush costs one fsync per call, not one per chunk =====
+  {
+    const originalFsync = fs.fsync;
+    let fsyncs = 0;
+    fs.fsync = function fsync(...args) {
+      fsyncs++;
+      return originalFsync.apply(this, args);
+    };
+
+    try {
+      const handle = await myVfs.provider.open('/flushed.txt', 'w');
+      await handle.writeFile(['a', 'b', 'c'], { flush: true });
+      await handle.close();
+      assert.strictEqual(fsyncs, 1);
+      assert.strictEqual(
+        fs.readFileSync(path.join(root, 'flushed.txt'), 'utf8'), 'abc');
+
+    } finally {
+      fs.fsync = originalFsync;
+    }
+  }
+
+  // ===== an abort landing during a write stops the source =====
+  {
+    const handle = await myVfs.provider.open('/abort-mid.txt', 'w');
+    const ac = new AbortController();
+    const originalWrite = fs.write;
+    // Abort as the write settles, which is the window the post-write check
+    // covers. Without it a source of one chunk resolves successfully.
+    fs.write = function write(fd, buf, off, len, pos, callback) {
+      return originalWrite.call(this, fd, buf, off, len, pos, (err, n) => {
+        ac.abort();
+        callback(err, n);
+      });
+    };
+
+    let pulled = 0;
+    try {
+      await assert.rejects(handle.writeFile(async function* () {
+        pulled++;
+        yield 'first';
+        pulled++;
+        yield 'second';
+      }(), { signal: ac.signal }), { name: 'AbortError' });
+    } finally {
+      fs.write = originalWrite;
+      await handle.close();
+    }
+    assert.strictEqual(pulled, 1);  // The source was not asked for more
+  }
+
+  // ===== writeFile on a handle that was not opened for writing =====
+  {
+    fs.writeFileSync(path.join(root, 'ronly.txt'), 'untouched');
+    const handle = await myVfs.provider.open('/ronly.txt', 'r');
+
+    assert.throws(() => handle.writeFileSync('x'), { code: 'EBADF' });
+    await assert.rejects(handle.writeFile('x'), { code: 'EBADF' });
+    await handle.close();
+
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, 'ronly.txt'), 'utf8'), 'untouched');
   }
 
   // ===== Async read/write/stat/truncate via provider.open =====
@@ -64,10 +186,13 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
     assert.ok(handle.readFileSync().length > 0);
     assert.ok((await handle.readFile()).length > 0);
 
+    // Each write starts where the previous one left the handle, so the
+    // second call appends rather than replacing what the first one wrote.
     handle.writeFileSync('OVERWRITTEN');
     assert.strictEqual(handle.readFileSync('utf8'), 'OVERWRITTEN');
     await handle.writeFile('async-overwrite');
-    assert.strictEqual(await handle.readFile('utf8'), 'async-overwrite');
+    assert.strictEqual(await handle.readFile('utf8'),
+                       'OVERWRITTENasync-overwrite');
 
     handle.truncateSync(3);
     await handle.truncate(2);
