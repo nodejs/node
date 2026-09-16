@@ -4323,6 +4323,13 @@ the following events will be emitted in the following order:
   `'Error: aborted'` and code `'ECONNRESET'`
 * `'close'` on the `res` object
 
+If a socket error (such as a TLS error) causes the premature close, that error
+is emitted on the request before the close. The error emitted on the incomplete
+response retains the message `'aborted'` and code `'ECONNRESET'`, with the original
+socket error available as its `cause`. This also applies when the original socket
+error has code `'ECONNRESET'`. If no underlying error is available, the response
+error has no `cause` property.
+
 If `req.destroy()` is called before a socket is assigned, the following
 events will be emitted in the following order:
 
@@ -4350,7 +4357,8 @@ events will be emitted in the following order:
 * `'aborted'` on the `res` object
 * `'close'`
 * `'error'` on the `res` object with an error with message `'Error: aborted'`
-  and code `'ECONNRESET'`, or the error with which `req.destroy()` was called
+  and code `'ECONNRESET'`. If an error was passed to `req.destroy()`, it is
+  available as the response error's `cause`.
 * `'close'` on the `res` object
 
 If `req.abort()` is called before a socket is assigned, the following
