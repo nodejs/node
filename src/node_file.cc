@@ -104,24 +104,35 @@ const char* const kFSOperationEventNames[kNumFSOperationChannels] = {
     "error",
 };
 
-FSOperationChannels& GetFSOperationChannels(BindingData* binding,
+FSOperationChannels* GetFSOperationChannels(BindingData* binding,
                                             Environment* env,
                                             const char* operation) {
+  if (env->isolate_data()->is_building_snapshot()) return nullptr;
   auto& names = binding->fs_op_channel_names_;
+  FSOperationChannels* set = nullptr;
   for (size_t i = 0; i < names.size(); i++) {
     if (names[i] == operation) {
-      return *binding->fs_op_channel_sets_[i];
+      set = binding->fs_op_channel_sets_[i].get();
+      break;
     }
   }
-  auto set = std::make_unique<FSOperationChannels>();
+  if (set == nullptr) {
+    names.push_back(operation);
+    binding->fs_op_channel_sets_.push_back(
+        std::make_unique<FSOperationChannels>());
+    set = binding->fs_op_channel_sets_.back().get();
+  }
+  // Entries are weak: fill in any that were never created or whose owner
+  // (the diagnostics_channel BindingData) has released them since.
   for (size_t i = 0; i < kNumFSOperationChannels; i++) {
+    if ((*set)[i]) continue;
     std::string name = std::string("tracing:fs.") + operation + ":" +
                        kFSOperationEventNames[i];
-    (*set)[i] = diagnostics_channel::Channel::Get(env, name);
+    if (auto ch = diagnostics_channel::Channel::Get(env, name)) {
+      (*set)[i] = BaseObjectWeakPtr<diagnostics_channel::Channel>(ch.get());
+    }
   }
-  names.push_back(operation);
-  binding->fs_op_channel_sets_.push_back(std::move(set));
-  return *binding->fs_op_channel_sets_.back();
+  return set;
 }
 
 void PublishFSOperationEvent(Environment* env,
@@ -867,8 +878,8 @@ void FSReqCallback::ResolveStatFs(const uv_statfs_t* stat) {
 }
 
 void FSReqCallback::Resolve(Local<Value> value) {
-  PublishFSOpCompletionEvent(this, FSOperationChannel::kAsyncEnd, "result",
-                             value);
+  PublishFSOpCompletionEvent(
+      this, FSOperationChannel::kAsyncEnd, "result", value);
   Local<Value> argv[2]{Null(env()->isolate()), value};
   MakeCallback(env()->oncomplete_string(),
                value->IsUndefined() ? 1 : arraysize(argv),
@@ -899,8 +910,8 @@ FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
   CHECK_EQ(wrap_->req(), req);
   // The async work for the operation has completed; the continuation window
   // begins here.
-  PublishFSOpCompletionEvent(wrap, FSOperationChannel::kAsyncStart, nullptr,
-                             Local<Value>());
+  PublishFSOpCompletionEvent(
+      wrap, FSOperationChannel::kAsyncStart, nullptr, Local<Value>());
 }
 
 FSReqAfterScope::~FSReqAfterScope() {

@@ -81,37 +81,33 @@ class FSReqBase;
 class BindingData;
 
 // The event channels of one operation's channel family, all created when the
-// operation is first seen.
+// operation is first seen. The diagnostics_channel BindingData is the sole
+// owner of Channel objects; weak references keep this cache from holding them
+// alive past Realm teardown or into a snapshot, where the owner releases them
+// before serialization. A released entry is fetched again on the next use.
 using FSOperationChannels =
-    std::array<BaseObjectPtr<diagnostics_channel::Channel>,
+    std::array<BaseObjectWeakPtr<diagnostics_channel::Channel>,
                kNumFSOperationChannels>;
 
 // Returns the channel set for `operation`, fetching it once per call site so
 // that publishing several events for one operation costs a single lookup.
 // `operation` must be a string literal: the cache is keyed on its identity.
-// The returned reference stays valid for the lifetime of the BindingData.
-FSOperationChannels& GetFSOperationChannels(BindingData* binding,
+// The returned pointer stays valid for the lifetime of the BindingData.
+// Returns nullptr while a snapshot is being built: creating a channel links a
+// JS channel object, and those cannot be serialized.
+FSOperationChannels* GetFSOperationChannels(BindingData* binding,
                                             Environment* env,
                                             const char* operation);
 
 // Returns true if the given event channel has subscribers. Check before
 // calling PublishFSOperationEvent so the no-subscriber fast path stays free
-// of out-of-line calls and payload preparation.
+// of out-of-line calls and payload preparation. Defined in node_file-inl.h.
 inline bool FSOperationChannelHasSubscribers(FSOperationChannels& channels,
-                                             FSOperationChannel channel) {
-  diagnostics_channel::Channel* ch =
-      channels[static_cast<size_t>(channel)].get();
-  return ch != nullptr && ch->HasSubscribers();
-}
+                                             FSOperationChannel channel);
 
 // Returns true if any of the operation's event channels has subscribers.
-inline bool AnyFSOperationChannelHasSubscribers(FSOperationChannels& channels) {
-  for (size_t i = 0; i < kNumFSOperationChannels; i++) {
-    diagnostics_channel::Channel* ch = channels[i].get();
-    if (ch != nullptr && ch->HasSubscribers()) return true;
-  }
-  return false;
-}
+// Defined in node_file-inl.h.
+inline bool AnyFSOperationChannelHasSubscribers(FSOperationChannels& channels);
 
 // Publishes an event on one of the operation's channels. Payload fields are
 // set only when applicable: `path`/`dest` (which may be null or empty) for

@@ -204,6 +204,21 @@ FSReqPromise<AliasedBufferT>::~FSReqPromise() {
   CHECK_IMPLIES(!finished_, !env()->can_call_into_js());
 }
 
+inline bool FSOperationChannelHasSubscribers(FSOperationChannels& channels,
+                                             FSOperationChannel channel) {
+  diagnostics_channel::Channel* ch =
+      channels[static_cast<size_t>(channel)].get();
+  return ch != nullptr && ch->HasSubscribers();
+}
+
+inline bool AnyFSOperationChannelHasSubscribers(FSOperationChannels& channels) {
+  for (size_t i = 0; i < kNumFSOperationChannels; i++) {
+    diagnostics_channel::Channel* ch = channels[i].get();
+    if (ch != nullptr && ch->HasSubscribers()) return true;
+  }
+  return false;
+}
+
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
                                            v8::Local<v8::Object> obj,
@@ -233,8 +248,8 @@ void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Resolve(v8::Local<v8::Value> value) {
   finished_ = true;
-  PublishFSOpCompletionEvent(this, FSOperationChannel::kAsyncEnd, "result",
-                             value);
+  PublishFSOpCompletionEvent(
+      this, FSOperationChannel::kAsyncEnd, "result", value);
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
   v8::Local<v8::Value> val;
@@ -338,12 +353,18 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
   // See SyncCallAndThrowIf: instrumentation is unsafe with a pending
   // exception.
   if (binding != nullptr && !env->isolate()->HasPendingException()) {
-    channels = &GetFSOperationChannels(binding, env, syscall);
+    channels = GetFSOperationChannels(binding, env, syscall);
     req_wrap->set_op_channels(channels);
-    if (FSOperationChannelHasSubscribers(*channels,
-                                         FSOperationChannel::kStart)) {
-      PublishFSOperationEvent(env, *channels, FSOperationChannel::kStart,
-                              api, nullptr, req_wrap->data(), -1, nullptr,
+    if (channels != nullptr && FSOperationChannelHasSubscribers(
+                                   *channels, FSOperationChannel::kStart)) {
+      PublishFSOperationEvent(env,
+                              *channels,
+                              FSOperationChannel::kStart,
+                              api,
+                              nullptr,
+                              req_wrap->data(),
+                              -1,
+                              nullptr,
                               v8::Local<v8::Value>());
     }
   }
@@ -363,8 +384,14 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
     // The path is captured for the completion events; it requires a copy
     // since the uv request is cleaned up before they fire.
     req_wrap->set_op_path(path == nullptr ? std::string() : path);
-    PublishFSOperationEvent(env, *channels, FSOperationChannel::kEnd, api,
-                            path, req_wrap->data(), fd, nullptr,
+    PublishFSOperationEvent(env,
+                            *channels,
+                            FSOperationChannel::kEnd,
+                            api,
+                            path,
+                            req_wrap->data(),
+                            fd,
+                            nullptr,
                             v8::Local<v8::Value>());
   }
   return req_wrap;
@@ -426,12 +453,18 @@ int SyncCallAndThrowIf(Predicate should_throw,
   // of which is safe with a pending exception (a multi-step operation keeps
   // going after a failed step to clean up, e.g. write + close).
   if (binding != nullptr && !env->isolate()->HasPendingException()) {
-    channels = &GetFSOperationChannels(binding, env, req_wrap->syscall_p);
-    if (FSOperationChannelHasSubscribers(*channels,
-                                         FSOperationChannel::kStart)) {
-      PublishFSOperationEvent(env, *channels, FSOperationChannel::kStart,
-                              "sync", req_wrap->path_p, req_wrap->dest_p, -1,
-                              nullptr, v8::Local<v8::Value>());
+    channels = GetFSOperationChannels(binding, env, req_wrap->syscall_p);
+    if (channels != nullptr && FSOperationChannelHasSubscribers(
+                                   *channels, FSOperationChannel::kStart)) {
+      PublishFSOperationEvent(env,
+                              *channels,
+                              FSOperationChannel::kStart,
+                              "sync",
+                              req_wrap->path_p,
+                              req_wrap->dest_p,
+                              -1,
+                              nullptr,
+                              v8::Local<v8::Value>());
     }
   }
   int result = fn(nullptr, &(req_wrap->req), args..., nullptr);
@@ -449,9 +482,15 @@ int SyncCallAndThrowIf(Predicate should_throw,
                                                  nullptr,
                                                  req_wrap->path_p,
                                                  req_wrap->dest_p);
-        PublishFSOperationEvent(env, *channels, FSOperationChannel::kError,
-                                "sync", req_wrap->path_p, req_wrap->dest_p,
-                                fd, "error", error);
+        PublishFSOperationEvent(env,
+                                *channels,
+                                FSOperationChannel::kError,
+                                "sync",
+                                req_wrap->path_p,
+                                req_wrap->dest_p,
+                                fd,
+                                "error",
+                                error);
       }
     } else if (FSOperationChannelHasSubscribers(*channels,
                                                 FSOperationChannel::kEnd)) {
