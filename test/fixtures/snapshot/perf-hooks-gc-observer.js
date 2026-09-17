@@ -4,7 +4,10 @@ const { PerformanceObserver } = require('node:perf_hooks');
 const { setDeserializeMainFunction } = require('node:v8').startupSnapshot;
 
 // Observe 'gc' entries while building the snapshot.
-const observer = new PerformanceObserver(() => {});
+let received = 0;
+const observer = new PerformanceObserver((list) => {
+  received += list.getEntries().length;
+});
 observer.observe({ type: 'gc' });
 
 // Performance entries are dispatched asynchronously, so trigger GCs until the
@@ -24,17 +27,26 @@ function waitForEntries(getCount, callback, attempts = 10) {
 
 setDeserializeMainFunction(() => {
   // The GC callbacks registered while building the snapshot do not survive
-  // it. Observing 'gc' after deserialization must register them again.
-  let received = 0;
-  const newObserver = new PerformanceObserver((list) => {
-    received += list.getEntries().length;
-  });
-  newObserver.observe({ type: 'gc' });
+  // it, so they must be registered again after deserialization.
+  if (process.env.TEST_NEW_OBSERVER) {
+    // Observing 'gc' again after deserialization.
+    let newReceived = 0;
+    const newObserver = new PerformanceObserver((list) => {
+      newReceived += list.getEntries().length;
+    });
+    newObserver.observe({ type: 'gc' });
 
-  waitForEntries(() => received, () => {
-    // Disconnecting must only remove GC callbacks that are registered.
-    newObserver.disconnect();
-    observer.disconnect();
-    console.log('ok');
-  });
+    waitForEntries(() => newReceived, () => {
+      // Disconnecting must only remove GC callbacks that are registered.
+      newObserver.disconnect();
+      observer.disconnect();
+      console.log('ok');
+    });
+  } else {
+    // The observer that was active while building the snapshot.
+    waitForEntries(() => received, () => {
+      observer.disconnect();
+      console.log('ok');
+    });
+  }
 });

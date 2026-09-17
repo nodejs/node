@@ -26,13 +26,19 @@ spawnSyncAndExitWithoutError(process.execPath, [
   cwd: tmpdir.path,
 });
 
-spawnSyncAndAssert(process.execPath, [
-  '--expose-gc',
-  '--snapshot-blob',
-  blobPath,
-], {
-  cwd: tmpdir.path,
-}, {
-  stdout: 'ok',
-  trim: true,
-});
+// The observer that was active while building the snapshot receives entries
+// after deserialization. With TEST_NEW_OBSERVER, a new observer is created
+// after deserialization instead.
+for (const env of [{}, { TEST_NEW_OBSERVER: '1' }]) {
+  spawnSyncAndAssert(process.execPath, [
+    '--expose-gc',
+    '--snapshot-blob',
+    blobPath,
+  ], {
+    cwd: tmpdir.path,
+    env: { ...process.env, ...env },
+  }, {
+    stdout: 'ok',
+    trim: true,
+  });
+}
