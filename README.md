@@ -285,6 +285,8 @@ For information about the governance of the Node.js project, see
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/aduh95)
 * [anonrig](https://github.com/anonrig) -
   **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him) - [Support me](https://github.com/sponsors/anonrig)
+* [araujogui](https://github.com/araujogui) -
+  **Guilherme Araújo** <<arauujogui@gmail.com>> (he/him)
 * [atlowChemi](https://github.com/atlowChemi) -
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
 * [avivkeller](https://github.com/avivkeller) -
