@@ -155,6 +155,9 @@ void PerfettoSessionReader::Deleter::operator()(
   ptr->tracing_session_->FlushBlocking();
   ptr->Read();
   ptr->tracing_session_->Stop();
+  Mutex::ScopedLock lock(ptr->chunks_mutex_);
+  ptr->owner_released_ = true;
+  uv_async_send(&ptr->read_async_);
 }
 
 PerfettoSessionReader::PerfettoSessionReader(
@@ -201,12 +204,11 @@ void PerfettoSessionReader::Read() {
 
 void PerfettoSessionReader::ReadTraceCallback(
     perfetto::TracingSession::ReadTraceCallbackArgs args) {
-  // On Perfetto internal thread.
-  {
-    Mutex::ScopedLock lock(chunks_mutex_);
-    if (args.size > 0)
-      pending_chunks_.emplace_back(args.data, args.data + args.size);
-  }
+  // On Perfetto internal thread. Signal under the lock so MaybeStartTeardown()
+  // cannot free |this| while a callback is still running.
+  Mutex::ScopedLock lock(chunks_mutex_);
+  if (args.size > 0)
+    pending_chunks_.emplace_back(args.data, args.data + args.size);
   // A single ReadTrace() cycle can yield multiple callbacks; the last one has
   // has_more == false, which clears read_in_progress_ so the next timer tick
   // can start a new read.
@@ -215,6 +217,8 @@ void PerfettoSessionReader::ReadTraceCallback(
 }
 
 void PerfettoSessionReader::SessionStopCallback() {
+  // On Perfetto internal thread.
+  Mutex::ScopedLock lock(chunks_mutex_);
   stop_requested_ = true;
   uv_async_send(&read_async_);
 }
@@ -235,16 +239,22 @@ void PerfettoSessionReader::OnReadAsync(uv_async_t* async) {
     chunks_to_write.pop_front();
   }
 
-  if (reader->stop_requested_ && reader->handles_pending_close_ == 0) {
-    reader->writer_->Flush(true);
+  reader->MaybeStartTeardown();
+}
 
-    reader->handles_pending_close_ = 2;
-    uv_timer_stop(&reader->read_timer_);
-    uv_close(reinterpret_cast<uv_handle_t*>(&reader->read_async_),
-             OnHandleClose);
-    uv_close(reinterpret_cast<uv_handle_t*>(&reader->read_timer_),
-             OnHandleClose);
+void PerfettoSessionReader::MaybeStartTeardown() {
+  if (handles_pending_close_ != 0) return;
+  {
+    Mutex::ScopedLock lock(chunks_mutex_);
+    if (!owner_released_ || !stop_requested_ || read_in_progress_) return;
   }
+
+  writer_->Flush(true);
+
+  handles_pending_close_ = 2;
+  uv_timer_stop(&read_timer_);
+  uv_close(reinterpret_cast<uv_handle_t*>(&read_async_), OnHandleClose);
+  uv_close(reinterpret_cast<uv_handle_t*>(&read_timer_), OnHandleClose);
 }
 
 // static
