@@ -527,6 +527,8 @@ void InitCryptoOnce() {
 
   OPENSSL_init_ssl(0, settings);
   InstallFipsIndicatorCallback();
+
+  ncrypto::ConfigurePqcEncoding();
   OPENSSL_INIT_free(settings);
   settings = nullptr;
 

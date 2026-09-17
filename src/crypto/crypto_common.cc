@@ -29,6 +29,7 @@ namespace node {
 
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::EVPKeyPointer;
+using ncrypto::KeyAlgorithm;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::StackOfX509;
@@ -217,31 +218,26 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
 
   bool found = false;
   if (EVPKeyPointer key = ssl.getPeerTempKey()) {
-    int kid = key.id();
-    switch (kid) {
-      case EVP_PKEY_DH: {
-        values[0] = env->dh_string();
-        values[2] = Integer::New(env->isolate(), key.bits());
-        found = true;
-        break;
+    const auto* algorithm = key.getAlgorithm();
+    if (algorithm == &KeyAlgorithm::DH) {
+      values[0] = env->dh_string();
+      values[2] = Integer::New(env->isolate(), key.bits());
+      found = true;
+    } else if (algorithm == &KeyAlgorithm::EC ||
+               algorithm == &KeyAlgorithm::X25519 ||
+               algorithm == &KeyAlgorithm::X448) {
+      const char* curve_name = nullptr;
+      if (algorithm == &KeyAlgorithm::EC) {
+        const int nid = ncrypto::Ec::GetCurveId(key);
+        if (nid != NID_undef) curve_name = OBJ_nid2sn(nid);
+      } else {
+        curve_name = algorithm->name();
       }
-      case EVP_PKEY_EC:
-      case EVP_PKEY_X25519:
-      case EVP_PKEY_X448: {
-        const char* curve_name;
-        if (kid == EVP_PKEY_EC) {
-          int nid = ncrypto::Ec::GetCurveId(key);
-          if (nid == NID_undef) break;
-          curve_name = OBJ_nid2sn(nid);
-        } else {
-          curve_name = OBJ_nid2sn(kid);
-        }
-        if (curve_name == nullptr) break;
+      if (curve_name != nullptr) {
         values[0] = env->ecdh_string();
         values[1] = OneByteString(env->isolate(), curve_name);
         values[2] = Integer::New(env->isolate(), key.bits());
         found = true;
-        break;
       }
     }
   }
