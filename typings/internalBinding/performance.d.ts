@@ -136,8 +136,7 @@ export interface PerformanceBinding {
   observerCounts: Uint32Array;
   milestones: Float64Array;
   setupObservers(callback: PerformanceObserverCallback): void;
-  installGarbageCollectionTracking(): void;
-  removeGarbageCollectionTracking(): void;
+  updateGarbageCollectionTracking(): void;
   notify(type: string, entry: unknown): void;
   loopIdleTime(): number;
   createELDHistogram(
