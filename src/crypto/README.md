@@ -42,9 +42,11 @@ following table:
 | `crypto_hash`     | Basic hash (e.g. SHA-256) functions.                                 |
 | `crypto_hkdf`     | HKDF (Key derivation) implementation.                                |
 | `crypto_hmac`     | HMAC implementations.                                                |
+| `crypto_keygen`   | Secret and asymmetric key generation jobs.                           |
 | `crypto_keys`     | Utilities for using and generating secret, private, and public keys. |
 | `crypto_mac`      | Provider-generic MAC implementations.                                |
 | `crypto_pbkdf2`   | PBKDF2 key / bit generation implementation.                          |
+| `crypto_pqc`      | Post-quantum algorithm enumeration.                                  |
 | `crypto_rsa`      | RSA Key Generation functions.                                        |
 | `crypto_scrypt`   | Scrypt key / bit generation implementation.                          |
 | `crypto_sig`      | General digital signature and verification utilities.                |
@@ -58,41 +60,36 @@ When new crypto protocols are added, they will be added into their own
 
 ## Helpful concepts
 
-Node.js currently uses OpenSSL to provide it's crypto substructure.
+Node.js currently uses OpenSSL to provide its crypto substructure.
 (Some custom Node.js distributions -- such as Electron -- use BoringSSL
 instead.)
 
 This section aims to explain some of the utilities that have been
 provided to make working with the OpenSSL APIs a bit easier.
 
+### The ncrypto boundary
+
+[`deps/ncrypto`](../../deps/ncrypto) provides the OpenSSL and BoringSSL
+wrappers used by this subsystem. Put backend adaptation, algorithm metadata,
+and reusable cryptographic operations there. Keep JavaScript argument
+validation, public API policy and errors, V8 objects, and crypto job integration
+in `src/crypto` and `lib/internal/crypto`.
+
+For provider operations, query the supported algorithms and parameters through
+ncrypto. Version guards are still needed when a C API is unavailable in older
+headers or when handling a known version-specific behavior.
+
 ### Pointer types
 
-Most of the key OpenSSL types need to be explicitly freed when they are
-no longer needed. Failure to do so introduces memory leaks. To make this
-easier (and less error prone), the `crypto_util.h` defines a number of
-smart-pointer aliases that should be used:
+Most OpenSSL objects need to be explicitly freed when they are no longer
+needed. Use the ownership wrappers declared in
+[`ncrypto.h`](../../deps/ncrypto/ncrypto.h) to manage their lifetime.
 
-```cpp
-using X509Pointer = DeleteFnPtr<X509, X509_free>;
-using BIOPointer = DeleteFnPtr<BIO, BIO_free_all>;
-using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
-using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
-using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
-using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
-using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
-using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
-using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
-using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
-using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using BignumPointer = DeleteFnPtr<BIGNUM, BN_clear_free>;
-using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
-using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
-using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
-using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using DHPointer = DeleteFnPtr<DH, DH_free>;
-using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
-using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
-```
+Some wrappers, such as `PKCS8Pointer`, are `DeleteFnPtr` aliases. Others,
+including `EVPKeyPointer`, `EVPKeyCtxPointer`, `EVPMDCtxPointer`, `BIOPointer`,
+`BignumPointer`, and `ECKeyPointer`, are dedicated classes that also provide
+operations on the wrapped state. Their representation can vary by backend;
+use their methods to keep that adaptation inside ncrypto.
 
 Examples of these being used are pervasive through the `src/crypto` code.
 
@@ -152,6 +149,70 @@ threadpool).
 
 Refer to `crypto_keys.h` and `crypto_keys.cc` for all code relating to the
 core key objects.
+
+#### Asymmetric key algorithms
+
+Use ncrypto's `KeyAlgorithm` descriptors to identify known algorithms in C++.
+They hold canonical algorithm names and metadata, with static lifetime, so
+callers can retain descriptor pointers across asynchronous jobs. For example,
+`KeyAlgorithm::RSA_PSS` names `RSA-PSS` and `KeyAlgorithm::ML_DSA_44` names
+`ML-DSA-44`.
+
+For an existing key, use `key.isA(KeyAlgorithm::RSA_PSS)` or another descriptor.
+On OpenSSL 3 and later this uses `EVP_PKEY_is_a()` to recognize provider aliases.
+Numeric key IDs are unsuitable for provider-only keys: OpenSSL can return `-1`
+for their ID. Numeric adapters for BoringSSL and legacy OpenSSL stay private to
+ncrypto.
+
+When a function needs algorithm metadata, use `key.getAlgorithm()`. It returns
+a pointer to a static descriptor, or `nullptr` for an empty key or an unrecognized
+algorithm. Reuse it for multiple checks within that function. Key-based helpers
+resolve the algorithm internally. Keep RSA distinct from RSA-PSS, and EC distinct
+from SM2.
+
+`key.rawSeed()` validates seed support and extracts the seed in one operation.
+Its result distinguishes an unsupported key type from an unavailable seed.
+OKP and AKP JWKs share ncrypto's `key.exportRawJwk()` and
+`EVPKeyPointer::NewRawJwk()` operations. Export returns the recognized algorithm
+and public/private bytes, selecting seed versus raw private material internally.
+Import checks that public bytes match the supplied private material. Node.js
+handles the distinct JWK field names, input-name validation, base64url encoding,
+JavaScript objects, and errors. RSA and EC retain their component and coordinate
+representations; ncrypto handles prime-product validation and affine-coordinate
+extraction through `Rsa` and `Ec`.
+
+`Ec::GetCurveId()`, `GetKeyComponents()`, and the raw-export helpers read
+provider parameters directly where supported, with backend adaptation in
+ncrypto. Keep these operations on the `EVPKeyPointer` when an `ECKeyPointer`
+reconstruction is unnecessary.
+
+`key.getKeyTypeName()` returns the descriptor's lowercase public key-type name,
+or `nullptr` when the key has no recognized public type. For example, ML-DSA-44
+returns `ml-dsa-44`, while SM2 has no public key-type name. These names live in
+ncrypto alongside the algorithm metadata.
+
+For construction, use `EVPKeyCtxPointer::NewFromAlgorithm()` with a descriptor,
+or `NewFromName()` when a backend algorithm name is needed.
+`EVPKeyPointer::NewRawPublic()`, `NewRawPrivate()`, and `NewRawSeed()` take
+descriptors too. Use the key's capability helpers for raw formats and signature
+contexts; recognizing an algorithm does not establish support for an operation.
+
+`KeyAlgorithm::FromName()` looks up known canonical names case-insensitively
+using the same `CaseInsensitiveNameEqual` as the digest, cipher, and MAC caches.
+It does not resolve arbitrary provider aliases or establish availability.
+`isAvailable()` checks whether the backend can create a context for the algorithm.
+Public input validation remains specific to each API: PQC JWK `alg` values use
+exact canonical names such as `ML-DSA-44`, while raw imports require exact public
+`asymmetricKeyType` values such as `ml-dsa-44`.
+
+The internal JavaScript binding exposes `getPqcKeyTypes()` for the available
+known PQC algorithm names in their canonical spelling. Named key generation
+passes algorithm names to `NamedKeyPairGenJob`, which resolves the name to a static
+`KeyAlgorithm` descriptor. Asymmetric key IDs are not exposed to JavaScript.
+
+Real EC curve and ASN.1/OID NIDs still have their own uses. The EC generation
+path keeps Ed/X algorithm descriptors separate from curve NIDs while preserving
+the existing accepted curve-name aliases.
 
 #### `KeyObjectData`
 
@@ -321,9 +382,10 @@ They perform their actions immediately.
 
 ```js
 // Example synchronous single-call operation
+const { timingSafeEqual } = require('node:crypto');
 const a = new Uint8Array(10);
 const b = new Uint8Array(10);
-crypto.timingSafeEqual(a, b);
+timingSafeEqual(a, b);
 ```
 
 Asynchronous single-call operations generally perform a
@@ -332,8 +394,10 @@ defer the actual crypto-operation work to the libuv threadpool.
 
 ```js
 // Example asynchronous single-call operation
+const { randomFill } = require('node:crypto');
 const buf = new Uint8Array(10);
-crypto.randomFill(buf, (err, buf) => {
+randomFill(buf, (err, buf) => {
+  if (err) throw err;
   console.log(buf);
 });
 ```
@@ -348,12 +412,12 @@ all asynchronous single-call operations are Promise-based.
 // Example Web Crypto API asynchronous single-call operation
 const { subtle } = globalThis.crypto;
 
-subtle.generateKeys({ name: 'HMAC', length: 256 }, true, ['sign'])
+subtle.generateKey({ name: 'HMAC', hash: 'SHA-256', length: 256 }, true, ['sign'])
   .then((key) => {
     console.log(key);
   })
   .catch((error) => {
-    console.error('an error occurred');
+    console.error('an error occurred', error);
   });
 ```
 
@@ -367,12 +431,12 @@ can be performed over time.
 
 ```js
 // Example stream-oriented operation
-const hash = crypto.createHash('sha256');
-let updates = 10;
+const { createHash } = require('node:crypto');
+const hash = createHash('sha256');
 setTimeout(() => {
   hash.update('hello world');
   setTimeout(() => {
-    console.log(hash.digest();)
+    console.log(hash.digest());
   }, 1000);
 }, 1000);
 ```

@@ -15,7 +15,6 @@ namespace node {
 using ncrypto::DataPointer;
 using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
-using v8::Int32;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
@@ -25,30 +24,32 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-// NidKeyPairGenJob input arguments:
+// NamedKeyPairGenJob input arguments:
 //   1. CryptoJobMode
-//   2. NID
+//   2. Algorithm name
 //   3. Public Format
 //   4. Public Type
 //   5. Private Format
 //   6. Private Type
 //   7. Cipher
 //   8. Passphrase
-Maybe<void> NidKeyPairGenTraits::AdditionalConfig(
+Maybe<void> NamedKeyPairGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
-    NidKeyPairGenConfig* params) {
-  CHECK(args[*offset]->IsInt32());
-  params->params.id = args[*offset].As<Int32>()->Value();
+    NamedKeyPairGenConfig* params) {
+  CHECK(args[*offset]->IsString());
+  Utf8Value name(args.GetIsolate(), args[*offset]);
+  params->params.algorithm = ncrypto::KeyAlgorithm::FromName(*name);
+  CHECK_NOT_NULL(params->params.algorithm);
 
   *offset += 1;
 
   return JustVoid();
 }
 
-EVPKeyCtxPointer NidKeyPairGenTraits::Setup(NidKeyPairGenConfig* params) {
-  auto ctx = EVPKeyCtxPointer::NewFromID(params->params.id);
+EVPKeyCtxPointer NamedKeyPairGenTraits::Setup(NamedKeyPairGenConfig* params) {
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(*params->params.algorithm);
   if (!ctx || !ctx.initForKeygen()) return {};
   return ctx;
 }
@@ -96,12 +97,12 @@ MaybeLocal<Value> SecretKeyGenTraits::EncodeKey(Environment* env,
 
 namespace Keygen {
 void Initialize(Environment* env, Local<Object> target) {
-  NidKeyPairGenJob::Initialize(env, target);
+  NamedKeyPairGenJob::Initialize(env, target);
   SecretKeyGenJob::Initialize(env, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  NidKeyPairGenJob::RegisterExternalReferences(registry);
+  NamedKeyPairGenJob::RegisterExternalReferences(registry);
   SecretKeyGenJob::RegisterExternalReferences(registry);
 }
 }  // namespace Keygen
