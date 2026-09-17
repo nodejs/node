@@ -382,19 +382,19 @@ declare namespace InternalCryptoBinding {
     ): CryptoJobWebCrypto<SignJobResult<S>>;
   }
 
-  interface NidKeyPairGenJobConstructor {
+  interface NamedKeyPairGenJobConstructor {
     new<
       M extends CryptoJobRegularMode,
       PublicFormat extends PublicKeyFormat = undefined,
       PrivateFormat extends PrivateKeyFormat = undefined,
     >(
       mode: M,
-      nid: number,
+      name: string,
       ...encoding: KeyPairEncodingArgs<PublicFormat, PrivateFormat>
     ): CryptoJobForMode<M, GeneratedKeyPair<PublicFormat, PrivateFormat>>;
     new(
       mode: CryptoJobWebCryptoMode,
-      nid: number,
+      name: string,
       algorithm: object,
       publicUsagesMask: number,
       privateUsagesMask: number,
@@ -831,7 +831,8 @@ export interface CryptoBinding {
   KEMEncapsulateJob?: InternalCryptoBinding.KEMEncapsulateJobConstructor;
   KangarooTwelveJob: InternalCryptoBinding.KangarooTwelveJobConstructor;
   KmacJob: InternalCryptoBinding.KmacJobConstructor;
-  NidKeyPairGenJob: InternalCryptoBinding.NidKeyPairGenJobConstructor;
+  getPqcKeyTypes(): string[];
+  NamedKeyPairGenJob: InternalCryptoBinding.NamedKeyPairGenJobConstructor;
   PBKDF2Job: InternalCryptoBinding.PBKDF2JobConstructor;
   RandomBytesJob: InternalCryptoBinding.RandomBytesJobConstructor;
   RandomPrimeJob: InternalCryptoBinding.RandomPrimeJobConstructor;
@@ -883,28 +884,6 @@ export interface CryptoBinding {
   Sign: new () => InternalCryptoBinding.SignHandle;
   Verify: new () => InternalCryptoBinding.VerifyHandle;
 
-  EVP_PKEY_ED25519: number;
-  EVP_PKEY_ED448: number;
-  EVP_PKEY_ML_DSA_44: number;
-  EVP_PKEY_ML_DSA_65: number;
-  EVP_PKEY_ML_DSA_87: number;
-  EVP_PKEY_ML_KEM_512: number;
-  EVP_PKEY_ML_KEM_768: number;
-  EVP_PKEY_ML_KEM_1024: number;
-  EVP_PKEY_SLH_DSA_SHA2_128F: number;
-  EVP_PKEY_SLH_DSA_SHA2_128S: number;
-  EVP_PKEY_SLH_DSA_SHA2_192F: number;
-  EVP_PKEY_SLH_DSA_SHA2_192S: number;
-  EVP_PKEY_SLH_DSA_SHA2_256F: number;
-  EVP_PKEY_SLH_DSA_SHA2_256S: number;
-  EVP_PKEY_SLH_DSA_SHAKE_128F: number;
-  EVP_PKEY_SLH_DSA_SHAKE_128S: number;
-  EVP_PKEY_SLH_DSA_SHAKE_192F: number;
-  EVP_PKEY_SLH_DSA_SHAKE_192S: number;
-  EVP_PKEY_SLH_DSA_SHAKE_256F: number;
-  EVP_PKEY_SLH_DSA_SHAKE_256S: number;
-  EVP_PKEY_X25519: number;
-  EVP_PKEY_X448: number;
   OPENSSL_EC_EXPLICIT_CURVE: number;
   OPENSSL_EC_NAMED_CURVE: number;
   RSA_PKCS1_PSS_PADDING: number;
