@@ -62,6 +62,22 @@ async function testShareSignalLifetime() {
   assert.strictEqual(abortListenerCount(controller.signal), 0);
 }
 
+async function testShareSignalLifetimeWithSlowConsumer() {
+  const controller = new AbortController();
+  const reason = new Error('aborted');
+  const shared = share('x', { signal: controller.signal });
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  const slow = shared.pull()[Symbol.asyncIterator]();
+
+  assert.strictEqual((await fast.next()).done, false);
+  assert.strictEqual((await fast.next()).done, true);
+  assert.strictEqual(abortListenerCount(controller.signal), 1);
+
+  controller.abort(reason);
+  await assert.rejects(slow.next(), (error) => error === reason);
+  assert.strictEqual(abortListenerCount(controller.signal), 0);
+}
+
 async function testDuplexSignalLifetime() {
   const controller = new AbortController();
   const [channelA, channelB] = duplex({ signal: controller.signal });
@@ -80,5 +96,6 @@ Promise.all([
   testPushSignalLifetime(),
   testBroadcastSignalLifetime(),
   testShareSignalLifetime(),
+  testShareSignalLifetimeWithSlowConsumer(),
   testDuplexSignalLifetime(),
 ]).then(common.mustCall());
