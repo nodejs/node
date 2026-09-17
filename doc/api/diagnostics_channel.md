@@ -1627,6 +1627,28 @@ The event is emitted before the response is sent.
 
 Emitted when server sends a response.
 
+##### Event: `'http.client.request.bodyChunkSent'`
+
+* `message` {http.ClientRequest}
+* `data` {Buffer|string}
+* `encoding` {string}
+
+Emitted when a chunk of a client request body is being sent. The byte length
+of the chunk can be computed from `data` and `encoding` with
+`Buffer.byteLength(data, encoding)` (or `data.byteLength` for buffers), which
+denotes the amount of data sent without Node having to measure it itself.
+
+##### Event: `'http.server.response.bodyChunkSent'`
+
+* `message` {http.ServerResponse}
+* `data` {Buffer|string}
+* `encoding` {string}
+
+Emitted when a chunk of a server response body is being sent. The byte length
+of the chunk can be computed from `data` and `encoding` with
+`Buffer.byteLength(data, encoding)` (or `data.byteLength` for buffers), which
+denotes the amount of data sent without Node having to measure it itself.
+
 #### HTTP/2
 
 > Stability: 1 - Experimental
