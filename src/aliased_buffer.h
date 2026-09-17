@@ -191,7 +191,8 @@ class AliasedBufferBase final : public MemoryRetainer {
   V(uint32_t, Uint32Array)                                                     \
   V(float, Float32Array)                                                       \
   V(double, Float64Array)                                                      \
-  V(int64_t, BigInt64Array)
+  V(int64_t, BigInt64Array)                                                    \
+  V(uint64_t, BigUint64Array)
 
 #define V(NativeT, V8T)                                                        \
   typedef AliasedBufferBase<NativeT, v8::V8T> Aliased##V8T;
