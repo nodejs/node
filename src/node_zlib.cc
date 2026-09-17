@@ -352,6 +352,7 @@ class ZstdCompressContext final : public ZstdContext {
 
   uint64_t pledged_src_size_ = ZSTD_CONTENTSIZE_UNKNOWN;
   std::optional<uint64_t> consumed_src_size_;
+  bool frame_complete_ = false;
 };
 
 class ZstdDecompressContext final : public ZstdContext {
@@ -1678,6 +1679,7 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary,
                                            bool) {
   pledged_src_size_ = pledged_src_size;
+  frame_complete_ = false;
   if (pledged_src_size == ZSTD_CONTENTSIZE_UNKNOWN) {
     consumed_src_size_.reset();
   } else {
@@ -1737,6 +1739,7 @@ CompressionError ZstdCompressContext::ResetStream() {
   } else {
     consumed_src_size_ = 0;
   }
+  frame_complete_ = false;
   error_ = ZSTD_error_no_error;
   error_string_.clear();
   error_code_string_.clear();
@@ -1744,6 +1747,12 @@ CompressionError ZstdCompressContext::ResetStream() {
 }
 
 void ZstdCompressContext::DoThreadPoolWork() {
+  // The JavaScript side ends the last queued chunk and then flushes once more
+  // with an empty buffer. Ending a completed frame would start and end another
+  // one, so treat the repeated finish as a no-op.
+  if (frame_complete_ && input_.size == 0) {
+    return;
+  }
   // Zstd overrides a configured pledge when the first call uses ZSTD_e_end.
   size_t const input_pos = input_.pos;
   size_t const remaining =
@@ -1751,6 +1760,7 @@ void ZstdCompressContext::DoThreadPoolWork() {
   if (consumed_src_size_.has_value()) {
     *consumed_src_size_ += input_.pos - input_pos;
   }
+  frame_complete_ = remaining == 0 && flush_ == ZSTD_e_end;
   if (ZSTD_isError(remaining)) {
     error_ = ZSTD_getErrorCode(remaining);
     error_code_string_ = ZstdStrerror(error_);
