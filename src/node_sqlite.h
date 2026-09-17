@@ -139,13 +139,13 @@ class DatabaseOpenConfiguration {
 
   inline bool get_enable_defensive() const { return defensive_; }
 
-  inline void set_initial_limit(int sqlite_limit_id, int value) {
-    initial_limits_.at(sqlite_limit_id) = value;
+  inline void set_limit(int sqlite_limit_id, int value) {
+    limits_.at(sqlite_limit_id) = value;
   }
 
-  inline const std::array<std::optional<int>, kLimitMapping.size()>&
-  initial_limits() const {
-    return initial_limits_;
+  inline const std::array<std::optional<int>, kLimitMapping.size()>& limits()
+      const {
+    return limits_;
   }
 
  private:
@@ -159,7 +159,7 @@ class DatabaseOpenConfiguration {
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
   bool defensive_ = true;
-  std::array<std::optional<int>, kLimitMapping.size()> initial_limits_{};
+  std::array<std::optional<int>, kLimitMapping.size()> limits_{};
 };
 
 class DatabaseSync;
@@ -279,6 +279,7 @@ class DatabaseSync : public BaseObject {
     return open_config_.get_allow_unknown_named_params();
   }
   sqlite3* Connection();
+  void SetLimit(int sqlite_limit_id, int value);
 
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
