@@ -61,7 +61,12 @@ PerformanceState::PerformanceState(Isolate* isolate,
                  offsetof(performance_state_internal, uv_metrics),
                  3,
                  root,
-                 MAYBE_FIELD_PTR(info, uv_metrics)) {
+                 MAYBE_FIELD_PTR(info, uv_metrics)),
+      uv_metrics_bigint(isolate,
+                        offsetof(performance_state_internal, uv_metrics_bigint),
+                        3,
+                        root,
+                        MAYBE_FIELD_PTR(info, uv_metrics_bigint)) {
   if (info == nullptr) {
     // For performance states initialized from scratch, reset
     // all the milestones and initialize the time origin.
@@ -89,11 +94,15 @@ PerformanceState::SerializeInfo PerformanceState::Serialize(
   for (size_t i = 0; i < uv_metrics.Length(); ++i) {
     uv_metrics[i] = 0;
   }
+  for (size_t i = 0; i < uv_metrics_bigint.Length(); ++i) {
+    uv_metrics_bigint[i] = 0;
+  }
 
   SerializeInfo info{root.Serialize(context, creator),
                      milestones.Serialize(context, creator),
                      observers.Serialize(context, creator),
-                     uv_metrics.Serialize(context, creator)};
+                     uv_metrics.Serialize(context, creator),
+                     uv_metrics_bigint.Serialize(context, creator)};
   return info;
 }
 
@@ -116,6 +125,7 @@ void PerformanceState::Deserialize(v8::Local<v8::Context> context,
   milestones.Deserialize(context);
   observers.Deserialize(context);
   uv_metrics.Deserialize(context);
+  uv_metrics_bigint.Deserialize(context);
 
   // Re-initialize the time origin and timestamp i.e. the process start time.
   Initialize(time_origin, time_origin_timestamp);
@@ -128,6 +138,7 @@ std::ostream& operator<<(std::ostream& o,
     << "  " << i.milestones << ",  // milestones\n"
     << "  " << i.observers << ",  // observers\n"
     << "  " << i.uv_metrics << ",  // uv_metrics\n"
+    << "  " << i.uv_metrics_bigint << ",  // uv_metrics_bigint\n"
     << "}";
   return o;
 }
@@ -280,12 +291,16 @@ void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   uv_metrics_t metrics;
   // uv_metrics_info always return 0
   CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
-  // libuv reports 64-bit counters. Store them as doubles so that they are
-  // exact up to Number.MAX_SAFE_INTEGER instead of wrapping at 2^31.
-  AliasedFloat64Array& buffer = env->performance_state()->uv_metrics;
-  buffer[0] = static_cast<double>(metrics.loop_count);
-  buffer[1] = static_cast<double>(metrics.events);
-  buffer[2] = static_cast<double>(metrics.events_waiting);
+  // libuv reports 64-bit counters. The doubles backing uvMetricsInfo are
+  // exact up to Number.MAX_SAFE_INTEGER, while the uint64_t values backing
+  // uvMetricsInfoBigInt carry the full range.
+  PerformanceState* state = env->performance_state();
+  const uint64_t values[] = {
+      metrics.loop_count, metrics.events, metrics.events_waiting};
+  for (size_t i = 0; i < arraysize(values); ++i) {
+    state->uv_metrics[i] = static_cast<double>(values[i]);
+    state->uv_metrics_bigint[i] = values[i];
+  }
 }
 
 void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
@@ -381,6 +396,11 @@ void CreatePerContextProperties(Local<Object> target,
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "uvMetricsBuffer"),
             state->uv_metrics.GetJSArray())
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "uvMetricsBigIntBuffer"),
+            state->uv_metrics_bigint.GetJSArray())
       .Check();
 
   Local<Object> constants = Object::New(isolate);
