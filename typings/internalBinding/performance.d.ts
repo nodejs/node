@@ -147,5 +147,6 @@ export interface PerformanceBinding {
   markBootstrapComplete(): void;
   uvMetricsInfo(): void;
   uvMetricsBuffer: Float64Array;
+  uvMetricsBigIntBuffer: BigUint64Array;
   now(): number;
 }
