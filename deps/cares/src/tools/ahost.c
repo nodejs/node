@@ -44,6 +44,13 @@
 
 #include "ares_str.h"
 
+#define RV_OK     0 /* Success */
+#define RV_SYSERR 1 /* Internal system failure */
+#define RV_MISUSE 2 /* Misuse (command line) */
+#define RV_FAIL   3 /* Resolution failure */
+static int final_rv = RV_OK;
+
+
 static void callback(void *arg, int status, int timeouts, struct hostent *host);
 static void ai_callback(void *arg, int status, int timeouts,
                         struct ares_addrinfo *result);

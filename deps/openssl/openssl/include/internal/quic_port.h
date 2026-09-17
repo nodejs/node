@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -186,6 +186,10 @@ uint64_t ossl_quic_port_get_net_bio_epoch(const QUIC_PORT *port);
  */
 void ossl_quic_port_raise_net_error(QUIC_PORT *port,
     QUIC_CHANNEL *triggering_ch);
+
+uint64_t ossl_quic_port_get_max_pending_channels(const QUIC_PORT *port);
+
+void ossl_quic_port_set_max_pending_channels(QUIC_PORT *port, uint64_t max_pending_channels);
 
 #endif
 

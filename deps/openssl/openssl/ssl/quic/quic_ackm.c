@@ -1003,6 +1003,7 @@ static void ackm_on_pkts_acked(OSSL_ACKM *ackm, const OSSL_ACKM_TX_PKT *apkt)
     const OSSL_ACKM_TX_PKT *anext;
     QUIC_PN last_pn_acked = 0;
     OSSL_CC_ACK_INFO ainfo = { 0 };
+    unsigned int is_inflight;
 
     for (; apkt != NULL; apkt = anext) {
         if (apkt->is_inflight) {
@@ -1027,10 +1028,11 @@ static void ackm_on_pkts_acked(OSSL_ACKM *ackm, const OSSL_ACKM_TX_PKT *apkt)
         ainfo.tx_time = apkt->time;
         ainfo.tx_size = apkt->num_bytes;
 
+        is_inflight = apkt->is_inflight;
         anext = apkt->anext;
         apkt->on_acked(apkt->cb_arg); /* may free apkt */
 
-        if (apkt->is_inflight)
+        if (is_inflight)
             ackm->cc_method->on_data_acked(ackm->cc_data, &ainfo);
     }
 }
@@ -1133,6 +1135,38 @@ int ossl_ackm_on_tx_packet(OSSL_ACKM *ackm, OSSL_ACKM_TX_PKT *pkt)
     return 1;
 }
 
+int ossl_ackm_on_tx_ack_only_packet(OSSL_ACKM *ackm, OSSL_ACKM_TX_PKT *pkt)
+{
+    struct tx_pkt_history_st *h;
+    unsigned int pkt_space;
+
+    if (pkt == NULL || pkt->pkt_space >= QUIC_PN_SPACE_NUM)
+        return 0;
+
+    /*
+     * A packet containing only an ACK frame must not be treated as
+     * in-flight or ack-eliciting; if it were, ossl_ackm_on_tx_packet()
+     * below would (correctly) perform bytes-in-flight/timer/CC bookkeeping
+     * for a packet we are about to discard from history, which would be
+     * incorrect.
+     */
+    if (pkt->is_inflight || pkt->is_ack_eliciting)
+        return 0;
+
+    pkt_space = pkt->pkt_space;
+
+    /*
+     * No one can expect ACK for packet which carries ACK frames only
+     * (ack_only packet). The ACKM does not need to keep record for ack_only
+     * packet. For ack_only packet the ACKM manager must be updated by the
+     * highest packet number which got sent.
+     */
+    h = get_tx_history(ackm, pkt_space);
+    h->highest_sent = pkt->pkt_num;
+
+    return 1;
+}
+
 int ossl_ackm_on_rx_datagram(OSSL_ACKM *ackm, size_t num_bytes)
 {
     /* No-op on the client. */
@@ -1167,7 +1201,20 @@ int ossl_ackm_on_rx_ack_frame(OSSL_ACKM *ackm, const OSSL_QUIC_FRAME_ACK *ack,
     int pkt_space, OSSL_TIME rx_time)
 {
     OSSL_ACKM_TX_PKT *na_pkts, *lost_pkts;
+    struct tx_pkt_history_st *h = get_tx_history(ackm, pkt_space);
     int must_set_timer = 0;
+
+    /*
+     * RFC 9000 s. 13.1 recommends treating an acknowledgment for a packet we
+     * did not send as a PROTOCOL_VIOLATION, where detectable. The largest
+     * acknowledged PN is ack_ranges[0].end; if it exceeds the highest PN we have
+     * sent in this space, reject the ACK. Otherwise the peer-controlled value is
+     * stored into largest_acked_pkt below, which only ever increases and drives
+     * loss detection, so a single such ACK would permanently force every
+     * in-flight and subsequently-sent packet to be declared lost.
+     */
+    if (ack->ack_ranges[0].end > h->highest_sent)
+        return 0;
 
     if (ackm->largest_acked_pkt[pkt_space] == QUIC_PN_INVALID)
         ackm->largest_acked_pkt[pkt_space] = ack->ack_ranges[0].end;

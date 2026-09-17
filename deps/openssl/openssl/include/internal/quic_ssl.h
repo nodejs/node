@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -179,6 +179,7 @@ int ossl_quic_conn_poll_events(SSL *ssl, uint64_t events, int do_tick,
 int ossl_quic_get_notifier_fd(SSL *ssl);
 void ossl_quic_enter_blocking_section(SSL *ssl, QUIC_REACTOR_WAIT_CTX *wctx);
 void ossl_quic_leave_blocking_section(SSL *ssl, QUIC_REACTOR_WAIT_CTX *wctx);
+QUIC_PORT *ossl_quic_listener_get_port(SSL *s);
 
 #endif
 

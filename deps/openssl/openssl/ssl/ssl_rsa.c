@@ -42,7 +42,7 @@ int SSL_use_certificate(SSL *ssl, X509 *x)
         return 0;
     }
 
-    rv = ssl_security_cert(sc, NULL, x, 0, 1);
+    rv = ssl_security_cert(sc, NULL, x, 1);
     if (rv != 1) {
         ERR_raise(ERR_LIB_SSL, rv);
         return 0;
@@ -247,7 +247,7 @@ int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x)
         return 0;
     }
 
-    rv = ssl_security_cert(NULL, ctx, x, 0, 1);
+    rv = ssl_security_cert(NULL, ctx, x, 1);
     if (rv != 1) {
         ERR_raise(ERR_LIB_SSL, rv);
         return 0;
@@ -993,13 +993,13 @@ static int ssl_set_cert_and_key(SSL *ssl, SSL_CTX *ctx, X509 *x509, EVP_PKEY *pr
 
     c = sc != NULL ? sc->cert : ctx->cert;
     /* Do all security checks before anything else */
-    rv = ssl_security_cert(sc, ctx, x509, 0, 1);
+    rv = ssl_security_cert(sc, ctx, x509, 1);
     if (rv != 1) {
         ERR_raise(ERR_LIB_SSL, rv);
         goto out;
     }
     for (j = 0; j < sk_X509_num(chain); j++) {
-        rv = ssl_security_cert(sc, ctx, sk_X509_value(chain, j), 0, 0);
+        rv = ssl_security_cert(sc, ctx, sk_X509_value(chain, j), 0);
         if (rv != 1) {
             ERR_raise(ERR_LIB_SSL, rv);
             goto out;

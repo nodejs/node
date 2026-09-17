@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -74,6 +74,14 @@ int DH_check_params(const DH *dh, int *ret)
     BN_CTX *ctx = NULL;
 
     *ret = 0;
+    /*
+     * A DH with no modulus or generator cannot be checked.  Report
+     * the failure via |*ret| rather than dereferencing NULL below.
+     */
+    if (dh->params.p == NULL || dh->params.g == NULL) {
+        *ret = DH_NOT_SUITABLE_GENERATOR | DH_CHECK_P_NOT_PRIME;
+        return 1;
+    }
     ctx = BN_CTX_new_ex(dh->libctx);
     if (ctx == NULL)
         goto err;
@@ -150,6 +158,11 @@ int DH_check(const DH *dh, int *ret)
     int nid = DH_get_nid((DH *)dh);
 
     *ret = 0;
+    /* A DH with no modulus or generator cannot be checked. */
+    if (dh->params.p == NULL || dh->params.g == NULL) {
+        *ret = DH_NOT_SUITABLE_GENERATOR | DH_CHECK_P_NOT_PRIME;
+        return 1;
+    }
     if (nid != NID_undef)
         return 1;
 
@@ -250,6 +263,15 @@ int DH_check_pub_key_ex(const DH *dh, const BIGNUM *pub_key)
  */
 int DH_check_pub_key(const DH *dh, const BIGNUM *pub_key, int *ret)
 {
+    *ret = 0;
+    /*
+     * Without a modulus we cannot check anything; signal failure via
+     * |*ret| rather than crashing in BN_num_bits below.
+     */
+    if (dh->params.p == NULL) {
+        *ret = DH_CHECK_PUBKEY_INVALID;
+        return 1;
+    }
     /* Don't do any checks at all with an excessively large modulus */
     if (BN_num_bits(dh->params.p) > OPENSSL_DH_CHECK_MAX_MODULUS_BITS) {
         ERR_raise(ERR_LIB_DH, DH_R_MODULUS_TOO_LARGE);

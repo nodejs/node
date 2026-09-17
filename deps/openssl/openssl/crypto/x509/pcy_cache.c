@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -134,6 +134,7 @@ static int policy_cache_new(X509 *x)
         /* If not absent some problem with extension */
         if (i != -1)
             goto bad_cache;
+        POLICY_CONSTRAINTS_free(ext_pcons);
         return 1;
     }
 
@@ -141,8 +142,10 @@ static int policy_cache_new(X509 *x)
 
     /* NB: ext_cpols freed by policy_cache_set_policies */
 
-    if (i <= 0)
+    if (i <= 0) {
+        POLICY_CONSTRAINTS_free(ext_pcons);
         return i;
+    }
 
     ext_pmaps = X509_get_ext_d2i(x, NID_policy_mappings, &i, NULL);
 

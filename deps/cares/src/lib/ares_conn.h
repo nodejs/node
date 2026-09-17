@@ -43,7 +43,13 @@ typedef enum {
   ARES_CONN_FLAG_TFO = 1 << 1,
   /*! TCP Fast Open has not yet sent its first packet. Gets unset on first
    *  write to a connection */
-  ARES_CONN_FLAG_TFO_INITIAL = 1 << 2
+  ARES_CONN_FLAG_TFO_INITIAL = 1 << 2,
+  /*! Connection has been retired: it must not be handed any NEW queries (e.g.
+   *  it experienced a query timeout, suggesting packets are being dropped on
+   *  it).  Its in-flight queries continue to drain and it is cleaned up once
+   *  idle.  This is a per-connection signal so that a transient failure does
+   *  not evict otherwise-healthy connections to the same server. */
+  ARES_CONN_FLAG_NONEW = 1 << 3
 } ares_conn_flags_t;
 
 typedef enum {

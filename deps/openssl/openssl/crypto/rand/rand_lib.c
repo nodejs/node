@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -674,7 +674,6 @@ static EVP_RAND_CTX *rand_new_drbg(OSSL_LIB_CTX *libctx, EVP_RAND_CTX *parent,
     EVP_RAND_CTX *ctx;
     OSSL_PARAM params[9], *p = params;
     const OSSL_PARAM *settables;
-    const char *prov_name;
     char *name, *cipher;
     int use_df = 1;
 
@@ -686,7 +685,6 @@ static EVP_RAND_CTX *rand_new_drbg(OSSL_LIB_CTX *libctx, EVP_RAND_CTX *parent,
         ERR_raise(ERR_LIB_RAND, RAND_R_UNABLE_TO_FETCH_DRBG);
         return NULL;
     }
-    prov_name = ossl_provider_name(EVP_RAND_get0_provider(rand));
     ctx = EVP_RAND_CTX_new(rand, parent);
     EVP_RAND_free(rand);
     if (ctx == NULL) {
@@ -704,9 +702,6 @@ static EVP_RAND_CTX *rand_new_drbg(OSSL_LIB_CTX *libctx, EVP_RAND_CTX *parent,
         && OSSL_PARAM_locate_const(settables, OSSL_DRBG_PARAM_DIGEST))
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_DRBG_PARAM_DIGEST,
             dgbl->rng_digest, 0);
-    if (prov_name != NULL)
-        *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_CORE_PROV_NAME,
-            (char *)prov_name, 0);
     if (dgbl->rng_propq != NULL)
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_DRBG_PARAM_PROPERTIES,
             dgbl->rng_propq, 0);
@@ -864,7 +859,10 @@ static EVP_RAND_CTX *rand_get0_public(OSSL_LIB_CTX *ctx, RAND_GLOBAL *dgbl)
             return NULL;
         rand = rand_new_drbg(ctx, primary, SECONDARY_RESEED_INTERVAL,
             SECONDARY_RESEED_TIME_INTERVAL);
-        CRYPTO_THREAD_set_local(&dgbl->public, rand);
+        if (!CRYPTO_THREAD_set_local(&dgbl->public, rand)) {
+            EVP_RAND_CTX_free(rand);
+            rand = NULL;
+        }
     }
     return rand;
 }
@@ -903,7 +901,10 @@ static EVP_RAND_CTX *rand_get0_private(OSSL_LIB_CTX *ctx, RAND_GLOBAL *dgbl)
             return NULL;
         rand = rand_new_drbg(ctx, primary, SECONDARY_RESEED_INTERVAL,
             SECONDARY_RESEED_TIME_INTERVAL);
-        CRYPTO_THREAD_set_local(&dgbl->private, rand);
+        if (!CRYPTO_THREAD_set_local(&dgbl->private, rand)) {
+            EVP_RAND_CTX_free(rand);
+            rand = NULL;
+        }
     }
     return rand;
 }

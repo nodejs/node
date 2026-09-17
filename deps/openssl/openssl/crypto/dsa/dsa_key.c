@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -198,7 +198,6 @@ static int dsa_keygen(DSA *dsa)
         ok = dsa_keygen_pairwise_test(dsa, cb, cbarg)
             && dsa_keygen_knownanswer_test(dsa, ctx, cb, cbarg);
         if (!ok) {
-            ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
             BN_free(dsa->pub_key);
             BN_clear_free(dsa->priv_key);
             dsa->pub_key = NULL;

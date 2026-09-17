@@ -158,12 +158,17 @@ NFRule::makeRules(UnicodeString& description,
         UnicodeString sbuf;
         int32_t orElseOp = description.indexOf(gVerticalLine);
 
+        uint64_t mod = util64_pow(rule1->radix, rule1->exponent);
         // we'll actually only split the rule into two rules if its
         // base value is an even multiple of its divisor (or it's one
         // of the special rules)
+        if (rule1->baseValue > 0 && rule1->radix != 0 && mod == 0) {
+            status = U_NUMBER_ARG_OUTOFBOUNDS_ERROR;
+            return;
+        }
         if ((rule1->baseValue > 0
             && (rule1->radix != 0) // ICU-23109 Ensure next line won't "% 0"
-            && (rule1->baseValue % util64_pow(rule1->radix, rule1->exponent)) == 0)
+            && (rule1->baseValue % mod == 0))
             || rule1->getType() == kImproperFractionRule
             || rule1->getType() == kDefaultRule) {
 

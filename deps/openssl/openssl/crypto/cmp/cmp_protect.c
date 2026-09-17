@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -66,7 +66,7 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
             ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_PBM_SECRET);
             return NULL;
         }
-        if (ppval == NULL) {
+        if (pptype != V_ASN1_SEQUENCE || ppval == NULL) {
             ERR_raise(ERR_LIB_CMP, CMP_R_ERROR_CALCULATING_PROTECTION);
             return NULL;
         }

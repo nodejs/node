@@ -217,7 +217,7 @@ static const unsigned char *
 
 static ares_bool_t timeval_is_set(const ares_timeval_t *tv)
 {
-  if (tv->sec != 0 && tv->usec != 0) {
+  if (tv->sec != 0 || tv->usec != 0) {
     return ARES_TRUE;
   }
   return ARES_FALSE;
@@ -324,7 +324,7 @@ ares_status_t ares_cookie_apply(ares_dns_record_t *dnsrec, ares_conn_t *conn,
   if (cookie->state == ARES_COOKIE_UNSUPPORTED) {
     /* If timer hasn't expired, just delete any possible cookie and return */
     if (!timeval_expired(&cookie->unsupported_ts, now,
-                         COOKIE_REGRESSION_TIMEOUT_MS)) {
+                         COOKIE_UNSUPPORTED_TIMEOUT_MS)) {
       ares_dns_rr_del_opt_byid(rr, ARES_RR_OPT_OPTIONS, ARES_OPT_PARAM_COOKIE);
       return ARES_SUCCESS;
     }

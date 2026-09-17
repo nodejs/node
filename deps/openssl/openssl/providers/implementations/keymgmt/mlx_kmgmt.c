@@ -245,7 +245,7 @@ static int mlx_kem_export(void *vkey, int selection, OSSL_CALLBACK *param_cb,
 {
     MLX_KEY *key = vkey;
     OSSL_PARAM_BLD *tmpl = NULL;
-    OSSL_PARAM *params = NULL;
+    OSSL_PARAM *params = NULL, *p;
     size_t publen;
     size_t prvlen;
     int ret = 0;
@@ -307,12 +307,18 @@ static int mlx_kem_export(void *vkey, int selection, OSSL_CALLBACK *param_cb,
         goto err;
 
     ret = param_cb(params, cbarg);
+    /*
+     * OSSL_PARAM_free() only wipes the secure-heap data block,
+     * so wipe the key material copies held in the params first.
+     */
+    for (p = params; p->key != NULL; p++)
+        OPENSSL_cleanse(p->data, p->data_size);
     OSSL_PARAM_free(params);
 
 err:
     OSSL_PARAM_BLD_free(tmpl);
     OPENSSL_secure_clear_free(sub_arg.prvenc, prvlen);
-    OPENSSL_free(sub_arg.pubenc);
+    OPENSSL_clear_free(sub_arg.pubenc, publen);
     return ret;
 }
 
@@ -562,12 +568,18 @@ static int mlx_kem_get_params(void *vkey, OSSL_PARAM params[])
         selection |= OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS;
 
     /* Extract sub-component key material */
-    if (!export_sub(&sub_arg, selection, key))
+    if (!export_sub(&sub_arg, selection, key)
+        || (pub != NULL && sub_arg.pubcount != 2)
+        || (prv != NULL && sub_arg.prvcount != 2)) {
+        /* Erase any partial key material on failure */
+        if (sub_arg.pubenc != NULL)
+            OPENSSL_cleanse(sub_arg.pubenc,
+                key->minfo->pubkey_bytes + key->xinfo->pubkey_bytes);
+        if (sub_arg.prvenc != NULL)
+            OPENSSL_cleanse(sub_arg.prvenc,
+                key->minfo->prvkey_bytes + key->xinfo->prvkey_bytes);
         return 0;
-
-    if ((pub != NULL && sub_arg.pubcount != 2)
-        || (prv != NULL && sub_arg.prvcount != 2))
-        return 0;
+    }
 
     return 1;
 }

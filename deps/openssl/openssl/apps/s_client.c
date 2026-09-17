@@ -2846,11 +2846,9 @@ re_start:
         }
         /*
          * According to RFC 5804 § 2.2, response codes are case-
-         * insensitive, make it uppercase but preserve the response.
+         * insensitive.
          */
-        strncpy(sbuf, mbuf, 2);
-        make_uppercase(sbuf);
-        if (!HAS_PREFIX(sbuf, "OK")) {
+        if (OPENSSL_strncasecmp(mbuf, "OK", 2) != 0) {
             BIO_printf(bio_err, "STARTTLS not supported: %s", mbuf);
             goto shut;
         }
@@ -3349,29 +3347,32 @@ shut:
         print_stuff(bio_c_out, con, full_log);
     do_ssl_shutdown(con);
 
-    /*
-     * If we ended with an alert being sent, but still with data in the
-     * network buffer to be read, then calling BIO_closesocket() will
-     * result in a TCP-RST being sent. On some platforms (notably
-     * Windows) then this will result in the peer immediately abandoning
-     * the connection including any buffered alert data before it has
-     * had a chance to be read. Shutting down the sending side first,
-     * and then closing the socket sends TCP-FIN first followed by
-     * TCP-RST. This seems to allow the peer to read the alert data.
-     */
-    shutdown(SSL_get_fd(con), 1); /* SHUT_WR */
-    /*
-     * We just said we have nothing else to say, but it doesn't mean that
-     * the other side has nothing. It's even recommended to consume incoming
-     * data. [In testing context this ensures that alerts are passed on...]
-     */
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 500000; /* some extreme round-trip */
-    do {
-        FD_ZERO(&readfds);
-        openssl_fdset(sock, &readfds);
-    } while (select(sock + 1, &readfds, NULL, NULL, &timeout) > 0
-        && BIO_read(sbio, sbuf, BUFSIZZ) > 0);
+    /* The following half-close/drain workaround is TCP-specific. */
+    if (!isdtls && !isquic) {
+        /*
+         * If we ended with an alert being sent, but still with data in the
+         * network buffer to be read, then calling BIO_closesocket() will
+         * result in a TCP-RST being sent. On some platforms (notably
+         * Windows) then this will result in the peer immediately abandoning
+         * the connection including any buffered alert data before it has
+         * had a chance to be read. Shutting down the sending side first,
+         * and then closing the socket sends TCP-FIN first followed by
+         * TCP-RST. This seems to allow the peer to read the alert data.
+         */
+        shutdown(SSL_get_fd(con), 1); /* SHUT_WR */
+        /*
+         * We just said we have nothing else to say, but it doesn't mean that
+         * the other side has nothing. It's even recommended to consume incoming
+         * data. [In testing context this ensures that alerts are passed on...]
+         */
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 500000; /* some extreme round-trip */
+        do {
+            FD_ZERO(&readfds);
+            openssl_fdset(sock, &readfds);
+        } while (select(sock + 1, &readfds, NULL, NULL, &timeout) > 0
+            && BIO_read(sbio, sbuf, BUFSIZZ) > 0);
+    }
 
     BIO_closesocket(SSL_get_fd(con));
 end:

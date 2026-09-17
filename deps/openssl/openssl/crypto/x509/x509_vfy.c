@@ -1364,6 +1364,12 @@ static int get_crl_score(X509_STORE_CTX *ctx, X509 **pissuer,
     /* Invalid IDP cannot be processed */
     if ((crl->idp_flags & IDP_INVALID) != 0)
         return 0;
+    /*
+     * Reject delta CRLs unconditionally here. They are considered by
+     * get_delta_sk() after a base CRL is selected.
+     */
+    if (crl->base_crl_number != NULL)
+        return 0;
     /* Reason codes or indirect CRLs need extended CRL support */
     if ((ctx->param->flags & X509_V_FLAG_EXTENDED_CRL_SUPPORT) == 0) {
         if (crl->idp_flags & (IDP_INDIRECT | IDP_REASONS))
@@ -1373,9 +1379,6 @@ static int get_crl_score(X509_STORE_CTX *ctx, X509 **pissuer,
         if ((crl->idp_reasons & ~tmp_reasons) == 0)
             return 0;
     }
-    /* Don't process deltas at this stage */
-    else if (crl->base_crl_number != NULL)
-        return 0;
     /* If issuer name doesn't match certificate need indirect CRL */
     if (X509_NAME_cmp(X509_get_issuer_name(x), X509_CRL_get_issuer(crl)) != 0) {
         if ((crl->idp_flags & IDP_INDIRECT) == 0)

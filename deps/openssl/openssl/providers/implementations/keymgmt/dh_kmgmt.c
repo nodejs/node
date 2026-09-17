@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -793,10 +793,8 @@ static void *dh_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
 #ifdef FIPS_MODULE
         if (!ossl_fips_self_testing()) {
             ret = ossl_dh_check_pairwise(dh, 0);
-            if (ret <= 0) {
-                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+            if (ret <= 0)
                 goto end;
-            }
         }
 #endif /* FIPS_MODULE */
     }

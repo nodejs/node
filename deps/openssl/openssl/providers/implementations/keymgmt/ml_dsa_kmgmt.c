@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -96,6 +96,7 @@ static int ml_dsa_pairwise_test(const ML_DSA_KEY *key)
 err:
     OSSL_SELF_TEST_onend(st, ret);
     OSSL_SELF_TEST_free(st);
+    OPENSSL_cleanse(sig, sizeof(sig));
     return ret;
 }
 #endif
@@ -283,10 +284,8 @@ static int ml_dsa_import(void *keydata, int selection, const OSSL_PARAM params[]
 #ifdef FIPS_MODULE
     if (res > 0) {
         res = ml_dsa_pairwise_test(key);
-        if (!res) {
+        if (!res)
             ossl_ml_dsa_key_reset(key);
-            ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT_IMPORT);
-        }
     }
 #endif /* FIPS_MODULE */
     return res;
@@ -483,10 +482,8 @@ static void *ml_dsa_gen(void *genctx, int evp_type)
         goto err;
     }
 #ifdef FIPS_MODULE
-    if (!ml_dsa_pairwise_test(key)) {
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+    if (!ml_dsa_pairwise_test(key))
         goto err;
-    }
 #endif
     return key;
 err:
@@ -541,7 +538,7 @@ static void ml_dsa_gen_cleanup(void *genctx)
     if (gctx == NULL)
         return;
 
-    OPENSSL_cleanse(gctx->entropy, gctx->entropy_len);
+    OPENSSL_cleanse(gctx->entropy, sizeof(gctx->entropy));
     OPENSSL_free(gctx->propq);
     OPENSSL_free(gctx);
 }

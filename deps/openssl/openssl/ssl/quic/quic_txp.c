@@ -2935,6 +2935,20 @@ fatal_err:
     return TXP_ERR_INTERNAL;
 }
 
+static int txp_pkt_is_ack_only(const QUIC_TXPIM_PKT *tpkt)
+{
+    return tpkt->had_ack_frame
+        && !tpkt->ackm_pkt.is_inflight
+        && !tpkt->ackm_pkt.is_ack_eliciting
+        && !tpkt->had_handshake_done_frame
+        && !tpkt->had_max_data_frame
+        && !tpkt->had_max_streams_bidi_frame
+        && !tpkt->had_max_streams_uni_frame
+        && !tpkt->had_conn_close
+        && tpkt->retx_head == NULL
+        && ossl_quic_txpim_pkt_get_num_chunks(tpkt) == 0;
+}
+
 /*
  * Commits and queues a packet for transmission. There is no backing out after
  * this.
@@ -2943,8 +2957,9 @@ fatal_err:
  *
  *   - Sends the packet to the QTX for encryption and transmission;
  *
- *   - Records the packet as having been transmitted in FIFM. ACKM is informed,
- *     etc. and the TXPIM record is filed.
+ *   - Records non-ACK-only packets as having been transmitted in FIFM. ACKM is
+ *     informed, etc. and the TXPIM record is filed only when later callbacks
+ *     need it.
  *
  *   - Informs various subsystems of frames that were sent and clears frame
  *     wanted flags so that we do not generate the same frames again.
@@ -2971,7 +2986,7 @@ static int txp_pkt_commit(OSSL_QUIC_TX_PACKETISER *txp,
     uint32_t archetype,
     int *txpim_pkt_reffed)
 {
-    int rc = 1;
+    int ack_only, rc = 1;
     uint32_t enc_level = pkt->h.enc_level;
     uint32_t pn_space = ossl_quic_enc_level_to_pn_space(enc_level);
     QUIC_TXPIM_PKT *tpkt = pkt->tpkt;
@@ -3015,27 +3030,34 @@ static int txp_pkt_commit(OSSL_QUIC_TX_PACKETISER *txp,
                 return 0; /* alloc error */
         }
 
-    /* Dispatch to FIFD. */
-    if (!ossl_quic_fifd_pkt_commit(&txp->fifd, tpkt))
+    ack_only = txp_pkt_is_ack_only(tpkt);
+
+    /* Dispatch packets that need loss/retransmit callbacks to FIFD. */
+    if (!ack_only && !ossl_quic_fifd_pkt_commit(&txp->fifd, tpkt))
         return 0;
 
     /*
      * Transmission and Post-Packet Generation Bookkeeping
      * ===================================================
      *
-     * No backing out anymore - at this point the ACKM has recorded the packet
-     * as having been sent, so we need to increment our next PN counter, or
-     * the ACKM will complain when we try to record a duplicate packet with
-     * the same PN later. At this point actually sending the packet may still
-     * fail. In this unlikely event it will simply be handled as though it
-     * were a lost packet.
+     * No backing out anymore - at this point we need to increment our next PN
+     * counter, or the ACKM will complain when we try to record a duplicate
+     * packet with the same PN later. Non-ACK-only packets have also been
+     * recorded in ACKM, so if QTX write fails they are handled as though they
+     * were lost. ACK-only packets are not recorded and will be cleaned up by
+     * the caller.
      */
     ++txp->next_pn[pn_space];
-    *txpim_pkt_reffed = 1;
+    if (!ack_only)
+        *txpim_pkt_reffed = 1;
 
     /* Send the packet. */
     if (!ossl_qtx_write_pkt(txp->args.qtx, &txpkt))
         return 0;
+
+    if (ack_only
+        && !ossl_ackm_on_tx_ack_only_packet(txp->args.ackm, &tpkt->ackm_pkt))
+        rc = 0;
 
     /*
      * Record FC and stream abort frames as sent; deactivate streams which no
