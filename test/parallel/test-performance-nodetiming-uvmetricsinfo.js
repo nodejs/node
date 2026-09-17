@@ -13,10 +13,13 @@ const fixtures = require('../common/fixtures');
 
 const file = fixtures.path('test-nodetiming-uvmetricsinfo.js');
 
-{
+// Run both with and without the built-in startup snapshot, as the
+// performance state buffers are initialized differently in each case.
+for (const execArgv of [[], ['--no-node-snapshot']]) {
   const { status, stderr } = spawnSync(
     process.execPath,
     [
+      ...execArgv,
       file,
     ],
   );
