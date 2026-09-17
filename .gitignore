@@ -181,3 +181,4 @@ compile_commands.json
 .devcontainer/**
 !.devcontainer/base/
 !.devcontainer/base/devcontainer.json
+config.bat

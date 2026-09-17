@@ -4,11 +4,11 @@
   "description": "Visualization tool for V8 TurboFan IR graphs",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
+    "build": "node init && rollup -c",
     "watch": "rollup -c -w",
     "deploy": "./deploy.sh",
     "test": "ts-mocha -p tsconfig.test.json test/**/*-test.ts",
-    "dev-server": "ws",
+    "dev-server": "node init && ws",
     "presubmit": "tslint --project ./tslint.json --fix"
   },
   "author": "The V8 team",

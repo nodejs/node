@@ -62,8 +62,8 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "build:node": "esbuild index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names && node scripts/strip-comments.js",
-    "build:wasm": "node build/wasm.js --docker",
+    "build:node": "node init && esbuild index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names && node scripts/strip-comments.js",
+    "build:wasm": "node init && node build/wasm.js --docker",
     "generate-pem": "node scripts/generate-pem.js",
     "lint": "eslint --cache",
     "lint:fix": "eslint --fix --cache",

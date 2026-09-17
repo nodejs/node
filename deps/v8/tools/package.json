@@ -2,7 +2,7 @@
   "name": "v8-tools",
   "version": "1.0.0",
   "scripts": {
-    "start-webserver": "ws"
+    "start-webserver": "node init && ws"
   },
   "dependencies": {
     "local-web-server": "^5.4.0"
