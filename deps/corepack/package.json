@@ -44,8 +44,8 @@
     }
   },
   "scripts": {
-    "build": "run clean && run build:bundle && node ./mkshims.ts",
-    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node22.22.2 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
+    "build": "node init && run clean && run build:bundle && node ./mkshims.ts",
+    "build:bundle": "node init && esbuild ./sources/_lib.ts --bundle --platform=node --target=node22.22.2 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
     "clean": "run rimraf dist shims",
     "corepack": "node ./sources/_cli.ts",
     "lint": "eslint",
