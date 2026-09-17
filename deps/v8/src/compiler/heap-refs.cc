@@ -839,34 +839,33 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
 
 namespace {
 
-bool IsReadOnlyLengthDescriptor(Isolate* isolate,
-                                DirectHandle<Map> jsarray_map) {
-  DCHECK(!jsarray_map->is_dictionary_map());
-  Tagged<DescriptorArray> descriptors =
-      jsarray_map->instance_descriptors(isolate, kRelaxedLoad);
+bool IsReadOnlyLengthDescriptor(JSHeapBroker* broker, MapRef jsarray_map) {
+  DCHECK(!jsarray_map.is_dictionary_map());
+  DescriptorArrayRef descriptors = jsarray_map.instance_descriptors(broker);
   static_assert(
       JSArray::kLengthOffset == JSObject::kHeaderSize,
       "The length should be the first property on the descriptor array");
   InternalIndex offset(0);
-  return descriptors->GetDetails(offset).IsReadOnly();
+  return descriptors.GetPropertyDetails(offset).IsReadOnly();
 }
 
 // Important: this predicate does not check Protectors::IsNoElementsIntact. The
 // compiler checks protectors through the compilation dependency mechanism; it
 // doesn't make sense to do that here as part of every MapData construction.
 // Callers *must* take care to take the correct dependency themselves.
-bool SupportsFastArrayIteration(JSHeapBroker* broker, DirectHandle<Map> map) {
-  return map->instance_type() == JS_ARRAY_TYPE &&
-         IsFastElementsKind(map->elements_kind()) &&
-         IsJSArray(map->prototype()) &&
-         broker->IsArrayOrObjectPrototype(broker->CanonicalPersistentHandle(
-             Cast<JSArray>(map->prototype())));
+bool SupportsFastArrayIteration(JSHeapBroker* broker, MapRef map) {
+  if (map.instance_type() != JS_ARRAY_TYPE ||
+      !IsFastElementsKind(map.elements_kind())) {
+    return false;
+  }
+  HeapObjectRef prototype = map.prototype(broker);
+  return prototype.IsJSArray() &&
+         prototype.AsJSArray().IsArrayOrObjectPrototype(broker);
 }
 
-bool SupportsFastArrayResize(JSHeapBroker* broker, DirectHandle<Map> map) {
-  return SupportsFastArrayIteration(broker, map) && map->is_extensible() &&
-         !map->is_dictionary_map() &&
-         !IsReadOnlyLengthDescriptor(broker->isolate(), map);
+bool SupportsFastArrayResize(JSHeapBroker* broker, MapRef map) {
+  return SupportsFastArrayIteration(broker, map) && map.is_extensible() &&
+         !map.is_dictionary_map() && !IsReadOnlyLengthDescriptor(broker, map);
 }
 
 }  // namespace
@@ -1248,11 +1247,11 @@ bool MapRef::PrototypesElementsDoNotHaveAccessorsOrThrow(
 }
 
 bool MapRef::supports_fast_array_iteration(JSHeapBroker* broker) const {
-  return SupportsFastArrayIteration(broker, object());
+  return SupportsFastArrayIteration(broker, *this);
 }
 
 bool MapRef::supports_fast_array_resize(JSHeapBroker* broker) const {
-  return SupportsFastArrayResize(broker, object());
+  return SupportsFastArrayResize(broker, *this);
 }
 
 namespace {
@@ -1624,6 +1623,7 @@ HEAP_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                 Map::Bits3::NumberOfOwnDescriptorsBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
                 Map::Bits3::IsMigrationTargetBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
 HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
@@ -1803,6 +1803,11 @@ MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
 ObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
   // Immutable after initialization.
   return MakeRefAssumeMemoryFence(broker, object()->GetConstructor());
+}
+
+NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker, object()->native_context());
 }
 
 HeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
@@ -2457,6 +2462,19 @@ OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
 
   return MapRef(broker->GetOrCreateData(
       maybe_object_create_map.GetHeapObjectAssumeWeak(), kAssumeMemoryFence));
+}
+
+bool JSObjectRef::IsArrayOrObjectPrototype(JSHeapBroker* broker) const {
+  MapRef map = this->map(broker);
+  if (map.instance_type() == JS_OBJECT_PROTOTYPE_TYPE) return true;
+  // Keep in sync with Isolate::IsInCreationContext:
+  MapRef metamap = map.map(broker);
+  // Filter out native-context independent objects.
+  if (*metamap.object() == ReadOnlyRoots(broker->isolate()).meta_map())
+    return false;
+  OptionalNativeContextRef native_context = metamap.native_context(broker);
+  if (!native_context.has_value()) return false;
+  return native_context->initial_array_prototype(broker).equals(*this);
 }
 
 bool PropertyCellRef::Cache(JSHeapBroker* broker) const {
