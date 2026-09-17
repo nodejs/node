@@ -22,7 +22,7 @@ function resolveBuiltBinary() {
 const binary = resolveBuiltBinary();
 
 test('should load extension successfully', () => {
-  const db = new sqlite.DatabaseSync(':memory:', {
+  const db = new sqlite.Database(':memory:', {
     allowExtension: true,
   });
   db.loadExtension(binary);
@@ -33,7 +33,7 @@ test('should load extension successfully', () => {
 });
 
 test('should not load extension', () => {
-  const db = new sqlite.DatabaseSync(':memory:', {
+  const db = new sqlite.Database(':memory:', {
     allowExtension: false,
   });
   assert.throws(() => {
@@ -70,7 +70,7 @@ test('should not load extension', () => {
 });
 
 test('should load extension successfully with enableLoadExtension', () => {
-  const db = new sqlite.DatabaseSync(':memory:', {
+  const db = new sqlite.Database(':memory:', {
     allowExtension: true,
   });
   db.loadExtension(binary);
@@ -82,7 +82,7 @@ test('should load extension successfully with enableLoadExtension', () => {
 });
 
 test('should not load extension with enableLoadExtension', () => {
-  const db = new sqlite.DatabaseSync(':memory:', {
+  const db = new sqlite.Database(':memory:', {
     allowExtension: true,
   });
   db.enableLoadExtension(false);
@@ -96,7 +96,7 @@ test('should not load extension with enableLoadExtension', () => {
 test('should throw error if permission is enabled', async () => {
   const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" `;
   const code = `const sqlite = require('node:sqlite');
-const db = new sqlite.DatabaseSync(':memory:', { allowExtension: true });`;
+const db = new sqlite.Database(':memory:', { allowExtension: true });`;
   return new Promise((resolve) => {
     childProcess.exec(
       `${cmd} --permission -e "${code}"`,

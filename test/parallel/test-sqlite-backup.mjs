@@ -11,7 +11,7 @@ import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 skipIfSQLiteMissing();
-const { backup, DatabaseSync } = await import('node:sqlite');
+const { backup, Database } = await import('node:sqlite');
 
 const isRoot = !isWindows && process.getuid() === 0;
 
@@ -24,7 +24,7 @@ function nextDb() {
 }
 
 function makeSourceDb(dbPath = ':memory:') {
-  const database = new DatabaseSync(dbPath);
+  const database = new Database(dbPath);
 
   database.exec(`
     CREATE TABLE data(
@@ -159,7 +159,7 @@ test('database backup', async (t) => {
     progress: progressFn,
   });
 
-  const backupDb = new DatabaseSync(destDb);
+  const backupDb = new Database(destDb);
   const rows = backupDb.prepare('SELECT * FROM data').all();
 
   // The source database has two pages - using the default page size -,
@@ -186,7 +186,7 @@ test('backup database using location as URL', async (t) => {
 
   await backup(database, destDb);
 
-  const backupDb = new DatabaseSync(destDb);
+  const backupDb = new Database(destDb);
 
   t.after(() => { backupDb.close(); });
 
@@ -206,7 +206,7 @@ test('backup database using location as Buffer', async (t) => {
 
   await backup(database, destDb);
 
-  const backupDb = new DatabaseSync(destDb);
+  const backupDb = new Database(destDb);
 
   t.after(() => { backupDb.close(); });
 
@@ -228,7 +228,7 @@ test('database backup in a single call', async (t) => {
     progress: progressFn,
   });
 
-  const backupDb = new DatabaseSync(destDb);
+  const backupDb = new Database(destDb);
   const rows = backupDb.prepare('SELECT * FROM data').all();
 
   t.assert.strictEqual(progressFn.mock.calls.length, 0);
@@ -245,7 +245,7 @@ test('database backup in a single call', async (t) => {
 
 test('throws exception when trying to start backup from a closed database', (t) => {
   t.assert.throws(() => {
-    const database = new DatabaseSync(':memory:');
+    const database = new Database(':memory:');
 
     database.close();
 
@@ -257,7 +257,7 @@ test('throws exception when trying to start backup from a closed database', (t) 
 });
 
 test('throws if URL is not file: scheme', (t) => {
-  const database = new DatabaseSync(':memory:');
+  const database = new Database(':memory:');
 
   t.after(() => { database.close(); });
 
@@ -331,7 +331,7 @@ test('backup has correct name and length', (t) => {
 });
 
 test('source database is kept alive while a backup is in flight', async (t) => {
-  // Regression test: previously, BackupJob stored a raw DatabaseSync* and the
+  // Regression test: previously, BackupJob stored a raw Database* and the
   // source could be garbage-collected while the backup was still running,
   // leading to a use-after-free when BackupJob::Finalize() dereferenced the
   // stale pointer via source_->RemoveBackup(this).
@@ -349,12 +349,12 @@ test('source database is kept alive while a backup is in flight', async (t) => {
     progress() {},
   });
   // Drop the last strong JS reference to the source database. With the bug,
-  // the DatabaseSync could be collected here and the in-flight backup would
+  // the Database could be collected here and the in-flight backup would
   // later crash while accessing the freed source.
   database = null;
 
   // Nudge the GC aggressively, but the backup must keep the source alive
-  // regardless. Without the fix, the source DatabaseSync would be collected
+  // regardless. Without the fix, the source Database would be collected
   // and BackupJob::Finalize() would crash the process.
   for (let i = 0; i < 5; i++) {
     global.gc();
@@ -364,7 +364,7 @@ test('source database is kept alive while a backup is in flight', async (t) => {
   const totalPages = await p;
   t.assert.ok(totalPages > 0);
 
-  const backupDb = new DatabaseSync(destDb);
+  const backupDb = new Database(destDb);
   t.after(() => { backupDb.close(); });
   const rows = backupDb.prepare('SELECT COUNT(*) AS n FROM data').get();
   t.assert.strictEqual(rows.n, 500);
