@@ -7,6 +7,7 @@
 
 import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -46,7 +47,7 @@ stream.onblocked = mustCallAtLeast(() => {
 
 stream.setBody(new Uint8Array(dataLength));
 
-for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+await dump(stream);
 await Promise.all([stream.closed, serverDone.promise]);
 
 // The sender should have been blocked multiple times.

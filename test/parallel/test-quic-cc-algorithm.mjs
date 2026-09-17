@@ -6,6 +6,7 @@
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
+import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -39,7 +40,7 @@ for (const cc of ['reno', 'cubic', 'bbr']) {
     body: encoder.encode('congestion control test'),
   });
 
-  for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
+  await dump(stream);
   await Promise.all([stream.closed, serverDone.promise]);
 
   // Verify the session stats show congestion control was active.
