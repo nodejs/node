@@ -280,10 +280,12 @@ void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   uv_metrics_t metrics;
   // uv_metrics_info always return 0
   CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
-  AliasedInt32Array& buffer = env->performance_state()->uv_metrics;
-  buffer[0] = static_cast<int32_t>(metrics.loop_count);
-  buffer[1] = static_cast<int32_t>(metrics.events);
-  buffer[2] = static_cast<int32_t>(metrics.events_waiting);
+  // libuv reports 64-bit counters. Store them as doubles so that they are
+  // exact up to Number.MAX_SAFE_INTEGER instead of wrapping at 2^31.
+  AliasedFloat64Array& buffer = env->performance_state()->uv_metrics;
+  buffer[0] = static_cast<double>(metrics.loop_count);
+  buffer[1] = static_cast<double>(metrics.events);
+  buffer[2] = static_cast<double>(metrics.events_waiting);
 }
 
 void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
