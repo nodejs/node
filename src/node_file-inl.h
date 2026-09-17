@@ -6,6 +6,8 @@
 #include "node_file.h"
 #include "req_wrap-inl.h"
 
+#include <type_traits>
+
 namespace node {
 namespace fs {
 
@@ -219,6 +221,22 @@ inline bool AnyFSOperationChannelHasSubscribers(FSOperationChannels& channels) {
   return false;
 }
 
+// Returns the file descriptor an fs operation acts on, or -1 for operations
+// that take a path. libuv takes the descriptor as the first argument after
+// the request for every descriptor-based operation (close, read, write,
+// fstat, ...), while path-based operations take a string there.
+inline int FSOperationFd() {
+  return -1;
+}
+template <typename First, typename... Rest>
+inline int FSOperationFd(First first, Rest...) {
+  if constexpr (std::is_same_v<First, int>) {
+    return first;
+  } else {
+    return -1;
+  }
+}
+
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
                                            v8::Local<v8::Object> obj,
@@ -378,8 +396,7 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
   } else if (channels != nullptr &&
              AnyFSOperationChannelHasSubscribers(*channels)) {
     const char* path = req_wrap->req()->path;
-    int fd = -1;
-    if (OperationUsesFd(req_wrap->req()->fs_type)) fd = req_wrap->req()->file;
+    int fd = FSOperationFd(fn_args...);
     req_wrap->set_fd(fd);
     // The path is captured for the completion events; it requires a copy
     // since the uv request is cleaned up before they fire.
@@ -474,8 +491,7 @@ int SyncCallAndThrowIf(Predicate should_throw,
       // path below creates its own copy.
       if (FSOperationChannelHasSubscribers(*channels,
                                            FSOperationChannel::kError)) {
-        int fd = -1;
-        if (OperationUsesFd(req_wrap->req.fs_type)) fd = req_wrap->req.file;
+        int fd = FSOperationFd(args...);
         v8::Local<v8::Value> error = UVException(env->isolate(),
                                                  result,
                                                  req_wrap->syscall_p,
@@ -494,8 +510,7 @@ int SyncCallAndThrowIf(Predicate should_throw,
       }
     } else if (FSOperationChannelHasSubscribers(*channels,
                                                 FSOperationChannel::kEnd)) {
-      int fd = -1;
-      if (OperationUsesFd(req_wrap->req.fs_type)) fd = req_wrap->req.file;
+      int fd = FSOperationFd(args...);
       PublishFSOperationEvent(env,
                               *channels,
                               FSOperationChannel::kEnd,

@@ -201,28 +201,6 @@ void PublishFSOpCompletionEvent(FSReqBase* req_wrap,
                           value);
 }
 
-// Returns true if the libuv fs request type operates on an existing file
-// descriptor (as opposed to taking a path). These are the request types whose
-// `file` field holds the input descriptor.
-bool OperationUsesFd(uv_fs_type fs_type) {
-  switch (fs_type) {
-    case UV_FS_CLOSE:
-    case UV_FS_READ:
-    case UV_FS_WRITE:
-    case UV_FS_FSTAT:
-    case UV_FS_FTRUNCATE:
-    case UV_FS_FDATASYNC:
-    case UV_FS_FSYNC:
-    case UV_FS_FUTIME:
-    case UV_FS_FCHMOD:
-    case UV_FS_FCHOWN:
-    case UV_FS_SENDFILE:
-      return true;
-    default:
-      return false;
-  }
-}
-
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
 #endif

@@ -131,11 +131,6 @@ void PublishFSOpCompletionEvent(FSReqBase* req_wrap,
                                 const char* value_key,
                                 v8::Local<v8::Value> value);
 
-// Returns true if the libuv fs request type operates on an existing file
-// descriptor (as opposed to taking a path), i.e. its `file` field holds the
-// input descriptor.
-bool OperationUsesFd(uv_fs_type fs_type);
-
 class BindingData : public SnapshotableObject {
  public:
   struct InternalFieldInfo : public node::InternalFieldInfoBase {
