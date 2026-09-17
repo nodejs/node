@@ -854,7 +854,7 @@ added:
   - v20.18.0
 -->
 
-* Returns: {Object}
+* Type: {Object}
   * `loopCount` {number} Number of event loop iterations.
   * `events` {number} Number of events that have been processed by the event handler.
   * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
