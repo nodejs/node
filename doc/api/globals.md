@@ -1373,6 +1373,15 @@ accepted and how failures are reported:
 * For `blob:` URLs, the script must be held in memory, so blobs backed by a file,
   such as those returned by [`fs.openAsBlob()`][], cannot be used.
 
+Module workers (`{ type: 'module' }`) loaded from `file:` URLs support
+[TypeScript type stripping](typescript.md#type-stripping) for `.ts`, `.mts`, and
+`.cts` entries, unless `--no-strip-types` is enabled. The worker's `type` option
+determines how the entry is executed, regardless of its extension or the
+surrounding `package.json`: even a `.cts` module-worker entry is evaluated as an
+ES module. Imported modules follow the usual Node.js module-loading rules.
+Classic worker entries, `importScripts()`, and `data:` or `blob:` entry sources
+do not support type stripping.
+
 ### Differences from the HTML Standard
 
 Besides script loading, mentioned above:
