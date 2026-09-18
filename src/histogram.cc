@@ -93,17 +93,22 @@ void CopyRecordedData(hdr_histogram* target, const hdr_histogram* source) {
 }
 }  // namespace
 
-std::shared_ptr<Histogram> Histogram::Clone() const {
-  // The layout is fixed when the histogram is created, so the copy can be
-  // allocated without holding the lock.
-  hdr_histogram* copy;
+std::shared_ptr<Histogram> Histogram::CreateWithSameLayout() const {
+  // The layout is fixed when the histogram is created, so it can be read
+  // without holding the lock.
+  hdr_histogram* histogram;
   if (hdr_init(histogram_->lowest_discernible_value,
                histogram_->highest_trackable_value,
                histogram_->significant_figures,
-               &copy) != 0) {
+               &histogram) != 0) {
     return {};
   }
-  auto clone = std::make_shared<Histogram>(HistogramPointer(copy), Options{});
+  return std::make_shared<Histogram>(HistogramPointer(histogram), Options{});
+}
+
+std::shared_ptr<Histogram> Histogram::Clone() const {
+  std::shared_ptr<Histogram> clone = CreateWithSameLayout();
+  if (!clone) return {};
 
   // Every member that holds recorded or statistical state must be copied
   // here. The recorded snapshot cache is not copied; the clone builds its own
@@ -112,6 +117,7 @@ std::shared_ptr<Histogram> Histogram::Clone() const {
   CopyRecordedData(clone->histogram_.get(), histogram_.get());
   clone->prev_ = prev_;
   clone->exceeds_ = exceeds_;
+  clone->reset_count_ = reset_count_;
   clone->ewma_alpha_ = ewma_alpha_;
   clone->ewma_mean_ = ewma_mean_;
   clone->ewma_variance_ = ewma_variance_;
@@ -119,6 +125,59 @@ std::shared_ptr<Histogram> Histogram::Clone() const {
   clone->threshold_ = threshold_;
   clone->ewma_error_rate_ = ewma_error_rate_;
   return clone;
+}
+
+std::shared_ptr<Histogram> Histogram::Diff(const Histogram& other,
+                                           DiffError* error) const {
+  // Counts are subtracted index by index, so both histograms must map values
+  // to the same indexes. None of these fields change after creation.
+  if (!IsCompatible(other) || histogram_->normalizing_index_offset !=
+                                  other.histogram_->normalizing_index_offset) {
+    *error = DiffError::kIncompatible;
+    return {};
+  }
+
+  std::shared_ptr<Histogram> diff = CreateWithSameLayout();
+  if (!diff) {
+    *error = DiffError::kOutOfMemory;
+    return {};
+  }
+
+  // Only the recorded values and the exceeds count carry over. EWMA and timing
+  // state cannot be subtracted.
+  uint64_t reset_count;
+  {
+    RwLock::ScopedReadLock lock(mutex_);
+    CopyRecordedData(diff->histogram_.get(), histogram_.get());
+    diff->exceeds_ = exceeds_;
+    reset_count = reset_count_;
+  }
+
+  // `diff` is not shared yet, so only the lock of `other` is needed from here
+  // on. Never holding both locks at once avoids lock ordering issues.
+  RwLock::ScopedReadLock lock(other.mutex_);
+  if (reset_count != other.reset_count_) {
+    *error = DiffError::kReset;
+    return {};
+  }
+  if (diff->exceeds_ < other.exceeds_) {
+    *error = DiffError::kNotEarlier;
+    return {};
+  }
+
+  hdr_histogram* target = diff->histogram_.get();
+  const hdr_histogram* source = other.histogram_.get();
+  for (int32_t i = 0; i < target->counts_len; i++) {
+    if (target->counts[i] < source->counts[i]) {
+      *error = DiffError::kNotEarlier;
+      return {};
+    }
+    target->counts[i] -= source->counts[i];
+  }
+  diff->exceeds_ -= other.exceeds_;
+  hdr_reset_internal_counters(target);
+  *error = DiffError::kNone;
+  return diff;
 }
 
 void Histogram::MemoryInfo(MemoryTracker* tracker) const {
@@ -313,6 +372,7 @@ double Histogram::Subtract(const Histogram& other) {
     }
     hdr_reset_internal_counters(histogram_.get());
     InvalidateRecordedSnapshot();
+    reset_count_++;
     exceeds_ = (exceeds_ > other.exceeds_) ? exceeds_ - other.exceeds_ : 0;
     return static_cast<double>(dropped);
   };
@@ -1844,6 +1904,8 @@ void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
                             &fast_get_ewma_error_rate_);
   SetProtoMethodNoSideEffect(isolate, tmpl, "export", DoExport);
   SetProtoMethodNoSideEffect(isolate, tmpl, "snapshot", DoSnapshot);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "diff", DoDiff);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "resetCount", GetResetCount);
   SetFastMethod(isolate, instance, "reset", DoReset, &fast_reset_);
 }
 
@@ -1894,6 +1956,8 @@ void HistogramImpl::RegisterExternalReferences(
   registry->Register(GetEwmaErrorRate);
   registry->Register(DoExport);
   registry->Register(DoSnapshot);
+  registry->Register(DoDiff);
+  registry->Register(GetResetCount);
   registry->Register(fast_get_ewma_mean_);
   registry->Register(fast_get_ewma_stddev_);
   registry->Register(fast_get_ewma_error_rate_);
@@ -3052,6 +3116,39 @@ void HistogramImpl::DoSnapshot(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<HistogramBase> result =
       HistogramBase::Create(env, std::move(snapshot));
   if (result) args.GetReturnValue().Set(result->object());
+}
+
+void HistogramImpl::DoDiff(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
+  HistogramImpl* other = HistogramImpl::FromJSObject(args[0]);
+  Histogram::DiffError error;
+  std::shared_ptr<Histogram> diff =
+      (*histogram)->Diff(*(other->histogram()), &error);
+  switch (error) {
+    case Histogram::DiffError::kNone:
+      break;
+    case Histogram::DiffError::kOutOfMemory:
+      return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    case Histogram::DiffError::kIncompatible:
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env, "other must have the same configuration as the histogram");
+    case Histogram::DiffError::kReset:
+      return THROW_ERR_INVALID_STATE(
+          env, "Values were removed from the histogram after other was taken");
+    case Histogram::DiffError::kNotEarlier:
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env, "other contains values that are not in the histogram");
+  }
+
+  BaseObjectPtr<HistogramBase> result =
+      HistogramBase::Create(env, std::move(diff));
+  if (result) args.GetReturnValue().Set(result->object());
+}
+
+void HistogramImpl::GetResetCount(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
+  args.GetReturnValue().Set(static_cast<double>((*histogram)->ResetCount()));
 }
 
 void HistogramImpl::GetPercentilesAt(const FunctionCallbackInfo<Value>& args) {
