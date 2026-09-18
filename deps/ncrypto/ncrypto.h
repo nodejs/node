@@ -771,6 +771,8 @@ class Ec final {
 
   static int GetCurveIdFromName(const char* name);
   static int GetCurveId(const EVPKeyPointer& key);
+  static std::optional<std::string> GetCurveName(const EVPKeyPointer& key);
+  static bool CheckCurveName(const char* name);
   static DataPointer TryExportPublic(const EVPKeyPointer& key,
                                      point_conversion_form_t form);
   static DataPointer ExportPrivate(const EVPKeyPointer& key);
@@ -1150,6 +1152,7 @@ class EVPKeyCtxPointer final {
   bool setDhParameters(int prime_size, uint32_t generator);
   bool setDsaParameters(uint32_t bits, std::optional<int> q_bits);
   bool setEcParameters(int curve, int encoding);
+  bool setEcParameters(const char* group_name, int encoding);
 
   bool setRsaOaepMd(const Digest& md);
   bool setRsaMgf1Md(const Digest& md);

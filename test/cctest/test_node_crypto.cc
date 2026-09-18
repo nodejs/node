@@ -7,8 +7,20 @@
 #include "gtest/gtest.h"
 #include "node_options.h"
 #include "openssl/err.h"
+#include "util.h"
 
 #include <climits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#include <openssl/core_dispatch.h>
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#include <openssl/provider.h>
+#endif
 
 using ncrypto::Ec;
 using ncrypto::EVPKeyCtxPointer;
@@ -529,6 +541,202 @@ TEST(NodeCrypto, NamedKeysAndEcCurves) {
   EXPECT_EQ(Ec::GetCurveIdFromName("P-256"),
             Ec::GetCurveIdFromName("prime256v1"));
 }
+
+TEST(NodeCrypto, EcGroupNames) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  EXPECT_FALSE(Ec::GetCurveName(EVPKeyPointer()));
+  EXPECT_FALSE(Ec::CheckCurveName(nullptr));
+  EXPECT_FALSE(Ec::CheckCurveName("node-test-unknown-curve"));
+  for (const char* name : {"P-256", "prime256v1"}) {
+    EXPECT_TRUE(Ec::CheckCurveName(name));
+    auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
+    ASSERT_TRUE(ctx.initForParamgen());
+    ASSERT_TRUE(ctx.setEcParameters(name, OPENSSL_EC_NAMED_CURVE));
+    auto key = ctx.paramgen();
+    ASSERT_TRUE(key);
+    const auto group = Ec::GetCurveName(key);
+    ASSERT_TRUE(group);
+    EXPECT_EQ(group.value(), "prime256v1");
+  }
+}
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+// Deliberately longer than the fixed-size group buffer formerly used by
+// ncrypto.
+constexpr char kProviderEcGroup[] =
+    "node-test-provider-ec-group-without-an-object-identifier-"
+    "and-with-a-name-longer-than-eighty-bytes";
+
+int EcGroupTestSetParams(void* data, const OSSL_PARAM params[]) {
+  const OSSL_PARAM* group =
+      OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
+  if (group == nullptr) return 1;
+  const char* name = nullptr;
+  if (OSSL_PARAM_get_utf8_string_ptr(group, &name) != 1 || name == nullptr) {
+    return 0;
+  }
+  *static_cast<std::string*>(data) = name;
+  return 1;
+}
+
+void* EcGroupTestGenInit(void*, int, const OSSL_PARAM params[]) {
+  auto data = std::make_unique<std::string>();
+  if (params != nullptr && !EcGroupTestSetParams(data.get(), params)) {
+    return nullptr;
+  }
+  return data.release();
+}
+
+void* EcGroupTestGen(void* data, OSSL_CALLBACK*, void*) {
+  const auto& group = *static_cast<std::string*>(data);
+  // Defer rejecting unknown names until generation, as a provider may do.
+  if (group != kProviderEcGroup && group != "prime256v1") {
+    ERR_raise(ERR_LIB_USER, ERR_R_PASSED_INVALID_ARGUMENT);
+    return nullptr;
+  }
+  return new std::string(group);
+}
+
+void EcGroupTestFree(void* data) {
+  delete static_cast<std::string*>(data);
+}
+
+int EcGroupTestHas(const void* data, int selection) {
+  return (selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0 &&
+         !static_cast<const std::string*>(data)->empty();
+}
+
+int EcGroupTestGetParams(void* data, OSSL_PARAM params[]) {
+  OSSL_PARAM* group = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_GROUP_NAME);
+  return group == nullptr ||
+         OSSL_PARAM_set_utf8_string(group,
+                                    static_cast<std::string*>(data)->c_str());
+}
+
+const OSSL_PARAM* EcGroupTestParams(void*, void*) {
+  static const OSSL_PARAM params[] = {
+      OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, nullptr, 0),
+      OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_EC_ENCODING, nullptr, 0),
+      OSSL_PARAM_END,
+  };
+  return params;
+}
+
+const OSSL_PARAM* EcGroupTestGettableParams(void*) {
+  return EcGroupTestParams(nullptr, nullptr);
+}
+
+const OSSL_ALGORITHM* EcGroupTestQuery(void*, int operation, int* no_cache) {
+  *no_cache = 0;
+  static const OSSL_DISPATCH keymgmt[] = {
+      {OSSL_FUNC_KEYMGMT_GEN_INIT,
+       reinterpret_cast<void (*)(void)>(EcGroupTestGenInit)},
+      {OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestSetParams)},
+      {OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestParams)},
+      {OSSL_FUNC_KEYMGMT_GEN, reinterpret_cast<void (*)(void)>(EcGroupTestGen)},
+      {OSSL_FUNC_KEYMGMT_GEN_CLEANUP,
+       reinterpret_cast<void (*)(void)>(EcGroupTestFree)},
+      {OSSL_FUNC_KEYMGMT_FREE,
+       reinterpret_cast<void (*)(void)>(EcGroupTestFree)},
+      {OSSL_FUNC_KEYMGMT_HAS, reinterpret_cast<void (*)(void)>(EcGroupTestHas)},
+      {OSSL_FUNC_KEYMGMT_GET_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestGetParams)},
+      {OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestGettableParams)},
+      {0, nullptr},
+  };
+  static const OSSL_ALGORITHM algorithms[] = {
+      {"EC", "provider=node-test-ec", keymgmt, "Test provider EC group names"},
+      {nullptr, nullptr, nullptr, nullptr},
+  };
+  return operation == OSSL_OP_KEYMGMT ? algorithms : nullptr;
+}
+
+int EcGroupTestProviderInit(const OSSL_CORE_HANDLE*,
+                            const OSSL_DISPATCH*,
+                            const OSSL_DISPATCH** out,
+                            void**) {
+  static const OSSL_DISPATCH dispatch[] = {
+      {OSSL_FUNC_PROVIDER_QUERY_OPERATION,
+       reinterpret_cast<void (*)(void)>(EcGroupTestQuery)},
+      {0, nullptr},
+  };
+  *out = dispatch;
+  return 1;
+}
+
+void EcGroupTestUnloadProvider(OSSL_PROVIDER* provider) {
+  OSSL_PROVIDER_unload(provider);
+}
+}  // namespace
+
+TEST(NodeCrypto, ProviderEcGroupName) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(OSSL_PROVIDER_add_builtin(
+                libctx.get(), "node-test-ec", EcGroupTestProviderInit),
+            1);
+  ncrypto::DeleteFnPtr<OSSL_PROVIDER, EcGroupTestUnloadProvider> provider(
+      OSSL_PROVIDER_load(libctx.get(), "node-test-ec"));
+  ASSERT_TRUE(provider);
+  {
+    OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+    auto restore_libctx = node::OnScopeLeave(
+        [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+    // The provider supports generation, but intentionally has no import API.
+    EXPECT_TRUE(Ec::CheckCurveName(kProviderEcGroup));
+    EXPECT_FALSE(Ec::CheckCurveName("node-test-unknown-curve"));
+    EXPECT_TRUE(Ec::CheckCurveName("P-256"));
+
+    auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(ctx.initForParamgen());
+    ASSERT_TRUE(ctx.setEcParameters(kProviderEcGroup, OPENSSL_EC_NAMED_CURVE));
+    auto key = ctx.paramgen();
+    ASSERT_TRUE(key);
+    EXPECT_EQ(Ec::GetCurveId(key), NID_undef);
+    const auto name = Ec::GetCurveName(key);
+    ASSERT_TRUE(name);
+    EXPECT_EQ(name.value(), kProviderEcGroup);
+
+    // Only usable built-in curves are enumerated. The provider-only group
+    // remains usable by name without appearing in this list.
+    ERR_clear_error();
+    ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+    const auto saved_error = ERR_peek_error();
+    std::vector<std::string> curves;
+    EXPECT_TRUE(Ec::GetCurves([&curves](const char* curve) {
+      curves.emplace_back(curve);
+      return true;
+    }));
+    EXPECT_EQ(curves, std::vector<std::string>{"prime256v1"});
+    EXPECT_EQ(ERR_peek_error(), saved_error);
+    EXPECT_EQ(ERR_peek_last_error(), saved_error);
+
+    unsigned int calls = 0;
+    EXPECT_FALSE(Ec::GetCurves([&calls](const char*) {
+      calls++;
+      ERR_raise(ERR_LIB_USER, ERR_R_PASSED_INVALID_ARGUMENT);
+      return false;
+    }));
+    EXPECT_EQ(calls, 1U);
+    EXPECT_EQ(ERR_get_error(), saved_error);
+    EXPECT_EQ(ERR_GET_REASON(ERR_get_error()), ERR_R_PASSED_INVALID_ARGUMENT);
+    EXPECT_EQ(ERR_get_error(), 0UL);
+
+    ASSERT_EQ(EVP_set_default_properties(nullptr, "provider=default"), 1);
+    EXPECT_TRUE(Ec::GetCurves([](const char*) {
+      ADD_FAILURE() << "No EC groups should match the default properties";
+      return true;
+    }));
+  }
+}
+#endif
 
 TEST(NodeCrypto, NamedRawKey) {
   const unsigned char seed[32] = {};
