@@ -3,7 +3,7 @@
 import { isWindows, skip } from '../common/index.mjs';
 import { nextdir } from '../common/fs.js';
 import assert from 'node:assert';
-import { chmodSync, cpSync, mkdirSync, statSync, writeFileSync, promises } from 'node:fs';
+import { cpSync, mkdirSync, statSync, writeFileSync, promises } from 'node:fs';
 import { join } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
 
