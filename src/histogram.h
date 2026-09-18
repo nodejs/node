@@ -61,6 +61,10 @@ class Histogram : public MemoryRetainer {
   // Factory method that returns nullptr on hdr_init failure.
   static std::shared_ptr<Histogram> Create(const Options& options);
 
+  // Returns an independent copy of this histogram's current state, or nullptr
+  // if the copy cannot be allocated.
+  std::shared_ptr<Histogram> Clone() const;
+
   Histogram(HistogramPointer histogram, const Options& options);
   virtual ~Histogram() = default;
 
@@ -237,6 +241,7 @@ class HistogramImpl {
   static void GetEwmaErrorRate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoExport(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoImport(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void FastReset(v8::Local<v8::Value> receiver);
   static double FastGetCount(v8::Local<v8::Value> receiver);
