@@ -6408,10 +6408,15 @@ bool EVPKeyCtxPointer::setDsaParameters(uint32_t bits,
 }
 
 bool EVPKeyCtxPointer::setEcParameters(int curve, int encoding) {
-  if (!ctx_) return false;
+  return setEcParameters(OBJ_nid2sn(curve), encoding);
+}
+
+bool EVPKeyCtxPointer::setEcParameters(const char* group_name, int encoding) {
+  if (!ctx_ || group_name == nullptr) return false;
+  const int curve = Ec::GetCurveIdFromName(group_name);
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  const char* group_name = OBJ_nid2sn(curve);
-  if (group_name == nullptr) return false;
+  // Keep the historical aliases while allowing names known only to providers.
+  if (curve != NID_undef) group_name = OBJ_nid2sn(curve);
 
   const char* encoding_name = nullptr;
   switch (encoding) {
@@ -6433,7 +6438,8 @@ bool EVPKeyCtxPointer::setEcParameters(int curve, int encoding) {
   };
   return EVP_PKEY_CTX_set_params(ctx_.get(), params) == 1;
 #else
-  return EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx_.get(), curve) == 1 &&
+  return curve != NID_undef &&
+         EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx_.get(), curve) == 1 &&
          EVP_PKEY_CTX_set_ec_param_enc(ctx_.get(), encoding) == 1;
 #endif
 }
@@ -7617,6 +7623,57 @@ int Ec::GetCurveId(const EVPKeyPointer& key) {
 #endif
 }
 
+std::optional<std::string> Ec::GetCurveName(const EVPKeyPointer& key) {
+  if (!key) return std::nullopt;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  size_t length = 0;
+  if (EVP_PKEY_get_utf8_string_param(
+          key.get(), OSSL_PKEY_PARAM_GROUP_NAME, nullptr, 0, &length) != 1) {
+    return std::nullopt;
+  }
+  std::string name(length, '\0');
+  if (EVP_PKEY_get_utf8_string_param(key.get(),
+                                     OSSL_PKEY_PARAM_GROUP_NAME,
+                                     name.data(),
+                                     name.size() + 1,
+                                     &length) != 1) {
+    return std::nullopt;
+  }
+  name.resize(length);
+  // Preserve the public short names for the curves OpenSSL already knows.
+  const int nid = GetCurveIdFromName(name.c_str());
+  return nid == NID_undef ? name : std::string(OBJ_nid2sn(nid));
+#else
+  const int nid = GetCurveId(key);
+  if (nid == NID_undef) return std::nullopt;
+  return std::string(OBJ_nid2sn(nid));
+#endif
+}
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+bool IsAvailableEcGroup(const char* name) {
+  MarkPopErrorOnReturn mark;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
+  return ctx.initForParamgen() &&
+         ctx.setEcParameters(name, OPENSSL_EC_NAMED_CURVE) && ctx.paramgen();
+}
+}  // namespace
+#endif
+
+bool Ec::CheckCurveName(const char* name) {
+  if (name == nullptr) return false;
+  if (GetCurveIdFromName(name) != NID_undef) return true;
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // Keep invalid names a synchronous argument error. Generation contexts can
+  // defer rejecting a group until parameter generation. Use the same parameter
+  // generation path as key generation without requiring parameter import.
+  return IsAvailableEcGroup(name);
+#else
+  return false;
+#endif
+}
+
 int Ec::GetCurveIdFromName(const char* name) {
   int nid = EC_curve_nist2nid(name);
   if (nid == NID_undef) {
@@ -7639,8 +7696,12 @@ bool Ec::GetCurves(Ec::GetCurveCallback callback) {
   if (EC_get_builtin_curves(curves.data(), count) != count) {
     return false;
   }
-  for (auto curve : curves) {
-    if (!callback(OBJ_nid2sn(curve.nid))) return false;
+  for (const auto& curve : curves) {
+    const char* name = OBJ_nid2sn(curve.nid);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+    if (!IsAvailableEcGroup(name)) continue;
+#endif
+    if (!callback(name)) return false;
   }
   return true;
 }
