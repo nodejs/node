@@ -2658,10 +2658,6 @@ const EVP_MD* getDigestByName(const char* name) {
   return EVP_get_digestbyname(name);
 }
 
-const EVP_CIPHER* getCipherByName(const char* name) {
-  return EVP_get_cipherbyname(name);
-}
-
 bool checkHkdfLength(const Digest& md, size_t length) {
   // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
   // the output of the hash function. 255 is a hard limit because HKDF appends
@@ -4356,7 +4352,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
       const EVP_CIPHER* cipher =
-          config.format == PKFormatType::PEM ? config.cipher : nullptr;
+          config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
       if (cipher != nullptr && passphrase.len == 0) {
         err =
             !WriteEncryptedTraditionalPEM(bio.get(), get(), cipher, passphrase);
@@ -4438,7 +4434,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
       const EVP_CIPHER* cipher =
-          config.format == PKFormatType::PEM ? config.cipher : nullptr;
+          config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
       err = !WriteEncodedPKey(bio.get(),
                               get(),
                               OSSL_KEYMGMT_SELECT_ALL,
@@ -5228,6 +5224,19 @@ const Cipher Cipher::FromName(const char* name, CipherCache* cache) {
   static_cast<void>(cache);
   return Cipher();
 #endif
+}
+
+const Cipher Cipher::FromNameForKeyEncoding(const char* name) {
+  // Key serializers have their own cipher restrictions. Preserve their policy
+  // instead of applying the filters used by the general cipher operations.
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
+      EVP_CIPHER_fetch(nullptr, name, nullptr));
+  if (fetched) return Cipher(std::move(fetched));
+#endif
+  // Preserve serializer errors for known ciphers that cannot be fetched.
+  return Cipher(EVP_get_cipherbyname(name));
 }
 
 const Cipher Cipher::FromNid(int nid, CipherCache* cache) {
