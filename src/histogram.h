@@ -499,7 +499,7 @@ class IntervalHistogram final : public HandleWrap,
 
   static BaseObjectPtr<IntervalHistogram> Create(
       Environment* env,
-      int32_t interval,
+      uint64_t interval,
       OnInterval on_interval,
       const Histogram::Options& options,
       AsyncWrap::ProviderType type = AsyncWrap::PROVIDER_ELDHISTOGRAM);
@@ -507,7 +507,7 @@ class IntervalHistogram final : public HandleWrap,
   IntervalHistogram(Environment* env,
                     v8::Local<v8::Object> wrap,
                     AsyncWrap::ProviderType type,
-                    int32_t interval,
+                    uint64_t interval,
                     OnInterval on_interval,
                     const Histogram::Options& options = Histogram::Options{});
 
@@ -534,7 +534,7 @@ class IntervalHistogram final : public HandleWrap,
   template <typename T>
   friend void StopHandleHistogram(v8::Local<v8::Value>);
 
-  int32_t interval_ = 0;
+  uint64_t interval_ = 0;
   OnInterval on_interval_ = nullptr;
   uv_timer_t timer_;
 
