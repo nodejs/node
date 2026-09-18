@@ -1187,6 +1187,12 @@ The `"name"` field can be used in addition to the [`"exports"`][] field to
 
 <!-- YAML
 added: v0.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65289
+    description: ES module `"main"` resolution requires the exact file
+                 extension. Default index lookup and extension searching
+                 are no longer supported.
 -->
 
 * Type: {string}
@@ -1199,6 +1205,11 @@ added: v0.4.0
 
 The `"main"` field defines the entry point of a package when imported by name
 via a `node_modules` lookup.  Its value is a path.
+
+When the package is an [ES module][] (for example, `"type": "module"`),
+the `"main"` field must include the exact file extension. Default `index.js`
+lookups and automatic extension resolution are not supported for ES modules.
+Use the [`"exports"`][] field or a `"main"` value such as `"./index.js"`.
 
 The [`"exports"`][] field, if it exists, takes precedence over the
 `"main"` field when importing the package by name.

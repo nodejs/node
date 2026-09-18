@@ -17,8 +17,6 @@ const expectedWarnings = [
   '".//internal/test.js"',
   '".//internal//test.js"',
   '"./////internal/////test.js"',
-  'no_exports',
-  'default_index',
 ];
 
 process.addListener('warning', mustCall((warning) => {
