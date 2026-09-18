@@ -35,7 +35,9 @@ async function main() {
     ]),
     createWriteStream(tmpdir.resolve('assets.zip')),
   );
+}
 
+main().then(common.mustCall(() => {
   const outputFile = buildSEA(fixtures.path('sea', 'vfs-zip'));
 
   spawnSyncAndAssert(
@@ -55,6 +57,4 @@ async function main() {
       },
     },
   );
-}
-
-main().then(common.mustCall());
+}));
