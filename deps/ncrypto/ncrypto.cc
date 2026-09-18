@@ -2631,6 +2631,21 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
 // ============================================================================
 // KDF
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+KDF::KDF(EVP_KDF* kdf) : kdf_(kdf) {}
+
+KDF KDF::Fetch(const char* algorithm, OSSL_LIB_CTX* libctx) {
+  return KDF(EVP_KDF_fetch(libctx, algorithm, nullptr));
+}
+
+bool KDF::derive(const Buffer<unsigned char>& out,
+                 const OSSL_PARAM* params) const {
+  if (!kdf_) return false;
+  DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free> ctx(EVP_KDF_CTX_new(kdf_.get()));
+  return ctx && EVP_KDF_derive(ctx.get(), out.data, out.len, params) == 1;
+}
+#endif
+
 const EVP_MD* getDigestByName(const char* name) {
   // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
   // exposed through the public API.
@@ -2664,16 +2679,6 @@ DataPointer hkdf(const Digest& md,
     return {};
   }
 
-  auto ctx = EVPKeyCtxPointer::NewFromName("HKDF");
-  // OpenSSL < 3.0.0 accepted only a void* as the argument of
-  // EVP_PKEY_CTX_set_hkdf_md.
-  const EVP_MD* md_ptr = md;
-  if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
-      !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md_ptr) ||
-      !EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), info.data, info.len)) {
-    return {};
-  }
-
   std::string_view actual_salt;
   static const char default_salt[EVP_MAX_MD_SIZE] = {0};
   if (salt.len > 0) {
@@ -2682,12 +2687,9 @@ DataPointer hkdf(const Digest& md,
     actual_salt = {default_salt, static_cast<unsigned>(md.size())};
   }
 
-  // We do not use EVP_PKEY_HKDF_MODE_EXTRACT_AND_EXPAND because and instead
-  // implement the extraction step ourselves because EVP_PKEY_derive does not
-  // handle zero-length keys, which are required for Web Crypto.
-  // TODO(jasnell): Once OpenSSL 1.1.1 support is dropped completely, and once
-  // BoringSSL is confirmed to support it, wen can hopefully drop this and use
-  // EVP_KDF directly which does support zero length keys.
+  // Keep extraction as a one-shot HMAC. The legacy path requires it because
+  // EVP_PKEY_derive rejects the zero-length keys Web Crypto allows. Both
+  // backends expand a pseudorandom key of exactly one digest block.
   unsigned char pseudorandom_key[EVP_MAX_MD_SIZE];
   unsigned pseudorandom_key_len = sizeof(pseudorandom_key);
 
@@ -2700,26 +2702,112 @@ DataPointer hkdf(const Digest& md,
            &pseudorandom_key_len) == nullptr) {
     return {};
   }
-  if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
+
+  auto buf = DataPointer::Alloc(length);
+  if (!buf) return {};
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // Expand through EVP_KDF directly. The EVP_PKEY_HKDF interface reaches the
+  // same provider implementation, but only after allocating a second context
+  // and translating every parameter across the legacy bridge.
+  auto kdf = KDF::Fetch(OSSL_KDF_NAME_HKDF);
+  if (!kdf) return {};
+
+  const char* md_name = EVP_MD_get0_name(md);
+  if (md_name == nullptr) return {};
+
+  int mode = EVP_KDF_HKDF_MODE_EXPAND_ONLY;
+  std::array<OSSL_PARAM, 5> params;
+  size_t n = 0;
+  params[n++] = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode);
+  params[n++] = OSSL_PARAM_construct_utf8_string(
+      OSSL_KDF_PARAM_DIGEST, const_cast<char*>(md_name), 0);
+  params[n++] = OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_KEY, pseudorandom_key, pseudorandom_key_len);
+  if (info.len > 0) {
+    params[n++] = OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_INFO, const_cast<unsigned char*>(info.data), info.len);
+  }
+  params[n++] = OSSL_PARAM_construct_end();
+
+  if (!kdf.derive({buf.get<unsigned char>(), length}, params.data())) {
+    return {};
+  }
+#else
+  auto ctx = EVPKeyCtxPointer::NewFromName("HKDF");
+  // OpenSSL < 3.0.0 accepted only a void* as the argument of
+  // EVP_PKEY_CTX_set_hkdf_md.
+  const EVP_MD* md_ptr = md;
+  if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
+      !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md_ptr) ||
+      !EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), info.data, info.len) ||
+      !EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
       !EVP_PKEY_CTX_set1_hkdf_key(
           ctx.get(), pseudorandom_key, pseudorandom_key_len)) {
     return {};
   }
 
-  auto buf = DataPointer::Alloc(length);
-  if (!buf) return {};
-
   if (EVP_PKEY_derive(
           ctx.get(), static_cast<unsigned char*>(buf.get()), &length) <= 0) {
     return {};
   }
+#endif
 
   return buf;
 }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+bool ScryptDerive(const Buffer<const char>& pass,
+                  const Buffer<const unsigned char>& salt,
+                  uint64_t N,
+                  uint64_t r,
+                  uint64_t p,
+                  uint64_t maxmem,
+                  unsigned char* out,
+                  size_t length) {
+  // EVP_PBE_scrypt limits these parameters to the provider's declared width.
+  if (r > UINT32_MAX || p > UINT32_MAX) {
+    ERR_raise(ERR_LIB_EVP, EVP_R_PARAMETER_TOO_LARGE);
+    return false;
+  }
+
+  // Keep EVP_PBE_scrypt's 32 MiB default instead of the provider's default.
+  if (maxmem == 0) maxmem = 32 * 1024 * 1024;
+
+  auto kdf = KDF::Fetch(OSSL_KDF_NAME_SCRYPT);
+  if (!kdf) return false;
+
+  unsigned char empty_salt = 0;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(
+          OSSL_KDF_PARAM_PASSWORD,
+          const_cast<char*>(pass.data == nullptr ? "" : pass.data),
+          pass.data == nullptr ? 0 : pass.len),
+      OSSL_PARAM_construct_octet_string(
+          OSSL_KDF_PARAM_SALT,
+          salt.data == nullptr ? &empty_salt
+                               : const_cast<unsigned char*>(salt.data),
+          salt.data == nullptr ? 0 : salt.len),
+      OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_N, &N),
+      OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_R, &r),
+      OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_P, &p),
+      OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_MAXMEM, &maxmem),
+      OSSL_PARAM_END,
+  };
+  return kdf.derive({out, length}, params);
+}
+}  // namespace
+#endif
+
 bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // A null output validates the parameters without deriving a key.
+  return ScryptDerive({nullptr, 0}, {nullptr, 0}, N, r, p, maxmem, nullptr, 0);
+#else
   return EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem, nullptr, 0) ==
          1;
+#endif
 }
 
 DataPointer scrypt(const Buffer<const char>& pass,
@@ -2734,6 +2822,10 @@ DataPointer scrypt(const Buffer<const char>& pass,
   }
 
   auto dp = DataPointer::Alloc(length);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (dp && ScryptDerive(
+                pass, salt, N, r, p, maxmem, dp.get<unsigned char>(), length)) {
+#else
   if (dp && EVP_PBE_scrypt(pass.data,
                            pass.len,
                            salt.data,
@@ -2744,6 +2836,7 @@ DataPointer scrypt(const Buffer<const char>& pass,
                            maxmem,
                            reinterpret_cast<unsigned char*>(dp.get()),
                            length)) {
+#endif
     return dp;
   }
 
@@ -2760,6 +2853,44 @@ DataPointer pbkdf2(const Digest& md,
   }
 
   auto dp = DataPointer::Alloc(length);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (!dp) return {};
+  auto kdf = KDF::Fetch(OSSL_KDF_NAME_PBKDF2);
+  if (!kdf) return {};
+
+  const char* md_name = EVP_MD_get0_name(md);
+  if (md_name == nullptr) return {};
+
+#if OPENSSL_VERSION_MAJOR < 4
+  // Match PKCS5_PBKDF2_HMAC: OpenSSL 3 disables the provider's lower bounds,
+  // while OpenSSL 4 leaves them at their provider defaults.
+  int pkcs5 = 1;
+#endif
+  int iteration_count = static_cast<int>(iterations);
+  unsigned char empty_salt = 0;
+  OSSL_PARAM params[] = {
+    OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_PASSWORD,
+        const_cast<char*>(pass.data == nullptr ? "" : pass.data),
+        pass.data == nullptr ? 0 : pass.len),
+#if OPENSSL_VERSION_MAJOR < 4
+    OSSL_PARAM_construct_int(OSSL_KDF_PARAM_PKCS5, &pkcs5),
+#endif
+    OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_SALT,
+        salt.data == nullptr && salt.len == 0
+            ? &empty_salt
+            : const_cast<unsigned char*>(salt.data),
+        salt.len),
+    OSSL_PARAM_construct_int(OSSL_KDF_PARAM_ITER, &iteration_count),
+    OSSL_PARAM_construct_utf8_string(
+        OSSL_KDF_PARAM_DIGEST, const_cast<char*>(md_name), 0),
+    OSSL_PARAM_END,
+  };
+  if (kdf.derive({dp.get<unsigned char>(), length}, params)) {
+    return dp;
+  }
+#else
   const EVP_MD* md_ptr = md;
   if (dp && PKCS5_PBKDF2_HMAC(pass.data,
                               pass.len,
@@ -2771,6 +2902,7 @@ DataPointer pbkdf2(const Digest& md,
                               reinterpret_cast<unsigned char*>(dp.get()))) {
     return dp;
   }
+#endif
 
   return {};
 }
@@ -2807,8 +2939,7 @@ DataPointer argon2(const Buffer<const char>& pass,
   // against the default context, otherwise Argon2 works in FIPS mode.
   DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx;
   if (lanes > 1) {
-    if (!DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
-            EVP_KDF_fetch(nullptr, algorithm.data(), nullptr)}) {
+    if (!KDF::Fetch(algorithm.data())) {
       return {};
     }
 
@@ -2822,15 +2953,8 @@ DataPointer argon2(const Buffer<const char>& pass,
     }
   }
 
-  auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
-      EVP_KDF_fetch(ctx.get(), algorithm.data(), nullptr)};
+  auto kdf = KDF::Fetch(algorithm.data(), ctx.get());
   if (!kdf) {
-    return {};
-  }
-
-  auto kctx =
-      DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free>{EVP_KDF_CTX_new(kdf.get())};
-  if (!kctx) {
     return {};
   }
 
@@ -2865,10 +2989,7 @@ DataPointer argon2(const Buffer<const char>& pass,
   params.push_back(OSSL_PARAM_construct_end());
 
   auto dp = DataPointer::Alloc(length);
-  if (dp && EVP_KDF_derive(kctx.get(),
-                           reinterpret_cast<unsigned char*>(dp.get()),
-                           length,
-                           params.data()) == 1) {
+  if (dp && kdf.derive({dp.get<unsigned char>(), length}, params.data())) {
     return dp;
   }
 
