@@ -93,6 +93,66 @@ const memoryVfs = vfs.create();
 const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
 ```
 
+## `vfs.mounted()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+Returns an object whose keys are the names of the currently mounted file
+systems (their [`vfs.name`][]) and whose values are the {VirtualFileSystem}
+instances. The object has a `null` prototype, and a new one is returned on
+every call; it does not update as file systems are mounted and unmounted.
+
+Mounted file systems without a name are not included. If several mounted file
+systems share a name, the one mounted earliest is used. Mounts are tracked per
+thread, so a [`Worker`][] sees only its own.
+
+A file system is named by passing `name` to its provider's constructor. Code
+that mounts one can then leave it to other modules to find it by that name,
+without handing them the {VirtualFileSystem} object:
+
+```cjs
+// templates.js
+const vfs = require('node:vfs');
+
+const templates = vfs.create(new vfs.MemoryProvider({ name: 'templates' }));
+templates.writeFileSync('/page.html', '<h1>Hello</h1>');
+templates.mount();
+```
+
+```cjs
+// render.js
+const fs = require('node:fs');
+const path = require('node:path');
+const vfs = require('node:vfs');
+
+const { templates } = vfs.mounted();
+fs.readFileSync(path.join(templates.mountPoint, 'page.html'), 'utf8');
+// '<h1>Hello</h1>'
+```
+
+A file system mounted with [`--vfs-mount`][] is named by the `name=` prefix of
+the option's value. This is how a program finds such a file system, since it
+has no other reference to it:
+
+```console
+$ node --experimental-vfs --vfs-mount=plugins=./plugins.zip app.mjs
+```
+
+```mjs
+// app.mjs
+import vfs from 'node:vfs';
+
+const { plugins } = vfs.mounted();
+if (plugins !== undefined) {
+  const { default: activate } = await import(`${plugins.mountPointURL}/main.mjs`);
+  activate();
+}
+```
+
 ## `vfs.registerProvider(entry)`
 
 <!-- YAML
@@ -103,8 +163,10 @@ added: REPLACEME
   * `name` {string} A short identifier, used in diagnostics.
   * `canHandle` {Function} Called with the resolved path and its
     [`fs.Stats`][]. Returns `true` if this provider should back the source.
-  * `create` {Function} Called with the resolved path and its [`fs.Stats`][].
-    Returns the {VirtualProvider} backing the source.
+  * `create` {Function} Called with the resolved path, its [`fs.Stats`][], and
+    an `options` object whose `name` property is the name given to the mount
+    on the command line, or `undefined` if none was given. Returns the
+    {VirtualProvider} backing the source.
 
 Registers a provider that [`--vfs-mount`][] can select for a source it
 recognizes, so a file format Node.js has no built-in provider for can still be
@@ -117,6 +179,9 @@ registered provider can back, wrap, or vet any source. If none claims the
 source, the built-in providers handle it: a directory with
 [`RealFSProvider`][], and a file whose bytes are a ZIP archive with
 [`ZipProvider`][].
+
+Pass `options` on to the {VirtualProvider} constructor so that the name given
+on the command line becomes the provider's [`provider.name`][].
 
 Providers must be registered before the mounts are created. Register from a
 module preloaded with [`--require`][] or [`--import`][]:
@@ -141,8 +206,8 @@ vfs.registerProvider({
     }
     return head.equals(MAGIC);
   },
-  create(path) {
-    return new MyCustomProvider(path);
+  create(path, stats, options) {
+    return new MyCustomProvider(path, options);
   },
 });
 ```
@@ -289,6 +354,24 @@ const { value } = await import(`${myVfs.mountPointURL}/mod.mjs`);
 console.log(value); // 42
 
 myVfs.unmount();
+```
+
+### `vfs.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|undefined}
+
+The [`provider.name`][] of the underlying provider.
+
+```cjs
+const vfs = require('node:vfs');
+
+const cache = vfs.create(new vfs.MemoryProvider({ name: 'cache' }));
+console.log(cache.name); // 'cache'
+console.log(vfs.create().name); // undefined
 ```
 
 ### `vfs.provider`
@@ -532,6 +615,30 @@ primitives (such as `open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
 `rename`, etc.) and inherit default implementations of the derived
 methods (such as `readFile`, `writeFile`, `exists`, `copyFile`, `access`, etc.).
 
+### `new VirtualProvider([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `name` {string} A name identifying the provider.
+
+A subclass that defines its own constructor passes `options` on with
+`super(options)`.
+
+### `provider.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|undefined}
+
+The name given to the provider when it was constructed, or `undefined` if it
+was given none. A file system mounted with [`--vfs-mount`][] or
+[`--vfs-load`][] takes its name from the `name=` prefix of the option's value.
+
 ### Capability flags
 
 * `provider.readonly` {boolean} **Default:** `false`.
@@ -567,6 +674,16 @@ The default in-memory provider. Stores files, directories, and symbolic
 links in a `Map`-backed tree, supports symlinks (`supportsSymlinks ===
 true`), and supports watching (`supportsWatch === true`).
 
+### `new MemoryProvider([options])`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+* `options` {Object}
+  * `name` {string} A name identifying the provider. See
+    [`provider.name`][].
+
 ### `memoryProvider.setReadOnly()`
 
 <!-- YAML
@@ -601,7 +718,7 @@ the root and verified to stay inside it; symbolic links resolving outside the
 root are rejected. This path mapping is not a sandbox or access-control
 mechanism.
 
-### `new RealFSProvider(rootPath)`
+### `new RealFSProvider(rootPath[, options])`
 
 <!-- YAML
 added: v26.4.0
@@ -609,6 +726,9 @@ added: v26.4.0
 
 * `rootPath` {string} The absolute file-system path to use as the root.
   Must be a non-empty string.
+* `options` {Object}
+  * `name` {string} A name identifying the provider. See
+    [`provider.name`][].
 
 ```cjs
 const vfs = require('node:vfs');
@@ -668,13 +788,16 @@ async function main() {
 main();
 ```
 
-### `new ZipProvider(source)`
+### `new ZipProvider(source[, options])`
 
 <!-- YAML
 added: v26.9.0
 -->
 
 * `source` {zlib.ZipBuffer|zlib.ZipFile} An already-open archive.
+* `options` {Object}
+  * `name` {string} A name identifying the provider. See
+    [`provider.name`][].
 
 ## Implementation details
 
@@ -696,11 +819,13 @@ fields use synthetic but stable values:
 [Single Executable Application]: single-executable-applications.md
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
+[`--vfs-load`]: cli.md#--vfs-loadsource
 [`--vfs-mount`]: cli.md#--vfs-mountsource
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
+[`Worker`]: worker_threads.md#class-worker
 [`ZipProvider`]: #class-zipprovider
 [`ffi.dlopen()`]: ffi.md#ffidlopenpath-definitions
 [`fs.BigIntStats`]: fs.md#class-fsstats
@@ -708,12 +833,14 @@ fields use synthetic but stable values:
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
 [`new ffi.DynamicLibrary()`]: ffi.md#new-dynamiclibrarypath
 [`node:fs`]: fs.md
+[`provider.name`]: #providername
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options
 [`url.pathToFileURL()`]: url.md#urlpathtofileurlpath-options
 [`vfs.mount()`]: #vfsmount
 [`vfs.mountPointURL`]: #vfsmountpointurl
 [`vfs.mountPoint`]: #vfsmountpoint
+[`vfs.name`]: #vfsname
 [`vfs.unmount()`]: #vfsunmount
 [`zipFile.writable`]: zlib.md#zipfilewritable
 [`zlib.ZipBuffer`]: zlib.md#class-zlibzipbuffer

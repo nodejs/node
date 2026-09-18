@@ -3791,7 +3791,8 @@ Print node's version.
 added: REPLACEME
 -->
 
-* `source` {string} A directory or an archive file to mount and run.
+* `source` {string} A directory or an archive file to mount and run, optionally
+  preceded by `name=` to name the mount as for [`--vfs-mount`][].
 
 Requires [`--experimental-vfs`][]. May be given at most once.
 
@@ -3827,7 +3828,8 @@ $ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
 added: REPLACEME
 -->
 
-* `source` {string} A directory or an archive file to mount.
+* `source` {string} A directory or an archive file to mount, optionally
+  preceded by `name=` to name the mount.
 
 Requires [`--experimental-vfs`][]. May be repeated to mount several sources.
 
@@ -3844,6 +3846,23 @@ $ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
 
 mounts `a`, `b` and `c` in that order and runs `b`. Mounts contributed by
 [`NODE_OPTIONS`][] are mounted before the command line's.
+
+A mount is named by writing its value as `name=source`. The name is passed to
+the provider backing the mount, and is available as the `name` property of both
+that provider and its virtual file system.
+
+Everything before the first `=` in the value is the name, unless it contains a
+path separator (`/` or `\`), in which case the whole value is the source. A
+source whose path contains `=` can therefore be mounted without a name by
+writing it with a separator:
+
+```console
+$ node --experimental-vfs --vfs-mount=assets=./build/assets.zip
+$ node --experimental-vfs --vfs-mount=./a=b.zip
+```
+
+The first mounts `./build/assets.zip` with the name `assets`; the second mounts
+`./a=b.zip` without a name.
 
 The provider backing a source is chosen from the source itself rather than from
 its file name:

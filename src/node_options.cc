@@ -696,8 +696,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   // the entry point comes from is recovered from the position of --vfs-load,
   // rather than an index the user has to count out.
   AddOption("--vfs-mount",
-            "mount a directory or archive as a virtual file system "
-            "(option can be repeated; requires --experimental-vfs)",
+            "mount a directory or archive, given as [name=]source, as a "
+            "virtual file system (option can be repeated; requires "
+            "--experimental-vfs)",
             &EnvironmentOptions::vfs_mounts,
             kAllowedInEnvvar);
   // Choosing the entry point is the command line's alone: an environment
