@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const { createRunner } = require('node:bench');
 const { setImmediate } = require('timers/promises');
@@ -375,6 +376,32 @@ async function testRecordOwnership() {
   assert.strictEqual(streamSummary.counts.total, 7);
 }
 
+function testOperatorsWithoutStreamModule() {
+  // Readable operators such as map() and toArray() are attached when
+  // node:stream is loaded. node:assert and ../common load node:stream, so
+  // check the operators in a child process that loads only node:bench.
+  const script = `
+    const { createRunner } = require('node:bench');
+    const runner = createRunner({ yieldBetweenSamples: false });
+    runner.bench('operators', { samples: 1 }, (b) => {
+      b.record({ operations: 1, duration_ns: 1n });
+    });
+    runner.run()
+      .map((record) => record.type)
+      .toArray()
+      .then((types) => console.log(types.includes('bench:complete')));
+  `;
+  spawnSyncAndAssert(process.execPath, [
+    '--experimental-bench',
+    '--no-warnings',
+    '-e',
+    script,
+  ], {
+    stdout: 'true',
+    trim: true,
+  });
+}
+
 (async () => {
   await testReadableBackpressure();
   await testPlanBackpressure();
@@ -385,4 +412,5 @@ async function testRecordOwnership() {
   await testReportingFailureSettlesBenchmarks();
   await testSummaryListenerFailure();
   await testRecordOwnership();
+  testOperatorsWithoutStreamModule();
 })().then(common.mustCall());
