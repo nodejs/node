@@ -89,6 +89,193 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
   EXPECT_FALSE(empty.isA(static_cast<const char*>(nullptr)));
 }
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+TEST(NodeCrypto, ProviderPkcs1PublicKeyImport) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  for (const auto format :
+       {EVPKeyPointer::PKFormatType::PEM, EVPKeyPointer::PKFormatType::DER}) {
+    const EVPKeyPointer::PublicKeyEncodingConfig config(
+        false, format, EVPKeyPointer::PKEncodingType::PKCS1);
+    auto encoded = key.writePublicKey(config);
+    ASSERT_TRUE(encoded);
+    const BUF_MEM* mem = encoded.value;
+    ASSERT_NE(mem, nullptr);
+    const ncrypto::Buffer<const unsigned char> input{
+        reinterpret_cast<const unsigned char*>(mem->data), mem->length};
+    auto imported = EVPKeyPointer::TryParsePublicKey(config, input);
+    ASSERT_TRUE(imported);
+    EXPECT_NE(EVP_PKEY_get0_provider(imported.value.get()), nullptr);
+    EXPECT_TRUE(imported.value.isA(KeyAlgorithm::RSA));
+    EXPECT_EQ(EVP_PKEY_eq(key.get(), imported.value.get()), 1);
+  }
+}
+
+namespace {
+struct RsaLoadTestContext {
+  OSSL_FUNC_BIO_read_ex_fn* read = nullptr;
+  int selection = 0;
+  int loads = 0;
+  int frees = 0;
+};
+
+void* RsaLoadTestDecoderNew(void* context) {
+  return context;
+}
+
+void RsaLoadTestDecoderFree(void*) {}
+
+int RsaLoadTestDecode(void* context,
+                      OSSL_CORE_BIO* input,
+                      int selection,
+                      OSSL_CALLBACK* callback,
+                      void* arg,
+                      OSSL_PASSPHRASE_CALLBACK*,
+                      void*) {
+  auto* state = static_cast<RsaLoadTestContext*>(context);
+  unsigned char sentinel = 0;
+  size_t size = 0;
+  // Only exercise construction and reference ownership, not ASN.1 parsing.
+  if (!state->read(input, &sentinel, 1, &size) || size != 1 ||
+      sentinel != 0x42) {
+    return 0;
+  }
+  state->selection = selection;
+  char type[] = "RSA";
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_utf8_string(
+          OSSL_OBJECT_PARAM_DATA_TYPE, type, sizeof(type) - 1),
+      OSSL_PARAM_octet_string(
+          OSSL_OBJECT_PARAM_REFERENCE, &state, sizeof(state)),
+      OSSL_PARAM_END,
+  };
+  return callback(params, arg);
+}
+
+void* RsaLoadTestLoad(const void* reference, size_t size) {
+  if (size != sizeof(RsaLoadTestContext*)) return nullptr;
+  auto* state = *static_cast<RsaLoadTestContext* const*>(reference);
+  state->loads++;
+  return state;
+}
+
+void RsaLoadTestFree(void* context) {
+  static_cast<RsaLoadTestContext*>(context)->frees++;
+}
+
+int RsaLoadTestHas(const void*, int selection) {
+  return (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0;
+}
+
+const OSSL_ALGORITHM* RsaLoadTestQuery(void*, int operation, int* no_cache) {
+  *no_cache = 0;
+  static const OSSL_DISPATCH decoder[] = {
+      {OSSL_FUNC_DECODER_NEWCTX,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestDecoderNew)},
+      {OSSL_FUNC_DECODER_FREECTX,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestDecoderFree)},
+      {OSSL_FUNC_DECODER_DECODE,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestDecode)},
+      {0, nullptr},
+  };
+  static const OSSL_DISPATCH keymgmt[] = {
+      {OSSL_FUNC_KEYMGMT_LOAD,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestLoad)},
+      {OSSL_FUNC_KEYMGMT_FREE,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestFree)},
+      {OSSL_FUNC_KEYMGMT_HAS, reinterpret_cast<void (*)(void)>(RsaLoadTestHas)},
+      {0, nullptr},
+  };
+  static const OSSL_ALGORITHM decoders[] = {
+      {"RSA",
+       "provider=node-test-rsa-load,input=der,structure=type-specific",
+       decoder,
+       "Test RSA decoder without export"},
+      {nullptr, nullptr, nullptr, nullptr},
+  };
+  static const OSSL_ALGORITHM keymgmts[] = {
+      {"RSA",
+       "provider=node-test-rsa-load",
+       keymgmt,
+       "Test RSA reference load"},
+      {nullptr, nullptr, nullptr, nullptr},
+  };
+  if (operation == OSSL_OP_DECODER) return decoders;
+  return operation == OSSL_OP_KEYMGMT ? keymgmts : nullptr;
+}
+
+void RsaLoadTestTeardown(void* context) {
+  delete static_cast<RsaLoadTestContext*>(context);
+}
+
+int RsaLoadTestProviderInit(const OSSL_CORE_HANDLE*,
+                            const OSSL_DISPATCH* in,
+                            const OSSL_DISPATCH** out,
+                            void** context) {
+  auto state = std::make_unique<RsaLoadTestContext>();
+  for (; in->function_id != 0; in++) {
+    if (in->function_id == OSSL_FUNC_BIO_READ_EX) {
+      state->read = OSSL_FUNC_BIO_read_ex(in);
+    }
+  }
+  if (state->read == nullptr) return 0;
+  static const OSSL_DISPATCH dispatch[] = {
+      {OSSL_FUNC_PROVIDER_QUERY_OPERATION,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestQuery)},
+      {OSSL_FUNC_PROVIDER_TEARDOWN,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestTeardown)},
+      {0, nullptr},
+  };
+  *context = state.release();
+  *out = dispatch;
+  return 1;
+}
+}  // namespace
+
+TEST(NodeCrypto, ProviderPkcs1PublicKeyLoadWithoutExport) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(OSSL_PROVIDER_add_builtin(
+                libctx.get(), "node-test-rsa-load", RsaLoadTestProviderInit),
+            1);
+  auto* provider = OSSL_PROVIDER_load(libctx.get(), "node-test-rsa-load");
+  auto unload_provider =
+      node::OnScopeLeave([provider] { OSSL_PROVIDER_unload(provider); });
+  ASSERT_NE(provider, nullptr);
+  auto* state = static_cast<RsaLoadTestContext*>(
+      OSSL_PROVIDER_get0_provider_ctx(provider));
+  OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+  auto restore_libctx = node::OnScopeLeave(
+      [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+
+  // Neither decoder export nor keymgmt import is available in this provider.
+  const unsigned char sentinel[] = {0x42};
+  const EVPKeyPointer::PublicKeyEncodingConfig config(
+      false,
+      EVPKeyPointer::PKFormatType::DER,
+      EVPKeyPointer::PKEncodingType::PKCS1);
+  {
+    auto imported = EVPKeyPointer::TryParsePublicKey(config, {sentinel, 1});
+    ASSERT_TRUE(imported);
+    EXPECT_EQ(EVP_PKEY_get0_provider(imported.value.get()), provider);
+    EXPECT_TRUE(imported.value.isA(KeyAlgorithm::RSA));
+    EXPECT_EQ(state->selection, EVP_PKEY_PUBLIC_KEY);
+    EXPECT_EQ(state->loads, 1);
+    EXPECT_EQ(state->frees, 0);
+  }
+  EXPECT_EQ(state->frees, 1);
+}
+#endif
+
 TEST(NodeCrypto, UnsupportedRawExports) {
   using Error = EVPKeyPointer::RawExportError;
   EVPKeyPointer key;

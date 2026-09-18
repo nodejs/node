@@ -8,6 +8,9 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#include <openssl/decoder.h>
+#endif
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
 #include <openssl/bytestring.h>
 #include <openssl/cipher.h>
@@ -3864,6 +3867,47 @@ EVPKeyPointer::operator const EC_KEY*() const {
 
 namespace {
 
+EVP_PKEY* DecodeRsaPublicKey(const unsigned char** data, size_t length) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // Borrow the EVP_PKEY constructor and its data from a context that stays
+  // alive until after the restricted decoder context is destroyed.
+  EVP_PKEY* raw = nullptr;
+  DeleteFnPtr<OSSL_DECODER_CTX, OSSL_DECODER_CTX_free> construct_ctx(
+      OSSL_DECODER_CTX_new_for_pkey(&raw,
+                                    "DER",
+                                    "type-specific",
+                                    KeyAlgorithm::RSA.name(),
+                                    EVP_PKEY_PUBLIC_KEY,
+                                    nullptr,
+                                    nullptr));
+  if (!construct_ctx) return nullptr;
+  auto* construct = OSSL_DECODER_CTX_get_construct(construct_ctx.get());
+  void* construct_data =
+      OSSL_DECODER_CTX_get_construct_data(construct_ctx.get());
+  if (construct == nullptr || construct_data == nullptr) return nullptr;
+
+  // Add only the type-specific RSA decoder: new_for_pkey() can also build
+  // chains that accept SPKI. The owning context retains the cleanup callback.
+  DeleteFnPtr<OSSL_DECODER, OSSL_DECODER_free> decoder(OSSL_DECODER_fetch(
+      nullptr, KeyAlgorithm::RSA.name(), "input=der,structure=type-specific"));
+  DeleteFnPtr<OSSL_DECODER_CTX, OSSL_DECODER_CTX_free> ctx(
+      OSSL_DECODER_CTX_new());
+  if (!decoder || !ctx ||
+      OSSL_DECODER_CTX_add_decoder(ctx.get(), decoder.get()) != 1 ||
+      OSSL_DECODER_CTX_set_input_type(ctx.get(), "DER") != 1 ||
+      OSSL_DECODER_CTX_set_selection(ctx.get(), EVP_PKEY_PUBLIC_KEY) != 1 ||
+      OSSL_DECODER_CTX_set_construct(ctx.get(), construct) != 1 ||
+      OSSL_DECODER_CTX_set_construct_data(ctx.get(), construct_data) != 1) {
+    return nullptr;
+  }
+  const int result = OSSL_DECODER_from_data(ctx.get(), data, &length);
+  EVPKeyPointer key(raw);
+  return result == 1 ? key.release() : nullptr;
+#else
+  return d2i_PublicKey(NID_rsaEncryption, nullptr, data, length);
+#endif
+}
+
 EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(const BIOPointer& bp,
                                                      const char* name,
                                                      auto&& parse) {
@@ -3991,7 +4035,7 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKeyPEM(
           bp,
           "RSA PUBLIC KEY",
           [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
-            return d2i_PublicKey(NID_rsaEncryption, nullptr, p, l);
+            return DecodeRsaPublicKey(p, l);
           })) {
     return ret;
   }
@@ -4026,7 +4070,7 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePublicKey(
   EVP_PKEY* key = nullptr;
 
   if (config.type == PKEncodingType::PKCS1 &&
-      (key = d2i_PublicKey(NID_rsaEncryption, nullptr, &start, buffer.len))) {
+      (key = DecodeRsaPublicKey(&start, buffer.len))) {
     return EVPKeyPointer::ParseKeyResult(EVPKeyPointer(key));
   }
 
