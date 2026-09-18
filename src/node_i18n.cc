@@ -66,6 +66,7 @@
 #include <unicode/utypes.h>
 #include <unicode/uvernum.h>
 #include <unicode/uversion.h>
+#include <algorithm>
 #include "nbytes.h"
 
 #ifdef NODE_HAVE_SMALL_ICU
@@ -446,18 +447,30 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
 
   UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
 
-  // When flushing the final chunk, the limit is the maximum
-  // of either the input buffer length or the number of pending
-  // characters times the min char size, multiplied by 2 as unicode may
-  // take up to 2 UChars to encode a character
-  size_t limit = 2 * converter->min_char_size() *
-      (!flush ?
-          input.length() :
-          std::max(
-              input.length(),
-              static_cast<size_t>(
-                  ucnv_toUCountPending(converter->conv(), &status))));
+  // The result has to be materialised as a V8 string, which holds at most
+  // String::kMaxLength UChars; StringBytes::Encode() rejects anything
+  // longer. One extra UChar leaves room for a leading BOM, which the
+  // success path below strips before the string is created.
+  constexpr size_t kMaxTargetUChars = String::kMaxLength + 1;
+
+  // Each character consumes at least min_char_size() bytes and produces
+  // at most 2 UChars (a surrogate pair). ICU's data format allows longer
+  // per-character outputs, but no converter reachable through
+  // TextDecoder ships one: lib/internal/encoding.js handles UTF-8 and
+  // the single-byte encodings in JS, and the UTF-16 and CJK multibyte
+  // converters that reach this path all emit at most one UChar per input
+  // byte. Were that ever to change, ucnv_toUnicode() reports
+  // U_BUFFER_OVERFLOW_ERROR rather than overrunning the target. Count
+  // the bytes the converter is still holding from previous chunks too:
+  // they belong to a character whose remaining bytes may arrive in this
+  // chunk. Clamping loses nothing: a result that does not fit the
+  // clamped buffer cannot become a string either way.
+  int32_t pending = ucnv_toUCountPending(converter->conv(), &status);
   status = U_ZERO_ERROR;
+  size_t limit = std::min(
+      2 * (input.length() + (pending > 0 ? static_cast<size_t>(pending) : 0)) /
+          converter->min_char_size(),
+      kMaxTargetUChars);
 
   if (limit > 0)
     result.AllocateSufficientStorage(limit);
@@ -519,8 +532,19 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     if (StringBytes::Encode(env->isolate(), value, length, UCS2)
             .ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
-      return;
     }
+    // If Encode() failed, it has already scheduled an exception; do not
+    // replace it with ERR_ENCODING_INVALID_ENCODED_DATA below.
+    return;
+  }
+
+  if (status == U_BUFFER_OVERFLOW_ERROR) {
+    // The result did not fit the clamped target buffer, so it cannot fit
+    // a V8 string even after a leading BOM is stripped. Surface the same
+    // error Encode() throws for oversized results instead of mislabelling
+    // the input as invalid.
+    env->isolate()->ThrowException(ERR_STRING_TOO_LONG(env->isolate()));
+    return;
   }
 
   node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
