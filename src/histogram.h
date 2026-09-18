@@ -501,7 +501,7 @@ class IntervalHistogram final : public HandleWrap,
       Environment* env,
       uint64_t interval,
       OnInterval on_interval,
-      const Histogram::Options& options,
+      std::shared_ptr<Histogram> histogram,
       AsyncWrap::ProviderType type = AsyncWrap::PROVIDER_ELDHISTOGRAM);
 
   IntervalHistogram(Environment* env,
@@ -509,7 +509,7 @@ class IntervalHistogram final : public HandleWrap,
                     AsyncWrap::ProviderType type,
                     uint64_t interval,
                     OnInterval on_interval,
-                    const Histogram::Options& options = Histogram::Options{});
+                    std::shared_ptr<Histogram> histogram);
 
   static void FastStart(v8::Local<v8::Value> receiver, bool reset);
   static void FastStop(v8::Local<v8::Value> receiver);
@@ -559,13 +559,13 @@ class IterationHistogram final
 
   static BaseObjectPtr<IterationHistogram> Create(
       Environment* env,
-      const Histogram::Options& options,
+      std::shared_ptr<Histogram> histogram,
       AsyncWrap::ProviderType type = AsyncWrap::PROVIDER_ELDHISTOGRAM);
 
   IterationHistogram(Environment* env,
                      v8::Local<v8::Object> wrap,
                      AsyncWrap::ProviderType type,
-                     const Histogram::Options& options = Histogram::Options{});
+                     std::shared_ptr<Histogram> histogram);
 
   static void FastStart(v8::Local<v8::Value> receiver, bool reset);
   static void FastStop(v8::Local<v8::Value> receiver);
