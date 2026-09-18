@@ -26,7 +26,7 @@ const {
 
   (async () => {
     let read = '';
-    for await (const chunk of duplex) {
+    for await (const chunk of duplex.iterator({ destroyOnReturn: false })) {
       read += chunk;
     }
 
