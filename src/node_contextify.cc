@@ -1664,7 +1664,7 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
     bool is_cjs_scope,
     ScriptCompiler::CachedData* cached_data,
     Local<Symbol> host_defined_option_symbol,
-    bool prefer_eager) {
+    bool prefer_eager = false) {
   Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
 
@@ -1968,8 +1968,7 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
                                     &cache_rejected,
                                     cjs_var,
                                     nullptr,
-                                    env->vm_dynamic_import_default_internal(),
-                                    false)
+                                    env->vm_dynamic_import_default_internal())
             .ToLocal(&fn)) {
       args.GetReturnValue().Set(false);
       return;
