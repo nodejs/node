@@ -36,7 +36,7 @@ const { inspect } = require('util');
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
-  [0, Number.MAX_SAFE_INTEGER + 1].forEach((i) => {
+  [-1, Number.MAX_SAFE_INTEGER + 1].forEach((i) => {
     assert.throws(() => h.record(i), {
       code: 'ERR_OUT_OF_RANGE'
     });

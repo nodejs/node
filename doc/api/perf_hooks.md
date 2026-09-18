@@ -2894,9 +2894,17 @@ Adds the values from `other` to this histogram.
 added:
   - v15.9.0
   - v14.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66114
+    description: Recording `0` is now supported.
 -->
 
-* `val` {number|bigint} The amount to record in the histogram.
+* `val` {number|bigint} The amount to record in the histogram. Must be an
+  integer greater than or equal to `0`.
+
+Values smaller than the histogram's `lowest` option, including `0`, might not
+be distinguishable from each other.
 
 ### `histogram.recordDelta()`
 
@@ -2915,9 +2923,14 @@ previous call to `recordDelta()` and records that amount in the histogram.
 added:
  - v26.8.0
  - v24.21.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66114
+    description: Recording `0` is now supported.
 -->
 
-* `val` {number|bigint} The value to record.
+* `val` {number|bigint} The value to record. Must be an integer greater than or
+  equal to `0`.
 * `expectedInterval` {number|bigint} The expected recording interval.
 
 Records a value with coordinated omission correction. When a system stall
@@ -2960,7 +2973,8 @@ call `snapshot()` to materialize the current window as a {Histogram}.
 added: v26.10.0
 -->
 
-* `val` {number|bigint} The amount to record.
+* `val` {number|bigint} The amount to record. Must be an integer greater than or
+  equal to `0`.
 
 Records `val` in the current chunk. For a count-based window, every call that
 reaches the native histogram counts toward rotation, including values which

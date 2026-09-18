@@ -103,4 +103,29 @@ const { createRunner } = require('node:bench');
     operations: 1,
   }), { code: 'ERR_INVALID_STATE' });
   assert.throws(() => closedContext.done(), { code: 'ERR_INVALID_STATE' });
+
+  // A rate of 2e-7 operations per second is below the resolution of the
+  // histogram used to summarize these samples, so it is recorded as zero. It
+  // must not raise the median confidence interval above the median.
+  const slowRunner = createRunner({ yieldBetweenSamples: false });
+  const slowSample =
+    { __proto__: null, duration_ns: 5_000_000_000_000_000n, operations: 1 };
+  const fastSample =
+    { __proto__: null, duration_ns: 1_000_000_000n, operations: 1 };
+  const slowSamples =
+    [slowSample, slowSample, slowSample, fastSample, fastSample];
+  const slowCompletion = slowRunner.bench('sub-resolution rates', {
+    samples: slowSamples.length,
+  }, common.mustCall((b) => {
+    b.record(slowSamples[b.index]);
+  }, slowSamples.length));
+
+  await slowRunner.run().toArray();
+  const slow = await slowCompletion;
+  assert.deepStrictEqual(
+    slow.samples.map(({ rate }) => rate), [2e-7, 2e-7, 2e-7, 1, 1]);
+  const { median, medianConfidenceInterval } = slow.summary;
+  assert.strictEqual(median, 2e-7);
+  assert.strictEqual(medianConfidenceInterval.lower <= median, true);
+  assert.strictEqual(median <= medianConfidenceInterval.upper, true);
 })().then(common.mustCall());
