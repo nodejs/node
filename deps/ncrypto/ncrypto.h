@@ -542,6 +542,7 @@ class Cipher final {
                  unsigned char* iv) const;
 
   static const Cipher FromName(const char* name, CipherCache* cache = nullptr);
+  static const Cipher FromNameForKeyEncoding(const char* name);
   static const Cipher FromNid(int nid, CipherCache* cache = nullptr);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
@@ -1250,7 +1251,7 @@ class EVPKeyPointer final {
   using PublicKeyEncodingConfig = AsymmetricKeyEncodingConfig;
 
   struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
-    const EVP_CIPHER* cipher = nullptr;
+    Cipher cipher;
     std::optional<DataPointer> passphrase = std::nullopt;
     PrivateKeyEncodingConfig() = default;
     PrivateKeyEncodingConfig(bool output_key_object,
@@ -2194,7 +2195,6 @@ class KDF final {
 #endif
 
 const EVP_MD* getDigestByName(const char* name);
-const EVP_CIPHER* getCipherByName(const char* name);
 
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the
