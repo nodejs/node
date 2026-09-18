@@ -2199,6 +2199,52 @@ added:
 Returns the number of recorded values that fall within the equivalent
 value range of the given value.
 
+### `histogram.diff(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} An earlier snapshot of this histogram.
+* Returns: {Histogram}
+
+Returns a new {Histogram} containing the values recorded in this histogram after
+`other` was taken. Neither histogram is changed. To get the values recorded
+during each interval without calling `reset()`, compute each difference from a
+snapshot and keep that snapshot as the baseline for the next interval:
+
+```js
+const { monitorEventLoopDelay } = require('node:perf_hooks');
+
+const histogram = monitorEventLoopDelay();
+histogram.enable();
+let previous = histogram.snapshot();
+
+setInterval(() => {
+  const current = histogram.snapshot();
+  // After a reset, use everything recorded since the reset.
+  const delta = current.resetCount === previous.resetCount ?
+    current.diff(previous) : current;
+  console.log(delta.percentile(99));
+  previous = current;
+}, 10_000);
+```
+
+The `count`, `exceeds`, and bucket counts of the returned histogram are the
+differences between the two histograms. Its `min` and `max` are computed from
+the buckets of the difference, it has no EWMA state, and its `resetCount` is
+`0`.
+
+This method throws:
+
+* `ERR_INVALID_ARG_VALUE` if `other` has a different `lowest`, `highest`, or
+  `figures` configuration.
+* `ERR_INVALID_STATE` if values have been removed from this histogram since
+  `other` was taken, which is the case when the `resetCount` of the two
+  histograms differs.
+* `ERR_INVALID_ARG_VALUE` if `other` contains values that are not in this
+  histogram, for example because the histograms were passed in the wrong order.
+
 ### `histogram.exceeds`
 
 <!-- YAML
@@ -2672,7 +2718,21 @@ boundaries are equal has an infinite density.
 added: v11.10.0
 -->
 
-Resets the collected histogram data.
+Resets the collected histogram data and increments `histogram.resetCount`.
+
+### `histogram.resetCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The number of times values have been removed from this histogram by `reset()`
+or, for a {RecordableHistogram}, `subtract()`. A snapshot has the `resetCount`
+of its source at the time it was taken, so comparing the `resetCount` of two
+snapshots shows whether the source was reset between them. See
+[`histogram.diff()`][].
 
 ### `histogram.skewness`
 
@@ -2878,7 +2938,7 @@ added:
 
 Subtracts the values of `other` from this histogram. Both histograms should
 have compatible configurations. Bucket counts that would become negative
-are clamped to zero.
+are clamped to zero. Increments `histogram.resetCount`.
 
 ## Class: `SlidingWindowHistogram`
 
@@ -3357,6 +3417,7 @@ dns.promises.resolve('localhost');
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
+[`histogram.diff()`]: #histogramdiffother
 [`histogram.export()`]: #histogramexport
 [`perf_hooks.createSlidingWindowHistogram()`]: #perf_hookscreateslidingwindowhistogramoptions
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2

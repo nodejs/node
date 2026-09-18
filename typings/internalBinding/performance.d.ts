@@ -42,6 +42,8 @@ declare namespace InternalPerformanceBinding {
     ewmaStddev(): number;
     ewmaErrorRate(): number;
     snapshot(): Histogram;
+    diff(other: HistogramBase): Histogram;
+    resetCount(): number;
   }
 
   interface ELDHistogram extends HistogramBase {
