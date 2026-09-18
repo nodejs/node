@@ -1158,9 +1158,10 @@ if (!isBoringSSL) {
 {
   // Exporting a JWK unsupported curve EC key
   const supported = ['prime256v1', 'secp256k1', 'secp384r1', 'secp521r1'];
-  // Find an unsupported curve regardless of whether a FIPS compliant crypto
-  // provider is currently in use.
-  const namedCurve = getCurves().find((curve) => !supported.includes(curve));
+  // FIPS-disallowed curves are omitted from getCurves(). Select one explicitly
+  // to keep checking their rejection; otherwise find a curve JWK cannot encode.
+  const namedCurve = fips3 ? 'secp256k1' :
+    getCurves().find((curve) => !supported.includes(curve));
   assert(namedCurve);
   if (fips3) {
     assert.throws(() => generateKeyPairSync('ec', { namedCurve }), {

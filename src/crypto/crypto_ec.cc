@@ -409,6 +409,10 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void EcKeyPairParams::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("curve_name", curve_name);
+}
+
 EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
   EVPKeyCtxPointer key_ctx;
   if (params->params.algorithm != nullptr) {
@@ -416,7 +420,7 @@ EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
   } else {
     auto param_ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
     if (!param_ctx.initForParamgen() ||
-        !param_ctx.setEcParameters(params->params.curve_nid,
+        !param_ctx.setEcParameters(params->params.curve_name.c_str(),
                                    params->params.param_encoding)) {
       return {};
     }
@@ -450,11 +454,11 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
   Utf8Value curve_name(env->isolate(), args[*offset]);
   params->params.algorithm = ncrypto::Ec::GetNamedKeyAlgorithm(*curve_name);
   if (params->params.algorithm == nullptr) {
-    params->params.curve_nid = Ec::GetCurveIdFromName(*curve_name);
-    if (params->params.curve_nid == NID_undef) {
+    if (!Ec::CheckCurveName(*curve_name)) {
       THROW_ERR_CRYPTO_INVALID_CURVE(env);
       return Nothing<void>();
     }
+    params->params.curve_name = *curve_name;
   }
 
   // param encoding
@@ -762,13 +766,13 @@ bool GetEcKeyDetail(Environment* env,
   const auto& m_pkey = key.GetAsymmetricKey();
   DCHECK(m_pkey.isA(KeyAlgorithm::EC));
 
-  int nid = Ec::GetCurveId(m_pkey);
-  if (nid == NID_undef) return true;
+  const auto name = Ec::GetCurveName(m_pkey);
+  if (!name) return true;
 
   return target
       ->Set(env->context(),
             env->named_curve_string(),
-            OneByteString(env->isolate(), OBJ_nid2sn(nid)))
+            OneByteString(env->isolate(), name.value()))
       .IsJust();
 }
 
