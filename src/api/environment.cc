@@ -269,7 +269,9 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   isolate->SetModifyCodeGenerationFromStringsCallback(
       modify_code_generation_from_strings_callback);
 
-  isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  if ((s.flags & SHOULD_NOT_SET_WASM_STREAMING_CALLBACK) == 0) {
+    isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  }
 
   Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->get_per_isolate_options()
