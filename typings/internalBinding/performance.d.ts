@@ -143,6 +143,9 @@ export interface PerformanceBinding {
   createELDHistogram(
     interval: number,
     samplePerIteration: boolean,
+    lowest: bigint,
+    highest: bigint,
+    figures: number,
   ): InternalPerformanceBinding.ELDHistogram;
   markBootstrapComplete(): void;
   uvMetricsInfo(): void;
