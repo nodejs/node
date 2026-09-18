@@ -93,6 +93,43 @@ const memoryVfs = vfs.create();
 const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
 ```
 
+## `vfs.mounted()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {VirtualFileSystem\[]}
+
+Returns the {VirtualFileSystem} instances that are currently mounted, in the
+order they were mounted. This includes file systems mounted with
+[`--vfs-mount`][] or [`--vfs-load`][], and the assets of a
+[Single Executable Application][], as well as those mounted by calling
+[`vfs.mount()`][].
+
+Mounts are tracked per thread. A [`Worker`][] lists its own mounts, including
+its own mounts of the [`--vfs-mount`][] and [`--vfs-load`][] sources, and not
+those of the thread that started it.
+
+A new array is returned on every call. It does not update as file systems are
+mounted and unmounted.
+
+```cjs
+const vfs = require('node:vfs');
+
+const a = vfs.create();
+const b = vfs.create();
+a.mount();
+b.mount();
+
+vfs.mounted(); // [a, b]
+vfs.mounted().map((fs) => fs.mountPoint);
+// e.g. ['/dev/null/vfs/0', '/dev/null/vfs/1']
+
+a.unmount();
+vfs.mounted(); // [b]
+```
+
 ## `vfs.registerProvider(entry)`
 
 <!-- YAML
@@ -696,11 +733,13 @@ fields use synthetic but stable values:
 [Single Executable Application]: single-executable-applications.md
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
+[`--vfs-load`]: cli.md#--vfs-loadsource
 [`--vfs-mount`]: cli.md#--vfs-mountsource
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
+[`Worker`]: worker_threads.md#class-worker
 [`ZipProvider`]: #class-zipprovider
 [`ffi.dlopen()`]: ffi.md#ffidlopenpath-definitions
 [`fs.BigIntStats`]: fs.md#class-fsstats
