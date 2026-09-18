@@ -2,25 +2,17 @@
 // parent process argv when spawning the watch child.
 import * as common from '../common/index.mjs';
 import assert from 'node:assert';
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { run } from 'node:test';
-import tmpdir from '../common/tmpdir.js';
+import fixtures from '../common/fixtures.js';
 import { skipIfNoWatch } from '../common/watch.js';
 
 skipIfNoWatch();
-tmpdir.refresh();
-
-writeFileSync(join(tmpdir.path, 'test.js'), `
-const test = require('node:test');
-
-test('test ran from cwd', () => {});
-`);
 
 const passed = [];
 const controller = new AbortController();
 const stream = run({
-  cwd: tmpdir.path,
+  // Avoid delayed file creation notifications triggering a watch restart.
+  cwd: fixtures.path('test-runner-watch'),
   watch: true,
   signal: controller.signal,
   isolation: 'none',
@@ -38,4 +30,4 @@ stream.on('test:pass', common.mustCall((data) => passed.push(data.name), 1));
 for await (const _ of stream);
 
 // Validate the expected test ran by name:
-assert.deepStrictEqual(passed, ['test ran from cwd']);
+assert.deepStrictEqual(passed, ['test has ran']);

@@ -1,15 +1,15 @@
 // Test run({ watch: true, cwd, isolation: 'none' }) runs with different cwd while in watch mode and isolation none
 import * as common from '../common/index.mjs';
 import { run } from 'node:test';
-import tmpdir from '../common/tmpdir.js';
-import { refreshForTestRunnerWatch, skipIfNoWatch } from '../common/watch.js';
+import fixtures from '../common/fixtures.js';
+import { skipIfNoWatch } from '../common/watch.js';
 
 skipIfNoWatch();
-refreshForTestRunnerWatch();
 
 const controller = new AbortController();
 const stream = run({
-  cwd: tmpdir.path,
+  // Avoid delayed file creation notifications triggering a watch restart.
+  cwd: fixtures.path('test-runner-watch'),
   watch: true,
   signal: controller.signal,
   isolation: 'none',
