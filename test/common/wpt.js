@@ -1039,15 +1039,10 @@ class WPTRunner {
         this.scriptsModifier?.(obj);
         return obj;
       }) ?? [];
-      if (!isWebWorkerTest) {
-        // The actual test
-        const obj = {
-          code: content,
-          filename: absolutePath,
-        };
-        this.scriptsModifier?.(obj);
-        scriptsToRun.push(obj);
-      }
+      // The actual test, including tests imported by a Web Worker.
+      const testScript = { code: content, filename: absolutePath };
+      this.scriptsModifier?.(testScript);
+      if (!isWebWorkerTest) scriptsToRun.push(testScript);
 
       jobs.push(run(async () => {
         this.inProgress.add(spec);
@@ -1066,6 +1061,8 @@ class WPTRunner {
           // Set when the test runs inside an actual Web Worker.
           webWorker: isWebWorkerTest ? {
             path: absolutePath,
+            modifiedScript: testScript.code !== content || testScript.filename !== absolutePath ?
+              testScript : undefined,
             isAnyTest,
             initScript: this.initScript,
             title: meta.title,
