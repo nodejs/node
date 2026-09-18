@@ -7,6 +7,7 @@ const experimentalBuiltins = [
   ['bench', '--experimental-bench', true],
   ['bench/reporters', '--experimental-bench', true],
   ['dtls', '--experimental-dtls', common.hasDtls],
+  ['logger', '--experimental-logger', true],
   ['quic', '--experimental-quic', common.hasQuic],
   ['vfs', '--experimental-vfs', true],
 ].filter(([, , available]) => available);
