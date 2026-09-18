@@ -8,7 +8,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/memory.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"
@@ -124,7 +124,6 @@ void Assembler::emit_optional_rex_8(Register reg, Operand op) {
   }
 }
 
-#ifdef V8_ENABLE_APX_F
 void Assembler::emit_rex2_prefix(Register reg, Register rm_reg, Rex2MapID m,
                                  Rex2W w) {
   emit(0xD5);
@@ -230,7 +229,6 @@ void Assembler::emit_legacy_extended_evex_byte3(Register dst,
   uint8_t v4 = (dst.code() < 16) ? 0x8 : 0;
   emit(nd | v4 | nf);
 }
-#endif  // V8_ENABLE_APX_F
 
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
@@ -410,7 +408,7 @@ int RelocInfo::target_address_size() {
   }
 }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
@@ -447,6 +445,16 @@ void WritableRelocInfo::set_target_external_reference(
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
+}
+
+Address RelocInfo::wasm_code_pointer() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  return ReadUnalignedValue<Address>(pc_);
+}
+
+void WritableRelocInfo::set_wasm_code_pointer(Address target) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  jit_allocation_.WriteUnalignedValue(pc_, target);
 }
 
 WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {

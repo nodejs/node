@@ -157,8 +157,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   Register result_string = ToRegister(result());
   if (Int32Constant* constant =
           CharCodeInput().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value() & 0xFFFF;
-    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+    uint32_t char_code = constant->value() & 0xFFFF;
+    if (char_code <= String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
@@ -588,7 +588,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //   deopt if lhs < 0  // Minus zero.
   //   0
   //
-  // Using same algorithm as in EffectControlLinearizer:
+  // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
@@ -830,6 +830,14 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs_d(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ fcvt_s_d(result, input);
+  __ fcvt_d_s(result, result);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -838,20 +846,28 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   DoubleRegister fscratch1 = temps.AcquireScratchDouble();
 
   if (kind_ == Kind::kNearest) {
-    // RISC-V Rounding Mode RNE means "Round to Nearest, ties to Even", while JS
-    // expects it to round towards +Infinity (see ECMA-262, 20.2.2.28).
-    // The best seems to be to add 0.5 then round with RDN mode.
-
+    // Use the "round then fix ties" approach: first round to nearest even,
+    // then check if we rounded down by exactly 0.5 and correct.
+    Register tmp = temps.AcquireScratch();
     DoubleRegister half_one = temps.AcquireDouble();  // available in this mode
+    DoubleRegister fsubtract = temps.AcquireScratchDouble();
+    __ fmv_d(fsubtract, in);
+    __ Round_d_d(out, in, fscratch1);
+    __ fsub_d(fsubtract, fsubtract, out);
     __ LoadFPRImmediate(half_one, 0.5);
-    DoubleRegister tmp = half_one;
-    __ fadd_d(tmp, in, half_one);
-    __ Floor_d_d(out, tmp, fscratch1);
-    __ fsgnj_d(out, out, in);
+    __ CompareF64(tmp, FPUCondition::NE, fsubtract, half_one);
+    Label done;
+    __ MacroAssembler::Branch(&done, ne, tmp, Operand(zero_reg), Label::kNear);
+    // Fix wrong tie-to-even by adding 0.5 twice.
+    __ fadd_d(out, out, half_one);
+    __ fadd_d(out, out, half_one);
+    __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ Ceil_d_d(out, in, fscratch1);
   } else if (kind_ == Kind::kFloor) {
     __ Floor_d_d(out, in, fscratch1);
+  } else if (kind_ == Kind::kTrunc) {
+    __ Trunc_d_d(out, in, fscratch1);
   } else {
     UNREACHABLE();
   }
@@ -873,10 +889,19 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -887,11 +912,19 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -948,7 +981,7 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
                         AbortReason::kUnexpectedValue);
   }
   __ LoadBoundedSizeFromObject(result_register, object,
-                               JSTypedArray::kRawByteLengthOffset);
+                               offsetof(JSArrayBufferView, raw_byte_length_));
   int shift_size = ElementsKindToShiftSize(elements_kind_);
   if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
@@ -986,13 +1019,13 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ bind(&limit_not_zero);
   }
   Label index_no_oob;
+  __ SignExtendWord(index, index);
   __ MacroAssembler::Branch(&index_no_oob, ult, index, Operand(limit),
                             Label::Distance::kNear);
   __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
 
   __ bind(&index_no_oob);
 }
-
 
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(ValueInput());
@@ -1130,11 +1163,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
   Register scratch = temps.Acquire();
   Register budget = scratch;
 
-  __ Lw(budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Lw(budget, FieldMemOperand(feedback_cell,
+                                offsetof(FeedbackCell, interrupt_budget_)));
   __ Sub32(budget, budget, Operand(amount));
-  __ Sw(budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Sw(budget, FieldMemOperand(feedback_cell,
+                                offsetof(FeedbackCell, interrupt_budget_)));
 
   ZoneLabelRef done(masm);
   Label* deferred_code = __ MakeDeferredCode(

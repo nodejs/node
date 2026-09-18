@@ -160,6 +160,7 @@ class JSSpeculativeBinopBuilder final {
         *hint = BigIntOperationHint::kBigInt64;
         return true;
     }
+    UNREACHABLE();
   }
 
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
@@ -339,7 +340,9 @@ class JSSpeculativeBinopBuilder final {
 
  private:
   BinaryOperationHint GetBinaryOperationHint() {
-    DCHECK(!slot_.IsInvalid());
+    if (slot_.IsInvalid() && !embedded_hint_.IsInvalid()) {
+      return std::get<BinaryOperationHint>(embedded_hint_.hint());
+    }
     return lowering_->GetBinaryOperationHint(slot_);
   }
 
@@ -568,6 +571,37 @@ JSTypeHintLowering::ReduceBinaryOperationWithEmbeddedHint(const Operator* op,
               EmbeddedHintParameterOf(op), effect, control,
               DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation)) {
         return LoweringResult::Exit(node);
+      }
+      break;
+    }
+    case IrOpcode::kJSBitwiseOr:
+    case IrOpcode::kJSBitwiseXor:
+    case IrOpcode::kJSBitwiseAnd:
+    case IrOpcode::kJSShiftLeft:
+    case IrOpcode::kJSShiftRight:
+    case IrOpcode::kJSShiftRightLogical:
+    case IrOpcode::kJSAdd:
+    case IrOpcode::kJSSubtract:
+    case IrOpcode::kJSMultiply:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate: {
+      auto embedded_hint = EmbeddedHintParameterOf(op);
+      if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
+              embedded_hint, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation)) {
+        return LoweringResult::Exit(node);
+      }
+      JSSpeculativeBinopBuilder b(this, op, left, right, effect, control,
+                                  embedded_hint);
+      if (Node* node = b.TryBuildNumberBinop()) {
+        return LoweringResult::SideEffectFree(node, node, control);
+      }
+      if (op->opcode() != IrOpcode::kJSShiftRightLogical &&
+          op->opcode() != IrOpcode::kJSExponentiate) {
+        if (Node* node = b.TryBuildBigIntBinop()) {
+          return LoweringResult::SideEffectFree(node, node, control);
+        }
       }
       break;
     }

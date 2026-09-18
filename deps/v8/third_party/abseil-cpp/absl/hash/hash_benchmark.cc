@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <bitset>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -247,6 +248,12 @@ MAKE_BENCHMARK(AbslHash, VectorInt64_1000, Vector<int64_t>(1000));
 MAKE_BENCHMARK(AbslHash, VectorDouble_10, Vector<double>(10));
 MAKE_BENCHMARK(AbslHash, VectorDouble_100, Vector<double>(100));
 MAKE_BENCHMARK(AbslHash, VectorDouble_1000, Vector<double>(1000));
+MAKE_BENCHMARK(AbslHash, VectorBool_10, Vector<bool>(10));
+MAKE_BENCHMARK(AbslHash, VectorBool_100, Vector<bool>(100));
+MAKE_BENCHMARK(AbslHash, VectorBool_1000, Vector<bool>(1000));
+MAKE_BENCHMARK(AbslHash, Bitset_10, std::bitset<10>());
+MAKE_BENCHMARK(AbslHash, Bitset_100, std::bitset<100>());
+MAKE_BENCHMARK(AbslHash, Bitset_1000, std::bitset<1000>());
 MAKE_BENCHMARK(AbslHash, FlatHashSetInt64_10, FlatHashSet<int64_t>(10));
 MAKE_BENCHMARK(AbslHash, FlatHashSetInt64_100, FlatHashSet<int64_t>(100));
 MAKE_BENCHMARK(AbslHash, FlatHashSetInt64_1000, FlatHashSet<int64_t>(1000));
@@ -294,6 +301,14 @@ MAKE_BENCHMARK(TypeErasedAbslHash, VectorDouble_100,
                std::vector<double>(100, 1.1));
 MAKE_BENCHMARK(TypeErasedAbslHash, VectorDouble_1000,
                std::vector<double>(1000, 1.1));
+MAKE_BENCHMARK(TypeErasedAbslHash, VectorBool_10, std::vector<bool>(10, true));
+MAKE_BENCHMARK(TypeErasedAbslHash, VectorBool_100,
+               std::vector<bool>(100, true));
+MAKE_BENCHMARK(TypeErasedAbslHash, VectorBool_1000,
+               std::vector<bool>(1000, true));
+MAKE_BENCHMARK(TypeErasedAbslHash, Bitset_10, std::bitset<10>());
+MAKE_BENCHMARK(TypeErasedAbslHash, Bitset_100, std::bitset<100>());
+MAKE_BENCHMARK(TypeErasedAbslHash, Bitset_1000, std::bitset<1000>());
 MAKE_BENCHMARK(TypeErasedAbslHash, FlatHashSetInt64_10,
                FlatHashSet<int64_t>(10));
 MAKE_BENCHMARK(TypeErasedAbslHash, FlatHashSetInt64_100,
@@ -350,7 +365,7 @@ struct PodPairInt64 {
 
 template <class T>
 struct PodRand {
-  static_assert(std::is_pod<T>::value, "");
+  static_assert(std::is_pod_v<T>, "");
   static_assert(kEntropySize + sizeof(T) < sizeof(entropy), "");
 
   T Get(size_t i) const {

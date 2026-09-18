@@ -22,11 +22,7 @@ namespace wasm {
 class V8_EXPORT_PRIVATE LocalDeclEncoder {
  public:
   explicit LocalDeclEncoder(Zone* zone, const FunctionSig* s = nullptr)
-      : sig(s), local_decls(zone), total(0) {}
-
-  // Prepend local declarations by creating a new buffer and copying data
-  // over. The new buffer must be delete[]'d by the caller.
-  void Prepend(Zone* zone, const uint8_t** start, const uint8_t** end) const;
+      : sig_(s), local_decls_(zone), total_(0) {}
 
   size_t Emit(uint8_t* buffer) const;
 
@@ -36,14 +32,13 @@ class V8_EXPORT_PRIVATE LocalDeclEncoder {
 
   size_t Size() const;
 
-  bool has_sig() const { return sig != nullptr; }
-  const FunctionSig* get_sig() const { return sig; }
-  void set_sig(const FunctionSig* s) { sig = s; }
+  bool has_sig() const { return sig_ != nullptr; }
+  void set_sig(const FunctionSig* s) { sig_ = s; }
 
  private:
-  const FunctionSig* sig;
-  ZoneVector<std::pair<uint32_t, ValueType>> local_decls;
-  size_t total;
+  const FunctionSig* sig_;
+  ZoneVector<std::pair<uint32_t, ValueType>> local_decls_;
+  size_t total_;
 };
 
 }  // namespace wasm

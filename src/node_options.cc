@@ -2018,8 +2018,7 @@ void GetCLIOptionsInfo(const FunctionCallbackInfo<Value>& args) {
 
   Local<Map> options = Map::New(isolate);
   if (options
-          ->SetPrototypeV2(context,
-                           env->primordials_safe_map_prototype_object())
+          ->SetPrototype(context, env->primordials_safe_map_prototype_object())
           .IsNothing()) {
     return;
   }
@@ -2059,8 +2058,7 @@ void GetCLIOptionsInfo(const FunctionCallbackInfo<Value>& args) {
   if (!ToV8Value(context, _ppop_instance.aliases_).ToLocal(&aliases)) return;
 
   if (aliases.As<Object>()
-          ->SetPrototypeV2(context,
-                           env->primordials_safe_map_prototype_object())
+          ->SetPrototype(context, env->primordials_safe_map_prototype_object())
           .IsNothing()) {
     return;
   }

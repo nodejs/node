@@ -13,8 +13,23 @@
 edition = "2021"
 rust-version = "1.56.0"
 name = "displaydoc"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Jane Lusby <jlusby@yaah.dev>"]
+build = false
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "CHANGELOG.md",
+    "src/**/*.rs",
+    "tests/**/*.rs",
+]
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = """
 A derive macro for implementing the display Trait via a doc comment and string interpolation
 """
@@ -41,46 +56,71 @@ pre-release-hook = ["./update-readme.sh"]
 
 [[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"
-replace = "{{version}}"
 search = "Unreleased"
+replace = "{{version}}"
 
 [[package.metadata.release.pre-release-replacements]]
-exactly = 1
 file = "src/lib.rs"
-replace = "#![doc(html_root_url = \"https://docs.rs/{{crate_name}}/{{version}}\")]"
 search = '#!\[doc\(html_root_url.*'
-
-[[package.metadata.release.pre-release-replacements]]
-file = "CHANGELOG.md"
-replace = "{{date}}"
-search = "ReleaseDate"
-
-[[package.metadata.release.pre-release-replacements]]
+replace = '#![doc(html_root_url = "https://docs.rs/{{crate_name}}/{{version}}")]'
 exactly = 1
+
+[[package.metadata.release.pre-release-replacements]]
 file = "CHANGELOG.md"
+search = "ReleaseDate"
+replace = "{{date}}"
+
+[[package.metadata.release.pre-release-replacements]]
+file = "CHANGELOG.md"
+search = "<!-- next-header -->"
 replace = """
 <!-- next-header -->
 
 # [Unreleased] - ReleaseDate"""
-search = "<!-- next-header -->"
+exactly = 1
 
 [[package.metadata.release.pre-release-replacements]]
-exactly = 1
 file = "CHANGELOG.md"
-replace = "...{{tag_name}}"
 search = '\.\.\.HEAD'
+replace = "...{{tag_name}}"
+exactly = 1
 
 [[package.metadata.release.pre-release-replacements]]
-exactly = 1
 file = "CHANGELOG.md"
+search = "<!-- next-url -->"
 replace = """
 <!-- next-url -->
 [Unreleased]: https://github.com/yaahc/{{crate_name}}/compare/{{tag_name}}...HEAD"""
-search = "<!-- next-url -->"
+exactly = 1
+
+[features]
+default = ["std"]
+std = []
 
 [lib]
+name = "displaydoc"
 path = "src/lib.rs"
 proc-macro = true
+
+[[test]]
+name = "compile_tests"
+path = "tests/compile_tests.rs"
+
+[[test]]
+name = "happy"
+path = "tests/happy.rs"
+
+[[test]]
+name = "no_std"
+path = "tests/no_std.rs"
+
+[[test]]
+name = "num_in_field"
+path = "tests/num_in_field.rs"
+
+[[test]]
+name = "variantless"
+path = "tests/variantless.rs"
 
 [dependencies.proc-macro2]
 version = "1.0"
@@ -96,7 +136,7 @@ version = "0.2"
 default-features = false
 
 [dev-dependencies.pretty_assertions]
-version = "0.6.1"
+version = "1.4.0"
 
 [dev-dependencies.rustversion]
 version = "1.0.0"
@@ -109,7 +149,3 @@ version = "1.0.24"
 
 [dev-dependencies.trybuild]
 version = "1.0"
-
-[features]
-default = ["std"]
-std = []

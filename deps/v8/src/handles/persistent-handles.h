@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "include/v8-internal.h"
-#include "src/api/api.h"
 #include "src/base/macros.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handle-scope-implementer.h"
 #include "src/objects/visitors.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 

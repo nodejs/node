@@ -14,7 +14,7 @@ namespace internal {
 void Instruction::SetInstructionBits(Instr value,
                                      WritableJitAllocation* jit_allocation) {
   if (jit_allocation) {
-    jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(this), value);
+    jit_allocation->WriteValue(reinterpret_cast<Address>(this), value);
   } else {
     *reinterpret_cast<Instr*>(this) = value;
   }

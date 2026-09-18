@@ -260,7 +260,7 @@ bool InstructionGetters<T>::IsLoad() {
     case RO_C_LD:
     case RO_C_LDSP:
 #endif
-      return v8_flags.riscv_c_extension && this->IsShortInstruction();
+      return this->IsShortInstruction();
     default:
       break;
   }
@@ -311,7 +311,7 @@ bool InstructionGetters<T>::IsStore() {
     case RO_C_SD:
     case RO_C_SDSP:
 #endif
-      return v8_flags.riscv_c_extension && this->IsShortInstruction();
+      return this->IsShortInstruction();
     default:
       break;
   }
@@ -356,7 +356,7 @@ InstructionBase::Type InstructionBase::InstructionType() const {
     return kUnsupported;
   }
   // RV64C Instruction
-  if (v8_flags.riscv_c_extension && IsShortInstruction()) {
+  if (IsShortInstruction()) {
     switch (InstructionBits() & kRvcOpcodeMask) {
       case RO_C_ADDI4SPN:
         return kCIWType;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-custom-descriptors --experimental-wasm-shared
+// Flags: --wasm-custom-descriptors --wasm-shared
 
 // At the time of writing, these tests cover the same cases as:
 // https://github.com/WebAssembly/binaryen/pull/7392/files

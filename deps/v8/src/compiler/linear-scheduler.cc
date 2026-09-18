@@ -33,8 +33,9 @@ void LinearScheduler::ComputeControlLevel() {
       if (!NodeProperties::IsControlEdge(edge)) continue;
       Node* use = edge.from();
       if (use->opcode() == IrOpcode::kLoopExit &&
-          node->opcode() == IrOpcode::kLoop)
+          node->opcode() == IrOpcode::kLoop) {
         continue;
+      }
       if (control_level_.find(use) == control_level_.end() &&
           use->opcode() != IrOpcode::kEnd) {
         SetControlLevel(use, level + 1);

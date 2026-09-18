@@ -147,7 +147,7 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   //   |
   //   V
   //
-  // lower address -----  __pi_stackaddr, current sp
+  // lower address -----  __pi_stackaddr, reserved stack limit
 
   pthread_t tid = pthread_self();
   struct __pthrdsinfo buf;
@@ -162,6 +162,26 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
     return nullptr;
   }
   return reinterpret_cast<void*>(buf.__pi_stackend);
+}
+
+// static
+Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
+  pthread_t tid = pthread_self();
+  struct __pthrdsinfo buf;
+  memset(&buf, 0, sizeof(buf));
+  char regbuf[1];
+  int regbufsize = sizeof(regbuf);
+
+  const int rc = pthread_getthrds_np(&tid, PTHRDSINFO_QUERY_ALL, &buf,
+                                     sizeof(buf), regbuf, &regbufsize);
+  if (rc != 0) {
+    return nullptr;
+  }
+
+  if (buf.__pi_stackaddr == NULL) {
+    return nullptr;
+  }
+  return reinterpret_cast<void*>(buf.__pi_stackaddr);
 }
 
 // static

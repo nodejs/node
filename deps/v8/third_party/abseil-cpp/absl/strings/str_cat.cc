@@ -26,6 +26,8 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/nullability.h"
+#include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/strings/internal/append_and_overwrite.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
@@ -51,6 +53,26 @@ inline char* absl_nonnull Append(char* absl_nonnull out, const AlphaNum& x) {
     memcpy(out, x.data(), x.size());
   }
   return after;
+}
+
+// Safely adds size_t values, throwing std::length_error if overflow occurs.
+inline size_t SafeAdd(size_t a, size_t b) {
+  const uint64_t sum = static_cast<uint64_t>(a) + b;
+  if (ABSL_PREDICT_FALSE(sum > (std::numeric_limits<size_t>::max)())) {
+    ThrowStdLengthError("absl string append length overflow");
+  }
+  return static_cast<size_t>(sum);
+}
+
+inline size_t SafeAdd(std::initializer_list<size_t> sizes) {
+  uint64_t sum = 0;
+  for (size_t size : sizes) {
+    sum += size;
+  }
+  if (ABSL_PREDICT_FALSE(sum > (std::numeric_limits<size_t>::max)())) {
+    ThrowStdLengthError("absl string append length overflow");
+  }
+  return static_cast<size_t>(sum);
 }
 
 }  // namespace
@@ -163,7 +185,7 @@ void AppendPieces(std::string* absl_nonnull dest,
   size_t to_append = 0;
   for (absl::string_view piece : pieces) {
     ASSERT_NO_OVERLAP(*dest, piece);
-    to_append += piece.size();
+    to_append = SafeAdd(to_append, piece.size());
   }
   StringAppendAndOverwrite(*dest, to_append,
                            [&pieces](char* const buf, size_t buf_size) {
@@ -198,7 +220,8 @@ void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
   ASSERT_NO_OVERLAP(*dest, a);
   ASSERT_NO_OVERLAP(*dest, b);
   strings_internal::StringAppendAndOverwrite(
-      *dest, a.size() + b.size(), [&a, &b](char* const buf, size_t buf_size) {
+      *dest, SafeAdd(a.size(), b.size()),
+      [&a, &b](char* const buf, size_t buf_size) {
         char* out = buf;
         out = Append(out, a);
         out = Append(out, b);
@@ -213,7 +236,7 @@ void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
   ASSERT_NO_OVERLAP(*dest, b);
   ASSERT_NO_OVERLAP(*dest, c);
   strings_internal::StringAppendAndOverwrite(
-      *dest, a.size() + b.size() + c.size(),
+      *dest, SafeAdd({a.size(), b.size(), c.size()}),
       [&a, &b, &c](char* const buf, size_t buf_size) {
         char* out = buf;
         out = Append(out, a);
@@ -231,7 +254,7 @@ void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
   ASSERT_NO_OVERLAP(*dest, c);
   ASSERT_NO_OVERLAP(*dest, d);
   strings_internal::StringAppendAndOverwrite(
-      *dest, a.size() + b.size() + c.size() + d.size(),
+      *dest, SafeAdd({a.size(), b.size(), c.size(), d.size()}),
       [&a, &b, &c, &d](char* const buf, size_t buf_size) {
         char* out = buf;
         out = Append(out, a);

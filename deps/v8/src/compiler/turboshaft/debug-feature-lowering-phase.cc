@@ -6,13 +6,16 @@
 
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-reducer.h"
+#include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 void DebugFeatureLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
 #ifdef V8_ENABLE_DEBUG_CODE
-  turboshaft::CopyingPhase<turboshaft::DebugFeatureLoweringReducer>::Run(
-      data, temp_zone);
+  turboshaft::CopyingPhase<
+      turboshaft::DebugFeatureLoweringReducer,
+      turboshaft::InstructionSelectionNormalizationReducer>::Run(data,
+                                                                 temp_zone);
 #endif
 }
 

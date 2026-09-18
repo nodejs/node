@@ -193,8 +193,6 @@ TEST_F(FlagDefinitionsTest, FlagsJitlessImplications) {
     CHECK(!v8_flags.maglev);
     CHECK(!v8_flags.sparkplug);
 #if V8_ENABLE_WEBASSEMBLY
-    CHECK(!v8_flags.validate_asm);
-    CHECK(!v8_flags.asm_wasm_lazy_compilation);
     CHECK(!v8_flags.wasm_lazy_compilation);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
@@ -211,7 +209,6 @@ TEST_F(FlagDefinitionsTest, FlagsDisableOptimizingCompilersImplications) {
 #ifdef V8_ENABLE_WEBASSEMBLY
     CHECK(!v8_flags.wasm_tier_up);
     CHECK(!v8_flags.wasm_dynamic_tiering);
-    CHECK(!v8_flags.validate_asm);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 }

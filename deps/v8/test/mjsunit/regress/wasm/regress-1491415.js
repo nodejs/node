@@ -6,9 +6,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addStruct([]);
-builder.addStruct([makeField(wasmRefType(kWasmFuncRef), false)], 0);
-builder.addStruct([], 0);
-builder.addArray(kWasmI32, true);
+builder.addStruct(
+    {fields: [makeField(wasmRefType(kWasmFuncRef), false)], supertype: 0});
+builder.addStruct({fields: [], supertype: 0});
+builder.addArray(kWasmI32);
 builder.addType(makeSig([], [kWasmI32]));
 builder.addFunction(undefined, 4 /* sig */)
   .addLocals(kWasmI32, 2)

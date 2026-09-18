@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/visitor.h"
+#include "src/heap/cppgc-internal/visitor.h"
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/trace-trait.h"
 #include "src/base/macros.h"
-#include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/liveness-broker.h"
-#include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc-internal/heap.h"
+#include "src/heap/cppgc-internal/liveness-broker.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

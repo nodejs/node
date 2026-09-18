@@ -98,3 +98,13 @@ g.turboshaft-node.output .inline-node-label tspan {
 tspan.subscript {
   font-size: 30px;
 }
+
+.frame-state-node .inline-node-label tspan {
+  fill: #8c8c8c;
+  font-style: italic;
+}
+
+.virtual-object-node .inline-node-label tspan {
+  fill: #8c8c8c;
+  font-style: italic;
+}

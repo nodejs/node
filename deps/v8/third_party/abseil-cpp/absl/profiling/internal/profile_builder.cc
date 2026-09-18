@@ -400,6 +400,38 @@ void ProfileBuilder::AddCurrentMappings() {
 
         const bool is_main_executable = builder.mappings_.empty();
 
+        // Storage for path to executable as dlpi_name isn't populated for the
+        // main executable.  +1 to allow for the null terminator that readlink
+        // does not add.
+        char self_filename[PATH_MAX + 1];
+        const char* filename = info->dlpi_name;
+        if (filename == nullptr || filename[0] == '\0') {
+          // This is either the main executable or the VDSO.  The main
+          // executable is always the first entry processed by callbacks.
+          if (is_main_executable) {
+            // This is the main executable.
+            ssize_t ret = readlink("/proc/self/exe", self_filename,
+                                   sizeof(self_filename) - 1);
+            if (ret >= 0 && static_cast<size_t>(ret) < sizeof(self_filename)) {
+              self_filename[ret] = '\0';
+              filename = self_filename;
+            }
+          } else {
+            // This is the VDSO.
+            filename = GetSoName(info);
+          }
+        }
+
+        char resolved_path[PATH_MAX];
+        absl::string_view resolved_filename;
+        if (realpath(filename, resolved_path)) {
+          resolved_filename = resolved_path;
+        } else {
+          resolved_filename = filename;
+        }
+
+        const std::string build_id = GetBuildId(info);
+
         // Evaluate all the loadable segments.
         for (int i = 0; i < info->dlpi_phnum; ++i) {
           if (info->dlpi_phdr[i].p_type != PT_LOAD) {
@@ -413,39 +445,6 @@ void ProfileBuilder::AddCurrentMappings() {
           const size_t memory_start = info->dlpi_addr + pt_load->p_vaddr;
           const size_t memory_limit = memory_start + pt_load->p_memsz;
           const size_t file_offset = pt_load->p_offset;
-
-          // Storage for path to executable as dlpi_name isn't populated for the
-          // main executable.  +1 to allow for the null terminator that readlink
-          // does not add.
-          char self_filename[PATH_MAX + 1];
-          const char* filename = info->dlpi_name;
-          if (filename == nullptr || filename[0] == '\0') {
-            // This is either the main executable or the VDSO.  The main
-            // executable is always the first entry processed by callbacks.
-            if (is_main_executable) {
-              // This is the main executable.
-              ssize_t ret = readlink("/proc/self/exe", self_filename,
-                                     sizeof(self_filename) - 1);
-              if (ret >= 0 &&
-                  static_cast<size_t>(ret) < sizeof(self_filename)) {
-                self_filename[ret] = '\0';
-                filename = self_filename;
-              }
-            } else {
-              // This is the VDSO.
-              filename = GetSoName(info);
-            }
-          }
-
-          char resolved_path[PATH_MAX];
-          absl::string_view resolved_filename;
-          if (realpath(filename, resolved_path)) {
-            resolved_filename = resolved_path;
-          } else {
-            resolved_filename = filename;
-          }
-
-          const std::string build_id = GetBuildId(info);
 
           // Add to profile.
           builder.AddMapping(memory_start, memory_limit, file_offset,

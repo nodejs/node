@@ -54,9 +54,9 @@ struct HasAbslStringify : std::false_type {};
 
 template <typename T>
 struct HasAbslStringify<
-    T, std::enable_if_t<std::is_void<decltype(AbslStringify(
+    T, std::enable_if_t<std::is_void_v<decltype(AbslStringify(
            std::declval<strings_internal::UnimplementedSink&>(),
-           std::declval<const T&>()))>::value>> : std::true_type {};
+           std::declval<const T&>()))>>> : std::true_type {};
 
 ABSL_NAMESPACE_END
 }  // namespace absl

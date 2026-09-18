@@ -848,3 +848,19 @@ assertEquals("\\u2029", new RegExp("\\\u2029").source);
   s = s.replace(/x.z/g, "");  // Prime the regexp.
   s = s.replace(/x.z/g, "");
 }
+
+// Unanchored two-alternative search where the first alternative's leading
+// quick-check matches at a position but its body fails, while the second
+// alternative matches there. The search-loop codegen must still try the second
+// alternative at that position rather than committing to the first and
+// advancing.
+// Alternatives share the first four characters and differ only afterwards, so
+// both have the same leading quick-check.
+assertEquals("abcdf", /abcde|abcdf/.exec("abcdf")[0]);
+assertEquals("abcde", /abcde|abcdf/.exec("abcde")[0]);
+assertEquals("abcdf", /abcde|abcdf/.exec("xxabcdf")[0]);
+assertNull(/abcde|abcdf/.exec("abcdx"));
+// With a leading character class in the failing alternative.
+assertEquals("bbcd", /[ad]bcd|bbcd/.exec("bbcd")[0]);
+assertEquals("bdacbc", /bdacb[abc]c|bdacbc/.exec("bdacbc")[0]);
+assertEquals("cccbd", /cccbd[ab]|cccbd/.exec("ddacccbd")[0]);

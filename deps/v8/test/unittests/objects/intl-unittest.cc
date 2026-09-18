@@ -317,9 +317,9 @@ TEST_F(IntlTest, StringLocaleCompareFastPath) {
       for (size_t j = i + 1; j < ascii_strings.size(); j++) {
         DirectHandle<String> rhs = ascii_strings[j];
         CHECK_EQ(
-            Intl::CompareStrings(i_isolate(), *collator->icu_collator()->raw(),
+            Intl::CompareStrings(i_isolate(), *collator->icu_collator()->ptr(),
                                  lhs, rhs, Intl::CompareStringsOptions::kNone),
-            Intl::CompareStrings(i_isolate(), *collator->icu_collator()->raw(),
+            Intl::CompareStrings(i_isolate(), *collator->icu_collator()->ptr(),
                                  lhs, rhs,
                                  Intl::CompareStringsOptions::kTryFastPath));
       }

@@ -402,8 +402,9 @@ double Strtod(Vector<const char> buffer, int exponent) {
         Vector<const char>(significant_buffer, kMaxSignificantDecimalDigits),
         significant_exponent);
   }
-  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower)
+  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) {
     return std::numeric_limits<double>::infinity();
+  }
   if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
 
   double guess;

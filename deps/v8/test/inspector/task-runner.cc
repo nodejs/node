@@ -8,6 +8,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "src/flags/flags.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "src/libplatform/default-platform.h"
 #include "src/utils/locked-queue-inl.h"
@@ -140,7 +141,9 @@ std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
       if (deferred_queue_.Dequeue(&task)) return task;
       if (queue_.Dequeue(&task)) return task;
     }
-    process_queue_semaphore_.Wait();
+    reinterpret_cast<Isolate*>(isolate())
+        ->main_thread_local_heap()
+        ->ExecuteWhileParked([this]() { process_queue_semaphore_.Wait(); });
   }
 }
 

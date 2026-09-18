@@ -13,9 +13,10 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 // static
-Handle<String> RegExpUtils::GenericCaptureGetter(
+Handle<String> Utils::GenericCaptureGetter(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info, int capture,
     bool* ok) {
   const int capture_start_index = RegExpMatchInfo::capture_start_index(capture);
@@ -38,8 +39,7 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
 }
 
 // static
-bool RegExpUtils::IsMatchedCapture(Tagged<RegExpMatchInfo> match_info,
-                                   int capture) {
+bool Utils::IsMatchedCapture(Tagged<RegExpMatchInfo> match_info, int capture) {
   // Sentinel used as failure indicator in other functions.
   if (capture == -1) return false;
 
@@ -62,8 +62,9 @@ V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Tagged<JSReceiver> recv) {
 
 }  // namespace
 
-MaybeDirectHandle<Object> RegExpUtils::SetLastIndex(
-    Isolate* isolate, DirectHandle<JSReceiver> recv, uint64_t value) {
+MaybeDirectHandle<Object> Utils::SetLastIndex(Isolate* isolate,
+                                              DirectHandle<JSReceiver> recv,
+                                              uint64_t value) {
   DirectHandle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, *recv)) {
@@ -77,8 +78,8 @@ MaybeDirectHandle<Object> RegExpUtils::SetLastIndex(
   }
 }
 
-MaybeDirectHandle<Object> RegExpUtils::GetLastIndex(
-    Isolate* isolate, DirectHandle<JSReceiver> recv) {
+MaybeDirectHandle<Object> Utils::GetLastIndex(Isolate* isolate,
+                                              DirectHandle<JSReceiver> recv) {
   if (HasInitialRegExpMap(isolate, *recv)) {
     return direct_handle(Cast<JSRegExp>(*recv)->last_index(), isolate);
   } else {
@@ -87,13 +88,14 @@ MaybeDirectHandle<Object> RegExpUtils::GetLastIndex(
   }
 }
 
-// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-// Also takes an optional exec method in case our caller
-// has already fetched exec.
-MaybeDirectHandle<JSAny> RegExpUtils::RegExpExec(
-    Isolate* isolate, DirectHandle<JSReceiver> regexp,
-    DirectHandle<String> string, DirectHandle<Object> exec) {
-  if (IsUndefined(*exec, isolate)) {
+// https://tc39.es/ecma262/#sec-regexpexec
+// Also takes an optional exec method in case our caller has already fetched
+// exec.
+MaybeDirectHandle<JSAny> Utils::RegExpExec(Isolate* isolate,
+                                           DirectHandle<JSReceiver> regexp,
+                                           DirectHandle<String> string,
+                                           DirectHandle<Object> exec) {
+  if (IsUndefined(*exec)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
         Object::GetProperty(isolate, regexp,
@@ -110,7 +112,7 @@ MaybeDirectHandle<JSAny> RegExpUtils::RegExpExec(
         Cast<JSAny>(
             Execution::Call(isolate, exec, regexp, base::VectorOf(args))));
 
-    if (!IsJSReceiver(*result) && !IsNull(*result, isolate)) {
+    if (!IsJSReceiver(*result) && !IsNull(*result)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kInvalidRegExpExecResult));
     }
@@ -136,8 +138,7 @@ MaybeDirectHandle<JSAny> RegExpUtils::RegExpExec(
   }
 }
 
-bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
-                                     DirectHandle<Object> obj) {
+bool Utils::IsUnmodifiedRegExp(Isolate* isolate, DirectHandle<Object> obj) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
   if (isolate->force_slow_path()) return false;
 #endif
@@ -163,10 +164,9 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
   // with the init order in the bootstrapper).
   InternalIndex kExecIndex(JSRegExp::kExecFunctionDescriptorIndex);
   DCHECK_EQ(*(isolate->factory()->exec_string()),
-            proto_map->instance_descriptors(isolate)->GetKey(kExecIndex));
-  if (proto_map->instance_descriptors(isolate)
-          ->GetDetails(kExecIndex)
-          .constness() != PropertyConstness::kConst) {
+            proto_map->instance_descriptors()->GetKey(kExecIndex));
+  if (proto_map->instance_descriptors()->GetDetails(kExecIndex).constness() !=
+      PropertyConstness::kConst) {
     return false;
   }
 
@@ -184,8 +184,8 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
   return IsSmi(last_index) && Smi::ToInt(last_index) >= 0;
 }
 
-uint64_t RegExpUtils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
-                                         bool unicode) {
+uint64_t Utils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
+                                   bool unicode) {
   DCHECK_LE(static_cast<double>(index), kMaxSafeInteger);
   const uint64_t string_length = static_cast<uint64_t>(string->length());
   if (unicode && index < string_length) {
@@ -202,7 +202,7 @@ uint64_t RegExpUtils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
   return index + 1;
 }
 
-MaybeDirectHandle<Object> RegExpUtils::SetAdvancedStringIndex(
+MaybeDirectHandle<Object> Utils::SetAdvancedStringIndex(
     Isolate* isolate, DirectHandle<JSReceiver> regexp,
     DirectHandle<String> string, bool unicode) {
   DirectHandle<Object> last_index_obj;
@@ -220,5 +220,6 @@ MaybeDirectHandle<Object> RegExpUtils::SetAdvancedStringIndex(
   return SetLastIndex(isolate, regexp, new_last_index);
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

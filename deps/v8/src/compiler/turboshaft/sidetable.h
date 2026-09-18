@@ -255,6 +255,8 @@ class SparseOpIndexSideTable {
     if (it != data_.end()) data_.erase(it);
   }
 
+  void clear() { data_.clear(); }
+
   auto begin() { return data_.begin(); }
   auto end() { return data_.end(); }
 

@@ -79,6 +79,48 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.disable();
   },
 
+  async function testWrappedScriptInstrumentation() {
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint and run wrapped script..');
+    const { result : firstResult } = await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+    utils.compileAndRunWrapped(contextGroup.id, '1 + 2', 'cjs-module.js');
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+    }
+    await Protocol.Debugger.resume();
+    InspectorTest.log('remove breakpoint..');
+    InspectorTest.logMessage(await Protocol.Debugger.removeBreakpoint({
+      breakpointId: firstResult.breakpointId
+    }));
+    await Protocol.Debugger.disable();
+  },
+
+  async function testWrappedScriptWithSourceMap() {
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint for scriptWithSourceMapParsed..');
+    const { result : firstResult } = await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptWithSourceMapExecution'
+    });
+    InspectorTest.log('run wrapped script without sourceMappingURL..');
+    utils.compileAndRunWrapped(contextGroup.id, '1 + 2', 'cjs-plain.js');
+    InspectorTest.log('run wrapped script with sourceMappingURL..');
+    utils.compileAndRunWrapped(contextGroup.id, '1 + 2\n//# sourceMappingURL=cjs.js.map', 'cjs-sourcemapped.js');
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+    }
+    InspectorTest.log('remove breakpoint..');
+    InspectorTest.logMessage(await Protocol.Debugger.removeBreakpoint({
+      breakpointId: firstResult.breakpointId
+    }));
+    await Protocol.Debugger.disable();
+  },
+
   async function testBlackboxing() {
     await Protocol.Debugger.enable();
     await Protocol.Debugger.setBlackboxPatterns({patterns: ['foo\.js']});

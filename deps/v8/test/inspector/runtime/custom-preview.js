@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-const {session, contextGroup, Protocol} =
-    InspectorTest.start('RemoteObject.CustomPreview');
+const { session, contextGroup, Protocol } =
+  InspectorTest.start('RemoteObject.CustomPreview');
 
 (async function test() {
   contextGroup.addScript(`
@@ -53,29 +53,30 @@ const {session, contextGroup, Protocol} =
   `);
 
   Protocol.Runtime.enable();
-  Protocol.Runtime.setCustomObjectFormatterEnabled({enabled: true});
+  Protocol.Runtime.setCustomObjectFormatterEnabled({ enabled: true });
 
   Protocol.Runtime.onConsoleAPICalled(m => InspectorTest.logMessage(m));
   InspectorTest.log('Dump custom previews..');
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'a'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'b'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'c'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'configTest'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'nullBodyTest'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'a', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'b', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'c', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'configTest', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'nullBodyTest', generatePreview: true }));
   InspectorTest.log('Change formatters order and dump again..');
   await Protocol.Runtime.evaluate({
     expression: 'this.devtoolsFormatters = [formatter2, formatter1, formatterWithConfig1, formatterWithConfig2, formatterWithNullBody]'
   });
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'a'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'b'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'c'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'configTest'}));
-  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'nullBodyTest'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'a', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'b', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'c', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'configTest', generatePreview: true }));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({ expression: 'nullBodyTest', generatePreview: true }));
 
   InspectorTest.log('Test Runtime.getProperties');
-  const {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({expression: '({a})'});
-  const {result:{result}} = await Protocol.Runtime.getProperties({
-    objectId, ownProperties: true, generatePreview: true});
+  const { result: { result: { objectId } } } = await Protocol.Runtime.evaluate({ expression: '({a})' });
+  const { result: { result } } = await Protocol.Runtime.getProperties({
+    objectId, ownProperties: true, generatePreview: true
+  });
   await dumpCustomPreview(result.find(value => value.name === 'a').value);
 
   InspectorTest.log('Try to break custom preview..');
@@ -135,7 +136,7 @@ async function dumpCustomPreview(result) {
     const body = await Protocol.Runtime.callFunctionOn({
       objectId,
       functionDeclaration: 'function(bodyGetter) { return bodyGetter.call(this); }',
-      arguments: [ { objectId: customPreview.bodyGetterId } ],
+      arguments: [{ objectId: customPreview.bodyGetterId }],
       returnByValue: true
     });
     InspectorTest.logMessage(body);

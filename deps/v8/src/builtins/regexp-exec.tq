@@ -26,7 +26,7 @@ transitioning builtin RegExpPrototypeExecSlow(
 extern macro RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
     implicit context: Context)(Object): bool;
 
-// ES#sec-regexp.prototype.exec
+// https://tc39.es/ecma262/#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 transitioning javascript builtin RegExpPrototypeExec(
     js-implicit context: NativeContext, receiver: JSAny)(

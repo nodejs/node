@@ -4,7 +4,7 @@
 
 #include "src/wasm/wasm-wrapper-cache.h"
 
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-stack-wrapper-cache.h"
 

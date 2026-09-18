@@ -39,7 +39,7 @@ class Table64DecodingTest : public TestWithIsolateAndZone {
     WasmDetectedFeatures detected_features;
     ModuleResult result =
         DecodeWasmModule(enabled_features_, base::VectorOf(module_bytes),
-                         kValidateFunctions, kWasmOrigin, &detected_features);
+                         kValidateFunctions, &detected_features);
     CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::memory64}},
              detected_features);
     return result;

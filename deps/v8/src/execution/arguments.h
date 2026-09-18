@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ARGUMENTS_H_
 #define V8_EXECUTION_ARGUMENTS_H_
 
+#include "src/base/logging.h"
 #include "src/execution/clobber-registers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -113,17 +114,14 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
 #define CLOBBER_DOUBLE_REGISTERS()
 #endif
 
-// TODO(cbruni): add global flag to check whether any tracing events have been
-// enabled.
 #ifdef V8_RUNTIME_CALL_STATS
-#define RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)             \
-  V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object, \
-                                       Isolate* isolate) {                    \
-    RCS_SCOPE(isolate, RuntimeCallCounterId::k##Name);                        \
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
-                 "V8.Runtime_" #Name);                                        \
-    RuntimeArguments args(args_length, args_object);                          \
-    return Convert(__RT_impl_##Name(args, isolate));                          \
+#define RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)              \
+  V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object,  \
+                                       Isolate* isolate) {                     \
+    RCS_SCOPE(isolate, RuntimeCallCounterId::k##Name);                         \
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.runtime"), "V8.Runtime_" #Name); \
+    RuntimeArguments args(args_length, args_object);                           \
+    return Convert(__RT_impl_##Name(args, isolate));                           \
   }
 
 #define TEST_AND_CALL_RCS(Name)                                \
@@ -157,6 +155,7 @@ constexpr bool RuntimeFunctionFullNameCanTriggerGC(
     FOR_EACH_INTRINSIC(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 }  // namespace detail
 

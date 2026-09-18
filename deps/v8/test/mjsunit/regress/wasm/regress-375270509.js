@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --expose-fast-api --wasm-fast-api
+// Flags: --expose-fast-api --wasm-fast-api
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
