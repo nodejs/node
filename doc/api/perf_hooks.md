@@ -2621,6 +2621,38 @@ distribution. A positive value indicates a right-skewed distribution
 (longer right tail, common for latency data); a negative value
 indicates a left-skewed distribution.
 
+### `histogram.snapshot()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Histogram}
+
+Returns a new, independent {Histogram} containing a copy of this histogram's
+current state: its configuration, recorded values, `exceeds` count, and EWMA
+state. Values recorded into this histogram after this method returns, and later
+calls to `reset()`, do not change the returned histogram. This provides a stable
+view of a histogram that is still recording, such as an enabled {ELDHistogram}.
+
+Values cannot be recorded into the returned histogram. Taking a snapshot copies
+every bucket, so both its time and memory cost depend on the histogram's
+`lowest`, `highest`, and `figures` configuration rather than on the number of
+recorded values.
+
+```js
+const { monitorEventLoopDelay } = require('node:perf_hooks');
+
+const histogram = monitorEventLoopDelay();
+histogram.enable();
+
+setTimeout(() => {
+  const snapshot = histogram.snapshot();
+  console.log(snapshot.percentile(99));
+  histogram.disable();
+}, 1000);
+```
+
 ### `histogram.stddev`
 
 <!-- YAML
