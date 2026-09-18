@@ -987,6 +987,29 @@ added: v15.4.0
 * Type: {Function} Invoked with a received message cannot be
   deserialized.
 
+### `broadcastChannel.onworkerexited`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function} Invoked when worker associated with the
+  `BroadcastChannel` terminates.
+
+The callback receives an object with the following properties:
+
+* `threadId` {number} The ID of the worker thread that terminated.
+* `exitCode` {number} The exit code with which the worker terminated.
+
+The `exitCode` is the value passed to `process.exit()` when the worker
+explicitly exits. If the worker terminates without explicitly specifying
+an exit code, the corresponding exit code is reported.
+
+The `workerexited` event is emitted only when the worker's execution
+environment is stopping. Closing a `BroadcastChannel` or its underlying
+`MessagePort` does not by itself indicate that a worker has exited and
+does not emit this event.
+
 ### `broadcastChannel.postMessage(message)`
 
 <!-- YAML
