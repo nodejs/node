@@ -430,7 +430,11 @@ static_assert(kNumTestOnlyFlags > 0, "Must have test-only flags");
 constexpr size_t kNumAllFlags = kFlagsMetadata.size();
 
 // Pre-computed tables for efficient flag management.
+#if V8_CC_MSVC && defined(DEBUG)
+const std::array<int, kNumAllFlags> kSortedFlagIndices = []() {
+#else
 constexpr std::array<int, kNumAllFlags> kSortedFlagIndices = []() {
+#endif
   std::array<int, kNumAllFlags> indices{};
   for (size_t i = 0; i < kNumAllFlags; ++i) {
     indices[i] = static_cast<int>(i);
