@@ -2171,6 +2171,28 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // ============================================================================
 // KDF
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+class KDF final {
+ public:
+  KDF() = default;
+  KDF(KDF&&) noexcept = default;
+  KDF& operator=(KDF&&) noexcept = default;
+  NCRYPTO_DISALLOW_COPY(KDF)
+
+  inline operator bool() const { return kdf_ != nullptr; }
+
+  static KDF Fetch(const char* algorithm, OSSL_LIB_CTX* libctx = nullptr);
+
+  // Each derivation uses a fresh context. A null output can be used for
+  // parameter validation by KDFs that support it, such as scrypt.
+  bool derive(const Buffer<unsigned char>& out, const OSSL_PARAM* params) const;
+
+ private:
+  explicit KDF(EVP_KDF* kdf);
+  DeleteFnPtr<EVP_KDF, EVP_KDF_free> kdf_;
+};
+#endif
+
 const EVP_MD* getDigestByName(const char* name);
 const EVP_CIPHER* getCipherByName(const char* name);
 
