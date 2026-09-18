@@ -139,3 +139,147 @@ assert.throws(() => importBytes(map([
   assert.throws(() => importBytes(map([...kLayout, counts(5, 2, 0, 1)])),
                 kInvalid);
 }
+
+// --- Format versions ---
+
+function assertSameHistogram(actual, expected) {
+  assert.strictEqual(actual.count, expected.count);
+  assert.strictEqual(actual.min, expected.min);
+  assert.strictEqual(actual.max, expected.max);
+  assert.strictEqual(actual.percentile(50), expected.percentile(50));
+  assert.strictEqual(actual.percentile(100), expected.percentile(100));
+}
+
+{
+  // Version 1 data, as produced by Node.js v26.9.0, remains importable.
+  const v1 = Buffer.from(
+    'ac00010101021b001fffffffffffff030304070501061a075bcd15070008fb3f' +
+    'f00000000000000919b0000a8c010101010101190bfd02191fa101191bba010b' +
+    'a500fb3fc45d819a94b14c01fb4172dc620791dc2002fb431ce79e5650942003' +
+    'fb3fd2bec33301886804191388', 'hex');
+  const h = importHistogram(new Uint8Array(v1));
+  assert.strictEqual(h.count, 7);
+  assert.strictEqual(h.min, 1);
+  assert.strictEqual(h.max, 123469823);
+  assert.strictEqual(h.mean, 17777921.42857143);
+  assert.strictEqual(h.stddev, 43136537.01467338);
+  assert.strictEqual(h.percentile(50), 4099);
+  assert.strictEqual(h.percentile(100), 123469823);
+  assert.strictEqual(h.ewmaMean, 19777056.47311032);
+  assert.strictEqual(h.ewmaStddev, 45099796.52633914);
+  assert.strictEqual(h.ewmaErrorRate, 0.29289321881345254);
+}
+
+{
+  // export() produces version 2 data, which round-trips.
+  const h = createHistogram({ halfLife: 4, threshold: 5000 });
+  for (const value of [1, 2, 3, 4096, 4097, 1000000, 123456789]) {
+    h.record(value);
+  }
+  const data = h.export();
+  // The first map entry is the version.
+  assert.deepStrictEqual([...data.subarray(1, 3)], [...uint(0), ...uint(2)]);
+  const h2 = importHistogram(data);
+  assertSameHistogram(h2, h);
+  assert.strictEqual(h2.ewmaMean, h.ewmaMean);
+  assert.strictEqual(h2.ewmaErrorRate, h.ewmaErrorRate);
+}
+
+{
+  // Unknown keys in version 2 data are ignored, whatever their values are.
+  const unknownValues = [
+    uint(2n ** 40n),
+    negint(7),
+    [...head(2, 3), 1, 2, 3],                      // Byte string.
+    text('hello'),
+    array([uint(1), array([text('nested')])]),
+    map([[text('a'), uint(1)], [uint(99), map([[uint(1), f64(2.5)]])]]),
+    [...head(6, 1), ...text('2026-09-17')],        // Tag.
+    f64(1.5),
+    [0xf9, 0x3e, 0x00],                            // Float16.
+    [0xfa, 0x3f, 0xc0, 0x00, 0x00],                // Float32.
+    [0xf5],                                        // true
+    [0xf6],                                        // null
+    [0xf8, 0xff],                                  // Simple value 255.
+  ];
+  const expected = importBytes(
+    map([[uint(0), uint(2)], ...kLayout, counts(5, 2, 3, 1)]));
+  const h = importBytes(map([
+    [uint(0), uint(2)],
+    ...kLayout,
+    ...unknownValues.map((value, n) => [uint(12 + n), value]),
+    counts(5, 2, 3, 1),
+  ]));
+  assertSameHistogram(h, expected);
+
+  // Unknown keys may appear before the version key.
+  assertSameHistogram(importBytes(map([
+    [uint(12), text('before the version')],
+    [uint(0), uint(2)],
+    ...kLayout,
+    counts(5, 2, 3, 1),
+  ])), expected);
+
+  // Unknown keys in the EWMA state are ignored as well.
+  const withEwma = importBytes(map([
+    [uint(0), uint(2)],
+    ...kLayout,
+    counts(5, 2, 3, 1),
+    [uint(11), map([
+      [uint(0), f64(0.5)],
+      [uint(99), text('unknown')],
+      [uint(1), f64(6)],
+    ])],
+  ]));
+  assertSameHistogram(withEwma, expected);
+  assert.strictEqual(withEwma.ewmaMean, 6);
+}
+
+{
+  // Version 1 data, or data without a version, keeps the original semantics:
+  // unknown keys are rejected.
+  const unknown = [uint(12), uint(0)];
+  assert.throws(() => importBytes(map([[uint(0), uint(1)], ...kLayout, unknown])),
+                kInvalid);
+  assert.throws(() => importBytes(map([unknown, [uint(0), uint(1)], ...kLayout])),
+                kInvalid);
+  assert.throws(() => importBytes(map([...kLayout, unknown])), kInvalid);
+  assert.throws(() => importBytes(map([
+    [uint(0), uint(1)],
+    ...kLayout,
+    [uint(11), map([[uint(99), uint(0)]])],
+  ])), kInvalid);
+}
+
+// Other versions are rejected.
+for (const version of [0, 3, 99]) {
+  assert.throws(
+    () => importBytes(map([[uint(0), uint(version)], ...kLayout])),
+    kInvalid);
+}
+
+{
+  // Values of unknown keys must still be well-formed.
+  const withUnknownValue =
+    (value) => map([[uint(0), uint(2)], ...kLayout, [uint(12), value]]);
+
+  // Indefinite-length items are not supported.
+  assert.throws(() => importBytes(withUnknownValue([0x5f, 0x41, 0x00, 0xff])),
+                kInvalid);
+  assert.throws(() => importBytes(withUnknownValue([0x9f, 0x00, 0xff])),
+                kInvalid);
+  // Reserved additional information and break codes.
+  assert.throws(() => importBytes(withUnknownValue([0x1c])), kInvalid);
+  assert.throws(() => importBytes(withUnknownValue([0xfc])), kInvalid);
+  assert.throws(() => importBytes(withUnknownValue([0xff])), kInvalid);
+  // Truncated values.
+  assert.throws(() => importBytes(withUnknownValue([...head(3, 10), 0x61])),
+                kInvalid);
+  assert.throws(() => importBytes(withUnknownValue([0xfb, 0x00, 0x00])),
+                kInvalid);
+  assert.throws(() => importBytes(withUnknownValue(head(4, 5))), kInvalid);
+  // Nesting is limited to 16 levels.
+  const nested = (depth) => [...new Array(depth).fill(0x81), 0x00];
+  assert.strictEqual(importBytes(withUnknownValue(nested(16))).count, 0);
+  assert.throws(() => importBytes(withUnknownValue(nested(17))), kInvalid);
+}

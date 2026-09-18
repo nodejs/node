@@ -1816,6 +1816,11 @@ console.log(snapshot.percentile(99));
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66098
+    description: Format version 2 is supported. Unknown keys in version 2
+                 data are ignored.
 -->
 
 * `data` {Uint8Array} A CBOR-encoded histogram previously produced by
@@ -1825,6 +1830,9 @@ added: v26.9.0
 Reconstructs a histogram from a CBOR-encoded `Uint8Array`. The returned
 histogram is a full {RecordableHistogram} with all bucket data, configuration,
 and EWMA state restored. New values can be recorded into it.
+
+Data in any format version produced by [`histogram.export()`][] can be
+imported. See [histogram export format compatibility][] for details.
 
 ```js
 const { createHistogram, importHistogram } = require('node:perf_hooks');
@@ -2219,6 +2227,10 @@ loop delay threshold.
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66098
+    description: The output uses format version 2.
 -->
 
 * Returns: {Uint8Array}
@@ -2237,7 +2249,7 @@ The CBOR payload is a map with integer keys:
 
 | Key | Type    | Field                                         |
 | --- | ------- | --------------------------------------------- |
-| 0   | uint    | Format version (currently 1)                  |
+| 0   | uint    | Format version (currently 2)                  |
 | 1   | uint    | Lowest discernible value                      |
 | 2   | uint    | Highest trackable value                       |
 | 3   | uint    | Significant figures                           |
@@ -2251,6 +2263,23 @@ The CBOR payload is a map with integer keys:
 | 11  | map     | EWMA state (omitted when disabled)            |
 
 Any standard CBOR decoder can parse the output.
+
+#### Histogram export format compatibility
+
+[`perf_hooks.importHistogram()`][] accepts every format version that
+`histogram.export()` has produced:
+
+* Version 1 was produced by Node.js v26.9.0. Data with a version 1 key, or
+  without a version key, is imported with the original semantics: keys
+  that are not listed above are rejected.
+* Version 2 has the same layout as version 1. Keys that are not recognized
+  are ignored, so later versions of Node.js can add fields to version 2
+  data without changing the version, and the data remains importable.
+
+Data with any other version is rejected.
+
+When the total count, min, or max value is absent, it is derived from the
+bucket counts. A total count that is present must match the bucket counts.
 
 ### `histogram.ewmaMean`
 
@@ -3308,3 +3337,4 @@ dns.promises.resolve('localhost');
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON
 [`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance
+[histogram export format compatibility]: #histogram-export-format-compatibility

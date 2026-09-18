@@ -1109,8 +1109,66 @@ static bool CborReadNumber(const uint8_t*& p, const uint8_t* end, double* val) {
   return true;
 }
 
-// Histogram export format version.
-constexpr uint64_t kExportVersion = 1;
+// Maximum nesting depth of the values that CborSkipItem() skips over.
+constexpr int kCborMaxSkipDepth = 16;
+
+// Skip over one well-formed data item, including any items nested within it.
+// Indefinite-length items are not supported.
+static bool CborSkipItem(const uint8_t*& p, const uint8_t* end, int depth = 0) {
+  if (p >= end || depth > kCborMaxSkipDepth) return false;
+  const uint8_t major = *p >> 5;
+  const uint8_t info = *p & 0x1f;
+
+  if (major == 7) {
+    // Simple values and floats. Additional information 24 to 27 is followed
+    // by 1, 2, 4, or 8 bytes; 28 to 30 are reserved, and 31 is a break.
+    size_t extra;
+    if (info <= 23) {
+      extra = 0;
+    } else if (info <= 27) {
+      extra = size_t{1} << (info - 24);
+    } else {
+      return false;
+    }
+    p++;
+    if (static_cast<size_t>(end - p) < extra) return false;
+    p += extra;
+    return true;
+  }
+
+  uint64_t arg;
+  if (!CborReadUint(p, end, &arg)) return false;
+  switch (major) {
+    case 0:  // Unsigned integer.
+    case 1:  // Negative integer.
+      return true;
+    case 2:  // Byte string.
+    case 3:  // Text string.
+      if (arg > static_cast<uint64_t>(end - p)) return false;
+      p += arg;
+      return true;
+    case 4:    // Array.
+    case 5: {  // Map.
+      // Each item takes at least one byte, which also bounds the loop.
+      if (arg > static_cast<uint64_t>(end - p)) return false;
+      const uint64_t items = major == 4 ? arg : arg * 2;
+      for (uint64_t i = 0; i < items; i++) {
+        if (!CborSkipItem(p, end, depth + 1)) return false;
+      }
+      return true;
+    }
+    case 6:  // Tag.
+      return CborSkipItem(p, end, depth + 1);
+  }
+  return false;
+}
+
+// Histogram export format version. Version 2 has the same layout as
+// version 1, but importers ignore unknown keys in version 2 data, so fields
+// can be added without changing the version. Version 1 data is imported
+// with its original semantics, which reject unknown keys.
+constexpr uint64_t kExportVersion = 2;
+constexpr uint64_t kStrictExportVersion = 1;
 
 // Integer keys for the top-level CBOR map.
 constexpr uint64_t kKeyVersion = 0;
@@ -1423,7 +1481,7 @@ Histogram::PercentileCIResult Histogram::PercentileCI(double percentile,
 // common case.
 //
 // Layout: a CBOR map with integer keys:
-//   0  -> uint    format version (currently 1)
+//   0  -> uint    format version (currently 2)
 //   1  -> uint    lowest discernible value
 //   2  -> uint    highest trackable value
 //   3  -> uint    significant figures
@@ -1441,6 +1499,13 @@ Histogram::PercentileCIResult Histogram::PercentileCI(double percentile,
 //        2 -> float64 variance
 //        3 -> float64 error rate
 //        4 -> uint    threshold
+//
+// Compatibility: Import() accepts format versions 1 and 2, whose layouts are
+// identical. In version 2 data, keys that the importer does not recognize are
+// skipped, so new fields can be added without changing the version. Version 1
+// data keeps its original semantics, in which unknown keys are rejected. Any
+// field may be absent; the total count, min, and max are then derived from
+// the counts.
 std::vector<uint8_t> Histogram::Export() const {
   RwLock::ScopedReadLock lock(mutex_);
 
@@ -1547,12 +1612,16 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
   int32_t norm_offset = 0;
   double conv_ratio = 1.0;
   int32_t counts_len = 0;
-  uint64_t version = 0;
+  // Data without a version key is imported as version 1.
+  uint64_t version = kStrictExportVersion;
 
   // Bitsets of the keys read so far, used to reject duplicate keys and to
   // tell whether a field was present. All known keys are less than 64.
   uint64_t seen_keys = 0;
   uint64_t seen_ewma_keys = 0;
+  // Unknown keys are skipped while parsing, because the version key that
+  // determines whether they are allowed can appear anywhere in the map.
+  bool has_unknown_keys = false;
   auto mark_seen = [](uint64_t* seen, uint64_t key) {
     const uint64_t bit = uint64_t{1} << key;
     if (*seen & bit) return false;
@@ -1577,13 +1646,20 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
     // Read key (unsigned int).
     uint64_t key;
     if (!CborReadArgument(p, end, kCborUint, &key)) return nullptr;
-    if (key > kKeyEwma) return nullptr;               // Unknown key.
+    if (key > kKeyEwma) {
+      // Unknown key.
+      if (!CborSkipItem(p, end)) return nullptr;
+      has_unknown_keys = true;
+      continue;
+    }
     if (!mark_seen(&seen_keys, key)) return nullptr;  // Duplicate key.
 
     switch (key) {
       case kKeyVersion:
         if (!CborReadArgument(p, end, kCborUint, &version)) return nullptr;
-        if (version != kExportVersion) return nullptr;
+        if (version < kStrictExportVersion || version > kExportVersion) {
+          return nullptr;
+        }
         break;
       case kKeyLowest:
         if (!CborReadInt64(p, end, &lowest)) return nullptr;
@@ -1648,7 +1724,12 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
         for (uint64_t j = 0; j < sub_size; j++) {
           uint64_t sub_key;
           if (!CborReadArgument(p, end, kCborUint, &sub_key)) return nullptr;
-          if (sub_key > kEwmaThreshold) return nullptr;  // Unknown EWMA key.
+          if (sub_key > kEwmaThreshold) {
+            // Unknown EWMA key.
+            if (!CborSkipItem(p, end)) return nullptr;
+            has_unknown_keys = true;
+            continue;
+          }
           if (!mark_seen(&seen_ewma_keys, sub_key)) return nullptr;
           switch (sub_key) {
             case kEwmaAlpha:
@@ -1672,6 +1753,9 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
       }
     }
   }
+
+  // Version 1 data keeps its original semantics: unknown keys are rejected.
+  if (version == kStrictExportVersion && has_unknown_keys) return nullptr;
 
   // Reconstruct the histogram.
   Options opts;
