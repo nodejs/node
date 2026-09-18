@@ -1759,6 +1759,11 @@ unless the user specified another socket type.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66000
+    description: Connections that are still active when the method is called
+                 now close once they go idle, instead of staying open until
+                 `server.keepAliveTimeout` elapses.
   - version:
       - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
@@ -1770,7 +1775,9 @@ changes:
 
 Stops the server from accepting new connections and closes all connections
 connected to this server which are not sending a request or waiting for
-a response.
+a response. A connection that is still sending a request or waiting for a
+response is left alone until that request/response finishes, and is then
+closed as well.
 See [`net.Server.close()`][].
 
 ```js
