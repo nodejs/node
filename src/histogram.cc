@@ -2379,7 +2379,7 @@ void IntervalHistogram::RegisterExternalReferences(
 IntervalHistogram::IntervalHistogram(Environment* env,
                                      Local<Object> wrap,
                                      AsyncWrap::ProviderType type,
-                                     int32_t interval,
+                                     uint64_t interval,
                                      OnInterval on_interval,
                                      const Histogram::Options& options)
     : HandleWrap(env, wrap, reinterpret_cast<uv_handle_t*>(&timer_), type),
@@ -2396,7 +2396,7 @@ IntervalHistogram::IntervalHistogram(Environment* env,
 
 BaseObjectPtr<IntervalHistogram> IntervalHistogram::Create(
     Environment* env,
-    int32_t interval,
+    uint64_t interval,
     OnInterval on_interval,
     const Histogram::Options& options,
     AsyncWrap::ProviderType type) {
