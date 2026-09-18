@@ -1694,6 +1694,11 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options =
       GetCompileOptionsForCJS(cached_data, prefer_eager);
+  per_process::Debug(DebugCategory::CODE_CACHE,
+                     "Compiling %s %s\n",
+                     filename,
+                     options == ScriptCompiler::kEagerCompile ? "eagerly"
+                                                               : "lazily");
 
   LocalVector<String> params(isolate);
   if (is_cjs_scope) {
