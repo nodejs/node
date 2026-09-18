@@ -15,8 +15,7 @@ const modes = { suid: 0o4755, sgid: 0o2755, sticky: 0o1755, private: 0o600 };
 const src = nextdir();
 mkdirSync(src);
 for (const [name, mode] of Object.entries(modes)) {
-  writeFileSync(join(src, name), 'x');
-  chmodSync(join(src, name), mode);
+  writeFileSync(join(src, name), 'x', { mode });
 }
 const modesIn = (dir) => Object.fromEntries(
   Object.keys(modes).map((name) => [name, statSync(join(dir, name)).mode & 0o7777]));
