@@ -334,6 +334,8 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
       v8::Local<v8::Object> wrap,
       std::shared_ptr<Histogram> histogram);
 
+  ~HistogramBase() override;
+
   BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
@@ -361,6 +363,11 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   };
 
  private:
+  void ReportExternalMemory();
+
+  // The native memory reported to V8 while this object is alive.
+  size_t external_memory_ = 0;
+
   static v8::CFunction fast_record_;
   static v8::CFunction fast_record_delta_;
 };

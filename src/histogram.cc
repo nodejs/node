@@ -1913,6 +1913,7 @@ HistogramBase::HistogramBase(Environment* env,
       HistogramImpl::InternalFields::kImplField,
       static_cast<HistogramImpl*>(this),
       EmbedderDataTag::kDefault);
+  ReportExternalMemory();
 }
 
 HistogramBase::HistogramBase(Environment* env,
@@ -1924,6 +1925,21 @@ HistogramBase::HistogramBase(Environment* env,
       HistogramImpl::InternalFields::kImplField,
       static_cast<HistogramImpl*>(this),
       EmbedderDataTag::kDefault);
+  ReportExternalMemory();
+}
+
+HistogramBase::~HistogramBase() {
+  env()->external_memory_accounter()->Decrease(env()->isolate(),
+                                               external_memory_);
+}
+
+// Reports the size of the native histogram to V8 so that the garbage
+// collector accounts for it. Every object that refers to a native histogram
+// reports its full size, including objects that share one after cloning.
+void HistogramBase::ReportExternalMemory() {
+  external_memory_ = histogram()->GetMemorySize();
+  env()->external_memory_accounter()->Increase(env()->isolate(),
+                                               external_memory_);
 }
 
 void HistogramBase::MemoryInfo(MemoryTracker* tracker) const {
