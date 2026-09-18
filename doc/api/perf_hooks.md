@@ -2160,8 +2160,8 @@ added: v11.10.0
 
 * Type: {number}
 
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
+The number of values that were not recorded because they exceeded the
+histogram's highest recordable value.
 
 ### `histogram.exceedsBigInt`
 
@@ -2173,8 +2173,8 @@ added:
 
 * Type: {bigint}
 
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
+The number of values that were not recorded because they exceeded the
+histogram's highest recordable value.
 
 ### `histogram.export()`
 
