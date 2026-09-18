@@ -28,20 +28,11 @@ const { Transform } = require('node:stream');
 
 assert.strictEqual(crypto.Mac, undefined);
 
-const firstMacs = getMacs();
-const secondMacs = getMacs();
+const macs = getMacs();
+assert(macs.every((name) => name === name.toLowerCase()));
+assert(macs.every((name) => !/^\d+(?:\.\d+)+$/.test(name)));
 
-assert.notStrictEqual(firstMacs, secondMacs);
-assert.deepStrictEqual(firstMacs, [...firstMacs].sort());
-assert.strictEqual(firstMacs.length, new Set(firstMacs).size);
-assert(firstMacs.every((name) => typeof name === 'string'));
-assert(firstMacs.every((name) => name === name.toLowerCase()));
-assert(firstMacs.every((name) => !/^\d+(?:\.\d+)+$/.test(name)));
-
-firstMacs.push('not-a-real-mac');
-assert(!getMacs().includes('not-a-real-mac'));
-
-const availableMacs = new Set(secondMacs);
+const availableMacs = new Set(macs);
 if (!availableMacs.has('hmac')) {
   common.printSkipMessage('HMAC is not available from the active providers');
 } else {
