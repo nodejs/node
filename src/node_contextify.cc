@@ -1800,7 +1800,7 @@ static void CompileFunctionForCJSLoader(
                                      true,
                                      cached_data,
                                      host_defined_option_symbol,
-                                     is_embedder)
+                                     is_embedder /* prefer_eager */)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
