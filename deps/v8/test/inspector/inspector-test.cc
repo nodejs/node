@@ -72,6 +72,9 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     utils->Set(isolate, "compileAndRunWithOrigin",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::CompileAndRunWithOrigin));
+    utils->Set(isolate, "compileAndRunWrapped",
+               v8::FunctionTemplate::New(
+                   isolate, &UtilsExtension::CompileAndRunWrapped));
     utils->Set(isolate, "setCurrentTimeMSForTest",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SetCurrentTimeMSForTest));
@@ -231,6 +234,20 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
         ToVector(info.GetIsolate(), info[1].As<v8::String>()),
         info[2].As<v8::String>(), info[3].As<v8::Int32>(),
         info[4].As<v8::Int32>(), info[5].As<v8::Boolean>()));
+  }
+
+  static void CompileAndRunWrapped(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 3 || !info[0]->IsInt32() || !info[1]->IsString() ||
+        !info[2]->IsString()) {
+      FATAL(
+          "Internal error: compileAndRunWrapped(context_group_id, source, "
+          "url).");
+    }
+    backend_runner_->Append(std::make_unique<ExecuteWrappedStringTask>(
+        info.GetIsolate(), info[0].As<v8::Int32>()->Value(),
+        ToVector(info.GetIsolate(), info[1].As<v8::String>()),
+        info[2].As<v8::String>()));
   }
 
   static void SetCurrentTimeMSForTest(

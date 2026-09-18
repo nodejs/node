@@ -130,5 +130,24 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
   }
 }
 
+void ExecuteWrappedStringTask::Run(InspectorIsolateData* data) {
+  v8::HandleScope handle_scope(data->isolate());
+  v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
+  v8::MicrotasksScope microtasks_scope(context,
+                                       v8::MicrotasksScope::kRunMicrotasks);
+  v8::Context::Scope context_scope(context);
+  v8::ScriptOrigin origin(ToV8String(data->isolate(), name_));
+  v8::Local<v8::String> source = ToV8String(data->isolate(), expression_);
+  v8::ScriptCompiler::Source scriptSource(source, origin);
+  v8::Local<v8::Function> function;
+  if (!v8::ScriptCompiler::CompileFunction(context, &scriptSource)
+           .ToLocal(&function)) {
+    return;
+  }
+  v8::MaybeLocal<v8::Value> result =
+      function->Call(context, context->Global(), 0, nullptr);
+  USE(result);
+}
+
 }  // namespace internal
 }  // namespace v8
