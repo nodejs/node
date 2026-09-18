@@ -42,6 +42,7 @@ void Histogram::Reset() {
   RwLock::ScopedWriteLock lock(mutex_);
   hdr_reset(histogram_.get());
   InvalidateRecordedSnapshot();
+  reset_count_++;
   exceeds_ = 0;
   prev_ = 0;
   ewma_mean_ = 0;
@@ -88,6 +89,11 @@ size_t Histogram::Count() const {
 size_t Histogram::Exceeds() const {
   RwLock::ScopedReadLock lock(mutex_);
   return exceeds_;
+}
+
+uint64_t Histogram::ResetCount() const {
+  RwLock::ScopedReadLock lock(mutex_);
+  return reset_count_;
 }
 
 int64_t Histogram::Min() const {
