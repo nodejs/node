@@ -673,3 +673,38 @@ TEST(NodeCrypto, UnavailableBoringSSLKeyAlgorithms) {
   }
 }
 #endif
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+TEST(NodeCrypto, PrivateKeyEncodingOwnsFetchedCipher) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  EVPKeyPointer::PrivateKeyEncodingConfig assigned;
+  {
+    EVPKeyPointer::PrivateKeyEncodingConfig original;
+    original.cipher =
+        ncrypto::Cipher::FromNameForKeyEncoding("2.16.840.1.101.3.4.1.42");
+    ASSERT_TRUE(original.cipher);
+    ASSERT_NE(EVP_CIPHER_get0_provider(original.cipher.get()), nullptr);
+    const auto copied = original;
+    assigned = copied;
+  }
+
+  ASSERT_TRUE(assigned.cipher);
+  EXPECT_NE(EVP_CIPHER_get0_provider(assigned.cipher.get()), nullptr);
+  EXPECT_EQ(EVP_CIPHER_is_a(assigned.cipher.get(), "AES-256-CBC"), 1);
+  auto ctx = ncrypto::CipherCtxPointer::New();
+  const unsigned char key[32] = {};
+  const unsigned char iv[16] = {};
+  EXPECT_TRUE(ctx.init(assigned.cipher, true, key, iv));
+}
+
+TEST(NodeCrypto, PrivateKeyEncodingProviderOnlyCipher) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  const auto available = ncrypto::Cipher::FromName("AES-128-CBC-CTS");
+  if (!available) GTEST_SKIP();
+  const auto cipher =
+      ncrypto::Cipher::FromNameForKeyEncoding("AES-128-CBC-CTS");
+  ASSERT_TRUE(cipher);
+  EXPECT_NE(EVP_CIPHER_get0_provider(cipher.get()), nullptr);
+  EXPECT_EQ(EVP_CIPHER_is_a(cipher.get(), "AES-128-CBC-CTS"), 1);
+}
+#endif

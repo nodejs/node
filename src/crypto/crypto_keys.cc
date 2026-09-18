@@ -538,8 +538,8 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     if (context != kKeyContextInput) {
       if (args[*offset]->IsString()) {
         Utf8Value cipher_name(env->isolate(), args[*offset]);
-        config.cipher = ncrypto::getCipherByName(*cipher_name);
-        if (config.cipher == nullptr) {
+        config.cipher = ncrypto::Cipher::FromNameForKeyEncoding(*cipher_name);
+        if (!config.cipher) {
           THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
           return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();
         }
@@ -552,7 +552,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     }
 
     if (IsAnyBufferSource(args[*offset])) {
-      CHECK_IMPLIES(context != kKeyContextInput, config.cipher != nullptr);
+      CHECK_IMPLIES(context != kKeyContextInput, config.cipher);
       ArrayBufferOrViewContents<char> passphrase(args[*offset]);
       if (!passphrase.CheckSizeInt32()) [[unlikely]] {
         THROW_ERR_OUT_OF_RANGE(env, "passphrase is too big");
