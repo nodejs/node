@@ -76,6 +76,51 @@ std::shared_ptr<Histogram> Histogram::Create(const Options& options) {
   return std::make_shared<Histogram>(HistogramPointer(histogram), options);
 }
 
+namespace {
+// Copies the recorded data of `source` into `target`, which must have been
+// initialized with the same layout. The caller must hold a lock that prevents
+// `source` from being modified during the copy.
+void CopyRecordedData(hdr_histogram* target, const hdr_histogram* source) {
+  CHECK_EQ(target->counts_len, source->counts_len);
+  target->min_value = source->min_value;
+  target->max_value = source->max_value;
+  target->normalizing_index_offset = source->normalizing_index_offset;
+  target->conversion_ratio = source->conversion_ratio;
+  target->total_count = source->total_count;
+  std::memcpy(target->counts,
+              source->counts,
+              source->counts_len * sizeof(*source->counts));
+}
+}  // namespace
+
+std::shared_ptr<Histogram> Histogram::Clone() const {
+  // The layout is fixed when the histogram is created, so the copy can be
+  // allocated without holding the lock.
+  hdr_histogram* copy;
+  if (hdr_init(histogram_->lowest_discernible_value,
+               histogram_->highest_trackable_value,
+               histogram_->significant_figures,
+               &copy) != 0) {
+    return {};
+  }
+  auto clone = std::make_shared<Histogram>(HistogramPointer(copy), Options{});
+
+  // Every member that holds recorded or statistical state must be copied
+  // here. The recorded snapshot cache is not copied; the clone builds its own
+  // on demand.
+  RwLock::ScopedReadLock lock(mutex_);
+  CopyRecordedData(clone->histogram_.get(), histogram_.get());
+  clone->prev_ = prev_;
+  clone->exceeds_ = exceeds_;
+  clone->ewma_alpha_ = ewma_alpha_;
+  clone->ewma_mean_ = ewma_mean_;
+  clone->ewma_variance_ = ewma_variance_;
+  clone->ewma_initialized_ = ewma_initialized_;
+  clone->threshold_ = threshold_;
+  clone->ewma_error_rate_ = ewma_error_rate_;
+  return clone;
+}
+
 void Histogram::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("histogram", GetMemorySize());
   tracker->TrackFieldWithSize("qrde_snapshot",
@@ -158,16 +203,7 @@ Histogram::RecordedSnapshotSource Histogram::GetRecordedSnapshotSource(
     return source;
   }
 
-  CHECK_EQ(source.histogram->counts_len, histogram_->counts_len);
-  source.histogram->min_value = histogram_->min_value;
-  source.histogram->max_value = histogram_->max_value;
-  source.histogram->normalizing_index_offset =
-      histogram_->normalizing_index_offset;
-  source.histogram->conversion_ratio = histogram_->conversion_ratio;
-  source.histogram->total_count = histogram_->total_count;
-  std::memcpy(source.histogram->counts,
-              histogram_->counts,
-              histogram_->counts_len * sizeof(*histogram_->counts));
+  CopyRecordedData(source.histogram.get(), histogram_.get());
   return source;
 }
 
@@ -1926,6 +1962,7 @@ void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
                             GetEwmaErrorRate,
                             &fast_get_ewma_error_rate_);
   SetProtoMethodNoSideEffect(isolate, tmpl, "export", DoExport);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "snapshot", DoSnapshot);
   SetFastMethod(isolate, instance, "reset", DoReset, &fast_reset_);
 }
 
@@ -1975,6 +2012,7 @@ void HistogramImpl::RegisterExternalReferences(
   registry->Register(GetEwmaStddev);
   registry->Register(GetEwmaErrorRate);
   registry->Register(DoExport);
+  registry->Register(DoSnapshot);
   registry->Register(fast_get_ewma_mean_);
   registry->Register(fast_get_ewma_stddev_);
   registry->Register(fast_get_ewma_error_rate_);
@@ -3106,6 +3144,17 @@ void HistogramImpl::DoImport(const FunctionCallbackInfo<Value>& args) {
     return;
   new HistogramBase(env, obj, std::move(histogram));
   args.GetReturnValue().Set(obj);
+}
+
+void HistogramImpl::DoSnapshot(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
+  std::shared_ptr<Histogram> snapshot = (*histogram)->Clone();
+  if (!snapshot) return THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+
+  BaseObjectPtr<HistogramBase> result =
+      HistogramBase::Create(env, std::move(snapshot));
+  if (result) args.GetReturnValue().Set(result->object());
 }
 
 void HistogramImpl::GetPercentilesAt(const FunctionCallbackInfo<Value>& args) {
