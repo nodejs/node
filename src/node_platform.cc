@@ -125,7 +125,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
     // The delayed task scheuler is on is own thread with its own loop that
     // runs the timers for the scheduled tasks to pop the original task back
-    // into the the worker task queue. This first pushes the tasks that
+    // into the worker task queue. This first pushes the tasks that
     // schedules the timers into the local task queue that will be flushed
     // by the local event loop.
     locked.Push(std::move(delayed));
