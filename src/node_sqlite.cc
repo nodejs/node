@@ -1221,7 +1221,11 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
       Utf8Value location_value(env->isolate(), href.As<String>());
       auto location = location_value.ToStringView();
       if (!has_null_bytes(location)) {
-        CHECK(ada::can_parse(location));
+        if (!ada::can_parse(location)) {
+          THROW_ERR_INVALID_URL(env->isolate(), "Invalid URL");
+          return std::nullopt;
+        }
+
         if (!location.starts_with("file:")) {
           THROW_ERR_INVALID_URL_SCHEME(env->isolate());
           return std::nullopt;
