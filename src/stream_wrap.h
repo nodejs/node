@@ -103,6 +103,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void GetWriteQueueSize(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasPendingRead(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Callbacks for libuv
   void OnUvAlloc(size_t suggested_size, uv_buf_t* buf);

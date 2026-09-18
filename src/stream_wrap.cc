@@ -33,9 +33,9 @@
 #include "udp_wrap.h"
 #include "util-inl.h"
 
-#include <cstring>  // memcpy()
+#include <cerrno>   // errno
 #include <climits>  // INT_MAX
-
+#include <cstring>  // memcpy()
 
 namespace node {
 
@@ -115,6 +115,7 @@ void LibuvStreamWrap::RegisterExternalReferences(
   registry->Register(IsConstructCallCallback);
   registry->Register(GetWriteQueueSize);
   registry->Register(SetBlocking);
+  registry->Register(HasPendingRead);
   StreamBase::RegisterExternalReferences(registry);
 }
 
@@ -153,6 +154,7 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
         Local<FunctionTemplate>(),
         static_cast<PropertyAttribute>(ReadOnly | DontDelete));
     SetProtoMethod(isolate, tmpl, "setBlocking", SetBlocking);
+    SetProtoMethod(isolate, tmpl, "hasPendingRead", HasPendingRead);
     StreamBase::AddMethods(env, tmpl);
     env->set_libuv_stream_wrap_ctor_template(tmpl);
   }
@@ -318,6 +320,67 @@ void LibuvStreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
 
   bool enable = args[0]->IsTrue();
   args.GetReturnValue().Set(uv_stream_set_blocking(wrap->stream(), enable));
+}
+
+// Returns true if a read on the underlying socket would complete right now,
+// i.e. the OS has data, EOF, or a socket error queued that libuv has not
+// delivered yet because the event loop has not polled for I/O since it
+// arrived. Nothing is consumed. Returns false when there is nothing pending
+// or when the handle type does not support the check.
+void LibuvStreamWrap::HasPendingRead(const FunctionCallbackInfo<Value>& args) {
+  LibuvStreamWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+  args.GetReturnValue().Set(false);
+
+  if (!wrap->IsAlive() || wrap->IsClosing()) return;
+
+#ifdef _WIN32
+  // Only TCP sockets can be probed with recv() on Windows.
+  if (!wrap->is_tcp()) return;
+#else
+  if (!wrap->is_tcp() && !wrap->is_named_pipe()) return;
+#endif
+
+  uv_os_fd_t fd;
+  if (uv_fileno(reinterpret_cast<uv_handle_t*>(wrap->stream()), &fd) != 0)
+    return;
+
+  char c;
+#ifdef _WIN32
+  // libuv puts TCP sockets in non-blocking mode and reads with zero-byte
+  // overlapped reads, so unread data stays in the kernel buffer.
+  int r = recv(reinterpret_cast<SOCKET>(fd), &c, 1, MSG_PEEK);
+  if (r == SOCKET_ERROR) {
+    switch (WSAGetLastError()) {
+      case WSAEWOULDBLOCK:
+      case WSAENOTCONN:
+      case WSAENOTSOCK:
+        return;
+    }
+  }
+#else
+  int flags = MSG_PEEK;
+#ifdef MSG_DONTWAIT
+  flags |= MSG_DONTWAIT;
+#endif
+  ssize_t r;
+  do {
+    r = recv(fd, &c, 1, flags);
+  } while (r == -1 && errno == EINTR);
+  if (r == -1) {
+    switch (errno) {
+      case EAGAIN:
+#if EWOULDBLOCK != EAGAIN
+      case EWOULDBLOCK:
+#endif
+      case ENOTCONN:
+      case ENOTSOCK:
+        return;
+    }
+  }
+#endif
+
+  args.GetReturnValue().Set(true);
 }
 
 typedef SimpleShutdownWrap<ReqWrap<uv_shutdown_t>> LibuvShutdownWrap;
