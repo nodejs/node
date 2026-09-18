@@ -1645,11 +1645,6 @@ static const auto maybe_top_level_await_errors =
         "SyntaxError: Unexpected"         // example: `if(await 1)`
     };
 
-// If cached_data is provided, it would be used for the compilation and
-// the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
-// would be ignored.
-// kEagerCompile is mutually exclusive with kConsumeCodeCache, so it only
-// applies once cached_data is known to be absent.
 static ScriptCompiler::CompileOptions GetCompileOptionsForCJS(
     ScriptCompiler::CachedData* cached_data, bool prefer_eager) {
   if (cached_data != nullptr) return ScriptCompiler::kConsumeCodeCache;
@@ -1657,6 +1652,9 @@ static ScriptCompiler::CompileOptions GetCompileOptionsForCJS(
                        : ScriptCompiler::kNoCompileOptions;
 }
 
+// If cached_data is provided, it would be used for the compilation and
+// the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
+// would be ignored.
 static MaybeLocal<Function> CompileFunctionForCJSLoader(
     Environment* env,
     Local<Context> context,
