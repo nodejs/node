@@ -349,8 +349,11 @@ uintptr_t fast_search_avx(T* array, uintptr_t array_len, uintptr_t index,
 #endif  // ifdef __SSE3__
 
 // When built with other toolchains, do not count on it to expose
-// __builtin_sve_* on a per-function basis. Fallback to Neon.
-#if defined(NEON64) && defined(__clang__)
+// __builtin_sve_* on a per-function basis. Clang only supports
+// mangling SVE types with the Microsoft C++ ABI since version 21.
+// Fallback to Neon in cases where SVE is not supported.
+#if defined(NEON64) && defined(__clang__) && \
+    (!defined(V8_TARGET_OS_WIN) || __clang_major__ >= 21)
 #define V8_ENABLE_SIMD_SVE 1
 
 template <typename ScalarType>
@@ -631,7 +634,8 @@ TARGET_SVE inline uintptr_t fast_search_sve(T* array, uintptr_t array_len,
   return no_match;
 }
 
-#endif  // defined(NEON64) && defined(__clang__)
+#endif  // defined(NEON64) && defined(__clang__) &&
+        // (!defined(V8_TARGET_OS_WIN) || __clang_major__ >= 21)
 
 #undef IS_CLANG_WIN
 #undef VECTORIZED_LOOP_Neon
