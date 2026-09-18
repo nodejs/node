@@ -400,7 +400,7 @@ const { inspect } = require('util');
                 { code: 'ERR_INVALID_ARG_TYPE' });
 
   // Out of range
-  assert.throws(() => h.recordCorrected(0, 10),
+  assert.throws(() => h.recordCorrected(-1, 10),
                 { code: 'ERR_OUT_OF_RANGE' });
   assert.throws(() => h.recordCorrected(100, 0),
                 { code: 'ERR_OUT_OF_RANGE' });
