@@ -15,8 +15,6 @@ for (const testFn of testCases) {
     req.socket[testFn]('data', function(data) {
       received += data;
     });
-
-    server.close();
   }).listen(0, common.mustCall(function() {
     const socket = net.connect(this.address().port, common.mustCall(() => {
       socket.write('PUT / HTTP/1.1\r\nHost: example.com\r\n\r\n');
@@ -28,6 +26,7 @@ for (const testFn of testCases) {
       socket.on('end', common.mustCall(() => {
         assert.strictEqual(received, 'hello world',
                            `failed for socket.${testFn}`);
+        server.close();
       }));
     }));
   }));
