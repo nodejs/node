@@ -29,3 +29,17 @@ if (common.isDebug) {
   assert.strictEqual(
     getV8FastApiCallCount('histogram.slidingWindow.record'), 1);
 }
+
+{
+  // Zero is accepted by the fast API call.
+  histogram.record(0);
+  const snapshot = histogram.snapshot();
+  assert.strictEqual(snapshot.count, 2);
+  assert.strictEqual(snapshot.min, 0);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(
+      getV8FastApiCallCount('histogram.slidingWindow.record'), 2);
+  }
+}

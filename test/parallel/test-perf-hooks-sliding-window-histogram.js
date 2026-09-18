@@ -49,7 +49,7 @@ const {
   assert.strictEqual(histogram.snapshot().count, 0);
   histogram.record(10n);
   assert.strictEqual(histogram.snapshot().maxBigInt, 10n);
-  for (const value of [0n, 2n ** 63n]) {
+  for (const value of [-1n, 2n ** 63n]) {
     assert.throws(() => histogram.record(value), {
       code: 'ERR_OUT_OF_RANGE',
     });
