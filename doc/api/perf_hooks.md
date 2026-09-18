@@ -1779,7 +1779,7 @@ console.log(snapshot.percentile(99));
 added: v26.9.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/66098
     description: Format version 2 is supported. Unknown keys in version 2
                  data are ignored.
 -->
@@ -2190,7 +2190,7 @@ loop delay threshold.
 added: v26.9.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/66098
     description: The output uses format version 2.
 -->
 
