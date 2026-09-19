@@ -697,6 +697,10 @@ inline bool Environment::no_browser_globals() const {
 #endif
 }
 
+inline bool Environment::no_addon_permission_for_linked_bindings() const {
+  return flags_ & EnvironmentFlags::kNoAddonPermissionForLinkedBindings;
+}
+
 void Environment::set_source_maps_enabled(bool on) {
   source_maps_enabled_ = on;
 }

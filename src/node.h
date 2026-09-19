@@ -651,7 +651,12 @@ enum Flags : uint64_t {
   // Controls whether the InspectorAgent created for this Environment waits for
   // Inspector frontend events during the Environment creation. It's used to
   // call node::Stop(env) on a Worker thread that is waiting for the events.
-  kNoWaitForInspectorFrontend = 1 << 11
+  kNoWaitForInspectorFrontend = 1 << 11,
+  // Set this flag to exempt process._linkedBinding() from the permission
+  // model's addon scope (--allow-addons): linked bindings are compiled into
+  // the executable by the embedder, unlike addons loaded from the file system
+  // through process.dlopen(), which stays gated. Inherited by worker threads.
+  kNoAddonPermissionForLinkedBindings = 1 << 12
 };
 }  // namespace EnvironmentFlags
 
