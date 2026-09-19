@@ -114,6 +114,14 @@ class JSBindingsConnection : public BaseObject {
     Local<Value> argument;
     if (!ToV8Value(env()->context(), message, isolate).ToLocal(&argument))
       return;
+    // An in-process inspector channel delivers protocol messages by calling
+    // into JavaScript. Debugger.paused can be emitted from a V8
+    // RequestInterrupt handler, before V8 opens its own
+    // AllowJavascriptExecutionScope for the pause message loop. d8's inspector
+    // channel makes the same opt-out in InspectorFrontend::Send(). Messages
+    // emitted where calling into JavaScript is unsafe, such as GC callbacks,
+    // take the queueing path above instead.
+    Isolate::AllowJavascriptExecutionScope allow_js(isolate);
     OnMessage(argument);
   }
 
