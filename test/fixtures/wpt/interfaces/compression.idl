@@ -4,6 +4,7 @@
 // Source: Compression Standard (https://compression.spec.whatwg.org/)
 
 enum CompressionFormat {
+  "brotli",
   "deflate",
   "deflate-raw",
   "gzip",
