@@ -118,6 +118,10 @@ const hasOpenSSL = (major = 0, minor = 0, patch = 0) => {
   return OPENSSL_VERSION_NUMBER >= opensslVersionNumber(major, minor, patch);
 };
 
+const hasFIPS = (major = 0, minor = 0, patch = 0) => {
+  return crypto.getFips() === 1 && hasOpenSSL(major, minor, patch);
+};
+
 let opensslCli = null;
 
 module.exports = {
@@ -134,6 +138,7 @@ module.exports = {
   sec1Exp,
   sec1EncExp,
   hasOpenSSL,
+  hasFIPS,
   get hasOpenSSL3() {
     return hasOpenSSL(3);
   },

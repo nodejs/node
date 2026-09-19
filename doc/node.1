@@ -163,6 +163,12 @@ Enable FIPS mode at startup. With OpenSSL 3, a configured provider named
 \fBfips\fR must be available and initialize successfully. With OpenSSL 1.1.1,
 Node.js must be built against a FIPS-capable OpenSSL.
 .
+.It Fl -enable-fips-indicator-events
+Publish OpenSSL FIPS indicator results to the
+\fB'crypto.fips.indicator'\fR diagnostics channel. This option requires OpenSSL
+3.4 or later. It does not enable FIPS mode or change whether an operation
+is permitted.
+.
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
