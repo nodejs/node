@@ -38,6 +38,21 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
+namespace {
+bool IsRsaPssDigestEncodable(const Digest& digest) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const int nid = EVP_MD_type(digest.get());
+  if (nid == NID_undef) return false;
+
+  const ASN1_OBJECT* object = OBJ_nid2obj(nid);
+  return object != nullptr && OBJ_length(object) > 0;
+#else
+  static_cast<void>(digest);
+  return true;
+#endif
+}
+}  // namespace
+
 EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
   auto ctx = EVPKeyCtxPointer::NewFromID(
       params->params.variant == kKeyVariantRSA_PSS ? EVP_PKEY_RSA_PSS
@@ -58,7 +73,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
   }
 
   if (params->params.variant == kKeyVariantRSA_PSS) {
-    if (params->params.md && !ctx.setRsaPssKeygenMd(params->params.md)) {
+    if (params->params.md && (!IsRsaPssDigestEncodable(params->params.md) ||
+                              !ctx.setRsaPssKeygenMd(params->params.md))) {
       return {};
     }
 
@@ -71,7 +87,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       mgf1_md = params->params.md;
     }
 
-    if (mgf1_md && !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
+    if (mgf1_md && (!IsRsaPssDigestEncodable(mgf1_md) ||
+                    !ctx.setRsaPssKeygenMgf1Md(mgf1_md))) {
       return {};
     }
 
