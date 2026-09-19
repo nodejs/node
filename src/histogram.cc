@@ -1912,7 +1912,7 @@ void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
   int64_t value = args[0]->IsBigInt()
                       ? args[0].As<BigInt>()->Int64Value(&lossless)
                       : static_cast<int64_t>(args[0].As<Number>()->Value());
-  if (!lossless || value < 1)
+  if (!lossless || value < 0)
     return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
@@ -1920,7 +1920,7 @@ void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramBase::FastRecord(Local<Value> receiver, const int64_t value) {
-  CHECK_GE(value, 1);
+  CHECK_GE(value, 0);
   TRACK_V8_FAST_API_CALL("histogram.record");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
@@ -1961,7 +1961,7 @@ void HistogramBase::RecordCorrected(const FunctionCallbackInfo<Value>& args) {
   int64_t value = args[0]->IsBigInt()
                       ? args[0].As<BigInt>()->Int64Value(&lossless)
                       : static_cast<int64_t>(args[0].As<Number>()->Value());
-  if (!lossless || value < 1)
+  if (!lossless || value < 0)
     return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
   int64_t expected_interval =
       args[1]->IsBigInt() ? args[1].As<BigInt>()->Int64Value(&lossless)
@@ -2286,7 +2286,7 @@ void SlidingWindowHistogram::Record(const FunctionCallbackInfo<Value>& args) {
   const int64_t value =
       args[0]->IsBigInt() ? args[0].As<BigInt>()->Int64Value(&lossless)
                           : static_cast<int64_t>(args[0].As<Number>()->Value());
-  if (!lossless || value < 1)
+  if (!lossless || value < 0)
     return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
 
   SlidingWindowHistogram* histogram;
@@ -2298,7 +2298,7 @@ void SlidingWindowHistogram::FastRecord(Local<Value> receiver,
                                         int64_t value,
                                         // NOLINTNEXTLINE(runtime/references)
                                         FastApiCallbackOptions& options) {
-  CHECK_GE(value, 1);
+  CHECK_GE(value, 0);
   TRACK_V8_FAST_API_CALL("histogram.slidingWindow.record");
   SlidingWindowHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
