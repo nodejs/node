@@ -1352,6 +1352,45 @@ See \fB--preserve-symlinks\fR for more information.
 .It Fl p , Fl -print Ar "script"
 Identical to \fB-e\fR but prints the result.
 .
+.It Fl -process-timeout Ns = Ns Ar duration
+Exits the process with code \fB124\fR if it is still running after \fBduration\fR,
+measured from the start of the process. \fBduration\fR is a positive integer
+followed by a unit: \fBms\fR, \fBs\fR, \fBm\fR, or \fBh\fR, for example \fB500ms\fR, \fB30s\fR, \fB5m\fR, or
+\fB1h\fR. The exit code matches the one used by the \fBtimeout(1)\fR command.
+Before exiting, Node.js prints what the main thread was doing and which
+resources were keeping the event loop alive to stderr:
+.Bd -literal
+$ node --process-timeout=5s server.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    TCPServerWrap (listening on [::]:3000, fd 20)
+    Timeout x2 (next due in 2931ms)
+.Ed
+If the main thread was executing JavaScript, its stack trace is printed instead.
+Use \fB--report-on-process-timeout\fR to also generate a diagnostic report.
+The process exits without emitting the \fB'beforeExit'\fR and \fB'exit'\fR events, as
+the JavaScript code may be what keeps the process running. Code coverage and
+profiles, such as those enabled with \fBNODE_V8_COVERAGE=dir\fR or
+\fB--cpu-prof\fR, are still written.
+If the main thread does not respond within two seconds, for example because it
+is blocked in a synchronous operation such as \fBchild_process.execSync()\fR,
+Node.js exits immediately without printing the stack trace and resources.
+This option is not allowed in \fBNODE_OPTIONS\fR, and it cannot be combined
+with the options that enable the inspector, such as \fB--inspect\fR,
+\fB--inspect-brk\fR, \fB--inspect-wait\fR, \fB--inspect-port\fR, and
+\fB--inspect-publish-uid\fR, nor with \fBnode inspect\fR, \fB--run\fR, or
+\fB--build-snapshot\fR. While it is in effect, \fBinspector.open()\fR and
+\fBsession.connectToMainThread()\fR throw, and requests to activate the
+inspector with \fBSIGUSR1\fR are ignored.
+Child processes that inherit \fBprocess.execArgv\fR, such as those created with
+\fBchild_process.fork()\fR, apply the timeout from their own start. With
+\fB--watch\fR, the timeout applies to each run of the application rather than
+to the process that watches for changes. When
+running tests from the command line, the test runner process applies the
+timeout to the whole run, and each test file that runs in its own process
+applies it as well.
+.
 .It Fl -prof
 Generate V8 profiler output.
 .
@@ -1394,6 +1433,12 @@ the Node.js runtime such as out of memory) that lead to termination of the
 application. Useful to inspect various diagnostic data elements such as heap,
 stack, event loop state, resource consumption etc. to reason about the fatal
 error.
+.
+.It Fl -report-on-process-timeout
+Enables the report to be generated when \fB--process-timeout\fR expires, in
+addition to the summary printed to stderr. Useful to inspect the JavaScript
+and native stacks, the event loop state, and resource consumption to reason
+about why the process did not exit. Requires \fB--process-timeout\fR.
 .
 .It Fl -report-on-signal
 Enables report to be generated upon receiving the specified (or predefined)

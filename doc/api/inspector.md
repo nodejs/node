@@ -119,7 +119,8 @@ added: v12.11.0
 -->
 
 Connects a session to the main thread inspector back-end. An exception will
-be thrown if this API was not called on a Worker thread.
+be thrown if this API was not called on a Worker thread, or if
+[`--process-timeout`][] is used, as the session could pause the main thread.
 
 #### `session.disconnect()`
 
@@ -298,7 +299,8 @@ added: v12.11.0
 -->
 
 Connects a session to the main thread inspector back-end. An exception will
-be thrown if this API was not called on a Worker thread.
+be thrown if this API was not called on a Worker thread, or if
+[`--process-timeout`][] is used, as the session could pause the main thread.
 
 #### `session.disconnect()`
 
@@ -455,6 +457,9 @@ and flow control has been passed to the debugger client.
 
 See the [security warning][] regarding the `host`
 parameter usage.
+
+Throws an [`ERR_INSPECTOR_NOT_AVAILABLE`][] error if [`--process-timeout`][] is
+used.
 
 ### `inspector.url()`
 
@@ -802,7 +807,9 @@ connection.
 [Debugger]: debugger.md
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
+[`--process-timeout`]: cli.md#--process-timeoutduration
 [`Debugger` domain]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger
+[`ERR_INSPECTOR_NOT_AVAILABLE`]: errors.md#err_inspector_not_available
 [`inspector.close()`]: #inspectorclose
 [`session.connect()`]: #sessionconnect
 [`session.connectToMainThread()`]: #sessionconnecttomainthread

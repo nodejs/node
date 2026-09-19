@@ -814,6 +814,10 @@ class Environment final : public MemoryRetainer {
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
+  // Referenced while add_refs() holds references, e.g. for running Workers.
+  uv_async_t* task_queues_async() {
+    return &task_queues_async_;
+  }
 
   inline void IncreaseWaitingRequestCounter();
   inline void DecreaseWaitingRequestCounter();
