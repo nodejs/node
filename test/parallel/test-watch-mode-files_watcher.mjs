@@ -146,6 +146,26 @@ describe('watch mode file watcher', () => {
     assert.strictEqual(changesCount, 1);
   });
 
+  it('should unfilter every dependency of an unfiltered owner', async () => {
+    const owner = tmpdir.resolve('owner.js');
+    const dependency1 = tmpdir.resolve('owner-dependency-1.js');
+    const dependency2 = tmpdir.resolve('owner-dependency-2.js');
+    for (const file of [owner, dependency1, dependency2]) {
+      writeFileSync(file, 'written');
+    }
+
+    watcher.filterFile(owner);
+    watcher.filterFile(dependency1, owner);
+    watcher.filterFile(dependency2, owner);
+    watcher.unfilterFilesOwnedBy([owner]);
+
+    watcher.on('changed', common.mustNotCall());
+    writeFileSync(dependency1, '1');
+    writeFileSync(dependency2, '2');
+    // Wait for this long to make sure changes are not triggered
+    await setTimeout(1000);
+  });
+
   it('should watch all files in watched path when in "all" mode',
      { skip: !supportsRecursiveWatching }, async () => {
        watcher = new FilesWatcher({ debounce: 100, mode: 'all' });
