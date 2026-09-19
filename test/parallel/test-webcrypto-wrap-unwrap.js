@@ -390,13 +390,13 @@ function testWrapping(name, keys) {
       for (const name of ['X25519', 'X448']) {
         await assert.rejects(
           subtle.generateKey({ name }, true, ['deriveBits']),
-          (err) => err.name === 'OperationError' &&
-                   err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+          { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
       }
     }
 
-    const wrappingKey = await subtle.generateKey(
-      { name: 'AES-OCB', length: 128 }, true, ['wrapKey']);
+    await assert.rejects(
+      subtle.generateKey({ name: 'AES-OCB', length: 128 }, true, ['wrapKey']),
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
     const key = await subtle.generateKey(
       { name: 'HMAC', hash: 'SHA-256', length: 256 },
       true,
@@ -405,10 +405,9 @@ function testWrapping(name, keys) {
       subtle.wrapKey(
         'raw',
         key,
-        wrappingKey,
+        key,
         { name: 'AES-OCB', iv: new Uint8Array(15), tagLength: 128 }),
-      (err) => err.name === 'OperationError' &&
-               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
   }
 
   await generateWrappingKeys();

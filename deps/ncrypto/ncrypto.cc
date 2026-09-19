@@ -3101,12 +3101,6 @@ const KeyAlgorithm* KeyAlgorithm::FromName(const char* name) {
   return nullptr;
 }
 
-void KeyAlgorithm::ForEachPqc(Callback callback) {
-  for (const auto* algorithm : kKeyAlgorithms) {
-    if (algorithm->isPqc() && algorithm->isAvailable()) callback(*algorithm);
-  }
-}
-
 bool KeyAlgorithm::isRsa() const {
   return this == &RSA || this == &RSA_PSS;
 }

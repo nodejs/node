@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { hasOpenSSL, isBoringSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function getDeriveKeyInfo(name, length, hash, ...usages) {
@@ -606,6 +606,12 @@ async function testWrongKeyType(
 
             kDerivedKeyTypes.forEach((keyType) => {
               const keyArgs = getDeriveKeyInfo(...keyType);
+              if (hasFIPS() && keyType[0] === 'AES-OCB') {
+                variations.push(assert.rejects(testDeriveKey(...args, ...keyArgs), {
+                  name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+                }));
+                return;
+              }
               variations.push(testDeriveKey(...args, ...keyArgs));
               variations.push(testDeriveKeyBadHash(...args, ...keyArgs));
               variations.push(testDeriveKeyBadUsage(
