@@ -79,7 +79,8 @@ for (const [asymmetricKeyType, pubLen] of [
     assertPublicKey(createPublicKey(key));
     key.export({ format: 'der', type: 'pkcs8' });
     if (hasSeed) {
-      assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private);
+      const expectedPkcs8 = process.features.openssl_is_boringssl ? keys.private_seed_only : keys.private;
+      assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), expectedPkcs8);
       const jwk = key.export({ format: 'jwk' });
       assertPrivateJwk(jwk);
       assert.strictEqual(key.equals(createPrivateKey({ format: 'jwk', key: jwk })), true);
