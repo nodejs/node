@@ -1066,18 +1066,109 @@ static bool CborReadFloat64(const uint8_t*& p,
   return true;
 }
 
+// Read the argument of a data item that must have the given major type
+// (kCborUint, kCborArray, or kCborMap). CborReadUint() alone decodes the
+// argument of any major type.
+static bool CborReadArgument(const uint8_t*& p,
+                             const uint8_t* end,
+                             uint8_t major,
+                             uint64_t* val) {
+  if (p >= end || (*p & 0xe0) != major) return false;
+  return CborReadUint(p, end, val);
+}
+
+// Read an unsigned integer that must fit into a non-negative int64_t.
+static bool CborReadInt64(const uint8_t*& p, const uint8_t* end, int64_t* val) {
+  uint64_t v;
+  if (!CborReadArgument(p, end, kCborUint, &v) ||
+      v > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    return false;
+  }
+  *val = static_cast<int64_t>(v);
+  return true;
+}
+
+// Read an unsigned integer that must fit into a non-negative int32_t.
+static bool CborReadInt32(const uint8_t*& p, const uint8_t* end, int32_t* val) {
+  uint64_t v;
+  if (!CborReadArgument(p, end, kCborUint, &v) ||
+      v > static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
+    return false;
+  }
+  *val = static_cast<int32_t>(v);
+  return true;
+}
+
 // Read a value that may be either a uint or float64.
 static bool CborReadNumber(const uint8_t*& p, const uint8_t* end, double* val) {
   if (p >= end) return false;
   if (*p == kCborFloat64) return CborReadFloat64(p, end, val);
   uint64_t u;
-  if (!CborReadUint(p, end, &u)) return false;
+  if (!CborReadArgument(p, end, kCborUint, &u)) return false;
   *val = static_cast<double>(u);
   return true;
 }
 
-// Histogram export format version.
-constexpr uint64_t kExportVersion = 1;
+// Maximum nesting depth of the values that CborSkipItem() skips over.
+constexpr int kCborMaxSkipDepth = 16;
+
+// Skip over one well-formed data item, including any items nested within it.
+// Indefinite-length items are not supported.
+static bool CborSkipItem(const uint8_t*& p, const uint8_t* end, int depth = 0) {
+  if (p >= end || depth > kCborMaxSkipDepth) return false;
+  const uint8_t major = *p >> 5;
+  const uint8_t info = *p & 0x1f;
+
+  if (major == 7) {
+    // Simple values and floats. Additional information 24 to 27 is followed
+    // by 1, 2, 4, or 8 bytes; 28 to 30 are reserved, and 31 is a break.
+    size_t extra;
+    if (info <= 23) {
+      extra = 0;
+    } else if (info <= 27) {
+      extra = size_t{1} << (info - 24);
+    } else {
+      return false;
+    }
+    p++;
+    if (static_cast<size_t>(end - p) < extra) return false;
+    p += extra;
+    return true;
+  }
+
+  uint64_t arg;
+  if (!CborReadUint(p, end, &arg)) return false;
+  switch (major) {
+    case 0:  // Unsigned integer.
+    case 1:  // Negative integer.
+      return true;
+    case 2:  // Byte string.
+    case 3:  // Text string.
+      if (arg > static_cast<uint64_t>(end - p)) return false;
+      p += arg;
+      return true;
+    case 4:    // Array.
+    case 5: {  // Map.
+      // Each item takes at least one byte, which also bounds the loop.
+      if (arg > static_cast<uint64_t>(end - p)) return false;
+      const uint64_t items = major == 4 ? arg : arg * 2;
+      for (uint64_t i = 0; i < items; i++) {
+        if (!CborSkipItem(p, end, depth + 1)) return false;
+      }
+      return true;
+    }
+    case 6:  // Tag.
+      return CborSkipItem(p, end, depth + 1);
+  }
+  return false;
+}
+
+// Histogram export format version. Version 2 has the same layout as
+// version 1, but importers ignore unknown keys in version 2 data, so fields
+// can be added without changing the version. Version 1 data is imported
+// with its original semantics, which reject unknown keys.
+constexpr uint64_t kExportVersion = 2;
+constexpr uint64_t kStrictExportVersion = 1;
 
 // Integer keys for the top-level CBOR map.
 constexpr uint64_t kKeyVersion = 0;
@@ -1390,7 +1481,7 @@ Histogram::PercentileCIResult Histogram::PercentileCI(double percentile,
 // common case.
 //
 // Layout: a CBOR map with integer keys:
-//   0  -> uint    format version (currently 1)
+//   0  -> uint    format version (currently 2)
 //   1  -> uint    lowest discernible value
 //   2  -> uint    highest trackable value
 //   3  -> uint    significant figures
@@ -1408,6 +1499,13 @@ Histogram::PercentileCIResult Histogram::PercentileCI(double percentile,
 //        2 -> float64 variance
 //        3 -> float64 error rate
 //        4 -> uint    threshold
+//
+// Compatibility: Import() accepts format versions 1 and 2, whose layouts are
+// identical. In version 2 data, keys that the importer does not recognize are
+// skipped, so new fields can be added without changing the version. Version 1
+// data keeps its original semantics, in which unknown keys are rejected. Any
+// field may be absent; the total count, min, and max are then derived from
+// the counts.
 std::vector<uint8_t> Histogram::Export() const {
   RwLock::ScopedReadLock lock(mutex_);
 
@@ -1502,20 +1600,37 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
   const uint8_t* end = data + len;
 
   // Read top-level map header.
-  if (p >= end || (*p >> 5) != 5) return nullptr;  // Must be a map.
   uint64_t map_size;
-  if (!CborReadUint(p, end, &map_size)) return nullptr;
+  if (!CborReadArgument(p, end, kCborMap, &map_size)) return nullptr;
 
   int64_t lowest = 1;
   int64_t highest = std::numeric_limits<int64_t>::max();
-  int figures = 3;
+  int32_t figures = 3;
   int64_t total_count = 0;
   int64_t min_value = std::numeric_limits<int64_t>::max();
   int64_t max_value = 0;
   int32_t norm_offset = 0;
   double conv_ratio = 1.0;
   int32_t counts_len = 0;
-  uint64_t version = 0;
+  // Data without a version key is imported as version 1.
+  uint64_t version = kStrictExportVersion;
+
+  // Bitsets of the keys read so far, used to reject duplicate keys and to
+  // tell whether a field was present. All known keys are less than 64.
+  uint64_t seen_keys = 0;
+  uint64_t seen_ewma_keys = 0;
+  // Unknown keys are skipped while parsing, because the version key that
+  // determines whether they are allowed can appear anywhere in the map.
+  bool has_unknown_keys = false;
+  auto mark_seen = [](uint64_t* seen, uint64_t key) {
+    const uint64_t bit = uint64_t{1} << key;
+    if (*seen & bit) return false;
+    *seen |= bit;
+    return true;
+  };
+  auto has_key = [&seen_keys](uint64_t key) {
+    return (seen_keys & (uint64_t{1} << key)) != 0;
+  };
 
   // Sparse counts storage.
   std::vector<std::pair<int32_t, int64_t>> sparse_counts;
@@ -1530,74 +1645,56 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
   for (uint64_t i = 0; i < map_size; i++) {
     // Read key (unsigned int).
     uint64_t key;
-    if (!CborReadUint(p, end, &key)) return nullptr;
+    if (!CborReadArgument(p, end, kCborUint, &key)) return nullptr;
+    if (key > kKeyEwma) {
+      // Unknown key.
+      if (!CborSkipItem(p, end)) return nullptr;
+      has_unknown_keys = true;
+      continue;
+    }
+    if (!mark_seen(&seen_keys, key)) return nullptr;  // Duplicate key.
 
     switch (key) {
       case kKeyVersion:
-        if (!CborReadUint(p, end, &version)) return nullptr;
-        if (version != kExportVersion) return nullptr;
-        break;
-      case kKeyLowest: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        lowest = static_cast<int64_t>(v);
-        break;
-      }
-      case kKeyHighest: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        highest = static_cast<int64_t>(v);
-        break;
-      }
-      case kKeyFigures: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        figures = static_cast<int>(v);
-        break;
-      }
-      case kKeyTotalCount: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        total_count = static_cast<int64_t>(v);
-        break;
-      }
-      case kKeyMin: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        min_value = static_cast<int64_t>(v);
-        break;
-      }
-      case kKeyMax: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        max_value = static_cast<int64_t>(v);
-        break;
-      }
-      case kKeyNormOffset: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        // Reject values that cannot be represented as int32_t; the
-        // static_cast below would wrap and produce an arbitrary offset.
-        if (v > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()))
+        if (!CborReadArgument(p, end, kCborUint, &version)) return nullptr;
+        if (version < kStrictExportVersion || version > kExportVersion) {
           return nullptr;
-        norm_offset = static_cast<int32_t>(v);
+        }
         break;
-      }
+      case kKeyLowest:
+        if (!CborReadInt64(p, end, &lowest)) return nullptr;
+        break;
+      case kKeyHighest:
+        if (!CborReadInt64(p, end, &highest)) return nullptr;
+        break;
+      case kKeyFigures:
+        if (!CborReadInt32(p, end, &figures)) return nullptr;
+        break;
+      case kKeyTotalCount:
+        if (!CborReadInt64(p, end, &total_count)) return nullptr;
+        break;
+      case kKeyMin:
+        if (!CborReadInt64(p, end, &min_value)) return nullptr;
+        break;
+      case kKeyMax:
+        if (!CborReadInt64(p, end, &max_value)) return nullptr;
+        break;
+      case kKeyNormOffset:
+        // Reject values that cannot be represented as int32_t; casting them
+        // would wrap and produce an arbitrary offset.
+        if (!CborReadInt32(p, end, &norm_offset)) return nullptr;
+        break;
       case kKeyConvRatio:
         if (!CborReadNumber(p, end, &conv_ratio)) return nullptr;
         break;
-      case kKeyCountsLen: {
-        uint64_t v;
-        if (!CborReadUint(p, end, &v)) return nullptr;
-        counts_len = static_cast<int32_t>(v);
+      case kKeyCountsLen:
+        if (!CborReadInt32(p, end, &counts_len)) return nullptr;
         break;
-      }
       case kKeyCounts: {
         // Array of flat [delta, count, ...] pairs. Indices are
         // delta-encoded: accumulate to recover absolute indices.
-        if (p >= end || (*p >> 5) != 4) return nullptr;
         uint64_t arr_len;
-        if (!CborReadUint(p, end, &arr_len)) return nullptr;
+        if (!CborReadArgument(p, end, kCborArray, &arr_len)) return nullptr;
         if (arr_len % 2 != 0) return nullptr;
         // Each element needs at least 1 byte of CBOR encoding, so
         // arr_len can't exceed the remaining buffer. Without this
@@ -1605,24 +1702,35 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
         // reserve() to OOM-crash before the loop catches the error.
         if (arr_len > static_cast<uint64_t>(end - p)) return nullptr;
         sparse_counts.reserve(static_cast<size_t>(arr_len / 2));
-        int32_t acc_idx = 0;
+        int64_t acc_idx = 0;
         for (uint64_t j = 0; j < arr_len; j += 2) {
-          uint64_t delta, cnt;
-          if (!CborReadUint(p, end, &delta)) return nullptr;
-          if (!CborReadUint(p, end, &cnt)) return nullptr;
-          acc_idx += static_cast<int32_t>(delta);
-          sparse_counts.emplace_back(acc_idx, static_cast<int64_t>(cnt));
+          int32_t delta;
+          int64_t cnt;
+          if (!CborReadInt32(p, end, &delta)) return nullptr;
+          if (!CborReadInt64(p, end, &cnt)) return nullptr;
+          // Indices are strictly increasing, so only the first delta (the
+          // absolute index of the first non-empty bucket) may be zero.
+          if (j > 0 && delta == 0) return nullptr;
+          acc_idx += delta;
+          if (acc_idx > std::numeric_limits<int32_t>::max()) return nullptr;
+          sparse_counts.emplace_back(static_cast<int32_t>(acc_idx), cnt);
         }
         break;
       }
       case kKeyEwma: {
         // Sub-map for EWMA state.
-        if (p >= end || (*p >> 5) != 5) return nullptr;
         uint64_t sub_size;
-        if (!CborReadUint(p, end, &sub_size)) return nullptr;
+        if (!CborReadArgument(p, end, kCborMap, &sub_size)) return nullptr;
         for (uint64_t j = 0; j < sub_size; j++) {
           uint64_t sub_key;
-          if (!CborReadUint(p, end, &sub_key)) return nullptr;
+          if (!CborReadArgument(p, end, kCborUint, &sub_key)) return nullptr;
+          if (sub_key > kEwmaThreshold) {
+            // Unknown EWMA key.
+            if (!CborSkipItem(p, end)) return nullptr;
+            has_unknown_keys = true;
+            continue;
+          }
+          if (!mark_seen(&seen_ewma_keys, sub_key)) return nullptr;
           switch (sub_key) {
             case kEwmaAlpha:
               if (!CborReadNumber(p, end, &ewma_alpha)) return nullptr;
@@ -1636,22 +1744,18 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
             case kEwmaErrorRate:
               if (!CborReadNumber(p, end, &ewma_error_rate)) return nullptr;
               break;
-            case kEwmaThreshold: {
-              uint64_t v;
-              if (!CborReadUint(p, end, &v)) return nullptr;
-              threshold = static_cast<int64_t>(v);
+            case kEwmaThreshold:
+              if (!CborReadInt64(p, end, &threshold)) return nullptr;
               break;
-            }
-            default:
-              return nullptr;  // Unknown EWMA key.
           }
         }
         break;
       }
-      default:
-        return nullptr;  // Unknown key.
     }
   }
+
+  // Version 1 data keeps its original semantics: unknown keys are rejected.
+  if (version == kStrictExportVersion && has_unknown_keys) return nullptr;
 
   // Reconstruct the histogram.
   Options opts;
@@ -1679,15 +1783,30 @@ std::shared_ptr<Histogram> Histogram::Import(const uint8_t* data, size_t len) {
   if (norm_offset < 0 || norm_offset >= counts_len) return nullptr;
 
   // Restore counts directly.
+  int64_t observed_total_count = 0;
   for (const auto& [idx, cnt] : sparse_counts) {
     if (idx < 0 || idx >= counts_len) return nullptr;
+    // The counts must add up without overflowing int64_t.
+    if (cnt > std::numeric_limits<int64_t>::max() - observed_total_count) {
+      return nullptr;
+    }
+    observed_total_count += cnt;
     histogram->histogram_->counts[idx] = cnt;
   }
-  histogram->histogram_->total_count = total_count;
-  histogram->histogram_->min_value = min_value;
-  histogram->histogram_->max_value = max_value;
   histogram->histogram_->normalizing_index_offset = norm_offset;
   histogram->histogram_->conversion_ratio = conv_ratio;
+
+  // Derive the total count, min, and max from the counts, as
+  // Histogram::Subtract() does. This keeps the histogram consistent when
+  // any of them are absent. A total count that is present must match the
+  // counts. Min and max values that are present are restored as recorded.
+  hdr_reset_internal_counters(histogram->histogram_.get());
+  if (has_key(kKeyTotalCount) &&
+      total_count != histogram->histogram_->total_count) {
+    return nullptr;
+  }
+  if (has_key(kKeyMin)) histogram->histogram_->min_value = min_value;
+  if (has_key(kKeyMax)) histogram->histogram_->max_value = max_value;
 
   // Restore EWMA state.
   if (ewma_alpha > 0) {
