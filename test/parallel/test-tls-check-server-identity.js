@@ -394,6 +394,47 @@ const tests = [
     },
     error: 'IP: 127.0.0.1 is not in the cert\'s list: '
   },
+  // A host that net.isIP() rejects but that normalizes to an IPv4 address is
+  // an IP address, not a DNS name: it is matched against "IP Address:" SANs,
+  // never against DNS names or the CN.
+  {
+    host: '\uFF11\uFF12\uFF17.0.0.1', // "127.0.0.1" with fullwidth digits.
+    cert: { subjectaltname: 'DNS:127.0.0.1', subject: {} },
+    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: '
+  },
+  {
+    host: '\uFF11\uFF12\uFF17.0.0.1',
+    cert: { subjectaltname: 'DNS:*.0.0.1', subject: {} },
+    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: '
+  },
+  {
+    host: '\uFF11\uFF12\uFF17.0.0.1',
+    cert: { subject: { CN: '127.0.0.1' } },
+    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: '
+  },
+  {
+    host: '\uFF11\uFF12\uFF17.0.0.1',
+    cert: { subjectaltname: 'IP Address:127.0.0.1', subject: {} }
+  },
+  {
+    host: '\uFF11\uFF12\uFF17.0.0.1',
+    cert: { subjectaltname: 'IP Address:127.0.0.2', subject: {} },
+    error: 'IP: \uFF11\uFF12\uFF17.0.0.1 is not in the cert\'s list: 127.0.0.2'
+  },
+  {
+    host: '127\u30020.0.1', // "127.0.0.1" with an ideographic full stop.
+    cert: { subjectaltname: 'DNS:127.0.0.1', subject: {} },
+    error: 'IP: 127\u30020.0.1 is not in the cert\'s list: '
+  },
+  {
+    host: '127.1',
+    cert: { subjectaltname: 'DNS:127.0.0.1', subject: {} },
+    error: 'IP: 127.1 is not in the cert\'s list: '
+  },
+  {
+    host: '127.1',
+    cert: { subjectaltname: 'IP Address:127.0.0.1', subject: {} }
+  },
   {
     host: 'localhost', cert: {
       subjectaltname: 'DNS:a.com',
