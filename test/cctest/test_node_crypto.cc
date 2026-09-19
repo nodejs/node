@@ -7,8 +7,20 @@
 #include "gtest/gtest.h"
 #include "node_options.h"
 #include "openssl/err.h"
+#include "util.h"
 
 #include <climits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#include <openssl/core_dispatch.h>
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#include <openssl/provider.h>
+#endif
 
 using ncrypto::Ec;
 using ncrypto::EVPKeyCtxPointer;
@@ -88,6 +100,193 @@ TEST(NodeCrypto, KeyAlgorithmNames) {
   EXPECT_FALSE(empty.isA("unknown-key-algorithm"));
   EXPECT_FALSE(empty.isA(static_cast<const char*>(nullptr)));
 }
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+TEST(NodeCrypto, ProviderPkcs1PublicKeyImport) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::RSA);
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(ctx.initForKeygen());
+  ASSERT_TRUE(ctx.setRsaKeygenBits(2048));
+  EVP_PKEY* raw = nullptr;
+  ASSERT_EQ(EVP_PKEY_keygen(ctx.get(), &raw), 1);
+  EVPKeyPointer key(raw);
+
+  for (const auto format :
+       {EVPKeyPointer::PKFormatType::PEM, EVPKeyPointer::PKFormatType::DER}) {
+    const EVPKeyPointer::PublicKeyEncodingConfig config(
+        false, format, EVPKeyPointer::PKEncodingType::PKCS1);
+    auto encoded = key.writePublicKey(config);
+    ASSERT_TRUE(encoded);
+    const BUF_MEM* mem = encoded.value;
+    ASSERT_NE(mem, nullptr);
+    const ncrypto::Buffer<const unsigned char> input{
+        reinterpret_cast<const unsigned char*>(mem->data), mem->length};
+    auto imported = EVPKeyPointer::TryParsePublicKey(config, input);
+    ASSERT_TRUE(imported);
+    EXPECT_NE(EVP_PKEY_get0_provider(imported.value.get()), nullptr);
+    EXPECT_TRUE(imported.value.isA(KeyAlgorithm::RSA));
+    EXPECT_EQ(EVP_PKEY_eq(key.get(), imported.value.get()), 1);
+  }
+}
+
+namespace {
+struct RsaLoadTestContext {
+  OSSL_FUNC_BIO_read_ex_fn* read = nullptr;
+  int selection = 0;
+  int loads = 0;
+  int frees = 0;
+};
+
+void* RsaLoadTestDecoderNew(void* context) {
+  return context;
+}
+
+void RsaLoadTestDecoderFree(void*) {}
+
+int RsaLoadTestDecode(void* context,
+                      OSSL_CORE_BIO* input,
+                      int selection,
+                      OSSL_CALLBACK* callback,
+                      void* arg,
+                      OSSL_PASSPHRASE_CALLBACK*,
+                      void*) {
+  auto* state = static_cast<RsaLoadTestContext*>(context);
+  unsigned char sentinel = 0;
+  size_t size = 0;
+  // Only exercise construction and reference ownership, not ASN.1 parsing.
+  if (!state->read(input, &sentinel, 1, &size) || size != 1 ||
+      sentinel != 0x42) {
+    return 0;
+  }
+  state->selection = selection;
+  char type[] = "RSA";
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_utf8_string(
+          OSSL_OBJECT_PARAM_DATA_TYPE, type, sizeof(type) - 1),
+      OSSL_PARAM_octet_string(
+          OSSL_OBJECT_PARAM_REFERENCE, &state, sizeof(state)),
+      OSSL_PARAM_END,
+  };
+  return callback(params, arg);
+}
+
+void* RsaLoadTestLoad(const void* reference, size_t size) {
+  if (size != sizeof(RsaLoadTestContext*)) return nullptr;
+  auto* state = *static_cast<RsaLoadTestContext* const*>(reference);
+  state->loads++;
+  return state;
+}
+
+void RsaLoadTestFree(void* context) {
+  static_cast<RsaLoadTestContext*>(context)->frees++;
+}
+
+int RsaLoadTestHas(const void*, int selection) {
+  return (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0;
+}
+
+const OSSL_ALGORITHM* RsaLoadTestQuery(void*, int operation, int* no_cache) {
+  *no_cache = 0;
+  static const OSSL_DISPATCH decoder[] = {
+      {OSSL_FUNC_DECODER_NEWCTX,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestDecoderNew)},
+      {OSSL_FUNC_DECODER_FREECTX,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestDecoderFree)},
+      {OSSL_FUNC_DECODER_DECODE,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestDecode)},
+      {0, nullptr},
+  };
+  static const OSSL_DISPATCH keymgmt[] = {
+      {OSSL_FUNC_KEYMGMT_LOAD,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestLoad)},
+      {OSSL_FUNC_KEYMGMT_FREE,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestFree)},
+      {OSSL_FUNC_KEYMGMT_HAS, reinterpret_cast<void (*)(void)>(RsaLoadTestHas)},
+      {0, nullptr},
+  };
+  static const OSSL_ALGORITHM decoders[] = {
+      {"RSA",
+       "provider=node-test-rsa-load,input=der,structure=type-specific",
+       decoder,
+       "Test RSA decoder without export"},
+      {nullptr, nullptr, nullptr, nullptr},
+  };
+  static const OSSL_ALGORITHM keymgmts[] = {
+      {"RSA",
+       "provider=node-test-rsa-load",
+       keymgmt,
+       "Test RSA reference load"},
+      {nullptr, nullptr, nullptr, nullptr},
+  };
+  if (operation == OSSL_OP_DECODER) return decoders;
+  return operation == OSSL_OP_KEYMGMT ? keymgmts : nullptr;
+}
+
+void RsaLoadTestTeardown(void* context) {
+  delete static_cast<RsaLoadTestContext*>(context);
+}
+
+int RsaLoadTestProviderInit(const OSSL_CORE_HANDLE*,
+                            const OSSL_DISPATCH* in,
+                            const OSSL_DISPATCH** out,
+                            void** context) {
+  auto state = std::make_unique<RsaLoadTestContext>();
+  for (; in->function_id != 0; in++) {
+    if (in->function_id == OSSL_FUNC_BIO_READ_EX) {
+      state->read = OSSL_FUNC_BIO_read_ex(in);
+    }
+  }
+  if (state->read == nullptr) return 0;
+  static const OSSL_DISPATCH dispatch[] = {
+      {OSSL_FUNC_PROVIDER_QUERY_OPERATION,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestQuery)},
+      {OSSL_FUNC_PROVIDER_TEARDOWN,
+       reinterpret_cast<void (*)(void)>(RsaLoadTestTeardown)},
+      {0, nullptr},
+  };
+  *context = state.release();
+  *out = dispatch;
+  return 1;
+}
+}  // namespace
+
+TEST(NodeCrypto, ProviderPkcs1PublicKeyLoadWithoutExport) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(OSSL_PROVIDER_add_builtin(
+                libctx.get(), "node-test-rsa-load", RsaLoadTestProviderInit),
+            1);
+  auto* provider = OSSL_PROVIDER_load(libctx.get(), "node-test-rsa-load");
+  auto unload_provider =
+      node::OnScopeLeave([provider] { OSSL_PROVIDER_unload(provider); });
+  ASSERT_NE(provider, nullptr);
+  auto* state = static_cast<RsaLoadTestContext*>(
+      OSSL_PROVIDER_get0_provider_ctx(provider));
+  OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+  auto restore_libctx = node::OnScopeLeave(
+      [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+
+  // Neither decoder export nor keymgmt import is available in this provider.
+  const unsigned char sentinel[] = {0x42};
+  const EVPKeyPointer::PublicKeyEncodingConfig config(
+      false,
+      EVPKeyPointer::PKFormatType::DER,
+      EVPKeyPointer::PKEncodingType::PKCS1);
+  {
+    auto imported = EVPKeyPointer::TryParsePublicKey(config, {sentinel, 1});
+    ASSERT_TRUE(imported);
+    EXPECT_EQ(EVP_PKEY_get0_provider(imported.value.get()), provider);
+    EXPECT_TRUE(imported.value.isA(KeyAlgorithm::RSA));
+    EXPECT_EQ(state->selection, EVP_PKEY_PUBLIC_KEY);
+    EXPECT_EQ(state->loads, 1);
+    EXPECT_EQ(state->frees, 0);
+  }
+  EXPECT_EQ(state->frees, 1);
+}
+#endif
 
 TEST(NodeCrypto, UnsupportedRawExports) {
   using Error = EVPKeyPointer::RawExportError;
@@ -343,6 +542,202 @@ TEST(NodeCrypto, NamedKeysAndEcCurves) {
             Ec::GetCurveIdFromName("prime256v1"));
 }
 
+TEST(NodeCrypto, EcGroupNames) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  EXPECT_FALSE(Ec::GetCurveName(EVPKeyPointer()));
+  EXPECT_FALSE(Ec::CheckCurveName(nullptr));
+  EXPECT_FALSE(Ec::CheckCurveName("node-test-unknown-curve"));
+  for (const char* name : {"P-256", "prime256v1"}) {
+    EXPECT_TRUE(Ec::CheckCurveName(name));
+    auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
+    ASSERT_TRUE(ctx.initForParamgen());
+    ASSERT_TRUE(ctx.setEcParameters(name, OPENSSL_EC_NAMED_CURVE));
+    auto key = ctx.paramgen();
+    ASSERT_TRUE(key);
+    const auto group = Ec::GetCurveName(key);
+    ASSERT_TRUE(group);
+    EXPECT_EQ(group.value(), "prime256v1");
+  }
+}
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+namespace {
+// Deliberately longer than the fixed-size group buffer formerly used by
+// ncrypto.
+constexpr char kProviderEcGroup[] =
+    "node-test-provider-ec-group-without-an-object-identifier-"
+    "and-with-a-name-longer-than-eighty-bytes";
+
+int EcGroupTestSetParams(void* data, const OSSL_PARAM params[]) {
+  const OSSL_PARAM* group =
+      OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
+  if (group == nullptr) return 1;
+  const char* name = nullptr;
+  if (OSSL_PARAM_get_utf8_string_ptr(group, &name) != 1 || name == nullptr) {
+    return 0;
+  }
+  *static_cast<std::string*>(data) = name;
+  return 1;
+}
+
+void* EcGroupTestGenInit(void*, int, const OSSL_PARAM params[]) {
+  auto data = std::make_unique<std::string>();
+  if (params != nullptr && !EcGroupTestSetParams(data.get(), params)) {
+    return nullptr;
+  }
+  return data.release();
+}
+
+void* EcGroupTestGen(void* data, OSSL_CALLBACK*, void*) {
+  const auto& group = *static_cast<std::string*>(data);
+  // Defer rejecting unknown names until generation, as a provider may do.
+  if (group != kProviderEcGroup && group != "prime256v1") {
+    ERR_raise(ERR_LIB_USER, ERR_R_PASSED_INVALID_ARGUMENT);
+    return nullptr;
+  }
+  return new std::string(group);
+}
+
+void EcGroupTestFree(void* data) {
+  delete static_cast<std::string*>(data);
+}
+
+int EcGroupTestHas(const void* data, int selection) {
+  return (selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0 &&
+         !static_cast<const std::string*>(data)->empty();
+}
+
+int EcGroupTestGetParams(void* data, OSSL_PARAM params[]) {
+  OSSL_PARAM* group = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_GROUP_NAME);
+  return group == nullptr ||
+         OSSL_PARAM_set_utf8_string(group,
+                                    static_cast<std::string*>(data)->c_str());
+}
+
+const OSSL_PARAM* EcGroupTestParams(void*, void*) {
+  static const OSSL_PARAM params[] = {
+      OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, nullptr, 0),
+      OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_EC_ENCODING, nullptr, 0),
+      OSSL_PARAM_END,
+  };
+  return params;
+}
+
+const OSSL_PARAM* EcGroupTestGettableParams(void*) {
+  return EcGroupTestParams(nullptr, nullptr);
+}
+
+const OSSL_ALGORITHM* EcGroupTestQuery(void*, int operation, int* no_cache) {
+  *no_cache = 0;
+  static const OSSL_DISPATCH keymgmt[] = {
+      {OSSL_FUNC_KEYMGMT_GEN_INIT,
+       reinterpret_cast<void (*)(void)>(EcGroupTestGenInit)},
+      {OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestSetParams)},
+      {OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestParams)},
+      {OSSL_FUNC_KEYMGMT_GEN, reinterpret_cast<void (*)(void)>(EcGroupTestGen)},
+      {OSSL_FUNC_KEYMGMT_GEN_CLEANUP,
+       reinterpret_cast<void (*)(void)>(EcGroupTestFree)},
+      {OSSL_FUNC_KEYMGMT_FREE,
+       reinterpret_cast<void (*)(void)>(EcGroupTestFree)},
+      {OSSL_FUNC_KEYMGMT_HAS, reinterpret_cast<void (*)(void)>(EcGroupTestHas)},
+      {OSSL_FUNC_KEYMGMT_GET_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestGetParams)},
+      {OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS,
+       reinterpret_cast<void (*)(void)>(EcGroupTestGettableParams)},
+      {0, nullptr},
+  };
+  static const OSSL_ALGORITHM algorithms[] = {
+      {"EC", "provider=node-test-ec", keymgmt, "Test provider EC group names"},
+      {nullptr, nullptr, nullptr, nullptr},
+  };
+  return operation == OSSL_OP_KEYMGMT ? algorithms : nullptr;
+}
+
+int EcGroupTestProviderInit(const OSSL_CORE_HANDLE*,
+                            const OSSL_DISPATCH*,
+                            const OSSL_DISPATCH** out,
+                            void**) {
+  static const OSSL_DISPATCH dispatch[] = {
+      {OSSL_FUNC_PROVIDER_QUERY_OPERATION,
+       reinterpret_cast<void (*)(void)>(EcGroupTestQuery)},
+      {0, nullptr},
+  };
+  *out = dispatch;
+  return 1;
+}
+
+void EcGroupTestUnloadProvider(OSSL_PROVIDER* provider) {
+  OSSL_PROVIDER_unload(provider);
+}
+}  // namespace
+
+TEST(NodeCrypto, ProviderEcGroupName) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  ncrypto::DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> libctx(
+      OSSL_LIB_CTX_new());
+  ASSERT_TRUE(libctx);
+  ASSERT_EQ(OSSL_PROVIDER_add_builtin(
+                libctx.get(), "node-test-ec", EcGroupTestProviderInit),
+            1);
+  ncrypto::DeleteFnPtr<OSSL_PROVIDER, EcGroupTestUnloadProvider> provider(
+      OSSL_PROVIDER_load(libctx.get(), "node-test-ec"));
+  ASSERT_TRUE(provider);
+  {
+    OSSL_LIB_CTX* previous_libctx = OSSL_LIB_CTX_set0_default(libctx.get());
+    auto restore_libctx = node::OnScopeLeave(
+        [previous_libctx] { OSSL_LIB_CTX_set0_default(previous_libctx); });
+    // The provider supports generation, but intentionally has no import API.
+    EXPECT_TRUE(Ec::CheckCurveName(kProviderEcGroup));
+    EXPECT_FALSE(Ec::CheckCurveName("node-test-unknown-curve"));
+    EXPECT_TRUE(Ec::CheckCurveName("P-256"));
+
+    auto ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(ctx.initForParamgen());
+    ASSERT_TRUE(ctx.setEcParameters(kProviderEcGroup, OPENSSL_EC_NAMED_CURVE));
+    auto key = ctx.paramgen();
+    ASSERT_TRUE(key);
+    EXPECT_EQ(Ec::GetCurveId(key), NID_undef);
+    const auto name = Ec::GetCurveName(key);
+    ASSERT_TRUE(name);
+    EXPECT_EQ(name.value(), kProviderEcGroup);
+
+    // Only usable built-in curves are enumerated. The provider-only group
+    // remains usable by name without appearing in this list.
+    ERR_clear_error();
+    ERR_raise(ERR_LIB_USER, ERR_R_INTERNAL_ERROR);
+    const auto saved_error = ERR_peek_error();
+    std::vector<std::string> curves;
+    EXPECT_TRUE(Ec::GetCurves([&curves](const char* curve) {
+      curves.emplace_back(curve);
+      return true;
+    }));
+    EXPECT_EQ(curves, std::vector<std::string>{"prime256v1"});
+    EXPECT_EQ(ERR_peek_error(), saved_error);
+    EXPECT_EQ(ERR_peek_last_error(), saved_error);
+
+    unsigned int calls = 0;
+    EXPECT_FALSE(Ec::GetCurves([&calls](const char*) {
+      calls++;
+      ERR_raise(ERR_LIB_USER, ERR_R_PASSED_INVALID_ARGUMENT);
+      return false;
+    }));
+    EXPECT_EQ(calls, 1U);
+    EXPECT_EQ(ERR_get_error(), saved_error);
+    EXPECT_EQ(ERR_GET_REASON(ERR_get_error()), ERR_R_PASSED_INVALID_ARGUMENT);
+    EXPECT_EQ(ERR_get_error(), 0UL);
+
+    ASSERT_EQ(EVP_set_default_properties(nullptr, "provider=default"), 1);
+    EXPECT_TRUE(Ec::GetCurves([](const char*) {
+      ADD_FAILURE() << "No EC groups should match the default properties";
+      return true;
+    }));
+  }
+}
+#endif
+
 TEST(NodeCrypto, NamedRawKey) {
   const unsigned char seed[32] = {};
   const ncrypto::Buffer<const unsigned char> input{seed, sizeof(seed)};
@@ -484,5 +879,40 @@ TEST(NodeCrypto, UnavailableBoringSSLKeyAlgorithms) {
     EXPECT_FALSE(algorithm->isAvailable());
     EXPECT_FALSE(EVPKeyCtxPointer::NewFromAlgorithm(*algorithm));
   }
+}
+#endif
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+TEST(NodeCrypto, PrivateKeyEncodingOwnsFetchedCipher) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  EVPKeyPointer::PrivateKeyEncodingConfig assigned;
+  {
+    EVPKeyPointer::PrivateKeyEncodingConfig original;
+    original.cipher =
+        ncrypto::Cipher::FromNameForKeyEncoding("2.16.840.1.101.3.4.1.42");
+    ASSERT_TRUE(original.cipher);
+    ASSERT_NE(EVP_CIPHER_get0_provider(original.cipher.get()), nullptr);
+    const auto copied = original;
+    assigned = copied;
+  }
+
+  ASSERT_TRUE(assigned.cipher);
+  EXPECT_NE(EVP_CIPHER_get0_provider(assigned.cipher.get()), nullptr);
+  EXPECT_EQ(EVP_CIPHER_is_a(assigned.cipher.get(), "AES-256-CBC"), 1);
+  auto ctx = ncrypto::CipherCtxPointer::New();
+  const unsigned char key[32] = {};
+  const unsigned char iv[16] = {};
+  EXPECT_TRUE(ctx.init(assigned.cipher, true, key, iv));
+}
+
+TEST(NodeCrypto, PrivateKeyEncodingProviderOnlyCipher) {
+  ncrypto::ClearErrorOnReturn clear_errors;
+  const auto available = ncrypto::Cipher::FromName("AES-128-CBC-CTS");
+  if (!available) GTEST_SKIP();
+  const auto cipher =
+      ncrypto::Cipher::FromNameForKeyEncoding("AES-128-CBC-CTS");
+  ASSERT_TRUE(cipher);
+  EXPECT_NE(EVP_CIPHER_get0_provider(cipher.get()), nullptr);
+  EXPECT_EQ(EVP_CIPHER_is_a(cipher.get(), "AES-128-CBC-CTS"), 1);
 }
 #endif

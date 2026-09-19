@@ -542,6 +542,7 @@ class Cipher final {
                  unsigned char* iv) const;
 
   static const Cipher FromName(const char* name, CipherCache* cache = nullptr);
+  static const Cipher FromNameForKeyEncoding(const char* name);
   static const Cipher FromNid(int nid, CipherCache* cache = nullptr);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
@@ -649,8 +650,10 @@ class Dsa final {
 class Rsa final {
  public:
   Rsa();
+  enum class Selection { Public, Private };
+  static Rsa PublicOnly(const EVPKeyPointer& key);
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
-  explicit Rsa(const EVP_PKEY* pkey);
+  explicit Rsa(const EVP_PKEY* pkey, Selection selection = Selection::Private);
 #else
   Rsa(OSSL3_CONST RSA* rsa);
 #endif
@@ -770,6 +773,8 @@ class Ec final {
 
   static int GetCurveIdFromName(const char* name);
   static int GetCurveId(const EVPKeyPointer& key);
+  static std::optional<std::string> GetCurveName(const EVPKeyPointer& key);
+  static bool CheckCurveName(const char* name);
   static DataPointer TryExportPublic(const EVPKeyPointer& key,
                                      point_conversion_form_t form);
   static DataPointer ExportPrivate(const EVPKeyPointer& key);
@@ -1149,6 +1154,7 @@ class EVPKeyCtxPointer final {
   bool setDhParameters(int prime_size, uint32_t generator);
   bool setDsaParameters(uint32_t bits, std::optional<int> q_bits);
   bool setEcParameters(int curve, int encoding);
+  bool setEcParameters(const char* group_name, int encoding);
 
   bool setRsaOaepMd(const Digest& md);
   bool setRsaMgf1Md(const Digest& md);
@@ -1250,7 +1256,7 @@ class EVPKeyPointer final {
   using PublicKeyEncodingConfig = AsymmetricKeyEncodingConfig;
 
   struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
-    const EVP_CIPHER* cipher = nullptr;
+    Cipher cipher;
     std::optional<DataPointer> passphrase = std::nullopt;
     PrivateKeyEncodingConfig() = default;
     PrivateKeyEncodingConfig(bool output_key_object,
@@ -2171,8 +2177,29 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // ============================================================================
 // KDF
 
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+class KDF final {
+ public:
+  KDF() = default;
+  KDF(KDF&&) noexcept = default;
+  KDF& operator=(KDF&&) noexcept = default;
+  NCRYPTO_DISALLOW_COPY(KDF)
+
+  inline operator bool() const { return kdf_ != nullptr; }
+
+  static KDF Fetch(const char* algorithm, OSSL_LIB_CTX* libctx = nullptr);
+
+  // Each derivation uses a fresh context. A null output can be used for
+  // parameter validation by KDFs that support it, such as scrypt.
+  bool derive(const Buffer<unsigned char>& out, const OSSL_PARAM* params) const;
+
+ private:
+  explicit KDF(EVP_KDF* kdf);
+  DeleteFnPtr<EVP_KDF, EVP_KDF_free> kdf_;
+};
+#endif
+
 const EVP_MD* getDigestByName(const char* name);
-const EVP_CIPHER* getCipherByName(const char* name);
 
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the
