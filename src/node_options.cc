@@ -78,8 +78,57 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors,
   }
 }
 
+namespace {
+// Parses a duration made of a positive integer and a unit, such as "500ms",
+// "30s", "5m" or "1h", into milliseconds.
+bool ParseDurationMilliseconds(std::string_view value, uint64_t* result) {
+  size_t digits = 0;
+  while (digits < value.size() && value[digits] >= '0' && value[digits] <= '9')
+    digits++;
+  if (digits == 0) return false;
+
+  const std::string_view unit = value.substr(digits);
+  uint64_t multiplier;
+  if (unit == "ms") {
+    multiplier = 1;
+  } else if (unit == "s") {
+    multiplier = 1000;
+  } else if (unit == "m") {
+    multiplier = 60 * 1000;
+  } else if (unit == "h") {
+    multiplier = 60 * 60 * 1000;
+  } else {
+    return false;
+  }
+
+  uint64_t amount;
+  const char* end = value.data() + digits;
+  const auto parsed = std::from_chars(value.data(), end, amount);
+  if (parsed.ec != std::errc() || parsed.ptr != end) return false;
+
+  // The deadline is computed in nanoseconds relative to the process start
+  // time, so keep plenty of headroom in a uint64_t.
+  static constexpr uint64_t kMaxMilliseconds =
+      std::numeric_limits<uint64_t>::max() / 2 / 1000000;
+  if (amount == 0 || amount > kMaxMilliseconds / multiplier) return false;
+
+  *result = amount * multiplier;
+  return true;
+}
+}  // namespace
+
 void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
                                      std::vector<std::string>* argv) {
+  if (process_timeout.empty()) {
+    process_timeout_ms = 0;
+  } else if (!ParseDurationMilliseconds(process_timeout, &process_timeout_ms)) {
+    process_timeout_ms = 0;
+    errors->push_back("invalid value for --process-timeout: '" +
+                      process_timeout +
+                      "'. Expected a positive integer followed by a unit "
+                      "(ms, s, m or h), e.g. 30s");
+  }
+
 #if HAVE_OPENSSL
   if (use_openssl_ca && use_bundled_ca) {
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
@@ -136,6 +185,59 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("invalid value for --use-largepages");
   }
   per_isolate->CheckOptions(errors, argv);
+}
+
+void PerProcessOptions::CheckProcessTimeoutOptions(
+    std::vector<std::string>* errors,
+    const std::vector<std::string>& argv) const {
+  if (process_timeout.empty()) {
+    if (report_on_process_timeout) {
+      errors->push_back(
+          "--report-on-process-timeout must be used with --process-timeout");
+    }
+    return;
+  }
+
+  // A process that is being debugged can be paused indefinitely, which would
+  // make the timeout fire while the debugger is in control, so the two cannot
+  // be combined. Runtime activation of the inspector is rejected separately.
+  const DebugOptions& debug_options = per_isolate->per_env->debug_options();
+  const char* debug_option = nullptr;
+  if (debug_options.break_node_first_line) {
+    debug_option = "--inspect-brk-node";
+  } else if (debug_options.break_first_line) {
+    debug_option = "--inspect-brk";
+  } else if (debug_options.inspect_wait) {
+    debug_option = "--inspect-wait";
+  } else if (debug_options.inspector_enabled) {
+    debug_option = "--inspect";
+  } else if (debug_options.host_port.host() != "127.0.0.1" ||
+             debug_options.host_port.port() !=
+                 DebugOptions::kDefaultInspectorPort) {
+    // We can't catch the case where the value passed is the default value,
+    // then the option just becomes a noop which is fine.
+    debug_option = "--inspect-port";
+  } else if (debug_options.inspect_publish_uid_string != "stderr,http") {
+    debug_option = "--inspect-publish-uid";
+  }
+  if (debug_option != nullptr) {
+    errors->push_back(std::string("either --process-timeout or ") +
+                      debug_option + " can be used, not both");
+  }
+
+  if (argv.size() > 1 && argv[1] == "inspect") {
+    errors->push_back("--process-timeout cannot be used with `node inspect`");
+  }
+
+  if (has_run) {
+    errors->push_back(
+        "either --process-timeout or --run can be used, not both");
+  }
+
+  if (per_isolate->build_snapshot) {
+    errors->push_back(
+        "either --process-timeout or --build-snapshot can be used, not both");
+  }
 }
 
 void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
@@ -1584,6 +1686,9 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "generate diagnostic report on fatal (internal) errors",
             BOOL_FIELD(report_on_fatalerror),
             kAllowedInEnvvar);
+  AddOption("--report-on-process-timeout",
+            "generate diagnostic report when --process-timeout expires",
+            BOOL_FIELD(report_on_process_timeout));
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   AddOption("--icu-data-dir",
@@ -1679,6 +1784,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "enable printing JavaScript stacktrace on SIGINT",
             BOOL_FIELD(trace_sigint),
             kAllowedInEnvvar);
+
+  AddOption("--process-timeout",
+            "print why the process is still running and exit with code 124 "
+            "if it has not exited after the given duration (e.g. 30s)",
+            &PerProcessOptions::process_timeout);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 

@@ -2647,6 +2647,59 @@ changes:
 
 Identical to `-e` but prints the result.
 
+### `--process-timeout=duration`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Exits the process with code `124` if it is still running after `duration`,
+measured from the start of the process. `duration` is a positive integer
+followed by a unit: `ms`, `s`, `m`, or `h`, for example `500ms`, `30s`, `5m`, or
+`1h`. The exit code matches the one used by the `timeout(1)` command.
+
+Before exiting, Node.js prints what the main thread was doing and which
+resources were keeping the event loop alive to stderr:
+
+```console
+$ node --process-timeout=5s server.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    TCPServerWrap (listening on [::]:3000, fd 20)
+    Timeout x2 (next due in 2931ms)
+```
+
+If the main thread was executing JavaScript, its stack trace is printed instead.
+Use [`--report-on-process-timeout`][] to also generate a [diagnostic report][].
+
+The process exits without emitting the `'beforeExit'` and `'exit'` events, as
+the JavaScript code may be what keeps the process running. Code coverage and
+profiles, such as those enabled with [`NODE_V8_COVERAGE=dir`][] or
+[`--cpu-prof`][], are still written.
+
+If the main thread does not respond within two seconds, for example because it
+is blocked in a synchronous operation such as [`child_process.execSync()`][],
+Node.js exits immediately without printing the stack trace and resources.
+
+This option is not allowed in [`NODE_OPTIONS`][], and it cannot be combined
+with the options that enable the inspector, such as `--inspect`,
+`--inspect-brk`, `--inspect-wait`, `--inspect-port`, and
+`--inspect-publish-uid`, nor with `node inspect`, `--run`, or
+`--build-snapshot`. While it is in effect, [`inspector.open()`][] and
+[`session.connectToMainThread()`][] throw, and requests to activate the
+inspector with `SIGUSR1` are ignored.
+
+Child processes that inherit `process.execArgv`, such as those created with
+[`child_process.fork()`][], apply the timeout from their own start. With
+[`--watch`][], the timeout applies to each run of the application rather than
+to the process that watches for changes. When
+[running tests from the command line][], the test runner process applies the
+timeout to the whole run, and each test file that runs in its own process
+applies it as well.
+
 ### `--prof`
 
 <!-- YAML
@@ -2773,6 +2826,19 @@ the Node.js runtime such as out of memory) that lead to termination of the
 application. Useful to inspect various diagnostic data elements such as heap,
 stack, event loop state, resource consumption etc. to reason about the fatal
 error.
+
+### `--report-on-process-timeout`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Enables the report to be generated when [`--process-timeout`][] expires, in
+addition to the summary printed to stderr. Useful to inspect the JavaScript
+and native stacks, the event loop state, and resource consumption to reason
+about why the process did not exit. Requires [`--process-timeout`][].
 
 ### `--report-on-signal`
 
@@ -4807,6 +4873,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
+[`--cpu-prof`]: #--cpu-prof
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--enable-fips`]: #--enable-fips
@@ -4821,12 +4888,15 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
+[`--process-timeout`]: #--process-timeoutduration
 [`--redirect-warnings`]: #--redirect-warningsfile
+[`--report-on-process-timeout`]: #--report-on-process-timeout
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
 [`--vfs-load`]: #--vfs-loadsource
 [`--vfs-mount`]: #--vfs-mountsource
+[`--watch`]: #--watch
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
@@ -4834,17 +4904,21 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
+[`NODE_V8_COVERAGE=dir`]: #node_v8_coveragedir
 [`NO_COLOR`]: https://no-color.org
 [`RealFSProvider`]: vfs.md#class-realfsprovider
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`ZipProvider`]: vfs.md#class-zipprovider
+[`child_process.execSync()`]: child_process.md#child_processexecsynccommand-options
+[`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
 [`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
 [`import` specifier]: esm.md#import-specifiers
+[`inspector.open()`]: inspector.md#inspectoropenport-host-wait
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
@@ -4852,6 +4926,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:vfs`]: vfs.md
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
@@ -4868,6 +4943,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/learn/getting-started/debugging#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
+[diagnostic report]: report.md
 [dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables-1

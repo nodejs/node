@@ -20,13 +20,19 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <algorithm>
+#include <cstdlib>
+#include <string>
+#include <unordered_set>
+#include <utility>
 
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_sockaddr-inl.h"
 #include "node_watchdog.h"
+#include "node_worker.h"
 #include "util-inl.h"
 
 namespace node {
@@ -34,9 +40,12 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::Value;
 
 Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
@@ -99,6 +108,452 @@ void Watchdog::Timer(uv_timer_t* timer) {
   uv_stop(&w->loop_);
 }
 
+namespace {
+
+constexpr uint64_t kNanosecondsPerMillisecond = 1000 * 1000;
+// How long the main thread has to respond to the timeout. If it does not, it
+// is most likely blocked in a synchronous native call.
+constexpr uint64_t kProcessTimeoutResponseGraceMs = 2000;
+// How long printing the diagnostics, writing the report and exiting may take.
+constexpr uint64_t kProcessTimeoutExitGraceMs = 5000;
+
+std::string FormatProcessTimeoutHeader(const std::string& duration) {
+  return SPrintF("(node:%d) Process timed out after %s (--process-timeout). "
+                 "Exiting with code %d.\n",
+                 uv_os_getpid(),
+                 duration,
+                 static_cast<int>(ExitCode::kProcessTimeout));
+}
+
+// Called from the watchdog thread when the main thread cannot be trusted to
+// exit on its own. It must not touch the Environment or V8.
+[[noreturn]] void ForceProcessTimeoutExit(const std::string& message) {
+  FPrintF(stderr, "%s", message);
+  fflush(stderr);
+  ResetStdio();
+  std::_Exit(static_cast<int>(ExitCode::kProcessTimeout));
+}
+
+std::string FormatJavaScriptStack(Isolate* isolate, Local<StackTrace> stack) {
+  std::string result;
+  for (int i = 0; i < stack->GetFrameCount(); i++) {
+    Local<StackFrame> frame = stack->GetFrame(isolate, i);
+    Utf8Value function_name(isolate, frame->GetFunctionName());
+    Utf8Value script_name(isolate, frame->GetScriptName());
+    const int line = frame->GetLineNumber();
+    const int column = frame->GetColumn();
+    if (function_name.length() == 0) {
+      result += SPrintF("    at %s:%d:%d\n", script_name, line, column);
+    } else {
+      result += SPrintF(
+          "    at %s (%s:%d:%d)\n", function_name, script_name, line, column);
+    }
+  }
+  return result;
+}
+
+// Describes the details of a libuv handle that help identify where it comes
+// from, e.g. the address a server listens on or the pid of a child process.
+std::string DescribeHandle(uv_handle_t* handle, std::string_view name) {
+  std::string description;
+  switch (handle->type) {
+    case UV_TCP: {
+      const uv_tcp_t& tcp = *reinterpret_cast<uv_tcp_t*>(handle);
+      const std::string local = SocketAddress::FromSockName(tcp).ToString();
+      const std::string remote = SocketAddress::FromPeerName(tcp).ToString();
+      if (!remote.empty()) {
+        description = local + " -> " + remote;
+      } else if (!local.empty()) {
+        description =
+            (name == "TCPServerWrap" ? "listening on " : "local ") + local;
+      }
+      break;
+    }
+    case UV_UDP: {
+      const uv_udp_t& udp = *reinterpret_cast<uv_udp_t*>(handle);
+      const std::string local = SocketAddress::FromSockName(udp).ToString();
+      if (!local.empty()) description = "bound to " + local;
+      break;
+    }
+    case UV_PROCESS:
+      description =
+          SPrintF("pid %d",
+                  uv_process_get_pid(reinterpret_cast<uv_process_t*>(handle)));
+      break;
+    case UV_FS_EVENT:
+    case UV_FS_POLL: {
+      char path[PATH_MAX_BYTES];
+      size_t size = sizeof(path);
+      const int rc =
+          handle->type == UV_FS_EVENT
+              ? uv_fs_event_getpath(
+                    reinterpret_cast<uv_fs_event_t*>(handle), path, &size)
+              : uv_fs_poll_getpath(
+                    reinterpret_cast<uv_fs_poll_t*>(handle), path, &size);
+      if (rc == 0) description = "watching " + std::string(path, size);
+      break;
+    }
+    case UV_SIGNAL:
+      description =
+          signo_string(reinterpret_cast<uv_signal_t*>(handle)->signum);
+      break;
+    case UV_TIMER:
+      description =
+          SPrintF("due in %dms",
+                  uv_timer_get_due_in(reinterpret_cast<uv_timer_t*>(handle)));
+      break;
+    default:
+      break;
+  }
+
+#ifndef _WIN32
+  uv_os_fd_t fd;
+  if (handle->type != UV_PROCESS && uv_fileno(handle, &fd) == 0) {
+    description += (description.empty() ? "" : ", ") + SPrintF("fd %d", fd);
+  }
+#endif
+
+  return description;
+}
+
+// Collects resources in the order in which they are found, merging duplicates.
+class ResourceList {
+ public:
+  void Add(std::string name, std::string details = "", size_t count = 1) {
+    for (Entry& entry : entries_) {
+      if (entry.name == name && entry.details == details) {
+        entry.count += count;
+        return;
+      }
+    }
+    entries_.push_back({std::move(name), std::move(details), count});
+  }
+
+  std::string ToString() const {
+    std::string result;
+    for (const Entry& entry : entries_) {
+      result += "    " + entry.name;
+      if (entry.count > 1) result += SPrintF(" x%d", entry.count);
+      if (!entry.details.empty()) result += " (" + entry.details + ")";
+      result += "\n";
+    }
+    return result;
+  }
+
+  bool empty() const { return entries_.empty(); }
+
+ private:
+  struct Entry {
+    std::string name;
+    std::string details;
+    size_t count;
+  };
+  std::vector<Entry> entries_;
+};
+
+// Describes what the main thread was doing and what keeps the event loop
+// alive. This must not call into JavaScript, as it may run from a V8 interrupt.
+std::string FormatProcessTimeoutDiagnostics(Environment* env) {
+  Isolate* isolate = env->isolate();
+  std::string result;
+
+  Local<StackTrace> stack;
+  if (GetCurrentStackTrace(isolate, static_cast<int>(env->stack_trace_limit()))
+          .ToLocal(&stack) &&
+      stack->GetFrameCount() > 0) {
+    result += "Main thread was executing JavaScript:\n";
+    result += FormatJavaScriptStack(isolate, stack);
+  } else {
+    result += "Main thread was not executing JavaScript.\n";
+  }
+
+  ResourceList resources;
+
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* wrap = req_wrap->GetAsyncWrap();
+    if (wrap->persistent().IsEmpty()) continue;
+    resources.Add(wrap->MemoryInfoName());
+  }
+
+  std::unordered_set<const uv_handle_t*> handle_wraps;
+  for (HandleWrap* wrap : *env->handle_wrap_queue()) {
+    uv_handle_t* handle = wrap->GetHandle();
+    handle_wraps.insert(handle);
+    if (wrap->persistent().IsEmpty() || !HandleWrap::HasRef(wrap) ||
+        !uv_is_active(handle)) {
+      continue;
+    }
+    const std::string name = wrap->MemoryInfoName();
+    resources.Add(name, DescribeHandle(handle, name));
+  }
+
+  // Timers and immediates are tracked in JavaScript and share one libuv handle
+  // per kind, so report how many of them keep the event loop alive.
+  const int32_t timeouts = env->timeout_info()[0];
+  if (timeouts > 0) {
+    // The timer handle is inactive while the timers are being processed.
+    uv_timer_t* timer_handle = env->timer_handle();
+    resources.Add(
+        "Timeout",
+        uv_is_active(reinterpret_cast<uv_handle_t*>(timer_handle))
+            ? SPrintF("next due in %dms", uv_timer_get_due_in(timer_handle))
+            : "",
+        timeouts);
+  }
+  const uint32_t immediates = env->immediate_info()->ref_count();
+  if (immediates > 0) resources.Add("Immediate", "", immediates);
+
+  // Running Workers keep the event loop alive through the Environment's own
+  // task queue handle rather than through a HandleWrap.
+  env->ForEachWorker([&](worker::Worker* worker) {
+    if (worker->is_internal() || !worker->has_ref() || worker->is_stopped()) {
+      return;
+    }
+    std::string details = SPrintF("thread %d", worker->thread_id());
+    if (!worker->name().empty()) {
+      details += SPrintF(", name '%s'", worker->name());
+    }
+    resources.Add("Worker", std::move(details));
+  });
+
+  // Anything else, e.g. handles created by native addons.
+  struct WalkData {
+    Environment* env;
+    const std::unordered_set<const uv_handle_t*>* handle_wraps;
+    ResourceList* resources;
+  } walk_data{env, &handle_wraps, &resources};
+  uv_walk(
+      env->event_loop(),
+      [](uv_handle_t* handle, void* arg) {
+        WalkData* data = static_cast<WalkData*>(arg);
+        Environment* env = data->env;
+        if (!uv_is_active(handle) || !uv_has_ref(handle) ||
+            data->handle_wraps->contains(handle) ||
+            handle == reinterpret_cast<uv_handle_t*>(env->timer_handle()) ||
+            handle ==
+                reinterpret_cast<uv_handle_t*>(env->immediate_idle_handle()) ||
+            handle ==
+                reinterpret_cast<uv_handle_t*>(env->task_queues_async())) {
+          return;
+        }
+        data->resources->Add("libuv handle", uv_handle_type_name(handle->type));
+      },
+      &walk_data);
+
+  if (resources.empty()) {
+    result += "No resources keeping the event loop alive were found.\n";
+  } else {
+    result += "Resources keeping the event loop alive:\n";
+    result += resources.ToString();
+  }
+  return result;
+}
+
+}  // namespace
+
+struct ProcessTimeoutWatchdog::State {
+  enum class Phase {
+    // Waiting for the deadline.
+    kArmed,
+    // The deadline was reached and the main thread was interrupted.
+    kFired,
+    // The main thread is printing diagnostics and exiting.
+    kHandling,
+    // The event loop has stopped and the Environment is being torn down.
+    kStopping,
+    // The process is exiting normally.
+    kDisarmed,
+  };
+
+  State(uint64_t deadline, std::string duration, bool report)
+      : deadline(deadline), duration(std::move(duration)), report(report) {
+    CHECK_EQ(uv_mutex_init(&mutex), 0);
+    CHECK_EQ(uv_cond_init(&cond), 0);
+  }
+
+  ~State() {
+    uv_cond_destroy(&cond);
+    uv_mutex_destroy(&mutex);
+  }
+
+  State(const State&) = delete;
+  State& operator=(const State&) = delete;
+
+  // With `mutex` held, waits while the phase is `current`, but at most until
+  // uv_hrtime() reaches `until`.
+  void WaitWhile(Phase current, uint64_t until) {
+    while (phase == current) {
+      const uint64_t now = uv_hrtime();
+      if (now >= until) return;
+      uv_cond_timedwait(&cond, &mutex, until - now);
+    }
+  }
+
+  uv_mutex_t mutex;
+  uv_cond_t cond;
+  Phase phase = Phase::kArmed;
+  // In uv_hrtime() nanoseconds.
+  const uint64_t deadline;
+  // As passed to --process-timeout, e.g. "30s".
+  const std::string duration;
+  // --report-on-process-timeout
+  const bool report;
+};
+
+bool ProcessTimeoutWatchdog::IsEnabled() {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  return per_process::cli_options->process_timeout_ms != 0;
+}
+
+std::unique_ptr<ProcessTimeoutWatchdog> ProcessTimeoutWatchdog::MaybeStart(
+    Environment* env) {
+  CHECK(env->is_main_thread());
+  uint64_t timeout_ms;
+  std::string duration;
+  bool report;
+  {
+    Mutex::ScopedLock lock(per_process::cli_options_mutex);
+    timeout_ms = per_process::cli_options->process_timeout_ms;
+    duration = per_process::cli_options->process_timeout;
+    report = per_process::cli_options->report_on_process_timeout;
+  }
+  if (timeout_ms == 0) return nullptr;
+
+  // In watch mode, this process only restarts the application in child
+  // processes, which inherit --process-timeout and apply it to each run.
+  if (env->options()->watch_mode) return nullptr;
+
+  const uint64_t deadline =
+      per_process::node_start_time + timeout_ms * kNanosecondsPerMillisecond;
+  auto state = std::make_shared<State>(deadline, std::move(duration), report);
+  return std::unique_ptr<ProcessTimeoutWatchdog>(
+      new ProcessTimeoutWatchdog(env, std::move(state)));
+}
+
+ProcessTimeoutWatchdog::ProcessTimeoutWatchdog(Environment* env,
+                                               std::shared_ptr<State> state)
+    : env_(env), state_(std::move(state)) {
+  CHECK_EQ(uv_thread_create(&thread_, Run, this), 0);
+}
+
+ProcessTimeoutWatchdog::~ProcessTimeoutWatchdog() {
+  uv_mutex_lock(&state_->mutex);
+  state_->phase = State::Phase::kDisarmed;
+  uv_cond_signal(&state_->cond);
+  uv_mutex_unlock(&state_->mutex);
+  CHECK_EQ(uv_thread_join(&thread_), 0);
+}
+
+void ProcessTimeoutWatchdog::OnEnvironmentStopping() {
+  uv_mutex_lock(&state_->mutex);
+  if (state_->phase == State::Phase::kArmed ||
+      state_->phase == State::Phase::kFired) {
+    state_->phase = State::Phase::kStopping;
+    uv_cond_signal(&state_->cond);
+  }
+  uv_mutex_unlock(&state_->mutex);
+}
+
+void ProcessTimeoutWatchdog::Run(void* arg) {
+  uv_thread_setname("ProcessTimeout");
+  using Phase = State::Phase;
+  ProcessTimeoutWatchdog* self = static_cast<ProcessTimeoutWatchdog*>(arg);
+  std::shared_ptr<State> state = self->state_;
+
+  uv_mutex_lock(&state->mutex);
+  state->WaitWhile(Phase::kArmed, state->deadline);
+
+  if (state->phase == Phase::kArmed) {
+    state->phase = Phase::kFired;
+    // The Environment is only freed after OnEnvironmentStopping(), which
+    // cannot happen while we hold the mutex. The callback runs from a V8
+    // interrupt if JavaScript is executing, or from the event loop otherwise.
+    self->env_->RequestInterrupt(
+        [state](Environment* env) { OnTimeout(env, state); });
+
+    state->WaitWhile(Phase::kFired,
+                     uv_hrtime() + kProcessTimeoutResponseGraceMs *
+                                       kNanosecondsPerMillisecond);
+    if (state->phase == Phase::kFired) {
+      ForceProcessTimeoutExit(
+          FormatProcessTimeoutHeader(state->duration) +
+          SPrintF("The main thread did not respond within %dms. It is likely "
+                  "blocked in a synchronous native operation, e.g. "
+                  "child_process.execSync() or a native addon, so no "
+                  "JavaScript stack or resource information is available.\n",
+                  kProcessTimeoutResponseGraceMs));
+    }
+
+    if (state->phase == Phase::kHandling) {
+      state->WaitWhile(Phase::kHandling,
+                       uv_hrtime() + kProcessTimeoutExitGraceMs *
+                                         kNanosecondsPerMillisecond);
+      if (state->phase == Phase::kHandling) {
+        ForceProcessTimeoutExit(
+            SPrintF("(node:%d) The process did not finish exiting within %dms "
+                    "after --process-timeout expired. Forcing exit.\n",
+                    uv_os_getpid(),
+                    kProcessTimeoutExitGraceMs));
+      }
+    }
+  }
+
+  if (state->phase == Phase::kStopping) {
+    // The event loop has stopped, but tearing down the Environment, e.g.
+    // joining Worker threads, can still take arbitrarily long. If the deadline
+    // has already passed, give the process a moment to finish exiting.
+    const uint64_t now = uv_hrtime();
+    const uint64_t until =
+        now < state->deadline
+            ? state->deadline
+            : now + kProcessTimeoutResponseGraceMs * kNanosecondsPerMillisecond;
+    state->WaitWhile(Phase::kStopping, until);
+    if (state->phase == Phase::kStopping) {
+      ForceProcessTimeoutExit(FormatProcessTimeoutHeader(state->duration) +
+                              "The process did not finish exiting after the "
+                              "event loop had stopped.\n");
+    }
+  }
+
+  uv_mutex_unlock(&state->mutex);
+}
+
+void ProcessTimeoutWatchdog::OnTimeout(Environment* env,
+                                       const std::shared_ptr<State>& state) {
+  uv_mutex_lock(&state->mutex);
+  const bool should_handle = state->phase == State::Phase::kFired;
+  if (should_handle) {
+    state->phase = State::Phase::kHandling;
+    uv_cond_signal(&state->cond);
+  }
+  uv_mutex_unlock(&state->mutex);
+  if (!should_handle) return;
+
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  {
+    Isolate::DisallowJavascriptExecutionScope disallow_js(
+        isolate, Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    FPrintF(stderr,
+            "%s%s",
+            FormatProcessTimeoutHeader(state->duration),
+            FormatProcessTimeoutDiagnostics(env));
+    fflush(stderr);
+
+    if (state->report) {
+      TriggerNodeReport(env,
+                        "Process timed out (--process-timeout)",
+                        "ProcessTimeout",
+                        "",
+                        Local<Value>());
+    }
+  }
+
+  // Like process.reallyExit(): flush coverage and profiles, but do not emit
+  // 'exit', as the JavaScript code may be what keeps the process running.
+  RunAtExit(env);
+  env->Exit(ExitCode::kProcessTimeout);
+}
 
 SigintWatchdog::SigintWatchdog(
   v8::Isolate* isolate, bool* received_signal)

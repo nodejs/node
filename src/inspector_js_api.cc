@@ -4,7 +4,9 @@
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "memory_tracker-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_watchdog.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
 #include "v8.h"
@@ -377,6 +379,12 @@ void IsEnabled(const FunctionCallbackInfo<Value>& args) {
 void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Agent* agent = env->inspector_agent();
+
+  if (ProcessTimeoutWatchdog::IsEnabled()) {
+    return THROW_ERR_INSPECTOR_NOT_AVAILABLE(
+        env,
+        "The inspector cannot be activated when --process-timeout is used");
+  }
 
   if (args.Length() > 0 && args[0]->IsUint32()) {
     uint32_t port = args[0].As<Uint32>()->Value();

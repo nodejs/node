@@ -29,6 +29,9 @@ namespace node {
   V(InvalidCommandLineArgument2, 12)                                           \
   V(UnsettledTopLevelAwait, 13)                                                \
   V(StartupSnapshotFailure, 14)                                                \
+  /* The process was still running when --process-timeout expired. This */     \
+  /* matches the exit status of timeout(1) from GNU coreutils. */              \
+  V(ProcessTimeout, 124)                                                       \
   /* If the process exits from unhandled signals e.g. SIGABRT, SIGTRAP, */     \
   /* typically the exit codes are 128 + signal number. We also exit with */    \
   /* certain error codes directly for legacy reasons. Here we define those */  \
