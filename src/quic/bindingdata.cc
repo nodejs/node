@@ -353,6 +353,14 @@ BindingData::BindingData(Realm* realm, Local<Object> object)
   MakeWeak();
   // Unref so the check handle doesn't keep the event loop alive on its own.
   flush_check_.Unref();
+  // Ensure Clean() below is called before the tearing anything down.
+  env()->cleanable_queue()->PushFront(this);
+}
+
+void BindingData::Clean() {
+  // Make sure sessions are always properly destroyed. This does nothing in
+  // a clean shutdown, but is required for cases like worker.terminate().
+  if (session_manager_) session_manager_->DestroyAllSessions();
 }
 
 SessionManager& BindingData::session_manager() {
