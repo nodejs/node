@@ -9,6 +9,7 @@
 #include "sqlite3.h"
 #include "util.h"
 
+#include <algorithm>
 #include <array>
 #include <list>
 #include <map>
@@ -18,6 +19,13 @@
 #include <vector>
 
 namespace node {
+
+namespace diagnostics_channel {
+class Channel;
+}  // namespace diagnostics_channel
+
+class ExternalReferenceRegistry;
+
 namespace sqlite {
 
 // Mapping from JavaScript property names to SQLite limit constants
@@ -162,6 +170,27 @@ class StatementExecutionHelper {
                                        bool use_big_ints);
 };
 
+class DatabaseSync;
+
+class BindingData : public BaseObject {
+ public:
+  SET_BINDING_ID(sqlite_binding_data)
+
+  BindingData(Realm* realm, v8::Local<v8::Object> wrap);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BindingData)
+  SET_SELF_SIZE(BindingData)
+
+  std::unordered_set<DatabaseSync*> open_databases;
+
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+};
+
 class DatabaseSync : public BaseObject {
  public:
   enum InternalFields {
@@ -206,6 +235,10 @@ class DatabaseSync : public BaseObject {
                                 const char* param2,
                                 const char* param3,
                                 const char* param4);
+  static int TraceCallback(unsigned int type,
+                           void* user_data,
+                           void* p,
+                           void* x);
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
@@ -228,10 +261,36 @@ class DatabaseSync : public BaseObject {
   // enable that use case.
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
+  void EnableTracing();
+  void DisableTracing();
 
   void IncrementCallbackDepth() { ++callback_depth_; }
   void DecrementCallbackDepth() { --callback_depth_; }
   bool IsInCallback() const { return callback_depth_ > 0; }
+
+  // SQLite forbids an authorizer callback from doing anything that modifies
+  // the database connection that invoked it, which includes preparing and
+  // stepping statements. See https://www.sqlite.org/c3ref/set_authorizer.html.
+  void IncrementAuthorizerDepth() { ++authorizer_depth_; }
+  void DecrementAuthorizerDepth() { --authorizer_depth_; }
+  bool IsInAuthorizerCallback() const { return authorizer_depth_ > 0; }
+
+  // Finalizing a statement frees its virtual machine, so a callback that
+  // SQLite invokes from inside sqlite3_step() must not finalize the statement
+  // being stepped. Other statements on the connection are safe to finalize.
+  void PushSteppingStatement(sqlite3_stmt* stmt) {
+    stepping_statements_.push_back(stmt);
+  }
+  void PopSteppingStatement() { stepping_statements_.pop_back(); }
+  bool IsSteppingStatement(sqlite3_stmt* stmt) const {
+    return std::find(stepping_statements_.begin(),
+                     stepping_statements_.end(),
+                     stmt) != stepping_statements_.end();
+  }
+
+  void IncrementTraceSuppressionDepth() { ++trace_suppression_depth_; }
+  void DecrementTraceSuppressionDepth() { --trace_suppression_depth_; }
+  bool AreTraceEventsSuppressed() const { return trace_suppression_depth_ > 0; }
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
@@ -247,10 +306,14 @@ class DatabaseSync : public BaseObject {
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
+  int authorizer_depth_ = 0;
+  int trace_suppression_depth_ = 0;
+  std::vector<sqlite3_stmt*> stepping_statements_;
 
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
+  BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
 
   friend class DatabaseSyncLimits;
   friend class Session;
@@ -284,6 +347,8 @@ class StatementSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
@@ -295,6 +360,7 @@ class StatementSync : public BaseObject {
 
  private:
   ~StatementSync() override;
+  void Close();
   BaseObjectPtr<DatabaseSync> db_;
   sqlite3_stmt* statement_;
   bool return_arrays_ = false;
@@ -419,6 +485,46 @@ class CallbackDepthGuard {
   ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
   CallbackDepthGuard(const CallbackDepthGuard&) = delete;
   CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class TraceEventSuppressionGuard {
+ public:
+  explicit TraceEventSuppressionGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementTraceSuppressionDepth();
+  }
+  ~TraceEventSuppressionGuard() { db_->DecrementTraceSuppressionDepth(); }
+  TraceEventSuppressionGuard(const TraceEventSuppressionGuard&) = delete;
+  TraceEventSuppressionGuard& operator=(const TraceEventSuppressionGuard&) =
+      delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class SteppingStatementGuard {
+ public:
+  SteppingStatementGuard(DatabaseSync* db, sqlite3_stmt* stmt) : db_(db) {
+    db_->PushSteppingStatement(stmt);
+  }
+  ~SteppingStatementGuard() { db_->PopSteppingStatement(); }
+  SteppingStatementGuard(const SteppingStatementGuard&) = delete;
+  SteppingStatementGuard& operator=(const SteppingStatementGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class AuthorizerDepthGuard {
+ public:
+  explicit AuthorizerDepthGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementAuthorizerDepth();
+  }
+  ~AuthorizerDepthGuard() { db_->DecrementAuthorizerDepth(); }
+  AuthorizerDepthGuard(const AuthorizerDepthGuard&) = delete;
+  AuthorizerDepthGuard& operator=(const AuthorizerDepthGuard&) = delete;
 
  private:
   DatabaseSync* db_;

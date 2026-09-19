@@ -86,6 +86,7 @@ const customTypesMap = {
   'Hash': 'crypto.html#class-hash',
   'Hmac': 'crypto.html#class-hmac',
   'KeyObject': 'crypto.html#class-keyobject',
+  'Mac': 'crypto.html#class-mac',
   'Sign': 'crypto.html#class-sign',
   'Verify': 'crypto.html#class-verify',
   'crypto.constants': 'crypto.html#cryptoconstants',

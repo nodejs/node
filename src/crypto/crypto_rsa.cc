@@ -22,6 +22,7 @@ using ncrypto::EVPKeyPointer;
 #if NCRYPTO_USE_LEGACY_KEY_TYPES
 using ncrypto::RSAPointer;
 #endif
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStoreInitializationMode;
 using v8::FunctionCallbackInfo;
@@ -38,6 +39,23 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
+namespace {
+constexpr uint32_t kMaxRsaOtherPrimeInfos = 8;
+
+bool IsRsaPssDigestEncodable(const Digest& digest) {
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const int nid = EVP_MD_type(digest.get());
+  if (nid == NID_undef) return false;
+
+  const ASN1_OBJECT* object = OBJ_nid2obj(nid);
+  return object != nullptr && OBJ_length(object) > 0;
+#else
+  static_cast<void>(digest);
+  return true;
+#endif
+}
+}  // namespace
+
 EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
   auto ctx = EVPKeyCtxPointer::NewFromID(
       params->params.variant == kKeyVariantRSA_PSS ? EVP_PKEY_RSA_PSS
@@ -58,7 +76,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
   }
 
   if (params->params.variant == kKeyVariantRSA_PSS) {
-    if (params->params.md && !ctx.setRsaPssKeygenMd(params->params.md)) {
+    if (params->params.md && (!IsRsaPssDigestEncodable(params->params.md) ||
+                              !ctx.setRsaPssKeygenMd(params->params.md))) {
       return {};
     }
 
@@ -71,7 +90,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
       mgf1_md = params->params.md;
     }
 
-    if (mgf1_md && !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
+    if (mgf1_md && (!IsRsaPssDigestEncodable(mgf1_md) ||
+                    !ctx.setRsaPssKeygenMgf1Md(mgf1_md))) {
       return {};
     }
 
@@ -200,6 +220,7 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   const ncrypto::Rsa::CipherParams nparams{
       .padding = params.padding,
       .digest = params.digest,
+      .mgf1_digest = params.digest,
       .label = params.label,
   };
 
@@ -363,6 +384,29 @@ bool ExportJWKRsaKey(Environment* env,
             .IsNothing()) {
       return false;
     }
+
+    const auto other_prime_infos = rsa.getOtherPrimeInfos();
+    if (!other_prime_infos.empty()) {
+      const uint32_t count = static_cast<uint32_t>(other_prime_infos.size());
+      Local<Array> oth = Array::New(env->isolate(), count);
+      for (uint32_t i = 0; i < count; i++) {
+        const auto& info = other_prime_infos[i];
+        Local<Object> item = Object::New(env->isolate());
+        if (SetEncodedValue(env, item, env->jwk_r_string(), info.r)
+                .IsNothing() ||
+            SetEncodedValue(env, item, env->jwk_d_string(), info.d)
+                .IsNothing() ||
+            SetEncodedValue(env, item, env->jwk_t_string(), info.t)
+                .IsNothing() ||
+            !oth->Set(env->context(), i, item).FromMaybe(false)) {
+          return false;
+        }
+      }
+      if (!target->DefineOwnProperty(env->context(), env->jwk_oth_string(), oth)
+               .FromMaybe(false)) {
+        return false;
+      }
+    }
   }
 
   return true;
@@ -372,12 +416,13 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   Local<Value> n_value;
   Local<Value> e_value;
   Local<Value> d_value;
+  Local<Value> oth_value;
 
   if (!jwk->Get(env->context(), env->jwk_n_string()).ToLocal(&n_value) ||
       !jwk->Get(env->context(), env->jwk_e_string()).ToLocal(&e_value) ||
       !jwk->Get(env->context(), env->jwk_d_string()).ToLocal(&d_value) ||
-      !n_value->IsString() ||
-      !e_value->IsString()) {
+      !jwk->Get(env->context(), env->jwk_oth_string()).ToLocal(&oth_value) ||
+      !n_value->IsString() || !e_value->IsString()) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
     return {};
   }
@@ -388,6 +433,10 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   }
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
+  if (type == kKeyTypePublic && !oth_value->IsUndefined()) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+    return {};
+  }
 
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   ncrypto::Rsa rsa_view;
@@ -441,8 +490,81 @@ KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
     ByteSource dq = ByteSource::FromEncodedString(env, dq_value.As<String>());
     ByteSource qi = ByteSource::FromEncodedString(env, qi_value.As<String>());
 
-    if (!rsa_view.setPrivateKey(
-            d.ToBN(), q.ToBN(), p.ToBN(), dp.ToBN(), dq.ToBN(), qi.ToBN())) {
+    ncrypto::Rsa::OtherPrimeInfoPointers other_prime_infos;
+    if (!oth_value->IsUndefined()) {
+      if (!oth_value->IsArray()) {
+        THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+        return {};
+      }
+
+      Local<Array> oth = oth_value.As<Array>();
+      const uint32_t length = oth->Length();
+      if (length == 0 || length > kMaxRsaOtherPrimeInfos) {
+        THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+        return {};
+      }
+      other_prime_infos.reserve(length);
+      for (uint32_t i = 0; i < length; i++) {
+        Local<Value> item_value;
+        Local<Value> r_value;
+        Local<Value> other_d_value;
+        Local<Value> t_value;
+        if (!oth->Get(env->context(), i).ToLocal(&item_value) ||
+            !item_value->IsObject()) {
+          THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+          return {};
+        }
+
+        Local<Object> item = item_value.As<Object>();
+        if (!item->Get(env->context(), env->jwk_r_string()).ToLocal(&r_value) ||
+            !item->Get(env->context(), env->jwk_d_string())
+                 .ToLocal(&other_d_value) ||
+            !item->Get(env->context(), env->jwk_t_string()).ToLocal(&t_value) ||
+            !r_value->IsString() || !other_d_value->IsString() ||
+            !t_value->IsString()) {
+          THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+          return {};
+        }
+
+        other_prime_infos.push_back({
+            ByteSource::FromEncodedString(env, r_value.As<String>()).ToBN(),
+            ByteSource::FromEncodedString(env, other_d_value.As<String>())
+                .ToBN(),
+            ByteSource::FromEncodedString(env, t_value.As<String>()).ToBN(),
+        });
+      }
+    }
+
+    if (!rsa_view.setPrivateKey(d.ToBN(),
+                                q.ToBN(),
+                                p.ToBN(),
+                                dp.ToBN(),
+                                dq.ToBN(),
+                                qi.ToBN(),
+                                std::move(other_prime_infos))) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+      return {};
+    }
+
+    // Verify that n is the product of all prime factors.
+    const auto& pub = rsa_view.getPublicKey();
+    const auto& priv = rsa_view.getPrivateKey();
+    auto product = BignumPointer::New();
+    BN_CTX* ctx = BN_CTX_new();
+    bool n_valid =
+        ctx && product && BN_mul(product.get(), priv.p, priv.q, ctx) == 1;
+    for (const auto& info : rsa_view.getOtherPrimeInfos()) {
+      auto next = BignumPointer::New();
+      if (!n_valid || !next ||
+          BN_mul(next.get(), product.get(), info.r, ctx) != 1) {
+        n_valid = false;
+        break;
+      }
+      product = std::move(next);
+    }
+    n_valid = n_valid && BN_cmp(product.get(), pub.n) == 0;
+    BN_CTX_free(ctx);
+    if (!n_valid) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return {};
     }

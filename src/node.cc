@@ -1262,6 +1262,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       result->errors_.emplace_back(std::move(*fips_error));
       return result;
     }
+    crypto::InstallFipsIndicatorCallback();
 
     // Ensure CSPRNG is properly seeded.
     CHECK(ncrypto::CSPRNG(nullptr, 0));

@@ -102,7 +102,7 @@ function registerDeriveTests(options) {
         failureTest(
             test.name,
             "InvalidAccessError",
-            () => derive(algorithmName, test.key, privateKey)
+            () => derive(algorithmName, test.key, privateKey, test.length)
         );
     });
 

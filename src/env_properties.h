@@ -134,6 +134,7 @@
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
+  V(database_string, "database")                                               \
   V(default_is_true_string, "defaultIsTrue")                                   \
   V(defensive_string, "defensive")                                             \
   V(deserialize_info_string, "deserializeInfo")                                \
@@ -230,12 +231,15 @@
   V(jwk_n_string, "n")                                                         \
   V(jwk_oct_string, "oct")                                                     \
   V(jwk_okp_string, "OKP")                                                     \
+  V(jwk_oth_string, "oth")                                                     \
   V(jwk_p_string, "p")                                                         \
   V(jwk_priv_string, "priv")                                                   \
   V(jwk_pub_string, "pub")                                                     \
   V(jwk_q_string, "q")                                                         \
   V(jwk_qi_string, "qi")                                                       \
+  V(jwk_r_string, "r")                                                         \
   V(jwk_rsa_string, "RSA")                                                     \
+  V(jwk_t_string, "t")                                                         \
   V(jwk_x_string, "x")                                                         \
   V(jwk_y_string, "y")                                                         \
   V(kill_signal_string, "killSignal")                                          \
@@ -348,6 +352,7 @@
   V(source_map_url_string, "sourceMapURL")                                     \
   V(source_url_string, "sourceURL")                                            \
   V(specifier_string, "specifier")                                             \
+  V(sql_string, "sql")                                                         \
   V(stack_string, "stack")                                                     \
   V(start_string, "start")                                                     \
   V(state_string, "state")                                                     \
@@ -422,6 +427,7 @@
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(fips_indicator_event_template, v8::DictionaryTemplate)                     \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \

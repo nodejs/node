@@ -9,7 +9,7 @@
 #include "node_sea.h"
 #include "uv.h"
 #if HAVE_OPENSSL
-#include "openssl/opensslv.h"
+#include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
 #include "quic/guard.h"
 #endif
 
@@ -83,6 +83,23 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
                       "used, not both");
   }
+
+  if (force_fips_crypto_policy != "provider" &&
+      force_fips_crypto_policy != "strict") {
+    errors->push_back(
+        "invalid value for --force-fips; expected 'provider' or 'strict'");
+  }
+
+#if defined(OPENSSL_IS_BORINGSSL) || !OPENSSL_VERSION_PREREQ(3, 4)
+  if (enable_fips_indicator_events) {
+    errors->push_back(
+        "--enable-fips-indicator-events requires OpenSSL 3.4 or later");
+  }
+
+  if (force_fips_crypto && force_fips_crypto_policy == "strict") {
+    errors->push_back("--force-fips=strict requires OpenSSL 3.4 or later");
+  }
+#endif
 
   // Any value less than 2 disables use of the secure heap.
 #ifndef V8_ENABLE_SANDBOX
@@ -1447,10 +1464,20 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "enable FIPS crypto at startup",
             &PerProcessOptions::enable_fips_crypto,
             kAllowedInEnvvar);
+  AddOption("--enable-fips-indicator-events",
+            "publish FIPS indicator results to the "
+            "crypto.fips.indicator diagnostics channel",
+            &PerProcessOptions::enable_fips_indicator_events,
+            kAllowedInEnvvar);
   AddOption("--force-fips",
-            "force FIPS crypto (cannot be disabled)",
+            "force FIPS crypto (optional mode: provider or strict)",
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvvar);
+  AddOption("[force_fips_crypto_policy]",
+            "",
+            &PerProcessOptions::force_fips_crypto_policy,
+            kAllowedInEnvvar);
+  AddAlias("--force-fips=", {"[force_fips_crypto_policy]", "--force-fips"});
 #ifndef V8_ENABLE_SANDBOX
   AddOption("--secure-heap",
             "total size of the OpenSSL secure heap",
@@ -2047,6 +2074,12 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
     switch (option_info.type) {
       case kBoolean: {
         bool current_value = *_ppop_instance.Lookup<bool>(field, opts);
+#if HAVE_OPENSSL
+        if (option_name == "--force-fips" && current_value) {
+          flags.push_back(option_name + "=" + opts->force_fips_crypto_policy);
+          break;
+        }
+#endif
         // For boolean options with default_is_true, we want the opposite logic
         if (option_info.default_is_true) {
           if (!current_value) {

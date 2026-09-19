@@ -30,7 +30,9 @@ import sqlite from 'node:sqlite';
 const sqlite = require('node:sqlite');
 ```
 
-This module is only available under the `node:` scheme.
+This module is only available under the `node:` scheme. SQL trace events can
+be observed via the [`diagnostics_channel`][] module. See
+[`'sqlite.db.query'`][] for details.
 
 The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
@@ -300,8 +302,8 @@ added: v22.5.0
 Closes the database connection. An exception is thrown if the database is not
 open. An [`ERR_INVALID_STATE`][] error is thrown if the method is called while
 a statement is executing, such as inside a user-defined function, an aggregate
-function, or an authorizer callback. This method is a wrapper around
-[`sqlite3_close_v2()`][].
+function, an authorizer callback, or a [`'sqlite.db.query'`][] subscriber. This
+method is a wrapper around [`sqlite3_close_v2()`][].
 
 ### `database.loadExtension(path[, entryPoint])`
 
@@ -428,6 +430,11 @@ wrapper around [`sqlite3_create_function_v2()`][].
 
 <!-- YAML
 added: v24.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65156
+    description: Accessing the invoking database connection from the authorizer
+                 callback now throws.
 -->
 
 * `callback` {Function|null} The authorizer function to set, or `null` to
@@ -452,6 +459,31 @@ The callback must return one of the following constants:
 * `SQLITE_OK` - Allow the operation.
 * `SQLITE_DENY` - Deny the operation (causes an error).
 * `SQLITE_IGNORE` - Ignore the operation (silently skip).
+
+SQLite requires that the authorizer callback not modify the database connection
+that invoked it, which includes preparing and stepping statements. Methods that
+would do so throw an error with code `ERR_INVALID_STATE` while the callback is
+on the stack, including `database.prepare()`, `database.exec()`, the execution
+methods of that connection's statements, iterators, and tag stores, and
+`database.setAuthorizer()` itself. Other connections remain usable.
+
+The callback can also be invoked from within `statement.run()`,
+`statement.get()`, and similar methods, because SQLite may re-prepare a
+statement during execution after a schema change.
+
+Separately, a statement that is currently being executed cannot be reentered.
+Calling `statement.close()` on it would free the virtual machine that is
+running, and re-running it through `statement.run()`, `statement.get()`,
+`statement.all()`, `statement.iterate()`, `iterator.next()`,
+`iterator.return()`, or the equivalent tag store methods would reset that
+virtual machine mid-execution. All of these throw an `ERR_INVALID_STATE` error
+instead. This applies to any callback SQLite invokes during execution, such as a
+user-defined function. Other statements on the connection remain usable.
+
+Operations that touch no SQLite state stay available from the callback:
+`sqlTagStore.clear()`, which only drops cached statements, and `next()` and
+`return()` on an already-drained iterator, which keep returning
+`{ done: true }`.
 
 ```cjs
 const { DatabaseSync, constants } = require('node:sqlite');
@@ -1057,6 +1089,20 @@ returns an empty array. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`. See
 [Binding parameters][].
 
+### `statement.close()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Finalizes the prepared statement. An exception is thrown if the statement is
+already finalized. An [`ERR_INVALID_STATE`][] error is thrown if this statement
+is currently executing, which happens when the method is called from a callback
+that the statement itself triggered, such as a user-defined function, an
+aggregate function, or a [`'sqlite.db.query'`][] subscriber. Other statements
+on the same connection can be finalized from such a callback. This method is a
+wrapper around [`sqlite3_finalize()`][].
+
 ### `statement.columns()`
 
 <!-- YAML
@@ -1278,6 +1324,17 @@ added: v22.5.0
 
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
+
+### `statement[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Finalizes the prepared statement. If the prepared statement is already
+finalized, then this is a no-op. An [`ERR_INVALID_STATE`][] error is thrown if
+this statement is currently executing, under the same conditions as
+[`statement.close()`][].
 
 ## Class: `SQLTagStore`
 
@@ -1757,6 +1814,7 @@ callback function to indicate what type of operation is being authorized.
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
@@ -1769,6 +1827,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
+[`diagnostics_channel`]: diagnostics_channel.md
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
@@ -1785,6 +1844,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_deserialize()`]: https://sqlite.org/c3ref/deserialize.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_finalize()`]: https://www.sqlite.org/c3ref/finalize.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
@@ -1798,6 +1858,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
+[`statement.close()`]: #statementclose
 [`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
 [`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
 [busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
