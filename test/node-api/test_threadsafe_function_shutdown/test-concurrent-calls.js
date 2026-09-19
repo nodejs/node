@@ -4,7 +4,7 @@ const common = require('../../common');
 const process = require('process');
 const assert = require('assert');
 const { fork } = require('child_process');
-const binding = require(`./build/${common.buildType}/binding`);
+const binding = require(`./build/${common.buildType}/concurrent_calls`);
 
 if (process.argv[2] === 'child') {
   binding();
