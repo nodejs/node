@@ -211,6 +211,44 @@ function testShareSyncDropNewestUnboundedSource() {
   shared.cancel();
 }
 
+// A strict budget failure detaches the consumer that threw so it cannot
+// later pin the buffer for consumers that continue reading.
+function testShareSyncStrictBackpressure() {
+  for (const transformed of [false, true]) {
+    function* source() {
+      for (let i = 0; i < 10; i++) {
+        yield [new Uint8Array(16384)];
+      }
+    }
+
+    const shared = shareSync(source(), {
+      budget: 32768,
+      backpressure: 'strict',
+    });
+
+    const consumer = transformed ?
+      shared.pull((chunks) => chunks) : shared.pull();
+    const failed = consumer[Symbol.iterator]();
+    const live = shared.pull()[Symbol.iterator]();
+
+    assert.strictEqual(failed.next().done, false);
+    assert.strictEqual(failed.next().done, false);
+    assert.throws(() => failed.next(), {
+      code: 'ERR_OUT_OF_RANGE',
+    });
+
+    assert.strictEqual(shared.consumerCount, 1);
+    assert.strictEqual(failed.next().done, true);
+
+    let count = 0;
+    while (!live.next().done) {
+      count++;
+    }
+    assert.strictEqual(count, 10);
+    assert.strictEqual(shared.consumerCount, 0);
+  }
+}
+
 // shareSync() accepts string source directly (normalized via fromSync())
 function testShareSyncStringSource() {
   const shared = shareSync('hello-sync-share');
@@ -229,5 +267,6 @@ Promise.all([
   testShareSyncRejectsUnbounded(),
   testShareSyncDropNewest(),
   testShareSyncDropNewestUnboundedSource(),
+  testShareSyncStrictBackpressure(),
   testShareSyncStringSource(),
 ]).then(common.mustCall());
