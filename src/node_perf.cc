@@ -228,30 +228,41 @@ void MarkGarbageCollectionEnd(
 
 void GarbageCollectionCleanupHook(void* data) {
   Environment* env = static_cast<Environment*>(data);
+  PerformanceState* state = env->performance_state();
+  if (!state->gc_tracking_installed) return;
   // Reset current_gc_type to 0
-  env->performance_state()->current_gc_type = 0;
+  state->current_gc_type = 0;
   env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
   env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
+  state->gc_tracking_installed = false;
 }
 
-static void InstallGarbageCollectionTracking(
+// Registers the GC callbacks with V8 if and only if GC timing is needed,
+// i.e. there are 'gc' PerformanceObservers. This is idempotent, so it never
+// adds the callbacks twice or removes callbacks that are not registered.
+static void ReconcileGarbageCollectionTracking(Environment* env) {
+  PerformanceState* state = env->performance_state();
+  const bool wanted = state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC] > 0;
+  if (wanted == state->gc_tracking_installed) return;
+
+  if (wanted) {
+    // Reset current_gc_type to 0
+    state->current_gc_type = 0;
+    env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
+                                          static_cast<void*>(env));
+    env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
+                                          static_cast<void*>(env));
+    env->AddCleanupHook(GarbageCollectionCleanupHook, env);
+    state->gc_tracking_installed = true;
+  } else {
+    env->RemoveCleanupHook(GarbageCollectionCleanupHook, env);
+    GarbageCollectionCleanupHook(env);
+  }
+}
+
+static void UpdateGarbageCollectionTracking(
     const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  // Reset current_gc_type to 0
-  env->performance_state()->current_gc_type = 0;
-  env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
-                                        static_cast<void*>(env));
-  env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
-                                        static_cast<void*>(env));
-  env->AddCleanupHook(GarbageCollectionCleanupHook, env);
-}
-
-static void RemoveGarbageCollectionTracking(
-  const FunctionCallbackInfo<Value> &args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  env->RemoveCleanupHook(GarbageCollectionCleanupHook, env);
-  GarbageCollectionCleanupHook(env);
+  ReconcileGarbageCollectionTracking(Environment::GetCurrent(args));
 }
 
 // Notify a custom PerformanceEntry to observers
@@ -346,12 +357,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "setupObservers", SetupPerformanceObservers);
   SetMethod(isolate,
             target,
-            "installGarbageCollectionTracking",
-            InstallGarbageCollectionTracking);
-  SetMethod(isolate,
-            target,
-            "removeGarbageCollectionTracking",
-            RemoveGarbageCollectionTracking);
+            "updateGarbageCollectionTracking",
+            UpdateGarbageCollectionTracking);
   SetMethod(isolate, target, "notify", Notify);
   SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
   SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
@@ -423,8 +430,7 @@ void CreatePerContextProperties(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetupPerformanceObservers);
-  registry->Register(InstallGarbageCollectionTracking);
-  registry->Register(RemoveGarbageCollectionTracking);
+  registry->Register(UpdateGarbageCollectionTracking);
   registry->Register(Notify);
   registry->Register(LoopIdleTime);
   registry->Register(CreateELDHistogram);

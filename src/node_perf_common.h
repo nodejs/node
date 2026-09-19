@@ -83,6 +83,9 @@ class PerformanceState {
 
   uint64_t performance_last_gc_start_mark = 0;
   uint16_t current_gc_type = 0;
+  // Whether MarkGarbageCollectionStart/End are registered with V8. This is
+  // not serialized, as V8 GC callbacks do not survive a snapshot.
+  bool gc_tracking_installed = false;
 
   void Mark(enum PerformanceMilestone milestone,
             uint64_t ts = PERFORMANCE_NOW());
