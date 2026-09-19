@@ -33,10 +33,9 @@ function runSupportsTests(algorithms, operations) {
             algorithm = algorithmInfo.encryptParams || algorithmName;
             break;
           case 'deriveBits':
-            algorithm = algorithmInfo.deriveBitsParams || algorithmName;
-            if (algorithm?.public instanceof Promise) {
-              algorithm.public = (await algorithm.public).publicKey;
-            }
+            algorithm = algorithmInfo.deriveBitsParamsFactory ?
+              await algorithmInfo.deriveBitsParamsFactory() :
+              algorithmInfo.deriveBitsParams || algorithmName;
             if (algorithmName === 'PBKDF2' || algorithmName === 'HKDF') {
               lengthOrAdditionalAlgorithm = 256;
             }

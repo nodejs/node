@@ -10,7 +10,7 @@ interface mixin NavigatorLocks {
 Navigator includes NavigatorLocks;
 WorkerNavigator includes NavigatorLocks;
 
-[SecureContext, Exposed=(Window,Worker,SharedStorageWorklet)]
+[SecureContext, Exposed=(Window,Worker)]
 interface LockManager {
   Promise<any> request(DOMString name,
                        LockGrantedCallback callback);
@@ -43,7 +43,7 @@ dictionary LockInfo {
   DOMString clientId;
 };
 
-[SecureContext, Exposed=(Window,Worker,SharedStorageWorklet)]
+[SecureContext, Exposed=(Window,Worker)]
 interface Lock {
   readonly attribute DOMString name;
   readonly attribute LockMode mode;

@@ -17,16 +17,16 @@ function define_tests() {
                         derivedBits = await subtle.deriveBits(testData.deriveAlg, privateKey);
                     else
                         derivedBits = await subtle.deriveBits(testData.deriveAlg, privateKey, testParam.length);
-                    if (testParam.expected === undefined) {
-                        assert_unreached("deriveBits should have thrown an OperationError exception.");
+                    if (testParam.expected === "TypeError" || testParam.expected === "OperationError") {
+                        assert_unreached("deriveBits should have thrown an " + testParam.expected + " exception.");
                     }
                     assert_array_equals(new Uint8Array(derivedBits), testParam.expected, "Derived bits do not match the expected result.");
                 } catch (err) {
-                    if (err instanceof AssertionError || testParam.expected !== undefined) {
+                    if (err instanceof AssertionError || !(testParam.expected === "TypeError" || testParam.expected === "OperationError")) {
                         throw err;
                     }
                     assert_true(privateKey !== undefined, "Key should be valid.");
-                    assert_equals(err.name, "OperationError", "deriveBits correctly threw OperationError: " + err.message);
+                    assert_equals(err.name, testParam.expected, "deriveBits correctly threw " + testParam.expected + ": " + err.message);
                 }
             }, algorithm + " derivation with " + testParam.length + " as 'length' parameter");
         });

@@ -1,0 +1,176 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Setter should treat no arguments as undefined</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+const invalidThisValues = [undefined, null, 1, {}, new Image()];
+
+// String attribute.
+
+test(() => {
+  const setter = Object.getOwnPropertyDescriptor(Animation.prototype, "id").set;
+
+  for (const thisValue of invalidThisValues) {
+    assert_throws_js(TypeError, () => { setter.call(thisValue); });
+    assert_throws_js(TypeError, () => { setter.call(thisValue, undefined); });
+    assert_throws_js(TypeError, () => { setter.call(thisValue, "foo"); });
+  }
+}, `String attribute setter should throw if this value is invalid`);
+
+test(() => {
+  const thisValue = new Animation();
+  const setter = Object.getOwnPropertyDescriptor(Animation.prototype, "id").set;
+
+  assert_equals(thisValue.id, "");
+
+  setter.call(thisValue);
+  assert_equals(thisValue.id, "undefined",
+               "undefined value should be stringified");
+}, `String attribute setter should treat no arguments as undefined`);
+
+test(() => {
+  const thisValue = new Animation();
+  const setter = Object.getOwnPropertyDescriptor(Animation.prototype, "id").set;
+
+  assert_equals(thisValue.id, "");
+
+  setter.call(thisValue, undefined);
+  assert_equals(thisValue.id, "undefined",
+               "undefined value should be stringified");
+}, `String attribute setter called with undefined should behave in the same way as no arguments`);
+
+test(() => {
+  const thisValue = new Animation();
+  const setter = Object.getOwnPropertyDescriptor(Animation.prototype, "id").set;
+
+  assert_equals(thisValue.id, "");
+
+  setter.call(thisValue, "foo");
+  assert_equals(thisValue.id, "foo");
+}, `String attribute setter called with string should just work`);
+
+// Object attribute.
+
+test(() => {
+  const setter = Object.getOwnPropertyDescriptor(Document.prototype, "body").set;
+
+  for (const thisValue of invalidThisValues) {
+    assert_throws_js(TypeError, () => { setter.call(thisValue); });
+    assert_throws_js(TypeError, () => { setter.call(thisValue, undefined); });
+    assert_throws_js(TypeError, () => { setter.call(thisValue, "foo"); });
+  }
+}, `Object attribute setter should throw if this value is invalid`);
+
+test(() => {
+  const thisValue = new Document();
+  const setter = Object.getOwnPropertyDescriptor(Document.prototype, "body").set;
+
+  assert_throws_dom("HierarchyRequestError", () => { setter.call(thisValue); });
+}, `Object attribute setter should treat no arguments as undefined`);
+
+test(() => {
+  const thisValue = new Document();
+  const setter = Object.getOwnPropertyDescriptor(Document.prototype, "body").set;
+
+  assert_throws_dom("HierarchyRequestError", () => { setter.call(thisValue, undefined); });
+}, `Object attribute setter called with undefined should behave in the same way as no arguments`);
+
+// [Replaceable] attribute.
+
+test(() => {
+  const thisValue = window;
+  const setter = Object.getOwnPropertyDescriptor(window, "scrollX").set;
+
+  setter.call(thisValue);
+  assert_equals(thisValue.scrollX, undefined);
+}, `[Replaceable] setter should treat no arguments as undefined`);
+
+test(() => {
+  const thisValue = window;
+  const setter = Object.getOwnPropertyDescriptor(window, "screenLeft").set;
+
+  setter.call(thisValue, undefined);
+  assert_equals(thisValue.screenLeft, undefined);
+}, `[Replaceable] setter called with undefined should behave in the same way as no arguments`);
+
+test(() => {
+  const thisValue = window;
+  const setter = Object.getOwnPropertyDescriptor(window, "screenTop").set;
+
+  setter.call(thisValue, "foo");
+  assert_equals(thisValue.screenTop, "foo");
+}, `[Replaceable] setter called with other value should just work`);
+
+// [LegacyLenientThis] attribute.
+
+test(() => {
+  const setter = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "onmouseenter").set;
+
+  for (const thisValue of invalidThisValues) {
+    setter.call(thisValue);
+    setter.call(thisValue, undefined);
+    setter.call(thisValue, "foo");
+  }
+}, `[LegacyLenientThis] setter should not throw even if this value is invalid, regardless of the arguments count`);
+
+test(() => {
+  const thisValue = document.createElement("div");
+  const setter = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "onmouseenter").set;
+
+  setter.call(thisValue);
+  assert_equals(thisValue.onmouseenter, null);
+}, `[LegacyLenientThis] setter should treat no arguments as undefined`);
+
+test(() => {
+  const thisValue = document.createElement("div");
+  const setter = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "onmouseenter").set;
+
+  setter.call(thisValue, undefined);
+  assert_equals(thisValue.onmouseenter, null);
+}, `[LegacyLenientThis] setter called with undefined should behave in the same way as no arguments`);
+
+// [LegacyLenientSetter] attribute.
+
+test(() => {
+  const thisValue = new Document();
+  const setter = Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenEnabled").set;
+
+  setter.call(thisValue);
+  assert_equals(thisValue.fullscreenEnabled, false);
+}, `[LegacyLenientSetter] setter should treat no arguments as undefined`);
+
+test(() => {
+  const thisValue = new Document();
+  const setter = Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenEnabled").set;
+
+  setter.call(thisValue, undefined);
+  assert_equals(thisValue.fullscreenEnabled, false);
+}, `[LegacyLenientSetter] setter called with undefined should behave in the same way as no arguments`);
+
+// [PutForward] attribute.
+
+test(() => {
+  const thisValue = document.createElement("a");
+  const setter = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "relList").set;
+
+  assert_equals(thisValue.relList.length, 0);
+
+  setter.call(thisValue);
+  assert_equals(thisValue.relList.length, 1);
+  assert_equals(thisValue.relList[0], "undefined");
+}, `[PutForward] setter should treat no arguments as undefined`);
+
+test(() => {
+  const thisValue = document.createElement("a");
+  const setter = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "relList").set;
+
+  assert_equals(thisValue.relList.length, 0);
+
+  setter.call(thisValue, undefined);
+
+  assert_equals(thisValue.relList.length, 1);
+  assert_equals(thisValue.relList[0], "undefined");
+}, `[PutForward] setter called with undefined should behave in the same way as no arguments`);
+</script>
