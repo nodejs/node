@@ -4,8 +4,6 @@
 const common = require('../common');
 const { isMainThread } = require('worker_threads');
 
-common.skipIfPerfettoEnabled();
-
 if (!isMainThread) {
   // https://github.com/nodejs/node/issues/22767
   common.skip('This test only works on a main thread');
@@ -22,9 +20,16 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+} = require('../common/trace_events');
+const {
   createTracing,
-  getEnabledCategories
+  getEnabledCategories,
 } = require('trace_events');
+
+checkTraceProcessor();
 
 function getEnabledCategoriesFromCommandLine() {
   const indexOfCatFlag = process.execArgv.indexOf('--trace-event-categories');
@@ -41,11 +46,11 @@ assert.strictEqual(getEnabledCategories(), enabledCategories);
 for (const i of [1, 'foo', true, false, null, undefined]) {
   assert.throws(() => createTracing(i), {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
   assert.throws(() => createTracing({ categories: i }), {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
 
@@ -53,8 +58,8 @@ assert.throws(
   () => createTracing({ categories: [] }),
   {
     code: 'ERR_TRACE_EVENTS_CATEGORY_REQUIRED',
-    name: 'TypeError'
-  }
+    name: 'TypeError',
+  },
 );
 
 const tracing = createTracing({ categories: [ 'node.perf' ] });
@@ -84,22 +89,19 @@ tracing2.disable();  // Purposefully disable twice to test calling twice
 assert.strictEqual(getEnabledCategories(), enabledCategories);
 
 if (isChild) {
-  const { internalBinding } = require('internal/test/binding');
-
+  // Perfetto only accepts the synchronous begin/end phases, so take the phase
+  // constants from internal/trace_events, which picks the right pair.
   const {
-    trace: {
-      TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent,
-      TRACE_EVENT_PHASE_NESTABLE_ASYNC_END: kEndEvent,
-    }
-  } = internalBinding('constants');
-
-  const { trace } = internalBinding('trace_events');
+    trace,
+    kAsyncBegin,
+    kAsyncEnd,
+  } = require('internal/trace_events');
 
   tracing.enable();
 
-  trace(kBeforeEvent, 'foo', 'test1', 0, 'test');
+  trace(kAsyncBegin, 'foo', 'test1', 0, 'test');
   setTimeout(() => {
-    trace(kEndEvent, 'foo', 'test1');
+    trace(kAsyncEnd, 'foo', 'test1');
   }, 1);
 } else {
   // Test that enabled tracing references do not get garbage collected
@@ -138,8 +140,9 @@ function testApiInChildProcess(execArgs, cb) {
   const parentDir = process.cwd();
   process.chdir(tmpdir.path);
 
-  const expectedBegins = [{ cat: 'foo', name: 'test1' }];
-  const expectedEnds = [{ cat: 'foo', name: 'test1' }];
+  // The child emits one begin/end pair. Perfetto merges a pair into a single
+  // complete event when the trace is converted back.
+  const expectedPhases = common.hasPerfetto ? ['X'] : ['b', 'e'];
 
   const proc = cp.fork(__filename,
                        ['child'],
@@ -149,41 +152,24 @@ function testApiInChildProcess(execArgs, cb) {
                            '--expose-internals',
                            '--no-warnings',
                            ...execArgs,
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = tmpdir.resolve('node_trace.1.log');
-
+    const file = tmpdir.resolve(defaultTraceFileName);
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustSucceed((data) => {
-      const traces = JSON.parse(data.toString()).traceEvents
-        .filter((trace) => trace.cat !== '__metadata');
 
-      assert.strictEqual(
-        traces.length,
-        expectedBegins.length + expectedEnds.length);
-      for (const trace of traces) {
-        assert.strictEqual(trace.pid, proc.pid);
-        switch (trace.ph) {
-          case 'b': {
-            const expectedBegin = expectedBegins.shift();
-            assert.strictEqual(trace.cat, expectedBegin.cat);
-            assert.strictEqual(trace.name, expectedBegin.name);
-            break;
-          }
-          case 'e': {
-            const expectedEnd = expectedEnds.shift();
-            assert.strictEqual(trace.cat, expectedEnd.cat);
-            assert.strictEqual(trace.name, expectedEnd.name);
-            break;
-          }
-          default:
-            assert.fail('Unexpected trace event phase');
-        }
-      }
-      process.chdir(parentDir);
-      cb && process.nextTick(cb);
-    }));
+    const traces = readTraceEvents(file)
+      .filter((trace) => trace.cat !== '__metadata');
+
+    assert.deepStrictEqual(traces.map((trace) => trace.ph), expectedPhases);
+    for (const trace of traces) {
+      assert.strictEqual(trace.pid, proc.pid);
+      assert.strictEqual(trace.cat, 'foo');
+      assert.strictEqual(trace.name, 'test1');
+    }
+
+    process.chdir(parentDir);
+    cb && process.nextTick(cb);
   }));
 }

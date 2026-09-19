@@ -235,6 +235,7 @@ distclean: ## Remove all build and test artifacts.
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
 	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	$(RM) tools/perfetto/trace_processor_shell tools/perfetto/.version
 	$(RM) $(BINARYTAR).* $(TARBALL).*
 
 .PHONY: check
@@ -337,6 +338,10 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 	-NODE_V8_COVERAGE=coverage/tmp CI_SKIP_TESTS=$(COV_SKIP_TESTS) \
 					TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) jstest
 	$(MAKE) coverage-report-js
+
+.PHONY: trace-processor
+trace-processor: ## Download perfetto's trace_processor_shell.
+	@tools/perfetto/get_trace_processor
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
@@ -1308,7 +1313,7 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/ngtcp2
 	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +
 	find $(TARNAME)/deps/openssl -mindepth 1 -maxdepth 1 -type d -exec $(RM) -r {} +
-	$(RM) -r $(TARNAME)/deps/perfetto
+	find $(TARNAME)/deps/perfetto -mindepth 1 -maxdepth 1 ! -name 'VERSION' -exec $(RM) -r {} +
 	$(RM) -r $(TARNAME)/deps/simdjson
 	$(RM) -r $(TARNAME)/deps/sqlite
 	$(RM) -r $(TARNAME)/deps/uv

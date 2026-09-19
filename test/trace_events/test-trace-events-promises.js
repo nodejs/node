@@ -5,7 +5,13 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
-common.skipIfPerfettoEnabled();
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 if (process.argv[2] === 'child') {
   const p = Promise.reject(1);  // Handled later
@@ -23,22 +29,20 @@ if (process.argv[2] === 'child') {
                            '--no-warnings',
                            '--trace-event-categories',
                            'node.promises.rejections',
-                         ]
+                         ],
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = tmpdir.resolve('node_trace.1.log');
+    const file = tmpdir.resolve(defaultTraceFileName);
 
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustCall((err, data) => {
-      const traces = JSON.parse(data.toString()).traceEvents
-        .filter((trace) => trace.cat !== '__metadata');
-      traces.forEach((trace) => {
-        assert.strictEqual(trace.pid, proc.pid);
-        assert.strictEqual(trace.name, 'rejections');
-        assert(trace.args.unhandled <= 2);
-        assert(trace.args.handledAfter <= 1);
-      });
-    }));
+    const traces = readTraceEvents(file)
+      .filter((trace) => trace.cat !== '__metadata');
+    traces.forEach((trace) => {
+      assert.strictEqual(trace.pid, proc.pid);
+      assert.strictEqual(trace.name, 'rejections');
+      assert(trace.args.unhandled <= 2);
+      assert(trace.args.handledAfter <= 1);
+    });
   }));
 }

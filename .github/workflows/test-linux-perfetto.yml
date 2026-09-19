@@ -62,6 +62,9 @@ jobs:
       - name: Build
         working-directory: node
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support --with-perfetto"
+      - name: Get trace_processor
+        working-directory: node
+        run: make trace-processor
       - name: Test
         working-directory: node
         run: make test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"

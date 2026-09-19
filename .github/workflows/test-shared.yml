@@ -165,6 +165,7 @@ jobs:
     with:
       runner: ${{ matrix.runner }}
       with-sccache: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+      perfetto: ${{ matrix.perfetto || false }}
       extra-nix-flags: |
         --arg useSeparateDerivationForV8 true \
         ${{ matrix.perfetto && '--arg withPerfetto true \' || '\' }}
