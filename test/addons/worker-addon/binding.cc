@@ -55,8 +55,23 @@ void Initialize(Local<Object> exports,
       context->GetIsolate(),
       Cleanup,
       const_cast<void*>(static_cast<const void*>("cleanup")));
-  node::AddEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
-  node::RemoveEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+
+  // Test that adding and removing a cleanup hook works as expected
+  {
+    node::AddEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+    node::RemoveEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+  }
+
+  // Test that adding and removing a cleanup hook also works if there
+  // is no active context during removal
+  {
+    node::AddEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+    {
+      context->Exit();
+      node::RemoveEnvironmentCleanupHook(context->GetIsolate(), Dummy, nullptr);
+      context->Enter();
+    }
+  }
 
   if (getenv("addExtraItemToEventLoop") != nullptr) {
     // Add an item to the event loop that we do not clean up in order to make
