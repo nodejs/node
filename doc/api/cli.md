@@ -191,6 +191,51 @@ This behavior also applies to `child_process.spawn()`, but in that case, the
 flags are propagated via the `NODE_OPTIONS` environment variable rather than
 directly through the process arguments.
 
+### `--allow-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process starts without the environment
+variables it has not been granted access to. At startup, every variable that
+`--allow-env` does not match is removed from the process environment. Removed
+variables are absent from `process.env`, from diagnostic reports, from native
+code calling `getenv()`, and from the environment of child processes and worker
+threads.
+
+The valid values are:
+
+* `*` - Grants access to every environment variable.
+* A variable name, for example `--allow-env=DATABASE_URL`.
+* A variable name prefix followed by `*`, for example `--allow-env=APP_*`.
+
+Multiple values can be passed by repeating the flag, or by separating them with
+commas: `--allow-env=PORT,APP_*`. Variable names are case-insensitive on
+Windows.
+
+Example:
+
+```js
+console.log(process.env.DATABASE_URL);
+console.log(process.env.AWS_SECRET_ACCESS_KEY);
+```
+
+```console
+$ node --permission --allow-fs-read=* --allow-env=DATABASE_URL index.js
+postgres://localhost/app
+undefined
+(node:1234) Warning: The permission model removed the environment variable "AWS_SECRET_ACCESS_KEY" at startup. Use --allow-env to manage permissions.
+```
+
+The variables that Node.js and its bundled dependencies read, such as
+`NODE_OPTIONS`, `PATH`, `HOME`, `TZ`, and `SSL_CERT_FILE`, are always kept, as
+are the variables defined in [`--env-file`][] files. `NODE_ENV` is not kept
+by default, so applications and libraries that read it need
+`--allow-env=NODE_ENV`. See [Environment variable permissions][] for details.
+
 ### `--allow-ffi`
 
 <!-- YAML
@@ -401,6 +446,11 @@ an `ERR_ACCESS_DENIED` unless the user explicitly passes the
 This flag grants broad authority to configured OpenSSL STORE loaders. A loader
 may access files, devices, tokens, or the network. Access performed by a loader
 is not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
+
+Loaders and the modules they load are subject to [`--allow-env`][], however.
+Environment variables they rely on, such as `SOFTHSM2_CONF` for SoftHSM, are
+removed at startup unless they are granted explicitly with `--allow-env`. See
+[Environment variable permissions][] for details.
 
 ### `--allow-wasi`
 
@@ -2538,6 +2588,7 @@ following permissions are restricted:
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Network - manageable through [`--allow-net`][] flag
+* Environment variables - manageable through [`--allow-env`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
@@ -4179,6 +4230,7 @@ one is included in the list below.
 
 * `--allow-addons`
 * `--allow-child-process`
+* `--allow-env`
 * `--allow-ffi`
 * `--allow-fs-read`
 * `--allow-fs-vfs`
@@ -4826,6 +4878,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [CommonJS module]: modules.md
 [DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
+[Environment variable permissions]: permissions.md#environment-variable-permissions
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [FIPS mode]: crypto.md#fips-mode
@@ -4849,6 +4902,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`'crypto.fips.indicator'`]: diagnostics_channel.md#event-cryptofipsindicator
 [`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
+[`--allow-env`]: #--allow-env
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-net`]: #--allow-net

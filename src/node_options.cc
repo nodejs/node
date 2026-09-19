@@ -7,6 +7,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_sea.h"
+#include "permission/env_permission.h"
 #include "uv.h"
 #if HAVE_OPENSSL
 #include "ncrypto.h"  // Defines OPENSSL_VERSION_PREREQ for BoringSSL.
@@ -313,6 +314,14 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
 
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
+  }
+
+  for (const std::string& pattern : permission::ParseEnvAllowList(allow_env)) {
+    if (!permission::IsValidEnvAllowPattern(pattern)) {
+      errors->push_back("--allow-env must be '*', a variable name, or a "
+                        "variable name prefix followed by '*'");
+      break;
+    }
   }
 
   if (!unhandled_rejections.empty() &&
@@ -859,6 +868,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             BOOL_FIELD(permission_audit),
             kAllowedInEnvvar,
             false);
+  AddOption("--allow-env",
+            "allow access to environment variables when any permissions are "
+            "set",
+            &EnvironmentOptions::allow_env,
+            kAllowedInEnvvar,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,

@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-openssl-store --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-openssl-store --allow-child-process --allow-env=NODE_TEST_DIR,TEST_*
 'use strict';
 
 const common = require('../common');
