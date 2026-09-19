@@ -184,8 +184,9 @@ changes:
 -->
 
 * `name` {string} A name for the mount. It must be a single path segment other
-  than `.` and `..`, and must not be spelled the way a number is: `17` is
-  reserved, while `07` is a valid name.
+  than `.` and `..`, and must not be spelled the way a layer id is, as a
+  non-negative integer in its usual decimal form: `17` is reserved, while `07`
+  and `-1` are valid names.
 * Returns: {string} The absolute mount point.
 
 Mounts the virtual file system and returns the resulting mount point.
@@ -232,6 +233,11 @@ templates.mount('templates');
 const dir = path.join(os.devNull, 'vfs', 'templates');
 fs.readFileSync(path.join(dir, 'page.html'), 'utf8'); // '<h1>Hello</h1>'
 ```
+
+Like any mount point, the mount point cannot be removed or renamed, nor
+replaced by renaming something else onto it: [`fs.rmdir()`][] and
+[`fs.rename()`][] fail with `EBUSY`. A recursive [`fs.rm()`][] of the mount
+point empties the file system before failing the same way.
 
 Each `VirtualFileSystem` instance may be mounted at most once at a
 time. Attempting to mount an already-mounted instance throws
@@ -771,6 +777,9 @@ fields use synthetic but stable values:
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`fs.realpath()`]: fs.md#fsrealpathpath-options-callback
+[`fs.rename()`]: fs.md#fsrenameoldpath-newpath-callback
+[`fs.rm()`]: fs.md#fsrmpath-options-callback
+[`fs.rmdir()`]: fs.md#fsrmdirpath-options-callback
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
 [`new ffi.DynamicLibrary()`]: ffi.md#new-dynamiclibrarypath
 [`node:fs`]: fs.md

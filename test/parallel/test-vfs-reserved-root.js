@@ -200,7 +200,8 @@ const linkB = path.join(root, 'b');
   assert.throws(() => fs.rmSync(linkA), erofs);
   assert.throws(() => fs.rmSync(linkA, { recursive: true, force: true }), erofs);
   assert.throws(() => fs.rmSync(root, { recursive: true, force: true }), erofs);
-  assert.throws(() => fs.rmdirSync(root), erofs);
+  // Like the mount points in it, the root cannot be removed.
+  assert.throws(() => fs.rmdirSync(root), { code: 'EBUSY' });
   assert.throws(() => fs.renameSync(linkA, newPath), erofs);
   assert.throws(() => fs.renameSync(linkA, linkB), erofs);
   assert.throws(() => fs.chmodSync(root, 0o777), erofs);
@@ -222,6 +223,37 @@ const linkB = path.join(root, 'b');
   assert.rejects(fs.promises.rm(root, { recursive: true }), erofs).then(common.mustCall());
   assert.rejects(fs.promises.unlink(linkB), erofs).then(common.mustCall());
   assert.rejects(fs.promises.mkdir(newPath), erofs).then(common.mustCall());
+}
+
+// A mount point cannot be removed or renamed, nor replaced by a rename.
+{
+  const busy = { code: 'EBUSY' };
+  const c = vfs.create();
+  c.mkdirSync('/dir');
+  c.writeFileSync('/dir/file.txt', 'data');
+  const mountC = c.mount();
+  assert.throws(() => fs.rmdirSync(mountC), busy);
+  assert.throws(() => fs.renameSync(mountC, path.join(mountC, 'moved')), busy);
+  assert.throws(() => fs.renameSync(path.join(mountC, 'dir'), mountC), busy);
+  assert.throws(() => c.rmdirSync(mountC), busy);
+  // A recursive removal empties the file system, then fails on its root.
+  assert.throws(() => fs.rmSync(mountC, { recursive: true }), busy);
+  assert.deepStrictEqual(fs.readdirSync(mountC), []);
+  assert.throws(() => fs.rmdirSync(mountC), busy);
+  assert.ok(fs.statSync(mountC).isDirectory());
+  assert.strictEqual(c.mounted, true);
+
+  fs.rmdir(mountC, common.expectsError(busy));
+  assert.rejects(fs.promises.rmdir(mountC), busy).then(common.mustCall());
+  assert.rejects(fs.promises.rename(mountC, path.join(mountC, 'moved')), busy)
+    .then(common.mustCall());
+  assert.rejects(fs.promises.rm(mountC, { recursive: true }), busy)
+    .then(() => c.unmount()).then(common.mustCall());
+
+  // The same holds for the root of a file system that is not mounted.
+  const unmounted = vfs.create();
+  assert.throws(() => unmounted.rmdirSync('/'), busy);
+  assert.throws(() => unmounted.renameSync('/', '/moved'), busy);
 }
 
 // Unmounting removes a layer and the names linking to it; a later mount

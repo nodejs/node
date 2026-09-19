@@ -15,8 +15,8 @@ const root = path.join(os.devNull, 'vfs');
 // A name must be a single path segment that cannot be taken for a layer id.
 {
   const myVfs = vfs.create();
-  for (const name of ['', '.', '..', '0', '17', '-1', '12345', 'a/b', 'a\\b',
-                      'a\0b']) {
+  for (const name of ['', '.', '..', '0', '17', '12345', '100000000000000000000',
+                      'a/b', 'a\\b', 'a\0b']) {
     assert.throws(() => myVfs.mount(name), { code: 'ERR_INVALID_ARG_VALUE' },
                   JSON.stringify(name));
   }
@@ -27,8 +27,9 @@ const root = path.join(os.devNull, 'vfs');
   assert.strictEqual(myVfs.mounted, false);
 
   // Anything else is a name, including names special on ordinary objects.
-  for (const name of ['a', '0a', 'a0', '00', '07', '1.5', '1e3', ' 1', '...',
-                      '__proto__', 'constructor', 'π']) {
+  for (const name of ['a', '0a', 'a0', '00', '07', '-0', '-1', '1.5', '1e3', ' 1',
+                      '+1', 'NaN', 'Infinity', '-Infinity', '...', '__proto__',
+                      'constructor', 'π']) {
     myVfs.mount(name);
     assert.strictEqual(fs.readlinkSync(path.join(root, name)),
                        path.basename(myVfs.mountPoint), name);
