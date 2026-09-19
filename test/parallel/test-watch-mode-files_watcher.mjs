@@ -17,6 +17,9 @@ if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
 const supportsRecursiveWatching = common.isMacOS || common.isWindows;
+// Elsewhere a directory watch does not report changes to its entries by name,
+// so the files are watched directly.
+const watchesParentDirectory = supportsRecursiveWatching || common.isLinux;
 
 const { FilesWatcher } = watcher;
 tmpdir.refresh();
@@ -65,7 +68,7 @@ describe('watch mode file watcher', () => {
     assert.strictEqual(changesCount, 1);
   });
 
-  it('should keep detecting files replaced via unlink and create', async () => {
+  it('should keep detecting files replaced via unlink and create', { skip: !watchesParentDirectory }, async () => {
     // Regression test for https://github.com/nodejs/node/issues/51621: a watch
     // bound to the file inode stops firing after the first replacement, so the
     // second `replaceAndWaitForChanges` call would hang on the buggy behavior.
@@ -230,9 +233,12 @@ describe('watch mode file watcher', () => {
     const child = spawn(process.execPath, [file], { stdio: ['pipe', 'pipe', 'pipe', 'ipc'], encoding: 'utf8' });
     watcher.watchChildProcessModules(child);
     await once(child, 'exit');
-    // The parent directory is watched on every platform so that files replaced
-    // via unlink+create or rename are still detected.
-    const expected = [file, tmpdir.resolve('file')].map((file) => path.dirname(file));
+    let expected = [file, tmpdir.resolve('file')];
+    if (watchesParentDirectory) {
+      // The parent directory is watched so that files replaced via
+      // unlink+create or rename are still detected.
+      expected = expected.map((file) => path.dirname(file));
+    }
     assert.deepStrictEqual(watcher.watchedPaths, expected);
   });
 });
