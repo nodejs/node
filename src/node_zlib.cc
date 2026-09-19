@@ -352,6 +352,13 @@ class ZstdCompressContext final : public ZstdContext {
 
   uint64_t pledged_src_size_ = ZSTD_CONTENTSIZE_UNKNOWN;
   std::optional<uint64_t> consumed_src_size_;
+
+  // Tracks whether the current frame has been fully flushed. A frame is only
+  // complete once ZSTD_compressStream2() has been called with ZSTD_e_end and
+  // has returned 0. Resetting while a frame is still in progress silently
+  // discards the frame state, so any bytes already written out remain as an
+  // unusable fragment at the start of the output stream.
+  bool frame_complete_ = true;
 };
 
 class ZstdDecompressContext final : public ZstdContext {
@@ -1678,6 +1685,7 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
                                            std::string_view dictionary,
                                            bool) {
   pledged_src_size_ = pledged_src_size;
+  frame_complete_ = true;
   if (pledged_src_size == ZSTD_CONTENTSIZE_UNKNOWN) {
     consumed_src_size_.reset();
   } else {
@@ -1718,6 +1726,20 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
 }
 
 CompressionError ZstdCompressContext::ResetStream() {
+  // Resetting drops the state of the frame currently being compressed. If that
+  // frame was already partially written out (for example by an earlier
+  // flush()), those bytes cannot be discarded and the next frame will be
+  // appended to an incomplete frame, producing an unreadable stream. zstd
+  // requires internal buffers to be fully flushed before a new compression job
+  // starts, so refuse instead of silently corrupting the output.
+  if (!frame_complete_) {
+    return CompressionError(
+        "Cannot reset a zstd stream with an incomplete frame; end the frame "
+        "or discard the output produced so far",
+        "ERR_ZLIB_INCOMPLETE_FRAME",
+        ZSTD_error_stage_wrong);
+  }
+
   size_t result = ZSTD_CCtx_reset(cctx_.get(), ZSTD_reset_session_only);
   if (ZSTD_isError(result)) {
     const ZSTD_ErrorCode error = ZSTD_getErrorCode(result);
@@ -1755,15 +1777,20 @@ void ZstdCompressContext::DoThreadPoolWork() {
     error_ = ZSTD_getErrorCode(remaining);
     error_code_string_ = ZstdStrerror(error_);
     error_string_ = ZSTD_getErrorString(error_);
-  } else if (remaining == 0 && flush_ == ZSTD_e_end &&
-             consumed_src_size_.has_value()) {
-    uint64_t const consumed_src_size = *consumed_src_size_;
-    consumed_src_size_.reset();
-    if (consumed_src_size != pledged_src_size_) {
-      error_ = ZSTD_error_srcSize_wrong;
-      error_code_string_ = ZstdStrerror(error_);
-      error_string_ = ZSTD_getErrorString(error_);
+    frame_complete_ = false;
+  } else if (remaining == 0 && flush_ == ZSTD_e_end) {
+    frame_complete_ = true;
+    if (consumed_src_size_.has_value()) {
+      uint64_t const consumed_src_size = *consumed_src_size_;
+      consumed_src_size_.reset();
+      if (consumed_src_size != pledged_src_size_) {
+        error_ = ZSTD_error_srcSize_wrong;
+        error_code_string_ = ZstdStrerror(error_);
+        error_string_ = ZSTD_getErrorString(error_);
+      }
     }
+  } else {
+    frame_complete_ = false;
   }
 }
 
