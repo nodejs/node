@@ -198,6 +198,21 @@ class Benchmark {
   }
 
   _run() {
+    // A forked child is told to run the benchmark function directly, rather
+    // than build its own queue and fork again, through the
+    // NODE_RUN_BENCHMARK_FN environment variable. A child always inherits
+    // this.flags in its execArgv, so reaching _run() with those flags already
+    // applied means the variable did not survive to the child and every
+    // generation would keep forking. Fail loudly instead of forking forever.
+    if (process.send &&
+        this.flags.length > 0 &&
+        this.flags.every((flag) => process.execArgv.includes(flag))) {
+      throw new Error(
+        'Benchmark child process was started with the benchmark flags but ' +
+        'without NODE_RUN_BENCHMARK_FN, refusing to fork again. Something ' +
+        'removed the variable from the child environment.');
+    }
+
     // If forked, report to the parent.
     if (process.send) {
       process.send({
@@ -211,6 +226,20 @@ class Benchmark {
       // Only do this from the root process. _run() is only ever called from the root,
       // in child processes main is run directly.
       this.originalOptions.setup(this.queue);
+    }
+
+    // Enforcing the permission model removes the environment variables
+    // --allow-env does not grant access to at startup, which would drop the
+    // NODE_RUN_BENCHMARK_FN set below. The child only ever sees the
+    // environment this process hands it, so granting access to all of it does
+    // not widen what the benchmark can reach. Audit mode removes nothing, so
+    // it is left alone to keep its diagnostics intact.
+    const childExecArgv = this.flags.concat(process.execArgv);
+    const enforcesPermission = (arg) =>
+      arg === '--permission' || arg.startsWith('--permission=');
+    if (childExecArgv.some(enforcesPermission) &&
+        !childExecArgv.some((arg) => arg.startsWith('--allow-env'))) {
+      childExecArgv.push('--allow-env=*');
     }
 
     const recursive = (queueIndex) => {
@@ -233,7 +262,7 @@ class Benchmark {
 
       const child = child_process.fork(require.main.filename, childArgs, {
         env: childEnv,
-        execArgv: this.flags.concat(process.execArgv),
+        execArgv: childExecArgv,
       });
       child.on('message', sendResult);
       child.on('close', (code) => {
