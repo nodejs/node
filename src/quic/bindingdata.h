@@ -260,6 +260,7 @@ class CheckWrapHandle : public MemoryRetainer {
 // TODO(@jasnell): Make this snapshotable?
 class BindingData final
     : public BaseObject,
+      public Cleanable,
       public mem::NgLibMemoryManager<BindingData, ngtcp2_mem> {
  public:
   SET_BINDING_ID(quic_binding_data)
@@ -389,6 +390,9 @@ class BindingData final
   bool flush_check_started_ = false;
 
   void OnFlushCheck();
+
+ private:
+  void Clean() override;
 };
 
 JS_METHOD_IMPL(IllegalConstructor);
