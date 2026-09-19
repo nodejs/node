@@ -723,6 +723,23 @@ class Rsa final {
     const BIGNUM* dq;
     const BIGNUM* qi;
   };
+  struct OtherPrimeInfo {
+    const BIGNUM* r;
+    const BIGNUM* d;
+    const BIGNUM* t;
+  };
+  struct OtherPrimeInfoPointer {
+    OtherPrimeInfoPointer() = default;
+    OtherPrimeInfoPointer(BignumPointer&& r,
+                          BignumPointer&& d,
+                          BignumPointer&& t);
+
+    DeleteFnPtr<BIGNUM, BN_clear_free> r;
+    DeleteFnPtr<BIGNUM, BN_clear_free> d;
+    DeleteFnPtr<BIGNUM, BN_clear_free> t;
+  };
+  using OtherPrimeInfos = std::vector<OtherPrimeInfo>;
+  using OtherPrimeInfoPointers = std::vector<OtherPrimeInfoPointer>;
   struct PssParams {
     std::string_view digest = "sha1";
     std::optional<std::string_view> mgf1_digest = "sha1";
@@ -731,6 +748,7 @@ class Rsa final {
 
   const PublicKey getPublicKey() const;
   const PrivateKey getPrivateKey() const;
+  const OtherPrimeInfos getOtherPrimeInfos() const;
   const std::optional<PssParams> getPssParams() const;
 
   bool setPublicKey(BignumPointer&& n, BignumPointer&& e);
@@ -739,7 +757,8 @@ class Rsa final {
                      BignumPointer&& p,
                      BignumPointer&& dp,
                      BignumPointer&& dq,
-                     BignumPointer&& qi);
+                     BignumPointer&& qi,
+                     OtherPrimeInfoPointers&& other_prime_infos = {});
 
   using CipherParams = Cipher::CipherParams;
 
@@ -764,6 +783,7 @@ class Rsa final {
   DeleteFnPtr<BIGNUM, BN_clear_free> dp_;
   DeleteFnPtr<BIGNUM, BN_clear_free> dq_;
   DeleteFnPtr<BIGNUM, BN_clear_free> qi_;
+  OtherPrimeInfoPointers other_prime_infos_;
   std::optional<PssParams> pss_params_;
 #else
   OSSL3_CONST RSA* rsa_;
