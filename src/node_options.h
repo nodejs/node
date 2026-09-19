@@ -373,6 +373,7 @@ class PerProcessOptions : public Options {
   bool enable_fips_crypto = false;
   bool enable_fips_indicator_events = false;
   bool force_fips_crypto = false;
+  std::string force_fips_crypto_policy = "provider";
 #endif
 #if OPENSSL_VERSION_MAJOR >= 3
   bool openssl_legacy_provider = false;

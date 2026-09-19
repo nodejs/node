@@ -4586,7 +4586,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`"imports"`]: packages.md#imports
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--disable-proto=throw`]: cli.md#--disable-protomode
-[`--force-fips`]: cli.md#--force-fips
+[`--force-fips`]: cli.md#--force-fipsmode
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`BoundSocket`]: net.md#class-netboundsocket
