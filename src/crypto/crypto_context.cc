@@ -2583,9 +2583,11 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
-    EVP_EncryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
+    EVP_EncryptInit_ex(
+        ectx, Cipher::AES_128_CBC(), nullptr, aes_key.data(), iv);
   } else {
-    EVP_DecryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
+    EVP_DecryptInit_ex(
+        ectx, Cipher::AES_128_CBC(), nullptr, aes_key.data(), iv);
   }
 
   return r;
@@ -2608,7 +2610,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
     if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
-            ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+            ectx, Cipher::AES_128_CBC(), nullptr, sc->ticket_key_aes_, iv) <=
+            0 ||
         !InitTicketHmac(
             hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_))) {
       return -1;
@@ -2622,7 +2625,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
   }
 
   if (EVP_DecryptInit_ex(
-          ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+          ectx, Cipher::AES_128_CBC(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
       !InitTicketHmac(
           hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_))) {
     return -1;
