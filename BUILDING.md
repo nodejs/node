@@ -380,6 +380,9 @@ may reduce build time. For more information, see the
 The above requires that `python` resolves to a supported version of
 Python. See [Prerequisites](#prerequisites).
 
+> Note: When the compiler runtime provides atomic builtins, such as with compiler-rt (llvm),
+> passing `--without-libatomic` disables linking against `libatomic` (`-latomic`).
+
 After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
 
