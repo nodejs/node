@@ -75,10 +75,20 @@ const linkB = path.join(root, 'b');
   assert.deepStrictEqual(fs.readdirSync(root, { recursive: true }).sort(),
                          expected.sort());
 
-  const dirents = fs.readdirSync(root, { recursive: true, withFileTypes: true });
-  const file = dirents.find((d) => d.name === 'file.txt' &&
-                                   d.parentPath === path.join(mountA, 'dir'));
-  assert.ok(file?.isFile());
+  // Every API names each entry's directory as a host path.
+  const options = { recursive: true, withFileTypes: true };
+  const check = common.mustCall((dirents) => {
+    const file = dirents.find((d) => d.name === 'file.txt' &&
+                                     d.parentPath === path.join(mountA, 'dir'));
+    assert.ok(file?.isFile());
+    const layer = dirents.find((d) => d.name === idA);
+    assert.strictEqual(layer?.parentPath, root);
+  }, 3);
+  check(fs.readdirSync(root, options));
+  fs.readdir(root, options, common.mustSucceed(check));
+  fs.promises.readdir(root, options).then(common.mustCall((dirents) => {
+    check(dirents);
+  }));
 }
 
 // The root is a directory, and a name is a symbolic link to its layer.
