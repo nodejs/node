@@ -529,6 +529,8 @@ void ResetSignalHandlers() {
 // variable on all platforms that we support, which we require in
 // order for its value to be usable inside signal handlers.
 static std::atomic<uint32_t> init_process_flags = 0;
+// This is accessed in ResetStdio(), which can be called from signal handlers.
+static std::atomic<uint32_t> reset_stdio = 1;
 static_assert(
     std::is_same_v<std::underlying_type_t<ProcessInitializationFlags::Flags>,
                    uint32_t>);
@@ -537,6 +539,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   // init_process_flags is accessed in ResetStdio(),
   // which can be called from signal handlers.
   CHECK(init_process_flags.is_lock_free());
+  CHECK(reset_stdio.is_lock_free());
   init_process_flags.store(flags);
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
@@ -667,6 +670,10 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
 void ResetStdio() {
   if (init_process_flags.load() &
       ProcessInitializationFlags::kNoStdioInitialization) {
+    return;
+  }
+
+  if (!reset_stdio.load()) {
     return;
   }
 
@@ -1032,6 +1039,8 @@ static ExitCode InitializeNodeWithArgsInternal(
   // constraints can finally be validated.
   CheckGlobalBenchOptions(errors);
   if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
+
+  reset_stdio.store(per_process::cli_options->reset_stdio);
 
   // Set the process.title immediately after processing argv if --title is set.
   if (!per_process::cli_options->title.empty())

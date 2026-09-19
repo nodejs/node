@@ -2410,6 +2410,15 @@ Disable support for loading a synchronous ES module graph in `require()`.
 
 See [Loading ECMAScript modules using `require()`][].
 
+### `--no-reset-stdio`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Do not restore the initial state of standard input, output, and error streams
+when the process exits.
+
 ### `--no-strip-types`
 
 <!-- YAML
@@ -4149,6 +4158,7 @@ one is included in the list below.
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
 * `--no-network-family-autoselection`
+* `--no-reset-stdio`
 * `--no-strip-types`
 * `--no-warnings`
 * `--no-webstorage`
@@ -4743,6 +4753,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--no-require-module`]: #--no-require-module
+[`--no-reset-stdio`]: #--no-reset-stdio
 [`--no-strip-types`]: #--no-strip-types
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
