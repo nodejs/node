@@ -330,7 +330,11 @@ easy to configure permissions as needed when using `npx`.
 
 There are constraints you need to know before using this system:
 
-* The model does not inherit to a worker thread. A default `worker_threads.Worker` (no `execArgv` option) still receives the parent process CLI flags, including `--permission` and `--allow-*` if those were passed to the parent. Setting `execArgv` explicitly, including `execArgv: []`, replaces the inherited flags. The worker then does not keep the parent's Permission Model grants unless those flags are listed again in `execArgv`. That difference is intended, not a bypass.
+* The model does not inherit to a worker thread. A default `worker_threads.Worker` (no `execArgv` option) still receives
+the parent process CLI flags, including `--permission` and `--allow-*` if those were passed to the parent. Setting
+`execArgv` explicitly, including `execArgv: []`, replaces the inherited flags. The worker then does not keep the
+parent's Permission Model grants unless those flags are listed again in `execArgv`. That difference is intended, not a
+bypass.
 * When using the Permission Model the following features will be restricted:
   * Native modules
   * Network

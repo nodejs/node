@@ -1630,7 +1630,11 @@ changes:
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this is provided
     as [`process.execArgv`][] inside the worker. By default, options are
-    inherited from the parent thread. Passing an explicit `execArgv` (including an empty array) replaces that inheritance: the worker receives only the listed flags. Under the [Permission Model](permissions.md#permission-model), that means an explicit `execArgv` can drop the parent's `--permission` / `--allow-*` grants. Omit `execArgv` to keep the parent's CLI flags. This is intended. See [Permission Model limitations](permissions.md#limitations-and-known-issues).
+    inherited from the parent thread. Passing an explicit `execArgv` (including an empty array) replaces that
+    inheritance: the worker receives only the listed flags. Under the [Permission
+    Model](permissions.md#permission-model), that means an explicit `execArgv` can drop the parent's `--permission` /
+    `--allow-*` grants. Omit `execArgv` to keep the parent's CLI flags. This is intended. See [Permission Model
+    limitations](permissions.md#limitations-and-known-issues).
   * `stdin` {boolean} If this is set to `true`, then `worker.stdin`
     provides a writable stream whose contents appear as `process.stdin`
     inside the Worker. By default, no data is provided.
@@ -2224,7 +2228,8 @@ thread spawned will spawn another until the application crashes.
 
 [Addons worker support]: addons.md#worker-support
 [ECMAScript module loader]: esm.md#data-imports
-[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[HTML structured clone algorithm]:
+https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [LockManager]: #class-lockmanager
 [Signals events]: process.md#signal-events
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
