@@ -3600,7 +3600,7 @@ Result<DataPointer, EVPKeyPointer::RawExportError> EVPKeyPointer::rawSeed()
   }
   auto data = GetRawSeed(get(), algorithm->seedSize());
   if (!data) return RawExportError::MISSING_SEED;
-  return std::move(data);
+  return data;
 }
 
 Result<EVPKeyPointer::RawJwkData, EVPKeyPointer::RawExportError>
@@ -3621,7 +3621,7 @@ EVPKeyPointer::exportRawJwk(bool include_private) const {
   }
   data.public_key = rawPublicKey();
   if (!data.public_key) return RawExportError::FAILED;
-  return std::move(data);
+  return data;
 }
 
 EVPKeyPointer EVPKeyPointer::NewRawJwk(
