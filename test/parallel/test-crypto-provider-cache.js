@@ -241,8 +241,7 @@ function withMacCacheSetter(fixtures, toggle) {
 }
 
 if (!isMainThread) {
-  let lists = checkLists();
-  function reply(phase) {
+  function reply(phase, lists) {
     parentPort.postMessage({
       phase,
       lists,
@@ -251,14 +250,18 @@ if (!isMainThread) {
     });
   }
   if (workerData.listsOnly) {
-    reply('fresh');
+    parentPort.once('message', common.mustCall(() => {
+      reply('fresh', checkLists());
+    }));
+    parentPort.postMessage('ready');
   } else {
+    let lists = checkLists();
     const fixtures = createFixtures(lists);
     assert.throws(() => setFips(1), {
       code: 'ERR_WORKER_UNSUPPORTED_OPERATION',
     });
     assert.deepStrictEqual(checkLists(), lists);
-    reply('warm');
+    reply('warm', lists);
     parentPort.on('message', common.mustCallAtLeast(({ phase, available }) => {
       if (phase === 'done') {
         parentPort.close();
@@ -269,7 +272,7 @@ if (!isMainThread) {
       const next = checkLists();
       if (phase === 'unchanged') assert.deepStrictEqual(next, lists);
       lists = next;
-      reply(phase);
+      reply(phase, lists);
     }));
   }
 } else {
@@ -285,6 +288,7 @@ if (!isMainThread) {
       return;
     }
     let worker;
+    let freshWorker;
     try {
       const defaultLists = checkLists();
       const fixtures = createFixtures(defaultLists);
@@ -312,14 +316,23 @@ if (!isMainThread) {
       assert.deepStrictEqual(checkLists(), defaultLists);
       await exchange('unchanged', defaultLists);
 
+      // AIX uses OpenSSL entropy when initializing a worker's V8 isolate.
+      // Start it before enabling FIPS properties, which can succeed without a
+      // FIPS provider, but defer its first cache lookup until after the toggle.
+      freshWorker = new Worker(__filename, {
+        workerData: { cryptoCacheTest: true, listsOnly: true },
+      });
+      freshWorker.on('error', common.mustNotCall());
+      const freshExit = once(freshWorker, 'exit');
+      const [ready] = await once(freshWorker, 'message');
+      assert.strictEqual(ready, 'ready');
+
       withMacCacheSetter(fixtures, () => setFips(1));
       // A cold environment provides independent expectations for both native
       // and JavaScript caches, including when no FIPS provider is installed.
-      const freshWorker = new Worker(__filename, {
-        workerData: { cryptoCacheTest: true, listsOnly: true },
-      });
-      const freshExit = once(freshWorker, 'exit');
-      const [fresh] = await once(freshWorker, 'message');
+      const freshResponse = once(freshWorker, 'message');
+      freshWorker.postMessage('read');
+      const [fresh] = await freshResponse;
       const [freshCode] = await freshExit;
       assert.strictEqual(freshCode, 0);
       const enabledLists = fresh.lists;
@@ -341,6 +354,8 @@ if (!isMainThread) {
       const [code] = await exitPromise;
       assert.strictEqual(code, 0);
     } finally {
+      if (freshWorker !== undefined && freshWorker.threadId !== -1)
+        await freshWorker.terminate();
       if (worker !== undefined && worker.threadId !== -1) await worker.terminate();
       setFips(originalFips);
     }
