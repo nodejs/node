@@ -192,11 +192,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ObjectData* TryGetOrCreateData(Tagged<Object> object,
                                  GetOrCreateDataFlags flags = {});
 
-  // Check if {object} is any native context's %ArrayPrototype% or
-  // %ObjectPrototype%.
-  bool IsArrayOrObjectPrototype(JSObjectRef object) const;
-  bool IsArrayOrObjectPrototype(Handle<JSObject> object) const;
-
   bool HasFeedback(FeedbackSource const& source) const;
   void SetFeedback(FeedbackSource const& source,
                    ProcessedFeedback const* feedback);
@@ -285,12 +280,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     if (Tagged<HeapObject> heap_object;
         TryCast<HeapObject>(object, &heap_object)) {
       RootIndex root_index;
-      // CollectArrayAndObjectPrototypes calls this function often with T equal
-      // to JSObject. The root index map only contains immortal, immutable
-      // objects; it never contains any instances of type JSObject, since
-      // JSObjects must exist within a NativeContext, and NativeContexts can be
-      // created and destroyed. Thus, we can skip the lookup in the root index
-      // map for those values and save a little time.
+      // The root index map only contains immortal, immutable objects; it never
+      // contains any instances of type JSObject, since JSObjects must exist
+      // within a NativeContext, and NativeContexts can be created and
+      // destroyed. Thus, we can skip the lookup in the root index map for those
+      // values and save a little time.
       if constexpr (std::is_convertible_v<T, JSObject>) {
         DCHECK(!root_index_map_.Lookup(heap_object, &root_index));
       } else if (root_index_map_.Lookup(heap_object, &root_index)) {
@@ -428,8 +422,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
       FeedbackSource const& source);
 
-  void CollectArrayAndObjectPrototypes();
-
   void set_persistent_handles(
       std::unique_ptr<PersistentHandles> persistent_handles) {
     DCHECK_NULL(ph_);
@@ -457,9 +449,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   OptionalNativeContextRef target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;
-  ZoneUnorderedSet<IndirectHandle<JSObject>, IndirectHandle<JSObject>::hash,
-                   IndirectHandle<JSObject>::equal_to>
-      array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   CodeKind const code_kind_;
