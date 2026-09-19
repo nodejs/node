@@ -220,6 +220,7 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   const ncrypto::Rsa::CipherParams nparams{
       .padding = params.padding,
       .digest = params.digest,
+      .mgf1_digest = params.digest,
       .label = params.label,
   };
 
