@@ -3812,6 +3812,11 @@ from an earlier `--vfs-mount` of the same source.
 In worker threads `--vfs-load` mounts but does not load: a worker inherits the
 same mounts, in the same order, and runs its own entry point.
 
+The source `--vfs-load` names is mounted at the same reserved mount point in
+every thread, whatever else that thread mounts, so a path into it stays valid
+in a worker - including one created with its own `execArgv`, which does not
+inherit the parent's options and has to be given `--vfs-load` again.
+
 `--vfs-load` is not permitted in [`NODE_OPTIONS`][]: which entry point runs is
 the command line's decision, and the environment must not be able to redirect
 it.

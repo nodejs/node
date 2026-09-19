@@ -1901,6 +1901,10 @@ The entry point then comes from the mount \fB--vfs-load\fR itself contributed, n
 from an earlier \fB--vfs-mount\fR of the same source.
 In worker threads \fB--vfs-load\fR mounts but does not load: a worker inherits the
 same mounts, in the same order, and runs its own entry point.
+The source \fB--vfs-load\fR names is mounted at the same reserved mount point in
+every thread, whatever else that thread mounts, so a path into it stays valid
+in a worker - including one created with its own \fBexecArgv\fR, which does not
+inherit the parent's options and has to be given \fB--vfs-load\fR again.
 \fB--vfs-load\fR is not permitted in \fBNODE_OPTIONS\fR: which entry point runs is
 the command line's decision, and the environment must not be able to redirect
 it.

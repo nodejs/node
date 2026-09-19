@@ -235,6 +235,57 @@ parentPort.postMessage('hello from esm worker in mount');
   assert.match(res.stdout, /hello from esm worker in mount/);
 }
 
+// The --vfs-load source is mounted at a reserved mount point of its own, so it
+// is the same whatever else the thread mounts first, and a worker reaches it
+// with nothing but its own --vfs-load - which is all a worker created with an
+// explicit execArgv gets, since that does not inherit the parent's options.
+{
+  const dir = fixture('reserved-load');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index.js'), `
+'use strict';
+const path = require('path');
+const { Worker } = require('worker_threads');
+console.log('main:' + __dirname);
+const w = new Worker(path.join(__dirname, 'worker.js'), {
+  execArgv: ['--experimental-vfs', '--vfs-load=' + process.argv[1]],
+});
+w.on('message', (m) => { console.log('worker:' + m); process.exit(0); });
+w.on('error', (e) => { console.error(e); process.exit(1); });
+`);
+  fs.writeFileSync(path.join(dir, 'worker.js'), `
+'use strict';
+require('worker_threads').parentPort.postMessage(__dirname);
+`);
+  // A preload that mounts a file system of its own runs before the --vfs-load
+  // source is mounted, and another --vfs-mount is mounted before it too.
+  const preload = fixture('mounting-preload.js');
+  fs.writeFileSync(preload, `
+'use strict';
+require('node:vfs').create().mount();
+`);
+  const other = fixture('other');
+  fs.mkdirSync(other, { recursive: true });
+
+  const seen = new Set();
+  for (const args of [
+    [`--vfs-load=${dir}`],
+    [`--vfs-mount=${other}`, `--vfs-load=${dir}`],
+    ['-r', preload, `--vfs-load=${dir}`],
+  ]) {
+    const res = run(args);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const main = /main:(\S+)/.exec(res.stdout)[1];
+    const worker = /worker:(\S+)/.exec(res.stdout)[1];
+    // The worker resolved a path the main thread built, so both threads put
+    // the source at the same place.
+    assert.strictEqual(worker, main, res.stdout);
+    seen.add(main);
+  }
+  // And that place did not move between the three runs.
+  assert.strictEqual(seen.size, 1, [...seen].join());
+}
+
 // --vfs-load names the source it loads, so it always takes a value.
 {
   const res = run(['--vfs-load']);
@@ -268,24 +319,29 @@ parentPort.postMessage('hello from esm worker in mount');
 }
 
 // The same source given twice is mounted twice, at two mount points. The entry
-// point comes from the one --vfs-load contributed, not from the earlier mount
-// of the same source.
+// point comes from the one --vfs-load contributed, which keeps its reserved
+// mount point wherever it is written among the others.
 {
   const dir = fixture('twice');
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'index.js'),
-                   'console.log("dir:" + __dirname);\n');
+  fs.writeFileSync(path.join(dir, 'index.js'), `
+const fs = require('fs');
+const path = require('path');
+console.log('dir:' + __dirname);
+console.log('mounts:' + fs.readdirSync(path.join(require('os').devNull, 'vfs')).length);
+`);
 
   const res = run([`--vfs-mount=${dir}`, `--vfs-load=${dir}`]);
   assert.strictEqual(res.status, 0, res.stderr);
   const [, first] = /dir:(\S+)/.exec(res.stdout);
+  // Two mounts of one source, so the entry ran from one of two mount points.
+  assert.match(res.stdout, /mounts:2/);
 
-  // With the order reversed the entry point is the other mount point, which is
-  // what shows that the position decides and not the source.
   const reversed = run([`--vfs-load=${dir}`, `--vfs-mount=${dir}`]);
   assert.strictEqual(reversed.status, 0, reversed.stderr);
   const [, second] = /dir:(\S+)/.exec(reversed.stdout);
-  assert.notStrictEqual(first, second);
+  assert.match(reversed.stdout, /mounts:2/);
+  assert.strictEqual(first, second);
 }
 
 // --vfs-load may only be given once: it shares one list with --vfs-mount, so a
