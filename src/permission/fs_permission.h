@@ -100,8 +100,8 @@ class FSPermission final : public PermissionBase {
         auto child = it->second;
         // match prefix
         size_t prefix_len = child->prefix.length();
-        for (size_t i = 0; i < path.length(); ++i) {
-          if (i >= prefix_len || child->prefix[i] == '*') {
+        for (size_t i = 0; i < prefix_len; ++i) {
+          if (child->prefix[i] == '*') {
             return child;
           }
 
