@@ -1927,9 +1927,9 @@ $ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
 .Ed
 mounts \fBa\fR, \fBb\fR and \fBc\fR in that order and runs \fBb\fR. Mounts contributed by
 \fBNODE_OPTIONS\fR are mounted before the command line's.
-A mount is named by writing its value as \fBname=source\fR. The name is passed to
-the provider backing the mount, and is available as the \fBname\fR property of both
-that provider and its virtual file system.
+A mount is named by writing its value as \fBname=source\fR, which mounts it as
+\fBvfs.mount(name)\fR does: the program can then reach it as
+\fBpath.join(os.devNull, 'vfs', name)\fR without knowing its mount point.
 Everything before the first \fB=\fR in the value is the name, unless it contains a
 path separator (\fB/\fR or \fB\\\fR), in which case the whole value is the source. A
 source whose path contains \fB=\fR can therefore be mounted without a name by
