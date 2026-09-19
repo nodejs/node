@@ -118,6 +118,41 @@ This behavior also applies to \fBchild_process.spawn()\fR, but in that case, the
 flags are propagated via the \fBNODE_OPTIONS\fR environment variable rather than
 directly through the process arguments.
 .
+.It Fl -allow-env
+When using the Permission Model, the process starts without the environment
+variables it has not been granted access to. At startup, every variable that
+\fB--allow-env\fR does not match is removed from the process environment. Removed
+variables are absent from \fBprocess.env\fR, from diagnostic reports, from native
+code calling \fBgetenv()\fR, and from the environment of child processes and worker
+threads.
+The valid values are:
+.Bl -bullet
+.It
+\fB*\fR - Grants access to every environment variable.
+.It
+A variable name, for example \fB--allow-env=DATABASE_URL\fR.
+.It
+A variable name prefix followed by \fB*\fR, for example \fB--allow-env=APP_*\fR.
+.El
+Multiple values can be passed by repeating the flag, or by separating them with
+commas: \fB--allow-env=PORT,APP_*\fR. Variable names are case-insensitive on
+Windows.
+Example:
+.Bd -literal
+console.log(process.env.DATABASE_URL);
+console.log(process.env.AWS_SECRET_ACCESS_KEY);
+.Ed
+.Bd -literal
+$ node --permission --allow-fs-read=* --allow-env=DATABASE_URL index.js
+postgres://localhost/app
+undefined
+(node:1234) Warning: The permission model removed the environment variable "AWS_SECRET_ACCESS_KEY" at startup. Use --allow-env to manage permissions.
+.Ed
+The variables that Node.js and its bundled dependencies read, such as
+\fBNODE_OPTIONS\fR, \fBPATH\fR, \fBHOME\fR, \fBTZ\fR, and \fBSSL_CERT_FILE\fR, are always kept, as
+are the variables defined in \fB--env-file\fR files. See
+Environment variable permissions for details.
+.
 .It Fl -allow-ffi
 When using the Permission Model, the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR
@@ -1274,6 +1309,8 @@ File System - manageable through
 .It
 Network - manageable through \fB--allow-net\fR flag
 .It
+Environment variables - manageable through \fB--allow-env\fR flag
+.It
 Child Process - manageable through \fB--allow-child-process\fR flag
 .It
 Worker Threads - manageable through \fB--allow-worker\fR flag
@@ -2087,6 +2124,8 @@ one is included in the list below.
 \fB--allow-addons\fR
 .It
 \fB--allow-child-process\fR
+.It
+\fB--allow-env\fR
 .It
 \fB--allow-ffi\fR
 .It
