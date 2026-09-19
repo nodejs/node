@@ -32,6 +32,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
+using v8::Symbol;
 using v8::Value;
 
 namespace quic {
@@ -436,6 +437,17 @@ void BindingData::set_transport_params_template(
 Local<DictionaryTemplate> BindingData::transport_params_template() const {
   return PersistentToLocal::Default(env()->isolate(),
                                     transport_params_template_);
+}
+
+Local<Symbol> BindingData::http3_settings_symbol() {
+  if (http3_settings_symbol_.IsEmpty()) {
+    auto symbol = Symbol::New(
+        env()->isolate(),
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "quic.http3.settings"));
+    http3_settings_symbol_.Reset(env()->isolate(), symbol);
+    return symbol;
+  }
+  return http3_settings_symbol_.Get(env()->isolate());
 }
 
 void BindingData::set_application_options_template(

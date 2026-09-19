@@ -148,8 +148,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/streams/lazy_transform",
 #endif  // !HAVE_OPENSSL
 #ifndef OPENSSL_NO_QUIC
-        "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
-        "internal/quic/state",
+        "internal/quic/quic", "internal/quic/http3", "internal/quic/symbols",
+        "internal/quic/stats", "internal/quic/state",
 #endif  // !OPENSSL_NO_QUIC
 #if HAVE_DTLS
         "internal/dtls/dtls", "internal/dtls/symbols", "internal/dtls/stats",

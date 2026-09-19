@@ -13,7 +13,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -29,13 +29,15 @@ const decoder = new TextDecoder();
   const originReceived = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: {
       // Wildcard entry should NOT appear in ORIGIN frame.
       '*': { keys: [key], certs: [cert] },
@@ -50,7 +52,8 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'example.com',
     verifyPeer: 'manual',
     // Client receives ORIGIN frame via onorigin callback.
@@ -67,6 +70,7 @@ const decoder = new TextDecoder();
       originReceived.resolve();
     }),
   });
+  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({
@@ -97,13 +101,15 @@ const decoder = new TextDecoder();
   const originReceived = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: {
       '*': { keys: [key], certs: [cert] },
       // Non-default port → origin includes port.
@@ -128,7 +134,8 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const quicSession = await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'custom-port.example.com',
     verifyPeer: 'manual',
     onorigin: mustCall(function(origins) {
@@ -163,6 +170,7 @@ const decoder = new TextDecoder();
       originReceived.resolve();
     }),
   });
+  const clientSession = new Http3Session(quicSession);
   await clientSession.opened;
 
   const stream = await clientSession.createBidirectionalStream({

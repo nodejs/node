@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect, Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -30,7 +30,8 @@ const decoder = new TextDecoder();
   let requestCount = 0;
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall((stream) => {
       // Server sees priority on the stream.
       const pri = stream.priority;
@@ -39,6 +40,7 @@ const decoder = new TextDecoder();
       assert.strictEqual(typeof pri.incremental, 'boolean');
     }, 4);
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -50,10 +52,11 @@ const decoder = new TextDecoder();
     }, 4),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   // Priority set at creation time via options.
@@ -162,7 +165,8 @@ const decoder = new TextDecoder();
   const serverSawHighPriority = Promise.withResolvers();
   const serverDone = Promise.withResolvers();
 
-  const serverEndpoint = await listen(mustCall(async (ss) => {
+  const serverEndpoint = await listen(mustCall(async (quicSession) => {
+    const ss = new Http3Session(quicSession);
     ss.onstream = mustCall(async (stream) => {
       // Read the request body — this acts as a signal that the
       // client's PRIORITY_UPDATE has been sent. The control stream
@@ -182,6 +186,7 @@ const decoder = new TextDecoder();
       serverDone.resolve();
     });
   }), {
+    alpn: ['h3'],
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
       this.sendHeaders({ ':status': '200' });
@@ -190,10 +195,11 @@ const decoder = new TextDecoder();
     }),
   });
 
-  const clientSession = await connect(serverEndpoint.address, {
+  const clientSession = new Http3Session(await connect(serverEndpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
-  });
+  }));
   await clientSession.opened;
 
   // Create stream with default priority and a body. The body serves
