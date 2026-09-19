@@ -160,6 +160,7 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
 
   std::vector<std::string> conditions;
+  std::vector<std::string> allow_env;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   std::vector<std::string> disable_warnings;

@@ -8,6 +8,7 @@
 #include "node_file.h"
 
 #include "permission/boolean_permission.h"
+#include "permission/env_permission.h"
 #include "permission/fs_permission.h"
 #include "permission/permission_base.h"
 #include "v8-fast-api-calls.h"
@@ -58,10 +59,20 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
       return "node:permission-model:ffi";
     case PermissionScope::kOpenSSLStore:
       return "node:permission-model:openssl-store";
+    case PermissionScope::kEnv:
+      return "node:permission-model:env";
     default:
       return {};
   }
 }
+
+#if defined(__linux__)
+// /proc/<pid>/environ exposes the environment a process was started with,
+// including variables that the env scope does not grant access to.
+bool IsProcEnvironPath(std::string_view path) {
+  return path.starts_with("/proc/") && path.ends_with("/environ");
+}
+#endif  // defined(__linux__)
 
 Local<DictionaryTemplate> GetPermissionDiagnosticsTemplate(Environment* env) {
   auto tmpl = env->permission_diagnostic_channel_message();
@@ -87,6 +98,18 @@ static void Drop(const FunctionCallbackInfo<Value>& args) {
   PermissionScope scope = Permission::StringToPermission(deny_scope);
   if (scope == PermissionScope::kPermissionsRoot) {
     return;
+  }
+
+  // Dropping environment variables removes them from the environment. An
+  // Environment that does not own the process state shares the real process
+  // environment with the embedder, and must not modify it.
+  if (scope == PermissionScope::kEnv &&
+      env->env_vars() == per_process::system_environment &&
+      !env->owns_process_state()) {
+    return THROW_ERR_INVALID_STATE(
+        env,
+        "Environment variables can only be dropped from an Environment that "
+        "owns the process state");
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
@@ -242,6 +265,11 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
       std::make_shared<AllowRevokePermission>();
   NET_PERMISSIONS(V)
 #undef V
+  env_permission_ = std::make_shared<EnvPermission>();
+#define V(Name, _, __, ___)                                                    \
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = env_permission_;
+  ENV_PERMISSIONS(V)
+#undef V
 }
 
 const char* GetErrorFlagSuggestion(node::permission::PermissionScope perm) {
@@ -320,7 +348,16 @@ bool Permission::is_granted_quiet(Environment* env,
   CHECK(permission != PermissionScope::kPermissionsRoot &&
         permission != PermissionScope::kPermissionsCount);
   auto& perm_node = nodes_[static_cast<size_t>(permission)];
-  return perm_node && perm_node->is_granted(env, permission, res);
+  if (!perm_node || !perm_node->is_granted(env, permission, res)) {
+    return false;
+  }
+#if defined(__linux__)
+  if (permission == PermissionScope::kFileSystemRead &&
+      IsProcEnvironPath(res) && !env_permission_->granted_all()) {
+    return false;
+  }
+#endif  // defined(__linux__)
+  return true;
 }
 
 bool Permission::is_scope_granted(Environment* env,

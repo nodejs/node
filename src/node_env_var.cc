@@ -4,6 +4,8 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_process-inl.h"
+#include "permission/env_permission.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #include <time.h>  // tzset(), _tzset()
@@ -429,6 +431,40 @@ void TraceEnvVar(Environment* env,
   }
 }
 
+// Called when process.env does not have `property`. If the permission model
+// removed the variable at startup, publishes the denial and warns once, so
+// that the variable does not just silently read as undefined.
+static Maybe<void> ReportRemovedEnvVar(Environment* env,
+                                       Local<String> property) {
+  if (!permission::IsProcessEnvironmentScrubbed()) return JustVoid();
+  Utf8Value key(env->isolate(), property);
+  if (!permission::WasRemovedByEnvironmentScrub(key.ToStringView())) {
+    return JustVoid();
+  }
+  env->permission()->PublishDenied(
+      env, permission::PermissionScope::kEnv, key.ToStringView());
+  if (permission::ShouldWarnAboutRemovedEnvVar(key.ToStringView()) &&
+      ProcessEmitWarning(env,
+                         "The permission model removed the environment "
+                         "variable \"%s\" at startup. Use --allow-env to "
+                         "manage permissions.",
+                         *key)
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+  return JustVoid();
+}
+
+// In audit mode nothing is removed at startup. Publishes accesses to the
+// variables that enforcing the permission model would have removed instead.
+static void AuditEnvVar(Environment* env, Local<String> property) {
+  Utf8Value key(env->isolate(), property);
+  if (!permission::WasDeniedAtStartup(key.ToStringView())) return;
+  // is_granted() publishes the denial.
+  env->permission()->is_granted(
+      env, permission::PermissionScope::kEnv, key.ToStringView());
+}
+
 static Intercepted EnvGetter(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
@@ -445,7 +481,14 @@ static Intercepted EnvGetter(Local<Name> property,
 
   Local<Value> ret;
   if (!value_string.ToLocal(&ret)) {
+    if (env->permission()->enabled() &&
+        ReportRemovedEnvVar(env, property.As<String>()).IsNothing()) {
+      return Intercepted::kYes;
+    }
     return Intercepted::kNo;
+  }
+  if (env->permission()->warning_only()) {
+    AuditEnvVar(env, property.As<String>());
   }
   info.GetReturnValue().Set(ret);
   return Intercepted::kYes;
@@ -496,8 +539,15 @@ static Intercepted EnvQuery(Local<Name> property,
     bool has_env = (rc != -1);
     TraceEnvVar(env, "query", property.As<String>());
     if (has_env) {
+      if (env->permission()->warning_only()) {
+        AuditEnvVar(env, property.As<String>());
+      }
       // Return attributes for the property.
       info.GetReturnValue().Set(v8::None);
+      return Intercepted::kYes;
+    }
+    if (env->permission()->enabled() &&
+        ReportRemovedEnvVar(env, property.As<String>()).IsNothing()) {
       return Intercepted::kYes;
     }
   }

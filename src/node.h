@@ -324,6 +324,42 @@ inline std::shared_ptr<InitializationResult> InitializeOncePerProcess(
       args, static_cast<ProcessInitializationFlags::Flags>(flags_accum));
 }
 
+struct ProcessEnvironmentScrubOptions {
+  // The environment variables to keep. Each entry is `*`, a variable name, or
+  // a variable name prefix followed by `*`. Names are case-insensitive on
+  // Windows.
+  std::vector<std::string> allow;
+  // Whether to also keep the variables that Node.js and its bundled
+  // dependencies read after startup, see GetRuntimeEnvironmentDefaults().
+  bool keep_runtime_defaults = true;
+  // Whether to overwrite the removed variables in the environment block the
+  // process was started with, which /proc/<pid>/environ exposes. Only
+  // implemented on Linux.
+  bool wipe_initial_block = true;
+};
+
+// Removes every variable that `options` does not keep from the process
+// environment, and returns the names of the removed variables.
+//
+// node::Start() does this automatically when the permission model restricts
+// access to environment variables. When `args` passed to
+// InitializeOncePerProcess() enable the permission model without
+// `--allow-env=*`, the embedder must remove the variables that `--allow-env`
+// does not grant access to first: InitializeOncePerProcess() fails if the
+// process environment contains any of them.
+//
+// This modifies the process environment without any locking that native code
+// calling getenv() participates in. It must be called before starting any
+// thread that may read the environment, and before
+// InitializeOncePerProcess(). Returns Nothing() if `options.allow` contains an
+// invalid entry, or if InitializeOncePerProcess() has already completed.
+NODE_EXTERN v8::Maybe<std::vector<std::string>> ScrubProcessEnvironment(
+    const ProcessEnvironmentScrubOptions& options);
+
+// Returns the names, and name prefixes followed by `*`, of the environment
+// variables that Node.js and its bundled dependencies read after startup.
+NODE_EXTERN std::vector<std::string> GetRuntimeEnvironmentDefaults();
+
 enum OptionEnvvarSettings {
   // Allow the options to be set via the environment variable, like
   // `NODE_OPTIONS`.

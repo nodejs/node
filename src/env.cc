@@ -8,6 +8,7 @@
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_file_utils.h"
 #include "node_internals.h"
@@ -1118,6 +1119,20 @@ Environment::Environment(IsolateData* isolate_data,
     }
     if (!options_->allow_wasi) {
       permission()->Apply(this, args, permission::PermissionScope::kWASI);
+    }
+
+    {
+      std::vector<std::string> allow_env =
+          permission::ParseEnvAllowList(options_->allow_env);
+      // Variables defined in env files are allowed. The environment scrub
+      // removed any inherited values they had, so only the files' values
+      // are visible.
+      if (options_->has_env_file_string) {
+        for (std::string& key : per_process::dotenv_file.GetKeys()) {
+          allow_env.push_back(std::move(key));
+        }
+      }
+      permission()->Apply(this, allow_env, permission::PermissionScope::kEnv);
     }
 
     // Implicit allow entrypoint to kFileSystemRead
