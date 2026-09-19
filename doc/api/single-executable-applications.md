@@ -117,6 +117,7 @@ The configuration currently reads the following top-level fields:
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
   "useVfs": true, // Default: false
+  "vfsArchive": "/path/to/assets.zip", // Optional
   "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
   "execArgvExtension": "env", // Default: "env", options: "none", "env", "cli"
   "assets": {  // Optional
@@ -259,6 +260,41 @@ const lazy = await import('./lib/lazy.mjs');
 Module format detection works the same way as on the real file
 system: name bundled ES modules with the `.mjs` extension (or provide the
 relevant `package.json` files as assets) so they are interpreted as ESM.
+
+#### Serving the assets from a ZIP archive with `"vfsArchive"`
+
+Instead of listing individual `"assets"`, the configuration can point
+`"vfsArchive"` at a prebuilt ZIP archive. The archive is embedded into the
+executable as-is, and the virtual file system serves the files inside it,
+inflating each one when it is read. When the assets are compressible (such
+as JavaScript, JSON, or other text), a deflate-compressed archive can
+substantially reduce the size of the generated executable.
+
+The archive can be built with any ZIP tool, or with the ZIP support in
+[`node:zlib`][]:
+
+```mjs
+import { zipFiles } from 'node:zlib';
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+
+await pipeline(
+  zipFiles([
+    ['./dist/config.json', 'config.json'],
+    ['./dist/data.txt', 'data/data.txt'],
+  ]),
+  createWriteStream('assets.zip'),
+);
+```
+
+The mounted file tree looks the same as with `"assets"`: the entries appear
+under the mount point using their archive names, the main script is placed
+at the mount point root, and access through `__dirname`-relative paths,
+`require()`, and `import` is unchanged. However, `sea.getAsset()` and
+`sea.getAssetAsBlob()` do not serve the individual files, because the
+executable only embeds the archive; read the files through the file system
+APIs instead. `"vfsArchive"` requires `"useVfs": true` and cannot be
+combined with `"assets"`.
 
 #### Snapshot and code caching limitations
 
@@ -751,6 +787,7 @@ to help us document them.
 [Using native addons in the injected main script]: #using-native-addons-in-the-injected-main-script
 [VFS documentation]: vfs.md
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
