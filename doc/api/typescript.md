@@ -127,6 +127,11 @@ if you want your code to run as CommonJS you must use `require` and
 * `.cts` files will always be run as CommonJS modules, similar to `.cjs` files.
 * `.tsx` files are unsupported.
 
+For [Web Worker module entries](globals.md#loading-worker-scripts), the worker's
+`type` option takes precedence over these module-system rules. A TypeScript
+file used as a module-worker entry is evaluated as an ES module, including when
+it has a `.cts` extension. Its imports still follow the rules above.
+
 As in JavaScript files, [file extensions are mandatory][] in `import` statements
 and `import()` expressions: `import './file.ts'`, not `import './file'`. Because
 of backward compatibility, file extensions are also mandatory in `require()`
