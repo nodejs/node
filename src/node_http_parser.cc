@@ -233,6 +233,15 @@ struct StringPtr {
       return String::Empty(env->isolate());
   }
 
+  // Header names are short, repeated HTTP tokens. Interning them lets V8
+  // reuse one string per distinct name and makes JS identity comparisons
+  // in IncomingMessage.matchKnownFields cheaper.
+  Local<String> ToHeaderNameString(Environment* env) const {
+    if (size_ == 0) return String::Empty(env->isolate());
+    return OneByteString(
+        env->isolate(), str_, size_, v8::NewStringType::kInternalized);
+  }
+
   // Strip trailing OWS (SPC or HTAB) from string.
   Local<String> ToTrimmedString(Environment* env) {
     while (size_ > 0 && IsOWS(str_[size_ - 1])) {
@@ -940,7 +949,7 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Value> headers_v[kMaxHeaderFieldsCount * 2];
 
     for (size_t i = 0; i < num_values_; ++i) {
-      headers_v[i * 2] = fields_[i].ToString(env());
+      headers_v[i * 2] = fields_[i].ToHeaderNameString(env());
       headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
 
