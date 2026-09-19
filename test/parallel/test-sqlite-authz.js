@@ -1,7 +1,7 @@
 'use strict';
 
-const { skipIfSQLiteMissing } = require('../common');
-skipIfSQLiteMissing();
+const common = require('../common');
+common.skipIfSQLiteMissing();
 
 const assert = require('node:assert');
 const { DatabaseSync, constants } = require('node:sqlite');
@@ -286,5 +286,331 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
       code: 'ERR_INVALID_STATE',
       message: 'database is not open',
     });
+  });
+});
+
+// SQLite forbids an authorizer callback from modifying the connection that
+// invoked it, which includes preparing and stepping statements.
+// See https://www.sqlite.org/c3ref/set_authorizer.html.
+suite('authorizer callback reentrancy', () => {
+  const expectedError = 'ERR_INVALID_STATE: database cannot be accessed ' +
+    'from an authorizer callback';
+  const steppingError =
+    'ERR_INVALID_STATE: statement is already being executed';
+
+  // Calls each of `cases` from inside an authorizer callback, and returns a
+  // `name -> outcome` map of what each one threw.
+  const runInAuthorizer = (db, cases) => {
+    const outcomes = {};
+    for (const [name, fn] of Object.entries(cases)) {
+      let ran = false;
+      db.setAuthorizer(() => {
+        if (!ran) {
+          ran = true;
+          try {
+            fn();
+            outcomes[name] = 'did not throw';
+          } catch (err) {
+            outcomes[name] = `${err.code}: ${err.message}`;
+          }
+        }
+        return constants.SQLITE_OK;
+      });
+      db.exec('SELECT 1');
+      db.setAuthorizer(null);
+      if (!ran) {
+        outcomes[name] = 'authorizer callback did not run';
+      }
+    }
+    return outcomes;
+  };
+
+  // Builds the expected `name -> outcome` map for the given case names.
+  const allRejected = (cases) => Object.fromEntries(
+    Object.keys(cases).map((name) => [name, expectedError]),
+  );
+
+  it('rejects database methods', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const cases = {
+      prepare: () => db.prepare('SELECT 1'),
+      exec: () => db.exec('SELECT 1'),
+      setAuthorizer: () => db.setAuthorizer(null),
+      createSession: () => db.createSession(),
+      applyChangeset: () => db.applyChangeset(new Uint8Array([1])),
+      createTagStore: () => db.createTagStore(),
+      serialize: () => db.serialize(),
+      function: () => db.function('noop', () => 1),
+      aggregate: () => db.aggregate('agg', { start: 0, step: (acc) => acc }),
+      enableLoadExtension: () => db.enableLoadExtension(false),
+      enableDefensive: () => db.enableDefensive(true),
+      limits: () => { db.limits.length = 100; },
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+  });
+
+  // loadExtension() checks that extension loading is enabled before reaching
+  // the authorizer guard, so it needs a database opened with allowExtension.
+  it('rejects loadExtension', () => {
+    const db = new DatabaseSync(':memory:', { allowExtension: true });
+    db.enableLoadExtension(true);
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const cases = {
+      loadExtension: () => db.loadExtension('/nonexistent/extension'),
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+  });
+
+  // close() and deserialize() tear down the connection, so the pre-existing
+  // callback depth guard already rejects them with its own message.
+  it('rejects methods the callback depth guard already covers', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const snapshot = db.serialize();
+    const cases = {
+      close: () => db.close(),
+      deserialize: () => db.deserialize(snapshot),
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), {
+      close: 'ERR_INVALID_STATE: database cannot be closed while in a callback',
+      deserialize: 'ERR_INVALID_STATE: database cannot be deserialized ' +
+        'while in a callback',
+    });
+  });
+
+  it('rejects statement methods', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT x FROM t');
+    const cases = {
+      run: () => stmt.run(),
+      get: () => stmt.get(),
+      all: () => stmt.all(),
+      iterate: () => stmt.iterate(),
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+  });
+
+  // Only the statement being stepped is unsafe to finalize. Other statements
+  // on the connection have their own virtual machines, so finalizing them from
+  // a callback is allowed.
+  it('allows finalizing a statement that is not being executed', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const closeStmt = db.prepare('SELECT x FROM t');
+    const disposeStmt = db.prepare('SELECT x FROM t');
+    const cases = {
+      close: () => closeStmt.close(),
+      dispose: () => disposeStmt[Symbol.dispose](),
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), {
+      close: 'did not throw',
+      dispose: 'did not throw',
+    });
+  });
+
+  // Disposal is idempotent, so a statement that is already finalized must stay
+  // a no-op even inside a callback. Throwing here would turn a `using` scope's
+  // real exception into a SuppressedError.
+  it('allows disposing an already-finalized statement', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const stmt = db.prepare('SELECT x FROM t');
+    stmt.close();
+    const cases = { dispose: () => stmt[Symbol.dispose]() };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), {
+      dispose: 'did not throw',
+    });
+  });
+
+  it('rejects session changeset methods', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER PRIMARY KEY, y TEXT)');
+    const session = db.createSession({ table: 't' });
+    db.exec("INSERT INTO t VALUES (1, 'a')");
+    const cases = {
+      changeset: () => session.changeset(),
+      patchset: () => session.patchset(),
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+  });
+
+  // A statement being re-prepared inside sqlite3_step() is the case that
+  // actually crashes, because that statement's VM is mid-execution.
+  it('rejects finalizing the statement being stepped', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT x FROM t');
+    stmt.get();
+    db.exec('ALTER TABLE t ADD COLUMN y INTEGER');
+
+    let outcome = 'authorizer callback did not run';
+    let ran = false;
+    db.setAuthorizer(() => {
+      if (!ran) {
+        ran = true;
+        try {
+          stmt.close();
+          outcome = 'did not throw';
+        } catch (err) {
+          outcome = `${err.code}: ${err.message}`;
+        }
+      }
+      return constants.SQLITE_OK;
+    });
+
+    stmt.get();
+
+    assert.strictEqual(outcome, steppingError);
+  });
+
+  // Unlike an already-finalized statement, disposing the one being stepped
+  // would free the running virtual machine, so it throws.
+  it('rejects disposing the statement being stepped', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT x FROM t');
+    stmt.get();
+    db.exec('ALTER TABLE t ADD COLUMN y INTEGER');
+
+    let outcome = 'authorizer callback did not run';
+    let ran = false;
+    db.setAuthorizer(() => {
+      if (!ran) {
+        ran = true;
+        try {
+          stmt[Symbol.dispose]();
+          outcome = 'did not throw';
+        } catch (err) {
+          outcome = `${err.code}: ${err.message}`;
+        }
+      }
+      return constants.SQLITE_OK;
+    });
+
+    stmt.get();
+
+    assert.strictEqual(outcome, steppingError);
+  });
+
+  it('rejects iterator methods', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1), (2)');
+    const iter = db.prepare('SELECT x FROM t').iterate();
+    const cases = {
+      next: () => iter.next(),
+      return: () => iter.return(),
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+    iter.return();
+  });
+
+  // A drained iterator holds no SQLite state, so next() and return() stay
+  // available and remain idempotent inside a callback.
+  it('allows iterator methods on a drained iterator', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const iter = db.prepare('SELECT x FROM t').iterate();
+    for (const row of iter) {
+      assert.ok(row);
+    }
+    const done = {};
+    const cases = {
+      next: () => { done.next = iter.next().done; },
+      return: () => { done.return = iter.return().done; },
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), {
+      next: 'did not throw',
+      return: 'did not throw',
+    });
+    assert.deepStrictEqual(done, { next: true, return: true });
+  });
+
+  it('rejects tag store methods', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const sql = db.createTagStore(10);
+    const cases = {
+      run: () => sql.run`SELECT 1`,
+      get: () => sql.get`SELECT 1`,
+      all: () => sql.all`SELECT 1`,
+      iterate: () => sql.iterate`SELECT 1`,
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+  });
+
+  // clear() only drops cached statements, so invalidating the cache after a
+  // schema change is allowed from the callback.
+  it('allows clearing a tag store', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const sql = db.createTagStore(10);
+    assert.strictEqual(sql.all`SELECT x FROM t`.length, 1);
+    assert.strictEqual(sql.size, 1);
+    const cases = { clear: () => sql.clear() };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), {
+      clear: 'did not throw',
+    });
+    assert.strictEqual(sql.size, 0);
+  });
+
+  // A statement may be re-prepared during sqlite3_step() after a schema
+  // change, which invokes the authorizer without an explicit prepare() call.
+  it('rejects reentry when the authorizer runs during a re-prepare', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT x FROM t');
+    stmt.get();
+    db.exec('ALTER TABLE t ADD COLUMN y INTEGER');
+
+    let outcome = 'authorizer callback did not run';
+    let ran = false;
+    db.setAuthorizer(() => {
+      if (!ran) {
+        ran = true;
+        try {
+          db.prepare('SELECT 1');
+          outcome = 'did not throw';
+        } catch (err) {
+          outcome = `${err.code}: ${err.message}`;
+        }
+      }
+      return constants.SQLITE_OK;
+    });
+
+    stmt.get();
+
+    assert.strictEqual(outcome, expectedError);
+  });
+
+  it('allows access again after the authorizer returns', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const cases = { prepare: () => db.prepare('SELECT 1') };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+
+    db.setAuthorizer(() => constants.SQLITE_OK);
+    assert.deepStrictEqual(db.prepare('SELECT 1 AS v').get(), { __proto__: null, v: 1 });
   });
 });
