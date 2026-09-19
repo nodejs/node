@@ -61,6 +61,27 @@ class Histogram : public MemoryRetainer {
   // Factory method that returns nullptr on hdr_init failure.
   static std::shared_ptr<Histogram> Create(const Options& options);
 
+  // Returns an independent copy of this histogram's current state, or nullptr
+  // if the copy cannot be allocated.
+  std::shared_ptr<Histogram> Clone() const;
+
+  enum class DiffError {
+    kNone,
+    kOutOfMemory,
+    // `other` has a different layout.
+    kIncompatible,
+    // Values were removed from this histogram after `other` was taken.
+    kReset,
+    // `other` contains values that this histogram does not.
+    kNotEarlier,
+  };
+
+  // Returns a new histogram containing the values recorded in this histogram
+  // after `other`, an earlier copy of it, was taken. Returns nullptr and sets
+  // `error` if the difference cannot be computed.
+  std::shared_ptr<Histogram> Diff(const Histogram& other,
+                                  DiffError* error) const;
+
   Histogram(HistogramPointer histogram, const Options& options);
   virtual ~Histogram() = default;
 
@@ -76,6 +97,7 @@ class Histogram : public MemoryRetainer {
   inline int64_t Percentile(double percentile) const;
   inline size_t Exceeds() const;
   inline size_t Count() const;
+  inline uint64_t ResetCount() const;
 
   inline uint64_t RecordDelta();
 
@@ -161,10 +183,13 @@ class Histogram : public MemoryRetainer {
   inline void UpdateEwma(double value);
   inline void InvalidateRecordedSnapshot();
   size_t GetCachedRecordedSnapshotMemorySize() const;
+  std::shared_ptr<Histogram> CreateWithSameLayout() const;
 
   HistogramPointer histogram_;
   uint64_t prev_ = 0;
   size_t exceeds_ = 0;
+  // Incremented whenever recorded values are removed by Reset() or Subtract().
+  uint64_t reset_count_ = 0;
 
   // EWMA state (active when ewma_alpha_ > 0)
   double ewma_alpha_ = 0;
@@ -237,6 +262,9 @@ class HistogramImpl {
   static void GetEwmaErrorRate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoExport(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoImport(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoDiff(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetResetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void FastReset(v8::Local<v8::Value> receiver);
   static double FastGetCount(v8::Local<v8::Value> receiver);
@@ -329,6 +357,8 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
       v8::Local<v8::Object> wrap,
       std::shared_ptr<Histogram> histogram);
 
+  ~HistogramBase() override;
+
   BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
@@ -356,6 +386,11 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   };
 
  private:
+  void ReportExternalMemory();
+
+  // The native memory reported to V8 while this object is alive.
+  size_t external_memory_ = 0;
+
   static v8::CFunction fast_record_;
   static v8::CFunction fast_record_delta_;
 };
