@@ -303,6 +303,11 @@
     # Enable Temporal API. Enabling this feature will
     # add a dependency on the temporal_rs library.
     'v8_enable_temporal_support%': 0,
+    # Enable Temporal even with system-icu.
+    # This will use an improved codepath which does not
+    # depend on internal ICU headers.
+    # This option can be on unconditionally.
+    'v8_enable_temporal_systemicu%': 1,
 
     # Lite mode disables a number of performance optimizations to reduce memory
     # at the cost of performance.
@@ -425,6 +430,9 @@
       }],
       ['v8_enable_temporal_support==1', {
         'defines': ['V8_TEMPORAL_SUPPORT',],
+      }],
+       ['v8_enable_temporal_systemicu==1', {
+        'defines': ['V8_ENABLE_TEMPORAL_SYSTEMICU',],
       }],
       # Refs: https://github.com/nodejs/node/pull/23801
       # ['v8_enable_handle_zapping==1', {
