@@ -640,11 +640,11 @@ the VFS API. `provider.readonly` reflects the archive's own
 `ZipFile` is writable only when opened with `{ writable: true }`.
 
 Directories are recognized both explicitly (an entry whose name ends in `/`)
-and implicitly (any entry name starting with `"<dir>/"`). `readdir()` does
-not support `{ recursive: true }`. Because a ZIP member cannot be edited or
-read in place - only fully written or fully decompressed - a file opened for
-writing only commits its content (as a new archive entry) when the handle is
-closed.
+and implicitly (any entry name starting with `"<dir>/"`), and are listed by
+`readdir()`, including with `{ recursive: true }`, either way. Because a ZIP
+member cannot be edited or read in place - only fully written or fully
+decompressed - a file opened for writing only commits its content (as a new
+archive entry) when the handle is closed.
 
 Every method has a synchronous counterpart (`openSync()`, `statSync()`,
 `readdirSync()`, and so on), backed by the equally complete synchronous
