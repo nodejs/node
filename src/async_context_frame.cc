@@ -38,10 +38,6 @@ Local<Value> current(Isolate* isolate) {
 }
 
 void set(Environment* env, Local<Value> value) {
-  if (!env->async_context_frame_enabled()) {
-    return;
-  }
-
   env->isolate()->SetContinuationPreservedEmbedderDataV2(value);
 }
 
