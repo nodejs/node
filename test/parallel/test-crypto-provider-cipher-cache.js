@@ -5,9 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
-if (!hasOpenSSL(3))
-  common.skip('this test requires OpenSSL 3.x');
+const { isBoringSSL } = require('../common/crypto');
+if (isBoringSSL)
+  common.skip('OpenSSL provider support is required');
 
 const assert = require('assert');
 const {

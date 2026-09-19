@@ -94,8 +94,8 @@ use their methods to keep that adaptation inside ncrypto.
 Examples of these being used are pervasive through the `src/crypto` code.
 
 `HMACCtxPointer` is a dedicated HMAC state wrapper rather than a plain
-`DeleteFnPtr` alias. On OpenSSL 3 and later it owns the provider-backed
-`EVP_MAC`/`EVP_MAC_CTX` state. On OpenSSL 1.1.1 and BoringSSL it owns the
+`DeleteFnPtr` alias. On OpenSSL it owns the provider-backed
+`EVP_MAC`/`EVP_MAC_CTX` state. On BoringSSL it owns the
 legacy `HMAC_CTX` state. HMAC call sites should use `HMACCtxPointer::New()`,
 `init()`, `update()`, and `digest()`/`digestInto()` so the backend selection
 stays contained in ncrypto.
@@ -159,10 +159,9 @@ callers can retain descriptor pointers across asynchronous jobs. For example,
 `ML-DSA-44`.
 
 For an existing key, use `key.isA(KeyAlgorithm::RSA_PSS)` or another descriptor.
-On OpenSSL 3 and later this uses `EVP_PKEY_is_a()` to recognize provider aliases.
+On OpenSSL this uses `EVP_PKEY_is_a()` to recognize provider aliases.
 Numeric key IDs are unsuitable for provider-only keys: OpenSSL can return `-1`
-for their ID. Numeric adapters for BoringSSL and legacy OpenSSL stay private to
-ncrypto.
+for their ID. Numeric adapters for BoringSSL stay private to ncrypto.
 
 When a function needs algorithm metadata, use `key.getAlgorithm()`. It returns
 a pointer to a static descriptor, or `nullptr` for an empty key or an unrecognized

@@ -6,8 +6,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const {
-  hasOpenSSL,
   hasFIPS,
+  isBoringSSL,
 } = require('../common/crypto');
 
 const fips4 = hasFIPS(4);
@@ -331,7 +331,7 @@ assert.throws(
   }
 );
 
-if (!hasOpenSSL(3)) {
+if (isBoringSSL) {
   const kNotPBKDF2Supported = ['shake128', 'shake256'];
   crypto.getHashes()
     .filter((hash) => !kNotPBKDF2Supported.includes(hash))

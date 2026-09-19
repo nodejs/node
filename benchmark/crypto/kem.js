@@ -35,12 +35,12 @@ if (hasOpenSSL(3, 2)) {
   keyFixtures.x25519 = readKeyPair('x25519_public', 'x25519_private');
   keyFixtures.x448 = readKeyPair('x448_public', 'x448_private');
 }
-if (hasOpenSSL(3, 0)) {
+if (!isBoringSSL) {
   keyFixtures.rsa = readKeyPair('rsa_public_2048', 'rsa_private_2048');
 }
 
 if (Object.keys(keyFixtures).length === 0) {
-  console.log('no supported key types available for this OpenSSL version');
+  console.log('no supported key types available for this crypto implementation');
   process.exit(0);
 }
 

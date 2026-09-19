@@ -5,10 +5,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasFIPS, hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3))
-  common.skip('requires OpenSSL >= 3');
+if (isBoringSSL)
+  common.skip('KMAC is not supported by BoringSSL');
 
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');

@@ -14,7 +14,7 @@ const {
   testEncryptDecrypt,
   testSignVerify,
   pkcs1EncExp,
-  hasOpenSSL,
+  isBoringSSL,
 } = require('../common/crypto');
 
 // Test async RSA key generation with an encrypted private key.
@@ -51,14 +51,14 @@ const {
       type: 'pkcs1',
       format: 'der',
     };
-    const expectedError = hasOpenSSL(3) ? {
-      name: 'Error',
-      message: 'error:07880109:common libcrypto routines::interrupted or ' +
-               'cancelled'
-    } : {
+    const expectedError = isBoringSSL ? {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
       message: 'Passphrase required for encrypted key'
+    } : {
+      name: 'Error',
+      message: 'error:07880109:common libcrypto routines::interrupted or ' +
+               'cancelled'
     };
     assert.throws(() => testSignVerify(publicKey, privateKey), expectedError);
 

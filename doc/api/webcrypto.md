@@ -122,15 +122,15 @@ WICG proposal:
 
 Algorithms:
 
-* `'AES-OCB'`[^openssl30]
+* `'AES-OCB'`[^noboringssl]
 * `'Argon2d'`[^openssl32]
 * `'Argon2i'`[^openssl32]
 * `'Argon2id'`[^openssl32]
 * `'ChaCha20-Poly1305'`
 * `'cSHAKE128'`
 * `'cSHAKE256'`
-* `'KMAC128'`[^openssl30]
-* `'KMAC256'`[^openssl30]
+* `'KMAC128'`[^noboringssl]
+* `'KMAC256'`[^noboringssl]
 * `'KT128'`
 * `'KT256'`
 * `'ML-DSA-44'`[^openssl35]
@@ -2761,7 +2761,7 @@ added:
 
 [^modern-algos]: See [Modern Algorithms in the Web Cryptography API][]
 
-[^openssl30]: Requires OpenSSL >= 3.0
+[^noboringssl]: Not available when Node.js is built against BoringSSL
 
 [^openssl32]: Requires OpenSSL >= 3.2
 

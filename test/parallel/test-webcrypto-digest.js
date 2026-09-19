@@ -9,7 +9,7 @@ const assert = require('assert');
 const { Buffer } = require('buffer');
 const { subtle } = globalThis.crypto;
 const { createHash, getHashes } = require('crypto');
-const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
+const { hasFIPS, isBoringSSL } = require('../common/crypto');
 const fips = hasFIPS();
 
 const kTests = [
@@ -306,7 +306,7 @@ if (getHashes().includes('shake128')) {
         message: 'CShakeParams.customization must be at most 512 bytes',
       });
 
-    if (!hasOpenSSL(3)) return;
+    if (isBoringSSL) return;
 
     const nistCShakeShortInput = Buffer.from('00010203', 'hex');
     const nistCShakeLongInput =
