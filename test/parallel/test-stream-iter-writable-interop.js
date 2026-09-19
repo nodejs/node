@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { EventEmitter } = require('events');
 const { Writable } = require('stream');
 const { setImmediate } = require('timers/promises');
 const {
@@ -120,7 +121,8 @@ async function testBlockErrorRejectsPendingWrite() {
 
   const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
-  // First write fills the buffer, waits for drain
+  // The first write fills the buffer; the second waits for drain.
+  await writer.write('a');
   const writePromise = writer.write('data that will block');
 
   // Destroy with error while write is pending
@@ -129,15 +131,267 @@ async function testBlockErrorRejectsPendingWrite() {
   await assert.rejects(writePromise, { message: 'stream broke' });
 }
 
+async function testErrorBeforeBackpressureIsStored() {
+  const writable = new Writable({
+    write(chunk, enc, cb) { cb(); },
+  });
+  const writer = fromWritable(writable);
+  const reason = new Error('early stream error');
+  const { promise, resolve } = Promise.withResolvers();
+  writable.once('close', resolve);
+  const closed = promise;
+
+  writable.destroy(reason);
+  await assert.rejects(writer.write('late'), (error) => error === reason);
+  await closed;
+
+  await assert.rejects(writer.end(), (error) => error === reason);
+}
+
+async function testAlreadyErroredWritablePreservesReason() {
+  const writable = new Writable({
+    write(chunk, enc, cb) { cb(); },
+  });
+  const reason = new Error('existing stream error');
+  const { promise, resolve } = Promise.withResolvers();
+  writable.once('close', resolve);
+  writable.destroy(reason);
+
+  const writer = fromWritable(writable);
+  await assert.rejects(writer.write('late'), (error) => error === reason);
+  await promise;
+}
+
+async function testCleanDestroyRejectsQueuedOperations() {
+  const writable = new Writable({
+    highWaterMark: 1,
+    write(chunk, enc, cb) {},
+  });
+  const writer = fromWritable(writable);
+
+  await writer.write('a');
+  const pending = writer.write('b');
+  const ending = writer.end();
+  writable.destroy();
+
+  await assert.rejects(pending, { name: 'AbortError' });
+  await assert.rejects(ending, { name: 'AbortError' });
+}
+
+async function testPreAbortedWriteSignalsDoNotCommit() {
+  let writes = 0;
+  const writable = new Writable({
+    write(chunk, enc, cb) {
+      writes++;
+      cb();
+    },
+  });
+  const writer = fromWritable(writable);
+  const reason = { canceled: true };
+  const signal = AbortSignal.abort(reason);
+
+  await assert.rejects(
+    writer.write('a', { signal }),
+    (error) => error === reason,
+  );
+  await assert.rejects(
+    writer.writev([new Uint8Array([98])], { signal }),
+    (error) => error === reason,
+  );
+  assert.strictEqual(writes, 0);
+  await writer.end();
+}
+
+async function testPendingWriteSignalRemovesOperation() {
+  const callbacks = [];
+  const chunks = [];
+  const writable = new Writable({
+    highWaterMark: 1,
+    write(chunk, enc, cb) {
+      chunks.push(Buffer.from(chunk));
+      callbacks.push(cb);
+    },
+  });
+  const writer = fromWritable(writable);
+
+  await writer.write('a');
+  const controller = new AbortController();
+  const canceled = writer.write('b', { signal: controller.signal });
+  controller.abort('stop');
+  await assert.rejects(canceled, (reason) => reason === 'stop');
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a']);
+
+  // Cancellation frees the strict policy's single pending-operation slot.
+  const replacement = writer.write('c');
+  callbacks.shift()();
+  await replacement;
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a', 'c']);
+  const ending = writer.end();
+  callbacks.shift()();
+  await ending;
+}
+
+async function testZeroHighWaterMarkAcceptsFirstWrite() {
+  const callbacks = [];
+  const chunks = [];
+  const writable = new Writable({
+    highWaterMark: 0,
+    write(chunk, enc, cb) {
+      chunks.push(Buffer.from(chunk));
+      callbacks.push(cb);
+    },
+  });
+  const writer = fromWritable(writable);
+
+  await writer.write('a');
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a']);
+  const pending = writer.write('b');
+  callbacks.shift()();
+  await pending;
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a', 'b']);
+  const ending = writer.end();
+  callbacks.shift()();
+  await ending;
+}
+
+async function testDuckWritableLatchesWriteBackpressure() {
+  const writable = new EventEmitter();
+  const chunks = [];
+  writable.write = (chunk) => {
+    chunks.push(Buffer.from(chunk));
+    return false;
+  };
+  writable.end = () => {
+    writable.writableFinished = true;
+    writable.emit('finish');
+  };
+  writable.destroy = () => {
+    writable.destroyed = true;
+    writable.emit('close');
+  };
+
+  const writer = fromWritable(writable);
+  await writer.write('a');
+  const pending = writer.write('b');
+  await setImmediate();
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a']);
+  writable.emit('drain');
+  await pending;
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a', 'b']);
+  await writer.end();
+}
+
+async function testPendingWritesRemainFifoDuringDrain() {
+  const callbacks = [];
+  const chunks = [];
+  const writable = new Writable({
+    highWaterMark: 1,
+    write(chunk, enc, cb) {
+      chunks.push(Buffer.from(chunk));
+      callbacks.push(cb);
+    },
+  });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
+
+  await writer.write('a');
+  let reentrant;
+  writable.once('drain', () => {
+    reentrant = writer.write('c');
+  });
+  const pending = writer.write('b');
+  callbacks.shift()();
+  await pending;
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['a', 'b']);
+  callbacks.shift()();
+  await reentrant;
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()),
+                         ['a', 'b', 'c']);
+  const ending = writer.end();
+  callbacks.shift()();
+  await ending;
+}
+
+async function testOndrainWaitsForEntirePendingQueue() {
+  const callbacks = [];
+  const writable = new Writable({
+    highWaterMark: 1,
+    write(chunk, enc, cb) { callbacks.push(cb); },
+  });
+  const writer = fromWritable(writable, { backpressure: 'unbounded' });
+
+  await writer.write('a');
+  const second = writer.write('b');
+  const third = writer.write('c');
+  let drained = false;
+  const draining = ondrain(writer).then((value) => {
+    drained = value;
+  });
+
+  callbacks.shift()();
+  await second;
+  await setImmediate();
+  assert.strictEqual(drained, false);
+  callbacks.shift()();
+  await third;
+  await setImmediate();
+  assert.strictEqual(drained, false);
+  callbacks.shift()();
+  await draining;
+  assert.strictEqual(drained, true);
+  await writer.end();
+}
+
+async function testEndSignal() {
+  const callbacks = [];
+  const writable = new Writable({
+    highWaterMark: 1,
+    write(chunk, enc, cb) { callbacks.push(cb); },
+  });
+  const writer = fromWritable(writable);
+  const preAborted = AbortSignal.abort('before end');
+
+  await assert.rejects(
+    writer.end({ signal: preAborted }),
+    (reason) => reason === 'before end',
+  );
+  await writer.write('a');
+  const pending = writer.write('b');
+  const controller = new AbortController();
+  const signaledEnd = writer.end({ signal: controller.signal });
+  const completedEnd = writer.end();
+  controller.abort('during end');
+  await assert.rejects(signaledEnd, (reason) => reason === 'during end');
+
+  callbacks.shift()();
+  await pending;
+  callbacks.shift()();
+  await completedEnd;
+}
+
+async function testDirectWriteThrowRejects() {
+  const writable = new EventEmitter();
+  const reason = new Error('duck write failed');
+  writable.write = () => { throw reason; };
+  writable.end = () => {};
+  writable.destroy = () => {};
+  const writer = fromWritable(writable);
+
+  await assert.rejects(writer.write('a'), (error) => error === reason);
+  writer.fail();
+}
+
 // =============================================================================
-// strict: rejects when buffer is full
+// strict: allows one pending write when the buffer is full
 // =============================================================================
 
 async function testStrictRejectsWhenFull() {
+  const callbacks = [];
+  const chunks = [];
   const writable = new Writable({
     highWaterMark: 5,
     write(chunk, enc, cb) {
-      // Never call cb -- data stays buffered
+      chunks.push(Buffer.from(chunk));
+      callbacks.push(cb);
     },
   });
 
@@ -146,22 +400,41 @@ async function testStrictRejectsWhenFull() {
   // First write fills the buffer (5 bytes = hwm)
   await writer.write('12345');
 
-  // Second write should reject -- buffer is full
+  const pending = writer.write('more');
+  await setImmediate();
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['12345']);
+
+  // One operation is pending, so a further write violates strict policy.
   await assert.rejects(
-    writer.write('more'),
+    writer.write('overflow'),
     { code: 'ERR_INVALID_STATE' },
   );
+
+  callbacks.shift()();
+  await pending;
+  assert.deepStrictEqual(
+    chunks.map((chunk) => chunk.toString()), ['12345', 'more']);
+  const ending = writer.end();
+  callbacks.shift()();
+  await ending;
 }
 
 // =============================================================================
-// strict: writev rejects when buffer is full
+// strict: allows one pending writev when the buffer is full
 // =============================================================================
 
 async function testStrictWritevRejectsWhenFull() {
+  const callbacks = [];
+  const chunks = [];
   const writable = new Writable({
     highWaterMark: 5,
     write(chunk, enc, cb) {
-      // Never call cb
+      chunks.push(Buffer.from(chunk));
+      callbacks.push(cb);
+    },
+    writev(entries, cb) {
+      for (const { chunk } of entries) chunks.push(Buffer.from(chunk));
+      callbacks.push(cb);
     },
   });
 
@@ -170,14 +443,27 @@ async function testStrictWritevRejectsWhenFull() {
   // Fill buffer
   await writer.write('12345');
 
-  // Writev should reject entire batch
+  const pending = writer.writev([
+    new TextEncoder().encode('a'),
+    new TextEncoder().encode('b'),
+  ]);
+  await setImmediate();
+  assert.deepStrictEqual(chunks.map((chunk) => chunk.toString()), ['12345']);
+
   await assert.rejects(
     writer.writev([
-      new TextEncoder().encode('a'),
-      new TextEncoder().encode('b'),
+      new TextEncoder().encode('overflow'),
     ]),
     { code: 'ERR_INVALID_STATE' },
   );
+
+  callbacks.shift()();
+  await pending;
+  assert.deepStrictEqual(
+    chunks.map((chunk) => chunk.toString()), ['12345', 'a', 'b']);
+  const ending = writer.end();
+  callbacks.shift()();
+  await ending;
 }
 
 // =============================================================================
@@ -551,7 +837,13 @@ function testWritevInvalidChunksType() {
 // =============================================================================
 
 function testWritevInvalidChunkUncorks() {
-  const writable = new Writable({ write(chunk, enc, cb) { cb(); } });
+  let writes = 0;
+  const writable = new Writable({
+    write(chunk, enc, cb) {
+      writes++;
+      cb();
+    },
+  });
   const writer = fromWritable(writable);
 
   assert.throws(
@@ -559,6 +851,7 @@ function testWritevInvalidChunkUncorks() {
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   assert.strictEqual(writable.writableCorked, 0);
+  assert.strictEqual(writes, 0);
 }
 
 // =============================================================================
@@ -588,7 +881,7 @@ async function testFailRejectsPendingWaiters() {
 
   const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
-  // This write will block on drain
+  await writer.write('a');
   const writePromise = writer.write('blocked data');
 
   // fail() should reject the pending waiter, not orphan it
@@ -605,6 +898,7 @@ async function testFailPreservesReason() {
   });
   writable.on('error', common.mustCall((error) => { classicError = error; }));
   const writer = fromWritable(writable, { backpressure: 'unbounded' });
+  await writer.write('a');
   const pending = writer.write('blocked data');
   const draining = ondrain(writer);
 
@@ -664,7 +958,7 @@ async function testDisposeRejectsPendingWaiters() {
 
   const writer = fromWritable(writable, { backpressure: 'unbounded' });
 
-  // This write will block on drain
+  await writer.write('a');
   const writePromise = writer.write('blocked data');
 
   writer[Symbol.dispose]();
@@ -712,6 +1006,17 @@ Promise.all([
   testWriteNoDrain(),
   testBlockWaitsForDrain(),
   testBlockErrorRejectsPendingWrite(),
+  testErrorBeforeBackpressureIsStored(),
+  testAlreadyErroredWritablePreservesReason(),
+  testCleanDestroyRejectsQueuedOperations(),
+  testPreAbortedWriteSignalsDoNotCommit(),
+  testPendingWriteSignalRemovesOperation(),
+  testZeroHighWaterMarkAcceptsFirstWrite(),
+  testDuckWritableLatchesWriteBackpressure(),
+  testPendingWritesRemainFifoDuringDrain(),
+  testOndrainWaitsForEntirePendingQueue(),
+  testEndSignal(),
+  testDirectWriteThrowRejects(),
   testStrictRejectsWhenFull(),
   testStrictWritevRejectsWhenFull(),
   testDropNewestDiscards(),

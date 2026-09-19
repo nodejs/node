@@ -4,6 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { duplex, text, bytes } = require('stream/iter');
+const { setImmediate } = require('timers/promises');
 
 // =============================================================================
 // Basic duplex
@@ -185,7 +186,7 @@ async function testCloseWaitsForDrain() {
   const closing = channelA.close().then(common.mustCall(() => {
     closed = true;
   }));
-  await new Promise(setImmediate);
+  await setImmediate();
   assert.strictEqual(closed, false);
 
   assert.strictEqual(await text(channelB.readable), 'buffered');

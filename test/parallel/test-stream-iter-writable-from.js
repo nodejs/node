@@ -6,6 +6,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { once } = require('events');
 const { setImmediate, setTimeout } = require('timers/promises');
 const {
   push,
@@ -541,15 +542,30 @@ async function testMinimalWriter() {
   assert.strictEqual(Buffer.concat(chunks).toString(), 'minimal');
 }
 
+async function testNormalEndWithoutWriterEndDoesNotFail() {
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    fail: common.mustNotCall(),
+  });
+  const closed = once(writable, 'close');
+
+  writable.end();
+  await closed;
+}
+
 // =============================================================================
-// Destroy without error does not call fail()
+// Destroy without error calls fail()
 // =============================================================================
 
 async function testDestroyWithoutError() {
   let failCalled = false;
   const writer = {
     write(chunk) { return Promise.resolve(); },
-    fail() { failCalled = true; },
+    fail: common.mustCall(function(reason) {
+      assert.strictEqual(arguments.length, 0);
+      assert.strictEqual(reason, undefined);
+      failCalled = true;
+    }),
   };
 
   const writable = toWritable(writer);
@@ -557,7 +573,20 @@ async function testDestroyWithoutError() {
 
   await setTimeout(10);
 
-  assert.ok(!failCalled, 'fail should not be called on clean destroy');
+  assert.ok(failCalled, 'fail should be called on clean destroy');
+}
+
+async function testDestroyUsesDisposeFallback() {
+  let disposed = false;
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.dispose]() { disposed = true; },
+  });
+
+  writable.destroy();
+  await setTimeout(10);
+
+  assert.strictEqual(disposed, true);
 }
 
 // =============================================================================
@@ -603,18 +632,33 @@ async function testDestroyWithoutFail() {
 }
 
 // =============================================================================
-// Custom highWaterMark option
+// Classic Writable backpressure
 // =============================================================================
 
-function testHighWaterMarkIsMaxSafeInt() {
+function testUsesBoundedHighWaterMark() {
   const writer = {
     write(chunk) { return Promise.resolve(); },
   };
 
-  // HWM is set to MAX_SAFE_INTEGER to disable Writable's internal
-  // buffering. The underlying Writer manages backpressure directly.
   const writable = toWritable(writer);
-  assert.strictEqual(writable.writableHighWaterMark, Number.MAX_SAFE_INTEGER);
+  assert.ok(writable.writableHighWaterMark > 0);
+  assert.ok(writable.writableHighWaterMark < Number.MAX_SAFE_INTEGER);
+}
+
+async function testAppliesClassicBackpressure() {
+  let resolveWrite;
+  const writable = toWritable({
+    write: common.mustCall(() => new Promise((resolve) => {
+      resolveWrite = resolve;
+    })),
+  });
+  const chunk = Buffer.alloc(writable.writableHighWaterMark);
+
+  assert.strictEqual(writable.write(chunk), false);
+  const finished = once(writable, 'finish');
+  resolveWrite();
+  writable.end();
+  await finished;
 }
 
 // =============================================================================
@@ -700,10 +744,11 @@ async function testEndThrowsSyncPropagation() {
 
 testInvalidWriterThrows();
 testNoWritevWithoutWriterWritev();
-testHighWaterMarkIsMaxSafeInt();
+testUsesBoundedHighWaterMark();
 
 Promise.all([
   testBasicWrite(),
+  testAppliesClassicBackpressure(),
   testFalsyWriterRejectionBecomesClassicError(),
   testClassicWrapperReusePreservesErrorIdentity(),
   testWriteDelegatesToWriter(),
@@ -716,6 +761,7 @@ Promise.all([
   testFinalDelegatesToEnd(),
   testDestroyDelegatesToFail(),
   testDestroyWithoutError(),
+  testDestroyUsesDisposeFallback(),
   testDestroyWithError(),
   testDestroyWithoutFail(),
   testWriteErrorPropagation(),
@@ -727,4 +773,5 @@ Promise.all([
   testSequentialWrites(),
   testSyncCallbackDeferred(),
   testMinimalWriter(),
+  testNormalEndWithoutWriterEndDoesNotFail(),
 ]).then(common.mustCall());
