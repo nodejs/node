@@ -5621,6 +5621,9 @@ suitable for HMAC or PBKDF2.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65073
+    description: The `mgf1Hash` option was added.
   - version:
       - v21.6.2
       - v20.11.1
@@ -5648,8 +5651,11 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey|URL}
-  * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
-    **Default:** `'sha1'`
+  * `oaepHash` {string} The hash function to use for OAEP padding and, unless
+    `mgf1Hash` is set, MGF1. **Default:** `'sha1'`
+  * `mgf1Hash` {string} The hash function to use for the MGF1 mask generation
+    function of OAEP padding. If not specified, the value of `oaepHash` is used.
+    This allows the OAEP digest and the MGF1 digest to differ.
   * `oaepLabel` {string|ArrayBuffer|Buffer|TypedArray|DataView} The label to
     use for OAEP padding. If not specified, no label is used.
   * `padding` {crypto.constants} An optional padding value defined in
@@ -5767,6 +5773,9 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65073
+    description: The `mgf1Hash` option was added.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: Added string, ArrayBuffer, and CryptoKey as allowable key
@@ -5789,8 +5798,11 @@ changes:
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
     A PEM encoded public or private key, {KeyObject}, or {CryptoKey}.
-  * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
-    **Default:** `'sha1'`
+  * `oaepHash` {string} The hash function to use for OAEP padding and, unless
+    `mgf1Hash` is set, MGF1. **Default:** `'sha1'`
+  * `mgf1Hash` {string} The hash function to use for the MGF1 mask generation
+    function of OAEP padding. If not specified, the value of `oaepHash` is used.
+    This allows the OAEP digest and the MGF1 digest to differ.
   * `oaepLabel` {string|ArrayBuffer|Buffer|TypedArray|DataView} The label to
     use for OAEP padding. If not specified, no label is used.
   * `passphrase` {string|ArrayBuffer|Buffer|TypedArray|DataView} An optional

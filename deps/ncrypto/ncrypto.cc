@@ -6096,9 +6096,11 @@ DataPointer RSA_Cipher(const EVPKeyPointer& key,
   if (!key) return {};
   EVPKeyCtxPointer ctx = key.newCtx();
 
+  const Digest& mgf1_digest =
+      params.mgf1_digest != nullptr ? params.mgf1_digest : params.digest;
   if (!ctx || init(ctx.get()) <= 0 || !ctx.setRsaPadding(params.padding) ||
-      (params.digest != nullptr && (!ctx.setRsaOaepMd(params.digest) ||
-                                    !ctx.setRsaMgf1Md(params.digest)))) {
+      (params.digest != nullptr &&
+       (!ctx.setRsaOaepMd(params.digest) || !ctx.setRsaMgf1Md(mgf1_digest)))) {
     return {};
   }
 
@@ -6137,7 +6139,9 @@ DataPointer CipherImpl(const EVPKeyPointer& key,
   if (!key) return {};
   EVPKeyCtxPointer ctx = key.newCtx();
   if (!ctx || init(ctx.get()) <= 0 || !ctx.setRsaPadding(params.padding) ||
-      (params.digest != nullptr && !ctx.setRsaOaepMd(params.digest))) {
+      (params.digest != nullptr && !ctx.setRsaOaepMd(params.digest)) ||
+      (params.mgf1_digest != nullptr &&
+       !ctx.setRsaMgf1Md(params.mgf1_digest))) {
     return {};
   }
 
