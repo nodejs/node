@@ -11,6 +11,25 @@ available callable for each signature and keeps the generic path available for
 unsupported call shapes, deoptimized V8 calls, and validation behavior that must
 match the public FFI API.
 
+## Call Path Overview
+
+`node:ffi` has three native call paths. `DynamicLibrary::CreateFunction()` in
+`src/node_ffi.cc` picks exactly one of them as the primary callable for each
+resolved function, in this order:
+
+| Call path    | Selected when                                                                                         | Native entry point                       | JavaScript wrapper                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+| Fast API     | `CreateFastFFIMetadata()` succeeds: JIT memory works and `IsFastCallEligible()` accepts the signature | Generated trampoline via `v8::CFunction` | `lib/internal/ffi/fast-api.js` (conversions and validation, when needed) |
+| SharedBuffer | Fast API rejected, `IsSBEligibleSignature()` accepts: little-endian host and at least one argument    | `DynamicLibrary::InvokeFunctionSB`       | `lib/internal/ffi-shared-buffer.js` (slot packing)                       |
+| Generic      | Neither of the above                                                                                  | `DynamicLibrary::InvokeFunction`         | None                                                                     |
+
+Each optimized path also keeps the generic invoker reachable for calls it cannot
+handle itself: V8 uses the conventional callback of a Fast API function for
+unoptimized or deoptimized call sites, and the SharedBuffer wrapper forwards
+calls with non-BigInt pointer arguments to the `kSbInvokeSlow` invoker. The
+user-facing summary of these paths lives in the [Call paths][] section of the
+`node:ffi` API documentation; this document covers the implementation.
+
 ## Goals
 
 The Fast API implementation is designed around these goals:
@@ -473,3 +492,5 @@ JavaScript wrappers preserve selected public function metadata:
 The `pointer` property mirrors the raw function's pointer descriptor so user
 code that reads or reassigns it continues to work through wrappers. Internal
 Symbol-keyed metadata is not forwarded to wrappers.
+
+[Call paths]: ../api/ffi.md#call-paths
