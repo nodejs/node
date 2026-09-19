@@ -1898,6 +1898,25 @@ console.log(util.isDeepStrictEqual(foo, bar, true));
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
+## `util.isPartialDeepStrictEqual(val1, val2)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `val1` {any}
+* `val2` {any}
+* Returns: {boolean}
+
+Returns `true` if there is partial deep strict equality between `val1` and
+`val2`. Otherwise, returns `false`.
+
+"Partial" equality means that only properties that exist on `val2` are going
+to be compared.
+
+See [`assert.partialDeepStrictEqual()`][] for more information about partial
+deep strict equality.
+
 ## `util.markPromiseAsHandled(promise)`
 
 <!-- YAML
@@ -4145,6 +4164,7 @@ npx codemod@latest @nodejs/util-is
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`Runtime.ScriptId`]: https://chromedevtools.github.io/devtools-protocol/1-3/Runtime/#type-ScriptId
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
+[`assert.partialDeepStrictEqual()`]: assert.md#assertpartialdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
