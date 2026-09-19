@@ -644,6 +644,11 @@ declare namespace InternalCryptoBinding {
     digest(encoding?: string): string | Buffer;
   }
 
+  interface MacHandle {
+    update(data: ByteSource, encoding?: string): boolean;
+    final(encoding?: string): string | Buffer;
+  }
+
   interface CipherBaseHandle {
     update(data: ByteSource, inputEncoding?: string): Buffer;
     final(): Buffer;
@@ -848,6 +853,18 @@ export interface CryptoBinding {
     customization?: InternalCryptoBinding.OptionalBufferSource,
   ) => InternalCryptoBinding.HashHandle;
   Hmac: new () => InternalCryptoBinding.HmacHandle;
+  Mac: new (
+    algorithm: string,
+    algorithmId: number,
+    algorithmCache: Record<string, number>,
+    key: InternalCryptoBinding.PreparedSecretKeyData,
+    digest?: string,
+    cipher?: string,
+    iv?: InternalCryptoBinding.OptionalBufferSource,
+    customization?: InternalCryptoBinding.OptionalBufferSource,
+    salt?: InternalCryptoBinding.OptionalBufferSource,
+    outputLength?: number,
+  ) => InternalCryptoBinding.MacHandle;
   KeyObjectHandle: new () => InternalCryptoBinding.KeyObjectHandle;
   SecureContext: new () => InternalCryptoBinding.SecureContextHandle;
   Sign: new () => InternalCryptoBinding.SignHandle;
@@ -962,6 +979,7 @@ export interface CryptoBinding {
   ];
   getBundledRootCertificates(): string[];
   getCachedAliases(): Record<string, number>;
+  getCachedMacAliases(): Record<string, number>;
   getCertificateCompressionAlgorithms(): string[];
   getCipherInfo(
     nameOrNid: string | number,
@@ -975,6 +993,7 @@ export interface CryptoBinding {
   getFipsCrypto(): 0 | 1;
   getFipsCryptoGeneration(): bigint;
   getHashes(): string[];
+  getMacs(): string[];
   isCryptoKey(key: unknown): boolean;
   isKeyObject(key: unknown): boolean;
   isX509Certificate(value: unknown): boolean;
