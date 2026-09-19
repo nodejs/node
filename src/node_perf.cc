@@ -4,6 +4,7 @@
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
@@ -14,6 +15,7 @@
 namespace node {
 namespace performance {
 
+using v8::BigInt;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
@@ -28,6 +30,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::Uint32;
 using v8::Value;
 
 // Microseconds in a millisecond, as a float.
@@ -290,14 +293,34 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int64_t interval = args[0].As<Integer>()->Value();
   CHECK_GT(interval, 0);
+  CHECK(args[2]->IsBigInt());
+  CHECK(args[3]->IsBigInt());
+  CHECK(args[4]->IsUint32());
+  bool lossless = true;
+  const int64_t lowest = args[2].As<BigInt>()->Int64Value(&lossless);
+  CHECK(lossless);
+  const int64_t highest = args[3].As<BigInt>()->Int64Value(&lossless);
+  CHECK(lossless);
+  const int figures = static_cast<int>(args[4].As<Uint32>()->Value());
+
+  // The options are validated in JS, but hdr_init() still rejects some
+  // combinations, such as a very large lowest value.
+  std::shared_ptr<Histogram> histogram =
+      Histogram::Create(Histogram::Options{lowest, highest, figures});
+  if (!histogram) {
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid histogram options");
+  }
+
   if (args[1]->IsTrue()) {
-    BaseObjectPtr<IterationHistogram> histogram =
-        IterationHistogram::Create(env, Histogram::Options{1});
-    args.GetReturnValue().Set(histogram->object());
+    BaseObjectPtr<IterationHistogram> eld =
+        IterationHistogram::Create(env, std::move(histogram));
+    if (eld) args.GetReturnValue().Set(eld->object());
     return;
   }
-  BaseObjectPtr<IntervalHistogram> histogram =
-      IntervalHistogram::Create(env, interval, [](Histogram& histogram) {
+  BaseObjectPtr<IntervalHistogram> eld = IntervalHistogram::Create(
+      env,
+      interval,
+      [](Histogram& histogram) {
         uint64_t delta = histogram.RecordDelta();
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                         "delay", delta);
@@ -309,8 +332,9 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
                       "mean", histogram.Mean());
         TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                       "stddev", histogram.Stddev());
-      }, Histogram::Options { 1000 });
-  args.GetReturnValue().Set(histogram->object());
+      },
+      std::move(histogram));
+  if (eld) args.GetReturnValue().Set(eld->object());
 }
 
 void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {

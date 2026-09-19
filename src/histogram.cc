@@ -2379,11 +2379,11 @@ void IntervalHistogram::RegisterExternalReferences(
 IntervalHistogram::IntervalHistogram(Environment* env,
                                      Local<Object> wrap,
                                      AsyncWrap::ProviderType type,
-                                     int32_t interval,
+                                     uint64_t interval,
                                      OnInterval on_interval,
-                                     const Histogram::Options& options)
+                                     std::shared_ptr<Histogram> histogram)
     : HandleWrap(env, wrap, reinterpret_cast<uv_handle_t*>(&timer_), type),
-      HistogramImpl(options),
+      HistogramImpl(std::move(histogram)),
       interval_(interval),
       on_interval_(on_interval) {
   MakeWeak();
@@ -2396,9 +2396,9 @@ IntervalHistogram::IntervalHistogram(Environment* env,
 
 BaseObjectPtr<IntervalHistogram> IntervalHistogram::Create(
     Environment* env,
-    int32_t interval,
+    uint64_t interval,
     OnInterval on_interval,
-    const Histogram::Options& options,
+    std::shared_ptr<Histogram> histogram,
     AsyncWrap::ProviderType type) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
@@ -2409,7 +2409,7 @@ BaseObjectPtr<IntervalHistogram> IntervalHistogram::Create(
   }
 
   return MakeBaseObject<IntervalHistogram>(
-      env, obj, type, interval, on_interval, options);
+      env, obj, type, interval, on_interval, std::move(histogram));
 }
 
 void IntervalHistogram::TimerCB(uv_timer_t* handle) {
@@ -2475,10 +2475,10 @@ void IterationHistogram::RegisterExternalReferences(
 IterationHistogram::IterationHistogram(Environment* env,
                                        Local<Object> wrap,
                                        AsyncWrap::ProviderType type,
-                                       const Histogram::Options& options)
+                                       std::shared_ptr<Histogram> histogram)
     : HandleWrap(
           env, wrap, reinterpret_cast<uv_handle_t*>(&check_handle_), type),
-      HistogramImpl(options) {
+      HistogramImpl(std::move(histogram)) {
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
       HistogramImpl::InternalFields::kImplField,
@@ -2492,7 +2492,7 @@ IterationHistogram::IterationHistogram(Environment* env,
 
 BaseObjectPtr<IterationHistogram> IterationHistogram::Create(
     Environment* env,
-    const Histogram::Options& options,
+    std::shared_ptr<Histogram> histogram,
     AsyncWrap::ProviderType type) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
@@ -2502,7 +2502,8 @@ BaseObjectPtr<IterationHistogram> IterationHistogram::Create(
     return nullptr;
   }
 
-  return MakeBaseObject<IterationHistogram>(env, obj, type, options);
+  return MakeBaseObject<IterationHistogram>(
+      env, obj, type, std::move(histogram));
 }
 
 void IterationHistogram::PrepareCB(uv_prepare_t* handle) {
