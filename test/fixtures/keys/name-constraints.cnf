@@ -1,0 +1,34 @@
+[ req ]
+distinguished_name = req_distinguished_name
+prompt = no
+x509_extensions = ca
+
+[ req_distinguished_name ]
+CN = Node.js name constraints test CA
+
+[ ca ]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+nameConstraints = critical,permitted;DNS:.example.com
+
+[ permitted ]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+
+[ excluded ]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+
+[ dns-san ]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:www.example.com
+
+[ email-san ]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = email:san@example.com

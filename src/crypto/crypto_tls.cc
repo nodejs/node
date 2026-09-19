@@ -73,6 +73,36 @@ namespace crypto {
 
 namespace {
 
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 1)
+int VerifyCertChain(X509_STORE_CTX* ctx, void*) {
+  X509_VERIFY_PARAM* param = X509_STORE_CTX_get0_param(ctx);
+  const unsigned int flags = X509_VERIFY_PARAM_get_hostflags(param);
+  if (!(flags & (X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT |
+                 X509_CHECK_FLAG_NEVER_CHECK_SUBJECT))) {
+    // tls.checkServerIdentity() falls back to the CN when no DNS SAN exists.
+    // OpenSSL 4.1 requires this flag to apply name constraints to that CN.
+    ncrypto::DeleteFnPtr<GENERAL_NAMES, GENERAL_NAMES_free> names(
+        static_cast<GENERAL_NAMES*>(
+            X509_get_ext_d2i(X509_STORE_CTX_get0_cert(ctx),
+                             NID_subject_alt_name,
+                             nullptr,
+                             nullptr)));
+    bool has_dns_san = false;
+    for (int i = 0; names && i < sk_GENERAL_NAME_num(names.get()); i++) {
+      if (sk_GENERAL_NAME_value(names.get(), i)->type == GEN_DNS) {
+        has_dns_san = true;
+        break;
+      }
+    }
+    if (!has_dns_san) {
+      X509_VERIFY_PARAM_set_hostflags(
+          param, flags | X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT);
+    }
+  }
+  return X509_verify_cert(ctx) > 0 ? 1 : 0;
+}
+#endif
+
 // Our custom implementation of the certificate verify callback
 // used when establishing a TLS handshake. Because we cannot perform
 // I/O quickly enough with X509_STORE_CTX_ APIs in this callback,
@@ -330,6 +360,9 @@ int TLSExtStatusCallback(SSL* s, void* arg) {
 void ConfigureSecureContext(SecureContext* sc) {
   // OCSP stapling
   sc->ctx().setStatusCallback(TLSExtStatusCallback);
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(4, 1)
+  SSL_CTX_set_cert_verify_callback(sc->ctx().get(), VerifyCertChain, nullptr);
+#endif
 }
 
 inline bool Set(
