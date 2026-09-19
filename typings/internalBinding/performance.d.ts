@@ -146,6 +146,7 @@ export interface PerformanceBinding {
   ): InternalPerformanceBinding.ELDHistogram;
   markBootstrapComplete(): void;
   uvMetricsInfo(): void;
-  uvMetricsBuffer: Int32Array;
+  uvMetricsBuffer: Float64Array;
+  uvMetricsBigIntBuffer: BigUint64Array;
   now(): number;
 }

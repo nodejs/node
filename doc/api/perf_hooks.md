@@ -854,13 +854,17 @@ added:
   - v20.18.0
 -->
 
-* Returns: {Object}
+* Type: {Object}
   * `loopCount` {number} Number of event loop iterations.
   * `events` {number} Number of events that have been processed by the event handler.
   * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
 
 This is a wrapper to the `uv_metrics_info` function.
 It returns the current set of event loop metrics.
+
+The values are exact up to `Number.MAX_SAFE_INTEGER`. Use
+[`performanceNodeTiming.uvMetricsInfoBigInt`][] to obtain the full 64-bit
+values reported by libuv.
 
 It is recommended to use this property inside a function whose execution was
 scheduled using `setImmediate` to avoid collecting metrics before finishing all
@@ -879,6 +883,41 @@ import { performance } from 'node:perf_hooks';
 
 setImmediate(() => {
   console.log(performance.nodeTiming.uvMetricsInfo);
+});
+```
+
+### `performanceNodeTiming.uvMetricsInfoBigInt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+  * `loopCount` {bigint} Number of event loop iterations.
+  * `events` {bigint} Number of events that have been processed by the event handler.
+  * `eventsWaiting` {bigint} Number of events that were waiting to be processed when the event provider was called.
+
+The same as [`performanceNodeTiming.uvMetricsInfo`][], except that the values
+are {bigint}s carrying the full 64-bit range reported by libuv.
+
+Because `JSON.stringify()` cannot serialize {bigint} values, this property is
+not enumerable and is not included in the output of
+`performanceNodeTiming.toJSON()`. Copies of `performance.nodeTiming` made by
+spreading its enumerable properties, for example, remain serializable.
+
+```cjs
+const { performance } = require('node:perf_hooks');
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfoBigInt);
+});
+```
+
+```mjs
+import { performance } from 'node:perf_hooks';
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfoBigInt);
 });
 ```
 
@@ -3263,6 +3302,8 @@ dns.promises.resolve('localhost');
 [`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
 [`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
+[`performanceNodeTiming.uvMetricsInfoBigInt`]: #performancenodetiminguvmetricsinfobigint
+[`performanceNodeTiming.uvMetricsInfo`]: #performancenodetiminguvmetricsinfo
 [`process.hrtime()`]: process.md#processhrtimetime
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON
