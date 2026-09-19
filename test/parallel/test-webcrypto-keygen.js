@@ -12,9 +12,11 @@ const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
   createSecretKey,
+  getFips,
   KeyObject,
 } = require('crypto');
 const { subtle } = globalThis.crypto;
+const rsaMinimumModulusLength = getFips() === 1 ? 2048 : 512;
 
 const { bigIntArrayToUnsignedBigInt } = require('internal/crypto/util');
 
@@ -414,7 +416,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
       subtle.generateKey(
         { name, modulusLength, publicExponent: new Uint8Array([1, 1, 1, 1, 1]), hash }, true, usages),
       {
-        message: /The publicExponent must be equivalent to an unsigned 32-bit value/,
+        message: 'algorithm.publicExponent must fit in an unsigned 32-bit integer',
         name: 'OperationError',
       });
 
@@ -438,16 +440,30 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
       });
     }));
 
-    await Promise.all([[1], [1, 0, 0]].map((publicExponent) => {
+    await Promise.all([
+      [[1], 'algorithm.publicExponent must be at least 3'],
+      [[1, 0, 0], 'algorithm.publicExponent must be odd'],
+    ].map(({ 0: publicExponent, 1: message }) => {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
         publicExponent: new Uint8Array(publicExponent),
         hash
       }, true, usages), {
+        message,
         name: 'OperationError',
       });
     }));
+
+    await assert.rejects(subtle.generateKey({
+      name,
+      modulusLength: rsaMinimumModulusLength - 1,
+      publicExponent: new Uint8Array([3]),
+      hash,
+    }, true, usages), {
+      message: `algorithm.modulusLength must be at least ${rsaMinimumModulusLength}`,
+      name: 'OperationError',
+    });
   }
 
   const kTests = [
