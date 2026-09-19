@@ -173,12 +173,20 @@ added: v26.4.0
   * `emitExperimentalWarning` {boolean} Whether to emit the experimental
     warning. **Default:** `true`.
 
-### `vfs.mount()`
+### `vfs.mount([name])`
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added the `name` parameter.
 -->
 
+* `name` {string} A name for the mount. It must be a single path segment other
+  than `.` and `..`, and must not be spelled the way a layer id is, as a
+  non-negative integer in its usual decimal form: `17` is reserved, while `07`
+  and `-1` are valid names.
 * Returns: {string} The absolute mount point.
 
 Mounts the virtual file system and returns the resulting mount point.
@@ -189,7 +197,7 @@ using paths under the returned mount point.
 Mount points always live inside a reserved namespace that cannot have child file system entries,
 so virtual paths never conflate with (or shadow) real paths. The virtual path scheme is subject to
 change and users should not manually construct them based on assumptions. Instead, obtain
-them from what `vfs.mount()` returns or `vfs.mountPoint`.
+them from what `vfs.mount()` returns or `vfs.mountPoint`, or mount under a `name`.
 
 ```cjs
 const vfs = require('node:vfs');
@@ -202,6 +210,34 @@ const mountPoint = myVfs.mount();
 
 fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 ```
+
+A mount given a `name` can also be reached as
+`path.join(os.devNull, 'vfs', name)`, a symbolic link to the mount point in
+the [reserved root directory][]. This lets code that did not mount the file
+system find it without being handed the instance. A later mount with the same
+name takes the name over; the earlier file system stays mounted, but can then
+only be reached at its own mount point. The name is removed when the file system
+it links to is unmounted.
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const templates = vfs.create();
+templates.writeFileSync('/page.html', '<h1>Hello</h1>');
+templates.mount('templates');
+
+// Elsewhere:
+const dir = path.join(os.devNull, 'vfs', 'templates');
+fs.readFileSync(path.join(dir, 'page.html'), 'utf8'); // '<h1>Hello</h1>'
+```
+
+Like any mount point, the mount point cannot be removed or renamed, nor
+replaced by renaming something else onto it: [`fs.rmdir()`][] and
+[`fs.rename()`][] fail with `EBUSY`. A recursive [`fs.rm()`][] of the mount
+point empties the file system before failing the same way.
 
 Each `VirtualFileSystem` instance may be mounted at most once at a
 time. Attempting to mount an already-mounted instance throws
@@ -379,6 +415,41 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 `unlink`, `rename`, `copyFile`, `realpath`, `readlink`, `symlink`,
 `access`, `rm`, `truncate`, `link`, `mkdtemp`, `chmod`, `chown`, `lchown`,
 `utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
+
+## The reserved root directory
+
+While any virtual file system is mounted, the directory that holds the mount
+points, `path.join(os.devNull, 'vfs')`, can be read through [`node:fs`][]. It
+contains a directory for every mounted file system, named like the last segment
+of its [`vfs.mountPoint`][], and a symbolic link for every name given to
+[`vfs.mount()`][], pointing at the mount it names.
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const root = path.join(os.devNull, 'vfs');
+const assets = vfs.create();
+assets.writeFileSync('/logo.svg', '<svg/>');
+const mountPoint = assets.mount('assets');
+
+fs.readdirSync(root); // e.g. [ '0', 'assets' ]
+fs.readlinkSync(path.join(root, 'assets')); // e.g. '0'
+fs.realpathSync(path.join(root, 'assets')) === mountPoint; // true
+fs.readFileSync(path.join(root, 'assets', 'logo.svg'), 'utf8'); // '<svg/>'
+```
+
+A path through a name works wherever the same path through the mount point
+does, including in `require()` and `import`. As with any symbolic link,
+[`fs.realpath()`][] resolves it to the path under the mount point, and so does
+the module loader: a module loaded through a name is identified by its path
+under the mount point.
+
+The root directory itself is read-only. Creating, removing, or changing its
+entries fails with `EROFS`, while the file systems its entries lead to can be
+written to as usual. When nothing is mounted, the root directory does not exist.
 
 ## Module loader integration
 
@@ -705,13 +776,17 @@ fields use synthetic but stable values:
 [`ffi.dlopen()`]: ffi.md#ffidlopenpath-definitions
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
+[`fs.realpath()`]: fs.md#fsrealpathpath-options-callback
+[`fs.rename()`]: fs.md#fsrenameoldpath-newpath-callback
+[`fs.rm()`]: fs.md#fsrmpath-options-callback
+[`fs.rmdir()`]: fs.md#fsrmdirpath-options-callback
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
 [`new ffi.DynamicLibrary()`]: ffi.md#new-dynamiclibrarypath
 [`node:fs`]: fs.md
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options
 [`url.pathToFileURL()`]: url.md#urlpathtofileurlpath-options
-[`vfs.mount()`]: #vfsmount
+[`vfs.mount()`]: #vfsmountname
 [`vfs.mountPointURL`]: #vfsmountpointurl
 [`vfs.mountPoint`]: #vfsmountpoint
 [`vfs.unmount()`]: #vfsunmount
@@ -719,4 +794,5 @@ fields use synthetic but stable values:
 [`zlib.ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`zlib.ZipFile`]: zlib.md#class-zlibzipfile
 [loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
+[reserved root directory]: #the-reserved-root-directory
 [the global folders]: modules.md#loading-from-the-global-folders

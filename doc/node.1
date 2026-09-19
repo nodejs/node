@@ -1885,7 +1885,8 @@ Print node's version.
 .It Fl -vfs-load Ns = Ns Ar source
 .Bl -bullet
 .It
-\fBsource\fR \fB{string}\fR A directory or an archive file to mount and run.
+\fBsource\fR \fB{string}\fR A directory or an archive file to mount and run, optionally
+preceded by \fBname=\fR to name the mount as for \fB--vfs-mount\fR.
 .El
 Requires \fB--experimental-vfs\fR. May be given at most once.
 Mounts \fBsource\fR exactly as \fB--vfs-mount\fR does, and additionally runs the
@@ -1912,7 +1913,8 @@ $ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
 .It Fl -vfs-mount Ns = Ns Ar source
 .Bl -bullet
 .It
-\fBsource\fR \fB{string}\fR A directory or an archive file to mount.
+\fBsource\fR \fB{string}\fR A directory or an archive file to mount, optionally
+preceded by \fBname=\fR to name the mount.
 .El
 Requires \fB--experimental-vfs\fR. May be repeated to mount several sources.
 Mounts \fBsource\fR as a virtual file system (\fBnode:vfs\fR). Each mount is placed
@@ -1925,6 +1927,19 @@ $ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
 .Ed
 mounts \fBa\fR, \fBb\fR and \fBc\fR in that order and runs \fBb\fR. Mounts contributed by
 \fBNODE_OPTIONS\fR are mounted before the command line's.
+A mount is named by writing its value as \fBname=source\fR, which mounts it as
+\fBvfs.mount(name)\fR does: the program can then reach it as
+\fBpath.join(os.devNull, 'vfs', name)\fR without knowing its mount point.
+Everything before the first \fB=\fR in the value is the name, unless it contains a
+path separator (\fB/\fR or \fB\\\fR), in which case the whole value is the source. A
+source whose path contains \fB=\fR can therefore be mounted without a name by
+writing it with a separator:
+.Bd -literal
+$ node --experimental-vfs --vfs-mount=assets=./build/assets.zip
+$ node --experimental-vfs --vfs-mount=./a=b.zip
+.Ed
+The first mounts \fB./build/assets.zip\fR with the name \fBassets\fR; the second mounts
+\fB./a=b.zip\fR without a name.
 The provider backing a source is chosen from the source itself rather than from
 its file name:
 .Bl -bullet
