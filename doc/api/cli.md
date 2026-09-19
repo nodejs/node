@@ -3791,7 +3791,8 @@ Print node's version.
 added: REPLACEME
 -->
 
-* `source` {string} A directory or an archive file to mount and run.
+* `source` {string} A directory or an archive file to mount and run, optionally
+  preceded by `name=` to name the mount as for [`--vfs-mount`][].
 
 Requires [`--experimental-vfs`][]. May be given at most once.
 
@@ -3832,7 +3833,8 @@ $ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
 added: REPLACEME
 -->
 
-* `source` {string} A directory or an archive file to mount.
+* `source` {string} A directory or an archive file to mount, optionally
+  preceded by `name=` to name the mount.
 
 Requires [`--experimental-vfs`][]. May be repeated to mount several sources.
 
@@ -3849,6 +3851,23 @@ $ node --experimental-vfs --vfs-mount=a --vfs-load=b --vfs-mount=c
 
 mounts `a`, `b` and `c` in that order and runs `b`. Mounts contributed by
 [`NODE_OPTIONS`][] are mounted before the command line's.
+
+A mount is named by writing its value as `name=source`, which mounts it as
+[`vfs.mount(name)`][] does: the program can then reach it as
+`path.join(os.devNull, 'vfs', name)` without knowing its mount point.
+
+Everything before the first `=` in the value is the name, unless it contains a
+path separator (`/` or `\`), in which case the whole value is the source. A
+source whose path contains `=` can therefore be mounted without a name by
+writing it with a separator:
+
+```console
+$ node --experimental-vfs --vfs-mount=assets=./build/assets.zip
+$ node --experimental-vfs --vfs-mount=./a=b.zip
+```
+
+The first mounts `./build/assets.zip` with the name `assets`; the second mounts
+`./a=b.zip` without a name.
 
 The provider backing a source is chosen from the source itself rather than from
 its file name:
@@ -4863,7 +4882,8 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
-[`vfs.mount()`]: vfs.md#vfsmount
+[`vfs.mount()`]: vfs.md#vfsmountname
+[`vfs.mount(name)`]: vfs.md#vfsmountname
 [asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
 [benchmark runner]: bench.md#command-line-runner
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
