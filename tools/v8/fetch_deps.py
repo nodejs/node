@@ -9,9 +9,6 @@ Use this script to fetch all dependencies for V8 to run build_gn.py.
 Usage: fetch_deps.py <v8-path>
 """
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import os
 import subprocess
 import sys
