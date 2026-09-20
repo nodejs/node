@@ -1873,6 +1873,7 @@ Print V8 command-line options.
 .
 .It Fl -v8-pool-size Ns = Ns Ar num
 Set V8's thread pool size which will be used to allocate background jobs.
+Worker threads and the delayed-task event loop are created on demand.
 If set to \fB0\fR then Node.js will choose an appropriate size of the thread pool
 based on an estimate of the amount of parallelism.
 The amount of parallelism refers to the number of computations that can be

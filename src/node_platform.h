@@ -205,6 +205,13 @@ class WorkerThreadsTaskRunner {
   int NumberOfWorkerThreads() const;
 
  private:
+  // Start one more worker if the pool has not yet reached thread_pool_size_.
+  // Must be called with start_mutex_ held.
+  void MaybeStartWorker();
+  // Start the delayed-task libuv loop thread on first use.
+  // Must be called with start_mutex_ held.
+  void EnsureDelayedSchedulerStarted();
+
   // A queue shared by all threads. The consumers are the worker threads which
   // take tasks from it to run in PlatformWorkerThread(). The producers can be
   // any thread. Both the foreground thread and the worker threads can push
@@ -218,6 +225,13 @@ class WorkerThreadsTaskRunner {
   class DelayedTaskScheduler;
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
 
+  // Workers and the delayed-task loop are created on demand so short-lived
+  // processes do not pay for unused libuv threads and event loops at bootstrap.
+  Mutex start_mutex_;
+  int thread_pool_size_;
+  int started_workers_ = 0;
+  bool scheduler_started_ = false;
+  bool has_shut_down_ = false;
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
   PlatformDebugLogLevel debug_log_level_ = PlatformDebugLogLevel::kNone;
 };

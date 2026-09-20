@@ -25,7 +25,9 @@ struct V8Platform {
     if (!per_process::cli_options->trace_event_categories.empty()) {
       StartTracingAgent();
     }
-    // Tracing must be initialized before platform threads are created.
+    // Tracing must be initialized before the platform is created. Worker
+    // threads are started later, on demand, when the first background task is
+    // posted.
     platform_ = std::make_unique<NodePlatform>(
         thread_pool_size, tracing_agent_->GetTracingController());
     v8::V8::InitializePlatform(platform_.get());

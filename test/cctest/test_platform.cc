@@ -1,6 +1,7 @@
 #include "node_internals.h"
 #include "libplatform/libplatform.h"
 
+#include <atomic>
 #include <string>
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
@@ -138,6 +139,50 @@ class RecordingTask : public v8::Task {
   std::vector<int>* log_;
   int id_;
 };
+
+class SetFlagTask : public v8::Task {
+ public:
+  explicit SetFlagTask(std::atomic<bool>* flag) : flag_(flag) {}
+  void Run() override { flag_->store(true); }
+
+ private:
+  std::atomic<bool>* flag_;
+};
+
+TEST_F(PlatformTest, LazyWorkerThreadRunsPostedTask) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  EXPECT_EQ(4, platform->NumberOfWorkerThreads());
+
+  std::atomic<bool> ran{false};
+  platform->PostTaskOnWorkerThread(v8::TaskPriority::kUserBlocking,
+                                   std::make_unique<SetFlagTask>(&ran));
+  platform->DrainTasks(isolate_);
+  EXPECT_TRUE(ran.load());
+}
+
+TEST_F(PlatformTest, LazyDelayedWorkerTaskRuns) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  std::atomic<bool> ran{false};
+  platform->PostDelayedTaskOnWorkerThread(
+      v8::TaskPriority::kUserBlocking,
+      std::make_unique<SetFlagTask>(&ran),
+      0);
+  // The delayed-task scheduler uses its own libuv loop. Wait until it has
+  // posted the expired task onto the worker queue, then drain it.
+  for (int i = 0; i < 50 && !ran.load(); i++) {
+    uv_sleep(10);
+    platform->DrainTasks(isolate_);
+  }
+  EXPECT_TRUE(ran.load());
+}
 
 TEST(TaskQueueTest, HigherPriorityFirstThenPostingOrder) {
   std::vector<int> log;

@@ -19,9 +19,6 @@ namespace {
 
 struct PlatformWorkerData {
   TaskQueue<TaskQueueEntry>* task_queue;
-  Mutex* platform_workers_mutex;
-  ConditionVariable* platform_workers_ready;
-  int* pending_platform_workers;
   int id;
   PlatformDebugLogLevel debug_log_level;
 };
@@ -56,13 +53,6 @@ static void PlatformWorkerThread(void* data) {
   TaskQueue<TaskQueueEntry>* pending_worker_tasks = worker_data->task_queue;
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "PlatformWorkerThread");
-
-  // Notify the main thread that the platform worker is ready.
-  {
-    Mutex::ScopedLock lock(*worker_data->platform_workers_mutex);
-    (*worker_data->pending_platform_workers)--;
-    worker_data->platform_workers_ready->Signal(lock);
-  }
 
   bool debug_log_enabled =
       worker_data->debug_log_level != PlatformDebugLogLevel::kNone;
@@ -242,39 +232,34 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
     int thread_pool_size, PlatformDebugLogLevel debug_log_level)
-    : debug_log_level_(debug_log_level) {
-  Mutex platform_workers_mutex;
-  ConditionVariable platform_workers_ready;
+    : delayed_task_scheduler_(
+          std::make_unique<DelayedTaskScheduler>(&pending_worker_tasks_)),
+      thread_pool_size_(thread_pool_size),
+      debug_log_level_(debug_log_level) {}
 
-  Mutex::ScopedLock lock(platform_workers_mutex);
-  int pending_platform_workers = thread_pool_size;
+void WorkerThreadsTaskRunner::MaybeStartWorker() {
+  if (has_shut_down_ || started_workers_ >= thread_pool_size_) {
+    return;
+  }
 
-  delayed_task_scheduler_ = std::make_unique<DelayedTaskScheduler>(
-      &pending_worker_tasks_);
+  int id = started_workers_;
+  auto worker_data = std::make_unique<PlatformWorkerData>(
+      PlatformWorkerData{&pending_worker_tasks_, id, debug_log_level_});
+  std::unique_ptr<uv_thread_t> t{new uv_thread_t()};
+  if (uv_thread_create(t.get(), PlatformWorkerThread, worker_data.get()) != 0) {
+    return;
+  }
+  worker_data.release();
+  threads_.push_back(std::move(t));
+  started_workers_++;
+}
+
+void WorkerThreadsTaskRunner::EnsureDelayedSchedulerStarted() {
+  if (has_shut_down_ || scheduler_started_) {
+    return;
+  }
   threads_.push_back(delayed_task_scheduler_->Start());
-
-  for (int i = 0; i < thread_pool_size; i++) {
-    auto worker_data = std::make_unique<PlatformWorkerData>(
-        PlatformWorkerData{&pending_worker_tasks_,
-                           &platform_workers_mutex,
-                           &platform_workers_ready,
-                           &pending_platform_workers,
-                           i,
-                           debug_log_level_});
-    std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
-    if (uv_thread_create(t.get(), PlatformWorkerThread, worker_data.get()) !=
-        0) {
-      break;
-    }
-    worker_data.release();
-    threads_.push_back(std::move(t));
-  }
-
-  // Wait for platform workers to initialize before continuing with the
-  // bootstrap.
-  while (pending_platform_workers > 0) {
-    platform_workers_ready.Wait(lock);
-  }
+  scheduler_started_ = true;
 }
 
 void WorkerThreadsTaskRunner::PostTask(v8::TaskPriority priority,
@@ -282,7 +267,12 @@ void WorkerThreadsTaskRunner::PostTask(v8::TaskPriority priority,
                                        const v8::SourceLocation& location) {
   auto entry = std::make_unique<TaskQueueEntry>(std::move(task), priority);
   bool is_outstanding = entry->is_outstanding();
+  Mutex::ScopedLock lock(start_mutex_);
+  if (has_shut_down_) {
+    return;
+  }
   pending_worker_tasks_.Lock().Push(std::move(entry), is_outstanding);
+  MaybeStartWorker();
 }
 
 void WorkerThreadsTaskRunner::PostDelayedTask(
@@ -290,6 +280,16 @@ void WorkerThreadsTaskRunner::PostDelayedTask(
     std::unique_ptr<v8::Task> task,
     const v8::SourceLocation& location,
     double delay_in_seconds) {
+  {
+    Mutex::ScopedLock lock(start_mutex_);
+    if (has_shut_down_) {
+      return;
+    }
+    // Delayed work still needs at least one worker to run the task when the
+    // timer expires, plus the dedicated libuv loop that drives those timers.
+    MaybeStartWorker();
+    EnsureDelayedSchedulerStarted();
+  }
   delayed_task_scheduler_->PostDelayedTask(
       priority, std::move(task), delay_in_seconds);
 }
@@ -299,15 +299,23 @@ void WorkerThreadsTaskRunner::BlockingDrain() {
 }
 
 void WorkerThreadsTaskRunner::Shutdown() {
-  pending_worker_tasks_.Lock().Stop();
-  delayed_task_scheduler_->Stop();
+  {
+    Mutex::ScopedLock lock(start_mutex_);
+    has_shut_down_ = true;
+    pending_worker_tasks_.Lock().Stop();
+    if (scheduler_started_) {
+      delayed_task_scheduler_->Stop();
+    }
+  }
   for (size_t i = 0; i < threads_.size(); i++) {
     CHECK_EQ(0, uv_thread_join(threads_[i].get()));
   }
 }
 
 int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {
-  return threads_.size();
+  // Report the configured pool size so V8 jobs can request the intended
+  // parallelism even before any worker has been started.
+  return thread_pool_size_;
 }
 
 PerIsolatePlatformData::PerIsolatePlatformData(
