@@ -10,4 +10,15 @@ in
 # Unstable channel no longer supports Intel architecture for macOS. We can use the 26.05 channel
 # to keep testing on that platform for a little longer.
 # TODO: remove this when 26.05 is EOL (end of 2026)
-if builtins.currentSystem == "x86_64-darwin" then (import ./pkgs-26.05.nix arg) else nixpkgs
+if builtins.currentSystem == "x86_64-darwin" then
+  (import ./pkgs-26.05.nix arg)
+else
+  nixpkgs
+  //
+    nixpkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64)
+      {
+        sccache = nixpkgs.callPackage (builtins.fetchurl {
+          url = "${repo}/raw/aff8a0b28396750446e5537a96461bc4facdb287/pkgs/by-name/sc/sccache/package.nix";
+          sha256 = "09dlc99sam9ld9jvzgcc00r4v4ls1cmbb0yim3mr895fpbs8b3qa";
+        }) { };
+      }

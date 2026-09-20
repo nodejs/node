@@ -92,5 +92,5 @@ jobs:
             --arg pkcs11 ${{ inputs.pkcs11-store-test }} \
             ${{ inputs.extra-nix-flags }} \
             --run '
-                SCCACHE_LOG=debug SCCACHE_NO_DAEMON=1 make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
+                make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             ' "$TAR_DIR/shell.nix"
