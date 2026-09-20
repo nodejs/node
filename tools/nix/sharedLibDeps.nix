@@ -18,6 +18,7 @@
     nbytes
     nghttp2
     simdjson
+    simdutf
     uvwasi
     zlib
     zstd
@@ -27,10 +28,6 @@
   hdr-histogram = pkgs.hdrhistogram_c;
   highway = pkgs.libhwy;
   http-parser = pkgs.llhttp;
-  simdutf = pkgs.simdutf.overrideAttrs (old: {
-    # TODO: remove this once the pin we use has picked up https://github.com/NixOS/nixpkgs/pull/557405
-    cmakeFlags = old.cmakeFlags ++ [ (pkgs.lib.cmakeFeature "SIMDUTF_CXX_STANDARD" "20") ];
-  });
 }
 // (pkgs.lib.optionalAttrs withLief {
   inherit (pkgs) lief;
