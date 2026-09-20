@@ -3769,6 +3769,7 @@ added: v5.10.0
 -->
 
 Set V8's thread pool size which will be used to allocate background jobs.
+The default is `1`.
 
 If set to `0` then Node.js will choose an appropriate size of the thread pool
 based on an estimate of the amount of parallelism.

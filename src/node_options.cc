@@ -1523,7 +1523,8 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddAlias("--trace-events-enabled", {
     "--trace-event-categories", "v8,node,node.async_hooks" });
   AddOption("--v8-pool-size",
-            "set V8's thread pool size",
+            "set V8's thread pool size (default: 1; 0 = available "
+            "parallelism - 1)",
             &PerProcessOptions::v8_thread_pool_size,
             kAllowedInEnvvar);
   AddOption("--zero-fill-buffers",

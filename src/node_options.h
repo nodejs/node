@@ -405,7 +405,9 @@ class PerProcessOptions : public Options {
   std::vector<std::string> security_reverts;
   std::vector<std::string> cmdline;
 
-  int64_t v8_thread_pool_size = 4;
+  // One worker is enough for isolate bootstrap (concurrent compile, GC jobs).
+  // Use --v8-pool-size=0 to size the pool from available parallelism.
+  int64_t v8_thread_pool_size = 1;
 #if HAVE_OPENSSL
   int64_t secure_heap = 0;
   int64_t secure_heap_min = 2;

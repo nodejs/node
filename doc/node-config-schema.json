@@ -873,7 +873,7 @@
             },
             "v8-pool-size": {
               "type": "number",
-              "description": "set V8's thread pool size"
+              "description": "set V8's thread pool size (default: 1; 0 = available parallelism - 1)"
             },
             "verify-base-objects": {
               "type": "boolean",
