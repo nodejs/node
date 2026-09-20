@@ -1024,8 +1024,10 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
   const char* name = *module_name_v;
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kAddon, module_name_v.ToStringView());
+  if (!env->no_addon_permission_for_linked_bindings()) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kAddon, module_name_v.ToStringView());
+  }
 
   node_module* mod = nullptr;
 
