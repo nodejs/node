@@ -2191,7 +2191,7 @@ Only applicable to deflate algorithm.
 added: v0.7.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66157
     description: Brotli streams preserve parameters and dictionary on reset.
 -->
 
