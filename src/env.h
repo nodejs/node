@@ -916,6 +916,7 @@ class Environment final : public MemoryRetainer {
   inline bool no_global_search_paths() const;
   inline bool should_start_debug_signal_handler() const;
   inline bool no_browser_globals() const;
+  inline bool no_addon_permission_for_linked_bindings() const;
   inline uint64_t thread_id() const;
   inline std::string_view thread_name() const;
   inline worker::Worker* worker_context() const;

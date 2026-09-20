@@ -5,6 +5,8 @@
 #include "node_api.h"
 #include "node_test_fixture.h"
 
+#include <string>
+
 void InitializeBinding(v8::Local<v8::Object> exports,
                        v8::Local<v8::Value> module,
                        v8::Local<v8::Context> context,
@@ -44,6 +46,52 @@ TEST_F(LinkedBindingTest, SimpleTest) {
   v8::String::Utf8Value utf8val(isolate_, completion_value);
   CHECK_NOT_NULL(*utf8val);
   CHECK_EQ(strcmp(*utf8val, "value"), 0);
+}
+
+static std::string RunScript(v8::Isolate* isolate, const char* source) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context,
+                          v8::String::NewFromOneByte(
+                              isolate, reinterpret_cast<const uint8_t*>(source))
+                              .ToLocalChecked())
+          .ToLocalChecked();
+  v8::Local<v8::Value> completion_value = script->Run(context).ToLocalChecked();
+  v8::String::Utf8Value utf8val(isolate, completion_value);
+  CHECK_NOT_NULL(*utf8val);
+  return *utf8val;
+}
+
+TEST_F(LinkedBindingTest, PermissionModelDeniesLinkedBindingTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  isolate_data_->options()->per_env->permission = true;
+  Env test_env{handle_scope, argv};
+
+  const char* run_script =
+      "try { process._linkedBinding('cctest_linkedbinding').key; }"
+      " catch (err) { err.code; }";
+  CHECK_EQ(RunScript(isolate_, run_script), "ERR_ACCESS_DENIED");
+}
+
+TEST_F(LinkedBindingTest, NoAddonPermissionForLinkedBindingsTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  isolate_data_->options()->per_env->permission = true;
+  Env test_env{
+      handle_scope,
+      argv,
+      static_cast<node::EnvironmentFlags::Flags>(
+          node::EnvironmentFlags::kDefaultFlags |
+          node::EnvironmentFlags::kNoAddonPermissionForLinkedBindings)};
+
+  const char* linked_script =
+      "process._linkedBinding('cctest_linkedbinding').key";
+  CHECK_EQ(RunScript(isolate_, linked_script), "value");
+  const char* dlopen_script =
+      "try { process.dlopen({ exports: {} }, 'addon.node'); }"
+      " catch (err) { err.code; }";
+  CHECK_EQ(RunScript(isolate_, dlopen_script), "ERR_DLOPEN_DISABLED");
 }
 
 void InitializeLocalBinding(v8::Local<v8::Object> exports,
