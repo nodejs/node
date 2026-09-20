@@ -49,13 +49,18 @@ bench('aborted', { samples: 1, signal }, () => {});
 
 bench('duplicate', { samples: 1, params: { value: 1 } }, completeSample);
 bench('duplicate', { samples: 1, params: { value: 1 } }, completeSample);
+bench('timeout', { samples: 1, timeout: 0 }, common.mustNotCall());
 bench('continues', options, completeSample);
-bench('timeout', { samples: 1, timeout: 10 }, async () => {
+
+// Aborting from the callback guarantees that there is unsettled work.
+const controller = new AbortController();
+bench('unsettled abort', { samples: 1, signal: controller.signal }, common.mustCall(async () => {
+  controller.abort(new Error('stop unsettled work'));
   await new Promise(() => {});
-});
-const suiteCompletion = suite('after unsettled timeout suite', () => {
-  bench('after unsettled timeout', options, common.mustNotCall());
-  bench.skip('skipped after unsettled timeout', options, common.mustNotCall());
+}));
+const suiteCompletion = suite('after unsettled abort suite', () => {
+  bench('after unsettled abort', options, common.mustNotCall());
+  bench.skip('skipped after unsettled abort', options, common.mustNotCall());
 });
 suiteCompletion.then(common.mustCall());
 
@@ -67,13 +72,13 @@ stream.on('bench:complete', (result) => completions.push(result));
 stream.on('bench:sample', (sample) => sampleNames.push(sample.name));
 stream.on('bench:summary', (result) => { summary = result; });
 stream.on('end', common.mustCall(() => {
-  assert.strictEqual(completions.length, 16);
+  assert.strictEqual(completions.length, 17);
   assert.deepStrictEqual(summary.counts, {
     __proto__: null,
     completed: 3,
-    failed: 12,
+    failed: 13,
     skipped: 1,
-    total: 16,
+    total: 17,
   });
   assert.strictEqual(summary.success, false);
 
@@ -109,11 +114,14 @@ stream.on('end', common.mustCall(() => {
   assert.strictEqual(duplicates[0].error, undefined);
   assert.match(duplicates[1].error.message, /duplicate benchmark identity/);
   assert.strictEqual(byName.get('continues')[0].error, undefined);
-  const unsettled = byName.get('after unsettled timeout')[0].error;
+  const aborted = byName.get('unsettled abort')[0].error;
+  assert.strictEqual(aborted.code, 'ABORT_ERR');
+  assert.deepStrictEqual(aborted.cause, controller.signal.reason);
+  const unsettled = byName.get('after unsettled abort')[0].error;
   assert.strictEqual(unsettled.code, 'ABORT_ERR');
-  assert.strictEqual(unsettled.cause.code, 'ERR_OPERATION_FAILED');
+  assert.deepStrictEqual(unsettled.cause, aborted);
   assert.strictEqual(
-    byName.get('skipped after unsettled timeout')[0].skip, true);
+    byName.get('skipped after unsettled abort')[0].skip, true);
   setTimeout(40).then(common.mustCall(() => {
     assert.strictEqual(sampleNames.includes('late timeout'), false);
   }));
