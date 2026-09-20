@@ -12,13 +12,8 @@ in
 # TODO: remove this when 26.05 is EOL (end of 2026)
 if builtins.currentSystem == "x86_64-darwin" then (import ./pkgs-26.05.nix arg) else nixpkgs
 // {
-  sccache = nixpkgs.sccache.overrideAttrs (old: {
-    version = "0.17.0";
-
-    src = old.src.overrideAttrs {
-      sha256 = "sha256-QGsDxUAQzAr6Aia5/D21cGbVV0YJyuH3aBmEr9NynXQ=";
-    };
-
-    cargoHash = "sha256-Jr4+46/yhcuTC017TA2UZQJUNIBuioI3xZnxxD/rKuc=";
-  });
+  sccache = nixpkgs.callPackage (builtins.fetchurl {
+    url = "${repo}/raw/aff8a0b28396750446e5537a96461bc4facdb287/pkgs/by-name/sc/sccache/package.nix";
+    sha256 = "09dlc99sam9ld9jvzgcc00r4v4ls1cmbb0yim3mr895fpbs8b3qa";
+  }) { };
 }
