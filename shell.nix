@@ -121,6 +121,7 @@ pkgs.mkShell {
   '';
 
   env = {
+    RUST_BACKTRACE = "full";
     BUILD_WITH = if (ninja != null) then "ninja" else "make";
     NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
     CONFIG_FLAGS = builtins.toString (
