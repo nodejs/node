@@ -156,10 +156,10 @@ jobs:
           # built separately in build-aarch64-linux-v8
           # - runner: ubuntu-24.04-arm
           #   system: aarch64-linux
-          - runner: macos-15-intel
-            system: x86_64-darwin
-          - runner: macos-latest
-            system: aarch64-darwin
+          # - runner: macos-15-intel
+          #   system: x86_64-darwin
+          # - runner: macos-latest
+          #   system: aarch64-darwin
     name: '${{ matrix.system }}: with shared libraries${{ matrix.perfetto && '' and perfetto'' || '''' }}'
     uses: $/.github/workflows/build-shared.yml
     with:
@@ -173,6 +173,7 @@ jobs:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   build-aarch64-linux-v8:
+    if: false
     needs: build-tarball
     runs-on: ubuntu-24.04-arm
     name: 'aarch64-linux: Cache V8 build'
