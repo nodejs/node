@@ -1760,7 +1760,7 @@ Returns a {RecordableHistogram}.
 ## `perf_hooks.createSlidingWindowHistogram(options)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `options` {Object}
@@ -2564,7 +2564,7 @@ efficient pass over the histogram data. More efficient than calling
 ### `histogram.qrde([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `options` {Object}
@@ -2822,7 +2822,7 @@ are clamped to zero.
 ## Class: `SlidingWindowHistogram`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 Records values into a lazily rotated ring of histogram chunks. Instances are
@@ -2836,7 +2836,7 @@ call `snapshot()` to materialize the current window as a {Histogram}.
 ### `slidingWindowHistogram.record(val)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `val` {number|bigint} The amount to record.
@@ -2848,7 +2848,7 @@ exceed the configured `highest` value.
 ### `slidingWindowHistogram.reset()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 Invalidates all chunks in the current window. Allocated chunks are reset
@@ -2857,7 +2857,7 @@ lazily when reused.
 ### `slidingWindowHistogram.snapshot()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Returns: {Histogram}

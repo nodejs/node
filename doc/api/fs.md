@@ -6580,7 +6580,7 @@ object with an `encoding` property specifying the character encoding to use.
 ### `fs.openAsBlobSync(path[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `path` {string|Buffer|URL}

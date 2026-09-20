@@ -96,7 +96,7 @@ const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/vfs-root'));
 ## `vfs.registerProvider(entry)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `entry` {Object}
