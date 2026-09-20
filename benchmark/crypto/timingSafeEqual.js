@@ -7,10 +7,14 @@ const { randomBytes, timingSafeEqual } = require('node:crypto');
 const bench = common.createBenchmark(main, {
   n: [1e5],
   bufferSize: [10, 100, 200, 2_100, 22_023],
+}, {
+  test: { bufferSize: 256 },
 });
 
 function main({ n, bufferSize }) {
   const bufs = [randomBytes(bufferSize), randomBytes(bufferSize)];
+  // Ensure the buffers differ even if the random bytes are identical.
+  bufs[1][0] = bufs[0][0] ^ 1;
   bench.start();
   let count = 0;
   for (let i = 0; i < n; i++) {
