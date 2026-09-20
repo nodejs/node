@@ -1100,7 +1100,7 @@ bound. Binding any other value throws an `ERR_INVALID_ARG_TYPE` error.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1192,7 +1192,7 @@ execution of this prepared statement. This property is a wrapper around
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1231,7 +1231,7 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1279,7 +1279,7 @@ executions of the same prepared statement.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1467,7 +1467,7 @@ class execute synchronously.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1496,7 +1496,7 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1525,7 +1525,7 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0
@@ -1553,7 +1553,7 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65709
     description: Bind `undefined` to `NULL`.
   - version: v26.8.0

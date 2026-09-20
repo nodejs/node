@@ -211,7 +211,7 @@ const path = `libsqlite3.${suffix}`;
 <!-- YAML
 added: v26.1.0
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65909
     description: Library paths inside a mounted virtual file system are now
                  supported.
@@ -316,7 +316,7 @@ Represents a loaded dynamic library.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.10.0
     pr-url: https://github.com/nodejs/node/pull/65909
     description: Library paths inside a mounted virtual file system are now
                  supported.

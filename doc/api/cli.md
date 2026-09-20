@@ -3776,7 +3776,7 @@ Print node's version.
 ### `--vfs-load=source`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `source` {string} A directory or an archive file to mount and run.
@@ -3812,7 +3812,7 @@ $ node --experimental-vfs --vfs-mount=lib.zip --vfs-load=app.zip
 ### `--vfs-mount=source`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `source` {string} A directory or an archive file to mount.

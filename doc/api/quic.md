@@ -1871,7 +1871,7 @@ added: v23.8.0
 ### `stream.opened`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Type: {Promise}

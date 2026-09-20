@@ -238,7 +238,7 @@ session.onmessage = (data) => {
 ## `dtls.createSecureContext([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * `options` {Object}
@@ -638,7 +638,7 @@ them.
 ## Class: `DTLSSecureContext`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 An opaque, reusable bundle of credentials and TLS settings, created by
@@ -788,7 +788,7 @@ added: v26.9.0
 ### `endpointStats.serverRejectedCount`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Type: {bigint} The number of datagrams discarded before a handshake was
@@ -803,7 +803,7 @@ complete.
 ### `endpointStats.serverRefusedCount`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Type: {bigint} The number of otherwise valid handshake attempts refused
@@ -924,7 +924,7 @@ parsing either.
 ### `session.peerX509Certificate`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Returns: {X509Certificate|undefined} The peer's certificate, or `undefined`
@@ -947,7 +947,7 @@ available.
 ### `session.session`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Returns: {Buffer|undefined} An opaque session for resuming this connection
@@ -963,7 +963,7 @@ to, and it is the client that carries a session between connections.
 ### `session.reused`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Returns: {boolean} `true` if this connection resumed an earlier session
@@ -974,7 +974,7 @@ Like [`session.authorized`][], this reads `false` once the session is closed.
 ### `session.authorized`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Returns: {boolean} `true` if the peer presented a certificate chain that
@@ -984,7 +984,7 @@ added: REPLACEME
 ### `session.authorizationError`
 
 <!-- YAML
-added: REPLACEME
+added: v26.10.0
 -->
 
 * Returns: {string|undefined} The short X509 verification error code, for
