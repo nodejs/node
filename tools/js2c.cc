@@ -3,7 +3,9 @@
 #include <cassert>
 #include <cctype>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <map>
 #include <string>
@@ -14,6 +16,7 @@
 #include "executable_wrapper.h"
 #include "simdutf.h"
 #include "uv.h"
+#include "zstd.h"
 
 #if defined(_WIN32)
 #include <io.h>  // _S_IREAD _S_IWRITE
@@ -172,10 +175,15 @@ std::vector<char> Join(const Fragments& fragments,
 }
 
 const char* kTemplate = R"(
+#include <cstdint>
+#include <cstring>
+#include <mutex>
+
 #include "env-inl.h"
 #include "node_builtins.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "zstd_blob.h"
 
 namespace node {
 
@@ -191,6 +199,7 @@ const ThreadsafeCopyOnWrite<BuiltinSourceMap> global_source_map {
 }  // anonymous namespace
 
 void BuiltinLoader::LoadJavaScriptSource() {
+  EnsureEmbeddedBuiltinSourcesImpl();
   source_ = global_source_map;
 }
 
@@ -447,12 +456,33 @@ enum class CodeType {
   kLatin1,  // Code points are all within 0-255
   kTwoByte,
 };
+struct OneBytePiece {
+  std::string var;
+  std::vector<uint8_t> bytes;
+};
+std::vector<OneBytePiece> one_byte_pieces;
+
 template <typename T>
 Fragment GetDefinitionImpl(const std::vector<char>& code,
                            const std::string& var,
                            CodeType type) {
   constexpr bool is_two_byte = std::is_same_v<T, uint16_t>;
   static_assert(is_two_byte || std::is_same_v<T, char>);
+
+  // One-byte builtins are stored in a single zstd blob and inflated the
+  // first time V8 reads the external string. Two-byte sources stay literal
+  // so the target compiler picks the endianness.
+  if (type != CodeType::kTwoByte) {
+    one_byte_pieces.push_back(OneBytePiece{
+        var,
+        std::vector<uint8_t>(
+            reinterpret_cast<const uint8_t*>(code.data()),
+            reinterpret_cast<const uint8_t*>(code.data()) + code.size()),
+    });
+    std::string decl = "static StaticExternalOneByteResource " + var +
+                       "_resource(nullptr, 0, nullptr);\n";
+    return Fragment(decl.begin(), decl.end());
+  }
 
   size_t count = is_two_byte
                      ? simdutf::utf16_length_from_utf8(code.data(), code.size())
@@ -824,10 +854,110 @@ int AddGypi(const std::string& var,
   return 0;
 }
 
+Fragment EmitCompressedBuiltins() {
+  std::vector<uint8_t> raw;
+  auto append32 = [&](uint32_t value) {
+    uint8_t bytes[4];
+    memcpy(bytes, &value, sizeof(bytes));
+    raw.insert(raw.end(), bytes, bytes + sizeof(bytes));
+  };
+  append32(static_cast<uint32_t>(one_byte_pieces.size()));
+  for (const OneBytePiece& piece : one_byte_pieces) {
+    append32(static_cast<uint32_t>(piece.bytes.size()));
+    raw.insert(raw.end(), piece.bytes.begin(), piece.bytes.end());
+    while (raw.size() % 4 != 0) {
+      raw.push_back(0);
+    }
+  }
+
+  size_t bound = ZSTD_compressBound(raw.size());
+  std::vector<uint8_t> compressed(bound);
+  size_t compressed_size =
+      ZSTD_compress(compressed.data(), bound, raw.data(), raw.size(), 19);
+  if (ZSTD_isError(compressed_size)) {
+    fprintf(stderr,
+            "js2c: zstd compress failed: %s\n",
+            ZSTD_getErrorName(compressed_size));
+    exit(1);
+  }
+  compressed.resize(compressed_size);
+  fprintf(stderr,
+          "js2c: builtin sources %zu -> %zu bytes\n",
+          raw.size(),
+          compressed_size);
+
+  std::string out;
+  out.reserve(compressed.size() * 5 + one_byte_pieces.size() * 64 + 2048);
+  out += "static const uint8_t node_builtin_sources_zstd[] = {\n";
+  for (size_t i = 0; i < compressed.size(); i++) {
+    char buf[8];
+    snprintf(buf, sizeof(buf), "0x%02x,", compressed[i]);
+    out += buf;
+    if ((i % 16) == 15) {
+      out += '\n';
+    }
+  }
+  out += "\n};\n\n";
+  out += "static void EnsureEmbeddedBuiltinSourcesImpl() {\n";
+  out += "  static std::once_flag once;\n";
+  out += "  std::call_once(once, [] {\n";
+  out += "    size_t raw_size = 0;\n";
+  out += "    static uint8_t* storage = node::ZstdDecompressAligned(\n";
+  out += "        node_builtin_sources_zstd,\n";
+  out += "        sizeof(node_builtin_sources_zstd),\n";
+  out += "        &raw_size);\n";
+  out += "    CHECK_NE(storage, nullptr);\n";
+  out += "    const uint8_t* cursor = storage;\n";
+  out += "    const uint8_t* end = storage + raw_size;\n";
+  out += "    auto read32 = [&](uint32_t* value) {\n";
+  out += "      CHECK_LE(cursor + 4, end);\n";
+  out += "      memcpy(value, cursor, 4);\n";
+  out += "      cursor += 4;\n";
+  out += "    };\n";
+  out += "    uint32_t count = 0;\n";
+  out += "    read32(&count);\n";
+  out += "    CHECK_EQ(count, ";
+  out += std::to_string(one_byte_pieces.size());
+  out += "u);\n";
+  if (!one_byte_pieces.empty()) {
+    out += "    struct Slot { StaticExternalOneByteResource* resource; };\n";
+    out += "    static const Slot slots[] = {\n";
+    for (const OneBytePiece& piece : one_byte_pieces) {
+      out += "      { &";
+      out += piece.var;
+      out += "_resource },\n";
+    }
+    out += "    };\n";
+    out += "    static uint8_t empty = 0;\n";
+    out += "    for (uint32_t i = 0; i < count; i++) {\n";
+    out += "      uint32_t byte_len = 0;\n";
+    out += "      read32(&byte_len);\n";
+    out += "      CHECK_LE(cursor + byte_len, end);\n";
+    out += "      const uint8_t* data = byte_len == 0 ? &empty : cursor;\n";
+    out += "      slots[i].resource->set_data(data, byte_len);\n";
+    out += "      cursor += byte_len;\n";
+    out += "      while (static_cast<size_t>(cursor - storage) % 4 != 0) {\n";
+    out += "        cursor++;\n";
+    out += "      }\n";
+    out += "    }\n";
+    out += "    CHECK_EQ(static_cast<size_t>(sizeof(slots) / sizeof(slots[0])),\n";
+    out += "             static_cast<size_t>(count));\n";
+  }
+  out += "  });\n";
+  out += "}\n\n";
+  out += "static struct RegisterBuiltinSourceEnsure {\n";
+  out += "  RegisterBuiltinSourceEnsure() {\n";
+  out += "    builtin_source_ensure = EnsureEmbeddedBuiltinSourcesImpl;\n";
+  out += "  }\n";
+  out += "} register_builtin_source_ensure;\n";
+  return Fragment(out.begin(), out.end());
+}
+
 int JS2C(const FileList& js_files,
          const FileList& mjs_files,
          const std::string& config,
          const std::string& dest) {
+  one_byte_pieces.clear();
   Fragments definitions;
   definitions.reserve(js_files.size() + mjs_files.size() + 1);
   Fragments initializers;
@@ -854,6 +984,7 @@ int JS2C(const FileList& js_files,
   if (r != 0) {
     return r;
   }
+  definitions.push_back(EmitCompressedBuiltins());
   Fragment out = Format(definitions, initializers, registrations);
   return WriteIfChanged(out, dest);
 }
