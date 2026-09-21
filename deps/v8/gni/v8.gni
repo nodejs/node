@@ -63,6 +63,13 @@ declare_args() {
   # Furthermore, some architectures don't have Rust toolchains in Chromium
   v8_enable_temporal_support = !(defined(build_with_node) && build_with_node)
 
+  # When Temporal is enabled and ICU support is present, use ICU's raw zoneinfo64
+  # memory (via UDataMemory) rather than bundling a static copy of the data.
+  # Embedders that use a system-provided ICU (e.g. Node.js with --with-intl=system-icu)
+  # may not have the ICU private header `udatamem.h` available and should set this
+  # to false to fall back to the baked-in static data.
+  v8_use_icu_zoneinfo64 = v8_enable_i18n_support
+
   # Use static libraries instead of source_sets.
   v8_static_library = false
 
