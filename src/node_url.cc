@@ -357,7 +357,7 @@ bool BindingData::FastCanParseOneByte(
     const FastOneByteString& input,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("url.canParse.oneByte");
+  TRACK_V8_FAST_API_CALL("url.canParse");
   char stack[512];
   std::string storage;
   return ada::can_parse(OneByteAsUtf8(input, stack, sizeof(stack), &storage));
@@ -369,7 +369,7 @@ bool BindingData::FastCanParseOneByteWithBase(
     const FastOneByteString& base,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("url.canParse.oneByte.withBase");
+  TRACK_V8_FAST_API_CALL("url.canParse.withBase");
   char input_stack[512];
   char base_stack[512];
   std::string input_storage;
