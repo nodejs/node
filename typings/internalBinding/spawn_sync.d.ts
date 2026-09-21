@@ -1,6 +1,6 @@
 type SpawnSyncStdio =
   | { type: 'ignore' }
-  | { type: 'pipe'; readable: boolean; writable: boolean; input?: Uint8Array }
+  | { type: 'pipe'; readable: boolean; writable: boolean; input?: ArrayBufferView }
   | { type: 'inherit'; fd: number }
   | { type: 'fd'; fd: number };
 
@@ -9,14 +9,14 @@ export interface SpawnSyncOptions {
   args: readonly string[];
   cwd?: string | null;
   envPairs?: readonly string[] | null;
-  uid?: number;
-  gid?: number;
+  uid?: number | null;
+  gid?: number | null;
   detached?: boolean;
   windowsHide?: boolean;
   windowsVerbatimArguments?: boolean;
-  timeout?: number;
-  maxBuffer?: number;
-  killSignal?: number;
+  timeout?: number | null;
+  maxBuffer?: number | null;
+  killSignal?: number | null;
   stdio: readonly SpawnSyncStdio[];
 }
 
