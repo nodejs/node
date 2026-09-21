@@ -32,12 +32,12 @@ struct V8Platform {
   }
   // Make sure V8Platform don not call into Libuv threadpool,
   // see DefaultProcessExitHandlerInternal in environment.cc
-  inline void Dispose() {
+  inline void Dispose(v8::Isolate* isolate = nullptr) {
     if (!initialized_)
       return;
     initialized_ = false;
     StopTracingAgent();
-    platform_->Shutdown();
+    platform_->Shutdown(isolate);
     platform_.reset();
     // Destroy tracing after the platform (and platform threads) have been
     // stopped.
@@ -67,7 +67,7 @@ struct V8Platform {
   std::unique_ptr<NodePlatform> platform_;
 #else   // !NODE_USE_V8_PLATFORM
   inline void Initialize(int thread_pool_size) {}
-  inline void Dispose() {}
+  inline void Dispose(v8::Isolate* isolate = nullptr) {}
   inline void DrainVMTasks(v8::Isolate* isolate) {}
   inline void StartTracingAgent() {
     if (!per_process::cli_options->trace_event_categories.empty()) {
@@ -86,8 +86,9 @@ namespace per_process {
 extern struct V8Platform v8_platform;
 }
 
-inline void DisposePlatform() {
-  per_process::v8_platform.Dispose();
+// See NodePlatform::Shutdown() for `isolate`.
+inline void DisposePlatform(v8::Isolate* isolate = nullptr) {
+  per_process::v8_platform.Dispose(isolate);
 }
 
 }  // namespace node

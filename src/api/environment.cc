@@ -1178,7 +1178,8 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // And make sure V8Platform don not call into Libuv threadpool, see Dispose
   // in node_v8_platform-inl.h
   uv_library_shutdown();
-  DisposePlatform();
+  // The isolate is not disposed on this path, see NodePlatform::Shutdown().
+  DisposePlatform(env->isolate());
 
 #if HAVE_OPENSSL
   crypto::CleanupCachedRootCertificates();

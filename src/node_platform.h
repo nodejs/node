@@ -134,6 +134,8 @@ class PerIsolatePlatformData
   // posted during flushing of the queue are postponed until the next
   // flushing.
   bool FlushForegroundTasksInternal();
+  // Drops the queued foreground tasks. Returns true if there were any.
+  bool DiscardForegroundTasks();
 
   const uv_loop_t* event_loop() const { return loop_; }
 
@@ -202,7 +204,9 @@ class WorkerThreadsTaskRunner {
                        double delay_in_seconds);
 
   void BlockingDrain();
-  void Shutdown();
+  /* `on_stalled` runs on the calling thread whenever the workers have not
+   * finished their current tasks for a while. */
+  void Shutdown(const std::function<void()>& on_stalled = nullptr);
 
   int NumberOfWorkerThreads() const;
 
@@ -221,6 +225,10 @@ class WorkerThreadsTaskRunner {
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
 
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
+  // Number of platform worker threads that have not exited yet.
+  Mutex running_workers_mutex_;
+  ConditionVariable worker_exited_;
+  int running_workers_ = 0;
   PlatformDebugLogLevel debug_log_level_ = PlatformDebugLogLevel::kNone;
 };
 
@@ -232,7 +240,9 @@ class NodePlatform : public MultiIsolatePlatform {
   ~NodePlatform() override;
 
   void DrainTasks(v8::Isolate* isolate) override;
-  void Shutdown();
+  /* Pass the isolate that the calling thread is running when it will not be
+   * disposed first, so that tasks waiting for it to collect garbage can end. */
+  void Shutdown(v8::Isolate* isolate = nullptr);
 
   // v8::Platform implementation.
   int NumberOfWorkerThreads() override;
