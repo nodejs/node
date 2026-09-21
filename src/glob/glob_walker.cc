@@ -1498,8 +1498,8 @@ class WalkerState {
     // `somedir/*` with `--allow-fs-read=somedir/`).
     const bool literal_only =
         pattern.indexes.size() == 1 &&
-        IsLiteral(pattern.At(
-            static_cast<ptrdiff_t>(pattern.indexes.values()[0])));
+        IsLiteral(
+            pattern.At(static_cast<ptrdiff_t>(pattern.indexes.values()[0])));
     if ((!is_directory && !literal_only) || !MayDescend(path, pattern)) return;
 
     [[maybe_unused]] std::shared_ptr<const std::vector<std::string>>
