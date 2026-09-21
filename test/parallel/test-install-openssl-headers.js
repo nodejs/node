@@ -112,8 +112,4 @@ if (expectedArch) {
 
 const headersDest = tmpdir.resolve('headers-only');
 runHeadersInstall(headersDest, true);
-assert.deepStrictEqual(
-  installedArchs(headersDest),
-  sourceArchs(),
-  'headers-only install must keep every OpenSSL arch',
-);
+assert.deepStrictEqual(installedArchs(headersDest), sourceArchs());
