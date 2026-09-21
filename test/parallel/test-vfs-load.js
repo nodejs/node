@@ -1,10 +1,10 @@
 'use strict';
 
-// Covers --vfs-mount / --vfs-load: running a mounted directory's entry point
-// with require() resolving inside the mount, a provider registered by either a
-// -r (CJS) or an --import (ESM) preload backing a non-directory source, a ZIP
-// archive claimed by the built-in provider, a worker inheriting the mounts,
-// and the position of --vfs-load among the mounts deciding which one runs.
+// Covers --vfs-load: running a mounted directory's entry point with require()
+// resolving inside the mount, a provider registered by either a -r (CJS) or an
+// --import (ESM) preload backing a non-directory source, a ZIP archive claimed
+// by the built-in provider, and a worker reaching the mount, whether it
+// inherits the options or is given them itself.
 //
 // Native addon loading from a mount is not exercised here (it needs a compiled
 // .node), only the startup wiring around it.
@@ -136,56 +136,7 @@ registerProvider({
   assert.match(res.stdout, /hello from zip archive/);
 }
 
-// Two different ZIP archives mounted together each keep their own contents.
-// The built-in provider opens the archive while deciding whether it can claim
-// the source and hands that same handle to the provider it then creates, so
-// this pins down that the handle belongs to the source it was opened for and
-// is not shared between mounts.
-{
-  const zlib = require('zlib');
-
-  // Each archive prints which one it is and what it can see, so a mix-up shows
-  // up as the wrong marker or the other archive's file.
-  const body = Buffer.from(
-    'const fs = require("fs");\n' +
-    'console.log("marker:" + fs.readFileSync(__dirname + "/marker.txt", "utf8").trim());\n' +
-    'console.log("entries:" + fs.readdirSync(__dirname).sort().join(","));\n');
-
-  function archive(name, unique) {
-    const zipPath = fixture(`${name}.zip`);
-    const entries = [
-      zlib.ZipEntry.createSync('index.js', body),
-      zlib.ZipEntry.createSync('marker.txt', Buffer.from(`${name}\n`)),
-      zlib.ZipEntry.createSync(unique, Buffer.from('x\n')),
-    ];
-    const chunks = [];
-    for (const chunk of zlib.createZipArchiveSync(entries)) chunks.push(chunk);
-    fs.writeFileSync(zipPath, Buffer.concat(chunks));
-    return zipPath;
-  }
-
-  const first = archive('first-archive', 'first-only.txt');
-  const second = archive('second-archive', 'second-only.txt');
-
-  // Whichever archive --vfs-load names is the one that runs, in either order,
-  // and it sees its own entries rather than the other archive's.
-  for (const [args, name, unique, absent] of [
-    [[`--vfs-load=${first}`, `--vfs-mount=${second}`],
-     'first-archive', 'first-only.txt', 'second-only.txt'],
-    [[`--vfs-mount=${first}`, `--vfs-load=${second}`],
-     'second-archive', 'second-only.txt', 'first-only.txt'],
-    [[`--vfs-mount=${second}`, `--vfs-load=${first}`],
-     'first-archive', 'first-only.txt', 'second-only.txt'],
-  ]) {
-    const res = run(args);
-    assert.strictEqual(res.status, 0, res.stderr);
-    assert.match(res.stdout, new RegExp(`marker:${name}`));
-    assert.match(res.stdout, new RegExp(`entries:.*${unique}`));
-    assert.doesNotMatch(res.stdout, new RegExp(absent));
-  }
-}
-
-// A worker inherits --vfs-mount, so a worker script that lives inside the mount
+// A worker inherits the mount, so a worker script that lives inside it
 // (addressed here via the entry's own __dirname) resolves and runs.
 {
   const dir = fixture('worker-app');
@@ -235,6 +186,70 @@ parentPort.postMessage('hello from esm worker in mount');
   assert.match(res.stdout, /hello from esm worker in mount/);
 }
 
+// A worker created with its own execArgv does not inherit the parent's options,
+// so it has to be given the mount itself. Because the loaded source is always
+// the first file system a thread mounts, it lands at the same reserved mount
+// point in both threads, and a worker path the parent built still resolves.
+{
+  const dir = fixture('worker-execargv-app');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index.js'), `
+'use strict';
+const path = require('path');
+const { Worker } = require('worker_threads');
+const w = new Worker(path.join(__dirname, 'worker.js'), {
+  execArgv: ['--experimental-vfs', '--vfs-load=' + process.argv[1]],
+});
+w.on('message', (m) => { console.log(m); process.exit(0); });
+w.on('error', (e) => { console.error(e); process.exit(1); });
+`);
+  fs.writeFileSync(path.join(dir, 'worker.js'), `
+'use strict';
+require('worker_threads').parentPort.postMessage('worker ran from ' + __dirname);
+`);
+  // A preload that mounts a file system of its own runs before the --vfs-load
+  // source is mounted, and still does not move it.
+  const preload = fixture('mounting-preload.js');
+  fs.writeFileSync(preload, `
+'use strict';
+require('node:vfs').create().mount();
+`);
+
+  const seen = new Set();
+  for (const args of [[`--vfs-load=${dir}`], ['-r', preload, `--vfs-load=${dir}`]]) {
+    const res = run(args);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const [, dirname] = /worker ran from (\S+)/.exec(res.stdout);
+    seen.add(dirname);
+  }
+  // The worker resolved a path the main thread built, in both runs, and that
+  // path did not move between them.
+  assert.strictEqual(seen.size, 1, [...seen].join());
+}
+
+// Without that flag the worker has no mount to load from, so a script in the
+// mount cannot be its entry point.
+{
+  const dir = fixture('worker-execargv-missing');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index.js'), `
+'use strict';
+const path = require('path');
+const { Worker } = require('worker_threads');
+const w = new Worker(path.join(__dirname, 'worker.js'), { execArgv: [] });
+w.on('message', (m) => { console.log('ran:' + m); process.exit(0); });
+w.on('error', (e) => { console.log('failed:' + e.code); process.exit(0); });
+`);
+  fs.writeFileSync(path.join(dir, 'worker.js'), `
+'use strict';
+require('worker_threads').parentPort.postMessage('unexpected');
+`);
+  const res = run([`--vfs-load=${dir}`]);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /failed:/);
+  assert.doesNotMatch(res.stdout, /ran:/);
+}
+
 // --vfs-load names the source it loads, so it always takes a value.
 {
   const res = run(['--vfs-load']);
@@ -242,54 +257,31 @@ parentPort.postMessage('hello from esm worker in mount');
   assert.match(res.stderr, /--vfs-load requires an argument/);
 }
 
-// --vfs-mount and --vfs-load share one ordered list, so mounts happen in the
-// order written and the entry point comes from whichever source --vfs-load
-// names, wherever it sits among them.
+// The value may also be given as a separate argument.
 {
-  const dirs = {};
-  for (const name of ['a', 'b', 'c']) {
-    dirs[name] = fixture(name);
-    fs.mkdirSync(dirs[name], { recursive: true });
-    fs.writeFileSync(path.join(dirs[name], 'index.js'),
-                     `console.log('ran:${name}');\n`);
-  }
-
-  for (const [args, expected] of [
-    [[`--vfs-load=${dirs.a}`, `--vfs-mount=${dirs.b}`], 'a'],
-    [[`--vfs-mount=${dirs.a}`, `--vfs-load=${dirs.b}`, `--vfs-mount=${dirs.c}`], 'b'],
-    [[`--vfs-mount=${dirs.a}`, `--vfs-mount=${dirs.b}`, `--vfs-load=${dirs.c}`], 'c'],
-    // The value may also be given as a separate argument.
-    [['--vfs-mount', dirs.a, '--vfs-load', dirs.b], 'b'],
-  ]) {
-    const res = run(args);
-    assert.strictEqual(res.status, 0, res.stderr);
-    assert.match(res.stdout, new RegExp(`ran:${expected}`));
-  }
-}
-
-// The same source given twice is mounted twice, at two mount points. The entry
-// point comes from the one --vfs-load contributed, not from the earlier mount
-// of the same source.
-{
-  const dir = fixture('twice');
+  const dir = fixture('spaced-value');
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'index.js'),
-                   'console.log("dir:" + __dirname);\n');
-
-  const res = run([`--vfs-mount=${dir}`, `--vfs-load=${dir}`]);
+  fs.writeFileSync(path.join(dir, 'index.js'), "console.log('ran:spaced');\n");
+  const res = run(['--vfs-load', dir]);
   assert.strictEqual(res.status, 0, res.stderr);
-  const [, first] = /dir:(\S+)/.exec(res.stdout);
-
-  // With the order reversed the entry point is the other mount point, which is
-  // what shows that the position decides and not the source.
-  const reversed = run([`--vfs-load=${dir}`, `--vfs-mount=${dir}`]);
-  assert.strictEqual(reversed.status, 0, reversed.stderr);
-  const [, second] = /dir:(\S+)/.exec(reversed.stdout);
-  assert.notStrictEqual(first, second);
+  assert.match(res.stdout, /ran:spaced/);
 }
 
-// --vfs-load may only be given once: it shares one list with --vfs-mount, so a
-// second one would otherwise quietly win over the first.
+// A source whose path holds spaces or quotes is mounted as given. Windows
+// forbids `"` in a file name, so only the spaces and the `$` are exercised
+// there.
+{
+  const oddName = common.isWindows ? `${id++}-od d $x` : `${id++}-od d "q" $x`;
+  const dir = path.join(tmpdir.path, oddName);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index.js'), 'console.log("ran:odd");\n');
+  const res = run([`--vfs-load=${dir}`]);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /ran:odd/);
+}
+
+// --vfs-load may only be given once: a second one would otherwise quietly
+// replace the first.
 {
   const dirs = {};
   for (const name of ['once-a', 'once-b']) {
@@ -303,13 +295,6 @@ parentPort.postMessage('hello from esm worker in mount');
                      `--vfs-load=${dirs['once-b']}`]);
   assert.notStrictEqual(twice.status, 0);
   assert.match(twice.stderr, /--vfs-load may only be given once/);
-
-  // Repeating --vfs-mount stays allowed; only the loading one is limited.
-  const many = run([`--vfs-mount=${dirs['once-a']}`,
-                    `--vfs-load=${dirs['once-b']}`,
-                    `--vfs-mount=${dirs['once-a']}`]);
-  assert.strictEqual(many.status, 0, many.stderr);
-  assert.match(many.stdout, /ran:once-b/);
 }
 
 // --vfs-load picks the entry point, so it is refused in NODE_OPTIONS: the
@@ -332,72 +317,23 @@ if (hasNodeOptions) {
     assert.notStrictEqual(res.status, 0);
     assert.match(res.stderr, /--vfs-load.* is not allowed in NODE_OPTIONS/);
   }
-
-  // --vfs-mount, by contrast, is accepted from the environment.
-  const mountFromEnv = spawnSync(
-    process.execPath, ['--experimental-vfs', `--vfs-load=${dir}`], {
-      encoding: 'utf8',
-      env: { ...process.env, NODE_OPTIONS: envArg('--vfs-mount', dir) },
-    });
-  assert.strictEqual(mountFromEnv.status, 0, mountFromEnv.stderr);
 }
 
-// --experimental-vfs and --vfs-mount may arrive from different places. The
-// options are validated once every source has been parsed, so a mount from
-// NODE_OPTIONS is not rejected for an --experimental-vfs that only the command
-// line carries.
+// --experimental-vfs and --vfs-load may arrive from different places: the
+// options are validated once every source has been parsed, so a --vfs-load on
+// the command line is not rejected for an --experimental-vfs that only
+// NODE_OPTIONS carries.
 if (hasNodeOptions) {
-  const dir = fixture('env-mount-cli-flag');
+  const dir = fixture('env-flag-cli-load');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index.js'), 'console.log("ran");\n');
 
-  const res = spawnSync(
-    process.execPath, ['--experimental-vfs', `--vfs-load=${dir}`],
-    { encoding: 'utf8',
-      env: { ...process.env, NODE_OPTIONS: envArg('--vfs-mount', dir) } });
+  const res = spawnSync(process.execPath, [`--vfs-load=${dir}`], {
+    encoding: 'utf8',
+    env: { ...process.env, NODE_OPTIONS: '--experimental-vfs' },
+  });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.match(res.stdout, /ran/);
-}
-
-// --vfs-mount is allowed in NODE_OPTIONS and adds to the same ordered list.
-// Because --vfs-load names its source rather than counting a position, it no
-// longer matters that the environment is parsed first: what the command line
-// loads is unaffected by how many mounts the environment contributed.
-if (hasNodeOptions) {
-  const dirs = {};
-  for (const name of ['envA', 'cliX']) {
-    dirs[name] = fixture(name);
-    fs.mkdirSync(dirs[name], { recursive: true });
-    fs.writeFileSync(path.join(dirs[name], 'index.js'),
-                     `console.log('ran:${name}');\n`);
-  }
-
-  const res = spawnSync(
-    process.execPath, ['--experimental-vfs', `--vfs-load=${dirs.cliX}`], {
-      encoding: 'utf8',
-      env: { ...process.env, NODE_OPTIONS: envArg('--vfs-mount', dirs.envA) },
-    });
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.match(res.stdout, /ran:cliX/);
-}
-
-// A mount source holding spaces or quotes survives NODE_OPTIONS when quoted,
-// which is the only way such a path can be expressed there at all. Windows
-// forbids `"` in a file name, so only the spaces and the `$` can be exercised
-// there; the quote escaping itself stays covered on every other platform.
-if (hasNodeOptions) {
-  const oddName = common.isWindows ? `${id++}-od d $x` : `${id++}-od d "q" $x`;
-  const dir = path.join(tmpdir.path, oddName);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'index.js'), 'console.log("ran:odd");\n');
-
-  const res = spawnSync(
-    process.execPath, ['--experimental-vfs', `--vfs-load=${dir}`], {
-      encoding: 'utf8',
-      env: { ...process.env, NODE_OPTIONS: envArg('--vfs-mount', dir) },
-    });
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.match(res.stdout, /ran:odd/);
 }
 
 // Under --vfs-load the entry point comes from the mount, so no positional

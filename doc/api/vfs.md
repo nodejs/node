@@ -106,7 +106,7 @@ added: v26.10.0
   * `create` {Function} Called with the resolved path and its [`fs.Stats`][].
     Returns the {VirtualProvider} backing the source.
 
-Registers a provider that [`--vfs-mount`][] can select for a source it
+Registers a provider that [`--vfs-load`][] can select for a source it
 recognizes, so a file format Node.js has no built-in provider for can still be
 mounted.
 
@@ -118,7 +118,7 @@ source, the built-in providers handle it: a directory with
 [`RealFSProvider`][], and a file whose bytes are a ZIP archive with
 [`ZipProvider`][].
 
-Providers must be registered before the mounts are created. Register from a
+Providers must be registered before the source is mounted. Register from a
 module preloaded with [`--require`][] or [`--import`][]:
 
 ```cjs
@@ -702,7 +702,7 @@ fields use synthetic but stable values:
 [Single Executable Application]: single-executable-applications.md
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
-[`--vfs-mount`]: cli.md#--vfs-mountsource
+[`--vfs-load`]: cli.md#--vfs-loadsource
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
