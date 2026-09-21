@@ -940,7 +940,8 @@ Fragment EmitCompressedBuiltins() {
     out += "        cursor++;\n";
     out += "      }\n";
     out += "    }\n";
-    out += "    CHECK_EQ(static_cast<size_t>(sizeof(slots) / sizeof(slots[0])),\n";
+    out += "    CHECK_EQ(static_cast<size_t>(sizeof(slots) /\n";
+    out += "                                 sizeof(slots[0])),\n";
     out += "             static_cast<size_t>(count));\n";
   }
   out += "  });\n";

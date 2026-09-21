@@ -13,7 +13,7 @@ namespace node {
 uint8_t* ZstdDecompressAligned(const uint8_t* src,
                                size_t src_size,
                                size_t* raw_size) {
-  unsigned long long content = ZSTD_getFrameContentSize(src, src_size);
+  uint64_t content = ZSTD_getFrameContentSize(src, src_size);
   if (content == ZSTD_CONTENTSIZE_ERROR ||
       content == ZSTD_CONTENTSIZE_UNKNOWN || content == 0) {
     return nullptr;

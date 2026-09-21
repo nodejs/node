@@ -792,8 +792,9 @@ void FormatBlob(std::ostream& ss,
   while (raw.size() % 16 != 0) {
     raw.push_back(0);
   }
-  append_bytes(reinterpret_cast<const uint8_t*>(data->v8_snapshot_blob_data.data),
-               snapshot_size);
+  const uint8_t* snapshot_bytes =
+      reinterpret_cast<const uint8_t*>(data->v8_snapshot_blob_data.data);
+  append_bytes(snapshot_bytes, snapshot_size);
   for (const auto& item : data->code_cache) {
     append_bytes(item.data.data, item.data.length);
   }
