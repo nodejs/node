@@ -35,14 +35,7 @@ class Session::Application : public MemoryRetainer {
   // options passed at construction time since some options can be negotiated.
   virtual const Options& options() const = 0;
 
-  // The type of Application, exposed via the session state so JS can observe
-  // which Application the session ended up with. This is used primarily for
-  // testing/debugging.
-  enum class Type : uint8_t {
-    NONE = 0,     // None installed yet
-    DEFAULT = 1,  // DefaultApplication (raw QUIC streams)
-    HTTP3 = 2,    // Http3ApplicationImpl
-  };
+  using Type = ApplicationType;
 
   // Set alongside a Type in the session's shared application_type state to
   // mean "requested but not yet attached". JavaScript sets it to trigger the

@@ -106,6 +106,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // of a QUIC Session.
   class Application;
 
+  enum class ApplicationType : uint8_t {
+    NONE = 0,     // None installed yet
+    DEFAULT = 1,  // DefaultApplication (raw QUIC streams)
+    HTTP3 = 2,    // Http3ApplicationImpl
+  };
+
   // A block of pending outbound stream data, passed between the application
   // layer (which fills it via GetStreamData) and the send pump (which hands
   // it to ngtcp2_conn_writev_stream and commits the accepted length).
@@ -348,7 +354,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   const Config& config() const;
   const Options& options() const;
 
-  uint8_t application_type() const;
+  ApplicationType application_type() const;
   const SocketAddress& remote_address() const;
   const SocketAddress& local_address() const;
 
