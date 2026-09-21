@@ -328,7 +328,7 @@ std::unique_ptr<worker::TransferData> FileHandle::TransferForMessaging() {
 FileHandle::TransferData::TransferData(int fd) : fd_(fd) {}
 
 FileHandle::TransferData::~TransferData() {
-  if (fd_ > 0) {
+  if (fd_ >= 0) {
     uv_fs_t close_req;
     CHECK_NE(fd_, -1);
     FS_SYNC_TRACE_BEGIN(close);
