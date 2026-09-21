@@ -185,6 +185,8 @@
       'src/node_watchdog.cc',
       'src/node_worker.cc',
       'src/node_zlib.cc',
+      'src/zstd_blob.cc',
+      'src/zstd_blob.h',
       'src/path.cc',
       'src/permission/fs_permission.cc',
       'src/permission/permission.cc',
@@ -657,6 +659,23 @@
           'cflags': ['-Werror'],
           'xcode_settings': {
             'WARNING_CFLAGS': [ '-Werror' ],
+          },
+        }],
+        # The Release executable force-loads several static libraries, so
+        # unreferenced objects and the symbol table dominate the file.
+        # -dead_strip drops unreferenced .o files, -x drops local symbols,
+        # and -S drops STABS. Debug keeps symbols.
+        ['OS=="mac" or OS=="ios"', {
+          'configurations': {
+            'Release': {
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                  '-Wl,-dead_strip',
+                  '-Wl,-x',
+                  '-Wl,-S',
+                ],
+              },
+            },
           },
         }],
         ['node_shared=="true" and OS=="win"', {
@@ -1670,6 +1689,9 @@
         }],
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
+        }],
+        [ 'node_shared_zstd=="false"', {
+          'dependencies': [ 'deps/zstd/zstd.gyp:zstd#host' ],
         }],
         [ 'OS in "linux mac openharmony"', {
           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],

@@ -8,7 +8,6 @@
 #include "base_object-inl.h"
 #include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
-#include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
 #include "glob/node_glob.h"
@@ -30,6 +29,9 @@
 #include "node_v8_platform-inl.h"
 #include "simdjson.h"
 #include "timers.h"
+#include "zstd.h"
+
+#include <cstring>
 
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
@@ -737,17 +739,6 @@ SnapshotData::~SnapshotData() {
   }
 }
 
-static std::string GetCodeCacheDefName(const std::string& id) {
-  char buf[64] = {0};
-  size_t size = id.size();
-  CHECK_LT(size, sizeof(buf));
-  for (size_t i = 0; i < size; ++i) {
-    char ch = id[i];
-    buf[i] = (ch == '-' || ch == '/') ? '_' : ch;
-  }
-  return std::string(buf) + std::string("_cache_data");
-}
-
 static std::string FormatSize(size_t size) {
   char buf[64] = {0};
   if (size < 1024) {
@@ -761,88 +752,81 @@ static std::string FormatSize(size_t size) {
   return buf;
 }
 
-template <typename T>
-  requires(std::same_as<T, uint8_t> || std::same_as<T, char>)
-void WriteByteVectorLiteral(std::ostream* ss,
-                            const T* vec,
-                            size_t size,
-                            const char* var_name,
-                            bool use_array_literals) {
-  constexpr bool is_uint8_t = std::is_same_v<T, uint8_t>;
-  constexpr const char* type_name = is_uint8_t ? "uint8_t" : "char";
-  if (!use_array_literals) {
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(vec);
-    *ss << "static const " << type_name << " *" << var_name << " = ";
-    *ss << (is_uint8_t ? R"(reinterpret_cast<const uint8_t *>(")" : "\"");
-    for (size_t i = 0; i < size; i++) {
-      const uint8_t ch = data[i];
-      *ss << GetOctalCode(ch);
-      if (i % 64 == 63) {
-        // Go to a newline every 64 bytes since many text editors have
-        // problems with very long lines.
-        *ss << "\"\n\"";
-      }
+void WriteCompressedByteArray(std::ostream* ss,
+                              const uint8_t* bytes,
+                              size_t size,
+                              const char* name) {
+  *ss << "static const uint8_t " << name << "[] = {\n";
+  for (size_t i = 0; i < size; i++) {
+    char buf[8];
+    snprintf(buf, sizeof(buf), "0x%02x,", bytes[i]);
+    *ss << buf;
+    if ((i % 16) == 15) {
+      *ss << '\n';
     }
-    *ss << (is_uint8_t ? "\");\n" : "\";\n");
-  } else {
-    *ss << "static const " << type_name << " " << var_name << "[] = {";
-    for (size_t i = 0; i < size; i++) {
-      *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
-      if (i % 64 == 63) {
-        // Print a newline every 64 units and a offset to improve
-        // readability.
-        *ss << "  // " << (i / 64) << "\n";
-      }
-    }
-    *ss << "};\n";
   }
-}
-
-static void WriteCodeCacheInitializer(std::ostream* ss,
-                                      const std::string& id,
-                                      size_t size) {
-  std::string def_name = GetCodeCacheDefName(id);
-  *ss << "    { \"" << id << "\",\n";
-  *ss << "      {" << def_name << ",\n";
-  *ss << "       " << size << ",\n";
-  *ss << "      }\n";
-  *ss << "    },\n";
+  *ss << "\n};\n";
 }
 
 void FormatBlob(std::ostream& ss,
                 const SnapshotData* data,
                 bool use_array_literals) {
+  // The snapshot blob and every builtin code cache are one zstd frame.
+  // use_array_literals only affected the previous per-byte literal style.
+  (void)use_array_literals;
+  std::vector<uint8_t> raw;
+  auto append32 = [&](uint32_t value) {
+    uint8_t bytes[4];
+    memcpy(bytes, &value, sizeof(bytes));
+    raw.insert(raw.end(), bytes, bytes + sizeof(bytes));
+  };
+  auto append_bytes = [&](const uint8_t* bytes, size_t size) {
+    raw.insert(raw.end(), bytes, bytes + size);
+  };
+  const size_t snapshot_size = data->v8_snapshot_blob_data.raw_size;
+  append32(static_cast<uint32_t>(snapshot_size));
+  append32(static_cast<uint32_t>(data->code_cache.size()));
+  for (const auto& item : data->code_cache) {
+    append32(static_cast<uint32_t>(item.data.length));
+  }
+  while (raw.size() % 16 != 0) {
+    raw.push_back(0);
+  }
+  append_bytes(reinterpret_cast<const uint8_t*>(data->v8_snapshot_blob_data.data),
+               snapshot_size);
+  for (const auto& item : data->code_cache) {
+    append_bytes(item.data.data, item.data.length);
+  }
+
+  std::vector<uint8_t> compressed(ZSTD_compressBound(raw.size()));
+  size_t compressed_size = ZSTD_compress(
+      compressed.data(), compressed.size(), raw.data(), raw.size(), 19);
+  CHECK(!ZSTD_isError(compressed_size));
+  fprintf(stderr,
+          "snapshot: embedded blob %zu -> %zu bytes\n",
+          raw.size(),
+          compressed_size);
+
   ss << R"(#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
+#include <vector>
+
 #include "env.h"
 #include "node_snapshot_builder.h"
 #include "v8.h"
+#include "zstd_blob.h"
 
 // This file is generated by tools/snapshot. Do not edit.
 
 namespace node {
 )";
 
-  WriteByteVectorLiteral(&ss,
-                         data->v8_snapshot_blob_data.data,
-                         data->v8_snapshot_blob_data.raw_size,
-                         "v8_snapshot_blob_data",
-                         use_array_literals);
+  WriteCompressedByteArray(
+      &ss, compressed.data(), compressed_size, "embedded_snapshot_zstd");
 
-  ss << R"(static const int v8_snapshot_blob_size = )"
-     << data->v8_snapshot_blob_data.raw_size << ";\n";
-
-  // Windows can't deal with too many large vector initializers.
-  // Store the data into static arrays first.
-  for (const auto& item : data->code_cache) {
-    std::string var_name = GetCodeCacheDefName(item.id);
-    WriteByteVectorLiteral(&ss,
-                           item.data.data,
-                           item.data.length,
-                           var_name.c_str(),
-                           use_array_literals);
-  }
-
-  ss << R"(const SnapshotData snapshot_data {
+  ss << R"(SnapshotData snapshot_data {
   // -- data_ownership begins --
   SnapshotData::DataOwnership::kNotOwned,
   // -- data_ownership ends --
@@ -851,7 +835,7 @@ namespace node {
      << R"(,
   // -- metadata ends --
   // -- v8_snapshot_blob_data begins --
-  { v8_snapshot_blob_data, v8_snapshot_blob_size },
+  { nullptr, 0 },
   // -- v8_snapshot_blob_data ends --
   // -- v8_snapshot_blob_data_ownership begins --
   SnapshotData::DataOwnership::kNotOwned,
@@ -869,7 +853,9 @@ namespace node {
   // -- code_cache begins --
   {)";
   for (const auto& item : data->code_cache) {
-    WriteCodeCacheInitializer(&ss, item.id, item.data.length);
+    ss << "    { \"" << item.id << "\",\n";
+    ss << "      { nullptr, 0 }\n";
+    ss << "    },\n";
   }
   ss << R"(
   }
@@ -877,6 +863,43 @@ namespace node {
 };
 
 const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
+  static std::once_flag once;
+  std::call_once(once, [] {
+    size_t raw_size = 0;
+    static uint8_t* storage = ZstdDecompressAligned(
+        embedded_snapshot_zstd, sizeof(embedded_snapshot_zstd), &raw_size);
+    CHECK_NE(storage, nullptr);
+    const uint8_t* cursor = storage;
+    auto read32 = [&]() -> uint32_t {
+      CHECK_LE(static_cast<size_t>(cursor - storage) + 4, raw_size);
+      uint32_t value = 0;
+      memcpy(&value, cursor, 4);
+      cursor += 4;
+      return value;
+    };
+    uint32_t snapshot_size = read32();
+    uint32_t cache_count = read32();
+    CHECK_EQ(static_cast<size_t>(cache_count), snapshot_data.code_cache.size());
+    std::vector<uint32_t> lengths(cache_count);
+    for (uint32_t i = 0; i < cache_count; i++) {
+      lengths[i] = read32();
+    }
+    while (static_cast<size_t>(cursor - storage) % 16 != 0) {
+      cursor++;
+    }
+    CHECK_LE(static_cast<size_t>(cursor - storage) + snapshot_size, raw_size);
+    snapshot_data.v8_snapshot_blob_data.data =
+        reinterpret_cast<const char*>(cursor);
+    snapshot_data.v8_snapshot_blob_data.raw_size =
+        static_cast<int>(snapshot_size);
+    cursor += snapshot_size;
+    for (uint32_t i = 0; i < cache_count; i++) {
+      CHECK_LE(static_cast<size_t>(cursor - storage) + lengths[i], raw_size);
+      snapshot_data.code_cache[i].data.data = cursor;
+      snapshot_data.code_cache[i].data.length = lengths[i];
+      cursor += lengths[i];
+    }
+  });
   return &snapshot_data;
 }
 }  // namespace node
