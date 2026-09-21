@@ -4315,8 +4315,8 @@ Only what this side does is listed, because nothing the peer sends can arrive
 any earlier: its streams and datagrams need keys that are only unlocked once
 the session is already active.
 
-In practice this means a server session should be attached synchronously
-inside the [`quic.listen()`][] callback, and a client session should be
+In practice this means a server session must be attached synchronously
+inside the [`quic.listen()`][] callback, and a client session must be
 attached synchronously when the [`session.opened`][] promise resolves (or
 before), and in both cases before anything is sent on the session.
 
@@ -4334,6 +4334,11 @@ underlying [`QuicSession`][]: `alpnProtocol`, `certificate`, `close()`,
 `closed`, `destroy()`, `destroyed`, `ephemeralKeyInfo`, `onerror`, `opened`,
 `peerCertificate`, `servername`, and `stats`.
 
+Any callback set through the `Http3Session` - `onerror`, `onstream`, and the
+HTTP/3-specific ones below - is invoked with the `Http3Session` as `this`. The
+same callback set directly on the `QuicSession` is invoked with the
+`QuicSession`.
+
 ### `http3session.createBidirectionalStream([options])`
 
 <!-- YAML
@@ -4345,8 +4350,8 @@ added: REPLACEME
 Opens an HTTP/3 request stream. Equivalent to
 [`session.createBidirectionalStream()`][] on the underlying session.
 
-HTTP/3 has no server-initiated request streams, so calling this on a server
-session throws `ERR_INVALID_STATE`.
+HTTP/3 has no server-initiated request streams, so on a server session the
+returned promise is rejected with `ERR_INVALID_STATE`.
 
 ### `http3session.ongoaway`
 
@@ -4409,7 +4414,7 @@ added: REPLACEME
 
 The HTTP/3 settings in effect, including any update received from the peer's
 SETTINGS frame, which may arrive after the session opens. `null` once the
-session is destroyed.
+session is destroyed. Read only.
 
 ## Performance measurement
 

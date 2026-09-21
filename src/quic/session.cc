@@ -1235,8 +1235,7 @@ struct Session::Impl final : public MemoryRetainer {
     if (!session->has_application()) {
       // Not installed yet. If an attach has been scheduled, its settings are
       // already known and can be reported before the install happens.
-      if ((session->application_type() & ~Application::kTypePending) !=
-          static_cast<uint8_t>(Application::Type::HTTP3)) {
+      if (session->application_type() != Application::Type::HTTP3) {
         return args.GetReturnValue().SetUndefined();
       }
       if (Http3SettingsFromHandle(*session).ToObject(env).ToLocal(&obj)) {
@@ -2599,9 +2598,10 @@ bool Session::has_application() const {
   return !is_destroyed() && impl_->application_ != nullptr;
 }
 
-uint8_t Session::application_type() const {
-  if (is_destroyed()) return 0;
-  return impl_->state()->application_type;
+Session::ApplicationType Session::application_type() const {
+  if (is_destroyed()) return Application::Type::NONE;
+  return static_cast<Application::Type>(impl_->state()->application_type &
+                                        ~Application::kTypePending);
 }
 
 Session::Application& Session::application() const {
@@ -2631,8 +2631,7 @@ bool Session::EnsureApplication() {
   if (impl_->application_) [[likely]]
     return true;
 
-  if ((impl_->state()->application_type & ~Application::kTypePending) ==
-      static_cast<uint8_t>(Application::Type::HTTP3)) {
+  if (application_type() == Application::Type::HTTP3) {
     SetApplication(CreateHttp3Application(this));
   } else {
     SetApplication(

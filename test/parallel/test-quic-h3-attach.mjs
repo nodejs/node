@@ -254,11 +254,10 @@ const tooLate = {
   const refused = Promise.withResolvers();
   const endpoint = await listen(mustCall((quicSession) => {
     const server = new Http3Session(quicSession);
-    assert.throws(() => server.createBidirectionalStream(), {
+    refused.resolve(assert.rejects(server.createBidirectionalStream(), {
       code: 'ERR_INVALID_STATE',
       message: /Server sessions cannot open HTTP\/3 request streams/,
-    });
-    refused.resolve();
+    }));
   }), serverOpts);
   const client = new Http3Session(await connect(endpoint.address, clientOpts));
   await refused.promise;
