@@ -666,7 +666,8 @@ DirectHandle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::OwnedVector<const uint8_t> bytes) {
+    base::OwnedVector<const uint8_t> bytes,
+    base::Vector<const char> source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -718,9 +719,8 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 #endif
 
-  constexpr base::Vector<const char> kNoSourceUrl;
   DirectHandle<Script> script =
-      GetOrCreateScript(isolate, native_module, kNoSourceUrl);
+      GetOrCreateScript(isolate, native_module, source_url);
 
   native_module->LogWasmCodes(isolate, *script);
 
