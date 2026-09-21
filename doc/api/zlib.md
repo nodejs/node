@@ -2200,6 +2200,12 @@ configured for a Zstd compressor, it applies again to the next frame.
 
 Calling `reset()` while a write is in progress throws an `Error`.
 
+Resetting an incomplete Zstd compression frame after it has emitted output
+causes the stream to error with `ERR_ZLIB_INCOMPLETE_FRAME`. Resetting at
+that point would discard the frame state while the bytes already written
+out remain at the start of the output stream, leaving it undecodable. Call
+`.end()`, or start over with a new stream, instead.
+
 ## Class: `ZstdOptions`
 
 > Stability: 1 - Experimental
