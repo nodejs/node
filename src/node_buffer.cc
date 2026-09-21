@@ -599,9 +599,9 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 
 void CopyImpl(Local<Value> source_obj,
               Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
+              const size_t target_start,
+              const size_t source_start,
+              const size_t to_copy) {
   ArrayBufferViewContents<char> source(source_obj);
   SPREAD_BUFFER_ARG(target_obj, target);
 
@@ -612,27 +612,36 @@ void CopyImpl(Local<Value> source_obj,
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  const uint32_t target_start = args[2].As<Uint32>()->Value();
-  const uint32_t source_start = args[3].As<Uint32>()->Value();
-  const uint32_t to_copy = args[4].As<Uint32>()->Value();
+  // Byte offsets and lengths can exceed uint32 for buffers larger than 4 GiB,
+  // so they are passed and returned as doubles (exact for integers < 2^53).
+  const size_t target_start =
+      static_cast<size_t>(args[2].As<Number>()->Value());
+  const size_t source_start =
+      static_cast<size_t>(args[3].As<Number>()->Value());
+  const size_t to_copy = static_cast<size_t>(args[4].As<Number>()->Value());
 
   CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
 
-  args.GetReturnValue().Set(to_copy);
+  args.GetReturnValue().Set(static_cast<double>(to_copy));
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
-                  Local<Value> source_obj,
-                  Local<Value> target_obj,
-                  uint32_t target_start,
-                  uint32_t source_start,
-                  uint32_t to_copy,
-                  // NOLINTNEXTLINE(runtime/references)
-                  FastApiCallbackOptions& options) {
+double FastCopy(Local<Value> receiver,
+                Local<Value> source_obj,
+                Local<Value> target_obj,
+                double target_start,
+                double source_start,
+                double to_copy,
+                // NOLINTNEXTLINE(runtime/references)
+                FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.copy");
   HandleScope scope(options.isolate);
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  CopyImpl(source_obj,
+           target_obj,
+           static_cast<size_t>(target_start),
+           static_cast<size_t>(source_start),
+           static_cast<size_t>(to_copy));
 
   return to_copy;
 }
