@@ -1253,16 +1253,16 @@ CompressionError ZlibContext::GetErrorInfo() const {
 
 
 CompressionError ZlibContext::ResetStream() {
-  // deflateReset() is deflateEnd + deflateInit: a new stream. Bytes already
-  // written out cannot be taken back, so refuse reset on wrapper formats
-  // (gzip / zlib deflate) once an incomplete member has emitted output.
-  // Unflushed internal state alone is cancelled by deflateReset; raw deflate
-  // has no wrapper header, so flush+reset still concatenates.
-  if ((mode_ == GZIP || mode_ == DEFLATE) && !stream_complete_ &&
-      output_emitted_) {
+  // deflateReset() is deflateEnd + deflateInit: a new stream. gzip emits a
+  // wrapper header on the first write; those bytes cannot be taken back, so
+  // refuse reset once an incomplete gzip member has emitted output.
+  // zlib-wrapped deflate still allows reset after flush: callers discard the
+  // first member (test-zlib-dictionary.js). Raw deflate has no wrapper header,
+  // so flush+reset still concatenates.
+  if (mode_ == GZIP && !stream_complete_ && output_emitted_) {
     return CompressionError(
-        "Cannot reset a zlib stream with an incomplete member; end the "
-        "stream or discard the output produced so far",
+        "Cannot reset a gzip stream with an incomplete member; end the "
+        "stream or start a new gzip compressor",
         "ERR_ZLIB_INCOMPLETE_FRAME",
         Z_STREAM_ERROR);
   }
