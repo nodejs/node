@@ -3,10 +3,16 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "path.h"
+#include "simdutf.h"
 #include "util-inl.h"
+
+#include <cstring>
+#include <limits>
+#include <string>
 
 namespace node {
 using node::url_pattern::URLPatternRegexProvider;
@@ -53,9 +59,12 @@ struct MemoryRetainerTraits<
 namespace node::url_pattern {
 
 using v8::Array;
+using v8::CFunction;
 using v8::Context;
 using v8::DictionaryTemplate;
 using v8::DontDelete;
+using v8::FastApiCallbackOptions;
+using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
@@ -72,6 +81,40 @@ using v8::RegExp;
 using v8::Signature;
 using v8::String;
 using v8::Value;
+
+namespace {
+
+// Copy Latin-1 fast-call bytes to UTF-8 the caller owns. The copy finishes
+// before any V8 allocation so the FastOneByteString pointer stays valid.
+std::string OwnedUtf8(const FastOneByteString& input) {
+  if (simdutf::validate_ascii(input.data, input.length)) {
+    return std::string(input.data, input.length);
+  }
+  const size_t len = simdutf::utf8_length_from_latin1(input.data, input.length);
+  std::string out(len, '\0');
+  const size_t written =
+      simdutf::convert_latin1_to_utf8(input.data, input.length, out.data());
+  CHECK_EQ(written, len);
+  return out;
+}
+
+MaybeLocal<String> PatternInputString(Isolate* isolate,
+                                      std::string_view input) {
+  if (input.size() <= static_cast<size_t>(std::numeric_limits<int>::max()) &&
+      simdutf::validate_ascii(input.data(), input.size())) {
+    return String::NewFromOneByte(
+        isolate,
+        reinterpret_cast<const uint8_t*>(input.data()),
+        NewStringType::kNormal,
+        static_cast<int>(input.size()));
+  }
+  return String::NewFromUtf8(
+      isolate, input.data(), NewStringType::kNormal, input.size());
+}
+
+}  // namespace
+
+const CFunction kFastTest = CFunction::Make(URLPattern::FastTest);
 
 std::optional<URLPatternRegexProvider::regex_type>
 URLPatternRegexProvider::create_instance(std::string_view pattern,
@@ -103,9 +146,7 @@ bool URLPatternRegexProvider::regex_match(std::string_view input,
   auto isolate = Isolate::GetCurrent();
   auto env = Environment::GetCurrent(isolate);
   Local<String> local_input;
-  if (!String::NewFromUtf8(
-           isolate, input.data(), NewStringType::kNormal, input.size())
-           .ToLocal(&local_input)) {
+  if (!PatternInputString(isolate, input).ToLocal(&local_input)) {
     return false;
   }
   Local<Object> result_object;
@@ -124,9 +165,7 @@ URLPatternRegexProvider::regex_search(std::string_view input,
   auto isolate = Isolate::GetCurrent();
   auto env = Environment::GetCurrent(isolate);
   Local<String> local_input;
-  if (!String::NewFromUtf8(
-           isolate, input.data(), NewStringType::kNormal, input.size())
-           .ToLocal(&local_input)) {
+  if (!PatternInputString(isolate, input).ToLocal(&local_input)) {
     return std::nullopt;
   }
   Local<Object> exec_result_object;
@@ -348,50 +387,58 @@ std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
     Environment* env, Local<Object> obj) {
   ada::url_pattern_init init{};
   Local<String> components[] = {
-      env->base_url_string(),
-      env->hash_string(),
-      env->hostname_string(),
-      env->password_string(),
-      env->pathname_string(),
-      env->port_string(),
-      env->protocol_string(),
-      env->search_string(),
-      env->username_string(),
+      env->base_url_string(),  // 0
+      env->hash_string(),      // 1
+      env->hostname_string(),  // 2
+      env->password_string(),  // 3
+      env->pathname_string(),  // 4
+      env->port_string(),      // 5
+      env->protocol_string(),  // 6
+      env->search_string(),    // 7
+      env->username_string(),  // 8
   };
   auto isolate = env->isolate();
-  const auto set_parameter = [&](std::string_view key, std::string_view value) {
-    if (key == "protocol") {
-      init.protocol = std::string(value);
-    } else if (key == "username") {
-      init.username = std::string(value);
-    } else if (key == "password") {
-      init.password = std::string(value);
-    } else if (key == "hostname") {
-      init.hostname = std::string(value);
-    } else if (key == "port") {
-      init.port = std::string(value);
-    } else if (key == "pathname") {
-      init.pathname = std::string(value);
-    } else if (key == "search") {
-      init.search = std::string(value);
-    } else if (key == "hash") {
-      init.hash = std::string(value);
-    } else if (key == "baseURL") {
-      init.base_url = std::string(value);
-    }
-  };
   Local<Value> value;
-  for (const auto& component : components) {
-    Utf8Value key(isolate, component);
-    if (obj->Get(env->context(), component).ToLocal(&value)) {
-      if (value->IsString()) {
-        Utf8Value utf8_value(isolate, value);
-        set_parameter(key.ToStringView(), utf8_value.ToStringView());
-      }
-    } else {
-      // If ToLocal failed then we assume an error occurred,
-      // bail out early to propagate the error.
+  for (size_t i = 0; i < 9; i++) {
+    if (!obj->Get(env->context(), components[i]).ToLocal(&value)) {
+      // Getting the property threw. Propagate that.
       return std::nullopt;
+    }
+    if (!value->IsString()) {
+      continue;
+    }
+    Utf8Value utf8_value(isolate, value);
+    const std::string_view view = utf8_value.ToStringView();
+    switch (i) {
+      case 0:
+        init.base_url = std::string(view);
+        break;
+      case 1:
+        init.hash = std::string(view);
+        break;
+      case 2:
+        init.hostname = std::string(view);
+        break;
+      case 3:
+        init.password = std::string(view);
+        break;
+      case 4:
+        init.pathname = std::string(view);
+        break;
+      case 5:
+        init.port = std::string(view);
+        break;
+      case 6:
+        init.protocol = std::string(view);
+        break;
+      case 7:
+        init.search = std::string(view);
+        break;
+      case 8:
+        init.username = std::string(view);
+        break;
+      default:
+        UNREACHABLE();
     }
   }
   return init;
@@ -564,7 +611,6 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
   URLPattern* url_pattern;
   ASSIGN_OR_RETURN_UNWRAP(&url_pattern, args.This());
   auto env = Environment::GetCurrent(args);
-
   ada::url_pattern_input input;
   std::optional<std::string> baseURL{};
   std::string input_base;
@@ -604,6 +650,37 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   args.GetReturnValue().Set(result);
+}
+
+bool URLPattern::FastTest(Local<Object> receiver,
+                          const FastOneByteString& input,
+                          FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("urlpattern.test");
+  (void)options;
+  if (receiver->InternalFieldCount() < BaseObject::kInternalFieldCount) {
+    return false;
+  }
+  URLPattern* self = BaseObject::FromJSObject<URLPattern>(receiver);
+  if (self == nullptr) {
+    return false;
+  }
+  // Copy out of the fast-call pointer before regexp matching allocates.
+  char stack[512];
+  std::string heap;
+  std::string_view view;
+  if (simdutf::validate_ascii(input.data, input.length) &&
+      input.length <= sizeof(stack)) {
+    memcpy(stack, input.data, input.length);
+    view = {stack, input.length};
+  } else {
+    heap = OwnedUtf8(input);
+    view = heap;
+  }
+  ada::url_pattern_input pattern_input{view};
+  if (auto result = self->url_pattern_.test(pattern_input, nullptr)) {
+    return *result;
+  }
+  return false;
 }
 
 void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
@@ -674,6 +751,7 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(URLPattern::HasRegexpGroups);
   registry->Register(URLPattern::Exec);
   registry->Register(URLPattern::Test);
+  registry->Register(kFastTest);
 }
 
 static void Initialize(Local<Object> target,
@@ -720,7 +798,16 @@ static void Initialize(Local<Object> target,
       attributes);
 
   SetProtoMethodNoSideEffect(isolate, ctor_tmpl, "exec", URLPattern::Exec);
-  SetProtoMethodNoSideEffect(isolate, ctor_tmpl, "test", URLPattern::Test);
+  Local<FunctionTemplate> test_template =
+      NewFunctionTemplate(isolate,
+                          URLPattern::Test,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect,
+                          &kFastTest);
+  test_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "test"));
+  prototype_template->Set(FIXED_ONE_BYTE_STRING(isolate, "test"),
+                          test_template);
   SetConstructorFunction(context, target, "URLPattern", ctor_tmpl);
 }
 

@@ -6,6 +6,7 @@
 #include "ada.h"
 #include "base_object.h"
 #include "util.h"
+#include "v8-fast-api-calls.h"
 
 #include <v8.h>
 
@@ -52,6 +53,9 @@ class URLPattern : public BaseObject {
   // - Functions
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void Test(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static bool FastTest(v8::Local<v8::Object> receiver,
+                       const v8::FastOneByteString& input,
+                       v8::FastApiCallbackOptions& options);
   // - Component Getters
 #define URL_PATTERN_COMPONENT_GETTERS(name, _)                                 \
   static void name(const v8::FunctionCallbackInfo<v8::Value>& info);

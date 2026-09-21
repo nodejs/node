@@ -24,6 +24,7 @@ namespace url {
 using v8::CFunction;
 using v8::Context;
 using v8::FastApiCallbackOptions;
+using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -33,6 +34,34 @@ using v8::ObjectTemplate;
 using v8::SnapshotCreator;
 using v8::String;
 using v8::Value;
+
+namespace {
+
+// FastOneByteString bytes are Latin-1. ada wants UTF-8. ASCII is already
+// UTF-8 and is returned as a view of `input`. Anything else is converted
+// into `stack` when it fits, otherwise into `storage`.
+std::string_view OneByteAsUtf8(const FastOneByteString& input,
+                               char* stack,
+                               size_t stack_size,
+                               std::string* storage) {
+  if (simdutf::validate_ascii(input.data, input.length)) {
+    return {input.data, input.length};
+  }
+  const size_t len = simdutf::utf8_length_from_latin1(input.data, input.length);
+  char* dest;
+  if (len <= stack_size) {
+    dest = stack;
+  } else {
+    storage->resize(len);
+    dest = storage->data();
+  }
+  const size_t written =
+      simdutf::convert_latin1_to_utf8(input.data, input.length, dest);
+  CHECK_EQ(written, len);
+  return {dest, len};
+}
+
+}  // namespace
 
 namespace {
 
@@ -323,49 +352,39 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(can_parse);
 }
 
-bool BindingData::FastCanParse(
+bool BindingData::FastCanParseOneByte(
     Local<Value> receiver,
-    Local<Value> input,
+    const FastOneByteString& input,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("url.canParse");
-  auto isolate = options.isolate;
-  HandleScope handleScope(isolate);
-  Local<String> str;
-  if (!input->ToString(isolate->GetCurrentContext()).ToLocal(&str)) {
-    return false;
-  }
-  Utf8Value utf8(isolate, str);
-  return ada::can_parse(utf8.ToStringView());
+  TRACK_V8_FAST_API_CALL("url.canParse.oneByte");
+  char stack[512];
+  std::string storage;
+  return ada::can_parse(OneByteAsUtf8(input, stack, sizeof(stack), &storage));
 }
 
-bool BindingData::FastCanParseWithBase(
+bool BindingData::FastCanParseOneByteWithBase(
     Local<Value> receiver,
-    Local<Value> input,
-    Local<Value> base,
+    const FastOneByteString& input,
+    const FastOneByteString& base,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("url.canParse.withBase");
-  auto isolate = options.isolate;
-  HandleScope handleScope(isolate);
-  auto context = isolate->GetCurrentContext();
-  Local<String> input_str;
-  if (!input->ToString(context).ToLocal(&input_str)) {
-    return false;
-  }
-  Local<String> base_str;
-  if (!base->ToString(context).ToLocal(&base_str)) {
-    return false;
-  }
-  Utf8Value input_utf8(isolate, input_str);
-  Utf8Value base_utf8(isolate, base_str);
-
-  auto base_view = base_utf8.ToStringView();
-  return ada::can_parse(input_utf8.ToStringView(), &base_view);
+  TRACK_V8_FAST_API_CALL("url.canParse.oneByte.withBase");
+  char input_stack[512];
+  char base_stack[512];
+  std::string input_storage;
+  std::string base_storage;
+  const std::string_view input_view =
+      OneByteAsUtf8(input, input_stack, sizeof(input_stack), &input_storage);
+  const std::string_view base_view =
+      OneByteAsUtf8(base, base_stack, sizeof(base_stack), &base_storage);
+  return ada::can_parse(input_view, &base_view);
 }
 
 CFunction BindingData::fast_can_parse_methods_[] = {
-    CFunction::Make(FastCanParse), CFunction::Make(FastCanParseWithBase)};
+    CFunction::Make(FastCanParseOneByte),
+    CFunction::Make(FastCanParseOneByteWithBase),
+};
 
 void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 4);

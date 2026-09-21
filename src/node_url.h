@@ -50,14 +50,15 @@ class BindingData : public SnapshotableObject {
   static void DomainToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void CanParse(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static bool FastCanParse(v8::Local<v8::Value> receiver,
-                           v8::Local<v8::Value> input,
-                           // NOLINTNEXTLINE(runtime/references) This is V8 api.
-                           v8::FastApiCallbackOptions& options);
-  static bool FastCanParseWithBase(
+  static bool FastCanParseOneByte(
       v8::Local<v8::Value> receiver,
-      v8::Local<v8::Value> input,
-      v8::Local<v8::Value> base,
+      const v8::FastOneByteString& input,
+      // NOLINTNEXTLINE(runtime/references) This is V8 api.
+      v8::FastApiCallbackOptions& options);
+  static bool FastCanParseOneByteWithBase(
+      v8::Local<v8::Value> receiver,
+      const v8::FastOneByteString& input,
+      const v8::FastOneByteString& base,
       // NOLINTNEXTLINE(runtime/references) This is V8 api.
       v8::FastApiCallbackOptions& options);
 
