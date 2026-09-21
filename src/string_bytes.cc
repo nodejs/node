@@ -259,8 +259,7 @@ size_t HexDecodeFast(char* buf,
         static_cast<unsigned>(table[static_cast<uint8_t>(src[6])]);
     const unsigned b3 =
         static_cast<unsigned>(table[static_cast<uint8_t>(src[7])]);
-    if ((a0 | b0 | a1 | b1 | a2 | b2 | a3 | b3) > 15)
-      break;
+    if ((a0 | b0 | a1 | b1 | a2 | b2 | a3 | b3) > 15) break;
     buf[i] = static_cast<char>((a0 << 4) | b0);
     buf[i + 1] = static_cast<char>((a1 << 4) | b1);
     buf[i + 2] = static_cast<char>((a2 << 4) | b2);
@@ -272,8 +271,7 @@ size_t HexDecodeFast(char* buf,
         static_cast<unsigned>(table[static_cast<uint8_t>(src[0])]);
     const unsigned b =
         static_cast<unsigned>(table[static_cast<uint8_t>(src[1])]);
-    if ((a | b) > 15)
-      return i;
+    if ((a | b) > 15) return i;
     buf[i] = static_cast<char>((a << 4) | b);
   }
   return i;
