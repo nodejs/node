@@ -300,7 +300,7 @@ void MemoryTracker::Track(const CppgcMixin* retainer, const char* edge_name) {
   auto it = seen_.find(retainer);
   if (it != seen_.end()) {
     if (CurrentNode() != nullptr) {
-      AddEdge(CurrentNode(), it->second, edge_name);
+      AddEdge(CurrentNode(), it->second->JSWrapperNode(), edge_name);
     }
     return;  // It has already been tracked, no need to call MemoryInfo again
   }
@@ -357,6 +357,11 @@ inline void MemoryTracker::TraitTrackInline(const T& retainer,
       -(static_cast<int>(MemoryRetainerTraits<T>::SelfSize(retainer))));
 }
 
+MemoryTracker::MemoryTracker(v8::Isolate* isolate, v8::EmbedderGraph* graph)
+    : isolate_(isolate), graph_(graph) {}
+
+MemoryTracker::~MemoryTracker() = default;
+
 v8::EmbedderGraph::Node* MemoryTracker::CurrentNode() const {
   if (node_stack_.empty()) return nullptr;
   MemoryRetainerNode* n = node_stack_.top();
@@ -373,7 +378,8 @@ MemoryRetainerNode* MemoryTracker::AddNode(const CppgcMixin* retainer,
     return it->second;
   }
 
-  MemoryRetainerNode* n = new MemoryRetainerNode(this, retainer);
+  cppgc_nodes_.push_back(std::make_unique<MemoryRetainerNode>(this, retainer));
+  MemoryRetainerNode* n = cppgc_nodes_.back().get();
   seen_[retainer] = n;
   if (CurrentNode() != nullptr) {
     AddEdge(CurrentNode(), n->JSWrapperNode(), edge_name);
