@@ -50,21 +50,23 @@ async function check() {
       }
     }
   }
+  const hashes = crypto.getHashes();
+  const hashError = { name: 'NotSupportedError', message: 'Unrecognized algorithm name' };
   const rsa = {
     name: 'RSA-PSS', modulusLength: 1024,
     publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256',
   };
   assert.strictEqual(SubtleCrypto.supports('generateKey', rsa), !fips);
   if (fips) {
-    assert.throws(() => normalizeAlgorithm(rsa, 'generateKey'), {
+    // Hash normalization precedes the RSA operation's modulus validation.
+    const error = hashes.includes('sha256') ? {
       name: 'OperationError', message: 'algorithm.modulusLength must be at least 2048',
-    });
+    } : hashError;
+    await assert.rejects(subtle.generateKey(rsa, true, ['sign']), error);
   } else {
     assert.strictEqual(normalizeAlgorithm(rsa, 'generateKey').modulusLength, 1024);
   }
-  const hashes = crypto.getHashes();
   const salt = new Uint8Array(16);
-  const hashError = { name: 'NotSupportedError', message: 'Unrecognized algorithm name' };
   for (const [name, alias] of [
     ['SHA-1', 'sha1'], ['SHA-256', 'sha256'], ['SHA-384', 'sha384'], ['SHA-512', 'sha512'],
     ['SHA3-256', 'sha3-256'], ['SHA3-384', 'sha3-384'], ['SHA3-512', 'sha3-512'],
