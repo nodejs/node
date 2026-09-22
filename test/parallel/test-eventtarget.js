@@ -24,7 +24,7 @@ process.on('warning', (e) => {
   lastWarning = e;
 });
 
-// Utility promise for parts of the test that need to wait for eachother -
+// Utility promise for parts of the test that need to wait for each other -
 // Namely tests for warning events
 /* eslint-disable no-unused-vars */
 let asyncTest = Promise.resolve();
