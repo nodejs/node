@@ -583,6 +583,7 @@ declare namespace InternalCryptoBinding {
     getAsymmetricKeyType(): string | undefined;
     getSymmetricKeySize(): number;
     checkEcKeyData(): boolean;
+    exportECPrivatePkcs8(): Buffer;
   }
 
   interface NativeKeyObject {

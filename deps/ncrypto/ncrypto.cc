@@ -7384,6 +7384,24 @@ int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
 }
 
+BIOPointer Ec::ExportPrivatePkcs8(const EVPKeyPointer& key) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  if (!key || !key.isA(KeyAlgorithm::EC)) return {};
+  auto ec = ECKeyPointer(key).clone();
+  if (!ec) return {};
+#if NCRYPTO_USE_LEGACY_KEY_TYPES
+  // Decoding an ECPrivateKey without publicKey reconstructs the public point
+  // but retains a flag that omits it from subsequent encodings.
+  EC_KEY_set_enc_flags(ec.get(),
+                       EC_KEY_get_enc_flags(ec.get()) & ~EC_PKEY_NO_PUBKEY);
+#endif
+  auto export_key = EVPKeyPointer::New();
+  if (!export_key || !export_key.set(ec)) return {};
+  auto encoded = export_key.writePrivateKey({});
+  if (!encoded) return {};
+  return std::move(encoded.value);
+}
+
 DataPointer Ec::TryExportPublic(const EVPKeyPointer& key,
                                 point_conversion_form_t form) {
   if (!key || form != POINT_CONVERSION_UNCOMPRESSED) return {};

@@ -1144,6 +1144,8 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
         isolate, templ, "exportECPublicRaw", ExportECPublicRaw);
     SetProtoMethodNoSideEffect(
         isolate, templ, "exportECPrivateRaw", ExportECPrivateRaw);
+    SetProtoMethodNoSideEffect(
+        isolate, templ, "exportECPrivatePkcs8", ExportECPrivatePkcs8);
     SetProtoMethod(isolate, templ, "keyDetail", GetKeyDetail);
     SetProtoMethod(isolate, templ, "equals", Equals);
 
@@ -1167,6 +1169,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(RawSeed);
   registry->Register(ExportECPublicRaw);
   registry->Register(ExportECPrivateRaw);
+  registry->Register(ExportECPrivatePkcs8);
   registry->Register(GetKeyDetail);
   registry->Register(Equals);
 }
@@ -1581,6 +1584,24 @@ void KeyObjectHandle::ExportECPrivateRaw(
 
   args.GetReturnValue().Set(Buffer::Copy(env, buf.get<const char>(), buf.size())
                                 .FromMaybe(Local<Value>()));
+}
+
+void KeyObjectHandle::ExportECPrivatePkcs8(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+  const KeyObjectData& data = key->Data();
+  CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
+  Mutex::ScopedLock lock(data.mutex());
+  auto encoded = ncrypto::Ec::ExportPrivatePkcs8(data.GetAsymmetricKey());
+  if (!encoded) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to export EC private key");
+  }
+  const EVPKeyPointer::PrivateKeyEncodingConfig config;
+  args.GetReturnValue().Set(
+      ToV8Value(env, encoded, config).FromMaybe(Local<Value>()));
 }
 
 void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
