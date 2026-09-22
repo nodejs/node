@@ -651,7 +651,10 @@ IsolateData::IsolateData(Isolate* isolate,
   }
 }
 
-IsolateData::~IsolateData() {}
+IsolateData::~IsolateData() {
+  // FreeIsolateData() before FreeEnvironment() of an Environment using it.
+  CHECK_EQ(environment_count_, 0);
+}
 
 // Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
@@ -983,6 +986,7 @@ Environment::Environment(IsolateData* isolate_data,
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id),
       thread_name_(thread_name) {
+  isolate_data->AddEnvironment();
 #if HAVE_OPENSSL && NCRYPTO_USE_OPENSSL3_PROVIDER
   provider_digest_cache = std::make_unique<ncrypto::DigestCache>();
   provider_cipher_cache = std::make_unique<ncrypto::CipherCache>();
@@ -1304,6 +1308,7 @@ Environment::~Environment() {
     cpu_profiler_->Dispose();
     cpu_profiler_ = nullptr;
   }
+  isolate_data_->RemoveEnvironment();
 }
 
 void Environment::InitializeLibuv() {
