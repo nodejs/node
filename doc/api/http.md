@@ -215,9 +215,15 @@ changes:
       If undefined, no proxy is used for HTTPS requests.
     * `NO_PROXY` {string|undefined} Patterns specifying the endpoints
       that should not be routed through a proxy.
-    * `http_proxy` {string|undefined} Same as `HTTP_PROXY`. If both are set, `http_proxy` takes precedence.
-    * `https_proxy` {string|undefined} Same as `HTTPS_PROXY`. If both are set, `https_proxy` takes precedence.
-    * `no_proxy` {string|undefined} Same as `NO_PROXY`. If both are set, `no_proxy` takes precedence.
+    * `http_proxy` {string|undefined} Same as `HTTP_PROXY`. If both are set, `http_proxy` takes
+      precedence, including when `http_proxy` is explicitly set to an empty string (in which case
+      no proxy is used for HTTP requests, and `HTTP_PROXY` is not consulted).
+    * `https_proxy` {string|undefined} Same as `HTTPS_PROXY`. If both are set, `https_proxy` takes
+      precedence, including when `https_proxy` is explicitly set to an empty string (in which case
+      no proxy is used for HTTPS requests, and `HTTPS_PROXY` is not consulted).
+    * `no_proxy` {string|undefined} Same as `NO_PROXY`. If both are set, `no_proxy` takes
+      precedence, including when `no_proxy` is explicitly set to an empty string (in which case
+      `NO_PROXY` is not consulted, and no hosts are bypassed unless matched by other rules).
   * `defaultPort` {number} Default port to use when the port is not specified
     in requests. **Default:** `80`.
   * `protocol` {string} The protocol to use for the agent. **Default:** `'http:'`.
@@ -4579,12 +4585,13 @@ or an object with specific setting overriding the environment.
 The following properties of the `proxyEnv` are checked to configure proxy
 support.
 
-* `HTTP_PROXY` or `http_proxy`: Proxy server URL for HTTP requests. If both are set,
-  `http_proxy` takes precedence.
-* `HTTPS_PROXY` or `https_proxy`: Proxy server URL for HTTPS requests. If both are set,
-  `https_proxy` takes precedence.
-* `NO_PROXY` or `no_proxy`: Comma-separated list of hosts to bypass the proxy. If both are set,
-  `no_proxy` takes precedence.
+#### Precedence and empty values
+
+For each pair above, the lower-cased variable takes precedence over the upper-cased one
+whenever the lower-cased variable is explicitly set in the environment — **even if it is
+set to an empty string**. An empty lower-cased value is not treated as unset: it overrides
+the upper-cased variable rather than falling back to it. To have the upper-cased variable
+apply, the lower-cased variable must be unset entirely (not merely empty).
 
 If the request is made to a Unix domain socket, the proxy settings will be ignored.
 
