@@ -1,6 +1,6 @@
 // Flags: --expose-gc
 'use strict';
-const { skipIfSQLiteMissing } = require('../common');
+const { skipIfSQLiteMissing, mustCallAtLeast } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
 const { DatabaseSync } = require('node:sqlite');
@@ -344,6 +344,40 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
       assert.strictEqual(received.length, paramCount);
       assert.strictEqual(received[paramCount - 1], 7);
+    });
+
+    test('does not pass null for parameters that are unavailable in a plan', () => {
+      const db = new DatabaseSync(':memory:');
+
+      db.createModule('join_params', {
+        columns: [
+          { name: 'value', type: 'INTEGER' },
+          { name: 'param', type: 'INTEGER', hidden: true },
+        ],
+        rows: mustCallAtLeast(function*(param) {
+          assert.notStrictEqual(param, null,
+                                'rows() must not be called with an unavailable ' +
+                                'parameter');
+          if (param !== null) {
+            yield [param];
+          }
+        }),
+      });
+
+      db.exec('CREATE TABLE t (a INTEGER)');
+      db.exec('INSERT INTO t VALUES (1), (2), (3)');
+
+      // With DISTINCT, SQLite may consider a plan where the parameter is read
+      // from the inner table and is not yet available, which used to make
+      // xBestIndex accept it and call rows(null), producing an empty result.
+      const result = db.prepare(
+        'SELECT DISTINCT value FROM join_params, t WHERE join_params.param = t.a'
+      ).all();
+      assert.deepStrictEqual(result, [
+        { __proto__: null, value: 1 },
+        { __proto__: null, value: 2 },
+        { __proto__: null, value: 3 },
+      ]);
     });
   });
 
