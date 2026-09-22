@@ -717,6 +717,11 @@ class VirtualTableModule {
   // from a garbage collection callback where JavaScript cannot be executed.
   bool CanCallIntoJS() const;
 
+  // Runs the iterator's return() method so generator `finally` blocks still run
+  // when an iterator is abandoned while suspended. Returns true if the return()
+  // threw; the exception is re-thrown for the caller to surface.
+  bool CloseIterator(NodeVTabCursor* cursor);
+
   static void ReleaseHiddenValues(NodeVTabCursor* cursor);
 
   Environment* env_;

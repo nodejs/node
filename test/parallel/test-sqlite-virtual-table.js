@@ -558,6 +558,36 @@ suite('DatabaseSync.prototype.createModule()', () => {
       }
     });
 
+    test('closes the iterator when a filter is reapplied to the cursor', () => {
+      // A correlated subquery re-invokes xFilter on the same cursor per outer
+      // row, abandoning the previous iterator; its `finally` must still run.
+      const db = new DatabaseSync(':memory:');
+      const cleanedUp = [];
+
+      db.createModule('refilter_cleanup', {
+        columns: [
+          { name: 'input', type: 'INTEGER', hidden: true },
+        ],
+        *rows(input) {
+          try {
+            yield [input];
+          } finally {
+            cleanedUp.push(input);
+          }
+        },
+      });
+
+      db.exec('CREATE TABLE t(a); INSERT INTO t VALUES (1), (2)');
+      const rows = db.prepare(
+        'SELECT a FROM t WHERE EXISTS(SELECT 1 FROM refilter_cleanup(t.a))'
+      ).all();
+      assert.deepStrictEqual(rows, [
+        { __proto__: null, a: 1 },
+        { __proto__: null, a: 2 },
+      ]);
+      assert.deepStrictEqual(cleanedUp, [1, 2]);
+    });
+
     test('does not run cleanup when the statement is collected', () => {
       // The destructor runs from a GC callback, where JavaScript cannot be
       // executed. An abandoned generator does not run `finally` in JavaScript
