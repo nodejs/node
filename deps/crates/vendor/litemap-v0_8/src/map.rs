@@ -35,7 +35,7 @@ macro_rules! litemap_impl(
 );
 // You can't `cfg()` a default generic parameter, and we don't want to write this type twice
 // and keep them in sync so we use a small macro
-litemap_impl!(feature = "alloc", S = alloc::vec::Vec<(K, V)>);
+litemap_impl!(feature = "alloc", S = Vec<(K, V)>);
 litemap_impl!(not(feature = "alloc"), S);
 
 #[cfg(feature = "alloc")]
@@ -45,7 +45,7 @@ impl<K, V> LiteMap<K, V> {
     /// ✨ *Enabled with the `alloc` Cargo feature.*  
     pub const fn new_vec() -> Self {
         Self {
-            values: alloc::vec::Vec::new(),
+            values: Vec::new(),
             _key_type: PhantomData,
             _value_type: PhantomData,
         }

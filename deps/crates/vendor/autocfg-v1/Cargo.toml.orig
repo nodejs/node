@@ -1,6 +1,6 @@
 [package]
 name = "autocfg"
-version = "1.5.0"
+version = "1.5.1"
 authors = ["Josh Stone <cuviper@gmail.com>"]
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/cuviper/autocfg"
@@ -12,4 +12,15 @@ categories = ["development-tools::build-utils"]
 exclude = ["/.github/**"]
 rust-version = "1.0"
 
-[dependencies]
+[[test]]
+name = "no_std"
+
+[[test]]
+name = "rustflags"
+
+[[test]]
+name = "tests"
+
+[[test]]
+name = "wrappers"
+harness = false
