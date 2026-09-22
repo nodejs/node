@@ -39,7 +39,7 @@ class SBOM extends BaseCommand {
     const arb = new Arborist(opts)
 
     const tree = packageLockOnly ? await arb.loadVirtual(opts).catch(() => {
-      throw this.usageError('A package lock or shrinkwrap file is required in package-lock-only mode')
+      throw this.usageError('A package-lock.json file is required in package-lock-only mode')
     }) : await arb.loadActual(opts)
 
     // Collect the list of selected workspaces in the project

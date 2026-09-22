@@ -9,16 +9,16 @@ const { cleanCwd } = require('../../fixtures/clean-snapshot.js')
 
 const pkg = 'test-package'
 
-const createNpxCacheEntry = (npxCacheDir, hash, pkgJson, shrinkwrapJson) => {
+const createNpxCacheEntry = (npxCacheDir, hash, pkgJson, lockJson) => {
   fs.mkdirSync(path.join(npxCacheDir, hash))
   fs.writeFileSync(
     path.join(npxCacheDir, hash, 'package.json'),
     JSON.stringify(pkgJson)
   )
-  if (shrinkwrapJson) {
+  if (lockJson) {
     fs.writeFileSync(
-      path.join(npxCacheDir, hash, 'npm-shrinkwrap.json'),
-      JSON.stringify(shrinkwrapJson)
+      path.join(npxCacheDir, hash, 'package-lock.json'),
+      JSON.stringify(lockJson)
     )
   }
 }
@@ -685,7 +685,7 @@ t.test('cache npx info: valid entry with a link dependency', async t => {
   )
 
   fs.writeFileSync(
-    path.join(pkgDir, 'npm-shrinkwrap.json'),
+    path.join(pkgDir, 'package-lock.json'),
     JSON.stringify({
       name: 'link-package',
       version: '1.0.0',

@@ -10,6 +10,7 @@ const Pipeline = require('minipass-pipeline')
 const Flush = require('minipass-flush')
 const path = require('path')
 const ssri = require('ssri')
+const cacheDir = require('../util/cache-dir')
 const { tmpName } = require('../util/tmp')
 const fsm = require('fs-minipass')
 
@@ -153,6 +154,7 @@ async function pipeToTmp (inputStream, cache, tmpTarget, opts) {
 
 async function makeTmp (cache, opts) {
   const tmpTarget = tmpName(cache, opts.tmpPrefix)
+  await cacheDir.mkdir(cache)
   await fs.mkdir(path.dirname(tmpTarget), { recursive: true })
   return {
     target: tmpTarget,

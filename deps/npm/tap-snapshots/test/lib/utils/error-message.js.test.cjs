@@ -1553,7 +1553,7 @@ Object {
   "detail": Array [
     Array [
       "need auth",
-      "You need to authorize this machine using \`npm adduser\`",
+      "You need to authorize this machine using \`npm login\`",
     ],
   ],
   "summary": Array [

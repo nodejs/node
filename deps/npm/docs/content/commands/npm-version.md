@@ -169,12 +169,14 @@ Note that commands explicitly intended to run a particular script, such as
 run their intended script if `ignore-scripts` is set, but they will *not*
 run any pre- or post-scripts.
 
+Setting `ignore-scripts` also disables `.npm-extension` execution, as if
+`ignore-extension` were set.
+
 
 
 ### Description
 
-Run this in a package directory to bump the version and write the new data back to `package.json`, `package-lock.json`, and, if present,
-`npm-shrinkwrap.json`.
+Run this in a package directory to bump the version and write the new data back to `package.json` and `package-lock.json`.
 
 The `newversion` argument should be a valid semver string, a valid second argument to [semver.inc](https://github.com/npm/node-semver#functions) (one of `patch`, `minor`, `major`, `prepatch`, `preminor`, `premajor`, `prerelease`), or `from-git`.
 In the second case, the existing version will be incremented by 1 in the specified field.

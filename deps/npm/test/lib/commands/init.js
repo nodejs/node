@@ -43,7 +43,7 @@ t.test('classic npm init -y', async t => {
 
   const pkg = require(resolve(prefix, 'package.json'))
   t.equal(pkg.version, '1.0.0')
-  t.equal(pkg.license, 'ISC')
+  t.equal(pkg.license, undefined, 'license is omitted by default')
 })
 
 t.test('classic interactive npm init', async t => {
@@ -273,7 +273,7 @@ t.test('workspaces', async t => {
     const pkg = require(resolve(prefix, 'a/package.json'))
     t.equal(pkg.name, 'a')
     t.equal(pkg.version, '1.0.0')
-    t.equal(pkg.license, 'ISC')
+    t.equal(pkg.license, undefined, 'license is omitted by default')
 
     t.matchSnapshot(joinedOutput(), 'should print helper info')
 
@@ -306,7 +306,7 @@ t.test('workspaces', async t => {
     const pkg = require(resolve(prefix, 'packages/a/package.json'))
     t.equal(pkg.name, 'a')
     t.equal(pkg.version, '2.0.0')
-    t.equal(pkg.license, 'ISC')
+    t.equal(pkg.license, undefined, 'license is omitted by default')
   })
 
   await t.test('fail parsing top-level package.json to set workspace', async t => {
@@ -422,12 +422,12 @@ t.test('workspaces', async t => {
 
     const pkg = require(resolve(npm.localPrefix, 'package.json'))
     t.equal(pkg.version, '1.0.0')
-    t.equal(pkg.license, 'ISC')
+    t.equal(pkg.license, undefined, 'license is omitted by default')
     t.strictSame(pkg.workspaces, ['packages/a'])
 
     const ws = require(resolve(npm.localPrefix, 'packages/a/package.json'))
     t.equal(ws.version, '1.0.0')
-    t.equal(ws.license, 'ISC')
+    t.equal(ws.license, undefined, 'license is omitted by default')
   })
   t.test('init pkg - installed workspace package', async t => {
     const { npm } = await mockNpm(t, {

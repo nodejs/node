@@ -87,7 +87,7 @@ class Query extends BaseCommand {
       } catch (err) {
         log.verbose('loadVirtual', err.stack)
         throw this.usageError(
-          'A package lock or shrinkwrap file is required in package-lock-only mode'
+          'A package-lock.json file is required in package-lock-only mode'
         )
       }
     } else {
@@ -113,7 +113,7 @@ class Query extends BaseCommand {
       } catch (err) {
         log.verbose('loadVirtual', err.stack)
         throw this.usageError(
-          'A package lock or shrinkwrap file is required in package-lock-only mode'
+          'A package-lock.json file is required in package-lock-only mode'
         )
       }
     } else {
