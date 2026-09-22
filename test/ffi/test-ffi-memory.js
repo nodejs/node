@@ -132,6 +132,18 @@ test('ffi zero-copy views throw with the V8 sandbox', { skip: !common.hasV8Sandb
   }));
 });
 
+test('ffi toBuffer and toArrayBuffer require a boolean copy argument', () => {
+  withAllocations(common.mustCall((alloc) => {
+    const ptr = alloc(4);
+    const type = { code: 'ERR_INVALID_ARG_TYPE' };
+
+    for (const copy of [null, 0, '', 'false', 1, {}]) {
+      assert.throws(() => ffi.toBuffer(ptr, 4, copy), type);
+      assert.throws(() => ffi.toArrayBuffer(ptr, 4, copy), type);
+    }
+  }));
+});
+
 test('ffi getRawPointer returns raw addresses for byte sources', () => {
   const buffer = Buffer.from([1, 2, 3]);
   const arrayBuffer = new Uint8Array([4, 5, 6, 7]).buffer;
