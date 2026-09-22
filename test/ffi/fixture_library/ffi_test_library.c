@@ -45,7 +45,55 @@ FFI_EXPORT uint64_t add_u64(uint64_t a, uint64_t b) {
   return a + b;
 }
 
+FFI_EXPORT int64_t passthrough_i64_9(void* pointer,
+                                     int64_t value,
+                                     int64_t a,
+                                     int64_t b,
+                                     int64_t c,
+                                     int64_t d,
+                                     int64_t e,
+                                     int64_t f,
+                                     int64_t g) {
+  (void)pointer;
+  (void)a;
+  (void)b;
+  (void)c;
+  (void)d;
+  (void)e;
+  (void)f;
+  (void)g;
+  return value;
+}
+
+FFI_EXPORT uint64_t passthrough_u64_9(void* pointer,
+                                      uint64_t value,
+                                      uint64_t a,
+                                      uint64_t b,
+                                      uint64_t c,
+                                      uint64_t d,
+                                      uint64_t e,
+                                      uint64_t f,
+                                      uint64_t g) {
+  (void)pointer;
+  (void)a;
+  (void)b;
+  (void)c;
+  (void)d;
+  (void)e;
+  (void)f;
+  (void)g;
+  return value;
+}
+
 FFI_EXPORT int32_t identity_i32(int32_t value) {
+  return value;
+}
+
+FFI_EXPORT int64_t identity_i64(int64_t value) {
+  return value;
+}
+
+FFI_EXPORT uint64_t identity_u64(uint64_t value) {
   return value;
 }
 

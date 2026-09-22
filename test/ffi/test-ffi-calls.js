@@ -24,6 +24,10 @@ test('ffi calls support integer arithmetic and char semantics', () => {
     assert.strictEqual(symbols.add_u32(0xFFFFFFFF, 1), 0);
     assert.strictEqual(symbols.add_i64(20n, 22n), 42n);
     assert.strictEqual(symbols.add_u64(20n, 22n), 42n);
+    assert.strictEqual(symbols.add_i64(20, 22), symbols.add_i64(20n, 22n));
+    assert.strictEqual(symbols.add_u64(20, 22), symbols.add_u64(20n, 22n));
+    assert.strictEqual(symbols.add_i64(-20, 22n), 2n);
+    assert.strictEqual(symbols.add_u64(20n, 22), 42n);
 
     if (symbols.char_is_signed()) {
       assert.strictEqual(symbols.identity_char(-1), -1);
@@ -106,15 +110,18 @@ test('ffi strings and buffers cross the boundary correctly', () => {
     symbols.free_string(duplicated);
 
     const buffer = Buffer.from([1, 2, 3, 4]);
-    assert.strictEqual(symbols.sum_buffer(buffer, BigInt(buffer.length)), 10n);
-    symbols.reverse_buffer(buffer, BigInt(buffer.length));
+    assert.strictEqual(
+      symbols.sum_buffer(buffer, buffer.length),
+      symbols.sum_buffer(buffer, BigInt(buffer.length)),
+    );
+    symbols.reverse_buffer(buffer, buffer.length);
     assert.deepStrictEqual([...buffer], [4, 3, 2, 1]);
 
     const typed = new Uint8Array([5, 6, 7, 8]);
-    assert.strictEqual(symbols.sum_buffer(typed, BigInt(typed.byteLength)), 26n);
+    assert.strictEqual(symbols.sum_buffer(typed, typed.byteLength), 26n);
 
     const arrayBuffer = new Uint8Array([9, 10, 11, 12]).buffer;
-    assert.strictEqual(symbols.sum_buffer(arrayBuffer, BigInt(arrayBuffer.byteLength)), 42n);
+    assert.strictEqual(symbols.sum_buffer(arrayBuffer, arrayBuffer.byteLength), 42n);
   } finally {
     lib.close();
   }
@@ -279,13 +286,20 @@ test('ffi validates invalid arguments', () => {
     assert.throws(() => symbols.add_i16(40_000, 1), /Argument 0 must be an int16/);
     assert.throws(() => symbols.add_u16(Number.NaN, 1), /Argument 0 must be a uint16/);
     assert.throws(() => symbols.add_u16(70_000, 1), /Argument 0 must be a uint16/);
-    assert.throws(() => symbols.add_i64(1, 2n), /Argument 0 must be an int64/);
-    assert.throws(() => symbols.add_i64(1.5, 2n), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(1.5, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.NaN, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.POSITIVE_INFINITY, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.NEGATIVE_INFINITY, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.MAX_SAFE_INTEGER + 1, 2), /Argument 0 must be an int64/);
+    assert.throws(() => symbols.add_i64(Number.MIN_SAFE_INTEGER - 1, 2), /Argument 0 must be an int64/);
     assert.throws(() => symbols.add_i64(2n ** 63n, 2n), /Argument 0 must be an int64/);
     assert.throws(() => symbols.add_i64(-(2n ** 63n) - 1n, 2n), /Argument 0 must be an int64/);
     assert.throws(() => symbols.add_u64('1', 2n), /Argument 0 must be a uint64/);
-    assert.throws(() => symbols.add_u64(1, 2n), /Argument 0 must be a uint64/);
-    assert.throws(() => symbols.add_u64(Number.NaN, 2n), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(-1, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(1.5, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(Number.NaN, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(Number.POSITIVE_INFINITY, 2), /Argument 0 must be a uint64/);
+    assert.throws(() => symbols.add_u64(Number.MAX_SAFE_INTEGER + 1, 2), /Argument 0 must be a uint64/);
     assert.throws(() => symbols.add_u64(-1n, 2n), /Argument 0 must be a uint64/);
     assert.throws(() => symbols.add_u64(2n ** 64n, 2n), /Argument 0 must be a uint64/);
     assert.throws(() => symbols.identity_pointer(-1n), /Argument 0 must be a non-negative pointer bigint/);

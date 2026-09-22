@@ -74,7 +74,7 @@ test('f32/f64 round-trip', () => {
   }
 });
 
-test('i64/u64 BigInt round-trip', () => {
+test('i64/u64 Number and BigInt round-trip', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     add_i64: { return: 'i64', arguments: ['i64', 'i64'] },
     add_u64: { return: 'u64', arguments: ['u64', 'u64'] },
@@ -82,6 +82,10 @@ test('i64/u64 BigInt round-trip', () => {
   try {
     assert.strictEqual(functions.add_i64(10n, 20n), 30n);
     assert.strictEqual(functions.add_u64(10n, 20n), 30n);
+    assert.strictEqual(functions.add_i64(10, 20), 30n);
+    assert.strictEqual(functions.add_u64(10, 20), 30n);
+    assert.strictEqual(functions.add_i64(-10, 20n), 10n);
+    assert.strictEqual(functions.add_u64(10n, 20), 30n);
   } finally {
     lib.close();
   }
@@ -300,7 +304,7 @@ test('integer boundaries for i8/u8/i16/u16/i32/u32', () => {
   }
 });
 
-test('i64/u64 BigInt boundaries and Number/BigInt type mismatches', () => {
+test('i64/u64 Number and BigInt boundaries', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     add_i64: { return: 'i64', arguments: ['i64', 'i64'] },
     add_u64: { return: 'u64', arguments: ['u64', 'u64'] },
@@ -315,6 +319,9 @@ test('i64/u64 BigInt boundaries and Number/BigInt type mismatches', () => {
     assert.strictEqual(functions.add_i64(I64_MIN, 0n), I64_MIN);
     assert.strictEqual(functions.add_u64(U64_MAX, 0n), U64_MAX);
     assert.strictEqual(functions.add_u64(0n, 0n), 0n);
+    assert.strictEqual(functions.add_i64(Number.MAX_SAFE_INTEGER, 0), BigInt(Number.MAX_SAFE_INTEGER));
+    assert.strictEqual(functions.add_i64(Number.MIN_SAFE_INTEGER, 0), BigInt(Number.MIN_SAFE_INTEGER));
+    assert.strictEqual(functions.add_u64(Number.MAX_SAFE_INTEGER, 0), BigInt(Number.MAX_SAFE_INTEGER));
 
     const expect = { code: 'ERR_INVALID_ARG_VALUE' };
     assert.throws(() => functions.add_i64(I64_MAX + 1n, 0n), expect);
@@ -322,8 +329,113 @@ test('i64/u64 BigInt boundaries and Number/BigInt type mismatches', () => {
     assert.throws(() => functions.add_u64(U64_MAX + 1n, 0n), expect);
     assert.throws(() => functions.add_u64(-1n, 0n), expect);
 
-    assert.throws(() => functions.add_i64(1, 2n), expect);
+    assert.throws(() => functions.add_i64(Number.MAX_SAFE_INTEGER + 1, 0), expect);
+    assert.throws(() => functions.add_i64(Number.MIN_SAFE_INTEGER - 1, 0), expect);
+    assert.throws(() => functions.add_i64(1.5, 0), expect);
+    assert.throws(() => functions.add_i64(Number.NaN, 0), expect);
+    assert.throws(() => functions.add_i64(Number.POSITIVE_INFINITY, 0), expect);
+    assert.throws(() => functions.add_u64(-1, 0), expect);
+    assert.throws(() => functions.add_u64(Number.MAX_SAFE_INTEGER + 1, 0), expect);
+    assert.throws(() => functions.add_u64(1.5, 0), expect);
+    assert.throws(() => functions.add_u64(Number.NaN, 0), expect);
+    assert.throws(() => functions.add_u64(Number.POSITIVE_INFINITY, 0), expect);
     assert.throws(() => functions.add_i64(1n, '2'), expect);
+  } finally {
+    lib.close();
+  }
+});
+
+test('SB wrapper accepts safe Number values for i64/u64', () => {
+  const i64Arguments = ['pointer', 'i64', 'i64', 'i64', 'i64',
+                        'i64', 'i64', 'i64', 'i64'];
+  const u64Arguments = ['pointer', 'u64', 'u64', 'u64', 'u64',
+                        'u64', 'u64', 'u64', 'u64'];
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    passthrough_i64_9: { return: 'i64', arguments: i64Arguments },
+    passthrough_u64_9: { return: 'u64', arguments: u64Arguments },
+  });
+  const zeros = [0, 0, 0, 0, 0, 0, 0];
+
+  try {
+    // Nine arguments exceed Node.js FFI's Fast API limit and the BigInt pointer can be
+    // written directly into the shared buffer.
+    for (const value of [0, -0, 42, Number.MAX_SAFE_INTEGER, 0n, 42n]) {
+      assert.strictEqual(functions.passthrough_i64_9(0n, value, ...zeros), BigInt(value));
+      assert.strictEqual(functions.passthrough_u64_9(0n, value, ...zeros), BigInt(value));
+    }
+    for (const value of [-42, Number.MIN_SAFE_INTEGER, -(2n ** 63n), (2n ** 63n) - 1n]) {
+      assert.strictEqual(functions.passthrough_i64_9(0n, value, ...zeros), BigInt(value));
+    }
+    assert.strictEqual(functions.passthrough_u64_9(0n, (2n ** 64n) - 1n, ...zeros), (2n ** 64n) - 1n);
+
+    const signedError = {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: 'Argument 1 must be an int64',
+    };
+    const unsignedError = {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: 'Argument 1 must be a uint64',
+    };
+    for (const value of [Number.MAX_SAFE_INTEGER + 1, Number.MIN_SAFE_INTEGER - 1,
+                         1.5, NaN, Infinity, -Infinity, '1', null, undefined, true, {}]) {
+      assert.throws(() => functions.passthrough_i64_9(0n, value, ...zeros), signedError);
+      assert.throws(() => functions.passthrough_u64_9(0n, value, ...zeros), unsignedError);
+    }
+    for (const value of [-(2n ** 63n) - 1n, 2n ** 63n]) {
+      assert.throws(() => functions.passthrough_i64_9(0n, value, ...zeros), signedError);
+    }
+    for (const value of [-1, -1n, 2n ** 64n]) {
+      assert.throws(() => functions.passthrough_u64_9(0n, value, ...zeros), unsignedError);
+    }
+  } finally {
+    lib.close();
+  }
+});
+
+test('generic conversion accepts safe Number values for i64/u64', () => {
+  const i64Arguments = ['pointer', 'i64', 'i64', 'i64', 'i64',
+                        'i64', 'i64', 'i64', 'i64'];
+  const u64Arguments = ['pointer', 'u64', 'u64', 'u64', 'u64',
+                        'u64', 'u64', 'u64', 'u64'];
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    passthrough_i64_9: { return: 'i64', arguments: i64Arguments },
+    passthrough_u64_9: { return: 'u64', arguments: u64Arguments },
+  });
+  const zeros = [0, 0, 0, 0, 0, 0, 0];
+  const buffer = Buffer.alloc(1);
+
+  try {
+    // A Buffer pointer cannot be written into the shared buffer, so this call
+    // falls back to generic FFI argument conversion.
+    for (const value of [0, -0, 42, Number.MAX_SAFE_INTEGER, 0n, 42n]) {
+      assert.strictEqual(functions.passthrough_i64_9(buffer, value, ...zeros), BigInt(value));
+      assert.strictEqual(functions.passthrough_u64_9(buffer, value, ...zeros), BigInt(value));
+    }
+    for (const value of [-42, Number.MIN_SAFE_INTEGER, -(2n ** 63n), (2n ** 63n) - 1n]) {
+      assert.strictEqual(functions.passthrough_i64_9(buffer, value, ...zeros), BigInt(value));
+    }
+    assert.strictEqual(functions.passthrough_u64_9(buffer, (2n ** 64n) - 1n, ...zeros),
+                       (2n ** 64n) - 1n);
+
+    const signedError = {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: 'Argument 1 must be an int64',
+    };
+    const unsignedError = {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: 'Argument 1 must be a uint64',
+    };
+    for (const value of [Number.MAX_SAFE_INTEGER + 1, Number.MIN_SAFE_INTEGER - 1,
+                         1.5, NaN, Infinity, -Infinity, '1', null, undefined, true, {}]) {
+      assert.throws(() => functions.passthrough_i64_9(buffer, value, ...zeros), signedError);
+      assert.throws(() => functions.passthrough_u64_9(buffer, value, ...zeros), unsignedError);
+    }
+    for (const value of [-(2n ** 63n) - 1n, 2n ** 63n]) {
+      assert.throws(() => functions.passthrough_i64_9(buffer, value, ...zeros), signedError);
+    }
+    for (const value of [-1, -1n, 2n ** 64n]) {
+      assert.throws(() => functions.passthrough_u64_9(buffer, value, ...zeros), unsignedError);
+    }
   } finally {
     lib.close();
   }
