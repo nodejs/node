@@ -43,9 +43,6 @@ test-http-server-request-timeout-keepalive: PASS,FLAKY
 test-cluster-dgram-1: SKIP
 
 [$arch==arm || $arch==arm64]
-# https://github.com/nodejs/node/pull/31178
-test-crypto-dh-stateless: SKIP
-test-crypto-keygen: SKIP
 # https://github.com/nodejs/node/issues/54801
 test-debugger-heap-profiler: PASS, FLAKY
 
