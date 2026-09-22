@@ -135,9 +135,6 @@
         '<(icu_gyp_path):icuuc',
       ],
       'conditions': [
-        [ 'icu_system!="true"', {
-          'defines': [ 'NODE_HAVE_EMBEDDED_ICU_ZSTD=1' ],
-        }],
         [ 'icu_small=="true"', {
           'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
           'conditions': [
@@ -147,8 +144,7 @@
               ],
             }],
           ],
-        }],
-      ],
+      }]],
     }],
     [ 'node_use_bundled_v8=="true" and \
        node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \

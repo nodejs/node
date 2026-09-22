@@ -43,10 +43,6 @@
 #include "node_i18n.h"
 #include "node_external_reference.h"
 #include "simdutf.h"
-#include "zstd_blob.h"
-
-#include <cstdint>
-#include <cstring>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
@@ -72,7 +68,7 @@
 #include <unicode/uversion.h>
 #include "nbytes.h"
 
-#if defined(NODE_HAVE_SMALL_ICU) || defined(NODE_HAVE_EMBEDDED_ICU_ZSTD)
+#ifdef NODE_HAVE_SMALL_ICU
 #include <unicode/udata.h>
 
 /* if this is defined, we have a 'secondary' entry point.
@@ -88,38 +84,6 @@
 
 extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
 #endif
-
-#ifdef NODE_HAVE_EMBEDDED_ICU_ZSTD
-extern "C" const uint8_t node_icu_zstd_dat[];
-
-static uint64_t ReadU64LE(const uint8_t* bytes) {
-  uint64_t value = 0;
-  for (int i = 0; i < 8; i++) {
-    value |= static_cast<uint64_t>(bytes[i]) << (8 * i);
-  }
-  return value;
-}
-
-// Decompress the embedded ICU data file. The returned pointer is aligned and
-// lives for the process lifetime. nullptr on failure, with `error` set.
-static uint8_t* DecompressEmbeddedICU(std::string* error) {
-  const uint8_t* bytes = node_icu_zstd_dat;
-  if (memcmp(bytes, "ICUZ", 4) != 0) {
-    *error = "embedded ICU data header is invalid";
-    return nullptr;
-  }
-  uint64_t raw_size = ReadU64LE(bytes + 4);
-  uint64_t compressed_size = ReadU64LE(bytes + 12);
-  size_t got = 0;
-  uint8_t* data = node::ZstdDecompressAligned(
-      bytes + 20, static_cast<size_t>(compressed_size), &got);
-  if (data == nullptr || got != raw_size) {
-    *error = "failed to decompress embedded ICU data";
-    return nullptr;
-  }
-  return data;
-}
-#endif  // NODE_HAVE_EMBEDDED_ICU_ZSTD
 
 namespace node {
 
@@ -591,13 +555,7 @@ ConverterObject::ConverterObject(
 bool InitializeICUDirectory(const std::string& path, std::string* error) {
   UErrorCode status = U_ZERO_ERROR;
   if (path.empty()) {
-#ifdef NODE_HAVE_EMBEDDED_ICU_ZSTD
-    static uint8_t* icu_data = DecompressEmbeddedICU(error);
-    if (icu_data == nullptr) {
-      return false;
-    }
-    udata_setCommonData(icu_data, &status);
-#elif defined(NODE_HAVE_SMALL_ICU)
+#ifdef NODE_HAVE_SMALL_ICU
     // install the 'small' data.
     udata_setCommonData(&SMALL_ICUDATA_ENTRY_POINT, &status);
 #else  // !NODE_HAVE_SMALL_ICU

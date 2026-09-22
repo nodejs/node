@@ -103,13 +103,5 @@
       ],
       'toolsets': ['host', 'target'],
     },
-    {
-      'target_name': 'zstd_compress',
-      'type': 'executable',
-      'toolsets': ['host'],
-      'dependencies': ['zstd#host'],
-      'include_dirs': ['lib'],
-      'sources': ['../../tools/zstd_compress.cc'],
-    },
   ]
 }
