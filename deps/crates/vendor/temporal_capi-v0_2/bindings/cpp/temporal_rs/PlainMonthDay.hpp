@@ -128,7 +128,7 @@ inline uint8_t temporal_rs::PlainMonthDay::day() const {
     return result;
 }
 
-inline const temporal_rs::Calendar& temporal_rs::PlainMonthDay::calendar() const {
+inline const temporal_rs::Calendar& temporal_rs::PlainMonthDay::calendar() const DIPLOMAT_LIFETIME_BOUND {
     auto result = temporal_rs::capi::temporal_rs_PlainMonthDay_calendar(this->AsFFI());
     return *temporal_rs::Calendar::FromFFI(result);
 }

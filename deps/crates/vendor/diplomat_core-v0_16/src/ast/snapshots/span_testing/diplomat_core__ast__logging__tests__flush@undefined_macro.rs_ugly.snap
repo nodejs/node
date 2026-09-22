@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Macro test! undefined.
+In src/ast/snapshots/span_testing/undefined_macro.rs:3:5:
+...test!();...
+   ^^^^
+Suggestion: Create #[diplomat::macro_rules] macro_rules! test definition before this item.

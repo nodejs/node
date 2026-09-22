@@ -1,0 +1,23 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Foo::static_opaque_slice: 'static Reference(Static, Immutable, Named(PathType { path: Path { elements: [Ident("Foo", Some(Span { start: LineColumn { line: 1, col: 0 }, end: LineColumn { line: 1, col: 0 }, range: 0..0, span_location: None }))] }, lifetimes: [] })) slice types not supported. Try #[diplomat::cfg(supports = static_slices)]
+Lowering error in Foo::static_opaque_slice: &'static slices of opaques (&'static [&'static Foo]) are currently unsupported in Diplomat.
+Lowering error in Foo::static_opaque_slice: Slices of &'static opaques (&[&'static Foo]) are currently unsupported in Diplomat.
+Lowering error in Foo::static_opaque_slice: Slice of opaque &[&'static Foo] is unsupported by this backend.
+Lowering error in Foo::takes_mut_slice: &mut [&Foo] not supported in this backend. Try #[diplomat::cfg(supports=mutable_slices)] to restrict this API only to backends which support mutable slices.
+Lowering error in Foo::takes_mut_slice: Mutable slices of opaques (&mut [&Foo]) are currently unsupported in Diplomat.
+Lowering error in Foo::takes_mut_slice: Slice of opaque &[&Foo] is unsupported by this backend.
+Lowering error in Foo::takes_mut_slice: found opaque type Foo being passed around as &mut without #[diplomat::opaque_mut] annotation
+Lowering error in Foo::takes_mut_slice: Slices of mutable opaques (&[&mut Foo]) are currently unsupported in Diplomat.
+Lowering error in Foo::takes_mut_slice: Slice of opaque &[&mut Foo] is unsupported by this backend.
+Lowering error in Foo::takes_mut_slice: &mut [&mut Foo] not supported in this backend. Try #[diplomat::cfg(supports=mutable_slices)] to restrict this API only to backends which support mutable slices.
+Lowering error in Foo::takes_mut_slice: found opaque type Foo being passed around as &mut without #[diplomat::opaque_mut] annotation
+Lowering error in Foo::takes_mut_slice: Mutable slices of opaques (&mut [&mut Foo]) are currently unsupported in Diplomat.
+Lowering error in Foo::takes_mut_slice: Slices of mutable opaques (&[&mut Foo]) are currently unsupported in Diplomat.
+Lowering error in Foo::takes_mut_slice: Slice of opaque &[&mut Foo] is unsupported by this backend.
+Lowering error in Foo::returns_mut_slice: &mut [&'a mut Foo] not supported in this backend. Try #[diplomat::cfg(supports=mutable_slices)] to restrict this API only to backends which support mutable slices.
+Lowering error in Foo::returns_mut_slice: Opaque slices are currently disallowed as an output type.
+Lowering error in Foo::takes_owned_slice: found Box<T> in input where T is an opaque, but owned opaques aren't allowed in inputs. try &T instead? T = Foo
+Lowering error in Foo::returns_owned_slice: Opaque slices are currently disallowed as an output type.

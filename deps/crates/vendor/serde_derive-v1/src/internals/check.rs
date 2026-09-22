@@ -148,12 +148,7 @@ fn check_identifier(cx: &Ctxt, cont: &Container) {
     };
 
     for (i, variant) in variants.iter().enumerate() {
-        match (
-            variant.style,
-            cont.attrs.identifier(),
-            variant.attrs.other(),
-            cont.attrs.tag(),
-        ) {
+        match (variant.style, cont.attrs.identifier(), variant.attrs.other(), cont.attrs.tag()) {
             // The `other` attribute may not be used in a variant_identifier.
             (_, Identifier::Variant, true, _) => {
                 cx.error_spanned_by(
@@ -182,10 +177,7 @@ fn check_identifier(cx: &Ctxt, cont: &Container) {
 
             // Variant with `other` attribute must be a unit variant.
             (_, Identifier::Field, true, _) | (_, Identifier::No, true, _) => {
-                cx.error_spanned_by(
-                    variant.original,
-                    "#[serde(other)] must be on a unit variant",
-                );
+                cx.error_spanned_by(variant.original, "#[serde(other)] must be on a unit variant");
             }
 
             // Any sort of variant is allowed if this is not an identifier.
@@ -358,10 +350,7 @@ fn check_adjacent_tag_conflict(cx: &Ctxt, cont: &Container) {
     if type_tag == content_tag {
         cx.error_spanned_by(
             cont.original,
-            format!(
-                "enum tags `{}` for type and content conflict with each other",
-                type_tag
-            ),
+            format!("enum tags `{}` for type and content conflict with each other", type_tag),
         );
     }
 }
@@ -395,10 +384,7 @@ fn check_transparent(cx: &Ctxt, cont: &mut Container, derive: Derive) {
 
     let fields = match &mut cont.data {
         Data::Enum(_) => {
-            cx.error_spanned_by(
-                cont.original,
-                "#[serde(transparent)] is not allowed on an enum",
-            );
+            cx.error_spanned_by(cont.original, "#[serde(transparent)] is not allowed on an enum");
             return;
         }
         Data::Struct(Style::Unit, _) => {

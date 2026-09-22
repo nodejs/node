@@ -6,9 +6,9 @@ use core::cmp::Ordering;
 #[cfg(feature = "alloc")]
 use core::str::FromStr;
 
+use crate::ParseError;
 use crate::parser;
 use crate::subtags;
-use crate::ParseError;
 #[cfg(feature = "alloc")]
 use alloc::borrow::Cow;
 
@@ -105,6 +105,10 @@ impl LanguageIdentifier {
     ///
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
+    /// Note: Support for the legacy `_` separator has been dropped since 2.0.0.
+    /// Users of ICU4X need to convert the `_` to `-` before calling the
+    /// function.
+    ///
     /// # Examples
     ///
     /// ```
@@ -155,7 +159,7 @@ impl LanguageIdentifier {
     /// # Examples
     ///
     /// ```
-    /// use icu::locale::{langid, LanguageIdentifier};
+    /// use icu::locale::{LanguageIdentifier, langid};
     ///
     /// let li = LanguageIdentifier::try_from_locale_bytes(b"en-US-x-posix")
     ///     .expect("Parsing failed.");
@@ -180,7 +184,7 @@ impl LanguageIdentifier {
 
     /// Normalize the language identifier (operating on UTF-8 formatted byte slices)
     ///
-    /// This operation will normalize casing and the separator.
+    /// This operation will normalize casing.
     ///
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
@@ -202,7 +206,7 @@ impl LanguageIdentifier {
 
     /// Normalize the language identifier (operating on strings)
     ///
-    /// This operation will normalize casing and the separator.
+    /// This operation will normalize casing.
     ///
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
@@ -403,15 +407,15 @@ impl LanguageIdentifier {
         if !subtag_matches!(subtags::Language, iter, self.language) {
             return false;
         }
-        if let Some(ref script) = self.script {
-            if !subtag_matches!(subtags::Script, iter, *script) {
-                return false;
-            }
+        if let Some(ref script) = self.script
+            && !subtag_matches!(subtags::Script, iter, *script)
+        {
+            return false;
         }
-        if let Some(ref region) = self.region {
-            if !subtag_matches!(subtags::Region, iter, *region) {
-                return false;
-            }
+        if let Some(ref region) = self.region
+            && !subtag_matches!(subtags::Region, iter, *region)
+        {
+            return false;
         }
         for variant in self.variants.iter() {
             if !subtag_matches!(subtags::Variant, iter, *variant) {
@@ -507,6 +511,12 @@ impl LanguageIdentifier {
     }
 }
 
+impl AsRef<LanguageIdentifier> for LanguageIdentifier {
+    fn as_ref(&self) -> &LanguageIdentifier {
+        self
+    }
+}
+
 impl core::fmt::Debug for LanguageIdentifier {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         core::fmt::Display::fmt(&self, f)
@@ -552,7 +562,7 @@ fn test_writeable() {
 /// # Examples
 ///
 /// ```
-/// use icu::locale::{langid, subtags::language, LanguageIdentifier};
+/// use icu::locale::{LanguageIdentifier, langid, subtags::language};
 ///
 /// assert_eq!(LanguageIdentifier::from(language!("en")), langid!("en"));
 /// ```
@@ -570,7 +580,7 @@ impl From<subtags::Language> for LanguageIdentifier {
 /// # Examples
 ///
 /// ```
-/// use icu::locale::{langid, subtags::script, LanguageIdentifier};
+/// use icu::locale::{LanguageIdentifier, langid, subtags::script};
 ///
 /// assert_eq!(
 ///     LanguageIdentifier::from(Some(script!("latn"))),
@@ -591,7 +601,7 @@ impl From<Option<subtags::Script>> for LanguageIdentifier {
 /// # Examples
 ///
 /// ```
-/// use icu::locale::{langid, subtags::region, LanguageIdentifier};
+/// use icu::locale::{LanguageIdentifier, langid, subtags::region};
 ///
 /// assert_eq!(
 ///     LanguageIdentifier::from(Some(region!("US"))),
@@ -615,9 +625,8 @@ impl From<Option<subtags::Region>> for LanguageIdentifier {
 ///
 /// ```
 /// use icu::locale::{
-///     langid,
+///     LanguageIdentifier, langid,
 ///     subtags::{language, region, script},
-///     LanguageIdentifier,
 /// };
 ///
 /// let lang = language!("en");

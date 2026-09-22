@@ -1,0 +1,5 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Foo::borrows_opaque_slice: Opaque slices (param op) cannot be borrowed from. Suggestion: remove &'a from method output.

@@ -178,7 +178,7 @@ public:
 
   inline uint16_t nanosecond() const;
 
-  inline const temporal_rs::Calendar& calendar() const;
+  inline const temporal_rs::Calendar& calendar() const DIPLOMAT_LIFETIME_BOUND;
 
   inline int32_t year() const;
 

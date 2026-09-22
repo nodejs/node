@@ -111,7 +111,7 @@ mod tests {
     use super::*;
     use crate::{
         extensions::unicode,
-        subtags::{subtag, Subtag},
+        subtags::{Subtag, subtag},
     };
     use core::str::FromStr;
 
@@ -122,10 +122,10 @@ mod tests {
             "dk",
             Subtag,
             |input: &unicode::Value| {
-                if let Some(&subtag) = input.as_single_subtag() {
-                    if subtag.len() == 3 {
-                        return Ok(DummyKeyword(subtag));
-                    }
+                if let Some(&subtag) = input.as_single_subtag()
+                    && subtag.len() == 3
+                {
+                    return Ok(DummyKeyword(subtag));
                 }
                 Err(crate::preferences::extensions::unicode::errors::PreferencesParseError::InvalidKeywordValue)
             },

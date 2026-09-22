@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Not enough arguments given to Result<T,E>. Are you using a non-std Result type?
+In src/ast/snapshots/span_testing/nonstd_result.rs:4:31:
+...) -> Result<T> {...
+        ^^^^^^
+Expected 2 generic arguments.

@@ -65,19 +65,19 @@ fn main() {
         }
     }
 
-    // Current minimum supported version of serde_derive crate is Rust 1.61.
-    if minor < 61 {
-        println!("cargo:rustc-cfg=no_serde_derive");
-    }
-
     // Support for core::ffi::CStr and alloc::ffi::CString stabilized in Rust 1.64.
     // https://blog.rust-lang.org/2022/09/22/Rust-1.64.0.html#c-compatible-ffi-types-in-core-and-alloc
     if minor < 64 {
         println!("cargo:rustc-cfg=no_core_cstr");
     }
 
-    // Support for core::num::Saturating and std::num::Saturating stabilized in Rust 1.74
-    // https://blog.rust-lang.org/2023/11/16/Rust-1.74.0.html#stabilized-apis
+    // Current minimum supported version of serde_derive crate is Rust 1.71.
+    if minor < 71 {
+        println!("cargo:rustc-cfg=no_serde_derive");
+    }
+
+    // Support for core::num::Saturating and std::num::Saturating stabilized in Rust
+    // 1.74 https://blog.rust-lang.org/2023/11/16/Rust-1.74.0.html#stabilized-apis
     if minor < 74 {
         println!("cargo:rustc-cfg=no_core_num_saturating");
     }

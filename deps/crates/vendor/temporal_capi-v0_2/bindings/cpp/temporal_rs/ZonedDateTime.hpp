@@ -652,7 +652,7 @@ inline uint16_t temporal_rs::ZonedDateTime::nanosecond() const {
     return result;
 }
 
-inline const temporal_rs::Calendar& temporal_rs::ZonedDateTime::calendar() const {
+inline const temporal_rs::Calendar& temporal_rs::ZonedDateTime::calendar() const DIPLOMAT_LIFETIME_BOUND {
     auto result = temporal_rs::capi::temporal_rs_ZonedDateTime_calendar(this->AsFFI());
     return *temporal_rs::Calendar::FromFFI(result);
 }

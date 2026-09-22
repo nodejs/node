@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected angle brackets for Result type
+In src/ast/snapshots/span_testing/result_angle_brackets.rs:3:33:
+...(r : Result) {}...
+        ^^^^^^
+Suggestion: add angle brackets

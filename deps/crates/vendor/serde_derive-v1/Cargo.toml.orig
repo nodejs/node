@@ -1,6 +1,6 @@
 [package]
 name = "serde_derive"
-version = "1.0.228"
+version = "1.0.229"
 authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
 categories = ["no-std", "no-std::no-alloc"]
 description = "Macros 1.1 implementation of #[derive(Serialize, Deserialize)]"
@@ -12,7 +12,7 @@ keywords = ["serde", "serialization", "no_std", "derive"]
 license = "MIT OR Apache-2.0"
 readme = "crates-io.md"
 repository = "https://github.com/serde-rs/serde"
-rust-version = "1.61"
+rust-version = "1.71"
 
 [features]
 default = []

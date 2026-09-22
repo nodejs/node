@@ -2,12 +2,12 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+use crate::DataLocale;
 use crate::extensions::unicode::{SubdivisionId, SubdivisionSuffix};
 use crate::preferences::extensions::unicode::keywords::{RegionOverride, RegionalSubdivision};
 #[cfg(feature = "alloc")]
 use crate::subtags::Variants;
 use crate::subtags::{Language, Region, Script, Variant};
-use crate::DataLocale;
 
 /// The structure storing locale subtags used in preferences.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

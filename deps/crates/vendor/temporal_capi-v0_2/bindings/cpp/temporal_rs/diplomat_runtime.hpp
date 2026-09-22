@@ -18,6 +18,20 @@
 #include <array>
 #endif
 
+#ifndef DIPLOMAT_LIFETIME_BOUND
+#if defined(__has_cpp_attribute)
+#if __has_cpp_attribute(msvc::lifetimebound)
+#define DIPLOMAT_LIFETIME_BOUND [[msvc::lifetimebound]]
+#elif __has_cpp_attribute(clang::lifetimebound)
+#define DIPLOMAT_LIFETIME_BOUND [[clang::lifetimebound]]
+#endif
+#endif
+#endif
+
+#ifndef DIPLOMAT_LIFETIME_BOUND
+#define DIPLOMAT_LIFETIME_BOUND
+#endif
+
 namespace temporal_rs {
 namespace diplomat {
 
@@ -88,12 +102,16 @@ extern "C" inline void _flush(capi::DiplomatWrite* w) {
   string->resize(w->len);
 }
 
-extern "C" inline bool _grow(capi::DiplomatWrite* w, uintptr_t requested) {
+extern "C" inline bool _grow_impl(capi::DiplomatWrite* w, uintptr_t requested) {
   std::string* string = reinterpret_cast<std::string*>(w->context);
   string->resize(requested);
   w->cap = string->length();
   w->buf = &(*string)[0];
   return true;
+}
+
+extern "C" inline bool _grow(capi::DiplomatWrite* w, size_t requested) {
+  return _grow_impl(w, static_cast<uintptr_t>(requested));
 }
 
 inline capi::DiplomatWrite WriteFromString(std::string& string) {
@@ -356,6 +374,11 @@ struct as_ffi<T, std::void_t<decltype(std::declval<std::remove_pointer_t<T>>().A
   using type = decltype(std::declval<std::remove_pointer_t<T>>().AsFFI());
 };
 
+template <typename T>
+struct as_ffi<std::unique_ptr<T>> {
+  using type = decltype(std::declval<T>().AsFFI());
+};
+
 template<typename T>
 using as_ffi_t = typename as_ffi<T>::type;
 
@@ -377,7 +400,11 @@ struct diplomat_c_span_convert {
     using type = diplomat::capi::Diplomat##name##ViewMut; \
   }; \
 
+#if !defined(__sun) || !defined(_CHAR_IS_SIGNED)
+// int8_t and char are the same type on Solaris. Guard this definition to avoid
+// conflicts.
 MAKE_SLICE_CONVERTERS(I8, int8_t)
+#endif
 MAKE_SLICE_CONVERTERS(U8, uint8_t)
 MAKE_SLICE_CONVERTERS(I16, int16_t)
 MAKE_SLICE_CONVERTERS(U16, uint16_t)
@@ -394,6 +421,34 @@ MAKE_SLICE_CONVERTERS(String16, char16_t)
 
 template<typename T>
 using diplomat_c_span_convert_t = typename diplomat_c_span_convert<T>::type;
+
+template<typename T>
+struct is_unique_ptr {
+  static constexpr bool value = false;
+  using type = T;
+};
+
+template<typename T>
+struct is_unique_ptr<std::unique_ptr<T>> {
+  static constexpr bool value = true;
+  using type = T;
+};
+
+template<typename T>
+constexpr bool is_unique_ptr_v = is_unique_ptr<T>::value;
+
+template<typename T>
+struct is_optional {
+  static constexpr bool value = false;
+};
+
+template<typename T>
+struct is_optional<std::optional<T>> {
+  static constexpr bool value = true;
+};
+
+template<typename T>
+constexpr bool is_optional_v = is_optional<T>::value;
 
 /// Replace the argument types from the std::function with the argument types for th function pointer
 template<typename T>
@@ -414,6 +469,8 @@ template <typename Ret, typename... Args> struct fn_traits<std::function<Ret(Arg
       } else if constexpr (!std::is_same_v<T, as_ffi_t<T>>) {
         if constexpr (std::is_lvalue_reference_v<T>) {
           return *std::remove_reference_t<T>::FromFFI(val);
+        } else if constexpr (is_unique_ptr_v<T>) {
+          return T(is_unique_ptr<T>::type::FromFFI(val));
         }
         else {
           return T::FromFFI(val);
@@ -446,6 +503,23 @@ template <typename Ret, typename... Args> struct fn_traits<std::function<Ret(Arg
         return (*reinterpret_cast<const function_t *>(cb))(replace<Args>(args)...);
     }
 
+    template<typename TOut, typename T>
+    static TOut replace_optional_ret(std::optional<T> optional) {
+      constexpr bool has_ok = !std::is_same_v<T, std::monostate>;
+
+      bool is_ok = optional.has_value();
+
+      TOut out;
+      out.is_ok = is_ok;
+
+      if constexpr(has_ok) {
+        if (is_ok) {
+          out.ok = replace_ret<T>(optional.value());
+        }
+      }
+      return out;
+    }
+
     template<typename T, typename E, typename TOut>
     static TOut c_run_callback_result(const void *cb, replace_fn_t<Args>... args) {
       result<T, E> res = c_run_callback(cb, args...);
@@ -460,13 +534,21 @@ template <typename Ret, typename... Args> struct fn_traits<std::function<Ret(Arg
 
       if constexpr (has_ok) {
         if (is_ok) {
-          out.ok = replace_ret<T>(std::get<Ok<T>>(res.val).inner);
+          if constexpr (is_optional_v<T>) {
+            out.ok = replace_optional_ret<decltype(out.ok)>(std::get<Ok<T>>(res.val).inner);
+          } else {
+            out.ok = replace_ret<T>(std::get<Ok<T>>(res.val).inner);
+          }
         }
       }
 
       if constexpr(has_err) {
         if (!is_ok) {
-          out.err = replace_ret<E>(std::get<Err<E>>(res.val).inner);
+          if constexpr(is_optional_v<T>) {
+            out.err = replace_optional_ret<decltype(out.err)>(std::get<Err<E>>(res.val).inner);
+          } else {
+            out.err = replace_ret<E>(std::get<Err<E>>(res.val).inner);
+          }
         }
       }
 
@@ -476,21 +558,9 @@ template <typename Ret, typename... Args> struct fn_traits<std::function<Ret(Arg
     // For DiplomatOption<>
     template<typename T, typename TOut>
     static TOut c_run_callback_diplomat_option(const void *cb, replace_fn_t<Args>... args) {
-      constexpr bool has_ok = !std::is_same_v<T, std::monostate>;
-
       std::optional<T> ret = c_run_callback(cb, args...);
 
-      bool is_ok = ret.has_value();
-
-      TOut out;
-      out.is_ok = is_ok;
-
-      if constexpr(has_ok) {
-        if (is_ok) {
-          out.ok = replace_ret<T>(ret.value());
-        }
-      }
-      return out;
+      return replace_optional_ret<TOut>(ret);
     }
 
     // All we need to do is just convert one pointer to another, while keeping the arguments the same:
@@ -498,7 +568,11 @@ template <typename Ret, typename... Args> struct fn_traits<std::function<Ret(Arg
     static T c_run_callback_diplomat_opaque(const void* cb, replace_fn_t<Args>... args) {
       Ret out = c_run_callback(cb, args...);
 
-      return out->AsFFI();
+      if constexpr(std::is_pointer_v<Ret>) {
+        return out->AsFFI();
+      } else {
+        return out.AsFFI();
+      }
     }
 
     static void c_delete(const void *cb) {

@@ -5,12 +5,12 @@
 [package]
 name = "zerotrie"
 description = "A data structure that efficiently maps strings to integers"
-version = "0.2.4"
+version = "0.2.5"
 categories.workspace = true
 keywords = ["zero-copy", "serialization", "memory-efficiency", "trie"]
 
 authors.workspace = true
-edition.workspace = true
+edition = "2021"
 homepage.workspace = true
 include.workspace = true
 license.workspace = true

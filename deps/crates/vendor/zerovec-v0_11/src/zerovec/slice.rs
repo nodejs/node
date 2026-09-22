@@ -516,11 +516,12 @@ impl<T> Eq for ZeroSlice<T> where T: AsULE + Eq {}
 
 impl<T> PartialEq<ZeroSlice<T>> for ZeroSlice<T>
 where
-    T: AsULE + PartialEq,
+    T: AsULE,
 {
     #[inline]
     fn eq(&self, other: &ZeroSlice<T>) -> bool {
-        self.as_zerovec().eq(&other.as_zerovec())
+        // All Zero-to-Zero PartialEq impls call this one
+        self.as_bytes().eq(other.as_bytes())
     }
 }
 
@@ -530,27 +531,48 @@ where
 {
     #[inline]
     fn eq(&self, other: &[T]) -> bool {
+        // All Slice-to-Zero PartialEq impls call this one
         self.iter().eq(other.iter().copied())
+    }
+}
+
+impl<T> PartialEq<&[T]> for ZeroSlice<T>
+where
+    T: AsULE + PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &&[T]) -> bool {
+        ZeroSlice::eq(self, *other)
+    }
+}
+
+impl<T, const N: usize> PartialEq<[T; N]> for ZeroSlice<T>
+where
+    T: AsULE + PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &[T; N]) -> bool {
+        ZeroSlice::eq(self, &other[..])
     }
 }
 
 impl<'a, T> PartialEq<ZeroVec<'a, T>> for ZeroSlice<T>
 where
-    T: AsULE + PartialEq,
+    T: AsULE,
 {
     #[inline]
     fn eq(&self, other: &ZeroVec<'a, T>) -> bool {
-        self.as_zerovec().eq(other)
+        ZeroSlice::eq(self, other.as_slice())
     }
 }
 
 impl<'a, T> PartialEq<ZeroSlice<T>> for ZeroVec<'a, T>
 where
-    T: AsULE + PartialEq,
+    T: AsULE,
 {
     #[inline]
     fn eq(&self, other: &ZeroSlice<T>) -> bool {
-        self.eq(&other.as_zerovec())
+        ZeroSlice::eq(self.as_slice(), other)
     }
 }
 
@@ -572,6 +594,12 @@ impl<T: AsULE + PartialOrd> PartialOrd for ZeroSlice<T> {
 impl<T: AsULE + Ord> Ord for ZeroSlice<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.iter().cmp(other.iter())
+    }
+}
+
+impl<T: AsULE> core::hash::Hash for ZeroSlice<T> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        state.write(self.as_bytes());
     }
 }
 

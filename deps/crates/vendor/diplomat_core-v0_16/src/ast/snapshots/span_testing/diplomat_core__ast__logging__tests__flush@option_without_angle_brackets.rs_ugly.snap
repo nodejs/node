@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected angle brackets for Option type
+In src/ast/snapshots/span_testing/option_without_angle_brackets.rs:3:23:
+...pt : Option) {}...
+        ^^^^^^
+Suggestion: add angle brackets

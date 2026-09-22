@@ -1,0 +1,110 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote!\n{ very::long::path::to::my::Type<'x, 'y, 'z> }, None, &SpanLocation::None)"
+---
+Named:
+  path:
+    elements:
+      - - very
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+      - - long
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+      - - path
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+      - - to
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+      - - my
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+      - - Type
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+  lifetimes:
+    - Named:
+        - x
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+    - Named:
+        - y
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None
+    - Named:
+        - z
+        - start:
+            line: 1
+            col: 0
+          end:
+            line: 1
+            col: 0
+          range:
+            start: 0
+            end: 0
+          span_location: None

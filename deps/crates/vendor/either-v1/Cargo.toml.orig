@@ -1,14 +1,12 @@
 [package]
 name = "either"
-version = "1.15.0"
-authors = ["bluss"]
+version = "1.18.0"
 edition = "2021"
 rust-version = "1.63.0"
 
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rayon-rs/either"
 documentation = "https://docs.rs/either/1/"
-readme = "README-crates.io.md"
 
 description = """
 The enum `Either` with variants `Left` and `Right` is a general purpose sum type with two cases.

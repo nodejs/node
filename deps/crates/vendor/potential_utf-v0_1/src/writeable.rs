@@ -59,7 +59,7 @@ impl TryWriteable for &'_ PotentialUtf16 {
         sink: &mut S,
     ) -> Result<Result<(), Self::Error>, fmt::Error> {
         let mut r = Ok(());
-        for c in core::char::decode_utf16(self.0.iter().copied()) {
+        for c in char::decode_utf16(self.0.iter().copied()) {
             match c {
                 Ok(c) => sink.write_char(c)?,
                 Err(e) => {
@@ -118,7 +118,7 @@ mod test {
         assert_try_writeable_parts_eq!(
             PotentialUtf16::from_slice(&[0xD83E, 0x20, 0xDD73]),
             "� �",
-            Err(core::char::decode_utf16([0xD83E].into_iter())
+            Err(char::decode_utf16([0xD83E].into_iter())
                 .next()
                 .unwrap()
                 .unwrap_err()),

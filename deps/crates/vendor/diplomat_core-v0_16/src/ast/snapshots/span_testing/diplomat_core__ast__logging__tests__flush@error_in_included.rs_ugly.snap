@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Found non-public method with diplomat attrs
+In src/ast/snapshots/span_testing/attr_on_non_pub.rs:7:12:
+...fn hidden_fn() {}...
+      ^^^^^^^^^
+Remove #[diplomat::*] attributes.

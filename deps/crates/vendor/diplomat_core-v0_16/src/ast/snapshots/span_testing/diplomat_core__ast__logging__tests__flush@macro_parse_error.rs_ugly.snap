@@ -1,0 +1,10 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: expected identifier
+In src/ast/snapshots/span_testing/macro_parse_error.rs:8:11:
+...est!(123);
+}...
+        ^^^
+Error parsing macro here

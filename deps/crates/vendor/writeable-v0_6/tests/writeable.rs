@@ -32,3 +32,17 @@ fn test_basic() {
     };
     assert_writeable_eq!(&message, input_string);
 }
+
+struct DelegatedMessage<'s>(WriteableMessage<'s>);
+
+writeable::impl_writeable_delegate!(DelegatedMessage<'_>, |&self| &self.0);
+writeable::impl_display_with_writeable!(DelegatedMessage<'_>);
+
+#[test]
+fn test_delegated() {
+    let input_string = "hello world 2";
+    let message = DelegatedMessage(WriteableMessage {
+        message: input_string,
+    });
+    assert_writeable_eq!(&message, input_string);
+}

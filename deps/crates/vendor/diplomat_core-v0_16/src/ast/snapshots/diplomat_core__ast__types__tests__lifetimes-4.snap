@@ -1,0 +1,33 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { Option<Ref<'object>> }, None,\n&SpanLocation::None)"
+---
+Option:
+  - Named:
+      path:
+        elements:
+          - - Ref
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+      lifetimes:
+        - Named:
+            - object
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+  - Stdlib

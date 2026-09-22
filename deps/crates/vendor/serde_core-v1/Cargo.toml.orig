@@ -1,6 +1,6 @@
 [package]
 name = "serde_core"
-version = "1.0.228"
+version = "1.0.229"
 authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
 build = "build.rs"
 categories = ["encoding", "no-std", "no-std::no-alloc"]
@@ -37,7 +37,7 @@ rustdoc-args = [
 # is compatible with exactly one serde release because the generated code
 # involves nonpublic APIs which are not bound by semver.
 [target.'cfg(any())'.dependencies]
-serde_derive = { version = "=1.0.228", path = "../serde_derive" }
+serde_derive = { version = "=1.0.229", path = "../serde_derive" }
 
 
 ### FEATURES #################################################################

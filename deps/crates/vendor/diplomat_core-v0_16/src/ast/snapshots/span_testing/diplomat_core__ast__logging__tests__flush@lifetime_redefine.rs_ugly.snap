@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Lifetime declared twice in the same scope
+In src/ast/snapshots/span_testing/lifetime_redefine.rs:3:35:
+...'a, 'a>() {...
+        ^
+Lifetime 'a already exists.
