@@ -3331,9 +3331,11 @@ console.log(`The parent process is pid ${ppid}`);
 added:
   - v23.6.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `maybeRefable` {any} An object that may be "refable".
 
@@ -4435,9 +4437,11 @@ In [`Worker`][] threads, `process.umask(mask)` will throw an exception.
 added:
   - v23.6.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `maybeRefable` {any} An object that may be "unref'd".
 
