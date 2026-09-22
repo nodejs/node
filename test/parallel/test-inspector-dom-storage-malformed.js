@@ -69,27 +69,32 @@ async function getDOMStorageItems(localStorageFile) {
 }
 
 (async () => {
-  // A wrong-typed value is rejected by Storage::GetAll() itself, which has no
-  // exception to report, so the reason is not available.
+  // A wrong-typed value is rejected by Storage::GetAll() itself, which opens
+  // the file successfully and has no exception to report.
   await assert.rejects(
     getDOMStorageItems(
       malformedLocalStorage('bad-value.db', 1, 'hello')),
-    { message: 'Could not read DOM storage items' },
+    { message: 'Could not read DOM storage items: the backing file is malformed' },
   );
 
   // A wrong-typed schema_version makes Storage::Open() throw, which has to be
   // caught rather than left pending on an isolate with no JavaScript running.
-  // Its message reaches the frontend.
+  //
+  // Which of the two messages below comes back is not something this test can
+  // pin down. The reason is read off the v8::Message, hence the "Uncaught"
+  // prefix, but V8 only builds one on a best-effort basis: Isolate::Throw()
+  // skips it while the bootstrapper is active, and it is not handed to an
+  // external TryCatch when a JavaScript handler is the topmost one. Both
+  // outcomes prove the point, which is that Open() threw and was caught.
   await assert.rejects(
     getDOMStorageItems(
       malformedLocalStorage(
         'bad-schema-version.db', 'one', Buffer.from('hello', 'utf16le'))),
     {
-      // The reason comes off the v8::Message, hence the "Uncaught" prefix;
-      // converting the exception itself would run user JavaScript.
-      message: 'Could not read DOM storage items: Uncaught Error: ' +
-        'localStorage database is malformed: expected schema_version to be ' +
-        'an integer',
+      message: new RegExp('^Could not read DOM storage items: (?:' +
+        'Uncaught Error: localStorage database is malformed: expected ' +
+        'schema_version to be an integer' +
+        '|the backing store could not be opened)$'),
     },
   );
 })().then(common.mustCall());

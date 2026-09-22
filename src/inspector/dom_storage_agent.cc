@@ -101,9 +101,12 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
   std::optional<StorageMap> storage_map_fallback;
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
+    // Each way of failing below says something different about the store, so
+    // each reports a different reason. A frontend that cannot read a store
+    // otherwise has no way to tell a missing one from a corrupt one.
     if (!web_storage_obj) {
       return protocol::DispatchResponse::ServerError(
-          "Could not read DOM storage items");
+          "Could not read DOM storage items: storage is unavailable");
     }
     // A message from a remote frontend is dispatched without a HandleScope
     // on the stack, and opening the backing file can throw, so give the
@@ -124,12 +127,15 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
         return protocol::DispatchResponse::ServerError(
             std::string("Could not read DOM storage items: ") + reason.out());
       }
+      // V8 builds that Message on a best-effort basis, so the throw is all we
+      // can report when it is missing.
       return protocol::DispatchResponse::ServerError(
-          "Could not read DOM storage items");
+          "Could not read DOM storage items: the backing store could not be "
+          "opened");
     }
     if (!storage_map_fallback.has_value()) {
       return protocol::DispatchResponse::ServerError(
-          "Could not read DOM storage items");
+          "Could not read DOM storage items: the backing file is malformed");
     }
     storage_map = &storage_map_fallback.value();
   }
