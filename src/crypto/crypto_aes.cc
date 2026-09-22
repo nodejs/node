@@ -47,6 +47,13 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
                                  ByteSource* out) {
   CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
 
+  const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
+  // AES-KW requires at least two 64-bit plaintext blocks, plus the
+  // 64-bit integrity check value when unwrapping.
+  if (params.cipher.isWrapMode() && in.size() < (encrypt ? 16u : 24u)) {
+    return WebCryptoCipherStatus::FAILED;
+  }
+
   auto ctx = CipherCtxPointer::New();
   if (!ctx) {
     return WebCryptoCipherStatus::FAILED;
@@ -55,8 +62,6 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   if (params.cipher.isWrapMode()) {
     ctx.setAllowWrap();
   }
-
-  const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
 
   if (!ctx.init(params.cipher, encrypt)) {
     // Cipher init failed
