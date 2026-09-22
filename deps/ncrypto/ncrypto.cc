@@ -5942,8 +5942,10 @@ bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
   if (!buf) return false;
   unsigned char* ptr = static_cast<unsigned char*>(buf.get());
   ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
-  x.encodePaddedInto(ptr + 1, field_len);
-  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+  if (x.encodePaddedInto(ptr + 1, field_len) != field_len ||
+      y.encodePaddedInto(ptr + 1 + field_len, field_len) != field_len) {
+    return false;
+  }
 
   auto point = ECPointPointer::New(group);
   if (!point) return false;
@@ -6171,8 +6173,10 @@ bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
   if (!buf) return false;
   unsigned char* ptr = static_cast<unsigned char*>(buf.get());
   ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
-  x.encodePaddedInto(ptr + 1, field_len);
-  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+  if (x.encodePaddedInto(ptr + 1, field_len) != field_len ||
+      y.encodePaddedInto(ptr + 1 + field_len, field_len) != field_len) {
+    return false;
+  }
 
   auto point = ECPointPointer::New(group_.get());
   if (!point || !point.setFromBuffer({ptr, uncompressed_len}, group_.get())) {
