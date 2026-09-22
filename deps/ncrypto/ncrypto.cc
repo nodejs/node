@@ -2937,7 +2937,9 @@ DataPointer argon2(const Buffer<const char>& pass,
   // per-context. It inherits no configuration, so availability is checked
   // against the default context, otherwise Argon2 works in FIPS mode.
   DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx;
-  if (lanes > 1) {
+  uint32_t threads = lanes == 0 ? 0 : 1;
+  if (lanes > 1 && (OSSL_get_thread_support_flags() &
+                    OSSL_THREAD_SUPPORT_FLAG_DEFAULT_SPAWN) != 0) {
     if (!KDF::Fetch(algorithm.data())) {
       return {};
     }
@@ -2947,8 +2949,13 @@ DataPointer argon2(const Buffer<const char>& pass,
       return {};
     }
 
-    if (OSSL_set_max_threads(ctx.get(), lanes) != 1) {
-      return {};
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    if (OSSL_set_max_threads(ctx.get(), lanes) == 1) {
+      threads = lanes;
+    } else {
+      // Lane count is an Argon2 input; worker threads are only an
+      // optimization. Compute the same lanes serially if unavailable.
+      ctx.reset();
     }
   }
 
@@ -2966,7 +2973,8 @@ DataPointer argon2(const Buffer<const char>& pass,
       pass.len));
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &threads));
   params.push_back(
       OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
   params.push_back(
