@@ -9,8 +9,11 @@ const { Buffer } = require('buffer');
 const assert = require('assert');
 const { crypto } = globalThis;
 
+for (const value of [undefined, null, '', 1, {}, [], new ArrayBuffer(1)]) {
+  assert.throws(() => crypto.getRandomValues(value), TypeError);
+}
+
 [
-  undefined, null, '', 1, {}, [],
   new Float32Array(1),
   new Float64Array(1),
   new DataView(new ArrayBuffer(1)),
