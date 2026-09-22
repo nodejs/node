@@ -181,6 +181,8 @@ class KeyObjectHandle : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExportECPrivateRaw(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportECPrivatePkcs8(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   v8::MaybeLocal<v8::Value> ExportSecretKey() const;

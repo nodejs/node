@@ -778,6 +778,7 @@ class Ec final {
   static DataPointer TryExportPublic(const EVPKeyPointer& key,
                                      point_conversion_form_t form);
   static DataPointer ExportPrivate(const EVPKeyPointer& key);
+  static BIOPointer ExportPrivatePkcs8(const EVPKeyPointer& key);
   static bool GetKeyComponents(const EVPKeyPointer& key,
                                BignumPointer* x,
                                BignumPointer* y,
