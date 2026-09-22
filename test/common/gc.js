@@ -42,7 +42,7 @@ function onGC(obj, gcListener) {
 
 /**
  * Repeatedly triggers garbage collection until a specified condition is met or a maximum number of attempts is reached.
- * This utillity must be run in a Node.js instance that enables --expose-gc.
+ * This utility must be run in a Node.js instance that enables --expose-gc.
  * @param {string|Function} [name] - Optional name, used in the rejection message if the condition is not met.
  * @param {Function} condition - A function that returns true when the desired condition is met.
  * @param {number} maxCount - Maximum number of garbage collections that should be tried.

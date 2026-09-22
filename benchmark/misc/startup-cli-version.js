@@ -8,7 +8,7 @@ const path = require('path');
 // checked into the source code. We use --version because the output
 // tends to be minimal and fewer operations are done to generate
 // these so that the startup cost is still dominated by a more
-// indispensible part of the CLI.
+// indispensable part of the CLI.
 // NOTE: not all tools are present in tarball hence need to filter
 const availableCli = [
   'tools/eslint/node_modules/eslint/bin/eslint.js',
