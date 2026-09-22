@@ -118,7 +118,6 @@ tools/*/*.i.tmp
 
 # === Rules for tools/perfetto ===
 /tools/perfetto/trace_processor_shell
-/tools/perfetto/.version
 
 # === Rules for test artifacts ===
 /*.tap

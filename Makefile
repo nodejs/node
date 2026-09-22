@@ -235,7 +235,7 @@ distclean: ## Remove all build and test artifacts.
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
 	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
-	$(RM) tools/perfetto/trace_processor_shell tools/perfetto/.version
+	$(RM) tools/perfetto/trace_processor_shell
 	$(RM) $(BINARYTAR).* $(TARBALL).*
 
 .PHONY: check
