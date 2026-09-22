@@ -736,6 +736,53 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 }
 
 {
+  // The `error` and `suppressed` properties of a SuppressedError should be
+  // shown during inspection, same as `cause` and AggregateError's `errors`.
+  const { stackTraceLimit } = Error;
+  Error.stackTraceLimit = 0;
+
+  const disposeError = new Error('dispose error');
+  const bodyError = new Error('body error');
+  const suppressedError = new SuppressedError(
+    disposeError,
+    bodyError,
+    'An error was suppressed during disposal',
+  );
+
+  assert.strictEqual(
+    util.inspect(suppressedError),
+    '[SuppressedError: An error was suppressed during disposal] ' +
+    '{\n  [error]: [Error: dispose error],\n  [suppressed]: [Error: body error]\n}',
+  );
+
+  // Nested SuppressedErrors (multiple failed disposals) must recurse.
+  const outer = new SuppressedError(
+    new Error('second dispose error'),
+    suppressedError,
+    'outer',
+  );
+  assert.strictEqual(
+    util.inspect(outer),
+    '[SuppressedError: outer] {\n' +
+    '  [error]: [Error: second dispose error],\n' +
+    '  [suppressed]: [SuppressedError: An error was suppressed during disposal] {\n' +
+    '    [error]: [Error: dispose error],\n' +
+    '    [suppressed]: [Error: body error]\n' +
+    '  }\n' +
+    '}',
+  );
+
+  const custom = new Error('No own error/suppressed property');
+  Object.setPrototypeOf(custom, suppressedError);
+  assert.strictEqual(
+    util.inspect(custom),
+    '[SuppressedError: No own error/suppressed property]',
+  );
+
+  Error.stackTraceLimit = stackTraceLimit;
+}
+
+{
   const tmp = Error.stackTraceLimit;
   // Force stackTraceLimit = 0 for this test, but make it non-enumerable
   // so it doesn't appear in inspect() output when inspecting Error in other tests.
