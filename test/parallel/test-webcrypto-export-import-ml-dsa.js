@@ -414,6 +414,11 @@ async function testImportRawPublic({ name, publicUsages }, extractable) {
       name: 'NotSupportedError',
       message: `Unable to export ${publicKey.algorithm.name} public key using raw format`,
     });
+
+    await assert.rejects(subtle.exportKey('raw-seed', publicKey), {
+      name: 'InvalidAccessError',
+      message: 'Key must be a private key',
+    });
   }
 
   await assert.rejects(
@@ -453,6 +458,11 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
   if (extractable) {
     const value = await subtle.exportKey('raw-seed', privateKey);
     assert.deepStrictEqual(Buffer.from(value), seed);
+
+    await assert.rejects(subtle.exportKey('raw-public', privateKey), {
+      name: 'InvalidAccessError',
+      message: 'Key must be a public key',
+    });
   }
 
   await assert.rejects(

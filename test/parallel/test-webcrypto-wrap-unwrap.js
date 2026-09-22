@@ -578,6 +578,16 @@ async function testNonByteLengthWrapUnwrap({
       name: 'InvalidAccessError',
     });
 
+  // Exporting a private key as 'raw' must also fail with InvalidAccessError.
+  await assert.rejects(
+    subtle.wrapKey('raw', ecKey.privateKey, wrapKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      message: 'Key must be a public key',
+      name: 'InvalidAccessError',
+    });
+
   // --- unwrapKey validation tests ---
 
   const ciphertext = new Uint8Array(32); // Dummy ciphertext
