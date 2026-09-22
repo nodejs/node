@@ -243,6 +243,14 @@ test('ffi toString returns null for a null pointer', () => {
   assert.strictEqual(ffi.toString(0n), null);
 });
 
+test('ffi accepts zero-length copies through a null pointer', () => {
+  assert.strictEqual(ffi.toBuffer(0n, 0).length, 0);
+  assert.strictEqual(ffi.toArrayBuffer(0n, 0).byteLength, 0);
+  assert.strictEqual(ffi.exportBuffer(Buffer.alloc(0), 0n, 0), undefined);
+  assert.strictEqual(ffi.exportArrayBuffer(new ArrayBuffer(0), 0n, 0), undefined);
+  assert.strictEqual(ffi.exportArrayBufferView(new Uint8Array(0), 0n, 0), undefined);
+});
+
 test('ffi validates memory access arguments', () => {
   withAllocations(common.mustCall((alloc) => {
     const ptr = alloc(8);

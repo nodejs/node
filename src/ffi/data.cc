@@ -662,7 +662,7 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   if (copy) {
     std::unique_ptr<BackingStore> store =
         ArrayBuffer::NewBackingStore(isolate, len);
-    memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);
+    if (len > 0) memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);
     ab = ArrayBuffer::New(isolate, std::move(store));
   } else {
     std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
@@ -740,7 +740,9 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  std::memcpy(reinterpret_cast<void*>(ptr), view.data(), view.length());
+  if (view.length() > 0) {
+    std::memcpy(reinterpret_cast<void*>(ptr), view.data(), view.length());
+  }
 }
 
 void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
