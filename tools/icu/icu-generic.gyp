@@ -133,273 +133,441 @@
       'type': '<(library)',
       'toolsets': [ 'target' ],
       'conditions': [
-        [ 'OS == "win"', {
+        [ 'icu_compress_data=="true"', {
           'conditions': [
-            [ 'icu_small == "false"', { # and OS=win
-              # full data - just build the full data file, then we are done.
-              'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
-              'dependencies': [
-                'genccode#host',
-                'icustubdata',
-                '../../deps/zstd/zstd.gyp:zstd_compress#host',
-              ],
-              'export_dependent_settings': [ 'icustubdata' ],
-              'conditions': [
-                [ 'clang==1', {
-                  'actions': [
-                    {
-                      'action_name': 'icu_zstd',
-                      'msvs_quote_cmd': 0,
-                      'inputs': [
-                        '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                        '<(icu_data_in)',
-                      ],
-                      'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                      'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                                  '--icu',
-                                  '<(icu_data_in)',
-                                  '<@(_outputs)' ],
-                    },
-                    {
-                      'action_name': 'icudata',
-                      'msvs_quote_cmd': 0,
-                      'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                      'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
-                      # on Windows, we can go directly to .obj file (-o) option.
-                      # for Clang use "-c <(target_arch)" option
-                      'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
-                                  '<@(icu_asm_opts)', # -o
-                                  '-c', '<(target_arch)',
-                                  '-d', '<(SHARED_INTERMEDIATE_DIR)',
-                                  '-n', 'icudata',
-                                  '-e', 'node_icu_zstd',
-                                  '-f', 'icudt<(icu_ver_major)<(icu_endianness)_dat',
-                                  '<@(_inputs)' ],
-                    },
-                  ],
-                }, {
-                  'actions': [
-                    {
-                      'action_name': 'icu_zstd',
-                      'msvs_quote_cmd': 0,
-                      'inputs': [
-                        '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                        '<(icu_data_in)',
-                      ],
-                      'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                      'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                                  '--icu',
-                                  '<(icu_data_in)',
-                                  '<@(_outputs)' ],
-                    },
-                    {
-                      'action_name': 'icudata',
-                      'msvs_quote_cmd': 0,
-                      'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                      'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
-                      # on Windows, we can go directly to .obj file (-o) option.
-                      # for MSVC do not use "-c <(target_arch)" option
-                      'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
-                                  '<@(icu_asm_opts)', # -o
-                                  '-d', '<(SHARED_INTERMEDIATE_DIR)',
-                                  '-n', 'icudata',
-                                  '-e', 'node_icu_zstd',
-                                  '-f', 'icudt<(icu_ver_major)<(icu_endianness)_dat',
-                                  '<@(_inputs)' ],
-                    },
-                  ],
-                }]
-              ],
-            }, { # icu_small == TRUE and OS == win
-              # link against stub data primarily
-              # then, use icupkg and genccode to rebuild data
-              'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host',
-                               '../../deps/zstd/zstd.gyp:zstd_compress#host' ],
-              'export_dependent_settings': [ 'icustubdata' ],
-              'actions': [
-                {
-                  # trim down ICU
-                  'action_name': 'icutrim',
-                  'msvs_quote_cmd': 0,
-                  'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                  'action': [ '<(python)',
-                              'icutrim.py',
-                              '-P', '<(PRODUCT_DIR)/.', # '.' suffix is a workaround against GYP assumptions :(
-                              '-D', '<(icu_data_in)',
-                              '--delete-tmp',
-                              '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
-                              '-F', 'icu_small.json',
-                              '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
-                              '-v',
-                              '-L', '<(icu_locales)'],
-                },
-                {
-                  'action_name': 'icu_zstd',
-                  'msvs_quote_cmd': 0,
-                  'inputs': [
-                    '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                    '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat',
-                  ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                  'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                              '--icu',
-                              '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat',
-                              '<@(_outputs)' ],
-                },
-                {
-                  # build final .dat -> .obj
-                  'action_name': 'genccode',
-                  'msvs_quote_cmd': 0,
-                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
-                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
-                              '<@(icu_asm_opts)', # -o
-                              '-c', '<(target_arch)',
-                              '-d', '<(SHARED_INTERMEDIATE_DIR)/',
-                              '-n', 'icudata',
-                              '-e', 'node_icu_zstd',
-                              '-f', 'icudt<(icu_ver_major)<(icu_endianness)_dat',
-                              '<@(_inputs)' ],
-                },
-              ],
-              # This file contains the small ICU data.
-              'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
-            } ] ], #end of OS==win and icu_small == true
-        }, { # OS != win
+            [ 'OS == "win"', {
+                      'conditions': [
+                        [ 'icu_small == "false"', { # and OS=win
+                          # full data - just build the full data file, then we are done.
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                          'dependencies': [
+                            'genccode#host',
+                            'icustubdata',
+                            '../../deps/zstd/zstd.gyp:zstd_compress#host',
+                          ],
+                          'export_dependent_settings': [ 'icustubdata' ],
+                          'conditions': [
+                            [ 'clang==1', {
+                              'actions': [
+                                {
+                                  'action_name': 'icu_zstd',
+                                  'msvs_quote_cmd': 0,
+                                  'inputs': [
+                                    '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                    '<(icu_data_in)',
+                                  ],
+                                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                                  'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                              '--icu',
+                                              '<(icu_data_in)',
+                                              '<@(_outputs)' ],
+                                },
+                                {
+                                  'action_name': 'icudata',
+                                  'msvs_quote_cmd': 0,
+                                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                                  # on Windows, we can go directly to .obj file (-o) option.
+                                  # for Clang use "-c <(target_arch)" option
+                                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                              '<@(icu_asm_opts)', # -o
+                                              '-c', '<(target_arch)',
+                                              '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                              '-n', 'icudata',
+                                              '-e', 'icudt<(icu_ver_major)<(icu_endianness)_dat_zstd',
+                                              '-f', 'icudt<(icu_ver_major)<(icu_endianness)_dat',
+                                              '<@(_inputs)' ],
+                                },
+                              ],
+                            }, {
+                              'actions': [
+                                {
+                                  'action_name': 'icu_zstd',
+                                  'msvs_quote_cmd': 0,
+                                  'inputs': [
+                                    '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                    '<(icu_data_in)',
+                                  ],
+                                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                                  'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                              '--icu',
+                                              '<(icu_data_in)',
+                                              '<@(_outputs)' ],
+                                },
+                                {
+                                  'action_name': 'icudata',
+                                  'msvs_quote_cmd': 0,
+                                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                                  # on Windows, we can go directly to .obj file (-o) option.
+                                  # for MSVC do not use "-c <(target_arch)" option
+                                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                              '<@(icu_asm_opts)', # -o
+                                              '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                              '-n', 'icudata',
+                                              '-e', 'icudt<(icu_ver_major)<(icu_endianness)_dat_zstd',
+                                              '-f', 'icudt<(icu_ver_major)<(icu_endianness)_dat',
+                                              '<@(_inputs)' ],
+                                },
+                              ],
+                            }]
+                          ],
+                        }, { # icu_small == TRUE and OS == win
+                          # link against stub data primarily
+                          # then, use icupkg and genccode to rebuild data
+                          'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host',
+                                           '../../deps/zstd/zstd.gyp:zstd_compress#host' ],
+                          'export_dependent_settings': [ 'icustubdata' ],
+                          'actions': [
+                            {
+                              # trim down ICU
+                              'action_name': 'icutrim',
+                              'msvs_quote_cmd': 0,
+                              'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                              'action': [ '<(python)',
+                                          'icutrim.py',
+                                          '-P', '<(PRODUCT_DIR)/.', # '.' suffix is a workaround against GYP assumptions :(
+                                          '-D', '<(icu_data_in)',
+                                          '--delete-tmp',
+                                          '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
+                                          '-F', 'icu_small.json',
+                                          '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '-v',
+                                          '-L', '<(icu_locales)'],
+                            },
+                            {
+                              'action_name': 'icu_zstd',
+                              'msvs_quote_cmd': 0,
+                              'inputs': [
+                                '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat',
+                              ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                              'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                          '--icu',
+                                          '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '<@(_outputs)' ],
+                            },
+                            {
+                              # build final .dat -> .obj
+                              'action_name': 'genccode',
+                              'msvs_quote_cmd': 0,
+                              'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                              'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                          '<@(icu_asm_opts)', # -o
+                                          '-c', '<(target_arch)',
+                                          '-d', '<(SHARED_INTERMEDIATE_DIR)/',
+                                          '-n', 'icudata',
+                                          '-e', 'icudt<(icu_ver_major)<(icu_endianness)_dat_zstd',
+                                          '-f', 'icudt<(icu_ver_major)<(icu_endianness)_dat',
+                                          '<@(_inputs)' ],
+                            },
+                          ],
+                          # This file contains the small ICU data.
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                        } ] ], #end of OS==win and icu_small == true
+                    }, { # OS != win
+                      'conditions': [
+                        [ 'icu_small == "false"', {
+                          # full data - no trim needed. The bytes embedded below are
+                          # zstd-compressed. Node maps a per-user cache file of the
+                          # decompressed bytes so the pages stay shareable.
+                          # icustubdata satisfies ICU's icudtXX_dat link reference.
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                          'dependencies': [
+                            'genccode#host',
+                            'icupkg#host',
+                            'icu_implementation#host',
+                            'icu_uconfig',
+                            'icustubdata',
+                            '../../deps/zstd/zstd.gyp:zstd_compress#host',
+                          ],
+                          'export_dependent_settings': [ 'icustubdata' ],
+                          'include_dirs': [
+                            '<(icu_path)/source/common',
+                          ],
+                          'actions': [
+                            {
+                               # Copy the .dat file, swapping endianness if needed.
+                               'action_name': 'icupkg',
+                               'inputs': [ '<(icu_data_in)' ],
+                               'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                               'action': [ '<(PRODUCT_DIR)/icupkg<(EXECUTABLE_SUFFIX)',
+                                           '-t<(icu_endianness)',
+                                           '<@(_inputs)',
+                                           '<@(_outputs)',
+                                         ],
+                            },
+                            {
+                              # Keep the version and endianness in the name (icudt78l.dat.z).
+                              'action_name': 'icu_zstd',
+                              'inputs': [
+                                '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat',
+                              ],
+                              'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                              'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                          '--icu',
+                                          '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '<@(_outputs)' ],
+                            },
+                            {
+                              # genccode appends _dat to -e. The symbol is
+                              # icudt<ver><endian>_dat_zstd_dat, not the real ICU entry.
+                              'action_name': 'icudata',
+                              'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                              'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                              'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                          '-e', 'icudt<(icu_ver_major)<(icu_endianness)_dat_zstd',
+                                          '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                          '<@(icu_asm_opts)',
+                                          '-f', 'icudt<(icu_ver_major)_dat',
+                                          '<@(_inputs)' ],
+                            },
+                          ], # end actions
+                        }, { # icu_small == true ( and OS != win )
+                          # link against stub data (as primary data)
+                          # then, use icupkg and genccode to rebuild small data
+                          'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host',
+                                           'icu_implementation', 'icu_uconfig',
+                                           '../../deps/zstd/zstd.gyp:zstd_compress#host' ],
+                          'export_dependent_settings': [ 'icustubdata' ],
+                          'actions': [
+                            {
+                              # Trim down ICU.
+                              # Note that icupkg is invoked automatically, swapping endianness if needed.
+                              'action_name': 'icutrim',
+                              'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                              'action': [ '<(python)',
+                                          'icutrim.py',
+                                          '-P', '<(PRODUCT_DIR)',
+                                          '-D', '<(icu_data_in)',
+                                          '--delete-tmp',
+                                          '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
+                                          '-F', 'icu_small.json',
+                                          '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '-v',
+                                          '-L', '<(icu_locales)'],
+                            }, {
+                              'action_name': 'icu_zstd',
+                              'inputs': [
+                                '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat',
+                              ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                              'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
+                                          '--icu',
+                                          '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '<@(_outputs)' ],
+                            }, {
+                              # For icu-small, always use .c, don't try to use .S, etc.
+                              'action_name': 'genccode',
+                              'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat.z' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icusmdt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                              'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                          '<@(icu_asm_opts)',
+                                          '-e', 'icudt<(icu_ver_major)<(icu_endianness)_dat_zstd',
+                                          '-f', 'icusmdt<(icu_ver_major)_dat',
+                                          '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                          '<@(_inputs)' ],
+                            },
+                          ],
+                          # This file contains the small ICU data
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icusmdt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                          # for umachine.h
+                          'include_dirs': [
+                            '<(icu_path)/source/common',
+                          ],
+                        }]], # end icu_small == true
+                    }]], # end OS != win
+        }, {
           'conditions': [
-            [ 'icu_small == "false"', {
-              # full data - no trim needed. The bytes embedded below are
-              # zstd-compressed. Node maps a per-user cache file of the
-              # decompressed bytes so the pages stay shareable.
-              # icustubdata satisfies ICU's icudtXX_dat link reference.
-              'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
-              'dependencies': [
-                'genccode#host',
-                'icupkg#host',
-                'icu_implementation#host',
-                'icu_uconfig',
-                'icustubdata',
-                '../../deps/zstd/zstd.gyp:zstd_compress#host',
-              ],
-              'export_dependent_settings': [ 'icustubdata' ],
-              'include_dirs': [
-                '<(icu_path)/source/common',
-              ],
-              'actions': [
-                {
-                   # Copy the .dat file, swapping endianness if needed.
-                   'action_name': 'icupkg',
-                   'inputs': [ '<(icu_data_in)' ],
-                   'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                   'action': [ '<(PRODUCT_DIR)/icupkg<(EXECUTABLE_SUFFIX)',
-                               '-t<(icu_endianness)',
-                               '<@(_inputs)',
-                               '<@(_outputs)',
-                             ],
-                },
-                {
-                   # Rename without the endianness marker (icudt64l.dat -> icudt64.dat)
-                   'action_name': 'copy',
-                   'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                   'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major).dat' ],
-                   'action': [ 'cp',
-                               '<@(_inputs)',
-                               '<@(_outputs)',
-                             ],
-                },
-                {
-                  'action_name': 'icu_zstd',
-                  'inputs': [
-                    '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                    '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major).dat',
-                  ],
-                  'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                  'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                              '--icu',
-                              '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major).dat',
-                              '<@(_outputs)' ],
-                },
-                {
-                  # convert compressed ICU data to .c, or .S, etc.
-                  # -e names the symbol node_icu_zstd_dat so ICU does not
-                  # treat the compressed bytes as its data entry point.
-                  'action_name': 'icudata',
-                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                  'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
-                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
-                              '-e', 'node_icu_zstd',
-                              '-d', '<(SHARED_INTERMEDIATE_DIR)',
-                              '<@(icu_asm_opts)',
-                              '-f', 'icudt<(icu_ver_major)_dat',
-                              '<@(_inputs)' ],
-                },
-              ], # end actions
-            }, { # icu_small == true ( and OS != win )
-              # link against stub data (as primary data)
-              # then, use icupkg and genccode to rebuild small data
-              'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host',
-                               'icu_implementation', 'icu_uconfig',
-                               '../../deps/zstd/zstd.gyp:zstd_compress#host' ],
-              'export_dependent_settings': [ 'icustubdata' ],
-              'actions': [
-                {
-                  # Trim down ICU.
-                  # Note that icupkg is invoked automatically, swapping endianness if needed.
-                  'action_name': 'icutrim',
-                  'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                  'action': [ '<(python)',
-                              'icutrim.py',
-                              '-P', '<(PRODUCT_DIR)',
-                              '-D', '<(icu_data_in)',
-                              '--delete-tmp',
-                              '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
-                              '-F', 'icu_small.json',
-                              '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
-                              '-v',
-                              '-L', '<(icu_locales)'],
-                }, {
-                  # rename to get the final entrypoint name right (icudt64l.dat -> icusmdt64.dat)
-                   'action_name': 'rename',
-                   'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icusmdt<(icu_ver_major).dat' ],
-                   'action': [ 'cp',
-                               '<@(_inputs)',
-                               '<@(_outputs)',
-                             ],
-                }, {
-                  'action_name': 'icu_zstd',
-                  'inputs': [
-                    '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                    '<(SHARED_INTERMEDIATE_DIR)/icutmp/icusmdt<(icu_ver_major).dat',
-                  ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                  'action': [ '<(PRODUCT_DIR)/zstd_compress<(EXECUTABLE_SUFFIX)',
-                              '--icu',
-                              '<(SHARED_INTERMEDIATE_DIR)/icutmp/icusmdt<(icu_ver_major).dat',
-                              '<@(_outputs)' ],
-                }, {
-                  # For icu-small, always use .c, don't try to use .S, etc.
-                  'action_name': 'genccode',
-                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_icu_zstd.dat' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icusmdt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
-                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
-                              '<@(icu_asm_opts)',
-                              '-e', 'node_icu_zstd',
-                              '-f', 'icusmdt<(icu_ver_major)_dat',
-                              '-d', '<(SHARED_INTERMEDIATE_DIR)',
-                              '<@(_inputs)' ],
-                },
-              ],
-              # This file contains the small ICU data
-              'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icusmdt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
-              # for umachine.h
-              'include_dirs': [
-                '<(icu_path)/source/common',
-              ],
-            }]], # end icu_small == true
-        }]], # end OS != win
+            [ 'OS == "win"', {
+                      'conditions': [
+                        [ 'icu_small == "false"', { # and OS=win
+                          # full data - just build the full data file, then we are done.
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                          'dependencies': [ 'genccode#host' ],
+                          'conditions': [
+                            [ 'clang==1', {
+                              'actions': [
+                                {
+                                  'action_name': 'icudata',
+                                  'msvs_quote_cmd': 0,
+                                  'inputs': [ '<(icu_data_in)' ],
+                                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                                  # on Windows, we can go directly to .obj file (-o) option.
+                                  # for Clang use "-c <(target_arch)" option
+                                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                              '<@(icu_asm_opts)', # -o
+                                              '-c', '<(target_arch)',
+                                              '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                              '-n', 'icudata',
+                                              '-e', 'icudt<(icu_ver_major)',
+                                              '<@(_inputs)' ],
+                                },
+                              ],
+                            }, {
+                              'actions': [
+                                {
+                                  'action_name': 'icudata',
+                                  'msvs_quote_cmd': 0,
+                                  'inputs': [ '<(icu_data_in)' ],
+                                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                                  # on Windows, we can go directly to .obj file (-o) option.
+                                  # for MSVC do not use "-c <(target_arch)" option
+                                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                              '<@(icu_asm_opts)', # -o
+                                              '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                              '-n', 'icudata',
+                                              '-e', 'icudt<(icu_ver_major)',
+                                              '<@(_inputs)' ],
+                                },
+                              ],
+                            }]
+                          ],
+                        }, { # icu_small == TRUE and OS == win
+                          # link against stub data primarily
+                          # then, use icupkg and genccode to rebuild data
+                          'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host' ],
+                          'export_dependent_settings': [ 'icustubdata' ],
+                          'actions': [
+                            {
+                              # trim down ICU
+                              'action_name': 'icutrim',
+                              'msvs_quote_cmd': 0,
+                              'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                              'action': [ '<(python)',
+                                          'icutrim.py',
+                                          '-P', '<(PRODUCT_DIR)/.', # '.' suffix is a workaround against GYP assumptions :(
+                                          '-D', '<(icu_data_in)',
+                                          '--delete-tmp',
+                                          '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
+                                          '-F', 'icu_small.json',
+                                          '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '-v',
+                                          '-L', '<(icu_locales)'],
+                            },
+                            {
+                              # build final .dat -> .obj
+                              'action_name': 'genccode',
+                              'msvs_quote_cmd': 0,
+                              'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                              'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                          '<@(icu_asm_opts)', # -o
+                                          '-c', '<(target_arch)',
+                                          '-d', '<(SHARED_INTERMEDIATE_DIR)/',
+                                          '-n', 'icudata',
+                                          '-e', 'icusmdt<(icu_ver_major)',
+                                          '<@(_inputs)' ],
+                            },
+                          ],
+                          # This file contains the small ICU data.
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                        } ] ], #end of OS==win and icu_small == true
+                    }, { # OS != win
+                      'conditions': [
+                        [ 'icu_small == "false"', {
+                          # full data - no trim needed
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                          'dependencies': [ 'genccode#host', 'icupkg#host', 'icu_implementation#host', 'icu_uconfig' ],
+                          'include_dirs': [
+                            '<(icu_path)/source/common',
+                          ],
+                          'actions': [
+                            {
+                               # Copy the .dat file, swapping endianness if needed.
+                               'action_name': 'icupkg',
+                               'inputs': [ '<(icu_data_in)' ],
+                               'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                               'action': [ '<(PRODUCT_DIR)/icupkg<(EXECUTABLE_SUFFIX)',
+                                           '-t<(icu_endianness)',
+                                           '<@(_inputs)',
+                                           '<@(_outputs)',
+                                         ],
+                            },
+                            {
+                               # Rename without the endianness marker (icudt64l.dat -> icudt64.dat)
+                               'action_name': 'copy',
+                               'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                               'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major).dat' ],
+                               'action': [ 'cp',
+                                           '<@(_inputs)',
+                                           '<@(_outputs)',
+                                         ],
+                            },
+                            {
+                              # convert full ICU data file to .c, or .S, etc.
+                              'action_name': 'icudata',
+                              'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major).dat' ],
+                              'outputs':[ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                              'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                          '-e', 'icudt<(icu_ver_major)',
+                                          '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                          '<@(icu_asm_opts)',
+                                          '-f', 'icudt<(icu_ver_major)_dat',
+                                          '<@(_inputs)' ],
+                            },
+                          ], # end actions
+                        }, { # icu_small == true ( and OS != win )
+                          # link against stub data (as primary data)
+                          # then, use icupkg and genccode to rebuild small data
+                          'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host',
+                                           'icu_implementation', 'icu_uconfig' ],
+                          'export_dependent_settings': [ 'icustubdata' ],
+                          'actions': [
+                            {
+                              # Trim down ICU.
+                              # Note that icupkg is invoked automatically, swapping endianness if needed.
+                              'action_name': 'icutrim',
+                              'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                              'action': [ '<(python)',
+                                          'icutrim.py',
+                                          '-P', '<(PRODUCT_DIR)',
+                                          '-D', '<(icu_data_in)',
+                                          '--delete-tmp',
+                                          '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
+                                          '-F', 'icu_small.json',
+                                          '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
+                                          '-v',
+                                          '-L', '<(icu_locales)'],
+                            }, {
+                              # rename to get the final entrypoint name right (icudt64l.dat -> icusmdt64.dat)
+                               'action_name': 'rename',
+                               'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                               'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icusmdt<(icu_ver_major).dat' ],
+                               'action': [ 'cp',
+                                           '<@(_inputs)',
+                                           '<@(_outputs)',
+                                         ],
+                            }, {
+                              # For icu-small, always use .c, don't try to use .S, etc.
+                              'action_name': 'genccode',
+                              'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icusmdt<(icu_ver_major).dat' ],
+                              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icusmdt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                              'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                          '<@(icu_asm_opts)',
+                                          '-d', '<(SHARED_INTERMEDIATE_DIR)',
+                                          '<@(_inputs)' ],
+                            },
+                          ],
+                          # This file contains the small ICU data
+                          'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icusmdt<(icu_ver_major)_dat.<(icu_asm_ext)' ],
+                          # for umachine.h
+                          'include_dirs': [
+                            '<(icu_path)/source/common',
+                          ],
+                        }]], # end icu_small == true
+                    }]], # end OS != win
+        }],
+      ],
+
     }, # end icudata
     # icustubdata is a tiny (~1k) symbol with no ICU data in it.
     # tools must link against it as they are generating the full data.
