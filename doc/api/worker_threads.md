@@ -1633,6 +1633,12 @@ changes:
     process (such as `--title`) are not supported. If set, this is provided
     as [`process.execArgv`][] inside the worker. By default, options are
     inherited from the parent thread.
+    Passing an explicit `execArgv` (including an empty array) replaces that
+    inheritance: the worker receives only the listed flags. Under the
+    [Permission Model](permissions.md#permission-model), that means an explicit
+    `execArgv` can drop the parent's `--permission` / `--allow-*` grants.
+    Omit `execArgv` to keep the parent's CLI flags. This is intended. See
+    [Permission Model limitations](permissions.md#limitations-and-known-issues).
   * `stdin` {boolean} If this is set to `true`, then `worker.stdin`
     provides a writable stream whose contents appear as `process.stdin`
     inside the Worker. By default, no data is provided.
