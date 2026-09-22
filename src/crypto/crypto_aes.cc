@@ -573,8 +573,13 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     UseDefaultIV(params);
   }
 
-  // For OCB mode, allow variable IV lengths (1-15 bytes)
-  if (params->cipher.isOcbMode()) {
+  if (params->cipher.isGcmMode()) {
+    if (params->iv.size() == 0) {
+      THROW_ERR_CRYPTO_INVALID_IV(env);
+      return Nothing<void>();
+    }
+  } else if (params->cipher.isOcbMode()) {
+    // For OCB mode, allow variable IV lengths (1-15 bytes).
     if (params->iv.size() == 0 || params->iv.size() > 15) {
       THROW_ERR_CRYPTO_INVALID_IV(env);
       return Nothing<void>();
