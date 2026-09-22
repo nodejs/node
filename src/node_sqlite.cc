@@ -70,6 +70,13 @@ using v8::Value;
 
 inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
                                                  std::string_view input) {
+  // SQLITE_MAX_LENGTH exceeds String::kMaxLength, and V8 returns an empty
+  // handle without throwing. Raise the error here or the value is dropped.
+  if (input.size() > static_cast<size_t>(String::kMaxLength)) [[unlikely]] {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+    return MaybeLocal<String>();
+  }
+
   const int len = static_cast<int>(input.size());
   if (simdutf::validate_ascii(input.data(), input.size())) {
     return String::NewFromOneByte(
@@ -348,7 +355,11 @@ class DatabaseSync;
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
   if (db->ShouldIgnoreSQLiteError()) {
     db->SetIgnoreNextSQLiteError(false);
-    return;
+    // Suppression that swallows no pending exception would also swallow the
+    // SQLite error, reporting a failed statement as a success.
+    if (isolate->HasPendingException()) {
+      return;
+    }
   }
 
   Local<Object> e;
