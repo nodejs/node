@@ -38,11 +38,11 @@ const { subtle } = globalThis.crypto;
   }
   assert.strictEqual(isCryptoKey(key), true);
   assert.strictEqual(Object.hasOwn(CryptoKey, 'getSlots'), false);
-  const internalProto = Object.getPrototypeOf(key);
-  assert.strictEqual(Object.hasOwn(internalProto, 'getSlots'), false);
-  assert.strictEqual('getSlots' in internalProto, false);
-  assert.strictEqual(internalProto.constructor, CryptoKey);
-  assert.strictEqual(Object.getPrototypeOf(internalProto), CryptoKey.prototype);
+  const keyPrototype = Object.getPrototypeOf(key);
+  assert.strictEqual(Object.hasOwn(keyPrototype, 'getSlots'), false);
+  assert.strictEqual('getSlots' in keyPrototype, false);
+  assert.strictEqual(keyPrototype.constructor, CryptoKey);
+  assert.strictEqual(keyPrototype, CryptoKey.prototype);
 
   const invalidThis = { code: 'ERR_INVALID_THIS', name: 'TypeError' };
   const invalidArgType = { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' };
@@ -93,7 +93,7 @@ const { subtle } = globalThis.crypto;
     await assertInvalidReceiver(receiver);
   }
 
-  // Prototype spoofing with InternalCryptoKey.prototype must not pass
+  // Prototype spoofing with CryptoKey.prototype must not pass
   // util.types.isCryptoKey().
   const spoofed = {};
   Object.setPrototypeOf(spoofed, Object.getPrototypeOf(key));
