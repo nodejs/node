@@ -199,6 +199,18 @@ assert.throws(
   { code: 'ERR_INVALID_ARG_TYPE' },
 );
 
+// Duck-typed readables must provide each of the required methods.
+{
+  const required = ['read', 'pipe', 'destroy', 'on', 'removeListener'];
+  for (const missing of required) {
+    const duck = {};
+    for (const name of required) {
+      if (name !== missing) duck[name] = () => {};
+    }
+    assert.throws(() => fromReadable(duck), { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+}
+
 // fromWritable Writer options.signal must be AbortSignal
 {
   const writable = new Writable({

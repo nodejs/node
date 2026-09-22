@@ -621,6 +621,93 @@ async function testAbortWhileReadIsPending() {
   assert.strictEqual(readable.listenerCount('readable'), 0);
 }
 
+async function testReturnBeforeNext() {
+  const readable = new Readable({ read() {} });
+  const iterator = from(readable)[Symbol.asyncIterator]();
+
+  assert.deepStrictEqual(await iterator.return('stopped'), {
+    value: 'stopped',
+    done: true,
+  });
+  assert.strictEqual(readable.destroyed, true);
+}
+
+async function testThrowBeforeNext() {
+  const readable = new Readable({ read() {} });
+  const iterator = from(readable)[Symbol.asyncIterator]();
+  const reason = new Error('stop');
+
+  await assert.rejects(iterator.throw(reason), (error) => error === reason);
+  assert.strictEqual(readable.destroyed, true);
+}
+
+async function testThrowAfterNext() {
+  const readable = new Readable({ read() {} });
+  readable.push('a');
+  const iterator = from(readable)[Symbol.asyncIterator]();
+  const reason = new Error('stop');
+
+  const first = await iterator.next();
+  assert.strictEqual(Buffer.concat(first.value).toString(), 'a');
+  await assert.rejects(iterator.throw(reason), (error) => error === reason);
+  await setImmediate();
+  assert.strictEqual(readable.destroyed, true);
+  assert.strictEqual(readable.listenerCount('readable'), 0);
+}
+
+async function testThrowWhileReadIsPending() {
+  const readable = new Readable({ read() {} });
+  const iterator = from(readable)[Symbol.asyncIterator]();
+  const reason = new Error('stop');
+  const pending = iterator.next();
+  await setImmediate();
+
+  const thrown = iterator.throw(reason);
+  assert.deepStrictEqual(await pending, { value: undefined, done: true });
+  await assert.rejects(thrown, (error) => error === reason);
+  await setImmediate();
+  assert.strictEqual(readable.destroyed, true);
+  assert.strictEqual(readable.listenerCount('readable'), 0);
+}
+
+// Without autoDestroy, an errored Readable is left for the caller to destroy,
+// but the iterator must still release its listeners.
+async function testErrorWithoutAutoDestroy() {
+  const readable = new Readable({ autoDestroy: false, read() {} });
+  const closeListeners = readable.listenerCount('close');
+  const iterator = from(readable)[Symbol.asyncIterator]();
+  const pending = iterator.next();
+  await setImmediate();
+
+  readable.push(42);
+  await assert.rejects(pending, { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.strictEqual(readable.destroyed, false);
+  assert.strictEqual(readable.listenerCount('readable'), 0);
+  assert.strictEqual(readable.listenerCount('close'), closeListeners);
+  readable.destroy();
+}
+
+// A read() override may return null while data is still buffered; the batch
+// ends early rather than including the null.
+async function testNullReadWithBufferedData() {
+  const readable = new Readable({ objectMode: true, read() {} });
+  readable.push('a');
+  readable.push('b');
+  readable.push(null);
+  const read = readable.read;
+  let calls = 0;
+  readable.read = function(...args) {
+    if (++calls === 2) return null;
+    return read.apply(this, args);
+  };
+
+  const batches = [];
+  for await (const batch of from(readable)) {
+    batches.push(batch.map((chunk) => Buffer.from(chunk).toString()));
+  }
+  assert.deepStrictEqual(batches, [['a'], ['b']]);
+}
+
 // =============================================================================
 // kValidatedSource identity - from() returns same object for validated sources
 // =============================================================================
@@ -672,4 +759,10 @@ Promise.all([
   testAbortSignal(),
   testReturnWhileReadIsPending(),
   testAbortWhileReadIsPending(),
+  testReturnBeforeNext(),
+  testThrowBeforeNext(),
+  testThrowAfterNext(),
+  testThrowWhileReadIsPending(),
+  testErrorWithoutAutoDestroy(),
+  testNullReadWithBufferedData(),
 ]).then(common.mustCall());
