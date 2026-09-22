@@ -1904,7 +1904,7 @@ equality.
 added: v26.10.0
 -->
 
-* `promise` {promise} The promise to mark as handled
+* `promise` {Promise} The promise to mark as handled
 
 Marks a promise as handled so that unhandled rejections are ignored and are not
 reported to the `'unhandledrejection'` event.
