@@ -511,15 +511,8 @@ bool IsFilePath(const std::string& path) {
 #endif  // __POSIX__
 
 void ThrowUninitializedInspectorError(Environment* env) {
-  HandleScope scope(env->isolate());
-
-  std::string_view msg =
-      "This Environment was initialized without a V8::Inspector";
-  Local<Value> exception;
-  if (ToV8Value(env->context(), msg, env->isolate()).ToLocal(&exception)) {
-    env->isolate()->ThrowException(exception);
-  }
-  // V8 will have scheduled a superseding error here.
+  THROW_ERR_INSPECTOR_NOT_AVAILABLE(
+      env, "This Environment was initialized without a V8::Inspector");
 }
 
 }  // namespace
