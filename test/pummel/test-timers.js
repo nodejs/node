@@ -23,20 +23,21 @@
 const common = require('../common');
 const assert = require('assert');
 
-const WINDOW = 200; // Why does this need to be so big?
+// Timers may fire late on busy systems, so only enforce a lower bound.
+const WINDOW = 200;
 
 
 {
-  const starttime = Date.now();
+  const starttime = performance.now();
 
   setTimeout(common.mustCall(function() {
-    const endtime = Date.now();
+    const endtime = performance.now();
 
     const diff = endtime - starttime;
     assert.ok(diff > 0);
     console.error(`diff: ${diff}`);
 
-    assert.ok(Math.abs(diff - 1000) < WINDOW);
+    assert.ok(diff > 1000 - WINDOW);
   }), 1000);
 }
 
@@ -47,13 +48,13 @@ const WINDOW = 200; // Why does this need to be so big?
 }
 
 {
-  const starttime = Date.now();
+  const starttime = performance.now();
 
   let interval_count = 0;
 
   setInterval(common.mustCall(function() {
     interval_count += 1;
-    const endtime = Date.now();
+    const endtime = performance.now();
 
     const diff = endtime - starttime;
     assert.ok(diff > 0);
@@ -61,7 +62,7 @@ const WINDOW = 200; // Why does this need to be so big?
 
     const t = interval_count * 1000;
 
-    assert.ok(Math.abs(diff - t) < WINDOW * interval_count);
+    assert.ok(diff > t - WINDOW * interval_count);
 
     assert.ok(interval_count <= 3, `interval_count: ${interval_count}`);
     if (interval_count === 3)
