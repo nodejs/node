@@ -546,7 +546,6 @@ static bool ZeroCopyUnavailable(Environment* env) {
 
 void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
@@ -589,8 +588,12 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  bool copy = args.Length() < 3 || args[2]->IsUndefined() ||
-              args[2]->BooleanValue(isolate);
+  if (!args[2]->IsUndefined() && !args[2]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "The copy argument must be a boolean");
+    return;
+  }
+
+  bool copy = !args[2]->IsFalse();
   if (!copy && ZeroCopyUnavailable(env)) return;
 
   Local<Object> buf;
@@ -654,8 +657,12 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  bool copy = args.Length() < 3 || args[2]->IsUndefined() ||
-              args[2]->BooleanValue(isolate);
+  if (!args[2]->IsUndefined() && !args[2]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "The copy argument must be a boolean");
+    return;
+  }
+
+  bool copy = !args[2]->IsFalse();
   if (!copy && ZeroCopyUnavailable(env)) return;
 
   Local<ArrayBuffer> ab;
