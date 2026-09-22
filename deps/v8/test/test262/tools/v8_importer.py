@@ -15,10 +15,10 @@ import sys
 from blinkpy.common.system.log_utils import configure_logging
 from blinkpy.w3c.common import read_credentials
 
-TEST_FILE_REFERENCE_IN_STATUS_FILE = re.compile("^\s*'(.*)':.*,$")
+TEST_FILE_REFERENCE_IN_STATUS_FILE = re.compile(r"^\s*'(.*)':.*,$")
 TEST262_FAILURE_LINE = re.compile("=== test262/(.*) ===")
-TEST262_PATTERN = re.compile('^test/(.*)\.[^\s]*$')
-TEST262_RENAME_PATTERN = re.compile('^R[^\s]*\s*([^\s]*)\s*([^\s]*)$')
+TEST262_PATTERN = re.compile(r'^test/(.*)\.[^\s]*$')
+TEST262_RENAME_PATTERN = re.compile(r'^R[^\s]*\s*([^\s]*)\s*([^\s]*)$')
 TEST262_REPO_URL = 'https://chromium.googlesource.com/external/github.com/tc39/test262'
 V8_TEST262_ROLLS_META_BUG = 'v8:7834'
 

@@ -17,13 +17,16 @@
 #ifndef ABSL_STRINGS_CORD_TEST_HELPERS_H_
 #define ABSL_STRINGS_CORD_TEST_HELPERS_H_
 
+#include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <iostream>
 #include <string>
 
 #include "absl/base/config.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/internal/cord_internal.h"
+#include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {

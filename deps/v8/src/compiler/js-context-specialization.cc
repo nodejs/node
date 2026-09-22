@@ -494,11 +494,11 @@ OptionalContextRef GetModuleContext(JSHeapBroker* broker, Node* node,
   size_t depth = std::numeric_limits<size_t>::max();
   Node* context = NodeProperties::GetOuterContext(node, &depth);
 
-  auto find_context = [broker](ContextRef c) {
+  auto find_context = [broker](ContextRef c) -> OptionalContextRef {
     while (c.map(broker).instance_type() != MODULE_CONTEXT_TYPE) {
       size_t depth = 1;
       c = c.previous(broker, &depth);
-      CHECK_EQ(depth, 0);
+      if (depth != 0) return OptionalContextRef();
     }
     return c;
   };

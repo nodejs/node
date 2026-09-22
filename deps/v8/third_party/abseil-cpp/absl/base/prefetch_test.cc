@@ -14,6 +14,7 @@
 
 #include "absl/base/prefetch.h"
 
+#include <cstring>
 #include <memory>
 
 #include "gtest/gtest.h"

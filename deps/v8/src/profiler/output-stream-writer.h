@@ -24,7 +24,7 @@ class OutputStreamWriter {
   explicit OutputStreamWriter(v8::OutputStream* stream)
       : stream_(stream),
         chunk_size_(stream->GetChunkSize()),
-        chunk_(chunk_size_),
+        chunk_(base::OwnedVector<char>::NewForOverwrite(chunk_size_)),
         chunk_pos_(0),
         aborted_(false) {
     DCHECK_GT(chunk_size_, 0);
@@ -67,13 +67,17 @@ class OutputStreamWriter {
       AddNumber(n);
     }
   }
+  void AddJsonEscapedString(const unsigned char* s);
   void Finalize() {
     if (aborted_) return;
     DCHECK(chunk_pos_ < chunk_size_);
     if (chunk_pos_ != 0) {
       WriteChunk();
     }
-    stream_->EndOfStream();
+    // Writing the final chunk above may itself have been aborted by the
+    // stream. v8::OutputStream guarantees that EndOfStream() is not called
+    // once writing was aborted.
+    if (!aborted_) stream_->EndOfStream();
   }
 
  private:
@@ -86,14 +90,15 @@ class OutputStreamWriter {
   void WriteChunk() {
     if (aborted_) return;
     if (stream_->WriteAsciiChunk(chunk_.begin(), chunk_pos_) ==
-        v8::OutputStream::kAbort)
+        v8::OutputStream::kAbort) {
       aborted_ = true;
+    }
     chunk_pos_ = 0;
   }
 
   v8::OutputStream* stream_;
   int chunk_size_;
-  base::ScopedVector<char> chunk_;
+  base::OwnedVector<char> chunk_;
   int chunk_pos_;
   bool aborted_;
 };

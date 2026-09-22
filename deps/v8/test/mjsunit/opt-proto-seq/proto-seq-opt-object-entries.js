@@ -14,7 +14,7 @@ function test_object_entries() {
   foo.prototype.key_1 = function () {return "ok"};
   foo.prototype.key_2 = function () {};
 
-  let res = [];
+  let res = [""];
   for (const [key, value] of Object.entries(foo.prototype)) {
     res.push(`${key}: ${value}`);
     value.call();
@@ -23,7 +23,7 @@ function test_object_entries() {
 }
 
 function assert_test_object_entries(result) {
-  assertEquals(result.length, 2);
+  assertEquals(result.length, 3);
 }
 
 // prettier-ignore
@@ -37,7 +37,7 @@ assert_test_object_entries(test_object_entries());
 %OptimizeMaglevOnNextCall(test_object_entries);
 assert_test_object_entries(test_object_entries());
 assertOptimized(test_object_entries);
-assertTrue(isMaglevved(test_object_entries));
+assertMaglevved(test_object_entries);
 assert_test_object_entries(test_object_entries());
 }
 

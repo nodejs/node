@@ -119,4 +119,46 @@ TEST_F(IteratorsTest, SpaceIterator) {
   }
 }
 
+TEST_F(IteratorsTest, HeapObjectIteratorMultipleSpaces) {
+  Factory* factory = i_isolate()->factory();
+  Heap* const heap = i_isolate()->heap();
+  HandleScope scope(i_isolate());
+
+  std::vector<Handle<HeapObject>> objs;
+
+  // Allocate a JS array in Young Space and Old Space.
+  objs.push_back(factory->NewJSArray(10));
+  objs.push_back(factory->NewJSArray(10, HOLEY_ELEMENTS, AllocationType::kOld));
+
+  // Allocate a small string in Young Space and Old Space.
+  objs.push_back(factory->NewStringFromStaticChars("abcdefghij"));
+  objs.push_back(
+      factory->NewStringFromStaticChars("abcdefghij", AllocationType::kOld));
+
+  // Allocate a large string in Large Object Space.
+  const int large_size = kMaxRegularHeapObjectSize + 1;
+  std::string large_str(large_size - 1, 'a');
+  objs.push_back(factory->NewStringFromAsciiChecked(large_str.c_str(),
+                                                    AllocationType::kOld));
+
+  // Add a Map object to check.
+  objs.push_back(handle(objs[0]->map(), i_isolate()));
+
+  std::vector<bool> found(objs.size(), false);
+
+  HeapObjectIterator iterator(heap);
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    for (size_t i = 0; i < objs.size(); i++) {
+      if (objs[i]->ptr() == obj.ptr()) {
+        found[i] = true;
+      }
+    }
+  }
+
+  for (size_t i = 0; i < found.size(); i++) {
+    EXPECT_TRUE(found[i]);
+  }
+}
+
 }  // namespace v8::internal::heap

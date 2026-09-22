@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSPromise')
 bitfield struct JSPromiseFlags extends uint31 {
   status: PromiseState: 2 bit;
+  is_native_resolver_invoked: bool: 1 bit;
   has_handler: bool: 1 bit;
   is_silent: bool: 1 bit;
-  async_task_id: uint32: 27 bit;
+  async_task_id: uint32: 26 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSPromise extends JSObjectWithEmbedderSlots {
   macro Status(): PromiseState {
     return this.flags.status;
@@ -36,5 +39,5 @@ extern class JSPromise extends JSObjectWithEmbedderSlots {
 }
 
 @doNotGenerateCast
-extern class JSPromiseConstructor extends JSFunction
-    generates 'TNode<JSFunction>';
+extern class JSPromiseConstructor extends JSFunctionWithPrototype
+    generates 'JSFunction';

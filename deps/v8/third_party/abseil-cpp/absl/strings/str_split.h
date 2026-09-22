@@ -40,11 +40,14 @@
 #include <map>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/internal/str_split_internal.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
@@ -389,9 +392,9 @@ struct SkipWhitespace {
 
 template <typename T>
 using EnableSplitIfString =
-    typename std::enable_if<std::is_same<T, std::string>::value ||
-                            std::is_same<T, const std::string>::value,
-                            int>::type;
+    std::enable_if_t<std::is_same_v<T, std::string> ||
+                         std::is_same_v<T, const std::string>,
+                     int>;
 
 //------------------------------------------------------------------------------
 //                                  StrSplit()
@@ -399,11 +402,16 @@ using EnableSplitIfString =
 
 // StrSplit()
 //
-// Splits a given string based on the provided `Delimiter` object, returning the
-// elements within the type specified by the caller. Optionally, you may pass a
-// `Predicate` to `StrSplit()` indicating whether to include or exclude the
-// resulting element within the final result set. (See the overviews for
-// Delimiters and Predicates above.)
+// Splits a string into a sequence of substrings identified by `Delimiter`. The
+// input is processed sequentially from beginning to end, and each resulting
+// substring is filtered by an optional `Predicate` before inclusion in the
+// result set. `StrSplit()` returns a lazy range that preserves the substrings
+// original order and is convertible to the collection type specified by the
+// caller.
+//
+// Optionally, you may pass a `Predicate` to `StrSplit()` indicating whether to
+// include or exclude the resulting element within the final result set. (See
+// the overviews for Delimiters and Predicates above.)
 //
 // Example:
 //
@@ -460,8 +468,10 @@ using EnableSplitIfString =
 //   std::set<std::string> a = absl::StrSplit("b,a,c,a,b", ',');
 //   // a[0] == "a", a[1] == "b", a[2] == "c"
 //
-//   // `StrSplit()` can be used within a range-based for loop, in which case
-//   // each element will be of type `absl::string_view`.
+//   // `StrSplit()` can be used within a range-based for-loop, in which case
+//   // each element will be of type `absl::string_view`. The elements will
+//   // returned in the order in which they appear in the original string
+//   // without any other transformation, e.g. no de-duplication is performed.
 //   std::vector<std::string> v;
 //   for (const auto sv : absl::StrSplit("a,b,c", ',')) {
 //     if (sv != "b") v.emplace_back(sv);

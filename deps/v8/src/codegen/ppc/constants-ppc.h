@@ -130,6 +130,8 @@ enum Condition : int {
   al = 10,  // Always.
   overflow32 = 11,
   nooverflow32 = 12,
+  overflow64 = 19,
+  nooverflow64 = 20,
 
   // Unified cross-platform condition names/aliases.
   // Do not set unsigned constants equal to their signed variants.
@@ -149,8 +151,6 @@ enum Condition : int {
   kNoOverflow = nooverflow,
   kZero = 17,
   kNotZero = 18,
-  kOverflow32 = overflow32,
-  kNoOverflow32 = nooverflow32,
 };
 
 inline Condition to_condition(Condition cond) {
@@ -185,8 +185,10 @@ inline bool is_signed(Condition cond) {
     case kNoOverflow:
     case kZero:
     case kNotZero:
-    case kOverflow32:
-    case kNoOverflow32:
+    case overflow32:
+    case nooverflow32:
+    case overflow64:
+    case nooverflow64:
       return true;
 
     case kUnsignedLessThan:
@@ -235,10 +237,14 @@ constexpr inline Condition NegateCondition(Condition cond) {
       return kNotZero;
     case kNotZero:
       return kZero;
-    case kOverflow32:
-      return kNoOverflow32;
-    case kNoOverflow32:
-      return kOverflow32;
+    case overflow32:
+      return nooverflow32;
+    case nooverflow32:
+      return overflow32;
+    case overflow64:
+      return nooverflow64;
+    case nooverflow64:
+      return overflow64;
     default:
       DCHECK(false);
   }
@@ -1385,6 +1391,10 @@ using Instr = uint32_t;
   V(lvx, LVX, 0x7C0000CE)                               \
   /* Store Vector Indexed */                            \
   V(stvx, STVX, 0x7C0001CE)
+
+#define PPC_DX_OPCODE_LIST(V)    \
+  /* Add PC Immediate Shifted */ \
+  V(addpcis, ADDPCIS, 0x4C000004)
 
 #define PPC_X_OPCODE_E_FORM_LIST(V)          \
   /* Shift Right Algebraic Word Immediate */ \
@@ -2811,6 +2821,7 @@ immediate-specified index */                 \
   PPC_XO_OPCODE_LIST(V)             \
   PPC_DS_OPCODE_LIST(V)             \
   PPC_DQ_OPCODE_LIST(V)             \
+  PPC_DX_OPCODE_LIST(V)             \
   PPC_MDS_OPCODE_LIST(V)            \
   PPC_MD_OPCODE_LIST(V)             \
   PPC_XS_OPCODE_LIST(V)             \
@@ -3054,7 +3065,7 @@ const Instr rtCallRedirInstr = TWI;
 
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
-constexpr uint8_t kPcLoadDelta = 8;
+constexpr uint8_t kPcLoadDelta = 4;
 
 class Instruction {
  public:
@@ -3255,6 +3266,11 @@ class Instruction {
     opcode = extcode | BitField(2, 0);
     switch (opcode) {
       PPC_DQ_OPCODE_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(5, 1);
+    switch (opcode) {
+      PPC_DX_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = extcode | BitField(1, 0);

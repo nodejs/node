@@ -26,7 +26,7 @@ foo(100);
 %OptimizeMaglevOnNextCall(foo);
 const a1 = foo(100);
 assertEquals(1, a1[100]);
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // If we create a large JSTypedArray (length doesn't fit in Int32), we'll deopt
 // because the large length doesn't match the existing feedback for b[a.length].
@@ -34,5 +34,5 @@ if (%Is64Bit()) {
   const largeLength = 8589934592;
   const a2 = foo(largeLength);
   assertEquals(1, a2[largeLength]);
-  assertFalse(isMaglevved(foo));
+  assertNotMaglevved(foo);
 }

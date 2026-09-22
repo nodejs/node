@@ -34,7 +34,7 @@ assert_test_proto_assignment(test_proto_assignment());
 %OptimizeMaglevOnNextCall(test_proto_assignment);
 assert_test_proto_assignment(test_proto_assignment());
 assertOptimized(test_proto_assignment);
-assertTrue(isMaglevved(test_proto_assignment));
+assertMaglevved(test_proto_assignment);
 assert_test_proto_assignment(test_proto_assignment());
 %OptimizeFunctionOnNextCall(test_proto_assignment);
 assert_test_proto_assignment(test_proto_assignment());

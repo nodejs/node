@@ -15,6 +15,8 @@
 
 #include "absl/flags/internal/commandlineflag.h"
 
+#include "absl/base/config.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {

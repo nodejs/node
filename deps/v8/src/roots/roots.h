@@ -44,12 +44,53 @@ class RootVisitor;
 
 // Adapts one INTERNALIZED_STRING_LIST_GENERATOR entry to
 // the ROOT_LIST-compatible entry
-#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) V(String, name, name)
+#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) \
+  V(InternalizedString, name, name)
 
 // Produces (String, name, CamelCase) entries
 #define EXTRA_IMPORTANT_INTERNALIZED_STRING_ROOT_LIST(V) \
   EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(    \
       INTERNALIZED_STRING_LIST_ADAPTER, V)
+
+// Maps for objects in trusted space that can be serialized during code caching.
+#define SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST(V)         \
+  V(Map, bytecode_array_map, BytecodeArrayMap)               \
+  V(Map, trusted_byte_array_map, TrustedByteArrayMap)        \
+  V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)      \
+  V(Map, uncompiled_data_without_preparse_data_map,          \
+    UncompiledDataWithoutPreparseDataMap)                    \
+  V(Map, uncompiled_data_with_preparse_data_map,             \
+    UncompiledDataWithPreparseDataMap)                       \
+  V(Map, uncompiled_data_without_preparse_data_with_job_map, \
+    UncompiledDataWithoutPreparseDataWithJobMap)             \
+  V(Map, uncompiled_data_with_preparse_data_and_job_map,     \
+    UncompiledDataWithPreparseDataAndJobMap)
+
+// Maps for objects in trusted space
+#define TRUSTED_OBJECT_MAP_ROOT_LIST(V)                                       \
+  V(Map, atom_regexp_data_map, AtomRegExpDataMap)                             \
+  V(Map, code_map, CodeMap)                                                   \
+  V(Map, debug_info_map, DebugInfoMap)                                        \
+  V(Map, instruction_stream_map, InstructionStreamMap)                        \
+  V(Map, interpreter_data_map, InterpreterDataMap)                            \
+  V(Map, ir_regexp_data_map, IrRegExpDataMap)                                 \
+  V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                   \
+  V(Map, protected_weak_fixed_array_map, ProtectedWeakFixedArrayMap)          \
+  V(Map, regexp_data_map, RegExpDataMap)                                      \
+  V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)      \
+  V(Map, trusted_foreign_map, TrustedForeignMap)                              \
+  V(Map, trusted_weak_fixed_array_map, TrustedWeakFixedArrayMap)              \
+  IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)       \
+  IF_WASM(V, Map, wasm_dispatch_table_map, WasmDispatchTableMap)              \
+  IF_WASM(V, Map, wasm_dispatch_table_for_imports_map,                        \
+          WasmDispatchTableForImportsMap)                                     \
+  IF_WASM(V, Map, wasm_exported_function_data_map,                            \
+          WasmExportedFunctionDataMap)                                        \
+  IF_WASM(V, Map, wasm_import_data_map, WasmImportDataMap)                    \
+  IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)        \
+  IF_WASM(V, Map, wasm_suspender_object_map, WasmSuspenderObjectMap)          \
+  IF_WASM(V, Map, wasm_trusted_instance_data_map, WasmTrustedInstanceDataMap) \
+  SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST(V)
 
 // Defines all the read-only roots in Heap.
 #define STRONG_READ_ONLY_ROOT_LIST(V)                                          \
@@ -98,16 +139,14 @@ class RootVisitor;
   V(UninitializedHole, uninitialized_value, UninitializedValue)                \
   /* Maps */                                                                   \
   V(Map, meta_map, MetaMap)                                                    \
+  V(Map, weak_homomorphic_fixed_array_map, WeakHomomorphicFixedArrayMap)       \
   V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Map, accessor_info_map, AccessorInfoMap)                                   \
   V(Map, array_list_map, ArrayListMap)                                         \
-  V(Map, atom_regexp_data_map, AtomRegExpDataMap)                              \
   V(Map, bigint_map, BigIntMap)                                                \
-  V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, closure_feedback_cell_array_map, ClosureFeedbackCellArrayMap)         \
-  V(Map, code_map, CodeMap)                                                    \
   V(Map, context_cell_map, ContextCellMap)                                     \
   V(Map, coverage_info_map, CoverageInfoMap)                                   \
   V(Map, dictionary_template_info_map, DictionaryTemplateInfoMap)              \
@@ -115,10 +154,10 @@ class RootVisitor;
   V(Map, feedback_metadata_map, FeedbackMetadataArrayMap)                      \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
+  V(Map, hash_seed_wrapper_map, HashSeedWrapperMap)                            \
+  V(Map, function_template_info_map, FunctionTemplateInfoMap)                  \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
-  V(Map, instruction_stream_map, InstructionStreamMap)                         \
   V(Map, interceptor_info_map, InterceptorInfoMap)                             \
-  V(Map, ir_regexp_data_map, IrRegExpDataMap)                                  \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, mega_dom_handler_map, MegaDomHandlerMap)                              \
   V(Map, module_info_map, ModuleInfoMap)                                       \
@@ -127,16 +166,17 @@ class RootVisitor;
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
   V(Map, object_boilerplate_description_map, ObjectBoilerplateDescriptionMap)  \
+  V(Map, object_template_info_map, ObjectTemplateInfoMap)                      \
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
   V(Map, ordered_name_dictionary_map, OrderedNameDictionaryMap)                \
   V(Map, preparse_data_map, PreparseDataMap)                                   \
-  V(Map, regexp_data_map, RegExpDataMap)                                       \
   V(Map, regexp_match_info_map, RegExpMatchInfoMap)                            \
   V(Map, registered_symbol_table_map, RegisteredSymbolTableMap)                \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, script_context_table_map, ScriptContextTableMap)                      \
+  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, simple_name_dictionary_map, SimpleNameDictionaryMap)                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
@@ -145,42 +185,17 @@ class RootVisitor;
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
-  IF_WASM(V, Map, wasm_import_data_map, WasmImportDataMap)                     \
-  IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
-  IF_WASM(V, Map, wasm_dispatch_table_map, WasmDispatchTableMap)               \
-  IF_WASM(V, Map, wasm_dispatch_table_for_imports_map,                         \
-          WasmDispatchTableForImportsMap)                                      \
-  IF_WASM(V, Map, wasm_exported_function_data_map,                             \
-          WasmExportedFunctionDataMap)                                         \
-  IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \
   IF_WASM(V, Map, wasm_func_ref_map, WasmFuncRefMap)                           \
-  IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
   IF_WASM(V, Map, wasm_null_map, WasmNullMap)                                  \
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
-  IF_WASM(V, Map, wasm_suspender_object_map, WasmSuspenderObjectMap)           \
   IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
-  IF_WASM(V, Map, wasm_trusted_instance_data_map, WasmTrustedInstanceDataMap)  \
+  IF_WASM(V, Map, wasm_stack_object_map, WasmStackObjectMap)                   \
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
-  V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)                        \
-  V(Map, trusted_weak_fixed_array_map, TrustedWeakFixedArrayMap)               \
-  V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
-  V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
-  V(Map, protected_weak_fixed_array_map, ProtectedWeakFixedArrayMap)           \
-  V(Map, interpreter_data_map, InterpreterDataMap)                             \
-  V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
-  V(Map, trusted_foreign_map, TrustedForeignMap)                               \
-  V(Map, uncompiled_data_without_preparse_data_map,                            \
-    UncompiledDataWithoutPreparseDataMap)                                      \
-  V(Map, uncompiled_data_with_preparse_data_map,                               \
-    UncompiledDataWithPreparseDataMap)                                         \
-  V(Map, uncompiled_data_without_preparse_data_with_job_map,                   \
-    UncompiledDataWithoutPreparseDataWithJobMap)                               \
-  V(Map, uncompiled_data_with_preparse_data_and_job_map,                       \
-    UncompiledDataWithPreparseDataAndJobMap)                                   \
+  TRUSTED_OBJECT_MAP_ROOT_LIST(V)                                              \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
   V(Map, cons_two_byte_string_map, ConsTwoByteStringMap)                       \
@@ -221,6 +236,24 @@ class RootVisitor;
   V(Map, js_shared_array_map, JSSharedArrayMap)                                \
   V(Map, js_atomics_mutex_map, JSAtomicsMutexMap)                              \
   V(Map, js_atomics_condition_map, JSAtomicsConditionMap)                      \
+  V(Map, descriptor_array_map, DescriptorArrayMap)                             \
+  V(Map, on_heap_basic_block_profiler_data_map,                                \
+    OnHeapBasicBlockProfilerDataMap)                                           \
+  V(Map, turbofan_bitset_type_map, TurbofanBitsetTypeMap)                      \
+  V(Map, turbofan_union_type_map, TurbofanUnionTypeMap)                        \
+  V(Map, turbofan_range_type_map, TurbofanRangeTypeMap)                        \
+  V(Map, turbofan_heap_constant_type_map, TurbofanHeapConstantTypeMap)         \
+  V(Map, turbofan_other_number_constant_type_map,                              \
+    TurbofanOtherNumberConstantTypeMap)                                        \
+  V(Map, turboshaft_word32range_type_map, TurboshaftWord32RangeTypeMap)        \
+  V(Map, turboshaft_word32set_type_map, TurboshaftWord32SetTypeMap)            \
+  V(Map, turboshaft_word64range_type_map, TurboshaftWord64RangeTypeMap)        \
+  V(Map, turboshaft_word64set_type_map, TurboshaftWord64SetTypeMap)            \
+  V(Map, turboshaft_float64range_type_map, TurboshaftFloat64RangeTypeMap)      \
+  V(Map, turboshaft_float64set_type_map, TurboshaftFloat64SetTypeMap)          \
+  V(Map, sort_state_map, SortStateMap)                                         \
+  IF_WASM(V, Map, wasm_fast_api_call_data_map, WasmFastApiCallDataMap)         \
+  IF_WASM(V, Map, wasm_string_view_iter_map, WasmStringViewIterMap)            \
   /* Canonical empty values */                                                 \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
@@ -239,7 +272,9 @@ class RootVisitor;
     EmptyOrderedPropertyDictionary)                                            \
   V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
     EmptySwissPropertyDictionary)                                              \
-  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
+  V(InterceptorInfo, noop_named_interceptor_info, NoOpNamedInterceptorInfo)    \
+  V(InterceptorInfo, noop_indexed_interceptor_info,                            \
+    NoOpIndexedInterceptorInfo)                                                \
   V(ArrayList, empty_array_list, EmptyArrayList)                               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)                                    \
@@ -256,7 +291,7 @@ class RootVisitor;
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   V(ContextCell, undefined_context_cell, UndefinedContextCell)                 \
   /* Hash seed */                                                              \
-  V(ByteArray, hash_seed, HashSeed)                                            \
+  V(HashSeedWrapper, hash_seed, HashSeed)                                      \
   V(FixedArray, preallocated_number_string_table,                              \
     PreallocatedNumberStringTable)                                             \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
@@ -273,7 +308,9 @@ class RootVisitor;
   V(ProtectedFixedArray, empty_protected_fixed_array,                     \
     EmptyProtectedFixedArray)                                             \
   V(ProtectedWeakFixedArray, empty_protected_weak_fixed_array,            \
-    EmptyProtectedWeakFixedArray)
+    EmptyProtectedWeakFixedArray)                                         \
+  IF_WASM(V, WasmDispatchTable, empty_wasm_dispatch_table,                \
+          EmptyWasmDispatchTable)
 
 #define BUILTINS_WITH_SFI_LIST_GENERATOR(APPLY, V)                             \
   APPLY(V, ProxyRevoke, proxy_revoke)                                          \
@@ -354,6 +391,7 @@ class RootVisitor;
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_detaching_protector,                            \
     ArrayBufferDetachingProtector)                                             \
+  V(PropertyCell, array_buffer_mutable_protector, ArrayBufferMutableProtector) \
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
   V(PropertyCell, promise_resolve_protector, PromiseResolveProtector)          \
   V(PropertyCell, map_iterator_protector, MapIteratorProtector)                \
@@ -389,6 +427,11 @@ class RootVisitor;
   /* Caches */                                                              \
   V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
   V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
+  /* Allocated on first use, so it must be loaded rather than baked in. */  \
+  V(FixedArray, regexp_split_cache, RegExpSplitCache)                       \
+  /* undefined or BigInt. Caching divisors used for modulo divisions. */    \
+  V(Object, cached_bigint_divisor, CachedBigIntDivisor)                     \
+  V(Object, next_cached_bigint_divisor, NextCachedBigIntDivisor)            \
   /* Lists and dictionaries */                                              \
   V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
   V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \
@@ -414,6 +457,9 @@ class RootVisitor;
   V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)         \
   IF_WASM(V, WeakFixedArray, js_to_wasm_wrappers, JSToWasmWrappers)         \
   IF_WASM(V, WeakFixedArray, wasm_canonical_rtts, WasmCanonicalRtts)        \
+  /* Only updated/used on the shared-space isolate */                       \
+  IF_WASM(V, WeakFixedArray, wasm_shared_canonical_rtts,                    \
+          WasmSharedCanonicalRtts)                                          \
   /* Internal SharedFunctionInfos */                                        \
   V(FunctionTemplateInfo, error_stack_getter_fun_template,                  \
     ErrorStackGetterSharedFun)                                              \
@@ -471,21 +517,21 @@ class RootVisitor;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
-#define READ_ONLY_ROOT_LIST(V)                   \
-  STRONG_READ_ONLY_ROOT_LIST(V)                  \
-  INTERNALIZED_STRING_ROOT_LIST(V)               \
-  PRIVATE_SYMBOL_ROOT_LIST(V)                    \
-  PUBLIC_SYMBOL_ROOT_LIST(V)                     \
-  WELL_KNOWN_SYMBOL_ROOT_LIST(V)                 \
-  STRUCT_MAPS_LIST(V)                            \
-  TORQUE_DEFINED_MAP_ROOT_LIST(V)                \
-  ALLOCATION_SITE_MAPS_LIST(V)                   \
-  NAME_FOR_PROTECTOR_ROOT_LIST(V)                \
-  DATA_HANDLER_MAPS_LIST(V)                      \
-  /* Maps */                                     \
-  V(Map, external_map, ExternalMap)              \
-  V(Map, message_object_map, JSMessageObjectMap) \
-  V(Map, cpp_heap_external_map, CppHeapExternalMap)
+#define READ_ONLY_ROOT_LIST(V)                      \
+  STRONG_READ_ONLY_ROOT_LIST(V)                     \
+  INTERNALIZED_STRING_ROOT_LIST(V)                  \
+  PRIVATE_SYMBOL_ROOT_LIST(V)                       \
+  PUBLIC_SYMBOL_ROOT_LIST(V)                        \
+  WELL_KNOWN_SYMBOL_ROOT_LIST(V)                    \
+  STRUCT_MAPS_LIST(V)                               \
+  ALLOCATION_SITE_MAPS_LIST(V)                      \
+  NAME_FOR_PROTECTOR_ROOT_LIST(V)                   \
+  DATA_HANDLER_MAPS_LIST(V)                         \
+  /* Maps */                                        \
+  V(Map, external_map, ExternalMap)                 \
+  V(Map, message_object_map, JSMessageObjectMap)    \
+  V(Map, cpp_heap_external_map, CppHeapExternalMap) \
+  V(Map, cpp_gc_managed_base_map, CppGCManagedBaseMap)
 
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \
@@ -535,6 +581,18 @@ enum class RootIndex : uint16_t {
   kNameForProtectorCount = 0 NAME_FOR_PROTECTOR_ROOT_LIST(COUNT_ROOT),
   kLastNameForProtector = kFirstNameForProtector + kNameForProtectorCount - 1,
 
+  kTrustedObjectMapRootsCount = 0 TRUSTED_OBJECT_MAP_ROOT_LIST(COUNT_ROOT),
+  kFirstTrustedObjectMap = kAtomRegExpDataMap,
+  kLastTrustedObjectMap =
+      kFirstTrustedObjectMap + kTrustedObjectMapRootsCount - 1,
+
+  kSerializableTrustedObjectMapRootsCount =
+      0 SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST(COUNT_ROOT),
+  kFirstSerializableTrustedObjectMap = kBytecodeArrayMap,
+  kLastSerializableTrustedObjectMap =
+      kFirstSerializableTrustedObjectMap +
+      kSerializableTrustedObjectMapRootsCount - 1,
+
   // The strong roots visited by the garbage collector (not including read-only
   // roots).
   kMutableRootsCount = 0
@@ -573,6 +631,24 @@ static_assert(RootIndex::kFirstNameForProtector <=
   static_assert(RootIndex::k##CamelName <= RootIndex::kLastNameForProtector);
 NAME_FOR_PROTECTOR_ROOT_LIST(FOR_PROTECTOR_CHECK)
 #undef FOR_PROTECTOR_CHECK
+
+static_assert(RootIndex::kFirstTrustedObjectMap <=
+              RootIndex::kLastTrustedObjectMap);
+#define FOR_TRUSTED_MAP_CHECK(type, name, CamelName)                           \
+  static_assert(RootIndex::kFirstTrustedObjectMap <= RootIndex::k##CamelName); \
+  static_assert(RootIndex::k##CamelName <= RootIndex::kLastTrustedObjectMap);
+TRUSTED_OBJECT_MAP_ROOT_LIST(FOR_TRUSTED_MAP_CHECK)
+#undef FOR_TRUSTED_MAP_CHECK
+
+static_assert(RootIndex::kFirstSerializableTrustedObjectMap <=
+              RootIndex::kLastSerializableTrustedObjectMap);
+#define FOR_SERIALIZABLE_TRUSTED_MAP_CHECK(type, name, CamelName) \
+  static_assert(RootIndex::kFirstSerializableTrustedObjectMap <=  \
+                RootIndex::k##CamelName);                         \
+  static_assert(RootIndex::k##CamelName <=                        \
+                RootIndex::kLastSerializableTrustedObjectMap);
+SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST(FOR_SERIALIZABLE_TRUSTED_MAP_CHECK)
+#undef FOR_SERIALIZABLE_TRUSTED_MAP_CHECK
 
 #define ROOT_TYPE_FWD_DECL(Type, name, CamelName) class Type;
 ROOT_LIST(ROOT_TYPE_FWD_DECL)
@@ -642,6 +718,21 @@ class RootsTable {
     static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
     return static_cast<unsigned>(root_index) <=
            static_cast<unsigned>(RootIndex::kLastReadOnlyRoot);
+  }
+
+  static constexpr bool IsInTrustedObjectMapList(RootIndex root_index) {
+    return static_cast<unsigned>(root_index) -
+               static_cast<unsigned>(RootIndex::kFirstTrustedObjectMap) <
+           static_cast<unsigned>(RootIndex::kTrustedObjectMapRootsCount);
+  }
+
+  static constexpr bool IsInSerializableTrustedObjectMapList(
+      RootIndex root_index) {
+    return static_cast<unsigned>(root_index) -
+               static_cast<unsigned>(
+                   RootIndex::kFirstSerializableTrustedObjectMap) <
+           static_cast<unsigned>(
+               RootIndex::kSerializableTrustedObjectMapRootsCount);
   }
 
   static constexpr RootIndex SingleCharacterStringIndex(int c) {
@@ -750,7 +841,7 @@ class ReadOnlyRoots {
 #undef ROOT_ACCESSOR
 
   V8_INLINE bool IsNameForProtector(Tagged<HeapObject> object) const;
-  V8_INLINE void VerifyNameForProtectorsPages() const;
+  void VerifyNameForProtectorsPages() const;
 #ifdef DEBUG
   void VerifyNameForProtectors();
   void VerifyTypes();

@@ -31,7 +31,10 @@ _protocol_generated = [
 action("protocol_compatibility") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
   script = "$_inspector_protocol/check_protocol_compatibility.py"
-  inputs = [ v8_inspector_js_protocol ]
+  inputs = [
+    v8_inspector_js_protocol,
+    "$_inspector_protocol/pdl.py",
+  ]
   _stamp = "$target_gen_dir/js_protocol.stamp"
   outputs = [ _stamp ]
   args = [
@@ -77,7 +80,10 @@ v8_header_set("inspector_test_headers") {
 
   public_deps = [ "../..:v8_headers" ]
 
-  sources = [ "test-interface.h" ]
+  sources = [
+    "../../src/sandbox/cppheap-pointer-tag.h",
+    "test-interface.h",
+  ]
 }
 
 v8_source_set("inspector_string_conversions") {

@@ -33,12 +33,9 @@
 # that the resulting binary is easier transferable between different
 # environments.
 
-LLVM_RELEASE=19.1.3
-
+THIS_DIR="$(readlink -f "$(dirname "${0}")")"
 BUILD_TYPE="Release"
 # BUILD_TYPE="Debug"
-THIS_DIR="$(readlink -f "$(dirname "${0}")")"
-LLVM_PROJECT_DIR="${THIS_DIR}/bootstrap/llvm"
 BUILD_DIR="${THIS_DIR}/bootstrap/build"
 
 # Die if any command dies.
@@ -71,13 +68,50 @@ if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
   fi
 fi
 
-echo Getting LLVM release "${LLVM_RELEASE}" in "${LLVM_PROJECT_DIR}"
-if ! [ -d "${LLVM_PROJECT_DIR}" ] || ! git -C "${LLVM_PROJECT_DIR}" remote get-url origin | grep -q -F "https://github.com/llvm/llvm-project.git" ; then
+# TODO(leszeks): Use centralized Chromium Clang tooling
+# (tools/clang/scripts/build.py --skip-build) once build.py supports shallow
+# checkouts and handles fresh/empty target directories without failing git
+# restore.
+CLANG_REVISION=$(vpython3 -c "
+import sys, os
+sys.path.append(os.path.join('${THIS_DIR}', '../clang/scripts'))
+import update
+print(update.CLANG_REVISION)
+")
+LLVM_COMMIT=$(echo "${CLANG_REVISION}" | sed -n 's/.*-g\([0-9a-f]\{7,\}\)/\1/p')
+if [ -z "${LLVM_COMMIT}" ]; then
+  LLVM_COMMIT="${CLANG_REVISION}"
+fi
+
+LLVM_PROJECT_DIR="${THIS_DIR}/bootstrap/llvm"
+
+echo "Getting LLVM revision ${CLANG_REVISION} in ${LLVM_PROJECT_DIR}"
+LLVM_URL="https://chromium.googlesource.com/external/github.com/llvm/llvm-project.git"
+if ! [ -d "${LLVM_PROJECT_DIR}" ] || \
+   ! git -C "${LLVM_PROJECT_DIR}" remote get-url origin | grep -q -F "${LLVM_URL}" ; then
   rm -rf "${LLVM_PROJECT_DIR}"
-  git clone --depth=1 --branch "llvmorg-${LLVM_RELEASE}" "https://github.com/llvm/llvm-project.git" "${LLVM_PROJECT_DIR}"
-else
-  git -C "${LLVM_PROJECT_DIR}" fetch --depth=1 origin "llvmorg-${LLVM_RELEASE}"
-  git -C "${LLVM_PROJECT_DIR}" checkout FETCH_HEAD
+  git clone --depth 1 "${LLVM_URL}" "${LLVM_PROJECT_DIR}"
+fi
+
+# Git servers (e.g. googlesource) do not allow fetching arbitrary commit SHAs
+# directly (uploadpack.allowReachableSHA1InWant=false), so we fetch main
+# with exponentially increasing depth until the required commit is fetched.
+if ! git -C "${LLVM_PROJECT_DIR}" checkout "${LLVM_COMMIT}" 2>/dev/null; then
+  DEPTH=100
+  MAX_DEPTH=100000
+  while [ "${DEPTH}" -le "${MAX_DEPTH}" ]; do
+    echo "Fetching LLVM history with depth=${DEPTH}..."
+    git -C "${LLVM_PROJECT_DIR}" fetch --depth="${DEPTH}" origin main 2>/dev/null
+    if git -C "${LLVM_PROJECT_DIR}" checkout "${LLVM_COMMIT}" 2>/dev/null; then
+      break
+    fi
+    DEPTH=$((DEPTH * 4))
+  done
+
+  if ! git -C "${LLVM_PROJECT_DIR}" cat-file -e "${LLVM_COMMIT}^{commit}" 2>/dev/null; then
+    echo "Error: Could not find commit ${LLVM_COMMIT} within depth ${MAX_DEPTH}." >&2
+    exit 1
+  fi
 fi
 
 # Echo all commands

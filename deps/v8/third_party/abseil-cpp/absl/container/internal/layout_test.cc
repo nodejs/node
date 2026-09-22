@@ -26,6 +26,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -49,7 +50,7 @@ size_t Distance(const void* from, const void* to) {
 
 template <class Expected, class Actual>
 Expected Type(Actual val) {
-  static_assert(std::is_same<Expected, Actual>(), "");
+  static_assert(std::is_same<Expected, Actual>());
   return val;
 }
 
@@ -72,20 +73,20 @@ struct alignas(8) Int64 {
 };
 
 // Properties of types that this test relies on.
-static_assert(sizeof(int8_t) == 1, "");
-static_assert(alignof(int8_t) == 1, "");
-static_assert(sizeof(int16_t) == 2, "");
-static_assert(alignof(int16_t) == 2, "");
-static_assert(sizeof(int32_t) == 4, "");
-static_assert(alignof(int32_t) == 4, "");
-static_assert(sizeof(Int64) == 8, "");
-static_assert(alignof(Int64) == 8, "");
-static_assert(sizeof(Int128) == 16, "");
-static_assert(alignof(Int128) == 8, "");
+static_assert(sizeof(int8_t) == 1);
+static_assert(alignof(int8_t) == 1);
+static_assert(sizeof(int16_t) == 2);
+static_assert(alignof(int16_t) == 2);
+static_assert(sizeof(int32_t) == 4);
+static_assert(alignof(int32_t) == 4);
+static_assert(sizeof(Int64) == 8);
+static_assert(alignof(Int64) == 8);
+static_assert(sizeof(Int128) == 16);
+static_assert(alignof(Int128) == 8);
 
 template <class Expected, class Actual>
 void SameType() {
-  static_assert(std::is_same<Expected, Actual>(), "");
+  static_assert(std::is_same<Expected, Actual>());
 }
 
 TEST(Layout, ElementType) {
@@ -1434,9 +1435,9 @@ class TupleMatcher {
   template <typename Tuple>
   bool MatchAndExplain(const Tuple& p,
                        testing::MatchResultListener* /* listener */) const {
-    static_assert(std::tuple_size<Tuple>::value == sizeof...(M), "");
+    static_assert(std::tuple_size_v<Tuple> == sizeof...(M));
     return MatchAndExplainImpl(
-        p, absl::make_index_sequence<std::tuple_size<Tuple>::value>{});
+        p, std::make_index_sequence<std::tuple_size_v<Tuple>>{});
   }
 
   // For the matcher concept. Left empty as we don't really need the diagnostics
@@ -1446,11 +1447,10 @@ class TupleMatcher {
 
  private:
   template <typename Tuple, size_t... Is>
-  bool MatchAndExplainImpl(const Tuple& p, absl::index_sequence<Is...>) const {
+  bool MatchAndExplainImpl(const Tuple& p, std::index_sequence<Is...>) const {
     // Using std::min as a simple variadic "and".
     return std::min(
-        {true, testing::SafeMatcherCast<
-                   const typename std::tuple_element<Is, Tuple>::type&>(
+        {true, testing::SafeMatcherCast<const std::tuple_element_t<Is, Tuple>&>(
                    std::get<Is>(matchers_))
                    .Matches(std::get<Is>(p))...});
   }
@@ -1596,52 +1596,50 @@ TEST(Layout, OverAligned) {
 }
 
 TEST(Layout, Alignment) {
-  static_assert(Layout<int8_t>::Alignment() == 1, "");
-  static_assert(Layout<int32_t>::Alignment() == 4, "");
-  static_assert(Layout<Int64>::Alignment() == 8, "");
-  static_assert(Layout<Aligned<int8_t, 64>>::Alignment() == 64, "");
-  static_assert(Layout<int8_t, int32_t, Int64>::Alignment() == 8, "");
-  static_assert(Layout<int8_t, Int64, int32_t>::Alignment() == 8, "");
-  static_assert(Layout<int32_t, int8_t, Int64>::Alignment() == 8, "");
-  static_assert(Layout<int32_t, Int64, int8_t>::Alignment() == 8, "");
-  static_assert(Layout<Int64, int8_t, int32_t>::Alignment() == 8, "");
-  static_assert(Layout<Int64, int32_t, int8_t>::Alignment() == 8, "");
-  static_assert(Layout<Int64, int32_t, int8_t>::Alignment() == 8, "");
-  static_assert(
-      Layout<Aligned<int8_t, 64>>::WithStaticSizes<>::Alignment() == 64, "");
-  static_assert(
-      Layout<Aligned<int8_t, 64>>::WithStaticSizes<2>::Alignment() == 64, "");
+  static_assert(Layout<int8_t>::Alignment() == 1);
+  static_assert(Layout<int32_t>::Alignment() == 4);
+  static_assert(Layout<Int64>::Alignment() == 8);
+  static_assert(Layout<Aligned<int8_t, 64>>::Alignment() == 64);
+  static_assert(Layout<int8_t, int32_t, Int64>::Alignment() == 8);
+  static_assert(Layout<int8_t, Int64, int32_t>::Alignment() == 8);
+  static_assert(Layout<int32_t, int8_t, Int64>::Alignment() == 8);
+  static_assert(Layout<int32_t, Int64, int8_t>::Alignment() == 8);
+  static_assert(Layout<Int64, int8_t, int32_t>::Alignment() == 8);
+  static_assert(Layout<Int64, int32_t, int8_t>::Alignment() == 8);
+  static_assert(Layout<Int64, int32_t, int8_t>::Alignment() == 8);
+  static_assert(Layout<Aligned<int8_t, 64>>::WithStaticSizes<>::Alignment() ==
+                64);
+  static_assert(Layout<Aligned<int8_t, 64>>::WithStaticSizes<2>::Alignment() ==
+                64);
 }
 
 TEST(Layout, StaticAlignment) {
-  static_assert(Layout<int8_t>::WithStaticSizes<>::Alignment() == 1, "");
-  static_assert(Layout<int8_t>::WithStaticSizes<0>::Alignment() == 1, "");
-  static_assert(Layout<int8_t>::WithStaticSizes<7>::Alignment() == 1, "");
-  static_assert(Layout<int32_t>::WithStaticSizes<>::Alignment() == 4, "");
-  static_assert(Layout<int32_t>::WithStaticSizes<0>::Alignment() == 4, "");
-  static_assert(Layout<int32_t>::WithStaticSizes<3>::Alignment() == 4, "");
+  static_assert(Layout<int8_t>::WithStaticSizes<>::Alignment() == 1);
+  static_assert(Layout<int8_t>::WithStaticSizes<0>::Alignment() == 1);
+  static_assert(Layout<int8_t>::WithStaticSizes<7>::Alignment() == 1);
+  static_assert(Layout<int32_t>::WithStaticSizes<>::Alignment() == 4);
+  static_assert(Layout<int32_t>::WithStaticSizes<0>::Alignment() == 4);
+  static_assert(Layout<int32_t>::WithStaticSizes<3>::Alignment() == 4);
+  static_assert(Layout<Aligned<int8_t, 64>>::WithStaticSizes<>::Alignment() ==
+                64);
+  static_assert(Layout<Aligned<int8_t, 64>>::WithStaticSizes<0>::Alignment() ==
+                64);
+  static_assert(Layout<Aligned<int8_t, 64>>::WithStaticSizes<2>::Alignment() ==
+                64);
   static_assert(
-      Layout<Aligned<int8_t, 64>>::WithStaticSizes<>::Alignment() == 64, "");
-  static_assert(
-      Layout<Aligned<int8_t, 64>>::WithStaticSizes<0>::Alignment() == 64, "");
-  static_assert(
-      Layout<Aligned<int8_t, 64>>::WithStaticSizes<2>::Alignment() == 64, "");
-  static_assert(
-      Layout<int32_t, Int64, int8_t>::WithStaticSizes<>::Alignment() == 8, "");
+      Layout<int32_t, Int64, int8_t>::WithStaticSizes<>::Alignment() == 8);
   static_assert(
       Layout<int32_t, Int64, int8_t>::WithStaticSizes<0, 0, 0>::Alignment() ==
-          8,
-      "");
+      8);
   static_assert(
       Layout<int32_t, Int64, int8_t>::WithStaticSizes<1, 1, 1>::Alignment() ==
-          8,
-      "");
+      8);
 }
 
 TEST(Layout, ConstexprPartial) {
   constexpr size_t M = alignof(max_align_t);
   constexpr Layout<unsigned char, Aligned<unsigned char, 2 * M>> x(1, 3);
-  static_assert(x.Partial(1).template Offset<1>() == 2 * M, "");
+  static_assert(x.Partial(1).template Offset<1>() == 2 * M);
 }
 
 TEST(Layout, StaticConstexpr) {
@@ -1649,7 +1647,7 @@ TEST(Layout, StaticConstexpr) {
   using L = Layout<unsigned char, Aligned<unsigned char, 2 * M>>;
   using SL = L::WithStaticSizes<1, 3>;
   constexpr SL x;
-  static_assert(x.Offset<1>() == 2 * M, "");
+  static_assert(x.Offset<1>() == 2 * M);
 }
 
 // [from, to)

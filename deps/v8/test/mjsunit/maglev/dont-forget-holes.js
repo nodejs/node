@@ -22,4 +22,4 @@ foo([0.5, 1.0, 1.5]);
 foo([0.5, , 1.5]);
 
 // No deopts since we generated code to handle the hole.
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

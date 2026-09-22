@@ -20,9 +20,11 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
 
 namespace {

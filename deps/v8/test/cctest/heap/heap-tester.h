@@ -34,9 +34,7 @@
   V(InvalidatedSlotsFastToSlow)                             \
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
-  V(GCFlags)                                                \
   V(MarkCompactCollector)                                   \
-  V(MarkCompactEpochCounter)                                \
   V(MemoryReducerActivationForSmallHeaps)                   \
   V(NoPromotion)                                            \
   V(NumberStringCacheSize)                                  \
@@ -49,15 +47,10 @@
   V(TestSizeOfObjects)                                      \
   V(Regress10560)                                           \
   V(Regress538257)                                          \
-  V(Regress587004)                                          \
-  V(Regress589413)                                          \
   V(Regress658718)                                          \
-  V(Regress670675)                                          \
   V(Regress777177)                                          \
   V(Regress779503)                                          \
   V(Regress791582)                                          \
-  V(Regress845060)                                          \
-  V(RegressMissingWriteBarrierInAllocate)                   \
   V(WriteBarrier_Marking)                                   \
   V(WriteBarrier_MarkingExtension)                          \
   V(WriteBarriersInCopyJSObject)                            \
@@ -102,13 +95,13 @@ class HeapTester {
   static void ResetWeakHandle(bool global_gc);
 
   // test-heap.cc
-  static AllocationResult AllocateByteArrayForTest(Heap* heap, int length,
+  static AllocationResult AllocateByteArrayForTest(Heap* heap, uint32_t length,
                                                    AllocationType allocation);
   static bool CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes);
 
   // test-mark-compact.cc
   static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);
-  static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
+  static AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
                                                     AllocationType allocation);
 
   static void UncommitUnusedMemory(Heap* heap);

@@ -35,6 +35,9 @@
   // should fail with stackDepth=0
   await captureProfilerWithDepth(0);
 
+  // should fail with stackDepth=0.5
+  await captureProfilerWithDepth(0.5);
+
   InspectorTest.log('Successfully finished');
   InspectorTest.completeTest();
 

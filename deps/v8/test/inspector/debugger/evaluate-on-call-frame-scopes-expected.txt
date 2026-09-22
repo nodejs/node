@@ -1,0 +1,34 @@
+Test for Debugger.evaluateOnCallFrame with scopeNumber
+
+Running test: testEvaluateOnScopes
+Paused with 4 scopes in scopeChain.
+Scope 0: local
+Scope 1: closure
+Scope 2: script
+Scope 3: global
+Eval "a" at scopeNumber=undefined:
+  Result: inner_stack
+Eval "a" at scopeNumber=0:
+  Result: inner_stack
+Eval "a" at scopeNumber=1:
+  Result: closure_outer
+Eval "closure_y" at scopeNumber=0:
+  Result: 20
+Eval "closure_y" at scopeNumber=1:
+  Result: 20
+Eval "x" at scopeNumber=0:
+  Result: 10
+Eval "x" at scopeNumber=1:
+  Exception: ReferenceError: x is not defined
+    at eval (eval at inner (test.js:10:11), <anonymous>:1:1)
+    at inner (test.js:22:11)
+    at outer (test.js:25:16)
+    at <anonymous>:1:1
+Eval "z" at scopeNumber=0:
+  Result: global_z
+Eval "z" at scopeNumber=1:
+  Result: global_z
+Eval "a" at scopeNumber=999:
+  Error: Could not find scope with given number
+Eval "a" at scopeNumber=-1:
+  Error: Could not find scope with given number

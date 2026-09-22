@@ -1,0 +1,37 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# uv-backed vpython spec for V8 tools and test runner, the modern replacement
+# for tools/.vpython3.
+#
+# The companion tools/vpython.toml.uv.lock is generated, not hand-edited. After
+# changing a dependency here, run 'vpython3' (or 'vpython3 -vpython-tool
+# upgrade') locally to resynchronize it, and commit both files together.
+
+requires-python = '>=3.11,<3.12'
+dependencies = [
+  'six==1.15.0',
+  'coverage==7.3.1',
+  'pbr==3.0.0',
+  'funcsigs==1.0.2',
+  'hjson==3.1.0',
+  'httplib2==0.19.1',
+  'mock==2.0.0',
+  'setuptools==68.0.0 ; python_version < "3.14"',
+  'setuptools>=75.0.0 ; python_version >= "3.14"',
+  'numpy==1.23.5+chromium.4',
+  'protobuf==3.19.3',
+  'pyparsing==2.4.7',
+  'requests==2.31.0',
+  'urllib3==1.26.6',
+  'idna==2.8',
+  'certifi==2020.11.8',
+  'charset-normalizer==2.0.4',
+  'pyyaml==5.4.1+chromium.1',
+  'clusterfuzz==2.5.6+5c85ed3d46137b17da04c59bcd805ee5',
+  'packaging==16.8',
+  'psutil==5.8.0+chromium.3',
+  'pyfakefs==5.7.3',
+  'markdown==3.4.1',
+]

@@ -107,6 +107,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits.h"
 #include "absl/base/macros.h"
 #include "absl/container/internal/chunked_queue.h"
@@ -153,8 +154,8 @@ class chunked_queue {
     }
 
     void IncrBy(size_t n) {
-      while (ptr + n > limit) {
-        n -= limit - ptr;
+      while (n > static_cast<size_t>(limit - ptr)) {
+        n -= static_cast<size_t>(limit - ptr);
         *this = iterator_common(block->next());
       }
       ptr += n;
@@ -172,10 +173,9 @@ class chunked_queue {
     using iterator_category = std::forward_iterator_tag;
     using value_type = typename AllocatorTraits::value_type;
     using difference_type = typename AllocatorTraits::difference_type;
-    using pointer =
-        typename std::conditional<std::is_const<CT>::value,
-                                  typename AllocatorTraits::const_pointer,
-                                  typename AllocatorTraits::pointer>::type;
+    using pointer = std::conditional_t<std::is_const_v<CT>,
+                                       typename AllocatorTraits::const_pointer,
+                                       typename AllocatorTraits::pointer>;
     using reference = CT&;
 
     basic_iterator() = default;
@@ -417,6 +417,8 @@ class chunked_queue {
     T* storage = AllocateBack();
     AllocatorTraits::construct(alloc_and_size_.allocator(), storage,
                                std::forward<A>(args)...);
+    ++alloc_and_size_.size;
+    ++tail_.ptr;
     return *storage;
   }
 
@@ -428,22 +430,22 @@ class chunked_queue {
   // Returns a reference to the first element in the container.
   // REQUIRES: !empty()
   T& front() {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return *head_;
   }
   const T& front() const {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return *head_;
   }
 
   // Returns a reference to the last element in the container.
   // REQUIRES: !empty()
   T& back() {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return *(&*tail_ - 1);
   }
   const T& back() const {
-    ABSL_HARDENING_ASSERT(!empty());
+    absl::base_internal::HardeningAssertNonEmpty(*this);
     return *(&*tail_ - 1);
   }
 
@@ -460,7 +462,8 @@ class chunked_queue {
       // (It is undefined behavior to swap between two containers with unequal
       // allocators if propagate_on_container_swap is false, so we don't have to
       // handle that here like we do in the move-assignment operator.)
-      ABSL_HARDENING_ASSERT(get_allocator() == other.get_allocator());
+      absl::base_internal::HardeningAssert(get_allocator() ==
+                                           other.get_allocator());
       swap(alloc_and_size_.size, other.alloc_and_size_.size);
     }
   }
@@ -570,12 +573,6 @@ class chunked_queue {
 };
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
-constexpr size_t chunked_queue<T, BLo, BHi, Allocator>::kBlockSizeMin;
-
-template <typename T, size_t BLo, size_t BHi, typename Allocator>
-constexpr size_t chunked_queue<T, BLo, BHi, Allocator>::kBlockSizeMax;
-
-template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline void swap(chunked_queue<T, BLo, BHi, Allocator>& a,
                  chunked_queue<T, BLo, BHi, Allocator>& b) noexcept {
   a.swap(b);
@@ -631,15 +628,16 @@ inline chunked_queue<T, BLo, BHi, Allocator>::~chunked_queue() {
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
 void chunked_queue<T, BLo, BHi, Allocator>::resize(size_t new_size) {
   while (new_size > size()) {
-    ptrdiff_t to_add = new_size - size();
     if (tail_.ptr == tail_.limit) {
       AddTailBlock();
     }
+    size_t to_add = (std::min)(new_size - size(),
+                               static_cast<size_t>(tail_.limit - tail_.ptr));
     T* start = tail_.ptr;
-    T* limit = (std::min)(tail_.limit, start + to_add);
+    T* limit = start + to_add;
     Construct(start, limit);
     tail_.ptr = limit;
-    alloc_and_size_.size += limit - start;
+    alloc_and_size_.size += to_add;
   }
   if (size() == new_size) {
     return;
@@ -670,8 +668,7 @@ inline T* chunked_queue<T, BLo, BHi, Allocator>::AllocateBack() {
   if (tail_.ptr == tail_.limit) {
     AddTailBlock();
   }
-  ++alloc_and_size_.size;
-  return tail_.ptr++;
+  return tail_.ptr;
 }
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
@@ -709,7 +706,7 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::DestroyAndDeallocateAll() {
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline void chunked_queue<T, BLo, BHi, Allocator>::pop_front() {
-  ABSL_HARDENING_ASSERT(!empty());
+  absl::base_internal::HardeningAssertNonEmpty(*this);
   ABSL_ASSERT(head_.block);
   AllocatorTraits::destroy(alloc_and_size_.allocator(), head_.ptr);
   ++head_.ptr;

@@ -4,50 +4,65 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
-    "assert_types": [["--assert-types"]],
-    "wasm_assert_types": [["--wasm-assert-types", "--no-liftoff"]],
-    "verify_turboshaft": [["--verify-turboshaft"]],
-    "code_serializer": [["--cache=code"]],
-    "default": [[]],
-    "future": [["--future"]],
-    "gc_stats": [["--gc-stats=1"]],
+    "assert_types": ["--assert-types", "--maglev-assert-types"],
+    "wasm_assert_types": ["--wasm-assert-types", "--no-liftoff"],
+    "verify_turboshaft": ["--verify-turboshaft"],
+    "code_serializer": ["--cache=code"],
+    "default": [],
+    "dumpling_test": [
+        "--no-sparkplug",
+        "--maglev-dumping",
+        "--turbofan-dumping",
+        "--predictable",
+        "--dump-out-filename=/dev/null",
+    ],
+    "dumpling_reference": [
+        "--no-maglev",
+        "--no-turbofan",
+        "--sparkplug-dumping",
+        "--interpreter-dumping",
+        "--predictable",
+        "--dump-out-filename=/dev/null",
+    ],
+    "future": ["--future"],
+    "gc_stats": ["--gc-stats=1"],
     # Alias of exhaustive variants, but triggering new test framework features.
-    "infra_staging": [[]],
-    "interpreted_regexp": [["--regexp-interpret-all"]],
-    "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
-    "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
+    "infra_staging": [],
+    "interpreted_regexp": ["--regexp-interpret-all"],
+    "stress_regexp_jit": ["--regexp-tier-up-ticks=0"],
+    "experimental_regexp": ["--default-to-experimental-regexp-engine"],
     # TODO(437003349): Remove once the project is complete.
-    "regexp_assemble_from_bc": [["--regexp-assemble-from-bytecode"]],
-    "jitless": [["--jitless", "--wasm-jitless-if-available-for-testing"]],
+    "regexp_assemble_from_bc": ["--regexp-assemble-from-bytecode"],
+    "jitless": ["--jitless", "--wasm-jitless-if-available-for-testing"],
     # Jit-fuzzing variants pass --no-fail as most test conditions are violated.
     # We only look for dchecks and crashes. As a result, negative tests like
     # in the bugs/* directory are not supported.
-    "jit_fuzzing": [["--fuzzing", "--jit-fuzzing", "--no-fail"]],
-    "jit_fuzzing_maglev": [[
+    "jit_fuzzing": ["--fuzzing", "--jit-fuzzing", "--no-fail"],
+    "jit_fuzzing_maglev": [
         "--fuzzing",
         "--jit-fuzzing",
         "--optimize-on-next-call-optimizes-to-maglev",
         "--no-fail",
-    ]],
-    "sparkplug": [["--sparkplug"]],
-    "maglev": [["--maglev"]],
-    "maglev_future": [["--maglev", "--maglev-future"]],
-    "maglev_no_turbofan": [[
+    ],
+    "sparkplug": ["--sparkplug"],
+    "maglev": ["--maglev"],
+    "maglev_future": ["--maglev", "--maglev-future"],
+    "maglev_no_turbofan": [
         "--maglev", "--no-turbofan",
         "--optimize-on-next-call-optimizes-to-maglev"
-    ]],
+    ],
     # combination for maglev_no_turbofan and regexp_assemble_from_bc
     # TODO(437003349): Remove once the project is complete.
-    "maglev_no_turbofan_regexp_from_bc": [[
+    "maglev_no_turbofan_regexp_from_bc": [
         "--maglev", "--no-turbofan",
         "--optimize-on-next-call-optimizes-to-maglev",
         "--regexp-assemble-from-bytecode"
-    ]],
-    "stress_maglev": [[
+    ],
+    "stress_maglev": [
         "--maglev", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
-    ]],
-    "stress_maglev_tracing": [[
+    ],
+    "stress_maglev_tracing": [
         "--maglev",
         "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev",
@@ -62,51 +77,47 @@ ALL_VARIANT_FLAGS = {
         "--print-maglev-deopt-verbose",
         "--print-maglev-graph",
         "--print-maglev-graphs",
-    ]],
-    "stress_maglev_future": [[
+    ],
+    "stress_maglev_future": [
         "--maglev", "--maglev-future", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
-    ]],
-    "stress_maglev_no_turbofan": [[
+    ],
+    "stress_maglev_no_turbofan": [
         "--maglev", "--no-turbofan", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
-    ]],
-    "stress_maglev_non_eager_inlining": [[
+    ],
+    "stress_maglev_non_eager_inlining": [
         "--maglev", "--stress-maglev", "--maglev-non-eager-inlining",
         "--max-maglev-inlined-bytecode-size-small=0",
         "--optimize-on-next-call-optimizes-to-maglev"
-    ]],
-    "conservative_stack_scanning": [[
+    ],
+    "conservative_stack_scanning": [
         "--conservative-stack-scanning",
         "--scavenger-conservative-object-pinning",
         "--stress-scavenger-conservative-object-pinning"
-    ]],
-    "precise_pinning": [[
+    ],
+    "precise_pinning": [
         "--precise-object-pinning", "--scavenger-precise-object-pinning"
-    ]],
+    ],
     # Turboshaft with Maglev as a frontend
-    "turbolev": [[
-        "--turbolev",
-    ]],
-    "turbolev_future": [[
+    "turbolev": ["--turbolev"],
+    "turbolev_future": ["--turbolev-future"],
+    "stress_turbolev_future": [
         "--turbolev-future",
-    ]],
-    "stress_turbolev_future": [[
-        "--turbolev-future",
-        "--max-inlined-bytecode-size-small=0",
-    ]],
-    "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
-    "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
+        "--max-turbolev-eager-inlined-bytecode-size=0",
+    ],
+    "concurrent_sparkplug": ["--concurrent-sparkplug", "--sparkplug"],
+    "always_sparkplug": ["--always-sparkplug", "--sparkplug"],
     # This combines two orthogonal variants always_sparkplug and
     # stress_regexp_jit to use bot resources more effectively.
-    "always_sparkplug_and_stress_regexp_jit": [[
+    "always_sparkplug_and_stress_regexp_jit": [
         "--always-sparkplug",
         "--sparkplug",
         "--regexp-tier-up-ticks=0",
-    ]],
-    "minor_ms": [["--minor-ms"]],
-    "no_lfa": [["--no-lazy-feedback-allocation"]],
-    "no_memory_protection_keys": [["--no-memory-protection-keys"]],
+    ],
+    "minor_ms": ["--minor-ms"],
+    "no_lfa": ["--no-lazy-feedback-allocation"],
+    "no_memory_protection_keys": ["--no-memory-protection-keys"],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
     # would not force optimization too. It turns into a Nop. Please see
     # https://chromium-review.googlesource.com/c/452620/ for more discussion.
@@ -116,52 +127,84 @@ ALL_VARIANT_FLAGS = {
     # disable lazy compilation to have one test variant that tests eager
     # compilation. "Liftoff-only" and eager compilation is not a problem,
     # because test functions do typically not get optimized to TurboFan anyways.
-    "nooptimization": [[
+    "nooptimization": [
         "--disable-optimizing-compilers", "--no-wasm-lazy-compilation"
-    ]],
-    "rehash_snapshot": [["--rehash-snapshot"]],
-    "slow_path": [["--force-slow-path"]],
-    "stress": [[
+    ],
+    "rehash_snapshot": ["--rehash-snapshot"],
+    "slow_path": ["--force-slow-path"],
+    "stress": [
         "--no-liftoff",
         "--stress-lazy-source-positions",
         "--no-wasm-generic-wrapper",
         "--no-wasm-lazy-compilation",
-    ]],
-    "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
-    "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
-    "stress_js_bg_compile_wasm_code_gc": [[
+    ],
+    "stress_concurrent_allocation": ["--stress-concurrent-allocation"],
+    "stress_concurrent_inlining": ["--stress-concurrent-inlining"],
+    "stress_js_bg_compile_wasm_code_gc": [
         "--stress-background-compile", "--stress-wasm-code-gc"
-    ]],
-    "stress_maglev_tests_with_turbofan": [[
+    ],
+    "stress_maglev_tests_with_turbofan": [
         "--turbofan", "--optimize-maglev-optimizes-to-turbofan"
-    ]],
-    "stress_wasm_stack_switching": [["--stress-wasm-stack-switching"]],
-    "stress_incremental_marking": [["--stress-incremental-marking"]],
-    "stress_snapshot": [["--stress-snapshot"]],
-    "scavenger_chaos_mode": [["--scavenger-chaos-mode"]],
+    ],
+    "stress_wasm_stack_switching": ["--stress-wasm-stack-switching"],
+    "stress_incremental_marking": ["--stress-incremental-marking"],
+    "stress_snapshot": ["--stress-snapshot"],
+    "scavenger_chaos_mode": ["--scavenger-chaos-mode"],
     # Trigger stress sampling allocation profiler with sample interval = 2^14
-    "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
-    "no_wasm_traps": [["--no-wasm-trap-handler"]],
-    "instruction_scheduling": [["--turbo-instruction-scheduling"]],
-    "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]
-                                     ],
-    # Google3 variants.
-    "google3_icu": [[]],
-    "google3_noicu": [[]],
+    "stress_sampling": ["--stress-sampling-allocation-profiler=16384"],
+    "no_wasm_traps": ["--no-wasm-trap-handler"],
+    "instruction_scheduling": [
+        "--turbo-instruction-scheduling", "--no-liftoff"
+    ],
+    "stress_instruction_scheduling": [
+        "--turbo-stress-instruction-scheduling", "--no-liftoff"
+    ],
+    "turbofan_random_rescheduling": [
+        "--no-liftoff",
+        # TODO(nicohartmann): Enable randomized JS rescheduling.
+        "--wasm-random-rescheduling"
+    ],
+    "validate_generated_code": ["--validate-generated-code"],
+    # Google3 variant.
+    "google3": [],
 }
 
 # Note these are specifically for the case when Turbofan is either fully
 # disabled (i.e. not part of the binary), or when all codegen is disallowed (in
 # jitless mode).
 kIncompatibleFlagsForNoTurbofan = [
-    "--turbofan", "--liftoff", "--validate-asm", "--maglev", "--turbolev",
-    "--turbolev-future", "--stress-concurrent-inlining", "--turboshaft"
+    "--turbofan", "--liftoff", "--maglev", "--turbolev", "--turbolev-future",
+    "--stress-concurrent-inlining", "--turboshaft"
+]
+
+kIncompatibleFlagsForNoLiftoff = [
+    "--liftoff-only",
+    "--wasm-dynamic-tiering",
+    "--wasm-deopt",
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
+    "dumpling_test": [
+        "--always-sparkplug",
+        "--concurrent-recompilation",
+        "--lazy-compile-dispatcher",
+        "--parallel-compile-tasks-for-eager-toplevel",
+        "--parallel-compile-tasks-for-lazy",
+        "--stress-concurrent-allocation",
+        "--stress-concurrent-inlining",
+    ],
+    "dumpling_reference":
+        kIncompatibleFlagsForNoTurbofan + [
+            "--concurrent-recompilation",
+            "--lazy-compile-dispatcher",
+            "--parallel-compile-tasks-for-eager-toplevel",
+            "--parallel-compile-tasks-for-lazy",
+            "--stress-concurrent-allocation",
+            "--stress-concurrent-inlining",
+        ],
     "jitless":
         kIncompatibleFlagsForNoTurbofan + [
             "--track-field-types",
@@ -177,18 +220,19 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "nooptimization": [
         "--turbofan",
         "--turboshaft",
-        "--turboshaft-wasm-in-js-inlining",
+        "--wasm-in-js-inlining-body",
+        "--wasm-in-js-inlining-wrapper",
+        "--turbolev",
+        "--turbolev-future",
         "--maglev",
         "--no-liftoff",
         "--wasm-tier-up",
         "--wasm-dynamic-tiering",
-        "--validate-asm",
         "--track-field-types",
         "--stress-concurrent-inlining",
         "--additive-safe-int-feedback",
         "--script-context-cells",
     ],
-    "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [
         "--single-threaded", "--single-threaded-gc", "--predictable"
     ],
@@ -202,26 +246,24 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     # SerializeInternalFieldsCallback for it, so they are incompatible with
     # stress_snapshot.
     "stress_snapshot": ["--expose-fast-api"],
-    "stress": [
-        # 'stress' disables Liftoff, which conflicts with flags that require
-        # Liftoff support.
-        "--liftoff-only",
-        "--wasm-dynamic-tiering"
-    ],
-    "sparkplug": ["--jitless", "--no-sparkplug"],
+    "stress":
+        kIncompatibleFlagsForNoLiftoff,
+    "instruction_scheduling":
+        kIncompatibleFlagsForNoLiftoff,
+    "stress_instruction_scheduling":
+        kIncompatibleFlagsForNoLiftoff,
+    "turbofan_random_rescheduling":
+        kIncompatibleFlagsForNoLiftoff,
+    "sparkplug": ["--jitless"],
     "concurrent_sparkplug": ["--jitless"],
-    "maglev": ["--jitless", "--no-maglev"],
-    "maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
+    "maglev": ["--jitless"],
+    "maglev_future": ["--jitless"],
     "maglev_no_turbofan": [
         "--jitless",
-        "--no-maglev",
-        "--turbofan",
         "--stress-concurrent-inlining",
     ],
     "maglev_no_turbofan_regexp_from_bc": [
         "--jitless",
-        "--no-maglev",
-        "--turbofan",
         "--stress-concurrent-inlining",
         "--no-regexp-tier-up",
         "--regexp-interpret-all",
@@ -229,24 +271,16 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "stress_maglev": ["--jitless"],
     "stress_maglev_tracing": ["--jitless"],
     "stress_maglev_non_eager_inlining": ["--jitless"],
-    "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
+    "stress_maglev_future": ["--jitless"],
     "stress_maglev_no_turbofan": [
         "--jitless",
-        "--no-maglev",
-        "--turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
-    "turbolev_future": [
-        "--no-turbolev",
-        "--no-turbolev-inline-js-wasm-wrappers",
-    ],
-    "stress_turbolev_future": [
-        "--no-turbolev",
-        "--no-turbolev-inline-js-wasm-wrappers",
-    ],
-    "always_sparkplug": ["--jitless", "--no-sparkplug"],
-    "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
+    "turbolev_future": ["--no-turbolev",],
+    "stress_turbolev_future": ["--no-turbolev",],
+    "always_sparkplug": ["--jitless"],
+    "always_sparkplug_and_stress_regexp_jit": ["--jitless"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],
@@ -257,13 +291,42 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--no-regexp-tier-up", "--regexp-interpret-all", "--jitless"
     ],
     "assert_types": [
-        "--concurrent-recompilation", "--stress_concurrent_inlining",
-        "--no-assert-types"
+        "--concurrent-recompilation", "--stress_concurrent_inlining"
     ],
-    "wasm_assert_types": ["--liftoff-only", "--wasm-dynamic-tiering"],
+    "wasm_assert_types": [
+        # 'wasm_assert_types' disables Liftoff, which conflicts with flags that
+        # require Liftoff support.
+        "--liftoff-only",
+        "--wasm-dynamic-tiering",
+        "--wasm-deopt",
+    ],
     "verify_turboshaft": ["--jitless"],
-    "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
 }
+
+
+# Note this can get it wrong if the flag name starts with the characters "--no"
+# where "no" is part of the flag name, e.g. "--nobodys-perfect". In that case
+# the negation "--bodys-perfect" would be returned. This is a weakness we accept
+# and hope to never run into.
+def negate_flag(flag):
+  # Exclude flags with values, like --regexp-tier-up-ticks=0
+  if '=' in flag:
+    return None
+  if flag.startswith("--no-"):
+    return "--" + flag.removeprefix("--no-")
+  if flag.startswith("--no"):
+    return "--" + flag.removeprefix("--no")
+  return "--no-" + flag.removeprefix("--")
+
+
+for _variant, _flags in ALL_VARIANT_FLAGS.items():
+  # Create a new list to avoid modifying constants.
+  _incompatible = list(INCOMPATIBLE_FLAGS_PER_VARIANT.get(_variant, []))
+  for _flag in _flags:
+    _negated = negate_flag(_flag)
+    if _negated and _negated not in _incompatible:
+      _incompatible.append(_negated)
+  INCOMPATIBLE_FLAGS_PER_VARIANT[_variant] = _incompatible
 
 # Flags that lead to a contradiction under certain build variables.
 # This corresponds to the build variables usable in status files as generated
@@ -282,7 +345,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--code_stats",
         "--dump_wasm_module",
         "--enable_testing_opcode_in_wasm",
-        "--gc_verbose",
         "--no-wasm-opt",
         "--print_ast",
         "--print_break_location",
@@ -313,6 +375,12 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--print_all_code", "--print_code", "--print_opt_code",
         "--print_code_verbose", "--print_builtin_code", "--print_regexp_code"
     ],
+    "single_generation": [
+        "--shared-strings",
+        "--shared-heap",
+        "--harmony-struct",
+        "--wasm-shared",
+    ],
     "!slow_dchecks": ["--enable-slow-asserts"],
     "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
     "!has_maglev": ["--maglev"],
@@ -333,7 +401,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
-    "--flush-bytecode": ["--jit-fuzzing"],
     "--concurrent-recompilation": [
         "--predictable", "--assert-types", "--turboshaft-assert-types",
         "--single-threaded"
@@ -348,6 +415,8 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
     "--turboshaft-assert-types": [
         "--concurrent-recompilation", "--stress-concurrent-inlining"
     ],
+    "--wasm-generate-compilation-hints": ["--single-threaded"],
+    "--trace-wasm-generate-compilation-hints": ["--single-threaded"],
 }
 
 SLOW_VARIANTS = set([

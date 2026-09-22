@@ -9,6 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/machine-type.h"
@@ -59,9 +60,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
-  // NOTE: The lowest 10 bits of the Flags field are encoded in InstructionCode
+  // NOTE: The lowest 9 bits of the Flags field are encoded in InstructionCode
   // (for use in the code generator). All higher bits are lost.
-  static constexpr int kFlagsBitsEncodedInInstructionCode = 10;
+  static constexpr int kFlagsBitsEncodedInInstructionCode = 9;
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
@@ -98,13 +99,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // frame construction.
     kIsTailCallForTierUp = 1u << 8,
 
-    // AIX has a function descriptor by default but it can be disabled for a
-    // certain CFunction call (only used for Kind::kCallAddress).
-    kNoFunctionDescriptor = 1u << 9,
-
     // Flags past here are *not* encoded in InstructionCode and are thus not
     // accessible from the code generator. See also
     // kFlagsBitsEncodedInInstructionCode.
+
+    // AIX has a function descriptor by default but it can be disabled for a
+    // certain CFunction call (only used for Kind::kCallAddress).
+    kNoFunctionDescriptor = 1u << 9,
   };
   using Flags = base::Flags<Flag>;
 
@@ -416,7 +417,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, CallDescriptor::Flags flags,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo);
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false});
 
   // |js_parameter_count| must include BuiltinArguments::kNumExtraArgs and
   // receiver.

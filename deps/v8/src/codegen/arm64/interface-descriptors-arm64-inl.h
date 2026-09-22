@@ -309,12 +309,30 @@ constexpr auto Compare_BaselineDescriptor::registers() {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+// static
 constexpr auto CompareAndTryPatchCodeDescriptor::registers() {
   // x1: left operand
   // x0: right operand
   // x2: current feedback value
   // x3: feedback offset
   return RegisterArray(x1, x0, x2, x3);
+}
+
+// static
+constexpr auto BinaryOpAndTryPatchCodeDescriptor::registers() {
+  // x1: left operand
+  // x0: right operand
+  // x2: current feedback value
+  // x3: feedback offset
+  return RegisterArray(x1, x0, x2, x3);
+}
+
+// static
+constexpr auto UnaryOpAndTryPatchCodeDescriptor::registers() {
+  // x0: value
+  // x2: current feedback value
+  // x3: feedback offset
+  return RegisterArray(x0, x2, x3);
 }
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
@@ -342,11 +360,11 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
-  // x0: left operand
-  // x1: right operand
-  // x2: feedback slot
-  return RegisterArray(x0, x1, x2);
+constexpr auto BinaryOp_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  // x1: left operand
+  // x0: right operand
+  // x2: feedback offset
+  return RegisterArray(x1, x0, x2);
 }
 
 // static

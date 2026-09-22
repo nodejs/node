@@ -10,12 +10,14 @@ extern enum ScopeType extends uint32 {
   // in a way that it gets the first scope type in line, see
   // Heap::CreateInitialMaps(). It's always guarded with the IsEmpty
   // bit, so it doesn't matter what scope type it gets.
+  // Start of top-level scopes.
   SCRIPT_SCOPE,
   REPL_MODE_SCOPE,
-  CLASS_SCOPE,
   EVAL_SCOPE,
-  FUNCTION_SCOPE,
   MODULE_SCOPE,
+  // End of top-level scopes.
+  CLASS_SCOPE,
+  FUNCTION_SCOPE,
   CATCH_SCOPE,
   BLOCK_SCOPE,
   WITH_SCOPE,
@@ -55,6 +57,7 @@ extern enum IsStaticFlag extends uint32 { kNotStatic, kStatic }
 extern enum MaybeAssignedFlag extends uint32 { kNotAssigned, kMaybeAssigned }
 
 // Properties of scopes.
+@cppScope('ScopeInfo')
 bitfield struct ScopeFlags extends uint32 {
   scope_type: ScopeType: 4 bit;
   sloppy_eval_can_extend_vars: bool: 1 bit;
@@ -71,7 +74,6 @@ bitfield struct ScopeFlags extends uint32 {
   // function name.
   function_variable: VariableAllocationInfo: 2 bit;
   has_inferred_function_name: bool: 1 bit;
-  is_asm_module: bool: 1 bit;
   has_simple_parameters: bool: 1 bit;
   function_kind: FunctionKind: 5 bit;
   has_outer_scope_info: bool: 1 bit;
@@ -84,9 +86,9 @@ bitfield struct ScopeFlags extends uint32 {
   // only for contexts with "sloppy_eval_can_extend_vars" flag set).
   some_context_has_extension: bool: 1 bit;
   is_hidden: bool: 1 bit;
-  is_empty: bool: 1 bit;
   is_wrapped_function: bool: 1 bit;
   has_context_cells: bool: 1 bit;
+  is_hoisted_in_context: bool: 1 bit;
 }
 
 struct PositionInfo {
@@ -94,16 +96,19 @@ struct PositionInfo {
   end: Smi;
 }
 
+// LINT.IfChange(ScopeInfoStructs)
 struct FunctionVariableInfo {
   name: String|Zero;
   context_or_stack_slot_index: Smi;
 }
 
+@cppScope('ScopeInfo')
 bitfield struct VariableProperties extends uint31 {
   variable_mode: VariableMode: 4 bit;
   init_flag: InitializationFlag: 1 bit;
   maybe_assigned_flag: MaybeAssignedFlag: 1 bit;
-  parameter_number: uint32: 16 bit;
+  is_parameter: bool: 1 bit;
+  parameter_number_or_position: uint32: 16 bit;
   is_static_flag: IsStaticFlag: 1 bit;
 }
 
@@ -112,16 +117,16 @@ struct ModuleVariable {
   index: Smi;
   properties: SmiTagged<VariableProperties>;
 }
+// LINT.ThenChange(src/objects/scope-info.h)
 
 const kMaxInlinedLocalNamesSize:
     constexpr int32 generates 'kScopeInfoMaxInlinedLocalNamesSize';
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class ScopeInfo extends HeapObject {
   @cppRelaxedLoad @cppRelaxedStore const flags: ScopeFlags;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   // The number of parameters. For non-function scopes this is 0.
   parameter_count: Smi;
@@ -179,6 +184,15 @@ extern class ScopeInfo extends HeapObject {
       [flags.scope_type == ScopeType::MODULE_SCOPE]: SourceTextModuleInfo;
   module_variables[flags.scope_type == ScopeType::MODULE_SCOPE ? module_variable_count : 0]:
       ModuleVariable;
+
+  // Maps a module variable's name to its index in module_variables. Only
+  // present when a module scope has enough module variables that a linear
+  // scan in ModuleIndex() would be costly (same threshold as the context
+  // local names hashtable).
+  module_variables_hashtable?
+      [flags.scope_type == ScopeType::MODULE_SCOPE ?
+           kMaxInlinedLocalNamesSize <= Convert<intptr>(module_variable_count) :
+           false]: NameToIndexHashTable;
 
   // EmptyContextExtension-dependent code objects.
   dependent_code?[flags.sloppy_eval_can_extend_vars]: DependentCode;

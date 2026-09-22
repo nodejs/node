@@ -17,13 +17,14 @@
 // VDSOSupport -- a class representing kernel VDSO (if present).
 
 #include "absl/debugging/internal/vdso_support.h"
+
+#include <atomic>
+
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/debugging/internal/elf_mem_image.h"
 
 #ifdef ABSL_HAVE_VDSO_SUPPORT     // defined in vdso_support.h
-
-#if !defined(__has_include)
-#define __has_include(header) 0
-#endif
 
 #include <errno.h>
 #include <fcntl.h>

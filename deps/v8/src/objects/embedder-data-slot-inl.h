@@ -8,12 +8,17 @@
 #include "src/objects/embedder-data-slot.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "include/v8-cppgc.h"
+#include "include/v8-isolate.h"
 #include "src/base/memory.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
+#include "src/objects/heap-object-field-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/isolate.h"
 
@@ -39,9 +44,7 @@ void EmbedderDataSlot::Initialize(Tagged<Object> initial_value) {
   DCHECK(IsSmi(initial_value) ||
          ReadOnlyHeap::Contains(Cast<HeapObject>(initial_value)));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(initial_value);
-#ifdef V8_COMPRESS_POINTERS
-  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
-#endif
+  clear_cpp_heap_pointer_field(address());
 }
 
 Tagged<Object> EmbedderDataSlot::load_tagged() const {
@@ -50,10 +53,8 @@ Tagged<Object> EmbedderDataSlot::load_tagged() const {
 
 void EmbedderDataSlot::store_smi(Tagged<Smi> value) {
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
-#ifdef V8_COMPRESS_POINTERS
-  // See gc_safe_store() for the reasons behind two stores.
-  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
-#endif
+  // See store_raw() for the reasons behind two stores.
+  clear_cpp_heap_pointer_field(address());
 }
 
 // static
@@ -65,14 +66,12 @@ void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
-  ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
-      .Relaxed_Store(value);
-  WRITE_BARRIER(array, slot_offset + kTaggedPayloadOffset, value);
-#ifdef V8_COMPRESS_POINTERS
-  // See gc_safe_store() for the reasons behind two stores.
-  ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))
-      .Relaxed_Store(Smi::zero());
-#endif
+  Address tagged_addr = FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset);
+  ObjectSlot(tagged_addr).Relaxed_Store(value);
+  WriteBarrier::ForValue(&*array, MaybeObjectSlot(tagged_addr), value,
+                         UPDATE_WRITE_BARRIER);
+  // See store_raw() for the reasons behind two stores.
+  clear_cpp_heap_pointer_field(FIELD_ADDR(array, slot_offset));
 }
 
 // static
@@ -88,111 +87,172 @@ void EmbedderDataSlot::store_tagged(Tagged<JSObject> object,
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);
+  // See store_raw() for the reasons behind two stores.
+  clear_cpp_heap_pointer_field(FIELD_ADDR(object, slot_offset));
+}
+
+// static
+void EmbedderDataSlot::clear_cpp_heap_pointer_field(Address slot_address) {
 #ifdef V8_COMPRESS_POINTERS
-  // See gc_safe_store() for the reasons behind two stores.
-  ObjectSlot(FIELD_ADDR(object, slot_offset + kRawPayloadOffset))
-      .Relaxed_Store(Smi::zero());
+  CppHeapPointerSlot(slot_address + kCppHeapPointerOffset)
+      .Relaxed_StoreHandle(kNullCppHeapPointerHandle);
+#else
+  base::WriteUnalignedValue<Address>(slot_address + kCppHeapPointerOffset,
+                                     kNullAddress);
 #endif
 }
 
 bool EmbedderDataSlot::ToAlignedPointer(
-    IsolateForSandbox isolate, void** out_pointer,
-    ExternalPointerTagRange tag_range) const {
+    IsolateForPointerCompression isolate, void** out_pointer,
+    CppHeapPointerTagRange tag_range) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
-  // phase which is propely synched with GC (concurrent marker may still look
+  // phase which is properly synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
-#ifdef V8_ENABLE_SANDBOX
-  // The raw part must always contain a valid external pointer table index.
-  *out_pointer = reinterpret_cast<void*>(ReadExternalPointerField(
-      address() + kExternalPointerOffset, isolate, tag_range));
-  return true;
-#else
-  Address raw_value;
-  if (COMPRESS_POINTERS_BOOL) {
-    // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
-    // fields (external pointers, doubles and BigInt data) are only kTaggedSize
-    // aligned so we have to use unaligned pointer friendly way of accessing
-    // them in order to avoid undefined behavior in C++ code.
-    raw_value = base::ReadUnalignedValue<Address>(address());
-  } else {
-    raw_value = *location();
+#ifdef V8_COMPRESS_POINTERS
+  CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
+  CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullCppHeapPointerHandle) {
+    *out_pointer = nullptr;
+    return true;
   }
+  Address wrapper_addr =
+      isolate.GetCppHeapPointerTable().Get(handle, tag_range);
+  if (wrapper_addr == kNullAddress) {
+    *out_pointer = nullptr;
+    return true;
+  }
+  *out_pointer = reinterpret_cast<void*>(wrapper_addr);
+  return true;
+#else
+  Address raw_value =
+      base::ReadUnalignedValue<Address>(address() + kCppHeapPointerOffset);
   *out_pointer = reinterpret_cast<void*>(raw_value);
-  return HAS_SMI_TAG(raw_value);
-#endif  // V8_ENABLE_SANDBOX
+  return true;
+#endif  // V8_COMPRESS_POINTERS
 }
 
-bool EmbedderDataSlot::ToGenericAlignedPointer(IsolateForSandbox isolate,
-                                               void** out_pointer) const {
+bool EmbedderDataSlot::ToAlignedPointer(
+    IsolateForPointerCompression isolate, void** out_pointer,
+    ExternalPointerTagRange tag_range) const {
+  void* raw_ptr = nullptr;
+  if (!ToAlignedPointer(isolate, &raw_ptr, {kEmbedderDataSlotTag})) {
+    *out_pointer = nullptr;
+    return false;
+  }
+  if (!raw_ptr) {
+    *out_pointer = nullptr;
+    return true;
+  }
+  auto* wrapper = reinterpret_cast<EmbedderDataSlotWrapper*>(raw_ptr);
+  if (tag_range.Contains(wrapper->tag())) {
+    *out_pointer = wrapper->pointer();
+    return true;
+  }
+  *out_pointer = nullptr;
+  return true;
+}
+
+bool EmbedderDataSlot::ToGenericAlignedPointer(
+    IsolateForPointerCompression isolate, void** out_pointer) const {
   return ToAlignedPointer(
       isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
 }
 
-bool EmbedderDataSlot::DeprecatedToAlignedPointer(IsolateForSandbox isolate,
-                                                  void** out_pointer) const {
+bool EmbedderDataSlot::DeprecatedToAlignedPointer(
+    IsolateForPointerCompression isolate, void** out_pointer) const {
   return ToAlignedPointer(
       isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
 }
 
-bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
+bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
                                              Tagged<HeapObject> host, void* ptr,
-                                             ExternalPointerTag tag) {
+                                             CppHeapPointerTag tag) {
   Address value = reinterpret_cast<Address>(ptr);
-  if (!HAS_SMI_TAG(value)) return false;
-#ifdef V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, the external pointer handles in
-  // EmbedderDataSlots are lazily initialized: initially they contain the null
-  // external pointer handle (see EmbedderDataSlot::Initialize), and only once
-  // an external pointer is stored in them are they properly initialized.
-  // TODO(saelo): here we currently have to use the accessor on the host object
-  // as we may need a write barrier. This is a bit awkward. Maybe we should
-  // introduce helper methods on the ExternalPointerSlot class that allow us to
-  // determine whether the slot needs to be initialized, in which case a write
-  // barrier can be performed here.
-  size_t offset = address() - host.address() + kExternalPointerOffset;
-  host->WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
+#ifdef V8_COMPRESS_POINTERS
+  CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
+  CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
+  CppHeapPointerTable& table =
+      IsolateForPointerCompression(isolate).GetCppHeapPointerTable();
+
+  if (ptr == nullptr) {
+    if (handle != kNullCppHeapPointerHandle) {
+      table.Set(handle, kNullAddress, tag);
+    }
+  } else {
+    if (handle == kNullCppHeapPointerHandle) {
+      CppHeapPointerTable::Space* space =
+          IsolateForPointerCompression(isolate).GetCppHeapPointerTableSpace();
+      handle = table.AllocateAndInitializeEntry(space, value, tag);
+      slot.Release_StoreHandle(handle);
+    } else {
+      table.Set(handle, value, tag);
+    }
+    WriteBarrier::ForCppHeapPointer(Cast<CppHeapPointerWrapperObjectT>(host),
+                                    slot, ptr);
+  }
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else
-  gc_safe_store(isolate, value);
+  base::WriteUnalignedValue<Address>(address() + kCppHeapPointerOffset, value);
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
+  if (ptr != nullptr) {
+    CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
+    WriteBarrier::ForCppHeapPointer(Cast<CppHeapPointerWrapperObjectT>(host),
+                                    slot, ptr);
+  }
   return true;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
-#ifdef V8_ENABLE_SANDBOX
-bool EmbedderDataSlot::store_handle(IsolateForSandbox isolate,
-                                    Tagged<HeapObject> host,
-                                    ExternalPointerHandle handle) {
-  DCHECK_NE(handle, kNullExternalPointerHandle);
-  // The actual type tag does not matter here, as it is only used  to load the
-  // correct external pointer table and space, both here and in the write
-  // barrier code below. It only has to be in the range of embedder data tags.
-  constexpr ExternalPointerTag kAnyTag = kFirstEmbedderDataTag;
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(kAnyTag);
-  ExternalPointerTable::Space* space =
-      isolate.GetExternalPointerTableSpaceFor(kAnyTag, host.address());
+// static
+template <typename T>
+  requires std::is_same_v<EmbedderDataArray, T> ||
+           std::is_same_v<JSObject, T>
+bool EmbedderDataSlot::store_aligned_pointer(
+    Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
+    void* ptr, ExternalPointerTag tag) {
+  EmbedderDataSlotWrapper* wrapper = nullptr;
+  if (ptr != nullptr) {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    cppgc::AllocationHandle& alloc_handle =
+        v8_isolate->GetCppHeap()->GetAllocationHandle();
+    wrapper = cppgc::MakeGarbageCollected<EmbedderDataSlotWrapper>(alloc_handle,
+                                                                   ptr, tag);
+  }
+  DisallowGarbageCollection no_gc;
+  EmbedderDataSlot slot(*host, entry_or_embedder_field_index);
+  return slot.store_aligned_pointer(isolate, *host, wrapper,
+                                    kEmbedderDataSlotTag);
+}
 
-  ExternalPointerHandle new_handle = table.DuplicateEntry(space, handle);
-  if (new_handle == kNullExternalPointerHandle) return false;
+#ifdef V8_COMPRESS_POINTERS
+void EmbedderDataSlot::store_tagged_without_barrier(Tagged<Object> value) {
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
+  clear_cpp_heap_pointer_field(address());
+}
 
-  auto location = reinterpret_cast<ExternalPointerHandle*>(
-      address() + kExternalPointerOffset);
-  DCHECK_EQ(base::AsAtomic32::Relaxed_Load(location),
-            kNullExternalPointerHandle);
-  base::AsAtomic32::Release_Store(location, new_handle);
-  size_t offset = address() - host.address() + kExternalPointerOffset;
-  // Use `offset` to avoid compilation issues for gn arg
-  // `v8_disable_write_barriers = true`.
-  USE(offset);
-  EXTERNAL_POINTER_WRITE_BARRIER(host, static_cast<int>(offset), kAnyTag);
+bool EmbedderDataSlot::store_handle_without_barrier(
+    IsolateForPointerCompression isolate, CppHeapPointerHandle handle) {
+  DCHECK_NE(handle, kNullCppHeapPointerHandle);
+  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
+  CppHeapPointerTable::Space* space = isolate.GetCppHeapPointerTableSpace();
+
+  CppHeapPointerHandle new_handle = table.DuplicateEntry(space, handle);
+  if (new_handle == kNullCppHeapPointerHandle) return false;
+
+  CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
+  DCHECK_EQ(slot.Relaxed_LoadHandle(), kNullCppHeapPointerHandle);
+  slot.Release_StoreHandle(new_handle);
+
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
-    IsolateForSandbox isolate, const DisallowGarbageCollection& no_gc) const {
+    IsolateForPointerCompression isolate,
+    const DisallowGarbageCollection& no_gc) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only by serializer from the main thread when
   // GC is not active (concurrent marker may still look at the tagged part
@@ -204,17 +264,15 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
   // in order to avoid undefined behavior in C++ code.
   return base::ReadUnalignedValue<EmbedderDataSlot::RawData>(address());
 #else
-  return *location();
+  return RawData{
+      base::ReadUnalignedValue<Address>(address() + kCppHeapPointerOffset),
+      ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load().ptr()};
 #endif
 }
 
-void EmbedderDataSlot::store_raw(IsolateForSandbox isolate,
-                                 EmbedderDataSlot::RawData data,
+void EmbedderDataSlot::store_raw(IsolateForPointerCompression isolate,
+                                 EmbedderDataSlot::RawData value,
                                  const DisallowGarbageCollection& no_gc) {
-  gc_safe_store(isolate, data);
-}
-
-void EmbedderDataSlot::gc_safe_store(IsolateForSandbox isolate, Address value) {
 #ifdef V8_COMPRESS_POINTERS
   static_assert(kSmiShiftSize == 0);
   static_assert(SmiValuesAre31Bits());
@@ -234,10 +292,12 @@ void EmbedderDataSlot::gc_safe_store(IsolateForSandbox isolate, Address value) {
   // The raw part of the payload does not contain a valid tagged value, so we
   // need to use a raw store operation for it here.
   AsAtomicTagged::Relaxed_Store(
-      reinterpret_cast<AtomicTagged_t*>(address() + kRawPayloadOffset), hi);
+      reinterpret_cast<AtomicTagged_t*>(address() + kCppHeapPointerOffset), hi);
 #else
   ObjectSlot(address() + kTaggedPayloadOffset)
-      .Relaxed_Store(Tagged<Smi>(value));
+      .Relaxed_Store(Tagged<Object>(value.tagged));
+  base::WriteUnalignedValue<Address>(address() + kCppHeapPointerOffset,
+                                     value.pointer);
 #endif
 }
 
@@ -248,13 +308,15 @@ bool EmbedderDataSlot::MustClearDuringSerialization(
   // as a dangling pointer.  For consistency it would be nice to avoid writing
   // external pointers also in the wide-pointer case, but as we can't
   // distinguish between Smi values and pointers we just leave them be.
-#ifdef V8_ENABLE_SANDBOX
-  auto* location = reinterpret_cast<ExternalPointerHandle*>(
-      address() + kExternalPointerOffset);
-  return base::AsAtomic32::Relaxed_Load(location) != kNullExternalPointerHandle;
-#else   // !V8_ENABLE_SANDBOX
-  return false;
-#endif  // !V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
+  auto* location = reinterpret_cast<CppHeapPointerHandle*>(
+      address() + kCppHeapPointerOffset);
+  return base::AsAtomic32::Relaxed_Load(location) != kNullCppHeapPointerHandle;
+#else   // !V8_COMPRESS_POINTERS
+  Address raw_value =
+      base::ReadUnalignedValue<Address>(address() + kCppHeapPointerOffset);
+  return raw_value != kNullAddress;
+#endif  // !V8_COMPRESS_POINTERS
 }
 
 }  // namespace internal

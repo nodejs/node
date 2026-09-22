@@ -17,6 +17,7 @@
 
 #include <cstddef>
 
+#include "absl/base/config.h"
 #include "absl/random/internal/platform.h"
 #include "absl/random/internal/randen_hwaes.h"
 #include "absl/random/internal/randen_slow.h"
@@ -44,7 +45,7 @@ class Randen {
   // Generate updates the randen sponge. The outer portion of the sponge
   // (kCapacityBytes .. kStateBytes) may be consumed as PRNG state.
   // REQUIRES: state points to kStateBytes of state.
-  inline void Generate(void* state) const {
+  void Generate(void* state) const {
 #if ABSL_RANDOM_INTERNAL_AES_DISPATCH
     // HW AES Dispatch.
     if (has_crypto_) {
@@ -65,7 +66,7 @@ class Randen {
   // absorb returns, Generate must be called before the state may be consumed.
   // REQUIRES: seed points to kSeedBytes of seed.
   // REQUIRES: state points to kStateBytes of state.
-  inline void Absorb(const void* seed, void* state) const {
+  void Absorb(const void* seed, void* state) const {
 #if ABSL_RANDOM_INTERNAL_AES_DISPATCH
     // HW AES Dispatch.
     if (has_crypto_) {

@@ -4,6 +4,8 @@
 
 #include "src/compiler/refs-map.h"
 
+#include "src/base/hashing.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -30,7 +32,13 @@ ObjectData* RefsMap::Remove(const Address& key) {
   return UnderlyingMap::Remove(key, RefsMap::Hash(key));
 }
 
-uint32_t RefsMap::Hash(Address addr) { return static_cast<uint32_t>(addr); }
+uint32_t RefsMap::Hash(Address addr) {
+  // Don't use a plain cast: keys are handle locations, which are
+  // pointer-aligned and consecutive within a handle block, so they would
+  // fill every eighth bucket in a contiguous run and linear probing would
+  // degrade to a scan.
+  return static_cast<uint32_t>(base::hash64(addr));
+}
 
 }  // namespace compiler
 }  // namespace internal

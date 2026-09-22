@@ -82,8 +82,8 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::config
-    absl::time
     absl::core_headers
+    absl::time
     absl::type_traits
     GTest::gmock_main
 )

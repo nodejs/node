@@ -1,0 +1,4 @@
+Test session disconnect during custom preview wrapping.
+[controller] paused -> stock utils.disconnectSession(victim)
+[controller] victim freed; resuming nested loop
+Reached post-wait.

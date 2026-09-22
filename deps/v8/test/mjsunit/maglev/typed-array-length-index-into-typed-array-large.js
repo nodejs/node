@@ -23,16 +23,16 @@ if (%Is64Bit()) {
     %OptimizeMaglevOnNextCall(foo);
     const a1 = foo(100);
     assertEquals(1, a1[100]);
-    assertTrue(isMaglevved(foo));
+    assertMaglevved(foo);
 
     const a2 = foo(largeLength);
     assertEquals(1, a2[largeLength]);
 
     // TODO(389019544): Fix the deopt loop and enable this:
-    // assertTrue(isMaglevved(foo));
+    // assertMaglevved(foo);
     // Once this is fixed also --no-optimize-maglev-optimizes-to-turbofan
     // could be removed.
-    assertFalse(isMaglevved(foo));  // This will fail when the issue is fixed.
+    assertNotMaglevved(foo);  // This will fail when the issue is fixed.
   } catch (e) {
     // If alloating the TypedArray failed, we'll get a RangeError. Other
     // errors are just normal test failures.

@@ -21,4 +21,4 @@ assertEquals(10, foo(6, 2));
 assertEquals(-1073741827, foo(1073741823, 1073741823));
 
 // No deopts even if the addition overflows.
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

@@ -22,4 +22,4 @@ foo([1, 2, 3]);
 foo([0.5]);
 
 // No deopts since we generated code to handle the OOB.
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

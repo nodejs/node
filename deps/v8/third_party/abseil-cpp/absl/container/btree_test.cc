@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -24,6 +25,8 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -33,6 +36,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/algorithm/container.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/container/btree_map.h"
@@ -43,11 +47,11 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
-#include "absl/types/optional.h"
 
 ABSL_FLAG(int, test_values, 10000, "The number of values to use for tests");
 
@@ -766,15 +770,12 @@ struct NonTransparentCompare {
   }
 };
 
-template <typename T>
-bool CanEraseWithEmptyBrace(T t, decltype(t.erase({})) *) {
-  return true;
-}
+template <class T, class = void>
+struct CanEraseWithEmptyBrace : std::false_type {};
 
-template <typename T>
-bool CanEraseWithEmptyBrace(T, ...) {
-  return false;
-}
+template <class T>
+struct CanEraseWithEmptyBrace<
+    T, std::void_t<decltype(std::declval<T>().erase({}))*>> : std::true_type {};
 
 template <typename T>
 void TestHeterogeneous(T table) {
@@ -819,7 +820,7 @@ void TestHeterogeneous(T table) {
   EXPECT_EQ(table.size() - 1, copy.size());
   copy.erase({"5"});
   EXPECT_EQ(table.size() - 2, copy.size());
-  EXPECT_FALSE(CanEraseWithEmptyBrace(table, nullptr));
+  EXPECT_FALSE(CanEraseWithEmptyBrace<T>::value);
 
   // Also run it with const T&.
   if (std::is_class<T>()) TestHeterogeneous<const T &>(table);
@@ -1097,9 +1098,9 @@ class BtreeNodePeer {
 
   template <typename Btree>
   constexpr static bool FieldTypeEqualsSlotType() {
-    return std::is_same<
+    return std::is_same_v<
         typename btree_node<typename Btree::params_type>::field_type,
-        typename btree_node<typename Btree::params_type>::slot_type>::value;
+        typename btree_node<typename Btree::params_type>::slot_type>;
   }
 };
 
@@ -1110,7 +1111,7 @@ class BtreeMapTest : public ::testing::Test {
   struct Key {};
   struct Cmp {
     template <typename T>
-    bool operator()(T, T) const {
+    [[maybe_unused]] bool operator()(T, T) const {
       return false;
     }
   };
@@ -1174,7 +1175,7 @@ TEST(Btree, BtreeMapCanHoldMoveOnlyTypes) {
 
   std::unique_ptr<std::string> &v = m["A"];
   EXPECT_TRUE(v == nullptr);
-  v = absl::make_unique<std::string>("X");
+  v = std::make_unique<std::string>("X");
 
   auto iter = m.find("A");
   EXPECT_EQ("X", *iter->second);
@@ -1237,16 +1238,16 @@ template <typename Compare, typename Key>
 void AssertKeyCompareStringAdapted() {
   using Adapted = typename key_compare_adapter<Compare, Key>::type;
   static_assert(
-      std::is_same<Adapted, StringBtreeDefaultLess>::value ||
-          std::is_same<Adapted, StringBtreeDefaultGreater>::value,
+      std::is_same_v<Adapted, StringBtreeDefaultLess> ||
+          std::is_same_v<Adapted, StringBtreeDefaultGreater>,
       "key_compare_adapter should have string-adapted this comparator.");
 }
 template <typename Compare, typename Key>
 void AssertKeyCompareNotStringAdapted() {
   using Adapted = typename key_compare_adapter<Compare, Key>::type;
   static_assert(
-      !std::is_same<Adapted, StringBtreeDefaultLess>::value &&
-          !std::is_same<Adapted, StringBtreeDefaultGreater>::value,
+      !std::is_same_v<Adapted, StringBtreeDefaultLess> &&
+          !std::is_same_v<Adapted, StringBtreeDefaultGreater>,
       "key_compare_adapter shouldn't have string-adapted this comparator.");
 }
 
@@ -2804,16 +2805,12 @@ TYPED_TEST(BtreeMultiKeyTest, Count) {
 
 TEST(Btree, SetIteratorsAreConst) {
   using Set = absl::btree_set<int>;
-  EXPECT_TRUE(
-      (std::is_same<typename Set::iterator::reference, const int &>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename Set::iterator::pointer, const int *>::value));
+  EXPECT_TRUE((std::is_same_v<typename Set::iterator::reference, const int&>));
+  EXPECT_TRUE((std::is_same_v<typename Set::iterator::pointer, const int*>));
 
   using MSet = absl::btree_multiset<int>;
-  EXPECT_TRUE(
-      (std::is_same<typename MSet::iterator::reference, const int &>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename MSet::iterator::pointer, const int *>::value));
+  EXPECT_TRUE((std::is_same_v<typename MSet::iterator::reference, const int&>));
+  EXPECT_TRUE((std::is_same_v<typename MSet::iterator::pointer, const int*>));
 }
 
 TEST(Btree, AllocConstructor) {
@@ -3007,11 +3004,11 @@ TEST(Btree, InvalidComparatorsCaught) {
   // compare differently with each other from how they compare with instances
   // that don't have the optional field.
   struct ClockTime {
-    absl::optional<int> hour;
+    std::optional<int> hour;
     int minute;
   };
   // `comp(a,b) && comp(b,c) && !comp(a,c)` violates transitivity.
-  ClockTime a = {absl::nullopt, 1};
+  ClockTime a = {std::nullopt, 1};
   ClockTime b = {2, 5};
   ClockTime c = {6, 0};
   {
@@ -3411,8 +3408,8 @@ TEST(Btree, IteratorAdditionOutOfBounds) {
   EXPECT_EQ(backward, set.begin());
 
   if (IsAssertEnabled()) {
-    EXPECT_DEATH(forward += 1, "n == 0");
-    EXPECT_DEATH(backward += -1, "position >= node->start");
+    EXPECT_DEATH(forward += 1, "");
+    EXPECT_DEATH(backward += -1, "");
   }
 }
 
@@ -3455,8 +3452,8 @@ TEST(Btree, IteratorSubtractionOutOfBounds) {
   EXPECT_EQ(forward, set.end());
 
   if (IsAssertEnabled()) {
-    EXPECT_DEATH(backward -= 1, "position >= node->start");
-    EXPECT_DEATH(forward -= -1, "n == 0");
+    EXPECT_DEATH(backward -= 1, "");
+    EXPECT_DEATH(forward -= -1, "");
   }
 }
 
@@ -3465,7 +3462,7 @@ TEST(Btree, DereferencingEndIterator) {
 
   absl::btree_set<int> set;
   for (int i = 0; i < 1000; ++i) set.insert(i);
-  EXPECT_DEATH(*set.end(), R"regex(Dereferencing end\(\) iterator)regex");
+  EXPECT_DEATH(*set.end(), "");
 }
 
 TEST(Btree, InvalidIteratorComparison) {
@@ -3477,13 +3474,10 @@ TEST(Btree, InvalidIteratorComparison) {
     set2.insert(i);
   }
 
-  constexpr const char *kValueInitDeathMessage =
-      "Comparing default-constructed iterator with .*non-default-constructed "
-      "iterator";
   typename absl::btree_set<int>::iterator iter1, iter2;
   EXPECT_EQ(iter1, iter2);
-  EXPECT_DEATH(void(set1.begin() == iter1), kValueInitDeathMessage);
-  EXPECT_DEATH(void(iter1 == set1.begin()), kValueInitDeathMessage);
+  EXPECT_DEATH(void(set1.begin() == iter1), "");
+  EXPECT_DEATH(void(iter1 == set1.begin()), "");
 
   constexpr const char *kDifferentContainerDeathMessage =
       "Comparing iterators from different containers";
@@ -3540,7 +3534,7 @@ TEST(Btree, FieldTypeEqualsSlotType) {
   // This breaks if we try to do layout_type::Pointer<slot_type> because
   // slot_type is the same as field_type.
   using set_type = absl::btree_set<uint8_t>;
-  static_assert(BtreeNodePeer::FieldTypeEqualsSlotType<set_type>(), "");
+  static_assert(BtreeNodePeer::FieldTypeEqualsSlotType<set_type>());
   TestBasicFunctionality(set_type());
 }
 

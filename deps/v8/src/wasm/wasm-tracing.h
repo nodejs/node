@@ -27,13 +27,6 @@ struct MemoryTracingInfo {
   static_assert(std::is_same_v<decltype(mem_rep),
                                std::underlying_type_t<MachineRepresentation>>,
                 "MachineRepresentation uses uint8_t");
-
-  MemoryTracingInfo(uintptr_t offset, uint32_t mem_index, bool is_store,
-                    MachineRepresentation rep)
-      : offset(offset),
-        mem_index(mem_index),
-        is_store(is_store),
-        mem_rep(static_cast<uint8_t>(rep)) {}
 };
 
 struct GlobalTracingInfo {

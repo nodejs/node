@@ -108,6 +108,10 @@ class FrameStateFunctionInfo {
         bytecode_array_(bytecode_array) {
   }
 
+  // Prevent slicing when copying through base-class references.
+  FrameStateFunctionInfo(const FrameStateFunctionInfo&) = delete;
+  FrameStateFunctionInfo& operator=(const FrameStateFunctionInfo&) = delete;
+
   int local_count() const { return local_count_; }
   uint16_t parameter_count() const { return parameter_count_; }
   uint16_t parameter_count_without_receiver() const {
@@ -181,21 +185,18 @@ class FrameStateInfo final {
                  const FrameStateFunctionInfo* info)
       : bailout_id_(bailout_id),
         frame_state_combine_(state_combine),
-        info_(info) {}
-
-  FrameStateType type() const {
-    return info_ == nullptr ? FrameStateType::kUnoptimizedFunction
-                            : info_->type();
+        info_(info) {
+    DCHECK_NOT_NULL(info);
   }
+
+  FrameStateType type() const { return info_->type(); }
   BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
-    return info_ == nullptr ? MaybeIndirectHandle<SharedFunctionInfo>()
-                            : info_->shared_info();
+    return info_->shared_info();
   }
   MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
-    return info_ == nullptr ? MaybeIndirectHandle<BytecodeArray>()
-                            : info_->bytecode_array();
+    return info_->bytecode_array();
   }
   uint16_t parameter_count() const {
     DCHECK_NOT_NULL(info_);
@@ -227,9 +228,10 @@ class FrameStateInfo final {
 V8_EXPORT_PRIVATE bool operator==(FrameStateInfo const&, FrameStateInfo const&);
 V8_EXPORT_PRIVATE bool operator!=(FrameStateInfo const&, FrameStateInfo const&);
 
-size_t hash_value(FrameStateInfo const&);
+V8_EXPORT_PRIVATE size_t hash_value(FrameStateInfo const&);
 
-std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           FrameStateInfo const&);
 
 enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 

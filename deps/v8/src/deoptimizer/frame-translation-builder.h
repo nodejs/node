@@ -24,10 +24,7 @@ class LocalFactory;
 class FrameTranslationBuilder {
  public:
   explicit FrameTranslationBuilder(Zone* zone)
-      : contents_(zone),
-        contents_for_compression_(zone),
-        basis_instructions_(zone),
-        zone_(zone) {}
+      : contents_(zone), basis_instructions_(zone) {}
 
   DirectHandle<DeoptimizationFrameTranslation> ToFrameTranslation(
       LocalFactory* factory);
@@ -122,38 +119,22 @@ class FrameTranslationBuilder {
   void Add(TranslationOpcode opcode, T... operands);
 
   // Adds the instruction to contents_, without performing the other steps of
-  // Add(). Requires !v8_flags.turbo_compress_frame_translations.
+  // Add().
   template <typename... T>
   void AddRawToContents(TranslationOpcode opcode, T... operands);
 
-  // Adds the instruction to contents_for_compression_, without performing the
-  // other steps of Add(). Requires v8_flags.turbo_compress_frame_translations.
-  template <typename... T>
-  void AddRawToContentsForCompression(TranslationOpcode opcode, T... operands);
-
-  // Adds a BEGIN instruction to contents_ or contents_for_compression_, but
-  // does not update other state. Used by BeginTranslation.
+  // Adds a BEGIN instruction to contents_, but does not update other state.
+  // Used by BeginTranslation.
   template <typename... T>
   void AddRawBegin(bool update_feedback, T... operands);
 
-  int Size() const {
-    return V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)
-               ? static_cast<int>(contents_for_compression_.size())
-               : static_cast<int>(contents_.size());
-  }
-  int SizeInBytes() const {
-    return V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)
-               ? Size() * kInt32Size
-               : Size();
-  }
-
-  Zone* zone() const { return zone_; }
+  uint32_t Size() const { return static_cast<uint32_t>(contents_.size()); }
+  uint32_t SizeInBytes() const { return Size(); }
 
   void FinishPendingInstructionIfNeeded();
   void ValidateBytes(DeoptTranslationIterator& iter) const;
 
   ZoneVector<uint8_t> contents_;
-  ZoneVector<int32_t> contents_for_compression_;
   // If match_previous_allowed_ is false, then this vector contains the
   // instructions written so far in the current translation (since the last
   // BEGIN). If match_previous_allowed_ is true, then this vector contains the
@@ -165,7 +146,6 @@ class FrameTranslationBuilder {
 #ifdef ENABLE_SLOW_DCHECKS
   std::vector<Instruction> all_instructions_;
 #endif
-  Zone* const zone_;
   // How many consecutive instructions we've skipped writing because they match
   // the basis translation.
   size_t matching_instructions_count_ = 0;

@@ -17,7 +17,7 @@ assertEquals('firstconstant', add(string));
 %OptimizeMaglevOnNextCall(add);
 
 assertEquals('firstconstant', add(string));
-assertTrue(isMaglevved(add));
+assertMaglevved(add);
 
 // Invalidate the protector.
 stringWrapper.valueOf = () => 'value';

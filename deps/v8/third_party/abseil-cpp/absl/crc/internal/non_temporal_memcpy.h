@@ -15,6 +15,15 @@
 #ifndef ABSL_CRC_INTERNAL_NON_TEMPORAL_MEMCPY_H_
 #define ABSL_CRC_INTERNAL_NON_TEMPORAL_MEMCPY_H_
 
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <cstring>
+
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/optimization.h"
+
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
@@ -27,15 +36,6 @@
 #ifdef __aarch64__
 #include "absl/crc/internal/non_temporal_arm_intrinsics.h"
 #endif
-
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <cstring>
-
-#include "absl/base/attributes.h"
-#include "absl/base/config.h"
-#include "absl/base/optimization.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

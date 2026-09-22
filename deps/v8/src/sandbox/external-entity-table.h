@@ -14,7 +14,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
-#include "src/common/segmented-table.h"
+#include "src/sandbox/segmented-table.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -57,11 +57,10 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   using Base = SegmentedTable<Entry, size>;
   using FreelistHead = Base::FreelistHead;
   using Segment = Base::Segment;
-  using WriteIterator = Base::WriteIterator;
   static constexpr size_t kSegmentSize = Base::kSegmentSize;
   static constexpr size_t kEntriesPerSegment = Base::kEntriesPerSegment;
   static constexpr size_t kEntrySize = Base::kEntrySize;
-  static constexpr size_t kNumReadOnlySegments = Base::kNumReadOnlySegments;
+  static constexpr size_t kNumReadOnlySegments = 64 * KB / kSegmentSize;
 
   // A collection of segments in an external entity table.
   //
@@ -254,21 +253,6 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   void DetachSpaceFromReadOnlySegments(Space* space);
   void ZeroInternalNullEntry();
 
-  // Use this scope to temporarily unseal the read-only segment (i.e. change
-  // permissions to RW).
-  class UnsealReadOnlySegmentScope final {
-   public:
-    explicit UnsealReadOnlySegmentScope(ExternalEntityTable<Entry, size>* table)
-        : table_(table) {
-      table_->UnsealReadOnlySegments();
-    }
-
-    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegments(); }
-
-   private:
-    ExternalEntityTable<Entry, size>* const table_;
-  };
-
 #ifdef OBJECT_PRINT
   template <typename EntryCallback>
   void Print(Space* space, const char* space_name, uint32_t lower,
@@ -284,11 +268,6 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
  private:
   // Required for Isolate::CheckIsolateLayout().
   friend class Isolate;
-
-  // Helpers to toggle the first segment's permissions between kRead (sealed)
-  // and kReadWrite (unsealed).
-  void UnsealReadOnlySegments();
-  void SealReadOnlySegments();
 
   // Extends the given space with the given segment.
   void Extend(Space* space, Segment segment, FreelistHead freelist);

@@ -35,6 +35,8 @@ function f() {
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
+    assertEquals(2, exec_state.frame(0).scope(0).evaluate("a").value());
+    assertEquals(1, exec_state.frame(0).scope(1).evaluate("a").value());
     exec_state.frame(0).evaluate("a = 3");
     exec_state.frame(1).evaluate("a = 4");
     assertThrows(() => exec_state.frame(0).evaluate("this = 2"));

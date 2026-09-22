@@ -46,31 +46,69 @@ transitioning javascript builtin TypedArrayPrototypeSet(
   }
 
   try {
-    // 5. Let targetOffset be ? ToInteger(offset).
-    // 6. If targetOffset < 0, throw a RangeError exception.
-    let targetOffsetOverflowed: bool = false;
+    let attachedTargetAndLength: ValidJSTypedArrayAndLength;
     let targetOffset: uintptr = 0;
-    if (arguments.length > 1) {
-      const offsetArg = arguments[1];
-      try {
-        targetOffset = ToUintPtr(offsetArg)
-        // On values less than zero throw RangeError immediately.
-            otherwise OffsetOutOfBounds,
-            // On UintPtr or SafeInteger range overflow throw RangeError after
-            // performing observable steps to follow the spec.
-            OffsetOverflow, OffsetOverflow;
-      } label OffsetOverflow {
-        targetOffsetOverflowed = true;
-      }
-    } else {
-      // If the offset argument is not provided then the targetOffset is 0.
-    }
+    let targetOffsetOverflowed: bool = false;
 
-    // 7. Let targetBuffer be target.[[ViewedArrayBuffer]].
-    // 8. If IsDetachedBuffer(targetBuffer) is true, throw a TypeError
-    //   exception.
-    const attachedTargetAndLength = EnsureValidAndReadLength(
-        target, TypedArrayAccessMode::kWrite) otherwise Fail;
+    // If the offset argument is not provided then the targetOffset is 0.
+    const offsetArg: JSAny =
+        arguments.length > 1 ? arguments[1] : SmiConstant(0);
+    typeswitch (offsetArg) {
+      case (offsetSmi: Smi): {
+        // 5. Let targetOffset be ? ToIntegerOrInfinity(offset).
+        // 6. If targetOffset < 0, throw a RangeError exception.
+        if (offsetSmi < 0) {
+          // For negative Smi offsets, integer conversion has no side effects,
+          // but we still need to perform step 4 before throwing a RangeError.
+          // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true,
+          //    throw a TypeError exception.
+          if (IsImmutableArrayBuffer(target.buffer)) deferred {
+              goto Fail;
+            }
+          goto OffsetOutOfBounds;
+        }
+        targetOffset = Unsigned(SmiUntag(offsetSmi));
+
+        // For non-negative Smi offsets, integer conversion has no side effects,
+        // so step 4 (IsImmutableBuffer check) can be deferred and combined with
+        // steps 7-9 in EnsureValidAndReadLength without observable differences.
+        // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true, throw
+        //    a TypeError exception.
+        // 7. Let targetBuffer be target.[[ViewedArrayBuffer]].
+        // 8. If IsDetachedBuffer(targetBuffer) is true, throw a TypeError
+        //    exception.
+        // 9. Let targetLength be target.[[ArrayLength]].
+        attachedTargetAndLength = EnsureValidAndReadLength(
+            target, TypedArrayAccessMode::kWrite) otherwise Fail;
+      }
+      case (offsetOther: JSAny): {
+        // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true, throw
+        //    a TypeError exception.
+        if (IsImmutableArrayBuffer(target.buffer)) deferred {
+            goto Fail;
+          }
+
+        // 5. Let targetOffset be ? ToIntegerOrInfinity(offset).
+        // 6. If targetOffset < 0, throw a RangeError exception.
+        try {
+          targetOffset = ToUintPtr(offsetOther)
+          // On values less than zero throw RangeError immediately.
+              otherwise OffsetOutOfBounds,
+              // On UintPtr or SafeInteger range overflow throw RangeError after
+              // performing observable steps to follow the spec.
+              OffsetOverflow, OffsetOverflow;
+        } label OffsetOverflow {
+          targetOffsetOverflowed = true;
+        }
+
+        // 7. Let targetBuffer be target.[[ViewedArrayBuffer]].
+        // 8. If IsDetachedBuffer(targetBuffer) is true, throw a TypeError
+        //    exception.
+        // 9. Let targetLength be target.[[ArrayLength]].
+        attachedTargetAndLength = EnsureValidAndReadLength(
+            target, TypedArrayAccessMode::kWrite) otherwise Fail;
+      }
+    }
 
     const overloadedArg = arguments[0];
     try {
@@ -86,7 +124,7 @@ transitioning javascript builtin TypedArrayPrototypeSet(
       // 5. If IsDetachedBuffer(srcBuffer) is true, throw a TypeError
       //   exception.
       const attachedSourceAndLength =
-          EnsureValidAndReadLength(typedArray, TypedArrayAccessMode::kWrite)
+          EnsureValidAndReadLength(typedArray, TypedArrayAccessMode::kRead)
           otherwise Fail;
       TypedArrayPrototypeSetTypedArray(
           attachedTargetAndLength, attachedSourceAndLength, targetOffset,

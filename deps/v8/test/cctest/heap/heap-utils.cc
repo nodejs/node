@@ -484,7 +484,7 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
   // CppHeap concurrent marking has a dependency on concurrent marking.
   v8_flags.cppheap_concurrent_marking = false;
 
-  if (isolate_ && isolate_->heap()->cpp_heap()) {
+  if (isolate_) {
     CppHeap::From(isolate_->heap()->cpp_heap())
         ->UpdateGCCapabilitiesFromFlagsForTesting();
   }
@@ -501,7 +501,7 @@ ManualGCScope::~ManualGCScope() {
       flag_detect_ineffective_gcs_near_heap_limit_;
   v8_flags.cppheap_concurrent_marking = flag_cppheap_concurrent_marking_;
 
-  if (isolate_ && isolate_->heap()->cpp_heap()) {
+  if (isolate_) {
     CppHeap::From(isolate_->heap()->cpp_heap())
         ->UpdateGCCapabilitiesFromFlagsForTesting();
   }

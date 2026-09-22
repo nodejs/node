@@ -5,6 +5,8 @@
 #ifndef V8_DEOPTIMIZER_MATERIALIZED_OBJECT_STORE_H_
 #define V8_DEOPTIMIZER_MATERIALIZED_OBJECT_STORE_H_
 
+#include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "src/handles/handles.h"
@@ -26,9 +28,9 @@ class MaterializedObjectStore {
  private:
   Isolate* isolate() const { return isolate_; }
   DirectHandle<FixedArray> GetStackEntries();
-  DirectHandle<FixedArray> EnsureStackEntries(int size);
+  DirectHandle<FixedArray> EnsureStackEntries(uint32_t size);
 
-  int StackIdToIndex(Address fp);
+  std::optional<uint32_t> StackIdToIndex(Address fp);
 
   Isolate* isolate_;
   std::vector<Address> frame_fps_;

@@ -1,0 +1,91 @@
+Checks that proxies in JSONML are rejected by custom formatters
+Test proxy child in header JSONML..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught Proxy values are not allowed in JSONML
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+No customPreview generated
+Test proxy attributes in header JSONML..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught Proxy values are not allowed in JSONML
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+No customPreview generated
+Test proxy array child masquerading as tag..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught Proxy values are not allowed in JSONML
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+No customPreview generated
+Test proxy attributes in object tag..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught Proxy values are not allowed in JSONML
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+No customPreview generated
+Test proxy child in body JSONML..
+customPreview: ["span",{},"Header ok"]
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught Proxy values are not allowed in JSONML
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Test formatting a proxy object itself (allowed)..
+customPreview: ["span",{},"Proxy formatted: ","proxyObject"]

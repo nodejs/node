@@ -33,21 +33,6 @@ namespace internal {
                                                                              \
     Return(result);                                                          \
   }
-#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
-DEF_BINOP(Add_WithFeedback, Generate_AddWithFeedback)
-#endif
-DEF_BINOP(Subtract_WithFeedback, Generate_SubtractWithFeedback)
-DEF_BINOP(Multiply_WithFeedback, Generate_MultiplyWithFeedback)
-DEF_BINOP(Divide_WithFeedback, Generate_DivideWithFeedback)
-DEF_BINOP(Modulus_WithFeedback, Generate_ModulusWithFeedback)
-DEF_BINOP(Exponentiate_WithFeedback, Generate_ExponentiateWithFeedback)
-DEF_BINOP(BitwiseOr_WithFeedback, Generate_BitwiseOrWithFeedback)
-DEF_BINOP(BitwiseXor_WithFeedback, Generate_BitwiseXorWithFeedback)
-DEF_BINOP(BitwiseAnd_WithFeedback, Generate_BitwiseAndWithFeedback)
-DEF_BINOP(ShiftLeft_WithFeedback, Generate_ShiftLeftWithFeedback)
-DEF_BINOP(ShiftRight_WithFeedback, Generate_ShiftRightWithFeedback)
-DEF_BINOP(ShiftRightLogical_WithFeedback,
-          Generate_ShiftRightLogicalWithFeedback)
 DEF_BINOP(Add_LhsIsStringConstant_Internalize_WithFeedback,
           Generate_AddLhsIsStringConstantInternalizeWithFeedback)
 DEF_BINOP(Add_RhsIsStringConstant_Internalize_WithFeedback,
@@ -68,67 +53,105 @@ DEF_BINOP(Add_RhsIsStringConstant_Internalize_WithFeedback,
                                                                      \
     Return(result);                                                  \
   }
-DEF_BINOP(Add_Baseline, Generate_AddWithFeedback)
-DEF_BINOP(Subtract_Baseline, Generate_SubtractWithFeedback)
-DEF_BINOP(Multiply_Baseline, Generate_MultiplyWithFeedback)
-DEF_BINOP(Divide_Baseline, Generate_DivideWithFeedback)
-DEF_BINOP(Modulus_Baseline, Generate_ModulusWithFeedback)
-DEF_BINOP(Exponentiate_Baseline, Generate_ExponentiateWithFeedback)
-DEF_BINOP(BitwiseOr_Baseline, Generate_BitwiseOrWithFeedback)
-DEF_BINOP(BitwiseXor_Baseline, Generate_BitwiseXorWithFeedback)
-DEF_BINOP(BitwiseAnd_Baseline, Generate_BitwiseAndWithFeedback)
-DEF_BINOP(ShiftLeft_Baseline, Generate_ShiftLeftWithFeedback)
-DEF_BINOP(ShiftRight_Baseline, Generate_ShiftRightWithFeedback)
-DEF_BINOP(ShiftRightLogical_Baseline, Generate_ShiftRightLogicalWithFeedback)
 DEF_BINOP(Add_LhsIsStringConstant_Internalize_Baseline,
           Generate_AddLhsIsStringConstantInternalizeWithFeedback)
 DEF_BINOP(Add_RhsIsStringConstant_Internalize_Baseline,
           Generate_AddRhsIsStringConstantInternalizeWithFeedback)
 #undef DEF_BINOP
 
-#define DEF_BINOP_RHS_SMI(Name, Generator)                           \
-  TF_BUILTIN(Name, CodeStubAssembler) {                              \
-    auto lhs = Parameter<Object>(Descriptor::kLeft);                 \
-    auto rhs = Parameter<Object>(Descriptor::kRight);                \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);     \
-                                                                     \
-    BinaryOpAssembler binop_asm(state());                            \
-    TNode<Object> result = binop_asm.Generator(                      \
-        [&]() { return LoadContextFromBaseline(); }, lhs, rhs, slot, \
-        [&]() { return LoadFeedbackVectorFromBaseline(); },          \
-        UpdateFeedbackMode::kGuaranteedFeedback, true);              \
-                                                                     \
-    Return(result);                                                  \
+#define DEF_BINOP(Name, Generator)                                 \
+  TF_BUILTIN(Name, CodeStubAssembler) {                            \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto context = Parameter<Context>(Descriptor::kContext);       \
+    auto bytecode_array =                                          \
+        Parameter<BytecodeArray>(Descriptor::kBytecodeArray);      \
+    auto feedback_offset =                                         \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);  \
+                                                                   \
+    BinaryOpAssembler binop_asm(state());                          \
+    TNode<Object> result =                                         \
+        binop_asm.Generator([&]() { return context; }, lhs, rhs,   \
+                            binop_asm.MakeEmbeddedFeedbackUpdater( \
+                                bytecode_array, feedback_offset),  \
+                            false);                                \
+                                                                   \
+    Return(result);                                                \
   }
-DEF_BINOP_RHS_SMI(AddSmi_Baseline, Generate_AddWithFeedback)
-DEF_BINOP_RHS_SMI(SubtractSmi_Baseline, Generate_SubtractWithFeedback)
-DEF_BINOP_RHS_SMI(MultiplySmi_Baseline, Generate_MultiplyWithFeedback)
-DEF_BINOP_RHS_SMI(DivideSmi_Baseline, Generate_DivideWithFeedback)
-DEF_BINOP_RHS_SMI(ModulusSmi_Baseline, Generate_ModulusWithFeedback)
-DEF_BINOP_RHS_SMI(ExponentiateSmi_Baseline, Generate_ExponentiateWithFeedback)
-DEF_BINOP_RHS_SMI(BitwiseOrSmi_Baseline, Generate_BitwiseOrWithFeedback)
-DEF_BINOP_RHS_SMI(BitwiseXorSmi_Baseline, Generate_BitwiseXorWithFeedback)
-DEF_BINOP_RHS_SMI(BitwiseAndSmi_Baseline, Generate_BitwiseAndWithFeedback)
-DEF_BINOP_RHS_SMI(ShiftLeftSmi_Baseline, Generate_ShiftLeftWithFeedback)
-DEF_BINOP_RHS_SMI(ShiftRightSmi_Baseline, Generate_ShiftRightWithFeedback)
-DEF_BINOP_RHS_SMI(ShiftRightLogicalSmi_Baseline,
-                  Generate_ShiftRightLogicalWithFeedback)
-#undef DEF_BINOP_RHS_SMI
+#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+DEF_BINOP(Add_WithFeedback, Generate_AddWithFeedback)
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+DEF_BINOP(Subtract_WithFeedback, Generate_SubtractWithFeedback)
+DEF_BINOP(Multiply_WithFeedback, Generate_MultiplyWithFeedback)
+DEF_BINOP(Divide_WithFeedback, Generate_DivideWithFeedback)
+DEF_BINOP(Modulus_WithFeedback, Generate_ModulusWithFeedback)
+DEF_BINOP(Exponentiate_WithFeedback, Generate_ExponentiateWithFeedback)
+DEF_BINOP(BitwiseOr_WithFeedback, Generate_BitwiseOrWithFeedback)
+DEF_BINOP(BitwiseXor_WithFeedback, Generate_BitwiseXorWithFeedback)
+DEF_BINOP(BitwiseAnd_WithFeedback, Generate_BitwiseAndWithFeedback)
+DEF_BINOP(ShiftLeft_WithFeedback, Generate_ShiftLeftWithFeedback)
+DEF_BINOP(ShiftRight_WithFeedback, Generate_ShiftRightWithFeedback)
+DEF_BINOP(ShiftRightLogical_WithFeedback,
+          Generate_ShiftRightLogicalWithFeedback)
+#undef DEF_BINOP
 
-#define DEF_UNOP(Name, Generator)                                \
-  TF_BUILTIN(Name, CodeStubAssembler) {                          \
-    auto value = Parameter<Object>(Descriptor::kValue);          \
-    auto context = Parameter<Context>(Descriptor::kContext);     \
-    auto feedback_vector =                                       \
-        Parameter<FeedbackVector>(Descriptor::kFeedbackVector);  \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot); \
-                                                                 \
-    UnaryOpAssembler a(state());                                 \
-    TNode<Object> result =                                       \
-        a.Generator(context, value, slot, feedback_vector,       \
-                    UpdateFeedbackMode::kGuaranteedFeedback);    \
-                                                                 \
-    Return(result);                                              \
+#define DEF_BINOP(BuiltinPrefix, Op, RhsKnownSmi)                              \
+  TF_BUILTIN(BuiltinPrefix##_Generic_Baseline, CodeStubAssembler) {            \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                           \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                          \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);              \
+                                                                               \
+    BinaryOpAssembler binop_asm(state());                                      \
+    TNode<Object> result = binop_asm.Generate_##Op##WithFeedback(              \
+        [&]() { return LoadContextFromBaseline(); }, lhs, rhs,                 \
+        binop_asm.MakeEmbeddedFeedbackUpdater(LoadBytecodeArrayFromBaseline(), \
+                                              feedback_offset),                \
+        RhsKnownSmi);                                                          \
+                                                                               \
+    Return(result);                                                            \
+  }
+DEF_BINOP(Add, Add, false)
+DEF_BINOP(Subtract, Subtract, false)
+DEF_BINOP(Multiply, Multiply, false)
+DEF_BINOP(Divide, Divide, false)
+DEF_BINOP(Modulus, Modulus, false)
+DEF_BINOP(Exponentiate, Exponentiate, false)
+DEF_BINOP(BitwiseOr, BitwiseOr, false)
+DEF_BINOP(BitwiseXor, BitwiseXor, false)
+DEF_BINOP(BitwiseAnd, BitwiseAnd, false)
+DEF_BINOP(ShiftLeft, ShiftLeft, false)
+DEF_BINOP(ShiftRight, ShiftRight, false)
+DEF_BINOP(ShiftRightLogical, ShiftRightLogical, false)
+DEF_BINOP(AddSmi, Add, true)
+DEF_BINOP(SubtractSmi, Subtract, true)
+DEF_BINOP(MultiplySmi, Multiply, true)
+DEF_BINOP(DivideSmi, Divide, true)
+DEF_BINOP(ModulusSmi, Modulus, true)
+DEF_BINOP(ExponentiateSmi, Exponentiate, true)
+DEF_BINOP(BitwiseOrSmi, BitwiseOr, true)
+DEF_BINOP(BitwiseXorSmi, BitwiseXor, true)
+DEF_BINOP(BitwiseAndSmi, BitwiseAnd, true)
+DEF_BINOP(ShiftLeftSmi, ShiftLeft, true)
+DEF_BINOP(ShiftRightSmi, ShiftRight, true)
+DEF_BINOP(ShiftRightLogicalSmi, ShiftRightLogical, true)
+#undef DEF_BINOP
+
+#define DEF_UNOP(Name, Generator)                                        \
+  TF_BUILTIN(Name, CodeStubAssembler) {                                  \
+    auto value = Parameter<Object>(Descriptor::kValue);                  \
+    auto context = Parameter<Context>(Descriptor::kContext);             \
+    auto bytecode_array =                                                \
+        Parameter<BytecodeArray>(Descriptor::kBytecodeArray);            \
+    auto feedback_offset =                                               \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);        \
+                                                                         \
+    UnaryOpAssembler a(state());                                         \
+    TNode<Object> result = a.Generator(                                  \
+        context, value,                                                  \
+        a.MakeEmbeddedFeedbackUpdater(bytecode_array, feedback_offset)); \
+                                                                         \
+    Return(result);                                                      \
   }
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 DEF_UNOP(BitwiseNot_WithFeedback, Generate_BitwiseNotWithFeedback)
@@ -138,27 +161,25 @@ DEF_UNOP(Increment_WithFeedback, Generate_IncrementWithFeedback)
 DEF_UNOP(Negate_WithFeedback, Generate_NegateWithFeedback)
 #undef DEF_UNOP
 
-#define DEF_UNOP(Name, Generator)                                \
-  TF_BUILTIN(Name, CodeStubAssembler) {                          \
-    auto value = Parameter<Object>(Descriptor::kValue);          \
-    auto context = LoadContextFromBaseline();                    \
-    auto feedback_vector = LoadFeedbackVectorFromBaseline();     \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot); \
-                                                                 \
-    UnaryOpAssembler a(state());                                 \
-    TNode<Object> result =                                       \
-        a.Generator(context, value, slot, feedback_vector,       \
-                    UpdateFeedbackMode::kGuaranteedFeedback);    \
-                                                                 \
-    Return(result);                                              \
+#define DEF_UNOP_GENERIC(Name, Generator)                                   \
+  TF_BUILTIN(Name##_Generic_Baseline, CodeStubAssembler) {                  \
+    auto value = Parameter<Object>(Descriptor::kValue);                     \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);           \
+    UnaryOpAssembler a(state());                                            \
+    TNode<Object> result =                                                  \
+        a.Generator(LoadContextFromBaseline(), value,                       \
+                    a.MakeEmbeddedFeedbackUpdater(                          \
+                        LoadBytecodeArrayFromBaseline(), feedback_offset)); \
+    Return(result);                                                         \
   }
-DEF_UNOP(BitwiseNot_Baseline, Generate_BitwiseNotWithFeedback)
-DEF_UNOP(Decrement_Baseline, Generate_DecrementWithFeedback)
-DEF_UNOP(Increment_Baseline, Generate_IncrementWithFeedback)
-DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
-#undef DEF_UNOP
+DEF_UNOP_GENERIC(BitwiseNot, Generate_BitwiseNotWithFeedback)
+DEF_UNOP_GENERIC(Decrement, Generate_DecrementWithFeedback)
+DEF_UNOP_GENERIC(Increment, Generate_IncrementWithFeedback)
+DEF_UNOP_GENERIC(Negate, Generate_NegateWithFeedback)
+#undef DEF_UNOP_GENERIC
 
-#define DEF_COMPARE(Name)                                                  \
+#define DEF_RELATIONAL_COMPARE(Name)                                       \
   TF_BUILTIN(Name##_WithEmbeddedFeedback, CodeStubAssembler) {             \
     auto lhs = Parameter<Object>(Descriptor::kLeft);                       \
     auto rhs = Parameter<Object>(Descriptor::kRight);                      \
@@ -177,26 +198,26 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
       result = RelationalComparison(Operation::k##Name, lhs, rhs, context, \
                                     &var_type_feedback);                   \
     }                                                                      \
-    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),          \
-                           bytecode_array, feedback_offset);               \
+    UpdateEmbeddedFeedback<CompareOperationFeedback>(                      \
+        var_type_feedback.value(), bytecode_array, feedback_offset);       \
                                                                            \
     Return(result);                                                        \
     BIND(&if_exception);                                                   \
     {                                                                      \
-      UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),        \
-                             bytecode_array, feedback_offset);             \
+      UpdateEmbeddedFeedback<CompareOperationFeedback>(                    \
+          var_type_feedback.value(), bytecode_array, feedback_offset);     \
       CallRuntime(Runtime::kReThrow, context, var_exception.value());      \
       Unreachable();                                                       \
     }                                                                      \
   }
-DEF_COMPARE(LessThan)
-DEF_COMPARE(LessThanOrEqual)
-DEF_COMPARE(GreaterThan)
-DEF_COMPARE(GreaterThanOrEqual)
-#undef DEF_COMPARE
+DEF_RELATIONAL_COMPARE(LessThan)
+DEF_RELATIONAL_COMPARE(LessThanOrEqual)
+DEF_RELATIONAL_COMPARE(GreaterThan)
+DEF_RELATIONAL_COMPARE(GreaterThanOrEqual)
+#undef DEF_RELATIONAL_COMPARE
 
-#define DEF_COMPARE(Name)                                                   \
-  TF_BUILTIN(Name##_Baseline, CodeStubAssembler) {                          \
+#define DEF_RELATIONAL_COMPARE(Name)                                        \
+  TF_BUILTIN(Name##_Generic_Baseline, CodeStubAssembler) {                  \
     auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
     auto rhs = Parameter<Object>(Descriptor::kRight);                       \
     auto feedback_offset =                                                  \
@@ -213,25 +234,25 @@ DEF_COMPARE(GreaterThanOrEqual)
           [&]() { return LoadContextFromBaseline(); }, &var_type_feedback); \
     }                                                                       \
     auto bytecode_array = LoadBytecodeArrayFromBaseline();                  \
-    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),           \
-                           bytecode_array, feedback_offset);                \
+    UpdateEmbeddedFeedback<CompareOperationFeedback>(                       \
+        var_type_feedback.value(), bytecode_array, feedback_offset);        \
                                                                             \
     Return(result);                                                         \
     BIND(&if_exception);                                                    \
     {                                                                       \
       bytecode_array = LoadBytecodeArrayFromBaseline();                     \
-      UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),         \
-                             bytecode_array, feedback_offset);              \
+      UpdateEmbeddedFeedback<CompareOperationFeedback>(                     \
+          var_type_feedback.value(), bytecode_array, feedback_offset);      \
       CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),             \
                   var_exception.value());                                   \
       Unreachable();                                                        \
     }                                                                       \
   }
-DEF_COMPARE(LessThan)
-DEF_COMPARE(LessThanOrEqual)
-DEF_COMPARE(GreaterThan)
-DEF_COMPARE(GreaterThanOrEqual)
-#undef DEF_COMPARE
+DEF_RELATIONAL_COMPARE(LessThan)
+DEF_RELATIONAL_COMPARE(LessThanOrEqual)
+DEF_RELATIONAL_COMPARE(GreaterThan)
+DEF_RELATIONAL_COMPARE(GreaterThanOrEqual)
+#undef DEF_RELATIONAL_COMPARE
 
 TF_BUILTIN(AddLhsIsStringConstantInternalizeWithVector, CodeStubAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
@@ -307,13 +328,13 @@ TF_BUILTIN(Equal_WithEmbeddedFeedback, CodeStubAssembler) {
     ScopedExceptionHandler handler(this, &if_exception, &var_exception);
     result = Equal(lhs, rhs, [&]() { return context; }, &var_type_feedback);
   }
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
   Return(result);
 
   BIND(&if_exception);
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
   CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
               var_exception.value());
   Unreachable();
@@ -328,13 +349,13 @@ TF_BUILTIN(StrictEqual_WithEmbeddedFeedback, CodeStubAssembler) {
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
 
   Return(result);
 }
 
-TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
+TF_BUILTIN(Equal_Generic_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto feedback_offset =
@@ -351,15 +372,15 @@ TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
         &var_type_feedback);
   }
   auto bytecode_array = LoadBytecodeArrayFromBaseline();
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
   Return(result);
 
   BIND(&if_exception);
   {
     bytecode_array = LoadBytecodeArrayFromBaseline();
-    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),
-                           bytecode_array, feedback_offset);
+    UpdateEmbeddedFeedback<CompareOperationFeedback>(
+        var_type_feedback.value(), bytecode_array, feedback_offset);
     CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
                 var_exception.value());
     Unreachable();
@@ -374,37 +395,136 @@ TF_BUILTIN(StrictEqual_Generic_Baseline, CodeStubAssembler) {
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),
-                         LoadBytecodeArrayFromBaseline(), feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), LoadBytecodeArrayFromBaseline(),
+      feedback_offset);
 
   Return(result);
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
-TF_BUILTIN(StrictEqual_None_Baseline, CodeStubAssembler) {
-  auto lhs = Parameter<Object>(Descriptor::kLeft);
-  auto rhs = Parameter<Object>(Descriptor::kRight);
+#define DEF_TYPED_UNOP_COMMON(OpName)                                          \
+  TF_BUILTIN(OpName##AndTryPatchCode, CodeStubAssembler) {                     \
+    auto value = Parameter<Object>(Descriptor::kValue);                        \
+    auto current_feedback =                                                    \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);              \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
+    GenerateUnaryOpAndTryPatchCode(Operation::k##OpName, value,                \
+                                   current_feedback, feedback_offset);         \
+  }                                                                            \
+  TF_BUILTIN(OpName##_None_Baseline, CodeStubAssembler) {                      \
+    auto value = Parameter<Object>(Descriptor::kValue);                        \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
+    TailCallBuiltin(                                                           \
+        Builtin::k##OpName##AndTryPatchCode, LoadContextFromBaseline(), value, \
+        Int32Constant(                                                         \
+            static_cast<int32_t>(BinaryOperationFeedback::TypeIndex::kNone)),  \
+        feedback_offset);                                                      \
+  }                                                                            \
+  TF_BUILTIN(OpName##_SignedSmall_Baseline, CodeStubAssembler) {               \
+    auto value = Parameter<Object>(Descriptor::kValue);                        \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
+    GenerateSmiUnaryOp(Operation::k##OpName, value, feedback_offset,           \
+                       Builtin::k##OpName##AndTryPatchCode);                   \
+  }
+DEF_TYPED_UNOP_COMMON(Increment)
+DEF_TYPED_UNOP_COMMON(Decrement)
+DEF_TYPED_UNOP_COMMON(Negate)
+DEF_TYPED_UNOP_COMMON(BitwiseNot)
+#undef DEF_TYPED_UNOP_COMMON
+
+// Negate-only Number stub.
+TF_BUILTIN(Negate_Number_Baseline, CodeStubAssembler) {
+  auto value = Parameter<Object>(Descriptor::kValue);
   auto feedback_offset =
       UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-
-  TailCallBuiltin(
-      Builtin::kStrictEqualAndTryPatchCode, LoadContextFromBaseline(), lhs, rhs,
-      Int32Constant(
-          static_cast<int32_t>(CompareOperationFeedback::Type::kNone)),
-      feedback_offset);
+  GenerateNumberNegate(value, feedback_offset);
 }
 
-TF_BUILTIN(StrictEqualAndTryPatchCode, CodeStubAssembler) {
-  auto lhs = Parameter<Object>(Descriptor::kLeft);
-  auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto current_feedback =
-      UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);
-  auto feedback_offset =
-      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
+#define DEFINE_TYPED_EQUALITY_COMMON(Name)                         \
+  TF_BUILTIN(Name##_None_Baseline, CodeStubAssembler) {            \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    TailCallBuiltin(Builtin::k##Name##AndTryPatchCode,             \
+                    LoadContextFromBaseline(), lhs, rhs,           \
+                    Int32Constant(static_cast<int32_t>(            \
+                        CompareOperationFeedback::Type::kNone)),   \
+                    feedback_offset);                              \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##AndTryPatchCode, CodeStubAssembler) {           \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto current_feedback =                                        \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);  \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    Generate##Name##AndTryPatchCode(lhs, rhs, current_feedback,    \
+                                    feedback_offset);              \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##_SignedSmall_Baseline, CodeStubAssembler) {     \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    GenerateSmiEqual(lhs, rhs, feedback_offset,                    \
+                     Builtin::k##Name##AndTryPatchCode);           \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##_Number_Baseline, CodeStubAssembler) {          \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    GenerateNumberEqual(lhs, rhs, feedback_offset,                 \
+                        Builtin::k##Name##AndTryPatchCode);        \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##_String_Baseline, CodeStubAssembler) {          \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    GenerateStringEqual(lhs, rhs, feedback_offset,                 \
+                        Builtin::k##Name##AndTryPatchCode);        \
+  }
 
-  GenerateStrictEqualAndTryPatchCode(lhs, rhs, current_feedback,
-                                     feedback_offset);
-}
+DEFINE_TYPED_EQUALITY_COMMON(StrictEqual)
+DEFINE_TYPED_EQUALITY_COMMON(Equal)
+#undef DEFINE_TYPED_EQUALITY_COMMON
+
+#define DEF_TYPED_OBJECT_EQUALITY(EqualityType, StubType, TypeChecker)  \
+  TF_BUILTIN(EqualityType##_##StubType##_Baseline, CodeStubAssembler) { \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    GenerateTypedTaggedEqual(                                           \
+        lhs, rhs, feedback_offset,                                      \
+        [this](TNode<HeapObject> o) { return TypeChecker(o); },         \
+        Builtin::k##EqualityType##AndTryPatchCode,                      \
+        Int32Constant(static_cast<int32_t>(                             \
+            CompareOperationFeedback::TypeIndex::k##StubType)));        \
+  }
+
+DEF_TYPED_OBJECT_EQUALITY(StrictEqual, Symbol, IsSymbol)
+DEF_TYPED_OBJECT_EQUALITY(StrictEqual, Receiver, IsJSReceiver)
+DEF_TYPED_OBJECT_EQUALITY(StrictEqual, InternalizedString, IsInternalizedString)
+DEF_TYPED_OBJECT_EQUALITY(Equal, Receiver, IsJSReceiver)
+DEF_TYPED_OBJECT_EQUALITY(Equal, InternalizedString, IsInternalizedString)
+#undef DEF_TYPED_OBJECT_EQUALITY
 
 TF_BUILTIN(StrictEqual_Any_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
@@ -414,210 +534,213 @@ TF_BUILTIN(StrictEqual_Any_Baseline, CodeStubAssembler) {
   Return(result);
 }
 
-#define DEF_STRICTEQUAL_TYPED_OBJECT_STUB(StubType, TypeChecker)               \
-  TF_BUILTIN(StrictEqual_##StubType##_Baseline, CodeStubAssembler) {           \
-    auto lhs = Parameter<Object>(Descriptor::kLeft);                           \
-    auto rhs = Parameter<Object>(Descriptor::kRight);                          \
-    auto feedback_offset =                                                     \
-        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
-                                                                               \
-    Label fallback(this, Label::kDeferred), if_notequal(this), if_equal(this); \
-    TVARIABLE(Boolean, result);                                                \
-                                                                               \
-    GotoIf(TaggedIsSmi(lhs), &fallback);                                       \
-    TNode<HeapObject> lhs_heapobject = CAST(lhs);                              \
-    GotoIfNot(TypeChecker(lhs_heapobject), &fallback);                         \
-                                                                               \
-    Branch(TaggedEqual(lhs, rhs), &if_equal, &if_notequal);                    \
-    BIND(&if_equal);                                                           \
-    {                                                                          \
-      result = TrueConstant();                                                 \
-      Return(result.value());                                                  \
-    }                                                                          \
-                                                                               \
-    BIND(&if_notequal);                                                        \
-    {                                                                          \
-      GotoIf(TaggedIsSmi(rhs), &fallback);                                     \
-      TNode<HeapObject> rhs_heapobject = CAST(rhs);                            \
-      GotoIfNot(TypeChecker(rhs_heapobject), &fallback);                       \
-                                                                               \
-      result = FalseConstant();                                                \
-      Return(result.value());                                                  \
-    }                                                                          \
-                                                                               \
-    BIND(&fallback);                                                           \
-    {                                                                          \
-      TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,                    \
-                      LoadContextFromBaseline(), lhs, rhs,                     \
-                      Int32Constant(static_cast<int32_t>(                      \
-                          CompareOperationFeedback::Type::k##StubType)),       \
-                      feedback_offset);                                        \
-    }                                                                          \
+TF_BUILTIN(Equal_Any_Baseline, CodeStubAssembler) {
+  auto lhs = Parameter<Object>(Descriptor::kLeft);
+  auto rhs = Parameter<Object>(Descriptor::kRight);
+
+  TVARIABLE(Object, var_exception);
+  Label if_exception(this, Label::kDeferred);
+  TNode<Boolean> result;
+  {
+    ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+    result = Equal(lhs, rhs, [&]() { return LoadContextFromBaseline(); });
+  }
+  Return(result);
+
+  BIND(&if_exception);
+  {
+    CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
+                var_exception.value());
+    Unreachable();
+  }
+}
+
+#define DEF_TYPED_RELATIONAL_COMPARE(Name)                              \
+  TF_BUILTIN(Name##AndTryPatchCode, CodeStubAssembler) {                \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto current_feedback =                                             \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);       \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    Generate##Name##AndTryPatchCode(lhs, rhs, current_feedback,         \
+                                    feedback_offset);                   \
+  }                                                                     \
+                                                                        \
+  TF_BUILTIN(Name##_None_Baseline, CodeStubAssembler) {                 \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);       \
+                                                                        \
+    TailCallBuiltin(Builtin::k##Name##AndTryPatchCode,                  \
+                    LoadContextFromBaseline(), lhs, rhs,                \
+                    Int32Constant(static_cast<int32_t>(                 \
+                        CompareOperationFeedback::TypeIndex::kNone)),   \
+                    feedback_offset);                                   \
+  }                                                                     \
+                                                                        \
+  TF_BUILTIN(Name##_SignedSmall_Baseline, CodeStubAssembler) {          \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    GenerateSmiRelationalCompare(Operation::k##Name, lhs, rhs,          \
+                                 feedback_offset,                       \
+                                 Builtin::k##Name##AndTryPatchCode);    \
+  }                                                                     \
+                                                                        \
+  TF_BUILTIN(Name##_Number_Baseline, CodeStubAssembler) {               \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    GenerateNumberRelationalCompare(Operation::k##Name, lhs, rhs,       \
+                                    feedback_offset,                    \
+                                    Builtin::k##Name##AndTryPatchCode); \
   }
 
-DEF_STRICTEQUAL_TYPED_OBJECT_STUB(Symbol, IsSymbol)
-DEF_STRICTEQUAL_TYPED_OBJECT_STUB(Receiver, IsJSReceiver)
-DEF_STRICTEQUAL_TYPED_OBJECT_STUB(InternalizedString, IsInternalizedString)
-#undef DEF_STRICTEQUAL_ODDBALL_STUB
+DEF_TYPED_RELATIONAL_COMPARE(LessThan)
+DEF_TYPED_RELATIONAL_COMPARE(LessThanOrEqual)
+DEF_TYPED_RELATIONAL_COMPARE(GreaterThan)
+DEF_TYPED_RELATIONAL_COMPARE(GreaterThanOrEqual)
+#undef DEF_TYPED_RELATIONAL_COMPARE
 
-TF_BUILTIN(StrictEqual_SignedSmall_Baseline, CodeStubAssembler) {
+// TODO(yuheng): The *Smi version bytecodes reuse these typed stubs instead of a
+// dedicated typed *Smi family for smaller code size, but this will introduce
+// one unnecessary rhs Smi check. Adding a parallel typed *Smi family is a
+// possible future experiment to remove that extra branch.
+#define DEF_TYPED_BINOP(OpName)                                             \
+  TF_BUILTIN(OpName##AndTryPatchCode, CodeStubAssembler) {                  \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                       \
+    auto current_feedback =                                                 \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);           \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);          \
+    GenerateBinaryOpAndTryPatchCode(Operation::k##OpName, lhs, rhs,         \
+                                    current_feedback, feedback_offset);     \
+  }                                                                         \
+                                                                            \
+  TF_BUILTIN(OpName##_None_Baseline, CodeStubAssembler) {                   \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                       \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);          \
+    TailCallBuiltin(Builtin::k##OpName##AndTryPatchCode,                    \
+                    LoadContextFromBaseline(), lhs, rhs,                    \
+                    Int32Constant(static_cast<int32_t>(                     \
+                        BinaryOperationFeedback::TypeIndex::kNone)),        \
+                    feedback_offset);                                       \
+  }                                                                         \
+                                                                            \
+  TF_BUILTIN(OpName##_SignedSmall_Baseline, CodeStubAssembler) {            \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                       \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);          \
+    GenerateSmiBinaryOp(Operation::k##OpName, lhs, rhs, feedback_offset,    \
+                        Builtin::k##OpName##AndTryPatchCode);               \
+  }                                                                         \
+                                                                            \
+  TF_BUILTIN(OpName##_Number_Baseline, CodeStubAssembler) {                 \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                       \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);          \
+    GenerateNumberBinaryOp(Operation::k##OpName, lhs, rhs, feedback_offset, \
+                           Builtin::k##OpName##AndTryPatchCode);            \
+  }
+DEF_TYPED_BINOP(Add)
+DEF_TYPED_BINOP(Subtract)
+DEF_TYPED_BINOP(Multiply)
+DEF_TYPED_BINOP(Divide)
+DEF_TYPED_BINOP(Modulus)
+#undef DEF_TYPED_BINOP
+
+TF_BUILTIN(Add_String_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto feedback_offset =
       UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-
-  Label fallback(this, Label::kDeferred), if_equal(this), if_notequal(this);
-  TVARIABLE(Boolean, result);
-
-  GotoIfNot(TaggedIsSmi(lhs), &fallback);
-  Branch(TaggedEqual(lhs, rhs), &if_equal, &if_notequal);
-
-  BIND(&if_notequal);
-  {
-    GotoIfNot(TaggedIsSmi(rhs), &fallback);
-    result = FalseConstant();
-    Return(result.value());
-  }
-
-  BIND(&if_equal);
-  {
-    result = TrueConstant();
-    Return(result.value());
-  }
-
-  BIND(&fallback);
-  {
-    TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,
-                    LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        CompareOperationFeedback::Type::kSignedSmall)),
-                    feedback_offset);
-  }
+  GenerateStringAdd(lhs, rhs, feedback_offset);
 }
 
-TF_BUILTIN(StrictEqual_Number_Baseline, CodeStubAssembler) {
+TF_BUILTIN(ExponentiateAndTryPatchCode, CodeStubAssembler) {
+  auto lhs = Parameter<Object>(Descriptor::kLeft);
+  auto rhs = Parameter<Object>(Descriptor::kRight);
+  auto current_feedback =
+      UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);
+  auto feedback_offset =
+      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
+  GenerateBinaryOpAndTryPatchCode(Operation::kExponentiate, lhs, rhs,
+                                  current_feedback, feedback_offset);
+}
+
+TF_BUILTIN(Exponentiate_None_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto feedback_offset =
       UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-
-  Label fallback(this, Label::kDeferred), if_ref_equal(this),
-      if_ref_notequal(this), if_notequal(this), if_equal(this);
-  TVARIABLE(Boolean, result);
-
-  Branch(TaggedEqual(lhs, rhs), &if_ref_equal, &if_ref_notequal);
-
-  BIND(&if_ref_equal);
-  {
-    GotoIf(TaggedIsSmi(lhs), &if_equal);
-    GotoIfNot(IsHeapNumber(CAST(lhs)), &fallback);
-
-    // check for NaN values because they are not considered equal, even if both
-    // the left and the right hand side reference exactly the same value.
-    TNode<Float64T> value = LoadHeapNumberValue(CAST(lhs));
-    BranchIfFloat64IsNaN(value, &if_notequal, &if_equal);
-  }
-
-  BIND(&if_ref_notequal);
-  {
-    Label lhs_is_smi(this), lhs_is_notsmi(this);
-    Branch(TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_notsmi);
-
-    BIND(&lhs_is_smi);
-    {
-      GotoIf(TaggedIsSmi(rhs), &if_notequal);
-      GotoIfNot(IsHeapNumber(CAST(rhs)), &fallback);
-      TNode<Float64T> l_value = SmiToFloat64(CAST(lhs));
-      TNode<Float64T> r_value = LoadHeapNumberValue(CAST(rhs));
-      Branch(Float64Equal(l_value, r_value), &if_equal, &if_notequal);
-    }
-
-    BIND(&lhs_is_notsmi);
-    {
-      GotoIfNot(IsHeapNumber(CAST(lhs)), &fallback);
-      Label rhs_is_smi(this), rhs_is_notsmi(this);
-      Branch(TaggedIsSmi(rhs), &rhs_is_smi, &rhs_is_notsmi);
-
-      BIND(&rhs_is_smi);
-      {
-        TNode<Float64T> l_value = LoadHeapNumberValue(CAST(lhs));
-        TNode<Float64T> r_value = SmiToFloat64(CAST(rhs));
-        Branch(Float64Equal(l_value, r_value), &if_equal, &if_notequal);
-      }
-
-      BIND(&rhs_is_notsmi);
-      {
-        GotoIfNot(IsHeapNumber(CAST(rhs)), &fallback);
-        TNode<Float64T> l_value = LoadHeapNumberValue(CAST(lhs));
-        TNode<Float64T> r_value = LoadHeapNumberValue(CAST(rhs));
-        Branch(Float64Equal(l_value, r_value), &if_equal, &if_notequal);
-      }
-    }
-  }
-
-  BIND(&if_equal);
-  {
-    result = TrueConstant();
-    Return(result.value());
-  }
-
-  BIND(&if_notequal);
-  {
-    result = FalseConstant();
-    Return(result.value());
-  }
-
-  BIND(&fallback);
-  {
-    TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,
-                    LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        CompareOperationFeedback::Type::kNumber)),
-                    feedback_offset);
-  }
+  TailCallBuiltin(Builtin::kExponentiateAndTryPatchCode,
+                  LoadContextFromBaseline(), lhs, rhs,
+                  Int32Constant(static_cast<int32_t>(
+                      BinaryOperationFeedback::TypeIndex::kNone)),
+                  feedback_offset);
 }
 
-TF_BUILTIN(StrictEqual_String_Baseline, CodeStubAssembler) {
+TF_BUILTIN(Exponentiate_Number_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto feedback_offset =
       UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-
-  Label fallback(this, Label::kDeferred), if_ref_equal(this),
-      if_ref_notequal(this), end(this);
-  TVARIABLE(Boolean, result);
-
-  GotoIf(TaggedIsSmi(lhs), &fallback);
-  GotoIfNot(IsString(CAST(lhs)), &fallback);
-  Branch(TaggedEqual(lhs, rhs), &if_ref_equal, &if_ref_notequal);
-
-  BIND(&if_ref_equal);
-  {
-    result = TrueConstant();
-    Return(result.value());
-  }
-
-  BIND(&if_ref_notequal);
-  {
-    GotoIf(TaggedIsSmi(rhs), &fallback);
-    GotoIfNot(IsString(CAST(rhs)), &fallback);
-    BranchIfStringEqual(CAST(lhs), CAST(rhs), &end, &end, &result);
-  }
-
-  BIND(&end);
-  {
-    Return(result.value());
-  }
-
-  BIND(&fallback);
-  {
-    TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,
-                    LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        CompareOperationFeedback::Type::kString)),
-                    feedback_offset);
-  }
+  GenerateNumberBinaryOp(Operation::kExponentiate, lhs, rhs, feedback_offset,
+                         Builtin::kExponentiateAndTryPatchCode);
 }
+
+#define DEF_TYPED_BITWISE_BINOP(OpName)                                  \
+  TF_BUILTIN(OpName##AndTryPatchCode, CodeStubAssembler) {               \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                     \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                    \
+    auto current_feedback =                                              \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);        \
+    auto feedback_offset =                                               \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);       \
+    GenerateBinaryOpAndTryPatchCode(Operation::k##OpName, lhs, rhs,      \
+                                    current_feedback, feedback_offset);  \
+  }                                                                      \
+                                                                         \
+  TF_BUILTIN(OpName##_None_Baseline, CodeStubAssembler) {                \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                     \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                    \
+    auto feedback_offset =                                               \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);       \
+    TailCallBuiltin(Builtin::k##OpName##AndTryPatchCode,                 \
+                    LoadContextFromBaseline(), lhs, rhs,                 \
+                    Int32Constant(static_cast<int32_t>(                  \
+                        BinaryOperationFeedback::TypeIndex::kNone)),     \
+                    feedback_offset);                                    \
+  }                                                                      \
+                                                                         \
+  TF_BUILTIN(OpName##_SignedSmall_Baseline, CodeStubAssembler) {         \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                     \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                    \
+    auto feedback_offset =                                               \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);       \
+    GenerateSmiBinaryOp(Operation::k##OpName, lhs, rhs, feedback_offset, \
+                        Builtin::k##OpName##AndTryPatchCode);            \
+  }
+DEF_TYPED_BITWISE_BINOP(BitwiseOr)
+DEF_TYPED_BITWISE_BINOP(BitwiseXor)
+DEF_TYPED_BITWISE_BINOP(BitwiseAnd)
+DEF_TYPED_BITWISE_BINOP(ShiftLeft)
+DEF_TYPED_BITWISE_BINOP(ShiftRight)
+DEF_TYPED_BITWISE_BINOP(ShiftRightLogical)
+#undef DEF_TYPED_BITWISE_BINOP
+
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

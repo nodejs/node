@@ -19,7 +19,12 @@ function test_iife() {
   return new test_func();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_iife(test_func) {
+  keep_alive.push(test_func);
   assertEquals(test_func.iife(), "test_function.prototype.iife");
   assertEquals(test_func.smi, 1);
 }
@@ -35,7 +40,7 @@ assert_test_iife(test_iife());
 %OptimizeMaglevOnNextCall(test_iife);
 assert_test_iife(test_iife());
 assertOptimized(test_iife);
-assertTrue(isMaglevved(test_iife));
+assertMaglevved(test_iife);
 assert_test_iife(test_iife());
 %OptimizeFunctionOnNextCall(test_iife);
 assert_test_iife(test_iife());

@@ -15,10 +15,14 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_MODIFIERS_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_MAP_MODIFIERS_TEST_H_
 
+#include <cstddef>
 #include <memory>
+#include <type_traits>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/hash_policy_testing.h"
 
@@ -206,7 +210,7 @@ TYPED_TEST_P(ModifiersTest, TryEmplaceHint) {
 }
 
 template <class V>
-using IfNotVoid = typename std::enable_if<!std::is_void<V>::value, V>::type;
+using IfNotVoid = std::enable_if_t<!std::is_void_v<V>, V>;
 
 // In openmap we chose not to return the iterator from erase because that's
 // more expensive. As such we adapt erase to return an iterator here.

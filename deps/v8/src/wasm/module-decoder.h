@@ -37,24 +37,6 @@ inline bool IsValidSectionCode(uint8_t byte) {
 V8_EXPORT_PRIVATE const char* SectionName(SectionCode code);
 
 using ModuleResult = Result<std::shared_ptr<WasmModule>>;
-using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
-using FunctionOffsets = std::vector<std::pair<int, int>>;
-using FunctionOffsetsResult = Result<FunctionOffsets>;
-
-struct AsmJsOffsetEntry {
-  int byte_offset;
-  int source_position_call;
-  int source_position_number_conversion;
-};
-struct AsmJsOffsetFunctionEntries {
-  int start_offset;
-  int end_offset;
-  std::vector<AsmJsOffsetEntry> entries;
-};
-struct AsmJsOffsets {
-  std::vector<AsmJsOffsetFunctionEntries> functions;
-};
-using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
 class DecodedNameSection {
  public:
@@ -84,26 +66,43 @@ enum class DecodingMethod {
   kDeserialize
 };
 
+// Validation strategy:
+// Everything except for the code section is validated as part of decoding.
+// The code section (aka the function bodies) is validated as early as possible
+// for the respective scenario. Code running later can then assume that all
+// functions have been validated. As of this writing, the bottlenecks are the
+// following:
+// - {WasmEngine::SyncCompile} for sync or sync streaming compilation.
+// - {AsyncCompileJob::DecodeModule} for async compilation.
+// - {WasmCompilationUnit::ExecuteCompilation} (orchestrated by
+//   {AsyncStreamingProcessor::ProcessFunctionBody}) for async streaming
+//   compilation.
+// - {AsyncCompileJob::PrepareNativeModule} for the fallback from streaming
+//   to non-streaming compilation after a bad prefix cache hit.
+
 // Decodes the bytes of a wasm module in {wire_bytes} while recording events and
 // updating counters in the given isolate.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> wire_bytes,
-    bool validate_functions, ModuleOrigin origin,
-    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
+    bool validate_functions, DecodingMethod decoding_method,
+    WasmDetectedFeatures* detected_features);
+
 // Decodes the bytes of a wasm module in {wire_bytes} and returns delayed
 // counter updates and the metrics event to the caller.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, DelayedCounterUpdates* delayed_counters,
+    DelayedCounterUpdates* delayed_counters,
     std::optional<v8::metrics::WasmModuleDecoded>* metrics_event,
     DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
+
 // Decodes the bytes of a wasm module in {wire_bytes} without recording events
 // or updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, WasmDetectedFeatures* detected_features);
+    WasmDetectedFeatures* detected_features);
+
 // Stripped down version for disassembler needs.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
     base::Vector<const uint8_t> wire_bytes, ITracer* tracer);
@@ -124,11 +123,6 @@ struct CustomSectionOffset {
 V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
     base::Vector<const uint8_t> wire_bytes);
 
-// Extracts the mapping from wasm byte offset to asm.js source position per
-// function.
-AsmJsOffsetsResult DecodeAsmJsOffsets(
-    base::Vector<const uint8_t> encoded_offsets);
-
 // Decode the function names from the name section. Returns the result as an
 // unordered map. Only names with valid utf8 encoding are stored and conflicts
 // are resolved by choosing the last name read.
@@ -145,14 +139,13 @@ void DecodeCanonicalTypeNames(
     std::map<uint32_t, std::vector<base::OwnedVector<char>>>& fieldnames,
     size_t* total_allocated_size);
 
-// Validate specific functions in the module. Return the first validation error
-// (deterministically), or an empty {WasmError} if all validated functions are
-// valid. {filter} determines which functions are validated. Pass an empty
-// function for "all functions". The {filter} callback needs to be thread-safe.
-V8_EXPORT_PRIVATE WasmError ValidateFunctions(
-    const WasmModule*, WasmEnabledFeatures enabled_features,
-    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter,
-    WasmDetectedFeatures* detected_features);
+// Validate all functions in the module. Return the first validation error
+// (deterministically), or an empty {WasmError} if all functions are
+// valid.
+V8_EXPORT_PRIVATE WasmError
+ValidateFunctions(const WasmModule*, WasmEnabledFeatures enabled_features,
+                  base::Vector<const uint8_t> wire_bytes,
+                  WasmDetectedFeatures* detected_features);
 
 WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
                                int func_index, const WasmModule* module,

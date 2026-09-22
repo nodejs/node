@@ -4,10 +4,6 @@
 //
 // Flags: --allow-natives-syntax --harmony --maglev
 
-function assertMaglevved(f) {
-  assertTrue(isMaglevved(f));
-}
-
 function f(x) {
   return x[2];
 }

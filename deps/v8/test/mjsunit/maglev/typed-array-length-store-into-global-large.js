@@ -21,9 +21,9 @@ if (%Is64Bit()) {
   %OptimizeMaglevOnNextCall(foo);
   foo(100);
   assertEquals(100, global);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 
   foo(largeLength);
   assertEquals(largeLength, global);
-  assertTrue(isMaglevved(foo));
+  assertMaglevved(foo);
 }

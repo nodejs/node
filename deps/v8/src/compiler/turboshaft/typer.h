@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/types.h"
+#include "src/numbers/ieee754.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -497,8 +498,9 @@ struct FloatOperationTyper {
     }
     base::sort(results);
     auto it = std::unique(results.begin(), results.end());
-    if (std::distance(results.begin(), it) > kSetThreshold)
+    if (std::distance(results.begin(), it) > kSetThreshold) {
       return Type::Invalid();
+    }
     results.erase(it, results.end());
     if (results.empty()) return type_t::OnlySpecialValues(special_values);
     return Set(std::move(results), special_values, zone);
@@ -712,15 +714,22 @@ struct FloatOperationTyper {
         // -0 / r (r > 0)
         (l.has_minus_zero() && r_max > 0)
         // 0 / r (r < 0)
-        || (l.Contains(0) && r_min < 0)
-        // -0.0..01 / r (r > 1)
-        || (l.Contains(0) && l_min < 0 && r_max > 1)
-        // 0.0..01 / r (r < -1)
-        || (l.Contains(0) && l_max >= 0 && r_min < -1)
-        // l / large (l < 0)
-        || (l_max < 0 && detail::is_minus_zero(l_max / r_max))
-        // l / -large (l > 0)
-        || (l_min > 0 && detail::is_minus_zero(l_min / r_min));
+        || (l.Contains(0) && r_min < 0);
+
+    // if l can be negative and r can be positive, check if it can happen that
+    // the division can produce a minus zero. by dividing a small negative
+    // number by a large positive number.
+    if (!maybe_minuszero && l_min < 0 && r_max > 0) {
+      float_t closest_neg =
+          l_max < 0 ? l_max : -std::numeric_limits<float_t>::denorm_min();
+      maybe_minuszero = detail::is_minus_zero(closest_neg / r_max);
+    }
+    // Repeat the same for a small positive number and a large negative number.
+    if (!maybe_minuszero && l_max > 0 && r_min < 0) {
+      float_t closest_pos =
+          l_min > 0 ? l_min : std::numeric_limits<float_t>::denorm_min();
+      maybe_minuszero = detail::is_minus_zero(closest_pos / r_min);
+    }
 
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minuszero ? type_t::kMinusZero : 0);
@@ -927,7 +936,10 @@ struct FloatOperationTyper {
                               l.special_values();
 
     // If both sides are decently small sets, we produce the product set.
-    auto combine = [](float_t a, float_t b) { return std::pow(a, b); };
+    // Use the same pow implementation as the runtime and constant folding.
+    auto combine = [](float_t a, float_t b) {
+      return static_cast<float_t>(math::pow(a, b));
+    };
     if (l.is_set() && r.is_set()) {
       auto result = ProductSet(l, r, special_values, zone, combine);
       if (!result.IsInvalid()) return result;
@@ -1159,6 +1171,7 @@ class Typer {
         // TODO(nicohartmann@): Support these representations.
         return Type::Any();
     }
+    UNREACHABLE();
   }
 
   static Type TypeForRepresentation(
@@ -1174,13 +1187,15 @@ class Typer {
     switch (kind) {
       case ConstantOp::Kind::kFloat32:
         if (value.float32.is_nan()) return Float32Type::NaN();
-        if (IsMinusZero(value.float32.get_scalar()))
+        if (IsMinusZero(value.float32.get_scalar())) {
           return Float32Type::MinusZero();
+        }
         return Float32Type::Constant(value.float32.get_scalar());
       case ConstantOp::Kind::kFloat64:
         if (value.float64.is_nan()) return Float64Type::NaN();
-        if (IsMinusZero(value.float64.get_scalar()))
+        if (IsMinusZero(value.float64.get_scalar())) {
           return Float64Type::MinusZero();
+        }
         return Float64Type::Constant(value.float64.get_scalar());
       case ConstantOp::Kind::kWord32:
         return Word32Type::Constant(static_cast<uint32_t>(value.integral));
@@ -1291,6 +1306,7 @@ class Typer {
         FLOAT_BINOP(Power, 32)
         FLOAT_BINOP(Atan2, 32)
       }
+      UNREACHABLE();
     } else {
       DCHECK_EQ(rep, FloatRepresentation::Float64());
       switch (kind) {
@@ -1304,6 +1320,7 @@ class Typer {
         FLOAT_BINOP(Power, 64)
         FLOAT_BINOP(Atan2, 64)
       }
+      UNREACHABLE();
     }
 
 #undef FLOAT_BINOP
@@ -1361,6 +1378,7 @@ class Typer {
           return TupleType::Tuple(Word32Type::Any(),
                                   Word32Type::Set({0, 1}, zone), zone);
       }
+      UNREACHABLE();
     } else {
       DCHECK_EQ(rep, WordRepresentation::Word64());
       switch (kind) {
@@ -1371,6 +1389,7 @@ class Typer {
           return TupleType::Tuple(Word64Type::Any(),
                                   Word32Type::Set({0, 1}, zone), zone);
       }
+      UNREACHABLE();
     }
   }
 
@@ -1426,6 +1445,7 @@ class Typer {
         // TODO(nicohartmann@): Support those cases.
         return Word32Type::Set({0, 1}, zone);
     }
+    UNREACHABLE();
   }
 
   static Type TypeWord32Comparison(const Type& lhs, const Type& rhs,
@@ -1483,6 +1503,7 @@ class Typer {
       case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   static Type TypeFloat64Comparison(const Type& lhs, const Type& rhs,
@@ -1502,6 +1523,7 @@ class Typer {
       case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   static Word64Type ExtendWord32ToWord64(const Word32Type& t, Zone* zone) {

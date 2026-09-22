@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/common-operator.h"
+
 #include <limits>
 
-#include "src/compiler/common-operator.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/operator.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -390,6 +392,49 @@ TEST_F(CommonOperatorTest, Projection) {
     EXPECT_EQ(0, op->EffectOutputCount());
     EXPECT_EQ(1, op->ValueOutputCount());
   }
+}
+
+TEST_F(CommonOperatorTest, DeoptimizeParameters) {
+  FeedbackSource feedback1;
+  FeedbackSource feedback2(IndirectHandle<FeedbackVector>(), FeedbackSlot(0));
+  DeoptimizeParameters p1(DeoptimizeReason::kNotASmi, feedback1);
+  DeoptimizeParameters p2(DeoptimizeReason::kNotASmi, feedback1);
+  DeoptimizeParameters p3(DeoptimizeReason::kWrongMap, feedback1);
+  DeoptimizeParameters p4(DeoptimizeReason::kNotASmi, feedback2);
+  EXPECT_EQ(p1, p2);
+  EXPECT_EQ(hash_value(p1), hash_value(p2));
+  EXPECT_NE(p1, p3);
+  EXPECT_NE(hash_value(p1), hash_value(p3));
+  EXPECT_NE(p1, p4);
+  EXPECT_NE(hash_value(p1), hash_value(p4));
+}
+
+TEST_F(CommonOperatorTest, FrameStateInfo) {
+  const FrameStateFunctionInfo* function_info1 =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kUnoptimizedFunction, 0, 0, 0, {}, {});
+  const FrameStateFunctionInfo* function_info2 =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kConstructInvokeStub, 0, 0, 0, {}, {});
+  const FrameStateFunctionInfo* function_info3 =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kUnoptimizedFunction, 1, 0, 0, {}, {});
+  FrameStateInfo state1(BytecodeOffset(1), OutputFrameStateCombine::Ignore(),
+                        function_info1);
+  FrameStateInfo state2(BytecodeOffset(1), OutputFrameStateCombine::Ignore(),
+                        function_info1);
+  FrameStateInfo state3(BytecodeOffset(2), OutputFrameStateCombine::Ignore(),
+                        function_info1);
+  FrameStateInfo state4(BytecodeOffset(1), OutputFrameStateCombine::Ignore(),
+                        function_info2);
+  FrameStateInfo state5(BytecodeOffset(1), OutputFrameStateCombine::Ignore(),
+                        function_info3);
+  EXPECT_EQ(state1, state2);
+  EXPECT_EQ(hash_value(state1), hash_value(state2));
+  EXPECT_NE(state1, state3);
+  EXPECT_NE(state1, state4);
+  EXPECT_NE(state1, state5);
+  EXPECT_EQ(hash_value(state1), hash_value(state5));
 }
 
 }  // namespace

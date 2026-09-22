@@ -1,0 +1,26 @@
+header: sys/sysmacros.h
+standards:
+  - linux
+macros:
+  - macro_name: major
+    macro_header: sys-sysmacros-macros.h
+  - macro_name: minor
+    macro_header: sys-sysmacros-macros.h
+  - macro_name: makedev
+    macro_header: sys-sysmacros-macros.h
+enums: []
+objects: []
+functions:
+  - name: major
+    return_type: unsigned int
+    arguments:
+      - type: dev_t
+  - name: minor
+    return_type: unsigned int
+    arguments:
+      - type: dev_t
+  - name: makedev
+    return_type: dev_t
+    arguments:
+      - type: unsigned int
+      - type: unsigned int

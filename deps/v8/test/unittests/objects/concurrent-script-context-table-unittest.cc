@@ -44,7 +44,8 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    for (int i = 0; i < script_context_table_->length(kAcquireLoad); ++i) {
+    const uint32_t len = script_context_table_->length(kAcquireLoad).value();
+    for (uint32_t i = 0; i < len; ++i) {
       Tagged<Context> context = script_context_table_->get(i);
       EXPECT_TRUE(context->IsScriptContext());
     }
@@ -77,10 +78,11 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (uint32_t i = 0; i < 1000; ++i) {
       // Read upper bound with relaxed semantics to not add any ordering
       // constraints.
-      while (i >= g_initialized_entries.load(std::memory_order_relaxed)) {
+      while (i >= static_cast<uint32_t>(
+                      g_initialized_entries.load(std::memory_order_relaxed))) {
       }
       auto script_context_table = Handle<ScriptContextTable>(
           native_context_->synchronized_script_context_table(), &local_heap);

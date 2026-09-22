@@ -22,6 +22,8 @@
 //   * The `absl::Hash` functor, which is used to invoke the hasher within the
 //     Abseil hashing framework. `absl::Hash<T>` supports most basic types and
 //     a number of Abseil types out of the box.
+//   * The `absl::TransparentHash` functor, which provides transparent hashing
+//     for heterogeneous lookup across multiple types in associative containers.
 //   * `AbslHashValue`, an extension point that allows you to extend types to
 //     support Abseil hashing without requiring you to define a hashing
 //     algorithm.
@@ -117,11 +119,11 @@ ABSL_NAMESPACE_BEGIN
 //   * All string-like types including:
 //     * absl::Cord
 //     * std::string (as well as any instance of std::basic_string that
-//       uses one of {char, wchar_t, char16_t, char32_t} and its associated
-//       std::char_traits)
+//       uses one of {char, wchar_t, char8_t, char16_t, char32_t} and its
+//       associated std::char_traits)
 //     * std::string_view (as well as any instance of std::basic_string_view
-//       that uses one of {char, wchar_t, char16_t, char32_t} and its associated
-//       std::char_traits)
+//       that uses one of {char, wchar_t, char8_t, char16_t, char32_t} and its
+//       associated std::char_traits)
 //  * All the standard sequence containers (provided the elements are hashable)
 //  * All the standard associative containers (provided the elements are
 //    hashable)
@@ -255,6 +257,89 @@ ABSL_NAMESPACE_BEGIN
 template <typename T>
 using Hash = absl::hash_internal::Hash<T>;
 
+// TransparentHash
+//
+// `absl::TransparentHash<Ts...>` is a transparent hash functor that provides
+// heterogeneous hashing across multiple types `Ts...` for associative
+// containers such as `absl::flat_hash_set` and `absl::flat_hash_map`.
+//
+// It exposes `operator()(const T&)` overloads for each type `T` in `Ts...`,
+// delegating each call to `absl::Hash<T>{}(value)`. It also defines the nested
+// type alias `using is_transparent = void;`, signaling to containers that
+// heterogeneous lookup is supported.
+//
+// If any type in `Ts...` is not hashable within the `absl::Hash` framework,
+// `absl::TransparentHash` is poisoned (its call operators are disabled) in the
+// same manner as `absl::Hash`.
+//
+// Duplicates types are allowed in `Ts...`.
+//
+// Requirements:
+//
+// For heterogeneous lookup to be correct, equivalent values across different
+// types must produce identical hash values. That is, if `a == b`, then
+// `TransparentHash{}(a) == TransparentHash{}(b)` must hold. This is typically
+// satisfied when the `AbslHashValue()` implementations for each type combine
+// identical fields in the same order.
+//
+// Usage:
+//
+// `absl::TransparentHash` can be used in two ways:
+//
+// 1. As an explicit `Hash` template argument to a container:
+//
+//      absl::flat_hash_set<Name, absl::TransparentHash<Name, NameView>,
+//                          NameEq> set;
+//
+// 2. As the nested `absl_container_hash` type alias within a user-defined key
+//    type:
+//
+//      struct Name {
+//        ...
+//        using absl_container_hash = absl::TransparentHash<Name, NameView>;
+//      };
+//
+//    When `absl_container_hash` is defined in the key type, Abseil hash
+//    containers will automatically use it and enable heterogeneous lookup by
+//    default (using `std::equal_to<void>` for equality if `absl_container_eq`
+//    is not provided).
+//
+// Example:
+//
+//   struct NameView {
+//     absl::string_view first;
+//     absl::string_view last;
+//
+//     template <typename H>
+//     friend H AbslHashValue(H h, const NameView& nv) {
+//       return H::combine(std::move(h), nv.first, nv.last);
+//     }
+//     friend bool operator==(const NameView& a, const NameView& b);
+//   };
+//
+//   struct Name {
+//     std::string first;
+//     std::string last;
+//
+//     template <typename H>
+//     friend H AbslHashValue(H h, const Name& n) {
+//       return H::combine(std::move(h), n.first, n.last);
+//     }
+//     friend bool operator==(const Name& a, const Name& b);
+//     friend bool operator==(const Name& a, const NameView& b);
+//
+//     using absl_container_hash = absl::TransparentHash<Name, NameView>;
+//   };
+//
+//   absl::flat_hash_set<Name> names;
+//   names.insert(Name{"John", "Doe"});
+//
+//   // Look up using `NameView` without constructing a temporary `Name` or
+//   // allocating memory:
+//   assert(names.contains(NameView{"John", "Doe"}));
+template <typename... Ts>
+using TransparentHash = absl::hash_internal::TransparentHash<Ts...>;
+
 // HashOf
 //
 // absl::HashOf() is a helper that generates a hash from the values of its
@@ -327,10 +412,9 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   // redirected to the original `state` object. The `state` object must outlive
   // the `HashState` instance. `T` must be a subclass of `HashStateBase<T>` -
   // users should not define their own HashState types.
-  template <
-      typename T,
-      absl::enable_if_t<
-          std::is_base_of<hash_internal::HashStateBase<T>, T>::value, int> = 0>
+  template <typename T,
+            std::enable_if_t<
+                std::is_base_of_v<hash_internal::HashStateBase<T>, T>, int> = 0>
   static HashState Create(T* state) {
     HashState s;
     s.Init(state);

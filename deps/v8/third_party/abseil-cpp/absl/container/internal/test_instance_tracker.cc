@@ -14,6 +14,8 @@
 
 #include "absl/container/internal/test_instance_tracker.h"
 
+#include "absl/base/config.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace test_internal {

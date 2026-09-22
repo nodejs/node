@@ -14,8 +14,12 @@
 
 #include "absl/random/seed_sequences.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
 #include <iterator>
 #include <random>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

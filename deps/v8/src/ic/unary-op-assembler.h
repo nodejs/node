@@ -14,33 +14,34 @@ namespace compiler {
 class CodeAssemblerState;
 }  // namespace compiler
 
-class UnaryOpAssembler final {
+class UnaryOpAssembler final : public CodeStubAssembler {
  public:
   explicit UnaryOpAssembler(compiler::CodeAssemblerState* state)
-      : state_(state) {}
+      : CodeStubAssembler(state) {}
+
+  FeedbackUpdater MakeEmbeddedFeedbackUpdater(
+      TNode<BytecodeArray> bytecode_array, TNode<IntPtrT> feedback_offset) {
+    return [=, this](TNode<Smi> feedback) {
+      UpdateEmbeddedFeedback<BinaryOperationFeedback>(feedback, bytecode_array,
+                                                      feedback_offset);
+    };
+  }
 
   TNode<Object> Generate_BitwiseNotWithFeedback(
-      TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-      TNode<HeapObject> maybe_feedback_vector,
-      UpdateFeedbackMode update_feedback_mode);
+      TNode<Context> context, TNode<Object> value,
+      const FeedbackUpdater& feedback_updater);
 
   TNode<Object> Generate_DecrementWithFeedback(
-      TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-      TNode<HeapObject> maybe_feedback_vector,
-      UpdateFeedbackMode update_feedback_mode);
+      TNode<Context> context, TNode<Object> value,
+      const FeedbackUpdater& feedback_updater);
 
   TNode<Object> Generate_IncrementWithFeedback(
-      TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-      TNode<HeapObject> maybe_feedback_vector,
-      UpdateFeedbackMode update_feedback_mode);
+      TNode<Context> context, TNode<Object> value,
+      const FeedbackUpdater& feedback_updater);
 
   TNode<Object> Generate_NegateWithFeedback(
-      TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-      TNode<HeapObject> maybe_feedback_vector,
-      UpdateFeedbackMode update_feedback_mode);
-
- private:
-  compiler::CodeAssemblerState* const state_;
+      TNode<Context> context, TNode<Object> value,
+      const FeedbackUpdater& feedback_updater);
 };
 
 }  // namespace internal

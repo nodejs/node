@@ -62,7 +62,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> prototype_context = *reinterpret_cast<Local<Context>*>(
-            info.Data().As<External>()->Value(kContextTag));
+            info.DataV2().As<External>()->Value(kContextTag));
         EXPECT_EQ(prototype_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &prototype_context, kContextTag), signature);
@@ -83,7 +83,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
           .As<Object>();
   Local<Object> object =
       interface_for_receiver->NewInstance(receiver_context).ToLocalChecked();
-  object->SetPrototypeV2(caller_context, prototype).ToChecked();
+  object->SetPrototype(caller_context, prototype).ToChecked();
   EXPECT_EQ(receiver_context,
             object->GetCreationContext(isolate()).ToLocalChecked());
   EXPECT_EQ(prototype_context,
@@ -129,7 +129,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> receiver_context = *reinterpret_cast<Local<Context>*>(
-            info.Data().As<External>()->Value(kContextTag));
+            info.DataV2().As<External>()->Value(kContextTag));
         EXPECT_EQ(receiver_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &receiver_context, kContextTag), signature);
@@ -180,7 +180,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> interface_context = *reinterpret_cast<Local<Context>*>(
-            info.Data().As<External>()->Value(kContextTag));
+            info.DataV2().As<External>()->Value(kContextTag));
         EXPECT_EQ(interface_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &interface_context, kContextTag),

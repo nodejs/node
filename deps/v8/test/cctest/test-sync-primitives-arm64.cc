@@ -192,7 +192,7 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
                                    int expected_res, TestData expected_data) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   AssembleLoadExcl(&masm, access1, w1, x1);
   AssembleMemoryAccess(&masm, access2, w3, w2, x1);
@@ -267,7 +267,7 @@ namespace {
 int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                         MemoryAccess access) {
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
   AssembleMemoryAccess(&masm, access, w0, w2, x1);
   __ Ret();
 

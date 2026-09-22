@@ -29,8 +29,8 @@ assertEquals(10, foo(10));
 assertEquals(3, foo(3));
 assertEquals(10, foo(10));
 
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 // Detaching the buffer deopts.
 %ArrayBufferDetach(ab);
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);

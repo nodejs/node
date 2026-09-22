@@ -28,8 +28,9 @@ namespace internal {
 // Let u be a uniformly distributed random number between 0 and 1, then
 // next_sample = (- ln u) / λ
 intptr_t SamplingHeapProfiler::Observer::GetNextSampleInterval(uint64_t rate) {
-  if (v8_flags.sampling_heap_profiler_suppress_randomness)
+  if (v8_flags.sampling_heap_profiler_suppress_randomness) {
     return static_cast<intptr_t>(rate);
+  }
   double u = random_->NextDouble();
   double next = (-base::ieee754::log(u)) * rate;
   return next < kTaggedSize
@@ -40,13 +41,14 @@ intptr_t SamplingHeapProfiler::Observer::GetNextSampleInterval(uint64_t rate) {
 // Samples were collected according to a poisson process. Since we have not
 // recorded all allocations, we must approximate the shape of the underlying
 // space of allocations based on the samples we have collected. Given that
-// we sample at rate R, the probability that an allocation of size S will be
-// sampled is 1-exp(-S/R). This function uses the above probability to
+// we sample at interval I, the probability that an allocation of size S will
+// be sampled is 1-exp(-S/I). This function uses the above probability to
 // approximate the true number of allocations with size *size* given that
 // *count* samples were observed.
 v8::AllocationProfile::Allocation SamplingHeapProfiler::ScaleSample(
-    size_t size, unsigned int count) const {
-  double scale = 1.0 / (1.0 - std::exp(-static_cast<double>(size) / rate_));
+    size_t size, unsigned int count, uint64_t sample_interval) const {
+  double scale =
+      1.0 / (1.0 - std::exp(-static_cast<double>(size) / sample_interval));
   // Round count instead of truncating.
   return {size, static_cast<unsigned int>(count * scale + 0.5)};
 }
@@ -56,15 +58,15 @@ SamplingHeapProfiler::SamplingHeapProfiler(
     v8::HeapProfiler::SamplingFlags flags)
     : isolate_(Isolate::FromHeap(heap)),
       heap_(heap),
-      allocation_observer_(heap_, static_cast<intptr_t>(rate), rate, this,
+      allocation_observer_(heap_, static_cast<intptr_t>(rate), this,
                            isolate_->random_number_generator()),
       names_(names),
       profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0,
                     next_node_id()),
       stack_depth_(stack_depth),
-      rate_(rate),
+      interval_(rate),
       flags_(flags) {
-  CHECK_GT(rate_, 0u);
+  CHECK_GT(interval_.load(std::memory_order_relaxed), 0u);
   heap_->AddAllocationObserversToAllSpaces(&allocation_observer_,
                                            &allocation_observer_);
 }
@@ -78,7 +80,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   DisallowGarbageCollection no_gc;
 
   // Check if the area is iterable by confirming that it starts with a map.
-  DCHECK(IsMap(HeapObject::FromAddress(soon_object)->map(isolate_), isolate_));
+  DCHECK(IsMap(HeapObject::FromAddress(soon_object)->map()));
 
   HandleScope scope(isolate_);
   Tagged<HeapObject> heap_object = HeapObject::FromAddress(soon_object);
@@ -93,10 +95,14 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
           TrustedHeapLayout::InTrustedSpace(heap_object) || !IsTheHole(*obj)));
   auto loc = Local<v8::Value>::FromSlot(obj.location());
 
+  // Record the current sampling interval so that this sample is scaled
+  // with the exact weight in effect at draw time.
+  const uint64_t interval_at_sample =
+      interval_.load(std::memory_order_relaxed);
   AllocationNode* node = AddStack();
-  node->allocations_[size]++;
-  auto sample =
-      std::make_unique<Sample>(size, node, loc, this, next_sample_id());
+  node->allocations_[{size, interval_at_sample}]++;
+  auto sample = std::make_unique<Sample>(size, node, loc, this,
+                                         next_sample_id(), interval_at_sample);
   sample->global.SetWeak(sample.get(), OnWeakCallback,
                          WeakCallbackType::kParameter);
   samples_.emplace(sample.get(), std::move(sample));
@@ -119,10 +125,11 @@ void SamplingHeapProfiler::OnWeakCallback(
     return;
   }
   AllocationNode* node = sample->owner;
-  DCHECK_GT(node->allocations_[sample->size], 0);
-  node->allocations_[sample->size]--;
-  if (node->allocations_[sample->size] == 0) {
-    node->allocations_.erase(sample->size);
+  const auto key = std::make_pair(sample->size, sample->sample_interval);
+  DCHECK_GT(node->allocations_[key], 0u);
+  node->allocations_[key]--;
+  if (node->allocations_[key] == 0) {
+    node->allocations_.erase(key);
     while (node->allocations_.empty() && node->children_.empty() &&
            node->parent_ && !node->parent_->pinned_) {
       AllocationNode* parent = node->parent_;
@@ -262,8 +269,15 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
       column = pos_info.column + 1;
     }
   }
-  for (auto alloc : node->allocations_) {
-    allocations.push_back(ScaleSample(alloc.first, alloc.second));
+  // Entries are keyed by (size, interval). Scale each with its own interval,
+  // then merge by size for the public per-size Allocation output.
+  std::map<size_t, unsigned int> per_size;
+  for (const auto& [key, count] : node->allocations_) {
+    const auto& [size, interval] = key;
+    per_size[size] += ScaleSample(size, count, interval).count;
+  }
+  for (const auto& [size, count] : per_size) {
+    allocations.push_back({size, count});
   }
 
   profile->nodes_.push_back(v8::AllocationProfile::Node{
@@ -314,10 +328,24 @@ SamplingHeapProfiler::BuildSamples() const {
     const Sample* sample = it.second.get();
     const bool is_live = !sample->global.IsEmpty();
     samples.emplace_back(v8::AllocationProfile::Sample{
-        sample->owner->id_, sample->size, ScaleSample(sample->size, 1).count,
-        sample->sample_id, is_live});
+        sample->owner->id_, sample->size,
+        ScaleSample(sample->size, 1, sample->sample_interval).count,
+        sample->sample_id, is_live, sample->sample_interval});
   }
   return samples;
+}
+
+std::vector<v8::AllocationProfile::Sample> SamplingHeapProfiler::GetSamples() {
+  if (flags_ & v8::HeapProfiler::kSamplingForceGC) {
+    isolate_->heap()->CollectAllGarbage(
+        GCFlag::kNoFlags, GarbageCollectionReason::kSamplingProfiler);
+  }
+  return BuildSamples();
+}
+
+void SamplingHeapProfiler::SetSamplingInterval(uint64_t sample_interval) {
+  CHECK_GT(sample_interval, 0u);
+  interval_.store(sample_interval, std::memory_order_relaxed);
 }
 
 }  // namespace internal

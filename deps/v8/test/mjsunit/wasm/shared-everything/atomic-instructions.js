@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared
+// Flags: --wasm-shared
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestAtomicStructGetSet() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
@@ -115,7 +115,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestAtomicStructGetPacked() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let struct = builder.addStruct({
       fields: [
@@ -204,17 +204,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestAtomicArrayGetSet() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
       : wasmRefNullType(kWasmAnyRef);
-    let array32 =
-      builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
-    let array64 =
-      builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
-    let arrayRef =
-      builder.addArray(anyRefT, true, kNoSuperType, false, is_shared);
+    let array32 = builder.addArray(kWasmI32, {is_shared});
+    let array64 = builder.addArray(kWasmI64, {is_shared});
+    let arrayRef = builder.addArray(anyRefT, {is_shared});
     builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,
@@ -327,15 +324,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestAtomicArrayGetPacked() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
       : wasmRefNullType(kWasmAnyRef);
-    let array8 =
-      builder.addArray(kWasmI8, true, kNoSuperType, false, is_shared);
-    let array16 =
-      builder.addArray(kWasmI16, true, kNoSuperType, false, is_shared);
+    let array8 = builder.addArray(kWasmI8, {is_shared});
+    let array16 = builder.addArray(kWasmI16, {is_shared});
     builder.addFunction("newArray8", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,
@@ -437,7 +432,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestAtomicStructRMW() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
@@ -673,7 +668,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestLoadEliminationAtomicOperations() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let struct = builder.addStruct({
       fields: [makeField(kWasmI32, true)],
@@ -728,7 +723,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestAtomicArrayRMW() {
   for (let is_shared of [true, false]) {
-    print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
+    print(`${arguments.callee.name} ${is_shared ? 'shared' : 'non-shared'}`);
     let builder = new WasmModuleBuilder();
     let anyRefT = is_shared
       ? wasmRefNullType(kWasmAnyRef).shared()
@@ -736,14 +731,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     let eqRefT = is_shared
       ? wasmRefNullType(kWasmEqRef).shared()
       : wasmRefNullType(kWasmEqRef);
-    let array32 =
-      builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
-    let array64 =
-      builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
-    let arrayRef =
-      builder.addArray(anyRefT, true, kNoSuperType, false, is_shared);
-    let arrayEqRef =
-      builder.addArray(eqRefT, true, kNoSuperType, false, is_shared);
+    let array32 = builder.addArray(kWasmI32, {is_shared});
+    let array64 = builder.addArray(kWasmI64, {is_shared});
+    let arrayRef = builder.addArray(anyRefT, {is_shared});
+    let arrayEqRef = builder.addArray(eqRefT, {is_shared});
     builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,

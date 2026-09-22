@@ -80,6 +80,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     WriteExternalFilenames(writer.get());
     WriteDataSection(writer.get(), blob);
     WriteCodeSection(writer.get(), blob);
+    WriteDebugSection(writer.get(), blob);
     WriteFileEpilogue(writer.get(), blob);
 
     base::Fclose(fp);
@@ -162,6 +163,9 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   void WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
                         const i::EmbeddedData* blob) const;
 
+  void WriteDebugSection(PlatformEmbeddedFileWriterBase* w,
+                         const i::EmbeddedData* blob) const;
+
   void WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                          const i::EmbeddedData* blob) const;
 
@@ -184,6 +188,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
  private:
   std::vector<uint8_t> source_positions_[Builtins::kBuiltinCount];
+  std::vector<uint8_t> code_comments_[Builtins::kBuiltinCount];
   std::vector<LabelInfo> label_info_[Builtins::kBuiltinCount];
 
 #if defined(V8_OS_WIN64)
@@ -192,6 +197,9 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
   std::map<const char*, int> external_filenames_;
   std::vector<const char*> external_filenames_by_index_;
+
+  // Filename to use when source locations are missing.
+  int builtin_marker_sources_id_ = 0;
 
   // The file to generate or nullptr.
   const char* embedded_src_path_ = nullptr;

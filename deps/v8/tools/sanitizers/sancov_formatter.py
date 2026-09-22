@@ -168,9 +168,9 @@ def get_instrumented_lines(executable):
   # We don't call the sancov tool to get more speed.
   process = subprocess.Popen(
       'objdump -d %s | '
-      'grep \'^\s\+[0-9a-f]\+:.*\scall\(q\|\)\s\+[0-9a-f]\+ '
-      '<__sanitizer_cov\(_with_check\|\|_trace_pc_guard\)\(@plt\|\)>\' | '
-      'grep \'^\s\+[0-9a-f]\+\' -o | '
+      r"grep '^\s\+[0-9a-f]\+:.*\scall\(q\|\)\s\+[0-9a-f]\+ "
+      r"<__sanitizer_cov\(_with_check\|\|_trace_pc_guard\)\(@plt\|\)>' | "
+      r"grep '^\s\+[0-9a-f]\+' -o | "
       '%s | '
       '%s --obj %s -functions=none' %
           (executable, SANITIZE_PCS, SYMBOLIZER, executable),

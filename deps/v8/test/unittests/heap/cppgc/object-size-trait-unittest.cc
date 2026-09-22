@@ -6,7 +6,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
-#include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc-internal/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

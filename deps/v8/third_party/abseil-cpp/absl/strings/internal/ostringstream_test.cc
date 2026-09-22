@@ -27,8 +27,7 @@ namespace {
 
 TEST(OStringStream, IsOStream) {
   static_assert(
-      std::is_base_of<std::ostream, absl::strings_internal::OStringStream>(),
-      "");
+      std::is_base_of<std::ostream, absl::strings_internal::OStringStream>());
 }
 
 TEST(OStringStream, ConstructNullptr) {
@@ -83,8 +82,8 @@ TEST(OStringStream, Str) {
   absl::strings_internal::OStringStream strm(&s1);
   const absl::strings_internal::OStringStream& c_strm(strm);
 
-  static_assert(std::is_same<decltype(strm.str()), std::string*>(), "");
-  static_assert(std::is_same<decltype(c_strm.str()), const std::string*>(), "");
+  static_assert(std::is_same<decltype(strm.str()), std::string*>());
+  static_assert(std::is_same<decltype(c_strm.str()), const std::string*>());
 
   EXPECT_EQ(&s1, strm.str());
   EXPECT_EQ(&s1, c_strm.str());

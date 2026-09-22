@@ -836,6 +836,11 @@ class V8_EXPORT AllocationProfile {
      * been collected by GC.
      */
     bool is_live;
+
+    /**
+     * Sample interval in bytes used when this sample was selected.
+     */
+    uint64_t sample_interval;
   };
 
   /**
@@ -968,6 +973,18 @@ class V8_EXPORT EmbedderGraph {
    * it will be named accordingly.
    */
   virtual void AddEdge(Node* from, Node* to, const char* name = nullptr) = 0;
+
+  /**
+   * Adds an edge that represents a weak reference from the given
+   * node |from| to the given node |to|. The nodes must be added to the graph
+   * before calling this function.
+   *
+   * If name is nullptr, the edge will have auto-increment indexes, otherwise
+   * it will be named accordingly.
+   */
+  virtual void AddWeakEdge(Node* from, Node* to, const char* name = nullptr) {
+    AddEdge(from, to, name);
+  }
 
   /**
    * Adds a count of bytes that are not associated with any particular Node.
@@ -1244,6 +1261,22 @@ class V8_EXPORT HeapProfiler {
    * Stops the sampling heap profile and discards the current profile.
    */
   void StopSamplingHeapProfiler();
+
+  /**
+   * Updates the sampling interval for a currently running sampling heap
+   * profiler. The new interval is used for future sample scheduling.
+   *
+   * No-op if the sampling heap profiler is not running.
+   */
+  void SetSamplingHeapProfilerInterval(uint64_t sample_interval);
+
+  /**
+   * Returns the currently retained allocation samples without materializing
+   * the full allocation profile tree.
+   *
+   * Returns an empty vector if the sampling heap profiler is not running.
+   */
+  std::vector<AllocationProfile::Sample> GetSamplingHeapProfilerSamples();
 
   /**
    * Returns the sampled profile of allocations allocated (and still live) since

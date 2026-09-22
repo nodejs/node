@@ -88,8 +88,9 @@ class DeclarationContext {
   // to the instance specific virtual methods.
   static v8::Intercepted HandleGet(
       Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info);
-  static v8::Intercepted HandleSet(Local<Name> key, Local<Value> value,
-                                   const v8::PropertyCallbackInfo<void>& info);
+  static v8::Intercepted HandleSet(
+      Local<Name> key, Local<Value> value,
+      const v8::PropertyCallbackInfo<Boolean>& info);
   static v8::Intercepted HandleQuery(
       Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info);
 
@@ -108,7 +109,7 @@ class DeclarationContext {
   int set_count_;
   int query_count_;
 
-  static DeclarationContext* GetInstance(Local<Value> data);
+  static DeclarationContext* GetInstance(Local<Data> data);
 };
 
 DeclarationContext::DeclarationContext()
@@ -183,7 +184,7 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
 
 v8::Intercepted DeclarationContext::HandleGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  DeclarationContext* context = GetInstance(info.Data());
+  DeclarationContext* context = GetInstance(info.DataV2());
   context->get_count_++;
   auto result = context->Get(key);
   if (!result.IsEmpty()) {
@@ -195,8 +196,8 @@ v8::Intercepted DeclarationContext::HandleGet(
 
 v8::Intercepted DeclarationContext::HandleSet(
     Local<Name> key, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
-  DeclarationContext* context = GetInstance(info.Data());
+    const v8::PropertyCallbackInfo<Boolean>& info) {
+  DeclarationContext* context = GetInstance(info.DataV2());
   context->set_count_++;
   Maybe<bool> maybe_result = context->Set(key, value);
   bool result;
@@ -211,7 +212,7 @@ v8::Intercepted DeclarationContext::HandleSet(
 
 v8::Intercepted DeclarationContext::HandleQuery(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  DeclarationContext* context = GetInstance(info.Data());
+  DeclarationContext* context = GetInstance(info.DataV2());
   context->query_count_++;
   auto result = context->Query(key);
   if (!result.IsEmpty()) {
@@ -221,7 +222,7 @@ v8::Intercepted DeclarationContext::HandleQuery(
   return v8::Intercepted::kNo;
 }
 
-DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
+DeclarationContext* DeclarationContext::GetInstance(Local<Data> data) {
   void* value = Local<External>::Cast(data)->Value(kDeclarationContextTag);
   return static_cast<DeclarationContext*>(value);
 }
@@ -1069,7 +1070,6 @@ TEST_F(DeclsTest, Regress3941_Reads) {
 }
 
 TEST_F(DeclsTest, TestUsing) {
-  i::v8_flags.js_explicit_resource_management = true;
   HandleScope scope(isolate());
 
   {
@@ -1108,7 +1108,6 @@ TEST_F(DeclsTest, TestUsing) {
 }
 
 TEST_F(DeclsTest, TestAwaitUsing) {
-  i::v8_flags.js_explicit_resource_management = true;
   HandleScope scope(isolate());
 
   {

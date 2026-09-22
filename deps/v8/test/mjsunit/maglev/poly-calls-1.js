@@ -38,8 +38,8 @@ foo(o2);
 
 assertEquals(128, foo(o1));
 assertEquals(256, foo(o2));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);
 
 let somethingElse = {foo: () => {return -8}};
 assertEquals(-8, foo(somethingElse));
-assertFalse(isMaglevved(foo));
+assertNotMaglevved(foo);

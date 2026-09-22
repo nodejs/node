@@ -33,7 +33,7 @@ assert_test_constructor_assignment(test_constructor_assignment());
 %OptimizeMaglevOnNextCall(test_constructor_assignment);
 assert_test_constructor_assignment(test_constructor_assignment());
 assertOptimized(test_constructor_assignment);
-assertTrue(isMaglevved(test_constructor_assignment));
+assertMaglevved(test_constructor_assignment);
 assert_test_constructor_assignment(test_constructor_assignment());
 %OptimizeFunctionOnNextCall(test_constructor_assignment);
 assert_test_constructor_assignment(test_constructor_assignment());

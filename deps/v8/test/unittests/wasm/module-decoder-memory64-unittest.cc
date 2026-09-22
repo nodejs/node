@@ -23,7 +23,7 @@ class Memory64DecodingTest : public TestWithIsolateAndZone {
     WasmDetectedFeatures detected_features;
     ModuleResult result =
         DecodeWasmModule(WasmEnabledFeatures{}, base::VectorOf(module_bytes),
-                         kValidateFunctions, kWasmOrigin, &detected_features);
+                         kValidateFunctions, &detected_features);
     CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::memory64}},
              detected_features);
     EXPECT_TRUE(result.ok()) << result.error().message();

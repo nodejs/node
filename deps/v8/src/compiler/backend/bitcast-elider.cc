@@ -21,8 +21,25 @@ bool IsBitcast(Node* node) {
 }
 
 bool OwnedByWord32Op(Node* node) {
-#if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64
+#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV64)
   return false;
+#elif defined(V8_TARGET_ARCH_LOONG64)
+  for (Node* const use : node->uses()) {
+    switch (use->opcode()) {
+      case IrOpcode::kWord32Equal:
+      case IrOpcode::kWord32Shl:
+      case IrOpcode::kWord32Shr:
+      case IrOpcode::kWord32Sar:
+      case IrOpcode::kWord32Rol:
+      case IrOpcode::kWord32Ror:
+      case IrOpcode::kInt32Add:
+      case IrOpcode::kInt32Sub:
+        break;
+      default:
+        return false;
+    }
+  }
+  return true;
 #else
   for (Node* const use : node->uses()) {
     switch (use->opcode()) {

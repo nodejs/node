@@ -138,7 +138,7 @@ function js_div(a, b) { return (a / b) | 0; }
     let main = i2.exports.main;
 
     for (var j = 0; j < i; j++) {
-      assertTraps(kTrapFuncSigMismatch, () => main(0, j));
+      assertTraps(kTrapNullFunc, () => main(0, j));
       assertSame(null, table.get(j));
     }
 
@@ -203,7 +203,7 @@ function js_div(a, b) { return (a / b) | 0; }
     let main = i2.exports.main;
 
     for (var j = 0; j < i; j++) {
-      assertTraps(kTrapFuncSigMismatch, () => main(0, j));
+      assertTraps(kTrapNullFunc, () => main(0, j));
       assertSame(null, table.get(j));
     }
 
@@ -268,7 +268,7 @@ function js_div(a, b) { return (a / b) | 0; }
       let func = table.get(j);
       if (j > i) {
         assertSame(null, func);
-        assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(j));
+        assertTraps(kTrapNullFunc, () => instance.exports.main(j));
       } else {
         assertEquals("function", typeof func);
         assertEquals(j, func());
@@ -331,15 +331,14 @@ function js_div(a, b) { return (a / b) | 0; }
   assertEquals(22, i1.exports.main(1));
   assertEquals(22, i2.exports.main(1));
 
-  assertTraps(kTrapFuncSigMismatch, () => i1.exports.main(2));
-  assertTraps(kTrapFuncSigMismatch, () => i2.exports.main(2));
+  assertTraps(kTrapNullFunc, () => i1.exports.main(2));
+  assertTraps(kTrapNullFunc, () => i2.exports.main(2));
   assertTraps(kTrapTableOutOfBounds, () => i1.exports.main(3));
   assertTraps(kTrapTableOutOfBounds, () => i2.exports.main(3));
 })();
 
 (function MismatchedTableSize() {
   print(arguments.callee.name);
-  let kTableSize = 5;
 
   for (var expsize = 1; expsize < 4; expsize++) {
     for (var impsize = 1; impsize < 4; impsize++) {
@@ -604,10 +603,10 @@ function js_div(a, b) { return (a / b) | 0; }
 
   var mem_1 = new WebAssembly.Memory({initial: 1});
   var mem_2 = new WebAssembly.Memory({initial: 1});
-  var view_1 = new Int32Array(mem_1.buffer);
-  var view_2 = new Int32Array(mem_2.buffer);
-  view_1[0] = 1;
-  view_2[0] = 1000;
+  var view_1 = new DataView(mem_1.buffer);
+  var view_2 = new DataView(mem_2.buffer);
+  view_1.setInt32(0, 1, true);
+  view_2.setInt32(0, 1000, true);
 
   let builder = new WasmModuleBuilder();
   let sig = builder.addType(kSig_i_v);
@@ -675,8 +674,8 @@ function js_div(a, b) { return (a / b) | 0; }
       ]).exportAs('main');
 
     let mem = new WebAssembly.Memory({initial:1});
-    let view = new Int32Array(mem.buffer);
-    view[0] = 4;
+    let view = new DataView(mem.buffer);
+    view.setInt32(0, 4, true);
 
     let module2 = new WebAssembly.Module(builder.toBuffer());
     let instance2 = new WebAssembly.Instance(module2, {
@@ -852,8 +851,8 @@ function js_div(a, b) { return (a / b) | 0; }
   })();
 
   function setMemI32(instance, offset, val) {
-    var array = new Int32Array(instance.exports.memory.buffer);
-    array[offset/4] = val;
+    var view = new DataView(instance.exports.memory.buffer);
+    view.setInt32(offset, val, true);
   }
 
   function makeFun(val) {

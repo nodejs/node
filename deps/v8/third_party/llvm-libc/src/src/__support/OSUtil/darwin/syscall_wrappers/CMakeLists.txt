@@ -1,0 +1,13 @@
+add_header_library(
+  sigprocmask
+  HDRS
+    sigprocmask.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.hdr.types.sigset_t
+    libc.include.sys_syscall
+    libc.src.__support.OSUtil.osutil
+    libc.src.__support.common
+    libc.src.__support.error_or
+    libc.src.__support.macros.config
+)

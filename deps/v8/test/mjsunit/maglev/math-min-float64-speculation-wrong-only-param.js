@@ -17,7 +17,7 @@ assertEquals(6.1, min1(6.1));
 // Passing a non-number will deopt.
 assertEquals(1.5, min1({valueOf: () => 1.5}));
 
-assertFalse(isMaglevved(min1));
+assertNotMaglevved(min1);
 
 %OptimizeMaglevOnNextCall(min1);
 assertEquals(6.1, min1(6.1));
@@ -25,4 +25,4 @@ assertEquals(6.1, min1(6.1));
 // No we no longer speculate on the argument type being float64, so we also
 // don't deopt.
 assertEquals(1.5, min1({valueOf: () => 1.5}));
-assertTrue(isMaglevved(min1));
+assertMaglevved(min1);

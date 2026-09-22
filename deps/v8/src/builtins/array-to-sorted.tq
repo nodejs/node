@@ -10,20 +10,20 @@ transitioning macro CopyWorkArrayToNewFastJSArray(
       elementsKind == ElementsKind::PACKED_SMI_ELEMENTS ||
       elementsKind == ElementsKind::PACKED_ELEMENTS);
 
-  const len = sortState.sortLength;
-  dcheck(len == numberOfNonUndefined + sortState.numberOfUndefined);
+  const len = sortState.sort_length;
+  dcheck(len == numberOfNonUndefined + sortState.number_of_undefined);
   dcheck(len <= kMaxFastArrayLength);
 
   const copy: FixedArray = UnsafeCast<FixedArray>(
       AllocateFixedArray(elementsKind, Convert<intptr>(len)));
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
   CopyElements(
       elementsKind, copy, 0, workArray, 0,
       Convert<intptr>(numberOfNonUndefined));
 
   dcheck(
-      sortState.numberOfUndefined == 0 ||
+      sortState.number_of_undefined == 0 ||
       elementsKind == ElementsKind::PACKED_ELEMENTS);
   for (let i = numberOfNonUndefined; i < len; ++i) {
     copy.objects[i] = Undefined;
@@ -36,10 +36,10 @@ transitioning macro CopyWorkArrayToNewFastJSArray(
 transitioning macro CopyWorkArrayToNewJSArray(
     implicit context: Context, sortState: SortState)(
     numberOfNonUndefined: Smi): JSArray {
-  const len = sortState.sortLength;
-  dcheck(len == numberOfNonUndefined + sortState.numberOfUndefined);
+  const len = sortState.sort_length;
+  dcheck(len == numberOfNonUndefined + sortState.number_of_undefined);
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
   const copy = ArrayCreate(len);
   let i: Smi = 0;
   for (; i < numberOfNonUndefined; ++i) {
@@ -51,23 +51,26 @@ transitioning macro CopyWorkArrayToNewJSArray(
   return copy;
 }
 
-transitioning builtin ArrayTimSortIntoCopy(
+transitioning builtin ArrayPowerSortIntoCopy(
     context: Context, sortState: SortState): JSArray {
   const isToSorted: constexpr bool = true;
   const numberOfNonUndefined: Smi =
       CompactReceiverElementsIntoWorkArray(isToSorted);
-  ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
-
-  if (sortState.sortLength <= kMaxFastArrayLength) {
+  if (numberOfNonUndefined < kMaxBinaryInsertionSortLength) {
+    BinaryInsertionSort(0, 0, numberOfNonUndefined);
+  } else {
+    ArrayPowerSortImpl(context, sortState, numberOfNonUndefined);
+  }
+  if (sortState.sort_length <= kMaxFastArrayLength) {
     // The result copy of Array.prototype.toSorted is always packed.
     try {
-      if (sortState.numberOfUndefined != 0) goto FastObject;
+      if (sortState.number_of_undefined != 0) goto FastObject;
 
-      const workArray = sortState.workArray;
-      dcheck(numberOfNonUndefined <= workArray.length);
+      const workArray = sortState.work_array;
+      dcheck(Convert<intptr>(numberOfNonUndefined) <= workArray.length_intptr);
       for (let i: Smi = 0; i < numberOfNonUndefined; ++i) {
         const e = UnsafeCast<JSAny>(workArray.objects[i]);
-        // TODO(v8:12764): ArrayTimSortImpl already boxed doubles. Support
+        // TODO(v8:12764): ArrayPowerSortImpl already boxed doubles. Support
         // PACKED_DOUBLE_ELEMENTS.
         if (TaggedIsNotSmi(e)) {
           goto FastObject;
@@ -128,6 +131,6 @@ transitioning javascript builtin ArrayPrototypeToSorted(
   // The implementation of the above steps is shared with Array.prototype.sort.
   const isToSorted: constexpr bool = true;
   const sortState: SortState = NewSortState(obj, comparefn, len, isToSorted);
-  return ArrayTimSortIntoCopy(context, sortState);
+  return ArrayPowerSortIntoCopy(context, sortState);
 }
 }

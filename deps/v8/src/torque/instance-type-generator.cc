@@ -60,10 +60,11 @@ std::unique_ptr<InstanceTypeTree> BuildInstanceTypeTree() {
   for (auto& type_tree : unparented_types) {
     const ClassType* parent = type_tree->type->GetSuperClass();
     if (parent == nullptr) {
-      if (root != nullptr)
+      if (root != nullptr) {
         Error("Expected only one root class type. Found: ", root->type->name(),
               " and ", type_tree->type->name())
             .Position(type_tree->type->GetPosition());
+      }
       root = std::move(type_tree);
     } else {
       map_by_type[parent]->children.push_back(std::move(type_tree));
@@ -283,46 +284,54 @@ std::unique_ptr<InstanceTypeTree> AssignInstanceTypes() {
 }
 
 // Prints items in macro lists for the given type and its descendants.
-// - definitions: This list is pairs of instance type name and assigned value,
-//   such as V(ODDBALL_TYPE, 67). It includes FIRST_* and LAST_* items for each
-//   type that has more than one associated InstanceType. Items within those
-//   ranges are indented for readability.
-// - values: This list is just instance type names, like V(ODDBALL_TYPE). It
-//   does not include any FIRST_* and LAST_* range markers.
-// - fully_defined_single_instance_types: This list is pairs of class name and
-//   instance type, for classes which have defined layouts and a single
-//   corresponding instance type.
-// - fully_defined_multiple_instance_types: This list is pairs of class name and
-//   instance type, for classes which have defined layouts and subclasses.
-// - only_declared_single_instance_types: This list is pairs of class name and
-//   instance type, for classes which have a single corresponding instance type
-//   and do not have layout definitions in Torque.
-// - only_declared_multiple_instance_types: This list is pairs of class name and
-//   instance type, for classes which have subclasses but also have a single
-//   corresponding instance type, and do not have layout definitions in Torque.
-// - fully_defined_range_instance_types: This list is triples of class name,
-//   first instance type, and last instance type, for classes which have defined
-//   layouts and multiple corresponding instance types.
-// - only_declared_range_instance_types: This list is triples of class name,
-//   first instance type, and last instance type, for classes which have
-//   multiple corresponding instance types and do not have layout definitions in
-//   Torque.
+// - definitions: pairs of instance type name and assigned value, such as
+//   V(ODDBALL_TYPE, 67). Includes FIRST_*/LAST_* items for each type that has
+//   more than one associated InstanceType, with items within those ranges
+//   indented for readability.
+// - values: just instance type names, like V(ODDBALL_TYPE). Does not include
+//   any FIRST_*/LAST_* range markers.
+// - debug_reader_classes_single: pairs of (ClassName, INSTANCE_TYPE) for
+//   classes that have a Torque body (`extern class X extends Y { ... }`) and
+//   a single corresponding instance type. Drives consumers that need to map
+//   IT -> TqClass debug reader (debug_helper, gen-postmortem-metadata).
+// - debug_reader_classes_multiple: same, for classes with a body and
+//   subclasses sharing the IT.
+// - debug_reader_classes_range: triples of (ClassName, FIRST_TYPE, LAST_TYPE)
+//   for classes with a body spanning a contiguous IT range.
+// Body-less Torque declarations (`extern class X extends Y;`) get no entry
+// in the debug-reader lists -- Torque emits no TqClass for them.
+// The `it_list_*` streams below reproduce metagen's
+// INSTANCE_TYPE_LIST_{SINGLE,MULTIPLE,RANGE} buckets (instance_types.py)
+// so the torque path (V8_USE_METAGEN_INSTANCE_TYPES=0) can drive the same
+// instance-type-checker.h / instance-type-inl.h consumers as metagen.
+// Unlike the debug-reader lists, these include body-less declarations
+// (HasUndefinedLayout()), because the checkers map IT -> class for every
+// IT-bearing class, not just those Torque has a layout for.
+// TODO(jgruber): remove together with the V8_USE_METAGEN_INSTANCE_TYPES switch
+// once metagen is the sole instance-type generator.
 void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
                         std::ostream& values,
-                        std::ostream& fully_defined_single_instance_types,
-                        std::ostream& fully_defined_multiple_instance_types,
-                        std::ostream& only_declared_single_instance_types,
-                        std::ostream& only_declared_multiple_instance_types,
-                        std::ostream& fully_defined_range_instance_types,
-                        std::ostream& only_declared_range_instance_types,
+                        std::ostream& debug_reader_classes_single,
+                        std::ostream& debug_reader_classes_multiple,
+                        std::ostream& debug_reader_classes_range,
+                        std::ostream& it_list_single,
+                        std::ostream& it_list_multiple,
+                        std::ostream& it_list_range,
                         const std::string& indent) {
   std::string type_name =
       CapifyStringWithUnderscores(root->type->name()) + "_TYPE";
   std::string inner_indent = indent;
 
+  // Every type gets FIRST_/LAST_ range markers, aliasing the sole value for
+  // single-instance-type classes. Generated CSA references the range markers
+  // unconditionally (see GetClassInstanceTypeRange), so the single-vs-range
+  // decision in DownCastForTorqueClass is made against the values in the
+  // active instance-types.h (which may be metagen's, whose class hierarchy
+  // can diverge from Torque's) instead of being baked in at Torque codegen
+  // time.
+  definitions << indent << "V(FIRST_" << type_name << ", " << root->start
+              << ") \\\n";
   if (root->num_values > 1) {
-    definitions << indent << "V(FIRST_" << type_name << ", " << root->start
-                << ") \\\n";
     inner_indent += "  ";
   }
   if (root->num_own_values == 1) {
@@ -331,45 +340,45 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
     values << "  V(" << type_name << ") /* " << root->type->GetPosition()
            << " */\\\n";
     if (!root->type->DoNotGenerateInstanceTypeCheck()) {
-      std::ostream& type_checker_list =
-          root->type->HasUndefinedLayout()
-              ? (root->num_values == 1 ? only_declared_single_instance_types
-                                       : only_declared_multiple_instance_types)
-              : (root->num_values == 1 ? fully_defined_single_instance_types
-                                       : fully_defined_multiple_instance_types);
-      type_checker_list << "  V(" << root->type->name() << ", " << type_name
-                        << ") /* " << root->type->GetPosition() << " */ \\\n";
+      if (!root->type->HasUndefinedLayout()) {
+        std::ostream& sink = root->num_values == 1
+                                 ? debug_reader_classes_single
+                                 : debug_reader_classes_multiple;
+        sink << "  V(" << root->type->name() << ", " << type_name << ") /* "
+             << root->type->GetPosition() << " */ \\\n";
+      }
+      std::ostream& it_sink =
+          root->num_values == 1 ? it_list_single : it_list_multiple;
+      it_sink << "  V(" << root->type->name() << ", " << type_name << ") /* "
+              << root->type->GetPosition() << " */ \\\n";
     }
   }
   for (auto& child : root->children) {
-    PrintInstanceTypes(child.get(), definitions, values,
-                       fully_defined_single_instance_types,
-                       fully_defined_multiple_instance_types,
-                       only_declared_single_instance_types,
-                       only_declared_multiple_instance_types,
-                       fully_defined_range_instance_types,
-                       only_declared_range_instance_types, inner_indent);
+    PrintInstanceTypes(
+        child.get(), definitions, values, debug_reader_classes_single,
+        debug_reader_classes_multiple, debug_reader_classes_range,
+        it_list_single, it_list_multiple, it_list_range, inner_indent);
   }
-  if (root->num_values > 1) {
-    // We can't emit LAST_STRING_TYPE because it's not a valid flags
-    // combination. So if the class type has multiple own values, which only
-    // happens when using ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE, then omit
-    // the end marker.
-    if (root->num_own_values <= 1) {
-      definitions << indent << "V(LAST_" << type_name << ", " << root->end
-                  << ") \\\n";
-    }
+  // We can't emit LAST_STRING_TYPE because it's not a valid flags
+  // combination. So if the class type has multiple own values, which only
+  // happens when using ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE, then omit
+  // the end marker.
+  if (root->num_own_values <= 1) {
+    definitions << indent << "V(LAST_" << type_name << ", " << root->end
+                << ") \\\n";
+  }
 
+  if (root->num_values > 1) {
     // Only output the instance type range for things other than the root type.
-    if (root->type->GetSuperClass() != nullptr) {
-      if (!root->type->DoNotGenerateInstanceTypeCheck()) {
-        std::ostream& range_instance_types =
-            root->type->HasUndefinedLayout()
-                ? only_declared_range_instance_types
-                : fully_defined_range_instance_types;
-        range_instance_types << "  V(" << root->type->name() << ", FIRST_"
-                             << type_name << ", LAST_" << type_name << ") \\\n";
+    if (root->type->GetSuperClass() != nullptr &&
+        !root->type->DoNotGenerateInstanceTypeCheck()) {
+      if (!root->type->HasUndefinedLayout()) {
+        debug_reader_classes_range << "  V(" << root->type->name() << ", FIRST_"
+                                   << type_name << ", LAST_" << type_name
+                                   << ") \\\n";
       }
+      it_list_range << "  V(" << root->type->name() << ", FIRST_" << type_name
+                    << ", LAST_" << type_name << ") \\\n";
     }
   }
 }
@@ -378,31 +387,35 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
 
 void ImplementationVisitor::GenerateInstanceTypes(
     const std::string& output_directory) {
+  std::unique_ptr<InstanceTypeTree> instance_types = AssignInstanceTypes();
+  std::stringstream assigned_instance_types;
+  std::stringstream values_list;
+  std::stringstream debug_reader_classes_single;
+  std::stringstream debug_reader_classes_multiple;
+  std::stringstream debug_reader_classes_range;
+  std::stringstream it_list_single;
+  std::stringstream it_list_multiple;
+  std::stringstream it_list_range;
+  if (instance_types != nullptr) {
+    PrintInstanceTypes(instance_types.get(), assigned_instance_types,
+                       values_list, debug_reader_classes_single,
+                       debug_reader_classes_multiple,
+                       debug_reader_classes_range, it_list_single,
+                       it_list_multiple, it_list_range, "  ");
+  }
+
+  // Emit `torque-generated/instance-types.h`: IT enum + IT-name list. Pure
+  // IT concern; consumed via src/objects/instance-types-gen.h's forwarder
+  // when V8_USE_METAGEN_INSTANCE_TYPES is 0.
   std::stringstream header;
-  std::string file_name = "instance-types.h";
+  const std::string file_name = "instance-types.h";
   {
     IncludeGuardScope guard(header, file_name);
 
     header << "// Instance types for all classes except for those that use "
               "InstanceType as flags.\n";
     header << "#define TORQUE_ASSIGNED_INSTANCE_TYPES(V) \\\n";
-    std::unique_ptr<InstanceTypeTree> instance_types = AssignInstanceTypes();
-    std::stringstream values_list;
-    std::stringstream fully_defined_single_instance_types;
-    std::stringstream fully_defined_multiple_instance_types;
-    std::stringstream only_declared_single_instance_types;
-    std::stringstream only_declared_multiple_instance_types;
-    std::stringstream fully_defined_range_instance_types;
-    std::stringstream only_declared_range_instance_types;
-    if (instance_types != nullptr) {
-      PrintInstanceTypes(instance_types.get(), header, values_list,
-                         fully_defined_single_instance_types,
-                         fully_defined_multiple_instance_types,
-                         only_declared_single_instance_types,
-                         only_declared_multiple_instance_types,
-                         fully_defined_range_instance_types,
-                         only_declared_range_instance_types, "  ");
-    }
+    header << assigned_instance_types.str();
     header << "\n";
 
     header << "// Instance types for all classes except for those that use\n";
@@ -410,103 +423,84 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << "#define TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(V) \\\n";
     header << values_list.str();
     header << "\n";
-
-    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that have\n";
-    header << "// full Torque definitions.\n";
-    header << "#define TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V) \\\n";
-    header << fully_defined_single_instance_types.str();
-    header << "\n";
-
-    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that have\n";
-    header << "// full Torque definitions and subclasses.\n";
-    header << "#define TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(V) \\\n";
-    header << fully_defined_multiple_instance_types.str();
-    header << "\n";
-
-    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that are\n";
-    header << "// declared but not defined in Torque. These classes may\n";
-    header << "// correspond with actual C++ classes, but they are not\n";
-    header << "// guaranteed to.\n";
-    header << "#define TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(V) \\\n";
-    header << only_declared_single_instance_types.str();
-    header << "\n";
-
-    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that are\n";
-    header << "// declared but not defined in Torque, and have subclasses.\n";
-    header << "// These classes may correspond with actual C++ classes, but\n";
-    header << "// they are not guaranteed to.\n";
-    header << "#define TORQUE_INSTANCE_CHECKERS_MULTIPLE_ONLY_DECLARED(V) \\\n";
-    header << only_declared_multiple_instance_types.str();
-    header << "\n";
-
-    header << "// Triples of (ClassName, FIRST_TYPE, LAST_TYPE) for classes\n";
-    header << "// that have full Torque definitions.\n";
-    header << "#define TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(V) \\\n";
-    header << fully_defined_range_instance_types.str();
-    header << "\n";
-
-    header << "// Triples of (ClassName, FIRST_TYPE, LAST_TYPE) for classes\n";
-    header << "// that are declared but not defined in Torque. These classes\n";
-    header << "// may correspond with actual C++ classes, but they are not\n";
-    header << "// guaranteed to.\n";
-    header << "#define TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V) \\\n";
-    header << only_declared_range_instance_types.str();
-    header << "\n";
-
-    std::stringstream torque_defined_class_list;
-    std::stringstream torque_defined_varsize_instance_type_list;
-    std::stringstream torque_defined_fixed_instance_type_list;
-    std::stringstream torque_defined_map_csa_list;
-    std::stringstream torque_defined_map_root_list;
-
-    for (const ClassType* type : TypeOracle::GetClasses()) {
-      std::string upper_case_name = type->name();
-      std::string lower_case_name = SnakeifyString(type->name());
-      std::string instance_type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-
-      if (!type->IsExtern()) {
-        torque_defined_class_list << "  V(" << upper_case_name << ") \\\n";
-      }
-
-      if (type->ShouldGenerateUniqueMap()) {
-        torque_defined_map_csa_list << "  V(_, " << upper_case_name << "Map, "
-                                    << lower_case_name << "_map, "
-                                    << upper_case_name << ") \\\n";
-        torque_defined_map_root_list << "  V(Map, " << lower_case_name
-                                     << "_map, " << upper_case_name
-                                     << "Map) \\\n";
-        std::stringstream& list =
-            type->HasStaticSize() ? torque_defined_fixed_instance_type_list
-                                  : torque_defined_varsize_instance_type_list;
-        list << "  V(" << instance_type_name << ", " << upper_case_name << ", "
-             << lower_case_name << ") \\\n";
-      }
-    }
-
-    header << "// Fully Torque-defined classes (both internal and exported).\n";
-    header << "#define TORQUE_DEFINED_CLASS_LIST(V) \\\n";
-    header << torque_defined_class_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
-    header << torque_defined_varsize_instance_type_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << torque_defined_fixed_instance_type_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "  TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "  TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "\n";
-    header << "#define TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _) \\\n";
-    header << torque_defined_map_csa_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_MAP_ROOT_LIST(V) \\\n";
-    header << torque_defined_map_root_list.str();
-    header << "\n";
   }
-  std::string output_header_path = output_directory + "/" + file_name;
-  WriteFile(output_header_path, header.str());
+  WriteFile(output_directory + "/" + file_name, header.str());
+
+  // Emit `torque-generated/debug-reader-classes-list.h`: layout-availability
+  // concern (which classes Torque has a body for, and therefore emits a
+  // TqClass debug reader for). Consumed by tools/debug_helper and
+  // tools/gen-postmortem-metadata.py. Separate file (and separate include
+  // guard) from instance-types.h so consumers can include it independently
+  // of the IT enum, which they get from metagen via the forwarder.
+  std::stringstream debug_classes_header;
+  const std::string debug_classes_file = "debug-reader-classes-list.h";
+  {
+    IncludeGuardScope debug_classes_guard(debug_classes_header,
+                                          debug_classes_file);
+    debug_classes_header
+        << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that have a\n"
+           "// Torque body and a single corresponding instance type. The\n"
+           "// INSTANCE_TYPE symbols resolve via the IT enum provided by\n"
+           "// instance-types-gen.h (which forwards to metagen's emission\n"
+           "// by default).\n";
+    debug_classes_header
+        << "#define TORQUE_DEBUG_READER_CLASSES_SINGLE(V) \\\n";
+    debug_classes_header << debug_reader_classes_single.str();
+    debug_classes_header << "\n";
+
+    debug_classes_header
+        << "// Same, for classes whose IT is also held by subclasses.\n";
+    debug_classes_header
+        << "#define TORQUE_DEBUG_READER_CLASSES_MULTIPLE(V) \\\n";
+    debug_classes_header << debug_reader_classes_multiple.str();
+    debug_classes_header << "\n";
+
+    debug_classes_header
+        << "// Triples of (ClassName, FIRST_TYPE, LAST_TYPE) for classes with\n"
+           "// a Torque body that span a contiguous IT range.\n";
+    debug_classes_header << "#define TORQUE_DEBUG_READER_CLASSES_RANGE(V) \\\n";
+    debug_classes_header << debug_reader_classes_range.str();
+    debug_classes_header << "\n";
+  }
+  WriteFile(output_directory + "/" + debug_classes_file,
+            debug_classes_header.str());
+
+  // Emit `torque-generated/instance-type-checker-lists.h`: the
+  // INSTANCE_TYPE_LIST_{SINGLE,MULTIPLE,RANGE} buckets that metagen emits
+  // into metagen/instance-types.h. Provided here so the torque path
+  // (V8_USE_METAGEN_INSTANCE_TYPES=0) can satisfy the same consumers. It is
+  // included only from src/objects/instance-types-gen.h's #else (torque)
+  // branch and is additionally guarded below, so the metagen path never
+  // sees it. Remove this file (and the #else include) once metagen is the
+  // sole instance-type generator.
+  std::stringstream it_lists_header;
+  const std::string it_lists_file = "instance-type-checker-lists.h";
+  {
+    IncludeGuardScope it_lists_guard(it_lists_header, it_lists_file);
+    it_lists_header << "#if !V8_USE_METAGEN_INSTANCE_TYPES\n";
+    it_lists_header
+        << "// Pairs of (ClassName, INSTANCE_TYPE) for classes whose instance\n"
+           "// type is unique to them (no subclasses share it).\n";
+    it_lists_header << "#define INSTANCE_TYPE_LIST_SINGLE(V) \\\n";
+    it_lists_header << it_list_single.str();
+    it_lists_header << "\n";
+
+    it_lists_header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes "
+                       "that have their\n"
+                       "// own instance type and whose subclasses share it.\n";
+    it_lists_header << "#define INSTANCE_TYPE_LIST_MULTIPLE(V) \\\n";
+    it_lists_header << it_list_multiple.str();
+    it_lists_header << "\n";
+
+    it_lists_header
+        << "// Triples of (ClassName, FIRST_TYPE, LAST_TYPE) for classes that\n"
+           "// span a contiguous range of instance types.\n";
+    it_lists_header << "#define INSTANCE_TYPE_LIST_RANGE(V) \\\n";
+    it_lists_header << it_list_range.str();
+    it_lists_header << "\n";
+    it_lists_header << "#endif  // !V8_USE_METAGEN_INSTANCE_TYPES\n";
+  }
+  WriteFile(output_directory + "/" + it_lists_file, it_lists_header.str());
 
   GlobalContext::SetInstanceTypesInitialized();
 }

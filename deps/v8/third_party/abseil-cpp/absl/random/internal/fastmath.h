@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "absl/base/config.h"
 #include "absl/numeric/bits.h"
 
 namespace absl {

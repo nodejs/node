@@ -45,11 +45,10 @@ _get_v8_flags() {
     | grep -v "DEFINE_NEG_IMPLICATION" \
     | grep -v "DEFINE_VALUE_IMPLICATION" \
     | sed -e 's/_/-/g'; \
-    grep "^  V(harmony_" "$flags_file" \
-    | sed -e 's/^  V/DEFINE-BOOL/' \
-    | sed -e 's/_/-/g'; \
-    grep "^  V(" "$v8_source/src/wasm/wasm-feature-flags.h" \
-    | sed -e 's/^  V(/DEFINE-BOOL(experimental-wasm-/' \
+    sed -e 's/IF_[A-Z0-9_]*(\([A-Z_]*\), */\1(/' "$v8_source/src/flags/feature-flags.h" \
+    | sed -ne 's/.*WASM_FEATURE(/DEFINE-BOOL(wasm-/p' \
+          -ne 's/.*JS_FEATURE(/DEFINE-BOOL(/p' \
+          -ne 's/.*INTERNAL_FEATURE(/DEFINE-BOOL(/p' \
     | sed -e 's/_/-/g')
   sed -ne 's/^DEFINE-[^(]*(\([^,]*\).*/--\1/p' <<< "$defines"
   sed -ne 's/^DEFINE-BOOL(\([^,]*\).*/--no\1/p' <<< "$defines"

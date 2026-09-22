@@ -16,4 +16,4 @@ assertEquals(1, foo(1));
 assertEquals(10, foo(undefined));
 assertEquals(10, foo(null));
 assertEquals(1, foo(1));
-assertTrue(isMaglevved(foo));
+assertMaglevved(foo);

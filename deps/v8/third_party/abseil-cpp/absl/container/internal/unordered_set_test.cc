@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
 #include <unordered_set>
 
+#include "gtest/gtest.h"
+#include "absl/base/config.h"
+#include "absl/container/internal/hash_policy_testing.h"
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
 #include "absl/container/internal/unordered_set_members_test.h"

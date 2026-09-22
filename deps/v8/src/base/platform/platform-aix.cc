@@ -147,7 +147,7 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   //   |
   //   V
   //
-  // lower address -----  __pi_stackaddr, current sp
+  // lower address -----  __pi_stackaddr, reserved stack limit
 
   pthread_t tid = pthread_self();
   struct __pthrdsinfo buf;
@@ -165,32 +165,35 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 }
 
 // static
+Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
+  pthread_t tid = pthread_self();
+  struct __pthrdsinfo buf;
+  memset(&buf, 0, sizeof(buf));
+  char regbuf[1];
+  int regbufsize = sizeof(regbuf);
+
+  const int rc = pthread_getthrds_np(&tid, PTHRDSINFO_QUERY_ALL, &buf,
+                                     sizeof(buf), regbuf, &regbufsize);
+  if (rc != 0) {
+    return nullptr;
+  }
+
+  if (buf.__pi_stackaddr == NULL) {
+    return nullptr;
+  }
+  return reinterpret_cast<void*>(buf.__pi_stackaddr);
+}
+
+// static
 bool OS::DecommitPages(void* address, size_t size) {
   // The difference between this implementation and the alternative under
   // platform-posix.cc is that on AIX, calling mmap on a pre-designated address
   // with MAP_FIXED will fail and return -1 unless the application has requested
   // SPEC1170 compliant behaviour:
   // https://www.ibm.com/docs/en/aix/7.3?topic=m-mmap-mmap64-subroutine
-  // As a workaround we use `mprotect` to make the page inaccessible and
-  // `madvise` to hint the OS to release the memory.
-  //
-  // NOTE: On AIX, madvise() is a no-op and does not release physical
-  // memory. The pages remain protected but the physical memory may only be
-  // reclaimed by the OS under memory pressure. This trade-off is acceptable
-  // because:
-  // 1. It fixes critical race conditions (Refs:
-  // https://github.com/nodejs/node/issues/62647)
-  // 2. AIX's disclaim64() requires writable pages, incompatible with PROT_NONE
-  // protection
-  // 3. The alternative munmap/mmap approach causes "Check failed: ptr ==
-  // address" errors
-  // 4. Pages are inaccessible, preventing memory corruption
-
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
   if (mprotect(address, size, PROT_NONE) != 0) return false;
-  if (madvise(static_cast<caddr_t>(address), size, MADV_DONTNEED) != 0)
-    return false;
   return true;
 }
 

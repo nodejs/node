@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -63,20 +64,20 @@ struct PropertyAccessTarget {
   MapRef map;
   NameRef name;
   AccessMode mode;
+  OptionalObjectRef handler;
 
   struct Hash {
     size_t operator()(const PropertyAccessTarget& pair) const {
-      return base::hash_combine(
-          base::hash_combine(pair.map.object().address(),
-                             pair.name.object().address()),
-          static_cast<int>(pair.mode));
+      return base::Hasher::Combine(
+          pair.map.object().address(), pair.name.object().address(), pair.mode,
+          pair.handler.has_value() ? pair.handler->object().address() : 0);
     }
   };
   struct Equal {
     bool operator()(const PropertyAccessTarget& lhs,
                     const PropertyAccessTarget& rhs) const {
       return lhs.map.equals(rhs.map) && lhs.name.equals(rhs.name) &&
-             lhs.mode == rhs.mode;
+             lhs.mode == rhs.mode && lhs.handler == rhs.handler;
     }
   };
 };
@@ -218,6 +219,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   CompareOperationHint GetFeedbackForCompareOperation(
       FeedbackSource const& source);
   ForInHint GetFeedbackForForIn(FeedbackSource const& source);
+  SpeculationMode GetFeedbackForJumpLoop(FeedbackSource const& source);
 
   ProcessedFeedback const& GetFeedbackForCall(FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForGlobalAccess(
@@ -233,13 +235,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
-      OptionalNameRef static_name);
+      OptionalNameRef static_name, bool allow_homomorphic = false);
 
   ProcessedFeedback const& ProcessFeedbackForBinaryOperation(
       FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForCompareOperation(
       FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForForIn(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForJumpLoop(
       FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForTypeOf(
       FeedbackSource const& source);
@@ -248,8 +252,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   OptionalNameRef GetNameFeedback(FeedbackNexus const& nexus);
 
-  PropertyAccessInfo GetPropertyAccessInfo(MapRef map, NameRef name,
-                                           AccessMode access_mode);
+  PropertyAccessInfo GetPropertyAccessInfo(
+      MapRef map, NameRef name, AccessMode access_mode,
+      OptionalObjectRef handler = OptionalObjectRef());
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
@@ -303,8 +308,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       *find_result.entry =
           local_isolate()->heap()->NewPersistentHandle(object).location();
     } else {
-      DCHECK(PersistentHandlesScope::IsActive(isolate()));
-      *find_result.entry = IndirectHandle<T>(object, isolate()).location();
+      *find_result.entry = AllocatePersistentHandle(object);
     }
     return Handle<T>(*find_result.entry);
   }
@@ -394,6 +398,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class JSHeapBrokerScopeForTesting;
   friend class HeapObjectRef;
   friend class ObjectRef;
+  friend class JSFunctionData;
   friend class ObjectData;
   friend class PropertyCellData;
 
@@ -417,9 +422,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       JSHeapBroker* broker, FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForInstanceOf(
       FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForJumpLoop(
+      FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
-      OptionalNameRef static_name);
+      OptionalNameRef static_name, bool allow_homomorphic);
   ProcessedFeedback const& ReadFeedbackForRegExpLiteral(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
@@ -436,6 +443,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return std::move(ph_);
   }
 
+  Address* AllocatePersistentHandle(Tagged<Object> object);
+
   void set_canonical_handles(CanonicalHandlesMap* canonical_handles) {
     canonical_handles_ = canonical_handles;
   }
@@ -443,6 +452,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 #define V(Type, name, Name) void Init##Name();
   READ_ONLY_ROOT_LIST(V)
 #undef V
+
+  // JSFunctionData::Cache creates data for the function's prototype, which may
+  // be another JSFunction. Caching straight from the constructor would thus
+  // recurse once per link of a prototype chain whose length is under script
+  // control, and overflow the stack. Construction instead only adds to this
+  // worklist, which TryGetOrCreateData drains iteratively before returning; no
+  // caller can observe an uncached JSFunctionData.
+  void AddToJSFunctionCacheWorklist(JSFunctionData* data);
+  void DrainJSFunctionCacheWorklist();
 
   Isolate* const isolate_;
 #if V8_COMPRESS_POINTERS
@@ -460,6 +478,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // The CanonicalHandlesMap is owned by the compilation info.
   CanonicalHandlesMap* canonical_handles_;
   unsigned trace_indentation_ = 0;
+  JSFunctionData* js_function_cache_worklist_ = nullptr;
+  bool is_draining_js_function_cache_worklist_ = false;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
@@ -549,6 +569,14 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
     }
   }
 
+  explicit UnparkedScopeIfNeeded(LocalIsolate* local_isolate,
+                                 bool extra_condition = true) {
+    if (extra_condition && local_isolate != nullptr &&
+        local_isolate->heap()->IsParked()) {
+      unparked_scope.emplace(local_isolate->heap());
+    }
+  }
+
  private:
   std::optional<UnparkedScope> unparked_scope;
 };
@@ -574,8 +602,8 @@ class V8_NODISCARD JSHeapBrokerScopeForTesting {
 };
 
 template <class T>
-OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(JSHeapBroker* broker,
-                                                         ObjectData* data)
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRefFromData(
+    JSHeapBroker* broker, ObjectData* data)
   requires(is_subtype_v<T, Object>)
 {
   if (data == nullptr) return {};
@@ -599,7 +627,7 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
   if (data == nullptr) {
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
   }
-  return TryMakeRef<T>(broker, data);
+  return TryMakeRefFromData<T>(broker, data);
 }
 
 template <class T>
@@ -612,7 +640,7 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
     DCHECK_EQ(flags & kCrashOnError, 0);
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(*object));
   }
-  return TryMakeRef<T>(broker, data);
+  return TryMakeRefFromData<T>(broker, data);
 }
 
 template <class T>

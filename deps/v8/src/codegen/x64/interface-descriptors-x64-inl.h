@@ -329,6 +329,16 @@ constexpr auto Compare_BaselineDescriptor::registers() {
 constexpr auto CompareAndTryPatchCodeDescriptor::registers() {
   return RegisterArray(rdx, rax, rbx, rdi);
 }
+
+// static
+constexpr auto BinaryOpAndTryPatchCodeDescriptor::registers() {
+  return RegisterArray(rdx, rax, rbx, rdi);
+}
+
+// static
+constexpr auto UnaryOpAndTryPatchCodeDescriptor::registers() {
+  return RegisterArray(rax, rbx, rdi);
+}
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 // static
@@ -342,8 +352,8 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
-  return RegisterArray(rax, rdx, rbx);
+constexpr auto BinaryOp_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  return RegisterArray(rdx, rax, rbx);
 }
 
 // static

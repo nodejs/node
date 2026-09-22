@@ -28,7 +28,9 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   let memory = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
   assertEquals(memory.buffer.byteLength, kPageSize);
+  let buf = memory.buffer;
   assertEquals(1, memory.grow(1));
+  assertNotSame(buf, memory.buffer);
   assertEquals(memory.buffer.byteLength, 2 * kPageSize);
 })();
 
@@ -113,14 +115,60 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   let memories = [new WebAssembly.Memory({initial: 0, maximum: 2, shared: true}),
                   new WebAssembly.Memory({initial: 2, maximum: 10, shared: true}),
                   new WebAssembly.Memory({initial: 4, maximum: 12, shared: true})];
+  let bufs = [memories[0].buffer, memories[1].buffer, memories[2].buffer];
   let obj = {memories: memories};
   worker.postMessage(obj);
   assertEquals("OK", worker.getMessage());
   assertEquals(2 * kPageSize, memories[0].buffer.byteLength);
   assertEquals(4 * kPageSize, memories[1].buffer.byteLength);
   assertEquals(6 * kPageSize, memories[2].buffer.byteLength);
+  for (let i = 0; i < 3; ++i) {
+    assertNotSame(bufs[i], memories[i].buffer);
+  }
+
   worker.terminate();
 })();
+
+(function TestMultipleSharedMemoriesPartialGrow() {
+  print(arguments.callee.name);
+  let mem1 = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
+  let mem2 = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
+  let buf1 = mem1.buffer;
+  let buf2 = mem2.buffer;
+
+  // Single memory grow.
+  mem1.grow(1);
+  assertNotSame(buf1, mem1.buffer);
+  assertEquals(buf2, mem2.buffer); // mem2 was not grown, so it should stay.
+
+  buf1 = mem1.buffer;
+  buf2 = mem2.buffer;
+
+  // Partial grow from a worker.
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function({data: {mem1, mem2}}) {
+      mem1.grow(1);
+      // mem2 not grown.
+      postMessage("OK");
+    };
+  }
+  let worker = new Worker(workerCode, {type: 'function', arguments: [workerHelpers]});
+  worker.postMessage({mem1, mem2});
+  assertEquals("OK", worker.getMessage());
+  assertNotSame(buf1, mem1.buffer);
+  assertEquals(buf2, mem2.buffer);
+  worker.terminate();
+})();
+
+(function TestGrowSharedMemoryZero() {
+  print(arguments.callee.name);
+  const memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
+  const buf = memory.buffer;
+  assertEquals(1, memory.grow(0));
+  assertSame(buf, memory.buffer);
+})();
+
 
 // SharedMemory Object shared between different instances
 (function TestPostMessageJSAndWasmInterop() {
@@ -453,4 +501,50 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   memory.grow(final_size - initial_size);
 
   assertEquals(final_size, worker.getMessage());
+})();
+
+(function TestPostMessageFixedSABWidening() {
+  print(arguments.callee.name);
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function({data: {expectedLen, sab}}) {
+      assertTrue(
+          sab.byteLength === expectedLen,
+          'Incorrect byteLength: expected ' + expectedLen + ', got ' +
+              sab.byteLength);
+      assertTrue(
+          sab.maxByteLength === expectedLen,
+          'Incorrect maxByteLength: expected ' + expectedLen + ', got ' +
+              sab.maxByteLength);
+      assertTrue(sab.growable === false, 'Buffer should not be growable');
+
+      try {
+        new Uint8Array(sab, expectedLen, 1);
+        assertTrue(
+            false,
+            'Unexpectedly able to access grown pages via fixed-length SAB clone');
+      } catch (e) {
+        // Expected: RangeError
+        assertTrue(e instanceof RangeError, 'Expected RangeError, got ' + e);
+      }
+      postMessage('OK');
+    };
+  }
+
+  let worker =
+      new Worker(workerCode, {type: 'function', arguments: [workerHelpers]});
+
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
+  let fixedSAB = memory.buffer;
+  let originalLen = fixedSAB.byteLength;
+  assertEquals(kPageSize, originalLen);
+
+  // Trigger https://crbug.com/506366496 by growing the underlying memory before
+  // sending the SAB.
+  memory.grow(1);
+  assertEquals(2 * kPageSize, memory.buffer.byteLength);
+
+  worker.postMessage({expectedLen: originalLen, sab: fixedSAB});
+  assertEquals('OK', worker.getMessage());
+  worker.terminate();
 })();

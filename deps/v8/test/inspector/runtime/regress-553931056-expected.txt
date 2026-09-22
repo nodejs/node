@@ -1,0 +1,92 @@
+Tests that custom preview formatters prevent TOCTOU and sanitization bypasses
+1. Test microtask TOCTOU attack on body() and verify no objectId leak to page JS..
+customPreview: ["span",{},"Header ok"]
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : div
+                [1] : {
+                }
+                [2] : [
+                    [0] : object
+                    [1] : {
+                        className : Object
+                        customPreview : {
+                            bodyGetterId : <bodyGetterId>
+                            header : ["span",{},"Header ok"]
+                        }
+                        description : Object
+                        objectId : <objectId>
+                        type : object
+                    }
+                ]
+                [3] : [
+                    [0] : span
+                    [1] : {
+                    }
+                    [2] : benign
+                ]
+            ]
+        }
+    }
+}
+microtaskObservedObjectId in page JS: undefined
+2. Test toJSON() bypass attempt in header() and body()..
+customPreview: ["span",{},["span",{},"initial"]]
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : div
+                [1] : {
+                }
+                [2] : [
+                    [0] : span
+                    [1] : {
+                    }
+                    [2] : initial
+                ]
+            ]
+        }
+    }
+}
+toJSONCalled: false
+3. Test getter mutating earlier validated element during traversal..
+customPreview: ["div",{},["span",{},"safe-child"],"trigger"]
+4. Test new String("object") unboxing bypass attempt..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught tag name must be a string
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+No customPreview generated
+5. Test ["object", forged, "extra"] (length != 2) bypass attempt..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught object tag should have 2 elements
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+No customPreview generated

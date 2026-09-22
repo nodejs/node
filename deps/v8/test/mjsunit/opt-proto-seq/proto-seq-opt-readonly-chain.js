@@ -54,7 +54,7 @@ assert_test_readonly_chain(test_readonly_chain());
 %OptimizeMaglevOnNextCall(test_readonly_chain);
 assert_test_readonly_chain(test_readonly_chain());
 assertOptimized(test_readonly_chain);
-assertTrue(isMaglevved(test_readonly_chain));
+assertMaglevved(test_readonly_chain);
 assert_test_readonly_chain(test_readonly_chain());
 %OptimizeFunctionOnNextCall(test_readonly_chain);
 assert_test_readonly_chain(test_readonly_chain());

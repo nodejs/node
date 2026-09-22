@@ -76,35 +76,6 @@ try {
 }
 
 
-// Check setting/getting stack property on the prototype chain.
-function testErrorPrototype(prototype) {
-  var object = {};
-  object.__proto__ = prototype;
-  // Setting stack property overwrites prototype.stack value.
-  object.stack = "123";
-  assertEquals(prototype.stack, object.stack);
-  assertEquals("123", object.stack);
-}
-
-try {
-  rec1(0);
-} catch (e) {
-  e.stack;
-  testErrorPrototype(e);
-}
-
-try {
-  rec1(0);
-} catch (e) {
-  testErrorPrototype(e);
-}
-
-try {
-  throw new Error();
-} catch (e) {
-  testErrorPrototype(e);
-}
-
 Error.stackTraceLimit = 3;
 try {
   rec1(0);

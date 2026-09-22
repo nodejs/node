@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --inspector-live-edit
-
 const {session, contextGroup, Protocol} =
     InspectorTest.start('Tests Debugger.setScriptSource');
 
@@ -15,30 +13,8 @@ contextGroup.addScript(
 (async function test() {
   Protocol.Debugger.enable();
   const {params: {scriptId}} = await Protocol.Debugger.onceScriptParsed();
-  const {result: {result: {value}}} =
-      await Protocol.Runtime.evaluate({expression: 'TestExpression(2, 4)'});
-  InspectorTest.log(`TestExpression(2,4) === ${value}`);
-  {
-    const {result: {scriptSource}} =
-        await Protocol.Debugger.getScriptSource({scriptId});
-    InspectorTest.log(`Update current script source 'a + b' -> 'a * b'..`);
-    const {result} = await Protocol.Debugger.setScriptSource(
-        {scriptId, scriptSource: scriptSource.replace('a + b', 'a * b')})
-    InspectorTest.logMessage(result);
-    const {result: {result: {value}}} =
-        await Protocol.Runtime.evaluate({expression: 'TestExpression(2, 4)'});
-    InspectorTest.log(`TestExpression(2,4) === ${value}`);
-  }
-  {
-    const {result: {scriptSource}} =
-        await Protocol.Debugger.getScriptSource({scriptId});
-    InspectorTest.log(`Update current script source 'a * b' -> 'a # b'..`);
-    const {result} = await Protocol.Debugger.setScriptSource(
-        {scriptId, scriptSource: scriptSource.replace('a * b', 'a # b')})
-    InspectorTest.logMessage(result);
-    const {result: {result: {value}}} =
-        await Protocol.Runtime.evaluate({expression: 'TestExpression(2, 4)'});
-    InspectorTest.log(`TestExpression(2,4) === ${value}`);
-  }
+  const response = await Protocol.Debugger.setScriptSource(
+      {scriptId, scriptSource: 'function TestExpression(a, b) { return a * b; }'});
+  InspectorTest.logMessage(response.error);
   InspectorTest.completeTest();
 })();

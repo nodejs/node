@@ -13,11 +13,14 @@
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/handles/handles.h"
 #include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
+class JSFunction;
 class LocalHeap;
 class TurbofanCompilationJob;
 class RuntimeCallStats;
@@ -156,6 +159,8 @@ class OptimizingCompileOutputQueue {
  public:
   void Enqueue(TurbofanCompilationJob* job);
   std::unique_ptr<TurbofanCompilationJob> Dequeue();
+  bool IsJobReady(DirectHandle<JSFunction> function,
+                  std::optional<BytecodeOffset> osr_offset);
 
   int InstallGeneratedBuiltins(Isolate* isolate, int installed_count);
 
@@ -163,7 +168,7 @@ class OptimizingCompileOutputQueue {
   bool empty() const;
 
  private:
-  // Queue of recompilation tasks ready to be installed (excluding OSR).
+  // Queue of recompilation tasks ready to be installed.
   std::deque<TurbofanCompilationJob*> queue_;
 
   // Used for job based recompilation which has multiple producers on
@@ -193,6 +198,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void WaitUntilCompilationJobsDone();
 
   void InstallOptimizedFunctions();
+  void InstallOptimizedFunctionsIfReady(
+      DirectHandle<JSFunction> function,
+      std::optional<BytecodeOffset> osr_offset);
 
   // Install generated builtins in the output queue in contiguous finalization
   // order, starting with installed_count. Returns the finalization order of the

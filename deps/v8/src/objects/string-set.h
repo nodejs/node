@@ -30,6 +30,8 @@ class StringSetShape : public BaseShape<Tagged<String>> {
 EXTERN_DECLARE_HASH_TABLE(StringSet, StringSetShape)
 
 V8_OBJECT class StringSet : public HashTable<StringSet, StringSetShape> {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   V8_EXPORT_PRIVATE static Handle<StringSet> New(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<StringSet> Add(Isolate* isolate,

@@ -32,7 +32,7 @@ assert_test_non_literal_value(test_non_literal_value());
 %OptimizeMaglevOnNextCall(test_non_literal_value);
 assert_test_non_literal_value(test_non_literal_value());
 assertOptimized(test_non_literal_value);
-assertTrue(isMaglevved(test_non_literal_value));
+assertMaglevved(test_non_literal_value);
 assert_test_non_literal_value(test_non_literal_value());
 %OptimizeFunctionOnNextCall(test_non_literal_value);
 assert_test_non_literal_value(test_non_literal_value());

@@ -18,6 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/time/civil_time.h"
 #include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"
 
@@ -245,6 +246,18 @@ TEST(ParseTime, ErrorCases) {
   EXPECT_THAT(err, HasSubstr("Illegal trailing data"));
   EXPECT_FALSE(absl::ParseTime("%Ez", "-00:-0", &t, &err)) << err;
   EXPECT_THAT(err, HasSubstr("Illegal trailing data"));
+
+  // Check that we do not accept strings with embedded NULs.
+  EXPECT_FALSE(
+      absl::ParseTime("%Y", std::string("2026\0payload", 12), &t, &err));
+  EXPECT_THAT(err, HasSubstr("Illegal trailing data"));
+
+  // High-bit character test for sign-extension bugs.
+  for (int i = 128; i < 256; ++i) {
+    char c = static_cast<char>(i);
+    std::string input = std::string(1, c) + "2015-01-02";
+    EXPECT_FALSE(absl::ParseTime("%Y-%m-%d", input, &t, &err));
+  }
 }
 
 TEST(ParseTime, ExtendedSeconds) {

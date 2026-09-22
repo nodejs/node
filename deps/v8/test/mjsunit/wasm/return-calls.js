@@ -204,3 +204,52 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(expect, module.exports.main(...inputs));
   }
 })();
+
+(function TestReturnCallDropManyStackParams() {
+  print(arguments.callee.name);
+  // Tail-call from a function with many stack parameters to one with none, so
+  // that the stack-pointer adjustment does not fit in a small immediate on all
+  // platforms.
+  const kNumParams = 320;
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction('callee', kSig_i_v).addBody([
+    kExprI32Const, 42
+  ]);
+
+  const callerSig =
+      makeSig(new Array(kNumParams).fill(kWasmI64), [kWasmI32]);
+  let caller = builder.addFunction('caller', callerSig).addBody([
+    kExprReturnCall, callee.index
+  ]);
+
+  let body = [];
+  for (let i = 0; i < kNumParams; ++i) body.push(...wasmI64Const(i));
+  body.push(kExprCallFunction, caller.index);
+  builder.addFunction('main', kSig_i_v).addBody(body).exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(42, instance.exports.main());
+})();
+
+(function TestReturnCallAddManyStackParams() {
+  print(arguments.callee.name);
+  // Tail-call from a function with no parameters to one with many stack
+  // parameters.
+  const kNumParams = 320;
+  let builder = new WasmModuleBuilder();
+
+  const calleeSig =
+      makeSig(new Array(kNumParams).fill(kWasmI64), [kWasmI32]);
+  let callee = builder.addFunction('callee', calleeSig).addBody([
+    kExprLocalGet, ...wasmUnsignedLeb(kNumParams - 1), kExprI32ConvertI64
+  ]);
+
+  let body = [];
+  for (let i = 0; i < kNumParams; ++i) body.push(...wasmI64Const(i));
+  body.push(kExprReturnCall, callee.index);
+  builder.addFunction('main', kSig_i_v).addBody(body).exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(kNumParams - 1, instance.exports.main());
+})();

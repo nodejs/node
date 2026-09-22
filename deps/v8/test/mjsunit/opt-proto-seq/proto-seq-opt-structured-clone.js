@@ -35,7 +35,7 @@ assert_test_structured_clone(test_structured_clone());
 %OptimizeMaglevOnNextCall(test_structured_clone);
 assert_test_structured_clone(test_structured_clone());
 assertOptimized(test_structured_clone);
-assertTrue(isMaglevved(test_structured_clone));
+assertMaglevved(test_structured_clone);
 assert_test_structured_clone(test_structured_clone());
 %OptimizeFunctionOnNextCall(test_structured_clone);
 assert_test_structured_clone(test_structured_clone());

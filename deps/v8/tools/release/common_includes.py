@@ -624,16 +624,16 @@ class Step(GitRecipesMixin):
     output = ""
     for line in FileToText(version_file).splitlines():
       if line.startswith("#define V8_MAJOR_VERSION"):
-        line = re.sub("\d+$", self[prefix + "major"], line)
+        line = re.sub(r"\d+$", self[prefix + "major"], line)
       elif line.startswith("#define V8_MINOR_VERSION"):
-        line = re.sub("\d+$", self[prefix + "minor"], line)
+        line = re.sub(r"\d+$", self[prefix + "minor"], line)
       elif line.startswith("#define V8_BUILD_NUMBER"):
-        line = re.sub("\d+$", self[prefix + "build"], line)
+        line = re.sub(r"\d+$", self[prefix + "build"], line)
       elif line.startswith("#define V8_PATCH_LEVEL"):
-        line = re.sub("\d+$", self[prefix + "patch"], line)
+        line = re.sub(r"\d+$", self[prefix + "patch"], line)
       elif (self[prefix + "candidate"] and
             line.startswith("#define V8_IS_CANDIDATE_VERSION")):
-        line = re.sub("\d+$", self[prefix + "candidate"], line)
+        line = re.sub(r"\d+$", self[prefix + "candidate"], line)
       output += "%s\n" % line
     TextToFile(output, version_file)
 

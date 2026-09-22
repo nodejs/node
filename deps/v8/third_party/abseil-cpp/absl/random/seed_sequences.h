@@ -26,6 +26,7 @@
 #define ABSL_RANDOM_SEED_SEQUENCES_H_
 
 #include <iterator>
+#include <ostream>
 #include <random>
 
 #include "absl/base/config.h"

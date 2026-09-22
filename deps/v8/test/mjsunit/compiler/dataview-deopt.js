@@ -58,3 +58,17 @@ warmupWrite(writeUint8);
 assertOptimized(writeUint8);
 writeUint8(1.5, 0); // Doesn't deopt.
 assertOptimized(writeUint8);
+
+function writeUint32(offset, value) {
+  dataview.setUint32(offset, value);
+}
+
+warmupWrite(writeUint32);
+assertOptimized(writeUint32);
+writeUint32(0.5, 0);  // Deopts.
+assertUnoptimized(writeUint32);
+
+warmupWrite(writeUint32);
+assertOptimized(writeUint32);
+writeUint32(1.5, 0);  // Doesn't deopt.
+assertOptimized(writeUint32);

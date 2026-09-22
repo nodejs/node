@@ -2,9 +2,9 @@ Name: fast_float
 URL: https://github.com/fastfloat/fast_float
 Version: 7.0.0
 Revision: cb1d42aaa1e14b09e1452cfdef373d051b8c02a4
-Update Mechanism: Manual
+Update Mechanism: Autoroll
 License: MIT
-License File: src/LICENSE-MIT
+License File: //third_party/fast_float/src/LICENSE-MIT
 Shipped: yes
 Security Critical: yes
 CPEPrefix: unknown

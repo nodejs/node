@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/handles/handles-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"  // TODO(jkummerow): Just smi-inl.h.
 #include "src/objects/tagged-index.h"
 

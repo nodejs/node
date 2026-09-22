@@ -110,7 +110,7 @@ class V8_NODISCARD PerThreadAssertScope
     ScopeType& operator=(const ScopeType&) = delete;                 \
     V8_EXPORT_PRIVATE ~ScopeType();                                  \
                                                                      \
-    static bool IsAllowed(Isolate* isolate);                         \
+    V8_EXPORT_PRIVATE static bool IsAllowed(Isolate* isolate);       \
                                                                      \
     V8_EXPORT_PRIVATE static void Open(Isolate* isolate,             \
                                        bool* was_execution_allowed); \
@@ -236,6 +236,9 @@ using AllowCodeAllocation =
 
 // Scope to document where we do not expect garbage collections. It differs from
 // DisallowHeapAllocation by also forbidding safepoints.
+//
+// Note: Consider marking it as `V8_LIFETIME_BOUND` when using it as a function
+// parameter, when the result must not outlive the scope.
 using DisallowGarbageCollection =
     PerThreadAssertScopeDebugOnly<false, SAFEPOINTS_ASSERT,
                                   HEAP_ALLOCATION_ASSERT>;

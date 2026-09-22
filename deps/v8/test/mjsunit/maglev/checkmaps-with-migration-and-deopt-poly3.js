@@ -33,9 +33,9 @@ magnitude(unrelated);
 %OptimizeMaglevOnNextCall(magnitude);
 magnitude(newObject);
 
-assertTrue(isMaglevved(magnitude));
+assertMaglevved(magnitude);
 
 // It should now migrate old objects.
 magnitude(anotherOldObject);
 
-assertTrue(isMaglevved(magnitude));
+assertMaglevved(magnitude);

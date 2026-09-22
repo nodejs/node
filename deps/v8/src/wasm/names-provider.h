@@ -106,7 +106,6 @@ class CanonicalTypeNamesProvider {
  public:
   CanonicalTypeNamesProvider() = default;
 
-  void DecodeNameSections();
   void DecodeNames(NativeModule* native_module);
 
   void PrintTypeName(StringBuilder& out, CanonicalTypeIndex type_index,
@@ -120,10 +119,10 @@ class CanonicalTypeNamesProvider {
   size_t EstimateCurrentMemoryConsumption() const;
 
  private:
+  void DecodeNameSections();
+
   // TODO(jkummerow): Use Zone allocation for the character payloads?
   using StringT = base::OwnedVector<char>;
-
-  size_t DetectInlineStringThreshold();
 
   std::vector<StringT> type_names_;
   std::map<uint32_t, std::vector<StringT>> field_names_;

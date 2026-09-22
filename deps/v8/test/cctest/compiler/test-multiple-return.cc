@@ -122,7 +122,7 @@ Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
-  auto module = std::make_shared<wasm::WasmModule>(wasm::kWasmOrigin);
+  auto module = std::make_shared<wasm::WasmModule>();
   module->num_declared_functions = 1;
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
@@ -198,7 +198,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
               ->AllocateAndInitializeEntry(wasm_code->instruction_start(),
                                            wasm_code->signature_hash());
 
-      RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
+      RawMachineAssemblerTester<int32_t> mt;
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
       call_inputs[0] = mt.IntPtrConstant(code_pointer.value());

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <bitset>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -195,7 +196,7 @@ auto MakeLongTuple() {
   auto t6 = std::tuple_cat(t5, t5);
   // Ideally this would be much larger, but some configurations can't handle
   // making tuples with that many elements. They break inside std::tuple itself.
-  static_assert(std::tuple_size<decltype(t6)>::value == 32, "");
+  static_assert(std::tuple_size_v<decltype(t6)> == 32);
   return t6;
 }
 
@@ -247,6 +248,12 @@ MAKE_BENCHMARK(AbslHash, VectorInt64_1000, Vector<int64_t>(1000));
 MAKE_BENCHMARK(AbslHash, VectorDouble_10, Vector<double>(10));
 MAKE_BENCHMARK(AbslHash, VectorDouble_100, Vector<double>(100));
 MAKE_BENCHMARK(AbslHash, VectorDouble_1000, Vector<double>(1000));
+MAKE_BENCHMARK(AbslHash, VectorBool_10, Vector<bool>(10));
+MAKE_BENCHMARK(AbslHash, VectorBool_100, Vector<bool>(100));
+MAKE_BENCHMARK(AbslHash, VectorBool_1000, Vector<bool>(1000));
+MAKE_BENCHMARK(AbslHash, Bitset_10, std::bitset<10>());
+MAKE_BENCHMARK(AbslHash, Bitset_100, std::bitset<100>());
+MAKE_BENCHMARK(AbslHash, Bitset_1000, std::bitset<1000>());
 MAKE_BENCHMARK(AbslHash, FlatHashSetInt64_10, FlatHashSet<int64_t>(10));
 MAKE_BENCHMARK(AbslHash, FlatHashSetInt64_100, FlatHashSet<int64_t>(100));
 MAKE_BENCHMARK(AbslHash, FlatHashSetInt64_1000, FlatHashSet<int64_t>(1000));
@@ -294,6 +301,14 @@ MAKE_BENCHMARK(TypeErasedAbslHash, VectorDouble_100,
                std::vector<double>(100, 1.1));
 MAKE_BENCHMARK(TypeErasedAbslHash, VectorDouble_1000,
                std::vector<double>(1000, 1.1));
+MAKE_BENCHMARK(TypeErasedAbslHash, VectorBool_10, std::vector<bool>(10, true));
+MAKE_BENCHMARK(TypeErasedAbslHash, VectorBool_100,
+               std::vector<bool>(100, true));
+MAKE_BENCHMARK(TypeErasedAbslHash, VectorBool_1000,
+               std::vector<bool>(1000, true));
+MAKE_BENCHMARK(TypeErasedAbslHash, Bitset_10, std::bitset<10>());
+MAKE_BENCHMARK(TypeErasedAbslHash, Bitset_100, std::bitset<100>());
+MAKE_BENCHMARK(TypeErasedAbslHash, Bitset_1000, std::bitset<1000>());
 MAKE_BENCHMARK(TypeErasedAbslHash, FlatHashSetInt64_10,
                FlatHashSet<int64_t>(10));
 MAKE_BENCHMARK(TypeErasedAbslHash, FlatHashSetInt64_100,
@@ -327,9 +342,9 @@ namespace {
 // measurements.
 static constexpr size_t kEntropySize = 16 << 10;
 static char entropy[kEntropySize + 1024];
-ABSL_ATTRIBUTE_UNUSED static const bool kInitialized = [] {
+[[maybe_unused]] static const bool kInitialized = [] {
   absl::BitGen gen;
-  static_assert(sizeof(entropy) % sizeof(uint64_t) == 0, "");
+  static_assert(sizeof(entropy) % sizeof(uint64_t) == 0);
   for (int i = 0; i != sizeof(entropy); i += sizeof(uint64_t)) {
     auto rand = absl::Uniform<uint64_t>(gen);
     memcpy(&entropy[i], &rand, sizeof(uint64_t));
@@ -350,8 +365,8 @@ struct PodPairInt64 {
 
 template <class T>
 struct PodRand {
-  static_assert(std::is_pod<T>::value, "");
-  static_assert(kEntropySize + sizeof(T) < sizeof(entropy), "");
+  static_assert(std::is_pod_v<T>);
+  static_assert(kEntropySize + sizeof(T) < sizeof(entropy));
 
   T Get(size_t i) const {
     T v;
@@ -362,7 +377,7 @@ struct PodRand {
 
 template <size_t N>
 struct StringRand {
-  static_assert(kEntropySize + N < sizeof(entropy), "");
+  static_assert(kEntropySize + N < sizeof(entropy));
 
   absl::string_view Get(size_t i) const {
     // This has a small bias towards small numbers. Because max N is ~200 this

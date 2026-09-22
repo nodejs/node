@@ -76,9 +76,18 @@ bool time_zone::Impl::LoadTimeZone(const std::string& name, time_zone* tz) {
   // Add the new time zone to the map.
   std::lock_guard<std::mutex> lock(TimeZoneMutex());
   if (time_zone_map == nullptr) time_zone_map = new TimeZoneImplByName;
+  if (!new_impl->zone_) {
+    // Load failed, but a successful insertion may have happened concurrently.
+    // Check it now that we have the lock. Otherwise, avoid caching negative
+    // entries to avoid unbounded growth and DoS attacks.
+    auto itr = time_zone_map->find(name);
+    const Impl* impl = (itr != time_zone_map->end()) ? itr->second : utc_impl;
+    *tz = time_zone(impl);
+    return impl != utc_impl;
+  }
   const Impl*& impl = (*time_zone_map)[name];
   if (impl == nullptr) {  // this thread won any load race
-    impl = new_impl->zone_ ? new_impl.release() : utc_impl;
+    impl = new_impl.release();
   }
   *tz = time_zone(impl);
   return impl != utc_impl;

@@ -9,6 +9,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import unittest
 
 from tempfile import TemporaryDirectory
@@ -57,6 +58,33 @@ class BaseTestCase(unittest.TestCase):
 
 
 class TestDownloadProfiles(BaseTestCase):
+  _FAKE_REVISION = '778cc4ae9ebb1973e900d4a56a16e6415492ab1d'
+
+  def _fake_call_gsutil(self, downloader, cmd, failure_hint):
+    command = ' '.join(cmd)
+    if 'by-version/0.0.0.42/' in command:
+      downloader._print_error(['gsutil', *cmd], 404, '', '', failure_hint)
+      raise SystemExit(4)
+
+    if cmd[0] == 'stat':
+      return
+
+    target_dir = pathlib.Path(cmd[-1])
+    target_dir.mkdir(parents=True, exist_ok=True)
+    match = re.search(r'by-version/([^/]+)/\*', command)
+    version = match.group(1) if match else downloader.version
+    with (target_dir / 'meta.json').open('w') as f:
+      json.dump({'version': version, 'revision': self._FAKE_REVISION}, f)
+    (target_dir / 'x64.profile').write_text('fake')
+    (target_dir / 'x86.profile').write_text('fake')
+
+  def _mock_gsutil(self):
+
+    def patched_call_gsutil(downloader, cmd, failure_hint):
+      return self._fake_call_gsutil(downloader, cmd, failure_hint)
+
+    return patch.object(
+        ProfileDownloader, '_call_gsutil', new=patched_call_gsutil)
 
   def _test_cmd(self, cmd, exitcode):
     out = io.StringIO()
@@ -76,12 +104,14 @@ class TestDownloadProfiles(BaseTestCase):
     return out.getvalue(), err.getvalue()
 
   def test_validate_profiles(self):
-    out, err = self._test_cmd(['validate', '--version', '11.1.0.0'], 0)
+    with self._mock_gsutil():
+      out, err = self._test_cmd(['validate', '--version', '11.1.0.0'], 0)
     self.assertEqual(len(out), 0)
     self.assertEqual(len(err), 0)
 
   def test_download_profiles(self):
-    out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
+    with self._mock_gsutil():
+      out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
     self.assertEqual(len(out), 0)
     self.assertEqual(len(err), 0)
     self.assertTrue(any(
@@ -103,7 +133,12 @@ class TestDownloadProfiles(BaseTestCase):
       out, err = self._test_cmd(cmd, 0)
       self.assertEqual(len(out), 0)
       self.assertEqual(len(err), 0)
-      gsutil.assert_called_once()
+      gsutil.assert_called_once_with([
+          '-m', 'cp', '-R',
+          'gs://chromium-v8-builtins-pgo/by-version/11.1.0.0/*',
+          str(self.profiles_path)
+      ], 'https://storage.googleapis.com/chromium-v8-builtins-pgo/by-version/'
+                                     '11.1.0.0 does not exist.')
 
   def test_arg_quiet(self):
     self.add_version_h_file(11, 9)
@@ -126,34 +161,102 @@ class TestDownloadProfiles(BaseTestCase):
     self.assertGreater(len(err), 0)
 
   def test_missing_profiles(self):
-    out, err = self._test_cmd(['download', '--version', '0.0.0.42'], 4)
+    with self._mock_gsutil():
+      out, err = self._test_cmd(['download', '--version', '0.0.0.42'], 4)
     self.assertEqual(len(out), 0)
     self.assertGreater(len(err), 0)
 
   def test_chromium_deps_valid_v8_revision(self):
     with (self.chromium_path / 'DEPS').open('w') as f:
-      f.write("'v8_revision': '778cc4ae9ebb1973e900d4a56a16e6415492ab1d',")
+      f.write(f"'v8_revision': '{self._FAKE_REVISION}',")
 
     cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
-    self._test_cmd(cmd, 0)
+    with self._mock_gsutil():
+      self._test_cmd(cmd, 0)
 
   def test_chromium_deps_no_file(self):
     cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
-    self._test_cmd(cmd, 7)
+    with self._mock_gsutil():
+      self._test_cmd(cmd, 7)
 
   def test_chromium_deps_no_v8_revision(self):
     with (self.chromium_path / 'DEPS').open('w') as f:
       pass
 
     cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
-    self._test_cmd(cmd, 6)
+    with self._mock_gsutil():
+      self._test_cmd(cmd, 6)
 
   def test_chromium_deps_invalid_v8_revision(self):
     with (self.chromium_path / 'DEPS').open('w') as f:
       f.write("'v8_revision': 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',")
 
     cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
-    self._test_cmd(cmd, 5)
+    with self._mock_gsutil():
+      self._test_cmd(cmd, 5)
+
+  def test_call_gsutil_respects_quiet_mode(self):
+    cmd = ['stat', 'gs://test/meta.json']
+    failure_hint = 'hint'
+    cases = [
+        {
+            'name': 'success_quiet_true',
+            'quiet': True
+        },
+        {
+            'name': 'success_quiet_false',
+            'quiet': False
+        },
+        {
+            'name': 'quiet_failure_includes_stdout_stderr',
+            'quiet': True,
+            'check_call_return': (1, 'quiet-out', 'quiet-err'),
+            'expect_exit': 4,
+            'expect_in_stderr': ['stdout:', 'stderr:'],
+        },
+        {
+            'name': 'default_failure_omits_stdout_stderr',
+            'quiet': False,
+            'call_return': 1,
+            'expect_exit': 4,
+            'expect_not_in_stderr': ['stdout:', 'stderr:'],
+        },
+    ]
+    for case in cases:
+      with (
+          self.subTest(case['name']),
+          patch.object(ProfileDownloader, '_import_gsutil'),
+          patch('download_profiles.gcs_download', create=True) as gcs_download,
+      ):
+        gsutil = gcs_download.Gsutil.return_value
+        gsutil.check_call.return_value = case.get('check_call_return',
+                                                  (0, 'out', 'err'))
+        gsutil.call.return_value = case.get('call_return', 0)
+        args = ['download', '--version', '11.1.0.0']
+        if case['quiet']:
+          args.append('--quiet')
+        downloader = ProfileDownloader(args)
+        expect_exit = case.get('expect_exit')
+        if expect_exit is None:
+          downloader._call_gsutil(cmd, failure_hint)
+        else:
+          err = io.StringIO()
+          with contextlib.redirect_stderr(err), self.assertRaises(
+              SystemExit) as se:
+            downloader._call_gsutil(cmd, failure_hint)
+          self.assertEqual(se.exception.code, expect_exit)
+          stderr = err.getvalue()
+          for pattern in case.get('expect_in_stderr', []):
+            self.assertIn(pattern, stderr)
+          for pattern in case.get('expect_not_in_stderr', []):
+            self.assertNotIn(pattern, stderr)
+
+        if case['quiet']:
+          gsutil.check_call.assert_called_once_with(*cmd)
+          gsutil.call.assert_not_called()
+        else:
+          gsutil.call.assert_called_once_with(*cmd)
+          gsutil.check_call.assert_not_called()
 
 
 class TestRetrieveVersion(BaseTestCase):

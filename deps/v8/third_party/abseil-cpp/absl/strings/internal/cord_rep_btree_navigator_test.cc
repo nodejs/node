@@ -14,6 +14,7 @@
 
 #include "absl/strings/internal/cord_rep_btree_navigator.h"
 
+#include <cstddef>
 #include <string>
 #include <vector>
 

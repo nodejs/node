@@ -1,0 +1,361 @@
+Checks that the inspector describes a deferred module namespace without evaluating the module. Until the module runs, the namespace reports no properties at all -- reading an export, or even establishing its enumerability, would evaluate the module -- and [[ModuleStatus]] describes it instead.
+globalThis.deferredEvaluated before inspecting: undefined
+
+RemoteObject with preview for the deferred namespace:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : linked
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}
+globalThis.deferredEvaluated after building the preview: undefined
+
+The same description through Runtime.awaitPromise:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : linked
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}
+globalThis.deferredEvaluated after Runtime.awaitPromise: undefined
+
+The same description through Runtime.runScript:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : linked
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}
+globalThis.deferredEvaluated after Runtime.runScript: undefined
+
+Runtime.getProperties on the deferred namespace:
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                value : {
+                    type : string
+                    value : linked
+                }
+            }
+        ]
+        result : [
+        ]
+    }
+}
+globalThis.deferredEvaluated after Runtime.getProperties: undefined
+
+Forcing evaluation through Object.keys:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : constExport,fnExport,letExport
+        }
+    }
+}
+globalThis.deferredEvaluated after forcing evaluation: true
+
+RemoteObject with preview once evaluated:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : evaluated
+            }
+            [1] : {
+                name : constExport
+                type : number
+                value : 1
+            }
+            [2] : {
+                name : fnExport
+                type : function
+                value : 
+            }
+            [3] : {
+                name : letExport
+                type : number
+                value : 2
+            }
+            [4] : {
+                name : Symbol(Symbol.toStringTag)
+                type : string
+                value : Deferred Module
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}
+
+Runtime.getProperties once evaluated:
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                value : {
+                    type : string
+                    value : evaluated
+                }
+            }
+        ]
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : true
+                isOwn : true
+                name : constExport
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : true
+                isOwn : true
+                name : fnExport
+                value : {
+                    className : Function
+                    description : function fnExport() {}
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : false
+                enumerable : true
+                isOwn : true
+                name : letExport
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : Symbol(Symbol.toStringTag)
+                symbol : {
+                    description : Symbol(Symbol.toStringTag)
+                    objectId : <objectId>
+                    type : symbol
+                }
+                value : {
+                    type : string
+                    value : Deferred Module
+                }
+                writable : false
+            }
+        ]
+    }
+}
+
+A deferred namespace nested in another object:
+{
+    className : Object
+    description : Object
+    objectId : <objectId>
+    preview : {
+        description : Object
+        overflow : false
+        properties : [
+            [0] : {
+                name : deferredNs
+                subtype : deferredmodule
+                type : object
+                value : Deferred Module
+            }
+        ]
+        type : object
+    }
+    type : object
+}
+
+A module with no exports:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : linked
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}
+globalThis.sideEffectOnlyEvaluated after building the preview: undefined
+
+Object.keys forces evaluation with no exports to read:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : 
+        }
+    }
+}
+globalThis.sideEffectOnlyEvaluated after forcing evaluation: true
+
+A module whose body throws:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : linked
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}
+
+Forcing evaluation of the throwing module:
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 28
+            exception : {
+                className : Error
+                description : Error: module body threw     at throwing:2:7     at Object.keys (<anonymous>)     at Deferred Module.<anonymous> (<anonymous>:1:29)
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 6
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : throwing
+                    }
+                    [1] : {
+                        columnNumber : 28
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            className : Error
+            description : Error: module body threw     at throwing:2:7     at Object.keys (<anonymous>)     at Deferred Module.<anonymous> (<anonymous>:1:29)
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
+RemoteObject with preview after the module threw:
+{
+    className : Deferred Module
+    description : Deferred Module
+    objectId : <objectId>
+    preview : {
+        description : Deferred Module
+        overflow : false
+        properties : [
+            [0] : {
+                name : [[ModuleStatus]]
+                type : string
+                value : errored
+            }
+        ]
+        subtype : deferredmodule
+        type : object
+    }
+    subtype : deferredmodule
+    type : object
+}

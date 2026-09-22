@@ -124,7 +124,7 @@ Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
 #endif  // V8_COMPRESS_POINTERS
-  Address result = cage_base + static_cast<Address>(raw_value);
+  Address result = cage_base | static_cast<Address>(raw_value);
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
   return result;
 }

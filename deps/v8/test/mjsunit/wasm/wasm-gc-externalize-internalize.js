@@ -127,7 +127,7 @@ let instance = (() => {
     ])
     .exportFunc();
 
-    let array = builder.addArray(kWasmI32, true);
+    let array = builder.addArray(kWasmI32);
 
     builder.addFunction('array_producer', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([

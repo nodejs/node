@@ -7,15 +7,12 @@
 #include <iomanip>
 
 #include "src/deoptimizer/translated-state.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/casting.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data-inl.h"
 #include "src/objects/shared-function-info.h"
-
-#ifdef V8_USE_ZLIB
-#include "third_party/zlib/google/compression_utils_portable.h"
-#endif  // V8_USE_ZLIB
 
 namespace v8 {
 namespace internal {
@@ -153,25 +150,28 @@ size_t DeoptimizationLiteral::Read(base::Vector<const uint8_t> buffer,
   UNREACHABLE();
 }
 
+// TODO(375937549): Convert deopt_entry_count to uint32_t.
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
                                                    int deopt_entry_count) {
-  return TrustedCast<DeoptimizationData>(
-      isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
+  return UncheckedCast<DeoptimizationData>(
+      isolate->factory()->NewProtectedFixedArray(
+          static_cast<uint32_t>(LengthFor(deopt_entry_count))));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
                                                    int deopt_entry_count) {
-  return TrustedCast<DeoptimizationData>(
-      isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
+  return UncheckedCast<DeoptimizationData>(
+      isolate->factory()->NewProtectedFixedArray(
+          static_cast<uint32_t>(LengthFor(deopt_entry_count))));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
-  return TrustedCast<DeoptimizationData>(
+  return UncheckedCast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
-  return TrustedCast<DeoptimizationData>(
+  return UncheckedCast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 
@@ -185,12 +185,7 @@ Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {
 
 #ifdef DEBUG
 void DeoptimizationData::Verify(Handle<BytecodeArray> bytecode) const {
-#ifdef V8_USE_ZLIB
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    return;
-  }
-#endif  // V8_USE_ZLIB
-  for (int i = 0; i < DeoptCount(); ++i) {
+  for (uint32_t i = 0; i < DeoptCount(); ++i) {
     // Check the frame count and identify the bailout id of the top compilation
     // unit.
     int idx = TranslationIndex(i).value();
@@ -246,7 +241,7 @@ void print_pc(std::ostream& os, int pc) {
 }  // namespace
 
 void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
-  if (length() == 0) {
+  if (ulength().value() == 0) {
     os << "Deoptimization Input Data invalidated by lazy deoptimization\n";
     return;
   }
@@ -258,7 +253,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
     os << " " << Brief(Cast<i::SharedFunctionInfo>(info)) << "\n";
   }
   os << "\n";
-  int deopt_count = DeoptCount();
+  const uint32_t deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
 #ifdef DEBUG
@@ -269,7 +264,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
     if (v8_flags.print_code_verbose) os << "  commands";
     os << "\n";
   }
-  for (int i = 0; i < deopt_count; i++) {
+  for (uint32_t i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
        << GetBytecodeOffsetOrBuiltinContinuationId(i).ToInt() << "  "
 #ifdef DEBUG
@@ -292,30 +287,6 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
 DeoptTranslationIterator::DeoptTranslationIterator(
     base::Vector<const uint8_t> buffer, int index)
     : buffer_(buffer), index_(index) {
-#ifdef V8_USE_ZLIB
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    const int size =
-        base::ReadUnalignedValue<uint32_t>(reinterpret_cast<Address>(
-            &buffer_[DeoptimizationFrameTranslation::kUncompressedSizeOffset]));
-    uncompressed_contents_.insert(uncompressed_contents_.begin(), size, 0);
-
-    uLongf uncompressed_size = size *
-                               DeoptimizationFrameTranslation::
-                                   kDeoptimizationFrameTranslationElementSize;
-
-    CHECK_EQ(zlib_internal::UncompressHelper(
-                 zlib_internal::ZRAW,
-                 reinterpret_cast<Bytef*>(uncompressed_contents_.data()),
-                 &uncompressed_size,
-                 buffer_.begin() +
-                     DeoptimizationFrameTranslation::kCompressedDataOffset,
-                 buffer_.length()),
-             Z_OK);
-    DCHECK(index >= 0 && index < size);
-    return;
-  }
-#endif  // V8_USE_ZLIB
-  DCHECK(!v8_flags.turbo_compress_frame_translations);
   DCHECK(index >= 0 && index < buffer_.length());
   // Starting at a location other than a BEGIN would make
   // MATCH_PREVIOUS_TRANSLATION instructions not work.
@@ -326,12 +297,11 @@ DeoptTranslationIterator::DeoptTranslationIterator(
 DeoptimizationFrameTranslation::Iterator::Iterator(
     Tagged<DeoptimizationFrameTranslation> buffer, int index)
     : DeoptTranslationIterator(
-          base::Vector<uint8_t>(buffer->begin(), buffer->length()), index) {}
+          base::Vector<uint8_t>(buffer->begin(), buffer->ulength().value()),
+          index) {}
 
 int32_t DeoptTranslationIterator::NextOperand() {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    return uncompressed_contents_[index_++];
-  } else if (remaining_ops_to_use_from_previous_translation_) {
+  if (remaining_ops_to_use_from_previous_translation_) {
     int32_t value = base::VLQDecode(buffer_.begin(), &previous_index_);
     DCHECK_LT(previous_index_, index_);
     return value;
@@ -358,9 +328,7 @@ uint32_t DeoptTranslationIterator::NextUnsignedOperandAtPreviousIndex() {
 }
 
 uint32_t DeoptTranslationIterator::NextOperandUnsigned() {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    return uncompressed_contents_[index_++];
-  } else if (remaining_ops_to_use_from_previous_translation_) {
+  if (remaining_ops_to_use_from_previous_translation_) {
     return NextUnsignedOperandAtPreviousIndex();
   } else {
     uint32_t value = base::VLQDecodeUnsigned(buffer_.begin(), &index_);
@@ -370,9 +338,6 @@ uint32_t DeoptTranslationIterator::NextOperandUnsigned() {
 }
 
 TranslationOpcode DeoptTranslationIterator::NextOpcode() {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    return static_cast<TranslationOpcode>(NextOperandUnsigned());
-  }
   if (remaining_ops_to_use_from_previous_translation_) {
     --remaining_ops_to_use_from_previous_translation_;
   }
@@ -468,12 +433,8 @@ TranslationOpcode DeoptTranslationIterator::SeekNextFrame() {
 }
 
 bool DeoptTranslationIterator::HasNextOpcode() const {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    return index_ < static_cast<int>(uncompressed_contents_.size());
-  } else {
-    return index_ < buffer_.length() ||
-           remaining_ops_to_use_from_previous_translation_ > 1;
-  }
+  return index_ < buffer_.length() ||
+         remaining_ops_to_use_from_previous_translation_ > 1;
 }
 
 void DeoptTranslationIterator::SkipOpcodeAndItsOperandsAtPreviousIndex() {

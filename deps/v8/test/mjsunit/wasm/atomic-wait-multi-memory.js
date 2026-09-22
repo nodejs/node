@@ -36,7 +36,10 @@ const mem1 = new WebAssembly.Memory({initial: 2, maximum: 2, shared: true});
 
 const mem0_value = 0;
 const mem1_value = 1;
-new Uint32Array(mem1.buffer).fill(mem1_value);
+const mem1_view = new DataView(mem1.buffer);
+for (let i = 0; i < mem1.buffer.byteLength; i += 4) {
+  mem1_view.setUint32(i, mem1_value, true);
+}
 
 const imports = {
   imp: {mem0: mem0, mem1: mem1}

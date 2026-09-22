@@ -16,11 +16,21 @@
 
 #include "absl/debugging/internal/examine_stack.h"
 
+#include <csignal>
+#include <cstdint>
+#include <cstdio>
+#include <iterator>
+
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
+#include "absl/debugging/stacktrace.h"
+#include "absl/debugging/symbolize.h"
+
 #ifndef _WIN32
 #include <unistd.h>
 #endif
-
-#include "absl/base/config.h"
 
 #ifdef ABSL_HAVE_MMAP
 #include <sys/mman.h>
@@ -32,15 +42,6 @@
 #if defined(__linux__) || defined(__APPLE__)
 #include <sys/ucontext.h>
 #endif
-
-#include <csignal>
-#include <cstdio>
-
-#include "absl/base/attributes.h"
-#include "absl/base/internal/raw_logging.h"
-#include "absl/base/macros.h"
-#include "absl/debugging/stacktrace.h"
-#include "absl/debugging/symbolize.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -149,10 +150,6 @@ void RegisterDebugStackTraceHook(SymbolizeUrlEmitter hook) {
   debug_stack_trace_hook = hook;
 }
 
-SymbolizeUrlEmitterLegacy GetDebugStackTraceHookLegacy() {
-  return debug_stack_trace_hook;
-}
-
 SymbolizeUrlEmitter GetDebugStackTraceHook() { return debug_stack_trace_hook; }
 
 // Returns the program counter from signal context, nullptr if
@@ -171,7 +168,7 @@ void* GetProgramCounter(void* const vuc) {
 #elif defined(__hppa__)
     return reinterpret_cast<void*>(context->uc_mcontext.sc_iaoq[0]);
 #elif defined(__i386__)
-    if (14 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs))
+    if (14 < std::size(context->uc_mcontext.gregs))
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[14]);
 #elif defined(__ia64__)
     return reinterpret_cast<void*>(context->uc_mcontext.sc_ip);
@@ -196,7 +193,7 @@ void* GetProgramCounter(void* const vuc) {
 #elif defined(__sparc__) && defined(__arch64__)
     return reinterpret_cast<void*>(context->uc_mcontext.mc_gregs[19]);
 #elif defined(__x86_64__)
-    if (16 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs))
+    if (16 < std::size(context->uc_mcontext.gregs))
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[16]);
 #elif defined(__e2k__)
     return reinterpret_cast<void*>(context->uc_mcontext.cr0_hi);
@@ -313,7 +310,7 @@ void DumpStackTrace(int min_dropped_frames, int max_num_frames,
 
   auto hook = GetDebugStackTraceHook();
   if (hook != nullptr) {
-    (*hook)(stack, depth, writer, writer_arg);
+    hook(stack, depth, /*crash_pc=*/nullptr, writer, writer_arg);
   }
 
   if (allocated_bytes != 0) Deallocate(stack, allocated_bytes);

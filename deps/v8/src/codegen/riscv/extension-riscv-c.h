@@ -57,6 +57,23 @@ class AssemblerRISCVC : public AssemblerRiscvBase {
   void c_sdsp(Register rs2, uint16_t uimm9);
 #endif
 
+  // Zcb extension.
+  void c_lbu(Register rd, Register rs1, uint16_t uimm);
+  void c_lhu(Register rd, Register rs1, uint16_t uimm);
+  void c_lh(Register rd, Register rs1, uint16_t uimm);
+  void c_sb(Register rs2, Register rs1, uint16_t uimm);
+  void c_sh(Register rs2, Register rs1, uint16_t uimm);
+  void c_mul(Register rd, Register rs2);
+  void c_zext_b(Register rd);
+  void c_sext_b(Register rd);
+  void c_zext_h(Register rd);
+  void c_sext_h(Register rd);
+  void c_not(Register rd);
+#ifdef V8_TARGET_ARCH_RISCV64
+  void c_zext_w(Register rd);
+  void c_sext_w(Register rd) { c_addiw(rd, 0); }
+#endif
+
   int CJumpOffset(Instr instr);
 
   static bool IsCBranch(Instr instr);

@@ -33,7 +33,7 @@ def main():
   if not os.path.isfile(OUTPUT):
     sys.exit("Output file {} does not exist; run this script in a v8 checkout."
              .format(OUTPUT))
-  regexp = re.compile('^#define (\w+)')
+  regexp = re.compile(r'^#define (\w+)')
   seen = set()
   with open(INPUT, 'r') as infile, open(OUTPUT, 'w') as outfile:
     outfile.write(HEADER)

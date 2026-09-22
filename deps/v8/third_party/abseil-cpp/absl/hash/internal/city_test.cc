@@ -15,9 +15,13 @@
 #include "absl/hash/internal/city.h"
 
 #include <string.h>
+
+#include <cstdint>
 #include <cstdio>
 #include <iostream>
+
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

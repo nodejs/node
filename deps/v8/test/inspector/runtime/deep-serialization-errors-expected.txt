@@ -1,0 +1,106 @@
+RemoteObject.deepSerializedValueErrors
+
+Running test: ObjectThrowingGetter
+testing expression: ({ get foo() { throw new Error('getter error'); } })
+Runtime.evaluate
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+
+Running test: ArrayThrowingGetter
+testing expression: (()=>{ const a = [1]; Object.defineProperty(a, '1', { get() { throw new Error('array element error'); }, enumerable: true }); return a; })()
+Runtime.evaluate
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+
+Running test: NestedThrowingGetter
+testing expression: ({ a: { b: [ { get c() { throw new Error('nested error'); } } ] } })
+Runtime.evaluate
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+
+Running test: SpecialCharacterKeyThrowingGetter
+testing expression: ({ 'invalid identifier!': { get ['another special']() { throw new Error('special key error'); } } })
+Runtime.evaluate
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+
+Running test: NumericKeyThrowingGetter
+testing expression: ({ '0': { get ['1']() { throw new Error('numeric key error'); } } })
+Runtime.evaluate
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+...no deepSerializedValue...
+{
+    error : {
+        code : -32000
+        message : exception during deep serialization
+    }
+    id : <messageId>
+}

@@ -36,7 +36,7 @@ assert_test_different_objects(test_different_objects());
 %OptimizeMaglevOnNextCall(test_different_objects);
 assert_test_different_objects(test_different_objects());
 assertOptimized(test_different_objects);
-assertTrue(isMaglevved(test_different_objects));
+assertMaglevved(test_different_objects);
 assert_test_different_objects(test_different_objects());
 %OptimizeFunctionOnNextCall(test_different_objects);
 assert_test_different_objects(test_different_objects());

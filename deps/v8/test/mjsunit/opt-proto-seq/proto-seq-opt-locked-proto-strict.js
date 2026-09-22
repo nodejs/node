@@ -28,7 +28,12 @@ function test_locked_proto() {
   return new test_function();
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_locked_proto(obj) {
+  keep_alive.push(obj);
   assertEquals(obj.lock, 1);
   assertEquals(obj.before, 4);
   assertEquals(obj.after, 3);
@@ -45,7 +50,7 @@ assert_test_locked_proto(test_locked_proto());
 %OptimizeMaglevOnNextCall(test_locked_proto);
 assert_test_locked_proto(test_locked_proto());
 assertOptimized(test_locked_proto);
-assertTrue(isMaglevved(test_locked_proto));
+assertMaglevved(test_locked_proto);
 assert_test_locked_proto(test_locked_proto());
 %OptimizeFunctionOnNextCall(test_locked_proto);
 assert_test_locked_proto(test_locked_proto());

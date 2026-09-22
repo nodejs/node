@@ -27,9 +27,9 @@ assertEquals(o.bar(), 42);
 
 %OptimizeMaglevOnNextCall(o.bar);
 assertEquals(o.bar(), 42);
-assertTrue(isMaglevved(o.bar));
+assertMaglevved(o.bar);
 
 // This should deopt.
 o.__proto__.__proto__ = new C();
 assertEquals(o.bar(), 24);
-assertFalse(isMaglevved(o.bar));
+assertNotMaglevved(o.bar);

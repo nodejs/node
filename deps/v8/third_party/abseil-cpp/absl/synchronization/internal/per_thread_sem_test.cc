@@ -14,19 +14,25 @@
 
 #include "absl/synchronization/internal/per_thread_sem.h"
 
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>  // NOLINT(build/c++11)
+#include <cstdint>
+#include <cstdio>
 #include <functional>
 #include <limits>
-#include <mutex>               // NOLINT(build/c++11)
+#include <mutex>  // NOLINT(build/c++11)
 #include <string>
-#include <thread>              // NOLINT(build/c++11)
+#include <thread>  // NOLINT(build/c++11)
 
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/strings/str_cat.h"
+#include "absl/synchronization/internal/create_thread_identity.h"
+#include "absl/synchronization/internal/kernel_timeout.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
@@ -132,9 +138,9 @@ class PerThreadSemTest : public testing::Test {
     return PerThreadSem::Wait(t);
   }
 
-  // convenience overload
+  // absl::Time overload, absolute expiry
   static bool Wait(absl::Time t) {
-    return Wait(KernelTimeout(t));
+    return PerThreadSem::WaitAbsolute(t);
   }
 
   static void Tick(base_internal::ThreadIdentity *identity) {

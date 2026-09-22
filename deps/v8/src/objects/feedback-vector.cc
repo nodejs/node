@@ -15,7 +15,10 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/dictionary.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/map-inl.h"
@@ -218,29 +221,32 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllocationType allocation) {
-  int length = shared->feedback_metadata()->create_closure_slot_count();
-  if (length == 0) {
+  const int int_length =
+      shared->feedback_metadata()->create_closure_slot_count();
+  if (int_length == 0) {
     return isolate->factory()->empty_closure_feedback_cell_array();
   }
+  DCHECK_GE(int_length, 0);
+  const uint32_t length = static_cast<uint32_t>(int_length);
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
     auto initial_code = BUILTIN_CODE(isolate, CompileLazy);
-    FeedbackCell::AllocateAndInstallJSDispatchHandle(
-        cell, FeedbackCell::kDispatchHandleOffset, isolate, parameter_count,
-        initial_code);
+    HeapObject::AllocateAndInstallJSDispatchHandle(
+        cell, offsetof(FeedbackCell, dispatch_handle_), isolate,
+        parameter_count, initial_code);
     cells.push_back(cell);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
   auto result = Allocate(isolate, length, &no_gc, allocation);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     result->set(i, *cells[i]);
   }
 
@@ -263,7 +269,7 @@ Handle<FeedbackVector> FeedbackVector::New(
   Handle<FeedbackVector> vector = factory->NewFeedbackVector(
       shared, closure_feedback_cell_array, parent_feedback_cell);
 
-  DCHECK_EQ(vector->length(), slot_count);
+  DCHECK_EQ(vector->length().value(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
   DCHECK_EQ(vector->invocation_count(), 0);
@@ -283,8 +289,11 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
+        vector->Set(slot, kClearedWeakValue, SKIP_WRITE_BARRIER);
+        break;
       case FeedbackSlotKind::kJumpLoop:
         vector->Set(slot, kClearedWeakValue, SKIP_WRITE_BARRIER);
+        extra_value = Smi::zero();
         break;
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
@@ -398,10 +407,17 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   DCHECK(!slot.IsInvalid());
+
+  // The synchronization mechanism to use here depends on the slot size:
+  DCHECK_EQ(GetKind(slot), FeedbackSlotKind::kJumpLoop);
+  DCHECK_GT(FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kJumpLoop), 1);
+
   auto current = GetOptimizedOsrCode(isolate, {}, slot);
   if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
+
+  base::MutexGuard mutex_guard(isolate->feedback_vector_access());
   Set(slot, MakeWeak(code->wrapper()));
   set_maybe_has_optimized_osr_code(true, code->kind());
 }
@@ -427,7 +443,7 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
 
     Tagged<MaybeObject> obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      FeedbackNexus nexus(isolate, *this, slot);
+      FeedbackNexus nexus(isolate, this, slot);
       feedback_updated |= nexus.Clear(behavior);
     }
   }
@@ -479,15 +495,43 @@ void NexusConfig::SetFeedbackPair(Tagged<FeedbackVector> vector,
                                   Tagged<MaybeObject> feedback_extra,
                                   WriteBarrierMode mode_extra) const {
   CHECK(can_write());
-  CHECK_GT(vector->length(), start_slot.WithOffset(1).ToInt());
+  CHECK_GT(vector->length().value(), start_slot.WithOffset(1).ToInt());
+
+  // This function (and locking the feedback_vector_access mutex) only makes
+  // sense for slots longer than 1.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, vector->GetKind(start_slot));
+  DCHECK_GE(FeedbackMetadata::GetSlotSize(vector->GetKind(start_slot)), 2);
+
   base::MutexGuard mutex_guard(isolate()->feedback_vector_access());
   vector->Set(start_slot, feedback, mode);
+  vector->Set(start_slot.WithOffset(1), feedback_extra, mode_extra);
+}
+
+void NexusConfig::SetFeedbackExtra(Tagged<FeedbackVector> vector,
+                                   FeedbackSlot start_slot,
+                                   Tagged<MaybeObject> feedback_extra,
+                                   WriteBarrierMode mode_extra) const {
+  CHECK(can_write());
+  CHECK_GT(vector->length().value(), start_slot.WithOffset(1).ToInt());
+
+  // This function (and locking the feedback_vector_access mutex) only makes
+  // sense for slots longer than 1.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, vector->GetKind(start_slot));
+  DCHECK_GE(FeedbackMetadata::GetSlotSize(vector->GetKind(start_slot)), 2);
+
+  base::MutexGuard mutex_guard(isolate()->feedback_vector_access());
   vector->Set(start_slot.WithOffset(1), feedback_extra, mode_extra);
 }
 
 std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>>
 NexusConfig::GetFeedbackPair(Tagged<FeedbackVector> vector,
                              FeedbackSlot slot) const {
+  // This function (and locking the feedback_vector_access mutex) only makes
+  // sense for slots longer than 1.
+  DCHECK_NE(FeedbackSlotKind::kInvalid, vector->GetKind(slot, kAcquireLoad));
+  DCHECK_GE(FeedbackMetadata::GetSlotSize(vector->GetKind(slot, kAcquireLoad)),
+            2);
+
   base::MutexGuardIf guard(isolate()->feedback_vector_access(),
                            mode() == BackgroundThread);
   Tagged<MaybeObject> feedback = vector->Get(slot);
@@ -518,7 +562,7 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
-DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
+DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(uint32_t length) {
   DCHECK(config()->can_write());
   DirectHandle<WeakFixedArray> array =
       config()->isolate()->factory()->NewWeakFixedArray(length);
@@ -557,7 +601,8 @@ void FeedbackNexus::ConfigureUninitialized() {
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
     case FeedbackSlotKind::kJumpLoop:
-      SetFeedback(kClearedWeakValue, SKIP_WRITE_BARRIER);
+      SetFeedback(kClearedWeakValue, SKIP_WRITE_BARRIER, Smi::zero(),
+                  SKIP_WRITE_BARRIER);
       break;
     default:
       UNREACHABLE();
@@ -641,6 +686,13 @@ bool FeedbackNexus::ConfigureMegamorphic() {
   return false;
 }
 
+void FeedbackNexus::ConfigureHomomorphic(
+    DirectHandle<WeakHomomorphicFixedArray> maps,
+    const MaybeObjectDirectHandle& handler) {
+  DisallowGarbageCollection no_gc;
+  SetFeedback(*maps, UPDATE_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
+}
+
 void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectDirectHandle& handler) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> sentinel = MegaDOMSentinel();
@@ -669,7 +721,7 @@ Tagged<Map> FeedbackNexus::GetFirstMap() const {
     return it.map();
   }
 
-  return Map();
+  return {};
 }
 
 InlineCacheState FeedbackNexus::ic_state() const {
@@ -726,19 +778,24 @@ InlineCacheState FeedbackNexus::ic_state() const {
           // are cleared.
           return InlineCacheState::POLYMORPHIC;
         }
+        if (IsWeakHomomorphicFixedArray(heap_object)) {
+          return InlineCacheState::HOMOMORPHIC;
+        }
         if (IsName(heap_object)) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
                  IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind()));
           Tagged<Object> extra_object = extra.GetHeapObjectAssumeStrong();
           Tagged<WeakFixedArray> extra_array =
               Cast<WeakFixedArray>(extra_object);
-          return extra_array->length() > 2 ? InlineCacheState::POLYMORPHIC
-                                           : InlineCacheState::MONOMORPHIC;
+          return extra_array->ulength().value() > 2
+                     ? InlineCacheState::POLYMORPHIC
+                     : InlineCacheState::MONOMORPHIC;
         }
       }
       // TODO(1393773): Remove once the issue is solved.
       Address vector_ptr = vector().ptr();
       config_.isolate()->PushParamsAndDie(
+          "unexpected feedback vector IC state",
           reinterpret_cast<void*>(feedback.ptr()),
           reinterpret_cast<void*>(extra.ptr()),
           reinterpret_cast<void*>(vector_ptr),
@@ -852,7 +909,8 @@ InlineCacheState FeedbackNexus::ic_state() const {
 }
 
 Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
-                                  FeedbackSlotKind kind) {
+                                  FeedbackSlotKind kind,
+                                  Tagged<Map> lookup_start_object_map) {
   if (kind != FeedbackSlotKind::kLoadProperty) return Builtin::kIllegal;
 
   if (IsSmi(feedback_extra)) {
@@ -860,10 +918,12 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
     LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(handler);
     // LoadField.
     if (handler_kind == LoadHandler::Kind::kField) {
-      int field_index = LoadHandler::FieldIndexBits::decode(handler);
+      int storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
       bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
       bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      return GetLoadICHandlerForFieldIndex(field_index, is_inobject, is_double);
+      return GetLoadICHandlerForStorageOffset(storage_offset, is_inobject,
+                                              is_double);
     }
   } else {
     Tagged<HeapObject> heap_object;
@@ -877,6 +937,14 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
           if (value == LoadHandler::KindBits::encode(
                            LoadHandler::Kind::kConstantFromPrototype)) {
             return Builtin::kLoadICConstantFromPrototypeBaseline;
+          }
+          if (IsStringMap(lookup_start_object_map) &&
+              value ==
+                  (LoadHandler::KindBits::encode(
+                       LoadHandler::Kind::kConstantFromPrototype) |
+                   LoadHandler::DoAccessCheckOnLookupStartObjectBits::encode(
+                       true))) {
+            return Builtin::kLoadICConstantFromStringPrototypeBaseline;
           }
         }
       } else if (IsCode(heap_object)) {
@@ -892,9 +960,20 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
   return Builtin::kLoadICGenericBaseline;
 }
 
+Builtin FeedbackNexus::ic_handler(Tagged<Map> lookup_start_object_map) const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kLoadProperty);
+  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind(),
+                                   lookup_start_object_map);
+}
+
 Builtin FeedbackNexus::ic_handler() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kLoadProperty);
-  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind());
+  Tagged<HeapObject> feedback;
+  if (!GetFeedback().GetHeapObjectIfWeak(&feedback) || !IsMap(feedback)) {
+    return Builtin::kLoadICGenericBaseline;
+  }
+  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind(),
+                                   Cast<Map>(feedback));
 }
 
 void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
@@ -905,17 +984,17 @@ void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
 
 #if DEBUG
 namespace {
-bool shouldStressLexicalIC(int script_context_index, int context_slot_index) {
+bool shouldStressLexicalIC(uint32_t script_context_index,
+                           int context_slot_index) {
   return (script_context_index + context_slot_index) % 100 == 0;
 }
 }  // namespace
 #endif
 
-bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
+bool FeedbackNexus::ConfigureLexicalVarMode(uint32_t script_context_index,
                                             int context_slot_index,
                                             bool immutable) {
   DCHECK(IsGlobalICKind(kind()));
-  DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
 #if DEBUG
   if (v8_flags.stress_ic &&
@@ -950,11 +1029,11 @@ void FeedbackNexus::ConfigureCloneObject(
   // TODO(olivf): Introduce a CloneHandler to deal with all the logic of this
   // state machine which is now spread between Runtime_CloneObjectIC_Miss and
   // this method.
-  auto GetHandler = [=]() {
+  auto GetHandler = [=]() -> Tagged<MaybeObject> {
     if (IsSmi(*handler_handle)) {
       return *handler_handle;
     }
-    return MakeWeak(*handler_handle);
+    return MakeWeak(Cast<MaybeWeak<HeapObject>>(*handler_handle));
   };
   DCHECK(config()->can_write());
   Isolate* isolate = config()->isolate();
@@ -990,21 +1069,23 @@ void FeedbackNexus::ConfigureCloneObject(
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
-      const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
-                               kCloneObjectPolymorphicEntrySize;
+      const uint32_t kMaxElements = v8_flags.max_valid_polymorphic_map_count *
+                                    kCloneObjectPolymorphicEntrySize;
       DirectHandle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
-      int i = 0;
-      for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
+      const uint32_t array_len = array->ulength().value();
+      uint32_t i = 0;
+      for (; i < array_len; i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
         if (feedback_map.IsCleared()) break;
         DirectHandle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
                                      isolate);
         if (cached_map.is_identical_to(source_map) ||
-            cached_map->is_deprecated())
+            cached_map->is_deprecated()) {
           break;
+        }
       }
 
-      if (i >= array->length()) {
+      if (i >= array_len) {
         if (i == kMaxElements) {
           // Transition to MEGAMORPHIC.
           Tagged<MaybeObject> sentinel = MegamorphicSentinel();
@@ -1013,12 +1094,12 @@ void FeedbackNexus::ConfigureCloneObject(
         }
 
         // Grow polymorphic feedback array.
-        DirectHandle<WeakFixedArray> new_array = CreateArrayOfSize(
-            array->length() + kCloneObjectPolymorphicEntrySize);
-        for (int j = 0; j < array->length(); ++j) {
+        DirectHandle<WeakFixedArray> new_array =
+            CreateArrayOfSize(array_len + kCloneObjectPolymorphicEntrySize);
+        for (uint32_t j = 0; j < array_len; ++j) {
           new_array->set(j, array->get(j));
         }
-        SetFeedback(*new_array);
+        SetFeedback(*new_array, UPDATE_WRITE_BARRIER, kClearedWeakValue);
         array = new_array;
       }
 
@@ -1032,6 +1113,15 @@ void FeedbackNexus::ConfigureCloneObject(
   }
 }
 
+void FeedbackNexus::ConfigureStringAddInternalizeCache(
+    Tagged<SimpleNameDictionary> cache) {
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(kind(), FeedbackSlotKind::kStringAddAndInternalize);
+  // The cache is stored in the extra slot; the binary operation hint in the
+  // main slot is left as it is.
+  SetFeedbackExtra(cache);
+}
+
 int FeedbackNexus::GetCallCount() {
   DCHECK(IsCallICKind(kind()));
 
@@ -1042,17 +1132,13 @@ int FeedbackNexus::GetCallCount() {
 }
 
 void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
-  DCHECK(IsCallICKind(kind()));
+  DCHECK(IsCallICKind(kind()) || kind() == FeedbackSlotKind::kJumpLoop);
 
   Tagged<Object> call_count = Cast<Object>(GetFeedbackExtra());
   CHECK(IsSmi(call_count));
   uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
   count = SpeculationModeField::update(count, mode);
-  Tagged<MaybeObject> feedback = GetFeedback();
-  // We could've skipped WB here (since we set the slot to the same value again)
-  // but we don't to make WB verification happy.
-  SetFeedback(feedback, UPDATE_WRITE_BARRIER, Smi::FromInt(count),
-              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(count), SKIP_WRITE_BARRIER);
 }
 
 void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
@@ -1065,12 +1151,27 @@ void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
 }
 
 SpeculationMode FeedbackNexus::GetSpeculationMode() {
-  DCHECK(IsCallICKind(kind()));
+  DCHECK(IsCallICKind(kind()) || kind() == FeedbackSlotKind::kJumpLoop);
 
   Tagged<Object> call_count = Cast<Object>(GetFeedbackExtra());
   CHECK(IsSmi(call_count));
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return SpeculationModeField::decode(value);
+}
+
+std::optional<Tagged<Code>> FeedbackNexus::GetOptimizedOsrCode(
+    IsolateForSandbox isolate) const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kJumpLoop);
+  Tagged<MaybeObject> maybe_code = GetFeedback();
+  Tagged<HeapObject> heap_object;
+  if (maybe_code.GetHeapObjectIfWeak(&heap_object)) {
+    Tagged<CodeWrapper> code_wrapper = Cast<CodeWrapper>(heap_object);
+    Tagged<Code> code = code_wrapper->code(isolate, kAcquireLoad);
+    if (!code->marked_for_deoptimization()) {
+      return code;
+    }
+  }
+  return {};
 }
 
 CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {
@@ -1113,26 +1214,27 @@ void FeedbackNexus::ConfigureMonomorphic(
 
 void FeedbackNexus::ConfigurePolymorphic(
     DirectHandle<Name> name, MapsAndHandlers const& maps_and_handlers) {
-  int receiver_count = static_cast<int>(maps_and_handlers.size());
+  const uint32_t receiver_count =
+      static_cast<uint32_t>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
-  int current = 0;
+  uint32_t insert_at_idx = 0;
 
-  for (; current < receiver_count; ++current) {
+  for (uint32_t current = 0; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];
     if (map->is_deprecated()) continue;
-    array->set(current * 2, MakeWeak(*map));
+    array->set(insert_at_idx++, MakeWeak(*map));
     DCHECK(IC::IsHandler(*handler));
-    array->set(current * 2 + 1, *handler);
+    array->set(insert_at_idx++, *handler);
   }
 
-  for (; current < receiver_count; ++current) {
+  for (uint32_t current = 0; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];
     if (!map->is_deprecated()) continue;
-    array->set(current * 2, MakeWeak(*map));
+    array->set(insert_at_idx++, MakeWeak(*map));
     DCHECK(IC::IsHandler(*handler));
-    array->set(current * 2 + 1, *handler);
+    array->set(insert_at_idx++, *handler);
   }
 
   if (name.is_null()) {
@@ -1166,6 +1268,20 @@ MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
   }
 
   return MaybeObjectHandle();
+}
+
+MaybeObjectDirectHandle FeedbackNexus::ExtractHomomorphicHandler() {
+  DCHECK_EQ(ic_state(), InlineCacheState::HOMOMORPHIC);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  Tagged<MaybeObject> maybe_handler = pair.second;
+  if (!maybe_handler.IsCleared()) {
+    MaybeObjectDirectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectDirectHandle();
 }
 
 int FeedbackNexus::ExtractMapsAndHandlers(MapsAndHandlers* maps_and_handlers,
@@ -1474,10 +1590,11 @@ void FeedbackIterator::Advance() {
 void FeedbackIterator::AdvancePolymorphic() {
   CHECK(!done_);
   CHECK_EQ(state_, kPolymorphic);
-  int length = polymorphic_feedback_->length();
+  const uint32_t length = polymorphic_feedback_->ulength().value();
   Tagged<HeapObject> heap_object;
 
-  while (index_ < length) {
+  DCHECK_GE(index_, 0);
+  while (static_cast<uint32_t>(index_) < length) {
     if (polymorphic_feedback_->get(index_).GetHeapObjectIfWeak(&heap_object)) {
       Tagged<MaybeObject> handler =
           polymorphic_feedback_->get(index_ + kHandlerOffset);

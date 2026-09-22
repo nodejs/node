@@ -15,15 +15,16 @@
 #include "absl/strings/internal/str_format/parser.h"
 
 #include <string.h>
+
 #include <algorithm>
 #include <initializer_list>
+#include <iterator>
 #include <string>
 #include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
-#include "absl/base/macros.h"
 #include "absl/strings/internal/str_format/constexpr_parser.h"
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/string_view.h"
@@ -54,7 +55,7 @@ TEST(LengthModTest, Names) {
     {__LINE__, LengthMod::t,    "t" },
     {__LINE__, LengthMod::q,    "q" },
   };
-  EXPECT_EQ(ABSL_ARRAYSIZE(kExpect), 10);
+  EXPECT_EQ(std::size(kExpect), 10);
   for (auto e : kExpect) {
     SCOPED_TRACE(e.line);
     EXPECT_EQ(e.name, LengthModToString(e.mod));
@@ -275,7 +276,7 @@ TEST_F(ConsumeUnboundConversionTest, WidthAndPrecision) {
 
 TEST_F(ConsumeUnboundConversionTest, Flags) {
   static const char kAllFlags[] = "-+ #0";
-  static const int kNumFlags = ABSL_ARRAYSIZE(kAllFlags) - 1;
+  static const int kNumFlags = std::size(kAllFlags) - 1;
   for (int rev = 0; rev < 2; ++rev) {
     for (int i = 0; i < 1 << kNumFlags; ++i) {
       std::string fmt;

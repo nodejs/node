@@ -28,6 +28,7 @@ namespace internal {
 
 class HeapObject;
 class Object;
+class ExposedTrustedObject;
 
 // Used for platforms with embedded constant pools to trigger deserialization
 // of objects found in code.
@@ -60,10 +61,7 @@ class Deserializer : public SerializerDeserializer {
   void LogScriptEvents(Tagged<Script> script);
   void LogNewMapEvents();
 
-  // Descriptor arrays are deserialized as "strong", so that there is no risk of
-  // them getting trimmed during a partial deserialization. This method makes
-  // them "weak" again after deserialization completes.
-  void WeakenDescriptorArrays();
+  void PostProcessExposedTrustedObjects();
 
   // This returns the address of an object that has been described in the
   // snapshot by object vector index.
@@ -106,6 +104,11 @@ class Deserializer : public SerializerDeserializer {
   }
   base::Vector<const DirectHandle<Script>> new_scripts() const {
     return {new_scripts_.data(), new_scripts_.size()};
+  }
+  base::Vector<const DirectHandle<ExposedTrustedObject>>
+  new_exposed_trusted_objects() const {
+    return {new_exposed_trusted_objects_.data(),
+            new_exposed_trusted_objects_.size()};
   }
 
   std::shared_ptr<BackingStore> backing_store(size_t i) {
@@ -250,6 +253,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadExtendedMapBitfieldEx(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadFixedRepeatRoot(uint8_t data, SlotAccessor slot_accessor);
 
   // A helper function for ReadData for reading external references.
@@ -293,11 +298,8 @@ class Deserializer : public SerializerDeserializer {
   DirectHandleVector<InterceptorInfo> interceptor_infos_;
   DirectHandleVector<FunctionTemplateInfo> function_template_infos_;
   DirectHandleVector<Script> new_scripts_;
+  DirectHandleVector<ExposedTrustedObject> new_exposed_trusted_objects_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
-
-  // Roots vector as those arrays are passed to Heap, see
-  // WeakenDescriptorArrays().
-  GlobalHandleVector<DescriptorArray> new_descriptor_arrays_;
 
   // Vector of allocated objects that can be accessed by a backref, by index.
   std::vector<IndirectHandle<HeapObject>> back_refs_;
@@ -368,10 +370,10 @@ enum class DeserializingUserCodeOption {
 class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(
-      Isolate* isolate, DirectHandle<String> string,
+      Isolate* isolate, DirectHandle<InternalizedString> string,
       DeserializingUserCodeOption deserializing_user_code);
   explicit StringTableInsertionKey(
-      LocalIsolate* isolate, DirectHandle<String> string,
+      LocalIsolate* isolate, DirectHandle<InternalizedString> string,
       DeserializingUserCodeOption deserializing_user_code);
 
   template <typename IsolateT>
@@ -385,13 +387,13 @@ class StringTableInsertionKey final : public StringTableKey {
                DeserializingUserCodeOption::kIsDeserializingUserCode);
   }
   void PrepareForInsertion(LocalIsolate* isolate) {}
-  V8_WARN_UNUSED_RESULT DirectHandle<String> GetHandleForInsertion(
+  V8_WARN_UNUSED_RESULT DirectHandle<InternalizedString> GetHandleForInsertion(
       Isolate* isolate) {
     return string_;
   }
 
  private:
-  DirectHandle<String> string_;
+  DirectHandle<InternalizedString> string_;
 #ifdef DEBUG
   DeserializingUserCodeOption deserializing_user_code_;
 #endif

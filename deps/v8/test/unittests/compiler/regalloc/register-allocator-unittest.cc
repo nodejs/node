@@ -115,6 +115,31 @@ TEST_F(RegisterAllocatorTest, CanAllocateThreeRegisters) {
   Allocate();
 }
 
+TEST_F(RegisterAllocatorTest, CombineFPAliasingSimd128InactiveDouble) {
+  if (kFPAliasing != AliasingKind::kCombine) return;
+  // Four double registers give two Simd128 registers under combine aliasing;
+  // the second Simd128 register aliases the two upper double registers.
+  SetNumRegs(4, 4);
+
+  StartBlock();
+  // Occupy the first Simd128 register for the whole block.
+  auto blocker = Define(FPReg(0, kSimd128));
+  // The Simd128 value below has to share resources with the fixed double
+  // definition that follows, since that double aliases the only remaining
+  // Simd128 register.
+  auto simd = EmitOI(FPReg(kNoValue, kSimd128));
+  EmitOI(FPReg(2, kFloat64));
+  Instruction* use = EmitI(Reg(simd));
+  EmitI(Reg(blocker, 0));
+  EndBlock(Last());
+
+  Allocate();
+
+  AllocatedOperand d2(LocationOperand::REGISTER, kFloat64, 2);
+  EXPECT_TRUE(use->InputAt(0)->IsAnyLocationOperand());
+  EXPECT_FALSE(use->InputAt(0)->InterferesWith(d2));
+}
+
 TEST_F(RegisterAllocatorTest, CanAllocateFPRegisters) {
   StartBlock();
   TestOperand inputs[] = {

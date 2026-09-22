@@ -1091,4 +1091,65 @@ TEST_F(ParseDeathTest, ExitOnUnrecognizedFlagPrintsHelp) {
 
 // --------------------------------------------------------------------
 
+TEST_F(ParseDeathTest, DisableFlagfileAndEnvParsing) {
+  EXPECT_EXIT(
+      ([]() {
+        absl::DisableFlagfileAndEnvParsing();
+        std::string flagfile_flag;
+        const char* args[] = {
+            "testbin",
+            "--string_flag=abc",
+            GetFlagfileFlag({{"parse_test.ff_disabled", {"--int_flag=123"}}},
+                            flagfile_flag),
+        };
+        InvokeParse(args);
+        exit(absl::GetFlag(FLAGS_int_flag) == 123 ||
+                     absl::GetFlag(FLAGS_string_flag) != "abc"
+                 ? 1
+                 : 0);
+      })(),
+      testing::ExitedWithCode(0),
+      "Skipping expansion of --flagfile as it is disabled");
+
+  EXPECT_EXIT(([]() {
+                absl::DisableFlagfileAndEnvParsing();
+                ScopedSetEnv set_int_flag("FLAGS_int_flag", "123");
+                const char* args[] = {"testbin", "--string_flag=abc",
+                                      "--fromenv=int_flag"};
+                InvokeParse(args);
+                exit(absl::GetFlag(FLAGS_int_flag) == 123 ||
+                             absl::GetFlag(FLAGS_string_flag) != "abc"
+                         ? 1
+                         : 0);
+              })(),
+              testing::ExitedWithCode(0),
+              "Skipping expansion of --fromenv/--tryfromenv as it is disabled");
+
+  EXPECT_EXIT(([]() {
+                absl::DisableFlagfileAndEnvParsing();
+                ScopedSetEnv set_int_flag("FLAGS_int_flag", "123");
+                const char* args[] = {"testbin", "--string_flag=abc",
+                                      "--tryfromenv=int_flag"};
+                InvokeParse(args);
+                exit(absl::GetFlag(FLAGS_int_flag) == 123 ||
+                             absl::GetFlag(FLAGS_string_flag) != "abc"
+                         ? 1
+                         : 0);
+              })(),
+              testing::ExitedWithCode(0),
+              "Skipping expansion of --fromenv/--tryfromenv as it is disabled");
+}
+
+TEST_F(ParseDeathTest, IsIndirectFlagExpansionEnabledWorks) {
+  EXPECT_EXIT(
+      ([]() {
+        if (!absl::flags_internal::IsIndirectFlagExpansionEnabled()) {
+          exit(1);
+        }
+        absl::DisableFlagfileAndEnvParsing();
+        exit(absl::flags_internal::IsIndirectFlagExpansionEnabled() ? 2 : 0);
+      })(),
+      testing::ExitedWithCode(0), "");
+}
+
 }  // namespace

@@ -4,6 +4,7 @@
 
 #include "src/compiler/fast-api-calls.h"
 
+#include "src/base/logging.h"
 #include "src/codegen/cpu-features.h"
 #include "src/compiler/globals.h"
 
@@ -60,6 +61,7 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
     case CTypeInfo::Type::kAny:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
@@ -98,7 +100,7 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
     USE(i);
 
 #ifdef V8_TARGET_ARCH_X64
-    // Clamp lowering in EffectControlLinearizer uses rounding.
+    // Clamp lowering in FastApiCallLoweringReducer uses rounding.
     uint8_t flags = uint8_t(c_signature->ArgumentInfo(i).GetFlags());
     if (flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
       return CpuFeatures::IsSupported(SSE4_2);
@@ -300,11 +302,12 @@ Node* FastApiCallBuilder::Build(FastApiCallFunction c_function,
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
+    START_ALLOW_USE_DEPRECATED()
+    constexpr int data_offset = offsetof(v8::FastApiCallbackOptions, data);
+    END_ALLOW_USE_DEPRECATED()
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
-             stack_slot,
-             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             data_argument_to_pass);
+             stack_slot, data_offset, data_argument_to_pass);
 
     initialize_options_(stack_slot);
 
@@ -381,13 +384,13 @@ FastApiCallFunction GetFastApiCallTarget(
 
   static constexpr int kReceiver = 1;
 
-  const ZoneVector<const CFunctionInfo*>& signatures =
-      function_template_info.c_signatures(broker);
-  const size_t overloads_count = signatures.size();
+  const ZoneVector<CFunctionInfoWithDetails> overloads =
+      function_template_info.c_functions_with_signatures(broker);
+  const size_t overloads_count = overloads.size();
 
   // Only considers entries whose type list length matches arg_count.
   for (size_t i = 0; i < overloads_count; i++) {
-    const CFunctionInfo* c_signature = signatures[i];
+    const CFunctionInfo* c_signature = overloads[i].signature;
     const size_t len = c_signature->ArgumentCount() - kReceiver;
     bool optimize_to_fast_call =
         (len == arg_count) &&
@@ -407,7 +410,7 @@ FastApiCallFunction GetFastApiCallTarget(
         }
       }
 #endif
-      return {function_template_info.c_functions(broker)[i], c_signature};
+      return {overloads[i].address, c_signature};
     }
   }
 
