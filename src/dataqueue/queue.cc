@@ -859,8 +859,6 @@ class DataQueueEntry : public EntryImpl {
 // results if the file just happens to get modified.
 class FdEntry final : public EntryImpl {
   // TODO(@jasnell, @flakey5):
-  // * This should only allow reading from regular files. No directories, no
-  // pipes, etc.
   // * The reader should support accepting the buffer(s) from the pull, if any.
   // It should
   //   only allocate a managed buffer if the pull doesn't provide any.
@@ -879,6 +877,16 @@ class FdEntry final : public EntryImpl {
     int err = uv_fs_stat(nullptr, &req, buf->out(), nullptr);
     if (err < 0) {
       if (status != nullptr) *status = err;
+      return nullptr;
+    }
+
+    // A file-backed Blob is read through a regular file descriptor, so only
+    // regular files are usable here. A directory read fails with EISDIR, and
+    // opening a fifo with no writer blocks the thread doing the open, which
+    // for this entry is the main thread.
+    const uint64_t type = req.statbuf.st_mode & S_IFMT;
+    if (type != S_IFREG) {
+      if (status != nullptr) *status = type == S_IFDIR ? UV_EISDIR : UV_EINVAL;
       return nullptr;
     }
 
