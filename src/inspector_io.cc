@@ -250,7 +250,8 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
                       path,
                       host_port,
                       inspect_publish_uid));
-  if (io->request_queue_->Expired()) {  // Thread is not running
+  if (io->request_queue_ == nullptr ||
+      io->request_queue_->Expired()) {  // Thread is not running
     return nullptr;
   }
   return io;
@@ -272,7 +273,8 @@ InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
 }
 
 InspectorIo::~InspectorIo() {
-  request_queue_->Post(0, TransportAction::kKill, nullptr);
+  if (request_queue_ != nullptr)
+    request_queue_->Post(0, TransportAction::kKill, nullptr);
   int err = uv_thread_join(&thread_);
   CHECK_EQ(err, 0);
 }
