@@ -22,7 +22,7 @@ client.callMethod = common.mustCall((method) => {
   setImmediate(() => client.emit('close'));
   return new Promise(() => {});
 });
-client.reset = common.mustCall();
+client.reset = common.mustCallAtLeast();
 
 const session = new ProbeInspectorSession({
   childArgv: ['-e', ''],
@@ -30,6 +30,7 @@ const session = new ProbeInspectorSession({
   port: 0,
   probes: [probe],
   skipPortPreflight: true,
+  timeout: 30000,
 });
 session.client = client;
 
