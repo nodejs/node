@@ -41,7 +41,6 @@
  *    See:  http://bugs.icu-project.org/trac/ticket/10924
  */
 
-
 #include "node_i18n.h"
 #include "node_external_reference.h"
 #include "simdutf.h"
@@ -129,8 +128,8 @@ uint8_t* AllocRaw(size_t size) {
 #if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
 #define MAP_ANON MAP_ANONYMOUS
 #endif
-  void* ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* ptr = mmap(
+      nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
   if (ptr == MAP_FAILED) {
     return nullptr;
   }
@@ -222,12 +221,8 @@ uint8_t* MapIfSize(const std::string& path, size_t size) {
     CloseFd(fd);
     return nullptr;
   }
-  HANDLE mapping = CreateFileMappingW(reinterpret_cast<HANDLE>(osf),
-                                      nullptr,
-                                      PAGE_READONLY,
-                                      0,
-                                      0,
-                                      nullptr);
+  HANDLE mapping = CreateFileMappingW(
+      reinterpret_cast<HANDLE>(osf), nullptr, PAGE_READONLY, 0, 0, nullptr);
   if (mapping == nullptr) {
     CloseFd(fd);
     return nullptr;
@@ -259,14 +254,13 @@ bool WriteAll(uv_file fd, const uint8_t* data, size_t size) {
   size_t off = 0;
   while (off < size) {
     size_t remain = size - off;
-    unsigned int chunk = remain > 0x40000000u
-                             ? 0x40000000u
-                             : static_cast<unsigned int>(remain);
+    unsigned int chunk =
+        remain > 0x40000000u ? 0x40000000u : static_cast<unsigned int>(remain);
     uv_buf_t buf = uv_buf_init(
         const_cast<char*>(reinterpret_cast<const char*>(data + off)), chunk);
     uv_fs_t req;
-    int n = uv_fs_write(nullptr, &req, fd, &buf, 1,
-                        static_cast<int64_t>(off), nullptr);
+    int n = uv_fs_write(
+        nullptr, &req, fd, &buf, 1, static_cast<int64_t>(off), nullptr);
     CleanupFs(&req);
     if (n <= 0) {
       return false;
@@ -289,8 +283,11 @@ uint8_t* PublishCache(const uint8_t* data,
   }
   std::string tmp = path + ".tmp." + std::to_string(uv_os_getpid());
   uv_fs_t req;
-  int fd = uv_fs_open(nullptr, &req, tmp.c_str(),
-                      UV_FS_O_CREAT | UV_FS_O_EXCL | UV_FS_O_WRONLY, 0600,
+  int fd = uv_fs_open(nullptr,
+                      &req,
+                      tmp.c_str(),
+                      UV_FS_O_CREAT | UV_FS_O_EXCL | UV_FS_O_WRONLY,
+                      0600,
                       nullptr);
   CleanupFs(&req);
   if (fd < 0) {
