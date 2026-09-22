@@ -920,7 +920,7 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
-        [ 'icu_system!="true" and v8_enable_i18n_support==1', {
+        [ 'icu_compress_data=="true"', {
           'defines': [ 'NODE_HAVE_EMBEDDED_ICU_ZSTD=1' ],
         }],
         [ 'openssl_default_cipher_list!=""', {

@@ -107,9 +107,19 @@ extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
 #endif
 
 #ifdef NODE_HAVE_EMBEDDED_ICU_ZSTD
-extern "C" const uint8_t node_icu_zstd_dat[];
+// genccode appends _dat to -e icudt<ver><endian>_dat_zstd.
+// The extra macro level expands the version and endianness before paste.
+#define NODE_ICU_ZSTD_ENTRY                                                    \
+  NODE_ICU_ZSTD_CALL(U_ICU_VERSION_MAJOR_NUM, U_ICUDATA_TYPE_LITLETTER)
+#define NODE_ICU_ZSTD_CALL(major, letter) NODE_ICU_ZSTD_PASTE(major, letter)
+#define NODE_ICU_ZSTD_PASTE(major, letter) icudt##major##letter##_dat_zstd_dat
+extern "C" const uint8_t NODE_ICU_ZSTD_ENTRY[];
 
 namespace {
+
+#ifdef _WIN32
+HANDLE icu_file_mapping = nullptr;
+#endif
 
 constexpr size_t kIcuHeaderSize = 52;
 constexpr uint64_t kMaxIcuBytes = 256 * 1024 * 1024;
@@ -192,7 +202,11 @@ bool CachePath(const uint8_t hash[32], std::string* out) {
     path.push_back('/');
 #endif
   }
-  path += "node-icu-";
+  // icudt78l-<sha256>.dat so the version and endianness stay visible.
+  path += "icudt";
+  path += U_ICU_VERSION_SHORT;
+  path += U_ICUDATA_TYPE_LETTER;
+  path += "-";
   AppendHex(&path, hash);
   path += ".dat";
   *out = path;
@@ -234,11 +248,7 @@ uint8_t* MapIfSize(const std::string& path, size_t size) {
     return nullptr;
   }
   // ICU holds pointers into this view for the process lifetime.
-  static HANDLE keep_mapping = nullptr;
-  keep_mapping = mapping;
-  if (keep_mapping == nullptr) {
-    return nullptr;
-  }
+  icu_file_mapping = mapping;
   return static_cast<uint8_t*>(view);
 #else
   void* view = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -270,6 +280,43 @@ bool WriteAll(uv_file fd, const uint8_t* data, size_t size) {
   return true;
 }
 
+void UnmapView(uint8_t* view, size_t size) {
+#ifdef _WIN32
+  UnmapViewOfFile(view);
+  if (icu_file_mapping != nullptr) {
+    CloseHandle(icu_file_mapping);
+    icu_file_mapping = nullptr;
+  }
+#else
+  munmap(view, size);
+#endif
+}
+
+bool DigestMatches(const uint8_t* data, size_t size, const uint8_t expect[32]) {
+  uint8_t hash[32];
+  EmbedSha256(data, size, hash);
+  return memcmp(hash, expect, 32) == 0;
+}
+
+// Reject a cache file whose bytes do not match the hash in the binary.
+// A same-user process can rewrite the file; ICU would not notice.
+uint8_t* MapTrusted(const std::string& path,
+                    size_t size,
+                    const uint8_t expect[32]) {
+  uint8_t* view = MapIfSize(path, size);
+  if (view == nullptr) {
+    return nullptr;
+  }
+  if (!DigestMatches(view, size, expect)) {
+    UnmapView(view, size);
+    uv_fs_t req;
+    uv_fs_unlink(nullptr, &req, path.c_str(), nullptr);
+    CleanupFs(&req);
+    return nullptr;
+  }
+  return view;
+}
+
 uint8_t* PublishCache(const uint8_t* data,
                       size_t size,
                       const uint8_t hash[32]) {
@@ -277,7 +324,7 @@ uint8_t* PublishCache(const uint8_t* data,
   if (!CachePath(hash, &path)) {
     return nullptr;
   }
-  uint8_t* existing = MapIfSize(path, size);
+  uint8_t* existing = MapTrusted(path, size, hash);
   if (existing != nullptr) {
     return existing;
   }
@@ -291,7 +338,7 @@ uint8_t* PublishCache(const uint8_t* data,
                       nullptr);
   CleanupFs(&req);
   if (fd < 0) {
-    return MapIfSize(path, size);
+    return MapTrusted(path, size, hash);
   }
   bool wrote = WriteAll(fd, data, size);
   if (wrote) {
@@ -311,11 +358,11 @@ uint8_t* PublishCache(const uint8_t* data,
     uv_fs_unlink(nullptr, &req, tmp.c_str(), nullptr);
     CleanupFs(&req);
   }
-  return MapIfSize(path, size);
+  return MapTrusted(path, size, hash);
 }
 
 uint8_t* LoadEmbeddedICU(std::string* error) {
-  const uint8_t* bytes = node_icu_zstd_dat;
+  const uint8_t* bytes = NODE_ICU_ZSTD_ENTRY;
   if (memcmp(bytes, "ICUZ", 4) != 0) {
     *error = "embedded ICU data header is invalid";
     return nullptr;
@@ -330,7 +377,8 @@ uint8_t* LoadEmbeddedICU(std::string* error) {
   }
   std::string path;
   if (CachePath(expect_hash, &path)) {
-    uint8_t* cached = MapIfSize(path, static_cast<size_t>(raw_size));
+    uint8_t* cached =
+        MapTrusted(path, static_cast<size_t>(raw_size), expect_hash);
     if (cached != nullptr) {
       return cached;
     }
