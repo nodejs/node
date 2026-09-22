@@ -233,7 +233,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   // to it when the timer expires.
   TaskQueue<TaskQueueEntry>* pending_worker_tasks_;
 
-  // Locally scheduled tasks to be poped into the worker task runner queue.
+  // Locally scheduled tasks to be popped into the worker task runner queue.
   // It is flushed whenever the next closest timer expires.
   TaskQueue<Task> tasks_;
   uv_loop_t loop_;

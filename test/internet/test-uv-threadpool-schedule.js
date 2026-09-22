@@ -46,8 +46,8 @@ function onResolve() {
 
 
 for (let i = 0; i < slowIOmax; i++) {
-  // We need to refresh the domain string everytime,
-  // otherwise the TCP stack that cache the previous lookup
+  // We need to refresh the domain string every time,
+  // otherwise the TCP stack that caches the previous lookup
   // returns result from memory, breaking all our Math.
   dns.lookup(`${randomDomain()}.com`, {}, common.mustCall(onResolve));
 }

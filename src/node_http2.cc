@@ -792,7 +792,7 @@ void Http2Session::HasPendingData(const FunctionCallbackInfo<Value>& args) {
 bool Http2Session::HasPendingData() const {
   nghttp2_session* session = session_.get();
   int want_write = nghttp2_session_want_write(session);
-  // It is expected that want_read will alway be 0 if graceful
+  // It is expected that want_read will always be 0 if graceful
   // session close is initiated and goaway frame is sent.
   int want_read = nghttp2_session_want_read(session);
   if (want_write == 0 && want_read == 0) {
@@ -962,7 +962,7 @@ ssize_t Http2Session::OnDWordAlignedPadding(size_t frameLen,
   size_t pad = frameLen + (8 - r);
 
   // If maxPayloadLen happens to be less than the calculated pad length,
-  // use the max instead, even tho this means the frame will not be
+  // use the max instead, even though this means the frame will not be
   // aligned.
   pad = std::min(maxPayloadLen, pad);
   Debug(this, "using frame size padding: %d", pad);

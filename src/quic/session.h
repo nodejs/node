@@ -536,7 +536,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void set_priority_supported(bool on = true);
 
   // Open a new locally-initialized stream with the specified directionality.
-  // If the session is not yet in a state where the stream can be openen --
+  // If the session is not yet in a state where the stream can be opened --
   // such as when the handshake is not yet sufficiently far along and ORTT
   // session resumption is not being used -- then the stream will be created
   // in a pending state where actually opening the stream will be deferred.
