@@ -17,6 +17,7 @@
 
 #include "absl/debugging/internal/demangle.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -456,22 +457,35 @@ static bool ZeroOrMore(ParseFunc parse_func, State *state) {
 }
 
 // Append "str" at "out_cur_idx".  If there is an overflow, out_cur_idx is
-// set to out_end_idx+1.  The output string is ensured to
-// always terminate with '\0' as long as there is no overflow.
+// set to out_end_idx+1.  The output buffer is always terminated with '\0' if it
+// has nonzero length.
 static void Append(State *state, const char *const str, const size_t length) {
-  for (size_t i = 0; i < length; ++i) {
-    if (state->parse_state.out_cur_idx + 1 <
-        state->out_end_idx) {  // +1 for '\0'
-      state->out[state->parse_state.out_cur_idx++] = str[i];
-    } else {
-      // signal overflow
-      state->parse_state.out_cur_idx = state->out_end_idx + 1;
-      break;
-    }
+  if (length == 0) {
+    return;
   }
-  if (state->parse_state.out_cur_idx < state->out_end_idx) {
-    state->out[state->parse_state.out_cur_idx] =
-        '\0';  // Terminate it with '\0'
+
+  // Figure out how much space is remaining in the output buffer to copy into.
+  const int cap = state->out_end_idx - state->parse_state.out_cur_idx;
+
+  // If overflow was already signaled (negative value, set further below) or
+  // there is zero space to write into, we cannot do anything.
+  if (cap <= 0) {
+    return;
+  }
+
+  // Copy the number of characters requested, capped by the amount of space
+  // remaining.
+  std::char_traits<char>::copy(state->out + state->parse_state.out_cur_idx, str,
+                               (std::min)(length, static_cast<size_t>(cap)));
+
+  // Did we copy everything we needed to, with enough room to NUL-terminate?
+  if (length < static_cast<size_t>(cap)) {
+    state->parse_state.out_cur_idx += static_cast<int>(length);
+    state->out[state->parse_state.out_cur_idx] = '\0';
+  } else {
+    // No, we ran out of space. Signal overflow, and NUL-terminate for safety.
+    state->parse_state.out_cur_idx = state->out_end_idx + 1;
+    state->out[state->out_end_idx - 1] = '\0';
   }
 }
 
@@ -893,8 +907,11 @@ static bool ParseAbiTags(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
 
-  while (ParseOneCharToken(state, 'B')) {
-    ParseState copy = state->parse_state;
+  for (;;) {
+    const ParseState copy = state->parse_state;
+    if (!ParseOneCharToken(state, 'B')) {
+      break;
+    }
     MaybeAppend(state, "[abi:");
 
     if (!ParseSourceName(state)) {

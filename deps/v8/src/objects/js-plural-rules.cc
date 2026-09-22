@@ -210,11 +210,12 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
 
 MaybeDirectHandle<String> JSPluralRules::ResolvePlural(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules, double number) {
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  Managed<icu::PluralRules>::Ptr icu_plural_rules =
+      plural_rules->icu_plural_rules()->ptr();
   DCHECK_NOT_NULL(icu_plural_rules);
 
-  icu::number::LocalizedNumberFormatter* fmt =
-      plural_rules->icu_number_formatter()->raw();
+  Managed<icu::number::LocalizedNumberFormatter>::Ptr fmt =
+      plural_rules->icu_number_formatter()->ptr();
   DCHECK_NOT_NULL(fmt);
 
   UErrorCode status = U_ZERO_ERROR;
@@ -232,13 +233,14 @@ MaybeDirectHandle<String> JSPluralRules::ResolvePlural(
 MaybeDirectHandle<String> JSPluralRules::ResolvePluralRange(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules, double x,
     double y) {
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  Managed<icu::PluralRules>::Ptr icu_plural_rules =
+      plural_rules->icu_plural_rules()->ptr();
   DCHECK_NOT_NULL(icu_plural_rules);
 
   Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
       JSNumberFormat::GetRangeFormatter(
           isolate, plural_rules->locale(),
-          *plural_rules->icu_number_formatter()->raw());
+          *plural_rules->icu_number_formatter()->ptr());
   MAYBE_RETURN(maybe_range_formatter, MaybeDirectHandle<String>());
 
   icu::number::LocalizedNumberRangeFormatter nrfmt =
@@ -292,8 +294,8 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
                                plural_rules->TypeAsString(isolate), "type");
 
   UErrorCode status = U_ZERO_ERROR;
-  icu::number::LocalizedNumberFormatter* icu_number_formatter =
-      plural_rules->icu_number_formatter()->raw();
+  Managed<icu::number::LocalizedNumberFormatter>::Ptr icu_number_formatter =
+      plural_rules->icu_number_formatter()->ptr();
   icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
@@ -334,7 +336,8 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
   // results of PluralRuleSelect for the selected locale pr.[[Locale]], sorted
   // according to the following order: "zero", "one", "two", "few", "many",
   // "other".
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  Managed<icu::PluralRules>::Ptr icu_plural_rules =
+      plural_rules->icu_plural_rules()->ptr();
   DCHECK_NOT_NULL(icu_plural_rules);
 
   std::unique_ptr<icu::StringEnumeration> categories(

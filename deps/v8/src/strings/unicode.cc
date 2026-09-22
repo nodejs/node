@@ -22,7 +22,7 @@
 #endif
 
 #include "hwy/highway.h"
-#include "simdutf.h"
+#include "third_party/simdutf/simdutf.h"
 
 namespace unibrow {
 

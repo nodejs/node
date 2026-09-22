@@ -26,7 +26,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/log_severity.h"
 #include "absl/strings/string_view.h"
-#include "absl/strings/strip.h"
+#include "absl/strings/strip.h"  // IWYU pragma: keep
 #include "absl/time/time.h"
 
 namespace absl {

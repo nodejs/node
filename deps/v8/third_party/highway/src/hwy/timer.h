@@ -232,6 +232,50 @@ static HWY_INLINE Ticks Stop() {
 
 }  // namespace timer
 
+// Wrapper around Start/Stop that checks whether the CPU supports Stop.
+class Timer {
+ public:
+  Timer() {
+    char cpu100[100];
+    have_timer_stop_ = platform::HaveTimerStop(cpu100);
+  }
+
+  // Before/After have fences to prevent the measured code 'leaking out'.
+  timer::Ticks Before() const { return timer::Start(); }
+  timer::Ticks After() const {
+    return have_timer_stop_ ? timer::Stop() : timer::Start();
+  }
+
+ private:
+  bool have_timer_stop_;
+};
+
+static inline double Seconds(timer::Ticks ticks) {
+  return static_cast<double>(ticks) / platform::InvariantTicksPerSecond();
+}
+
+// Measures elapsed time since construction, with automatic reset.
+class Stopwatch {
+ public:
+  explicit Stopwatch(const Timer& timestamps) : timer_(timestamps) { Reset(); }
+
+  timer::Ticks Origin() const { return t0_; }
+  void Reset() { t0_ = timer_.Before(); }
+
+  // Also resets the start time to the current time to enable reuse without a
+  // second call to the timer.
+  timer::Ticks Elapsed() {
+    const timer::Ticks t1 = timer_.After();
+    const timer::Ticks elapsed = t1 - t0_;
+    t0_ = t1;
+    return elapsed;
+  }
+
+ private:
+  const Timer& timer_;
+  timer::Ticks t0_;
+};
+
 }  // namespace hwy
 
 #endif  // HIGHWAY_HWY_TIMER_H_

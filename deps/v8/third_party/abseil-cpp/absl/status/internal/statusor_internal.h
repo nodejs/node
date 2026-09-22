@@ -53,14 +53,14 @@ struct IsEqualityComparable : std::false_type {};
 
 template <typename T>
 struct IsEqualityComparable<
-    T, std::enable_if_t<std::is_convertible<
-           decltype(std::declval<T>() == std::declval<T>()),
-           bool>::value>> : std::true_type {};
+    T, std::enable_if_t<std::is_convertible_v<
+           decltype(std::declval<T>() == std::declval<T>()), bool>>>
+    : std::true_type {};
 
 // Detects whether `T` is constructible or convertible from `StatusOr<U>`.
 template <typename T, typename U>
 using IsConstructibleOrConvertibleFromStatusOr =
-    absl::disjunction<std::is_constructible<T, StatusOr<U>&>,
+    std::disjunction<std::is_constructible<T, StatusOr<U>&>,
                       std::is_constructible<T, const StatusOr<U>&>,
                       std::is_constructible<T, StatusOr<U>&&>,
                       std::is_constructible<T, const StatusOr<U>&&>,
@@ -73,7 +73,7 @@ using IsConstructibleOrConvertibleFromStatusOr =
 // `StatusOr<U>`.
 template <typename T, typename U>
 using IsConstructibleOrConvertibleOrAssignableFromStatusOr =
-    absl::disjunction<IsConstructibleOrConvertibleFromStatusOr<T, U>,
+    std::disjunction<IsConstructibleOrConvertibleFromStatusOr<T, U>,
                       std::is_assignable<T&, StatusOr<U>&>,
                       std::is_assignable<T&, const StatusOr<U>&>,
                       std::is_assignable<T&, StatusOr<U>&&>,
@@ -83,8 +83,8 @@ using IsConstructibleOrConvertibleOrAssignableFromStatusOr =
 // when `U` is `StatusOr<V>` and `T` is constructible or convertible from `V`.
 template <typename T, typename U>
 struct IsDirectInitializationAmbiguous
-    : public absl::conditional_t<
-          std::is_same<absl::remove_cvref_t<U>, U>::value, std::false_type,
+    : public std::conditional_t<
+          std::is_same_v<absl::remove_cvref_t<U>, U>, std::false_type,
           IsDirectInitializationAmbiguous<T, absl::remove_cvref_t<U>>> {};
 
 template <typename T, typename V>
@@ -95,7 +95,7 @@ struct IsDirectInitializationAmbiguous<T, absl::StatusOr<V>>
 // temporaries.
 // REQUIRES: T and U are references.
 template <typename T, typename U>
-using IsReferenceConversionValid = absl::conjunction<  //
+using IsReferenceConversionValid = std::conjunction<  //
     std::is_reference<T>, std::is_reference<U>,
     // The references are convertible. This checks for
     // lvalue/rvalue compatibility.
@@ -108,16 +108,16 @@ using IsReferenceConversionValid = absl::conjunction<  //
 // Checks against the constraints of the direction initialization, i.e. when
 // `StatusOr<T>::StatusOr(U&&)` should participate in overload resolution.
 template <typename T, typename U>
-using IsDirectInitializationValid = absl::disjunction<
+using IsDirectInitializationValid = std::disjunction<
     // Short circuits if T is basically U.
     std::is_same<T, absl::remove_cvref_t<U>>,  //
     std::conditional_t<
         std::is_reference_v<T>,  //
         IsReferenceConversionValid<T, U>,
-        absl::negation<absl::disjunction<
+        std::negation<std::disjunction<
             std::is_same<absl::StatusOr<T>, absl::remove_cvref_t<U>>,
             std::is_same<absl::Status, absl::remove_cvref_t<U>>,
-            std::is_same<absl::in_place_t, absl::remove_cvref_t<U>>,
+            std::is_same<std::in_place_t, absl::remove_cvref_t<U>>,
             IsDirectInitializationAmbiguous<T, U>>>>>;
 
 // This trait detects whether `StatusOr<T>::operator=(U&&)` is ambiguous, which
@@ -132,8 +132,8 @@ using IsDirectInitializationValid = absl::disjunction<
 //   s1 = s2;  // ambiguous, `s1 = s2.ValueOrDie()` or `s1 = bool(s2)`?
 template <typename T, typename U>
 struct IsForwardingAssignmentAmbiguous
-    : public absl::conditional_t<
-          std::is_same<absl::remove_cvref_t<U>, U>::value, std::false_type,
+    : public std::conditional_t<
+          std::is_same_v<absl::remove_cvref_t<U>, U>, std::false_type,
           IsForwardingAssignmentAmbiguous<T, absl::remove_cvref_t<U>>> {};
 
 template <typename T, typename U>
@@ -143,91 +143,91 @@ struct IsForwardingAssignmentAmbiguous<T, absl::StatusOr<U>>
 // Checks against the constraints of the forwarding assignment, i.e. whether
 // `StatusOr<T>::operator(U&&)` should participate in overload resolution.
 template <typename T, typename U>
-using IsForwardingAssignmentValid = absl::disjunction<
+using IsForwardingAssignmentValid = std::disjunction<
     // Short circuits if T is basically U.
     std::is_same<T, absl::remove_cvref_t<U>>,
-    absl::negation<absl::disjunction<
+    std::negation<std::disjunction<
         std::is_same<absl::StatusOr<T>, absl::remove_cvref_t<U>>,
         std::is_same<absl::Status, absl::remove_cvref_t<U>>,
-        std::is_same<absl::in_place_t, absl::remove_cvref_t<U>>,
+        std::is_same<std::in_place_t, absl::remove_cvref_t<U>>,
         IsForwardingAssignmentAmbiguous<T, U>>>>;
 
 template <bool Value, typename T>
-using Equality = std::conditional_t<Value, T, absl::negation<T>>;
+using Equality = std::conditional_t<Value, T, std::negation<T>>;
 
 template <bool Explicit, typename T, typename U, bool Lifetimebound>
-using IsConstructionValid = absl::conjunction<
+using IsConstructionValid = std::conjunction<
     Equality<Lifetimebound,
-             absl::disjunction<
+             std::disjunction<
                  std::is_reference<T>,
                  type_traits_internal::IsLifetimeBoundAssignment<T, U>>>,
     IsDirectInitializationValid<T, U&&>, std::is_constructible<T, U&&>,
     Equality<!Explicit, std::is_convertible<U&&, T>>,
-    absl::disjunction<
+    std::disjunction<
         std::is_same<T, absl::remove_cvref_t<U>>,
-        absl::conjunction<
+        std::conjunction<
             std::conditional_t<
                 Explicit,
-                absl::negation<std::is_constructible<absl::Status, U&&>>,
-                absl::negation<std::is_convertible<U&&, absl::Status>>>,
-            absl::negation<
+                std::negation<std::is_constructible<absl::Status, U&&>>,
+                std::negation<std::is_convertible<U&&, absl::Status>>>,
+            std::negation<
                 internal_statusor::HasConversionOperatorToStatusOr<T, U&&>>>>>;
 
 template <typename T, typename U, bool Lifetimebound>
-using IsAssignmentValid = absl::conjunction<
+using IsAssignmentValid = std::conjunction<
     Equality<Lifetimebound,
-             absl::disjunction<
+             std::disjunction<
                  std::is_reference<T>,
                  type_traits_internal::IsLifetimeBoundAssignment<T, U>>>,
     std::conditional_t<std::is_reference_v<T>,
                        IsReferenceConversionValid<T, U&&>,
-                       absl::conjunction<std::is_constructible<T, U&&>,
+                       std::conjunction<std::is_constructible<T, U&&>,
                                          std::is_assignable<T&, U&&>>>,
-    absl::disjunction<
+    std::disjunction<
         std::is_same<T, absl::remove_cvref_t<U>>,
-        absl::conjunction<
-            absl::negation<std::is_convertible<U&&, absl::Status>>,
-            absl::negation<HasConversionOperatorToStatusOr<T, U&&>>>>,
+        std::conjunction<
+            std::negation<std::is_convertible<U&&, absl::Status>>,
+            std::negation<HasConversionOperatorToStatusOr<T, U&&>>>>,
     IsForwardingAssignmentValid<T, U&&>>;
 
 template <bool Explicit, typename T, typename U>
-using IsConstructionFromStatusValid = absl::conjunction<
-    absl::negation<std::is_same<absl::StatusOr<T>, absl::remove_cvref_t<U>>>,
-    absl::negation<std::is_same<T, absl::remove_cvref_t<U>>>,
-    absl::negation<std::is_same<absl::in_place_t, absl::remove_cvref_t<U>>>,
+using IsConstructionFromStatusValid = std::conjunction<
+    std::negation<std::is_same<absl::StatusOr<T>, absl::remove_cvref_t<U>>>,
+    std::negation<std::is_same<T, absl::remove_cvref_t<U>>>,
+    std::negation<std::is_same<std::in_place_t, absl::remove_cvref_t<U>>>,
     Equality<!Explicit, std::is_convertible<U, absl::Status>>,
     std::is_constructible<absl::Status, U>,
-    absl::negation<HasConversionOperatorToStatusOr<T, U>>>;
+    std::negation<HasConversionOperatorToStatusOr<T, U>>>;
 
 template <bool Explicit, typename T, typename U, bool Lifetimebound,
           typename UQ>
-using IsConstructionFromStatusOrValid = absl::conjunction<
-    absl::negation<std::is_same<T, U>>,
+using IsConstructionFromStatusOrValid = std::conjunction<
+    std::negation<std::is_same<T, U>>,
     // If `T` is a reference, then U must be a compatible one.
-    absl::disjunction<absl::negation<std::is_reference<T>>,
+    std::disjunction<std::negation<std::is_reference<T>>,
                       IsReferenceConversionValid<T, U>>,
     Equality<Lifetimebound,
              type_traits_internal::IsLifetimeBoundAssignment<T, U>>,
     std::is_constructible<T, UQ>,
     Equality<!Explicit, std::is_convertible<UQ, T>>,
-    absl::negation<IsConstructibleOrConvertibleFromStatusOr<T, U>>>;
+    std::negation<IsConstructibleOrConvertibleFromStatusOr<T, U>>>;
 
 template <typename T, typename U, bool Lifetimebound>
-using IsStatusOrAssignmentValid = absl::conjunction<
-    absl::negation<std::is_same<T, absl::remove_cvref_t<U>>>,
+using IsStatusOrAssignmentValid = std::conjunction<
+    std::negation<std::is_same<T, absl::remove_cvref_t<U>>>,
     Equality<Lifetimebound,
              type_traits_internal::IsLifetimeBoundAssignment<T, U>>,
     std::is_constructible<T, U>, std::is_assignable<T, U>,
-    absl::negation<IsConstructibleOrConvertibleOrAssignableFromStatusOr<
+    std::negation<IsConstructibleOrConvertibleOrAssignableFromStatusOr<
         T, absl::remove_cvref_t<U>>>>;
 
 template <typename T, typename U, bool Lifetimebound>
-using IsValueOrValid = absl::conjunction<
+using IsValueOrValid = std::conjunction<
     // If `T` is a reference, then U must be a compatible one.
-    absl::disjunction<absl::negation<std::is_reference<T>>,
+    std::disjunction<std::negation<std::is_reference<T>>,
                       IsReferenceConversionValid<T, U>>,
     Equality<Lifetimebound,
-             absl::disjunction<
+             std::disjunction<
                  std::is_reference<T>,
                  type_traits_internal::IsLifetimeBoundAssignment<T, U>>>>;
 
@@ -325,14 +325,14 @@ class StatusOrData {
   }
 
   template <typename... Args>
-  explicit StatusOrData(absl::in_place_t, Args&&... args)
+  explicit StatusOrData(std::in_place_t, Args&&... args)
       : data_(std::forward<Args>(args)...) {
     MakeStatus();
   }
 
-  template <typename U,
-            absl::enable_if_t<std::is_constructible<absl::Status, U&&>::value,
-                              int> = 0>
+  template <
+      typename U,
+      std::enable_if_t<std::is_constructible_v<absl::Status, U&&>, int> = 0>
   explicit StatusOrData(U&& v) : status_(std::forward<U>(v)) {
     EnsureNotOk();
   }
@@ -527,7 +527,7 @@ struct OperatorBase<T&> {
 // operators in `StatusOr`. For example, `CopyCtorBase` will explicitly delete
 // the copy constructor when T is not copy constructible and `StatusOr` will
 // inherit that behavior implicitly.
-template <typename T, bool = std::is_copy_constructible<T>::value>
+template <typename T, bool = std::is_copy_constructible_v<T>>
 struct CopyCtorBase {
   CopyCtorBase() = default;
   CopyCtorBase(const CopyCtorBase&) = default;
@@ -545,7 +545,7 @@ struct CopyCtorBase<T, false> {
   CopyCtorBase& operator=(CopyCtorBase&&) = default;
 };
 
-template <typename T, bool = std::is_move_constructible<T>::value>
+template <typename T, bool = std::is_move_constructible_v<T>>
 struct MoveCtorBase {
   MoveCtorBase() = default;
   MoveCtorBase(const MoveCtorBase&) = default;
@@ -563,8 +563,8 @@ struct MoveCtorBase<T, false> {
   MoveCtorBase& operator=(MoveCtorBase&&) = default;
 };
 
-template <typename T, bool = (std::is_copy_constructible<T>::value &&
-                              std::is_copy_assignable<T>::value) ||
+template <typename T, bool = (std::is_copy_constructible_v<T> &&
+                              std::is_copy_assignable_v<T>) ||
                              std::is_reference_v<T>>
 struct CopyAssignBase {
   CopyAssignBase() = default;
@@ -583,8 +583,8 @@ struct CopyAssignBase<T, false> {
   CopyAssignBase& operator=(CopyAssignBase&&) = default;
 };
 
-template <typename T, bool = (std::is_move_constructible<T>::value &&
-                              std::is_move_assignable<T>::value) ||
+template <typename T, bool = (std::is_move_constructible_v<T> &&
+                              std::is_move_assignable_v<T>) ||
                              std::is_reference_v<T>>
 struct MoveAssignBase {
   MoveAssignBase() = default;

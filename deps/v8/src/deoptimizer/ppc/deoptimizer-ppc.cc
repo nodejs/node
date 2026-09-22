@@ -40,8 +40,10 @@ void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
   Assembler masm(
       AssemblerOptions{},
       ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
-  masm.mov(ip, Operand(new_pc));
-  masm.mtctr(ip);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  masm.mov(scratch, Operand(new_pc));
+  masm.mtctr(scratch);
   masm.bctr();
   FlushInstructionCache(pc, kSize);
 }

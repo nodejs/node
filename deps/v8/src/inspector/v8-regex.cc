@@ -40,12 +40,13 @@ V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern,
   v8::debug::PostponeInterruptsScope no_interrupts(m_inspector->isolate());
   if (v8::RegExp::New(context, toV8String(isolate, pattern),
                       static_cast<v8::RegExp::Flags>(flags))
-          .ToLocal(&regex))
+          .ToLocal(&regex)) {
     m_regex.Reset(isolate, regex);
-  else if (tryCatch.HasCaught())
+  } else if (tryCatch.HasCaught()) {
     m_errorMessage = toProtocolString(isolate, tryCatch.Message()->Get());
-  else
+  } else {
     m_errorMessage = "Internal error";
+  }
 }
 
 int V8Regex::match(const String16& string, int startFrom,
@@ -74,15 +75,17 @@ int V8Regex::match(const String16& string, int startFrom,
   v8::Local<v8::RegExp> regex = m_regex.Get(isolate);
   v8::Local<v8::Value> exec;
   if (!regex->Get(context, toV8StringInternalized(isolate, "exec"))
-           .ToLocal(&exec))
+           .ToLocal(&exec)) {
     return -1;
+  }
   v8::Local<v8::Value> argv[] = {
       toV8String(isolate, string.substring(startFrom))};
   v8::Local<v8::Value> returnValue;
   if (!exec.As<v8::Function>()
            ->Call(context, regex, arraysize(argv), argv)
-           .ToLocal(&returnValue))
+           .ToLocal(&returnValue)) {
     return -1;
+  }
 
   // RegExp#exec returns null if there's no match, otherwise it returns an
   // Array of strings with the first being the whole match string and others
@@ -97,8 +100,9 @@ int V8Regex::match(const String16& string, int startFrom,
   v8::Local<v8::Array> result = returnValue.As<v8::Array>();
   v8::Local<v8::Value> matchOffset;
   if (!result->Get(context, toV8StringInternalized(isolate, "index"))
-           .ToLocal(&matchOffset))
+           .ToLocal(&matchOffset)) {
     return -1;
+  }
   if (matchLength) {
     v8::Local<v8::Value> match;
     if (!result->Get(context, 0).ToLocal(&match)) return -1;

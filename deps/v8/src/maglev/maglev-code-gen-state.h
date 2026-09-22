@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/diagnostics/gdb-jit.h"
 #include "src/execution/frame-constants.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-ir.h"
@@ -44,6 +45,13 @@ class MaglevCodeGenState {
 
   void set_tagged_slots(int slots) { tagged_slots_ = slots; }
   void set_untagged_slots(int slots) { untagged_slots_ = slots; }
+
+  void AddVariableInfo(const MaglevVariableInfo& info) {
+    maglev_variables_.push_back(info);
+  }
+  const std::vector<MaglevVariableInfo>& maglev_variables() const {
+    return maglev_variables_;
+  }
 
   void PushDeferredCode(DeferredCodeInfo* deferred_code) {
     deferred_code_.push_back(deferred_code);
@@ -129,6 +137,7 @@ class MaglevCodeGenState {
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
   SourcePositionTableBuilder* const source_position_table_builder_;
 
+  std::vector<MaglevVariableInfo> maglev_variables_;
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<EagerDeoptInfo*> eager_deopts_;
   std::vector<LazyDeoptInfo*> lazy_deopts_;

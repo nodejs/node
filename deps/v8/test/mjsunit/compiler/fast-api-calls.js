@@ -171,81 +171,112 @@ const add_all_32bit_int_arg4 = 0x1fffffff;
 const add_all_32bit_int_arg5 = 1e6;
 const add_all_32bit_int_arg6 = 1e8;
 const add_all_32bit_int_result_4args = add_all_32bit_int_arg1 +
-  add_all_32bit_int_arg2 + add_all_32bit_int_arg3 + add_all_32bit_int_arg4;
-const add_all_32bit_int_result_5args = add_all_32bit_int_result_4args +
-  add_all_32bit_int_arg5;
-const add_all_32bit_int_result_6args = add_all_32bit_int_result_5args +
-  add_all_32bit_int_arg6;
+    add_all_32bit_int_arg2 + add_all_32bit_int_arg3 + add_all_32bit_int_arg4;
+const add_all_32bit_int_result_5args =
+    add_all_32bit_int_result_4args + add_all_32bit_int_arg5;
+const add_all_32bit_int_result_6args =
+    add_all_32bit_int_result_5args + add_all_32bit_int_arg6;
 
-(function () {
-  function overloaded_add_all() {
-    let result_under = fast_c_api.overloaded_add_all_32bit_int(
+(function() {
+function overloaded_add_all() {
+  let result_under = fast_c_api.overloaded_add_all_32bit_int(
       add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
       add_all_32bit_int_arg4);
-    let result_5args = fast_c_api.overloaded_add_all_32bit_int(
+  let result_5args = fast_c_api.overloaded_add_all_32bit_int(
       add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
       add_all_32bit_int_arg4, add_all_32bit_int_arg5);
-    let result_6args = fast_c_api.overloaded_add_all_32bit_int(
+  let result_6args = fast_c_api.overloaded_add_all_32bit_int(
       add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
       add_all_32bit_int_arg4, add_all_32bit_int_arg5, add_all_32bit_int_arg6);
-    let result_over = fast_c_api.overloaded_add_all_32bit_int(
+  let result_over = fast_c_api.overloaded_add_all_32bit_int(
       add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
       add_all_32bit_int_arg4, add_all_32bit_int_arg5, add_all_32bit_int_arg6,
       42);
-    let result_5args_with_undefined = fast_c_api.overloaded_add_all_32bit_int(
-      add_all_32bit_int_arg1, add_all_32bit_int_arg2,
-      add_all_32bit_int_arg3, add_all_32bit_int_arg4, undefined);
-    return [result_under, result_5args, result_6args, result_over,
-            result_5args_with_undefined];
-  }
+  let result_5args_with_undefined = fast_c_api.overloaded_add_all_32bit_int(
+      add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
+      add_all_32bit_int_arg4, undefined);
+  return [
+    result_under, result_5args, result_6args, result_over,
+    result_5args_with_undefined
+  ];
+}
 
-  %PrepareFunctionForOptimization(overloaded_add_all);
-  let result = overloaded_add_all();
-  assertEquals(add_all_32bit_int_result_4args, result[0]);
-  assertEquals(add_all_32bit_int_result_5args, result[1]);
-  assertEquals(add_all_32bit_int_result_6args, result[2]);
-  assertEquals(add_all_32bit_int_result_6args, result[3]);
-  assertEquals(add_all_32bit_int_result_4args, result[4]);
+%PrepareFunctionForOptimization(overloaded_add_all);
+let result = overloaded_add_all();
+assertEquals(add_all_32bit_int_result_4args, result[0]);
+assertEquals(add_all_32bit_int_result_5args, result[1]);
+assertEquals(add_all_32bit_int_result_6args, result[2]);
+assertEquals(add_all_32bit_int_result_6args, result[3]);
+assertEquals(add_all_32bit_int_result_4args, result[4]);
 
-  fast_c_api.reset_counts();
-  %OptimizeFunctionOnNextCall(overloaded_add_all);
-  result = overloaded_add_all();
-  assertOptimized(overloaded_add_all);
+fast_c_api.reset_counts();
+%OptimizeFunctionOnNextCall(overloaded_add_all);
+result = overloaded_add_all();
+assertOptimized(overloaded_add_all);
 
-  // Only the calls with the correct number of parameters gets called
-  // with the fast API call, which are the calls with 5 and 6 parameters.
-  assertEquals(3, fast_c_api.fast_call_count());
-  assertEquals(2, fast_c_api.slow_call_count());
+// Only the calls with the correct number of parameters gets called
+// with the fast API call, which are the calls with 5 and 6 parameters.
+assertEquals(3, fast_c_api.fast_call_count());
+assertEquals(2, fast_c_api.slow_call_count());
 
-  assertEquals(add_all_32bit_int_result_4args, result[0]);
-  assertEquals(add_all_32bit_int_result_5args, result[1]);
-  assertEquals(add_all_32bit_int_result_6args, result[2]);
-  assertEquals(add_all_32bit_int_result_6args, result[3]);
-  assertEquals(add_all_32bit_int_result_4args, result[4]);
+assertEquals(add_all_32bit_int_result_4args, result[0]);
+assertEquals(add_all_32bit_int_result_5args, result[1]);
+assertEquals(add_all_32bit_int_result_6args, result[2]);
+assertEquals(add_all_32bit_int_result_6args, result[3]);
+assertEquals(add_all_32bit_int_result_4args, result[4]);
 })();
-
 // Regression test for
 // https://bugs.chromium.org/p/chromium/issues/detail?id=1492786
-(function () {
-  function add_all_enforce_range() {
-    let result_5args = fast_c_api.add_all_5args_enforce_range(
-      1, 2, 3.22, 4, 5.33
-    );
-    return result_5args;
+(function() {
+function add_all_enforce_range() {
+  let result_5args =
+      fast_c_api.add_all_5args_enforce_range(1, 2, 3.22, 4, 5.33);
+  return result_5args;
+}
+
+%PrepareFunctionForOptimization(add_all_enforce_range);
+let result = add_all_enforce_range();
+assertEquals(15, result);
+
+fast_c_api.reset_counts();
+%OptimizeFunctionOnNextCall(add_all_enforce_range);
+result = add_all_enforce_range();
+assertOptimized(add_all_enforce_range);
+
+// {Flags::kEnforceRange} is currently supported on 64 bit architectures
+// only. On 32 bit we fall back to slow call.
+assertEquals(%Is64Bit() ? 1 : 0, fast_c_api.fast_call_count());
+assertEquals(%Is64Bit() ? 0 : 1, fast_c_api.slow_call_count());
+assertEquals(15, result);
+})();
+
+// ----------- check_restricted_float32 -----------
+(function TestRestrictedFloat() {
+  function check_f32(arg) {
+    return fast_c_api.check_restricted_float32(arg);
   }
 
-  %PrepareFunctionForOptimization(add_all_enforce_range);
-  let result = add_all_enforce_range();
-  assertEquals(15, result);
+  %PrepareFunctionForOptimization(check_f32);
+  assertEquals(undefined, check_f32(123));
+  %OptimizeFunctionOnNextCall(check_f32);
+  assertEquals(undefined, check_f32(123));
+  assertEquals(undefined, check_f32(-123.5));
+  assertThrows(() => check_f32(Infinity));
+  assertThrows(() => check_f32(-Infinity));
+  assertThrows(() => check_f32(NaN));
+  assertThrows(() => check_f32(1.0e39));
 
-  fast_c_api.reset_counts();
-  %OptimizeFunctionOnNextCall(add_all_enforce_range);
-  result = add_all_enforce_range();
-  assertOptimized(add_all_enforce_range);
+  // ----------- check_restricted_float64 -----------
+  function check_f64(arg) {
+    return fast_c_api.check_restricted_float64(arg);
+  }
 
-  // {Flags::kEnforceRange} is currently supported on 64 bit architectures
-  // only. On 32 bit we fall back to slow call.
-  assertEquals(%Is64Bit() ? 1 : 0, fast_c_api.fast_call_count());
-  assertEquals(%Is64Bit() ? 0 : 1, fast_c_api.slow_call_count());
-  assertEquals(15, result);
+  %PrepareFunctionForOptimization(check_f64);
+  assertEquals(undefined, check_f64(123));
+  %OptimizeFunctionOnNextCall(check_f64);
+  assertEquals(undefined, check_f64(123));
+  assertEquals(undefined, check_f64(-123.5));
+  assertThrows(() => check_f64(Infinity));
+  assertThrows(() => check_f64(-Infinity));
+  assertThrows(() => check_f64(NaN));
 })();

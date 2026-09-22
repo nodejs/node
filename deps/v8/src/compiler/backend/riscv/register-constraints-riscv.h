@@ -4,7 +4,7 @@
 
 #ifndef V8_COMPILER_BACKEND_RISCV_REGISTER_CONSTRAINTS_RISCV_H_
 #define V8_COMPILER_BACKEND_RISCV_REGISTER_CONSTRAINTS_RISCV_H_
-
+#include "src/compiler/backend/instruction-codes.h"
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -28,6 +28,14 @@ enum class RiscvRegisterConstraint {
   //   same as input 1, but not input 0.
   kRegisterGroupNoOverlap,
 };
+
+using RiscvRegisterConstraintField =
+    VectorLengthField::Next<RiscvRegisterConstraint, 3>;
+
+static_assert(MiscField::kSize == 9);
+static_assert(LaneSizeField::kSize == 2);
+static_assert(VectorLengthField::kSize == 2);
+static_assert(AccessModeField::kSize == 2);
 
 }  // namespace compiler
 }  // namespace internal

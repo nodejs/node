@@ -1,0 +1,168 @@
+//===-- Portable attributes -------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+// This header file defines macros for declaring attributes for functions,
+// types, and variables.
+//
+// These macros are used within llvm-libc and allow the compiler to optimize,
+// where applicable, certain function calls.
+//
+// Most macros here are exposing GCC or Clang features, and are stubbed out for
+// other compilers.
+
+#ifndef LLVM_LIBC_SRC___SUPPORT_MACROS_ATTRIBUTES_H
+#define LLVM_LIBC_SRC___SUPPORT_MACROS_ATTRIBUTES_H
+
+#include "config.h"
+#include "properties/architectures.h"
+
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+
+#define LIBC_INLINE inline
+#define LIBC_INLINE_VAR inline
+#define LIBC_INLINE_ASM __asm__ __volatile__
+#define LIBC_UNUSED __attribute__((unused))
+
+#ifndef LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED
+#if (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 900)) ||       \
+    (defined(LIBC_COMPILER_IS_CLANG) && LIBC_COMPILER_CLANG_VER >= 900)
+#define LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED 1
+#else
+#define LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED                                 \
+  (__has_builtin(__builtin_is_constant_evaluated))
+#endif // (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 900)) ||
+       // (defined(LIBC_COMPILER_IS_CLANG) && LIBC_COMPILER_CLANG
+#endif // LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED
+
+#ifndef LIBC_HAS_BUILTIN_BIT_CAST
+#if __has_builtin(__builtin_bit_cast) || defined(LIBC_COMPILER_IS_MSVC)
+#define LIBC_HAS_BUILTIN_BIT_CAST 1
+#else
+#define LIBC_HAS_BUILTIN_BIT_CAST 0
+#endif // has_builtin(__builtin_bit_cast)
+#endif // LIBC_HAS_BUILTIN_BIT_CAST
+
+#if LIBC_HAS_BUILTIN_BIT_CAST
+#define LIBC_BIT_CAST_CONSTEXPR constexpr
+#define LIBC_BIT_CAST_CONSTEXPR_VAR constexpr
+#else
+#define LIBC_BIT_CAST_CONSTEXPR
+#define LIBC_BIT_CAST_CONSTEXPR_VAR const
+#endif // LIBC_HAS_BUILTIN_BIT_CAST
+
+#ifndef LIBC_HAS_CONSTANT_EVALUATION
+#define LIBC_HAS_CONSTANT_EVALUATION                                           \
+  (LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED && LIBC_HAS_BUILTIN_BIT_CAST)
+#endif // LIBC_HAS_CONSTANT_EVALUATION
+
+#if LIBC_HAS_CONSTANT_EVALUATION
+#define LIBC_CONSTEXPR_DEFAULT constexpr
+#define LIBC_CONSTEXPR_VAR_DEFAULT constexpr
+#else
+#define LIBC_CONSTEXPR_DEFAULT
+#define LIBC_CONSTEXPR_VAR_DEFAULT const
+#endif // LIBC_HAS_CONSTANT_EVALUATION
+
+// TODO: Remove the macro once Clang/LLVM bump their minimum compilers' version.
+// The reason for indirection is GCC is known to fail with constexpr qualified
+// functions that doesn't produce constant expression.
+// Also, there are some circular dependency in the generic functions without
+// __builtin_func for the following functions:
+//   fputil::fma
+//   fputil::sqrt
+#if LIBC_ENABLE_CONSTEXPR && LIBC_HAS_CONSTANT_EVALUATION
+#define LIBC_USE_CONSTEXPR
+#define LIBC_CONSTEXPR constexpr
+#define LIBC_CONSTEXPR_VAR constexpr
+#else
+#define LIBC_CONSTEXPR
+#define LIBC_CONSTEXPR_VAR const
+#endif // LIBC_USE_CONSTEXPR
+
+#ifndef LIBC_HAS_BUILTIN_IS_ASSIGNABLE
+#if (__has_builtin(__is_assignable) ||                                         \
+     (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 800)))
+#define LIBC_HAS_BUILTIN_IS_ASSIGNABLE 1
+#else
+#define LIBC_HAS_BUILTIN_IS_ASSIGNABLE 0
+#endif
+#endif // LIBC_HAS_BUILTIN_IS_ASSIGNABLE
+
+#ifndef LIBC_HAS_BUILTIN_IS_CONSTRUCTIBLE
+#if (__has_builtin(__is_constructible) ||                                      \
+     (defined(LIBC_COMPILER_IS_GCC) && (LIBC_COMPILER_GCC_VER >= 800)))
+#define LIBC_HAS_BUILTIN_IS_CONSTRUCTIBLE 1
+#else
+#define LIBC_HAS_BUILTIN_IS_CONSTRUCTIBLE 0
+#endif
+#endif // LIBC_HAS_BUILTIN_IS_CONSTRUCTIBLE
+
+// Uses the platform specific specialization
+#define LIBC_THREAD_MODE_PLATFORM 0
+
+// Mutex guards nothing, used in single-threaded implementations
+#define LIBC_THREAD_MODE_SINGLE 1
+
+// Vendor provides implementation
+#define LIBC_THREAD_MODE_EXTERNAL 2
+
+// libcxx doesn't define LIBC_THREAD_MODE, unless that is passed in the command
+// line in the CMake invocation. This defaults to the original implementation
+// (before changes in https://github.com/llvm/llvm-project/pull/145358)
+#ifndef LIBC_THREAD_MODE
+#define LIBC_THREAD_MODE LIBC_THREAD_MODE_PLATFORM
+#endif // LIBC_THREAD_MODE
+
+#if LIBC_THREAD_MODE != LIBC_THREAD_MODE_PLATFORM &&                           \
+    LIBC_THREAD_MODE != LIBC_THREAD_MODE_SINGLE &&                             \
+    LIBC_THREAD_MODE != LIBC_THREAD_MODE_EXTERNAL
+#error LIBC_THREAD_MODE must be one of the following values: \
+LIBC_THREAD_MODE_PLATFORM, \
+LIBC_THREAD_MODE_SINGLE, \
+LIBC_THREAD_MODE_EXTERNAL.
+#endif
+
+#if LIBC_THREAD_MODE == LIBC_THREAD_MODE_SINGLE
+#define LIBC_THREAD_LOCAL
+#else
+#define LIBC_THREAD_LOCAL thread_local
+#endif
+
+#if __cplusplus >= 202002L
+#define LIBC_CONSTINIT constinit
+#elif __has_attribute(__require_constant_initialization__)
+#define LIBC_CONSTINIT __attribute__((__require_constant_initialization__))
+#else
+#define LIBC_CONSTINIT
+#endif
+
+#if defined(__clang__) && __has_attribute(preferred_type)
+#define LIBC_PREFERED_TYPE(TYPE) [[clang::preferred_type(TYPE)]]
+#else
+#define LIBC_PREFERED_TYPE(TYPE)
+#endif
+
+#if __has_attribute(ext_vector_type) &&                                        \
+    LIBC_HAS_FEATURE(ext_vector_type_boolean)
+#define LIBC_HAS_VECTOR_TYPE 1
+#else
+#define LIBC_HAS_VECTOR_TYPE 0
+#endif
+
+#if __has_attribute(no_sanitize)
+// Disable regular and hardware-supported ASan for functions that may
+// intentionally make out-of-bounds access. Disable TSan as well, as it detects
+// out-of-bounds accesses to heap memory.
+#define LIBC_NO_SANITIZE_OOB_ACCESS                                            \
+  __attribute__((no_sanitize("address", "hwaddress", "thread")))
+#else
+#define LIBC_NO_SANITIZE_OOB_ACCESS
+#endif
+
+#endif // LLVM_LIBC_SRC___SUPPORT_MACROS_ATTRIBUTES_H

@@ -18,7 +18,7 @@ class V8_NODISCARD SaveFlags {
   SaveFlags& operator=(const SaveFlags&) = delete;
 
  private:
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
+#define FLAG_MODE_APPLY(ctype, nam, primary, cmt) ctype SAVED_##nam;
 #include "src/flags/flag-definitions.h"
 #undef FLAG_MODE_APPLY
 };

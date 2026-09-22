@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE NameConverter {
   virtual const char* RootRelativeName(int offset) const { return nullptr; }
 
  protected:
-  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
+  mutable v8::base::EmbeddedVector<char, 128> tmp_buffer_;
 };
 
 // A generic Disassembler interface
@@ -51,6 +51,11 @@ class Disassembler {
     return unimplemented_opcode_action_;
   }
 
+  // Note: Only implemented on X64. Other platforms always return `false`.
+  bool hit_unimplemented_opcode() const { return hit_unimplemented_opcode_; }
+
+  void clear_hit_unimplemented_opcode() { hit_unimplemented_opcode_ = false; }
+
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
   V8_EXPORT_PRIVATE int InstructionDecode(v8::base::Vector<char> buffer,
@@ -70,6 +75,7 @@ class Disassembler {
  private:
   const NameConverter& converter_;
   const UnimplementedOpcodeAction unimplemented_opcode_action_;
+  bool hit_unimplemented_opcode_ = false;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Disassembler);
 };

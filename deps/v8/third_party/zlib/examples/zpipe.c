@@ -1,6 +1,6 @@
 /* zpipe.c: example of proper use of zlib's inflate() and deflate()
    Not copyrighted -- provided to the public domain
-   Version 1.4  11 December 2005  Mark Adler */
+   Version 1.5  11 February 2026  Mark Adler */
 
 /* Version history:
    1.0  30 Oct 2004  First version
@@ -10,6 +10,7 @@
    1.3   6 Apr 2005  Remove incorrect assertion in inf()
    1.4  11 Dec 2005  Add hack to avoid MSDOS end-of-line conversions
                      Avoid some compiler warnings for input and output buffers
+   1.5  11 Feb 2026  Use underscores for Windows POSIX names
  */
 
 #if defined(_WIN32) && !defined(_CRT_NONSTDC_NO_DEPRECATE)
@@ -24,7 +25,7 @@
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
 #  include <fcntl.h>
 #  include <io.h>
-#  define SET_BINARY_MODE(file) setmode(fileno(file), O_BINARY)
+#  define SET_BINARY_MODE(file) _setmode(_fileno(file), _O_BINARY)
 #else
 #  define SET_BINARY_MODE(file)
 #endif

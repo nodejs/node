@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 namespace string {
-// ES6 #sec-string.prototype.slice ( start, end )
-// https://tc39.github.io/ecma262/#sec-string.prototype.slice
+// https://tc39.es/ecma262/#sec-string.prototype.slice ( start, end )
+// https://tc39.es/ecma262/#sec-string.prototype.slice
 transitioning javascript builtin StringPrototypeSlice(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {

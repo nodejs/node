@@ -91,10 +91,9 @@ class OnlyLiteralZero {
   // has type `int`. Literal `0` arguments will be implicitly converted to
   // `std::nullptr_t` and accepted by the above constructor, while other `int`
   // arguments will fail to be converted and cause compilation failure.
-  template <typename T, typename = typename std::enable_if<
-                            std::is_same<T, std::nullptr_t>::value ||
-                            (std::is_integral<T>::value &&
-                             !std::is_same<T, int>::value)>::type>
+  template <typename T, typename = std::enable_if_t<
+                            std::is_same_v<T, std::nullptr_t> ||
+                            (std::is_integral_v<T> && !std::is_same_v<T, int>)>>
   OnlyLiteralZero(T) {  // NOLINT
     static_assert(sizeof(T) < 0, "Only literal `0` is allowed.");
   }
@@ -449,7 +448,7 @@ namespace compare_internal {
 // or three-way comparator.
 // SFINAE prevents implicit conversions to bool (such as from int).
 template <typename BoolT,
-          absl::enable_if_t<std::is_same<bool, BoolT>::value, int> = 0>
+          std::enable_if_t<std::is_same_v<bool, BoolT>, int> = 0>
 constexpr bool compare_result_as_less_than(const BoolT r) {
   return r;
 }
@@ -466,8 +465,7 @@ constexpr bool do_less_than_comparison(const Compare& compare, const K& x,
 // Helper functions to do a three-way comparison of two keys given a boolean or
 // three-way comparator.
 // SFINAE prevents implicit conversions to int (such as from bool).
-template <typename Int,
-          absl::enable_if_t<std::is_same<int, Int>::value, int> = 0>
+template <typename Int, std::enable_if_t<std::is_same_v<int, Int>, int> = 0>
 constexpr absl::weak_ordering compare_result_as_ordering(const Int c) {
   return c < 0    ? absl::weak_ordering::less
          : c == 0 ? absl::weak_ordering::equivalent
@@ -478,20 +476,20 @@ constexpr absl::weak_ordering compare_result_as_ordering(
   return c;
 }
 
-template <typename Compare, typename K, typename LK,
-          absl::enable_if_t<
-              !std::is_same<
-                  bool, absl::result_of_t<Compare(const K&, const LK&)>>::value,
-              int> = 0>
+template <
+    typename Compare, typename K, typename LK,
+    std::enable_if_t<
+        !std::is_same_v<bool, absl::result_of_t<Compare(const K&, const LK&)>>,
+        int> = 0>
 constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
                                                       const K& x, const LK& y) {
   return compare_result_as_ordering(compare(x, y));
 }
-template <typename Compare, typename K, typename LK,
-          absl::enable_if_t<
-              std::is_same<
-                  bool, absl::result_of_t<Compare(const K&, const LK&)>>::value,
-              int> = 0>
+template <
+    typename Compare, typename K, typename LK,
+    std::enable_if_t<
+        std::is_same_v<bool, absl::result_of_t<Compare(const K&, const LK&)>>,
+        int> = 0>
 constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
                                                       const K& x, const LK& y) {
   return compare(x, y)   ? absl::weak_ordering::less

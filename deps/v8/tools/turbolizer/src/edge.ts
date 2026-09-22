@@ -72,7 +72,7 @@ export abstract class Edge<NodeType extends GraphNode | TurboshaftGraphOperation
   }
 
   public isVisible(): boolean {
-    return this.visible && this.source.visible && this.target.visible;
+    return this.visible && this.source && this.source.visible && this.target && this.target.visible;
   }
 
   public toString(): string {

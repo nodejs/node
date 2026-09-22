@@ -17,7 +17,12 @@ function test_not_function() {
   return F;
 }
 
+// Keep the objects and their maps alive throughout the test so that GC
+// doesn't collect them, which would trigger a lazy deopt.
+let keep_alive = [];
+
 function assert_test_not_function(F) {
+  keep_alive.push(F);
   assertEquals(1, F.prototype.a);
   assertEquals(2, F.prototype.b);
 }

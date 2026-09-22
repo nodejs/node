@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include <atomic>
+#include <optional>
 #include <string>
 #include <thread>  // NOLINT
 #include <vector>
@@ -42,7 +43,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "absl/types/optional.h"
 
 ABSL_DECLARE_FLAG(int64_t, mistyped_int_flag);
 ABSL_DECLARE_FLAG(std::vector<std::string>, mistyped_string_flag);
@@ -1038,7 +1038,7 @@ std::string AbslUnparseFlag(const NonTriviallyCopyableUDT<id>&) {
 template <int id, typename F>
 void TestExpectedLeaks(
     F&& f, uint64_t num_leaks,
-    absl::optional<uint64_t> num_new_instances = absl::nullopt) {
+    std::optional<uint64_t> num_new_instances = std::nullopt) {
   if (!num_new_instances.has_value()) num_new_instances = num_leaks;
 
   auto num_leaked_before = flags::NumLeakedFlagValues();
@@ -1216,14 +1216,14 @@ TEST_F(FlagTest, MacroWithinAbslFlag) {
 
 // --------------------------------------------------------------------
 
-ABSL_FLAG(absl::optional<bool>, optional_bool, absl::nullopt, "help");
-ABSL_FLAG(absl::optional<int>, optional_int, {}, "help");
-ABSL_FLAG(absl::optional<double>, optional_double, 9.3, "help");
-ABSL_FLAG(absl::optional<std::string>, optional_string, absl::nullopt, "help");
-ABSL_FLAG(absl::optional<absl::Duration>, optional_duration, absl::nullopt,
+ABSL_FLAG(std::optional<bool>, optional_bool, std::nullopt, "help");
+ABSL_FLAG(std::optional<int>, optional_int, {}, "help");
+ABSL_FLAG(std::optional<double>, optional_double, 9.3, "help");
+ABSL_FLAG(std::optional<std::string>, optional_string, std::nullopt, "help");
+ABSL_FLAG(std::optional<absl::Duration>, optional_duration, std::nullopt,
           "help");
-ABSL_FLAG(absl::optional<absl::optional<int>>, optional_optional_int,
-          absl::nullopt, "help");
+ABSL_FLAG(std::optional<std::optional<int>>, optional_optional_int,
+          std::nullopt, "help");
 #if defined(ABSL_HAVE_STD_OPTIONAL) && !defined(ABSL_USES_STD_OPTIONAL)
 ABSL_FLAG(std::optional<int64_t>, std_optional_int64, std::nullopt, "help");
 #endif
@@ -1232,7 +1232,7 @@ namespace {
 
 TEST_F(FlagTest, TestOptionalBool) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_bool).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_bool), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_bool), std::nullopt);
 
   absl::SetFlag(&FLAGS_optional_bool, false);
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_bool).has_value());
@@ -1242,16 +1242,16 @@ TEST_F(FlagTest, TestOptionalBool) {
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_bool).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_bool), true);
 
-  absl::SetFlag(&FLAGS_optional_bool, absl::nullopt);
+  absl::SetFlag(&FLAGS_optional_bool, std::nullopt);
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_bool).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_bool), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_bool), std::nullopt);
 }
 
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestOptionalInt) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_int).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_int), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_int), std::nullopt);
 
   absl::SetFlag(&FLAGS_optional_int, 0);
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_int).has_value());
@@ -1261,9 +1261,9 @@ TEST_F(FlagTest, TestOptionalInt) {
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_int).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_int), 10);
 
-  absl::SetFlag(&FLAGS_optional_int, absl::nullopt);
+  absl::SetFlag(&FLAGS_optional_int, std::nullopt);
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_int).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_int), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_int), std::nullopt);
 }
 
 // --------------------------------------------------------------------
@@ -1280,16 +1280,16 @@ TEST_F(FlagTest, TestOptionalDouble) {
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_double).has_value());
   EXPECT_DOUBLE_EQ(*absl::GetFlag(FLAGS_optional_double), 1.234);
 
-  absl::SetFlag(&FLAGS_optional_double, absl::nullopt);
+  absl::SetFlag(&FLAGS_optional_double, std::nullopt);
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_double).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_double), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_double), std::nullopt);
 }
 
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestOptionalString) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_string).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_string), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_string), std::nullopt);
 
   // Setting optional string to "" leads to undefined behavior.
 
@@ -1301,16 +1301,16 @@ TEST_F(FlagTest, TestOptionalString) {
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_string).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_string), "QWERTY");
 
-  absl::SetFlag(&FLAGS_optional_string, absl::nullopt);
+  absl::SetFlag(&FLAGS_optional_string, std::nullopt);
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_string).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_string), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_string), std::nullopt);
 }
 
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestOptionalDuration) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_duration).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_duration), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_duration), std::nullopt);
 
   absl::SetFlag(&FLAGS_optional_duration, absl::ZeroDuration());
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_duration).has_value());
@@ -1320,37 +1320,37 @@ TEST_F(FlagTest, TestOptionalDuration) {
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_duration).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_duration), absl::Hours(3));
 
-  absl::SetFlag(&FLAGS_optional_duration, absl::nullopt);
+  absl::SetFlag(&FLAGS_optional_duration, std::nullopt);
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_duration).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_duration), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_duration), std::nullopt);
 }
 
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestOptionalOptional) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_optional_int).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), std::nullopt);
 
-  absl::optional<int> nullint{absl::nullopt};
+  std::optional<int> nullint{std::nullopt};
 
   absl::SetFlag(&FLAGS_optional_optional_int, nullint);
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_optional_int).has_value());
   EXPECT_NE(absl::GetFlag(FLAGS_optional_optional_int), nullint);
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int),
-            absl::optional<absl::optional<int>>{nullint});
+            std::optional<std::optional<int>>{nullint});
 
   absl::SetFlag(&FLAGS_optional_optional_int, 0);
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_optional_int).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), 0);
 
-  absl::SetFlag(&FLAGS_optional_optional_int, absl::optional<int>{0});
+  absl::SetFlag(&FLAGS_optional_optional_int, std::optional<int>{0});
   EXPECT_TRUE(absl::GetFlag(FLAGS_optional_optional_int).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), 0);
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), absl::optional<int>{0});
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), std::optional<int>{0});
 
-  absl::SetFlag(&FLAGS_optional_optional_int, absl::nullopt);
+  absl::SetFlag(&FLAGS_optional_optional_int, std::nullopt);
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_optional_int).has_value());
-  EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), absl::nullopt);
+  EXPECT_EQ(absl::GetFlag(FLAGS_optional_optional_int), std::nullopt);
 }
 
 // --------------------------------------------------------------------

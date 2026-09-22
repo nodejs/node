@@ -120,7 +120,7 @@ BUILTIN(AsyncDisposableStackConstructor) {
   isolate->CountUsage(v8::Isolate::kExplicitResourceManagement);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (!IsJSReceiver(*args.new_target(), isolate)) {
+  if (!IsJSReceiver(*args.new_target())) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(

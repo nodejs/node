@@ -653,7 +653,15 @@ class RustSymbolParser {
     // A nonempty digit sequence denotes its base-62 value plus 1.
     int encoded_number = 0;
     bool overflowed = false;
-    while (IsAlpha(Peek()) || IsDigit(Peek())) {
+    for (int scanned = 0; IsAlpha(Peek()) || IsDigit(Peek()); ++scanned) {
+      // Cap the scan length: a u64 fits in 11 base-62 digits, and int overflows
+      // after ~5, so anything beyond ~16 digits is already failing to parse.
+      if (scanned >= 16) {
+        // Reject pathologically long runs so a backref cannot re-scan
+        // arbitrarily long stretches of input per iteration.
+        return false;
+      }
+
       const char c = Take();
       if (encoded_number >= std::numeric_limits<int>::max()/62) {
         // If we are close to overflowing an int, keep parsing but stop updating

@@ -55,13 +55,21 @@ TEST(DispatchResponseTest, FallThrough) {
   EXPECT_EQ(DispatchCode::FALL_THROUGH, error.Code());
 }
 
+TEST(DispatchResponseTest, FallThroughWithAssociatedData) {
+  DispatchResponse fall_through = DispatchResponse::FallThrough("some details");
+  EXPECT_FALSE(fall_through.IsSuccess());
+  EXPECT_TRUE(fall_through.IsFallThrough());
+  EXPECT_EQ(DispatchCode::FALL_THROUGH, fall_through.Code());
+  EXPECT_EQ("some details", fall_through.Message());
+}
+
 // =============================================================================
 // Dispatchable - a shallow parser for CBOR encoded DevTools messages
 // =============================================================================
 TEST(DispatchableTest, MessageMustBeAnObject) {
   // Provide no input whatsoever.
   span<uint8_t> empty_span;
-  Dispatchable empty(empty_span);
+  Dispatchable empty(empty_span, std::string_view(), nullptr);
   EXPECT_FALSE(empty.ok());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, empty.DispatchError().Code());
   EXPECT_EQ("Message must be an object", empty.DispatchError().Message());
@@ -71,7 +79,7 @@ TEST(DispatchableTest, MessageMustHaveIntegerIdProperty) {
   // Construct an empty map inside of an envelope.
   std::vector<uint8_t> cbor;
   ASSERT_TRUE(json::ConvertJSONToCBOR(SpanFrom("{}"), &cbor).ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_FALSE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -84,7 +92,7 @@ TEST(DispatchableTest, MessageMustHaveIntegerIdProperty_IncorrectType) {
   std::vector<uint8_t> cbor;
   ASSERT_TRUE(
       json::ConvertJSONToCBOR(SpanFrom("{\"id\":\"foo\"}"), &cbor).ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_FALSE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -96,7 +104,7 @@ TEST(DispatchableTest, MessageMustHaveStringMethodProperty) {
   // This time we set the id property, but not the method property.
   std::vector<uint8_t> cbor;
   ASSERT_TRUE(json::ConvertJSONToCBOR(SpanFrom("{\"id\":42}"), &cbor).ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_TRUE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -110,7 +118,7 @@ TEST(DispatchableTest, MessageMustHaveStringMethodProperty_IncorrectType) {
   ASSERT_TRUE(
       json::ConvertJSONToCBOR(SpanFrom("{\"id\":42,\"method\":42}"), &cbor)
           .ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_TRUE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -128,7 +136,7 @@ TEST(DispatchableTest, MessageMayHaveStringSessionIdProperty) {
                            "}"),
                   &cbor)
                   .ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_TRUE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -145,7 +153,7 @@ TEST(DispatchableTest, MessageMayHaveObjectParamsProperty) {
                            "}"),
                   &cbor)
                   .ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_TRUE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -159,7 +167,7 @@ TEST(DispatchableTest, MessageWithUnknownProperty) {
   ASSERT_TRUE(
       json::ConvertJSONToCBOR(SpanFrom("{\"id\":42,\"unknown\":42}"), &cbor)
           .ok());
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_TRUE(dispatchable.HasCallId());
   EXPECT_EQ(DispatchCode::INVALID_REQUEST, dispatchable.DispatchError().Code());
@@ -177,7 +185,7 @@ TEST(DispatchableTest, DuplicateMapKey) {
     SCOPED_TRACE("json = " + json);
     std::vector<uint8_t> cbor;
     ASSERT_TRUE(json::ConvertJSONToCBOR(SpanFrom(json), &cbor).ok());
-    Dispatchable dispatchable(SpanFrom(cbor));
+    Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
     EXPECT_FALSE(dispatchable.ok());
     EXPECT_EQ(DispatchCode::PARSE_ERROR, dispatchable.DispatchError().Code());
     EXPECT_THAT(dispatchable.DispatchError().Message(),
@@ -195,7 +203,7 @@ TEST(DispatchableTest, ValidMessageParsesOK_NoParams) {
     SCOPED_TRACE("json = " + json);
     std::vector<uint8_t> cbor;
     ASSERT_TRUE(json::ConvertJSONToCBOR(SpanFrom(json), &cbor).ok());
-    Dispatchable dispatchable(SpanFrom(cbor));
+    Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
     EXPECT_TRUE(dispatchable.ok());
     EXPECT_TRUE(dispatchable.HasCallId());
     EXPECT_EQ(42, dispatchable.CallId());
@@ -228,7 +236,7 @@ TEST(DispatchableTest, ValidMessageParsesOK_WithParams) {
   cbor::EncodeString8(SpanFrom("f421ssvaz4"), &cbor);
   cbor.push_back(cbor::EncodeStop());
   envelope.EncodeStop(&cbor);
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), "associated data", nullptr);
   EXPECT_TRUE(dispatchable.ok());
   EXPECT_TRUE(dispatchable.HasCallId());
   EXPECT_EQ(42, dispatchable.CallId());
@@ -242,6 +250,7 @@ TEST(DispatchableTest, ValidMessageParsesOK_WithParams) {
   ASSERT_EQ(cbor::CBORTokenTag::STRING8, params_tokenizer.TokenTag());
   EXPECT_EQ("params payload", std::string(params_tokenizer.GetString8().begin(),
                                           params_tokenizer.GetString8().end()));
+  EXPECT_EQ(dispatchable.AssociatedData(), "associated data");
 }
 
 TEST(DispatchableTest, FaultyCBORTrailingJunk) {
@@ -266,7 +275,7 @@ TEST(DispatchableTest, FaultyCBORTrailingJunk) {
   cbor.push_back('a');
   cbor.push_back('i');
   cbor.push_back('l');
-  Dispatchable dispatchable(SpanFrom(cbor));
+  Dispatchable dispatchable(SpanFrom(cbor), std::string_view(), nullptr);
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_EQ(DispatchCode::PARSE_ERROR, dispatchable.DispatchError().Code());
   EXPECT_EQ(57u, trailing_junk_pos);
@@ -341,10 +350,6 @@ class TestChannel : public FrontendChannel {
     cbor_ = message->Serialize();
   }
 
-  void FallThrough(int call_id,
-                   span<uint8_t> method,
-                   span<uint8_t> message) override {}
-
   void FlushProtocolNotifications() override {}
 
   std::vector<uint8_t> cbor_;
@@ -359,11 +364,9 @@ TEST(UberDispatcherTest, MethodNotFound) {
   std::vector<uint8_t> message;
   json::ConvertJSONToCBOR(SpanFrom("{\"id\":42,\"method\":\"Foo.bar\"}"),
                           &message);
-  Dispatchable dispatchable(SpanFrom(message));
+  Dispatchable dispatchable(SpanFrom(message), std::string_view(), nullptr);
   ASSERT_TRUE(dispatchable.ok());
-  UberDispatcher::DispatchResult dispatched = dispatcher.Dispatch(dispatchable);
-  EXPECT_FALSE(dispatched.MethodFound());
-  dispatched.Run();
+  dispatcher.Dispatch(dispatchable);
   EXPECT_EQ(
       "{\"id\":42,\"error\":"
       "{\"code\":-32601,\"message\":\"'Foo.bar' wasn't found\"}}",
@@ -376,13 +379,12 @@ class TestDomain : public DomainDispatcher {
  public:
   explicit TestDomain(FrontendChannel* channel) : DomainDispatcher(channel) {}
 
-  std::function<void(const Dispatchable&)> Dispatch(
-      span<uint8_t> command_name) override {
+  bool Dispatch(span<uint8_t> command_name,
+                Dispatchable& dispatchable) override {
     dispatched_commands_.push_back(
         std::string(command_name.begin(), command_name.end()));
-    return [this](const Dispatchable& dispatchable) {
-      executed_commands_.push_back(dispatchable.CallId());
-    };
+    executed_commands_.push_back(dispatchable.CallId());
+    return true;
   }
 
   // Command names of the dispatched commands.
@@ -418,23 +420,17 @@ TEST(UberDispatcherTest, DispatchingToDomainWithRedirects) {
     std::vector<uint8_t> message;
     json::ConvertJSONToCBOR(SpanFrom("{\"id\":42,\"method\":\"Foo.execute\"}"),
                             &message);
-    Dispatchable dispatchable(SpanFrom(message));
+    Dispatchable dispatchable(SpanFrom(message), std::string_view(), nullptr);
     ASSERT_TRUE(dispatchable.ok());
-    UberDispatcher::DispatchResult dispatched =
-        dispatcher.Dispatch(dispatchable);
-    EXPECT_TRUE(dispatched.MethodFound());
-    dispatched.Run();
+    dispatcher.Dispatch(dispatchable);
   }
   {
     std::vector<uint8_t> message;
     json::ConvertJSONToCBOR(SpanFrom("{\"id\":43,\"method\":\"Foo.redirect\"}"),
                             &message);
-    Dispatchable dispatchable(SpanFrom(message));
+    Dispatchable dispatchable(SpanFrom(message), std::string_view(), nullptr);
     ASSERT_TRUE(dispatchable.ok());
-    UberDispatcher::DispatchResult dispatched =
-        dispatcher.Dispatch(dispatchable);
-    EXPECT_TRUE(dispatched.MethodFound());
-    dispatched.Run();
+    dispatcher.Dispatch(dispatchable);
   }
   EXPECT_THAT(foo->DispatchedCommands(), testing::ElementsAre("execute"));
   EXPECT_THAT(foo->ExecutedCommands(), testing::ElementsAre(42));

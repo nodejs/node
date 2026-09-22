@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSFinalizationRegistry')
 bitfield struct FinalizationRegistryFlags extends uint31 {
   scheduled_for_cleanup: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSFinalizationRegistry extends JSObject {
   native_context: NativeContext;
   cleanup: Callable;
@@ -40,6 +42,7 @@ extern class WeakCell extends HeapObject {
   key_list_next: Undefined|WeakCell;
 }
 
+@cppObjectLayoutDefinition
 extern class JSWeakRef extends JSObject {
   target: Undefined|JSReceiver|Symbol;
 }

@@ -11,6 +11,8 @@
 #include "src/base/bits.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/factory-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -19,7 +21,7 @@
 namespace v8::internal {
 
 uint32_t SmiStringCache::capacity() const {
-  return Super::capacity() / kEntrySize;
+  return Super::capacity().value() / kEntrySize;
 }
 
 InternalIndex SmiStringCache::GetEntryFor(Tagged<Smi> number) const {
@@ -96,7 +98,7 @@ void SmiStringCache::Set(Isolate* isolate, InternalIndex entry,
 // static
 template <class IsolateT>
 DirectHandle<SmiStringCache> SmiStringCache::New(IsolateT* isolate,
-                                                 int capacity) {
+                                                 uint32_t capacity) {
   std::optional<DisallowGarbageCollection> no_gc;
   DirectHandle<SmiStringCache> result = Cast<SmiStringCache>(
       Allocate(isolate, capacity * kEntrySize, &no_gc, AllocationType::kOld));
@@ -107,7 +109,7 @@ DirectHandle<SmiStringCache> SmiStringCache::New(IsolateT* isolate,
 // Clears all entried in the table.
 void SmiStringCache::Clear() {
   Relaxed_MemsetTagged(RawFieldOfFirstElement(), kEmptySentinel,
-                       Super::capacity());
+                       Super::capacity().value());
 }
 
 // static

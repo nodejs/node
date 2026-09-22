@@ -303,7 +303,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     if (key == *name) {
       // Attributes transition.
       PropertyAttributes attributes =
-          target->GetLastDescriptorDetails(isolate).attributes();
+          target->GetLastDescriptorDetails().attributes();
       CHECK_EQ(*attr_maps[static_cast<int>(attributes)], target);
     } else {
       for (int j = 0; j < PROPS_COUNT; j++) {
@@ -573,6 +573,86 @@ UNINITIALIZED_TEST(TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
   isolate->Dispose();
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
+}
+
+// LinearSearchName should work correctly even when the underlying
+// TransitionArray is not in hash-sorted order.
+TEST(TransitionArray_LinearSearchHandlesUnsortedArray) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+
+  // Keep the number of transitions small to ensure linear search is used.
+  constexpr int kCount = TransitionArray::kMaxElementsForLinearSearch / 2;
+  DirectHandle<Map> map0 = Map::Create(isolate, 0);
+
+  Handle<String> names[kCount];
+  for (int i = 0; i < kCount; i++) {
+    base::EmbeddedVector<char, 64> buffer;
+    SNPrintF(buffer, "prop%d", i);
+    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
+    Handle<Map> next =
+        Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate), NONE,
+                           PropertyConstness::kMutable,
+                           Representation::Tagged(), OMIT_TRANSITION)
+            .ToHandleChecked();
+    TransitionsAccessor::Insert(isolate, map0, name, next, PROPERTY_TRANSITION);
+    names[i] = name;
+  }
+
+  // Sort by hash, then reverse so the array is no longer in increasing order.
+  {
+    DisallowGarbageCollection no_gc;
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK_EQ(kCount, transitions.NumberOfTransitions());
+    Tagged<TransitionArray> array = transitions.transitions();
+    array->Sort(/* force= */ true);
+
+    for (int i = 0, j = kCount - 1; i < j; i++, j--) {
+      Tagged<Name> ki = array->GetKey(i);
+      Tagged<Name> kj = array->GetKey(j);
+      Tagged<MaybeObject> ti = array->GetRawTarget(i);
+      Tagged<MaybeObject> tj = array->GetRawTarget(j);
+      array->SetKey(i, kj);
+      array->SetRawTarget(i, tj);
+      array->SetKey(j, ki);
+      array->SetRawTarget(j, ti);
+    }
+
+    // Verify that the array is no longer in increasing hash order.
+    // Use CHECK_GE to allow for hash collisions.
+    for (int i = 0; i + 1 < kCount; i++) {
+      CHECK_GE(array->GetKey(i)->hash(), array->GetKey(i + 1)->hash());
+    }
+  }
+
+  // Every transition must still be findable.
+  {
+    TestTransitionsAccessor transitions(isolate, map0);
+    Tagged<TransitionArray> array = transitions.transitions();
+    for (int i = 0; i < kCount; i++) {
+      int insertion = -1;
+      int idx = array->SearchNameForTesting(*names[i], &insertion);
+      CHECK_NE(TransitionArray::kNotFound, idx);
+      CHECK_EQ(*names[i], array->GetKey(idx));
+    }
+  }
+
+  // Re-inserting any existing key with a fresh target must overwrite in place
+  // rather than create a duplicate.
+  for (int i = 0; i < kCount; i++) {
+    DirectHandle<Map> fresh =
+        Map::CopyWithField(isolate, map0, names[i], FieldType::Any(isolate),
+                           NONE, PropertyConstness::kMutable,
+                           Representation::Tagged(), OMIT_TRANSITION)
+            .ToHandleChecked();
+    TransitionsAccessor::Insert(isolate, map0, names[i], fresh,
+                                PROPERTY_TRANSITION);
+
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK_EQ(kCount, transitions.NumberOfTransitions());
+  }
 }
 
 }  // namespace internal

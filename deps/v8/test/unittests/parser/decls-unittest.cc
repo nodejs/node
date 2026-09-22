@@ -88,8 +88,9 @@ class DeclarationContext {
   // to the instance specific virtual methods.
   static v8::Intercepted HandleGet(
       Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info);
-  static v8::Intercepted HandleSet(Local<Name> key, Local<Value> value,
-                                   const v8::PropertyCallbackInfo<void>& info);
+  static v8::Intercepted HandleSet(
+      Local<Name> key, Local<Value> value,
+      const v8::PropertyCallbackInfo<Boolean>& info);
   static v8::Intercepted HandleQuery(
       Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info);
 
@@ -195,7 +196,7 @@ v8::Intercepted DeclarationContext::HandleGet(
 
 v8::Intercepted DeclarationContext::HandleSet(
     Local<Name> key, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->set_count_++;
   Maybe<bool> maybe_result = context->Set(key, value);

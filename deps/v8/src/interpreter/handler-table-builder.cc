@@ -4,6 +4,7 @@
 
 #include "src/interpreter/handler-table-builder.h"
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/interpreter/bytecode-register.h"
@@ -18,18 +19,26 @@ HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 template <typename IsolateT>
 DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
     IsolateT* isolate) {
-  int handler_table_size = static_cast<int>(entries_.size());
+  uint32_t effective_size = 0;
+  for (const auto& entry : entries_) {
+    if (!entry.dropped) effective_size++;
+  }
+
   DirectHandle<TrustedByteArray> table_byte_array =
       isolate->factory()->NewTrustedByteArray(
-          HandlerTable::LengthForRange(handler_table_size));
+          HandlerTable::LengthForRange(effective_size));
   HandlerTable table(*table_byte_array);
-  for (int i = 0; i < handler_table_size; ++i) {
+  uint32_t table_index = 0;
+  for (size_t i = 0; i < entries_.size(); ++i) {
     Entry& entry = entries_[i];
+    if (entry.dropped) continue;
     HandlerTable::CatchPrediction pred = entry.catch_prediction_;
-    table.SetRangeStart(i, static_cast<int>(entry.offset_start));
-    table.SetRangeEnd(i, static_cast<int>(entry.offset_end));
-    table.SetRangeHandler(i, static_cast<int>(entry.offset_target), pred);
-    table.SetRangeData(i, entry.context.index());
+    table.SetRangeStart(table_index, static_cast<int>(entry.offset_start));
+    table.SetRangeEnd(table_index, static_cast<int>(entry.offset_end));
+    table.SetRangeHandler(table_index, static_cast<int>(entry.offset_target),
+                          pred);
+    table.SetRangeData(table_index, entry.context.index());
+    table_index++;
   }
   return table_byte_array;
 }
@@ -41,7 +50,10 @@ template DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
 
 int HandlerTableBuilder::NewHandlerEntry() {
   int handler_id = static_cast<int>(entries_.size());
-  Entry entry = {0, 0, 0, Register::invalid_value(), HandlerTable::UNCAUGHT};
+  // Avoid unnecessary spaces
+  // clang-format off
+  Entry entry = {0, 0, 0, Register::invalid_value(), HandlerTable::UNCAUGHT, false};
+  // clang-format on
   entries_.push_back(entry);
   return handler_id;
 }
@@ -72,6 +84,10 @@ void HandlerTableBuilder::SetPrediction(
 
 void HandlerTableBuilder::SetContextRegister(int handler_id, Register reg) {
   entries_[handler_id].context = reg;
+}
+
+void HandlerTableBuilder::DropHandlerEntry(int handler_id) {
+  entries_[handler_id].dropped = true;
 }
 
 }  // namespace interpreter

@@ -33,7 +33,7 @@ class ProfileDataFromFileInternal : public ProfileDataFromFile {
         std::make_pair(true_block_id, false_block_id), hint != 0));
   }
 
-#ifdef LOG_BUILTIN_BLOCK_COUNT
+#if defined(LOG_BUILTIN_BLOCK_COUNT) || defined(BUILTIN_BLOCK_POSITION)
   void AddBlockExecutionCount(size_t block_id, uint64_t executed_count) {
     executed_count_.emplace(block_id, executed_count);
   }
@@ -74,7 +74,7 @@ EnsureInitProfileData() {
         errno = 0;
         uint32_t block_id =
             static_cast<uint32_t>(strtoul(block_id_str.c_str(), &end, 10));
-        CHECK(errno == 0);
+        CHECK_EQ(errno, 0);
         std::string executed_count_str;
         CHECK(std::getline(line_stream, executed_count_str, '\t'));
         uint64_t executed_count = static_cast<uint64_t>(
@@ -133,6 +133,29 @@ EnsureInitProfileData() {
       // Only the first hint for each branch will be used.
       hints_and_hash.AddHintToBlock(true_id, false_id, hint);
       CHECK(line_stream.eof());
+#ifdef BUILTIN_BLOCK_POSITION
+    } else if (token == ProfileDataFromFileConstants::kBlockCounterMarker) {
+      // Any line starting with kBlockCounterMarker is a basic block execution
+      // count. The format is:
+      //   literal kBlockCounterMarker , builtin_name , block_id , count
+      std::string builtin_name;
+      CHECK(std::getline(line_stream, builtin_name, ','));
+      std::string block_id_str;
+      CHECK(std::getline(line_stream, block_id_str, ','));
+      char* end = nullptr;
+      errno = 0;
+      uint32_t block_id =
+          static_cast<uint32_t>(strtoul(block_id_str.c_str(), &end, 10));
+      CHECK_EQ(errno, 0);
+      std::string executed_count_str;
+      CHECK(std::getline(line_stream, executed_count_str, ','));
+      uint64_t executed_count =
+          static_cast<uint64_t>(strtoul(executed_count_str.c_str(), &end, 10));
+      CHECK(errno == 0 && end != executed_count_str.c_str());
+      ProfileDataFromFileInternal& block_count = (*data.get())[builtin_name];
+      block_count.AddBlockExecutionCount(block_id, executed_count);
+      CHECK(line_stream.eof());
+#endif
     } else if (token == ProfileDataFromFileConstants::kBuiltinHashMarker) {
       // Any line starting with kBuiltinHashMarker is a function hash record.
       // As defined by V8FileLogger::BuiltinHashEvent, the format is:
