@@ -589,6 +589,59 @@ async function testDestroyUsesDisposeFallback() {
   assert.strictEqual(disposed, true);
 }
 
+async function testDestroyUsesAsyncDisposeFallback() {
+  const { promise: disposing, resolve } = Promise.withResolvers();
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.asyncDispose]: common.mustCall(() => disposing),
+  });
+  let closed = false;
+  writable.on('close', () => { closed = true; });
+
+  writable.destroy();
+  await setImmediate();
+  // Destruction completes only once the async dispose settles.
+  assert.strictEqual(closed, false);
+  resolve();
+  await once(writable, 'close');
+}
+
+async function testDestroyWithErrorUsesAsyncDisposeFallback() {
+  const reason = new Error('destroyed');
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.asyncDispose]: common.mustCall(() => Promise.resolve()),
+  });
+
+  writable.destroy(reason);
+  const [error] = await once(writable, 'error');
+  assert.strictEqual(error, reason);
+}
+
+async function testAsyncDisposeRejectionErrorsDestroy() {
+  const reason = new Error('dispose failed');
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.asyncDispose]: common.mustCall(() => Promise.reject(reason)),
+  });
+
+  writable.destroy();
+  const [error] = await once(writable, 'error');
+  assert.strictEqual(error, reason);
+}
+
+async function testDisposeThrowErrorsDestroy() {
+  const reason = new Error('dispose failed');
+  const writable = toWritable({
+    write(chunk) { return Promise.resolve(); },
+    [Symbol.dispose]: common.mustCall(() => { throw reason; }),
+  });
+
+  writable.destroy();
+  const [error] = await once(writable, 'error');
+  assert.strictEqual(error, reason);
+}
+
 // =============================================================================
 // Destroy with error calls fail() when available
 // =============================================================================
@@ -762,6 +815,10 @@ Promise.all([
   testDestroyDelegatesToFail(),
   testDestroyWithoutError(),
   testDestroyUsesDisposeFallback(),
+  testDestroyUsesAsyncDisposeFallback(),
+  testDestroyWithErrorUsesAsyncDisposeFallback(),
+  testAsyncDisposeRejectionErrorsDestroy(),
+  testDisposeThrowErrorsDestroy(),
   testDestroyWithError(),
   testDestroyWithoutFail(),
   testWriteErrorPropagation(),
