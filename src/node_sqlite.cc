@@ -1097,6 +1097,50 @@ bool VirtualTableModule::CanCallIntoJS() const {
   return db_ && !db_->IsInDestructor();
 }
 
+bool VirtualTableModule::CloseIterator(NodeVTabCursor* cursor) {
+  VirtualTableModule* mod = cursor->module;
+
+  // Skipped in two cases:
+  //
+  // - While the database is being torn down from a destructor, because those
+  //   run from a garbage collection callback where JavaScript cannot be
+  //   executed. An abandoned generator does not run `finally` in JavaScript
+  //   either, so skipping matches the language.
+  // - When an error is already pending, because calling into JavaScript would
+  //   discard it and the caller would see an empty result instead of the error.
+  //   A generator whose own body threw has already run its `finally` as part of
+  //   that throw, so this only affects an iterator abandoned while suspended
+  //   because something else failed.
+  if (cursor->iterator.IsEmpty() || !mod->CanCallIntoJS() ||
+      mod->env_->isolate()->HasPendingException()) {
+    return false;
+  }
+
+  Environment* env = mod->env_;
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  CallbackDepthGuard callback_guard(mod->db_.get());
+
+  // Scoped above the property lookup so a throwing `return` getter is
+  // handled the same way as a throwing `return()` method.
+  TryCatch try_catch(isolate);
+  Local<Object> iterator = cursor->iterator.Get(isolate);
+  Local<Value> return_method;
+  if (iterator->Get(env->context(), FIXED_ONE_BYTE_STRING(isolate, "return"))
+          .ToLocal(&return_method) &&
+      return_method->IsFunction()) {
+    USE(return_method.As<Function>()->Call(
+        env->context(), iterator, 0, nullptr));
+  }
+
+  // Re-throw so that a throwing `finally` is not silently discarded.
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+    return true;
+  }
+  return false;
+}
+
 void VirtualTableModule::ReleaseHiddenValues(NodeVTabCursor* cursor) {
   for (sqlite3_value*& value : cursor->hidden_values) {
     if (value != nullptr) {
@@ -1216,44 +1260,9 @@ int VirtualTableModule::xClose(sqlite3_vtab_cursor* pCursor) {
 
   // Close the iterator so generator `finally` blocks still run when SQLite
   // stops stepping early, as it does for LIMIT or a `break` out of a for...of
-  // loop. Skipped in two cases:
-  //
-  // - While the database is being torn down from a destructor, because those
-  //   run from a garbage collection callback where JavaScript cannot be
-  //   executed. An abandoned generator does not run `finally` in JavaScript
-  //   either, so skipping matches the language.
-  // - When an error is already pending, because calling into JavaScript would
-  //   discard it and the caller would see an empty result instead of the error.
-  //   A generator whose own body threw has already run its `finally` as part of
-  //   that throw, so this only affects an iterator abandoned while suspended
-  //   because something else failed.
-  if (!cursor->iterator.IsEmpty() && mod->CanCallIntoJS() &&
-      !mod->env_->isolate()->HasPendingException()) {
-    Environment* env = mod->env_;
-    Isolate* isolate = env->isolate();
-    HandleScope handle_scope(isolate);
-    CallbackDepthGuard callback_guard(mod->db_.get());
-
-    // Scoped above the property lookup so a throwing `return` getter is
-    // handled the same way as a throwing `return()` method.
-    TryCatch try_catch(isolate);
-    Local<Object> iterator = cursor->iterator.Get(isolate);
-    Local<Value> return_method;
-    if (iterator->Get(env->context(), FIXED_ONE_BYTE_STRING(isolate, "return"))
-            .ToLocal(&return_method) &&
-        return_method->IsFunction()) {
-      USE(return_method.As<Function>()->Call(
-          env->context(), iterator, 0, nullptr));
-    }
-
-    // Re-throw so that a throwing `finally` is not silently discarded. SQLite
-    // discards xClose's return value, so there is no SQLite error here to
-    // suppress; calling PropagateJSError would leave the suppression flag set
-    // and swallow the next unrelated SQLite error.
-    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-      try_catch.ReThrow();
-    }
-  }
+  // loop. SQLite discards xClose's return value, so a throwing cleanup is
+  // re-thrown rather than paired with a SQLite error here.
+  mod->CloseIterator(cursor);
 
   ReleaseHiddenValues(cursor);
   cursor->iterator.Reset();
@@ -1276,6 +1285,15 @@ int VirtualTableModule::xFilter(sqlite3_vtab_cursor* pCursor,
     return SQLITE_ERROR;
   }
   CallbackDepthGuard callback_guard(mod->db_.get());
+
+  // Re-filtering a cursor occurs when SQLite re-invokes xFilter on a cursor it
+  // already used, as it does for the inner table of a correlated subquery or
+  // join. The previous iterator is abandoned mid-loop, so close it the same way
+  // xClose does; otherwise its generator `finally` blocks never run. A throwing
+  // cleanup is surfaced as the error for this query.
+  if (mod->CloseIterator(cursor)) {
+    return mod->PropagateJSError();
+  }
 
   cursor->rowid = 0;
   cursor->done = false;
