@@ -661,16 +661,16 @@
             'WARNING_CFLAGS': [ '-Werror' ],
           },
         }],
-        # The Release executable force-loads several static libraries, so
-        # unreferenced objects and the symbol table dominate the file.
-        # -dead_strip drops unreferenced .o files, -x drops local symbols,
-        # and -S drops STABS. Debug keeps symbols.
+        # The Release executable's local symbol table and STABS dominate
+        # LINKEDIT. -x drops local symbols and -S drops STABS. Debug keeps
+        # them. Do not pass -dead_strip: N-API and libuv symbols are reached
+        # only from addons loaded at runtime, and dead-stripping removes
+        # those exports from the executable.
         ['OS=="mac" or OS=="ios"', {
           'configurations': {
             'Release': {
               'xcode_settings': {
                 'OTHER_LDFLAGS': [
-                  '-Wl,-dead_strip',
                   '-Wl,-x',
                   '-Wl,-S',
                 ],
