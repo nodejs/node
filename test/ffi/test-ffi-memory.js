@@ -322,11 +322,31 @@ test('ffi validates memory access arguments', () => {
 
     assert.throws(() => ffi.toBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toArrayBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
-    assert.throws(() => ffi.toBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });
-    assert.throws(() => ffi.toArrayBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });
+
+    // If MAX_LENGTH is Number.MAX_SAFE_INTEGER, MAX_LENGTH + 1 is an unsafe
+    // integer and is rejected before the buffer length is checked.
+    if (bufferConstants.MAX_LENGTH < Number.MAX_SAFE_INTEGER) {
+      assert.throws(() => ffi.toBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });
+      assert.throws(() => ffi.toArrayBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });
+    }
 
     if (process.arch === 'ia32' || process.arch === 'arm') {
       assert.throws(() => ffi.toBuffer(2n ** 32n, 0), /platform pointer range/);
+    }
+  }));
+});
+
+test('ffi rejects unsafe integers as an offset or length', () => {
+  withAllocations(common.mustCall((alloc) => {
+    const ptr = alloc(8);
+    const range = { code: 'ERR_OUT_OF_RANGE' };
+
+    // On 64-bit platforms SIZE_MAX rounds up to 2 ** 64 as a double.
+    for (const value of [Number.MAX_SAFE_INTEGER + 1, 2 ** 64]) {
+      assert.throws(() => ffi.getUint8(ptr, value), range);
+      assert.throws(() => ffi.setUint8(ptr, value, 42), range);
+      assert.throws(() => ffi.toBuffer(ptr, value), range);
+      assert.throws(() => ffi.toArrayBuffer(ptr, value), range);
     }
   }));
 });
