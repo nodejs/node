@@ -28,6 +28,7 @@ on:
           - inspector_protocol
           - libffi
           - libuv
+          - lief
           - llhttp
           - nbytes
           - nixpkgs-unstable
@@ -149,6 +150,7 @@ jobs:
           - id: icu
             subsystem: deps
             label: dependencies, test, icu
+            requires-python: true
             run: |
               ./tools/dep_updaters/update-icu.sh > temp-output
               cat temp-output
@@ -157,6 +159,7 @@ jobs:
           - id: inspector_protocol
             subsystem: deps
             label: dependencies, inspector
+            requires-python: true
             run: |
               ./tools/dep_updaters/update-inspector-protocol.sh > temp-output
               cat temp-output
@@ -175,6 +178,15 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-libuv.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: lief
+            subsystem: deps
+            label: dependencies, dont-land-on-v22.x
+            requires-python: true
+            run: |
+              ./tools/dep_updaters/update-lief.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -312,9 +324,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        if: |
-          (matrix.id == 'icu' || matrix.id == 'inspector_protocol') &&
-          (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        if: matrix.requires-python && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
