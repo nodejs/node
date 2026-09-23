@@ -113,9 +113,13 @@ if (hasFIPS(3)) {
   skip(
     'encrypt_decrypt/aes_ocb.tentative.https.any.js',
     'encrypt_decrypt/chacha20_poly1305.tentative.https.any.js',
+    'generateKey/failures_AES-OCB.tentative.https.any.js',
     'generateKey/failures_chacha20_poly1305.tentative.https.any.js',
+    'generateKey/successes_AES-OCB.tentative.https.any.js',
     'generateKey/successes_chacha20_poly1305.tentative.https.any.js',
+    'import_export/AES-OCB_importKey.tentative.https.any.js',
     'import_export/ChaCha20-Poly1305_importKey.tentative.https.any.js',
+    'serialization/aes-ocb.tentative.https.any.js',
     'serialization/chacha20-poly1305.tentative.https.any.js');
 
   skipSubtests(
@@ -153,6 +157,8 @@ if (hasFIPS(3, 5)) {
     'derive_bits_keys/cfrg_curves_keys_curve25519.https.any.js',
     'derive_bits_keys/cfrg_curves_keys_curve448.tentative.https.any.js',
     'generateKey/failures_Hybrid-KEM.tentative.https.any.js',
+    'generateKey/failures_X25519.https.any.js',
+    'generateKey/failures_X448.tentative.https.any.js',
     'generateKey/successes_Hybrid-KEM.tentative.https.any.js',
     'generateKey/successes_X25519.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',

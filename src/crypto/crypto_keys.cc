@@ -50,6 +50,13 @@ using v8::Value;
 
 namespace crypto {
 namespace {
+void IsKeyAlgorithmAvailable(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  const Utf8Value name(args.GetIsolate(), args[0]);
+  const auto* algorithm = KeyAlgorithm::FromName(*name);
+  args.GetReturnValue().Set(algorithm != nullptr && algorithm->isAvailable());
+}
+
 Maybe<EVPKeyPointer::AsymmetricKeyEncodingConfig> GetKeyFormatAndTypeFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -2188,7 +2195,8 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatPKCS8);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatSPKI);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
-  SetMethod(context, target, "getPqcKeyTypes", GetPqcKeyTypes);
+  SetMethodNoSideEffect(
+      context, target, "isKeyAlgorithmAvailable", IsKeyAlgorithmAvailable);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS8);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingSPKI);
@@ -2209,7 +2217,7 @@ void Initialize(Environment* env, Local<Object> target) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   KeyObjectHandle::RegisterExternalReferences(registry);
-  registry->Register(GetPqcKeyTypes);
+  registry->Register(IsKeyAlgorithmAvailable);
 }
 }  // namespace Keys
 

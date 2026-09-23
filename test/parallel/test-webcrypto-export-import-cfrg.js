@@ -413,18 +413,18 @@ async function testImportRaw({ name, publicUsages }) {
   const tests = [];
   for (const vector of testVectors) {
     for (const extractable of [true, false]) {
-      tests.push(testImportSpki(vector, extractable));
-      tests.push(testImportPkcs8(vector, extractable));
-      if (rejectsXCurves && vector.name.startsWith('X')) {
-        tests.push(assert.rejects(
-          testImportJwk(vector, extractable),
-          { name: 'DataError' }));
-      } else {
-        tests.push(testImportJwk(vector, extractable));
+      for (const test of [testImportSpki, testImportPkcs8, testImportJwk]) {
+        const imported = test(vector, extractable);
+        tests.push(rejectsXCurves && vector.name.startsWith('X') ?
+          assert.rejects(imported, {
+            name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+          }) : imported);
       }
     }
     if (rejectsXCurves && vector.name.startsWith('X')) {
-      tests.push(assert.rejects(testImportRaw(vector), { name: 'DataError' }));
+      tests.push(assert.rejects(testImportRaw(vector), {
+        name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+      }));
     } else {
       tests.push(testImportRaw(vector));
     }
@@ -453,7 +453,9 @@ async function testImportRaw({ name, publicUsages }) {
         { name },
         true,
         [invalidUsage]),
-      { name: 'SyntaxError', message: /Unsupported key usage/ });
+      rejectsXCurves && isKeyAgreement ?
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' } :
+        { name: 'SyntaxError', message: /Unsupported key usage/ });
 
     const validUsage = privateUsages[0];
     await assert.rejects(
@@ -463,7 +465,9 @@ async function testImportRaw({ name, publicUsages }) {
         { name },
         true,
         [validUsage]),
-      { name: 'DataError', message: 'Duplicate key operation' });
+      rejectsXCurves && isKeyAgreement ?
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' } :
+        { name: 'DataError', message: 'Duplicate key operation' });
   }
 })().then(common.mustCall());
 
@@ -477,15 +481,18 @@ async function testImportRaw({ name, publicUsages }) {
     ['Ed25519', ['verify'], ['sign']],
     ['X25519', [], ['deriveBits']],
   ]) {
+    const error = rejectsXCurves && name.startsWith('X') ?
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' } :
+      { message: /Invalid key type/ };
     assert.rejects(subtle.importKey(
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name },
-      true, publicUsages), { message: /Invalid key type/ }).then(common.mustCall());
+      true, publicUsages), error).then(common.mustCall());
     assert.rejects(subtle.importKey(
       'pkcs8',
       rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name },
-      true, privateUsages), { message: /Invalid key type/ }).then(common.mustCall());
+      true, privateUsages), error).then(common.mustCall());
   }
 }
