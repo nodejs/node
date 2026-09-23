@@ -35,10 +35,14 @@ assert.strictEqual(myVfs.provider.supportsWatch, true);
   await iter.return();
 })().then(common.mustCall());
 
-// watchFile / unwatchFile
+// watchFile / unwatchFile: the listener must be forwarded to the real fs
+// watcher (not stubbed), fire on change, and be removable by identity.
 {
   fs.writeFileSync(path.join(root, 'wf.txt'), 'a');
-  const listener = () => {};
-  myVfs.watchFile('/wf.txt', { persistent: false }, listener);
-  myVfs.unwatchFile('/wf.txt', listener);
+  const listener = common.mustCall();
+  myVfs.watchFile('/wf.txt', { interval: 10, persistent: false }, listener);
+  fs.writeFileSync(path.join(root, 'wf.txt'), 'b');
+  setTimeout(() => {
+    myVfs.unwatchFile('/wf.txt', listener);
+  }, 50);
 }
