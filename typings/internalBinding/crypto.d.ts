@@ -832,7 +832,6 @@ export interface CryptoBinding {
   KEMEncapsulateJob?: InternalCryptoBinding.KEMEncapsulateJobConstructor;
   KangarooTwelveJob: InternalCryptoBinding.KangarooTwelveJobConstructor;
   KmacJob: InternalCryptoBinding.KmacJobConstructor;
-  getPqcKeyTypes(): string[];
   NamedKeyPairGenJob: InternalCryptoBinding.NamedKeyPairGenJobConstructor;
   PBKDF2Job: InternalCryptoBinding.PBKDF2JobConstructor;
   RandomBytesJob: InternalCryptoBinding.RandomBytesJobConstructor;
@@ -988,6 +987,7 @@ export interface CryptoBinding {
   getHashes(): string[];
   getMacs(): string[];
   isCryptoKey(key: unknown): boolean;
+  isKeyAlgorithmAvailable(name: string): boolean;
   isKeyObject(key: unknown): boolean;
   isX509Certificate(value: unknown): boolean;
   getKeyObjectSlots(key: object): InternalCryptoBinding.KeyObjectSlots;
