@@ -1,4 +1,0 @@
-rule cc
-  command = cc $in $out
-
-build my.out: cc my.in
