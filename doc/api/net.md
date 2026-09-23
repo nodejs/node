@@ -240,7 +240,7 @@ added:
 -->
 
 * `value` {any} Any JS value
-* Returns `true` if the `value` is a `net.BlockList`.
+* Returns {boolean} `true` if the `value` is a `net.BlockList`.
 
 ### `BlockList.PRIVATE_RANGES`
 
