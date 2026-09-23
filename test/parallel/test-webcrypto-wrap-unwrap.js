@@ -485,20 +485,30 @@ async function testNonByteLengthWrapUnwrap({
   });
 
   if (hasOpenSSL(3) && getFips() !== 1) {
-    const kmacAlgorithm = { name: 'KMAC128' };
-    const kmacKey = await subtle.importKey(
-      'raw-secret',
-      new Uint8Array([0xff, 0xff]),
-      { ...kmacAlgorithm, length: 9 },
-      true,
-      ['sign', 'verify']);
-    await testNonByteLengthWrapUnwrap({
-      key: kmacKey,
-      formats: ['raw-secret', 'jwk'],
-      rawFormat: 'raw-secret',
-      explicitAlgorithm: { ...kmacAlgorithm, length: 9 },
-      implicitAlgorithm: kmacAlgorithm,
-    });
+    for (const name of ['KMAC128', 'KMAC256']) {
+      const keyData = new Uint8Array(32).fill(0xff);
+      const kmacKey = await subtle.importKey(
+        'raw-secret', keyData, name, true, ['sign', 'verify']);
+      const wrappingKey = await subtle.generateKey(
+        { name: 'AES-GCM', length: 128 }, true, ['wrapKey', 'unwrapKey']);
+
+      for (const [i, format] of ['raw-secret', 'jwk'].entries()) {
+        const wrapAlgorithm = { name: 'AES-GCM', iv: new Uint8Array(12).fill(i) };
+        const wrapped = await subtle.wrapKey(format, kmacKey, wrappingKey, wrapAlgorithm);
+        await assert.rejects(
+          subtle.unwrapKey(
+            format, wrapped, wrappingKey, wrapAlgorithm,
+            { name, length: 255 }, true, ['sign', 'verify']),
+          { name: 'NotSupportedError', message: 'Invalid key length' });
+
+        const unwrapped = await subtle.unwrapKey(
+          format, wrapped, wrappingKey, wrapAlgorithm,
+          { name, length: 256 }, true, ['sign', 'verify']);
+        assert.strictEqual(unwrapped.algorithm.length, 256);
+        assert.deepStrictEqual(
+          new Uint8Array(await subtle.exportKey('raw-secret', unwrapped)), keyData);
+      }
+    }
   }
 })().then(common.mustCall());
 

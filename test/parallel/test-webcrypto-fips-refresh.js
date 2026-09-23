@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { getFips, setFips } = require('crypto');
+const { getFips, getHashes, setFips } = require('crypto');
 const { internalBinding } = require('internal/test/binding');
 const { getOptionValue } = require('internal/options');
 if (!internalBinding('crypto').testFipsCrypto())
@@ -25,8 +25,8 @@ try {
       name: 'KT128', outputLength: 128,
     }), !fips);
     assert.strictEqual(SubtleCrypto.supports('digest', {
-      name: 'cSHAKE128', outputLength: 128, customization: new Uint8Array(1),
-    }), !fips);
+      name: 'cSHAKE128', outputLength: 128, customization: new Uint8Array([1]),
+    }), getHashes().includes('cshake128'));
     assert.strictEqual(SubtleCrypto.supports('generateKey', {
       name: 'RSA-PSS', hash: 'SHA-256', modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
