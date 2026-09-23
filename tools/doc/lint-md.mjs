@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 
 import { remark } from 'remark';
 import remarkLintApi from '@node-core/remark-lint/api';
+import remarkLintApiPreset from '@node-core/remark-lint/presets/api';
 import remarkLintBase from '@node-core/remark-lint';
 import { read } from 'to-vfile';
 import { reporter } from 'vfile-reporter';
@@ -25,15 +26,14 @@ if (!paths.length) {
   process.exit(1);
 }
 
-const apiLintProcessor = remarkLintApi({
+const apiLinter = remark().use(remarkLintApi, {
   typeMap,
   releasedVersions: await getReleasedVersions(),
 });
 
-const apiLinter = remark().use(apiLintProcessor);
 const baseLinter = remark()
   .use(remarkLintBase)
-  .use({ settings: apiLintProcessor.settings });
+  .use({ settings: remarkLintApiPreset.settings })
 
 paths.forEach(async (path) => {
   const file = await read(path);

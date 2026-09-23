@@ -2,6 +2,8 @@
 
 <!--introduced_in=v8.5.0-->
 
+<!--llm_description=ECMAScript modules in Node.js, including resolution, interoperability with CommonJS and customization hooks.-->
+
 <!-- type=misc -->
 
 <!-- YAML
@@ -730,11 +732,11 @@ Both of these integrations are in line with the
 
 ### Wasm Source Phase Imports
 
-> Stability: 1.2 - Release candidate
-
 <!-- YAML
 added: v24.0.0
 -->
+
+> Stability: 1.2 - Release candidate
 
 The [Source Phase Imports][] proposal allows the `import source` keyword
 combination to import a `WebAssembly.Module` object directly, instead of getting
@@ -765,13 +767,13 @@ const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
 
 ### JavaScript String Builtins
 
-> Stability: 1.2 - Release candidate
-
 <!-- YAML
 added:
  - v24.5.0
  - v22.19.0
 -->
+
+> Stability: 1.2 - Release candidate
 
 When importing WebAssembly modules, the
 [WebAssembly JS String Builtins Proposal][] is automatically enabled through the

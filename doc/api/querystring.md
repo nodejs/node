@@ -2,11 +2,11 @@
 
 <!--introduced_in=v0.1.25-->
 
-> Stability: 2 - Stable
-
 <!--name=querystring-->
 
 <!-- source_link=lib/querystring.js -->
+
+> Stability: 2 - Stable
 
 The `node:querystring` module provides utilities for parsing and formatting URL
 query strings. It can be accessed using:

@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/util.js -->
+
+> Stability: 2 - Stable
 
 The `node:util` module supports the needs of Node.js internal APIs. Many of the
 utilities are useful for application and module developers as well. To access
@@ -387,7 +387,7 @@ added:
   * `0` {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
   * `1` {string} The value associated with the operation
 
-* Algorithm complexity: O(N\*D), where:
+Algorithm complexity: O(N\*D), where:
 
 * N is the total length of the two sequences combined (N = actual.length + expected.length)
 
@@ -474,6 +474,7 @@ changes:
 -->
 
 * `format` {string} A `printf`-like format string.
+* `...args` {any} Values to substitute for the format specifiers.
 
 The `util.format()` method returns a formatted string using the first argument
 as a `printf`-like format string which can contain zero or more format
@@ -549,6 +550,7 @@ added: v10.0.0
 
 * `inspectOptions` {Object}
 * `format` {string}
+* `...args` {any} Values to substitute for the format specifiers.
 
 This function is identical to [`util.format()`][], except in that it takes
 an `inspectOptions` argument which specifies options that are passed along to
@@ -1632,8 +1634,9 @@ changes:
 
 * `val1` {any}
 * `val2` {any}
-* `skipPrototype` {boolean} If `true`, prototype and constructor
-  comparison is skipped during deep strict equality check. **Default:** `false`.
+* `options` {Object}
+  * `skipPrototype` {boolean} If `true`, prototype and constructor
+    comparison is skipped during deep strict equality check. **Default:** `false`.
 * Returns: {boolean}
 
 Returns `true` if there is deep strict equality between `val1` and `val2`.
@@ -2143,7 +2146,7 @@ console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
-### `parseArgs` `tokens`
+### `parseArgs` tokens
 
 Detailed parse information is available for adding custom behaviors by
 specifying `tokens: true` in the configuration.
@@ -3457,11 +3460,11 @@ deprecated: v24.2.0
 
 > Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
 
-**Note:** As of Node.js 24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
-If performance is critical, consider benchmarking both in your environment.
-
 * `value` {any}
 * Returns: {boolean}
+
+**Note:** As of Node.js 24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+If performance is critical, consider benchmarking both in your environment.
 
 Returns `true` if the value was returned by the constructor of a
 [built-in `Error` type][].

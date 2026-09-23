@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/http.js -->
+
+> Stability: 2 - Stable
 
 This module, containing both a client and server, can be imported via
 `require('node:http')` (CommonJS) or `import * as http from 'node:http'` (ES module).
@@ -1942,7 +1942,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* `msecs` {number} **Default:** 0 (no timeout)
+* `msecs` {number} **Default:** `0` (no timeout)
 * `callback` {Function}
 * Returns: {http.Server}
 
@@ -1963,7 +1963,7 @@ explicitly.
 added: v16.10.0
 -->
 
-* Type: {number} Requests per socket. **Default:** 0 (no limit)
+* Type: {number} Requests per socket. **Default:** `0` (no limit)
 
 The maximum number of requests socket can handle
 before closing keep alive connection.
@@ -1984,7 +1984,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {number} Timeout in milliseconds. **Default:** `0` (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -3241,7 +3241,7 @@ changes:
 -->
 
 * `chunk` {string|Buffer|Uint8Array}
-* `encoding` {string} Optional, **Default**: `utf8`
+* `encoding` {string} Optional, **Default:** `utf8`
 * `callback` {Function} Optional
 * Returns: {this}
 
@@ -3546,7 +3546,7 @@ changes:
 -->
 
 * `chunk` {string|Buffer|Uint8Array}
-* `encoding` {string} **Default**: `utf8`
+* `encoding` {string} **Default:** `utf8`
 * `callback` {Function}
 * Returns: {boolean}
 
@@ -3672,7 +3672,7 @@ changes:
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
-    **Default:** 16384 (16 KiB).
+    **Default:** `16384` (16 KiB).
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
     algorithm immediately after a new incoming connection is received.
     **Default:** `true`.
@@ -3688,7 +3688,7 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
-  * `shouldUpgradeCallback(request)` {Function} A callback which receives an
+  * `shouldUpgradeCallback` {Function} A callback which receives an
     incoming request and returns a boolean, to control which upgrade attempts
     should be accepted. Accepted upgrades will fire an `'upgrade'` event (or
     their sockets will be destroyed, if no listener is registered) while
@@ -3970,7 +3970,7 @@ changes:
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] (the maximum length of response headers in
     bytes) for responses received from the server.
-    **Default:** 16384 (16 KiB).
+    **Default:** `16384` (16 KiB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.

@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/url.js -->
+
+> Stability: 2 - Stable
 
 The `node:url` module provides utilities for URL resolution and parsing. It can
 be accessed using:
@@ -1377,7 +1377,7 @@ fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 
 ### `url.fileURLToPathBuffer(url[, options])`
 
-<!--
+<!-- YAML
 added:
  - v24.3.0
  - v22.18.0

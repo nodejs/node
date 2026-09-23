@@ -1213,12 +1213,11 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string|Algorithm|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|KmacKeyGenParams}
-
-<!--lint enable maximum-line-length remark-lint-->
-
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair} upon success.
+
+<!--lint enable maximum-line-length remark-lint-->
 
 Using the parameters provided in `algorithm`, this method
 attempts to generate new keying material. Depending on the algorithm used
@@ -1286,16 +1285,12 @@ changes:
 * `format` {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, `'raw-secret'`[^modern-algos],
   `'raw-public'`[^modern-algos], or `'raw-seed'`[^modern-algos].
 * `keyData` {ArrayBuffer|TypedArray|DataView|Buffer|Object}
-
-<!--lint disable maximum-line-length remark-lint-->
-
 * `algorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
-
-<!--lint enable maximum-line-length remark-lint-->
-
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
+
+<!--lint enable maximum-line-length remark-lint-->
 
 This method attempts to interpret the provided `keyData`
 as the given `format` to create a {CryptoKey} instance using the provided
@@ -1402,17 +1397,13 @@ changes:
   `'raw-public'`[^modern-algos], or `'raw-seed'`[^modern-algos].
 * `wrappedKey` {ArrayBuffer|TypedArray|DataView|Buffer}
 * `unwrappingKey` {CryptoKey}
-
-<!--lint disable maximum-line-length remark-lint-->
-
 * `unwrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
 * `unwrappedKeyAlgo` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
-
-<!--lint enable maximum-line-length remark-lint-->
-
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
+
+<!--lint enable maximum-line-length remark-lint-->
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. This method attempts to decrypt a wrapped

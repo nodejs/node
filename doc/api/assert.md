@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.1.21-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/assert.js -->
+
+> Stability: 2 - Stable
 
 The `node:assert` module provides a set of assertion functions for verifying
 invariants.
@@ -410,6 +410,8 @@ changes:
 An alias of [`assert.deepStrictEqual()`][].
 
 **Legacy assertion mode**
+
+<!-- lint ignore entry-order -->
 
 > Stability: 3 - Legacy: Use [`assert.deepStrictEqual()`][] instead.
 
@@ -1129,6 +1131,8 @@ An alias of [`assert.strictEqual()`][].
 
 **Legacy assertion mode**
 
+<!-- lint ignore entry-order -->
+
 > Stability: 3 - Legacy: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
@@ -1390,6 +1394,8 @@ An alias of [`assert.notDeepStrictEqual()`][].
 
 **Legacy assertion mode**
 
+<!-- lint ignore entry-order -->
+
 > Stability: 3 - Legacy: Use [`assert.notDeepStrictEqual()`][] instead.
 
 Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
@@ -1558,6 +1564,8 @@ changes:
 An alias of [`assert.notStrictEqual()`][].
 
 **Legacy assertion mode**
+
+<!-- lint ignore entry-order -->
 
 > Stability: 3 - Legacy: Use [`assert.notStrictEqual()`][] instead.
 

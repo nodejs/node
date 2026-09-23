@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!--name=module-->
+
+> Stability: 2 - Stable
 
 CommonJS modules are the original way to package JavaScript code for Node.js.
 Node.js also supports the [ECMAScript modules][] standard used by browsers

@@ -2,6 +2,8 @@
 
 <!--introduced_in=v8.1.0-->
 
+<!-- source_link=lib/async_hooks.js -->
+
 > Stability: 1 - Experimental. Please migrate away from this API, if you can.
 > We do not recommend using the [`createHook`][], [`AsyncHook`][], and
 > [`executionAsyncResource`][] APIs as they have usability issues, safety risks,
@@ -12,8 +14,6 @@
 > provided by [Diagnostics Channel][], please open an issue at
 > <https://github.com/nodejs/node/issues> describing your use case so we can
 > create a more purpose-focused API.
-
-<!-- source_link=lib/async_hooks.js -->
 
 We strongly discourage the use of the `async_hooks` API.
 Other APIs that can cover most of its use cases include:
@@ -157,7 +157,7 @@ added: v8.1.0
   * `destroy` {Function} The [`destroy` callback][].
   * `promiseResolve` {Function} The [`promiseResolve` callback][].
   * `trackPromises` {boolean} Whether the hook should track `Promise`s. Cannot be `false` if
-    `promiseResolve` is set. **Default**: `true`.
+    `promiseResolve` is set. **Default:** `true`.
 * Returns: {AsyncHook} Instance used for disabling and enabling hooks
 
 Registers functions to be called for different lifetime events of each async
@@ -838,7 +838,7 @@ added:
   - v16.14.0
 -->
 
-* Returns: A map of provider types to the corresponding numeric id.
+* Returns: {Object} A map of provider types to the corresponding numeric id.
   This map contains all the event types that might be emitted by the `async_hooks.init()` event.
 
 This feature suppresses the deprecated usage of `process.binding('async_wrap').Providers`.

@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/https.js -->
+
+> Stability: 2 - Stable
 
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
@@ -236,7 +236,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} **Default:** 0 (no timeout)
+* Type: {number} **Default:** `0` (no timeout)
 
 See [`server.timeout`][] in the `node:http` module.
 

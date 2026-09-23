@@ -18,9 +18,9 @@ changes:
     description: Added support for "useCodeCache".
 -->
 
-> Stability: 1.1 - Active development
-
 <!-- source_link=src/node_sea.cc -->
+
+> Stability: 1.1 - Active development
 
 This feature allows the distribution of a Node.js application conveniently to a
 system that does not have Node.js installed.
@@ -315,17 +315,17 @@ added:
   - v20.12.0
 -->
 
-This method can be used to retrieve the assets configured to be bundled into the
-single-executable application at build time.
-An error is thrown when no matching asset can be found.
-
-* `key`  {string} the key for the asset in the dictionary specified by the
+* `key` {string} the key for the asset in the dictionary specified by the
   `assets` field in the single-executable application configuration.
 * `encoding` {string} If specified, the asset will be decoded as
   a string. Any encoding supported by the `TextDecoder` is accepted.
   If unspecified, an `ArrayBuffer` containing a copy of the asset would be
   returned instead.
 * Returns: {string|ArrayBuffer}
+
+This method can be used to retrieve the assets configured to be bundled into the
+single-executable application at build time.
+An error is thrown when no matching asset can be found.
 
 ### `sea.getAssetAsBlob(key[, options])`
 
@@ -335,14 +335,14 @@ added:
   - v20.12.0
 -->
 
-Similar to [`sea.getAsset()`][], but returns the result in a {Blob}.
-An error is thrown when no matching asset can be found.
-
-* `key`  {string} the key for the asset in the dictionary specified by the
+* `key` {string} the key for the asset in the dictionary specified by the
   `assets` field in the single-executable application configuration.
 * `options` {Object}
   * `type` {string} An optional mime type for the blob.
 * Returns: {Blob}
+
+Similar to [`sea.getAsset()`][], but returns the result in a {Blob}.
+An error is thrown when no matching asset can be found.
 
 ### `sea.getRawAsset(key)`
 
@@ -351,6 +351,10 @@ added:
   - v21.7.0
   - v20.12.0
 -->
+
+* `key` {string} the key for the asset in the dictionary specified by the
+  `assets` field in the single-executable application configuration.
+* Returns: {ArrayBuffer}
 
 This method can be used to retrieve the assets configured to be bundled into the
 single-executable application at build time.
@@ -363,10 +367,6 @@ For now, users should avoid writing to the returned array buffer. If the
 injected section is not marked as writable or not aligned properly,
 writes to the returned array buffer is likely to result in a crash.
 
-* `key`  {string} the key for the asset in the dictionary specified by the
-  `assets` field in the single-executable application configuration.
-* Returns: {ArrayBuffer}
-
 ### `sea.getAssetKeys()`
 
 <!-- YAML
@@ -375,7 +375,7 @@ added:
   - v22.20.0
 -->
 
-* Returns {string\[]} An array containing all the keys of the assets
+* Returns: {string\[]} An array containing all the keys of the assets
   embedded in the executable. If no assets are embedded, returns an empty array.
 
 This method can be used to retrieve an array of all the keys of assets

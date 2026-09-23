@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/tty.js -->
+
+> Stability: 2 - Stable
 
 The `node:tty` module provides the `tty.ReadStream` and `tty.WriteStream`
 classes. In most cases, it will not be necessary or possible to use this module
@@ -268,7 +268,7 @@ added:
 -->
 
 * `count` {integer} The number of colors that are requested (minimum 2).
-  **Default:** 16.
+  **Default:** `16`.
 * `env` {Object} An object containing the environment variables to check. This
   enables simulating the usage of a specific terminal. **Default:**
   `process.env`.

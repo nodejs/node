@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.9.12-->
 
-> Stability: 2 - Stable
-
 <!-- type=misc -->
+
+> Stability: 2 - Stable
 
 Node.js includes a command-line debugging utility. The Node.js debugger client
 is not a full-featured debugger, but simple stepping and inspection are

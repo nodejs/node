@@ -2,6 +2,8 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!--llm_description=How to run Node.js from the command line, with a minimal web server example.-->
+
 <!--type=misc-->
 
 ## Usage

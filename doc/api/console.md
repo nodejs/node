@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.13-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/console.js -->
+
+> Stability: 2 - Stable
 
 The `node:console` module provides a simple debugging console that is similar to
 the JavaScript console mechanism provided by web browsers.

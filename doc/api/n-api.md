@@ -1067,11 +1067,6 @@ In order to retrieve this information [`napi_get_last_error_info`][]
 is provided which returns a `napi_extended_error_info` structure.
 The format of the `napi_extended_error_info` structure is as follows:
 
-<!-- YAML
-added: v8.0.0
-napiVersion: 1
--->
-
 ```c
 typedef struct napi_extended_error_info {
   const char* error_message;

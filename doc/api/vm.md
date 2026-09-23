@@ -2,11 +2,11 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!--name=vm-->
 
 <!-- source_link=lib/vm.js -->
+
+> Stability: 2 - Stable
 
 The `node:vm` module enables compiling and running code within V8 Virtual
 Machine contexts.
@@ -857,10 +857,10 @@ added: v9.6.0
 
 > Stability: 1 - Experimental
 
+* Extends: {vm.Module}
+
 This feature is only available with the `--experimental-vm-modules` command
 flag enabled.
-
-* Extends: {vm.Module}
 
 The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
 defined in the ECMAScript specification.
@@ -1190,10 +1190,10 @@ added:
 
 > Stability: 1 - Experimental
 
+* Extends: {vm.Module}
+
 This feature is only available with the `--experimental-vm-modules` command
 flag enabled.
-
-* Extends: {vm.Module}
 
 The `vm.SyntheticModule` class provides the [Synthetic Module Record][] as
 defined in the WebIDL specification. The purpose of synthetic modules is to
@@ -1565,9 +1565,6 @@ added: v13.10.0
 
 > Stability: 1 - Experimental
 
-Measure the memory known to V8 and used by all contexts known to the
-current V8 isolate, or the main context.
-
 * `options` {Object} Optional.
   * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
     only the memory measured for the main context will be returned. In
@@ -1583,6 +1580,9 @@ current V8 isolate, or the main context.
 * Returns: {Promise} If the memory is successfully measured, the promise will
   resolve with an object containing information about the memory usage.
   Otherwise it will be rejected with an `ERR_CONTEXT_NOT_INITIALIZED` error.
+
+Measure the memory known to V8 and used by all contexts known to the
+current V8 isolate, or the main context.
 
 The format of the object that the returned Promise may resolve with is
 specific to the V8 engine and may change from one version of V8 to the next.

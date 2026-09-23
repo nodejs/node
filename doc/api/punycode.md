@@ -6,9 +6,9 @@ deprecated: v7.0.0
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 0 - Deprecated
-
 <!-- source_link=lib/punycode.js -->
+
+> Stability: 0 - Deprecated
 
 **The version of the punycode module bundled in Node.js is being deprecated.**
 In a future major version of Node.js this module will be removed. Users

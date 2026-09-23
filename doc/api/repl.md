@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/repl.js -->
+
+> Stability: 2 - Stable
 
 The `node:repl` module provides a Read-Eval-Print-Loop (REPL) implementation
 that is available both as a standalone program or includible in other
@@ -445,8 +445,8 @@ function myWriter(output) {
 added: v0.1.91
 -->
 
-* `options` {Object|string} See [`repl.start()`][]
 * Extends: {readline.Interface}
+* `options` {Object|string} See [`repl.start()`][]
 
 Instances of `repl.REPLServer` are created using the [`repl.start()`][] method
 or directly using the JavaScript `new` keyword.

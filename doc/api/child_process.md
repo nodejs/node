@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/child_process.js -->
+
+> Stability: 2 - Stable
 
 The `node:child_process` module provides the ability to spawn subprocesses in
 a manner that is similar, but not identical, to popen(3). This capability

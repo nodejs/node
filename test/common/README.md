@@ -46,7 +46,6 @@ several other tasks:
 * [Report module](#report-module)
 * [tick module](#tick-module)
 * [tmpdir module](#tmpdir-module)
-* [UDP pair helper](#udp-pair-helper)
 * [WPT module](#wpt-module)
 
 ## Benchmark module

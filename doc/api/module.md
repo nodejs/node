@@ -2,6 +2,8 @@
 
 <!--introduced_in=v12.20.0-->
 
+<!--llm_description=The node:module API for working with modules, including built-in module lists, customization hooks and source maps.-->
+
 <!-- YAML
 added: v0.3.7
 -->
@@ -1861,7 +1863,7 @@ added:
  - v12.17.0
 -->
 
-#### `new SourceMap(payload[, { lineLengths }])`
+#### `new SourceMap(payload[, options])`
 
 <!-- YAML
 changes:
@@ -1871,7 +1873,8 @@ changes:
 -->
 
 * `payload` {Object}
-* `lineLengths` {number\[]}
+* `options` {Object}
+  * `lineLengths` {number\[]}
 
 Creates a new `sourceMap` instance.
 

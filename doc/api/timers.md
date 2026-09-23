@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/timers.js -->
+
+> Stability: 2 - Stable
 
 The `timer` module exposes a global API for scheduling functions to
 be called at some future period of time. Because the timer functions are
@@ -503,10 +503,6 @@ setImmediate('result').then((res) => {
 added: v15.9.0
 -->
 
-Returns an async iterator that generates values in an interval of `delay` ms.
-If `ref` is `true`, you need to call `next()` of async iterator explicitly
-or implicitly to keep the event loop alive.
-
 * `delay` {number} The number of milliseconds to wait between iterations.
   **Default:** `1`.
 * `value` {any} A value with which the iterator returns.
@@ -517,6 +513,10 @@ or implicitly to keep the event loop alive.
     **Default:** `true`.
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Timeout` between operations.
+
+Returns an async iterator that generates values in an interval of `delay` ms.
+If `ref` is `true`, you need to call `next()` of async iterator explicitly
+or implicitly to keep the event loop alive.
 
 ```mjs
 import {

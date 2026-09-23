@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/cluster.js -->
+
+> Stability: 2 - Stable
 
 Clusters of Node.js processes can be used to run multiple instances of Node.js
 that can distribute workloads among their application threads. When process

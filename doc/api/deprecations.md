@@ -2141,9 +2141,7 @@ Type: End-of-Life
 `runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
 cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 
-<!-- md-lint skip-deprecation DEP0087 -->
-
-<!-- md-lint skip-deprecation DEP0088 -->
+<!-- lint ignore deprecations -->
 
 ### DEP0089: `require('node:assert')`
 
@@ -4120,7 +4118,7 @@ An automated migration is available ([source](https://github.com/nodejs/userland
 npx codemod@latest @nodejs/repl-classes-with-new
 ```
 
-<!-- md-lint skip-deprecation DEP0186 -->
+<!-- lint ignore deprecations -->
 
 ### DEP0187: Passing invalid argument types to `fs.existsSync`
 
@@ -4569,7 +4567,7 @@ const server = http2.createSecureServer({
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
 [`process.exit()`]: process.md#processexitcode
-[`process.exitCode`]: process.md#processexitcode_1
+[`process.exitCode`]: process.md#processexitcode-1
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md

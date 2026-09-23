@@ -12,9 +12,9 @@ changes:
     description: The test runner is now stable.
 -->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/test.js -->
+
+> Stability: 2 - Stable
 
 The `node:test` module facilitates the creation of JavaScript tests.
 To access it:
@@ -287,12 +287,8 @@ it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
 });
 ```
 
-If the value of `expectFailure` is a
-[<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp) |
-[<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) |
-[<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) |
-[<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error),
-the tests will pass only if they throw a matching value.
+If the value of `expectFailure` is a {RegExp}, {Function}, {Object}, or
+{Error}, the tests will pass only if they throw a matching value.
 See [`assert.throws`][] for how each value type is handled.
 
 Each of the following tests fails _despite_ being flagged `expectFailure`
@@ -1735,12 +1731,9 @@ changes:
   * `expectFailure` {boolean|string|RegExp|Function|Object|Error} If truthy, the
     test is expected to fail. If a non-empty string is provided, that string is displayed
     in the test results as the reason why the test is expected to fail. If a
-    [<RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp),
-    [<Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function),
-    [<Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object), or
-    [<Error>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
-    is provided directly (without wrapping in `{ match: … }`), the test passes
-    only if the thrown error matches, following the behavior of
+    {RegExp}, {Function}, {Object}, or {Error} is provided directly (without
+    wrapping in `{ match: … }`), the test passes only if the thrown error
+    matches, following the behavior of
     [`assert.throws`][]. To provide both a reason and validation, pass an object
     with `label` (string) and `match` (RegExp, Function, Object, or Error).
     **Default:** `false`.
@@ -2429,9 +2422,9 @@ added:
 * `options` {Object} Optional configuration options for the mock method. The
   following properties are supported:
   * `getter` {boolean} If `true`, `object[methodName]` is treated as a getter.
-    This option cannot be used with the `setter` option. **Default:** false.
+    This option cannot be used with the `setter` option. **Default:** `false`.
   * `setter` {boolean} If `true`, `object[methodName]` is treated as a setter.
-    This option cannot be used with the `getter` option. **Default:** false.
+    This option cannot be used with the `getter` option. **Default:** `false`.
   * `times` {integer} The number of times that the mock will use the behavior of
     `implementation`. Once the mocked method has been called `times` times, it
     will automatically restore the original behavior. This value must be an
@@ -2490,7 +2483,7 @@ changes:
   * `cache` {boolean} If `false`, each call to `require()` or `import()`
     generates a new mock module. If `true`, subsequent calls will return the same
     module mock, and the mock module is inserted into the CommonJS cache.
-    **Default:** false.
+    **Default:** `false`.
   * `defaultExport` {any} An optional value used as the mocked module's default
     export. If this value is not provided, ESM mocks do not include a default
     export. If the mock is a CommonJS or builtin module, this setting is used as
@@ -2656,8 +2649,6 @@ changes:
                  and the default initial epoch.
 -->
 
-Enables timer mocking for the specified timers.
-
 * `enableOptions` {Object} Optional configuration options for enabling timer
   mocking. The following properties are supported:
   * `apis` {Array} An optional array containing the timers to mock.
@@ -2669,6 +2660,8 @@ Enables timer mocking for the specified timers.
   * `now` {number|Date} An optional number or Date object representing the
     initial time (in milliseconds) to use as the value
     for `Date.now()`. **Default:** `0`.
+
+Enables timer mocking for the specified timers.
 
 **Note:** When you enable mocking for a specific timer, its associated
 clear function will also be implicitly mocked.
@@ -2763,10 +2756,10 @@ added:
   - v18.19.0
 -->
 
-Advances time for all mocked timers.
-
 * `milliseconds` {number} The amount of time, in milliseconds,
   to advance the timers. **Default:** `1`.
+
+Advances time for all mocked timers.
 
 **Note:** This diverges from how `setTimeout` in Node.js behaves and accepts
 only positive numbers. In Node.js, `setTimeout` with negative numbers is
@@ -3239,7 +3232,7 @@ changes:
     description: added type to test:pass and test:fail events for when the test is a suite.
 -->
 
-* Extends {Readable}
+* Extends: {Readable}
 
 A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
@@ -3897,7 +3890,7 @@ test('database operations', async (t) => {
 });
 ```
 
-### `context.plan(count[,options])`
+### `context.plan(count[, options])`
 
 <!-- YAML
 added:

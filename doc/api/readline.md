@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/readline.js -->
+
+> Stability: 2 - Stable
 
 The `node:readline` module provides an interface for reading data from a
 [Readable][] stream (such as [`process.stdin`][]) one line at a time.
@@ -607,7 +607,7 @@ added: v17.0.0
   * `-1`: to the left from cursor
   * `1`: to the right from cursor
   * `0`: the entire line
-* Returns: this
+* Returns: {this}
 
 The `rl.clearLine()` method adds to the internal list of pending action an
 action that clears current line of the associated `stream` in a specified
@@ -621,7 +621,7 @@ was passed to the constructor.
 added: v17.0.0
 -->
 
-* Returns: this
+* Returns: {this}
 
 The `rl.clearScreenDown()` method adds to the internal list of pending action an
 action that clears the associated stream from the current position of the
@@ -648,7 +648,7 @@ added: v17.0.0
 
 * `x` {integer}
 * `y` {integer}
-* Returns: this
+* Returns: {this}
 
 The `rl.cursorTo()` method adds to the internal list of pending action an action
 that moves cursor to the specified position in the associated `stream`.
@@ -663,7 +663,7 @@ added: v17.0.0
 
 * `dx` {integer}
 * `dy` {integer}
-* Returns: this
+* Returns: {this}
 
 The `rl.moveCursor()` method adds to the internal list of pending action an
 action that moves the cursor _relative_ to its current position in the
@@ -677,7 +677,7 @@ was passed to the constructor.
 added: v17.0.0
 -->
 
-* Returns: this
+* Returns: {this}
 
 The `rl.rollback` methods clears the internal list of pending actions without
 sending it to the associated `stream`.

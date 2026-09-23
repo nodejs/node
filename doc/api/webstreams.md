@@ -116,7 +116,7 @@ changes:
     description: This class is now exposed on the global object.
 -->
 
-#### `new ReadableStream([underlyingSource [, strategy]])`
+#### `new ReadableStream([underlyingSource[, strategy]])`
 
 <!-- YAML
 added: v16.5.0
@@ -128,17 +128,17 @@ added: v16.5.0
   * `start` {Function} A user-defined function that is invoked immediately when
     the `ReadableStream` is created.
     * `controller` {ReadableStreamDefaultController|ReadableByteStreamController}
-    * Returns: `undefined` or a promise fulfilled with `undefined`.
+    * Returns: {undefined|Promise} `undefined` or a promise fulfilled with `undefined`.
   * `pull` {Function} A user-defined function that is called repeatedly when the
     `ReadableStream` internal queue is not full. The operation may be sync or
     async. If async, the function will not be called again until the previously
     returned promise is fulfilled.
     * `controller` {ReadableStreamDefaultController|ReadableByteStreamController}
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `cancel` {Function} A user-defined function that is called when the
     `ReadableStream` is canceled.
     * `reason` {any}
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `type` {string} Must be `'bytes'` or `undefined`.
   * `autoAllocateChunkSize` {number} Used only when `type` is equal to
     `'bytes'`. When set to a non-zero value a view buffer is automatically
@@ -175,7 +175,7 @@ added: v16.5.0
 -->
 
 * `reason` {any}
-* Returns: A promise fulfilled with `undefined` once cancelation has
+* Returns: {Promise} A promise fulfilled with `undefined` once cancelation has
   been completed.
 
 #### `readableStream.getReader([options])`
@@ -312,7 +312,7 @@ added: v16.5.0
     does not cause `destination` to be closed.
   * `signal` {AbortSignal} Allows the transfer of data to be canceled
     using an {AbortController}.
-* Returns: A promise fulfilled with `undefined`
+* Returns: {Promise} A promise fulfilled with `undefined`
 
 Causes the `readableStream.locked` to be `true` while the pipe operation
 is active.
@@ -346,7 +346,7 @@ added: v16.5.0
 * `options` {Object}
   * `preventCancel` {boolean} When `true`, prevents the {ReadableStream}
     from being closed when the async iterator abruptly terminates.
-    **Default**: `false`.
+    **Default:** `false`.
 
 Creates and returns an async iterator usable for consuming this
 `ReadableStream`'s data.
@@ -518,7 +518,7 @@ added: v16.5.0
 -->
 
 * `reason` {any}
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Cancels the {ReadableStream} and returns a promise that is fulfilled
 when the underlying stream has been canceled.
@@ -539,7 +539,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* Returns: A promise fulfilled with an object:
+* Returns: {Promise} A promise fulfilled with an object:
   * `value` {any}
   * `done` {boolean}
 
@@ -650,7 +650,7 @@ added: v16.5.0
 -->
 
 * `reason` {any}
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Cancels the {ReadableStream} and returns a promise that is fulfilled
 when the underlying stream has been canceled.
@@ -683,7 +683,7 @@ changes:
     fulfilled as soon as `min` number of elements are available.
     When not set, the promise fulfills when at least one element
     is available.
-* Returns: A promise fulfilled with an object:
+* Returns: {Promise} A promise fulfilled with an object:
   * `value` {TypedArray|DataView}
   * `done` {boolean}
 
@@ -907,19 +907,19 @@ added: v16.5.0
   * `start` {Function} A user-defined function that is invoked immediately when
     the `WritableStream` is created.
     * `controller` {WritableStreamDefaultController}
-    * Returns: `undefined` or a promise fulfilled with `undefined`.
+    * Returns: {undefined|Promise} `undefined` or a promise fulfilled with `undefined`.
   * `write` {Function} A user-defined function that is invoked when a chunk of
     data has been written to the `WritableStream`.
     * `chunk` {any}
     * `controller` {WritableStreamDefaultController}
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `close` {Function} A user-defined function that is called when the
     `WritableStream` is closed.
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `abort` {Function} A user-defined function that is called to abruptly close
     the `WritableStream`.
     * `reason` {any}
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `type` {any} The `type` option is reserved for future use and _must_ be
     undefined.
 * `strategy` {Object}
@@ -937,7 +937,7 @@ added: v16.5.0
 -->
 
 * `reason` {any}
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Abruptly terminates the `WritableStream`. All queued writes will be
 canceled with their associated promises rejected.
@@ -948,7 +948,7 @@ canceled with their associated promises rejected.
 added: v16.5.0
 -->
 
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Closes the `WritableStream` when no additional writes are expected.
 
@@ -1019,7 +1019,7 @@ added: v16.5.0
 -->
 
 * `reason` {any}
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Abruptly terminates the `WritableStream`. All queued writes will be
 canceled with their associated promises rejected.
@@ -1030,7 +1030,7 @@ canceled with their associated promises rejected.
 added: v16.5.0
 -->
 
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Closes the `WritableStream` when no additional writes are expected.
 
@@ -1078,7 +1078,7 @@ added: v16.5.0
 -->
 
 * `chunk` {any}
-* Returns: A promise fulfilled with `undefined`.
+* Returns: {Promise} A promise fulfilled with `undefined`.
 
 Appends a new chunk of data to the {WritableStream}'s queue.
 
@@ -1154,18 +1154,18 @@ added: v16.5.0
   * `start` {Function} A user-defined function that is invoked immediately when
     the `TransformStream` is created.
     * `controller` {TransformStreamDefaultController}
-    * Returns: `undefined` or a promise fulfilled with `undefined`
+    * Returns: {undefined|Promise} `undefined` or a promise fulfilled with `undefined`
   * `transform` {Function} A user-defined function that receives, and
     potentially modifies, a chunk of data written to `transformStream.writable`,
     before forwarding that on to `transformStream.readable`.
     * `chunk` {any}
     * `controller` {TransformStreamDefaultController}
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `flush` {Function} A user-defined function that is called immediately before
     the writable side of the `TransformStream` is closed, signaling the end of
     the transformation process.
     * `controller` {TransformStreamDefaultController}
-    * Returns: A promise fulfilled with `undefined`.
+    * Returns: {Promise} A promise fulfilled with `undefined`.
   * `readableType` {any} the `readableType` option is reserved for future use
     and _must_ be `undefined`.
   * `writableType` {any} the `writableType` option is reserved for future use

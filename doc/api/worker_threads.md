@@ -2,9 +2,9 @@
 
 <!--introduced_in=v10.5.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/worker_threads.js -->
+
+> Stability: 2 - Stable
 
 The `node:worker_threads` module enables the use of threads that execute
 JavaScript in parallel. To access it:
@@ -488,7 +488,7 @@ added:
 
 > Stability: 1.1 - Active development
 
-* `threadId` {number} The target thread ID. If the thread ID is invalid, a
+* `threadId` {number} The target thread ID. If the thread ID is invalid, a
   [`ERR_WORKER_MESSAGING_FAILED`][] error will be thrown. If the target thread ID is the current thread ID,
   a [`ERR_WORKER_MESSAGING_SAME_THREAD`][] error will be thrown.
 * `value` {any} The value to send.
@@ -1783,6 +1783,7 @@ added:
  - v22.19.0
 -->
 
+* `prev` {Object} A previous return value from calling `worker.cpuUsage()`.
 * Returns: {Promise}
 
 This method returns a `Promise` that will resolve to an object identical to [`process.threadCpuUsage()`][],
@@ -2268,7 +2269,7 @@ thread spawned will spawn another until the application crashes.
 [`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #worker_threadsshare_env
-[`worker.on('message')`]: #event-message_1
+[`worker.on('message')`]: #event-message-1
 [`worker.postMessage()`]: #workerpostmessagevalue-transferlist
 [`worker.terminate()`]: #workerterminate
 [`worker.threadId`]: #workerthreadid

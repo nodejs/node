@@ -2,6 +2,8 @@
 
 <!--introduced_in=v12.20.0-->
 
+<!--llm_description=Package entry points, conditional exports, the "type" field and dual CommonJS/ES module packages.-->
+
 <!-- type=misc -->
 
 <!-- YAML

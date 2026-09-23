@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/tls.js -->
+
+> Stability: 2 - Stable
 
 The `node:tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
@@ -620,16 +620,16 @@ changes:
     description: The `callback` argument is now supported.
 -->
 
-The `'newSession'` event is emitted upon creation of a new TLS session. This may
-be used to store sessions in external storage. The data should be provided to
-the [`'resumeSession'`][] callback.
-
-The listener callback is passed three arguments when called:
-
 * `sessionId` {Buffer} The TLS session identifier
 * `sessionData` {Buffer} The TLS session data
 * `callback` {Function} A callback function taking no arguments that must be
   invoked in order for data to be sent or received over the secure connection.
+
+The `'newSession'` event is emitted upon creation of a new TLS session. This may
+be used to store sessions in external storage. The data should be provided to
+the [`'resumeSession'`][] callback.
+
+The listener callback is passed three arguments when called.
 
 Listening for this event will have an effect only on connections established
 after the addition of the event listener.
@@ -640,13 +640,13 @@ after the addition of the event listener.
 added: v0.11.13
 -->
 
-The `'OCSPRequest'` event is emitted when the client sends a certificate status
-request. The listener callback is passed three arguments when called:
-
 * `certificate` {Buffer} The server certificate
 * `issuer` {Buffer} The issuer's certificate
 * `callback` {Function} A callback function that must be invoked to provide
   the results of the OCSP request.
+
+The `'OCSPRequest'` event is emitted when the client sends a certificate status
+request. The listener callback is passed three arguments when called.
 
 The server's current certificate can be parsed to obtain the OCSP URL
 and certificate ID; after obtaining an OCSP response, `callback(null, resp)` is
@@ -688,15 +688,15 @@ An npm module like [asn1.js][] may be used to parse the certificates.
 added: v0.9.2
 -->
 
-The `'resumeSession'` event is emitted when the client requests to resume a
-previous TLS session. The listener callback is passed two arguments when
-called:
-
 * `sessionId` {Buffer} The TLS session identifier
 * `callback` {Function} A callback function to be called when the prior session
   has been recovered: `callback([err[, sessionData]])`
   * `err` {Error}
   * `sessionData` {Buffer}
+
+The `'resumeSession'` event is emitted when the client requests to resume a
+previous TLS session. The listener callback is passed two arguments when
+called.
 
 The event listener should perform a lookup in external storage for the
 `sessionData` saved by the [`'newSession'`][] event handler using the given
@@ -728,11 +728,11 @@ server.on('resumeSession', (id, cb) => {
 added: v0.3.2
 -->
 
+* `tlsSocket` {tls.TLSSocket} The established TLS socket.
+
 The `'secureConnection'` event is emitted after the handshaking process for a
 new connection has successfully completed. The listener callback is passed a
-single argument when called:
-
-* `tlsSocket` {tls.TLSSocket} The established TLS socket.
+single argument when called.
 
 The `tlsSocket.authorized` property is a `boolean` indicating whether the
 client has been verified by one of the supplied Certificate Authorities for the
@@ -753,13 +753,13 @@ requested via SNI.
 added: v6.0.0
 -->
 
-The `'tlsClientError'` event is emitted when an error occurs before a secure
-connection is established. The listener callback is passed two arguments when
-called:
-
 * `exception` {Error} The `Error` object describing the error
 * `tlsSocket` {tls.TLSSocket} The `tls.TLSSocket` instance from which the
   error originated.
+
+The `'tlsClientError'` event is emitted when an error occurs before a secure
+connection is established. The listener callback is passed two arguments when
+called.
 
 ### `server.addContext(hostname, context)`
 
@@ -908,10 +908,10 @@ changes:
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
     `tls.createSecureContext()`.
-  * ...: [`tls.createSecureContext()`][] options that are used if the
-    `secureContext` option is missing. Otherwise, they are ignored.
 
-Construct a new `tls.TLSSocket` object from an existing TCP socket.
+Construct a new `tls.TLSSocket` object from an existing TCP socket. Any
+[`tls.createSecureContext()`][] option may also be provided; such options are
+used if the `secureContext` option is missing, and ignored otherwise.
 
 ### Event: `'keylog'`
 
@@ -943,11 +943,11 @@ tlsSocket.on('keylog', (line) => logFile.write(line));
 added: v0.11.13
 -->
 
+* `response` {Buffer} The server's OCSP response
+
 The `'OCSPResponse'` event is emitted if the `requestOCSP` option was set
 when the `tls.TLSSocket` was created and an OCSP response has been received.
-The listener callback is passed a single argument when called:
-
-* `response` {Buffer} The server's OCSP response
+The listener callback is passed a single argument when called.
 
 Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
@@ -1730,7 +1730,7 @@ changes:
     name, and not an IP address. It can be used by a multi-homed server to
     choose the correct certificate to present to the client, see the
     `SNICallback` option to [`tls.createServer()`][].
-  * `checkServerIdentity(servername, cert)` {Function} A callback function
+  * `checkServerIdentity` {Function} A callback function
     to be used (instead of the builtin `tls.checkServerIdentity()` function)
     when checking the server's host name (or the provided `servername` when
     explicitly set) against the certificate. This should return an {Error} if
@@ -1746,7 +1746,7 @@ changes:
     **Default:** `1024`.
   * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
-  * `timeout`: {number} If set and if a socket is created internally, will call
+  * `timeout` {number} If set and if a socket is created internally, will call
     [`socket.setTimeout(timeout)`][] after the socket is created, but before it
     starts the connection.
   * `secureContext`: TLS context object created with
@@ -1757,11 +1757,12 @@ changes:
     stored in a single `buffer` and passed to the supplied `callback` when
     data arrives on the socket, otherwise the option is ignored. See the
     `onread` option of [`net.Socket`][] for details.
-  * ...: [`tls.createSecureContext()`][] options that are used if the
-    `secureContext` option is missing, otherwise they are ignored.
-  * ...: Any [`socket.connect()`][] option not already listed.
 * `callback` {Function}
 * Returns: {tls.TLSSocket}
+
+Any [`tls.createSecureContext()`][] option may also be provided; such options
+are used if the `secureContext` option is missing, and ignored otherwise. Any
+[`socket.connect()`][] option not already listed is accepted as well.
 
 The `callback` function, if specified, will be added as a listener for the
 [`'secureConnect'`][] event.
@@ -2173,7 +2174,7 @@ changes:
   * `sessionTimeout` {number} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
     [Session Resumption][] for more information. **Default:** `300`.
-  * `SNICallback(servername, callback)` {Function} A function that will be
+  * `SNICallback` {Function} A function that will be
     called if the client supports SNI TLS extension. Two arguments will be
     passed when called: `servername` and `callback`. `callback` is an
     error-first callback that takes two optional arguments: `error` and `ctx`.
@@ -2189,12 +2190,12 @@ changes:
     with selecting the identity during TLS-PSK negotiation. Will be ignored
     in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
     emitted with `'ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED'` code.
-  * ...: Any [`tls.createSecureContext()`][] option can be provided. For
-    servers, the identity options (`pfx`, `key`/`cert`, or `pskCallback`)
-    are usually required.
-  * ...: Any [`net.createServer()`][] option can be provided.
 * `secureConnectionListener` {Function}
 * Returns: {tls.Server}
+
+Any [`tls.createSecureContext()`][] option can be provided. For servers, the
+identity options (`pfx`, `key`/`cert`, or `pskCallback`) are usually required.
+Any [`net.createServer()`][] option can be provided as well.
 
 Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.

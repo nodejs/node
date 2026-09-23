@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/path.js -->
+
+> Stability: 2 - Stable
 
 The `node:path` module provides utilities for working with file and directory
 paths. It can be accessed using:

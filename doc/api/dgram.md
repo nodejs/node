@@ -2,11 +2,11 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- name=dgram -->
 
 <!-- source_link=lib/dgram.js -->
+
+> Stability: 2 - Stable
 
 The `node:dgram` module provides an implementation of UDP datagram sockets.
 
@@ -122,15 +122,15 @@ changes:
     description: The `family` property now returns a number instead of a string.
 -->
 
-The `'message'` event is emitted when a new datagram is available on a socket.
-The event handler function is passed two arguments: `msg` and `rinfo`.
-
 * `msg` {Buffer} The message.
 * `rinfo` {Object} Remote address information.
   * `address` {string} The sender address.
   * `family` {string} The address family (`'IPv4'` or `'IPv6'`).
   * `port` {number} The sender port.
   * `size` {number} The message size.
+
+The `'message'` event is emitted when a new datagram is available on a socket.
+The event handler function is passed two arguments: `msg` and `rinfo`.
 
 If the source address of the incoming packet is an IPv6 link-local
 address, the interface name is added to the `address`. For

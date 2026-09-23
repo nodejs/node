@@ -4,9 +4,9 @@
 
 <!--lint disable maximum-line-length-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/net.js -->
+
+> Stability: 2 - Stable
 
 The `node:net` module provides an asynchronous network API for creating stream-based
 TCP or [IPC][] servers ([`net.createServer()`][]) and clients
@@ -179,7 +179,7 @@ added:
 -->
 
 * `value` {any} Any JS value
-* Returns `true` if the `value` is a `net.BlockList`.
+* Returns: {boolean} `true` if the `value` is a `net.BlockList`.
 
 ### `blockList.fromJSON(value)`
 
@@ -207,15 +207,15 @@ blockList.fromJSON(JSON.stringify(data));
 
 ### `blockList.toJSON()`
 
-> Stability: 1 - Experimental
-
- <!-- YAML
+<!-- YAML
 added:
  - v24.5.0
  - v22.19.0
 -->
 
-* Returns Blocklist.rules
+> Stability: 1 - Experimental
+
+* Returns: {string\[]} The rules of the block list, see [`blockList.rules`][].
 
 ## Class: `net.SocketAddress`
 
@@ -235,10 +235,10 @@ added:
 
 * `options` {Object}
   * `address` {string} The network address as either an IPv4 or IPv6 string.
-    **Default**: `'127.0.0.1'` if `family` is `'ipv4'`; `'::'` if `family` is
+    **Default:** `'127.0.0.1'` if `family` is `'ipv4'`; `'::'` if `family` is
     `'ipv6'`.
   * `family` {string} One of either `'ipv4'` or `'ipv6'`.
-    **Default**: `'ipv4'`.
+    **Default:** `'ipv4'`.
   * `flowlabel` {number} An IPv6 flow-label used only if `family` is `'ipv6'`.
   * `port` {number} An IP port.
 
@@ -364,10 +364,6 @@ added:
   - v16.17.0
 -->
 
-When the number of connections reaches the threshold of `server.maxConnections`,
-the server will drop new connections and emit `'drop'` event instead. If it is a
-TCP server, the argument is as follows, otherwise the argument is `undefined`.
-
 * `data` {Object} The argument passed to event listener.
   * `localAddress` {string}  Local address.
   * `localPort` {number} Local port.
@@ -375,6 +371,10 @@ TCP server, the argument is as follows, otherwise the argument is `undefined`.
   * `remoteAddress` {string} Remote address.
   * `remotePort` {number} Remote port.
   * `remoteFamily` {string} Remote IP family. `'IPv4'` or `'IPv6'`.
+
+When the number of connections reaches the threshold of `server.maxConnections`,
+the server will drop new connections and emit `'drop'` event instead. If it is a
+TCP server, the argument is as follows, otherwise the argument is `undefined`.
 
 ### `server.address()`
 
@@ -930,13 +930,13 @@ changes:
     description: The `host` parameter is supported now.
 -->
 
-Emitted after resolving the host name but before connecting.
-Not applicable to Unix sockets.
-
 * `err` {Error|null} The error object. See [`dns.lookup()`][].
 * `address` {string} The IP address.
 * `family` {number|null} The address type. See [`dns.lookup()`][].
 * `host` {string} The host name.
+
+Emitted after resolving the host name but before connecting.
+Not applicable to Unix sockets.
 
 ### Event: `'ready'`
 
@@ -1921,11 +1921,11 @@ nc -U /tmp/echo.sock
 added: v19.4.0
 -->
 
+* Returns: {boolean} The current default value of the `autoSelectFamily` option.
+
 Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
 The initial default value is `true`, unless the command line option
 `--no-network-family-autoselection` is provided.
-
-* Returns: {boolean} The current default value of the `autoSelectFamily` option.
 
 ## `net.setDefaultAutoSelectFamily(value)`
 
@@ -1933,11 +1933,11 @@ The initial default value is `true`, unless the command line option
 added: v19.4.0
 -->
 
-Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
-
 * `value` {boolean} The new default value.
   The initial default value is `true`, unless the command line option
   `--no-network-family-autoselection` is provided.
+
+Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
 
 ## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
 
@@ -1947,11 +1947,11 @@ added:
  - v18.18.0
 -->
 
+* Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
+
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 The initial default value is `500` or the value specified via the command line
 option `--network-family-autoselection-attempt-timeout`.
-
-* Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
 
 ## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
 
@@ -1961,11 +1961,11 @@ added:
  - v18.18.0
 -->
 
-Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
-
 * `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
   the value `10` is used instead. The initial default value is `250` or the value specified via the command line
   option `--network-family-autoselection-attempt-timeout`.
+
+Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 
 ## `net.isIP(input)`
 
@@ -2033,10 +2033,11 @@ net.isIPv6('fhqwhgads'); // returns false
 [`'data'`]: #event-data
 [`'drain'`]: #event-drain
 [`'end'`]: #event-end
-[`'error'`]: #event-error_1
+[`'error'`]: #event-error-1
 [`'listening'`]: #event-listening
 [`'timeout'`]: #event-timeout
 [`EventEmitter`]: events.md#class-eventemitter
+[`blockList.rules`]: #blocklistrules
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.lookup()` hints]: dns.md#supported-getaddrinfo-flags

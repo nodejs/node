@@ -3286,7 +3286,7 @@ tarball.
 * `name` {string} A value that will always be `'node'`.
 * `sourceUrl` {string} an absolute URL pointing to a _`.tar.gz`_ file containing
   the source code of the current release.
-* `headersUrl`{string} an absolute URL pointing to a _`.tar.gz`_ file containing
+* `headersUrl` {string} an absolute URL pointing to a _`.tar.gz`_ file containing
   only the source header files for the current release. This file is
   significantly smaller than the full source file and can be used for compiling
   Node.js native add-ons.
@@ -4577,7 +4577,7 @@ cases:
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath
 [`process.exit()`]: #processexitcode
-[`process.exitCode`]: #processexitcode_1
+[`process.exitCode`]: #processexitcode-1
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal

@@ -2,9 +2,9 @@
 
 <!--introduced_in=v8.0.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/inspector.js -->
+
+> Stability: 2 - Stable
 
 The `node:inspector` module provides an API for interacting with the V8
 inspector.
@@ -258,7 +258,7 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 
 It is also possible to subscribe only to notifications with specific method:
 
-#### Event: `<inspector-protocol-method>`;
+#### Event: `<inspector-protocol-method>`
 
 <!-- YAML
 added: v8.0.0

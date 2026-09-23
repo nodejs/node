@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/zlib.js -->
+
+> Stability: 2 - Stable
 
 The `node:zlib` module provides compression functionality implemented using
 Gzip, Deflate/Inflate, Brotli, and Zstd.
@@ -726,13 +726,13 @@ These advanced options are available for controlling decompression:
 
 ### Zstd constants
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 There are several options and other constants available for Zstd-based
 streams:
@@ -889,7 +889,7 @@ added:
  - v10.16.0
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Compress data using the Brotli algorithm.
 
@@ -901,7 +901,7 @@ added:
  - v10.16.0
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Decompress data using the Brotli algorithm.
 
@@ -911,7 +911,7 @@ Decompress data using the Brotli algorithm.
 added: v0.5.8
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Compress data using deflate.
 
@@ -921,7 +921,7 @@ Compress data using deflate.
 added: v0.5.8
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Compress data using deflate, and do not append a `zlib` header.
 
@@ -942,7 +942,7 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Decompress a gzip stream.
 
@@ -952,7 +952,7 @@ Decompress a gzip stream.
 added: v0.5.8
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Compress data using gzip.
 
@@ -966,7 +966,7 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Decompress a deflate stream.
 
@@ -983,7 +983,7 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Decompress a raw deflate stream.
 
@@ -993,7 +993,7 @@ Decompress a raw deflate stream.
 added: v0.5.8
 -->
 
-* Extends: [`ZlibBase`][]
+* Extends: {zlib.ZlibBase}
 
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
@@ -1010,7 +1010,7 @@ changes:
     description: This class was renamed from `Zlib` to `ZlibBase`.
 -->
 
-* Extends: [`stream.Transform`][]
+* Extends: {stream.Transform}
 
 Not exported by the `node:zlib` module. It is documented here because it is the
 base class of the compressor/decompressor classes.
@@ -1046,7 +1046,7 @@ Close the underlying handle.
 added: v0.5.8
 -->
 
-* `kind` **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
+* `kind` {integer} **Default:** `zlib.constants.Z_FULL_FLUSH` for zlib-based streams,
   `zlib.constants.BROTLI_OPERATION_FLUSH` for Brotli-based streams.
 * `callback` {Function}
 
@@ -1084,8 +1084,6 @@ the inflate and deflate algorithms.
 
 ## Class: `ZstdOptions`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
@@ -1093,6 +1091,8 @@ added:
 -->
 
 <!--type=misc-->
+
+> Stability: 1 - Experimental
 
 Each Zstd-based class takes an `options` object. All options are optional.
 
@@ -1121,25 +1121,25 @@ const stream = zlib.createZstdCompress({
 
 ## Class: `zlib.ZstdCompress`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 Compress data using the Zstd algorithm.
 
 ## Class: `zlib.ZstdDecompress`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 Decompress data using the Zstd algorithm.
 
@@ -1318,13 +1318,13 @@ Creates and returns a new [`Unzip`][] object.
 
 ## `zlib.createZstdCompress([options])`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 * `options` {zstd options}
 
@@ -1332,13 +1332,13 @@ Creates and returns a new [`ZstdCompress`][] object.
 
 ## `zlib.createZstdDecompress([options])`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 * `options` {zstd options}
 
@@ -1692,13 +1692,13 @@ Decompress a chunk of data with [`Unzip`][].
 
 ### `zlib.zstdCompress(buffer[, options], callback)`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {zstd options}
@@ -1706,13 +1706,13 @@ added:
 
 ### `zlib.zstdCompressSync(buffer[, options])`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {zstd options}
@@ -1733,13 +1733,13 @@ added:
 
 ### `zlib.zstdDecompressSync(buffer[, options])`
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added:
   - v23.8.0
   - v22.15.0
 -->
+
+> Stability: 1 - Experimental
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 * `options` {zstd options}
@@ -1764,7 +1764,6 @@ Decompress a chunk of data with [`ZstdDecompress`][].
 [`InflateRaw`]: #class-zlibinflateraw
 [`Inflate`]: #class-zlibinflate
 [`Unzip`]: #class-zlibunzip
-[`ZlibBase`]: #class-zlibzlibbase
 [`ZstdCompress`]: #class-zlibzstdcompress
 [`ZstdDecompress`]: #class-zlibzstddecompress
 [`buffer.kMaxLength`]: buffer.md#bufferkmaxlength

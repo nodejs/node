@@ -19,9 +19,9 @@ changes:
 
 <!--introduced_in=v8.4.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/http2.js -->
+
+> Stability: 2 - Stable
 
 The `node:http2` module provides an implementation of the [HTTP/2][] protocol.
 It can be accessed using:
@@ -743,9 +743,6 @@ All other interactions will be routed directly to the socket.
 added: v8.4.0
 -->
 
-Provides miscellaneous information about the current state of the
-`Http2Session`.
-
 * Type: {Object}
   * `effectiveLocalWindowSize` {number} The current local (receive)
     flow control window size for the `Http2Session`.
@@ -765,6 +762,9 @@ Provides miscellaneous information about the current state of the
     outbound header compression state table.
   * `inflateDynamicTableSize` {number} The current size in bytes of the
     inbound header compression state table.
+
+Provides miscellaneous information about the current state of the
+`Http2Session`.
 
 An object describing the current status of this `Http2Session`.
 
@@ -917,7 +917,7 @@ are passed through as provided by the user or received from the peer.
 added: v10.12.0
 -->
 
-* `origins` { string | URL | Object } One or more URL Strings passed as
+* `origins` {string|URL|Object} One or more URL Strings passed as
   separate arguments.
 
 Submits an `ORIGIN` frame (as defined by [RFC 8336][]) to the connected client
@@ -1594,9 +1594,6 @@ changes:
                  `weight` and `sumDependencyWeight` options are deprecated.
 -->
 
-Provides miscellaneous information about the current state of the
-`Http2Stream`.
-
 * Type: {Object}
   * `localWindowSize` {number} The number of bytes the connected peer may send
     for this `Http2Stream` without receiving a `WINDOW_UPDATE`.
@@ -1607,6 +1604,9 @@ Provides miscellaneous information about the current state of the
     remotely.
   * `sumDependencyWeight` {number} Legacy property, always set to `0`.
   * `weight` {number} Legacy property, always set to `16`.
+
+Provides miscellaneous information about the current state of the
+`Http2Stream`.
 
 A current state of this `Http2Stream`.
 
@@ -1658,7 +1658,7 @@ fields (e.g. `':method'`, `':path'`, etc).
 added: v8.4.0
 -->
 
-* Extends {Http2Stream}
+* Extends: {Http2Stream}
 
 The `ClientHttp2Stream` class is an extension of `Http2Stream` that is
 used exclusively on HTTP/2 Clients. `Http2Stream` instances on the client
@@ -2474,7 +2474,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* `msecs` {number} **Default:** 0 (no timeout)
+* `msecs` {number} **Default:** `0` (no timeout)
 * `callback` {Function}
 * Returns: {Http2Server}
 
@@ -2497,7 +2497,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {number} Timeout in milliseconds. **Default:** `0` (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -2765,7 +2765,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {number} Timeout in milliseconds. **Default:** `0` (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -2860,7 +2860,7 @@ changes:
     for deflating header fields. **Default:** `4Kib`.
   * `maxSettings` {number} Sets the maximum number of settings entries per
     `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
-  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+  * `maxSessionMemory` {number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`.
     This is a credit based limit, existing `Http2Stream`s may cause this
@@ -3077,7 +3077,7 @@ changes:
     for deflating header fields. **Default:** `4Kib`.
   * `maxSettings` {number} Sets the maximum number of settings entries per
     `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
-  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+  * `maxSessionMemory` {number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. This is a
     credit based limit, existing `Http2Stream`s may cause this
@@ -3257,7 +3257,7 @@ changes:
     for deflating header fields. **Default:** `4Kib`.
   * `maxSettings` {number} Sets the maximum number of settings entries per
     `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
-  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+  * `maxSessionMemory` {number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`.
     This is a credit based limit, existing `Http2Stream`s may cause this
@@ -3611,7 +3611,7 @@ properties.
   of header list that will be accepted. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
 * `maxHeaderSize` {number} Alias for `maxHeaderListSize`.
-* `enableConnectProtocol`{boolean} Specifies `true` if the "Extended Connect
+* `enableConnectProtocol` {boolean} Specifies `true` if the "Extended Connect
   Protocol" defined by [RFC 8441][] is to be enabled. This setting is only
   meaningful if sent by the server. Once the `enableConnectProtocol` setting
   has been enabled for a given `Http2Session`, it cannot be disabled.

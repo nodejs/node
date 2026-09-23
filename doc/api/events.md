@@ -2,11 +2,11 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!--type=module-->
 
 <!-- source_link=lib/events.js -->
+
+> Stability: 2 - Stable
 
 Much of the Node.js core API is built around an idiomatic asynchronous
 event-driven architecture in which certain kinds of objects (called "emitters")
@@ -401,6 +401,10 @@ changes:
     description: Added captureRejections option.
 -->
 
+* `captureRejections` {boolean} It enables
+  [automatic capturing of promise rejection][capturerejections].
+  **Default:** `false`.
+
 The `EventEmitter` class is defined and exposed by the `node:events` module:
 
 ```mjs
@@ -413,12 +417,6 @@ const EventEmitter = require('node:events');
 
 All `EventEmitter`s emit the event `'newListener'` when new listeners are
 added and `'removeListener'` when existing listeners are removed.
-
-It supports the following option:
-
-* `captureRejections` {boolean} It enables
-  [automatic capturing of promise rejection][capturerejections].
-  **Default:** `false`.
 
 ### Event: `'newListener'`
 
@@ -1851,7 +1849,7 @@ added: v15.4.0
 
 * `n` {number} A non-negative number. The maximum number of listeners per
   `EventTarget` event.
-* `...eventsTargets` {EventTarget\[]|EventEmitter\[]} Zero or more {EventTarget}
+* `...eventTargets` {EventTarget\[]|EventEmitter\[]} Zero or more {EventTarget}
   or {EventEmitter} instances. If none are specified, `n` is set as the default
   max for all newly created {EventTarget} and {EventEmitter} objects.
 

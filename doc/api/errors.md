@@ -598,7 +598,7 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
 
 ## Class: `TypeError`
 
-* Extends {errors.Error}
+* Extends: {errors.Error}
 
 Indicates that a provided argument is not an allowable type. For example,
 passing a function to a parameter which expects a string would be a `TypeError`.

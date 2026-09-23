@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/dns.js -->
+
+> Stability: 2 - Stable
 
 The `node:dns` module enables name resolution. For example, use it to look up IP
 addresses of host names.
@@ -150,8 +150,6 @@ changes:
                  The single supported option is `timeout`.
 -->
 
-Create a new resolver.
-
 * `options` {Object}
   * `timeout` {integer} Query timeout in milliseconds, or `-1` to use the
     default timeout.
@@ -159,6 +157,8 @@ Create a new resolver.
     each name server before giving up. **Default:** `4`
   * `maxTimeout` {integer} The max retry timeout, in milliseconds.
     **Default:** `0`, disabled.
+
+Create a new resolver.
 
 ### `resolver.cancel()`
 

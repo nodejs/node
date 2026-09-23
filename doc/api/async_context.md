@@ -2,9 +2,11 @@
 
 <!--introduced_in=v16.4.0-->
 
-> Stability: 2 - Stable
+<!--llm_description=AsyncLocalStorage and AsyncResource, for propagating state across asynchronous operations.-->
 
 <!-- source_link=lib/async_hooks.js -->
+
+> Stability: 2 - Stable
 
 ## Introduction
 

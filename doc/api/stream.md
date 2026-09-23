@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/stream.js -->
+
+> Stability: 2 - Stable
 
 A stream is an abstract interface for working with streaming data in Node.js.
 The `node:stream` module provides an API for implementing the stream interface.
@@ -3185,7 +3185,7 @@ changes:
 -->
 
 * `stream` {stream.Readable|ReadableStream}
-* Returns: `boolean`
+* Returns: {boolean}
 
 Returns whether the stream has been read from or cancelled.
 
@@ -4368,7 +4368,7 @@ const myReadable = new Readable({
 
 #### An example counting stream
 
-<!--type=example-->
+<!--type=misc-->
 
 The following is a basic example of a `Readable` stream that emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
@@ -4876,9 +4876,9 @@ pipelinePromise(iterator, writable)
   });
 ```
 
-<!--type=misc-->
-
 ### Compatibility with older Node.js versions
+
+<!--type=misc-->
 
 <!--type=misc-->
 

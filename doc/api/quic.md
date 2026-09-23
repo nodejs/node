@@ -1,14 +1,14 @@
 # QUIC
 
-<!-- introduced_in=v23.8.0-->
+<!--introduced_in=v23.8.0-->
 
 <!-- YAML
 added: v23.8.0
 -->
 
-> Stability: 1.0 - Early development
-
 <!-- source_link=lib/quic.js -->
+
+> Stability: 1.0 - Early development
 
 The 'node:quic' module provides an implementation of the QUIC protocol.
 To access it, start Node.js with the `--experimental-quic` option and:
@@ -63,7 +63,7 @@ const endpoint = new QuicEndpoint({
 const client = await connect('123.123.123.123:8888', { endpoint });
 ```
 
-## `quic.listen(onsession,[options])`
+## `quic.listen(onsession[, options])`
 
 <!-- YAML
 added: v23.8.0

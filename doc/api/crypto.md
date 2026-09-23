@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.3.6-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/crypto.js -->
+
+> Stability: 2 - Stable
 
 The `node:crypto` module provides cryptographic functionality that includes a
 set of wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify
@@ -2188,12 +2188,11 @@ added:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
-
-<!--lint enable maximum-line-length remark-lint-->
-
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {CryptoKey}
+
+<!--lint enable maximum-line-length remark-lint-->
 
 Converts a `KeyObject` instance to a `CryptoKey`.
 
@@ -5951,7 +5950,7 @@ If the `callback` function is provided this function uses libuv's threadpool.
 added: v15.0.0
 -->
 
-Type: {Crypto} An implementation of the Web Crypto API standard.
+* Type: {Crypto} An implementation of the Web Crypto API standard.
 
 See the [Web Crypto API documentation][] for details.
 

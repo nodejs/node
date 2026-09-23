@@ -14,9 +14,9 @@ changes:
 
 <!--introduced_in=v15.1.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/diagnostics_channel.js -->
+
+> Stability: 2 - Stable
 
 The `node:diagnostics_channel` module provides an API to create named channels
 to report arbitrary message data for diagnostics purposes.
@@ -1405,11 +1405,11 @@ Emitted when a new UDP socket is created.
 
 #### Process
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added: v16.18.0
 -->
+
+> Stability: 1 - Experimental
 
 ##### Event: `'child_process'`
 
@@ -1449,11 +1449,11 @@ Emitted when [`process.execve()`][] is invoked.
 
 #### Worker Thread
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added: v16.18.0
 -->
+
+> Stability: 1 - Experimental
 
 ##### Event: `'worker_threads'`
 

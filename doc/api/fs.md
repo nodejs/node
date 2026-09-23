@@ -2,11 +2,11 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
-
 <!--name=fs-->
 
 <!-- source_link=lib/fs.js -->
+
+> Stability: 2 - Stable
 
 The `node:fs` module enables interacting with the file system in a
 way modeled on standard POSIX functions.
@@ -431,7 +431,7 @@ changes:
     from the file. If `null` or `-1`, data will be read from the current file
     position, and the position will be updated. If `position` is a non-negative
     integer, the current file position will remain unchanged.
-    **Default:**: `null`
+    **Default:** `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -465,7 +465,7 @@ changes:
     from the file. If `null` or `-1`, data will be read from the current file
     position, and the position will be updated. If `position` is a non-negative
     integer, the current file position will remain unchanged.
-    **Default:**: `null`
+    **Default:** `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -3228,7 +3228,7 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-* Retrieves the files matching the specified pattern.
+Retrieves the files matching the specified pattern.
 
 ```mjs
 import { glob } from 'node:fs';
@@ -6473,7 +6473,7 @@ changes:
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
 * `type` {string|null} **Default:** `null`
-* Returns: `undefined`.
+* Returns: {undefined}
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.symlink()`][].
@@ -6530,7 +6530,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
-* Returns: `undefined`.
+* Returns: {undefined}
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.utimes()`][].
@@ -6581,7 +6581,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `fs.fsyncSync()` is used to flush the data.
-* Returns: `undefined`.
+* Returns: {undefined}
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
@@ -6993,7 +6993,7 @@ The path to the parent directory of the file this {fs.Dirent} object refers to.
 added: v0.5.8
 -->
 
-* Extends {EventEmitter}
+* Extends: {EventEmitter}
 
 A successful call to [`fs.watch()`][] method will return a new {fs.FSWatcher}
 object.
@@ -7100,7 +7100,7 @@ added:
   - v12.20.0
 -->
 
-* Extends {EventEmitter}
+* Extends: {EventEmitter}
 
 A successful call to `fs.watchFile()` method will return a new {fs.StatWatcher}
 object.
@@ -7778,30 +7778,30 @@ of bytes written is passed as the first argument to the event handler.
 #### `new fs.Utf8Stream([options])`
 
 * `options` {Object}
-  * `append`: {boolean} Appends writes to dest file instead of truncating it.
-    **Default**: `true`.
-  * `contentMode`: {string} Which type of data you can send to the write
-    function, supported values are `'utf8'` or `'buffer'`. **Default**:
+  * `append` {boolean} Appends writes to dest file instead of truncating it.
+    **Default:** `true`.
+  * `contentMode` {string} Which type of data you can send to the write
+    function, supported values are `'utf8'` or `'buffer'`. **Default:**
     `'utf8'`.
-  * `dest`: {string} A path to a file to be written to (mode controlled by the
+  * `dest` {string} A path to a file to be written to (mode controlled by the
     append option).
-  * `fd`: {number} A file descriptor, something that is returned by `fs.open()`
+  * `fd` {number} A file descriptor, something that is returned by `fs.open()`
     or `fs.openSync()`.
-  * `fs`: {Object} An object that has the same API as the `fs` module, useful
+  * `fs` {Object} An object that has the same API as the `fs` module, useful
     for mocking, testing, or customizing the behavior of the stream.
-  * `fsync`: {boolean} Perform a `fs.fsyncSync()` every time a write is
+  * `fsync` {boolean} Perform a `fs.fsyncSync()` every time a write is
     completed.
-  * `maxLength`: {number} The maximum length of the internal buffer. If a write
+  * `maxLength` {number} The maximum length of the internal buffer. If a write
     operation would cause the buffer to exceed `maxLength`, the data written is
     dropped and a drop event is emitted with the dropped data
-  * `maxWrite`: {number} The maximum number of bytes that can be written;
-    **Default**: `16384`
-  * `minLength`: {number} The minimum length of the internal buffer that is
+  * `maxWrite` {number} The maximum number of bytes that can be written;
+    **Default:** `16384`
+  * `minLength` {number} The minimum length of the internal buffer that is
     required to be full before flushing.
-  * `mkdir`: {boolean} Ensure directory for `dest` file exists when true.
-    **Default**: `false`.
-  * `mode`: {number|string} Specify the creating file mode (see `fs.open()`).
-  * `periodicFlush`: {number} Calls flush every `periodicFlush` milliseconds.
+  * `mkdir` {boolean} Ensure directory for `dest` file exists when true.
+    **Default:** `false`.
+  * `mode` {number|string} Specify the creating file mode (see `fs.open()`).
+  * `periodicFlush` {number} Calls flush every `periodicFlush` milliseconds.
   * `retryEAGAIN` {Function} A function that will be called when `write()`,
     `writeSync()`, or `flushSync()` encounters an `EAGAIN` or `EBUSY` error.
     If the return value is `true` the operation will be retried, otherwise it
@@ -7811,8 +7811,8 @@ of bytes written is passed as the first argument to the event handler.
     stream did not try to write.
     * `err` {any} An error or `null`.
     * `writeBufferLen` {number}
-    * `remainingBufferLen`: {number}
-  * `sync`: {boolean} Perform writes synchronously.
+    * `remainingBufferLen` {number}
+  * `sync` {boolean} Perform writes synchronously.
 
 #### `utf8Stream.append`
 
@@ -7821,7 +7821,7 @@ of bytes written is passed as the first argument to the event handler.
 #### `utf8Stream.contentMode`
 
 * {string} The type of data that can be written to the stream. Supported
-  values are `'utf8'` or `'buffer'`. **Default**: `'utf8'`.
+  values are `'utf8'` or `'buffer'`. **Default:** `'utf8'`.
 
 #### `utf8Stream.destroy()`
 
@@ -7871,7 +7871,7 @@ Flushes the buffered data synchronously. This is a costly operation.
 
 * {boolean} Whether the stream should ensure that the directory for the
   `dest` file exists. If `true`, it will create the directory if it does not
-  exist. **Default**: `false`.
+  exist. **Default:** `false`.
 
 #### `utf8Stream.mode`
 
@@ -7884,7 +7884,7 @@ Flushes the buffered data synchronously. This is a costly operation.
 
 #### `utf8Stream.reopen(file)`
 
-* `file`: {string|Buffer|URL} A path to a file to be written to (mode
+* `file` {string|Buffer|URL} A path to a file to be written to (mode
   controlled by the append option).
 
 Reopen the file in place, useful for log rotation.
@@ -7896,7 +7896,7 @@ Reopen the file in place, useful for log rotation.
 #### `utf8Stream.write(data)`
 
 * `data` {string|Buffer} The data to write.
-* Returns {boolean}
+* Returns: {boolean}
 
 When the `options.contentMode` is set to `'utf8'` when the stream is created,
 the `data` argument must be a string. If the `contentMode` is set to `'buffer'`,
@@ -7916,7 +7916,7 @@ Calls `utf8Stream.destroy()`.
 added: v0.1.93
 -->
 
-* Extends {stream.Writable}
+* Extends: {stream.Writable}
 
 Instances of {fs.WriteStream} are created and returned using the
 [`fs.createWriteStream()`][] function.

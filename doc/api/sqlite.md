@@ -15,9 +15,9 @@ changes:
     description: SQLite is no longer behind `--experimental-sqlite` but still experimental.
 -->
 
-> Stability: 1.2 - Release candidate.
-
 <!-- source_link=lib/sqlite.js -->
+
+> Stability: 1.2 - Release candidate.
 
 The `node:sqlite` module facilitates working with SQLite databases.
 To access it:
@@ -191,9 +191,6 @@ added:
  - v22.16.0
 -->
 
-Registers a new aggregate function with the SQLite database. This method is a wrapper around
-[`sqlite3_create_window_function()`][].
-
 * `name` {string} The name of the SQLite function to create.
 * `options` {Object} Function configuration settings.
   * `deterministic` {boolean} If `true`, the [`SQLITE_DETERMINISTIC`][] flag is
@@ -219,6 +216,9 @@ Registers a new aggregate function with the SQLite database. This method is a wr
   * `inverse` {Function} When this function is provided, the `aggregate` method will work as a window function.
     The function receives the current state and the dropped row value. The return value of this function should be the
     new state.
+
+Registers a new aggregate function with the SQLite database. This method is a wrapper around
+[`sqlite3_create_window_function()`][].
 
 When used as a window function, the `result` function will be called multiple times.
 
@@ -667,7 +667,7 @@ added:
 
 * `options` {Object} The configuration options for the session.
   * `table` {string} A specific table to track changes for. By default, changes to all tables are tracked.
-  * `db` {string} Name of the database to track. This is useful when multiple databases have been added using [`ATTACH DATABASE`][]. **Default**: `'main'`.
+  * `db` {string} Name of the database to track. This is useful when multiple databases have been added using [`ATTACH DATABASE`][]. **Default:** `'main'`.
 * Returns: {Session} A session handle.
 
 Creates and attaches a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
@@ -704,7 +704,7 @@ added:
     When an error is thrown in the conflict handler or when any other value is returned from the handler,
     applying the changeset is aborted and the database is rolled back.
 
-    **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
+    **Default:** A function that returns `SQLITE_CHANGESET_ABORT`.
 * Returns: {boolean} Whether the changeset was applied successfully without being aborted.
 
 An exception is thrown if the database is not

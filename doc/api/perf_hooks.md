@@ -2,9 +2,9 @@
 
 <!--introduced_in=v8.5.0-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/perf_hooks.js -->
+
+> Stability: 2 - Stable
 
 This module provides an implementation of a subset of the W3C
 [Web Performance APIs][] as well as additional APIs for
@@ -215,7 +215,7 @@ changes:
 * `options` {Object}
   * `detail` {any} Additional optional detail to include with the mark.
   * `startTime` {number} An optional timestamp to be used as the mark time.
-    **Default**: `performance.now()`.
+    **Default:** `performance.now()`.
 
 Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `PerformanceMark` is a subclass of `PerformanceEntry` whose

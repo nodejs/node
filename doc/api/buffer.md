@@ -2,9 +2,9 @@
 
 <!--introduced_in=v0.1.90-->
 
-> Stability: 2 - Stable
-
 <!-- source_link=lib/buffer.js -->
+
+> Stability: 2 - Stable
 
 `Buffer` objects are used to represent a fixed-length sequence of bytes. Many
 Node.js APIs support `Buffer`s.

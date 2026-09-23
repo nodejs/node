@@ -17,9 +17,9 @@ changes:
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 0 - Deprecated
-
 <!-- source_link=lib/domain.js -->
+
+> Stability: 0 - Deprecated
 
 **This module is pending deprecation.** Once a replacement API has been
 finalized, this module will be fully deprecated. Most developers should

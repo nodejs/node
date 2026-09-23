@@ -1,5 +1,7 @@
 # Modules: TypeScript
 
+<!--llm_description=Running TypeScript in Node.js with type stripping, and the limitations of doing so.-->
+
 <!-- YAML
 changes:
   - version: REPLACEME
