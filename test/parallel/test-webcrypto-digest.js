@@ -9,8 +9,7 @@ const assert = require('assert');
 const { Buffer } = require('buffer');
 const { subtle } = globalThis.crypto;
 const { createHash, getHashes } = require('crypto');
-const { hasOpenSSL, hasFIPS, isBoringSSL } = require('../common/crypto');
-const fips = hasFIPS();
+const { isBoringSSL } = require('../common/crypto');
 
 const kTests = [
   ['SHA-1', ['sha1'], 160],
@@ -265,16 +264,16 @@ if (getHashes().includes('shake128')) {
       new Uint8Array(0),
     );
 
-    const digest = await subtle.digest({ name: 'cSHAKE128', outputLength: 7 }, Buffer.alloc(1));
-    assert.strictEqual(digest.byteLength, 1);
-    assert.strictEqual(new Uint8Array(digest)[0] & 0b00000001, 0);
+    await assert.rejects(
+      subtle.digest({ name: 'cSHAKE128', outputLength: 7 }, Buffer.alloc(1)),
+      { name: 'NotSupportedError', message: 'Invalid CShakeParams outputLength' });
 
     await assert.rejects(
       subtle.digest(
         { name: 'cSHAKE128', outputLength: 0xffffffff },
         Buffer.alloc(1)),
       {
-        name: 'OperationError',
+        name: 'NotSupportedError',
         message: 'Invalid CShakeParams outputLength',
       });
 
@@ -291,22 +290,53 @@ if (getHashes().includes('shake128')) {
         message: 'Unsupported CShakeParams functionName',
       });
 
-    if (fips) return;
-
-    await assert.rejects(
-      subtle.digest(
-        {
-          name: 'cSHAKE128',
+    for (const name of ['cSHAKE128', 'cSHAKE256']) {
+      const supported = getHashes().includes(name.toLowerCase());
+      assert.deepStrictEqual(
+        await subtle.digest({
+          name,
           outputLength: 256,
-          customization: Buffer.alloc(513),
-        },
-        Buffer.alloc(1)),
-      {
-        name: 'OperationError',
-        message: 'CShakeParams.customization must be at most 512 bytes',
-      });
+          functionName: Buffer.alloc(0),
+          customization: Buffer.alloc(0),
+        }, Buffer.alloc(1)),
+        await subtle.digest({ name, outputLength: 256 }, Buffer.alloc(1)));
 
-    if (!hasOpenSSL(3)) return;
+      await assert.rejects(
+        subtle.digest({
+          name,
+          outputLength: 256,
+          customization: Buffer.alloc(513, 1),
+        }, Buffer.alloc(1)),
+        supported ? {
+          name: 'OperationError',
+          message: 'CShakeParams.customization must be at most 512 bytes',
+        } : {
+          name: 'NotSupportedError',
+          message: 'Unsupported CShakeParams customization',
+        });
+
+      await assert.rejects(
+        subtle.digest({
+          name,
+          outputLength: 256,
+          customization: Buffer.from([0x61, 0x00, 0x62]),
+        }, Buffer.alloc(1)),
+        { name: 'NotSupportedError', message: 'Unsupported CShakeParams customization' });
+
+      for (const params of [
+        { functionName: Buffer.from('KMAC') },
+        { customization: Buffer.from('Node.js') },
+      ]) {
+        const algorithm = { name, outputLength: 256, ...params };
+        if (supported) {
+          assert.strictEqual((await subtle.digest(algorithm, Buffer.alloc(1))).byteLength, 32);
+        } else {
+          await assert.rejects(subtle.digest(algorithm, Buffer.alloc(1)), {
+            name: 'NotSupportedError',
+          });
+        }
+      }
+    }
 
     const nistCShakeShortInput = Buffer.from('00010203', 'hex');
     const nistCShakeLongInput =
@@ -400,19 +430,23 @@ if (getHashes().includes('shake128')) {
                   'ca6f88db415829',
       },
     ]) {
-      assert.strictEqual(
-        Buffer.from(await subtle.digest(algorithm, data)).toString('hex'),
-        expected);
+      if (getHashes().includes(algorithm.name.toLowerCase())) {
+        assert.strictEqual(
+          Buffer.from(await subtle.digest(algorithm, data)).toString('hex'),
+          expected);
+      } else {
+        await assert.rejects(subtle.digest(algorithm, data), {
+          name: 'NotSupportedError',
+        });
+      }
     }
 
-    const truncated = Buffer.from(await subtle.digest(
-      { ...nistCShakeSample1.algorithm, outputLength: 255 },
-      nistCShakeSample1.data));
-    const expected = Buffer.from(nistCShakeSample1.expected, 'hex');
-    assert.strictEqual(truncated.byteLength, expected.byteLength);
-    assert.deepStrictEqual(
-      truncated.subarray(0, 31), expected.subarray(0, 31));
-    assert.strictEqual(truncated[31] & 0b00000001, 0);
-    assert.strictEqual(truncated[31] | 0b00000001, expected[31]);
+    if (getHashes().includes('cshake128')) {
+      await assert.rejects(
+        subtle.digest(
+          { ...nistCShakeSample1.algorithm, outputLength: 255 },
+          nistCShakeSample1.data),
+        { name: 'NotSupportedError', message: 'Invalid CShakeParams outputLength' });
+    }
   })().then(common.mustCall());
 }

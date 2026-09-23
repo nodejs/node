@@ -182,17 +182,6 @@ declare namespace InternalCryptoBinding {
     ): CryptoJobWebCrypto<ArrayBuffer>;
   }
 
-  interface CShakeJobConstructor {
-    new(
-      mode: CryptoJobWebCryptoMode,
-      algorithm: string,
-      data: ByteSource,
-      functionName: OptionalByteSource,
-      customization: OptionalByteSource,
-      outputLength: number,
-    ): CryptoJobWebCrypto<ArrayBuffer>;
-  }
-
   interface ChaCha20Poly1305CipherJobConstructor {
     new(
       mode: CryptoJobWebCryptoMode,
@@ -375,7 +364,6 @@ declare namespace InternalCryptoBinding {
       key: KeyObjectHandle,
       algorithm: string,
       customization: OptionalByteSource,
-      keyLength: number,
       outputLength: number,
       data: ByteSource,
       ...signature: MacJobSignatureArgs<S>
@@ -818,7 +806,6 @@ declare namespace InternalCryptoBinding {
 export interface CryptoBinding {
   AESCipherJob: InternalCryptoBinding.AESCipherJobConstructor;
   Argon2Job: InternalCryptoBinding.Argon2JobConstructor;
-  CShakeJob?: InternalCryptoBinding.CShakeJobConstructor;
   ChaCha20Poly1305CipherJob: InternalCryptoBinding.ChaCha20Poly1305CipherJobConstructor;
   CheckPrimeJob: InternalCryptoBinding.CheckPrimeJobConstructor;
   DHBitsJob: InternalCryptoBinding.DHBitsJobConstructor;
