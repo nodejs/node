@@ -117,7 +117,7 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
     void RemoveEntry(base::HashMap::Entry* entry) {
-      impl_.Remove(entry->key, entry->hash);
+      impl_.Remove(entry->key, entry->hash());
     }
 
     base::HashMap impl_;
@@ -193,16 +193,6 @@ class Serializer : public SerializerDeserializer {
   }
 
   Isolate* isolate() const { return isolate_; }
-
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to InstructionStream objects.
-  PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
 
   int TotalAllocationSize() const;
 
@@ -298,7 +288,7 @@ class Serializer : public SerializerDeserializer {
     deferred_objects_.Push(obj);
   }
 
-  // Register that the the given object shouldn't be immediately serialized, but
+  // Register that the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
   // references.
   void RegisterObjectIsPending(Tagged<HeapObject> obj);
@@ -392,9 +382,6 @@ class Serializer : public SerializerDeserializer {
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   Isolate* isolate_;
-#if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
   HotObjectsList hot_objects_;
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;

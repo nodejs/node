@@ -34,7 +34,7 @@ class V8_EXPORT NumberObject : public Object {
 };
 
 /**
- * A BigInt object (https://tc39.github.io/proposal-bigint)
+ * A BigInt object (https://tc39.es/proposal-bigint)
  */
 class V8_EXPORT BigIntObject : public Object {
  public:

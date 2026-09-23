@@ -159,7 +159,7 @@ class ExpectedOutProc(OutProc):
       ):
         if expected != actual:
           return True
-      return False
+    return False
 
   def regenerate_expected_files(self, output):
     if not self._regenerate_expected_files:

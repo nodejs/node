@@ -9,6 +9,7 @@
 #include <tuple>
 #include <utility>
 
+#include "include/v8config.h"
 #include "src/base/logging.h"
 
 namespace v8 {
@@ -67,7 +68,8 @@ auto make_iterator_range(ForwardIterator begin, ForwardIterator end) {
 }
 
 template <class T>
-struct DerefPtrIterator : base::iterator<std::bidirectional_iterator_tag, T> {
+struct V8_GSL_POINTER DerefPtrIterator
+    : base::iterator<std::bidirectional_iterator_tag, T> {
   T* const* ptr;
 
   explicit DerefPtrIterator(T* const* ptr) : ptr(ptr) {}

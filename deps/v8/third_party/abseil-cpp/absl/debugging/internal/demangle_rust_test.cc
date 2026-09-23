@@ -176,6 +176,20 @@ TEST(DemangleRust, ClosureNumberOverflowingInt) {
       "crate_name::func_name::{closure#?}");
 }
 
+TEST(DemangleRust, Base62NumberScanLimit) {
+  // Up to 16 base-62 digits is permitted (though int overflow yields "?").
+  EXPECT_DEMANGLING(
+      "_RNCNvCs09azAZ_10crate_name9func_names0123456789abcdef_0Cs123_12client_"
+      "crate",
+      "crate_name::func_name::{closure#?}");
+
+  // Beyond 16 base-62 digits is rejected to prevent excessive re-scanning.
+  EXPECT_DEMANGLING_FAILS(
+      "_RNCNvCs09azAZ_10crate_name9func_names0123456789abcdef0_0Cs123_12client_"
+      "crate");
+  EXPECT_DEMANGLING_FAILS("_RB0123456789abcdef0_");
+}
+
 TEST(DemangleRust, UnexpectedlyNamedClosure) {
   EXPECT_DEMANGLING(
       "_RNCNvCs123_10crate_name9func_name12closure_nameCs456_12client_crate",

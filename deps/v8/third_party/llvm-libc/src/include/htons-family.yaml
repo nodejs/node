@@ -1,0 +1,25 @@
+functions:
+  - name: htonl
+    standards:
+      - posix
+    return_type: uint32_t
+    arguments:
+      - type: uint32_t
+  - name: htons
+    standards:
+      - posix
+    return_type: uint16_t
+    arguments:
+      - type: uint16_t
+  - name: ntohl
+    standards:
+      - posix
+    return_type: uint32_t
+    arguments:
+      - type: uint32_t
+  - name: ntohs
+    standards:
+      - posix
+    return_type: uint16_t
+    arguments:
+      - type: uint16_t

@@ -1,8 +1,8 @@
 // Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// Flags: --allow-natives-syntax --wasm-staging
+
+// Flags: --allow-natives-syntax
 
 // This file is for the most parts a direct port of
 // test/mjsunit/wasm/exceptions-api.js using the new exception handling

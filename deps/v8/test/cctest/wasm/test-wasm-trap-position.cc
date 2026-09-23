@@ -50,7 +50,7 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate,
   Print(*exc);
   // Extract stack frame from the exception.
   auto stack = isolate->GetSimpleStackTrace(Cast<JSObject>(exc));
-  CHECK_EQ(N, stack->length());
+  CHECK_EQ(N, stack->length().value());
 
   for (int i = 0; i < N; ++i) {
     DirectHandle<CallSiteInfo> info(Cast<CallSiteInfo>(stack->get(i)), isolate);
@@ -69,7 +69,7 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate,
 // Trigger a trap for executing unreachable.
 WASM_COMPILED_EXEC_TEST(Unreachable) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<void> r(execution_tier, kWasmOrigin, nullptr, "main");
+  WasmRunner<void> r(execution_tier, nullptr, "main");
 
   r.Build({WASM_UNREACHABLE});
   uint32_t wasm_index = r.function()->func_index;
@@ -101,7 +101,7 @@ WASM_COMPILED_EXEC_TEST(Unreachable) {
 
 // Trigger a trap for loading from out-of-bounds.
 WASM_COMPILED_EXEC_TEST(IllegalLoad) {
-  WasmRunner<void> r(execution_tier, kWasmOrigin, nullptr, "main");
+  WasmRunner<void> r(execution_tier, nullptr, "main");
 
   r.builder().AddMemory(0L);
 

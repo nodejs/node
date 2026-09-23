@@ -205,6 +205,7 @@ Response SerializeSet(v8::Local<v8::Set> value, v8::Local<v8::Context> context,
                                             additionalParameters,
 
                                             duplicateTracker, &serializedValue);
+    if (!response.IsSuccess()) return response;
     result.setValue("value", std::move(serializedValue));
   }
   return Response::Success();

@@ -6,6 +6,7 @@
 
 #include <stack>
 
+#include "js-intrinsic-lowering.h"
 #include "src/codegen/callable.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
@@ -50,6 +51,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCopyDataPropertiesWithExcludedPropertiesOnStack(node);
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
+    case Runtime::kInlineGeneratorYieldResult:
+      return ReduceGeneratorYieldResult(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineGeneratorClose:
@@ -112,6 +115,15 @@ JSIntrinsicLowering::ReduceCopyDataPropertiesWithExcludedPropertiesOnStack(
   return Changed(node);
 }
 
+Reduction JSIntrinsicLowering::ReduceGeneratorYieldResult(Node* node) {
+  Node* const value = NodeProperties::GetValueInput(node, 0);
+  Node* const done = jsgraph()->FalseConstant();
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  return Change(node, javascript()->CreateIterResultObject(), value, done,
+                context, effect);
+}
+
 Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
   Node* const value = NodeProperties::GetValueInput(node, 0);
   Node* const done = NodeProperties::GetValueInput(node, 1);
@@ -167,8 +179,8 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwait(Node* node) {
-  return Change(
-      node, Builtins::CallableFor(isolate(), Builtin::kAsyncFunctionAwait), 0);
+  NodeProperties::ChangeOp(node, javascript()->AsyncFunctionAwait());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionEnter(Node* node) {

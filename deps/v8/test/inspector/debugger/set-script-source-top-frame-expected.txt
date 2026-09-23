@@ -4,14 +4,27 @@ function testExpression(a, b) {
   #debugger;
   return a + b;
 
-Paused at (after live edit):
+Paused at (after live edit 1):
 function testExpression(a, b) {
   #return a * b;
 }
 
+Nested result 1: 15
+Paused at (after live edit 2):
+function testExpression(a, b, c, d, e, f, g, h) {
+  #return a * b + String(h).length;  // +"undefined".length
+}
+
+Nested result 2: 24
+Paused at (after live edit 3):
+function testExpression(a, b) {
+  #return a * b + 3;
+}
+
+Nested result 3: 18
 Result:
 {
-    description : 15
+    description : 18
     type : number
-    value : 15
+    value : 18
 }

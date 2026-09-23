@@ -32,6 +32,13 @@ jobs:
           path: ~/.cargo/registry/index
           key: cargo-${{ matrix.rust }}-git-index
 
+      - name: Lock MSRV-compatible dependencies
+        if: startsWith(matrix.rust, '1')
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+        # Note that this uses the runner's pre-installed stable cargo
+        run: cargo generate-lockfile
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@master
         with:

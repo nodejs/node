@@ -39,12 +39,12 @@ namespace random_internal {
 //
 template <typename Params, typename Mix>
 class pcg_engine {
-  static_assert(std::is_same<typename Params::state_type,
-                             typename Mix::state_type>::value,
-                "Class-template absl::pcg_engine must be parameterized by "
-                "Params and Mix with identical state_type");
+  static_assert(
+      std::is_same_v<typename Params::state_type, typename Mix::state_type>,
+      "Class-template absl::pcg_engine must be parameterized by "
+      "Params and Mix with identical state_type");
 
-  static_assert(std::is_unsigned<typename Mix::result_type>::value,
+  static_assert(std::is_unsigned_v<typename Mix::result_type>,
                 "Class-template absl::pcg_engine must be parameterized by "
                 "an unsigned Mix::result_type");
 
@@ -66,9 +66,8 @@ class pcg_engine {
 
   explicit pcg_engine(uint64_t seed_value = 0) { seed(seed_value); }
 
-  template <class SeedSequence,
-            typename = typename absl::enable_if_t<
-                !std::is_same<SeedSequence, pcg_engine>::value>>
+  template <class SeedSequence, typename = typename std::enable_if_t<
+                                    !std::is_same_v<SeedSequence, pcg_engine>>>
   explicit pcg_engine(SeedSequence&& seq) {
     seed(seq);
   }
@@ -90,8 +89,8 @@ class pcg_engine {
   }
 
   template <class SeedSequence>
-  typename absl::enable_if_t<
-      !std::is_convertible<SeedSequence, uint64_t>::value, void>
+  typename std::enable_if_t<!std::is_convertible_v<SeedSequence, uint64_t>,
+                            void>
   seed(SeedSequence&& seq) {
     reseed(seq);
   }
@@ -105,7 +104,7 @@ class pcg_engine {
   bool operator!=(const pcg_engine& other) const { return !(*this == other); }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) == 16),
+  friend typename std::enable_if_t<(sizeof(state_type) == 16),
                                     std::basic_ostream<CharT, Traits>&>
   operator<<(
       std::basic_ostream<CharT, Traits>& os,  // NOLINT(runtime/references)
@@ -121,7 +120,7 @@ class pcg_engine {
   }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) <= 8),
+  friend typename std::enable_if_t<(sizeof(state_type) <= 8),
                                     std::basic_ostream<CharT, Traits>&>
   operator<<(
       std::basic_ostream<CharT, Traits>& os,  // NOLINT(runtime/references)
@@ -134,7 +133,7 @@ class pcg_engine {
   }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) == 16),
+  friend typename std::enable_if_t<(sizeof(state_type) == 16),
                                     std::basic_istream<CharT, Traits>&>
   operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)
@@ -155,7 +154,7 @@ class pcg_engine {
   }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) <= 8),
+  friend typename std::enable_if_t<(sizeof(state_type) <= 8),
                                     std::basic_istream<CharT, Traits>&>
   operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)

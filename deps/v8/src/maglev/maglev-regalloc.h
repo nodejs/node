@@ -326,7 +326,7 @@ class StraightForwardRegisterAllocator {
   };
   ZoneVector<BlockPatch> patches_;
 
-  BlockConstIterator block_it_;
+  int current_block_id_;
   NodeIterator node_it_;
   // The current node, whether a Node in the body or the ControlNode.
   NodeBase* current_node_;

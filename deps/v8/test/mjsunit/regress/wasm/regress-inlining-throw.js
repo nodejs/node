@@ -10,9 +10,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 var builder = new WasmModuleBuilder();
 let supertype = builder.addStruct([makeField(kWasmI32, true)]);
 let subtype = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], supertype);
+    {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+     supertype: supertype});
 let unused_type = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmF64, true)], supertype);
+    {fields: [makeField(kWasmI32, true), makeField(kWasmF64, true)],
+     supertype: supertype});
 
 let sig = makeSig([wasmRefNullType(supertype)], [kWasmI32]);
 

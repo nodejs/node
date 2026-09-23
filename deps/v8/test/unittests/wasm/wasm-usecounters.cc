@@ -5,6 +5,7 @@
 #include <map>
 
 #include "include/v8-isolate.h"
+#include "src/base/logging.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/unittests/test-utils.h"
@@ -80,6 +81,7 @@ std::string PrintCompileType(
     case kStreaming:
       return "Streaming";
   }
+  UNREACHABLE();
 }
 
 INSTANTIATE_TEST_SUITE_P(CompileTypes, WasmUseCounterTest,

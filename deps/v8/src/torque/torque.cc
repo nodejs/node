@@ -16,6 +16,7 @@ std::string ErrorPrefixFor(TorqueMessage::Kind kind) {
     case TorqueMessage::Kind::kLint:
       return "Lint error";
   }
+  UNREACHABLE();
 }
 
 int WrappedMain(int argc, const char** argv) {
@@ -41,6 +42,8 @@ int WrappedMain(int argc, const char** argv) {
 #endif
     } else if (argument == "-annotate-ir") {
       options.annotate_ir = true;
+    } else if (argument == "-torque-dwarf") {
+      options.torque_dwarf = true;
     } else if (argument == "-strip-v8-root") {
       options.strip_v8_root = true;
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
@@ -63,8 +66,6 @@ int WrappedMain(int argc, const char** argv) {
       }
     }
   }
-
-  CurrentCompilerOptions::Scope compiler_options_scope(options);
 
   TorqueCompilerResult result = CompileTorque(files, options);
 

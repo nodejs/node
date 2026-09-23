@@ -10,12 +10,13 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-class RegExpResultVectorScope final {
+class ResultVectorScope final {
  public:
-  explicit RegExpResultVectorScope(Isolate* isolate);
-  RegExpResultVectorScope(Isolate* isolate, int size);
-  ~RegExpResultVectorScope();
+  explicit ResultVectorScope(Isolate* isolate);
+  ResultVectorScope(Isolate* isolate, int size);
+  ~ResultVectorScope();
 
   int32_t* Initialize(int size);
 
@@ -30,12 +31,13 @@ class RegExpResultVectorScope final {
   int32_t* value_ = nullptr;
 };
 
-class RegExpResultVector final : public AllStatic {
+class ResultVector final : public AllStatic {
  public:
   static int32_t* Allocate(Isolate* isolate, uint32_t size);
   static void Free(Isolate* isolate, int32_t* vector);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

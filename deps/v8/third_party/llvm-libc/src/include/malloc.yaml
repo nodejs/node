@@ -1,0 +1,31 @@
+header: malloc.h
+standards:
+  - gnu
+merge_yaml_files:
+  - stdlib-malloc.yaml
+macros:
+  - macro_name: M_PURGE
+    macro_header: malloc-macros.h
+  - macro_name: M_PURGE_ALL
+    macro_header: malloc-macros.h
+functions:
+  - name: malloc_usable_size
+    standards:
+      - gnu
+    return_type: size_t
+    arguments:
+      - type: void *
+  - name: mallopt
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: pvalloc
+    standards:
+      - bsd
+      - gnu
+    return_type: void *
+    arguments:
+      - type: size_t

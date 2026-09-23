@@ -75,8 +75,8 @@ bytecodes: [
   /*   45 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   69 E> */ B(AddSmi), I8(1), FBV(1),
-                B(DefineNamedOwnProperty), R(1), U8(1:"val"), FBV(2),
+  /*   69 E> */ B(AddSmi), I8(1), EmbeddedFeedback(),
+                B(DefineNamedOwnProperty), R(1), U8(1:"val"), FBV(1),
                 B(Ldar), R(1),
   /*   75 S> */ B(Return),
 ]

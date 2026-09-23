@@ -1,0 +1,26 @@
+add_header_library(
+  performance_counter
+  HDRS
+    performance_counter.h
+  DEPENDS
+    libc.src.__support.CPP.atomic
+    libc.src.__support.common
+)
+
+add_object_library(
+  clock_gettime
+  HDRS
+    ../clock_gettime.h
+  SRCS
+    clock_gettime.cpp
+  DEPENDS
+    .performance_counter
+    libc.hdr.types.struct_timespec
+    libc.hdr.types.clockid_t
+    libc.hdr.errno_macros
+    libc.src.__support.common
+    libc.src.__support.error_or
+    libc.src.__support.OSUtil.osutil
+    libc.src.__support.CPP.atomic
+    libc.src.__support.CPP.limits
+)

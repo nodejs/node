@@ -14,6 +14,8 @@
 
 #include "absl/log/vlog_is_on.h"
 
+#include <optional>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/log_severity.h"
@@ -22,25 +24,24 @@
 #include "absl/log/globals.h"
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
-#include "absl/types/optional.h"
 
 namespace {
 
 using ::testing::_;
 
-absl::optional<int> MaxLogVerbosity() {
+std::optional<int> MaxLogVerbosity() {
 #ifdef ABSL_MAX_VLOG_VERBOSITY
   return ABSL_MAX_VLOG_VERBOSITY;
 #else
-  return absl::nullopt;
+  return std::nullopt;
 #endif
 }
 
-absl::optional<int> MinLogLevel() {
+std::optional<int> MinLogLevel() {
 #ifdef ABSL_MIN_LOG_LEVEL
   return static_cast<int>(ABSL_MIN_LOG_LEVEL);
 #else
-  return absl::nullopt;
+  return std::nullopt;
 #endif
 }
 

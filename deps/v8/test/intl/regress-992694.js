@@ -5,7 +5,7 @@
 // Make sure the "hu" locale format the number group correctly.
 
 let number = 123456.789;
-let expected = "123 456,79 Ft";
+let expected = "123 457 Ft";
 assertEquals(expected,
     (new Intl.NumberFormat('hu', { style: 'currency', currency: 'HUF'}).format(number)));
 assertEquals(expected,

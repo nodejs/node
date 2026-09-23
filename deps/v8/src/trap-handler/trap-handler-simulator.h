@@ -22,7 +22,7 @@ namespace v8::internal::trap_handler {
 // handler will recognise the address of the instruction doing the access and
 // treat it specially. It will use the given {pc} to look up the respective
 // landing pad and return to this function to return that landing pad. If {pc}
-// is not registered as a protected instruction, the signal will be propagated
+// is not registered as a trapping instruction, the signal will be propagated
 // as usual.
 // If the read at {address} succeeds, this function returns {0} instead.
 uintptr_t ProbeMemory(uintptr_t address, uintptr_t pc)

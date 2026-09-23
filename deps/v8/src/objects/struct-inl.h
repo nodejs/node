@@ -9,8 +9,8 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
+#include "src/objects/oddball-predicates-inl.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,10 +18,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/struct-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(Struct)
 
 Tagged<Object> Tuple2::value1() const { return value1_.load(); }
 void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {

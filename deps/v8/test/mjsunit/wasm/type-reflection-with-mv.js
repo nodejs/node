@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --experimental-wasm-type-reflection
+// Flags: --expose-gc
+
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestFunctionConstructedCoercions() {
   let obj1 = { valueOf: _ => 123.45 };
@@ -36,7 +38,7 @@
   testcases.forEach(function({params, result}) {
     let p = params.sig; let r = result.sig; var params_after;
     function testFun() { params_after = arguments; return result.val; }
-    let fun = new WebAssembly.Function({parameters:p, results:r}, testFun);
+    let fun = new WebAssemblyFunction({parameters:p, results:r}, testFun);
     let result_after = fun.apply(undefined, params.val);
     assertArrayEquals(params.exp, params_after);
     assertEquals(result.exp, result_after);
@@ -73,7 +75,7 @@
       msg: /def/ },
   ];
   testcases.forEach(function({val, error, msg}) {
-    fun = new WebAssembly.Function({parameters:[], results:["i32", "i32"]},
+    fun = new WebAssemblyFunction({parameters:[], results:["i32", "i32"]},
         () => val);
     assertThrows(fun, error, msg);
   })

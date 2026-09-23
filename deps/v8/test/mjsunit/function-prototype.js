@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that we can set function prototypes to non-object values.  The
 // prototype used for instances in that case should be the initial
 // object prototype.  ECMA-262 13.2.2.
@@ -52,6 +54,18 @@ F.prototype = 42;
 f = new F();
 assertEquals(Object.prototype, f.__proto__);
 assertEquals(42, F.prototype);
+// non-object -> intrinsicDefaultProto, initial map should not change.
+F.prototype = Object.prototype;
+assertTrue(%HaveSameMap(f, new F()));
+assertEquals(Object.prototype, f.__proto__);
+assertEquals(Object.prototype, (new F()).__proto__);
+// intrinsicDefaultProto -> non-object, initial map should not change.
+F.prototype = 153;
+assertTrue(%HaveSameMap(f, new F()));
+assertEquals(153, F.prototype);
+assertEquals(Object.prototype, f.__proto__);
+assertEquals(Object.prototype, (new F()).__proto__);
+
 F.prototype = { a: 42 };
 f = new F();
 assertEquals(42, F.prototype.a);

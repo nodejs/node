@@ -158,3 +158,51 @@ assertOptimized(test10);
 // This time doesn't deopt anymore (==> no deopt loop)
 assertEquals("", test10("foo", 1, "not a number"));
 assertOptimized(test10);
+
+function test11(s) {
+  return s.slice(1);
+}
+%PrepareFunctionForOptimization(test11);
+assertEquals("oo", test11("foo"));
+%OptimizeFunctionOnNextCall(test11);
+assertEquals("oo", test11("foo"));
+assertEquals("o", test11("fo"));
+assertEquals("", test11("f"));
+assertOptimized(test11);
+
+function test12(s) {
+  return s.slice(1, undefined);
+}
+%PrepareFunctionForOptimization(test12);
+assertEquals("oo", test12("foo"));
+%OptimizeFunctionOnNextCall(test12);
+assertEquals("oo", test12("foo"));
+assertEquals("o", test12("fo"));
+assertOptimized(test12);
+
+function test13(s) {
+  return s.slice();
+}
+%PrepareFunctionForOptimization(test13);
+assertEquals("foo", test13("foo"));
+%OptimizeFunctionOnNextCall(test13);
+assertEquals("foo", test13("foo"));
+assertOptimized(test13);
+
+function test14(s) {
+  return s.slice(undefined, 2);
+}
+%PrepareFunctionForOptimization(test14);
+assertEquals("fo", test14("foo"));
+%OptimizeFunctionOnNextCall(test14);
+assertEquals("fo", test14("foo"));
+assertOptimized(test14);
+
+function test15(s) {
+  return s.slice(undefined, undefined);
+}
+%PrepareFunctionForOptimization(test15);
+assertEquals("foo", test15("foo"));
+%OptimizeFunctionOnNextCall(test15);
+assertEquals("foo", test15("foo"));
+assertOptimized(test15);

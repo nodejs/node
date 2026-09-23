@@ -5,7 +5,7 @@
 namespace typed_array {
 const kBuiltinNameFilter: constexpr string = '%TypedArray%.prototype.filter';
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.filter
 transitioning javascript builtin TypedArrayPrototypeFilter(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = callback
@@ -29,7 +29,7 @@ transitioning javascript builtin TypedArrayPrototypeFilter(
 
     // 6. Let kept be a new empty List.
     // TODO(v8:4153): Support huge TypedArrays here. (growable fixed arrays
-    // can't be longer than kMaxSmiValue).
+    // can't be longer than kSmiMaxValue).
     let kept = growable_fixed_array::NewGrowableFixedArray();
     let witness = typed_array::NewAttachedJSTypedArrayWitness(
         attachedArrayAndLength.array);

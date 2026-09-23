@@ -605,3 +605,41 @@ fn out_of_bounds_duration_no_crash() {
 
     assert!(duration.is_err());
 }
+
+// https://github.com/tc39/test262/commit/a70493eb104948583a7928d50eac28b6c81114bf
+// https://github.com/tc39/proposal-temporal/issues/3316
+#[test]
+#[cfg(feature = "compiled_data")]
+fn test_exact_multiple_of_larger_unit_plaindate() {
+    use crate::options::RoundingMode;
+    use crate::PlainDate;
+
+    let relative_to = PlainDate::try_new_iso(2012, 1, 1).unwrap();
+
+    // Temporal.Duration(0, 0, 0, 31).round({ smallestUnit: "weeks", largestUnit: "months", roundingMode, relativeTo })
+    // should be 0, 1, 0, 0, 0, 0, 0, 0, 0, 0
+    let d1 = Duration::new(0, 0, 0, 31, 0, 0, 0, 0, 0, 0).unwrap();
+
+    for mode in [
+        RoundingMode::Ceil,
+        RoundingMode::Floor,
+        RoundingMode::Expand,
+        RoundingMode::HalfCeil,
+        RoundingMode::HalfFloor,
+        RoundingMode::HalfEven,
+        RoundingMode::HalfExpand,
+        RoundingMode::HalfTrunc,
+        RoundingMode::Trunc,
+    ] {
+        let options = RoundingOptions {
+            smallest_unit: Some(Unit::Week),
+            largest_unit: Some(Unit::Month),
+            rounding_mode: Some(mode),
+            ..Default::default()
+        };
+        let res = d1.round(options, Some(relative_to.clone().into())).unwrap();
+        assert_eq!(res.months(), 1, "P31D weeks..months {mode:?}");
+        assert_eq!(res.weeks(), 0, "P31D weeks..months {mode:?}");
+        assert_eq!(res.days(), 0, "P31D weeks..months {mode:?}");
+    }
+}

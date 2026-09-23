@@ -5,14 +5,15 @@
 [package]
 name = "zerofrom-derive"
 description = "Custom derive for the zerofrom crate"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Manish Goregaokar <manishsmail@gmail.com>"]
 categories = ["data-structures", "memory-management", "caching", "no-std"]
-keywords = ["zerocopy", "serialization", "lifetime", "borrow"]
+keywords = ["macros", "derive", "zero-copy", "serialization"]
 
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+rust-version = "1.71.1"
 
 [package.metadata.workspaces]
 independent = true
@@ -31,3 +32,5 @@ synstructure = { workspace = true }
 zerofrom = { path = "..", features = ["derive"]}
 zerovec = { path = "../../../utils/zerovec", features = ["yoke"] }
 
+[lints]
+workspace = true

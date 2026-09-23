@@ -5,11 +5,11 @@
 #include "src/execution/v8threads.h"
 
 #include "include/v8-locker.h"
-#include "src/api/api.h"
 #include "src/debug/debug.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/stack-guard.h"
+#include "src/handles/handle-scope-implementer.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/visitors.h"
 #include "src/regexp/regexp-stack.h"
@@ -161,7 +161,7 @@ static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
          Isolate::ArchiveSpacePerThread() + Debug::ArchiveSpacePerThread() +
          StackGuard::ArchiveSpacePerThread() +
-         RegExpStack::ArchiveSpacePerThread() +
+         regexp::Stack::ArchiveSpacePerThread() +
          Bootstrapper::ArchiveSpacePerThread() +
          Relocatable::ArchiveSpacePerThread();
 }

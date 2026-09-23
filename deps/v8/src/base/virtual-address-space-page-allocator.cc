@@ -4,6 +4,8 @@
 
 #include "src/base/virtual-address-space-page-allocator.h"
 
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace base {
 
@@ -25,6 +27,7 @@ PagePermissions ConvertPageAllocatorPermission(
     case v8::PageAllocator::kNoAccessWillJitLater:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace

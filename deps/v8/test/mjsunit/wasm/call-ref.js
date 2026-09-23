@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestImportedRefCall() {
@@ -76,7 +74,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     return builder.instantiate({imports: {
       js_add: function(a, b) { return a + b; },
       wasm_add: exporting_instance.exports.addition,
-      js_api_mul: new WebAssembly.Function(
+      js_api_mul: new WebAssemblyFunction(
           {parameters:['i32', 'i32'], results: ['i32']},
           function(a, b) { return a * b; })
     }});
@@ -107,13 +105,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(21, instance.exports.test_js_api_import());
   print("--not imported WebAssembly.Function--")
   assertEquals(-5, instance.exports.main(
-    new WebAssembly.Function(
+    new WebAssemblyFunction(
       {parameters:['i32', 'i32'], results: ['i32']},
       function(a, b) { return a - b; }),
     10, 15));
   print("--not imported WebAssembly.Function, arity mismatch--")
   assertEquals(100, instance.exports.main(
-    new WebAssembly.Function(
+    new WebAssemblyFunction(
       {parameters:['i32', 'i32'], results: ['i32']},
       function(a) { return a * a; }),
     10, 15));
@@ -131,7 +129,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var instance = builder.instantiate({});
 
-  var fun = new WebAssembly.Function(
+  var fun = new WebAssemblyFunction(
       { parameters: ['i32'], results: ['i32'] }, (a) => undefined);
   // {undefined} is converted to 0.
   assertEquals(0, instance.exports.main(fun, 1000));
@@ -143,7 +141,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     var builder = new WasmModuleBuilder();
     let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
     let sub_struct = builder.addStruct(
-      [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+        {fields: [makeField(kWasmI32, true), makeField(kWasmI64, true)],
+         supertype: super_struct});
     let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
                                             [kWasmI32]), kNoSuperType, false)
     let sub_sig = builder.addType(makeSig([wasmRefNullType(super_struct)],
@@ -160,7 +159,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // These should canonicalize to the same types as the exporting instance.
   let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
   let sub_struct = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI64, true)],
+       supertype: super_struct});
   let super_sig = builder.addType(
     makeSig([wasmRefNullType(sub_struct)], [kWasmI32]), kNoSuperType, false);
   builder.addImport("m", "f", super_sig);
@@ -173,7 +173,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestJSFunctionCanonicallyDifferent() {
   print(arguments.callee.name);
 
-  let imp = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let imp = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                      x => x + 1);
 
   (function () {

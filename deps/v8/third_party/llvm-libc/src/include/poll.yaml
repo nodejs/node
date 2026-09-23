@@ -1,0 +1,37 @@
+header: poll.h
+standards:
+  - posix
+macros:
+  - macro_name: POLLIN
+    macro_header: poll-macros.h
+  - macro_name: POLLPRI
+    macro_header: poll-macros.h
+  - macro_name: POLLOUT
+    macro_header: poll-macros.h
+  - macro_name: POLLERR
+    macro_header: poll-macros.h
+  - macro_name: POLLHUP
+    macro_header: poll-macros.h
+  - macro_name: POLLNVAL
+    macro_header: poll-macros.h
+  - macro_name: POLLRDNORM
+    macro_header: poll-macros.h
+  - macro_name: POLLRDBAND
+    macro_header: poll-macros.h
+  - macro_name: POLLWRNORM
+    macro_header: poll-macros.h
+  - macro_name: POLLWRBAND
+    macro_header: poll-macros.h
+types:
+  - type_name: struct_pollfd
+  - type_name: nfds_t
+enums: []
+functions:
+  - name: poll
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: struct pollfd *
+      - type: nfds_t
+      - type: int
