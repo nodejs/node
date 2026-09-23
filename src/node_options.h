@@ -152,6 +152,7 @@ class EnvironmentOptions : public Options {
   std::string tls_keylog;
   std::string experimental_config_file_path;
   std::string experimental_package_map_path;
+  std::string vfs_load_source;
 #if HAVE_INSPECTOR
   std::string cpu_prof_dir;
   std::string cpu_prof_name;
@@ -178,7 +179,6 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> watch_mode_paths;
   std::vector<std::string> preload_cjs_modules;
   std::vector<std::string> preload_esm_modules;
-  std::vector<std::string> vfs_mounts;
   std::vector<std::string> user_argv;
 
   int64_t heap_snapshot_near_heap_limit = 0;
