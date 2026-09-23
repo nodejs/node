@@ -923,6 +923,10 @@ This is the default option.
 ./configure --with-intl=full-icu
 ```
 
+`--with-icu-compress` stores that data file compressed. The first run
+unpacks it into the temp directory and maps the result, so later
+processes share those pages. It is off unless a packager opts in.
+
 #### Windows
 
 ```powershell

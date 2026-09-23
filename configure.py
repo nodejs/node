@@ -1002,6 +1002,15 @@ intl_optgroup.add_argument('--with-icu-source',
         'the icu4c source archive. '
         f"v{icu_versions['minimum_icu']}.x or later recommended.")
 
+intl_optgroup.add_argument('--with-icu-compress',
+    action='store_true',
+    dest='with_icu_compress',
+    default=False,
+    help='Compress bundled ICU data and map a per-user cache file at runtime. '
+         'Off by default. Packagers opt in when a smaller on-disk binary is '
+         'worth the first-launch unpack. Requires --with-intl=full-icu or '
+         'small-icu.')
+
 intl_optgroup.add_argument('--with-icu-default-data-dir',
     action='store',
     dest='with_icu_default_data_dir',
@@ -2544,11 +2553,15 @@ def configure_intl(o):
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
   o['variables']['icu_system'] = b(False)
+  # Off unless a packager passes --with-icu-compress.
+  o['variables']['icu_compress_data'] = b(False)
 
   # prevent data override
   o['defines'] += ['ICU_NO_USER_DATA_OVERRIDE']
 
   with_intl = options.with_intl
+  if options.with_icu_compress and with_intl not in ('small-icu', 'full-icu'):
+    error('--with-icu-compress requires --with-intl=full-icu or small-icu')
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
   if have_icu_path and with_intl != 'none':
@@ -2602,6 +2615,9 @@ def configure_intl(o):
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
+
+  if options.with_icu_compress:
+    o['variables']['icu_compress_data'] = b(True)
 
   # this is just the 'deps' dir. Used for unpacking.
   icu_parent_path = 'deps'

@@ -33,12 +33,13 @@
  *       udata_setCommonData(SMALL_ICUDATA_ENTRY_POINT,...)
  *    to load up the english+root data.
  *
- *  - when NOT in NODE_HAVE_SMALL_ICU mode, ICU is linked directly with its full
- *    data. All of the variables and command line options for changing data at
- *    runtime are disabled, as they wouldn't fully override the internal data.
+ *  - Full and small ICU data are stored as a zstd frame in the binary.
+ *    The first process inflates that into a file under the temp directory
+ *    and maps it read-only. Later processes map the same file, so the
+ *    pages stay clean, demand-paged, and shared. --icu-data-dir still wins
+ *    when it is set.
  *    See:  http://bugs.icu-project.org/trac/ticket/10924
  */
-
 
 #include "node_i18n.h"
 #include "node_external_reference.h"
@@ -68,8 +69,28 @@
 #include <unicode/uversion.h>
 #include "nbytes.h"
 
-#ifdef NODE_HAVE_SMALL_ICU
+#if defined(NODE_HAVE_SMALL_ICU) || defined(NODE_HAVE_EMBEDDED_ICU_ZSTD)
 #include <unicode/udata.h>
+#endif
+
+#ifdef NODE_HAVE_EMBEDDED_ICU_ZSTD
+#include "uv.h"
+#include "zstd.h"
+
+#include "../tools/embed_sha256.h"
+
+#include <cstring>
+#include <string>
+
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
+#endif
+
+#ifdef NODE_HAVE_SMALL_ICU
 
 /* if this is defined, we have a 'secondary' entry point.
    compare following to utypes.h defs for U_ICUDATA_ENTRY_POINT */
@@ -84,6 +105,316 @@
 
 extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
 #endif
+
+#ifdef NODE_HAVE_EMBEDDED_ICU_ZSTD
+// genccode appends _dat to -e icudt<ver><endian>_dat_zstd.
+// The extra macro level expands the version and endianness before paste.
+#define NODE_ICU_ZSTD_ENTRY                                                    \
+  NODE_ICU_ZSTD_CALL(U_ICU_VERSION_MAJOR_NUM, U_ICUDATA_TYPE_LITLETTER)
+#define NODE_ICU_ZSTD_CALL(major, letter) NODE_ICU_ZSTD_PASTE(major, letter)
+#define NODE_ICU_ZSTD_PASTE(major, letter) icudt##major##letter##_dat_zstd_dat
+extern "C" const uint8_t NODE_ICU_ZSTD_ENTRY[];
+
+namespace {
+
+#ifdef _WIN32
+HANDLE icu_file_mapping = nullptr;
+#endif
+
+constexpr size_t kIcuHeaderSize = 52;
+constexpr uint64_t kMaxIcuBytes = 256 * 1024 * 1024;
+
+size_t Align16(size_t size) {
+  return (size + 15u) & ~size_t{15};
+}
+
+// Anonymous mapping, not the malloc heap. munmap actually drops the
+// decompress buffer once the cache file is mapped.
+uint8_t* AllocRaw(size_t size) {
+#ifdef _WIN32
+  return static_cast<uint8_t*>(
+      VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+#else
+#if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
+#define MAP_ANON MAP_ANONYMOUS
+#endif
+  void* ptr = mmap(
+      nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  if (ptr == MAP_FAILED) {
+    return nullptr;
+  }
+  return static_cast<uint8_t*>(ptr);
+#endif
+}
+
+void FreeRaw(uint8_t* ptr, size_t size) {
+  if (ptr == nullptr) {
+    return;
+  }
+#ifdef _WIN32
+  VirtualFree(ptr, 0, MEM_RELEASE);
+#else
+  munmap(ptr, size);
+#endif
+}
+
+uint64_t ReadU64LE(const uint8_t* bytes) {
+  uint64_t value = 0;
+  for (int i = 0; i < 8; i++) {
+    value |= static_cast<uint64_t>(bytes[i]) << (8 * i);
+  }
+  return value;
+}
+
+void AppendHex(std::string* out, const uint8_t hash[32]) {
+  static const char kHex[] = "0123456789abcdef";
+  for (int i = 0; i < 32; i++) {
+    out->push_back(kHex[hash[i] >> 4]);
+    out->push_back(kHex[hash[i] & 0xf]);
+  }
+}
+
+void CleanupFs(uv_fs_t* req) {
+  uv_fs_req_cleanup(req);
+}
+
+void CloseFd(uv_file fd) {
+  uv_fs_t req;
+  uv_fs_close(nullptr, &req, fd, nullptr);
+  CleanupFs(&req);
+}
+
+bool CachePath(const uint8_t hash[32], std::string* out) {
+  char tmp[4096];
+  size_t len = sizeof(tmp);
+  if (uv_os_tmpdir(tmp, &len) != 0) {
+    return false;
+  }
+  std::string path(tmp);
+  if (path.empty()) {
+    return false;
+  }
+  char tail = path.back();
+  if (tail != '/' && tail != '\\') {
+#ifdef _WIN32
+    path.push_back('\\');
+#else
+    path.push_back('/');
+#endif
+  }
+  // icudt78l-<sha256>.dat so the version and endianness stay visible.
+  path += "icudt";
+  path += U_ICU_VERSION_SHORT;
+  path += U_ICUDATA_TYPE_LETTER;
+  path += "-";
+  AppendHex(&path, hash);
+  path += ".dat";
+  *out = path;
+  return true;
+}
+
+// Map the cache file read-only. Clean file pages stay shared across
+// processes of this user and are faulted only when ICU touches them.
+uint8_t* MapIfSize(const std::string& path, size_t size) {
+  uv_fs_t req;
+  int fd = uv_fs_open(nullptr, &req, path.c_str(), UV_FS_O_RDONLY, 0, nullptr);
+  CleanupFs(&req);
+  if (fd < 0) {
+    return nullptr;
+  }
+  int st = uv_fs_fstat(nullptr, &req, fd, nullptr);
+  uint64_t file_size = st == 0 ? req.statbuf.st_size : 0;
+  CleanupFs(&req);
+  if (st != 0 || file_size != size) {
+    CloseFd(fd);
+    return nullptr;
+  }
+#ifdef _WIN32
+  intptr_t osf = _get_osfhandle(fd);
+  if (osf == -1) {
+    CloseFd(fd);
+    return nullptr;
+  }
+  HANDLE mapping = CreateFileMappingW(
+      reinterpret_cast<HANDLE>(osf), nullptr, PAGE_READONLY, 0, 0, nullptr);
+  if (mapping == nullptr) {
+    CloseFd(fd);
+    return nullptr;
+  }
+  void* view = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, size);
+  CloseFd(fd);
+  if (view == nullptr) {
+    CloseHandle(mapping);
+    return nullptr;
+  }
+  // ICU holds pointers into this view for the process lifetime.
+  icu_file_mapping = mapping;
+  return static_cast<uint8_t*>(view);
+#else
+  void* view = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
+  CloseFd(fd);
+  if (view == MAP_FAILED) {
+    return nullptr;
+  }
+  return static_cast<uint8_t*>(view);
+#endif
+}
+
+bool WriteAll(uv_file fd, const uint8_t* data, size_t size) {
+  size_t off = 0;
+  while (off < size) {
+    size_t remain = size - off;
+    unsigned int chunk =
+        remain > 0x40000000u ? 0x40000000u : static_cast<unsigned int>(remain);
+    uv_buf_t buf = uv_buf_init(
+        const_cast<char*>(reinterpret_cast<const char*>(data + off)), chunk);
+    uv_fs_t req;
+    int n = uv_fs_write(
+        nullptr, &req, fd, &buf, 1, static_cast<int64_t>(off), nullptr);
+    CleanupFs(&req);
+    if (n <= 0) {
+      return false;
+    }
+    off += static_cast<size_t>(n);
+  }
+  return true;
+}
+
+void UnmapView(uint8_t* view, size_t size) {
+#ifdef _WIN32
+  UnmapViewOfFile(view);
+  if (icu_file_mapping != nullptr) {
+    CloseHandle(icu_file_mapping);
+    icu_file_mapping = nullptr;
+  }
+#else
+  munmap(view, size);
+#endif
+}
+
+bool DigestMatches(const uint8_t* data, size_t size, const uint8_t expect[32]) {
+  uint8_t hash[32];
+  EmbedSha256(data, size, hash);
+  return memcmp(hash, expect, 32) == 0;
+}
+
+// Reject a cache file whose bytes do not match the hash in the binary.
+// A same-user process can rewrite the file; ICU would not notice.
+uint8_t* MapTrusted(const std::string& path,
+                    size_t size,
+                    const uint8_t expect[32]) {
+  uint8_t* view = MapIfSize(path, size);
+  if (view == nullptr) {
+    return nullptr;
+  }
+  if (!DigestMatches(view, size, expect)) {
+    UnmapView(view, size);
+    uv_fs_t req;
+    uv_fs_unlink(nullptr, &req, path.c_str(), nullptr);
+    CleanupFs(&req);
+    return nullptr;
+  }
+  return view;
+}
+
+uint8_t* PublishCache(const uint8_t* data,
+                      size_t size,
+                      const uint8_t hash[32]) {
+  std::string path;
+  if (!CachePath(hash, &path)) {
+    return nullptr;
+  }
+  uint8_t* existing = MapTrusted(path, size, hash);
+  if (existing != nullptr) {
+    return existing;
+  }
+  std::string tmp = path + ".tmp." + std::to_string(uv_os_getpid());
+  uv_fs_t req;
+  int fd = uv_fs_open(nullptr,
+                      &req,
+                      tmp.c_str(),
+                      UV_FS_O_CREAT | UV_FS_O_EXCL | UV_FS_O_WRONLY,
+                      0600,
+                      nullptr);
+  CleanupFs(&req);
+  if (fd < 0) {
+    return MapTrusted(path, size, hash);
+  }
+  bool wrote = WriteAll(fd, data, size);
+  if (wrote) {
+    int sync = uv_fs_fsync(nullptr, &req, fd, nullptr);
+    CleanupFs(&req);
+    wrote = sync == 0;
+  }
+  CloseFd(fd);
+  if (!wrote) {
+    uv_fs_unlink(nullptr, &req, tmp.c_str(), nullptr);
+    CleanupFs(&req);
+    return nullptr;
+  }
+  int renamed = uv_fs_rename(nullptr, &req, tmp.c_str(), path.c_str(), nullptr);
+  CleanupFs(&req);
+  if (renamed != 0) {
+    uv_fs_unlink(nullptr, &req, tmp.c_str(), nullptr);
+    CleanupFs(&req);
+  }
+  return MapTrusted(path, size, hash);
+}
+
+uint8_t* LoadEmbeddedICU(std::string* error) {
+  const uint8_t* bytes = NODE_ICU_ZSTD_ENTRY;
+  if (memcmp(bytes, "ICUZ", 4) != 0) {
+    *error = "embedded ICU data header is invalid";
+    return nullptr;
+  }
+  uint64_t raw_size = ReadU64LE(bytes + 4);
+  uint64_t compressed_size = ReadU64LE(bytes + 12);
+  const uint8_t* expect_hash = bytes + 20;
+  if (raw_size == 0 || raw_size > kMaxIcuBytes || compressed_size == 0 ||
+      compressed_size > raw_size) {
+    *error = "embedded ICU data header is invalid";
+    return nullptr;
+  }
+  std::string path;
+  if (CachePath(expect_hash, &path)) {
+    uint8_t* cached =
+        MapTrusted(path, static_cast<size_t>(raw_size), expect_hash);
+    if (cached != nullptr) {
+      return cached;
+    }
+  }
+  size_t raw = static_cast<size_t>(raw_size);
+  size_t alloc = Align16(raw);
+  uint8_t* data = AllocRaw(alloc);
+  if (data == nullptr) {
+    *error = "failed to decompress embedded ICU data";
+    return nullptr;
+  }
+  size_t got = ZSTD_decompress(
+      data, raw, bytes + kIcuHeaderSize, static_cast<size_t>(compressed_size));
+  if (ZSTD_isError(got) || got != raw) {
+    FreeRaw(data, alloc);
+    *error = "failed to decompress embedded ICU data";
+    return nullptr;
+  }
+  uint8_t hash[32];
+  EmbedSha256(data, got, hash);
+  if (memcmp(hash, expect_hash, 32) != 0) {
+    FreeRaw(data, alloc);
+    *error = "embedded ICU data hash mismatch";
+    return nullptr;
+  }
+  uint8_t* mapped = PublishCache(data, got, hash);
+  if (mapped != nullptr) {
+    FreeRaw(data, alloc);
+    return mapped;
+  }
+  // No writable temp directory. Keep the private buffer so ICU still works.
+  return data;
+}
+
+}  // namespace
+#endif  // NODE_HAVE_EMBEDDED_ICU_ZSTD
 
 namespace node {
 
@@ -555,7 +886,13 @@ ConverterObject::ConverterObject(
 bool InitializeICUDirectory(const std::string& path, std::string* error) {
   UErrorCode status = U_ZERO_ERROR;
   if (path.empty()) {
-#ifdef NODE_HAVE_SMALL_ICU
+#ifdef NODE_HAVE_EMBEDDED_ICU_ZSTD
+    static uint8_t* icu_data = LoadEmbeddedICU(error);
+    if (icu_data == nullptr) {
+      return false;
+    }
+    udata_setCommonData(icu_data, &status);
+#elif defined(NODE_HAVE_SMALL_ICU)
     // install the 'small' data.
     udata_setCommonData(&SMALL_ICUDATA_ENTRY_POINT, &status);
 #else  // !NODE_HAVE_SMALL_ICU
