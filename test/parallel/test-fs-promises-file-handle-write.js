@@ -41,11 +41,11 @@ async function validateEmptyWrite() {
 async function validateNonUint8ArrayWrite() {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-data-write.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
-  const buffer = Buffer.from('Hello world', 'utf8').toString('base64');
+  const string = Buffer.from('Hello world', 'utf8').toString('base64');
 
-  await fileHandle.write(buffer, 0, buffer.length);
+  await fileHandle.write(string, 0, 'utf8');
   const readFileData = fs.readFileSync(filePathForHandle);
-  assert.deepStrictEqual(Buffer.from(buffer, 'utf8'), readFileData);
+  assert.deepStrictEqual(Buffer.from(string, 'utf8'), readFileData);
 
   await fileHandle.close();
 }
