@@ -13,22 +13,26 @@ import vfs from 'node:vfs';
 
 const vfsImport = (path) => pathToFileURL(path).href;
 
-// Layer ids are per-process and increment on every `vfs.create()`, so the
-// second construction lands at id 1 and the eleventh at id 10.
-const instances = [];
-for (let i = 0; i < 11; i++) instances.push(vfs.create());
-const layerOne = instances[1];
-const layerTen = instances[10];
-
-layerOne.writeFileSync('/m.mjs', 'export const tag = "one";');
-const mountOne = layerOne.mount();
-
-layerTen.writeFileSync('/m.mjs', 'export const tag = "ten";');
-const mountTen = layerTen.mount();
-
-assert.notStrictEqual(mountOne, mountTen);
-assert.ok(mountTen.startsWith(mountOne),
-          'test scaffolding: expected layerTen mount to start with layerOne mount');
+// Layer ids are per-process and increment on every `vfs.create()`, so mounting
+// enough instances yields a pair whose mount points collide by prefix (an id
+// and that id followed by another digit), whichever id the numbering starts at.
+const mounted = [];
+for (let i = 0; i < 12; i++) {
+  const layer = vfs.create();
+  mounted.push({ layer, mountPoint: layer.mount() });
+}
+const pair = mounted.flatMap((shorter) =>
+  mounted.filter((longer) => longer !== shorter &&
+                             longer.mountPoint.startsWith(shorter.mountPoint))
+    .map((longer) => [shorter, longer]))[0];
+assert.ok(pair, 'test scaffolding: expected a pair of mount points that collide by prefix');
+const [{ layer: layerOne, mountPoint: mountOne },
+       { layer: layerTen, mountPoint: mountTen }] = pair;
+for (const { layer, mountPoint } of mounted) {
+  if (layer !== layerOne && layer !== layerTen) layer.unmount();
+  else layer.writeFileSync(`${mountPoint}/m.mjs`,
+                           `export const tag = "${layer === layerOne ? 'one' : 'ten'}";`);
+}
 
 const oneA = await import(vfsImport(`${mountOne}/m.mjs`));
 const tenA = await import(vfsImport(`${mountTen}/m.mjs`));

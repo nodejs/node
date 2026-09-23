@@ -1036,25 +1036,16 @@ static ExitCode InitializeNodeWithArgsInternal(
   CheckGlobalBenchOptions(errors);
   if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
-  // Checked here rather than in EnvironmentOptions::CheckOptions(), which runs
-  // at the end of every parse: NODE_OPTIONS is parsed before the command line,
-  // so a check there would reject `NODE_OPTIONS=--vfs-mount=x node
-  // --experimental-vfs` for an --experimental-vfs it had not read yet. These
-  // options only make sense as a set, so they are validated once all of them
-  // are in.
+  // Checked here, once every source of options has been parsed, because the
+  // count below needs the arguments the command line itself gave.
   {
     auto* env_options = per_process::cli_options->per_isolate->per_env.get();
-    if (!env_options->experimental_vfs) {
-      if (!env_options->vfs_mounts.empty()) {
-        errors->push_back("--vfs-mount requires --experimental-vfs");
-      }
-      if (env_options->vfs_load) {
-        errors->push_back("--vfs-load requires --experimental-vfs");
-      }
+    if (!env_options->experimental_vfs && env_options->vfs_load) {
+      errors->push_back("--vfs-load requires --experimental-vfs");
     }
-    // --vfs-load shares vfs_mounts with --vfs-mount, so the options themselves
-    // cannot say how often it was given; count it in the node options the
-    // command line yielded. A second one would silently win over the first.
+    // A second --vfs-load would silently replace the first, and the option
+    // itself cannot say how often it was given; count it in the node options
+    // the command line yielded.
     if (env_options->vfs_load && exec_argv != nullptr) {
       size_t seen = 0;
       for (const std::string& arg : *exec_argv) {
