@@ -21,8 +21,7 @@ struct KmacConfig final : public MemoryRetainer {
   ByteSource signature;
   ByteSource customization;
   KmacVariant variant;
-  size_t key_length;  // Key length in bits
-  uint32_t length;    // Output length in bits
+  uint32_t length;  // Output length in bits
 
   KmacConfig() = default;
 
