@@ -283,6 +283,11 @@ class InternalCallbackScope {
   std::optional<v8::Isolate::AllowJavascriptExecutionScope> allow_js_;
 };
 
+// Non-zero while an Environment on this thread is closing its handles with JS
+// disallowed isolate-wide; InternalCallbackScope re-allows it for the other
+// Environments whose callbacks run in those loop turns.
+extern thread_local int handle_cleanup_depth;
+
 class DebugSealHandleScope {
  public:
   explicit inline DebugSealHandleScope(v8::Isolate* isolate = nullptr)
