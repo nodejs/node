@@ -2261,9 +2261,6 @@ def configure_v8(o, configs):
       case 'none':
         warn('Temporal support disabled when compiling without ICU')
         options.v8_disable_temporal_support = True
-      case 'system-icu':
-        warn('Temporal support disabled when compiling with a shared ICU library')
-        options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['v8_use_perfetto'] = 1 if options.with_perfetto else 0
@@ -2544,6 +2541,8 @@ def configure_intl(o):
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
   o['variables']['icu_system'] = b(False)
+  # always set this
+  o['variables']['v8_enable_temporal_systemicu'] = 1
 
   # prevent data override
   o['defines'] += ['ICU_NO_USER_DATA_OVERRIDE']
