@@ -4,9 +4,9 @@
 # perfetto builds write through this tool.
 set -e
 
-tools_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-version=$(cat "$tools_dir/../../deps/perfetto/VERSION")
-trace_processor="$1"
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+version=$(cat "$script_dir/../../deps/perfetto/VERSION")
+trace_processor="${1:-$script_dir/trace_processor_shell}"
 
 # Perfetto names its release archives <os>-<arch>, which does not match uname.
 case "$(uname -s)" in
@@ -22,12 +22,12 @@ case "$(uname -m)" in
 esac
 
 url="https://github.com/google/perfetto/releases/download/v$version/$os-$arch.zip"
-archive="$tools_dir/$os-$arch.zip"
+archive=$(mktemp)
 
 rm -f "$trace_processor"
 echo "Downloading $url"
 curl -sSfL -o "$archive" "$url"
-unzip -q -j -o "$archive" '*/trace_processor_shell' -d "$tools_dir"
+unzip -q -j -o "$archive" '*/trace_processor_shell' -d "$script_dir"
 rm -f "$archive"
 chmod +x "$trace_processor"
 # The archive carries the release's own mtime. Make decides whether the tool is
