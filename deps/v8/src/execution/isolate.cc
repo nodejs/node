@@ -1645,12 +1645,15 @@ MaybeDirectHandle<JSObject> Isolate::CaptureAndSetErrorStack(
           static_cast<uint32_t>(
               stack_trace_for_uncaught_exceptions_frame_limit_));
       DCHECK_GE(stack_trace_limit, 0);
-      if (static_cast<int>(stack_trace_limit) *
-              CallSiteInfo::Fields::kCount <
-          raw_data_for_call_site_infos->length()) {
+      // Compare in frames rather than raw slots to avoid overflowing for
+      // large Error.stackTraceLimit values.
+      uint32_t frame_count = raw_data_for_call_site_infos->ulength() /
+                             CallSiteInfo::Fields::kCount;
+      if (static_cast<uint32_t>(stack_trace_limit) < frame_count) {
         call_site_infos_or_formatted_stack = FixedArray::RightTrimOrEmpty(
             this, raw_data_for_call_site_infos,
-            stack_trace_limit * CallSiteInfo::Fields::kCount);
+            static_cast<uint32_t>(stack_trace_limit) *
+                CallSiteInfo::Fields::kCount);
       }
       // Notify the debugger.
       OnStackTraceCaptured(stack_trace);
