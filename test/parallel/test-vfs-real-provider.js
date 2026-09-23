@@ -106,6 +106,37 @@ fs.mkdirSync(testDir, { recursive: true });
   fs.rmdirSync(path.join(testDir, 'deep/nested/dir'));
   fs.rmdirSync(path.join(testDir, 'deep/nested'));
   fs.rmdirSync(path.join(testDir, 'deep'));
+
+  // Recursive mkdir returns the first directory created, as a VFS-relative
+  // path (never the backing-directory path), matching MemoryProvider.
+  const created = realVfs.mkdirSync('/returned/nested/dir', { recursive: true });
+  assert.strictEqual(created, '/returned');
+  assert.strictEqual(realVfs.existsSync(created), true);
+  assert.strictEqual(
+    realVfs.mkdirSync('/returned/nested/dir', { recursive: true }),
+    undefined,
+  );
+  assert.strictEqual(realVfs.mkdirSync('/returned/new-dir'),
+                     undefined);
+  fs.rmdirSync(path.join(testDir, 'returned/nested/dir'));
+  fs.rmdirSync(path.join(testDir, 'returned/nested'));
+  fs.rmdirSync(path.join(testDir, 'returned/new-dir'));
+  fs.rmdirSync(path.join(testDir, 'returned'));
+}
+
+// Mounted recursive mkdir returns a path that exists on the real filesystem.
+{
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+  const mountPoint = realVfs.mount();
+  try {
+    const created = realVfs.mkdirSync(path.join(mountPoint, 'm/nested/dir'),
+                                      { recursive: true });
+    assert.strictEqual(created, path.join(mountPoint, 'm'));
+    assert.strictEqual(fs.existsSync(created), true);
+  } finally {
+    realVfs.unmount();
+    fs.rmSync(path.join(testDir, 'm'), { recursive: true, force: true });
+  }
 }
 
 // unlink
