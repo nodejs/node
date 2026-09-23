@@ -96,6 +96,8 @@ InternalCallbackScope::InternalCallbackScope(
   }
 
   Isolate* isolate = env->isolate();
+  // See IsolateData::handle_cleanup_depth.
+  if (env->isolate_data()->handle_cleanup_depth > 0) allow_js_.emplace(isolate);
 
   HandleScope handle_scope(isolate);
   Local<Context> current_context = isolate->GetCurrentContext();
