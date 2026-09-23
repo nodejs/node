@@ -1162,28 +1162,8 @@
               ],
             }],
             ['v8_enable_i18n_support==0', {
-              'sources': [
-                '<(SHARED_INTERMEDIATE_DIR)/src/builtins/builtins-temporal-zoneinfo64-data.cc',
-              ],
-              'actions': [
-                {
-                  'action_name': 'make_temporal_zoneinfo_cpp',
-                  'inputs': [
-                    '<(V8_ROOT)/tools/include-file-as-bytes.py',
-                    '../../deps/crates/vendor/zoneinfo64-v0_3/src/data/zoneinfo64.res',
-                  ],
-                  'outputs': [
-                    '<(SHARED_INTERMEDIATE_DIR)/src/builtins/builtins-temporal-zoneinfo64-data.cc',
-                  ],
-                  'action': [
-                    '<(python)',
-                    '<(V8_ROOT)/tools/include-file-as-bytes.py',
-                    '../../deps/crates/vendor/zoneinfo64-v0_3/src/data/zoneinfo64.res',
-                    '<@(_outputs)',
-                    'zoneinfo64_static_data',
-                  ],
-                  'message': 'Generating zoneinfo64 static data for Temporal',
-                },
+              'dependencies': [
+                '../../deps/crates/crates.gyp:temporal_zoneinfo64_data',
               ],
             }],
           ],
