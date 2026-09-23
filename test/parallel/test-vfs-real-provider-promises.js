@@ -35,6 +35,19 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
   assert.deepStrictEqual(entries.sort(), ['sub']);
   await myVfs.promises.rmdir('/d/sub');
 
+  // Recursive mkdir returns the first directory created, as a VFS-relative
+  // path (never the backing-directory path), matching MemoryProvider.
+  const createdSub = await myVfs.promises.mkdir('/d/sub', { recursive: true });
+  assert.strictEqual(createdSub, '/d/sub');
+  assert.strictEqual(await myVfs.promises.mkdir('/d/sub', { recursive: true }),
+                     undefined);
+  const created = await myVfs.promises.mkdir('/d/deep/nested', { recursive: true });
+  assert.strictEqual(created, '/d/deep');
+  assert.strictEqual(myVfs.existsSync(created), true);
+  await myVfs.promises.rmdir('/d/sub');
+  await myVfs.promises.rmdir('/d/deep/nested');
+  await myVfs.promises.rmdir('/d/deep');
+
   // rename
   await myVfs.promises.writeFile('/old.txt', 'x');
   await myVfs.promises.rename('/old.txt', '/new.txt');
