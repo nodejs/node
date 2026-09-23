@@ -1373,9 +1373,9 @@ accepted and how failures are reported:
 * For `blob:` URLs, the script must be held in memory, so blobs backed by a file,
   such as those returned by [`fs.openAsBlob()`][], cannot be used.
 
-[Type stripping][] only applies to module workers loaded from `file:` URLs. The
-`type` option, not the file extension, decides how an entry is run, so a `.cts`
-entry is still evaluated as an ES module.
+[Type stripping][type stripping] only applies to module workers loaded from
+`file:` URLs. The `type` option, not the file extension, decides how an entry is
+run, so a `.cts` entry is still evaluated as an ES module.
 
 ### Differences from the HTML Standard
 
@@ -1401,6 +1401,7 @@ Besides script loading, mentioned above:
   `unhandledrejection`, since Node.js exposes the equivalent does not
   implement the `PromiseRejectionEvent` interface or the per-rejection
   `preventDefault()` behavior required by the HTML Standard.
+* Module workers loaded from `file:` URLs support [type stripping][].
 
 ### Web Workers and `node:worker_threads`
 
@@ -1471,7 +1472,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Refable protocol]: process.md#processrefmayberefable
-[Type stripping]: typescript.md#type-stripping
 [Web Crypto API]: webcrypto.md
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
@@ -1545,5 +1545,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md
+[type stripping]: typescript.md#type-stripping
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
 [webassembly-org]: https://webassembly.org
