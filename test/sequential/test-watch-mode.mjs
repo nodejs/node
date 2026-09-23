@@ -1045,7 +1045,8 @@ process.on('message', (message) => {
     writeFileSync(reqFile, 'globalThis.requiredOk = true;');
 
     const file = createTmpFile('console.log("required:" + !!globalThis.requiredOk);');
-    const nodeOptions = `--watch --require "${reqFile}"`;
+    // Backslashes inside quoted NODE_OPTIONS values are escape characters.
+    const nodeOptions = `--watch --require "${reqFile.replaceAll(path.sep, '/')}"`;
     const { done, restart } = runInBackground({
       args: ['--watch', file],
       options: {
