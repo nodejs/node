@@ -15,7 +15,7 @@ function main({ connections, headers, w, duration }) {
   });
 
   server.listen(0, () => {
-    const headers = {
+    const requestHeaders = {
       'Content-Type': 'text/plain',
       'Accept': 'text/plain',
       'User-Agent': 'nodejs-benchmark',
@@ -28,12 +28,12 @@ function main({ connections, headers, w, duration }) {
       // - wrk can only send trailing OWS. This is a side-effect of wrk
       // processing requests with http-parser before sending them, causing
       // leading OWS to be stripped.
-      headers[`foo${i}`] = `some header value ${i}${' \t'.repeat(w / 2)}`;
+      requestHeaders[`foo${i}`] = `some header value ${i}${' \t'.repeat(w / 2)}`;
     }
     bench.http({
       path: '/',
       connections,
-      headers,
+      headers: requestHeaders,
       duration,
       port: server.address().port,
     }, () => {
