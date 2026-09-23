@@ -35,7 +35,7 @@ export default {
   extends: '@node-core/doc-kit/config',
 
   target: [
-    'legacy-json-all',
+    'json-all',
     hasEnoughMemory && canLoadLightningCSS() && 'section-pages',
   ].filter(Boolean),
 
