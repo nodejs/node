@@ -1436,6 +1436,8 @@ void Environment::ClosePerEnvHandles() {
   close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
+thread_local int handle_cleanup_depth = 0;
+
 void Environment::CleanupHandles() {
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
@@ -1453,8 +1455,8 @@ void Environment::CleanupHandles() {
   for (HandleWrap* handle : handle_wrap_queue_)
     handle->Close();
 
-  isolate_data()->handle_cleanup_depth++;
-  auto done = OnScopeLeave([&]() { isolate_data()->handle_cleanup_depth--; });
+  handle_cleanup_depth++;
+  auto done = OnScopeLeave([]() { handle_cleanup_depth--; });
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {
