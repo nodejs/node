@@ -5305,11 +5305,6 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "applyChangeset", Database::ApplyChangeset);
   SetProtoMethod(
       isolate, db_tmpl, "enableLoadExtension", Database::EnableLoadExtension);
-  SetProtoMethod(isolate, db_tmpl, "aggregate", Database::AggregateFunction);
-  SetProtoMethod(isolate, db_tmpl, "createSession", Database::CreateSession);
-  SetProtoMethod(isolate, db_tmpl, "applyChangeset", Database::ApplyChangeset);
-  SetProtoMethod(
-      isolate, db_tmpl, "enableLoadExtension", Database::EnableLoadExtension);
   SetProtoMethod(
       isolate, db_tmpl, "enableDefensive", Database::EnableDefensive);
   SetProtoMethod(isolate, db_tmpl, "loadExtension", Database::LoadExtension);
