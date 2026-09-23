@@ -250,7 +250,7 @@ function ecVectors(name, usagesByType) {
 function cfrgVectors(name, usagesByType) {
   if (rejectsXCurves && name.startsWith('X')) {
     assert.throws(() => generateKeyPairSync(name.toLowerCase()), {
-      code: 'ERR_OSSL_EVP_UNSUPPORTED',
+      code: 'ERR_INVALID_ARG_VALUE',
     });
     return [];
   }
@@ -306,9 +306,12 @@ function invalidAsymmetricKeyType(name, invalidAlgorithm) {
   const { publicKey } = generateKeyPairSync(name.toLowerCase());
   assert.throws(() => {
     publicKey.toCryptoKey(invalidAlgorithm, true, []);
-  }, {
+  }, invalidAlgorithm in kSupportedAlgorithms.importKey ? {
     name: 'DataError',
     message: 'Invalid key type'
+  } : {
+    name: 'NotSupportedError',
+    message: 'Unrecognized algorithm name',
   });
 }
 

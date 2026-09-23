@@ -211,8 +211,7 @@ if (hasOpenSSL(3)) {
   if (getFips() === 1) {
     assert.rejects(
       test(),
-      (err) => err.name === 'OperationError' &&
-               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED')
+      { name: 'NotSupportedError', message: 'Unrecognized algorithm name' })
       .then(common.mustCall());
   } else {
     test().then(common.mustCall());

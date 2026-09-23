@@ -71,7 +71,14 @@ function assertSameSet(actual, expected, msg) {
 
   for (const { algorithm, usages, expected } of symmetric) {
     tests.push((async () => {
-      const key = await subtle.generateKey(algorithm, true, usages);
+      const generated = subtle.generateKey(algorithm, true, usages);
+      if (hasFIPS(3) && algorithm.name === 'AES-OCB') {
+        await assert.rejects(generated, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await generated;
       assertSameSet(key.usages, expected,
                     `generateKey ${algorithm.name}`);
       assert.strictEqual(key.usages.length, expected.length,
@@ -228,12 +235,19 @@ function assertSameSet(actual, expected, msg) {
   // Argon2 only supports raw-secret import.
   if (hasOpenSSL(3, 2)) {
     tests.push((async () => {
-      const key = await subtle.importKey(
+      const imported = subtle.importKey(
         'raw-secret',
         new Uint8Array(16),
         'Argon2id',
         false,
         ['deriveBits', 'deriveBits']);
+      if (hasFIPS(3)) {
+        await assert.rejects(imported, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await imported;
       assertSameSet(key.usages, ['deriveBits'],
                     'importKey raw-secret Argon2id');
       assert.strictEqual(key.usages.length, 1);
@@ -362,12 +376,19 @@ function assertSameSet(actual, expected, msg) {
   // AES-OCB raw-secret import.
   if (hasOpenSSL(3)) {
     tests.push((async () => {
-      const key = await subtle.importKey(
+      const imported = subtle.importKey(
         'raw-secret',
         new Uint8Array(16),
         { name: 'AES-OCB' },
         true,
         ['decrypt', 'encrypt', 'decrypt', 'encrypt']);
+      if (hasFIPS(3)) {
+        await assert.rejects(imported, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await imported;
       assertSameSet(key.usages, ['encrypt', 'decrypt']);
       assert.strictEqual(key.usages.length, 2);
     })());
@@ -465,7 +486,14 @@ function assertSameSet(actual, expected, msg) {
 
   for (const { algorithm, usages, expected } of jwkVectors) {
     tests.push((async () => {
-      const key = await subtle.generateKey(algorithm, true, usages);
+      const generated = subtle.generateKey(algorithm, true, usages);
+      if (hasFIPS(3) && algorithm.name === 'AES-OCB') {
+        await assert.rejects(generated, {
+          name: 'NotSupportedError', message: 'Unrecognized algorithm name',
+        });
+        return;
+      }
+      const key = await generated;
       const jwk = await subtle.exportKey('jwk', key);
       assertSameSet(jwk.key_ops, expected,
                     `jwk key_ops for ${algorithm.name}`);

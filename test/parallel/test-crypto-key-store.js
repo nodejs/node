@@ -86,7 +86,7 @@ const data = Buffer.from('hello store');
 {
   if (hasFIPS(3, 5)) {
     assert.throws(() => generateKeyPairSync('x25519'), {
-      code: 'ERR_OSSL_EVP_UNSUPPORTED',
+      code: 'ERR_INVALID_ARG_VALUE',
     });
   } else {
     const alice = generateKeyPairSync('x25519');

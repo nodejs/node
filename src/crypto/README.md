@@ -46,7 +46,6 @@ following table:
 | `crypto_keys`     | Utilities for using and generating secret, private, and public keys. |
 | `crypto_mac`      | Provider-generic MAC implementations.                                |
 | `crypto_pbkdf2`   | PBKDF2 key / bit generation implementation.                          |
-| `crypto_pqc`      | Post-quantum algorithm enumeration.                                  |
 | `crypto_rsa`      | RSA Key Generation functions.                                        |
 | `crypto_scrypt`   | Scrypt key / bit generation implementation.                          |
 | `crypto_sig`      | General digital signature and verification utilities.                |
@@ -205,10 +204,11 @@ Public input validation remains specific to each API: PQC JWK `alg` values use
 exact canonical names such as `ML-DSA-44`, while raw imports require exact public
 `asymmetricKeyType` values such as `ml-dsa-44`.
 
-The internal JavaScript binding exposes `getPqcKeyTypes()` for the available
-known PQC algorithm names in their canonical spelling. Named key generation
-passes algorithm names to `NamedKeyPairGenJob`, which resolves the name to a static
-`KeyAlgorithm` descriptor. Asymmetric key IDs are not exposed to JavaScript.
+The internal JavaScript binding exposes `isKeyAlgorithmAvailable()` to check
+whether a known key algorithm is available from the current backend. Named key
+generation passes algorithm names to `NamedKeyPairGenJob`, which resolves the
+name to a static `KeyAlgorithm` descriptor. Asymmetric key IDs are not exposed to
+JavaScript.
 
 Real EC curve and ASN.1/OID NIDs still have their own uses. The EC generation
 path keeps Ed/X algorithm descriptors separate from curve NIDs while preserving
