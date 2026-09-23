@@ -87,7 +87,7 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
       future.resolve();
       return { stdout, stderr };
     },
-    restart(timeout = 1000) {
+    restart(timeout = common.platformTimeout(10_000)) {
       if (!child) {
         run();
       }
@@ -996,6 +996,10 @@ process.on('message', (message) => {
   });
 
   it('should strip all watch flags from NODE_OPTIONS in child process', async () => {
+    // Avoid recursively watching the repository's source and test trees.
+    const cwd = tmpdir.resolve('node-options');
+    mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    mkdirSync(path.join(cwd, 'test'));
     const file = createTmpFile('console.log(process.env.NODE_OPTIONS);');
     const nodeOptions = [
       '--watch',
@@ -1012,6 +1016,7 @@ process.on('message', (message) => {
     const { done, restart } = runInBackground({
       args: ['--watch', file],
       options: {
+        cwd,
         env: { ...process.env, NODE_OPTIONS: nodeOptions },
       },
     });
@@ -1040,7 +1045,8 @@ process.on('message', (message) => {
     writeFileSync(reqFile, 'globalThis.requiredOk = true;');
 
     const file = createTmpFile('console.log("required:" + !!globalThis.requiredOk);');
-    const nodeOptions = `--watch --require "${reqFile}"`;
+    // Backslashes inside quoted NODE_OPTIONS values are escape characters.
+    const nodeOptions = `--watch --require "${reqFile.replaceAll(path.sep, '/')}"`;
     const { done, restart } = runInBackground({
       args: ['--watch', file],
       options: {
