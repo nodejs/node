@@ -241,8 +241,7 @@ if (hasOpenSSL(3)) {
     if (getFips() === 1) {
       await assert.rejects(
         testEncrypt(passing[0]),
-        (err) => err.name === 'OperationError' &&
-                 err.cause?.message === 'error:0308010C:digital envelope routines::unsupported');
+        { name: 'NotSupportedError', message: 'Unrecognized algorithm name' });
       return;
     }
 

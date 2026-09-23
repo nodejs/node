@@ -93,7 +93,26 @@ function checkMacAliases() {
   assert.strictEqual(getAliasId(after, 'kmac-128'), id);
 }
 
+function checkNamedKeygen() {
+  for (const name of ['ML-KEM-768', 'Ed25519', 'Ed448', 'X25519', 'X448']) {
+    const type = name.toLowerCase();
+    if (binding.isKeyAlgorithmAvailable(name)) {
+      const { publicKey, privateKey } = crypto.generateKeyPairSync(type);
+      assert.strictEqual(publicKey.asymmetricKeyType, type);
+      assert.strictEqual(privateKey.asymmetricKeyType, type);
+    } else {
+      const error = {
+        name: 'TypeError', code: 'ERR_INVALID_ARG_VALUE',
+        message: `The argument 'type' must be a supported key type. Received '${type}'`,
+      };
+      assert.throws(() => crypto.generateKeyPairSync(type), error);
+      assert.throws(() => crypto.generateKeyPair(type, common.mustNotCall()), error);
+    }
+  }
+}
+
 function createFixtures(lists) {
+  checkNamedKeygen();
   const fixtures = {};
   if (lists.getCiphers.includes(cipherAlgorithm)) {
     const info = crypto.getCipherInfo(cipherAlgorithm);
@@ -128,6 +147,7 @@ function createFixtures(lists) {
 }
 
 function checkEnabled(fixtures, available) {
+  checkNamedKeygen();
   // Availability comes from a fresh environment. Exercise cached handles before
   // refreshing the warmed JavaScript lists.
   assert(!available.getCiphers.includes(cipherAlgorithm));
@@ -165,6 +185,7 @@ function checkEnabled(fixtures, available) {
 }
 
 function checkDisabled(fixtures) {
+  checkNamedKeygen();
   if (fixtures.cipher !== undefined) {
     assert(crypto.getCipherInfo(cipherAlgorithm));
     const cipher = crypto.createCipheriv(cipherAlgorithm, cipherKey, iv);

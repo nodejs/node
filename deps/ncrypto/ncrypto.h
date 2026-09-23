@@ -1121,8 +1121,6 @@ class KeyAlgorithm final {
   // Look up a canonical name case-insensitively, including unavailable
   // algorithms.
   static const KeyAlgorithm* FromName(const char* name);
-  using Callback = std::function<void(const KeyAlgorithm&)>;
-  static void ForEachPqc(Callback callback);
 
   const char* name() const { return name_; }
   const char* keyTypeName() const {
