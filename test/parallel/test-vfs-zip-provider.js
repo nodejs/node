@@ -72,10 +72,9 @@ async function buildArchive(entries, comment) {
     assert.strictEqual(byName.get('dir').isDirectory(), true);
 
     await assert.rejects(archiveVfs.promises.readdir('/a.txt'), { code: 'ENOTDIR' });
-    await assert.rejects(
-      archiveVfs.promises.readdir('/', { recursive: true }),
-      { code: 'ERR_METHOD_NOT_IMPLEMENTED' },
-    );
+    const recursiveEntries = await archiveVfs.promises.readdir('/', { recursive: true });
+    assert.deepStrictEqual(recursiveEntries.sort(),
+                           ['a.txt', 'dir', 'dir/b.txt', 'empty-dir']);
 
     // readFile / writeFile round trip (new file).
     assert.strictEqual(await archiveVfs.promises.readFile('/a.txt', 'utf8'), 'hello');
@@ -232,10 +231,8 @@ async function buildArchive(entries, comment) {
     assert.throws(() => archiveVfs.statSync('/missing.txt'), { code: 'ENOENT' });
     assert.deepStrictEqual(archiveVfs.readdirSync('/').sort(), ['a.txt', 'dir']);
     assert.throws(() => archiveVfs.readdirSync('/a.txt'), { code: 'ENOTDIR' });
-    assert.throws(
-      () => archiveVfs.readdirSync('/', { recursive: true }),
-      { code: 'ERR_METHOD_NOT_IMPLEMENTED' },
-    );
+    assert.deepStrictEqual(archiveVfs.readdirSync('/', { recursive: true }).sort(),
+                           ['a.txt', 'dir', 'dir/b.txt']);
 
     // readFile/writeFile/appendFile round trip.
     assert.strictEqual(archiveVfs.readFileSync('/a.txt', 'utf8'), 'hello');
