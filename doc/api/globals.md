@@ -1373,14 +1373,9 @@ accepted and how failures are reported:
 * For `blob:` URLs, the script must be held in memory, so blobs backed by a file,
   such as those returned by [`fs.openAsBlob()`][], cannot be used.
 
-Module workers (`{ type: 'module' }`) loaded from `file:` URLs support
-[TypeScript type stripping](typescript.md#type-stripping) for `.ts`, `.mts`, and
-`.cts` entries, unless `--no-strip-types` is enabled. The worker's `type` option
-determines how the entry is executed, regardless of its extension or the
-surrounding `package.json`: even a `.cts` module-worker entry is evaluated as an
-ES module. Imported modules follow the usual Node.js module-loading rules.
-Classic worker entries, `importScripts()`, and `data:` or `blob:` entry sources
-do not support type stripping.
+[Type stripping][] only applies to module workers loaded from `file:` URLs. The
+`type` option, not the file extension, decides how an entry is run, so a `.cts`
+entry is still evaluated as an ES module.
 
 ### Differences from the HTML Standard
 
@@ -1476,6 +1471,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Refable protocol]: process.md#processrefmayberefable
+[Type stripping]: typescript.md#type-stripping
 [Web Crypto API]: webcrypto.md
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
