@@ -147,11 +147,17 @@ array properties via `Array.prototype` breaks a particular Node.js API.
 <!-- eslint-disable accessor-pairs -->
 
 ```js
+// User-land
 Object.defineProperty(
   Array.prototype,
   '0',
   { set() {} },
 );
+
+// Core
+const array = [];
+ArrayPrototypePush(array, 'some value');
+console.log(array[0]); // undefined
 ```
 
 These patterns are expected to break both ECMAScript builtins and application
