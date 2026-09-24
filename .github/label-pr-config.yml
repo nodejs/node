@@ -15,6 +15,7 @@ subSystemLabels:
   /^src\/uv\./: c++, libuv
   /^src\/(?:connect(?:ion)?|pipe|tcp)_/: c++, net
   /^src\/node_os/: c++, os
+  /^src\/permission\//: c++, permission
   /^src\/(?:node_main|signal_)/: c++, process
   /^src\/timer[_s]/: c++, timers
   /^src\/node_root_certs/: c++, tls
@@ -102,6 +103,7 @@ subSystemLabels:
   /^lib\/test.js$/: test_runner
   /^lib\/v8.js$/: v8 module
   /^lib\/internal\/url\.js$/: whatwg-url
+  /^lib\/internal\/process\/permission\.js$/: permission
   /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/modules/: module
   /^lib\/internal\/source_map/: source maps
@@ -116,6 +118,13 @@ subSystemLabels:
 
 exlusiveLabels:
   # More specific tests
+  /^test\/(?:parallel|sequential)\/test-(?:[^/]+-)?permission(?:-|\.)/: test, permission
+  /^test\/ffi\/test-ffi-permissions?(?:-|\.)/: test, permission
+  /^test\/addons\/no-addons\/permission\.js$/: test, addons, permission
+  /^test\/es-module\/test-[^/]*-permission(?:-|\.)/: test, esm, permission
+  /^test\/module-hooks\/test-[^/]*-permission(?:-|\.)/: test, module, loaders, permission
+  /^test\/fixtures\/permission\//: test, permission
+  /^test\/fixtures\/rc\/permission-namespace\.json$/: test, permission
   /^test\/addons\//: test, addons
   /^test\/debugger/: test, debugger
   /^test\/doctool\//: test, doc, tools
@@ -150,6 +159,7 @@ exlusiveLabels:
   # test_runner documentation
   /^doc\/api\/test.md$/: doc, test_runner
   # Automatically tag JS subsystem-specific API doc changes
+  /^doc\/api\/permissions\.md$/: doc, permission
   /^doc\/api\/(\w+)\.md$/: doc, $1
   # Add deprecations label to PRs that affect doc/api/deprecations.md
   /^doc\/api\/deprecations.md$/: doc, deprecations
@@ -162,6 +172,7 @@ exlusiveLabels:
   /^doc\//: doc
 
   # More specific benchmarks
+  /^benchmark\/fs\/readfile-permission-enabled\.js$/: benchmark, fs, permission
   /^benchmark\/buffers\//: benchmark, buffer
   /^benchmark\/es\//: benchmark, v8 engine
   /^benchmark\/_http/: benchmark, http
@@ -198,6 +209,7 @@ allJsSubSystems:
   - os
   - path
   - perf_hooks
+  - permission
   - process
   - punycode
   - querystring
