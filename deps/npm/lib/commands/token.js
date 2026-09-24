@@ -171,6 +171,25 @@ class Token extends BaseCommand {
 
     const validCIDR = await this.validateCIDRList(cidr)
 
+    // Warn when creating a token that can publish directly to the registry.
+    // Only 'read-write' package/scope permission grants direct-publish; stage-only
+    // tokens ('read-write-stage-only') stage releases instead, and non-publishing
+    // permissions (read-only/no-access) can't publish at all, so both stay silent.
+    // bypass-2fa is orthogonal — it removes the 2FA requirement but grants no
+    // publish capability on its own — so it is not part of this trigger.
+    if (packagesAndScopesPermission === 'read-write') {
+      // Deprecation notice for direct-publish tokens; see github/npm#15609.
+      log.warn(
+        'token',
+        'Creating a token that can publish directly to the registry. ' +
+        'Consider `--packages-and-scopes-permission=read-write-stage-only` ' +
+        'instead — with a stage-only token, your releases go to a staging ' +
+        'queue for you to approve before they go public. Bypass-2FA tokens ' +
+        'with direct-publish access will stop working in January 2027. ' +
+        'See https://gh.io/bypass-2fa-tokens-no-longer-publish.'
+      )
+    }
+
     /* istanbul ignore if - skip testing read input */
     if (!password) {
       password = await readUserInfo.password()

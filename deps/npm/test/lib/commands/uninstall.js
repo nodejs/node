@@ -143,6 +143,34 @@ t.test('remove multiple installed libs', async t => {
   t.throws(() => fs.statSync(b), 'should have removed b package from nm')
 })
 
+t.test('rejects an arg with a version spec', async t => {
+  const { uninstall } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-rm-version-spec',
+        version: '1.0.0',
+        dependencies: {
+          foo: '*',
+        },
+      }),
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+          }),
+        },
+      },
+    },
+  })
+
+  await t.rejects(
+    uninstall(['foo@1']),
+    { code: 'ERMARGS', message: /npm rm foo/ },
+    'should throw ERMARGS instead of silently no-oping'
+  )
+})
+
 t.test('no args local', async t => {
   const { uninstall } = await mockNpm(t)
 

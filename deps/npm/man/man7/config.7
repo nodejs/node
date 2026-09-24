@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "August 2026" "NPM@11.19.1" ""
+.TH "CONFIG" "7" "September 2026" "NPM@11.20.0" ""
 .SH "NAME"
 \fBConfig\fR - About npm configuration
 .SS "Description"
@@ -268,6 +268,8 @@ Comma-separated list of packages whose install-time lifecycle scripts (\fBpreins
 This setting is intended for one-off and global contexts: \fBnpm exec\fR, \fBnpx\fR, and \fBnpm install -g\fR, where no project \fBpackage.json\fR is involved. For team-wide policy in a project, use the \fBallowScripts\fR field in \fBpackage.json\fR (which also supports explicit denials), or configure it in \fB.npmrc\fR. Passing \fB--allow-scripts\fR on the command line during a project-scoped \fBnpm install\fR, \fBci\fR, \fBupdate\fR, or \fBrebuild\fR is an error.
 .P
 Each name is matched against a dependency's resolved identity, not against the package's self-reported name. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.P
+This value is not exported to the environment for child processes.
 .SS "\fBallow-scripts-pending\fR"
 .RS 0
 .IP \(bu 4
@@ -1429,11 +1431,11 @@ When creating a Granular Access Token with \fBnpm token create\fR, grants the to
 .IP \(bu 4
 Default: null
 .IP \(bu 4
-Type: null, "read-only", "read-write", or "no-access"
+Type: null, "read-only", "read-write", "read-write-stage-only", or "no-access"
 .RE 0
 
 .P
-When creating a Granular Access Token with \fBnpm token create\fR, sets the permission level for packages and scopes. Options are "read-only", "read-write", or "no-access".
+When creating a Granular Access Token with \fBnpm token create\fR, sets the permission level for packages and scopes. Options are "read-only", "read-write", "read-write-stage-only", or "no-access". "read-write-stage-only" grants publish access that stages releases instead of publishing them directly.
 .SS "\fBparseable\fR"
 .RS 0
 .IP \(bu 4
@@ -1527,6 +1529,8 @@ Type: Boolean
 .P
 When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.
 .P
+When the \fBprovenance-file\fR config is set, it takes precedence and automatic provenance generation (including via trusted publishing/OIDC) is skipped.
+.P
 This config cannot be used with: \fBprovenance-file\fR
 .SS "\fBprovenance-file\fR"
 .RS 0
@@ -1538,6 +1542,8 @@ Type: Path
 
 .P
 When publishing, the provenance bundle at the given path will be used.
+.P
+This takes precedence over automatic provenance generation in trusted publishing flows.
 .P
 This config cannot be used with: \fBprovenance\fR
 .SS "\fBproxy\fR"

@@ -44,7 +44,8 @@ const reifyOutput = (npm, arb, extras = {}) => {
   }
 
   if (diff) {
-    const showDiff = npm.config.get('dry-run') || npm.config.get('long')
+    const showDiff = !npm.flatOptions.json &&
+      (npm.config.get('dry-run') || npm.config.get('long'))
     const chalk = npm.chalk
 
     depth({
@@ -221,7 +222,7 @@ const packagesChangedMessage = (npm, { added, removed, changed, audited }) => {
 }
 
 const packagesFundingMessage = (npm, { funding }) => {
-  if (!funding) {
+  if (!funding || npm.global) {
     return
   }
 
