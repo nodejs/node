@@ -18,7 +18,7 @@
   withSQLite ? true,
   withFFI ? true,
   withSSL ? true,
-  withTemporal ? false,
+  withTemporal ? true,
   withPerfetto ? false,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
