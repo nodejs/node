@@ -1161,6 +1161,11 @@
                 '../../deps/crates/crates.gyp:temporal_capi',
               ],
             }],
+            ['v8_enable_i18n_support==0', {
+              'dependencies': [
+                '../../deps/crates/crates.gyp:temporal_zoneinfo64_data',
+              ],
+            }],
           ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_temporal_support.*?sources \\+= ")',

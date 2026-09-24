@@ -3,6 +3,8 @@
     'cargo%': 'cargo',
     'cargo_vendor_dir': './vendor',
     'temporal_capi_dir': 'temporal_capi-v0_2',
+    'zoneinfo64_dir': 'zoneinfo64-v0_3',
+    'temporal_zoneinfo64_data_output': '<(SHARED_INTERMEDIATE_DIR)/src/builtins/builtins-temporal-zoneinfo64-data.cc',
     'cargo_rust_target%': '',
   },
   'conditions': [
@@ -124,6 +126,37 @@
           '<(cargo_vendor_dir)/<(temporal_capi_dir)/bindings/cpp',
         ],
       },
+    },
+    {
+      # Bakes zoneinfo64.res into a C++ source for Temporal when ICU is not
+      # available to load it at runtime.
+      'target_name': 'temporal_zoneinfo64_data',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'hard_dependency': 1,
+      'direct_dependent_settings': {
+        'sources': [
+          '<(temporal_zoneinfo64_data_output)',
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'make_temporal_zoneinfo_cpp',
+          'inputs': [
+            '../v8/tools/include-file-as-bytes.py',
+            '<(cargo_vendor_dir)/<(zoneinfo64_dir)/src/data/zoneinfo64.res',
+          ],
+          'outputs': [
+            '<(temporal_zoneinfo64_data_output)',
+          ],
+          'action': [
+            '<(python)',
+            '<@(_inputs)',
+            '<@(_outputs)',
+            'zoneinfo64_static_data',
+          ],
+        },
+      ],
     },
   ]
 }
