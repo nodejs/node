@@ -91,3 +91,21 @@ checkDest('X-Forwarded-Proto', { 'x-forwarded-proto': undefined });
 checkDest('x-forwarded-proto', { 'x-forwarded-proto': 'test, value' }, 'value');
 checkDest('X-Foo', { 'x-foo': undefined });
 checkDest('x-foo', { 'x-foo': 'test, value' }, 'value');
+
+// Known fields in other casings are merged by the same rules as their usual
+// spellings.
+checkDest('CONTENT-TYPE', { 'content-type': 'test' }, 'value');
+checkDest('CONNECTION', { connection: 'test, value' }, 'value');
+checkDest('COOKIE', { cookie: 'test; value' }, 'value');
+checkDest('SET-COOKIE', { 'set-cookie': ['test', 'value'] }, 'value');
+checkDest('X-FOO', { 'x-foo': 'test, value' }, 'value');
+
+// joinDuplicateHeaders also applies to first-wins fields in other casings.
+{
+  const incomingMessage = new IncomingMessage();
+  incomingMessage.joinDuplicateHeaders = true;
+  const dest = {};
+  incomingMessage._addHeaderLine('AUTHORIZATION', 'a', dest);
+  incomingMessage._addHeaderLine('Authorization', 'b', dest);
+  assert.deepStrictEqual(dest, { authorization: 'a, b' });
+}
