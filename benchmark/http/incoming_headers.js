@@ -6,11 +6,15 @@ const bench = common.createBenchmark(main, {
   connections: [50], // Concurrent connections
   headers: [20], // Number of header lines to append after the common headers
   w: [0, 6], // Amount of trailing whitespace
+  read: [0, 1], // Whether the handler reads req.headers
   duration: 5,
 });
 
-function main({ connections, headers, w, duration }) {
+function main({ connections, headers, w, read, duration }) {
   const server = http.createServer((req, res) => {
+    if (read && req.headers.host === undefined) {
+      throw new Error('Missing Host header');
+    }
     res.end();
   });
 
