@@ -141,6 +141,7 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(IS_SERVER, is_server, uint8_t)                                             \
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
+  V(APPLICATION_INSTALLED, application_installed, uint8_t)                     \
   V(NO_ERROR_CODE, no_error_code, error_code)                                  \
   V(INTERNAL_ERROR_CODE, internal_error_code, error_code)                      \
   V(REQUEST_REJECTED_CODE, request_rejected_code, error_code)                  \
@@ -2600,8 +2601,7 @@ bool Session::has_application() const {
 
 Session::ApplicationType Session::application_type() const {
   if (is_destroyed()) return Application::Type::NONE;
-  return static_cast<Application::Type>(impl_->state()->application_type &
-                                        ~Application::kTypePending);
+  return static_cast<Application::Type>(impl_->state()->application_type);
 }
 
 Session::Application& Session::application() const {
@@ -2666,6 +2666,7 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
   impl_->state()->internal_error_code = app->GetInternalErrorCode();
   impl_->state()->request_rejected_code = app->GetRequestRejectedCode();
   impl_->application_ = std::move(app);
+  impl_->state()->application_installed = 1;
 }
 
 const SocketAddress& Session::remote_address() const {
@@ -4454,14 +4455,12 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
       static_cast<uint8_t>(Direction::UNIDIRECTIONAL);
   static constexpr auto QUIC_APPLICATION_DEFAULT =
       static_cast<uint8_t>(Application::Type::DEFAULT);
-  static constexpr auto QUIC_APPLICATION_PENDING = Application::kTypePending;
   static constexpr auto QUIC_PROTO_MAX = NGTCP2_PROTO_VER_MAX;
   static constexpr auto QUIC_PROTO_MIN = NGTCP2_PROTO_VER_MIN;
 
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_BIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_UNIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_DEFAULT);
-  NODE_DEFINE_CONSTANT(target, QUIC_APPLICATION_PENDING);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LIST_PAIRS);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);
