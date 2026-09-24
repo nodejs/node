@@ -3759,6 +3759,7 @@ void Statement::Finalize() {
 }
 
 void Statement::InvalidateColumnNameCache() {
+  cached_row_template_.Reset();
   cached_column_names_.clear();
   cached_column_names_reprepare_count_ = -1;
 }
@@ -3981,20 +3982,53 @@ MaybeLocal<Name> Statement::ColumnNameToName(const int column) {
       .As<Name>();
 }
 
-// Populates `keys` with cached column names, rebuilding the cache if the
-// statement was re-prepared.
-bool Statement::GetCachedColumnNames(LocalVector<Name>* keys) {
-  Isolate* isolate = env()->isolate();
+// Mirrors V8's String::AsArrayIndex(): canonical decimal below 2^32 - 1.
+static bool IsArrayIndex(std::string_view name) {
+  uint32_t index;
+  const char* end = name.data() + name.size();
+  auto [ptr, ec] = std::from_chars(name.data(), end, index);
+  return ec == std::errc() && ptr == end &&
+         (name.size() == 1 || name[0] != '0') &&
+         index != std::numeric_limits<uint32_t>::max();
+}
 
+// DictionaryTemplate CHECKs that no key is an array index, interns keys as
+// Latin-1 rather than UTF-8, and assumes keys are unique.
+static bool CanUseRowTemplate(const std::vector<std::string_view>& names) {
+  std::unordered_set<std::string_view> seen;
+  for (std::string_view name : names) {
+    if (!simdutf::validate_ascii(name.data(), name.size()) ||
+        IsArrayIndex(name) || !seen.insert(name).second) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Rebuilds the row shape if the statement was re-prepared.
+bool Statement::UpdateColumnNameCache() {
   const int reprepare_count =
       sqlite3_stmt_status(statement_.get(), SQLITE_STMTSTATUS_REPREPARE, false);
-  if (reprepare_count != cached_column_names_reprepare_count_) {
-    cached_column_names_.clear();
-    const int num_cols = sqlite3_column_count(statement_.get());
-    if (num_cols == 0) {
-      cached_column_names_reprepare_count_ = reprepare_count;
-      return true;
-    }
+  if (reprepare_count == cached_column_names_reprepare_count_) return true;
+
+  Isolate* isolate = env()->isolate();
+  InvalidateColumnNameCache();
+  const int num_cols = sqlite3_column_count(statement_.get());
+  std::vector<std::string_view> names;
+  names.reserve(num_cols);
+  for (int i = 0; i < num_cols; ++i) {
+    const char* name = sqlite3_column_name(statement_.get(), i);
+    // ColumnNameToName() below reports the error.
+    if (name == nullptr) break;
+    names.emplace_back(name);
+  }
+
+  if (names.size() == static_cast<size_t>(num_cols) &&
+      CanUseRowTemplate(names)) {
+    cached_row_template_.Reset(
+        isolate,
+        DictionaryTemplate::New(isolate, {names.data(), names.size()}));
+  } else {
     cached_column_names_.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
       Local<Name> key;
@@ -4002,16 +4036,32 @@ bool Statement::GetCachedColumnNames(LocalVector<Name>* keys) {
         InvalidateColumnNameCache();
         return false;
       }
-      cached_column_names_.emplace_back(Global<Name>(isolate, key));
+      cached_column_names_.emplace_back(isolate, key);
     }
-    cached_column_names_reprepare_count_ = reprepare_count;
+  }
+  cached_column_names_reprepare_count_ = reprepare_count;
+  return true;
+}
+
+MaybeLocal<Object> Statement::NewRowObject(LocalVector<Value>* values) {
+  Isolate* isolate = env()->isolate();
+  if (!cached_row_template_.IsEmpty()) {
+    // NewInstance() may replace entries, so it needs a MaybeLocal copy.
+    MaybeStackBuffer<MaybeLocal<Value>, 16> maybe_values(values->size());
+    for (size_t i = 0; i < values->size(); ++i) maybe_values[i] = (*values)[i];
+    return NewDictionaryInstanceNullProto(env()->context(),
+                                          cached_row_template_.Get(isolate),
+                                          {maybe_values.out(), values->size()});
   }
 
-  keys->reserve(cached_column_names_.size());
+  DCHECK_EQ(cached_column_names_.size(), values->size());
+  LocalVector<Name> keys(isolate);
+  keys.reserve(cached_column_names_.size());
   for (const auto& name : cached_column_names_) {
-    keys->emplace_back(name.Get(isolate));
+    keys.emplace_back(name.Get(isolate));
   }
-  return true;
+  return Object::New(
+      isolate, Null(isolate), keys.data(), values->data(), values->size());
 }
 
 MaybeLocal<Value> StatementExecutionHelper::ColumnToValue(Environment* env,
@@ -4056,12 +4106,15 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   int num_cols = 0;
   LocalVector<Value> rows(isolate);
   LocalVector<Value> row_values(isolate);
-  LocalVector<Name> row_keys(isolate);
 
   SteppingStatementGuard stepping(db, stmt);
   while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
     if (num_cols == 0) {
       num_cols = sqlite3_column_count(stmt);
+      // A running statement is only re-prepared before its first row.
+      if (!return_arrays && !statement->UpdateColumnNameCache()) {
+        return MaybeLocal<Value>();
+      }
     }
 
     if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
@@ -4074,16 +4127,10 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
           Array::New(isolate, row_values.data(), row_values.size());
       rows.emplace_back(row_array);
     } else {
-      if (row_keys.size() == 0) {
-        // Reuses the statement's internalized column names instead of
-        // re-interning them on every call.
-        if (!statement->GetCachedColumnNames(&row_keys)) {
-          return MaybeLocal<Value>();
-        }
+      Local<Object> row_obj;
+      if (!statement->NewRowObject(&row_values).ToLocal(&row_obj)) {
+        return MaybeLocal<Value>();
       }
-      DCHECK_EQ(row_keys.size(), row_values.size());
-      Local<Object> row_obj = Object::New(
-          isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
       rows.emplace_back(row_obj);
     }
   }
@@ -4221,16 +4268,10 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
   if (return_arrays) {
     result = Array::New(isolate, row_values.data(), row_values.size());
   } else {
-    LocalVector<Name> keys(isolate);
-    // Reuses the statement's internalized column names instead of
-    // re-interning them on every call.
-    if (!statement->GetCachedColumnNames(&keys)) {
+    if (!statement->UpdateColumnNameCache() ||
+        !statement->NewRowObject(&row_values).ToLocal(&result)) {
       return MaybeLocal<Value>();
     }
-
-    DCHECK_EQ(keys.size(), row_values.size());
-    result = Object::New(
-        isolate, Null(isolate), keys.data(), row_values.data(), num_cols);
   }
 
   RESET_AND_CHECK(isolate, db, stmt, needs_reset, MaybeLocal<Value>());
@@ -5031,7 +5072,6 @@ void StatementIterator::Next(const FunctionCallbackInfo<Value>& args) {
 
   int num_cols = sqlite3_column_count(iter->stmt_->statement_.get());
   Local<Value> row_value;
-  LocalVector<Name> row_keys(isolate);
   LocalVector<Value> row_values(isolate);
 
   if (ExtractRowValues(env,
@@ -5046,13 +5086,10 @@ void StatementIterator::Next(const FunctionCallbackInfo<Value>& args) {
   if (iter->stmt_->return_arrays_) {
     row_value = Array::New(isolate, row_values.data(), row_values.size());
   } else {
-    // Use cached internalized column names to avoid repeated V8 string
-    // creation and enable hidden class sharing across row objects.
-    if (!iter->stmt_->GetCachedColumnNames(&row_keys)) return;
-
-    DCHECK_EQ(row_keys.size(), row_values.size());
-    row_value = Object::New(
-        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
+    if (!iter->stmt_->UpdateColumnNameCache() ||
+        !iter->stmt_->NewRowObject(&row_values).ToLocal(&row_value)) {
+      return;
+    }
   }
 
   MaybeLocal<Value> values[] = {Boolean::New(isolate, false), row_value};

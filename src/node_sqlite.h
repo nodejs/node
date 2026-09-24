@@ -396,7 +396,8 @@ class Statement : public BaseObject {
   static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
-  bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
+  // Requires a successful UpdateColumnNameCache() for the current execution.
+  v8::MaybeLocal<v8::Object> NewRowObject(v8::LocalVector<v8::Value>* values);
   void Finalize();
   bool IsFinalized();
 
@@ -415,9 +416,13 @@ class Statement : public BaseObject {
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   inline int ResetStatement();
+  // Rows are built from the template, or from the names when they cannot be
+  // template keys. At most one of the two is populated.
+  v8::Global<v8::DictionaryTemplate> cached_row_template_;
   std::vector<v8::Global<v8::Name>> cached_column_names_;
   int cached_column_names_reprepare_count_ = -1;
   void InvalidateColumnNameCache();
+  bool UpdateColumnNameCache();
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 
