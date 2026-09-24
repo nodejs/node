@@ -1,6 +1,6 @@
 {
   "name": "libnpmpublish",
-  "version": "11.2.0",
+  "version": "11.2.1",
   "description": "Programmatic API for the bits behind npm publish and unpublish",
   "author": "GitHub Inc.",
   "main": "lib/index.js",

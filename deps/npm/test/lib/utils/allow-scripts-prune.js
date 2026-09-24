@@ -1,4 +1,5 @@
 const t = require('tap')
+const path = require('node:path')
 const { classifyUnusedEntries } = require('../../../lib/utils/allow-scripts-prune.js')
 
 // Minimal registry node: `matches` derives name/version from the resolved URL.
@@ -25,6 +26,26 @@ t.test('keeps entries that match an installed package with scripts', t => {
     [withScripts({ name: 'canvas' }), withScripts({ name: 'esbuild', version: '1.0.0' })]
   )
   t.same(remaining, { canvas: true, 'esbuild@1.0.0': true })
+  t.same(removed, [])
+  t.end()
+})
+
+t.test('keeps a local file key matching its absolute resolved source', t => {
+  const rootPath = path.resolve('project')
+  const key = `file:${path.resolve(rootPath, 'local.tgz')}`
+  const local = {
+    name: 'local',
+    version: '1.0.0',
+    resolved: key,
+    root: { path: rootPath },
+    isRegistryDependency: false,
+  }
+  const { remaining, removed } = classifyUnusedEntries(
+    { [key]: true },
+    [{ node: local, hasScripts: true }]
+  )
+
+  t.same(remaining, { [key]: true })
   t.same(removed, [])
   t.end()
 })

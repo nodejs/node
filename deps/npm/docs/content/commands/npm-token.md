@@ -110,11 +110,14 @@ the token access to specific organizations.
 #### `packages-and-scopes-permission`
 
 * Default: null
-* Type: null, "read-only", "read-write", or "no-access"
+* Type: null, "read-only", "read-write", "read-write-stage-only", or
+  "no-access"
 
 When creating a Granular Access Token with `npm token create`, sets the
 permission level for packages and scopes. Options are "read-only",
-"read-write", or "no-access".
+"read-write", "read-write-stage-only", or "no-access".
+"read-write-stage-only" grants publish access that stages releases instead
+of publishing them directly.
 
 
 
