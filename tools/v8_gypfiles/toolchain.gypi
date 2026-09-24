@@ -517,6 +517,18 @@
           },
         },
       }],
+      ['OS=="win" and clang==1', {
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              # When compiling with MSVC STL, V8 can exceed the default
+              # limit of constexpr steps. Increasing it by 4 times to give
+              # it more room.
+              '/clang:-fconstexpr-steps=4194304',
+            ],
+          },
+        },
+      }],
       ['OS=="win" and v8_enable_prof==1', {
         'msvs_settings': {
           'VCLinkerTool': {
