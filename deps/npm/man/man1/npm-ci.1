@@ -1,4 +1,4 @@
-.TH "NPM-CI" "1" "August 2026" "NPM@11.19.1" ""
+.TH "NPM-CI" "1" "September 2026" "NPM@11.20.0" ""
 .SH "NAME"
 \fBnpm-ci\fR - Clean install a project
 .SS "Synopsis"
@@ -232,6 +232,8 @@ Comma-separated list of packages whose install-time lifecycle scripts (\fBpreins
 This setting is intended for one-off and global contexts: \fBnpm exec\fR, \fBnpx\fR, and \fBnpm install -g\fR, where no project \fBpackage.json\fR is involved. For team-wide policy in a project, use the \fBallowScripts\fR field in \fBpackage.json\fR (which also supports explicit denials), or configure it in \fB.npmrc\fR. Passing \fB--allow-scripts\fR on the command line during a project-scoped \fBnpm install\fR, \fBci\fR, \fBupdate\fR, or \fBrebuild\fR is an error.
 .P
 Each name is matched against a dependency's resolved identity, not against the package's self-reported name. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.P
+This value is not exported to the environment for child processes.
 .SS "\fBstrict-allow-scripts\fR"
 .RS 0
 .IP \(bu 4

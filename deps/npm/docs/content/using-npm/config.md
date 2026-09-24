@@ -271,7 +271,7 @@ Each name is matched against a dependency's resolved identity, not against
 the package's self-reported name. `--ignore-scripts` and
 `--dangerously-allow-all-scripts` both override this setting.
 
-
+This value is not exported to the environment for child processes.
 
 #### `allow-scripts-pending`
 
@@ -1473,11 +1473,14 @@ token access to all packages instead of limiting to specific packages.
 #### `packages-and-scopes-permission`
 
 * Default: null
-* Type: null, "read-only", "read-write", or "no-access"
+* Type: null, "read-only", "read-write", "read-write-stage-only", or
+  "no-access"
 
 When creating a Granular Access Token with `npm token create`, sets the
 permission level for packages and scopes. Options are "read-only",
-"read-write", or "no-access".
+"read-write", "read-write-stage-only", or "no-access".
+"read-write-stage-only" grants publish access that stages releases instead
+of publishing them directly.
 
 
 
@@ -1575,6 +1578,9 @@ Set to `false` to suppress the progress bar.
 When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.
 
+When the `provenance-file` config is set, it takes precedence and automatic
+provenance generation (including via trusted publishing/OIDC) is skipped.
+
 This config cannot be used with: `provenance-file`
 
 #### `provenance-file`
@@ -1583,6 +1589,9 @@ This config cannot be used with: `provenance-file`
 * Type: Path
 
 When publishing, the provenance bundle at the given path will be used.
+
+This takes precedence over automatic provenance generation in trusted
+publishing flows.
 
 This config cannot be used with: `provenance`
 

@@ -120,7 +120,7 @@ Each name is matched against a dependency's resolved identity, not against
 the package's self-reported name. `--ignore-scripts` and
 `--dangerously-allow-all-scripts` both override this setting.
 
-
+This value is not exported to the environment for child processes.
 
 #### `strict-allow-scripts`
 
