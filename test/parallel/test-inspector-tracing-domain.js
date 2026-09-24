@@ -3,6 +3,9 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+// The inspector NodeTracing domain is not wired up on a perfetto build, see
+// src/inspector_agent.cc, so every command here fails with
+// ERR_INSPECTOR_COMMAND.
 common.skipIfPerfettoEnabled();
 
 const { isMainThread } = require('worker_threads');

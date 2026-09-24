@@ -7,7 +7,13 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
-common.skipIfPerfettoEnabled();
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 // This tests the emission of node.environment trace events
 
@@ -39,16 +45,15 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--trace-event-categories',
                            'node.environment',
-                         ]
+                         ],
                        });
 
-  proc.once('exit', common.mustCall(async () => {
-    const file = tmpdir.resolve('node_trace.1.log');
+  proc.once('exit', common.mustCall(() => {
+    const file = tmpdir.resolve(defaultTraceFileName);
     const checkSet = new Set();
 
     assert(fs.existsSync(file));
-    const data = await fs.promises.readFile(file);
-    for (const trace of JSON.parse(data.toString()).traceEvents
+    for (const trace of readTraceEvents(file)
       .filter((trace) => trace.cat !== '__metadata')) {
       assert.strictEqual(trace.pid, proc.pid);
       assert(names.has(trace.name));

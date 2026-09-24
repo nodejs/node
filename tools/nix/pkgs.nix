@@ -8,3 +8,9 @@ let
   }) arg;
 in
 nixpkgs
+// {
+  perfetto = nixpkgs.callPackage (builtins.fetchurl {
+    url = "https://github.com/NixOS/nixpkgs/raw/79b35bf0bda5cd110f856aa5b5b2c5ba4460dbf5/pkgs/by-name/pe/perfetto/package.nix";
+    sha256 = "0dkbyj1n1cv4s4jiwxxm1k23slvky6fj41cl4238rvkvpa74y82k";
+  }) { };
+}

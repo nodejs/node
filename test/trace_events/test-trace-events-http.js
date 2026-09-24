@@ -5,7 +5,14 @@ const cp = require('child_process');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
-common.skipIfPerfettoEnabled();
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+  traceCategory,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 const CODE = `
   const http = require('http');
@@ -18,7 +25,7 @@ const CODE = `
 `;
 
 tmpdir.refresh();
-const FILE_NAME = tmpdir.resolve('node_trace.1.log');
+const FILE_NAME = tmpdir.resolve(defaultTraceFileName);
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-events-enabled',
@@ -28,18 +35,15 @@ const proc = cp.spawn(process.execPath,
 
 proc.once('exit', common.mustCall(() => {
   assert(fs.existsSync(FILE_NAME));
-  fs.readFile(FILE_NAME, common.mustCall((err, data) => {
-    assert(!err);
-    const traces = JSON.parse(data.toString()).traceEvents;
-    assert(traces.length > 0);
-    let count = 0;
-    for (const trace of traces) {
-      if (trace.cat === 'node,node.http' &&
-          ['http.server.request', 'http.client.request'].includes(trace.name)) {
-        count++;
-      }
+  const traces = readTraceEvents(FILE_NAME);
+  assert(traces.length > 0);
+  let count = 0;
+  for (const trace of traces) {
+    if (trace.cat === traceCategory('node.http') &&
+        ['http.server.request', 'http.client.request'].includes(trace.name)) {
+      count++;
     }
-    // Two begin, two end
-    assert.strictEqual(count, 4);
-  }));
+  }
+  // Two begin and two end, which perfetto records as two complete events.
+  assert.strictEqual(count, common.hasPerfetto ? 2 : 4);
 }));

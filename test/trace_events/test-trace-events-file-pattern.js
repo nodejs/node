@@ -5,7 +5,12 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
-common.skipIfPerfettoEnabled();
+const {
+  readTraceEvents,
+  checkTraceProcessor,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 tmpdir.refresh();
 
@@ -24,8 +29,5 @@ proc.once('exit', common.mustCall(() => {
   const expectedFilename = tmpdir.resolve(`${proc.pid}-1-${proc.pid}-1.tracing.log`);
 
   assert(fs.existsSync(expectedFilename));
-  fs.readFile(expectedFilename, common.mustCall((err, data) => {
-    const traces = JSON.parse(data.toString()).traceEvents;
-    assert(traces.length > 0);
-  }));
+  assert(readTraceEvents(expectedFilename).length > 0);
 }));

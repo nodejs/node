@@ -10,11 +10,17 @@ try {
   common.skip('missing trace events');
 }
 
-common.skipIfPerfettoEnabled();
-
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+  traceCategory,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 const code =
   'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
@@ -29,7 +35,7 @@ worker.stderr.on('data',
 worker.on('exit', () => { ${code} })`;
 
 const tmpdir = require('../common/tmpdir');
-const filename = tmpdir.resolve('node_trace.1.log');
+const filename = tmpdir.resolve(defaultTraceFileName);
 
 tmpdir.refresh();
 const proc = cp.spawnSync(
@@ -39,7 +45,7 @@ const proc = cp.spawnSync(
     cwd: tmpdir.path,
     env: { ...process.env,
            'NODE_DEBUG_NATIVE': 'tracing',
-           'NODE_DEBUG': 'tracing' }
+           'NODE_DEBUG': 'tracing' },
   });
 
 console.log('process exit with signal:', proc.signal);
@@ -47,13 +53,12 @@ console.log('process stderr:', proc.stderr.toString());
 
 assert.strictEqual(proc.status, 0);
 assert(fs.existsSync(filename));
-const data = fs.readFileSync(filename, 'utf-8');
-const traces = JSON.parse(data).traceEvents;
+const traces = readTraceEvents(filename);
 
 function filterTimeoutTraces(trace) {
   if (trace.pid !== proc.pid)
     return false;
-  if (trace.cat !== 'node,node.async_hooks')
+  if (trace.cat !== traceCategory('node.async_hooks'))
     return false;
   if (trace.name !== 'Timeout')
     return false;

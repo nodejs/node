@@ -6,10 +6,17 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const { scheduler } = require('timers/promises');
 
-common.skipIfPerfettoEnabled();
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+  traceCategory,
+} = require('../common/trace_events');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+checkTraceProcessor();
 
 const { hkdf } = require('crypto');
 const { deflate } = require('zlib');
@@ -22,7 +29,7 @@ if (process.env.isChild === '1') {
 }
 
 tmpdir.refresh();
-const FILE_NAME = tmpdir.resolve('node_trace.1.log');
+const FILE_NAME = tmpdir.resolve(defaultTraceFileName);
 
 cp.spawnSync(process.execPath,
              [
@@ -40,8 +47,7 @@ cp.spawnSync(process.execPath,
              });
 
 assert(fs.existsSync(FILE_NAME));
-const data = fs.readFileSync(FILE_NAME);
-const traces = JSON.parse(data.toString()).traceEvents;
+const traces = readTraceEvents(FILE_NAME);
 
 assert(traces.length > 0);
 
@@ -50,8 +56,8 @@ let cryptoCount = 0;
 
 traces.forEach((item) => {
   if ([
-    'node,node.threadpoolwork,node.threadpoolwork.sync',
-    'node,node.threadpoolwork,node.threadpoolwork.async',
+    traceCategory('node.threadpoolwork.sync'),
+    traceCategory('node.threadpoolwork.async'),
   ].includes(item.cat)) {
     if (item.name === 'zlib') {
       zlibCount++;
@@ -61,6 +67,8 @@ traces.forEach((item) => {
   }
 });
 
-// There are two types, each type has two async events and sync events at least
-assert.ok(zlibCount >= 4);
-assert.ok(cryptoCount >= 4);
+// There are two types, each type has two async events and sync events at
+// least. Perfetto records the sync begin/end pair as one complete event.
+const expected = common.hasPerfetto ? 3 : 4;
+assert.ok(zlibCount >= expected);
+assert.ok(cryptoCount >= expected);

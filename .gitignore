@@ -116,6 +116,9 @@ tools/*/*.i.tmp
 /tools/eslint/node_modules
 /tools/lint-md/node_modules
 
+# === Rules for tools/perfetto ===
+/tools/perfetto/trace_processor_shell
+
 # === Rules for test artifacts ===
 /*.tap
 /*.xml
