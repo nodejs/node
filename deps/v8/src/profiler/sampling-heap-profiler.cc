@@ -243,7 +243,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
   // a GC kicks in during the tree retrieval.
   node->pinned_ = true;
   Local<v8::String> script_name =
-      ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(""));
+      ToApiHandle<v8::String>(isolate_->factory()->empty_string());
   int line = v8::AllocationProfile::kNoLineNumberInfo;
   int column = v8::AllocationProfile::kNoColumnNumberInfo;
   std::vector<v8::AllocationProfile::Allocation> allocations;
@@ -252,10 +252,15 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     auto script_iterator = scripts.find(node->script_id_);
     if (script_iterator != scripts.end()) {
       DirectHandle<Script> script = script_iterator->second;
-      if (IsName(script->name())) {
-        Tagged<Name> name = Cast<Name>(script->name());
+      if (IsString(script->name())) {
+        script_name =
+            ToApiHandle<v8::String>(isolate_->factory()->InternalizeString(
+                direct_handle(Cast<String>(script->name()), isolate_)));
+      } else if (IsSymbol(script->name())) {
+        Tagged<Symbol> symbol = Cast<Symbol>(script->name());
         script_name = ToApiHandle<v8::String>(
-            isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
+            isolate_->factory()->InternalizeUtf8String(
+                names_->GetName(symbol)));
       }
       Script::PositionInfo pos_info;
       Script::GetPositionInfo(script, node->script_position_, &pos_info);
