@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----config----11191">
+<h1 id="----config----11200">
     <span>Config</span>
-    <span class="version">@11.19.1</span>
+    <span class="version">@11.20.0</span>
 </h1>
 <span class="description">About npm configuration</span>
 </header>
@@ -406,6 +406,7 @@ project-scoped <code>npm install</code>, <code>ci</code>, <code>update</code>, o
 <p>Each name is matched against a dependency's resolved identity, not against
 the package's self-reported name. <code>--ignore-scripts</code> and
 <code>--dangerously-allow-all-scripts</code> both override this setting.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <h4 id="allow-scripts-pending"><code>allow-scripts-pending</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1266,11 +1267,14 @@ token access to all packages instead of limiting to specific packages.</p>
 <h4 id="packages-and-scopes-permission"><code>packages-and-scopes-permission</code></h4>
 <ul>
 <li>Default: null</li>
-<li>Type: null, "read-only", "read-write", or "no-access"</li>
+<li>Type: null, "read-only", "read-write", "read-write-stage-only", or
+"no-access"</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, sets the
 permission level for packages and scopes. Options are "read-only",
-"read-write", or "no-access".</p>
+"read-write", "read-write-stage-only", or "no-access".
+"read-write-stage-only" grants publish access that stages releases instead
+of publishing them directly.</p>
 <h4 id="parseable"><code>parseable</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1339,6 +1343,8 @@ operations, if <code>process.stderr</code> and <code>process.stdout</code> are a
 </ul>
 <p>When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.</p>
+<p>When the <code>provenance-file</code> config is set, it takes precedence and automatic
+provenance generation (including via trusted publishing/OIDC) is skipped.</p>
 <p>This config cannot be used with: <code>provenance-file</code></p>
 <h4 id="provenance-file"><code>provenance-file</code></h4>
 <ul>
@@ -1346,6 +1352,8 @@ publicly linked to where it was built and published from.</p>
 <li>Type: Path</li>
 </ul>
 <p>When publishing, the provenance bundle at the given path will be used.</p>
+<p>This takes precedence over automatic provenance generation in trusted
+publishing flows.</p>
 <p>This config cannot be used with: <code>provenance</code></p>
 <h4 id="proxy"><code>proxy</code></h4>
 <ul>

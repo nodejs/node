@@ -71,7 +71,7 @@ const isScriptAllowed = (node, policy) => {
 const matches = (node, key, failClosed) => {
   let parsed
   try {
-    parsed = npa(key)
+    parsed = npa(key, node?.root?.path)
   } catch {
     return false
   }
@@ -328,8 +328,15 @@ const matchGit = (node, parsed) => {
 }
 
 const matchFileOrDir = (node, parsed) => {
+  // consistentResolve stores local sources as `file:` plus npa's absolute,
+  // platform-native fetchSpec.
+  const absoluteFileSpec = parsed.fetchSpec && `file:${parsed.fetchSpec}`
   return resolvedSourceSpecs(node)
-    .some(resolved => resolved === parsed.saveSpec || resolved === parsed.fetchSpec)
+    .some(resolved =>
+      resolved === parsed.saveSpec ||
+      resolved === parsed.fetchSpec ||
+      resolved === absoluteFileSpec
+    )
 }
 
 const matchRemote = (node, parsed) => {
@@ -381,4 +388,5 @@ module.exports.matches = matches
 module.exports.isExactVersionDisjunction = isExactVersionDisjunction
 module.exports.getTrustedRegistryIdentity = getTrustedRegistryIdentity
 module.exports.resolvedSourceSpecs = resolvedSourceSpecs
+module.exports.matchFileOrDir = matchFileOrDir
 module.exports.trustedDisplay = trustedDisplay

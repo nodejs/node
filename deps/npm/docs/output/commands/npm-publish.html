@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-publish----11191">
+<h1 id="----npm-publish----11200">
     <span>npm-publish</span>
-    <span class="version">@11.19.1</span>
+    <span class="version">@11.20.0</span>
 </h1>
 <span class="description">Publish a package</span>
 </header>
@@ -360,6 +360,8 @@ the specified workspaces, and not on the root project.</p>
 </ul>
 <p>When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.</p>
+<p>When the <code>provenance-file</code> config is set, it takes precedence and automatic
+provenance generation (including via trusted publishing/OIDC) is skipped.</p>
 <p>This config cannot be used with: <code>provenance-file</code></p>
 <h4 id="provenance-file"><code>provenance-file</code></h4>
 <ul>
@@ -367,6 +369,8 @@ publicly linked to where it was built and published from.</p>
 <li>Type: Path</li>
 </ul>
 <p>When publishing, the provenance bundle at the given path will be used.</p>
+<p>This takes precedence over automatic provenance generation in trusted
+publishing flows.</p>
 <p>This config cannot be used with: <code>provenance</code></p>
 <h3 id="see-also">See Also</h3>
 <ul>
