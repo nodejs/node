@@ -36,13 +36,6 @@ class Session::Application : public MemoryRetainer {
   virtual const Options& options() const = 0;
 
   using Type = ApplicationType;
-
-  // Set alongside a Type in the session's shared application_type state to
-  // mean "requested but not yet attached". JavaScript sets it to trigger the
-  // application attach later, SetApplication clears it by writing the bare
-  // Type. Keeping type & pending/installed in one place avoids duplicating
-  // type definition and simplifies application checks.
-  static constexpr uint8_t kTypePending = 0x80;
   virtual Type type() const = 0;
 
   virtual bool Start();
