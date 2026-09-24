@@ -55,8 +55,6 @@ const userProfile = {
   cidr_whitelist: null,
   fullname: 'Foo Bar',
   homepage: 'https://github.com',
-  freenode: 'foobar',
-  twitter: 'https://twitter.com/npmjs',
   github: 'https://github.com/npm',
 }
 

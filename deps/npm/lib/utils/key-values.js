@@ -26,11 +26,23 @@ function logObject (values, { chalk, json, predicate = defaultPredicate }) {
 }
 
 function logStageItem (item, { chalk }) {
-  const { id, packageName, version, tag, createdAt, actor, actorType, shasum, ...rest } = item
+  const {
+    id,
+    packageName,
+    version,
+    tag,
+    createdAt,
+    actor,
+    actorType,
+    shasum,
+    status,
+    ...rest
+  } = item
   logObject({
     id,
     'package name': packageName,
     version,
+    status,
     tag,
     'date staged': createdAt,
     'staged by': actorType ? `${actor} (${actorType})` : actor,

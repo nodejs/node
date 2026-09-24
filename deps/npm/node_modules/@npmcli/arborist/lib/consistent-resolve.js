@@ -26,7 +26,7 @@ const consistentResolve = (resolved, fromPath, toPath, relPaths = false) => {
       return `file:${fetchSpec}`
     }
     if (hosted) {
-      return `git+${hosted.auth ? hosted.https(hostedOpt) : hosted.sshurl(hostedOpt)}`
+      return `git+${(hosted.auth || hosted.default === 'https') ? hosted.https(hostedOpt) : hosted.sshurl(hostedOpt)}`
     }
     if (type === 'git') {
       return saveSpec

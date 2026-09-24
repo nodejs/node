@@ -27,5 +27,6 @@ module.exports.all = all
 async function all (cache) {
   memo.clearMemoized()
   const paths = await glob(path.join(cache, '*(content-*|index-*)'), { silent: true, nosort: true })
+  paths.push(path.join(cache, 'CACHEDIR.TAG'))
   return Promise.all(paths.map((p) => rm(p, { recursive: true, force: true })))
 }

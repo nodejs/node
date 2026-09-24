@@ -72,19 +72,17 @@ t.test('config ignores workspaces', async t => {
 t.test('config list', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     prefixDir: {
-      '.npmrc': 'projectloaded=yes',
+      '.npmrc': 'tag=from-project',
     },
     globalPrefixDir: {
       etc: {
-        npmrc: 'globalloaded=yes',
+        npmrc: 'init-license=from-global',
       },
     },
     homeDir: {
       '.npmrc': [
-        'userloaded=yes',
-        'auth=bad',
+        'init-author-name=from-user',
         '_auth=bad',
-        '//nerfdart:auth=bad',
         '//nerfdart:_auth=bad',
       ].join('\n'),
     },
@@ -94,9 +92,9 @@ t.test('config list', async t => {
 
   const output = joinedOutput()
 
-  t.match(output, 'projectloaded = "yes"')
-  t.match(output, 'globalloaded = "yes"')
-  t.match(output, 'userloaded = "yes"')
+  t.match(output, 'tag = "from-project"')
+  t.match(output, 'init-license = "from-global"')
+  t.match(output, 'init-author-name = "from-user"')
 
   t.matchSnapshot(output, 'output matches snapshot')
 })
@@ -130,7 +128,7 @@ t.test('config list with proxy environment variables', async t => {
 
   const { npm, joinedOutput } = await loadMockNpm(t, {
     prefixDir: {
-      '.npmrc': 'test=value',
+      '.npmrc': 'tag=value',
     },
   })
 
@@ -147,15 +145,15 @@ t.test('config list with proxy environment variables', async t => {
 t.test('config list --long', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     prefixDir: {
-      '.npmrc': 'projectloaded=yes',
+      '.npmrc': 'tag=from-project',
     },
     globalPrefixDir: {
       etc: {
-        npmrc: 'globalloaded=yes',
+        npmrc: 'init-license=from-global',
       },
     },
     homeDir: {
-      '.npmrc': 'userloaded=yes',
+      '.npmrc': 'init-author-name=from-user',
     },
     config: {
       long: true,
@@ -166,9 +164,9 @@ t.test('config list --long', async t => {
 
   const output = joinedOutput()
 
-  t.match(output, 'projectloaded = "yes"')
-  t.match(output, 'globalloaded = "yes"')
-  t.match(output, 'userloaded = "yes"')
+  t.match(output, 'tag = "from-project"')
+  t.match(output, 'init-license = "from-global"')
+  t.match(output, 'init-author-name = "from-user"')
 
   t.matchSnapshot(output, 'output matches snapshot')
 })
@@ -176,15 +174,15 @@ t.test('config list --long', async t => {
 t.test('config list --json', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     prefixDir: {
-      '.npmrc': 'projectloaded=yes',
+      '.npmrc': 'tag=from-project',
     },
     globalPrefixDir: {
       etc: {
-        npmrc: 'globalloaded=yes',
+        npmrc: 'init-license=from-global',
       },
     },
     homeDir: {
-      '.npmrc': 'userloaded=yes',
+      '.npmrc': 'init-author-name=from-user',
     },
     config: {
       json: true,
@@ -195,9 +193,9 @@ t.test('config list --json', async t => {
 
   const output = joinedOutput()
 
-  t.match(output, '"projectloaded": "yes",')
-  t.match(output, '"globalloaded": "yes",')
-  t.match(output, '"userloaded": "yes",')
+  t.match(output, '"tag": "from-project"')
+  t.match(output, '"init-license": "from-global"')
+  t.match(output, '"init-author-name": "from-user"')
 
   t.matchSnapshot(output, 'output matches snapshot')
 })
@@ -339,14 +337,6 @@ t.test('config set invalid option', async t => {
   await t.rejects(
     npm.exec('config', ['set', 'nonexistentconfigoption', 'something']),
     /not a valid npm option/
-  )
-})
-
-t.test('config set deprecated option', async t => {
-  const { npm } = await loadMockNpm(t)
-  await t.rejects(
-    npm.exec('config', ['set', 'shrinkwrap', 'true']),
-    /deprecated/
   )
 })
 
@@ -577,9 +567,7 @@ t.test('config edit', async t => {
     homeDir: {
       '.npmrc': 'foo=bar\nbar=baz',
     },
-    config: {
-      editor: EDITOR,
-    },
+    npm: { argv: ['config', 'edit', '--editor=' + EDITOR] },
   })
 
   const inputEvents = []
@@ -651,6 +639,7 @@ t.test('config fix', (t) => {
       homeDir: {
         '.npmrc': '_authtoken=thisisinvalid\n_auth=beef',
       },
+      npm: { argv: ['config', 'fix'] },
     })
 
     const registry = `//registry.npmjs.org/`
@@ -694,6 +683,7 @@ t.test('config fix', (t) => {
       config: {
         location: 'user',
       },
+      npm: { argv: ['config', 'fix', '--location=user'] },
     })
     const registry = `//registry.npmjs.org/`
 
