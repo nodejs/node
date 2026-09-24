@@ -8,6 +8,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { join } = require('node:path');
 const { readdir } = require('node:fs/promises');
+const { endianness } = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
 const { test, describe } = require('node:test');
 let cnt = 0;
@@ -193,8 +194,12 @@ describe('a malformed localStorage file throws instead of aborting', () => {
     return file;
   }
 
-  // Keys are stored UTF-16LE, so a real key is needed for lookups to match.
-  const utf16 = (str) => Buffer.from(str, 'utf16le');
+  // Keys are stored as UTF-16 code units in the platform's byte order, so a
+  // key only matches a lookup if it is encoded the same way.
+  const utf16 = (str) => {
+    const buf = Buffer.from(str, 'utf16le');
+    return endianness() === 'BE' ? buf.swap16() : buf;
+  };
 
   for (const [name, fill, expression, detail] of [
     [
