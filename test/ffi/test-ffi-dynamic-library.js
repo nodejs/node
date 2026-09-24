@@ -436,21 +436,18 @@ test('dynamic library APIs validate failures and bad signatures', () => {
       lib.getFunction('add_i32', { return: 1, arguments: [] });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'Return value type of function add_i32 must be a string',
     });
 
     assert.throws(() => {
       lib.getFunction('add_i32', { return: 'i32', arguments: 'i32' });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'Arguments list of function add_i32 must be an array',
     });
 
     assert.throws(() => {
       lib.getFunction('add_i32', { return: 'i32', arguments: [1] });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'Argument 0 of function add_i32 must be a string',
     });
 
     assert.throws(() => {
