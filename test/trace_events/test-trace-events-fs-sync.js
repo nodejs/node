@@ -5,7 +5,14 @@ const cp = require('child_process');
 const fs = require('fs');
 const util = require('util');
 
-common.skipIfPerfettoEnabled();
+const {
+  defaultTraceFileName,
+  readTraceEvents,
+  checkTraceProcessor,
+  traceCategory,
+} = require('../common/trace_events');
+
+checkTraceProcessor();
 
 const tests = { __proto__: null };
 
@@ -117,7 +124,7 @@ if (common.canCreateSymLink()) {
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-const traceFile = tmpdir.resolve('node_trace.1.log');
+const traceFile = tmpdir.resolve(defaultTraceFileName);
 
 for (const tr in tests) {
   const proc = cp.spawnSync(process.execPath,
@@ -136,15 +143,14 @@ for (const tr in tests) {
 
   // Confirm that trace log file is created.
   assert(fs.existsSync(traceFile));
-  const data = fs.readFileSync(traceFile);
-  const traces = JSON.parse(data.toString()).traceEvents;
+  const traces = readTraceEvents(traceFile);
   assert(traces.length > 0);
 
   // C++ fs sync trace events should be generated.
   assert(traces.some((trace) => {
     if (trace.pid !== proc.pid)
       return false;
-    if (trace.cat !== 'node,node.fs,node.fs.sync')
+    if (trace.cat !== traceCategory('node.fs.sync'))
       return false;
     if (trace.name !== tr)
       return false;
