@@ -655,6 +655,15 @@ import featureX from 'es-module-package/features/x.js';
 // Loads ./node_modules/es-module-package/src/features/x.js
 ```
 
+When a subpath matches more than one pattern, the pattern with the longest
+matching prefix (the most specific pattern) takes precedence, regardless of the
+order in which the patterns are declared in the `exports` object.
+
+A `null` target blocks access to the subpaths that would otherwise match its
+pattern: requesting such a subpath throws
+[`ERR_PACKAGE_PATH_NOT_EXPORTED`][] regardless of where the `null` pattern is
+positioned among the keys.
+
 ### Conditional exports
 
 <!-- YAML
