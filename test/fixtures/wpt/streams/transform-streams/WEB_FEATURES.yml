@@ -1,0 +1,3 @@
+rules:
+- cancel.any.js: [transformstream-transformer-cancel]
+- "*": [streams]

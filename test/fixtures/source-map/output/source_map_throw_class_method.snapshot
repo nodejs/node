@@ -1,0 +1,6 @@
+Error: This is a test
+    at Foo.bar (<project-root>/test/fixtures/source-map/throw-class-method.js:3:11)
+    at Object.<anonymous> (<project-root>/test/fixtures/source-map/throw-class-method.js:12:7)
+Error: This is a test
+    at Bar.bar (<project-root>/test/fixtures/source-map/throw-class-method.js:3:11)
+    at Object.<anonymous> (<project-root>/test/fixtures/source-map/throw-class-method.js:19:7)

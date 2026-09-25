@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing ignores resources with data: URIs</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#resources-included-in-the-performanceresourcetiming-interface"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+</head>
+<body>
+<img src="data:image/gif;base64,R0lGODlhAQABAIAAAOTm7AAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="></img>
+<script>
+  promise_test(async t => {
+    const promise = new Promise(resolve => {
+      new PerformanceObserver(t.step_func(list => {
+        const entries = list.getEntries();
+        const dataEntries = entries.filter(e => e.name.includes('data:'));
+        assert_equals(dataEntries.length, 0, 'There must be no entry for `data: URL`.');
+        const blueEntries = entries.filter(e => e.name.includes('blue.png'));
+        if (blueEntries.length) {
+          // We can finish the test once we see the entry with blue.png.
+          resolve();
+        }
+      })).observe({entryTypes: ['resource']});
+    });
+    // Wait until the document is loaded.
+    await new Promise(resolve => {
+      window.addEventListener('load', resolve);
+    });
+    // Add the blue.png image after document is loaded to ensure we've received
+    // all of the previous Resource Timing entries.
+    load.image('blue.png');
+    return promise;
+  }, 'Resources with data: URIs must not be surfaced in Resource Timing');
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+rules:
+- setInterval.html: [setinterval]
+- setTimeout.html: [settimeout]
+- "*": [dedicated-workers]

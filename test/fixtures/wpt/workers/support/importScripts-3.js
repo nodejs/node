@@ -1,0 +1,1 @@
+importScripts("invalidScript.js");

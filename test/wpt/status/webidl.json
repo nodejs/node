@@ -1,0 +1,95 @@
+{
+  "ecmascript-binding/class-string-named-properties-object.window.js": {
+    "fail": {
+      "expected": [
+        "ReferenceError: Window is not defined"
+      ]
+    }
+  },
+  "ecmascript-binding/es-exceptions/DOMException-stack-accessor.any.js": {
+    "fail": {
+      "note": "needs a V8 update, see https://github.com/nodejs/node/issues/63579",
+      "expected": [
+        "DOMException instance does not have an own stack property",
+        "Error.prototype.stack is an accessor property with correct attributes",
+        "Error.prototype.stack getter works on DOMException instances",
+        "Error.prototype.stack setter installs own data property on DOMException instances",
+        "Error.prototype.stack setter ignores Error.prototype itself"
+      ]
+    }
+  },
+  "ecmascript-binding/global-immutable-prototype.any.js": {
+    "fail": {
+      "expected": [
+        "Setting to a different prototype"
+      ]
+    }
+  },
+  "ecmascript-binding/global-mutable-prototype.any.js": {
+    "fail": {
+      "expected": [
+        "Setting to a different prototype"
+      ]
+    }
+  },
+  "ecmascript-binding/global-object-implicit-this-value.any.js": {
+    "fail": {
+      "expected": [
+        "Global object's getter throws when called on incompatible object",
+        "Global object's setter throws when called on incompatible object",
+        "Global object's operation throws when called on incompatible object",
+        "Global object's getter works when called on null / undefined",
+        "Global object's setter works when called on null / undefined"
+      ]
+    }
+  },
+  "ecmascript-binding/global-object-implicit-this-value.any.html": {
+    "fail": {
+      "expected": [
+        "ReferenceError: addEventListener is not defined"
+      ]
+    }
+  },
+  "ecmascript-binding/global-object-implicit-this-value.any.worker.html": {
+    "fail": {
+      "expected": [
+        "Global object's operation works when called on null / undefined"
+      ]
+    }
+  },
+  "ecmascript-binding/legacy-factor-function-subclass.window.js": {
+    "fail": {
+      "expected": [
+        "[LegacyFactoryFunction] can be subclassed and correctly handles NewTarget"
+      ]
+    }
+  },
+  "ecmascript-binding/legacy-factory-function-builtin-properties.window.js": {
+    "fail": {
+      "expected": [
+        "Legacy factory function property enumeration order of \"length\", \"name\", and \"prototype\""
+      ]
+    }
+  },
+  "ecmascript-binding/no-regexp-special-casing.any.html": {
+    "fail": {
+      "expected": [
+        "Can be used as an object implementing a callback interface"
+      ]
+    }
+  },
+  "ecmascript-binding/observable-array-no-leak-of-internals.window.js": {
+    "fail": {
+      "expected": [
+        "ObservableArray's internals won't leak"
+      ]
+    }
+  },
+  "ecmascript-binding/observable-array-ownkeys.window.js": {
+    "fail": {
+      "expected": [
+        "ObservableArray's ownKeys trap"
+      ]
+    }
+  }
+}

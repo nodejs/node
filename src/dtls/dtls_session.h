@@ -1,0 +1,288 @@
+#pragma once
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#if HAVE_OPENSSL && HAVE_DTLS
+
+#include <aliased_struct.h>
+#include <async_wrap.h>
+#include <base_object.h>
+#include <env.h>
+#include <ncrypto.h>
+#include <node_sockaddr.h>
+#include <timer_wrap.h>
+#include <uv.h>
+#include <v8.h>
+
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+
+#include "dtls.h"
+
+namespace node::dtls {
+
+class DTLSContext;
+class DTLSEndpoint;
+
+// Shared C++ <-> JS state for a DTLS session.
+struct DTLSSessionStateData {
+  uint8_t handshaking = 0;
+  uint8_t open = 0;
+  uint8_t closing = 0;
+  uint8_t destroyed = 0;
+  uint8_t has_message_listener = 0;
+  // Gates SSLKeylogCallback. Secrets are only turned into JS strings when the
+  // application has actually asked for them.
+  uint8_t has_keylog_listener = 0;
+};
+
+// Stats collected for a DTLS session, backed by a BigUint64Array.
+struct DTLSSessionStats {
+  DTLS_SESSION_STATS(DTLS_STAT_FIELD)
+};
+
+// DTLSSession represents a single DTLS association with a remote peer.
+// It wraps an OpenSSL SSL* object configured for DTLS, using memory BIOs
+// to interface with the endpoint's UDP socket.
+class DTLSSession final : public AsyncWrap {
+ public:
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void InitPerContext(v8::Local<v8::Object> target,
+                             v8::Local<v8::Context> context,
+                             Environment* env);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  // Create a new DTLS session.
+  // |endpoint| - the owning endpoint (for sending packets)
+  // |ssl_ctx| - the SSL_CTX to create the SSL* from
+  // |remote| - the peer address
+  // |is_server| - true if this is a server-side session
+  // |servername|   - SNI to advertise (client only); nullptr to omit.
+  // |verify_host|  - expected peer identity to verify (client only);
+  //                  nullptr disables identity checking.
+  // |verify_is_ip| - true if |verify_host| is an IP literal (verified
+  //                  against iPAddress SANs) rather than a DNS name.
+  // |resume|       - DER-encoded SSL_SESSION to resume (client only), or an
+  //                  empty span for a full handshake. Like servername this
+  //                  has to be applied before the ClientHello is emitted, so
+  //                  it is a creation parameter rather than a setter.
+  static BaseObjectPtr<DTLSSession> Create(
+      Environment* env,
+      DTLSEndpoint* endpoint,
+      DTLSContext* context,
+      const SocketAddress& remote,
+      bool is_server,
+      const char* servername = nullptr,
+      const char* verify_host = nullptr,
+      bool verify_is_ip = false,
+      const ncrypto::Buffer<const unsigned char>& resume = {});
+
+  // Create a session from an already-initialized SSL object.
+  // Used by the server after DTLSv1_listen() returns 1 — the SSL
+  // has already verified the cookie and is ready to continue.
+  static BaseObjectPtr<DTLSSession> CreateFromSSL(Environment* env,
+                                                  DTLSEndpoint* endpoint,
+                                                  DTLSContext* context,
+                                                  ncrypto::SSLPointer ssl,
+                                                  BIO* enc_in,
+                                                  BIO* enc_out,
+                                                  const SocketAddress& remote);
+
+  ~DTLSSession() override;
+
+  // Called by the endpoint when a datagram arrives from this session's peer.
+  void Receive(const uint8_t* data, size_t len);
+
+  // Send application data to the peer.
+  int Send(const uint8_t* data, size_t len);
+
+  // Initiate a graceful shutdown (sends close_notify).
+  void Close();
+
+  // Immediately destroy the session without sending close_notify.
+  void Destroy();
+
+  const SocketAddress& remote_address() const { return remote_address_; }
+  bool is_server() const { return is_server_; }
+  bool is_handshake_complete() const { return handshake_complete_; }
+  bool is_closed() const { return closed_; }
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(DTLSSession)
+  SET_SELF_SIZE(DTLSSession)
+
+  // Public constructor required by MakeBaseObject<>.
+  DTLSSession(Environment* env,
+              v8::Local<v8::Object> wrap,
+              DTLSEndpoint* endpoint,
+              ncrypto::SSLPointer ssl,
+              BIO* enc_in,
+              BIO* enc_out,
+              const SocketAddress& remote,
+              bool is_server);
+
+ private:
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoSend(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoClose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoDestroy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetState(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetRemoteAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerCertificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerX509Certificate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetALPNProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportKeyingMaterial(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSRTPProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WasReused(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetVerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DoStart(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+ public:
+  // The core state machine pump. Processes pending OpenSSL I/O:
+  //   1. ClearOut() - SSL_read() -> emit decrypted data to JS
+  //   2. ClearIn()  - SSL_write() pending cleartext
+  //   3. EncOut()   - read enc_out_ BIO -> send via endpoint UDP
+  //   4. UpdateTimer() - schedule retransmit timer if needed
+  void Cycle();
+
+  // Run the first flight. Separate from creation because nothing a session
+  // reports has anywhere to go until its JavaScript wrapper is in place: the
+  // callback dispatch reaches the wrapper through the handle, and a session
+  // still being constructed has no wrapper attached. The server emits its new
+  // session and then starts it; the client's wrapper calls this once it is
+  // built. Repeat calls do nothing.
+  void Start();
+
+ private:
+  // Read decrypted application data from OpenSSL and emit to JS.
+  void ClearOut();
+
+  // Flush encrypted data from enc_out_ BIO and send via the endpoint.
+  void EncOut();
+
+  // Update the DTLS retransmission timer based on OpenSSL's timeout.
+  void UpdateTimer();
+
+ public:
+  // OpenSSL keylog callback. Registered once per SSL_CTX by DTLSContext; it
+  // resolves the session from the SSL and does nothing unless that session has
+  // a keylog listener.
+  static void SSLKeylogCallback(const SSL* ssl, const char* line);
+
+  // Hold an exception thrown by a callback that ran inside the handshake, to
+  // be emitted once SSL_do_handshake() has returned. Emitting it there and
+  // then would mean running JavaScript -- and draining the tick queue -- in
+  // the middle of OpenSSL's state machine, which is what calling the
+  // callback with Call() rather than MakeCallback() set out to avoid.
+  void SetPendingError(v8::Local<v8::Value> error);
+
+  // Retain a context chosen by the SNI callback. Entries in an sni map are
+  // owned by the context holding the map, but one returned from a callback
+  // has no other owner: SSL_set_SSL_CTX() references the SSL_CTX and not the
+  // DTLSContext wrapping it, and callbacks reached later in the handshake
+  // find their configuration through that wrapper.
+  void SetSNIContext(DTLSContext* context);
+
+ private:
+  bool HandshakeDeadlineExpired() const;
+  void EmitHandshakeTimeout();
+
+  // The peer's chain verification result, with "no certificate, and none was
+  // needed" (PSK) told apart from "a certificate that verified". Shared by
+  // session.authorizationError and the gate below so the two agree.
+  long PeerVerifyResult() const;  // NOLINT(runtime/int)
+
+  // Refuse a completed handshake whose peer was never verified, emitting the
+  // error. True to carry on. Exists for resumption, which skips verification
+  // and restores the result from the session being resumed, so the verify
+  // mode has nothing to act on.
+  bool PeerVerificationPassed();
+
+  // Emit a callback to JS via the endpoint's callback dispatch.
+  v8::MaybeLocal<v8::Value> EmitCallback(int cb_index,
+                                         int argc,
+                                         v8::Local<v8::Value>* argv);
+
+  // As EmitCallback, but a plain Call() rather than MakeCallback(): for
+  // callbacks OpenSSL invokes from inside its own state machine, where
+  // draining the microtask and tick queues would run user code in the middle
+  // of a transition.
+  v8::MaybeLocal<v8::Value> CallCallback(int cb_index,
+                                         int argc,
+                                         v8::Local<v8::Value>* argv);
+
+  // Everything Cycle() does between taking and releasing the reentrancy
+  // guard. Split out so the guard and the pending-error drain happen on every
+  // path out, rather than at each return.
+  void CycleInner();
+
+  // Emit an exception captured from a callback that ran inside OpenSSL.
+  void EmitPendingError();
+
+  // Emit a failure to put a record on the wire.
+  void EmitSendError();
+
+  BaseObjectWeakPtr<DTLSEndpoint> endpoint_;
+  ncrypto::SSLPointer ssl_;
+
+  // Memory BIOs: encrypted data flows through these.
+  // enc_in_: network datagrams written here -> SSL_read() extracts cleartext
+  // enc_out_: SSL_write() puts ciphertext here -> we read and send via UDP
+  BIO* enc_in_ = nullptr;
+  BIO* enc_out_ = nullptr;
+
+  TimerWrapHandle retransmit_timer_;
+
+  SocketAddress remote_address_;
+  bool is_server_;
+  bool started_ = false;
+  bool handshake_complete_ = false;
+  bool closed_ = false;
+  bool destroyed_ = false;
+  int cycle_depth_ = 0;
+
+  v8::Global<v8::Value> pending_error_;
+
+  // First libuv error from sending a record, or 0. Reported once Cycle() is
+  // done rather than from inside the send loop, which runs while the SSL is
+  // mid-flight.
+  int send_error_ = 0;
+
+  // Absolute time by which the handshake must finish, or 0 for no limit.
+  //
+  // OpenSSL already gives up on its own, but only after DTLS1_TMO_ALERT_COUNT
+  // retransmits on a doubling backoff capped at 60s -- measured at roughly
+  // eight minutes, which is a long time to hold a slot against maxSessions.
+  // This bounds it without touching the retransmission schedule, which has to
+  // stay as it is: compressing it to force earlier failure would cause
+  // spurious retransmits on exactly the lossy links DTLS is for. Whichever
+  // limit trips first ends the handshake.
+  uint64_t handshake_deadline_ = 0;
+
+  // The context this session was created from, kept alive for as long as the
+  // session is. SSL_new() takes a reference to the SSL_CTX but not to the
+  // DTLSContext wrapping it, and callbacks reached from the handshake find
+  // their configuration through that wrapper. An endpoint holds its server
+  // context, but nothing held a client's: it became garbage the moment
+  // connect() returned, and the first client-side callback to look for it
+  // read freed memory.
+  BaseObjectPtr<DTLSContext> context_;
+  BaseObjectPtr<DTLSContext> sni_context_;
+
+  AliasedStruct<DTLSSessionStateData> state_;
+  AliasedStruct<DTLSSessionStats> stats_;
+};
+
+}  // namespace node::dtls
+
+#endif  // HAVE_OPENSSL && HAVE_DTLS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

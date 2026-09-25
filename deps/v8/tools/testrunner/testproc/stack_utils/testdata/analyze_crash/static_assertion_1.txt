@@ -1,0 +1,37 @@
+
+
+#
+# Fatal error in ../../src/compiler/backend/instruction-selector.cc, line 3202
+# Expected Turbofan static assert to hold, but got non-true input:
+  %TurbofanStaticAssert
+#
+#
+#
+#FailureMessage Object: 0x7ffc34427560Received signal 6
+
+==== C stack trace ===============================
+
+ [0x7efe1f546b93]
+ [0x7efe1f546ae2]
+ [0x7efe1b907980]
+ [0x7efe1b1a4e87]
+ [0x7efe1b1a67f1]
+ [0x7efe1f544712]
+ [0x7efe1f5263d2]
+ [0x7efe1ed5b249]
+ [0x7efe1ed58a58]
+ [0x7efe1ed4e6fa]
+ [0x7efe1ed4d4d6]
+ [0x7efe1f0ba876]
+ [0x7efe1f07023b]
+ [0x7efe1f06837b]
+ [0x7efe1f062006]
+ [0x7efe1f061580]
+ [0x7efe1d8c2710]
+ [0x7efe1d8d5502]
+ [0x7efe1d8d8a55]
+ [0x7efe1e509ec6]
+ [0x7efe1e509879]
+ [0x7efd9f9da37f]
+[end of stack trace]
+Aborted (core dumped)

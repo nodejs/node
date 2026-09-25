@@ -1,0 +1,6 @@
+*%(basename)s:10: TypeError: Iterator value 0 is not an entry object
+Object.fromEntries([0]);
+       ^
+TypeError: Iterator value 0 is not an entry object
+    at Object.fromEntries (<anonymous>)
+    at *%(basename)s:10:8

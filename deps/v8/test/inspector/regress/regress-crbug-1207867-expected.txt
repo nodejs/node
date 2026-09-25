@@ -1,0 +1,41 @@
+Regression test for crbug/1207867
+
+Running test: testFunctionDescription
+{
+    className : Function
+    description : function fun(x) { return x; }
+    objectId : <objectId>
+    type : function
+}
+
+Running test: testArrowFunctionDescription
+{
+    className : Function
+    description : x => x
+    objectId : <objectId>
+    type : function
+}
+
+Running test: testBoundFunctionDescription
+{
+    className : Function
+    description : function () { [native code] }
+    objectId : <objectId>
+    type : function
+}
+
+Running test: testAsyncFunctionDescription
+{
+    className : AsyncFunction
+    description : async function afun(x) { await x; }
+    objectId : <objectId>
+    type : function
+}
+
+Running test: testNativeFunctionDescription
+{
+    className : Function
+    description : function map() { [native code] }
+    objectId : <objectId>
+    type : function
+}

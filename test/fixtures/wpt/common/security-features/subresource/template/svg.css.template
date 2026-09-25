@@ -1,0 +1,3 @@
+path {
+  %(property)s: url(/common/security-features/subresource/svg.py?id=%(id)s#invalidFragment);
+}

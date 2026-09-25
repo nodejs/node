@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for importScripts: import scripts updated flag</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+// This test registers a worker that calls importScripts at various stages of
+// service worker lifetime. The sub-tests trigger subsequent `importScript`
+// invocations via the `message` event.
+
+var register;
+
+function post_and_wait_for_reply(worker, message) {
+  return new Promise(resolve => {
+      navigator.serviceWorker.onmessage = e => { resolve(e.data); };
+      worker.postMessage(message);
+    });
+}
+
+promise_test(function(t) {
+    const scope = 'resources/import-scripts-updated-flag';
+    let registration;
+
+    register = service_worker_unregister_and_register(
+        t, 'resources/import-scripts-updated-flag-worker.js', scope)
+      .then(r => {
+          registration = r;
+          add_completion_callback(() => { registration.unregister(); });
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          // This test should not be considered complete until after the
+          // service worker has been unregistered. Currently, `testharness.js`
+          // does not support asynchronous global "tear down" logic, so this
+          // must be expressed using a dedicated `promise_test`. Because the
+          // other sub-tests in this file are declared synchronously, this test
+          // will be the final test executed.
+          promise_test(function(t) {
+              return registration.unregister();
+            });
+
+          return registration.active;
+        });
+
+    return register;
+  }, 'initialize global state');
+
+promise_test(t => {
+    return register
+      .then(function(worker) {
+          return post_and_wait_for_reply(worker, 'root-and-message');
+        })
+      .then(result => {
+          assert_equals(result.error, null);
+          assert_equals(result.value, 'root-and-message');
+        });
+  }, 'import script previously imported at worker evaluation time');
+
+promise_test(t => {
+    return register
+      .then(function(worker) {
+          return post_and_wait_for_reply(worker, 'install-and-message');
+        })
+      .then(result => {
+          assert_equals(result.error, null);
+          assert_equals(result.value, 'install-and-message');
+        });
+  }, 'import script previously imported at worker install time');
+
+promise_test(t => {
+    return register
+      .then(function(worker) {
+          return post_and_wait_for_reply(worker, 'message');
+        })
+      .then(result => {
+          assert_equals(result.error, 'NetworkError');
+          assert_equals(result.value, null);
+        });
+  }, 'import script not previously imported');
+</script>
+</body>

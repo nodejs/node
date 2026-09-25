@@ -1,0 +1,15 @@
+Checks liveedit with ES6 modules.
+console.log message from function before patching:
+{
+    type : string
+    value : module1
+}
+Debugger.setScriptSource result:
+{
+    status : Ok
+}
+console.log message from function after patching:
+{
+    type : string
+    value : patched module1
+}

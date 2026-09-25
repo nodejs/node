@@ -1,0 +1,34 @@
+{
+  "name": "just-diff-apply",
+  "version": "5.5.0",
+  "description": "Apply a diff to an object. Optionally supports jsonPatch protocol",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.cjs",
+      "import": "./index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c"
+  },
+  "repository": "https://github.com/angus-c/just",
+  "keywords": [
+    "object",
+    "diff",
+    "apply",
+    "jsonPatch",
+    "no-dependencies",
+    "just"
+  ],
+  "author": "Angus Croll",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/angus-c/just/issues"
+  }
+}

@@ -1,0 +1,98 @@
+# This action requires the following secrets to be set on the repository:
+#   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
+name: Comment on PR on Nix changes
+
+on:
+  workflow_run:
+    workflows: [Nix files edited]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  aggregate-results:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
+    name: Aggregate results
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download artefacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          # Using privileged token to be able to download file from a different workflow
+          github-token: ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Fetch PR data
+        id: pr-data
+        run: |
+          mv requisites-*/* .
+          ls
+          if grep -nvHE '^/nix/store/[0-9a-df-np-sv-z]{32}-[A-Za-z0-9?=._+-]+$' requisites-*.list; then
+            echo 'Unexpected line format in requisites list; refusing to process.' >&2
+            exit 1
+          fi
+          echo "NUMBER=$(grep -E '^[0-9]+$' pr_number.txt || true)" >> "$GITHUB_OUTPUT"
+
+      - name: Aggregate results
+        if: ${{ steps.pr-data.outputs.NUMBER }}
+        run: |
+          set -x
+          > requisites-before.list
+          > requisites-after.list
+          TABLE=$(
+            echo '| Platform | Number of requisites | Proportion of new derivations |'
+            echo '| :-: | -: | -: |'
+            TOTAL_BEFORE=0
+            TOTAL_AFTER=0
+            TOTAL_CHANGED=0
+            QUOTE='`'
+            for PLATFORM in x86_64-linux aarch64-linux x86_64-darwin aarch64-darwin; do
+              BEFORE=$(wc -l < "requisites-${PLATFORM}-before.list")
+              TOTAL_BEFORE=$(($TOTAL_BEFORE + $BEFORE))
+              AFTER=$(wc -l < "requisites-${PLATFORM}-after.list")
+              TOTAL_AFTER=$(($TOTAL_AFTER + $AFTER))
+              DIFF="_no changes_"
+              [ "$BEFORE" = "$AFTER" ] || DIFF="**$([ "$AFTER" < "$BEFORE" ] || echo '+')$(($AFTER - $BEFORE))**"
+              CHANGED=$(git diff --no-index "requisites-${PLATFORM}-before.list" "requisites-${PLATFORM}-after.list" | grep -c '^+[^+]')
+              TOTAL_CHANGED=$(($TOTAL_CHANGED + $CHANGED))
+              PERCENT=100
+              [ "$CHANGED" = "$AFTER" ] || {
+                PERMILLE=$((1000 * $CHANGED / $AFTER))
+                PERCENT="$((PERMILLE / 10)).$((PERMILLE % 10))"
+              }
+              echo "| ${QUOTE}${PLATFORM}${QUOTE} | $BEFORE -> $AFTER => $DIFF | $CHANGED / $AFTER = $PERCENT% |"
+              awk '{ print $0 " ('"$PLATFORM"')" }' "requisites-${PLATFORM}-before.list" >> requisites-before.list
+              awk '{ print $0 " ('"$PLATFORM"')" }' "requisites-${PLATFORM}-after.list" >> requisites-after.list
+            done
+
+            DIFF="_no changes_"
+            [ "$TOTAL_BEFORE" = "$TOTAL_AFTER" ] || DIFF="**$([ "$TOTAL_AFTER" < "$TOTAL_BEFORE" ] || echo '+')$(($TOTAL_AFTER - $TOTAL_BEFORE))**"
+            PERCENT=100
+            [ "$TOTAL_CHANGED" = "$TOTAL_AFTER" ] || {
+              PERMILLE=$((1000 * $TOTAL_CHANGED / $TOTAL_AFTER))
+              PERCENT="$((PERMILLE / 10)).$((PERMILLE % 10))"
+            }
+            echo "| **Total** | $TOTAL_BEFORE -> $TOTAL_AFTER => $DIFF | $TOTAL_CHANGED / $TOTAL_AFTER = $PERCENT% |"
+          )
+          sort -k1.45 requisites-before.list > requisites-before.sort
+          sort -k1.45 requisites-after.list > requisites-after.sort
+          if git diff -U0 --no-color --no-index requisites-before.sort requisites-after.sort > requisites.diff; then
+            echo 'No changes detected.'
+          else
+          {
+            echo "$TABLE"
+            echo
+            echo '<details><summary>Changelog</summary>'
+            echo
+            echo '```diff'
+            tail -n +5 requisites.diff
+            echo '```'
+            echo
+            echo '</details>'
+          } | gh pr comment -R "$GITHUB_REPOSITORY" "$PR_NUMBER" -F -
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr-data.outputs.NUMBER }}

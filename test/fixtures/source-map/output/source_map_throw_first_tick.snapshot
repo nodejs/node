@@ -1,0 +1,10 @@
+reachable
+<project-root>/test/fixtures/source-map/typescript-throw.ts:18
+    throw Error('an exception');
+    ^
+
+Error: an exception
+    at branch (<project-root>/test/fixtures/source-map/typescript-throw.ts:18:11)
+    at Object.<anonymous> (<project-root>/test/fixtures/source-map/typescript-throw.ts:24:1)
+
+Node.js <node-version>

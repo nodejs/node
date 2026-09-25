@@ -1,0 +1,91 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+KDE JS Test
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS isNegativeZero(negativeZero) is true
+PASS isNegativeZero(0) is false
+PASS String()+Math.E is '2.718281828459045'
+PASS String()+Math.LN2 is '0.6931471805599453'
+PASS String()+Math.LN10 is '2.302585092994046'
+PASS String()+Math.LOG2E is '1.4426950408889634'
+PASS String()+Math.LOG10E is '0.4342944819032518'
+PASS String()+Math.PI is '3.141592653589793'
+PASS String()+Math.SQRT1_2 is '0.7071067811865476'
+PASS String()+Math.SQRT2 is '1.4142135623730951'
+PASS String()+Number.NaN is 'NaN'
+PASS String()+Number.NEGATIVE_INFINITY is '-Infinity'
+PASS String()+Number.POSITIVE_INFINITY is 'Infinity'
+PASS Math.abs(-5) is 5
+PASS Math.acos(0) is Math.PI/2
+PASS Math.acos(1) is 0
+PASS Math.ceil(1.1) is 2
+PASS String()+Math.sqrt(2) is String()+Math.SQRT2
+PASS Math.ceil(1.6) is 2
+PASS Math.round(0) is 0
+PASS isNegativeZero(Math.round(0)) is false
+PASS isNegativeZero(Math.round(negativeZero)) is true
+PASS Math.round(0.2) is 0
+PASS isNegativeZero(Math.round(-0.2)) is true
+PASS isNegativeZero(Math.round(-0.5)) is true
+PASS Math.round(1.1) is 1
+PASS Math.round(1.6) is 2
+PASS Math.round(-3.5) is -3
+PASS Math.round(-3.6) is -4
+PASS isNaN(Math.round()) is true
+PASS isNaN(Math.round(NaN)) is true
+PASS Math.round(-Infinity) is -Infinity
+PASS Math.round(Infinity) is Infinity
+PASS Math.round(99999999999999999999.99) is 100000000000000000000
+PASS Math.round(-99999999999999999999.99) is -100000000000000000000
+PASS Math.log(Math.E*Math.E) is 2
+PASS isNaN(Math.log(NaN)) is true
+PASS isNaN(Math.log(-1)) is true
+PASS isFinite(Math.log(0)) is false
+PASS Math.log(1) is 0
+PASS isFinite(Math.log(Infinity)) is false
+PASS isNegativeZero(Math.min(negativeZero, 0)) is true
+PASS isFinite(Math.max()) is false
+PASS Math.max(1) is 1
+PASS Math.max(1, 2, 3) is 3
+PASS isNaN(Math.max(1,NaN,3)) is true
+PASS !isNegativeZero(Math.max(negativeZero, 0)) is true
+PASS list is ''
+PASS delete my.v is true
+PASS my.v is undefined.
+PASS delete Math.PI is false
+PASS my = myfunc, myfunc(4) is 5
+PASS Boolean(Math) is true
+PASS isNaN(Number(Math)); is true
+PASS Math.abs===Math.abs is true
+PASS Math.abs===Math.round is false
+PASS list is 'a,b,'
+PASS list is ''
+PASS list is 'myprop,'
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

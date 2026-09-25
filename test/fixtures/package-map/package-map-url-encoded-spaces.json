@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "root": {
+      "url": "./root",
+      "dependencies": {"dep-with-spaces": "dep-with-spaces"}
+    },
+    "dep-with-spaces": {
+      "url": "./dep%20with%20spaces",
+      "dependencies": {}
+    }
+  }
+}

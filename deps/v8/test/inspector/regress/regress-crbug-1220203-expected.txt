@@ -1,0 +1,8 @@
+Regression test for crbug.com/1220203.
+
+Running test: testBreakOnUncaughtException
+Uncaught exception at
+function throwError() {
+  #throw new Error();
+}
+

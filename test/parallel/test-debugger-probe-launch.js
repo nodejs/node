@@ -1,0 +1,28 @@
+// This tests that probe launch failures fail fast instead of timing out.
+'use strict';
+
+const common = require('../common');
+common.skipIfInspectorDisabled();
+
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+const { spawnSyncAndExit } = require('../common/child_process');
+
+const cwd = fixtures.path('debugger');
+
+spawnSyncAndExit(process.execPath, [
+  'inspect',
+  '--probe', 'probe.js:12',
+  '--expr', 'finalValue',
+  '--',
+  '--not-a-real-node-flag',
+  'probe.js',
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
+  signal: null,
+  status: 1,
+  stderr(output) {
+    assert.match(output, /bad option: --not-a-real-node-flag/);
+    assert.match(output, /Target exited before the inspector was ready \(code 9\)/);
+  },
+  trim: true,
+});

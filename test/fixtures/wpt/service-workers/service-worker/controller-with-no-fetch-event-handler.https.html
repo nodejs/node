@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: controller without a fetch event handler</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<body>
+<script>
+let registration;
+let frame;
+const host_info = get_host_info();
+const remote_base_url =
+    new URL(`${host_info.HTTPS_REMOTE_ORIGIN}${base_path()}resources/`);
+
+promise_test(async t => {
+  const script = 'resources/empty.js'
+  const scope = 'resources/';
+
+  promise_test(async t => {
+    if (frame)
+      frame.remove();
+
+    if (registration)
+      await registration.unregister();
+  }, 'cleanup global state');
+
+  registration = await
+      service_worker_unregister_and_register(t, script, scope);
+  await wait_for_state(t, registration.installing, 'activated');
+  frame = await with_iframe(scope + 'blank.html');
+}, 'global setup');
+
+promise_test(async t => {
+    const url = new URL('cors-approved.txt', remote_base_url);
+    const response = await frame.contentWindow.fetch(url, {mode:'no-cors'});
+    const text = await response.text();
+    assert_equals(text, '');
+}, 'cross-origin request, no-cors mode');
+
+
+promise_test(async t => {
+    const url = new URL('cors-denied.txt', remote_base_url);
+    const response = frame.contentWindow.fetch(url);
+    await promise_rejects_js(t, frame.contentWindow.TypeError, response);
+}, 'cross-origin request, cors denied');
+
+promise_test(async t => {
+    const url = new URL('cors-approved.txt', remote_base_url);
+    response = await frame.contentWindow.fetch(url);
+    let text = await response.text();
+    text = text.trim();
+    assert_equals(text, 'plaintext');
+}, 'cross-origin request, cors approved');
+</script>
+</body>

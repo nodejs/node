@@ -1,0 +1,36 @@
+#!/bin/sh
+
+set -ex
+
+BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
+
+TARGET_DIR="$BASE_DIR/test/fixtures/test426"
+README="$BASE_DIR/test/test426/README.md"
+
+CURRENT_SHA=$(sed -n 's#^.*https://github.com/tc39/source-map-tests/commit/\([0-9a-f]*\).*$#\1#p' "$README")
+
+if [ -z "$CURRENT_SHA" ]; then
+  echo "Could not find source-map-tests commit marker in $README" >&2
+  exit 1
+fi
+
+TARBALL_URL=$(curl -fsIo /dev/null -w '%header{Location}' https://github.com/tc39/source-map-tests/archive/HEAD.tar.gz)
+SHA=$(basename "$TARBALL_URL")
+
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
+compare_dependency_version "test426-fixtures" "$CURRENT_SHA" "$SHA"
+
+rm -rf "$TARGET_DIR"
+mkdir "$TARGET_DIR"
+curl -f "$TARBALL_URL" | tar -xz --strip-components 1 -C "$TARGET_DIR"
+
+TMP_FILE=$(mktemp)
+sed "s/$CURRENT_SHA/$SHA/" "$README" > "$TMP_FILE"
+mv "$TMP_FILE" "$README"
+
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+NEW_VERSION=$(echo "$SHA" | head -c 39)
+echo "NEW_VERSION=$NEW_VERSION"

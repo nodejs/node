@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>FileAPI Test: Creating Blob URL with File</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="author" title="JunChen Xia" href="mailto:xjconlyme@gmail.com">
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<div>
+  <p>Test steps:</p>
+  <ol>
+    <li>Download <a href="/images/blue96x96.png">blue96x96.png</a> to local.</li>
+    <li>Select the local file (blue96x96.png) to run the test.</li>
+  </ol>
+</div>
+
+<form name="uploadData">
+  <input type="file" id="fileChooser">
+</form>
+
+<div id="log"></div>
+
+<script>
+  async_test(function(t) {
+    var fileInput = document.querySelector('#fileChooser');
+
+    fileInput.onchange = t.step_func(function(e) {
+      var blobURL, file = fileInput.files[0];
+
+      test(function() {
+        assert_true(file instanceof File, "FileList contains File");
+      }, "Check if FileList contains File");
+
+      test(function() {
+        blobURL = window.URL.createObjectURL(file);
+        assert_equals(typeof blobURL, "string", "Blob URL is type of string");
+        assert_equals(blobURL.indexOf("blob"), 0, "Blob URL's scheme is blob");
+      }, "Check if URL.createObjectURL(File) returns a Blob URL");
+
+      t.done();
+    });
+  });
+</script>
+

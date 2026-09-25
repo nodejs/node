@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>All attributes accessors are unique function objects</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#idl-interface-mixins">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+"use strict";
+
+test(() => {
+  const seenPrototypes = new WeakSet([Function.prototype]);
+  const seenFunctions = new WeakMap();
+
+  for (const windowKey of Object.getOwnPropertyNames(window)) {
+    const windowValue = window[windowKey];
+    if (typeof windowValue !== "function") continue;
+
+    const {prototype} = windowValue;
+    if (!prototype || seenPrototypes.has(prototype)) continue;
+    seenPrototypes.add(prototype);
+
+    for (const key of Object.getOwnPropertyNames(prototype)) {
+      const assert_not_seen = (fn, field) => {
+        const fnInfo = `${windowKey}.${key}.${field}`;
+        assert_equals(seenFunctions.get(fn), undefined, fnInfo);
+        seenFunctions.set(fn, fnInfo);
+      };
+
+      const desc = Object.getOwnPropertyDescriptor(prototype, key);
+      if (desc.get) assert_not_seen(desc.get, "[[Get]]");
+      if (desc.set) assert_not_seen(desc.set, "[[Set]]");
+    }
+  }
+}, "For attributes, each copy of the accessor property has distinct built-in function objects for its getters and setters.");
+</script>

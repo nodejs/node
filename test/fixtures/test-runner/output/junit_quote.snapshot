@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="quote&quot;only" time="*" classname="test" file="*"/>
+	<testcase name="quote&amp;quot;only" time="*" classname="test" file="*"/>
+	<testcase name="amp&amp;and&quot;quote&quot;" time="*" classname="test" file="*"/>
+	<testcase name="lt&lt;and&quot;quote" time="*" classname="test" file="*"/>
+	<testcase name="line&#10;&quot;break" time="*" classname="test" file="*"/>
+	<!-- tests 5 -->
+	<!-- suites 0 -->
+	<!-- pass 5 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms * -->
+</testsuites>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for importScripts: redirect</title>
+<script src="/common/utils.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(async t => {
+    const scope = 'resources/import-scripts-redirect';
+    await service_worker_unregister(t, scope);
+    let reg = await navigator.serviceWorker.register(
+      'resources/import-scripts-redirect-worker.js', { scope: scope });
+    assert_not_equals(reg.installing, null, 'worker is installing');
+    await reg.unregister();
+  }, 'importScripts() supports redirects');
+
+promise_test(async t => {
+    const scope = 'resources/import-scripts-redirect';
+    await service_worker_unregister(t, scope);
+    let reg = await navigator.serviceWorker.register(
+      'resources/import-scripts-redirect-worker.js', { scope: scope });
+    assert_not_equals(reg.installing, null, 'before update');
+    await wait_for_state(t, reg.installing, 'activated');
+    await Promise.all([
+      wait_for_update(t, reg),
+      reg.update()
+    ]);
+    assert_not_equals(reg.installing, null, 'after update');
+    await reg.unregister();
+  },
+  "an imported script redirects, and the body changes during the update check");
+
+promise_test(async t => {
+    const key = token();
+    const scope = 'resources/import-scripts-redirect';
+    await service_worker_unregister(t, scope);
+    let reg = await navigator.serviceWorker.register(
+      `resources/import-scripts-redirect-on-second-time-worker.js?Key=${key}`,
+      { scope });
+    t.add_cleanup(() => reg.unregister());
+
+    assert_not_equals(reg.installing, null, 'before update');
+    await wait_for_state(t, reg.installing, 'activated');
+    await Promise.all([
+      wait_for_update(t, reg),
+      reg.update()
+    ]);
+    assert_not_equals(reg.installing, null, 'after update');
+  },
+  "an imported script doesn't redirect initially, then redirects during " +
+  "the update check and the body changes");
+</script>
+</body>

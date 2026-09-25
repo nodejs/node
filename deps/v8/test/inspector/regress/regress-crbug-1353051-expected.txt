@@ -1,0 +1,16 @@
+Don't crash when building a preview with a revoked proxy prototype
+{
+    className : Array
+    description : Array(0)
+    objectId : <objectId>
+    preview : {
+        description : Array(0)
+        overflow : false
+        properties : [
+        ]
+        subtype : array
+        type : object
+    }
+    subtype : array
+    type : object
+}

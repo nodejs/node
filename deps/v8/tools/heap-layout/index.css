@@ -1,0 +1,24 @@
+:root {
+  --surface-color: #ffffff;
+  --primary-color: #bb86fc;
+  --on-primary-color: #000000;
+  --error-color: #cf6679;
+  --file-reader-background-color: #ffffff80;
+  --file-reader-border-color: #000000;
+}
+
+body {
+  font-family: "Roboto", sans-serif;
+  margin-left: 5%;
+  margin-right: 5%;
+}
+
+.button-container {
+  text-align: center;
+  display: none;
+}
+
+button {
+  height: 50px;
+  width: 100px;
+}

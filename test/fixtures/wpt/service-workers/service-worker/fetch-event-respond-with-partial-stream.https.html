@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>respondWith streams data to an intercepted fetch()</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+const WORKER =
+  'resources/fetch-event-respond-with-partial-stream-worker.js';
+const SCOPE =
+  'resources/fetch-event-respond-with-partial-stream-iframe.html';
+
+promise_test(async t => {
+  let reg = await service_worker_unregister_and_register(t, WORKER, SCOPE)
+  add_completion_callback(() => reg.unregister());
+
+  await wait_for_state(t, reg.installing, 'activated');
+
+  let frame = await with_iframe(SCOPE);
+  t.add_cleanup(_ => frame.remove());
+
+  let response = await frame.contentWindow.fetch('partial-stream.txt');
+
+  let reader = response.body.getReader();
+
+  let encoder = new TextEncoder();
+  let decoder = new TextDecoder();
+
+  let expected = 'partial-stream-content';
+  let encodedExpected = encoder.encode(expected);
+  let received = '';
+  let encodedReceivedLength = 0;
+
+  // Accumulate response data from the service worker.  We do this as a loop
+  // to allow the browser the flexibility of rebuffering if it chooses.  We
+  // do expect to get the partial data within the test timeout period, though.
+  // The spec is a bit vague at the moment about this, but it seems reasonable
+  // that the browser should not stall the response stream when the service
+  // worker has only written a partial result, but not closed the stream.
+  while (encodedReceivedLength < encodedExpected.length) {
+    let chunk = await reader.read();
+    assert_false(chunk.done, 'partial body stream should not be closed yet');
+
+    encodedReceivedLength += chunk.value.length;
+    received += decoder.decode(chunk.value);
+  }
+
+  // Note, the spec may allow some re-buffering between the service worker
+  // and the outer intercepted fetch.  We could relax this exact chunk value
+  // match if necessary.  The goal, though, is to ensure the outer fetch is
+  // not completely blocked until the service worker body is closed.
+  assert_equals(received, expected,
+                'should receive partial content through service worker interception');
+
+  reg.active.postMessage('done');
+
+  await reader.closed;
+
+  }, 'respondWith() streams data to an intercepted fetch()');
+</script>

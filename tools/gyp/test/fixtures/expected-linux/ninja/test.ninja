@@ -1,0 +1,13 @@
+defines = 
+includes = -I../../include
+cflags = 
+cflags_c = 
+cflags_cc = 
+arflags = 
+
+build obj/test.test.o: cxx ../../test.cc
+
+ldflags = 
+libs = -L../../mylib
+build test: link obj/test.test.o
+  ld = $ldxx

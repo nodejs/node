@@ -1,0 +1,20 @@
+<html>
+<head>
+<title>iframe for css base url test</title>
+</head>
+<body>
+<script>
+// Load a stylesheet. Create it dynamically so we can construct the href URL
+// dynamically.
+const link = document.createElement('link');
+link.rel = 'stylesheet';
+link.type = 'text/css';
+// Add "request-url-path" to the path to help distinguish the request URL from
+// the response URL. Add |document.location.search| (chosen by the test main
+// page) to tell the service worker how to respond to the request.
+link.href = 'request-url-path/fetch-request-css-base-url-style.css' +
+    document.location.search;
+document.head.appendChild(link);
+</script>
+</body>
+</html>

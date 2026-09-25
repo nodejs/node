@@ -1,0 +1,5 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in Foo::takes_mut: Method `Foo_takes_mut` takes a reference to a struct as a self parameter, which isn't allowed. Backend must support struct_refs.

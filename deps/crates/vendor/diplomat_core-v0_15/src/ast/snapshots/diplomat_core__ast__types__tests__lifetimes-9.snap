@@ -1,0 +1,8 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { DiplomatOwnedSlice<i8> }, None)"
+---
+PrimitiveSlice:
+  - ~
+  - i8
+  - Diplomat

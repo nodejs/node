@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+service_worker_test(
+    'resources/performance-timeline-worker.js',
+    'Test Performance Timeline API in Service Worker');
+
+// The purpose of this test is to verify that service worker overhead
+// is included in the Performance API's timing information.
+promise_test(t => {
+  let script = 'resources/empty-but-slow-worker.js';
+  let scope = 'resources/sample.txt?slow-sw-timing';
+  let url = new URL(scope, window.location).href;
+  let slowURL = url + '&slow';
+  let frame;
+  return service_worker_unregister_and_register(t, script, scope)
+    .then(reg => {
+        t.add_cleanup(() => service_worker_unregister(t, scope));
+
+        return wait_for_state(t, reg.installing, 'activated');
+      })
+    .then(_ => with_iframe(scope))
+    .then(f => {
+      frame = f;
+      return frame.contentWindow.fetch(url).then(r => r && r.text());
+    })
+    .then(_ => {
+      return frame.contentWindow.fetch(slowURL).then(r => r && r.text());
+    })
+    .then(_ => {
+      function elapsed(u) {
+        let entry = frame.contentWindow.performance.getEntriesByName(u);
+        return entry[0] ? entry[0].duration : undefined;
+      }
+      let urlTime = elapsed(url);
+      let slowURLTime = elapsed(slowURL);
+      // Verify the request slowed by the service worker is indeed measured
+      // to be slower.  Note, we compare to smaller delay instead of the exact
+      // delay amount to avoid making the test racy under automation.
+      assert_greater_than(slowURLTime, urlTime + 1000,
+                  'Slow service worker request should measure increased delay.');
+      frame.remove();
+    })
+}, 'empty service worker fetch event included in performance timings');
+
+</script>

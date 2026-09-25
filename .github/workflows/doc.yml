@@ -1,0 +1,41 @@
+name: Test and upload documentation to artifacts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  build-docs:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build
+        run: NODE=$(command -v node) make doc-only
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: docs
+          path: out/doc
+      - name: Test
+        run: NODE=$(command -v node) make test-doc-ci TEST_CI_ARGS="-p actions --measure-flakiness 9"

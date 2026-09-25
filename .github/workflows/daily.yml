@@ -1,0 +1,30 @@
+name: Node.js daily job
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 0 * * *
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  build-lto:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build lto
+        run: |
+          sudo apt-get update && sudo apt-get install ninja-build -y
+          ./configure --enable-lto --ninja
+          ninja -C out/Release

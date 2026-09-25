@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>WebIDL [AllowShared] semantics</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#AllowShared">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/sab.js"></script>
+<script>
+  "use strict";
+
+  test(t => {
+    // Create a standard SharedArrayBuffer (safe even without COOP/COEP headers)
+    const sab = createBuffer('SharedArrayBuffer', 128);
+    const arr = new Uint8Array(sab);
+    arr.fill(42);
+    assert_equals(sab.constructor.name, 'SharedArrayBuffer');
+    new ImageDecoder({
+      data: arr,
+      // We don't really need encoding to succeed, just for argument conversion before the native call.
+      type: "invalid"
+    });
+
+    assert_throws_js(TypeError, () => {
+      new MIDIMessageEvent('message', { data: arr });
+    }, "An attempt to pass a view backed by a shared array buffer should throw");
+
+  }, "APIs without [AllowShared] do not accept SharedArrayBuffer-backed views with pre-existing wrapper");
+
+</script>

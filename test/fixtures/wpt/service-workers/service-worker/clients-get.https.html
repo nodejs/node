@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.get</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function wait_for_clientId() {
+  return new Promise(function(resolve, reject) {
+    window.onmessage = e => {
+      resolve(e.data.clientId);
+    };
+  });
+}
+
+promise_test(async t => {
+  // Register service worker.
+  const scope = 'resources/clients-get-frame.html';
+  const client_ids = [];
+  const registration = await service_worker_unregister_and_register(
+    t, 'resources/clients-get-worker.js', scope);
+  t.add_cleanup(() => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+
+  // Prepare for test cases.
+  // Case 1: frame1 which is focused.
+  const frame1 = await with_iframe(scope + '#1');
+  t.add_cleanup(() => frame1.remove());
+  frame1.focus();
+  client_ids.push(await wait_for_clientId());
+  // Case 2: frame2 which is not focused.
+  const frame2 = await with_iframe(scope + '#2');
+  t.add_cleanup(() =>  frame2.remove());
+  client_ids.push(await wait_for_clientId());
+  // Case 3: invalid id.
+  client_ids.push('invalid-id');
+
+  // Call clients.get() for each id on the service worker.
+  const message_event = await new Promise(resolve => {
+    navigator.serviceWorker.onmessage = resolve;
+    registration.active.postMessage({clientIds: client_ids});
+  });
+
+  const expected = [
+    // visibilityState, focused, url, type, frameType
+    ['visible', true, normalizeURL(scope) + '#1', 'window', 'nested'],
+    ['visible', false, normalizeURL(scope) + '#2', 'window', 'nested'],
+    undefined
+  ];
+  assert_equals(message_event.data.length, 3);
+  assert_array_equals(message_event.data[0], expected[0]);
+  assert_array_equals(message_event.data[1], expected[1]);
+  assert_equals(message_event.data[2], expected[2]);
+}, 'Test Clients.get()');
+
+promise_test(async t => {
+  // Register service worker.
+  const scope = 'resources/simple.html';
+  const registration = await service_worker_unregister_and_register(
+    t, 'resources/clients-get-resultingClientId-worker.js', scope)
+  t.add_cleanup(() =>  registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  const worker = registration.active;
+
+  // Load frame within the scope.
+  const frame = await with_iframe(scope);
+  t.add_cleanup(() => frame.remove());
+  frame.focus();
+
+  // Get resulting client id.
+  const resultingClientId = await new Promise(resolve => {
+    navigator.serviceWorker.onmessage = e => {
+      if (e.data.msg == 'getResultingClientId') {
+        resolve(e.data.resultingClientId);
+      }
+    };
+    worker.postMessage({msg: 'getResultingClientId'});
+  });
+
+  // Query service worker for clients.get(resultingClientId).
+  const isResultingClientUndefined = await new Promise(resolve => {
+    navigator.serviceWorker.onmessage = e => {
+      if (e.data.msg == 'getIsResultingClientUndefined') {
+        resolve(e.data.isResultingClientUndefined);
+      }
+    };
+    worker.postMessage({msg: 'getIsResultingClientUndefined',
+                        resultingClientId});
+  });
+
+  assert_false(
+    isResultingClientUndefined,
+    'Clients.get(FetchEvent.resultingClientId) resolved with a Client');
+}, 'Test successful Clients.get(FetchEvent.resultingClientId)');
+
+promise_test(async t => {
+  // Register service worker.
+  const scope = 'resources/simple.html?fail';
+  const registration = await service_worker_unregister_and_register(
+    t, 'resources/clients-get-resultingClientId-worker.js', scope);
+  t.add_cleanup(() =>  registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+
+  // Load frame, and destroy it while loading.
+  const worker = registration.active;
+  let frame = document.createElement('iframe');
+  frame.src = scope;
+  t.add_cleanup(() => {
+    if (frame) {
+      frame.remove();
+    }
+  });
+
+  await new Promise(resolve => {
+    navigator.serviceWorker.onmessage = e => {
+      // The service worker posts a message to remove the iframe during fetch
+      // event.
+      if (e.data.msg == 'destroyResultingClient') {
+        frame.remove();
+        frame = null;
+        worker.postMessage({msg: 'resultingClientDestroyed'});
+        resolve();
+      }
+    };
+    document.body.appendChild(frame);
+  });
+
+  resultingDestroyedClientId = await new Promise(resolve => {
+    navigator.serviceWorker.onmessage = e => {
+      // The worker sends a message back when it receives the message
+      // 'resultingClientDestroyed' with the resultingClientId.
+      if (e.data.msg == 'resultingClientDestroyedAck') {
+        assert_equals(frame, null, 'Frame should be destroyed at this point.');
+        resolve(e.data.resultingDestroyedClientId);
+      }
+    };
+  });
+
+  // Query service worker for clients.get(resultingDestroyedClientId).
+  const isResultingClientUndefined = await new Promise(resolve => {
+    navigator.serviceWorker.onmessage = e => {
+      if (e.data.msg == 'getIsResultingClientUndefined') {
+        resolve(e.data.isResultingClientUndefined);
+      }
+    };
+    worker.postMessage({msg: 'getIsResultingClientUndefined',
+                        resultingClientId: resultingDestroyedClientId });
+  });
+
+  assert_true(
+    isResultingClientUndefined,
+    'Clients.get(FetchEvent.resultingClientId) resolved with `undefined`');
+}, 'Test unsuccessful Clients.get(FetchEvent.resultingClientId)');
+
+</script>

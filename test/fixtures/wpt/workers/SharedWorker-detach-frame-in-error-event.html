@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>Test frame detach in shared worker's error handler</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<iframe id="frame"></iframe>
+</body>
+<script>
+promise_test(t => {
+  const frame = document.getElementById('frame');
+
+  const promise = new Promise(resolve => {
+    window.detachFrame = () => {
+      frame.remove();
+      resolve();
+    };
+  });
+
+  // Start a new worker with an invalid script in the frame, and detach the
+  // frame in the worker's error handler. This shouldn't crash.
+  const s = frame.contentWindow.document.createElement('script');
+  s.innerHTML = "const worker = new SharedWorker('error');" +
+                "worker.onerror = () => { window.parent.detachFrame(); };";
+  frame.contentWindow.document.body.appendChild(s);
+
+  return promise;
+});
+</script>

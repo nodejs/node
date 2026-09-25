@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>respondWith with a response built from a ReadableStream</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script>
+'use strict';
+
+const WORKER =
+  'resources/fetch-event-respond-with-readable-stream-worker.js';
+const SCOPE =
+  'resources/blank.html';
+
+// Register a service worker, then create an iframe at url.
+function iframeTest(url, callback, name) {
+  return promise_test(async t => {
+    const reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+    add_completion_callback(() => reg.unregister());
+    await wait_for_state(t, reg.installing, 'activated');
+    const iframe = await with_iframe(url);
+    const iwin = iframe.contentWindow;
+    t.add_cleanup(() => iframe.remove());
+    await callback(t, iwin);
+  }, name);
+}
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?stream');
+  assert_equals(await response.text(), 'PASS');
+}, 'Subresource built from a ReadableStream');
+
+iframeTest(SCOPE + '?stream', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS');
+}, 'Main resource built from a ReadableStream');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?stream&delay');
+  assert_equals(await response.text(), 'PASS');
+}, 'Subresource built from a ReadableStream - delayed');
+
+iframeTest(SCOPE + '?stream&delay', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS');
+}, 'Main resource built from a ReadableStream - delayed');
+
+iframeTest(SCOPE, async (t, iwin) => {
+  const response = await iwin.fetch('?stream&use-fetch-stream');
+  assert_equals(await response.text(), 'PASS\n');
+}, 'Subresource built from a ReadableStream - fetch stream');
+
+iframeTest(SCOPE + '?stream&use-fetch-stream', (t, iwin) => {
+  assert_equals(iwin.document.body.textContent, 'PASS\n');
+}, 'Main resource built from a ReadableStream - fetch stream');
+
+for (const enqueue of [true, false]) {
+  const withStream = enqueue ? 'with nonempty stream' : 'with empty stream';
+  iframeTest(SCOPE, async (t, iwin) => {
+    const id = token();
+    let response = await iwin.fetch(`?stream&observe-cancel&id=${id}&enqueue=${enqueue}`);
+    response.body.cancel();
+
+    // Wait for a while to avoid a race between the cancel handling and the
+    // second fetch request.
+    await new Promise(r => step_timeout(r, 10));
+
+    response = await iwin.fetch(`?stream&query-cancel&id=${id}`);
+    assert_equals(await response.text(), 'cancelled');
+  }, `Cancellation in the page should be observable in the service worker ${withStream}`);
+
+  iframeTest(SCOPE, async (t, iwin) => {
+    const id = token();
+    const controller = new AbortController();
+    let response = await iwin.fetch(`?stream&observe-cancel&id=${id}&enqueue=${enqueue}`, {
+      signal: controller.signal
+    });
+    controller.abort();
+
+    // Wait for a while to avoid a race between the cancel handling and the
+    // second fetch request.
+    await new Promise(r => step_timeout(r, 10));
+
+    response = await iwin.fetch(`?stream&query-cancel&id=${id}`);
+    assert_equals(await response.text(), 'cancelled');
+  }, `Abort in the page should be observable in the service worker ${withStream}`);
+}
+
+</script>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>register() and scope</title>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(function(t) {
+    var script = 'resources/empty-worker.js';
+    var script_url = new URL(script, location.href);
+    var expected_scope = new URL('./', script_url).href;
+    return service_worker_unregister(t, expected_scope)
+      .then(function() {
+        return navigator.serviceWorker.register('resources/empty-worker.js');
+      }).then(function(registration) {
+        assert_equals(registration.scope, expected_scope,
+                      'The default scope should be URL("./", script_url)');
+        return registration.unregister();
+      }).then(function() {
+        t.done();
+      });
+  }, 'default scope');
+
+promise_test(function(t) {
+    // This script must be different than the 'default scope' test, or else
+    // the scopes will collide.
+    var script = 'resources/empty.js';
+    var script_url = new URL(script, location.href);
+    var expected_scope = new URL('./', script_url).href;
+    return service_worker_unregister(t, expected_scope)
+      .then(function() {
+        return navigator.serviceWorker.register('resources/empty.js',
+                                                { scope: undefined });
+      }).then(function(registration) {
+        assert_equals(registration.scope, expected_scope,
+                      'The default scope should be URL("./", script_url)');
+        return registration.unregister();
+      }).then(function() {
+        t.done();
+      });
+  }, 'undefined scope');
+
+promise_test(function(t) {
+    var script = 'resources/simple-fetch-worker.js';
+    var script_url = new URL(script, location.href);
+    var expected_scope = new URL('./', script_url).href;
+    return service_worker_unregister(t, expected_scope)
+      .then(function() {
+        return navigator.serviceWorker.register('resources/empty.js',
+                                                { scope: null });
+      })
+      .then(
+        function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, registration.scope);
+            });
+
+          assert_unreached('register should fail');
+        },
+        function(error) {
+          assert_equals(error.name, 'SecurityError',
+                        'passing a null scope should be interpreted as ' +
+                        'scope="null" which violates the path restriction');
+          t.done();
+        });
+  }, 'null scope');
+
+</script>

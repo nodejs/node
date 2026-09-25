@@ -1,0 +1,6 @@
+*%(basename)s:*: TypeError: FinalizationRegistry: cleanup must be callable
+let fg = new FinalizationRegistry();
+         ^
+TypeError: FinalizationRegistry: cleanup must be callable
+    at new FinalizationRegistry (<anonymous>)
+    at *%(basename)s:*:10

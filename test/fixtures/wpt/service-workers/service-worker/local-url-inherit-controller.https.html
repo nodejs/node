@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<title>Service Worker: local URL windows and workers inherit controller</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+const SCRIPT = 'resources/local-url-inherit-controller-worker.js';
+const SCOPE = 'resources/local-url-inherit-controller-frame.html';
+
+async function doAsyncTest(t, opts) {
+  let name = `${opts.scheme}-${opts.child}-${opts.check}`;
+  let scope = SCOPE + '?name=' + name;
+  let reg = await service_worker_unregister_and_register(t, SCRIPT, scope);
+  add_completion_callback(_ => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  let frame = await with_iframe(scope);
+  add_completion_callback(_ => frame.remove());
+  assert_not_equals(frame.contentWindow.navigator.serviceWorker.controller, null,
+                    'frame should be controlled');
+
+  let result = await frame.contentWindow.checkChildController(opts);
+  result = result.data;
+
+  let expect = 'unexpected';
+  if (opts.check === 'controller') {
+    expect = opts.expect === 'inherit'
+               ? frame.contentWindow.navigator.serviceWorker.controller.scriptURL
+               : null;
+  } else if (opts.check === 'fetch') {
+    // The service worker FetchEvent handler will provide an "intercepted"
+    // body.  If the local URL ends up with an opaque origin and is not
+    // intercepted then it will get an opaque Response.  In that case it
+    // should see an empty string body.
+    expect = opts.expect === 'intercept' ? 'intercepted' : '';
+  }
+
+  assert_equals(result, expect,
+                `${opts.scheme} URL ${opts.child} should ${opts.expect} ${opts.check}`);
+}
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'blob',
+    child: 'iframe',
+    check: 'controller',
+    expect: 'inherit',
+  });
+}, 'Same-origin blob URL iframe should inherit service worker controller.');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'blob',
+    child: 'iframe',
+    check: 'fetch',
+    expect: 'intercept',
+  });
+}, 'Same-origin blob URL iframe should intercept fetch().');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'blob',
+    child: 'worker',
+    check: 'controller',
+    expect: 'inherit',
+  });
+}, 'Same-origin blob URL worker should inherit service worker controller.');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'blob',
+    child: 'worker',
+    check: 'fetch',
+    expect: 'intercept',
+  });
+}, 'Same-origin blob URL worker should intercept fetch().');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'blob',
+    child: 'sharedworker',
+    check: 'controller',
+    expect: 'inherit',
+  });
+}, 'Same-origin blob URL sharedworker should inherit service worker controller.');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'blob',
+    child: 'sharedworker',
+    check: 'fetch',
+    expect: 'intercept',
+  });
+}, 'Same-origin blob URL sharedworker should intercept fetch().');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'data',
+    child: 'iframe',
+    check: 'fetch',
+    expect: 'not intercept',
+  });
+}, 'Data URL iframe should not intercept fetch().');
+
+promise_test(function(t) {
+  // Data URLs should result in an opaque origin and should probably not
+  // have access to a cross-origin service worker.  See:
+  //
+  // https://github.com/w3c/ServiceWorker/issues/1262
+  //
+  return doAsyncTest(t, {
+    scheme: 'data',
+    child: 'worker',
+    check: 'controller',
+    expect: 'not inherit',
+  });
+}, 'Data URL worker should not inherit service worker controller.');
+
+promise_test(function(t) {
+  return doAsyncTest(t, {
+    scheme: 'data',
+    child: 'worker',
+    check: 'fetch',
+    expect: 'not intercept',
+  });
+}, 'Data URL worker should not intercept fetch().');
+
+</script>
+</body>

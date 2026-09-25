@@ -1,0 +1,37 @@
+<!doctype html>
+<title>structured clone to shared worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src=/common/sab.js></script>
+<script src=/html/webappapis/structured-clone/structured-clone-battery-of-tests.js></script>
+<script src=/html/webappapis/structured-clone/structured-clone-battery-of-tests-with-transferables.js></script>
+<script src=/html/webappapis/structured-clone/structured-clone-battery-of-tests-harness.js></script>
+<div id=log></div>
+<script>
+  runStructuredCloneBatteryOfTests({
+    setup() {
+      const blob = new Blob([`
+        onconnect = ev => {
+          const port = ev.ports[0];
+          port.onmessage = ev => port.postMessage(ev.data, ev.data.transfer);
+        };
+      `], {type: 'text/javascript'});
+      this.blobURL = URL.createObjectURL(blob);
+      this.worker = new SharedWorker(this.blobURL);
+      this.port = this.worker.port;
+    },
+    structuredClone(data, transfer) {
+      return new Promise(resolve => {
+        this.port.addEventListener('message', function f(ev) {
+          this.port.removeEventListener('message', f);
+          resolve(ev.data.data);
+        }.bind(this));
+        this.port.start();
+        this.port.postMessage({data, transfer}, transfer);
+      });
+    },
+    teardown() {
+      URL.revokeObjectURL(this.blobURL);
+    }
+  });
+</script>

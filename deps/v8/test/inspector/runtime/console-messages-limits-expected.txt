@@ -1,0 +1,7 @@
+Checks that console message storage doesn't exceed limits
+
+Running test: testMaxConsoleMessagesCount
+Messages reported: 1000
+
+Running test: testMaxConsoleMessagesV8Size
+Messages reported: 5

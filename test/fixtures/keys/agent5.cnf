@@ -1,0 +1,21 @@
+[ req ]
+string_mask            = utf8only
+utf8                   = yes
+default_bits           = 2048
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+
+[ req_distinguished_name ]
+C                      = HU
+L                      = Budapest
+O                      = Tresorit
+CN                     = Ádám Lippai
+emailAddress           = adam.lippai@tresorit.com
+
+[ req_attributes ]
+challengePassword              = A challenge password
+
+[ ext_key_usage ]
+extendedKeyUsage       = clientAuth

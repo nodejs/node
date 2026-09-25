@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Malformed arrow function parameter list
+(y=(""+"")+""=>n
+    ^^^^^^^
+SyntaxError: Malformed arrow function parameter list

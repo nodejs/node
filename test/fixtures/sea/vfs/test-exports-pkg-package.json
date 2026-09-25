@@ -1,0 +1,5 @@
+{
+  "name": "test-exports-pkg",
+  "version": "1.0.0",
+  "exports": { ".": "./lib/entry.js" }
+}

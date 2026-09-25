@@ -1,0 +1,17 @@
+<!doctype html>
+<title>shared worker, addEventListener</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({allow_uncaught_exception:true});
+async_test(function() {
+  window.onerror = this.step_func(function(a) {
+    assert_unreached('window.onerror invoked: ' + a);
+  });
+  var worker = new SharedWorker('002.js', '');
+  worker.port.onmessage = this.step_func_done(function(e) {
+    assert_equals(e.data, '');
+  });
+});
+</script>

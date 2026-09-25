@@ -1,0 +1,17 @@
+<!doctype html>
+<title>getting name</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var tests = [['getting.js#1', ''], ['getting.js#2', 'a'], ['getting.js#3', -0]];
+tests.forEach(function(t) {
+  async_test(function() {
+    var w = new SharedWorker(t[0], t[1]);
+    w.port.onmessage = this.step_func(function(e) {
+      assert_true(e.data);
+      this.done();
+    });
+  });
+});
+</script>

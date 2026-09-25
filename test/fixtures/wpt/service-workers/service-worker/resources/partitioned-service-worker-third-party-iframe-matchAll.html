@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Service Worker: 3P iframe for partitioned service workers</title>
+<script src="./test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="./partitioned-utils.js"></script>
+
+<body>
+  This iframe will register a service worker when it loads and then will use
+  getRegistrations to get a handle to the SW. It will then postMessage to the
+  SW to get the SW's clients via matchAll(). This iframe will then forward the
+  SW's response up, eventually, to the test.
+  <script>
+    async function onLoad() {
+      reg = await setupServiceWorker();
+
+      // Once the SW sends us its ID, forward it up to the window.
+      navigator.serviceWorker.addEventListener('message', evt => {
+        window.parent.postMessage(evt.data, '*');
+      });
+
+      reg.active.postMessage({type: "get-match-all"});
+
+    }
+
+    self.addEventListener('load', onLoad);
+  </script>
+</body>

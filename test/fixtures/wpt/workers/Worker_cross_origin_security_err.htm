@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Worker cross-origin URL</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+    var w = new Worker("ftp://example.org/support/WorkerBasic.js");
+    w.onerror = t.step_func_done(function(e) {
+      assert_true(e instanceof Event);
+    });
+ }, "Cross-origin classic workers should fail to fetch");
+
+async_test(function(t) {
+    var w = new Worker("ftp://example.org/support/WorkerBasic.js", {type: "module"});
+    w.onerror = t.step_func_done(function(e) {
+      assert_true(e instanceof Event);
+    });
+}, "Cross-origin module workers should fail to fetch");
+</script>

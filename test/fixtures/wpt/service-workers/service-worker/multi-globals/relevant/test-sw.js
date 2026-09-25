@@ -1,0 +1,1 @@
+// Service worker for relevant/

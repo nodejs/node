@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll with a blob URL worker client</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const SCRIPT = 'resources/clients-matchall-worker.js';
+
+promise_test(async (t) => {
+  const scope = 'resources/clients-matchall-blob-url-worker.html';
+
+  const reg = await service_worker_unregister_and_register(t, SCRIPT, scope);
+  t.add_cleanup(_ => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  const frame = await with_iframe(scope);
+  t.add_cleanup(_ => frame.remove());
+
+  {
+    const message = await frame.contentWindow.waitForWorker();
+    assert_equals(message.data, 'Worker is ready.',
+                  'Worker should reply to the message.');
+  }
+
+  const channel = new MessageChannel();
+  const message = await new Promise(resolve => {
+    channel.port1.onmessage = resolve;
+    frame.contentWindow.navigator.serviceWorker.controller.postMessage(
+      {port: channel.port2, options: {type: 'worker'}}, [channel.port2]);
+  });
+
+  checkMessageEvent(message);
+
+}, 'Test Clients.matchAll() with a blob URL worker client.');
+
+promise_test(async (t) => {
+  const scope = 'resources/blank.html';
+
+  const reg = await service_worker_unregister_and_register(t, SCRIPT, scope);
+  t.add_cleanup(_ => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  const workerScript = `
+    self.onmessage = (e) => {
+      self.postMessage("Worker is ready.");
+    };
+  `;
+  const blob = new Blob([workerScript], { type: 'text/javascript' });
+  const blobUrl = URL.createObjectURL(blob);
+  const worker = new Worker(blobUrl);
+
+  {
+    const message = await new Promise(resolve => {
+      worker.onmessage = resolve;
+      worker.postMessage("Ping to worker.");
+    });
+    assert_equals(message.data, 'Worker is ready.',
+                  'Worker should reply to the message.');
+  }
+
+  const channel = new MessageChannel();
+  const message = await new Promise(resolve => {
+    channel.port1.onmessage = resolve;
+    reg.active.postMessage(
+      {port: channel.port2,
+       options: {includeUncontrolled: true, type: 'worker'}},
+      [channel.port2]
+    );
+  });
+
+  checkMessageEvent(message);
+
+}, 'Test Clients.matchAll() with an uncontrolled blob URL worker client.');
+
+function checkMessageEvent(e) {
+  assert_equals(e.data.length, 1);
+
+  const workerClient = e.data[0];
+  assert_equals(workerClient[0], undefined); // visibilityState
+  assert_equals(workerClient[1], undefined); // focused
+  assert_true(workerClient[2].includes('blob:')); // url
+  assert_equals(workerClient[3], 'worker'); // type
+  assert_equals(workerClient[4], 'none'); // frameType
+}
+</script>

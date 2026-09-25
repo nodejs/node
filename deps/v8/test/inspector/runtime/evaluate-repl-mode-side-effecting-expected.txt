@@ -1,0 +1,96 @@
+Tests that Runtime.evaluate with REPL mode correctly detects side-effects.
+Test "let" declaration is side-effecting
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+Test "const" declaration is side-effecting
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+Test "const" with side-effects works afterwards
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Test side-effect free expressions can be eagerly evaluated
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 3
+            type : number
+            value : 3
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : hello REPL
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Promise
+            description : Promise
+            objectId : <objectId>
+            subtype : promise
+            type : object
+        }
+    }
+}

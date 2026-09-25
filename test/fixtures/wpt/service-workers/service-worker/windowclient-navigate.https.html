@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<title>Service Worker: WindowClient.navigate() tests</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+'use strict';
+
+const SCOPE = 'resources/blank.html';
+const SCRIPT_URL = 'resources/windowclient-navigate-worker.js';
+const CROSS_ORIGIN_URL =
+  get_host_info()['HTTPS_REMOTE_ORIGIN'] + base_path() + 'resources/blank.html';
+
+navigateTest({
+  description: 'normal',
+  destUrl: 'blank.html?navigate',
+  expected: normalizeURL(SCOPE) + '?navigate',
+});
+
+navigateTest({
+  description: 'blank url',
+  destUrl: '',
+  expected: normalizeURL(SCRIPT_URL)
+});
+
+navigateTest({
+  description: 'in scope but not controlled test on installing worker',
+  destUrl: 'blank.html?navigate',
+  expected: 'TypeError',
+  waitState: 'installing',
+});
+
+navigateTest({
+  description: 'in scope but not controlled test on active worker',
+  destUrl: 'blank.html?navigate',
+  expected: 'TypeError',
+  controlled: false,
+});
+
+navigateTest({
+  description: 'out of scope',
+  srcUrl: '/common/blank.html',
+  destUrl: 'blank.html?navigate',
+  expected: 'TypeError',
+});
+
+navigateTest({
+  description: 'cross origin url',
+  destUrl: CROSS_ORIGIN_URL,
+  expected: null
+});
+
+navigateTest({
+  description: 'invalid url (http://[example.com])',
+  destUrl: 'http://[example].com',
+  expected: 'TypeError'
+});
+
+navigateTest({
+  description: 'invalid url (view-source://example.com)',
+  destUrl: 'view-source://example.com',
+  expected: 'TypeError'
+});
+
+navigateTest({
+  description: 'invalid url (file:///)',
+  destUrl: 'file:///',
+  expected: 'TypeError'
+});
+
+navigateTest({
+  description: 'invalid url (about:blank)',
+  destUrl: 'about:blank',
+  expected: 'TypeError'
+});
+
+navigateTest({
+  description: 'navigate on a top-level window client',
+  destUrl: 'blank.html?navigate',
+  srcUrl: 'resources/loaded.html',
+  scope: 'resources/loaded.html',
+  expected: normalizeURL(SCOPE) + '?navigate',
+  frameType: 'top-level'
+});
+
+async function createFrame(t, parameters) {
+  if (parameters.frameType === 'top-level') {
+    // Wait for window.open is completed.
+    await new Promise(resolve => {
+      const win = window.open(parameters.srcUrl);
+      t.add_cleanup(() => win.close());
+      window.addEventListener('message', (e) => {
+        if (e.data.type === 'LOADED') {
+          resolve();
+        }
+      });
+    });
+  }
+
+  if (parameters.frameType === 'nested') {
+    const frame = await with_iframe(parameters.srcUrl);
+    t.add_cleanup(() => frame.remove());
+  }
+}
+
+function navigateTest(overrideParameters) {
+  // default parameters
+  const parameters = {
+    description: null,
+    srcUrl: SCOPE,
+    destUrl: null,
+    expected: null,
+    waitState: 'activated',
+    scope: SCOPE,
+    controlled: true,
+    // `frameType` can be 'nested' for an iframe WindowClient or 'top-level' for
+    // a main frame WindowClient.
+    frameType: 'nested'
+  };
+
+  for (const key in overrideParameters)
+    parameters[key] = overrideParameters[key];
+
+  promise_test(async function(t) {
+    let pausedLifecyclePort;
+    let scriptUrl = SCRIPT_URL;
+
+    // For in-scope-but-not-controlled test on installing worker,
+    // if the waitState is "installing", then append the query to scriptUrl.
+    if (parameters.waitState === 'installing') {
+      scriptUrl += '?' + parameters.waitState;
+
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.port) {
+          pausedLifecyclePort = event.data.port;
+        }
+      });
+    }
+
+    t.add_cleanup(() => {
+      // Some tests require that the worker remain in a given lifecycle phase.
+      // "Clean up" logic for these tests requires signaling the worker to
+      // release the hold; this allows the worker to be properly discarded
+      // prior to the execution of additional tests.
+      if (pausedLifecyclePort) {
+        // The value of the posted message is inconsequential. A string is
+        // specified here solely to aid in test debugging.
+        pausedLifecyclePort.postMessage('continue lifecycle');
+      }
+    });
+
+    // Create a frame that is not controlled by a service worker.
+    if (!parameters.controlled) {
+      await createFrame(t, parameters);
+    }
+
+    const registration = await service_worker_unregister_and_register(
+        t, scriptUrl, parameters.scope);
+    const serviceWorker = registration.installing;
+    await wait_for_state(t, serviceWorker, parameters.waitState);
+    t.add_cleanup(() => registration.unregister());
+
+    // Create a frame after a service worker is registered so that the frmae is
+    // controlled by an active service worker.
+    if (parameters.controlled) {
+      await createFrame(t, parameters);
+    }
+
+    const response = await new Promise(resolve => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = t.step_func(resolve);
+      serviceWorker.postMessage({
+        port: channel.port2,
+        url: parameters.destUrl,
+        clientUrl: new URL(parameters.srcUrl, location).toString(),
+        frameType: parameters.frameType,
+        expected: parameters.expected,
+        description: parameters.description,
+      }, [channel.port2]);
+    });
+
+    assert_equals(response.data, null);
+    await fetch_tests_from_worker(serviceWorker);
+  }, parameters.description);
+}
+</script>
+</body>

@@ -1,0 +1,191 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise.h'
+#include 'src/builtins/builtins-promise-gen.h'
+#include 'src/objects/property-array.h'
+
+namespace promise {
+
+struct PromiseAllWrapResultAsFulfilledFunctor {
+  macro Call(_nativeContext: NativeContext, value: JSAny): JSAny {
+    // Make sure that we never see the PromiseHole here as a result.
+    // The other functors are safe as they return JSObjects by construction.
+    check(value != PromiseHole);
+    return value;
+  }
+}
+
+struct PromiseAllSettledWrapResultAsFulfilledFunctor {
+  transitioning macro Call(
+      implicit context: Context)(nativeContext: NativeContext,
+      value: JSAny): JSAny {
+    // TODO(gsathya): Optimize the creation using a cached map to
+    // prevent transitions here.
+    // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
+    const objectFunction =
+        *NativeContextSlot(nativeContext, ContextSlot::OBJECT_FUNCTION_INDEX);
+    const objectFunctionMap =
+        UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
+    const obj = AllocateJSObjectFromMap(objectFunctionMap);
+
+    // 10. Perform ! CreateDataProperty(obj, "status", "fulfilled").
+    FastCreateDataProperty(
+        obj, StringConstant('status'), StringConstant('fulfilled'));
+
+    // 11. Perform ! CreateDataProperty(obj, "value", x).
+    FastCreateDataProperty(obj, StringConstant('value'), value);
+    return obj;
+  }
+}
+
+struct PromiseAllSettledWrapResultAsRejectedFunctor {
+  transitioning macro Call(
+      implicit context: Context)(nativeContext: NativeContext,
+      value: JSAny): JSAny {
+    // TODO(gsathya): Optimize the creation using a cached map to
+    // prevent transitions here.
+    // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
+    const objectFunction =
+        *NativeContextSlot(nativeContext, ContextSlot::OBJECT_FUNCTION_INDEX);
+    const objectFunctionMap =
+        UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
+    const obj = AllocateJSObjectFromMap(objectFunctionMap);
+
+    // 10. Perform ! CreateDataProperty(obj, "status", "rejected").
+    FastCreateDataProperty(
+        obj, StringConstant('status'), StringConstant('rejected'));
+
+    // 11. Perform ! CreateDataProperty(obj, "reason", x).
+    FastCreateDataProperty(obj, StringConstant('reason'), value);
+    return obj;
+  }
+}
+
+extern macro LoadJSReceiverIdentityHash(JSReceiver): uint32 labels IfNoHash;
+
+type PromiseAllResolveElementContext extends FunctionContext;
+extern enum PromiseAllResolveElementContextSlots extends intptr
+    constexpr 'PromiseBuiltins::PromiseAllResolveElementContextSlots' {
+  kPromiseAllResolveElementRemainingSlot:
+      Slot<PromiseAllResolveElementContext, Smi>,
+  kPromiseAllResolveElementCapabilitySlot:
+      Slot<PromiseAllResolveElementContext, PromiseCapability>,
+  kPromiseAllResolveElementValuesSlot:
+      Slot<PromiseAllResolveElementContext, FixedArray>,
+  kPromiseAllResolveElementLength
+}
+extern operator '[]=' macro StoreContextElementNoCell(
+    Context, constexpr PromiseAllResolveElementContextSlots, Object): void;
+extern operator '[]' macro LoadContextElementNoCell(
+    Context, constexpr PromiseAllResolveElementContextSlots): Object;
+
+const kPropertyArrayNoHashSentinel: constexpr int31
+    generates 'PropertyArray::kNoHashSentinel';
+
+const kPropertyArrayHashFieldMax: constexpr int31
+    generates 'PropertyArray::HashField::kMax';
+
+transitioning macro PromiseAllResolveElementClosure<F: type>(
+    implicit context: PromiseAllResolveElementContext)(value: JSAny,
+    function: JSFunction, wrapResultFunctor: F): JSAny {
+  // Determine the index from the {function}.
+  dcheck(kPropertyArrayNoHashSentinel == 0);
+  const identityHash =
+      LoadJSReceiverIdentityHash(function) otherwise unreachable;
+  dcheck(ChangeUint32ToWord(identityHash) < kSmiMaxValue);
+  const index = Signed(ChangeUint32ToWord(identityHash)) - 1;
+
+  let remainingElementsCount = *ContextSlot(
+      context,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementRemainingSlot);
+
+  // If all promises were already resolved (and/or rejected for allSettled), the
+  // remaining count will already be 0.
+  if (remainingElementsCount == 0) deferred {
+      return Undefined;
+    }
+
+  let values = *ContextSlot(
+      context,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementValuesSlot);
+  const newCapacity = index + 1;
+  if (newCapacity > values.length_intptr) deferred {
+      // This happens only when the promises are resolved during iteration.
+      values = ExtractFixedArray(
+          values, 0, values.length_intptr, newCapacity, PromiseHole);
+      *ContextSlot(
+          context,
+          PromiseAllResolveElementContextSlots::
+              kPromiseAllResolveElementValuesSlot) = values;
+    }
+
+  // Check whether a reject or resolve closure was already called for this
+  // promise.
+  if (values.objects[index] != PromiseHole) {
+    return Undefined;
+  }
+
+  // Update the value depending on whether Promise.all or
+  // Promise.allSettled is called.
+  const nativeContext = LoadNativeContext(context);
+  const updatedValue = wrapResultFunctor.Call(nativeContext, value);
+
+  values.objects[index] = updatedValue;
+
+  remainingElementsCount = remainingElementsCount - 1;
+  check(remainingElementsCount >= 0);
+
+  *ContextSlot(
+      context,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementRemainingSlot) = remainingElementsCount;
+  if (remainingElementsCount == 0) {
+    const capability = *ContextSlot(
+        context,
+        PromiseAllResolveElementContextSlots::
+            kPromiseAllResolveElementCapabilitySlot);
+    const resolve = UnsafeCast<JSAny>(capability.resolve);
+    const arrayMap =
+        *NativeContextSlot(
+        nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
+
+    // After this point, values escapes to user code. Clear the slot.
+    *ContextSlot(
+        context,
+        PromiseAllResolveElementContextSlots::
+            kPromiseAllResolveElementValuesSlot) = kEmptyFixedArray;
+
+    const valuesArray = NewJSArray(arrayMap, values);
+    Call(context, resolve, Undefined, valuesArray);
+  }
+  return Undefined;
+}
+
+transitioning javascript builtin PromiseAllResolveElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
+  const context = %RawDownCast<PromiseAllResolveElementContext>(context);
+  return PromiseAllResolveElementClosure(
+      value, target, PromiseAllWrapResultAsFulfilledFunctor{});
+}
+
+transitioning javascript builtin PromiseAllSettledResolveElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
+  const context = %RawDownCast<PromiseAllResolveElementContext>(context);
+  return PromiseAllResolveElementClosure(
+      value, target, PromiseAllSettledWrapResultAsFulfilledFunctor{});
+}
+
+transitioning javascript builtin PromiseAllSettledRejectElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
+  const context = %RawDownCast<PromiseAllResolveElementContext>(context);
+  return PromiseAllResolveElementClosure(
+      value, target, PromiseAllSettledWrapResultAsRejectedFunctor{});
+}
+}

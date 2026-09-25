@@ -1,0 +1,509 @@
+/* CSS specific to the live ranges div associated with
+   the RangeView typescript class in src/range-view.ts. */
+
+:root {
+  --range-y-axis-width: 18ch;
+  --range-position-width: 1.5ch;
+  --range-block-border: 6px;
+  --range-instr-border: 3px;
+  --range-position-border: 1px;
+  --range-flipped-position-height: 1em;
+  --range-axes-border-buffer: 6px;
+}
+
+.range-bold {
+  font-weight: bold;
+  color: black;
+}
+
+.selected.range-interval-position,
+.selected.range-interval-wrapper {
+  background-color: rgb(255, 224, 51);
+}
+
+.selected.range-interval,
+.selected.range-interval > .selected.range-interval-wrapper {
+  background-color: rgb(86, 235, 72);
+}
+
+.selected.range-instruction-id {
+  background-color: rgb(255, 133, 51);
+}
+
+#ranges {
+  font-family: monospace;
+  min-height: auto;
+  overflow: hidden;
+}
+
+#resizer-ranges {
+  height: 10px;
+}
+
+.range-title-div {
+  box-sizing: border-box;
+  padding: 2ch 2ch 2ch 2ch;
+  white-space: nowrap;
+  overflow: auto;
+}
+
+.range-title {
+  text-decoration: underline;
+  font-weight: bold;
+  font-size: large;
+  display: inline-block;
+}
+
+.range-title-help {
+  margin-left: 2ch;
+  width: 1ch;
+  padding: 0 0.25ch;
+  border: 1px dotted black;
+  color: slategray;
+  display: inline-block;
+}
+
+label.range-toggle-setting {
+  text-align: right;
+  float: right;
+}
+
+input.range-toggle-show,
+input.range-toggle-setting {
+  vertical-align: middle;
+}
+
+.range-toggle-form {
+  display: inline;
+}
+
+.range-header-label-x {
+  text-align: center;
+  margin-left: 13ch;
+}
+
+.range-header-label-y {
+  width: 11ch;
+  float: left;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-left: 6ch;
+  margin-top: 4ch;
+}
+
+.range-y-axis {
+  display: inline-block;
+  width: var(--range-y-axis-width);
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.range-header {
+  display: flex;
+  overflow: hidden;
+  height: 8ch;
+  margin-left: var(--range-y-axis-width);
+}
+
+.range-position-labels,
+.range-register-labels {
+  background-color: lightgray;
+}
+
+#ranges.not_flipped .range-register-labels,
+#ranges.flipped .range-position-labels {
+  float: right;
+  border-bottom: var(--range-axes-border-buffer) solid white;
+
+}
+
+#ranges.not_flipped .range-position-labels,
+#ranges.flipped .range-register-labels {
+  margin-top: auto;
+  border-right: var(--range-axes-border-buffer) solid white;
+}
+
+#ranges.flipped .range-register-labels {
+  border-right: 2px solid white;
+}
+
+#ranges.not_flipped .range-registers {
+  float: right;
+  overflow: hidden;
+  text-align: right;
+}
+
+#ranges.not_flipped .range-positions-header,
+#ranges.not_flipped .range-instruction-ids,
+#ranges.not_flipped .range-block-ids,
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#ranges .range-positions-header,
+#ranges .range-instruction-ids,
+#ranges .range-block-ids,
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type {
+  display: grid;
+  grid-gap: 0;
+}
+
+#ranges.not_flipped .range-registers-type {
+  width: 0ch;
+}
+
+.range-type-header {
+  display: inline-block;
+  text-align: center;
+}
+
+.range-type-header::after {
+  float: right;
+}
+
+#ranges.not_flipped .range-reg {
+  width: 13ch;
+  text-align: right;
+}
+
+#ranges.not_flipped .range-reg::after {
+  content: ":";
+}
+
+#ranges.flipped .range-reg {
+  display: inline-block;
+  text-align: center;
+}
+
+#ranges.flipped .range-registers .range-reg {
+  white-space: pre-line;
+}
+
+.range-grid {
+  overflow: auto;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.range-block-id {
+  display: inline-block;
+  text-align: center;
+}
+
+.range-instruction-id {
+  display: inline-block;
+  text-align: center;
+}
+
+.range-position {
+  display: inline-block;
+  text-align: center;
+  z-index: 1;
+}
+
+#ranges.not_flipped .range-position {
+  color: transparent;
+}
+
+.range-transparent,
+.range-position.range-empty,
+#ranges.flipped .range-position.range-empty {
+  color: transparent;
+}
+
+#ranges.flipped .range-interval-text {
+  writing-mode: horizontal-tb;
+}
+
+#ranges.flipped .range-interval-wrapper {
+  writing-mode: vertical-lr;
+}
+
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type,
+#ranges.flipped .range-grid,
+#ranges.flipped .range-positions-group  {
+  display: inline-grid;
+  grid-gap: 0;
+}
+
+#ranges.flipped .range-grid {
+  writing-mode: vertical-lr;
+  grid-template-rows: repeat(var(--range-num-registers, 0), calc(var(--range-position-width) + (2 * var(--range-position-border))));
+}
+
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type {
+  grid-template-columns: repeat(var(--range-num-registers, 0), calc(var(--range-position-width) + (2 * var(--range-position-border))));
+}
+
+#ranges.flipped .range-position-labels {
+  display: grid;
+  grid-gap: 0;
+  writing-mode: vertical-lr;
+  grid-template-rows: repeat(3, calc(5.5ch + (2 * var(--range-position-border))));
+  border-bottom: 2px solid white;
+}
+
+#ranges.flipped .range-interval-wrapper,
+#ranges.flipped .range-grid .range-positions {
+  grid-template-rows: calc(var(--range-position-width) + (2 * var(--range-position-border)));
+}
+
+.range-block-id:hover,
+.range-instruction-id:hover,
+.range-reg:hover,
+.range-position:hover {
+  background-color: rgba(0, 0, 255, 0.10);
+}
+
+.range-block-id.selected:hover {
+  background-color: rgb(153, 229, 179);
+}
+
+.range-instruction-id.selected:hover {
+  background-color: rgb(229, 119, 72);
+}
+
+.range-reg.selected:hover,
+.range-position.selected:hover {
+  background-color: rgb(229, 229, 72);
+}
+
+.range-interval-position.selected:hover {
+  background-color: rgb(229, 201, 71);
+}
+
+.selected.range-interval,
+.selected.range-interval > .selected.range-interval-wrapper {
+  background-color: rgb(86, 235, 72);
+}
+
+.focused.range-block-id,
+.focused.range-instruction-id,
+.focused.range-reg,
+.focused.range-position {
+  background-color: rgb(45, 126, 202);
+}
+
+.range-type-header,
+.range-block-id,
+.range-instruction-id,
+.range-reg,
+.range-position {
+  position: relative;
+  border: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+.range-interval {
+  position: relative;
+}
+
+#ranges.not_flipped .range-block-id,
+#ranges.not_flipped .range-instruction-id,
+#ranges.not_flipped .range-interval,
+#ranges.not_flipped .range-position {
+  border-left: 0;
+}
+
+#ranges.flipped .range-block-id,
+#ranges.flipped .range-instruction-id,
+#ranges.flipped .range-interval,
+#ranges.flipped .range-position {
+  border-top: 0;
+}
+
+#ranges.not_flipped .range-block-ids > .range-block-id:first-child,
+#ranges.not_flipped .range-instruction-ids > .range-instruction-id:first-child,
+#ranges.not_flipped .range-positions > .range-position:first-child {
+  border-left: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-block-ids > .range-block-id:first-child,
+#ranges.flipped .range-instruction-ids > .range-instruction-id:first-child,
+#ranges.flipped .range-positions > .range-position:first-child {
+  border-top: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+.range-position.range-interval-position {
+  border: none;
+}
+
+#ranges.not_flipped .range-position.range-interval-position {
+  border-top: var(--range-position-border) solid rgb(109, 107, 107);
+  border-bottom: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-position.range-interval-position {
+  border-left: var(--range-position-border) solid rgb(109, 107, 107);
+  border-right: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-interval-position:first-child {
+  padding-top: 0px;
+}
+
+#ranges.not_flipped .range-interval-position:last-child {
+  border-right: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-interval-position:last-child {
+  padding-bottom: 0px;
+  border-bottom: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+.range-interval-text {
+  position: absolute;
+  padding-left: 0.5ch;
+  z-index: 2;
+  pointer-events: none
+}
+
+#ranges.flipped .range-interval-text {
+  width: 1ch;
+  overflow-wrap: break-word;
+  white-space: normal;
+  /* padding + 1ch + padding = width */
+  padding-left: calc((var(--range-position-width) - 1ch) / 2.0);
+}
+
+#ranges.flipped .range-interval-text-behind {
+  overflow-wrap: normal;
+}
+
+#ranges.not_flipped .range-position.range-use {
+  border-left: var(--range-instr-border) solid red;
+}
+
+#ranges.flipped .range-position.range-use {
+  border-top: var(--range-instr-border) solid red;
+}
+
+#ranges.not_flipped .range-block-border,
+#ranges.not_flipped .range-block-border.range-position.range-interval-position:last-child {
+  border-right: var(--range-block-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-block-border,
+#ranges.flipped .range-block-border.range-position.range-interval-position:last-child {
+  border-bottom: var(--range-block-border) solid rgb(109, 107, 107);
+}
+
+#ranges.not_flipped .range-block-border.range-position.range-interval-position {
+  border-right: none;
+}
+
+#ranges.flipped .range-block-border.range-position.range-interval-position {
+  border-bottom: none;
+}
+
+#ranges.not_flipped .range-instr-border,
+#ranges.not_flipped .range-instr-border.range-position.range-interval-position:last-child {
+  border-right: var(--range-instr-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-instr-border,
+#ranges.flipped .range-instr-border.range-position.range-interval-position:last-child {
+  border-bottom: var(--range-instr-border) solid rgb(109, 107, 107);
+}
+
+#ranges.not_flipped .range-instr-border.range-position.range-interval-position {
+  border-right: none;
+}
+
+#ranges.flipped .range-instr-border.range-position.range-interval-position {
+  border-bottom: none;
+}
+
+.range-block-id.selected.focused:hover,
+.range-instruction-id.selected.focused:hover,
+.range-reg.selected.focused:hover,
+.range-position.selected.focused:hover,
+.focused:hover {
+  background-color: rgb(50, 158, 221);
+}
+
+.range,
+.range-interval,
+.range-interval-wrapper,
+.range-positions {
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.range-interval-wrapper,
+.range-positions {
+  display: grid;
+  grid-gap: 0;
+}
+
+#ranges.not_flipped .range-instruction-ids,
+#ranges.not_flipped .range-block-ids,
+#ranges.not_flipped .range-positions {
+  grid-template-columns: repeat(var(--range-num-positions, 0), calc(var(--range-position-width) + var(--range-block-border)));
+  width: calc((var(--range-num-positions, 0) * (var(--range-position-width) + var(--range-block-border))) - var(--range-axes-border-buffer));
+}
+
+#ranges.flipped .range-instruction-ids,
+#ranges.flipped .range-block-ids,
+#ranges.flipped .range-positions {
+  writing-mode: vertical-lr;
+  grid-template-columns: repeat(var(--range-num-positions, 0), calc(var(--range-flipped-position-height) + var(--range-block-border)));
+  height: calc((var(--range-num-positions, 0) * (var(--range-flipped-position-height) + var(--range-block-border))) - var(--range-axes-border-buffer));
+}
+
+#ranges.flipped .range-instruction-id {
+  display: grid;
+  grid-gap: 0;
+  grid-template-rows: repeat(8, calc((var(--range-flipped-position-height) + var(--range-block-border)) / 2));
+}
+
+#ranges.flipped .range-instruction-id-number {
+  grid-row: 4 / 5;
+  height: 100%;
+}
+
+#ranges.flipped .range-block-id {
+  display: grid;
+  grid-gap: 0;
+}
+
+#ranges.flipped .range-block-id-number {
+  height: 100%;
+}
+
+#ranges.flipped .range-header-element {
+  writing-mode: horizontal-tb;
+}
+
+.range-interval {
+  background-color: rgb(153, 158, 168);
+}
+
+#ranges.flipped .range-interval {
+  display: block;
+}
+
+.range-hidden {
+  display: none !important;
+}
+
+.range-positions-placeholder {
+  width: 100%;
+  border: var(--range-position-border) solid transparent;
+  color: transparent;
+}
+
+.range-background-canvas-div {
+  float: left;
+  position: absolute;
+  z-index: -1;
+}
+
+.range-background-div {
+  --range-position-border: 0px;
+}

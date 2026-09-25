@@ -1,0 +1,19 @@
+<!doctype html>
+<title>messagechannel in shared worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<iframe src=008-1.html></iframe>
+<script>
+var t = async_test();
+onload = t.step_func(function() {
+  var w1 = new SharedWorker('008.js');
+  w1.port.onmessage = this.step_func(function(e) {
+    e.ports[0].onmessage = this.step_func(function(e) {
+      assert_equals(e.data, 2);
+      this.done();
+    });
+  });
+  w1.onerror = this.unreached_func("error");
+});
+</script>

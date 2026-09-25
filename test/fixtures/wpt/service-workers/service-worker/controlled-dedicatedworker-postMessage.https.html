@@ -1,0 +1,45 @@
+<html>
+<head>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+</head>
+<body>
+<script>
+promise_test(async (test) => {
+    const registration = await navigator.serviceWorker.register("postMessage-client-worker.js", { scope : 'resources' });
+    activeWorker = registration.active;
+    if (activeWorker)
+        return;
+
+    activeWorker = registration.installing;
+    await new Promise(resolve => {
+        activeWorker.addEventListener('statechange', () => {
+            if (activeWorker.state === "activated")
+                resolve();
+        });
+    });
+}, "Register service worker");
+
+promise_test(async (test) => {
+    const worker = new Worker('resources/controlled-worker-postMessage.js');
+    const event = await new Promise((resolve, reject) => {
+       test.step_timeout(() => reject("test timed out"), 3000);
+       worker.onmessage = resolve;
+    });
+    assert_equals(event.data, 0);
+}, "Verify dedicated worker gets messages if setting event listener early");
+
+promise_test(async (test) => {
+    const worker = new Worker('resources/controlled-worker-late-postMessage.js?repeatMessages');
+    const event = await new Promise((resolve, reject) => {
+       test.step_timeout(() => reject("test timed out"), 3000);
+       worker.onmessage = resolve;
+    });
+    assert_not_equals(event.data, "No message received");
+    assert_true(event.data > 0);
+}, "Verify dedicated worker does not get all messages if not setting event listener early");
+</script>
+</body>
+</html>

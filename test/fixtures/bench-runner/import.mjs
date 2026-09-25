@@ -1,0 +1,1 @@
+globalThis.benchImport = 'loaded';

@@ -1,0 +1,80 @@
+# This action uses the following secrets:
+#   JENKINS_USER: GitHub user whose Jenkins token is defined below
+#   JENKINS_TOKEN: Jenkins token, to be used to start or resume CI
+name: Auto Start CI
+
+on:
+  schedule:
+    # Runs every five minutes (fastest the scheduler can run). Five minutes is
+    # optimistic, it can take longer to run.
+    # To understand why `schedule` is used instead of other events, refer to
+    # ./doc/contributing/commit-queue.md
+    - cron: 3/5 * * * *
+
+concurrency: ${{ github.workflow }}
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  get-prs-for-ci:
+    permissions:
+      pull-requests: read
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    outputs:
+      numbers: ${{ steps.get_prs_for_ci.outputs.numbers }}
+    steps:
+      - name: Get Pull Requests
+        id: get_prs_for_ci
+        run: |
+          numbers=$(gh pr list \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --json 'number' \
+                  --search 'review:approved label:request-ci,resume-ci' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 5)
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+  start-ci:
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: write
+      statuses: read
+    needs: get-prs-for-ci
+    if: needs.get-prs-for-ci.outputs.numbers != ''
+    runs-on: ubuntu-slim
+    steps:
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Setup @node-core/utils
+        run: |
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set owner "$GITHUB_REPOSITORY_OWNER"
+          ncu-config set repo "${GITHUB_REPOSITORY#*/}"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ github.token }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
+      - name: Start or resume the CI
+        run: |
+          read -r -a numbers <<< "$PULL_REQUESTS"
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
+          | sh -s -- "${numbers[@]}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUESTS: ${{ needs.get-prs-for-ci.outputs.numbers }}

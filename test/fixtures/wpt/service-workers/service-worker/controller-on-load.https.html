@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>Service Worker: Controller on load</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(function(t) {
+    var url = 'resources/empty-worker.js';
+    var scope = 'resources/blank.html';
+    var registration;
+    var controller;
+    var frame;
+    return service_worker_unregister_and_register(t, url, scope)
+      .then(function(swr) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = swr;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          var w = frame.contentWindow;
+          controller = w.navigator.serviceWorker.controller;
+          assert_true(controller instanceof w.ServiceWorker,
+                      'controller should be a ServiceWorker object');
+          assert_equals(controller.scriptURL, normalizeURL(url));
+
+          // objects from different windows should not be equal
+          assert_not_equals(controller, registration.active);
+
+          return w.navigator.serviceWorker.getRegistration();
+        })
+      .then(function(frameRegistration) {
+          // SW objects from same window should be equal
+          assert_equals(frameRegistration.active, controller);
+          frame.remove();
+        });
+}, 'controller is set for a controlled document');
+</script>
+</body>

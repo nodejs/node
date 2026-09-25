@@ -1,0 +1,5 @@
+Tests for max async call stack depth changed.
+maxAsyncCallStackDepthChanged: 8
+maxAsyncCallStackDepthChanged: 0
+maxAsyncCallStackDepthChanged: 8
+maxAsyncCallStackDepthChanged: 0

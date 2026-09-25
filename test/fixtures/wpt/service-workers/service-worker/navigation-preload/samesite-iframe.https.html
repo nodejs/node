@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Navigation Preload for same site iframe</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<body></body>
+<script>
+
+const SAME_SITE = get_host_info().HTTPS_REMOTE_ORIGIN;
+const RESOURCES_DIR = "/service-workers/service-worker/navigation-preload/resources/";
+
+/**
+ * This test is used for testing the NavigationPreload works in a same site iframe.
+ * The test scenario is
+ * 1. Create a same site iframe to register service worker and wait for it be activated
+ * 2. Create a same site iframe which be intercepted by the service worker.
+ * 3. Once the iframe is loaded, service worker should set the page through the preload response.
+ *    And checking if the iframe's body content is expected.
+ * 4. Unregister the service worker.
+ * 5. remove created iframes.
+ */
+
+promise_test(async (t) => {
+    let resolver;
+    let checkValue = false;
+    window.onmessage = (e) => {
+      if (checkValue) {
+        assert_equals(e.data, "samesite");
+        checkValue = false;
+      }
+      resolver();
+    };
+
+    let helperIframe = document.createElement("iframe");
+    helperIframe.src = SAME_SITE + RESOURCES_DIR + "samesite-sw-helper.html";
+    document.body.appendChild(helperIframe);
+
+    await new Promise(resolve => {
+      resolver = resolve;
+      helperIframe.onload = async () => {
+        helperIframe.contentWindow.postMessage("Register", '*');
+     }
+    });
+
+    let sameSiteIframe = document.createElement("iframe");
+    sameSiteIframe.src = SAME_SITE + RESOURCES_DIR + "samesite-iframe.html";
+    document.body.appendChild(sameSiteIframe);
+    await new Promise(resolve => {
+      resolver = resolve;
+      sameSiteIframe.onload = async() => {
+        checkValue = true;
+        sameSiteIframe.contentWindow.postMessage("GetBody", '*')
+      }
+    });
+
+    await new Promise(resolve => {
+      resolver = resolve;
+      helperIframe.contentWindow.postMessage("Unregister", '*')
+    });
+
+    helperIframe.remove();
+    sameSiteIframe.remove();
+  });
+
+</script>

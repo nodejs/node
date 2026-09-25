@@ -1,0 +1,28 @@
+liftoff  func     0:0x151  mem 0 i32.load     from 0000000100000a94 val:  i32:0 / 0x0
+liftoff  func     1:0x15e  mem 0 i32.load8_u  from 0000000100000a91 val:   i8:0 / 0x0
+liftoff  func     3:0x17a  mem 0 i32.store    to   0000000100000a94 val:  i32:305419896 / 0x12345678
+liftoff  func     0:0x151  mem 0 i32.load     from 0000000100000a92 val:  i32:1450704896 / 0x56780000
+liftoff  func     1:0x15e  mem 0 i32.load8_u  from 0000000100000a96 val:   i8:52 / 0x34
+liftoff  func     2:0x16b  mem 0 f32.load     from 0000000100000a92 val:  f32:6.81697e+13 / 0x56780000
+liftoff  func     4:0x188  mem 0 i32.store8   to   0000000100000a94 val:   i8:171 / 0xab
+liftoff  func     0:0x151  mem 0 i32.load     from 0000000100000a92 val:  i32:1454047232 / 0x56ab0000
+liftoff  func     2:0x16b  mem 0 f32.load     from 0000000100000a92 val:  f32:9.40082e+13 / 0x56ab0000
+liftoff  func     6:0x1a6  mem 0 v128.store   to   0000000100000a94 val: s128:48879 48879 48879 48879 / 0000beef 0000beef 0000beef 0000beef
+liftoff  func     5:0x194  mem 0 v128.load    from 0000000100000a92 val: s128:3203334144 3203334144 3203334144 3203334144 / beef0000 beef0000 beef0000 beef0000
+liftoff  func     7:0x1b3  mem 0 i32.load16_u from 0000000100000a94 val:  i16:48879 / 0xbeef
+liftoff  func     8:0x1c0  mem 0 i64.load     from 0000000100000a92 val:  i64:13758215389843488768 / 0xbeef0000beef0000
+liftoff  func     9:0x1cd  mem 0 f64.load     from 0000000100000a92 val:  f64:-1.4782e-05 / 0xbeef0000beef0000
+liftoff  func    10:0x1da  mem 0 i32.load     from 0000000100000a94 val:  i32:48879 / 0xbeef
+liftoff  func    11:0x1e3  mem 0 i32.load8_u  from 0000000100000a91 val:   i8:0 / 0x0
+liftoff  func    13:0x1f7  mem 0 i32.store    to   0000000100000a94 val:  i32:305419896 / 0x12345678
+liftoff  func    10:0x1da  mem 0 i32.load     from 0000000100000a92 val:  i32:1450704896 / 0x56780000
+liftoff  func    11:0x1e3  mem 0 i32.load8_u  from 0000000100000a96 val:   i8:52 / 0x34
+liftoff  func    12:0x1ec  mem 0 f32.load     from 0000000100000a92 val:  f32:6.81697e+13 / 0x56780000
+liftoff  func    14:0x201  mem 0 i32.store8   to   0000000100000a94 val:   i8:171 / 0xab
+liftoff  func    10:0x1da  mem 0 i32.load     from 0000000100000a92 val:  i32:1454047232 / 0x56ab0000
+liftoff  func    12:0x1ec  mem 0 f32.load     from 0000000100000a92 val:  f32:9.40082e+13 / 0x56ab0000
+liftoff  func    16:0x217  mem 0 v128.store   to   0000000100000a94 val: s128:48879 48879 48879 48879 / 0000beef 0000beef 0000beef 0000beef
+liftoff  func    15:0x209  mem 0 v128.load    from 0000000100000a92 val: s128:3203334144 3203334144 3203334144 3203334144 / beef0000 beef0000 beef0000 beef0000
+liftoff  func    17:0x220  mem 0 i32.load16_u from 0000000100000a94 val:  i16:48879 / 0xbeef
+liftoff  func    18:0x229  mem 0 i64.load     from 0000000100000a92 val:  i64:13758215389843488768 / 0xbeef0000beef0000
+liftoff  func    19:0x232  mem 0 f64.load     from 0000000100000a92 val:  f64:-1.4782e-05 / 0xbeef0000beef0000

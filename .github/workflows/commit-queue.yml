@@ -1,0 +1,203 @@
+# This action requires the following secrets to be set on the repository:
+#   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
+#   JENKINS_USER: GitHub user whose Jenkins token is defined below
+#   JENKINS_TOKEN: Jenkins token, to be used to check CI status
+
+name: Commit Queue
+
+on:
+  # `schedule` event is used instead of `pull_request` because when a
+  # `pull_request` event is triggered on a PR from a fork, GITHUB_TOKEN will
+  # be read-only, and the Action won't have access to any other repository
+  # secrets, which it needs to access Jenkins API.
+  schedule:
+    - cron: 3/5 * * * *
+
+concurrency: ${{ github.workflow }}
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  get_candidate_prs:
+    permissions:
+      pull-requests: read
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    outputs:
+      aged_prs: ${{ steps.get_candidate_prs.outputs.aged_prs }}
+      candidates: ${{ steps.get_candidate_prs.outputs.candidates }}
+    steps:
+      - name: Get Pull Request Candidates
+        id: get_candidate_prs
+        run: |
+          list_prs() {
+            gh pr list \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --base "$GITHUB_REF_NAME" \
+                  --label 'commit-queue' \
+                  "$@" \
+                  --json 'number' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100
+          }
+          aged_prs=$(list_prs \
+                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked")
+          fast_track_prs=$(list_prs \
+                  --label 'fast-track' \
+                  --search "-label:blocked")
+          candidates=$(printf '%s %s\n' "$fast_track_prs" "$aged_prs" |
+                  jq -r -s 'reduce .[] as $pr ([]; if index($pr) then . else . + [$pr] end) | join(" ")')
+          echo "aged_prs=$aged_prs" >> "$GITHUB_OUTPUT"
+          echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+  commitQueue:
+    needs: get_candidate_prs
+    if: needs.get_candidate_prs.outputs.candidates != ''
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
+      statuses: read
+    runs-on: ubuntu-slim
+    steps:
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Configure @node-core/utils
+        run: |
+          # Keep the config outside the workspace so checkout does not remove it.
+          ncu-config --global set branch "${GITHUB_REF_NAME}"
+          ncu-config --global set upstream origin
+          ncu-config --global set username "$USERNAME"
+          ncu-config --global set token "$GH_TOKEN"
+          ncu-config --global set jenkins_token "$JENKINS_TOKEN"
+          ncu-config --global set repo "${GITHUB_REPOSITORY#*/}"
+          ncu-config --global set owner "${GITHUB_REPOSITORY_OWNER}"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ github.token }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
+      - name: Filter Pull Requests
+        id: get_mergeable_prs
+        run: |
+          readme="${RUNNER_TEMP}/README.md"
+          curl -fsSLo "$readme" "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/README.md"
+
+          numbers=
+          lacks_second_approval_prs=
+          # shellcheck disable=SC2086
+          for pr in $CANDIDATES; do
+            metadata="${RUNNER_TEMP}/metadata-${pr}.json"
+            output="${RUNNER_TEMP}/metadata-${pr}.txt"
+            if git node metadata "$pr" \
+                    --readme "$readme" \
+                    --json > "$metadata" 2> "$output"; then
+              metadata_status=0
+            else
+              metadata_status=$?
+            fi
+
+            if [ -s "$output" ]; then
+              cat "$output"
+            fi
+
+            case "$metadata_status" in
+              0|2[0-9]|4[0-9]) ;;
+              *)
+                echo "git node metadata failed for pr ${pr} with exit code ${metadata_status}"
+                exit 1
+                ;;
+            esac
+
+            metadata_exit_code=$(jq -r '.exitCode' "$metadata") || {
+              echo "failed to parse metadata JSON for pr ${pr}"
+              exit 1
+            }
+            if [ "$metadata_exit_code" != "$metadata_status" ]; then
+              echo "metadata JSON exitCode mismatch for pr ${pr}"
+              exit 1
+            fi
+            metadata_reason_codes=$(jq -r '.reasonCodes | join(", ")' "$metadata") || {
+              echo "failed to parse metadata reason codes for pr ${pr}"
+              exit 1
+            }
+
+            if [ "$metadata_status" -eq 0 ]; then
+              echo "pr ${pr} is ready for the commit queue"
+              numbers="$numbers $pr"
+              continue
+            fi
+
+            if [ "$metadata_status" -ge 20 ] && [ "$metadata_status" -le 29 ]; then
+              echo "pr ${pr} skipped, not ready to land"
+              echo "reason codes: ${metadata_reason_codes}"
+              if jq -e '
+                    (.reasonCodes | index("wait-time")) and
+                    (.pullRequest.labels | index("lacks-second-approval") | not)
+                  ' "$metadata" > /dev/null; then
+                case " $AGED_PRS " in
+                  *" $pr "*) lacks_second_approval_prs="$lacks_second_approval_prs $pr" ;;
+                esac
+              fi
+              continue
+            fi
+
+            echo "pr ${pr} will be handled by the commit queue"
+            echo "reason codes: ${metadata_reason_codes}"
+            numbers="$numbers $pr"
+          done
+
+          numbers=$(echo "$numbers" | xargs)
+          lacks_second_approval_prs=$(echo "$lacks_second_approval_prs" | xargs)
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+          echo "lacks_second_approval_prs=$lacks_second_approval_prs" >> "$GITHUB_OUTPUT"
+        env:
+          AGED_PRS: ${{ needs.get_candidate_prs.outputs.aged_prs }}
+          CANDIDATES: ${{ needs.get_candidate_prs.outputs.candidates }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Label Pull Requests Lacking a Second Approval
+        if: steps.get_mergeable_prs.outputs.lacks_second_approval_prs != ''
+        run: |
+          # shellcheck disable=SC2086
+          for pr in $PULL_REQUESTS; do
+            if ! gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label 'lacks-second-approval'; then
+              echo "::warning::Failed to add lacks-second-approval to PR ${pr}"
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PULL_REQUESTS: ${{ steps.get_mergeable_prs.outputs.lacks_second_approval_prs }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.get_mergeable_prs.outputs.numbers != ''
+        with:
+          # A personal token is required because pushing with GITHUB_TOKEN will
+          # prevent commits from running CI after they land. It needs
+          # to be set here because `checkout` configures GitHub authentication
+          # for push as well.
+          token: ${{ secrets.GH_USER_TOKEN }}
+          persist-credentials: true
+
+      - name: Start the Commit Queue
+        if: steps.get_mergeable_prs.outputs.numbers != ''
+        run: |
+          git config --local user.email "github-bot@iojs.org"
+          git config --local user.name "Node.js GitHub Bot"
+          ncu-config set token "$GH_TOKEN"
+          read -r -a numbers <<< "$PULL_REQUESTS"
+          ./tools/actions/commit-queue.sh "${numbers[@]}"
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PULL_REQUESTS: ${{ steps.get_mergeable_prs.outputs.numbers }}

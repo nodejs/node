@@ -1,0 +1,9 @@
+Received signal 11 SEGV_ACCERR 2e2d00002258
+
+==== C stack trace ===============================
+
+ [0x5562678976c6]
+ [0x7f36e5f68980]
+ [0x5561e008adaf]
+[end of stack trace]
+Segmentation fault (core dumped)

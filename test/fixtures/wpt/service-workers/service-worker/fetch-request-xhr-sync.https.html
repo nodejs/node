@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<title>Service Worker: Synchronous XHR is intercepted</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+promise_test(function(t) {
+    var url = 'resources/fetch-request-xhr-sync-worker.js';
+    var scope = 'resources/fetch-request-xhr-sync-iframe.html';
+    var non_existent_file = 'non-existent-file.txt';
+
+    return service_worker_unregister_and_register(t, url, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return registration.unregister();
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope); })
+      .then(function(frame) {
+          t.add_cleanup(function() {
+              frame.remove();
+            });
+
+          return new Promise(function(resolve, reject) {
+              t.step_timeout(function() {
+                  var xhr;
+                  try {
+                    xhr = frame.contentWindow.performSyncXHR(non_existent_file);
+                    resolve(xhr);
+                  } catch (err) {
+                    reject(err);
+                  }
+                }, 0);
+            })
+        })
+      .then(function(xhr) {
+          assert_equals(
+              xhr.status,
+              200,
+              'HTTP response status code for intercepted request'
+            );
+          assert_equals(
+              xhr.responseText,
+              'Response from service worker',
+              'HTTP response text for intercepted request'
+            );
+        });
+  }, 'Verify SyncXHR is intercepted');
+</script>

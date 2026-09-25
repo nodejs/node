@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<title>Service Worker: Cross-origin CSS files fetched via SW.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+function getElementColorInFrame(frame, id) {
+  var element = frame.contentDocument.getElementById(id);
+  var style = frame.contentWindow.getComputedStyle(element, '');
+  return style['color'];
+}
+
+promise_test(async t => {
+  var SCOPE =
+      'resources/fetch-request-css-cross-origin';
+  var SCRIPT =
+      'resources/fetch-request-css-cross-origin-worker.js';
+  let registration = await service_worker_unregister_and_register(
+    t, SCRIPT, SCOPE);
+  promise_test(async t => {
+    await registration.unregister();
+  }, 'cleanup global state');
+
+  await wait_for_state(t, registration.installing, 'activated');
+}, 'setup global state');
+
+promise_test(async t => {
+  const EXPECTED_COLOR = 'rgb(0, 0, 255)';
+  const PAGE =
+      'resources/fetch-request-css-cross-origin-mime-check-iframe.html';
+
+  const f = await with_iframe(PAGE);
+  t.add_cleanup(() => {f.remove(); });
+  assert_equals(
+      getElementColorInFrame(f, 'crossOriginCss'),
+      EXPECTED_COLOR,
+      'The color must be overridden by cross origin CSS.');
+  assert_equals(
+      getElementColorInFrame(f, 'crossOriginHtml'),
+      EXPECTED_COLOR,
+      'The color must not be overridden by cross origin non CSS file.');
+  assert_equals(
+      getElementColorInFrame(f, 'sameOriginCss'),
+      EXPECTED_COLOR,
+      'The color must be overridden by same origin CSS.');
+  assert_equals(
+      getElementColorInFrame(f, 'sameOriginHtml'),
+      EXPECTED_COLOR,
+      'The color must be overridden by same origin non CSS file.');
+  assert_equals(
+      getElementColorInFrame(f, 'synthetic'),
+      EXPECTED_COLOR,
+      'The color must be overridden by synthetic CSS.');
+}, 'MIME checking of CSS resources fetched via service worker when Content-Type is not set.');
+
+promise_test(async t => {
+  const PAGE =
+      'resources/fetch-request-css-cross-origin-read-contents.html';
+
+  const f = await with_iframe(PAGE);
+  t.add_cleanup(() => {f.remove(); });
+  assert_throws_dom('SecurityError', f.contentWindow.DOMException, () => {
+    f.contentDocument.styleSheets[0].cssRules[0].cssText;
+  });
+  assert_equals(
+    f.contentDocument.styleSheets[1].cssRules[0].cssText,
+    '#crossOriginCss { color: blue; }',
+    'cross-origin CORS approved response');
+  assert_equals(
+    f.contentDocument.styleSheets[2].cssRules[0].cssText,
+    '#sameOriginCss { color: blue; }',
+    'same-origin response');
+  assert_equals(
+    f.contentDocument.styleSheets[3].cssRules[0].cssText,
+    '#synthetic { color: blue; }',
+    'service worker generated response');
+  }, 'Same-origin policy for access to CSS resources fetched via service worker');
+
+</script>

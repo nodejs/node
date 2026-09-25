@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Opaque responses should not be reused for XHRs</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const WORKER =
+  'resources/opaque-response-preloaded-worker.js';
+
+var done;
+
+// These test that the browser does not inappropriately use a cached opaque
+// response for a request that is not no-cors. The test opens a controlled
+// iframe that uses link rel=preload to issue a same-origin no-cors request.
+// The service worker responds to the request with an opaque response. Then the
+// iframe does an XHR (not no-cors) to that URL again. The request should fail.
+promise_test(t => {
+    const SCOPE =
+      'resources/opaque-response-being-preloaded-xhr.html';
+    const promise = new Promise(resolve => done = resolve);
+
+    return service_worker_unregister_and_register(t, WORKER, SCOPE)
+      .then(reg => {
+           add_completion_callback(() => reg.unregister());
+           return wait_for_state(t, reg.installing, 'activated');
+         })
+      .then(() => with_iframe(SCOPE))
+      .then(frame => t.add_cleanup(() => frame.remove() ))
+      .then(() => promise)
+      .then(result => assert_equals(result, 'PASS'));
+  }, 'Opaque responses should not be reused for XHRs, loading case');
+
+promise_test(t => {
+    const SCOPE =
+      'resources/opaque-response-preloaded-xhr.html';
+    const promise = new Promise(resolve => done = resolve);
+
+    return service_worker_unregister_and_register(t, WORKER, SCOPE)
+      .then(reg => {
+           add_completion_callback(() => reg.unregister());
+           return wait_for_state(t, reg.installing, 'activated');
+         })
+      .then(() => with_iframe(SCOPE))
+      .then(frame => t.add_cleanup(() => frame.remove() ))
+      .then(() => promise)
+      .then(result => assert_equals(result, 'PASS'));
+  }, 'Opaque responses should not be reused for XHRs, done case');
+
+</script>

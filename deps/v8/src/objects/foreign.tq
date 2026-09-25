@@ -1,0 +1,12 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@apiExposedInstanceTypeValue(0xcc)
+extern class Foreign extends HeapObject {
+  foreign_address: ExternalPointer;
+}
+
+extern class TrustedForeign extends TrustedObject {
+  foreign_address: RawPtr;
+}

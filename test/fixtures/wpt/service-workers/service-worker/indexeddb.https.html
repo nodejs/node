@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>Service Worker: Indexed DB</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function readDB() {
+  return new Promise(function(resolve, reject) {
+      var openRequest = indexedDB.open('db');
+
+      openRequest.onerror = reject;
+      openRequest.onsuccess = function() {
+          var db = openRequest.result;
+          var tx = db.transaction('store');
+          var store = tx.objectStore('store');
+          var getRequest = store.get('key');
+
+          getRequest.onerror = function() {
+              db.close();
+              reject(getRequest.error);
+            };
+          getRequest.onsuccess = function() {
+              db.close();
+              resolve(getRequest.result);
+            };
+        };
+    });
+}
+
+function send(worker, action) {
+  return new Promise(function(resolve, reject) {
+      var messageChannel = new MessageChannel();
+      messageChannel.port1.onmessage = function(event) {
+          if (event.data.type === 'error') {
+            reject(event.data.reason);
+          }
+
+          resolve();
+        };
+
+      worker.postMessage(
+        {action: action, port: messageChannel.port2},
+        [messageChannel.port2]);
+    });
+}
+
+promise_test(function(t) {
+    var scope = 'resources/blank.html';
+
+    return service_worker_unregister_and_register(
+        t, 'resources/indexeddb-worker.js', scope)
+      .then(function(registration) {
+          var worker = registration.installing;
+
+          promise_test(function() {
+              return registration.unregister();
+            }, 'clean up: registration');
+
+          return send(worker, 'create')
+            .then(function() {
+                promise_test(function() {
+                  return new Promise(function(resolve, reject) {
+                        var delete_request = indexedDB.deleteDatabase('db');
+
+                        delete_request.onsuccess = resolve;
+                        delete_request.onerror = reject;
+                      });
+                    }, 'clean up: database');
+              })
+            .then(readDB)
+            .then(function(value) {
+                assert_equals(
+                  value, 'value',
+                  'The get() result should match what the worker put().');
+              });
+        });
+  }, 'Verify Indexed DB operation in a Service Worker');
+</script>

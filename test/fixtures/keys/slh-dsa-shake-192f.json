@@ -1,0 +1,6 @@
+{
+  "priv": "bsd6sYWxjZneB_sh6DQPRtHoaXy4Tk9CM8m_rG1-j9SFEMfhi5R2mI1D0k5aZNH357yJCvE_OYb_ZgESlN_YybjYWF8h8IYv86cfMwDUURrMUJ59UpYvgrIdCVUoiW0g",
+  "kty": "AKP",
+  "alg": "SLH-DSA-SHAKE-192f",
+  "pub": "57yJCvE_OYb_ZgESlN_YybjYWF8h8IYv86cfMwDUURrMUJ59UpYvgrIdCVUoiW0g"
+}

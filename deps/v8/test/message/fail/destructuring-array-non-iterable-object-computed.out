@@ -1,0 +1,5 @@
+*%(basename)s:5: TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+var [a] = (() => ({a: 1}))();
+          ^
+TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+    at *%(basename)s:5:11

@@ -1,0 +1,70 @@
+#if HAVE_OPENSSL && HAVE_QUIC
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
+
+#include <base_object-inl.h>
+#include <env-inl.h>
+#include <memory_tracker-inl.h>
+#include <node_realm-inl.h>
+#include <node_sockaddr-inl.h>
+#include <v8.h>
+#include "bindingdata.h"
+#include "endpoint.h"
+#include "node_external_reference.h"
+
+#include <ngtcp2/ngtcp2_crypto_ossl.h>
+
+namespace node {
+
+using v8::Context;
+using v8::Local;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::Value;
+
+namespace quic {
+
+namespace {
+uv_once_t crypto_init_flag = UV_ONCE_INIT;
+
+void InitNgtcp2CryptoOnce() {
+  ngtcp2_crypto_ossl_init();
+}
+}  // namespace
+
+void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                Local<ObjectTemplate> target) {
+  Endpoint::InitPerIsolate(isolate_data, target);
+  Session::InitPerIsolate(isolate_data, target);
+  Stream::InitPerIsolate(isolate_data, target);
+}
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {
+  uv_once(&crypto_init_flag, InitNgtcp2CryptoOnce);
+  Realm* realm = Realm::GetCurrent(context);
+  BindingData::InitPerContext(realm, target);
+  Endpoint::InitPerContext(realm, target);
+  Session::InitPerContext(realm, target);
+  Stream::InitPerContext(realm, target);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  BindingData::RegisterExternalReferences(registry);
+  Endpoint::RegisterExternalReferences(registry);
+  Session::RegisterExternalReferences(registry);
+  Stream::RegisterExternalReferences(registry);
+}
+
+}  // namespace quic
+}  // namespace node
+
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(quic,
+                                    node::quic::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(quic, node::quic::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(quic, node::quic::RegisterExternalReferences)
+
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL && HAVE_QUIC

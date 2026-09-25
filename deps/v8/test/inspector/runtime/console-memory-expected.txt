@@ -1,0 +1,45 @@
+Checks console.memory
+
+Running test: testWithoutMemory
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+
+Running test: testSetterInStrictMode
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+
+Running test: testWithMemory
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testSetterDoesntOverride
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}

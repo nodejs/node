@@ -1,0 +1,102 @@
+#ifndef SRC_CRYPTO_CRYPTO_EC_H_
+#define SRC_CRYPTO_CRYPTO_EC_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "async_wrap.h"
+#include "base_object.h"
+#include "crypto/crypto_keygen.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
+#include "env.h"
+#include "memory_tracker.h"
+#include "node_internals.h"
+#include "v8.h"
+
+#include <string>
+
+namespace node {
+namespace crypto {
+
+class ECDH final : public BaseObject {
+ public:
+  ~ECDH() override = default;
+
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static ncrypto::ECPointPointer BufferToPoint(Environment* env,
+                                               const EC_GROUP* group,
+                                               v8::Local<v8::Value> buf);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(ECDH)
+  SET_SELF_SIZE(ECDH)
+
+  static void ConvertKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void GetCurves(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+ protected:
+  ECDH(Environment* env,
+       v8::Local<v8::Object> wrap,
+       ncrypto::ECKeyPointer&& key);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  void MaybeCacheValidKeyPair(uint64_t generation);
+  bool IsKeyPairValid();
+  bool IsKeyValidForCurve(const ncrypto::BignumPointer& private_key);
+
+  ncrypto::ECKeyPointer key_;
+  const EC_GROUP* group_;
+  bool has_valid_key_pair_ = false;
+  uint64_t valid_key_pair_generation_ = 0;
+};
+
+struct EcKeyPairParams final : public MemoryRetainer {
+  const ncrypto::KeyAlgorithm* algorithm = nullptr;
+  std::string curve_name;
+  int param_encoding;
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(EcKeyPairParams)
+  SET_SELF_SIZE(EcKeyPairParams)
+};
+
+using EcKeyPairGenConfig = KeyPairGenConfig<EcKeyPairParams>;
+
+struct EcKeyGenTraits final {
+  using AdditionalParameters = EcKeyPairGenConfig;
+  static constexpr const char* JobName = "EcKeyPairGenJob";
+
+  static ncrypto::EVPKeyCtxPointer Setup(EcKeyPairGenConfig* params);
+
+  static v8::Maybe<void> AdditionalConfig(
+      CryptoJobMode mode,
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      unsigned int* offset,
+      EcKeyPairGenConfig* params);
+};
+
+using ECKeyPairGenJob = KeyGenJob<KeyPairGenTraits<EcKeyGenTraits>>;
+
+bool ExportJWKEcKey(Environment* env,
+                    const KeyObjectData& key,
+                    v8::Local<v8::Object> target);
+
+KeyObjectData ImportJWKEcKey(Environment* env, v8::Local<v8::Object> jwk);
+
+bool GetEcKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    v8::Local<v8::Object> target);
+}  // namespace crypto
+}  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // SRC_CRYPTO_CRYPTO_EC_H_

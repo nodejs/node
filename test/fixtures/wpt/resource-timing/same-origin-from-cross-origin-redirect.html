@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates resource timing information for a same-origin
+resource fetched through a cross-origin redirect chain.</title>
+<link rel="author" title="Google" href="https://google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/entry-invariants.js"></script>
+</head>
+<body>
+<script>
+const {HTTP_REMOTE_ORIGIN} = get_host_info();
+let destUrl = `${HTTP_REMOTE_ORIGIN}/resource-timing/resources/multi_redirect.py?`;
+destUrl += `page_origin=http://${document.location.host}`;
+destUrl += `&cross_origin=${HTTP_REMOTE_ORIGIN}`;
+destUrl += `&final_resource=/resource-timing/resources/blank-with-tao.html`;
+
+attribute_test(
+  load.iframe, destUrl,
+  invariants.assert_same_origin_redirected_from_cross_origin_resource,
+  "Verify that cross origin resources' timings are exposed when the final " +
+  "resource at the end of an HTTP redirect chain is same-origin.");
+
+</script>
+</body>
+</html>

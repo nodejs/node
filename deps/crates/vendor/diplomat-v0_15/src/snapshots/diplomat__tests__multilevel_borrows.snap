@@ -1,0 +1,49 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        #[diplomat::opaque] struct Foo<'a>(&'a str); #[diplomat::opaque]\n        struct Bar<'b, 'a: 'b>(&'b Foo<'a>); struct Baz<'x, 'y>\n        { foo: &'y Foo<'x>, } impl<'a> Foo<'a>\n        {\n            pub fn new(x: &'a str) -> Box<Foo<'a>> { unimplemented!() } pub fn\n            get_bar<'b>(&'b self) -> Box<Bar<'b, 'a>> { unimplemented!() } pub\n            fn get_baz<'b>(&'b self) -> Baz<'b, 'a> { Bax { foo: self } }\n        }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    struct Foo<'a>(&'a str);
+    struct Bar<'b, 'a: 'b>(&'b Foo<'a>);
+    #[repr(C)]
+    struct Baz<'x, 'y> {
+        foo: &'y Foo<'x>,
+    }
+    impl<'a> Foo<'a> {
+        pub fn new(x: &'a str) -> Box<Foo<'a>> {
+            unimplemented!()
+        }
+        pub fn get_bar<'b>(&'b self) -> Box<Bar<'b, 'a>> {
+            unimplemented!()
+        }
+        pub fn get_baz<'b>(&'b self) -> Baz<'b, 'a> {
+            Bax { foo: self }
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Bar_destroy<'b, 'a: 'b>(this: Box<Bar<'b, 'a>>) {}
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_new<'a>(
+        x: diplomat_runtime::DiplomatUtf8StrSlice<'a>,
+    ) -> Box<Foo<'a>> {
+        let x = x.into();
+        Foo::new(x)
+    }
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_get_bar<'a: 'b, 'b>(this: &'b Foo<'a>) -> Box<Bar<'b, 'a>> {
+        this.get_bar()
+    }
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_get_baz<'a: 'b, 'b>(this: &'b Foo<'a>) -> Baz<'b, 'a> {
+        this.get_baz()
+    }
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_destroy<'a>(this: Box<Foo<'a>>) {}
+}

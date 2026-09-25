@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>Service Worker: update with missing importScripts</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="/common/utils.js"></script>
+<body>
+<script>
+/**
+ * Test ServiceWorkerRegistration.update() when importScripts in a service worker
+ * script is no longer available (but was initially).
+ */
+let registration = null;
+
+promise_test(async (test) => {
+  const script = `resources/update-missing-import-scripts-main-worker.py?key=${token()}`;
+  const scope = 'resources/update-missing-import-scripts';
+
+  registration = await service_worker_unregister_and_register(test, script, scope);
+
+  add_completion_callback(() => { registration.unregister(); });
+
+  await wait_for_state(test, registration.installing, 'activated');
+}, 'Initialize global state');
+
+promise_test(test => {
+  return new Promise(resolve => {
+    registration.addEventListener('updatefound', resolve);
+    registration.update();
+  });
+}, 'Update service worker with new script that\'s missing importScripts()');
+</script>
+</body>

@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#targetDiv {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+}
+
+#innerDiv {
+  width: 400px;
+  height: 400px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="targetDiv">
+  <div id="innerDiv">
+  </div>
+</div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+var window_received_overscroll = false;
+
+function onOverscroll(event) {
+  assert_false(event.cancelable);
+  // overscroll events targeting document are bubbled to the window.
+  assert_true(event.bubbles);
+  window_received_overscroll = true;
+}
+window.addEventListener("overscroll", onOverscroll);
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no overscroll event is sent to target_div.
+    target_div.addEventListener("overscroll",
+        t.unreached_func("target_div got unexpected overscroll event."));
+    // Scroll up on target div and wait for the window to get overscroll event.
+    await touchScrollInTarget(300, target_div, 'up');
+    await waitFor(() => { return window_received_overscroll; },
+        'Window did not receive overscroll event after scroll up on target.');
+  }, 'Tests that the window gets overscroll event when no element scrolls' +
+     'after touch scrolling.');
+}
+</script>

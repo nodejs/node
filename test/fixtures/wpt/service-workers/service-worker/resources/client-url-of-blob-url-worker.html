@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<script>
+
+// Return a URL of a client when it's successful.
+function createAndFetchFromBlobWorker() {
+  const fetchURL = new URL('get-worker-client-url.txt', window.location).href;
+  const workerScript =
+    `self.onmessage = async (e) => {
+      const response = await fetch(e.data.url);
+      const text = await response.text();
+      self.postMessage({"result": text, "expected": self.location.href});
+    };`;
+  const blob = new Blob([workerScript], { type: 'text/javascript' });
+  const blobUrl = URL.createObjectURL(blob);
+
+  const worker = new Worker(blobUrl);
+  return new Promise((resolve, reject) => {
+    worker.onmessage = e => resolve(e.data);
+    worker.onerror = e => reject(e.message);
+    worker.postMessage({"url": fetchURL});
+  });
+}
+
+</script>
+</html>

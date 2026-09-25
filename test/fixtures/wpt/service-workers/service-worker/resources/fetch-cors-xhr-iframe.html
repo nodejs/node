@@ -1,0 +1,170 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js?pipe=sub"></script>
+<script>
+var path = base_path() + 'fetch-access-control.py';
+var host_info = get_host_info();
+var SUCCESS = 'SUCCESS';
+var FAIL = 'FAIL';
+
+function create_test_case_promise(url, with_credentials) {
+  return new Promise(function(resolve) {
+      var xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        if (xhr.status == 200) {
+          resolve(SUCCESS);
+        } else {
+          resolve("STATUS" + xhr.status);
+        }
+      }
+      xhr.onerror = function() {
+        resolve(FAIL);
+      }
+      xhr.responseType = 'text';
+      xhr.withCredentials = with_credentials;
+      xhr.open('GET', url, true);
+      xhr.send();
+    });
+}
+
+window.addEventListener('message', async (evt) => {
+    var port = evt.ports[0];
+    var url = host_info['HTTPS_ORIGIN'] + path;
+    var remote_url = host_info['HTTPS_REMOTE_ORIGIN'] + path;
+    var TEST_CASES = [
+      // Reject tests
+      [url + '?reject', false, FAIL],
+      [url + '?reject', true, FAIL],
+      [remote_url + '?reject', false, FAIL],
+      [remote_url + '?reject', true, FAIL],
+      // Event handler exception tests
+      [url + '?throw', false, SUCCESS],
+      [url + '?throw', true, SUCCESS],
+      [remote_url + '?throw', false, FAIL],
+      [remote_url + '?throw', true, FAIL],
+      // Reject(resolve-null) tests
+      [url + '?resolve-null', false, FAIL],
+      [url + '?resolve-null', true, FAIL],
+      [remote_url + '?resolve-null', false, FAIL],
+      [remote_url + '?resolve-null', true, FAIL],
+      // Fallback tests
+      [url + '?ignore', false, SUCCESS],
+      [url + '?ignore', true, SUCCESS],
+      [remote_url + '?ignore', false, FAIL, true],  // Executed in serial.
+      [remote_url + '?ignore', true, FAIL, true],  // Executed in serial.
+      [
+        remote_url + '?ACAOrigin=' + host_info['HTTPS_ORIGIN'] + '&ignore',
+        false, SUCCESS
+      ],
+      [
+        remote_url + '?ACAOrigin=' + host_info['HTTPS_ORIGIN'] + '&ignore',
+        true, FAIL, true  // Executed in serial.
+      ],
+      [
+        remote_url + '?ACAOrigin=' + host_info['HTTPS_ORIGIN'] +
+        '&ACACredentials=true&ignore',
+        true, SUCCESS
+      ],
+      // Credential test (fallback)
+      [url + '?Auth&ignore', false, SUCCESS],
+      [url + '?Auth&ignore', true, SUCCESS],
+      [remote_url + '?Auth&ignore', false, FAIL],
+      [remote_url + '?Auth&ignore', true, FAIL],
+      [
+        remote_url + '?Auth&ACAOrigin=' + host_info['HTTPS_ORIGIN'] + '&ignore',
+        false, 'STATUS401'
+      ],
+      [
+        remote_url + '?Auth&ACAOrigin=' + host_info['HTTPS_ORIGIN'] + '&ignore',
+        true, FAIL, true  // Executed in serial.
+      ],
+      [
+        remote_url + '?Auth&ACAOrigin=' + host_info['HTTPS_ORIGIN'] +
+        '&ACACredentials=true&ignore',
+        true, SUCCESS
+      ],
+      // Basic response
+      [
+        url + '?mode=same-origin&url=' + encodeURIComponent(url),
+        false, SUCCESS
+      ],
+      [
+        url + '?mode=same-origin&url=' + encodeURIComponent(url),
+        false, SUCCESS
+      ],
+      [
+        remote_url + '?mode=same-origin&url=' + encodeURIComponent(url),
+        false, SUCCESS
+      ],
+      [
+        remote_url + '?mode=same-origin&url=' + encodeURIComponent(url),
+        false, SUCCESS
+      ],
+      // Opaque response
+      [
+        url + '?mode=no-cors&url=' + encodeURIComponent(remote_url),
+        false, FAIL
+      ],
+      [
+        url + '?mode=no-cors&url=' + encodeURIComponent(remote_url),
+        false, FAIL
+      ],
+      [
+        remote_url + '?mode=no-cors&url=' + encodeURIComponent(remote_url),
+        false, FAIL
+      ],
+      [
+        remote_url + '?mode=no-cors&url=' + encodeURIComponent(remote_url),
+        false, FAIL
+      ],
+      // CORS response
+      [
+        url + '?mode=cors&url=' +
+        encodeURIComponent(remote_url + '?ACAOrigin=' +
+                           host_info['HTTPS_ORIGIN']),
+        false, SUCCESS
+      ],
+      [
+        url + '?mode=cors&url=' +
+        encodeURIComponent(remote_url + '?ACAOrigin=' +
+                           host_info['HTTPS_ORIGIN']),
+        true, FAIL
+      ],
+      [
+        url + '?mode=cors&url=' +
+        encodeURIComponent(remote_url + '?ACAOrigin=' +
+                           host_info['HTTPS_ORIGIN'] +
+                           '&ACACredentials=true'),
+        true, SUCCESS
+      ],
+      [
+        remote_url + '?mode=cors&url=' +
+        encodeURIComponent(remote_url + '?ACAOrigin=' +
+                           host_info['HTTPS_ORIGIN']),
+        false, SUCCESS
+      ],
+      [
+        remote_url +
+        '?mode=cors&url=' +
+        encodeURIComponent(remote_url + '?ACAOrigin=' +
+                           host_info['HTTPS_ORIGIN']),
+        true, FAIL
+      ],
+      [
+        remote_url +
+        '?mode=cors&url=' +
+        encodeURIComponent(remote_url + '?ACAOrigin=' +
+                           host_info['HTTPS_ORIGIN'] +
+                           '&ACACredentials=true'),
+        true, SUCCESS
+      ]
+    ];
+
+    let counter = 0;
+    for (let test of TEST_CASES) {
+      let result = await create_test_case_promise(test[0], test[1]);
+      let testName = 'test ' + (++counter) + ': ' + test[0] + ' with credentials ' + test[1] + ' must be ' + test[2];
+      port.postMessage({testName: testName, result: result === test[2]});
+    }
+    port.postMessage('done');
+  }, false);
+</script>

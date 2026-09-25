@@ -1,0 +1,19 @@
+beginning
+test.vm:1
+throw new Error("boo!")
+^
+
+Error: boo!
+    at test.vm:1:7
+    at <node-internal-frames>
+    at Object.<anonymous> (<project-root>/test/fixtures/vm/vm_display_runtime_error.js:31:6)
+test.vm:1
+throw new Error("spooky!")
+^
+
+Error: spooky!
+    at test.vm:1:7
+    at <node-internal-frames>
+    at Object.<anonymous> (<project-root>/test/fixtures/vm/vm_display_runtime_error.js:36:4)
+
+Node.js <node-version>

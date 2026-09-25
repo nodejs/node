@@ -1,0 +1,22 @@
+# This file is used by GN for building, which is NOT the build system used for
+# building official binaries.
+# Please edit the gyp files if you are making changes to build system.
+
+# The actual configurations are put inside a template in unofficial.gni to
+# prevent accidental edits from contributors.
+template("perfetto_sdk_gn_build") {
+  config("perfetto_sdk_config") {
+    include_dirs = [ "./sdk" ]
+  }
+
+  gypi_values = exec_script("../../tools/gypi_to_gn.py",
+                            [ rebase_path("perfetto.gyp") ],
+                            "scope",
+                            [ "perfetto.gyp" ])
+
+  source_set(target_name) {
+    forward_variables_from(invoker, "*")
+    public_configs = [ ":perfetto_sdk_config" ]
+    sources = gypi_values.perfetto_sdk_sources
+  }
+}

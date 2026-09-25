@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var worker_url = 'resources/empty-worker.js';
+
+promise_test(async function(t) {
+  const scope = 'resources/scope/unregister-then-register-new-script-that-exists';
+  const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+  t.add_cleanup(() => registration.unregister());
+
+  const newWorkerURL = worker_url + '?new';
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const iframe = await with_iframe(scope);
+  t.add_cleanup(() => iframe.remove());
+
+  await registration.unregister();
+
+  const newRegistration = await navigator.serviceWorker.register(newWorkerURL, { scope });
+  t.add_cleanup(() => newRegistration.unregister());
+
+  assert_equals(
+    registration.installing,
+    null,
+    'before activated registration.installing'
+  );
+  assert_equals(
+    registration.waiting,
+    null,
+    'before activated registration.waiting'
+  );
+  assert_equals(
+    registration.active.scriptURL,
+    normalizeURL(worker_url),
+    'before activated registration.active'
+  );
+  assert_equals(
+    newRegistration.installing.scriptURL,
+    normalizeURL(newWorkerURL),
+    'before activated newRegistration.installing'
+  );
+  assert_equals(
+    newRegistration.waiting,
+    null,
+    'before activated newRegistration.waiting'
+  );
+  assert_equals(
+    newRegistration.active,
+    null,
+    'before activated newRegistration.active'
+  );
+  iframe.remove();
+
+  await wait_for_state(t, newRegistration.installing, 'activated');
+
+  assert_equals(
+    newRegistration.installing,
+    null,
+    'after activated newRegistration.installing'
+  );
+  assert_equals(
+    newRegistration.waiting,
+    null,
+    'after activated newRegistration.waiting'
+  );
+  assert_equals(
+    newRegistration.active.scriptURL,
+    normalizeURL(newWorkerURL),
+    'after activated newRegistration.active'
+  );
+
+  const newIframe = await with_iframe(scope);
+  t.add_cleanup(() => newIframe.remove());
+
+  assert_equals(
+    newIframe.contentWindow.navigator.serviceWorker.controller.scriptURL,
+    normalizeURL(newWorkerURL),
+    'the new worker should control a new document'
+  );
+}, 'Registering a new script URL while an unregistered registration is in use');
+
+promise_test(async function(t) {
+  const scope = 'resources/scope/unregister-then-register-new-script-that-404s';
+  const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+  t.add_cleanup(() => registration.unregister());
+
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const iframe = await with_iframe(scope);
+  t.add_cleanup(() => iframe.remove());
+
+  await registration.unregister();
+
+  await promise_rejects_js(
+    t, TypeError,
+    navigator.serviceWorker.register('this-will-404', { scope })
+  );
+
+  assert_equals(registration.installing, null, 'registration.installing');
+  assert_equals(registration.waiting, null, 'registration.waiting');
+  assert_equals(registration.active.scriptURL, normalizeURL(worker_url), 'registration.active');
+
+  const newIframe = await with_iframe(scope);
+  t.add_cleanup(() => newIframe.remove());
+
+  assert_equals(newIframe.contentWindow.navigator.serviceWorker.controller, null, 'Document should not be controlled');
+}, 'Registering a new script URL that 404s does not resurrect unregistered registration');
+
+promise_test(async function(t) {
+  const scope = 'resources/scope/unregister-then-register-reject-install-worker';
+  const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+  t.add_cleanup(() => registration.unregister());
+
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const iframe = await with_iframe(scope);
+  t.add_cleanup(() => iframe.remove());
+
+  await registration.unregister();
+
+  const newRegistration = await navigator.serviceWorker.register(
+    'resources/reject-install-worker.js', { scope }
+  );
+  t.add_cleanup(() => newRegistration.unregister());
+
+  await wait_for_state(t, newRegistration.installing, 'redundant');
+
+  assert_equals(registration.installing, null, 'registration.installing');
+  assert_equals(registration.waiting, null, 'registration.waiting');
+  assert_equals(registration.active.scriptURL, normalizeURL(worker_url),
+                'registration.active');
+  assert_not_equals(registration, newRegistration, 'New registration is different');
+}, 'Registering a new script URL that fails to install does not resurrect unregistered registration');
+</script>

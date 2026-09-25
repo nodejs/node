@@ -1,0 +1,122 @@
+# This action uses the following secrets:
+#   CACHIX_AUTH_TOKEN: Write access to nodejs.cachix.org – without it, the cache is read-only.
+name: Nix files edited
+
+on:
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths:
+      - '**.nix'
+      - tools/nix/**
+      - .github/workflows/nix-changes.yml
+  pull_request:
+    paths:
+      - '**.nix'
+      - tools/nix/**
+      - .github/workflows/nix-changes.yml
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    if: github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+          - runner: macos-15-intel
+            system: x86_64-darwin
+          - runner: macos-latest
+            system: aarch64-darwin
+    name: '${{ matrix.system }}: dependencies diff'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: |
+            shell.nix
+            tools/nix/
+          sparse-checkout-cone-mode: false
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
+        with:
+          extra_nix_config: sandbox = true
+
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
+        with:
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          name: nodejs
+
+      - name: Compute requisites after change
+        run: ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-after.list
+
+      - name: Compute requisites before change
+        run: |
+          git reset HEAD^ --hard
+          # TODO(aduh95): remove this once list-requisites.sh has reached `main`
+          [ -f tools/nix/list-requisites.sh ] || git checkout FETCH_HEAD -- tools/nix/list-requisites.sh
+          ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-before.list
+
+      - name: Output diff
+        run: |
+          {
+            if diff_output="$(git diff -U0 --no-color --no-index requisites-${{ matrix.system }}-before.list requisites-${{ matrix.system }}-after.list)"; then
+              echo 'No changes detected.'
+            else
+              echo '```diff'
+              echo "$diff_output" | tail -n +5
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Store PR number
+        if: ${{ github.event.pull_request && matrix.system == 'x86_64-linux' }}
+        run: echo "${{ github.event.pull_request.number }}" > pr_number.txt
+
+      - name: Upload requisites lists
+        if: ${{ github.event.pull_request }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: requisites-${{ matrix.system }}
+          path: |
+            pr_number.*
+            requisites-${{ matrix.system }}-before.list
+            requisites-${{ matrix.system }}-after.list
+
+  lint-nix:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: '*.nix'
+          sparse-checkout-cone-mode: false
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31.11.1
+      - name: Lint Nix files
+        run: |
+          NIX_LINTER=$(nix-instantiate --eval --raw -E '(import ./shell.nix {}).NIX_LINTER')
+          # Attempt to get it from cache, and fallback to building `devTools.nix` otherwise.
+          nix-store --realise "${NIX_LINTER%/bin/*}" || nix-build -I nixpkgs=tools/nix/pkgs.nix ./tools/nix/devTools.nix --no-out-link
+          "$NIX_LINTER" --quiet --ci && EXIT_CODE="$?" || EXIT_CODE="$?"
+          if [ "$EXIT_CODE" != "0" ]
+          then
+            git --no-pager diff || true
+            exit "$EXIT_CODE"
+          fi

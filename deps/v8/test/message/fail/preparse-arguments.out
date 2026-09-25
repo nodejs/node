@@ -1,0 +1,4 @@
+*%(basename)s:7: SyntaxError: Unexpected eval or arguments in strict mode
+function f(a) { var \u0061rguments = 0; }
+                    ^^^^^^^^^^^^^^
+SyntaxError: Unexpected eval or arguments in strict mode

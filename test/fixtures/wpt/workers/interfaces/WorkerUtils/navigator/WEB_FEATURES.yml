@@ -1,0 +1,5 @@
+rules:
+- 006.html: [online, dedicated-workers]
+- 005.html: [user-agent-sniffing]
+- language.html: [language, dedicated-workers]
+- "*": [dedicated-workers]

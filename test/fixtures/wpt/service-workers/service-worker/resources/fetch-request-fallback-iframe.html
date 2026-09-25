@@ -1,0 +1,32 @@
+<script>
+function xhr(url) {
+  return new Promise(function(resolve, reject) {
+      var request = new XMLHttpRequest();
+      request.addEventListener(
+        'error',
+        function() { reject(new Error()); });
+      request.addEventListener(
+        'load',
+        function(event) { resolve(request.response); });
+      request.open('GET', url);
+      request.send();
+    });
+}
+
+function load_image(url, cross_origin) {
+  return new Promise(function(resolve, reject) {
+      var img = document.createElement('img');
+      document.body.appendChild(img);
+      img.onload = function() {
+        resolve();
+      };
+      img.onerror = function() {
+        reject(new Error());
+      };
+      if (cross_origin != '') {
+        img.crossOrigin = cross_origin;
+      }
+      img.src = url;
+    });
+}
+</script>

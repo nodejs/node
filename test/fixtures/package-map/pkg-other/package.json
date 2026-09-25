@@ -1,0 +1,7 @@
+{
+  "name": "pkg-other",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

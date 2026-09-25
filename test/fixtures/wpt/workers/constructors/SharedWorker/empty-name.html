@@ -1,0 +1,10 @@
+<!doctype html>
+<title>creating a dummy shared worker with explicit name ""</title>
+<link rel=help href="http://www.whatwg.org/html/#dom-sharedworker">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const worker = new SharedWorker('empty.js', '');
+});
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: addRoutes() executes in installing</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="resources/static-router-helpers.sub.js"></script>
+<script>
+
+promise_test(async t => {
+  const script = 'resources/add-routes.js';
+  const scope = 'resources/blank.html';
+  const reg = await service_worker_unregister_and_register(t, script, scope);
+  t.add_cleanup(() => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+  const sw = reg.active;
+  const addRoutesError = await get_info_from_worker(sw);
+
+  assert_equals(addRoutesError.install, null,
+    'addRoutes() should execute successfully in installing');
+  assert_true(addRoutesError.activate instanceof Error,
+    'addRoutes() should throw outside of installing');
+
+}, 'addRoutes() will not be executed outside of installing');
+
+</script>

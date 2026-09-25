@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Base URL in module dedicated workers: import</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(function() {
+  var worker = new Worker("../beta/import.py", {type: "module"});
+  worker.onmessage = this.step_func_done(function(e) {
+    assert_equals(e.data, "gamma/script-module.js");
+  });
+  worker.onerror = this.unreached_func("Got error event");
+});
+</script>

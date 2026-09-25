@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>Worker constructor with wrong MIME type scripts</title>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+async_test(t => {
+  const worker = new Worker('./support/WorkerText.txt');
+  worker.onmessage = t.unreached_func("Worker should not receive messages");
+  worker.onerror = () => t.done();
+}, "HTTP(S) URLs which respond with text/plain MIME type must not work");
+
+async_test(t => {
+  const worker = new SharedWorker('./support/WorkerText.txt');
+  worker.onmessage = t.unreached_func("Worker should not receive messages");
+  worker.onerror = () => t.done();
+}, "HTTP(S) URLs which respond with text/plain MIME type must not work on SharedWorkers");
+
+async_test(t => {
+  const url = URL.createObjectURL(new Blob(['postMessage("PASS")'])); // no MIME type parameter
+  const worker = new Worker(url);
+  worker.onmessage = () => t.done();
+  worker.onerror = t.unreached_func("Worker should not error");
+}, "blob: URLs should load, despite no MIME type for the backing Blob");
+
+async_test(t => {
+  const url = URL.createObjectURL(new Blob(['postMessage("PASS")'], { type: 'text/plain' }));
+  const worker = new Worker(url);
+  worker.onmessage = () => t.done();
+  worker.onerror = t.unreached_func("Worker should not error");
+}, "blob: URLs should load, despite the wrong MIME type for the backing Blob");
+
+async_test(t => {
+  const url = `data:text/plain,postMessage("PASS");`
+  const worker = new Worker(url);
+  worker.onmessage = () => t.done();
+  worker.onerror = t.unreached_func("Worker should not error");
+}, "data: URLs should load, despite the wrong MIME type");
+
+</script>

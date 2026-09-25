@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="big5"> <!-- test breaks if the server overrides this -->
+<title>Big5 encoding (form)</title>
+<meta name="timeout" content="long">
+<meta name="variant" content="?1-1000">
+<meta name="variant" content="?1001-2000">
+<meta name="variant" content="?2001-3000">
+<meta name="variant" content="?3001-4000">
+<meta name="variant" content="?4001-5000">
+<meta name="variant" content="?5001-6000">
+<meta name="variant" content="?6001-7000">
+<meta name="variant" content="?7001-8000">
+<meta name="variant" content="?8001-9000">
+<meta name="variant" content="?9001-10000">
+<meta name="variant" content="?10001-11000">
+<meta name="variant" content="?11001-12000">
+<meta name="variant" content="?12001-13000">
+<meta name="variant" content="?13001-14000">
+<meta name="variant" content="?14001-last">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/subset-tests.js"></script>
+<script src="big5_index.js"></script>
+<script src="big5-encoder.js"></script>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://encoding.spec.whatwg.org/#big5">
+<meta name="assert" content="The browser produces the expected byte sequences for all characters in the big5 encoding after 0x9F when encoding bytes for a URL produced by a form, using the  encoder steps in the specification.">
+<style>
+ iframe { display:none }
+ form { display:none }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<script src="../../resources/ranges.js"></script>
+<script>
+var errors = false;
+var encoder = big5Encoder;
+var ranges = rangesAll;
+var separator = ",";
+function expect(result, codepoint) {
+  return "%" + result.replace(/ /g, "%");
+}
+</script>
+<script src="../../resources/encode-form-common.js"></script>
+</body>
+</html>

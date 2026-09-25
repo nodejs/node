@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script>
+function fetch_url(url) {
+  return new Promise(function(resolve, reject) {
+      var request = new XMLHttpRequest();
+      request.addEventListener('load', function(event) {
+          resolve();
+        });
+      request.addEventListener('error', function(event) {
+          reject();
+        });
+      request.open('GET', url);
+      request.send();
+    });
+}
+
+function make_test(testcase) {
+  var name = testcase.name;
+  return fetch_url(window.location.href + '?' + name)
+    .then(
+      function() {
+          if (testcase.expect_load)
+            return Promise.resolve();
+          return Promise.reject(new Error(
+              name + ': expected network error but loaded'));
+        },
+      function() {
+          if (!testcase.expect_load)
+            return Promise.resolve();
+          return Promise.reject(new Error(
+              name + ': expected to load but got network error'));
+        });
+}
+
+function run_tests() {
+  var tests = [
+    { name: 'response-object', expect_load: true },
+    { name: 'response-promise-object', expect_load: true },
+    { name: 'other-value', expect_load: false },
+  ].map(make_test);
+
+  Promise.all(tests)
+    .then(function() {
+        window.parent.notify_test_done('PASS');
+      })
+    .catch(function(error) {
+        window.parent.notify_test_done('FAIL: ' + error.message);
+      });
+}
+
+if (!navigator.serviceWorker.controller)
+  window.parent.notify_test_done('FAIL: no controller');
+else
+  run_tests();
+</script>

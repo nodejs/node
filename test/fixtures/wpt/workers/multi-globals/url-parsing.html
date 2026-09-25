@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Multiple globals for Worker constructor: parsing scriptURL</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<!-- This is the entry global -->
+
+<iframe src="incumbent/incumbent.html"></iframe>
+
+<script>
+async_test((t) => {
+  onload = t.step_func(() => {
+    frames[0].hello();
+  });
+  onmessage = t.step_func_done(e => {
+    assert_equals(e.data, 'current');
+  });
+});
+</script>

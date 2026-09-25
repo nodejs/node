@@ -1,0 +1,12 @@
+features:
+- name: wasm
+  files:
+  - "*"
+  - "!constructor-shared.tentative.any.js"
+  - "!to-fixed-length-buffer-shared.any.js"
+  - "!to-resizable-buffer-shared.any.js"
+- name: wasm-threads
+  files:
+  - "constructor-shared.tentative.any.js"
+  - "to-fixed-length-buffer-shared.any.js"
+  - "to-resizable-buffer-shared.any.js"

@@ -1,0 +1,170 @@
+{
+  "SharedWorker-MessageEvent-source.any.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "SharedWorker-replace-EventHandler.any.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "Worker-location.sub.any.js": {
+    "skip": "Server substitution (.sub) is not supported"
+  },
+  "WorkerLocation-origin.sub.window.js": {
+    "skip": "Needs a document and a WPT server"
+  },
+  "constructors/Worker/AbstractWorker.onerror.js": {
+    "skip": "Not a test file; used as a worker script by .html tests"
+  },
+  "constructors/Worker/expected-self-properties.worker.js": {
+    "fail": {
+      "note": "XMLHttpRequest and EventSource are not implemented",
+      "expected": [
+        "existence of XMLHttpRequest",
+        "existence of EventSource"
+      ]
+    }
+  },
+  "dedicated-worker-from-blob-url.window.js": {
+    "note": "crypto.randomUUID() is used to generate blob URL identifiers",
+    "requires": ["crypto"]
+  },
+  "dedicated-worker-in-data-url-context.window.js": {
+    "skip": "Needs a document to create iframes"
+  },
+  "examples/onconnect.any.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "importscripts_mime.any.js": {
+    "skip": "Needs a WPT server to serve scripts with arbitrary MIME types"
+  },
+  "importscripts_mime_local.any.js": {
+    "note": "crypto.randomUUID() is used to generate blob URL identifiers",
+    "requires": ["crypto"]
+  },
+  "interfaces/WorkerUtils/importScripts/catch.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "interfaces/WorkerUtils/importScripts/blob-url.worker.js": {
+    "note": "crypto.randomUUID() is used to generate blob URL identifiers",
+    "requires": ["crypto"]
+  },
+  "interfaces/WorkerUtils/importScripts/report-error-cross-origin.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "interfaces/WorkerUtils/importScripts/report-error-redirect-to-cross-origin.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "interfaces/WorkerUtils/importScripts/report-error-same-origin.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "interfaces/WorkerUtils/importScripts/report-error-setTimeout-cross-origin.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "interfaces/WorkerUtils/importScripts/report-error-setTimeout-redirect-to-cross-origin.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "interfaces/WorkerUtils/importScripts/report-error-setTimeout-same-origin.sub.any.js": {
+    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+  },
+  "modules/dedicated-worker-import-blob-url.any.js": {
+    "skip": "Modules are imported from http(s): URLs served by a WPT server"
+  },
+  "modules/dedicated-worker-import-data-url.any.js": {
+    "skip": "Modules are imported from http(s): URLs served by a WPT server"
+  },
+  "modules/dedicated-worker-import.any.js": {
+    "fail": {
+      "note": "Needs a WPT server; tests cross-origin and redirected imports",
+      "expected": [
+        "Static import (cross-origin).",
+        "Static import (redirect)."
+      ]
+    }
+  },
+  "modules/shared-worker-import-blob-url.window.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "modules/shared-worker-import-data-url.window.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "modules/shared-worker-import.window.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "nested_worker_sync_xhr.worker.js": {
+    "skip": "XMLHttpRequest is not implemented"
+  },
+  "same-site-cookies/first-party.all.tentative.https.window.js": {
+    "skip": "Needs a document and an https WPT server"
+  },
+  "same-site-cookies/first-party.default.tentative.https.window.js": {
+    "skip": "Needs a document and an https WPT server"
+  },
+  "same-site-cookies/first-party.none.tentative.https.window.js": {
+    "skip": "Needs a document and an https WPT server"
+  },
+  "same-site-cookies/third-party.all.tentative.sub.https.window.js": {
+    "skip": "Needs a document and an https WPT server"
+  },
+  "same-site-cookies/third-party.default.tentative.sub.https.window.js": {
+    "skip": "Needs a document and an https WPT server"
+  },
+  "same-site-cookies/third-party.none.tentative.sub.https.window.js": {
+    "skip": "Needs a document and an https WPT server"
+  },
+  "semantics/interface-objects/001.worker.js": {
+    "fail": {
+      "note": "Canvas, XHR, EventSource, PromiseRejectionEvent, ProgressEvent, the File API reader classes and IndexedDB are not implemented",
+      "expected": [
+        "The ImageData interface object should be exposed.",
+        "The ImageBitmap interface object should be exposed.",
+        "The CanvasGradient interface object should be exposed.",
+        "The CanvasPattern interface object should be exposed.",
+        "The TextMetrics interface object should be exposed.",
+        "The Path2D interface object should be exposed.",
+        "The PromiseRejectionEvent interface object should be exposed.",
+        "The EventSource interface object should be exposed.",
+        "The XMLHttpRequestEventTarget interface object should be exposed.",
+        "The XMLHttpRequestUpload interface object should be exposed.",
+        "The XMLHttpRequest interface object should be exposed.",
+        "The ProgressEvent interface object should be exposed.",
+        "The FileList interface object should be exposed.",
+        "The FileReader interface object should be exposed.",
+        "The FileReaderSync interface object should be exposed.",
+        "The IDBRequest interface object should be exposed.",
+        "The IDBOpenDBRequest interface object should be exposed.",
+        "The IDBVersionChangeEvent interface object should be exposed.",
+        "The IDBFactory interface object should be exposed.",
+        "The IDBDatabase interface object should be exposed.",
+        "The IDBObjectStore interface object should be exposed.",
+        "The IDBIndex interface object should be exposed.",
+        "The IDBKeyRange interface object should be exposed.",
+        "The IDBCursor interface object should be exposed.",
+        "The IDBCursorWithValue interface object should be exposed.",
+        "The IDBTransaction interface object should be exposed."
+      ]
+    }
+  },
+  "semantics/interface-objects/003.any.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "semantics/interface-objects/004.any.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "shared-worker-from-blob-url.window.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "shared-worker-in-data-url-context.window.js": {
+    "skip": "SharedWorker is not implemented"
+  },
+  "worker-performance.worker.js": {
+    "fail": {
+      "note": "XMLHttpRequest is not implemented",
+      "expected": [
+        "Resource timing seems to work in workers",
+        "performance.setResourceTimingBufferSize in workers"
+      ]
+    }
+  },
+  "WorkerGlobalScope_requestAnimationFrame.worker.js": {
+    "skip": "requestAnimationFrame is not implemented in workers"
+  }
+}

@@ -1,0 +1,1019 @@
+#include "crypto/crypto_cipher.h"
+#include "base_object-inl.h"
+#include "crypto/crypto_util.h"
+#include "env-inl.h"
+#include "memory_tracker-inl.h"
+#include "node_buffer.h"
+#include "node_internals.h"
+#include "node_process-inl.h"
+#include "v8.h"
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
+namespace node {
+
+using ncrypto::Cipher;
+using ncrypto::CipherCtxPointer;
+using ncrypto::ClearErrorOnReturn;
+using ncrypto::Digest;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
+using ncrypto::SSLCtxPointer;
+using ncrypto::SSLPointer;
+using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::Context;
+using v8::DictionaryTemplate;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Int32;
+using v8::Isolate;
+using v8::Local;
+using v8::LocalVector;
+using v8::MaybeLocal;
+using v8::Object;
+using v8::Uint32;
+using v8::Undefined;
+using v8::Value;
+
+namespace crypto {
+namespace {
+// Collects and returns information on the given cipher
+void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  auto tmpl = env->cipherinfo_detail_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "mode",
+        "name",
+        "nid",
+        "keyLength",
+        "blockSize",
+        "ivLength",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_cipherinfo_detail_template(tmpl);
+  }
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // mode
+      Undefined(env->isolate()),  // name
+      Undefined(env->isolate()),  // nid
+      Undefined(env->isolate()),  // keyLength
+      Undefined(env->isolate()),  // blockSize
+      Undefined(env->isolate()),  // ivLength
+  };
+
+  CHECK(args[0]->IsString() || args[0]->IsInt32());
+
+  const auto cipher = ([&] {
+    if (args[0]->IsString()) {
+      Utf8Value name(env->isolate(), args[0]);
+      return Cipher::FromName(*name, env->provider_cipher_cache.get());
+    } else {
+      int nid = args[0].As<Int32>()->Value();
+      return Cipher::FromNid(nid, env->provider_cipher_cache.get());
+    }
+  })();
+
+  if (!cipher) return;
+
+  size_t iv_length = cipher.getIvLength();
+  size_t key_length = cipher.getKeyLength();
+
+  // If the testKeyLen and testIvLen arguments are specified,
+  // then we will make an attempt to see if they are usable for
+  // the cipher in question, returning undefined if they are not.
+  // If they are, the info object will be returned with the values
+  // given.
+  if (args[1]->IsUint32() || args[2]->IsUint32()) {
+    // Test and input IV or key length to determine if it's acceptable.
+    // If it is, then the getCipherInfo will succeed with the given
+    // values.
+    auto ctx = CipherCtxPointer::New();
+    if (!ctx) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Failed to allocate cipher context");
+    }
+
+    if (!ctx.init(cipher, true)) {
+      return;
+    }
+
+    if (args[1]->IsUint32()) {
+      size_t check_len = args[1].As<Uint32>()->Value();
+      if (!ctx.setKeyLength(check_len)) {
+        return;
+      }
+      key_length = check_len;
+    }
+
+    if (args[2]->IsUint32()) {
+      size_t check_len = args[2].As<Uint32>()->Value();
+      // For CCM modes, the IV may be between 7 and 13 bytes.
+      // For GCM modes, any IV length is accepted. For OCB modes, we'll check
+      // by attempting to set the value. For everything else, just check that
+      // check_len == iv_length.
+
+      if (cipher.isCcmMode()) {
+        if (check_len < 7 || check_len > 13) return;
+      } else if (cipher.isGcmMode()) {
+        // Nothing to do.
+      } else if (cipher.isOcbMode()) {
+        if (!ctx.setIvLength(check_len)) return;
+      } else if (cipher.isSivMode() || cipher.isGcmSivMode()) {
+        if (check_len != iv_length) return;
+      } else {
+        if (check_len != iv_length) return;
+      }
+
+      iv_length = check_len;
+    }
+  }
+
+  // Lowercase the name in place before we create the JS string from it.
+  std::string name_str(cipher.getName());
+  name_str = ToLower(name_str);
+
+  values[0] = ToV8Value(env->context(), cipher.getModeLabel(), env->isolate());
+  values[1] = ToV8Value(env->context(), name_str, env->isolate());
+  const int nid = cipher.getNid();
+  if (nid != NID_undef) {
+    values[2] = Uint32::NewFromUnsigned(env->isolate(), nid);
+  }
+  values[3] = Uint32::NewFromUnsigned(env->isolate(), key_length);
+
+  // Stream ciphers do not have a meaningful block size
+  if (!cipher.isStreamMode()) {
+    values[4] = Uint32::NewFromUnsigned(env->isolate(), cipher.getBlockSize());
+  }
+
+  // Ciphers that do not use an IV shouldn't report a length
+  if (iv_length != 0) {
+    values[5] = Uint32::NewFromUnsigned(env->isolate(), iv_length);
+  }
+
+  Local<Object> info;
+  if (NewDictionaryInstanceNullProto(env->context(), tmpl, values)
+          .ToLocal(&info)) {
+    args.GetReturnValue().Set(info);
+  }
+}
+}  // namespace
+
+void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
+  ClearErrorOnReturn clear_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  auto ctx = SSLCtxPointer::New();
+  if (!ctx) {
+    return ThrowCryptoError(
+        env, clear_error_on_return.peekError(), "SSL_CTX_new");
+  }
+
+  auto ssl = SSLPointer::New(ctx);
+  if (!ssl) {
+    return ThrowCryptoError(env, clear_error_on_return.peekError(), "SSL_new");
+  }
+
+  LocalVector<Value> arr(env->isolate());
+  ssl.getCiphers([&](const std::string_view name) {
+    arr.push_back(OneByteString(env->isolate(), name.data(), name.length()));
+  });
+
+  args.GetReturnValue().Set(Array::New(env->isolate(), arr.data(), arr.size()));
+}
+
+void CipherBase::GetCiphers(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  std::vector<std::string> cipher_names;
+  Cipher::ForEach(
+      [&](std::string_view name) { cipher_names.emplace_back(name); });
+  std::sort(cipher_names.begin(), cipher_names.end());
+  cipher_names.erase(std::unique(cipher_names.begin(), cipher_names.end()),
+                     cipher_names.end());
+
+  LocalVector<Value> ciphers(env->isolate());
+  bool errored = false;
+  for (const std::string& name : cipher_names) {
+    if (errored) break;
+    Local<Value> val;
+    if (!ToV8Value(env->context(), name, env->isolate()).ToLocal(&val)) {
+      errored = true;
+      break;
+    }
+    ciphers.push_back(val);
+  }
+
+  // If errored is true here, then we encountered a JavaScript error
+  // while trying to create the V8 String from the std::string_view
+  // in the iteration callback. That means we need to throw.
+  if (!errored) {
+    args.GetReturnValue().Set(
+        Array::New(env->isolate(), ciphers.data(), ciphers.size()));
+  }
+}
+
+CipherBase::CipherBase(Environment* env, Local<Object> wrap, CipherKind kind)
+    : BaseObject(env, wrap),
+      ctx_(nullptr),
+      kind_(kind),
+      auth_tag_state_(kAuthTagUnknown),
+      auth_tag_len_(kNoAuthTagLength),
+      pending_auth_failed_(false),
+      has_one_shot_update_(false),
+      siv_aad_components_(0) {
+  MakeWeak();
+}
+
+void CipherBase::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("context", ctx_ ? kSizeOf_EVP_CIPHER_CTX : 0);
+}
+
+void CipherBase::Initialize(Environment* env, Local<Object> target) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
+
+  t->InstanceTemplate()->SetInternalFieldCount(CipherBase::kInternalFieldCount);
+
+  SetProtoMethod(isolate, t, "update", Update);
+  SetProtoMethod(isolate, t, "final", Final);
+  SetProtoMethod(isolate, t, "setAutoPadding", SetAutoPadding);
+  SetProtoMethodNoSideEffect(isolate, t, "getAuthTag", GetAuthTag);
+  SetProtoMethod(isolate, t, "setAuthTag", SetAuthTag);
+  SetProtoMethod(isolate, t, "setAAD", SetAAD);
+  SetConstructorFunction(context, target, "CipherBase", t);
+
+  SetMethodNoSideEffect(context, target, "getSSLCiphers", GetSSLCiphers);
+  SetMethodNoSideEffect(context, target, "getCiphers", GetCiphers);
+
+  SetMethod(context,
+            target,
+            "publicEncrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                    ncrypto::Cipher::encrypt>);
+  SetMethod(context,
+            target,
+            "privateDecrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                    ncrypto::Cipher::decrypt>);
+  SetMethod(context,
+            target,
+            "privateEncrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                    ncrypto::Cipher::sign>);
+  SetMethod(context,
+            target,
+            "publicDecrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                    ncrypto::Cipher::recover>);
+
+  SetMethodNoSideEffect(context, target, "getCipherInfo", GetCipherInfo);
+
+  NODE_DEFINE_CONSTANT(target, kWebCryptoCipherEncrypt);
+  NODE_DEFINE_CONSTANT(target, kWebCryptoCipherDecrypt);
+}
+
+void CipherBase::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+
+  registry->Register(Update);
+  registry->Register(Final);
+  registry->Register(SetAutoPadding);
+  registry->Register(GetAuthTag);
+  registry->Register(SetAuthTag);
+  registry->Register(SetAAD);
+
+  registry->Register(GetSSLCiphers);
+  registry->Register(GetCiphers);
+
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                             ncrypto::Cipher::encrypt>);
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                             ncrypto::Cipher::decrypt>);
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                             ncrypto::Cipher::sign>);
+  registry->Register(PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                             ncrypto::Cipher::recover>);
+
+  registry->Register(GetCipherInfo);
+}
+
+void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.Length() == 5 || args.Length() == 7);
+
+  CipherBase* cipher =
+      new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
+
+  const Utf8Value cipher_type(env->isolate(), args[1]);
+
+  // The argument can either be a KeyObjectHandle or a byte source
+  // (e.g. ArrayBuffer, TypedArray, etc). Whichever it is, grab the
+  // raw bytes and proceed...
+  const ByteSource key_buf = ByteSource::FromSecretKeyBytes(env, args[2]);
+
+  if (key_buf.size() > INT_MAX) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+  }
+
+  ArrayBufferOrViewContents<unsigned char> iv_buf(
+      !args[3]->IsNull() ? args[3] : Local<Value>());
+
+  if (!iv_buf.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
+  }
+  // Don't assign to cipher->auth_tag_len_ directly; the value might not
+  // represent a valid length at this point.
+  unsigned int auth_tag_len;
+  if (args[4]->IsUint32()) {
+    auth_tag_len = args[4].As<Uint32>()->Value();
+  } else {
+    CHECK(args[4]->IsInt32() && args[4].As<Int32>()->Value() == -1);
+    auth_tag_len = kNoAuthTagLength;
+  }
+
+  if (args.Length() == 5) {
+    cipher->InitIv(
+        *cipher_type, key_buf, iv_buf, auth_tag_len, nullptr, nullptr);
+    return;
+  }
+
+  CHECK(args[5]->IsString() || args[5]->IsUndefined());
+  CHECK(args[6]->IsString() || args[6]->IsUndefined());
+  const Utf8Value cts_mode(env->isolate(),
+                           args[5]->IsString() ? args[5] : Local<Value>());
+  const Utf8Value xts_standard(env->isolate(),
+                               args[6]->IsString() ? args[6] : Local<Value>());
+
+  cipher->InitIv(*cipher_type,
+                 key_buf,
+                 iv_buf,
+                 auth_tag_len,
+                 args[5]->IsString() ? *cts_mode : nullptr,
+                 args[6]->IsString() ? *xts_standard : nullptr);
+}
+
+void CipherBase::CommonInit(const char* cipher_type,
+                            const ncrypto::Cipher& cipher,
+                            const unsigned char* key,
+                            int key_len,
+                            const unsigned char* iv,
+                            int iv_len,
+                            unsigned int auth_tag_len,
+                            const char* cts_mode,
+                            const char* xts_standard) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  CHECK(!ctx_);
+  ctx_ = CipherCtxPointer::New();
+  if (!ctx_) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env(), "Failed to allocate cipher context");
+  }
+
+  if (cipher.isWrapMode()) {
+    ctx_.setAllowWrap();
+  }
+
+  const bool encrypt = (kind_ == kCipher);
+  if (!ctx_.init(cipher, encrypt)) {
+    return ThrowCryptoError(env(),
+                            mark_pop_error_on_return.peekError(),
+                            "Failed to initialize cipher");
+  }
+
+  if (cts_mode != nullptr && !ctx_.setCtsMode(cts_mode)) {
+    ctx_.reset();
+    return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+        env(), "%s does not support the ctsMode option", cipher_type);
+  }
+
+  if (xts_standard != nullptr && !ctx_.setXtsStandard(xts_standard)) {
+    ctx_.reset();
+    return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+        env(), "%s does not support the xtsStandard option", cipher_type);
+  }
+
+  if (cipher.isSupportedAuthenticatedMode()) {
+    CHECK_GE(iv_len, 0);
+    if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len)) {
+      return;
+    }
+  }
+
+  if (!ctx_.setKeyLength(key_len)) {
+    ctx_.reset();
+    return THROW_ERR_CRYPTO_INVALID_KEYLEN(env());
+  }
+
+  if (!ctx_.init(Cipher(), encrypt, key, iv)) {
+    return ThrowCryptoError(env(),
+                            mark_pop_error_on_return.peekError(),
+                            "Failed to initialize cipher");
+  }
+}
+
+void CipherBase::InitIv(const char* cipher_type,
+                        const ByteSource& key_buf,
+                        const ArrayBufferOrViewContents<unsigned char>& iv_buf,
+                        unsigned int auth_tag_len,
+                        const char* cts_mode,
+                        const char* xts_standard) {
+  HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  auto cipher =
+      Cipher::FromName(cipher_type, env()->provider_cipher_cache.get());
+  if (!cipher) return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
+
+  const int expected_iv_len = cipher.getIvLength();
+  const bool has_iv = iv_buf.size() > 0;
+
+  // Throw if no IV was passed and the cipher requires an IV
+  if (!has_iv && expected_iv_len != 0) {
+    return THROW_ERR_CRYPTO_INVALID_IV(env());
+  }
+
+  // Throw if an IV was passed which does not match the cipher's fixed IV length
+  // static_cast<int> for the iv_buf.size() is safe because we've verified
+  // prior that the value is not larger than INT_MAX.
+  if (!cipher.isSupportedAuthenticatedMode() && has_iv &&
+      static_cast<int>(iv_buf.size()) != expected_iv_len) {
+    return THROW_ERR_CRYPTO_INVALID_IV(env());
+  }
+
+  if (cipher.isChaCha20Poly1305()) {
+    CHECK(has_iv);
+    // Check for invalid IV lengths, since OpenSSL does not under some
+    // conditions:
+    //   https://www.openssl.org/news/secadv/20190306.txt.
+    if (iv_buf.size() > 12) {
+      return THROW_ERR_CRYPTO_INVALID_IV(env());
+    }
+  }
+
+  if (cipher.isSivMode() && has_iv) {
+    return THROW_ERR_CRYPTO_INVALID_IV(env());
+  }
+
+  if (cipher.isGcmSivMode() &&
+      (!has_iv || static_cast<int>(iv_buf.size()) != expected_iv_len)) {
+    return THROW_ERR_CRYPTO_INVALID_IV(env());
+  }
+
+  CommonInit(cipher_type,
+             cipher,
+             key_buf.data<unsigned char>(),
+             key_buf.size(),
+             iv_buf.data(),
+             iv_buf.size(),
+             auth_tag_len,
+             cts_mode,
+             xts_standard);
+}
+
+bool CipherBase::InitAuthenticated(const char* cipher_type,
+                                   int iv_len,
+                                   unsigned int auth_tag_len) {
+  CHECK(IsAuthenticatedMode());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  const bool is_siv = ctx_.isSivMode() || ctx_.isGcmSivMode();
+
+  if (!is_siv && !ctx_.setIvLength(iv_len)) {
+    THROW_ERR_CRYPTO_INVALID_IV(env());
+    return false;
+  }
+
+  if (ctx_.isCcmMode()) {
+    // TODO(tniessen) Support CCM decryption in FIPS mode
+    if (kind_ == kDecipher && ncrypto::isFipsEnabled()) {
+      THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env(), "CCM decryption not supported in FIPS mode");
+      return false;
+    }
+
+    // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
+    CHECK(iv_len >= 7 && iv_len <= 13);
+    max_message_size_ = INT_MAX;
+    if (iv_len == 12) max_message_size_ = 16777215;
+    if (iv_len == 13) max_message_size_ = 65535;
+  }
+
+  if (auth_tag_len == kNoAuthTagLength) {
+    // GCM, SIV, and ChaCha20-Poly1305 have a default tag length of 16 bytes.
+    // Other modes (CCM, OCB) require an explicit tag length.
+    if (ctx_.isGcmMode() || is_siv) {
+      auth_tag_len = EVP_GCM_TLS_TAG_LEN;
+#ifdef EVP_CHACHAPOLY_TLS_TAG_LEN
+    } else if (ctx_.isChaCha20Poly1305()) {
+      auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
+#endif
+    } else {
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "authTagLength required for %s", cipher_type);
+      return false;
+    }
+  } else {
+    // GCM authentication tag lengths are restricted according to NIST 800-38d,
+    // page 9. SIV modes only support 16-byte tags. For other modes, we rely on
+    // OpenSSL to validate the length.
+    bool is_invalid_auth_tag_length;
+    if (is_siv) {
+      is_invalid_auth_tag_length = auth_tag_len != EVP_GCM_TLS_TAG_LEN;
+    } else if (ctx_.isGcmMode()) {
+      is_invalid_auth_tag_length = !Cipher::IsValidGCMTagLength(auth_tag_len);
+    } else {
+      is_invalid_auth_tag_length = !ctx_.setAeadTagLength(auth_tag_len);
+    }
+
+    if (is_invalid_auth_tag_length) {
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "Invalid authentication tag length: %u", auth_tag_len);
+      return false;
+    }
+  }
+
+  // Remember the given authentication tag length for later.
+  auth_tag_len_ = auth_tag_len;
+  return true;
+}
+
+bool CipherBase::CheckCCMMessageLength(int message_len) {
+  CHECK(ctx_);
+  CHECK(ctx_.isCcmMode());
+
+  if (message_len > max_message_size_) {
+    THROW_ERR_CRYPTO_INVALID_MESSAGELEN(env());
+    return false;
+  }
+
+  return true;
+}
+
+bool CipherBase::IsAuthenticatedMode() const {
+  // Check if this cipher operates in an AEAD mode that we support.
+  CHECK(ctx_);
+  return ncrypto::Cipher::FromCtx(ctx_).isSupportedAuthenticatedMode();
+}
+
+void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CipherBase* cipher;
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
+
+  // Only callable after Final and if encrypting.
+  if (cipher->ctx_ || cipher->kind_ != kCipher ||
+      cipher->auth_tag_state_ != kAuthTagComputed) {
+    return;
+  }
+
+  CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
+  Local<Value> ret;
+  if (Buffer::Copy(env, cipher->auth_tag_, cipher->auth_tag_len_)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
+  CipherBase* cipher;
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!cipher->ctx_ ||
+      !cipher->IsAuthenticatedMode() ||
+      cipher->kind_ != kDecipher ||
+      cipher->auth_tag_state_ != kAuthTagUnknown) {
+    return args.GetReturnValue().Set(false);
+  }
+
+  if ((cipher->ctx_.isSivMode() || cipher->ctx_.isGcmSivMode()) &&
+      cipher->has_one_shot_update_) {
+    return args.GetReturnValue().Set(false);
+  }
+
+  ArrayBufferOrViewContents<char> auth_tag(args[0]);
+  if (!auth_tag.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
+  }
+  unsigned int tag_len = auth_tag.size();
+
+  // Older versions of Node.js did allow setting the auth tag length implicitly
+  // for GCM mode (see DEP0182). We now require knowledge of the expected tag
+  // length up front, so it must have been set during initialization.
+  // The configured tag length must match the length of the given auth tag.
+  CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
+  if (cipher->auth_tag_len_ != tag_len) {
+    return THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+      env, "Invalid authentication tag length: %u", tag_len);
+  }
+
+  CHECK_LE(cipher->auth_tag_len_, ncrypto::Cipher::MAX_AUTH_TAG_LENGTH);
+  if (!cipher->ctx_.setAeadTag({auth_tag.data(), cipher->auth_tag_len_})) {
+    return args.GetReturnValue().Set(false);
+  }
+  cipher->auth_tag_state_ = kAuthTagSetByUser;
+
+  args.GetReturnValue().Set(true);
+}
+
+bool CipherBase::SetAAD(
+    const ArrayBufferOrViewContents<unsigned char>& data,
+    int plaintext_len) {
+  if (!ctx_ || !IsAuthenticatedMode())
+    return false;
+  const bool is_siv = ctx_.isSivMode();
+  if ((is_siv || ctx_.isGcmSivMode()) && has_one_shot_update_) return false;
+  if (is_siv && siv_aad_components_ >= kMaxSivAADComponents) return false;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  int outlen;
+
+  // When in CCM mode, we need to set the authentication tag and the plaintext
+  // length in advance.
+  if (ctx_.isCcmMode()) {
+    if (plaintext_len < 0) {
+      THROW_ERR_MISSING_ARGS(env(),
+          "options.plaintextLength required for CCM mode with AAD");
+      return false;
+    }
+
+    if (!CheckCCMMessageLength(plaintext_len)) {
+      return false;
+    }
+
+    ncrypto::Buffer<const unsigned char> buffer{
+        .data = nullptr,
+        .len = static_cast<size_t>(plaintext_len),
+    };
+    // Specify the plaintext length.
+    if (!ctx_.update(buffer, nullptr, &outlen)) {
+      return false;
+    }
+  }
+
+  ncrypto::Buffer<const unsigned char> buffer{
+      .data = data.data(),
+      .len = data.size(),
+  };
+  const bool success = ctx_.update(buffer, nullptr, &outlen);
+  if (success && is_siv) siv_aad_components_++;
+  return success;
+}
+
+void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
+  CipherBase* cipher;
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[1]->IsInt32());
+  int plaintext_len = args[1].As<Int32>()->Value();
+  ArrayBufferOrViewContents<unsigned char> buf(args[0]);
+
+  if (!buf.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
+  }
+  args.GetReturnValue().Set(cipher->SetAAD(buf, plaintext_len));
+}
+
+CipherBase::UpdateResult CipherBase::Update(
+    const char* data,
+    size_t len,
+    std::unique_ptr<BackingStore>* out) {
+  if (!ctx_ || len > INT_MAX) return kErrorState;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  const bool is_ccm_mode = ctx_.isCcmMode();
+  const bool is_ccm_decipher = kind_ == kDecipher && is_ccm_mode;
+
+  if (is_ccm_mode && !CheckCCMMessageLength(len)) {
+    return kErrorMessageSize;
+  }
+
+  const bool is_siv = ctx_.isSivMode() || ctx_.isGcmSivMode();
+  const bool is_cts = ctx_.isCtsMode();
+  const bool is_xts = ctx_.isXtsMode();
+  const bool is_wrap = ctx_.isWrapMode();
+  const bool is_one_shot =
+      is_ccm_decipher || is_siv || is_cts || is_xts || is_wrap;
+  if (is_one_shot && has_one_shot_update_) {
+    return kErrorState;
+  }
+
+  const int block_size = ctx_.getBlockSize();
+  CHECK_GT(block_size, 0);
+  if (len + block_size > INT_MAX) return kErrorState;
+  int buf_len = len + block_size;
+
+  ncrypto::Buffer<const unsigned char> buffer = {
+      .data = reinterpret_cast<const unsigned char*>(data),
+      .len = len,
+  };
+  if (kind_ == kCipher && ctx_.isWrapMode() &&
+      !ctx_.update(buffer, nullptr, &buf_len)) {
+    return kErrorState;
+  }
+
+  *out = ArrayBuffer::NewBackingStore(
+      env()->isolate(),
+      buf_len,
+      BackingStoreInitializationMode::kUninitialized);
+
+  buffer = {
+      .data = reinterpret_cast<const unsigned char*>(data),
+      .len = len,
+  };
+
+  bool r = ctx_.update(
+      buffer, static_cast<unsigned char*>((*out)->Data()), &buf_len);
+  if (is_ccm_decipher || is_siv || ((is_cts || is_xts || is_wrap) && r)) {
+    has_one_shot_update_ = true;
+  }
+
+  // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
+  // invalid. AES-SIV reports the same authentication failure at update time,
+  // but the AEAD contract expects the failure to surface from final().
+  const bool pending_auth_failed =
+      !r && kind_ == kDecipher && (ctx_.isCcmMode() || is_siv);
+  if (pending_auth_failed) {
+    buf_len = 0;
+  }
+
+  CHECK_LE(static_cast<size_t>(buf_len), (*out)->ByteLength());
+  if (buf_len == 0) {
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
+  } else if (static_cast<size_t>(buf_len) != (*out)->ByteLength()) {
+    std::unique_ptr<BackingStore> old_out = std::move(*out);
+    *out = ArrayBuffer::NewBackingStore(
+        env()->isolate(),
+        buf_len,
+        BackingStoreInitializationMode::kUninitialized);
+    memcpy((*out)->Data(), old_out->Data(), buf_len);
+  }
+
+  if (pending_auth_failed) {
+    pending_auth_failed_ = true;
+    return kSuccess;
+  }
+  return r == 1 ? kSuccess : kErrorState;
+}
+
+void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
+  Decode<CipherBase>(
+      args,
+      [](CipherBase* cipher,
+         const FunctionCallbackInfo<Value>& args,
+         const char* data,
+         size_t size) {
+        MarkPopErrorOnReturn mark_pop_error_on_return;
+        std::unique_ptr<BackingStore> out;
+        Environment* env = Environment::GetCurrent(args);
+
+        if (size > INT_MAX) [[unlikely]] {
+          return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
+        }
+        UpdateResult r = cipher->Update(data, size, &out);
+
+        if (r != kSuccess) {
+          if (r == kErrorState) {
+            ThrowCryptoError(env,
+                             mark_pop_error_on_return.peekError(),
+                             "Trying to add data in unsupported state");
+          }
+          return;
+        }
+
+        auto ab = ArrayBuffer::New(env->isolate(), std::move(out));
+        args.GetReturnValue().Set(Buffer::New(env, ab, 0, ab->ByteLength())
+                                      .FromMaybe(Local<Value>()));
+      });
+}
+
+bool CipherBase::SetAutoPadding(bool auto_padding) {
+  if (!ctx_) return false;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  return ctx_.setPadding(auto_padding);
+}
+
+void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
+  CipherBase* cipher;
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
+
+  bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->IsTrue());
+  args.GetReturnValue().Set(b);  // Possibly report invalid state failure
+}
+
+bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
+  if (!ctx_) return false;
+  const bool is_one_shot = ctx_.isSivMode() || ctx_.isGcmSivMode() ||
+                           ctx_.isCtsMode() || ctx_.isXtsMode() ||
+                           ctx_.isWrapMode();
+  if (is_one_shot && !has_one_shot_update_) {
+    ctx_.reset();
+    return false;
+  }
+
+  *out = ArrayBuffer::NewBackingStore(
+      env()->isolate(),
+      static_cast<size_t>(ctx_.getBlockSize()),
+      BackingStoreInitializationMode::kUninitialized);
+
+#if !OPENSSL_VERSION_PREREQ(3, 0)
+  // OpenSSL v1.x doesn't verify the presence of the auth tag so do
+  // it ourselves, see https://github.com/nodejs/node/issues/45874.
+  if (kind_ == kDecipher && ctx_.isChaCha20Poly1305() &&
+      auth_tag_state_ != kAuthTagSetByUser) {
+    return false;
+  }
+#endif
+
+  // In CCM mode, final() only checks whether authentication failed in update().
+  // EVP_CipherFinal_ex must not be called and will fail.
+  bool ok;
+  if (kind_ == kDecipher && ctx_.isCcmMode()) {
+    ok = auth_tag_state_ == kAuthTagSetByUser && has_one_shot_update_ &&
+         !pending_auth_failed_;
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
+  } else {
+    int out_len = (*out)->ByteLength();
+    ok = ctx_.update(
+        {}, static_cast<unsigned char*>((*out)->Data()), &out_len, true);
+
+    CHECK_LE(static_cast<size_t>(out_len), (*out)->ByteLength());
+    if (out_len == 0) {
+      *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
+    } else if (static_cast<size_t>(out_len) != (*out)->ByteLength()) {
+      std::unique_ptr<BackingStore> old_out = std::move(*out);
+      *out = ArrayBuffer::NewBackingStore(
+          env()->isolate(),
+          out_len,
+          BackingStoreInitializationMode::kUninitialized);
+      memcpy((*out)->Data(), old_out->Data(), out_len);
+    }
+
+    if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
+      CHECK_NE(auth_tag_len_, kNoAuthTagLength);
+      ok = ctx_.getAeadTag(auth_tag_len_,
+                           reinterpret_cast<unsigned char*>(auth_tag_));
+      if (ok) {
+        auth_tag_state_ = kAuthTagComputed;
+      }
+    }
+  }
+
+  ctx_.reset();
+
+  return ok;
+}
+
+void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  CipherBase* cipher;
+  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
+  if (cipher->ctx_ == nullptr) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(env);
+  }
+
+  std::unique_ptr<BackingStore> out;
+
+  // Check IsAuthenticatedMode() first, Final() destroys the EVP_CIPHER_CTX.
+  const bool is_auth_mode = cipher->IsAuthenticatedMode();
+  bool r = cipher->Final(&out);
+
+  if (!r) {
+    const char* msg = is_auth_mode
+                          ? "Unsupported state or unable to authenticate data"
+                          : "Unsupported state";
+
+    return ThrowCryptoError(env, mark_pop_error_on_return.peekError(), msg);
+  }
+
+  auto ab = ArrayBuffer::New(env->isolate(), std::move(out));
+  args.GetReturnValue().Set(
+      Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
+}
+
+template <PublicKeyCipher::Cipher_t cipher>
+bool PublicKeyCipher::Cipher(
+    Environment* env,
+    const EVPKeyPointer& pkey,
+    int padding,
+    const Digest& digest,
+    const Digest& mgf1_digest,
+    const ArrayBufferOrViewContents<unsigned char>& oaep_label,
+    const ArrayBufferOrViewContents<unsigned char>& data,
+    std::unique_ptr<BackingStore>* out) {
+  auto label = oaep_label.ToByteSource();
+  auto in = data.ToByteSource();
+
+  const ncrypto::Cipher::CipherParams params{
+      .padding = padding,
+      .digest = digest,
+      .mgf1_digest = mgf1_digest,
+      .label = label,
+  };
+
+  auto buf = cipher(pkey, params, in);
+
+  if (!buf) return false;
+
+  if (buf.size() == 0) {
+    *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
+  } else {
+    *out = ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        buf.size(),
+        BackingStoreInitializationMode::kUninitialized);
+    memcpy((*out)->Data(), buf.get(), buf.size());
+  }
+
+  return true;
+}
+
+template <PublicKeyCipher::Operation operation,
+          PublicKeyCipher::Cipher_t cipher>
+void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  unsigned int offset = 0;
+  // TODO(panva): Use GetPrivateKeyFromJs() for private operations, then
+  // remove allow_private_key_store and URL handling from
+  // GetPublicOrPrivateKeyFromJs().
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(
+      args, &offset, operation == PublicKeyCipher::kPrivate);
+  if (!data) return;
+  const auto& pkey = data.GetAsymmetricKey();
+  if (!pkey) return;
+
+  ArrayBufferOrViewContents<unsigned char> buf(args[offset]);
+  if (!buf.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is too long");
+  }
+  uint32_t padding;
+  if (!args[offset + 1]->Uint32Value(env->context()).To(&padding)) return;
+
+  if (cipher == ncrypto::Cipher::decrypt &&
+      operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
+    EVPKeyCtxPointer ctx = pkey.newCtx();
+    CHECK(ctx);
+
+    if (!ctx.initForDecrypt()) {
+      return ThrowCryptoError(env, ERR_get_error());
+    }
+
+    // RSA implicit rejection here is not supported by BoringSSL.
+    if (!ctx.setRsaImplicitRejection()) [[unlikely]] {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "RSA_PKCS1_PADDING is no longer supported for private decryption");
+    }
+  }
+
+  Digest digest;
+  if (args[offset + 2]->IsString()) {
+    Utf8Value oaep_str(env->isolate(), args[offset + 2]);
+    digest = Digest::FromName(*oaep_str);
+    if (!digest) return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
+  }
+
+  ArrayBufferOrViewContents<unsigned char> oaep_label(
+      !args[offset + 3]->IsUndefined() ? args[offset + 3] : Local<Value>());
+  if (!oaep_label.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
+  }
+
+  Digest mgf1_digest;
+  if (args[offset + 4]->IsString()) {
+    Utf8Value mgf1_str(env->isolate(), args[offset + 4]);
+    mgf1_digest = Digest::FromName(*mgf1_str);
+    if (!mgf1_digest) return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
+  }
+
+  std::unique_ptr<BackingStore> out;
+  if (!Cipher<cipher>(
+          env, pkey, padding, digest, mgf1_digest, oaep_label, buf, &out)) {
+    return ThrowCryptoError(env, ERR_get_error());
+  }
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(out));
+  args.GetReturnValue().Set(
+      Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
+}
+
+}  // namespace crypto
+}  // namespace node

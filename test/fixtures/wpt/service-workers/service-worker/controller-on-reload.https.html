@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Service Worker: Controller on reload</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(function(t) {
+    const iframe_scope = 'blank.html';
+    const scope = 'resources/' + iframe_scope;
+    var frame;
+    var registration;
+    var controller;
+    return service_worker_unregister(t, scope)
+      .then(function() {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          return frame.contentWindow.navigator.serviceWorker.register(
+              'empty-worker.js', {scope: iframe_scope});
+        })
+      .then(function(swr) {
+          registration = swr;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          var w = frame.contentWindow;
+          assert_equals(w.navigator.serviceWorker.controller, null,
+                        'controller should be null until the document is ' +
+                        'reloaded');
+          return new Promise(function(resolve) {
+              frame.onload = function() { resolve(); }
+              w.location.reload();
+            });
+        })
+      .then(function() {
+          var w = frame.contentWindow;
+          controller = w.navigator.serviceWorker.controller;
+          assert_true(controller instanceof w.ServiceWorker,
+                      'controller should be a ServiceWorker object upon reload');
+
+          // objects from separate windows should not be equal
+          assert_not_equals(controller, registration.active);
+
+          return w.navigator.serviceWorker.getRegistration(iframe_scope);
+        })
+      .then(function(frameRegistration) {
+          assert_equals(frameRegistration.active, controller);
+          frame.remove();
+        });
+  }, 'controller is set upon reload after registration');
+</script>
+</body>

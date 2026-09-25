@@ -1,0 +1,17 @@
+*%(basename)s:21: TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    |     property 'first' -> object with constructor 'Outer'
+    |     property 'x' -> object with constructor 'ArrayHolder'
+    |     property 'array' -> object with constructor 'Array'
+    --- index 1 closes the circle
+JSON.stringify(root);
+     ^
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    |     property 'first' -> object with constructor 'Outer'
+    |     property 'x' -> object with constructor 'ArrayHolder'
+    |     property 'array' -> object with constructor 'Array'
+    --- index 1 closes the circle
+    at JSON.stringify (<anonymous>)
+    at *%(basename)s:21:6
+

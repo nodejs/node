@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Service Worker GlobalScope onerror event</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+<canvas id=canvas></canvas>
+<script>
+var scope = "resources";
+var registration;
+var frame;
+
+var url1 = "/WebKit/service-workers/resources/response-full-of-headers.py";
+var url2 = get_host_info().HTTPS_REMOTE_ORIGIN + url1;
+
+async function registerServiceWorker(scope)
+{
+    const registration = await navigator.serviceWorker.register("error-message-event-worker.js", { scope : scope });
+    let activeWorker = registration.active;
+    if (activeWorker)
+        return registration;
+    activeWorker = registration.installing;
+    return new Promise(resolve => {
+        activeWorker.addEventListener('statechange', () => {
+            if (activeWorker.state === "activated")
+                resolve(registration);
+        });
+    });
+}
+
+promise_test(async (test) => {
+    registration = await registerServiceWorker(scope);
+
+    const stream = canvas.captureStream();
+    const track = stream.getVideoTracks()[0];
+    // MediaStreamTrack is not defined in service worker contexts.
+    registration.active.postMessage({ track }, [track]);
+
+    const result = await new Promise(resolve => navigator.serviceWorker.onmessage = e => resolve(e.data));
+    assert_equals(result, "received error event");
+}, "Verify error event is received");
+</script>
+</body>
+</html>

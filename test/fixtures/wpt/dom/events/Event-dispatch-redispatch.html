@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<meta charset=urf-8>
+<title>EventTarget#dispatchEvent(): redispatching a native event</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<button>click me!</button>
+<div id=log></div>
+<script>
+var test_contentLoaded_redispatching = async_test("Redispatching DOMContentLoaded event after being dispatched");
+var test_mouseup_redispatching = async_test("Redispatching mouseup event whose default action dispatches a click event");
+var test_redispatching_of_dispatching_event = async_test("Redispatching event which is being dispatched");
+
+var buttonElement = document.querySelector("button");
+var contentLoadedEvent;
+
+var waitForLoad = new Promise(resolve => {
+  window.addEventListener("load", () => { requestAnimationFrame(resolve); }, {capture: false, once: true});
+});
+
+document.addEventListener("DOMContentLoaded", event => {
+  contentLoadedEvent = event;
+  test_redispatching_of_dispatching_event.step(() => {
+    assert_throws_dom("InvalidStateError", () => {
+      document.dispatchEvent(contentLoadedEvent);
+    }, "Trusted DOMContentLoaded event");
+  });
+}, {capture: true, once: true});
+
+window.addEventListener("load", loadEvent => {
+  let untrustedContentLoadedEvent;
+  buttonElement.addEventListener("DOMContentLoaded", event => {
+    untrustedContentLoadedEvent = event;
+    test_contentLoaded_redispatching.step(() => {
+      assert_false(untrustedContentLoadedEvent.isTrusted, "Redispatched DOMContentLoaded event shouldn't be trusted");
+    });
+    test_redispatching_of_dispatching_event.step(() => {
+      assert_throws_dom("InvalidStateError", () => {
+        document.dispatchEvent(untrustedContentLoadedEvent);
+      }, "Untrusted DOMContentLoaded event");
+    });
+  });
+
+  test_contentLoaded_redispatching.step(() => {
+    assert_true(contentLoadedEvent.isTrusted, "Received DOMContentLoaded event should be trusted before redispatching");
+    buttonElement.dispatchEvent(contentLoadedEvent);
+    assert_false(contentLoadedEvent.isTrusted, "Received DOMContentLoaded event shouldn't be trusted after redispatching");
+    assert_not_equals(untrustedContentLoadedEvent, undefined, "Untrusted DOMContentLoaded event should've been fired");
+    test_contentLoaded_redispatching.done();
+  });
+}, {capture: true, once: true});
+
+async function testMouseUpAndClickEvent() {
+  let mouseupEvent;
+  buttonElement.addEventListener("mouseup", event => {
+    mouseupEvent = event;
+    test_mouseup_redispatching.step(() => {
+      assert_true(mouseupEvent.isTrusted, "First mouseup event should be trusted");
+    });
+    test_redispatching_of_dispatching_event.step(() => {
+      assert_throws_dom("InvalidStateError", () => {
+        buttonElement.dispatchEvent(mouseupEvent);
+      }, "Trusted mouseup event");
+    });
+  }, {once: true});
+
+  let clickEvent;
+  buttonElement.addEventListener("click", event => {
+    clickEvent = event;
+    test_mouseup_redispatching.step(() => {
+      assert_true(clickEvent.isTrusted, "First click event should be trusted");
+    });
+    test_redispatching_of_dispatching_event.step(() => {
+      assert_throws_dom("InvalidStateError", function() {
+        buttonElement.dispatchEvent(event);
+      }, "Trusted click event");
+    });
+    buttonElement.addEventListener("mouseup", event => {
+      test_mouseup_redispatching.step(() => {
+        assert_false(event.isTrusted, "Redispatched mouseup event shouldn't be trusted");
+      });
+      test_redispatching_of_dispatching_event.step(() => {
+        assert_throws_dom("InvalidStateError", function() {
+          buttonElement.dispatchEvent(event);
+        }, "Untrusted mouseup event");
+      });
+    }, {once: true});
+    function onClick() {
+      test_mouseup_redispatching.step(() => {
+        assert_true(false, "click event shouldn't be fired for dispatched mouseup event");
+      });
+    }
+    test_mouseup_redispatching.step(() => {
+      assert_true(mouseupEvent.isTrusted, "Received mouseup event should be trusted before redispatching from click event listener");
+      buttonElement.addEventListener("click", onClick);
+      buttonElement.dispatchEvent(mouseupEvent);
+      buttonElement.removeEventListener("click", onClick);
+      assert_false(mouseupEvent.isTrusted, "Received mouseup event shouldn't be trusted after redispatching");
+      assert_true(clickEvent.isTrusted, "First click event should still be trusted even after redispatching mouseup event");
+    });
+  }, {once: true});
+
+  await waitForLoad;
+  let bounds = buttonElement.getBoundingClientRect();
+  test(() => { assert_true(true); }, `Synthesizing click on button...`);
+  new test_driver.click(buttonElement)
+      .then(() => {
+        test_mouseup_redispatching.step(() => {
+          assert_not_equals(clickEvent, undefined, "mouseup and click events should've been fired");
+        });
+        test_mouseup_redispatching.done();
+        test_redispatching_of_dispatching_event.done();
+      }, (reason) => {
+        test_mouseup_redispatching.step(() => {
+          assert_true(false, `Failed to send mouse click due to ${reason}`);
+        });
+        test_mouseup_redispatching.done();
+        test_redispatching_of_dispatching_event.done();
+      });
+}
+testMouseUpAndClickEvent();
+</script>

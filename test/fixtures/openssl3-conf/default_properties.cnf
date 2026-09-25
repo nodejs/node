@@ -1,0 +1,19 @@
+nodejs_conf = nodejs_init
+
+[nodejs_init]
+providers = provider_sect
+alg_section = algorithm_sect
+
+# Load both providers but select only implementations from the default provider.
+[provider_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
+
+[algorithm_sect]
+default_properties = provider=default

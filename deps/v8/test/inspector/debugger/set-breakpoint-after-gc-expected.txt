@@ -1,0 +1,5 @@
+Checks if we keep alive breakpoint information for top-level functions.
+Result of setting breakpoint in topLevel.js
+[]
+Result of setting breakpoint in moduleFunc.js
+[{"scriptId":"7","lineNumber":0,"columnNumber":22}]

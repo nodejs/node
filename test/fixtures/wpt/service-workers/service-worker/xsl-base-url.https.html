@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: XSL's base URL must be the response URL</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+// This test loads an XML document which is controlled a service worker. The
+// document loads a stylesheet and a service worker responds with another URL.
+// The stylesheet imports a relative URL to test that the base URL is the
+// response URL from the service worker.
+promise_test(async (t) => {
+  const SCOPE = 'resources/xsl-base-url-iframe.xml';
+  const SCRIPT = 'resources/xsl-base-url-worker.js';
+  let worker;
+  let frame;
+
+  t.add_cleanup(() => {
+    if (frame)
+      frame.remove();
+    service_worker_unregister(t, SCOPE);
+  });
+
+  const registration = await service_worker_unregister_and_register(
+      t, SCRIPT, SCOPE);
+  worker = registration.installing;
+  await wait_for_state(t, worker, 'activated');
+
+  frame = await with_iframe(SCOPE);
+  assert_equals(frame.contentDocument.body.textContent, 'PASS');
+}, 'base URL when service worker does respondWith(fetch(responseUrl))');
+</script>

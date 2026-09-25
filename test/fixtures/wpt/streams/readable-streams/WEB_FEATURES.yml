@@ -1,0 +1,6 @@
+rules:
+- async-iterator.any.js: [async-iterable-streams]
+- from.any.js: [readablestream-from]
+# 'owning' type is not yet standardized
+- owning-type*: []
+- "*": [streams]

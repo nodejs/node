@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title> AbstractWorker terminate(): clear event queue </title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function() {
+  var testResult;
+  var worker = new Worker('./support/WorkerTerminate.js');
+  worker.onmessage = this.step_func(function(e) {
+    testResult = e.data;
+    if (testResult >= 10000) {
+      worker.terminate();
+      worker.onmessage = this.unreached_func('Unexpected message event');
+      setTimeout(this.step_func_done(function() {
+        assert_equals(testResult, 10000);
+      }), 100);
+    }
+  });
+  worker.postMessage("ping");
+});
+</script>

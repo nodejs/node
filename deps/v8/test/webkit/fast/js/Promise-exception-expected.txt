@@ -1,0 +1,10 @@
+An exception thrown from an onFulfilled callback should reject the Promise.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS thisInThenCallback is undefined
+PASS result is "foobar"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -1,0 +1,1013 @@
+import * as common from '../common/index.mjs';
+import tmpdir from '../common/tmpdir.js';
+import { spawnSyncAndExitWithoutError } from '../common/child_process.js';
+import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
+import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
+import {
+  glob,
+  globSync,
+  Dirent,
+  chmodSync,
+  writeFileSync,
+  rmSync,
+  realpathSync,
+  mkdirSync,
+  existsSync,
+} from 'node:fs';
+import { test, describe } from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+import assert from 'node:assert';
+
+function assertDirents(dirents) {
+  assert.ok(dirents.every((dirent) => dirent instanceof Dirent));
+}
+
+tmpdir.refresh();
+
+const fixtureDir = tmpdir.resolve('fixtures');
+const caseVariantFixtureDir = tmpdir.resolve('FIXTURES');
+const absDir = tmpdir.resolve('abs');
+
+async function setup() {
+  await mkdir(fixtureDir, { recursive: true });
+  await mkdir(caseVariantFixtureDir, { recursive: true });
+  await mkdir(absDir, { recursive: true });
+  const files = [
+    'a/.abcdef/x/y/z/a',
+    'a/abcdef/g/h',
+    'a/abcfed/g/h',
+    'a/b/c/d',
+    'a/bc/e/f',
+    'a/c/d/c/b',
+    'a/cb/e/f',
+    'a/x/.y/b',
+    'a/z/.y/b',
+    'a/.b',
+    'a/b/.b',
+  ].map((f) => resolve(fixtureDir, f));
+
+  const symlinkTo = resolve(fixtureDir, 'a/symlink/a/b/c');
+  const symlinkFrom = '../..';
+  const followTarget = resolve(fixtureDir, 'follow/target');
+  const followLink = resolve(fixtureDir, 'follow/link');
+  const followCycle = resolve(fixtureDir, 'follow/cycle');
+
+  for (const file of files) {
+    const f = resolve(fixtureDir, file);
+    const d = dirname(f);
+    await mkdir(d, { recursive: true });
+    await writeFile(f, 'i like tests');
+  }
+
+  await mkdir(followTarget, { recursive: true });
+  await writeFile(resolve(followTarget, 'file.txt'), 'follow symlinks');
+
+  if (!common.isWindows) {
+    const d = dirname(symlinkTo);
+    await mkdir(d, { recursive: true });
+    await symlink(symlinkFrom, symlinkTo, 'dir');
+  }
+
+  const linkType = common.isWindows ? 'junction' : 'dir';
+  await symlink(followTarget, followLink, linkType);
+  await symlink(resolve(fixtureDir, 'follow'), followCycle, linkType);
+
+  await Promise.all(['foo', 'bar', 'baz', 'asdf', 'quux', 'qwer', 'rewq'].map(async function(w) {
+    await mkdir(resolve(absDir, w), { recursive: true });
+  }));
+}
+
+await setup();
+
+const isCaseSensitiveFileSystem =
+  realpathSync.native(fixtureDir) !== realpathSync.native(caseVariantFixtureDir);
+
+let differentWindowsVolume;
+if (common.isWindows) {
+  const currentRoot = resolve(fixtureDir).slice(0, 3).toLowerCase();
+  for (let code = 65; code <= 90; code++) {
+    const root = `${String.fromCharCode(code)}:\\`;
+    if (root.toLowerCase() !== currentRoot && existsSync(root)) {
+      differentWindowsVolume = root;
+      break;
+    }
+  }
+}
+
+const patterns = {
+  'a/c/d/*/b': ['a/c/d/c/b'],
+  'a//c//d//*//b': ['a/c/d/c/b'],
+  'a/*/d/*/b': ['a/c/d/c/b'],
+  'a/*/+(c|g)/./d': ['a/b/c/d'],
+  'a/**/[cg]/../[cg]': [
+    'a/abcdef/g',
+    'a/abcfed/g',
+    'a/b/c',
+    'a/c',
+    'a/c/d/c',
+    common.isWindows ? null : 'a/symlink/a/b/c',
+  ],
+  'a/{b,c,d,e,f}/**/g': [],
+  'a/b/**': ['a/b', 'a/b/c', 'a/b/c/d'],
+  'a/{b/**,b/c}': ['a/b', 'a/b/c', 'a/b/c/d'],
+  './**/g': ['a/abcdef/g', 'a/abcfed/g'],
+  'a/abc{fed,def}/g/h': ['a/abcdef/g/h', 'a/abcfed/g/h'],
+  'a/abc{fed/g,def}/**/': ['a/abcdef', 'a/abcdef/g', 'a/abcfed/g'],
+  'a/abc{fed/g,def}/**///**/': ['a/abcdef', 'a/abcdef/g', 'a/abcfed/g'],
+  '**/a': common.isWindows ? ['a'] : ['a', 'a/symlink/a'],
+  '**/a/**': [
+    'a',
+    'a/abcdef',
+    'a/abcdef/g',
+    'a/abcdef/g/h',
+    'a/abcfed',
+    'a/abcfed/g',
+    'a/abcfed/g/h',
+    'a/b',
+    'a/b/c',
+    'a/b/c/d',
+    'a/bc',
+    'a/bc/e',
+    'a/bc/e/f',
+    'a/c',
+    'a/c/d',
+    'a/c/d/c',
+    'a/c/d/c/b',
+    'a/cb',
+    'a/cb/e',
+    'a/cb/e/f',
+    ...(common.isWindows ? [] : [
+      'a/symlink',
+      'a/symlink/a',
+      'a/symlink/a/b',
+      'a/symlink/a/b/c',
+    ]),
+    'a/x',
+    'a/z',
+  ],
+  './**/a': common.isWindows ? ['a'] : ['a', 'a/symlink/a'],
+  './**/a/**/': [
+    'a',
+    'a/abcdef',
+    'a/abcdef/g',
+    'a/abcfed',
+    'a/abcfed/g',
+    'a/b',
+    'a/b/c',
+    'a/bc',
+    'a/bc/e',
+    'a/c',
+    'a/c/d',
+    'a/c/d/c',
+    'a/cb',
+    'a/cb/e',
+    ...(common.isWindows ? [] : [
+      'a/symlink',
+      'a/symlink/a',
+      'a/symlink/a/b',
+    ]),
+    'a/x',
+    'a/z',
+  ],
+  './**/a/**': [
+    'a',
+    'a/abcdef',
+    'a/abcdef/g',
+    'a/abcdef/g/h',
+    'a/abcfed',
+    'a/abcfed/g',
+    'a/abcfed/g/h',
+    'a/b',
+    'a/b/c',
+    'a/b/c/d',
+    'a/bc',
+    'a/bc/e',
+    'a/bc/e/f',
+    'a/c',
+    'a/c/d',
+    'a/c/d/c',
+    'a/c/d/c/b',
+    'a/cb',
+    'a/cb/e',
+    'a/cb/e/f',
+    ...(common.isWindows ? [] : [
+      'a/symlink',
+      'a/symlink/a',
+      'a/symlink/a/b',
+      'a/symlink/a/b/c',
+    ]),
+    'a/x',
+    'a/z',
+  ],
+  './**/a/**/a/**/': common.isWindows ? [] : [
+    'a/symlink/a',
+    'a/symlink/a/b',
+  ],
+  '+(a|b|c)/a{/,bc*}/**': [
+    'a/abcdef',
+    'a/abcdef/g',
+    'a/abcdef/g/h',
+    'a/abcfed',
+    'a/abcfed/g',
+    'a/abcfed/g/h',
+  ],
+  '*/*/*/f': ['a/bc/e/f', 'a/cb/e/f'],
+  './**/f': ['a/bc/e/f', 'a/cb/e/f'],
+  '**/.b': ['a/.b', 'a/b/.b'],
+  './**/.b': ['a/.b', 'a/b/.b'],
+  'a/**/.b': ['a/.b', 'a/b/.b'],
+  'a/symlink/a/b/c/a/b/c/a/b/c//a/b/c////a/b/c/**/b/c/**': common.isWindows ? [] : [
+    'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c',
+    'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a',
+    'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b',
+    'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c',
+  ],
+  [`{./*/*,${absDir}/*}`]: [
+    `${absDir}/asdf`,
+    `${absDir}/bar`,
+    `${absDir}/baz`,
+    `${absDir}/foo`,
+    `${absDir}/quux`,
+    `${absDir}/qwer`,
+    `${absDir}/rewq`,
+    'a/abcdef',
+    'a/abcfed',
+    'a/b',
+    'a/bc',
+    'a/c',
+    'a/cb',
+    common.isWindows ? null : 'a/symlink',
+    'a/x',
+    'a/z',
+    'follow/cycle',
+    'follow/link',
+    'follow/target',
+  ],
+  [`{${absDir}/*,*}`]: [
+    `${absDir}/asdf`,
+    `${absDir}/bar`,
+    `${absDir}/baz`,
+    `${absDir}/foo`,
+    `${absDir}/quux`,
+    `${absDir}/qwer`,
+    `${absDir}/rewq`,
+    'a',
+    'follow',
+  ],
+  'a/!(symlink)/**': [
+    'a/abcdef',
+    'a/abcdef/g',
+    'a/abcdef/g/h',
+    'a/abcfed',
+    'a/abcfed/g',
+    'a/abcfed/g/h',
+    'a/b',
+    'a/b/c',
+    'a/b/c/d',
+    'a/bc',
+    'a/bc/e',
+    'a/bc/e/f',
+    'a/c',
+    'a/c/d',
+    'a/c/d/c',
+    'a/c/d/c/b',
+    'a/cb',
+    'a/cb/e',
+    'a/cb/e/f',
+    'a/x',
+    'a/z',
+  ],
+  'a/symlink/a/**/*': common.isWindows ? [] : [
+    'a/symlink/a/b',
+    'a/symlink/a/b/c',
+  ],
+  'a/!(symlink)/**/..': [
+    'a',
+    'a/abcdef',
+    'a/abcfed',
+    'a/b',
+    'a/bc',
+    'a/c',
+    'a/c/d',
+    'a/cb',
+  ],
+  'a/!(symlink)/**/../': [
+    'a',
+    'a/abcdef',
+    'a/abcfed',
+    'a/b',
+    'a/bc',
+    'a/c',
+    'a/c/d',
+    'a/cb',
+  ],
+  'a/!(symlink)/**/../*': [
+    'a/abcdef',
+    'a/abcdef/g',
+    'a/abcfed',
+    'a/abcfed/g',
+    'a/b',
+    'a/b/c',
+    'a/bc',
+    'a/bc/e',
+    'a/c',
+    'a/c/d',
+    'a/c/d/c',
+    'a/cb',
+    'a/cb/e',
+    common.isWindows ? null : 'a/symlink',
+    'a/x',
+    'a/z',
+  ],
+  'a/!(symlink)/**/../*/*': [
+    'a/abcdef/g',
+    'a/abcdef/g/h',
+    'a/abcfed/g',
+    'a/abcfed/g/h',
+    'a/b/c',
+    'a/b/c/d',
+    'a/bc/e',
+    'a/bc/e/f',
+    'a/c/d',
+    'a/c/d/c',
+    'a/c/d/c/b',
+    'a/cb/e',
+    'a/cb/e/f',
+    common.isWindows ? null : 'a/symlink/a',
+  ],
+};
+
+describe('glob', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = (await promisified(pattern, { cwd: fixtureDir })).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('globSync', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, { cwd: fixtureDir }).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('fsPromises glob', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: fixtureDir })) actual.push(item);
+      actual.sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('glob - with file: URL as cwd', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = (await promisified(pattern, { cwd: pathToFileURL(fixtureDir) })).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('globSync - with file: URL as cwd', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, { cwd: pathToFileURL(fixtureDir) }).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('fsPromises.glob - with file: URL as cwd', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: pathToFileURL(fixtureDir) })) actual.push(item);
+      actual.sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+const normalizeDirent = (dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name));
+// The call to `join()` with only one argument is important, as
+// it ensures that the proper path separators are applied.
+const normalizePath = (path) => (isAbsolute(path) ? relative(fixtureDir, path) : join(path));
+
+describe('glob - withFileTypes', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = await promisified(pattern, {
+        cwd: fixtureDir,
+        withFileTypes: true,
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
+      });
+      assertDirents(actual);
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
+    });
+  }
+});
+
+describe('globSync - withFileTypes', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, {
+        cwd: fixtureDir,
+        withFileTypes: true,
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
+      });
+      assertDirents(actual);
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
+    });
+  }
+});
+
+describe('fsPromises glob - withFileTypes', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, {
+        cwd: fixtureDir,
+        withFileTypes: true,
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
+      })) actual.push(item);
+      assertDirents(actual);
+      assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
+    });
+  }
+});
+
+// [pattern, exclude option, expected result]
+const patterns2 = [
+  ['a/{b,c}*', ['a/*c'], ['a/b', 'a/cb']],
+  ['a/{a,b,c}*', ['a/*bc*', 'a/cb'], ['a/b', 'a/c']],
+  ['a/**/[cg]', ['**/c'], ['a/abcdef/g', 'a/abcfed/g']],
+  ['a/**/[cg]', ['./**/c'], ['a/abcdef/g', 'a/abcfed/g']],
+  ['a/**/[cg]', ['a/**/[cg]/../c'], ['a/abcdef/g', 'a/abcfed/g']],
+  ['a/*/+(c|g)/*', ['**/./h'], ['a/b/c/d']],
+  [
+    'a/**/[cg]/../[cg]',
+    ['a/ab{cde,cfe}*'],
+    [
+      'a/b/c',
+      'a/c',
+      'a/c/d/c',
+      ...(common.isWindows ? [] : ['a/symlink/a/b/c']),
+    ],
+  ],
+  [
+    `${absDir}/*`,
+    [`${absDir}/asdf`, `${absDir}/ba*`],
+    [`${absDir}/foo`, `${absDir}/quux`, `${absDir}/qwer`, `${absDir}/rewq`],
+  ],
+  [
+    `${absDir}/*`,
+    [`${absDir}/asdf`, `**/ba*`],
+    [
+      `${absDir}/bar`,
+      `${absDir}/baz`,
+      `${absDir}/foo`,
+      `${absDir}/quux`,
+      `${absDir}/qwer`,
+      `${absDir}/rewq`,
+    ],
+  ],
+  [
+    [`${absDir}/*`, 'a/**/[cg]'],
+    [`${absDir}/*{a,q}*`, './a/*{c,b}*/*'],
+    [`${absDir}/foo`, 'a/c', ...(common.isWindows ? [] : ['a/symlink/a/b/c'])],
+  ],
+  [ 'a/**', () => true, [] ],
+  [ 'a/**', [ '*' ], [] ],
+  [ 'a/**', [ '**' ], [] ],
+  [ 'a/**', [ 'a/**' ], [] ],
+];
+
+describe('globSync - exclude', function() {
+  for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
+    test(`${pattern} - exclude: ${exclude}`, () => {
+      const actual = globSync(pattern, { cwd: fixtureDir, exclude }).sort();
+      assert.strictEqual(actual.length, 0);
+    });
+  }
+  for (const [pattern, exclude, expected] of patterns2) {
+    test(`${pattern} - exclude: ${exclude}`, () => {
+      const actual = globSync(pattern, { cwd: fixtureDir, exclude }).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('glob - exclude', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
+    test(`${pattern} - exclude: ${exclude}`, async () => {
+      const actual = (await promisified(pattern, { cwd: fixtureDir, exclude })).sort();
+      assert.strictEqual(actual.length, 0);
+    });
+  }
+  for (const [pattern, exclude, expected] of patterns2) {
+    test(`${pattern} - exclude: ${exclude}`, async () => {
+      const actual = (await promisified(pattern, { cwd: fixtureDir, exclude })).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('fsPromises glob - exclude', function() {
+  for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
+    test(`${pattern} - exclude: ${exclude}`, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: fixtureDir, exclude })) actual.push(item);
+      actual.sort();
+      assert.strictEqual(actual.length, 0);
+    });
+  }
+  for (const [pattern, exclude, expected] of patterns2) {
+    test(`${pattern} - exclude: ${exclude}`, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: fixtureDir, exclude })) actual.push(item);
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual.sort(), normalized);
+    });
+  }
+});
+
+const maxDepthExpected = [
+  '.',
+  'a',
+  'a/abcdef',
+  'a/abcfed',
+  'a/b',
+  'a/bc',
+  'a/c',
+  'a/cb',
+  ...(common.isWindows ? [] : ['a/symlink']),
+  'a/x',
+  'a/z',
+  'follow',
+  'follow/cycle',
+  'follow/link',
+  'follow/target',
+].map((item) => item.replaceAll('/', sep)).sort();
+
+async function collectAsyncGlob(pattern, options) {
+  const results = [];
+  for await (const item of asyncGlob(pattern, options)) {
+    results.push(item);
+  }
+  return results;
+}
+
+const maxDepthApis = [
+  ['globSync', globSync],
+  ['fsPromises glob', collectAsyncGlob],
+];
+
+for (const [name, runGlob] of maxDepthApis) {
+  describe(`${name} - maxDepth`, function() {
+    test('limits traversal depth', async () => {
+      const actual = (await runGlob('**', { cwd: fixtureDir, maxDepth: 2 })).sort();
+      assert.deepStrictEqual(actual, maxDepthExpected);
+      assert.deepStrictEqual(
+        await runGlob('../**', { cwd: fixtureDir, maxDepth: 0 }),
+        [],
+      );
+    });
+
+    test('limits literal patterns', async () => {
+      assert.deepStrictEqual(
+        await runGlob('a/b/c/d', { cwd: fixtureDir, maxDepth: 3 }),
+        [],
+      );
+      assert.deepStrictEqual(
+        await runGlob(fixtureDir, { cwd: fixtureDir, maxDepth: 0 }),
+        [fixtureDir],
+      );
+
+      const absolutePattern = resolve(fixtureDir, 'a/b/c/d');
+      assert.deepStrictEqual(
+        await runGlob(absolutePattern, { cwd: fixtureDir, maxDepth: 3 }),
+        [],
+      );
+      assert.deepStrictEqual(
+        await runGlob(absolutePattern, { cwd: fixtureDir, maxDepth: 4 }),
+        [absolutePattern],
+      );
+    });
+
+    test('limits absolute wildcard patterns rooted above cwd', async () => {
+      assert.deepStrictEqual(
+        await runGlob(join(dirname(fixtureDir), '*'), {
+          cwd: fixtureDir,
+          maxDepth: 0,
+        }),
+        [fixtureDir],
+      );
+    });
+
+    test('supports case-variant descendants', {
+      skip: isCaseSensitiveFileSystem,
+    }, async () => {
+      const expected = [
+        join(caseVariantFixtureDir, 'a'),
+        join(caseVariantFixtureDir, 'follow'),
+      ].sort();
+      const actual = await runGlob(
+        join(caseVariantFixtureDir, '*'),
+        { cwd: fixtureDir, maxDepth: 1 },
+      );
+      assert.deepStrictEqual(actual.sort(), expected);
+    });
+
+    test('supports absolute alternatives after brace expansion', async () => {
+      const pattern = `{${join(dirname(fixtureDir), '*')},other}`;
+      assert.deepStrictEqual(
+        await runGlob(pattern, { cwd: fixtureDir, maxDepth: 0 }),
+        [fixtureDir],
+      );
+    });
+
+    test('preserves filesystem case sensitivity', {
+      skip: !isCaseSensitiveFileSystem,
+    }, async () => {
+      assert.deepStrictEqual(
+        await runGlob(join(dirname(fixtureDir), '*'), {
+          cwd: fixtureDir,
+          maxDepth: 0,
+        }),
+        [fixtureDir],
+      );
+    });
+
+    test('recognizes equivalent path casing', {
+      skip: isCaseSensitiveFileSystem,
+    }, async () => {
+      assert.deepStrictEqual(
+        await runGlob(caseVariantFixtureDir, {
+          cwd: fixtureDir,
+          maxDepth: 0,
+        }),
+        [caseVariantFixtureDir],
+      );
+    });
+
+    test('rejects paths on a different Windows volume', {
+      skip: differentWindowsVolume === undefined,
+    }, async () => {
+      assert.deepStrictEqual(
+        await runGlob(differentWindowsVolume, {
+          cwd: fixtureDir,
+          maxDepth: 100,
+        }),
+        [],
+      );
+    });
+  });
+}
+
+test('glob forwards maxDepth', async () => {
+  assert.deepStrictEqual(
+    await promisify(glob)('**', { cwd: fixtureDir, maxDepth: 0 }),
+    ['.'],
+  );
+});
+
+function runNodeScript(script) {
+  const { child } = spawnSyncAndExitWithoutError(
+    process.execPath,
+    ['--expose-internals', '-e', script],
+    { encoding: 'utf8' },
+  );
+  return child.stdout;
+}
+
+test('async glob does not use synchronous path identity calls', () => {
+  const script = `
+      const fs = require('fs');
+      const path = require('path');
+      const { promisify } = require('util');
+      const fail = () => {
+        throw new Error('unexpected synchronous filesystem call');
+      };
+      fs.lstatSync = fail;
+      fs.realpathSync.native = fail;
+      (async () => {
+        const pattern = path.join(${JSON.stringify(caseVariantFixtureDir)}, '*');
+        const options = {
+          cwd: ${JSON.stringify(fixtureDir)},
+          maxDepth: 1,
+        };
+        await promisify(fs.glob)(pattern, options);
+        for await (const entry of fs.promises.glob(pattern, options)) {
+          void entry;
+        }
+      })().catch((error) => {
+        console.error(error);
+        process.exitCode = 1;
+      });
+    `;
+  runNodeScript(script);
+});
+
+function assertDoesNotTraverse(sibling, cwd) {
+  const script = `
+      const fs = require('fs');
+      const path = require('path');
+      const sibling = ${JSON.stringify(sibling)};
+      const original = fs.readdirSync;
+      let reads = 0;
+      fs.readdirSync = function(pathname, ...args) {
+        const resolved = path.resolve(pathname);
+        if (resolved === sibling || resolved.startsWith(sibling + path.sep)) {
+          reads++;
+        }
+        return Reflect.apply(original, this, [pathname, ...args]);
+      };
+      fs.globSync(path.join(sibling, '**'), {
+        cwd: ${JSON.stringify(cwd)},
+        maxDepth: 0,
+      });
+      process.stdout.write(String(reads));
+    `;
+  assert.strictEqual(runNodeScript(script), '0');
+}
+
+describe('globSync - maxDepth traversal', function() {
+  test('does not traverse absolute sibling subtrees', () => {
+    const siblingDir = tmpdir.resolve('sibling');
+    mkdirSync(join(siblingDir, 'nested'), { recursive: true });
+    assertDoesNotTraverse(siblingDir, fixtureDir);
+  });
+
+  test('does not traverse case-variant sibling subtrees', {
+    skip: !isCaseSensitiveFileSystem,
+  }, () => {
+    assertDoesNotTraverse(caseVariantFixtureDir, join(fixtureDir, 'a'));
+  });
+});
+
+test('globSync validates maxDepth', () => {
+  assert.deepStrictEqual(
+    globSync('a', { cwd: fixtureDir, maxDepth: Infinity }),
+    ['a'],
+  );
+
+  for (const maxDepth of [-1, 1.5, NaN, '1']) {
+    assert.throws(() => globSync('**', { cwd: fixtureDir, maxDepth }), {
+      code: typeof maxDepth === 'string' ? 'ERR_INVALID_ARG_TYPE' : 'ERR_OUT_OF_RANGE',
+    });
+  }
+});
+
+const followSymlinkPattern = 'follow/**';
+const followSymlinkExpected = [
+  'follow',
+  'follow/cycle',
+  'follow/link',
+  'follow/target',
+  'follow/target/file.txt',
+].map((item) => item.replaceAll('/', sep)).sort();
+const followSymlinkExpectedWithFollow = [
+  ...followSymlinkExpected,
+  'follow/link/file.txt'.replaceAll('/', sep),
+].sort();
+
+const getNestedCycleMatches = (matches) => {
+  return matches.filter((match) => match.startsWith(`follow${sep}cycle${sep}`));
+};
+
+describe('glob - followSymlinks', function() {
+  const promisified = promisify(glob);
+
+  test('does not follow symlinks by default', async () => {
+    const actual = (await promisified(followSymlinkPattern, { cwd: fixtureDir })).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpected);
+  });
+
+  test('follows symlinked directories when enabled', async () => {
+    const actual = (await promisified(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+    })).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
+  });
+});
+
+describe('globSync - followSymlinks', function() {
+  test('does not follow symlinks by default', () => {
+    const actual = globSync(followSymlinkPattern, { cwd: fixtureDir }).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpected);
+  });
+
+  test('validates followSymlinks', () => {
+    assert.throws(() => {
+      globSync(followSymlinkPattern, {
+        cwd: fixtureDir,
+        followSymlinks: 1,
+      });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('follows symlinked directories when enabled', () => {
+    const actual = globSync(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+    }).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
+  });
+
+  test('supports withFileTypes when following symlinked directories', () => {
+    const actual = globSync(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+      withFileTypes: true,
+    });
+    assertDirents(actual);
+    const normalized = actual.map(normalizeDirent).sort();
+    assert.deepStrictEqual(normalized, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(normalized), []);
+  });
+});
+
+describe('fsPromises glob - followSymlinks', function() {
+  test('does not follow symlinks by default', async () => {
+    const actual = [];
+    for await (const item of asyncGlob(followSymlinkPattern, { cwd: fixtureDir })) actual.push(item);
+    actual.sort();
+    assert.deepStrictEqual(actual, followSymlinkExpected);
+  });
+
+  test('follows symlinked directories when enabled', async () => {
+    const actual = [];
+    for await (const item of asyncGlob(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+    })) actual.push(item);
+    actual.sort();
+    assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
+  });
+});
+
+describe('glob - with restricted directory', function() {
+  test('*', async () => {
+    const restrictedDir = tmpdir.resolve('restricted');
+    await mkdir(restrictedDir, { recursive: true });
+    chmodSync(restrictedDir, 0o000);
+    try {
+      const results = [];
+      for await (const match of asyncGlob('*', { cwd: restrictedDir })) {
+        results.push(match);
+      }
+    } finally {
+      try {
+        chmodSync(restrictedDir, 0o755);
+      } catch {
+        // ignore
+      }
+    }
+  });
+});
+
+describe('globSync - ENOTDIR', function() {
+  test('should return empty array when a file is treated as a directory', () => {
+    const file = tmpdir.resolve('foo');
+    writeFileSync(file, '');
+    try {
+      const pattern = 'foo{,/bar}';
+      const actual = globSync(pattern, { cwd: tmpdir.path }).sort();
+      assert.deepStrictEqual(actual, ['foo']);
+    } finally {
+      try {
+        rmSync(file);
+      } catch {
+        // ignore
+      }
+    }
+  });
+});
+
+describe('glob - seen cache', function() {
+  // Refs: https://github.com/nodejs/node/issues/62897
+  test('does not skip siblings after a seen child path', () => {
+    // The glob traversal used to return early from the children loop when a
+    // child path had already been seen through a different pattern context,
+    // silently dropping the remaining siblings. Whether the bug triggered
+    // depended on directory iteration order, so the child process pins the
+    // order by patching readdir before loading the glob implementation.
+    const script = `
+      const assert = require('node:assert');
+      const fs = require('node:fs');
+      const fsPromises = require('node:fs/promises');
+      const path = require('node:path');
+
+      const cwd = process.argv[1];
+      const a = path.join(cwd, 'a');
+      fs.mkdirSync(path.join(a, 'b', 'c', 'd'), { recursive: true });
+      fs.mkdirSync(path.join(a, 'c', 'd', 'c'), { recursive: true });
+      fs.writeFileSync(path.join(a, 'x'), '');
+      fs.writeFileSync(path.join(a, 'z'), '');
+
+      const originalReaddirSync = fs.readdirSync;
+      const originalReaddir = fsPromises.readdir;
+
+      const reorder = (target, entries) => {
+        if (!Array.isArray(entries) || target !== a) return entries;
+        const names = ['c', 'b', 'x', 'z'];
+        return names.map((name) => entries.find((entry) => entry.name === name))
+          .filter(Boolean);
+      };
+
+      fs.readdirSync = function(target, options) {
+        return reorder(target, originalReaddirSync.call(this, target, options));
+      };
+      fsPromises.readdir = async function(target, options) {
+        return reorder(target, await originalReaddir.call(this, target, options));
+      };
+
+      const { Glob } = require('internal/fs/glob');
+      const expected = ['a/b', 'a/c', 'a/x', 'a/z'];
+      const normalize = (results) =>
+        results.map((item) => item.replaceAll(path.sep, '/')).sort();
+
+      (async () => {
+        const syncResults = normalize(new Glob('a/**/../*', { cwd }).globSync());
+        for (const item of expected) {
+          assert.ok(syncResults.includes(item),
+                    \`missing \${item} from sync results: \${syncResults}\`);
+        }
+
+        const asyncResults = [];
+        for await (const item of new Glob('a/**/../*', { cwd }).glob()) {
+          asyncResults.push(item);
+        }
+        const normalized = normalize(asyncResults);
+        for (const item of expected) {
+          assert.ok(normalized.includes(item),
+                    \`missing \${item} from async results: \${normalized}\`);
+        }
+      })().catch((err) => {
+        console.error(err);
+        process.exitCode = 1;
+      });
+    `;
+
+    const seenDir = tmpdir.resolve('glob-seen');
+    spawnSyncAndExitWithoutError(
+      process.execPath,
+      ['--expose-internals', '-e', script, seenDir],
+      { encoding: 'utf8' },
+    );
+  });
+});
+
+// gh-58991: exclude patterns must apply the same case-sensitivity as include
+// patterns. On case-insensitive filesystems include patterns match entries
+// regardless of case, so literal exclude patterns must match that behavior.
+const skipCaseTests = { skip: !common.isWindows && !common.isMacOS };
+describe('glob - exclude case-insensitive consistency', skipCaseTests, function() {
+  test('literal exclude ignores case (sync)', () => {
+    assert.deepStrictEqual(
+      globSync('a/b', { cwd: fixtureDir, exclude: ['A/B'] }), []);
+  });
+  test('literal exclude matches differently-cased results (sync)', () => {
+    assert.deepStrictEqual(
+      globSync('A/b', { cwd: fixtureDir, exclude: ['a/b'] }), []);
+  });
+  test('literal exclude ignores case (async)', async () => {
+    const promisified = promisify(glob);
+    assert.deepStrictEqual(
+      await promisified('a/b', { cwd: fixtureDir, exclude: ['A/B'] }), []);
+  });
+  test('literal exclude ignores case (promise)', async () => {
+    const actual = [];
+    for await (const entry of asyncGlob(
+      'a/b', { cwd: fixtureDir, exclude: ['A/B'] })) {
+      actual.push(entry);
+    }
+    assert.deepStrictEqual(actual, []);
+  });
+});

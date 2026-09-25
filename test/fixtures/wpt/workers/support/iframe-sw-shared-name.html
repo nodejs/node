@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Iframe for cross-origin Shared Worker</title>
+<script src="/common/get-host-info.sub.js"></script>
+
+<body>
+<script>
+
+const worker_url = new URL(
+  'shared-name.js',
+  get_host_info().ORIGIN + self.location.pathname);
+
+let worker = new SharedWorker(worker_url);
+worker.port.onmessage = e => {
+  parent.postMessage(e.data, '*');
+}
+
+</script>
+</body>
+</html>

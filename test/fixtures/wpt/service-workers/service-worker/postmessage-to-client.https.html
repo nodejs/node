@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>Service Worker: postMessage to Client</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(async t => {
+  const script = 'resources/postmessage-to-client-worker.js';
+  const scope = 'resources/blank.html';
+
+  const registration =
+      await service_worker_unregister_and_register(t, script, scope);
+  t.add_cleanup(() => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  const frame = await with_iframe(scope);
+  t.add_cleanup(() => frame.remove());
+  const w = frame.contentWindow;
+
+  w.navigator.serviceWorker.controller.postMessage('ping');
+  let e = await new Promise(r => w.navigator.serviceWorker.onmessage = r);
+
+  assert_equals(e.constructor, w.MessageEvent,
+                'message events should use MessageEvent interface.');
+  assert_equals(e.type, 'message', 'type should be "message".');
+  assert_false(e.bubbles, 'message events should not bubble.');
+  assert_false(e.cancelable, 'message events should not be cancelable.');
+  assert_equals(e.origin, location.origin,
+                'origin of message should be origin of Service Worker.');
+  assert_equals(e.lastEventId, '',
+                'lastEventId should be an empty string.');
+  assert_equals(e.source.constructor, w.ServiceWorker,
+                'source should use ServiceWorker interface.');
+  assert_equals(e.source, w.navigator.serviceWorker.controller,
+                'source should be the service worker that sent the message.');
+  assert_equals(e.ports.length, 0, 'ports should be an empty array.');
+  assert_equals(e.data, 'Sending message via clients');
+
+  e = await new Promise(r => w.navigator.serviceWorker.onmessage = r);
+  assert_equals(e.data, 'quit');
+}, 'postMessage from ServiceWorker to Client.');
+</script>

@@ -1,0 +1,420 @@
+// Flags: --experimental-stream-iter
+'use strict';
+
+const common = require('../common');
+const assert = require('assert');
+const { setTimeout, setImmediate } = require('timers/promises');
+const { broadcast, text } = require('stream/iter');
+
+// =============================================================================
+// Basic broadcast
+// =============================================================================
+
+async function testBasicBroadcast() {
+  const { writer, broadcast: bc } = broadcast();
+
+  // Create two consumers
+  const consumer1 = bc.push();
+  const consumer2 = bc.push();
+
+  assert.strictEqual(bc.consumerCount, 2);
+
+  const dataPromise = Promise.all([
+    text(consumer1),
+    text(consumer2),
+  ]);
+  await writer.write('hello');
+  await writer.end();
+
+  const [data1, data2] = await dataPromise;
+
+  assert.strictEqual(data1, 'hello');
+  assert.strictEqual(data2, 'hello');
+}
+
+async function testMultipleWrites() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+
+  const consumer = bc.push();
+
+  await writer.write('a');
+  await writer.write('b');
+  await writer.write('c');
+  const dataPromise = text(consumer);
+  await writer.end();
+
+  const data = await dataPromise;
+  assert.strictEqual(data, 'abc');
+}
+
+async function testConsumerCount() {
+  const { broadcast: bc } = broadcast();
+
+  assert.strictEqual(bc.consumerCount, 0);
+
+  const c1 = bc.push();
+  assert.strictEqual(bc.consumerCount, 1);
+
+  bc.push();
+  assert.strictEqual(bc.consumerCount, 2);
+
+  bc.cancel();
+
+  // After cancel, consumer count drops to 0
+  assert.strictEqual(bc.consumerCount, 0);
+
+  // Consumers are detached and yield nothing
+  const batches = [];
+  for await (const batch of c1) {
+    batches.push(batch);
+  }
+  assert.strictEqual(batches.length, 0);
+}
+
+// =============================================================================
+// Writer methods
+// =============================================================================
+
+async function testWriteSync() {
+  const kChunk = new Uint8Array(16384);
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const consumer = bc.push();
+
+  assert.strictEqual(writer.writeSync(kChunk), true);
+  // Buffer full (16384 >= budget), strict policy rejects
+  assert.strictEqual(writer.writeSync(kChunk), false);
+
+  writer.endSync();
+
+  const data = await text(consumer);
+  assert.strictEqual(data.length, 16384);
+}
+
+async function testWritevSync() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const consumer = bc.push();
+
+  assert.strictEqual(writer.writevSync(['hello', ' ', 'world']), true);
+  writer.endSync();
+
+  const data = await text(consumer);
+  assert.strictEqual(data, 'hello world');
+}
+
+async function testWriterEnd() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+
+  await writer.write('data');
+  const dataPromise = text(consumer);
+  const totalBytes = await writer.end();
+  assert.strictEqual(totalBytes, 4); // 'data' = 4 UTF-8 bytes
+
+  const data = await dataPromise;
+  assert.strictEqual(data, 'data');
+}
+
+async function testWriterEndWithPreAbortedSignal() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+  const reason = new Error('end aborted');
+
+  await assert.rejects(
+    writer.end({ signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+
+  // A rejected end must leave the writer open.
+  await writer.write('data');
+  const dataPromise = text(consumer);
+  assert.strictEqual(await writer.end(), 4);
+  assert.strictEqual(await dataPromise, 'data');
+}
+
+async function testWriterEndWaitsForAllConsumers() {
+  const { writer, broadcast: bc } = broadcast();
+  const iter1 = bc.push()[Symbol.asyncIterator]();
+  const iter2 = bc.push()[Symbol.asyncIterator]();
+
+  await writer.write('data');
+  const endPromise = writer.end();
+  let endResolved = false;
+  endPromise.then(common.mustCall(() => { endResolved = true; }));
+
+  assert.strictEqual((await iter1.next()).done, false);
+  assert.strictEqual((await iter2.next()).done, false);
+  assert.strictEqual((await iter1.next()).done, true);
+  assert.strictEqual(endResolved, false);
+
+  assert.strictEqual((await iter2.next()).done, true);
+  assert.strictEqual(await endPromise, 4);
+}
+
+async function testWriterEndSignalDoesNotFailWriter() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+  const ac = new AbortController();
+  const reason = new Error('end aborted');
+
+  await writer.write('data');
+  const signaledEnd = writer.end({ signal: ac.signal });
+  const rejected = assert.rejects(signaledEnd, (error) => error === reason);
+  ac.abort(reason);
+  await rejected;
+
+  const dataPromise = text(consumer);
+  assert.strictEqual(await writer.end(), 4);
+  assert.strictEqual(await dataPromise, 'data');
+}
+
+async function testWriterFailWhileClosing() {
+  const { writer, broadcast: bc } = broadcast();
+  const iter = bc.push()[Symbol.asyncIterator]();
+  const reason = new Error('writer failed while closing');
+
+  await writer.write('data');
+  const endPromise = writer.end();
+  const endRejected = assert.rejects(endPromise, (error) => error === reason);
+  writer.fail(reason);
+
+  await endRejected;
+  await assert.rejects(iter.next(), (error) => error === reason);
+}
+
+async function testWriterFail() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+
+  writer.fail(new Error('test error'));
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of consumer) {
+        assert.fail('Should not reach here');
+      }
+    },
+    { message: 'test error' },
+  );
+}
+
+// =============================================================================
+// Cancel
+// =============================================================================
+
+async function testCancelWithoutReason() {
+  const { broadcast: bc } = broadcast();
+  const consumer = bc.push();
+
+  bc.cancel();
+
+  const batches = [];
+  for await (const batch of consumer) {
+    batches.push(batch);
+  }
+  assert.strictEqual(batches.length, 0);
+}
+
+async function testCancelWithReason() {
+  const { broadcast: bc } = broadcast();
+
+  // Start a consumer that is waiting for data (promise pending)
+  const consumer = bc.push();
+  const resultPromise = text(consumer).catch((err) => err);
+
+  // Give the consumer time to enter the waiting state
+  await setImmediate();
+
+  bc.cancel(new Error('cancelled'));
+
+  const result = await resultPromise;
+  assert.ok(result instanceof Error);
+  assert.strictEqual(result.message, 'cancelled');
+}
+
+async function testPendingNextSettlesAfterReturn() {
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push()[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  await iter.return();
+
+  const result = await pendingNext;
+  assert.strictEqual(result.done, true);
+  assert.strictEqual(result.value, undefined);
+}
+
+async function testPushAbortSignalRejectsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('push aborted');
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push({ signal: ac.signal })[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  const rejected = assert.rejects(pendingNext, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+}
+
+async function testPushPreAbortedSignalDoesNotAddConsumer() {
+  const reason = new Error('already aborted');
+  const signal = AbortSignal.abort(reason);
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push({ signal })[Symbol.asyncIterator]();
+
+  assert.strictEqual(bc.consumerCount, 0);
+  await assert.rejects(iter.next(), (error) => error === reason);
+  assert.strictEqual(bc.consumerCount, 0);
+}
+
+// =============================================================================
+// Writer fail detaches consumers
+// =============================================================================
+
+async function testFailDetachesConsumers() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer1 = bc.push();
+  const consumer2 = bc.push();
+
+  assert.strictEqual(bc.consumerCount, 2);
+
+  // Write some data, then fail the writer
+  await writer.write('data');
+  await writer.fail(new Error('writer failed'));
+
+  // After fail, consumers are detached
+  assert.strictEqual(bc.consumerCount, 0);
+
+  // Both consumers should see the error
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of consumer1) {
+        assert.fail('Should not reach here');
+      }
+    },
+    { message: 'writer failed' },
+  );
+
+  await assert.rejects(
+    async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of consumer2) {
+        assert.fail('Should not reach here');
+      }
+    },
+    { message: 'writer failed' },
+  );
+}
+
+// =============================================================================
+// Writer fail idempotent
+// =============================================================================
+
+async function testWriterFailIdempotent() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+  writer.writeSync('hello');
+  writer.fail(new Error('fail!'));
+  // Second call is a no-op (already errored)
+  writer.fail(new Error('fail2'));
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of consumer) { /* consume */ }
+  }, { message: 'fail!' });
+}
+
+async function testCancelWithFalsyReason() {
+  for (const reason of [0, '', false, null]) {
+    const { broadcast: bc } = broadcast();
+    const iterator = bc.push()[Symbol.asyncIterator]();
+
+    bc.cancel(reason);
+
+    await assert.rejects(iterator.next(), (error) => error === reason);
+  }
+}
+
+// Late-joining consumer should read from oldest buffered entry
+async function testLateJoinerSeesBufferedData() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+
+  // Write data before any consumer joins
+  writer.writeSync('before-join');
+  writer.endSync();
+
+  // Consumer joins after data is written
+  const consumer = bc.push();
+  const result = await text(consumer);
+  assert.strictEqual(result, 'before-join');
+}
+
+async function testLateJoinerAfterDetachSeesBufferedData() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const first = bc.push()[Symbol.asyncIterator]();
+
+  writer.writeSync('before-detach');
+  await first.return();
+
+  const second = bc.push();
+  writer.endSync();
+  assert.strictEqual(await text(second), 'before-detach');
+}
+
+async function testOverlappingNextKeepsEarlierRead() {
+  const { writer, broadcast: bc } = broadcast();
+  const it = bc.push()[Symbol.asyncIterator]();
+
+  const first = it.next();
+  const second = it.next();
+
+  await writer.write('x');
+
+  const secondResult = await Promise.race([
+    second.then((value) => ({ __proto__: null, settled: true, value })),
+    setTimeout(common.platformTimeout(50),
+               { __proto__: null, settled: false }),
+  ]);
+  assert.deepStrictEqual(secondResult, {
+    __proto__: null,
+    settled: false,
+  });
+
+  const result = await first;
+  assert.strictEqual(result.done, false);
+  assert.strictEqual(Buffer.concat(result.value).toString(), 'x');
+
+  writer.endSync();
+  assert.deepStrictEqual(await second, {
+    __proto__: null,
+    done: true,
+    value: undefined,
+  });
+  assert.strictEqual(bc.consumerCount, 0);
+}
+
+Promise.all([
+  testBasicBroadcast(),
+  testMultipleWrites(),
+  testConsumerCount(),
+  testWriteSync(),
+  testWritevSync(),
+  testWriterEnd(),
+  testWriterEndWithPreAbortedSignal(),
+  testWriterEndWaitsForAllConsumers(),
+  testWriterEndSignalDoesNotFailWriter(),
+  testWriterFailWhileClosing(),
+  testWriterFail(),
+  testCancelWithoutReason(),
+  testCancelWithReason(),
+  testCancelWithFalsyReason(),
+  testPendingNextSettlesAfterReturn(),
+  testPushAbortSignalRejectsPendingNext(),
+  testPushPreAbortedSignalDoesNotAddConsumer(),
+  testFailDetachesConsumers(),
+  testWriterFailIdempotent(),
+  testLateJoinerSeesBufferedData(),
+  testLateJoinerAfterDetachSeesBufferedData(),
+  testOverlappingNextKeepsEarlierRead(),
+]).then(common.mustCall());

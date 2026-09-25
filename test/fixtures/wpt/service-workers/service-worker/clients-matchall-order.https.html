@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll ordering</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+// Utility function for URLs this test will open.
+function makeURL(name, num, type) {
+  let u = new URL('resources/empty.html', location);
+  u.searchParams.set('name', name);
+  if (num !== undefined) {
+    u.searchParams.set('q', num);
+  }
+  if (type === 'nested') {
+    u.searchParams.set('nested', true);
+  }
+  return u.href;
+}
+
+// Non-test URLs that will be open during each test.  The harness URLs
+// are from the WPT harness.  The "extra" URL is a final window opened
+// by the test.
+const EXTRA_URL = makeURL('extra');
+const TEST_HARNESS_URL = location.href;
+const TOP_HARNESS_URL = new URL('/testharness_runner.html', location).href;
+
+// Utility function to open an iframe in the target parent window.  We
+// can't just use with_iframe() because it does not support a configurable
+// parent window.
+function openFrame(parentWindow, url) {
+  return new Promise(resolve => {
+    let frame = parentWindow.document.createElement('iframe');
+    frame.src = url;
+    parentWindow.document.body.appendChild(frame);
+
+    frame.contentWindow.addEventListener('load', evt => {
+      resolve(frame);
+    }, { once: true });
+  });
+}
+
+// Utility function to open a window and wait for it to load.  The
+// window may optionally have a nested iframe as well.  Returns
+// a result like `{ top: <frame ref> nested: <nested frame ref if present> }`.
+function openFrameConfig(opts) {
+  let url = new URL(opts.url, location.href);
+  return openFrame(window, url.href).then(top => {
+    if (!opts.withNested) {
+      return { top: top };
+    }
+
+    url.searchParams.set('nested', true);
+    return openFrame(top.contentWindow, url.href).then(nested => {
+      return { top: top, nested: nested };
+    });
+  });
+}
+
+// Utility function that takes a list of configurations and opens the
+// corresponding windows in sequence.  An array of results is returned.
+function openFrameConfigList(optList) {
+  let resultList = [];
+  function openNextWindow(optList, nextWindow) {
+    if (nextWindow >= optList.length) {
+      return resultList;
+    }
+    return openFrameConfig(optList[nextWindow]).then(result => {
+      resultList.push(result);
+      return openNextWindow(optList, nextWindow + 1);
+    });
+  }
+  return openNextWindow(optList, 0);
+}
+
+// Utility function that focuses the given entry in window result list.
+function executeFocus(frameResultList, opts) {
+  return new Promise(resolve => {
+    let w = frameResultList[opts.index][opts.type];
+    let target = w.contentWindow ? w.contentWindow : w;
+    target.addEventListener('focus', evt => {
+      resolve();
+    }, { once: true });
+    target.focus();
+  });
+}
+
+// Utility function that performs a list of focus commands in sequence
+// based on the window result list.
+function executeFocusList(frameResultList, optList) {
+  function executeNextCommand(frameResultList, optList, nextCommand) {
+    if (nextCommand >= optList.length) {
+      return;
+    }
+    return executeFocus(frameResultList, optList[nextCommand]).then(_ => {
+      return executeNextCommand(frameResultList, optList, nextCommand + 1);
+    });
+  }
+  return executeNextCommand(frameResultList, optList, 0);
+}
+
+// Perform a `clients.matchAll()` in the service worker with the given
+// options dictionary.
+function doMatchAll(worker, options) {
+  return new Promise(resolve => {
+    let channel = new MessageChannel();
+    channel.port1.onmessage = evt => {
+      resolve(evt.data);
+    };
+    worker.postMessage({ port: channel.port2, options: options, disableSort: true },
+                       [channel.port2]);
+  });
+}
+
+// Function that performs a single test case.  It takes a configuration object
+// describing the windows to open, how to focus them, the matchAll options,
+// and the resulting expectations.  See the test cases for examples of how to
+// use this.
+function matchAllOrderTest(t, opts) {
+  let script = 'resources/clients-matchall-worker.js';
+  let worker;
+  let frameResultList;
+  let extraWindowResult;
+  return service_worker_unregister_and_register(t, script, opts.scope).then(swr => {
+    t.add_cleanup(() => service_worker_unregister(t, opts.scope));
+
+    worker = swr.installing;
+    return wait_for_state(t, worker, 'activated');
+  }).then(_ => {
+    return openFrameConfigList(opts.frameConfigList);
+  }).then(results => {
+    frameResultList = results;
+    return openFrameConfig({ url: EXTRA_URL });
+  }).then(result => {
+    extraWindowResult = result;
+    return executeFocusList(frameResultList, opts.focusConfigList);
+  }).then(_ => {
+    return doMatchAll(worker, opts.matchAllOptions);
+  }).then(data => {
+    assert_equals(data.length, opts.expected.length);
+    for (let i = 0; i < data.length; ++i) {
+      assert_equals(data[i][2], opts.expected[i], 'expected URL index ' + i);
+    }
+  }).then(_ => {
+    frameResultList.forEach(result => result.top.remove());
+    extraWindowResult.top.remove();
+  }).catch(e => {
+    if (frameResultList) {
+      frameResultList.forEach(result => result.top.remove());
+    }
+    if (extraWindowResult) {
+      extraWindowResult.top.remove();
+    }
+    throw(e);
+  });
+}
+
+// ----------
+// Test cases
+// ----------
+
+promise_test(t => {
+  let name = 'no-focus-controlled-windows';
+  let opts = {
+    scope: makeURL(name),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: false },
+      { url: makeURL(name, 1), withNested: false },
+      { url: makeURL(name, 2), withNested: false },
+    ],
+
+    focusConfigList: [
+      // no focus commands
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: false
+    },
+
+    expected: [
+      makeURL(name, 0),
+      makeURL(name, 1),
+      makeURL(name, 2),
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns non-focused controlled windows in creation order.');
+
+promise_test(t => {
+  let name = 'focus-controlled-windows-1';
+  let opts = {
+    scope: makeURL(name),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: false },
+      { url: makeURL(name, 1), withNested: false },
+      { url: makeURL(name, 2), withNested: false },
+    ],
+
+    focusConfigList: [
+      { index: 0, type: 'top' },
+      { index: 1, type: 'top' },
+      { index: 2, type: 'top' },
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: false
+    },
+
+    expected: [
+      makeURL(name, 2),
+      makeURL(name, 1),
+      makeURL(name, 0),
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns controlled windows in focus order.  Case 1.');
+
+promise_test(t => {
+  let name = 'focus-controlled-windows-2';
+  let opts = {
+    scope: makeURL(name),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: false },
+      { url: makeURL(name, 1), withNested: false },
+      { url: makeURL(name, 2), withNested: false },
+    ],
+
+    focusConfigList: [
+      { index: 2, type: 'top' },
+      { index: 1, type: 'top' },
+      { index: 0, type: 'top' },
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: false
+    },
+
+    expected: [
+      makeURL(name, 0),
+      makeURL(name, 1),
+      makeURL(name, 2),
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns controlled windows in focus order.  Case 2.');
+
+promise_test(t => {
+  let name = 'no-focus-uncontrolled-windows';
+  let opts = {
+    scope: makeURL(name + '-outofscope'),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: false },
+      { url: makeURL(name, 1), withNested: false },
+      { url: makeURL(name, 2), withNested: false },
+    ],
+
+    focusConfigList: [
+      // no focus commands
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: true
+    },
+
+    expected: [
+      // The harness windows have been focused, so appear first
+      TEST_HARNESS_URL,
+      TOP_HARNESS_URL,
+
+      // Test frames have not been focused, so appear in creation order
+      makeURL(name, 0),
+      makeURL(name, 1),
+      makeURL(name, 2),
+      EXTRA_URL,
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns non-focused uncontrolled windows in creation order.');
+
+promise_test(t => {
+  let name = 'focus-uncontrolled-windows-1';
+  let opts = {
+    scope: makeURL(name + '-outofscope'),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: false },
+      { url: makeURL(name, 1), withNested: false },
+      { url: makeURL(name, 2), withNested: false },
+    ],
+
+    focusConfigList: [
+      { index: 0, type: 'top' },
+      { index: 1, type: 'top' },
+      { index: 2, type: 'top' },
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: true
+    },
+
+    expected: [
+      // The test harness window is a parent of all test frames.  It will
+      // always have the same focus time or later as its frames.  So it
+      // appears first.
+      TEST_HARNESS_URL,
+
+      makeURL(name, 2),
+      makeURL(name, 1),
+      makeURL(name, 0),
+
+      // The overall harness has been focused
+      TOP_HARNESS_URL,
+
+      // The extra frame was never focused
+      EXTRA_URL,
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns uncontrolled windows in focus order.  Case 1.');
+
+promise_test(t => {
+  let name = 'focus-uncontrolled-windows-2';
+  let opts = {
+    scope: makeURL(name + '-outofscope'),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: false },
+      { url: makeURL(name, 1), withNested: false },
+      { url: makeURL(name, 2), withNested: false },
+    ],
+
+    focusConfigList: [
+      { index: 2, type: 'top' },
+      { index: 1, type: 'top' },
+      { index: 0, type: 'top' },
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: true
+    },
+
+    expected: [
+      // The test harness window is a parent of all test frames.  It will
+      // always have the same focus time or later as its frames.  So it
+      // appears first.
+      TEST_HARNESS_URL,
+
+      makeURL(name, 0),
+      makeURL(name, 1),
+      makeURL(name, 2),
+
+      // The overall harness has been focused
+      TOP_HARNESS_URL,
+
+      // The extra frame was never focused
+      EXTRA_URL,
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns uncontrolled windows in focus order.  Case 2.');
+
+promise_test(t => {
+  let name = 'focus-controlled-nested-windows';
+  let opts = {
+    scope: makeURL(name),
+
+    frameConfigList: [
+      { url: makeURL(name, 0), withNested: true },
+      { url: makeURL(name, 1), withNested: true },
+      { url: makeURL(name, 2), withNested: true },
+    ],
+
+    focusConfigList: [
+      { index: 0, type: 'top' },
+
+      // Note, some browsers don't let programmatic focus of a frame unless
+      // an ancestor window is already focused.  So focus the window and
+      // then the frame.
+      { index: 1, type: 'top' },
+      { index: 1, type: 'nested' },
+
+      { index: 2, type: 'top' },
+    ],
+
+    matchAllOptions: {
+      includeUncontrolled: false
+    },
+
+    expected: [
+      // Focus order for window 2, but not its frame.  We only focused
+      // the window.
+      makeURL(name, 2),
+
+      // Window 1 is next via focus order, but the window is always
+      // shown first here.  The window gets its last focus time updated
+      // when the frame is focused.  Since the times match between the
+      // two it falls back to creation order.  The window was created
+      // before the frame.  This behavior is being discussed in:
+      // https://github.com/w3c/ServiceWorker/issues/1080
+      makeURL(name, 1),
+      makeURL(name, 1, 'nested'),
+
+      // Focus order for window 0, but not its frame.  We only focused
+      // the window.
+      makeURL(name, 0),
+
+      // Creation order of the frames since they are not focused by
+      // default when they are created.
+      makeURL(name, 0, 'nested'),
+      makeURL(name, 2, 'nested'),
+    ],
+  };
+
+  return matchAllOrderTest(t, opts);
+}, 'Clients.matchAll() returns controlled windows and frames in focus order.');
+</script>

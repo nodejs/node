@@ -1,0 +1,656 @@
+#include "crypto/crypto_ec.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
+#include "crypto/crypto_common.h"
+#include "crypto/crypto_util.h"
+#include "env-inl.h"
+#include "memory_tracker-inl.h"
+#include "node_buffer.h"
+#include "threadpoolwork-inl.h"
+#include "v8.h"
+
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/ecdh.h>
+
+#include <algorithm>
+
+namespace node {
+
+using ncrypto::BignumPointer;
+using ncrypto::Ec;
+using ncrypto::ECGroupPointer;
+using ncrypto::ECKeyPointer;
+using ncrypto::ECPointPointer;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::KeyAlgorithm;
+using ncrypto::MarkPopErrorOnReturn;
+using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
+using v8::Context;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Int32;
+using v8::Isolate;
+using v8::JustVoid;
+using v8::Local;
+using v8::LocalVector;
+using v8::Maybe;
+using v8::Nothing;
+using v8::Object;
+using v8::String;
+using v8::Uint32;
+using v8::Value;
+
+namespace crypto {
+
+void ECDH::Initialize(Environment* env, Local<Object> target) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
+
+  t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
+
+  SetProtoMethod(isolate, t, "generateKeys", GenerateKeys);
+  SetProtoMethod(isolate, t, "computeSecret", ComputeSecret);
+  SetProtoMethodNoSideEffect(isolate, t, "getPublicKey", GetPublicKey);
+  SetProtoMethodNoSideEffect(isolate, t, "getPrivateKey", GetPrivateKey);
+  SetProtoMethod(isolate, t, "setPublicKey", SetPublicKey);
+  SetProtoMethod(isolate, t, "setPrivateKey", SetPrivateKey);
+
+  SetConstructorFunction(context, target, "ECDH", t);
+
+  SetMethodNoSideEffect(context, target, "ECDHConvertKey", ECDH::ConvertKey);
+  SetMethodNoSideEffect(context, target, "getCurves", ECDH::GetCurves);
+
+  ECKeyPairGenJob::Initialize(env, target);
+
+  NODE_DEFINE_CONSTANT(target, OPENSSL_EC_NAMED_CURVE);
+  NODE_DEFINE_CONSTANT(target, OPENSSL_EC_EXPLICIT_CURVE);
+}
+
+void ECDH::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(GenerateKeys);
+  registry->Register(ComputeSecret);
+  registry->Register(GetPublicKey);
+  registry->Register(GetPrivateKey);
+  registry->Register(SetPublicKey);
+  registry->Register(SetPrivateKey);
+  registry->Register(ECDH::ConvertKey);
+  registry->Register(ECDH::GetCurves);
+
+  ECKeyPairGenJob::RegisterExternalReferences(registry);
+}
+
+void ECDH::GetCurves(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  LocalVector<Value> arr(env->isolate());
+  Ec::GetCurves([&](std::string_view curve) -> bool {
+    arr.push_back(OneByteString(env->isolate(), curve));
+    return true;
+  });
+  args.GetReturnValue().Set(Array::New(env->isolate(), arr.data(), arr.size()));
+}
+
+ECDH::ECDH(Environment* env, Local<Object> wrap, ECKeyPointer&& key)
+    : BaseObject(env, wrap), key_(std::move(key)), group_(key_.getGroup()) {
+  MakeWeak();
+  CHECK_NOT_NULL(group_);
+}
+
+void ECDH::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("key", key_ ? kSizeOf_EC_KEY : 0);
+}
+
+void ECDH::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  // TODO(indutny): Support raw curves?
+  CHECK(args[0]->IsString());
+  node::Utf8Value curve(env->isolate(), args[0]);
+
+  int nid = OBJ_sn2nid(*curve);
+  if (nid == NID_undef)
+    return THROW_ERR_CRYPTO_INVALID_CURVE(env);
+
+  auto key = ECKeyPointer::NewByCurveName(nid);
+  if (!key)
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+      "Failed to create key using named curve");
+
+  new ECDH(env, args.This(), std::move(key));
+}
+
+void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ECDH* ecdh;
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
+
+  const uint64_t generation = ncrypto::getFipsStateGeneration();
+  ecdh->has_valid_key_pair_ = false;
+  if (!ecdh->key_.generate()) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to generate key");
+  }
+  ecdh->MaybeCacheValidKeyPair(generation);
+}
+
+ECPointPointer ECDH::BufferToPoint(Environment* env,
+                                   const EC_GROUP* group,
+                                   Local<Value> buf) {
+  ArrayBufferOrViewContents<unsigned char> input(buf);
+  if (!input.CheckSizeInt32()) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
+    return {};
+  }
+
+  auto pub = ECPointPointer::New(group);
+  if (!pub) {
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to allocate EC_POINT for a public key");
+    return pub;
+  }
+
+  ncrypto::Buffer<const unsigned char> buffer{
+      .data = input.data(),
+      .len = input.size(),
+  };
+  if (!pub.setFromBuffer(buffer, group)) {
+    return {};
+  }
+
+  return pub;
+}
+
+void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(IsAnyBufferSource(args[0]));
+
+  ECDH* ecdh;
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  if (!ecdh->IsKeyPairValid())
+    return THROW_ERR_CRYPTO_INVALID_KEYPAIR(env);
+
+  auto pub = ECDH::BufferToPoint(env, ecdh->group_, args[0]);
+  if (!pub) {
+    args.GetReturnValue().Set(
+        FIXED_ONE_BYTE_STRING(env->isolate(),
+        "ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY"));
+    return;
+  }
+
+  auto secret = ecdh->key_.computeSecret(pub);
+  if (!secret)
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to compute ECDH key");
+
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      secret.size(),
+      BackingStoreInitializationMode::kUninitialized);
+  memcpy(bs->Data(), secret.get(), secret.size());
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
+}
+
+void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // Conversion form
+  CHECK_EQ(args.Length(), 1);
+
+  ECDH* ecdh;
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
+
+  const auto group = ecdh->key_.getGroup();
+  const auto pub = ecdh->key_.getPublicKey();
+  if (pub == nullptr)
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to get ECDH public key");
+
+  CHECK(args[0]->IsUint32());
+  uint32_t val = args[0].As<Uint32>()->Value();
+  point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
+
+  Local<Object> buf;
+  if (ECPointToBuffer(env, group, pub, form).ToLocal(&buf)) {
+    args.GetReturnValue().Set(buf);
+  }
+}
+
+void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ECDH* ecdh;
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
+
+  auto b = ecdh->key_.getPrivateKey();
+  if (b == nullptr)
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to get ECDH private key");
+
+  auto bs = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      BignumPointer::GetByteCount(b),
+      BackingStoreInitializationMode::kUninitialized);
+
+  CHECK_EQ(bs->ByteLength(),
+           BignumPointer::EncodePaddedInto(
+               b, static_cast<unsigned char*>(bs->Data()), bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
+}
+
+void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ECDH* ecdh;
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
+
+  ArrayBufferOrViewContents<unsigned char> priv_buffer(args[0]);
+  if (!priv_buffer.CheckSizeInt32()) [[unlikely]]
+    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+
+  BignumPointer priv(priv_buffer.data(), priv_buffer.size());
+  if (!priv) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to convert Buffer to BN");
+  }
+
+  if (!ecdh->IsKeyValidForCurve(priv)) {
+    return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env,
+        "Private key is not valid for specified curve.");
+  }
+
+  auto new_key = ecdh->key_.clone();
+  CHECK(new_key);
+
+  bool result = new_key.setPrivateKey(priv);
+  priv.reset();
+
+  if (!result) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to convert BN to a private key");
+  }
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  USE(&mark_pop_error_on_return);
+
+  auto priv_key = new_key.getPrivateKey();
+  CHECK_NOT_NULL(priv_key);
+
+  auto pub = ECPointPointer::New(ecdh->group_);
+  CHECK(pub);
+
+  if (!pub.mul(ecdh->group_, priv_key)) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to generate ECDH public key");
+  }
+
+  if (!new_key.setPublicKey(pub)) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to set generated public key");
+  }
+
+  ecdh->key_ = std::move(new_key);
+  ecdh->group_ = ecdh->key_.getGroup();
+  ecdh->has_valid_key_pair_ = false;
+}
+
+void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ECDH* ecdh;
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
+
+  CHECK(IsAnyBufferSource(args[0]));
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  auto pub = ECDH::BufferToPoint(env, ecdh->group_, args[0]);
+  if (!pub) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to convert Buffer to EC_POINT");
+  }
+
+  ecdh->has_valid_key_pair_ = false;
+  if (!ecdh->key_.setPublicKey(pub)) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to set EC_POINT as the public key");
+  }
+}
+
+bool ECDH::IsKeyValidForCurve(const BignumPointer& private_key) {
+  CHECK(group_);
+  CHECK(private_key);
+  // Private keys must be in the range [1, n-1].
+  // Ref: Section 3.2.1 - http://www.secg.org/sec1-v2.pdf
+  if (private_key < BignumPointer::One()) {
+    return false;
+  }
+  auto order = BignumPointer::New();
+  CHECK(order);
+  return EC_GROUP_get_order(group_, order.get(), nullptr) &&
+         private_key < order;
+}
+
+void ECDH::MaybeCacheValidKeyPair(uint64_t generation) {
+  has_valid_key_pair_ = generation == ncrypto::getFipsStateGeneration();
+  if (has_valid_key_pair_) valid_key_pair_generation_ = generation;
+}
+
+bool ECDH::IsKeyPairValid() {
+  const uint64_t generation = ncrypto::getFipsStateGeneration();
+  if (has_valid_key_pair_ && valid_key_pair_generation_ == generation) {
+    return true;
+  }
+  has_valid_key_pair_ = false;
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  const bool is_valid = key_.checkKey();
+  if (is_valid) MaybeCacheValidKeyPair(generation);
+  return is_valid;
+}
+
+// Convert the input public key to compressed, uncompressed, or hybrid formats.
+void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+  CHECK(IsAnyBufferSource(args[0]));
+
+  ArrayBufferOrViewContents<char> args0(args[0]);
+  if (!args0.CheckSizeInt32()) [[unlikely]]
+    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+  if (args0.empty()) return args.GetReturnValue().SetEmptyString();
+
+  node::Utf8Value curve(env->isolate(), args[1]);
+
+  int nid = OBJ_sn2nid(*curve);
+  if (nid == NID_undef)
+    return THROW_ERR_CRYPTO_INVALID_CURVE(env);
+
+  auto group = ECGroupPointer::NewByCurveName(nid);
+  if (!group)
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get EC_GROUP");
+
+  auto pub = ECDH::BufferToPoint(env, group, args[0]);
+  if (!pub) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+        "Failed to convert Buffer to EC_POINT");
+  }
+
+  CHECK(args[2]->IsUint32());
+  uint32_t val = args[2].As<Uint32>()->Value();
+  point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
+
+  Local<Object> buf;
+  if (ECPointToBuffer(env, group, pub, form).ToLocal(&buf)) {
+    args.GetReturnValue().Set(buf);
+  }
+}
+
+void EcKeyPairParams::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("curve_name", curve_name);
+}
+
+EVPKeyCtxPointer EcKeyGenTraits::Setup(EcKeyPairGenConfig* params) {
+  EVPKeyCtxPointer key_ctx;
+  if (params->params.algorithm != nullptr) {
+    key_ctx = EVPKeyCtxPointer::NewFromAlgorithm(*params->params.algorithm);
+  } else {
+    auto param_ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::EC);
+    if (!param_ctx.initForParamgen() ||
+        !param_ctx.setEcParameters(params->params.curve_name.c_str(),
+                                   params->params.param_encoding)) {
+      return {};
+    }
+    auto key_params = param_ctx.paramgen();
+    if (!key_params) return {};
+    key_ctx = key_params.newCtx();
+  }
+
+  if (!key_ctx.initForKeygen()) return {};
+  return key_ctx;
+}
+
+// EcKeyPairGenJob input arguments
+//   1. CryptoJobMode
+//   2. Curve Name
+//   3. Param Encoding
+//   4. Public Format
+//   5. Public Type
+//   6. Private Format
+//   7. Private Type
+//   8. Cipher
+//   9. Passphrase
+Maybe<void> EcKeyGenTraits::AdditionalConfig(
+    CryptoJobMode mode,
+    const FunctionCallbackInfo<Value>& args,
+    unsigned int* offset,
+    EcKeyPairGenConfig* params) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[*offset]->IsString());  // curve name
+
+  Utf8Value curve_name(env->isolate(), args[*offset]);
+  params->params.algorithm = ncrypto::Ec::GetNamedKeyAlgorithm(*curve_name);
+  if (params->params.algorithm == nullptr) {
+    if (!Ec::CheckCurveName(*curve_name)) {
+      THROW_ERR_CRYPTO_INVALID_CURVE(env);
+      return Nothing<void>();
+    }
+    params->params.curve_name = *curve_name;
+  }
+
+  // param encoding
+  if (args[*offset + 1]->IsNullOrUndefined()) {
+    params->params.param_encoding = OPENSSL_EC_NAMED_CURVE;
+  } else {
+    CHECK(args[*offset + 1]->IsInt32());
+    params->params.param_encoding = args[*offset + 1].As<Int32>()->Value();
+    if (params->params.param_encoding != OPENSSL_EC_NAMED_CURVE &&
+        params->params.param_encoding != OPENSSL_EC_EXPLICIT_CURVE) {
+      THROW_ERR_OUT_OF_RANGE(env, "Invalid param_encoding specified");
+      return Nothing<void>();
+    }
+  }
+
+  *offset += 2;
+
+  return JustVoid();
+}
+
+bool ExportJWKEcKey(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
+  DCHECK(m_pkey.isA(KeyAlgorithm::EC));
+
+  BignumPointer x;
+  BignumPointer y;
+  BignumPointer priv;
+  int degree_bits;
+  if (!Ec::GetKeyComponents(
+          m_pkey,
+          &x,
+          &y,
+          key.GetKeyType() == kKeyTypePrivate ? &priv : nullptr,
+          &degree_bits)) {
+    return false;
+  }
+  int degree_bytes =
+      (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
+
+  if (!target
+           ->DefineOwnProperty(
+               env->context(), env->jwk_kty_string(), env->jwk_ec_string())
+           .FromMaybe(false)) {
+    return false;
+  }
+
+  if (SetEncodedValue(env, target, env->jwk_x_string(), x.get(), degree_bytes)
+          .IsNothing() ||
+      SetEncodedValue(env, target, env->jwk_y_string(), y.get(), degree_bytes)
+          .IsNothing()) {
+    return false;
+  }
+
+  Local<String> crv_name;
+  const int nid = Ec::GetCurveId(m_pkey);
+  switch (nid) {
+    case NID_X9_62_prime256v1:
+      crv_name = env->p256_string();
+      break;
+    case NID_secp256k1:
+      crv_name = env->secp256k1_string();
+      break;
+    case NID_secp384r1:
+      crv_name = env->p384_string();
+      break;
+    case NID_secp521r1:
+      crv_name = env->p521_string();
+      break;
+    default: {
+      THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
+          env, "Unsupported JWK EC curve: %s.", OBJ_nid2sn(nid));
+      return false;
+    }
+  }
+  if (!target
+           ->DefineOwnProperty(env->context(), env->jwk_crv_string(), crv_name)
+           .FromMaybe(false)) {
+    return false;
+  }
+
+  if (key.GetKeyType() == kKeyTypePrivate) {
+    return SetEncodedValue(
+               env, target, env->jwk_d_string(), priv.get(), degree_bytes)
+        .IsJust();
+  }
+
+  return true;
+}
+
+KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
+  Local<Value> crv_value;
+  if (!jwk->Get(env->context(), env->jwk_crv_string()).ToLocal(&crv_value) ||
+      !crv_value->IsString()) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
+
+  Utf8Value curve(env->isolate(), crv_value.As<String>());
+  int nid = Ec::GetCurveIdFromName(*curve);
+  if (nid == NID_undef) {  // Unknown curve
+    THROW_ERR_CRYPTO_INVALID_CURVE(env);
+    return {};
+  }
+
+  Local<Value> x_value;
+  Local<Value> y_value;
+  Local<Value> d_value;
+
+  if (!jwk->Get(env->context(), env->jwk_x_string()).ToLocal(&x_value) ||
+      !jwk->Get(env->context(), env->jwk_y_string()).ToLocal(&y_value) ||
+      !jwk->Get(env->context(), env->jwk_d_string()).ToLocal(&d_value)) {
+    return {};
+  }
+
+  if (!x_value->IsString() ||
+      !y_value->IsString() ||
+      (!d_value->IsUndefined() && !d_value->IsString())) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
+
+  KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
+
+  auto ec = ECKeyPointer::NewByCurveName(nid);
+  if (!ec) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
+
+  ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
+  ByteSource y = ByteSource::FromEncodedString(env, y_value.As<String>());
+
+  // setPublicKeyRaw validates the point is on the curve. For h=1 curves
+  // (P-256/P-384/P-521), this skips EC_KEY_check_key for efficiency.
+  if (!ec.setPublicKeyRaw(x.ToBN(), y.ToBN())) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
+
+  if (type == kKeyTypePrivate) {
+    ByteSource d = ByteSource::FromEncodedString(env, d_value.As<String>());
+    if (!ec.setPrivateKey(d.ToBN())) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+      return {};
+    }
+    // Verify that the public point matches the private scalar (d*G == (x,y)).
+    if (!ec.checkPrivateKey()) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+      return {};
+    }
+  }
+
+  auto pkey = EVPKeyPointer::New();
+  if (!pkey) return {};
+  if (!pkey.set(ec)) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
+
+  return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
+}
+
+bool GetEcKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
+  DCHECK(m_pkey.isA(KeyAlgorithm::EC));
+
+  const auto name = Ec::GetCurveName(m_pkey);
+  if (!name) return true;
+
+  return target
+      ->Set(env->context(),
+            env->named_curve_string(),
+            OneByteString(env->isolate(), name.value()))
+      .IsJust();
+}
+
+// WebCrypto requires a different format for ECDSA signatures than
+// what OpenSSL produces, so we need to convert between them. The
+// implementation here is a adapted from Chromium's impl here:
+// https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/ecdsa.cc
+
+size_t GroupOrderSize(const EVPKeyPointer& key) {
+  ECKeyPointer ec(key);
+  if (!ec) return 0;
+  auto order = BignumPointer::New();
+  if (!order || !EC_GROUP_get_order(ec.getGroup(), order.get(), nullptr)) {
+    return 0;
+  }
+  return order.byteLength();
+}
+}  // namespace crypto
+}  // namespace node

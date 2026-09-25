@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "names": [],
+  "file": "wrong-type-3.js",
+  "sources": ["empty-original.js"],
+  "sourcesContent": [""],
+  "mappings": "",
+  "rangeMappings": ["foo"]
+}

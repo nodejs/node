@@ -1,0 +1,1 @@
+export default 'nameless-package';

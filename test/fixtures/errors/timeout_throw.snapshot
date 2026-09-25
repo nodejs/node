@@ -1,0 +1,9 @@
+<project-root>/test/fixtures/errors/timeout_throw.js:27
+  undefined_reference_error_maker;
+  ^
+
+ReferenceError: undefined_reference_error_maker is not defined
+    at Timeout._onTimeout (<project-root>/test/fixtures/errors/timeout_throw.js:27:3)
+    at <node-internal-frames>
+
+Node.js <node-version>

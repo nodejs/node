@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<title>Service Worker: Client.url is Window creation URL iframe resource</title>
+<script>
+// This is the iframe resource for the Client.url Window creation URL test.
+// It supports the test page telling it to navigate in various ways, and then
+// the iframe will post back that its done.
+
+// Turn the next time an event is raised into a promise.
+function wait_for_next_event(event_target, event_name) {
+  return new Promise(resolve => {
+    const event_handler = event => {
+      event_target.removeEventListener(event_name, event_handler);
+      resolve(event);
+    };
+    event_target.addEventListener(event_name, event_handler);
+  });
+}
+
+// Perform the navigation step sent to the iframe by the test page.
+async function perform_navigation(navigation_kind) {
+  // This is true if the navigation results in a new document instance.
+  // For example, history.pushState() doesn't create a new document, but
+  // navigating to a URL with a different query does. We need to keep
+  // track of this so we can post a message back to the test page when the
+  // navigation completes without loading a new document.
+  let cross_document_navigation = false;
+
+  const query_params = new URLSearchParams(location.search.substring(1));
+  const step = parseInt(query_params.get('step'), 10);
+
+  const next_url = `?step=${step + 1}`;
+
+  if (navigation_kind === 'pushstate') {
+    history.pushState({}, '', next_url);
+  } else if (navigation_kind === 'replacestate') {
+    history.replaceState({}, '', next_url);
+  } else if (navigation_kind === 'back-within-same-document') {
+    history.back();
+  } else if (navigation_kind === 'fragment') {
+    location.href = '#fragment';
+    await wait_for_next_event(window, 'hashchange');
+  } else if (navigation_kind === 'back-cross-document') {
+    // Note there are two back navigation_kinds. Both call history.back(),
+    // but 'back-cross-document' is for when we go back to a different
+    // document instance and the new document will postMessage the parent
+    // that the navigation is done, and and 'back-within-same-document' is for
+    // when we go back but remain in the same document and so need to
+    // postMessage the parent that the navigation is done from this document.
+    history.back();
+    cross_document_navigation = true;
+  } else if (navigation_kind === 'query') {
+    location.href = next_url;
+    cross_document_navigation = true;
+  } else if (navigation_kind === 'reload') {
+    location.reload();
+    cross_document_navigation = true;
+  } else {
+    throw new Error('Unknown navigation kind: ' + navigation_kind);
+  }
+  return cross_document_navigation;
+}
+
+window.addEventListener('message', async message_event => {
+  try {
+    const navigation_kind = message_event.data;
+
+    // If its a cross document navigation, then we need to send the done
+    // message back to the test page when the navigation has started the
+    // new document.
+    const cross_document_navigation = await perform_navigation(navigation_kind);
+    if (!cross_document_navigation ) {
+      window.parent.postMessage('done');
+    }
+  } catch (error) {
+    window.parent.postMessage('error: ' + error.message);
+  }
+});
+
+// Navigation steps either result in a new document instance or not. The
+// iframe needs to post a message back to the test page when the navigation
+// completes regardless. If the navigation does create a new document, then
+// the following postMessage informs the test page that the cross document
+// navigation has completed.
+window.parent.postMessage('done');
+</script>

@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(1401-10-11, ap era, for calendar Persian))
+    +10d → Date(1401-10-21, ap era, for calendar Persian)
+    +2m → Date(1401-12-11, ap era, for calendar Persian)
+    +1y → Date(1402-10-11, ap era, for calendar Persian)
+    +1y 3m 15d → Date(1403-1-26, ap era, for calendar Persian)
+
+2024-6-15
+  (start: Date(1403-3-26, ap era, for calendar Persian))
+    +10d → Date(1403-4-5, ap era, for calendar Persian)
+    +2m → Date(1403-5-26, ap era, for calendar Persian)
+    +1y → Date(1404-3-26, ap era, for calendar Persian)
+    +1y 3m 15d → Date(1404-7-10, ap era, for calendar Persian)
+
+2025-12-31
+  (start: Date(1404-10-10, ap era, for calendar Persian))
+    +10d → Date(1404-10-20, ap era, for calendar Persian)
+    +2m → Date(1404-12-10, ap era, for calendar Persian)
+    +1y → Date(1405-10-10, ap era, for calendar Persian)
+    +1y 3m 15d → Date(1406-1-25, ap era, for calendar Persian)

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>Service worker interception does not break SVG fragment targets</title>
+<meta name="assert" content="SVG with link fragment should render correctly when intercepted by a service worker.">
+<script src="resources/test-helpers.sub.js"></script>
+<link rel="match" href="resources/svg-target-reftest-001.html">
+<p>Pass if you see a green box below.</p>
+<script>
+// We want to use utility functions designed for testharness.js where
+// there is a test object.  We don't have a test object in reftests
+// so fake one for now.
+const fake_test = { step_func: f => f };
+
+async function runTest() {
+  const script = './resources/pass-through-worker.js';
+  const scope = './resources/svg-target-reftest-frame.html';
+  let reg = await navigator.serviceWorker.register(script, { scope });
+  await wait_for_state(fake_test, reg.installing, 'activated');
+  let f = await with_iframe(scope);
+  document.documentElement.classList.remove('reftest-wait');
+  await reg.unregister();
+  // Note, we cannot remove the frame explicitly because we can't
+  // tell when the reftest completes.
+}
+runTest();
+</script>
+</html>

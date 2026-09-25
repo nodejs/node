@@ -1,0 +1,1 @@
+{"type":"ClassExpression","source":"class VAR_6 extends VAR_6 {}","path":"e2e/input1.js","dependencies":["VAR_6","VAR_6"]}

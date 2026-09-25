@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>SharedWorker: Partitioned Cookies 3P Window</title>
+<script src="/resources/testharness.js"></script>
+</head>
+
+<body>
+<script>
+
+promise_test(async t => {
+  assert_true(
+      location.search.includes('origin='), 'First party origin passed');
+  const first_party_origin =
+      new URLSearchParams(window.location.search).get('origin');
+  const iframe = document.createElement('iframe');
+  iframe.src = new URL(
+      './shared-worker-partitioned-cookies-3p-frame.html',
+      first_party_origin + location.pathname).href;
+  document.body.appendChild(iframe);
+  await fetch_tests_from_window(iframe.contentWindow);
+});
+
+</script>
+</body>

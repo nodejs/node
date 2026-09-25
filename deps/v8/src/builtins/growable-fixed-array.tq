@@ -1,0 +1,48 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace growable_fixed_array {
+// TODO(pwong): Support FixedTypedArrays.
+struct GrowableFixedArray {
+  macro Push(obj: Object): void {
+    this.EnsureCapacity();
+    this.array.objects[this.length++] = obj;
+  }
+  macro ResizeFixedArray(newCapacity: intptr): FixedArray {
+    dcheck(this.length >= 0);
+    dcheck(newCapacity >= 0);
+    dcheck(newCapacity >= this.length);
+    const first: intptr = 0;
+    return ExtractFixedArray(
+        this.array, first, this.length, newCapacity, TheHole);
+  }
+  macro EnsureCapacity(): void {
+    dcheck(this.length <= this.capacity);
+    if (this.capacity == this.length) {
+      // Growth rate is analog to JSObject::NewElementsCapacity:
+      // new_capacity = (current_capacity + (current_capacity >> 1)) + 16.
+      this.capacity = this.capacity + (this.capacity >> 1) + 16;
+      this.array = this.ResizeFixedArray(this.capacity);
+    }
+  }
+
+  macro ToJSArray(implicit context: Context)(): JSArray {
+    const nativeContext: NativeContext = LoadNativeContext(context);
+    const map: Map =
+        LoadJSArrayElementsMap(ElementsKind::PACKED_ELEMENTS, nativeContext);
+    const fixedArray: FixedArray = this.ResizeFixedArray(this.length);
+    const lengthSmi = Convert<Smi>(this.length);
+    return AllocateJSArray(map, fixedArray, lengthSmi);
+  }
+
+  array: FixedArray;
+  // TODO(v8:4153): make capacity and length uintptr
+  capacity: intptr;
+  length: intptr;
+}
+
+macro NewGrowableFixedArray(): GrowableFixedArray {
+  return GrowableFixedArray{array: kEmptyFixedArray, capacity: 0, length: 0};
+}
+}

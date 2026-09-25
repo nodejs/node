@@ -1,0 +1,38 @@
+{
+  "cors-preflight.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "resource_nested_dedicated_worker.worker.js": {
+    "skip": "Browser-specific test"
+  },
+  "resource_timing.worker.js": {
+    "skip": "Browser-specific test"
+  },
+  "sizes-cache.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "sizes-redirect.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "supported_resource_type.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "buffered-flag.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "idlharness.any.js": {
+    "fail": {
+      "expected": [
+        "PerformanceResourceTiming interface: default toJSON operation on resource",
+        "PerformanceResourceTiming interface: attribute workerRouterEvaluationStart",
+        "PerformanceResourceTiming interface: attribute workerCacheLookupStart",
+        "PerformanceResourceTiming interface: attribute workerMatchedRouterSource",
+        "PerformanceResourceTiming interface: attribute workerFinalRouterSource",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerRouterEvaluationStart\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerCacheLookupStart\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerMatchedRouterSource\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerFinalRouterSource\" with the proper type"
+      ]
+    }
+  }
+}

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: Update the registration with a different script type.</title>
+<!-- common.js is for guid() -->
+<script src="/common/security-features/resources/common.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// The following two tests check that a registration is updated correctly
+// with different script type. At first Service Worker is registered as
+// classic script type, then it is re-registered as module script type,
+// and vice versa. A main script is also updated at the same time.
+promise_test(async t => {
+  const key = guid();
+  const script = `resources/update-registration-with-type.py?classic_first=1&key=${key}`;
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with classic script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'classic'
+  });
+  const firstWorker = firstRegistration.installing;
+  await wait_for_state(t, firstWorker, 'activated');
+  firstWorker.postMessage(' ');
+  let msgEvent = await new Promise(r => navigator.serviceWorker.onmessage = r);
+  assert_equals(msgEvent.data, 'A classic script.');
+
+  // Re-register with module script type.
+  const secondRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  const secondWorker = secondRegistration.installing;
+  secondWorker.postMessage(' ');
+  msgEvent = await new Promise(r => navigator.serviceWorker.onmessage = r);
+  assert_equals(msgEvent.data, 'A module script.');
+
+  assert_not_equals(firstWorker, secondWorker);
+  assert_equals(firstRegistration, secondRegistration);
+}, 'Update the registration with a different script type (classic => module).');
+
+promise_test(async t => {
+  const key = guid();
+  const script = `resources/update-registration-with-type.py?classic_first=0&key=${key}`;
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with module script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  const firstWorker = firstRegistration.installing;
+  await wait_for_state(t, firstWorker, 'activated');
+  firstWorker.postMessage(' ');
+  let msgEvent = await new Promise(r => navigator.serviceWorker.onmessage = r);
+  assert_equals(msgEvent.data, 'A module script.');
+
+  // Re-register with classic script type.
+  const secondRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'classic'
+  });
+  const secondWorker = secondRegistration.installing;
+  secondWorker.postMessage(' ');
+  msgEvent = await new Promise(r => navigator.serviceWorker.onmessage = r);
+  assert_equals(msgEvent.data, 'A classic script.');
+
+  assert_not_equals(firstWorker, secondWorker);
+  assert_equals(firstRegistration, secondRegistration);
+}, 'Update the registration with a different script type (module => classic).');
+
+// The following two tests change the script type while keeping
+// the script identical.
+promise_test(async t => {
+  const script = 'resources/empty-worker.js';
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with classic script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'classic'
+  });
+  const firstWorker = firstRegistration.installing;
+  await wait_for_state(t, firstWorker, 'activated');
+
+  // Re-register with module script type.
+  const secondRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  const secondWorker = secondRegistration.installing;
+
+  assert_not_equals(firstWorker, secondWorker);
+  assert_equals(firstRegistration, secondRegistration);
+}, 'Update the registration with a different script type (classic => module) '
+    + 'and with a same main script.');
+
+promise_test(async t => {
+  const script = 'resources/empty-worker.js';
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with module script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  const firstWorker = firstRegistration.installing;
+  await wait_for_state(t, firstWorker, 'activated');
+
+  // Re-register with classic script type.
+  const secondRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'classic'
+  });
+  const secondWorker = secondRegistration.installing;
+
+  assert_not_equals(firstWorker, secondWorker);
+  assert_equals(firstRegistration, secondRegistration);
+}, 'Update the registration with a different script type (module => classic) '
+    + 'and with a same main script.');
+
+// This test checks that a registration is not updated with the same script
+// type and the same main script.
+promise_test(async t => {
+  const script = 'resources/empty-worker.js';
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with module script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  await wait_for_state(t, firstRegistration.installing, 'activated');
+
+  // Re-register with module script type.
+  const secondRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  assert_equals(secondRegistration.installing, null);
+
+  assert_equals(firstRegistration, secondRegistration);
+}, 'Does not update the registration with the same script type and '
+    + 'the same main script.');
+
+// In the case (classic => module), a worker script contains importScripts()
+// that is disallowed on module scripts, so the second registration is
+// expected to fail script evaluation.
+promise_test(async t => {
+  const script = 'resources/classic-worker.js';
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with classic script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'classic'
+  });
+  assert_not_equals(firstRegistration.installing, null);
+  await wait_for_state(t, firstRegistration.installing, 'activated');
+
+  // Re-register with module script type and expect TypeError.
+  return promise_rejects_js(t, TypeError, navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  }), 'Registering with invalid evaluation should be failed.');
+}, 'Update the registration with a different script type (classic => module) '
+    + 'and with a same main script. Expect evaluation failed.');
+
+// In the case (module => classic), a worker script contains static-import
+// that is disallowed on classic scripts, so the second registration is
+// expected to fail script evaluation.
+promise_test(async t => {
+  const script = 'resources/module-worker.js';
+  const scope = 'resources/update-registration-with-type';
+  await service_worker_unregister(t, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  // Register with module script type.
+  const firstRegistration = await navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'module'
+  });
+  assert_not_equals(firstRegistration.installing, null);
+  await wait_for_state(t, firstRegistration.installing, 'activated');
+
+  // Re-register with classic script type and expect TypeError.
+  return promise_rejects_js(t, TypeError, navigator.serviceWorker.register(script, {
+    scope: scope,
+    type: 'classic'
+  }), 'Registering with invalid evaluation should be failed.');
+}, 'Update the registration with a different script type (module => classic) '
+    + 'and with a same main script. Expect evaluation failed.');
+</script>
+</body>

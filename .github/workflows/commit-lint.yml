@@ -1,0 +1,56 @@
+name: First commit message adheres to guidelines
+
+on:
+  pull_request_target:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint-commit-message:
+    name: lint-commit-message
+    runs-on: ubuntu-slim
+    steps:
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate first commit message
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const { data: [commit] } = await github.rest.pulls.listCommits({
+              ...context.repo,
+              pull_number: context.issue.number,
+              per_page: 1,
+            });
+            if (!commit) {
+              throw new Error('No commits found in pull request');
+            }
+            const { exitCode, stdout, stderr } = await exec.getExecOutput('npx', [
+              '-q', '--yes', '--ignore-scripts', 'core-validate-commit@6.0.0',
+              '--no-validate-metadata', '--tap', '-',
+            ], {
+              cwd: process.env.RUNNER_TEMP,
+              input: Buffer.from(JSON.stringify([{
+                id: commit.sha,
+                message: commit.commit.message,
+                author: commit.commit.author,
+              }])),
+              silent: true,
+              ignoreReturnCode: true,
+            });
+            if (exitCode !== 0) {
+              core.setFailed(stdout + stderr || 'Commit message validation failed');
+            } else {
+              core.info('First commit message passes validation');
+            }

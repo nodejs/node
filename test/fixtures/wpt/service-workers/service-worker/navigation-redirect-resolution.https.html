@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Service Worker: Navigation Redirect Resolution</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+function make_absolute(url) {
+  return new URL(url, location).toString();
+}
+
+const script = 'resources/fetch-rewrite-worker.js';
+
+function redirect_result_test(scope, expected_url, description) {
+  promise_test(async t => {
+    const registration = await service_worker_unregister_and_register(
+          t, script, scope);
+      t.add_cleanup(() => {
+        return service_worker_unregister(t, scope);
+      })
+      await wait_for_state(t, registration.installing, 'activated');
+
+      // The navigation to |scope| will be resolved by a fetch to |redirect_url|
+      // which returns a relative Location header. If it is resolved relative to
+      // |scope|, the result will be navigate-redirect-resolution/blank.html. If
+      // relative to |redirect_url|, it will be resources/blank.html. The latter
+      // is correct.
+      const iframe = await with_iframe(scope);
+      t.add_cleanup(() => { iframe.remove(); });
+      assert_equals(iframe.contentWindow.location.href,
+                    make_absolute(expected_url));
+  }, description);
+}
+
+// |redirect_url| serves a relative redirect to resources/blank.html.
+const redirect_url = 'resources/redirect.py?Redirect=blank.html';
+
+// |scope_base| does not exist but will be replaced with a fetch of
+// |redirect_url| by fetch-rewrite-worker.js.
+const scope_base = 'resources/subdir/navigation-redirect-resolution?' +
+    'redirect-mode=manual&url=' +
+    encodeURIComponent(make_absolute(redirect_url));
+
+// When the Service Worker forwards the result of |redirect_url| as an
+// opaqueredirect response, the redirect uses the response's URL list as the
+// base URL, not the request.
+redirect_result_test(scope_base, 'resources/blank.html',
+                     'test relative opaqueredirect');
+
+// The response's base URL should be preserved across CacheStorage and clone.
+redirect_result_test(scope_base + '&cache=1', 'resources/blank.html',
+                     'test relative opaqueredirect with CacheStorage');
+redirect_result_test(scope_base + '&clone=1', 'resources/blank.html',
+                     'test relative opaqueredirect with clone');
+
+</script>
+</body>

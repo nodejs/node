@@ -1,0 +1,15 @@
+<body>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="../test-helpers.sub.js"></script>
+<script>
+const HTTPS_PREFIX = get_host_info().HTTPS_ORIGIN + base_path();
+
+window.onmessage = event => {
+    window.location = HTTPS_PREFIX + 'report?result=' + event.data;
+};
+
+const frame = document.createElement('iframe');
+frame.src = HTTPS_PREFIX + 'sender.html';
+document.body.appendChild(frame);
+</script>
+</body>

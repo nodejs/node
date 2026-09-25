@@ -1,0 +1,136 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Service Worker: claim() should affect other registration</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(function(t) {
+  var frame;
+
+  var init_scope = 'resources/blank.html?affect-other';
+  var init_worker_url = 'resources/empty.js';
+  var init_registration;
+  var init_workers = [undefined, undefined];
+
+  var claim_scope = 'resources/blank.html?affect-other-registration';
+  var claim_worker_url = 'resources/claim-worker.js';
+  var claim_registration;
+  var claim_worker;
+
+  return Promise.resolve()
+    // Register the first service worker to init_scope.
+    .then(() => navigator.serviceWorker.register(init_worker_url + '?v1',
+                                                 {scope: init_scope}))
+    .then(r => {
+      init_registration = r;
+      init_workers[0] = r.installing;
+      return Promise.resolve()
+        .then(() => wait_for_state(t, init_workers[0], 'activated'))
+        .then(() => assert_array_equals([init_registration.active,
+                                         init_registration.waiting,
+                                         init_registration.installing],
+                                        [init_workers[0],
+                                         null,
+                                         null],
+                                        'Wrong workers.'));
+    })
+
+    // Create an iframe as the client of the first service worker of init_scope.
+    .then(() => with_iframe(claim_scope))
+    .then(f => frame = f)
+
+    // Check the controller.
+    .then(() => frame.contentWindow.navigator.serviceWorker.getRegistration(
+                  normalizeURL(init_scope)))
+    .then(r => assert_equals(frame.contentWindow.navigator.serviceWorker.controller,
+                             r.active,
+                             '.controller should belong to init_scope.'))
+
+    // Register the second service worker to init_scope.
+    .then(() => navigator.serviceWorker.register(init_worker_url + '?v2',
+                                                 {scope: init_scope}))
+    .then(r => {
+      assert_equals(r, init_registration, 'Should be the same registration');
+      init_workers[1] = r.installing;
+      return Promise.resolve()
+        .then(() => wait_for_state(t, init_workers[1], 'installed'))
+        .then(() => assert_array_equals([init_registration.active,
+                                         init_registration.waiting,
+                                         init_registration.installing],
+                                        [init_workers[0],
+                                         init_workers[1],
+                                         null],
+                                        'Wrong workers.'));
+    })
+
+    // Register a service worker to claim_scope.
+    .then(() => navigator.serviceWorker.register(claim_worker_url,
+                                                 {scope: claim_scope}))
+    .then(r => {
+      claim_registration = r;
+      claim_worker = r.installing;
+      return wait_for_state(t, claim_worker, 'activated')
+    })
+
+    // Let claim_worker claim the created iframe.
+    .then(function() {
+      var channel = new MessageChannel();
+      var saw_message = new Promise(function(resolve) {
+        channel.port1.onmessage = t.step_func(function(e) {
+          assert_equals(e.data, 'PASS',
+                        'Worker call to claim() should fulfill.');
+          resolve();
+        });
+      });
+
+      claim_worker.postMessage({port: channel.port2}, [channel.port2]);
+      return saw_message;
+    })
+
+    // Check the controller.
+    .then(() => frame.contentWindow.navigator.serviceWorker.getRegistration(
+                  normalizeURL(claim_scope)))
+    .then(r => assert_equals(frame.contentWindow.navigator.serviceWorker.controller,
+                             r.active,
+                             '.controller should belong to claim_scope.'))
+
+    // Check the status of created registrations and service workers.
+    .then(() => wait_for_state(t, init_workers[1], 'activated'))
+    .then(() => {
+      assert_array_equals([claim_registration.active,
+                           claim_registration.waiting,
+                           claim_registration.installing],
+                          [claim_worker,
+                           null,
+                           null],
+                          'claim_worker should be the only worker.')
+
+      assert_array_equals([init_registration.active,
+                           init_registration.waiting,
+                           init_registration.installing],
+                          [init_workers[1],
+                           null,
+                           null],
+                          'The waiting sw should become the active worker.')
+
+      assert_array_equals([init_workers[0].state,
+                           init_workers[1].state,
+                           claim_worker.state],
+                          ['redundant',
+                           'activated',
+                           'activated'],
+                          'Wrong worker states.');
+    })
+
+    // Cleanup and finish testing.
+    .then(() => frame.remove())
+    .then(() => Promise.all([
+      init_registration.unregister(),
+      claim_registration.unregister()
+    ]))
+    .then(() => t.done());
+}, 'claim() should affect the originally controlling registration.');
+
+</script>

@@ -1,0 +1,4 @@
+# The rules in this file are only applied at compile time. If you can modify the
+# source in question, consider function attributes to disable instrumentation.
+#
+# Please think twice before you add or remove these rules.

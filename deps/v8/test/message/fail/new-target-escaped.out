@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: 'new.target' must not contain escaped characters
+  return new.t\u0061rget;
+         ^^^^^^^^^^^^^^^
+SyntaxError: 'new.target' must not contain escaped characters

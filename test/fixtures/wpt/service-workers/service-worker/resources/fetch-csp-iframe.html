@@ -1,0 +1,16 @@
+<script>
+var meta = document.createElement('meta');
+meta.setAttribute('http-equiv', 'Content-Security-Policy');
+meta.setAttribute('content', decodeURIComponent(location.search.substring(1)));
+document.head.appendChild(meta);
+
+function load_image(url) {
+  return new Promise(function(resolve, reject) {
+      var img = document.createElement('img');
+      document.body.appendChild(img);
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url;
+    });
+}
+</script>

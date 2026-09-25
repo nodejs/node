@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script>
+  // The state variable is used by handle_message to record the time
+  // at which a message was handled. It's updated by the scripts
+  // loaded by the <script> tags at the bottom of the file as well as
+  // by the event listener added here.
+  var state = 'init';
+  addEventListener('DOMContentLoaded', () => state = 'loaded');
+
+  // We expect to get three ping messages from the service worker.
+  const expected = ['init', 'install', 'start'];
+  let promises = {};
+  let resolvers = {};
+  expected.forEach(name => {
+    promises[name] = new Promise(resolve => resolvers[name] = resolve);
+  });
+
+  // Once all messages have been dispatched, the state in which each
+  // of them was dispatched is recorded in the draft. At that point
+  // the draft becomes the final report.
+  var draft = {};
+  var report = Promise.all(Object.values(promises)).then(() => window.draft);
+
+  // This message handler is installed by the 'install' script.
+  function handle_message(event) {
+    const data = event.data.data;
+    draft[data] = state;
+    resolvers[data]();
+  }
+</script>
+
+<!--
+  The controlling service worker will delay the response to these
+  fetch requests until the test instructs it how to reply. Note that
+  the event loop keeps spinning while the parser is blocked.
+-->
+<script src="empty.js?key=install"></script>
+<script src="empty.js?key=start"></script>
+<script src="empty.js?key=finish"></script>

@@ -1,0 +1,12 @@
+prefix test-runner
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$system==win32]
+# https://github.com/nodejs/node/issues/66056
+test-run-watch-cwd-isolation-none: PASS, FLAKY
+test-run-watch-cwd-isolation-none-argv: PASS, FLAKY

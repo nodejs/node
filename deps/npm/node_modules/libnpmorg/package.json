@@ -1,0 +1,66 @@
+{
+  "name": "libnpmorg",
+  "version": "9.0.0",
+  "description": "Programmatic api for `npm org` commands",
+  "author": "GitHub Inc.",
+  "main": "lib/index.js",
+  "keywords": [
+    "libnpm",
+    "npm",
+    "package manager",
+    "api",
+    "orgs",
+    "teams"
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "npm run eslint",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.1",
+    "@npmcli/template-oss": "5.1.1",
+    "minipass": "^7.1.1",
+    "nock": "^14.0.0",
+    "tap": "^16.3.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmorg"
+  },
+  "bugs": "https://github.com/npm/libnpmorg/issues",
+  "homepage": "https://npmjs.com/package/libnpmorg",
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "npm-registry-fetch": "^20.0.1"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "5.1.1",
+    "content": "../../scripts/template-oss/index.js"
+  },
+  "tap": {
+    "node-arg": [
+      "--require",
+      "../../scripts/disable-agent-for-tests.js"
+    ],
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

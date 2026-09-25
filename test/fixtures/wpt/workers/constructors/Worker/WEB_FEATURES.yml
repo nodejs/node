@@ -1,0 +1,3 @@
+rules:
+- use-base-url.html: [base]
+- "*": [dedicated-workers]

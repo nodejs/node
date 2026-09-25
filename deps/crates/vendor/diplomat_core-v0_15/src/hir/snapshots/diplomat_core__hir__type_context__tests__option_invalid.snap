@@ -1,0 +1,8 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Foo: Found FFI-unsafe type Option<u8> in struct field Foo.field, consider using DiplomatOption<u8>
+Lowering error in Foo: Found Option<T> for primitive T in a struct field, please use DiplomatOption<T>
+Lowering error in Foo::do_thing: found Option<T> in input, where T isn't a reference but Option<T> in inputs requires that T is a reference to an opaque. T = Option<u16>
+Lowering error in Foo::do_thing2: Results can only appear as the top-level return type of methods

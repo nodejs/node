@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<title>Service Worker: registration end-to-end</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var t = async_test('Registration: end-to-end');
+t.step(function() {
+
+    var scope = 'resources/in-scope/';
+    var serviceWorkerStates = [];
+    var lastServiceWorkerState = '';
+    var receivedMessageFromPort = '';
+
+    assert_true(navigator.serviceWorker instanceof ServiceWorkerContainer);
+    assert_equals(typeof navigator.serviceWorker.register, 'function');
+    assert_equals(typeof navigator.serviceWorker.getRegistration, 'function');
+
+    service_worker_unregister_and_register(
+        t, 'resources/end-to-end-worker.js', scope)
+      .then(onRegister)
+      .catch(unreached_rejection(t));
+
+    function sendMessagePort(worker, from) {
+        var messageChannel = new MessageChannel();
+        worker.postMessage({from:from, port:messageChannel.port2}, [messageChannel.port2]);
+        return messageChannel.port1;
+    }
+
+    function onRegister(registration) {
+        var sw = registration.installing;
+        serviceWorkerStates.push(sw.state);
+        lastServiceWorkerState = sw.state;
+
+        var sawMessage = new Promise(t.step_func(function(resolve) {
+            sendMessagePort(sw, 'registering doc').onmessage = t.step_func(function (e) {
+                receivedMessageFromPort = e.data;
+                resolve();
+            });
+        }));
+
+        var sawActive = new Promise(t.step_func(function(resolve) {
+            sw.onstatechange = t.step_func(function() {
+                serviceWorkerStates.push(sw.state);
+
+                switch (sw.state) {
+                case 'installed':
+                    assert_equals(lastServiceWorkerState, 'installing');
+                    break;
+                case 'activating':
+                    assert_equals(lastServiceWorkerState, 'installed');
+                    break;
+                case 'activated':
+                    assert_equals(lastServiceWorkerState, 'activating');
+                    break;
+                default:
+                    // We won't see 'redundant' because onstatechange is
+                    // overwritten before calling unregister.
+                    assert_unreached('Unexpected state: ' + sw.state);
+                }
+
+                lastServiceWorkerState = sw.state;
+                if (sw.state === 'activated')
+                    resolve();
+            });
+        }));
+
+        Promise.all([sawMessage, sawActive]).then(t.step_func(function() {
+            assert_array_equals(serviceWorkerStates,
+                                ['installing', 'installed', 'activating', 'activated'],
+                                'Service worker should pass through all states');
+
+            assert_equals(receivedMessageFromPort, 'Ack for: registering doc');
+
+            var sawRedundant = new Promise(t.step_func(function(resolve) {
+                sw.onstatechange = t.step_func(function() {
+                    assert_equals(sw.state, 'redundant');
+                    resolve();
+                });
+            }));
+            registration.unregister();
+            sawRedundant.then(t.step_func(function() {
+                t.done();
+            }));
+        }));
+    }
+});
+</script>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: CSP for ES Modules</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+async function openWindow(url) {
+  const win = window.open(url, '_blank');
+  add_result_callback(() => win.close());
+  const msg_event = await new Promise(resolve => window.onmessage = resolve);
+  assert_equals(msg_event.data, 'LOADED');
+  return win;
+}
+
+function import_csp_test(
+    cspHeader, importType, expectedImportedModules, description) {
+  // Append CSP header to windowURL for static import tests since static import
+  // scripts should obey Window's CSP.
+  const windowURL = `resources/new-worker-window.html` +
+      `${importType === 'static'
+          ? '?pipe=header(Content-Security-Policy, ' + cspHeader + ')'
+          : ''}`;
+  // Append CSP header to scriptURL for dynamic import tests since dynamic
+  // import scripts should obey Worker script's response's CSP.
+  const scriptURL = `${importType}-import-remote-origin-script-worker.sub.js` +
+      `${importType === 'dynamic'
+          ? '?pipe=header(Content-Security-Policy, ' + cspHeader + ')'
+          : ''}`;
+  promise_test(async () => {
+    const win = await openWindow(windowURL);
+    // Ask the window to start a dedicated worker.
+    win.postMessage(scriptURL, '*');
+    const msg_event = await new Promise(resolve => window.onmessage = resolve);
+    assert_array_equals(msg_event.data, expectedImportedModules);
+  }, description);
+}
+
+// Tests for static import.
+//
+// Static import should obey the worker-src directive and the script-src
+// directive. If the both directives are specified, the worker-src directive
+// should be prioritized.
+//
+// Step 1: "If the result of executing 6.6.1.11 Get the effective directive for
+// request on request is "worker-src", and policy contains a directive whose
+// name is "worker-src", return "Allowed"."
+// "Note: If worker-src is present, we’ll defer to it when handling worker
+// requests."
+// https://w3c.github.io/webappsec-csp/#script-src-pre-request
+
+import_csp_test(
+    "worker-src 'self' 'unsafe-inline'",
+    "static",
+    ['ERROR'],
+    "worker-src 'self' directive should disallow cross origin static import.");
+
+import_csp_test(
+    "worker-src * 'unsafe-inline'",
+    "static",
+    ["export-on-load-script.js"],
+    "worker-src * directive should allow cross origin static import.")
+
+import_csp_test(
+    "script-src 'self' 'unsafe-inline'",
+    "static",
+    ['ERROR'],
+    "script-src 'self' directive should disallow cross origin static import.");
+
+import_csp_test(
+    "script-src * 'unsafe-inline'",
+    "static",
+    ["export-on-load-script.js"],
+    "script-src * directive should allow cross origin static import.")
+
+import_csp_test(
+    "worker-src *; script-src 'self' 'unsafe-inline'",
+    "static",
+    ["export-on-load-script.js"],
+    "worker-src * directive should override script-src 'self' directive and " +
+        "allow cross origin static import.");
+
+import_csp_test(
+    "worker-src 'self'; script-src * 'unsafe-inline'",
+    "static",
+    ['ERROR'],
+    "worker-src 'self' directive should override script-src * directive and " +
+        "disallow cross origin static import.");
+
+// For static imports on workers, the effective directive should be 'worker-src'.
+// https://w3c.github.io/webappsec-csp/#effective-directive-for-a-request
+//
+// The directive fallback list of 'worker-src' doesn't contain 'script-src-elem'
+// https://w3c.github.io/webappsec-csp/#directive-fallback-list
+import_csp_test(
+    "script-src-elem 'self' 'unsafe-inline'",
+    "static",
+    ["export-on-load-script.js"],
+    "script-src-elem 'self' directive should not take effect on static import.");
+
+// Tests for dynamic import.
+//
+// Dynamic import should obey the script-src directive instead of the worker-src
+// directive according to the specs:
+//
+// Dynamic import has the "script" destination.
+// Step 2.4: "Fetch a module script graph given url, ..., "script", ..."
+// https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-specifier,-promisecapability)
+//
+// The "script" destination should obey the script-src CSP directive.
+// Step 2: "If request's destination is script-like:"
+// https://w3c.github.io/webappsec-csp/#script-src-pre-request
+
+import_csp_test(
+    "script-src 'self' 'unsafe-inline'",
+    "dynamic",
+    ['ERROR'],
+    "script-src 'self' directive should disallow cross origin dynamic import.");
+
+// For dynamic imports, the effective directive should be 'script-src-elem'.
+// https://w3c.github.io/webappsec-csp/#effective-directive-for-a-request
+import_csp_test(
+    "script-src-elem 'self' 'unsafe-inline'",
+    "dynamic",
+    ['ERROR'],
+    "script-src-elem 'self' directive should disallow cross origin dynamic import.");
+
+import_csp_test(
+    "script-src * 'unsafe-inline'",
+    "dynamic",
+    ["export-on-load-script.js"],
+    "script-src * directive should allow cross origin dynamic import.")
+
+import_csp_test(
+    "worker-src 'self' 'unsafe-inline'",
+    "dynamic",
+    ["export-on-load-script.js"],
+    "worker-src 'self' directive should not take effect on dynamic import.");
+</script>

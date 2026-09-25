@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function resourceUrl(path) {
+  return "https://{{host}}:{{ports[https][0]}}" + base_path() + path;
+}
+
+function crossOriginUrl(path) {
+  return "https://{{hosts[alt][]}}:{{ports[https][0]}}" + base_path() + path;
+}
+
+// Verify existance of a PerformanceEntry and the order between the timings.
+//
+// |options| has these properties:
+// performance: Performance interface to verify existance of the entry.
+// resource: the path to the resource.
+// mode: 'cross-origin' to load the resource from third-party origin.
+// description: the description passed to each assertion.
+// should_no_performance_entry: no entry is expected to be recorded when it's
+//                              true.
+function verify(options) {
+  const url = options.mode === 'cross-origin' ? crossOriginUrl(options.resource)
+    : resourceUrl(options.resource);
+  const entryList = options.performance.getEntriesByName(url, 'resource');
+  if (options.should_no_performance_entry) {
+    // The performance timeline may not have an entry for a resource
+    // which failed to load.
+    assert_equals(entryList.length, 0, options.description);
+    return;
+  }
+
+  assert_equals(entryList.length, 1, options.description);
+  const entry = entryList[0];
+  assert_equals(entry.entryType, 'resource', options.description);
+
+  // workerStart is recorded between startTime and fetchStart.
+  assert_greater_than(entry.workerStart, 0, options.description);
+  assert_greater_than_equal(entry.workerStart, entry.startTime, options.description);
+  assert_less_than_equal(entry.workerStart, entry.fetchStart, options.description);
+
+  if (options.mode === 'cross-origin') {
+    assert_equals(entry.responseStart, 0, options.description);
+    assert_greater_than_equal(entry.responseEnd, entry.fetchStart, options.description);
+  } else {
+    assert_greater_than_equal(entry.responseStart, entry.fetchStart, options.description);
+    assert_greater_than_equal(entry.responseEnd, entry.responseStart, options.description);
+  }
+
+  // responseEnd follows fetchStart.
+  assert_greater_than(entry.responseEnd, entry.fetchStart, options.description);
+  // duration always has some value.
+  assert_greater_than(entry.duration, 0, options.description);
+
+  if (options.resource.indexOf('redirect.py') != -1) {
+    assert_less_than_equal(entry.workerStart, entry.redirectStart,
+      options.description);
+  } else {
+    assert_equals(entry.redirectStart, 0, options.description);
+  }
+}
+
+promise_test(async (t) => {
+  const worker_url = 'resources/resource-timing-worker.js';
+  const scope = 'resources/resource-timing-iframe.sub.html';
+
+  const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+  t.add_cleanup(() => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  const frame = await with_iframe(scope);
+  t.add_cleanup(() => frame.remove());
+
+  const performance = frame.contentWindow.performance;
+  verify({
+    performance: performance,
+    resource: 'resources/sample.js',
+    mode: 'same-origin',
+    description: 'Generated response',
+  });
+  verify({
+    performance: performance,
+    resource: 'resources/empty.js',
+    mode: 'same-origin',
+    description: 'Network fallback',
+  });
+  verify({
+    performance: performance,
+    resource: 'resources/redirect.py?Redirect=empty.js',
+    mode: 'same-origin',
+    description: 'Redirect',
+  });
+  verify({
+    performance: performance,
+    resource: 'resources/square.png',
+    mode: 'same-origin',
+    description: 'Network fallback image',
+  });
+  // Test that worker start is available on cross-origin no-cors
+  // subresources.
+  verify({
+    performance: performance,
+    resource: 'resources/square.png',
+    mode: 'cross-origin',
+    description: 'Network fallback cross-origin image',
+  });
+
+  // Tests for resouces which failed to load.
+  verify({
+    performance: performance,
+    resource: 'resources/missing.jpg',
+    mode: 'same-origin',
+    description: 'Network fallback load failure',
+  });
+  verify({
+    performance: performance,
+    resource: 'resources/missing.asis',  // ORB-compatible 404 response.
+    mode: 'cross-origin',
+    description: 'Network fallback cross-origin load failure (404 response)',
+  });
+  // Tests for respondWith(fetch()).
+  verify({
+    performance: performance,
+    resource: 'resources/missing.jpg?SWRespondsWithFetch',
+    mode: 'same-origin',
+    description: 'Resource in iframe, nonexistent but responded with fetch to another.',
+  });
+  verify({
+    performance: performance,
+    resource: 'resources/sample.txt?SWFetched',
+    mode: 'same-origin',
+    description: 'Resource fetched as response from missing.jpg?SWRespondsWithFetch.',
+    should_no_performance_entry: true,
+  });
+  // Test for a normal resource that is unaffected by the Service Worker.
+  verify({
+    performance: performance,
+    resource: 'resources/empty-worker.js',
+    mode: 'same-origin',
+    description: 'Resource untouched by the Service Worker.',
+  });
+}, 'Controlled resource loads');
+
+test(() => {
+  const url = resourceUrl('resources/test-helpers.sub.js');
+  const entry = window.performance.getEntriesByName(url, 'resource')[0];
+  assert_equals(entry.workerStart, 0, 'Non-controlled');
+}, 'Non-controlled resource loads');
+
+</script>

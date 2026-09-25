@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function wait_for_install_event(worker) {
+  return new Promise(function(resolve) {
+      worker.addEventListener('statechange', function(event) {
+          if (worker.state == 'installed')
+            resolve(true);
+          else if (worker.state == 'redundant')
+            resolve(false);
+        });
+    });
+}
+
+function make_test(name, script, expect_install) {
+  promise_test(function(t) {
+      var scope = script;
+      return service_worker_unregister_and_register(t, script, scope)
+        .then(function(registration) {
+            return wait_for_install_event(registration.installing);
+          })
+        .then(function(did_install) {
+            assert_equals(did_install, expect_install,
+                          'The worker was installed');
+          })
+    }, name);
+}
+
+[
+  {
+    name: 'install handler throws an error',
+    script: 'resources/oninstall-throw-error-worker.js',
+    expect_install: true
+  },
+  {
+    name: 'install handler throws an error, error handler does not cancel',
+    script: 'resources/oninstall-throw-error-with-empty-onerror-worker.js',
+    expect_install: true
+  },
+  {
+    name: 'install handler dispatches an event that throws an error',
+    script: 'resources/oninstall-throw-error-from-nested-event-worker.js',
+    expect_install: true
+  },
+  {
+    name: 'install handler throws an error in the waitUntil',
+    script: 'resources/oninstall-waituntil-throw-error-worker.js',
+    expect_install: false
+  },
+
+  // The following two cases test what happens when the ServiceWorkerGlobalScope
+  // 'error' event handler cancels the resulting error event.  Since the
+  // original 'install' event handler through, the installation should still
+  // be stopped in this case.  See:
+  // https://github.com/slightlyoff/ServiceWorker/issues/778
+  {
+    name: 'install handler throws an error that is cancelled',
+    script: 'resources/oninstall-throw-error-then-cancel-worker.js',
+    expect_install: true
+  },
+  {
+    name: 'install handler throws an error and prevents default',
+    script: 'resources/oninstall-throw-error-then-prevent-default-worker.js',
+    expect_install: true
+  }
+].forEach(function(test_case) {
+    make_test(test_case.name, test_case.script, test_case.expect_install);
+  });
+</script>

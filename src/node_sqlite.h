@@ -1,0 +1,742 @@
+#ifndef SRC_NODE_SQLITE_H_
+#define SRC_NODE_SQLITE_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "base_object.h"
+#include "lru_cache-inl.h"
+#include "node_mem.h"
+#include "sqlite3.h"
+#include "util.h"
+
+#include <algorithm>
+#include <array>
+#include <list>
+#include <map>
+#include <optional>
+#include <string_view>
+#include <unordered_set>
+#include <vector>
+
+namespace node {
+
+namespace diagnostics_channel {
+class Channel;
+}  // namespace diagnostics_channel
+
+class ExternalReferenceRegistry;
+
+namespace sqlite {
+
+// Mapping from JavaScript property names to SQLite limit constants
+struct LimitInfo {
+  std::string_view js_name;
+  int sqlite_limit_id;
+};
+
+inline constexpr std::array<LimitInfo, 11> kLimitMapping = {{
+    {"length", SQLITE_LIMIT_LENGTH},
+    {"sqlLength", SQLITE_LIMIT_SQL_LENGTH},
+    {"column", SQLITE_LIMIT_COLUMN},
+    {"exprDepth", SQLITE_LIMIT_EXPR_DEPTH},
+    {"compoundSelect", SQLITE_LIMIT_COMPOUND_SELECT},
+    {"vdbeOp", SQLITE_LIMIT_VDBE_OP},
+    {"functionArg", SQLITE_LIMIT_FUNCTION_ARG},
+    {"attach", SQLITE_LIMIT_ATTACHED},
+    {"likePatternLength", SQLITE_LIMIT_LIKE_PATTERN_LENGTH},
+    {"variableNumber", SQLITE_LIMIT_VARIABLE_NUMBER},
+    {"triggerDepth", SQLITE_LIMIT_TRIGGER_DEPTH},
+}};
+
+constexpr bool CheckLimitIndices() {
+  for (size_t i = 0; i < kLimitMapping.size(); ++i) {
+    if (kLimitMapping[i].sqlite_limit_id != static_cast<int>(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+static_assert(
+    CheckLimitIndices(),
+    "Each kLimitMapping entry's sqlite_limit_id must match its index");
+
+// Mapping from JavaScript counter names to SQLite statement status constants
+struct StatusInfo {
+  std::string_view js_name;
+  int sqlite_status_id;
+};
+
+// SQLITE_STMTSTATUS_FILTER_HIT and SQLITE_STMTSTATUS_FILTER_MISS require
+// SQLite >= 3.38.0. Older shared-library builds omit the two counters.
+#if SQLITE_VERSION_NUMBER >= 3038000
+#define NODE_SQLITE_HAS_FILTER_STATUS 1
+#endif
+
+inline constexpr auto kStatusMapping = std::to_array<StatusInfo>({
+    {"fullscanStep", SQLITE_STMTSTATUS_FULLSCAN_STEP},
+    {"sort", SQLITE_STMTSTATUS_SORT},
+    {"autoindex", SQLITE_STMTSTATUS_AUTOINDEX},
+    {"vmStep", SQLITE_STMTSTATUS_VM_STEP},
+    {"reprepare", SQLITE_STMTSTATUS_REPREPARE},
+    {"run", SQLITE_STMTSTATUS_RUN},
+#ifdef NODE_SQLITE_HAS_FILTER_STATUS
+    {"filterMiss", SQLITE_STMTSTATUS_FILTER_MISS},
+    {"filterHit", SQLITE_STMTSTATUS_FILTER_HIT},
+#endif
+    {"memused", SQLITE_STMTSTATUS_MEMUSED},
+});
+
+class DatabaseOpenConfiguration {
+ public:
+  explicit DatabaseOpenConfiguration(std::string&& location)
+      : location_(std::move(location)) {}
+
+  inline const std::string& location() const { return location_; }
+
+  inline bool get_read_only() const { return read_only_; }
+
+  inline void set_read_only(bool flag) { read_only_ = flag; }
+
+  inline bool get_enable_foreign_keys() const { return enable_foreign_keys_; }
+
+  inline void set_enable_foreign_keys(bool flag) {
+    enable_foreign_keys_ = flag;
+  }
+
+  inline bool get_enable_dqs() const { return enable_dqs_; }
+
+  inline void set_enable_dqs(bool flag) { enable_dqs_ = flag; }
+
+  inline void set_timeout(int timeout) { timeout_ = timeout; }
+
+  inline int get_timeout() { return timeout_; }
+
+  inline void set_use_big_ints(bool flag) { use_big_ints_ = flag; }
+
+  inline bool get_use_big_ints() const { return use_big_ints_; }
+
+  inline void set_return_arrays(bool flag) { return_arrays_ = flag; }
+
+  inline bool get_return_arrays() const { return return_arrays_; }
+
+  inline void set_allow_bare_named_params(bool flag) {
+    allow_bare_named_params_ = flag;
+  }
+
+  inline bool get_allow_bare_named_params() const {
+    return allow_bare_named_params_;
+  }
+
+  inline void set_allow_unknown_named_params(bool flag) {
+    allow_unknown_named_params_ = flag;
+  }
+
+  inline bool get_allow_unknown_named_params() const {
+    return allow_unknown_named_params_;
+  }
+
+  inline void set_enable_defensive(bool flag) { defensive_ = flag; }
+
+  inline bool get_enable_defensive() const { return defensive_; }
+
+  inline void set_initial_limit(int sqlite_limit_id, int value) {
+    initial_limits_.at(sqlite_limit_id) = value;
+  }
+
+  inline const std::array<std::optional<int>, kLimitMapping.size()>&
+  initial_limits() const {
+    return initial_limits_;
+  }
+
+ private:
+  std::string location_;
+  bool read_only_ = false;
+  bool enable_foreign_keys_ = true;
+  bool enable_dqs_ = false;
+  int timeout_ = 0;
+  bool use_big_ints_ = false;
+  bool return_arrays_ = false;
+  bool allow_bare_named_params_ = true;
+  bool allow_unknown_named_params_ = false;
+  bool defensive_ = true;
+  std::array<std::optional<int>, kLimitMapping.size()> initial_limits_{};
+};
+
+class DatabaseSync;
+class DatabaseSyncLimits;
+class StatementSyncIterator;
+class StatementSync;
+class BackupJob;
+class Session;
+
+inline void FinalizeStatement(sqlite3_stmt* stmt) {
+  sqlite3_finalize(stmt);
+}
+
+using StatementPtr = DeleteFnPtr<sqlite3_stmt, FinalizeStatement>;
+
+class StatementExecutionHelper {
+ public:
+  static v8::MaybeLocal<v8::Value> All(Environment* env,
+                                       StatementSync* statement);
+  static v8::MaybeLocal<v8::Object> Run(Environment* env,
+                                        StatementSync* statement);
+  static BaseObjectPtr<StatementSyncIterator> Iterate(
+      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static v8::MaybeLocal<v8::Value> ColumnToValue(Environment* env,
+                                                 sqlite3_stmt* stmt,
+                                                 const int column,
+                                                 bool use_big_ints);
+  static v8::MaybeLocal<v8::Value> Get(Environment* env,
+                                       StatementSync* statement);
+};
+
+class DatabaseSync;
+
+class BindingData : public BaseObject {
+ public:
+  SET_BINDING_ID(sqlite_binding_data)
+
+  BindingData(Realm* realm, v8::Local<v8::Object> wrap);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BindingData)
+  SET_SELF_SIZE(BindingData)
+
+  std::unordered_set<DatabaseSync*> open_databases;
+
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+};
+
+class DatabaseSync : public BaseObject {
+ public:
+  enum InternalFields {
+    kAuthorizerCallback = BaseObject::kInternalFieldCount,
+    kLimitsObject,
+    kInternalFieldCount
+  };
+
+  DatabaseSync(Environment* env,
+               v8::Local<v8::Object> object,
+               DatabaseOpenConfiguration&& open_config,
+               bool open,
+               bool allow_load_extension);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsTransactionGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AggregateFunction(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableLoadExtension(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LimitsGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Serialize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Deserialize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateModule(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int AuthorizerCallback(void* user_data,
+                                int action_code,
+                                const char* param1,
+                                const char* param2,
+                                const char* param3,
+                                const char* param4);
+  static int TraceCallback(unsigned int type,
+                           void* user_data,
+                           void* p,
+                           void* x);
+  void FinalizeStatements();
+  void RemoveBackup(BackupJob* backup);
+  void AddBackup(BackupJob* backup);
+  void FinalizeBackups();
+  void UntrackStatement(StatementSync* statement);
+  bool IsOpen();
+  // SQL functions are one of several paths by which SQLite can invoke JS.
+  size_t GetUserDefinedFunctionCount() const {
+    return user_defined_functions_.size();
+  }
+  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool return_arrays() const { return open_config_.get_return_arrays(); }
+  bool allow_bare_named_params() const {
+    return open_config_.get_allow_bare_named_params();
+  }
+  bool allow_unknown_named_params() const {
+    return open_config_.get_allow_unknown_named_params();
+  }
+  sqlite3* Connection();
+
+  // In some situations, such as when using custom functions, it is possible
+  // that SQLite reports an error while JavaScript already has a pending
+  // exception. In this case, the SQLite error should be ignored. These methods
+  // enable that use case.
+  void SetIgnoreNextSQLiteError(bool ignore);
+  bool ShouldIgnoreSQLiteError();
+  void EnableTracing();
+  void DisableTracing();
+
+  void IncrementCallbackDepth() { ++callback_depth_; }
+  void DecrementCallbackDepth() { --callback_depth_; }
+  bool IsInCallback() const { return callback_depth_ > 0; }
+
+  void IncrementDestructorDepth() { ++destructor_depth_; }
+  void DecrementDestructorDepth() { --destructor_depth_; }
+  bool IsInDestructor() const { return destructor_depth_ > 0; }
+
+  // SQLite reaches back into JavaScript from inside its pre-update hook, while
+  // it is still walking this connection's session list. Session objects are
+  // weak, so a garbage collection during such a callback could collect one and
+  // free memory SQLite is still using. Returns a strong reference to every
+  // attached session so that a callback can hold them for its duration.
+  std::vector<BaseObjectPtr<Session>> PinSessions() const;
+
+  // SQLite forbids an authorizer callback from doing anything that modifies
+  // the database connection that invoked it, which includes preparing and
+  // stepping statements. See https://www.sqlite.org/c3ref/set_authorizer.html.
+  void IncrementAuthorizerDepth() { ++authorizer_depth_; }
+  void DecrementAuthorizerDepth() { --authorizer_depth_; }
+  bool IsInAuthorizerCallback() const { return authorizer_depth_ > 0; }
+
+  // A callback must not finalize the statement being stepped. Other statements
+  // are safe unless they are busy during an authorizer callback.
+  void PushSteppingStatement(sqlite3_stmt* stmt) {
+    stepping_statements_.push_back(stmt);
+  }
+  void PopSteppingStatement() { stepping_statements_.pop_back(); }
+  bool IsSteppingStatement(sqlite3_stmt* stmt) const {
+    return std::find(stepping_statements_.begin(),
+                     stepping_statements_.end(),
+                     stmt) != stepping_statements_.end();
+  }
+
+  void IncrementTraceSuppressionDepth() { ++trace_suppression_depth_; }
+  void DecrementTraceSuppressionDepth() { --trace_suppression_depth_; }
+  bool AreTraceEventsSuppressed() const { return trace_suppression_depth_ > 0; }
+
+  SET_MEMORY_INFO_NAME(DatabaseSync)
+  SET_SELF_SIZE(DatabaseSync)
+
+ private:
+  bool Open();
+  void DeleteSessions();
+
+  ~DatabaseSync() override;
+  DatabaseOpenConfiguration open_config_;
+  bool allow_load_extension_;
+  bool enable_load_extension_;
+  struct ConnectionDeleter {
+    void operator()(sqlite3* db) const { sqlite3_close_v2(db); }
+  };
+  std::unique_ptr<sqlite3, ConnectionDeleter> connection_;
+  bool ignore_next_sqlite_error_;
+  int callback_depth_ = 0;
+  int destructor_depth_ = 0;
+  int authorizer_depth_ = 0;
+  int trace_suppression_depth_ = 0;
+  std::vector<sqlite3_stmt*> stepping_statements_;
+
+  // SQLite owns these scalar and aggregate/window function registrations. Its
+  // destroy callbacks untrack replaced functions and failed registrations.
+  std::unordered_set<const void*> user_defined_functions_;
+  std::set<BackupJob*> backups_;
+  std::unordered_set<Session*> sessions_;
+  std::unordered_set<StatementSync*> statements_;
+  BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
+
+  friend class UserDefinedFunction;
+  friend class CustomAggregate;
+  friend class DatabaseSyncLimits;
+  friend class Session;
+  friend class SQLTagStore;
+  friend class StatementExecutionHelper;
+  friend class VirtualTableModule;
+};
+
+class StatementSync : public BaseObject {
+ public:
+  StatementSync(Environment* env,
+                v8::Local<v8::Object> object,
+                BaseObjectPtr<DatabaseSync> db,
+                StatementPtr stmt);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<StatementSync> Create(Environment* env,
+                                             BaseObjectPtr<DatabaseSync> db,
+                                             StatementPtr stmt);
+  static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Columns(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExpandedSQLGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stat(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ResetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAllowBareNamedParameters(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAllowUnknownNamedParameters(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
+  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
+  bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
+  void Finalize();
+  bool IsFinalized();
+
+  SET_MEMORY_INFO_NAME(StatementSync)
+  SET_SELF_SIZE(StatementSync)
+
+ private:
+  ~StatementSync() override;
+  void Close();
+  BaseObjectPtr<DatabaseSync> db_;
+  StatementPtr statement_;
+  bool return_arrays_ = false;
+  bool use_big_ints_;
+  bool allow_bare_named_params_;
+  bool allow_unknown_named_params_;
+  uint64_t reset_generation_ = 0;
+  std::optional<std::map<std::string, std::string>> bare_named_params_;
+  inline int ResetStatement();
+  std::vector<v8::Global<v8::Name>> cached_column_names_;
+  int cached_column_names_reprepare_count_ = -1;
+  void InvalidateColumnNameCache();
+  bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool BindValue(const v8::Local<v8::Value>& value, const int index);
+
+  friend class DatabaseSync;
+  friend class StatementSyncIterator;
+  friend class SQLTagStore;
+  friend class StatementExecutionHelper;
+};
+
+class StatementSyncIterator : public BaseObject {
+ public:
+  StatementSyncIterator(Environment* env,
+                        v8::Local<v8::Object> object,
+                        BaseObjectPtr<StatementSync> stmt);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<StatementSyncIterator> Create(
+      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static void Next(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Return(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SET_MEMORY_INFO_NAME(StatementSyncIterator)
+  SET_SELF_SIZE(StatementSyncIterator)
+
+ private:
+  ~StatementSyncIterator() override;
+  BaseObjectPtr<StatementSync> stmt_;
+  bool done_;
+  uint64_t statement_reset_generation_;
+};
+
+using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);
+
+class Session : public BaseObject {
+ public:
+  Session(Environment* env,
+          v8::Local<v8::Object> object,
+          BaseObjectPtr<DatabaseSync> database,
+          sqlite3_session* session);
+  ~Session() override;
+  template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
+  static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<Session> Create(Environment* env,
+                                       BaseObjectPtr<DatabaseSync> database,
+                                       sqlite3_session* session);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(Session)
+  SET_SELF_SIZE(Session)
+
+ private:
+  void Delete();
+  struct SessionDeleter {
+    void operator()(sqlite3_session* s) const { sqlite3session_delete(s); }
+  };
+  std::unique_ptr<sqlite3_session, SessionDeleter> session_;
+  BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
+  bool is_generating_changeset_ = false;
+
+  friend class DatabaseSync;
+};
+
+class SQLTagStore : public BaseObject {
+ public:
+  enum InternalFields {
+    kDatabaseObject = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  SQLTagStore(Environment* env,
+              v8::Local<v8::Object> object,
+              BaseObjectWeakPtr<DatabaseSync> database,
+              int capacity);
+  ~SQLTagStore() override;
+  static BaseObjectPtr<SQLTagStore> Create(
+      Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CapacityGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DatabaseGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SizeGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SQLTagStore)
+  SET_SELF_SIZE(SQLTagStore)
+
+ private:
+  static BaseObjectPtr<StatementSync> PrepareStatement(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool ResetAndBindStatement(
+      Environment* env,
+      StatementSync* stmt,
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  BaseObjectWeakPtr<DatabaseSync> database_;
+  LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
+  friend class StatementExecutionHelper;
+};
+
+// Guards a window in which SQLite hands control back to JavaScript. Construct
+// it before allocating anything on the V8 heap, since the pinned sessions
+// below are what keep a garbage collection during that window safe.
+class CallbackDepthGuard {
+ public:
+  explicit CallbackDepthGuard(DatabaseSync* db)
+      : db_(db), pinned_sessions_(db->PinSessions()) {
+    db_->IncrementCallbackDepth();
+  }
+  ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
+  CallbackDepthGuard(const CallbackDepthGuard&) = delete;
+  CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+  std::vector<BaseObjectPtr<Session>> pinned_sessions_;
+};
+
+// Marks a window in which SQLite is being torn down from a C++ destructor.
+// Those destructors run from V8 garbage collection callbacks, where executing
+// JavaScript is forbidden, so callbacks reached through them must not call back
+// into JavaScript.
+class DestructorScope {
+ public:
+  explicit DestructorScope(DatabaseSync* db) : db_(db) {
+    db_->IncrementDestructorDepth();
+  }
+  ~DestructorScope() { db_->DecrementDestructorDepth(); }
+  DestructorScope(const DestructorScope&) = delete;
+  DestructorScope& operator=(const DestructorScope&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class TraceEventSuppressionGuard {
+ public:
+  explicit TraceEventSuppressionGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementTraceSuppressionDepth();
+  }
+  ~TraceEventSuppressionGuard() { db_->DecrementTraceSuppressionDepth(); }
+  TraceEventSuppressionGuard(const TraceEventSuppressionGuard&) = delete;
+  TraceEventSuppressionGuard& operator=(const TraceEventSuppressionGuard&) =
+      delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class SteppingStatementGuard {
+ public:
+  SteppingStatementGuard(DatabaseSync* db, sqlite3_stmt* stmt) : db_(db) {
+    db_->PushSteppingStatement(stmt);
+  }
+  ~SteppingStatementGuard() { db_->PopSteppingStatement(); }
+  SteppingStatementGuard(const SteppingStatementGuard&) = delete;
+  SteppingStatementGuard& operator=(const SteppingStatementGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class AuthorizerDepthGuard {
+ public:
+  explicit AuthorizerDepthGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementAuthorizerDepth();
+  }
+  ~AuthorizerDepthGuard() { db_->DecrementAuthorizerDepth(); }
+  AuthorizerDepthGuard(const AuthorizerDepthGuard&) = delete;
+  AuthorizerDepthGuard& operator=(const AuthorizerDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class UserDefinedFunction {
+ public:
+  UserDefinedFunction(Environment* env,
+                      v8::Local<v8::Function> fn,
+                      BaseObjectWeakPtr<DatabaseSync> db,
+                      bool use_bigint_args);
+  ~UserDefinedFunction();
+  static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
+  static void xDestroy(void* self);
+
+ private:
+  Environment* env_;
+  v8::Global<v8::Function> fn_;
+  BaseObjectWeakPtr<DatabaseSync> db_;
+  bool use_bigint_args_;
+};
+
+class DatabaseSyncLimits : public BaseObject {
+ public:
+  DatabaseSyncLimits(Environment* env,
+                     v8::Local<v8::Object> object,
+                     BaseObjectWeakPtr<DatabaseSync> database);
+  ~DatabaseSyncLimits() override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::ObjectTemplate> GetTemplate(Environment* env);
+  static BaseObjectPtr<DatabaseSyncLimits> Create(
+      Environment* env, BaseObjectWeakPtr<DatabaseSync> database);
+
+  static v8::Intercepted LimitsGetter(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Value>& info);
+  static v8::Intercepted LimitsSetter(
+      v8::Local<v8::Name> property,
+      v8::Local<v8::Value> value,
+      const v8::PropertyCallbackInfo<void>& info);
+  static v8::Intercepted LimitsQuery(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Integer>& info);
+  static void LimitsEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
+
+  SET_MEMORY_INFO_NAME(DatabaseSyncLimits)
+  SET_SELF_SIZE(DatabaseSyncLimits)
+
+ private:
+  BaseObjectWeakPtr<DatabaseSync> database_;
+};
+
+struct NodeVTab {
+  sqlite3_vtab base;
+  class VirtualTableModule* module;
+};
+
+struct NodeVTabCursor {
+  sqlite3_vtab_cursor base;
+  class VirtualTableModule* module;
+  v8::Global<v8::Object> iterator;
+  v8::Global<v8::Value> current_row;
+  // The value each hidden column was constrained to, indexed by schema column
+  // index and empty for visible columns. These are owned copies, since the
+  // values SQLite passes to xFilter are only valid for that call.
+  std::vector<sqlite3_value*> hidden_values;
+  sqlite3_int64 rowid;
+  bool done;
+};
+
+class VirtualTableModule {
+ public:
+  VirtualTableModule(Environment* env,
+                     BaseObjectWeakPtr<DatabaseSync> db,
+                     v8::Local<v8::Function> rows_fn,
+                     std::string&& schema_sql,
+                     int num_columns,
+                     std::vector<int>&& hidden_col_indices,
+                     bool use_bigint_args,
+                     bool direct_only);
+  ~VirtualTableModule();
+
+  static int xCreate(sqlite3* db,
+                     void* pAux,
+                     int argc,
+                     const char* const* argv,
+                     sqlite3_vtab** ppVTab,
+                     char** pzErr);
+  static int xBestIndex(sqlite3_vtab* pVTab, sqlite3_index_info* pInfo);
+  static int xDisconnect(sqlite3_vtab* pVTab);
+  static int xDestroy(sqlite3_vtab* pVTab);
+  static int xOpen(sqlite3_vtab* pVTab, sqlite3_vtab_cursor** ppCursor);
+  static int xClose(sqlite3_vtab_cursor* pCursor);
+  static int xFilter(sqlite3_vtab_cursor* pCursor,
+                     int idxNum,
+                     const char* idxStr,
+                     int argc,
+                     sqlite3_value** argv);
+  static int xNext(sqlite3_vtab_cursor* pCursor);
+  static int xEof(sqlite3_vtab_cursor* pCursor);
+  static int xColumn(sqlite3_vtab_cursor* pCursor, sqlite3_context* ctx, int i);
+  static int xRowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64* pRowid);
+  static void xDestroyModule(void* pAux);
+
+ private:
+  // Suppresses the SQLite error text so the pending JavaScript exception is
+  // what surfaces to the caller. Always returns SQLITE_ERROR.
+  int PropagateJSError();
+
+  // Reports a violation of the iteration protocol by the `rows` function.
+  // Unlike PropagateJSError there is no JavaScript exception to surface, so an
+  // error message has to be supplied. Always returns SQLITE_ERROR.
+  static int ReportProtocolError(sqlite3_vtab* vtab, const char* message);
+
+  // False while the database is being torn down from a destructor, which runs
+  // from a garbage collection callback where JavaScript cannot be executed.
+  bool CanCallIntoJS() const;
+
+  static void ReleaseHiddenValues(NodeVTabCursor* cursor);
+
+  Environment* env_;
+  BaseObjectWeakPtr<DatabaseSync> db_;
+  v8::Global<v8::Function> rows_fn_;
+  std::string schema_sql_;
+  int num_columns_;
+  std::vector<int> hidden_col_indices_;
+  // Maps schema column index to row array index for visible columns.
+  // Hidden columns are mapped to -1.
+  std::vector<int> col_index_map_;
+  bool use_bigint_args_;
+  bool direct_only_;
+  sqlite3_module module_def_;
+
+  friend class DatabaseSync;
+};
+
+}  // namespace sqlite
+}  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // SRC_NODE_SQLITE_H_

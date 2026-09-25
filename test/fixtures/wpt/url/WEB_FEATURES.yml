@@ -1,0 +1,4 @@
+rules:
+- url-statics-canparse.*: [url-canparse]
+- a-element*: [base, url]
+- "*": [url]

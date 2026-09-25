@@ -1,0 +1,14 @@
+{
+  "main": "main.mjs",
+  "mainFormat": "module",
+  "output": "sea-prep.blob",
+  "useVfs": true,
+  "assets": {
+    "config.json": "config.json",
+    "data/greeting.txt": "greeting.txt",
+    "modules/math.mjs": "math.mjs",
+    "modules/calculator.cjs": "calculator.cjs",
+    "node_modules/test-esm-pkg/package.json": "test-esm-pkg-package.json",
+    "node_modules/test-esm-pkg/index.mjs": "test-esm-pkg-index.mjs"
+  }
+}

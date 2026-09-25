@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Service Worker: Static imports from module top-level scripts shouldn't be affected by the service worker script path restriction</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// https://w3c.github.io/ServiceWorker/#path-restriction
+// is applied to top-level scripts in
+// https://w3c.github.io/ServiceWorker/#update-algorithm
+// but not to submodules imported from top-level scripts.
+async function runTest(t, script, scope) {
+  const script_url = new URL(script, location.href);
+  await service_worker_unregister(t, scope);
+  const registration = await
+      navigator.serviceWorker.register(script, {type: 'module'});
+  t.add_cleanup(_ => registration.unregister());
+  const msg = await new Promise(resolve => {
+    registration.installing.postMessage('ping');
+    navigator.serviceWorker.onmessage = resolve;
+  });
+  assert_equals(msg.data, 'pong');
+}
+
+promise_test(async t => {
+    await runTest(t,
+        'resources/scope2/imported-module-script.js',
+        'resources/scope2/');
+  }, 'imported-module-script.js works when used as top-level');
+
+promise_test(async t => {
+    await runTest(t,
+        'resources/scope1/module-worker-importing-scope2.js',
+        'resources/scope1/');
+  }, 'static imports to outside path restriction should be allowed');
+
+promise_test(async t => {
+    await runTest(t,
+       'resources/scope1/module-worker-importing-redirect-to-scope2.js',
+       'resources/scope1/');
+  }, 'static imports redirecting to outside path restriction should be allowed');
+</script>

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>Service Worker: Same-site cookie behavior</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script src="/cookies/resources/cookie-helper.sub.js"></script>
+<body>
+<script>
+'use strict';
+
+const COOKIE_VALUE = 'COOKIE_VALUE';
+
+function make_nested_url(nested_origins, target_url) {
+  for (let i = nested_origins.length - 1; i >= 0; --i) {
+    target_url = new URL(
+      `./resources/nested-parent.html?target=${encodeURIComponent(target_url)}`,
+      nested_origins[i] + self.location.pathname);
+  }
+  return target_url;
+}
+
+const scopepath = '/cookies/resources/postToParent.py?with-sw';
+
+async function unregister_service_worker(origin, nested_origins=[]) {
+  let target_url = origin +
+      '/service-workers/service-worker/resources/unregister-rewrite-worker.html' +
+      '?scopepath=' + encodeURIComponent(scopepath);
+  target_url = make_nested_url(nested_origins, target_url);
+  const w = window.open(target_url);
+  try {
+    await wait_for_message('SW-UNREGISTERED');
+  } finally {
+    w.close();
+  }
+}
+
+async function register_service_worker(origin, nested_origins=[]) {
+  let target_url = origin +
+      '/service-workers/service-worker/resources/register-rewrite-worker.html' +
+      '?scopepath=' + encodeURIComponent(scopepath);
+  target_url = make_nested_url(nested_origins, target_url);
+  const w = window.open(target_url);
+  try {
+    await wait_for_message('SW-REGISTERED');
+  } finally {
+    w.close();
+  }
+}
+
+async function run_test(t, origin, navaction, swaction, expected,
+                        redirect_origins=[], nested_origins=[]) {
+  if (swaction === 'navpreload') {
+    assert_true('navigationPreload' in ServiceWorkerRegistration.prototype,
+                'navigation preload must be supported');
+  }
+  const sw_param = swaction === 'no-sw' ? 'no-sw' : 'with-sw';
+  let action_param = '';
+  if (swaction === 'fallback') {
+    action_param = '&ignore';
+  } else if (swaction !== 'no-sw') {
+    action_param = '&' + swaction;
+  }
+  const navpreload_param = swaction === 'navpreload' ? '&navpreload' : '';
+  const change_request_param = swaction === 'change-request' ? '&change-request' : '';
+  const target_string = origin + `/cookies/resources/postToParent.py?` +
+                                 `${sw_param}${action_param}`
+  let target_url = new URL(target_string);
+
+  for (let i = redirect_origins.length - 1; i >= 0; --i) {
+    const redirect_url = new URL(
+        `./resources/redirect.py?Status=307&Redirect=${encodeURIComponent(target_url)}`,
+        redirect_origins[i] + self.location.pathname);
+    target_url = redirect_url;
+  }
+
+  if (navaction === 'window.open') {
+    target_url = new URL(
+        `./resources/window-opener.html?target=${encodeURIComponent(target_url)}`,
+        self.origin + self.location.pathname);
+  } else if (navaction === 'form post') {
+    target_url = new URL(
+        `./resources/form-poster.html?target=${encodeURIComponent(target_url)}`,
+        self.origin + self.location.pathname);
+  } else if (navaction === 'set location') {
+    target_url = new URL(
+        `./resources/location-setter.html?target=${encodeURIComponent(target_url)}`,
+        self.origin + self.location.pathname);
+  }
+
+  const w = window.open(make_nested_url(nested_origins, target_url));
+  t.add_cleanup(() => w.close());
+
+  const result = await wait_for_message('COOKIES');
+  verifySameSiteCookieState(expected, COOKIE_VALUE, result.data);
+}
+
+promise_test(async t => {
+  await resetSameSiteCookies(self.origin, COOKIE_VALUE);
+  await register_service_worker(self.origin);
+
+  await resetSameSiteCookies(SECURE_SUBDOMAIN_ORIGIN, COOKIE_VALUE);
+  await register_service_worker(SECURE_SUBDOMAIN_ORIGIN);
+
+  await resetSameSiteCookies(SECURE_CROSS_SITE_ORIGIN, COOKIE_VALUE);
+  await register_service_worker(SECURE_CROSS_SITE_ORIGIN);
+
+  await register_service_worker(self.origin,
+      [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'Setup service workers');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'no-sw',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, window.open with no service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'fallback',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, window.open with fallback');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'passthrough',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, window.open with passthrough');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, window.open with change-request');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'navpreload',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, window.open with navpreload');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'window.open', 'no-sw',
+                  SameSiteStatus.STRICT);
+}, 'same-site, window.open with no service worker');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'window.open', 'fallback',
+                  SameSiteStatus.STRICT);
+}, 'same-site, window.open with fallback');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'window.open', 'passthrough',
+                  SameSiteStatus.STRICT);
+}, 'same-site, window.open with passthrough');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT);
+}, 'same-site, window.open with change-request');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'window.open', 'navpreload',
+                  SameSiteStatus.STRICT);
+}, 'same-site, window.open with navpreload');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'window.open', 'no-sw',
+                  SameSiteStatus.LAX);
+}, 'cross-site, window.open with no service worker');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'window.open', 'fallback',
+                  SameSiteStatus.LAX);
+}, 'cross-site, window.open with fallback');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'window.open', 'passthrough',
+                  SameSiteStatus.LAX);
+}, 'cross-site, window.open with passthrough');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT);
+}, 'cross-site, window.open with change-request');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'window.open', 'navpreload',
+                  SameSiteStatus.LAX);
+}, 'cross-site, window.open with navpreload');
+
+//
+// window.open redirect tests
+//
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'no-sw',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, window.open with no service worker and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'fallback',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, window.open with fallback and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'passthrough',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, window.open with passthrough and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, window.open with change-request and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'navpreload',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, window.open with navpreload and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'no-sw',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, window.open with no service worker and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'fallback',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, window.open with fallback and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'passthrough',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, window.open with passthrough and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, window.open with change-request and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'navpreload',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, window.open with navpreload and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'no-sw',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN, self.origin]);
+}, 'same-origin, window.open with no service worker, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'fallback',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN, self.origin]);
+}, 'same-origin, window.open with fallback, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'passthrough',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN, self.origin]);
+}, 'same-origin, window.open with passthrough, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT, [SECURE_CROSS_SITE_ORIGIN, self.origin]);
+}, 'same-origin, window.open with change-request, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'navpreload',
+                  SameSiteStatus.LAX, [SECURE_CROSS_SITE_ORIGIN, self.origin]);
+}, 'same-origin, window.open with navpreload, cross-site redirect, and ' +
+   'same-origin redirect');
+
+//
+// Double-nested frame calling open.window() tests
+//
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'no-sw',
+                  SameSiteStatus.STRICT, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested window.open with cross-site middle frame and ' +
+   'no service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'fallback',
+                  SameSiteStatus.STRICT, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested window.open with cross-site middle frame and ' +
+   'fallback service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'passthrough',
+                  SameSiteStatus.STRICT, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested window.open with cross-site middle frame and ' +
+   'passthrough service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'change-request',
+                  SameSiteStatus.STRICT, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested window.open with cross-site middle frame and ' +
+   'change-request service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'window.open', 'navpreload',
+                  SameSiteStatus.STRICT, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested window.open with cross-site middle frame and ' +
+   'navpreload service worker');
+
+//
+// Double-nested frame setting location tests
+//
+promise_test(t => {
+  return run_test(t, self.origin, 'set location', 'no-sw',
+                  SameSiteStatus.CROSS_SITE, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested set location with cross-site middle frame and ' +
+   'no service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'set location', 'fallback',
+                  SameSiteStatus.CROSS_SITE, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested set location with cross-site middle frame and ' +
+   'fallback service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'set location', 'passthrough',
+                  SameSiteStatus.CROSS_SITE, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested set location with cross-site middle frame and ' +
+   'passthrough service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'set location', 'change-request',
+                  SameSiteStatus.CROSS_SITE, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested set location with cross-site middle frame and ' +
+   'change-request service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'set location', 'navpreload',
+                  SameSiteStatus.CROSS_SITE, [],
+                  [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, nested set location with cross-site middle frame and ' +
+   'navpreload service worker');
+
+//
+// Form POST tests
+//
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'no-sw', SameSiteStatus.STRICT);
+}, 'same-origin, form post with no service worker');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'fallback',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, form post with fallback');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'passthrough',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, form post with passthrough');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'change-request',
+                  SameSiteStatus.STRICT);
+}, 'same-origin, form post with change-request');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'form post', 'no-sw',
+                  SameSiteStatus.STRICT);
+}, 'same-site, form post with no service worker');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'form post', 'fallback',
+                  SameSiteStatus.STRICT);
+}, 'same-site, form post with fallback');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'form post', 'passthrough',
+                  SameSiteStatus.STRICT);
+}, 'same-site, form post with passthrough');
+
+promise_test(t => {
+  return run_test(t, SECURE_SUBDOMAIN_ORIGIN, 'form post', 'change-request',
+                  SameSiteStatus.STRICT);
+}, 'same-site, form post with change-request');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'form post', 'no-sw',
+                  SameSiteStatus.CROSS_SITE);
+}, 'cross-site, form post with no service worker');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'form post', 'fallback',
+                  SameSiteStatus.CROSS_SITE);
+}, 'cross-site, form post with fallback');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'form post', 'passthrough',
+                  SameSiteStatus.CROSS_SITE);
+}, 'cross-site, form post with passthrough');
+
+promise_test(t => {
+  return run_test(t, SECURE_CROSS_SITE_ORIGIN, 'form post', 'change-request',
+                  SameSiteStatus.STRICT);
+}, 'cross-site, form post with change-request');
+
+//
+// Form POST redirect tests
+//
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'no-sw',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, form post with no service worker and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'fallback',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, form post with fallback and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'passthrough',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, form post with passthrough and same-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'change-request',
+                  SameSiteStatus.STRICT, [SECURE_SUBDOMAIN_ORIGIN]);
+}, 'same-origin, form post with change-request and same-site redirect');
+
+// navpreload is not supported for POST requests
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'no-sw',
+                  SameSiteStatus.CROSS_SITE, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, form post with no service worker and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'fallback',
+                  SameSiteStatus.CROSS_SITE, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, form post with fallback and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'passthrough',
+                  SameSiteStatus.CROSS_SITE, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, form post with passthrough and cross-site redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'change-request',
+                  SameSiteStatus.STRICT, [SECURE_CROSS_SITE_ORIGIN]);
+}, 'same-origin, form post with change-request and cross-site redirect');
+
+// navpreload is not supported for POST requests
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'no-sw',
+                  SameSiteStatus.CROSS_SITE, [SECURE_CROSS_SITE_ORIGIN,
+                                              self.origin]);
+}, 'same-origin, form post with no service worker, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'fallback',
+                  SameSiteStatus.CROSS_SITE, [SECURE_CROSS_SITE_ORIGIN,
+                                              self.origin]);
+}, 'same-origin, form post with fallback, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'passthrough',
+                  SameSiteStatus.CROSS_SITE, [SECURE_CROSS_SITE_ORIGIN,
+                                              self.origin]);
+}, 'same-origin, form post with passthrough, cross-site redirect, and ' +
+   'same-origin redirect');
+
+promise_test(t => {
+  return run_test(t, self.origin, 'form post', 'change-request',
+                  SameSiteStatus.STRICT, [SECURE_CROSS_SITE_ORIGIN,
+                                          self.origin]);
+}, 'same-origin, form post with change-request, cross-site redirect, and ' +
+   'same-origin redirect');
+
+// navpreload is not supported for POST requests
+
+promise_test(async t => {
+  await unregister_service_worker(self.origin);
+  await unregister_service_worker(SECURE_SUBDOMAIN_ORIGIN);
+  await unregister_service_worker(SECURE_CROSS_SITE_ORIGIN);
+  await unregister_service_worker(self.origin,
+      [self.origin, SECURE_CROSS_SITE_ORIGIN]);
+}, 'Cleanup service workers');
+
+</script>
+</body>

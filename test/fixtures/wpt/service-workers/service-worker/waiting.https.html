@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>ServiceWorker: navigator.serviceWorker.waiting</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+const SCRIPT = 'resources/empty-worker.js';
+const SCOPE = 'resources/blank.html';
+
+promise_test(async t => {
+
+  t.add_cleanup(async() => {
+    if (frame)
+      frame.remove();
+    if (registration)
+      await registration.unregister();
+  });
+
+  await service_worker_unregister(t, SCOPE);
+  const frame = await with_iframe(SCOPE);
+  const registration =
+      await navigator.serviceWorker.register(SCRIPT, {scope: SCOPE});
+  await wait_for_state(t, registration.installing, 'installed');
+  const controller = frame.contentWindow.navigator.serviceWorker.controller;
+  assert_equals(controller, null, 'controller');
+  assert_equals(registration.active, null, 'registration.active');
+  assert_equals(registration.waiting.state, 'installed',
+                'registration.waiting');
+  assert_equals(registration.installing, null, 'registration.installing');
+}, 'waiting is set after installation');
+
+// Tests that the ServiceWorker objects returned from waiting attribute getter
+// that represent the same service worker are the same objects.
+promise_test(async t => {
+  const registration1 =
+      await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+  const registration2 = await navigator.serviceWorker.getRegistration(SCOPE);
+  assert_equals(registration1.waiting, registration2.waiting,
+                'ServiceWorkerRegistration.waiting should return the same ' +
+                'object');
+  await registration1.unregister();
+}, 'The ServiceWorker objects returned from waiting attribute getter that ' +
+   'represent the same service worker are the same objects');
+</script>
+</body>

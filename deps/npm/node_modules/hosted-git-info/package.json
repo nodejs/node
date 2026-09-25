@@ -1,0 +1,57 @@
+{
+  "name": "hosted-git-info",
+  "version": "10.1.1",
+  "description": "Provides metadata and conversions from repository urls for GitHub, Bitbucket and GitLab",
+  "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/hosted-git-info.git"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "bitbucket",
+    "gitlab"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/hosted-git-info/issues"
+  },
+  "homepage": "https://github.com/npm/hosted-git-info",
+  "scripts": {
+    "posttest": "npm run lint",
+    "snap": "node --test --test-update-snapshots './test/**/*.js'",
+    "test": "node --test './test/**/*.js'",
+    "test:coverage": "tap --coverage-report=html",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "test:node20": "node --test test",
+    "test:cover": "node --test --experimental-test-coverage --test-timeout=3000 --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100 './test/**/*.js'"
+  },
+  "dependencies": {
+    "lru-cache": "^11.1.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^6.0.0",
+    "@npmcli/template-oss": "5.1.0"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "5.1.0",
+    "publish": "true",
+    "testRunner": "node:test",
+    "latestCiVersion": 24,
+    "updateNpm": false
+  }
+}

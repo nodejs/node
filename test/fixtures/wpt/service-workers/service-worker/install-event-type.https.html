@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function wait_for_install_event(worker) {
+  return new Promise(function(resolve) {
+      worker.addEventListener('statechange', function(event) {
+          if (worker.state == 'installed')
+            resolve(true);
+          else if (worker.state == 'redundant')
+            resolve(false);
+        });
+    });
+}
+
+promise_test(function(t) {
+      var script = 'resources/install-event-type-worker.js';
+      var scope = 'resources/install-event-type';
+      return service_worker_unregister_and_register(t, script, scope)
+        .then(function(registration) {
+            return wait_for_install_event(registration.installing);
+          })
+        .then(function(did_install) {
+           assert_true(did_install, 'The worker was installed');
+          })
+    }, 'install event type');
+
+</script>

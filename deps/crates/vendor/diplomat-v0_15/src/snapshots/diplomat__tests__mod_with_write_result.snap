@@ -1,0 +1,25 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        struct Foo {} impl Foo\n        {\n            pub fn to_string(&self, to: &mut DiplomatWrite) -> Result<(), ()>\n            { unimplemented!() }\n        }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    #[repr(C)]
+    struct Foo {}
+    impl Foo {
+        pub fn to_string(&self, to: &mut DiplomatWrite) -> Result<(), ()> {
+            unimplemented!()
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn Foo_to_string(
+        this: &Foo,
+        to: &mut diplomat_runtime::DiplomatWrite,
+    ) -> diplomat_runtime::DiplomatResult<(), ()> {
+        let ret = this.to_string(to);
+        to.flush();
+        ret.into()
+    }
+}

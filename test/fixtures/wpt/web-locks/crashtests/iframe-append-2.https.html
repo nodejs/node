@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<iframe id="id_0"></iframe>
+<script>
+  window.addEventListener("load", () => {
+    const iframe = document.getElementById("id_0")
+    // Discards the previous document
+    document.documentElement.appendChild(iframe)
+    const xhr = new XMLHttpRequest()
+    // LockManager is created after discarding
+    // At this point the new document is not there yet
+    iframe.contentWindow.navigator.locks.request("weblock_0", () => {
+      xhr.open("GET", "FOOBAR", false)
+      xhr.send()
+      // Now there is a new document
+    })
+  })
+</script>

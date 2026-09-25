@@ -1,0 +1,22 @@
+[package]
+name = "ittapi-rs"
+version = "0.1.5"
+authors = ["Johnnie Birch <45402135+jlb6740@users.noreply.github.com>"]
+edition = "2018"
+description = "Rust bindings for ittapi"
+license-file = "LICENSES/"
+documentation  = "https://docs.rs/ittapi-rs"
+homepage  = "https://github.com/intel/ittapi/ittapi-rs"
+repository = "https://github.com/intel/ittapi"
+
+[dependencies]
+
+[features]
+force_32 = []
+
+[build-dependencies]
+cmake = "0.1.42"
+
+[dev-dependencies]
+bindgen = "0.52.0"
+diff = "0.1"

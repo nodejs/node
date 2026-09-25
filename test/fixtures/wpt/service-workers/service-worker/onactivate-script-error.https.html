@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function wait_for_install(worker) {
+  return new Promise(function(resolve, reject) {
+      worker.addEventListener('statechange', function(event) {
+          if (worker.state == 'installed')
+            resolve();
+          else if (worker.state == 'redundant')
+            reject();
+        });
+    });
+}
+
+function wait_for_activate(worker) {
+  return new Promise(function(resolve, reject) {
+      worker.addEventListener('statechange', function(event) {
+          if (worker.state == 'activated')
+            resolve();
+          else if (worker.state == 'redundant')
+            reject();
+        });
+    });
+}
+
+function make_test(name, script) {
+  promise_test(function(t) {
+      var scope = script;
+      var registration;
+      return service_worker_unregister_and_register(t, script, scope)
+        .then(function(r) {
+            registration = r;
+
+            t.add_cleanup(function() {
+                return r.unregister();
+              });
+
+            return wait_for_install(registration.installing);
+          })
+        .then(function() {
+            // Activate should succeed regardless of script errors.
+            return wait_for_activate(registration.waiting);
+          });
+    }, name);
+}
+
+[
+  {
+    name: 'activate handler throws an error',
+    script: 'resources/onactivate-throw-error-worker.js',
+  },
+  {
+    name: 'activate handler throws an error, error handler does not cancel',
+    script: 'resources/onactivate-throw-error-with-empty-onerror-worker.js',
+  },
+  {
+    name: 'activate handler dispatches an event that throws an error',
+    script: 'resources/onactivate-throw-error-from-nested-event-worker.js',
+  },
+  {
+    name: 'activate handler throws an error that is cancelled',
+    script: 'resources/onactivate-throw-error-then-cancel-worker.js',
+  },
+  {
+    name: 'activate handler throws an error and prevents default',
+    script: 'resources/onactivate-throw-error-then-prevent-default-worker.js',
+  }
+].forEach(function(test_case) {
+    make_test(test_case.name, test_case.script);
+  });
+</script>

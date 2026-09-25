@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>Service Worker: Activation occurs after registration</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(function(t) {
+    var scope = 'resources/blank.html';
+    var registration;
+
+    return service_worker_unregister_and_register(
+        t, 'resources/empty-worker.js', scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          registration = r;
+          assert_equals(
+              r.installing.state,
+              'installing',
+              'worker should be in the "installing" state upon registration');
+          return wait_for_state(t, r.installing, 'activated');
+        });
+}, 'activation occurs after registration');
+</script>
+</body>
