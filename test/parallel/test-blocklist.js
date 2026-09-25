@@ -868,6 +868,29 @@ const util = require('util');
   assert.strictEqual(blockList.check('not_valid_ipv6', 'ipv6'), false);
 }
 
+// uv_ip6_addr ignores an unknown/overlong zone (scope_id 0). A Fast API
+// stack limit must not turn that into a miss after JIT.
+{
+  const blockList = new BlockList();
+  blockList.addAddress('fe80::1', 'ipv6');
+  const longZone = `fe80::1%${'z'.repeat(200)}`;
+  assert.strictEqual(blockList.check('fe80::1', 'ipv6'), true);
+  assert.strictEqual(blockList.check(longZone, 'ipv6'), true);
+  assert.strictEqual(blockList.check('x'.repeat(200), 'ipv6'), false);
+
+  // uv_ip4_addr rejects zone suffixes. The Fast API overflow path
+  // must not strip %zone and treat this as 1.1.1.1.
+  blockList.addAddress('1.1.1.1');
+  assert.strictEqual(blockList.check(`1.1.1.1%${'z'.repeat(200)}`), false);
+
+  // Mixed-notation IPv6 is 45 chars. uv_ip6_addr truncates the
+  // address part to 39 when a zone is present, so this is a miss.
+  const mixed = 'ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255';
+  blockList.addAddress(mixed, 'ipv6');
+  assert.strictEqual(blockList.check(mixed, 'ipv6'), true);
+  assert.strictEqual(blockList.check(`${mixed}%${'z'.repeat(200)}`, 'ipv6'), false);
+}
+
 // check() family parameter is case-insensitive.
 {
   const blockList = new BlockList();
