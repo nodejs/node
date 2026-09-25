@@ -173,6 +173,9 @@ Maybe<void> Storage::Open() {
   }
 
   int r = sqlite3_open(location_.c_str(), &db);
+  // sqlite3_open() usually returns a database handle even on failure, so
+  // adopt it immediately to ensure it is closed on every error return path.
+  auto conn = conn_unique_ptr(db);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
@@ -184,12 +187,15 @@ Maybe<void> Storage::Open() {
                          get_schema_version_sql.size(),
                          &s,
                          nullptr);
-  r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(
       env(), sqlite3_step(stmt.get()), SQLITE_ROW, Nothing<void>());
-  CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_INTEGER);
+  if (sqlite3_column_type(stmt.get(), 0) != SQLITE_INTEGER) {
+    THROW_ERR_INVALID_STATE(env(),
+                            "localStorage schema version is not an integer");
+    return Nothing<void>();
+  }
   int schema_version = sqlite3_column_int(stmt.get(), 0);
   stmt = nullptr;  // Force finalization.
 
@@ -209,7 +215,7 @@ Maybe<void> Storage::Open() {
     CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   }
 
-  db_ = conn_unique_ptr(db);
+  db_ = std::move(conn);
   return JustVoid();
 }
 
