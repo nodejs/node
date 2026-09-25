@@ -13,6 +13,7 @@
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
+#include "node_watchdog.h"
 #include "util-inl.h"
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
@@ -91,12 +92,19 @@ ExitCode NodeMainInstance::Run() {
   HandleScope handle_scope(isolate_);
 
   ExitCode exit_code = ExitCode::kNoFailure;
+  // Declared before the Environment so that --process-timeout still applies
+  // while the Environment is being freed.
+  std::unique_ptr<ProcessTimeoutWatchdog> process_timeout;
   DeleteFnPtr<Environment, FreeEnvironment> env =
       CreateMainEnvironment(&exit_code);
   CHECK_NOT_NULL(env);
 
   Context::Scope context_scope(env->context());
+  if (exit_code == ExitCode::kNoFailure) {
+    process_timeout = ProcessTimeoutWatchdog::MaybeStart(env.get());
+  }
   Run(&exit_code, env.get());
+  if (process_timeout) process_timeout->OnEnvironmentStopping();
   return exit_code;
 }
 

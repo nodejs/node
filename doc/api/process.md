@@ -4601,6 +4601,8 @@ cases:
 * `14` **Snapshot Failure**: Node.js was started to build a V8 startup
   snapshot and it failed because certain requirements of the state of
   the application were not met.
+* `124` **Process Timeout**: The process was still running when the duration
+  set with [`--process-timeout`][] elapsed.
 * `>128` **Signal Exits**: If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
   value of the signal code. This is a standard POSIX practice, since
@@ -4629,6 +4631,7 @@ cases:
 [`--no-deprecation`]: cli.md#--no-deprecation
 [`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
+[`--process-timeout`]: cli.md#--process-timeoutduration
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect
