@@ -5071,7 +5071,7 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
           return CpError::Std(error, dest_str);
         }
 
-        if (options.preserve_timestamps) {
+        if (copied && options.preserve_timestamps) {
           CpError utimes = CopyUtimes(dir_entry.path(), dest_file_path);
           if (utimes.kind != CpError::kNone) {
             return utimes;
