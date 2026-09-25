@@ -3,7 +3,7 @@
 set -xe
 
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
-max_workload=${MAX_WORKLOAD:-10}
+max_workload=${MAX_WORKLOAD:-15}
 case $max_workload in
   *[!0-9]*)
     echo '::error::AUTO_START_CI_MAX_WORKLOAD must be a non-negative integer'

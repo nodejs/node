@@ -3,7 +3,7 @@
 #   JENKINS_TOKEN: Jenkins token, to be used to start or resume CI
 # Optional repository variables:
 #   AUTO_START_CI_BATCH_SIZE: maximum PRs to process per run (default: 5)
-#   AUTO_START_CI_MAX_WORKLOAD: pause at this many running or queued PR jobs (default: 10)
+#   AUTO_START_CI_MAX_WORKLOAD: pause at this many running or queued PR jobs (default: 15)
 name: Auto Start CI
 
 on:
@@ -90,4 +90,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PULL_REQUESTS: ${{ needs.get-prs-for-ci.outputs.numbers }}
-          MAX_WORKLOAD: ${{ vars.AUTO_START_CI_MAX_WORKLOAD || '10' }}
+          MAX_WORKLOAD: ${{ vars.AUTO_START_CI_MAX_WORKLOAD || '15' }}
