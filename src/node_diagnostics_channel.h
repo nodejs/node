@@ -31,6 +31,7 @@ class BindingData : public SnapshotableObject {
   BindingData(Realm* realm,
               v8::Local<v8::Object> wrap,
               InternalFieldInfo* info = nullptr);
+  ~BindingData() override;
 
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(diagnostics_channel_binding_data)
@@ -70,6 +71,10 @@ class BindingData : public SnapshotableObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  private:
+  // Clears the back-pointer of every Channel in channels_, so that a Channel
+  // this binding no longer owns cannot read through it.
+  void DetachChannels();
+
   InternalFieldInfo* internal_field_info_ = nullptr;
   std::unordered_map<uint32_t, ChannelStatusCallback> channel_status_callbacks_;
 };
