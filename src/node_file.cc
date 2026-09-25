@@ -2327,9 +2327,7 @@ namespace {
 //
 // The tree is walked by one or more threads that share a queue of
 // directories, and the breadth-first order is derived from the tree
-// afterwards, so it does not depend on which thread scanned what. The walk
-// does not touch the Environment; lib does not use it when the permission
-// model is enabled, as every directory would need a check on the main thread.
+// afterwards, so it does not depend on which thread scanned what.
 
 // Maps an st_mode to the uv_dirent_type_t that uv_fs_scandir would report.
 uv_dirent_type_t DirentTypeFromMode(uint64_t mode) {
@@ -2406,7 +2404,8 @@ struct ScannedDirectory {
 
 class RecursiveReadDir {
  public:
-  explicit RecursiveReadDir(std::string root) : root_(std::move(root)) {
+  RecursiveReadDir(Environment* env, std::string root)
+      : env_(env), root_(std::move(root)) {
     dirs_.push_back(std::make_unique<ScannedDirectory>(""));
   }
 
@@ -2420,6 +2419,13 @@ class RecursiveReadDir {
   // 0 or a uv error code; error_path() is then the directory that failed.
   int error() const { return error_; }
   const std::string& error_path() const { return error_path_; }
+  // Whether the walk stopped at a directory the permission model denies
+  // reading, which is then error_path().
+  bool access_denied() const { return access_denied_; }
+
+  // Publishes every denial the walk met to the permission model's
+  // diagnostics channel. Main thread only.
+  void PublishDenials();
 
   const std::vector<std::unique_ptr<ScannedDirectory>>& dirs() const {
     return dirs_;
@@ -2450,6 +2456,7 @@ class RecursiveReadDir {
   // to scan, before RunWithHelpers() starts a helper thread.
   static constexpr size_t kHelperThreshold = 1024;
 
+  Environment* const env_;
   const std::string root_;
 
   Mutex mutex_;
@@ -2462,6 +2469,8 @@ class RecursiveReadDir {
   size_t entries_seen_ = 0;
   int error_ = 0;
   std::string error_path_;
+  std::vector<std::string> denied_;
+  bool access_denied_ = false;
   size_t max_helpers_ = 0;
   std::vector<uv_thread_t> helpers_;
 };
@@ -2472,7 +2481,16 @@ void RecursiveReadDir::RunWithHelpers(int max_helpers) {
   for (uv_thread_t& helper : helpers_) CHECK_EQ(uv_thread_join(&helper), 0);
 }
 
+void RecursiveReadDir::PublishDenials() {
+  for (const std::string& path : denied_) {
+    env_->permission()->PublishDenied(
+        env_, permission::PermissionScope::kFileSystemRead, path);
+  }
+  denied_.clear();
+}
+
 void RecursiveReadDir::Run() {
+  permission::Permission* const permission = env_->permission();
   std::vector<std::unique_ptr<ScannedDirectory>> subdirs;
   std::string path;
   Mutex::ScopedLock lock(mutex_);
@@ -2484,16 +2502,30 @@ void RecursiveReadDir::Run() {
 
     ScannedDirectory* dir = dirs_[next_++].get();
     active_++;
-    int r;
+    int r = 0;
+    bool denied = false;
     {
       Mutex::ScopedUnlock unlock(lock);
       path = root_;
       AppendPathComponent(&path, dir->relative);
-      r = Scan(path, dir, &subdirs);
+      // The check alone, on whichever thread this is; the denial is
+      // published from the main thread once the walk is over. Audit mode
+      // (--permission-audit) reports a denial but lets the read through.
+      denied = permission->enabled() &&
+               !permission->is_granted_quiet(
+                   env_, permission::PermissionScope::kFileSystemRead, path);
+      if (!denied || permission->warning_only()) r = Scan(path, dir, &subdirs);
     }
     active_--;
 
-    if (r != 0) {
+    if (denied) denied_.push_back(path);
+    if (denied && !permission->warning_only()) {
+      if (error_ == 0) {
+        error_ = UV_EACCES;
+        error_path_ = std::move(path);
+        access_denied_ = true;
+      }
+    } else if (r != 0) {
       if (error_ == 0) {
         error_ = r;
         error_path_ = std::move(path);
@@ -2668,7 +2700,7 @@ class ReadDirRecursiveRequest {
                           int workers)
       : env_(env),
         req_wrap_(req_wrap),
-        walk_(std::move(path)),
+        walk_(env, std::move(path)),
         encoding_(encoding),
         with_types_(with_types),
         pending_(workers) {}
@@ -2692,6 +2724,14 @@ class ReadDirRecursiveRequest {
     FS_ASYNC_TRACE_END1(UV_FS_SCANDIR, req_wrap.get(), "result", walk_.error())
     if (cancelled_ || !env_->can_call_into_js()) return;
 
+    walk_.PublishDenials();
+    if (walk_.access_denied()) {
+      return permission::Permission::AsyncThrowAccessDenied(
+          env_,
+          req_wrap.get(),
+          permission::PermissionScope::kFileSystemRead,
+          walk_.error_path());
+    }
     if (walk_.error() != 0) {
       return req_wrap->Reject(UVException(isolate,
                                           walk_.error(),
@@ -2756,10 +2796,6 @@ static void ReadDirRecursive(const FunctionCallbackInfo<Value>& args) {
 
   bool with_types = args[2]->IsTrue();
 
-  // Every directory would need a permission check, and only the main thread
-  // can do those: lib walks the tree in JS when the permission model is on.
-  CHECK(!env->permission()->enabled());
-
   if (argc > 3) {  // readdirRecursive(path, encoding, withTypes, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     CHECK_NOT_NULL(req_wrap_async);
@@ -2779,10 +2815,15 @@ static void ReadDirRecursive(const FunctionCallbackInfo<Value>& args) {
   } else {  // readdirRecursive(path, encoding, withTypes)
     env->PrintSyncTrace();
     FS_SYNC_TRACE_BEGIN(readdir);
-    RecursiveReadDir walk(path.ToString());
+    RecursiveReadDir walk(env, path.ToString());
     walk.RunWithHelpers(kReadDirRecursiveSyncHelpers);
     FS_SYNC_TRACE_END(readdir);
 
+    walk.PublishDenials();
+    if (walk.access_denied()) {
+      return permission::Permission::ThrowAccessDenied(
+          env, permission::PermissionScope::kFileSystemRead, walk.error_path());
+    }
     if (walk.error() != 0) {
       return env->ThrowUVException(
           walk.error(), "scandir", nullptr, walk.error_path().c_str());
