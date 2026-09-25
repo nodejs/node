@@ -403,6 +403,11 @@ DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
 DOC_KIT ?= tools/doc/node_modules/@doc-kit/cli/bin/cli.mjs
+ifeq ($(V),1)
+DOC_KIT_LOG_LEVEL ?= debug
+else
+DOC_KIT_LOG_LEVEL ?= info
+endif
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
@@ -908,7 +913,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			--log-level debug \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/web.doc-kit.config.mjs \
 			-v $(VERSION) \
 			$(if $(JOBS),-p $(JOBS)) \
@@ -922,6 +927,7 @@ out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/web.doc-kit.config.mjs \
 			-t llms-txt \
 			-o $(@D) \
@@ -935,6 +941,7 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			--config-file tools/doc/api-links.doc-kit.config.mjs \
 			-o $(@D) \
 			-v $(VERSION) \
@@ -951,6 +958,7 @@ node.1: doc/api/cli.md tools/doc/node_modules
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 			-o doc \
@@ -1493,6 +1501,7 @@ tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
 		$(RM) -r tools/doc/.manpagecheck && \
 		$(call available-node, \
 			$(DOC_KIT) generate \
+			--log-level $(DOC_KIT_LOG_LEVEL) \
 			-v $(VERSION) \
 			--config-file tools/doc/man-page.doc-kit.config.mjs \
 		) \
