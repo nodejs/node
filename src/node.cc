@@ -739,6 +739,14 @@ static void CheckGlobalBenchOptions(std::vector<std::string>* errors) {
   per_process::cli_options->per_isolate->per_env->CheckBenchOptions(errors);
 }
 
+// Validates the options that conflict with --process-timeout once every option
+// source has been parsed. See PerProcessOptions::CheckProcessTimeoutOptions().
+static void CheckGlobalProcessTimeoutOptions(
+    const std::vector<std::string>& argv, std::vector<std::string>* errors) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  per_process::cli_options->CheckProcessTimeoutOptions(errors, argv);
+}
+
 static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                                           std::vector<std::string>* exec_args,
                                           std::vector<std::string>* errors,
@@ -1034,6 +1042,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Every option source has now been parsed, so cross-source option
   // constraints can finally be validated.
   CheckGlobalBenchOptions(errors);
+  CheckGlobalProcessTimeoutOptions(*argv, errors);
   if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
   // Checked here, once every source of options has been parsed, because the

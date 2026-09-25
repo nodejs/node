@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <memory>
 #include <vector>
 #include "handle_wrap.h"
 #include "memory_tracker-inl.h"
@@ -65,6 +66,53 @@ class Watchdog {
   uv_async_t async_;
   uv_timer_t timer_;
   bool* timed_out_;
+};
+
+// Implements --process-timeout.
+//
+// A dedicated thread waits until the configured duration has elapsed since the
+// process started. It then interrupts the main thread, which works both while
+// JavaScript is running and while the event loop is waiting for events, to
+// print why the process was still running and to exit with
+// ExitCode::kProcessTimeout. If the main thread does not respond, for example
+// because it is blocked in a synchronous native call, or does not finish
+// exiting in time, the watchdog thread forces the process to exit on its own.
+class ProcessTimeoutWatchdog {
+ public:
+  // Starts the watchdog for the main thread's Environment. Returns nullptr if
+  // --process-timeout was not passed, or if this process only supervises the
+  // runs of the application (--watch), in which case each run applies the
+  // timeout on its own.
+  static std::unique_ptr<ProcessTimeoutWatchdog> MaybeStart(Environment* env);
+
+  // Whether --process-timeout is in effect for this process. Thread-safe.
+  static bool IsEnabled();
+
+  // Must be called once the event loop has stopped and before the Environment
+  // is freed. From here on the watchdog no longer interrupts the main thread,
+  // but still forces the process to exit if it is alive past the deadline.
+  void OnEnvironmentStopping();
+
+  // Disarms the watchdog and joins its thread.
+  ~ProcessTimeoutWatchdog();
+
+  ProcessTimeoutWatchdog(const ProcessTimeoutWatchdog&) = delete;
+  ProcessTimeoutWatchdog& operator=(const ProcessTimeoutWatchdog&) = delete;
+  ProcessTimeoutWatchdog(ProcessTimeoutWatchdog&&) = delete;
+  ProcessTimeoutWatchdog& operator=(ProcessTimeoutWatchdog&&) = delete;
+
+ private:
+  struct State;
+
+  ProcessTimeoutWatchdog(Environment* env, std::shared_ptr<State> state);
+
+  static void Run(void* arg);
+  static void OnTimeout(Environment* env, const std::shared_ptr<State>& state);
+
+  Environment* env_;
+  // Shared with the interrupt callback, which may outlive this object.
+  std::shared_ptr<State> state_;
+  uv_thread_t thread_;
 };
 
 class SigintWatchdogBase {

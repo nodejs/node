@@ -401,6 +401,10 @@ class PerProcessOptions : public Options {
   std::string report_filename;
   // TODO(addaleax): Some of these could probably be per-Environment.
   std::string use_largepages = "off";
+  // --process-timeout, as passed on the command line (e.g. "30s").
+  std::string process_timeout;
+  // The parsed value of --process-timeout, or 0 if it was not passed.
+  uint64_t process_timeout_ms = 0;
 
   std::vector<std::string> security_reverts;
   std::vector<std::string> cmdline;
@@ -444,6 +448,7 @@ class PerProcessOptions : public Options {
 
   DEFINE_BOOL_FIELD(disable_wasm_trap_handler) = false;
   DEFINE_BOOL_FIELD(report_on_fatalerror) = false;
+  DEFINE_BOOL_FIELD(report_on_process_timeout) = false;
   DEFINE_BOOL_FIELD(report_compact) = false;
   DEFINE_BOOL_FIELD(trace_sigint) = false;
   // Tracks whether `--run` was passed, since an empty `run` is ambiguous
@@ -453,6 +458,14 @@ class PerProcessOptions : public Options {
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  // `--process-timeout` conflicts with options that can come from different
+  // option sources (e.g. `--inspect` from NODE_OPTIONS), each of which is
+  // parsed in its own options_parser::Parse() pass. Callers must invoke this
+  // once all of their option sources have been parsed. `argv` holds the
+  // remaining non-option arguments, starting with the program name.
+  void CheckProcessTimeoutOptions(std::vector<std::string>* errors,
+                                  const std::vector<std::string>& argv) const;
 };
 
 // The actual options parser, as opposed to the structs containing them:
