@@ -476,6 +476,30 @@ void CompileCacheHandler::Persist() {
       continue;
     }
     Debug(" -> %s\n", mkstemp_req.path);
+
+    // From this point on, the temporary file exists on disk and its
+    // descriptor (mkstemp_req.result) is open. If persistence does not
+    // complete (write, close, or rename fails), make sure the descriptor is
+    // closed and the temporary file is removed instead of being leaked.
+    // Otherwise a persistent failure (e.g. ENOSPC/EDQUOT/EFBIG) can
+    // accumulate zero-byte temporary files and open file descriptors
+    // indefinitely.
+    bool fd_open = true;
+    bool renamed = false;
+    std::string mkstemp_path = mkstemp_req.path;
+    auto cleanup_tmp_file = OnScopeLeave([&]() {
+      if (fd_open) {
+        uv_fs_t close_req;
+        uv_fs_close(nullptr, &close_req, mkstemp_req.result, nullptr);
+        uv_fs_req_cleanup(&close_req);
+      }
+      if (!renamed) {
+        uv_fs_t unlink_req;
+        uv_fs_unlink(nullptr, &unlink_req, mkstemp_path.c_str(), nullptr);
+        uv_fs_req_cleanup(&unlink_req);
+      }
+    });
+
     Debug("[compile cache] writing cache for %s %s to temporary file %s [%d "
           "%d %d "
           "%d %d]...",
@@ -508,6 +532,10 @@ void CompileCacheHandler::Persist() {
     auto cleanup_close =
         OnScopeLeave([&close_req]() { uv_fs_req_cleanup(&close_req); });
     err = uv_fs_close(nullptr, &close_req, mkstemp_req.result, nullptr);
+    // The descriptor is no longer usable after uv_fs_close() is attempted,
+    // regardless of whether it succeeded, so the scope guard above should
+    // not try to close it again.
+    fd_open = false;
 
     if (err < 0) {
       Debug("failed: %s\n", uv_strerror(err));
@@ -533,6 +561,9 @@ void CompileCacheHandler::Persist() {
       Debug("failed: %s\n", uv_strerror(err));
       continue;
     }
+    // The temporary file no longer exists at mkstemp_path; nothing left for
+    // the scope guard to unlink.
+    renamed = true;
     Debug("success\n");
     entry->persisted = true;
   }
