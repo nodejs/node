@@ -152,6 +152,29 @@ $ node --experimental-vfs --require ./provider.js \
        --vfs-load archive.customfmt
 ```
 
+## `vfs.vfsBase()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string} The absolute path of the [reserved root directory][].
+
+Returns the directory that holds the mount points of every mounted virtual file
+system, which is `path.join(os.devNull, 'vfs')`. Reading it lists what is
+mounted; see [The reserved root directory][reserved root directory].
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+
+const myVfs = vfs.create();
+const mountPoint = myVfs.mount();
+
+fs.readdirSync(vfs.vfsBase()); // The name of every mount point in it
+mountPoint.startsWith(vfs.vfsBase()); // true
+```
+
 ## Class: `VirtualFileSystem`
 
 <!-- YAML
@@ -187,9 +210,11 @@ After mounting, files in the VFS can be accessed through the
 using paths under the returned mount point.
 
 Mount points always live inside a reserved namespace that cannot have child file system entries,
-so virtual paths never conflate with (or shadow) real paths. The virtual path scheme is subject to
-change and users should not manually construct them based on assumptions. Instead, obtain
-them from what `vfs.mount()` returns or `vfs.mountPoint`.
+so virtual paths never conflate with (or shadow) real paths. A mount point is obtained from what
+`vfs.mount()` returns or from [`vfs.mountPoint`][], and the mount points of all mounted file
+systems can be listed by reading the [reserved root directory][], whose path [`vfs.vfsBase()`][]
+returns. The name of a mount point within that directory is assigned at runtime, so it is not
+something to construct or hard-code.
 
 ```cjs
 const vfs = require('node:vfs');
@@ -202,6 +227,11 @@ const mountPoint = myVfs.mount();
 
 fs.readFileSync(`${mountPoint}/data.txt`, 'utf8'); // 'Hello'
 ```
+
+Like any mount point, the mount point cannot be removed or renamed, nor
+replaced by renaming something else onto it: [`fs.rmdir()`][] and
+[`fs.rename()`][] fail with `EBUSY`. A recursive [`fs.rm()`][] of the mount
+point empties the file system before failing the same way.
 
 Each `VirtualFileSystem` instance may be mounted at most once at a
 time. Attempting to mount an already-mounted instance throws
@@ -379,6 +409,32 @@ The promise namespace mirrors `fs.promises` and includes `readFile`,
 `unlink`, `rename`, `copyFile`, `realpath`, `readlink`, `symlink`,
 `access`, `rm`, `truncate`, `link`, `mkdtemp`, `chmod`, `chown`, `lchown`,
 `utimes`, `lutimes`, `open`, `lchmod`, and `watch`.
+
+## The reserved root directory
+
+While any virtual file system is mounted, the directory that holds the mount
+points can be read through [`node:fs`][]. [`vfs.vfsBase()`][] returns its path,
+`path.join(os.devNull, 'vfs')`. It contains a directory for every mounted file
+system, named like the last segment of its [`vfs.mountPoint`][].
+
+```cjs
+const vfs = require('node:vfs');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = vfs.vfsBase();
+const assets = vfs.create();
+assets.writeFileSync('/logo.svg', '<svg/>');
+const mountPoint = assets.mount();
+
+const name = path.basename(mountPoint);
+fs.readdirSync(root); // [ name ]
+fs.readdirSync(root, { recursive: true }); // [ name, `${name}/logo.svg` ]
+```
+
+The root directory itself is read-only. Creating, removing, or changing its
+entries fails with `EROFS`, while the file systems its entries lead to can be
+written to as usual. When nothing is mounted, the root directory does not exist.
 
 ## Module loader integration
 
@@ -711,6 +767,9 @@ fields use synthetic but stable values:
 [`ffi.dlopen()`]: ffi.md#ffidlopenpath-definitions
 [`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
+[`fs.rename()`]: fs.md#fsrenameoldpath-newpath-callback
+[`fs.rm()`]: fs.md#fsrmpath-options-callback
+[`fs.rmdir()`]: fs.md#fsrmdirpath-options-callback
 [`import.meta.resolve()`]: esm.md#importmetaresolvespecifier
 [`new ffi.DynamicLibrary()`]: ffi.md#new-dynamiclibrarypath
 [`node:fs`]: fs.md
@@ -721,8 +780,10 @@ fields use synthetic but stable values:
 [`vfs.mountPointURL`]: #vfsmountpointurl
 [`vfs.mountPoint`]: #vfsmountpoint
 [`vfs.unmount()`]: #vfsunmount
+[`vfs.vfsBase()`]: #vfsvfsbase
 [`zipFile.writable`]: zlib.md#zipfilewritable
 [`zlib.ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`zlib.ZipFile`]: zlib.md#class-zlibzipfile
 [loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
+[reserved root directory]: #the-reserved-root-directory
 [the global folders]: modules.md#loading-from-the-global-folders
