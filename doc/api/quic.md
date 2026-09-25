@@ -974,7 +974,8 @@ added: v23.8.0
 
 * `options` {Object}
   * `code` {bigint|number} The error code to include in the `CONNECTION_CLOSE`
-    frame sent to the peer. **Default:** `0` (no error).
+    frame sent to the peer. Must be a non-negative 62-bit unsigned varint
+    (`0n <= code <= 2n ** 62n - 1n`). **Default:** `0` (no error).
   * `type` {string} Either `'transport'` or `'application'`. Determines the
     error code namespace used in the `CONNECTION_CLOSE` frame. When `'transport'`
     (the default), the frame type is `0x1c` and the code is interpreted as a QUIC
@@ -1056,7 +1057,8 @@ added: v23.8.0
 * `error` {any}
 * `options` {Object}
   * `code` {bigint|number} The error code to include in the `CONNECTION_CLOSE`
-    frame sent to the peer. **Default:** `0`.
+    frame sent to the peer. Must be a non-negative 62-bit unsigned varint
+    (`0n <= code <= 2n ** 62n - 1n`). **Default:** `0`.
   * `type` {string} Either `'transport'` or `'application'`. **Default:**
     `'transport'`.
   * `reason` {string} An optional human-readable reason string included in
