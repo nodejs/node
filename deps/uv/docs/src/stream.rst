@@ -139,7 +139,7 @@ API
     be made several times until there is no more data to read or
     :c:func:`uv_read_stop` is called.
 
-    .. versionchanged:: 1.38.0 :c:func:`uv_read_start()` now consistently
+    .. versionchanged:: 1.38.0 :c:func:`uv_read_start` now consistently
       returns `UV_EALREADY` when called twice, and `UV_EINVAL` when the
       stream is closing. With older libuv versions, it returns `UV_EALREADY`
       on Windows but not UNIX, and `UV_EINVAL` on UNIX but not Windows.
@@ -217,7 +217,21 @@ API
     where it returns ``UV_EAGAIN``.
 
     .. versionadded:: 1.42.0
-    
+
+.. c:function:: size_t uv_write_nwritten(const uv_write_t* req)
+
+    Returns the number of bytes written by a write request. Only valid when
+    called from within the write callback (:c:type:`uv_write_cb`).
+
+    This is primarily useful when a write has been cancelled via
+    :c:func:`uv_cancel` and the callback receives ``UV_ECANCELED``
+    status, to determine how many bytes were actually written before
+    cancellation. Note that cancelled writes may still succeed or fail
+    with other errors if the kernel finished processing the write before
+    the cancellation took effect.
+
+    .. versionadded:: 1.53.0
+
 .. c:function:: int uv_is_readable(const uv_stream_t* handle)
 
     Returns 1 if the stream is readable, 0 otherwise.

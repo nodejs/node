@@ -99,6 +99,13 @@ TEST_IMPL(poll_multiple_handles) {
   ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT_EQ(2, close_cb_called);
 
+  /* uv_poll_init_socket() does not take ownership of the socket. */
+#ifdef _WIN32
+  ASSERT_OK(closesocket(sock));
+#else
+  ASSERT_OK(close(sock));
+#endif
+
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

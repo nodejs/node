@@ -281,13 +281,13 @@ API
     do so automatically when it is unloaded but it can be instructed to perform
     cleanup manually.
 
-    .. warning:: Only call :c:func:`uv_library_shutdown()` once.
+    .. warning:: Only call :c:func:`uv_library_shutdown` once.
 
-    .. warning:: Don't call :c:func:`uv_library_shutdown()` when there are
+    .. warning:: Don't call :c:func:`uv_library_shutdown` when there are
                  still event loops or I/O requests active.
 
     .. warning:: Don't call libuv functions after calling
-                 :c:func:`uv_library_shutdown()`.
+                 :c:func:`uv_library_shutdown`.
 
 .. c:function:: uv_buf_t uv_buf_init(char* base, unsigned int len)
 
@@ -296,6 +296,13 @@ API
     Due to platform differences the user cannot rely on the ordering of the
     `base` and `len` members of the uv_buf_t struct. The user is responsible for
     freeing `base` after the uv_buf_t is done. Return struct passed by value.
+
+   .. warning:: It is discouraged to set `len` to a large value as that may
+                result in spurious failures.  Specifically, Windows may fail on
+                writes larger than about 511 MB, and various Unicies may fail
+                on I/O larger than about 2 GB (0x7ffff000 bytes). Instead it is
+                generally better to split the data into multiple `uv_write`
+                calls (attach the `write_cb` to the last one).
 
 .. c:function:: char** uv_setup_args(int argc, char** argv)
 

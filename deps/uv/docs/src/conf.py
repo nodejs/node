@@ -48,7 +48,7 @@ sys.path.insert(0, os.path.abspath('sphinx-plugins'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['manpage']
+extensions = ['manpage', 'sphinx_copybutton']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
@@ -88,6 +88,10 @@ release = version
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = []
+
+linkcheck_ignore = [
+    r'https://invisible-island\.net/ncurses/announce\.html',
+]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

@@ -211,25 +211,18 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper8") == 0) {
     uv_os_fd_t closed_fd;
     uv_os_fd_t open_fd;
-#ifdef _WIN32
-    DWORD flags;
-    HMODULE kernelbase_module;
-    union {
-      FARPROC proc;
-      sCompareObjectHandles pCompareObjectHandles; /* Windows >= 10 */
-    } u;
-#endif
     notify_parent_process();
     ASSERT_EQ(sizeof(closed_fd), read(0, &closed_fd, sizeof(closed_fd)));
     ASSERT_EQ(sizeof(open_fd), read(0, &open_fd, sizeof(open_fd)));
 #ifdef _WIN32
+    DWORD flags;
     ASSERT_GT((intptr_t) closed_fd, 0);
     ASSERT_GT((intptr_t) open_fd, 0);
-    ASSERT_NE(0, GetHandleInformation(open_fd, &flags));
-    kernelbase_module = GetModuleHandleW(L"kernelbase.dll");
-    u.proc = GetProcAddress(kernelbase_module, "CompareObjectHandles");
-    if (u.pCompareObjectHandles != NULL)
-      ASSERT_EQ(FALSE, u.pCompareObjectHandles(open_fd, closed_fd));
+    ASSERT_EQ(0, GetHandleInformation(open_fd, &flags));
+    ASSERT_EQ(ERROR_INVALID_HANDLE, GetLastError());
+    SetLastError(ERROR_SUCCESS);
+    ASSERT_EQ(0, GetHandleInformation(closed_fd, &flags));
+    ASSERT_EQ(ERROR_INVALID_HANDLE, GetLastError());
 #else
     ASSERT_GT(open_fd, 2);
     ASSERT_GT(closed_fd, 2);
