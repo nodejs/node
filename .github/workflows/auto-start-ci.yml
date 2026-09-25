@@ -33,10 +33,11 @@ jobs:
     steps:
       - name: Get Pull Requests
         id: get_prs_for_ci
+        # Explicit bash enables pipefail so jq cannot hide a failed gh query.
         shell: bash
         run: |
-          if ! [[ "$BATCH_SIZE" =~ ^(0|[1-9][0-9]*)$ ]]; then
-            echo '::error::AUTO_START_CI_BATCH_SIZE must be a non-negative integer'
+          if ! [[ "$BATCH_SIZE" =~ ^[1-9][0-9]*$ ]]; then
+            echo '::error::AUTO_START_CI_BATCH_SIZE must be a strictly positive integer'
             exit 1
           fi
           # Filter before selecting the batch; UNKNOWN mergeability is retried later.
