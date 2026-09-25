@@ -1,0 +1,9 @@
+<project-root>/test/fixtures/event_loop/nexttick_throw.js:7
+        undefined_reference_error_maker;
+        ^
+
+ReferenceError: undefined_reference_error_maker is not defined
+    at <project-root>/test/fixtures/event_loop/nexttick_throw.js:7:3
+    at <node-internal-frames>
+
+Node.js <node-version>
