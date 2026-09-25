@@ -433,6 +433,24 @@ test('dynamic library APIs validate failures and bad signatures', () => {
     }, /Argument 0 of function add_i32 must not contain null bytes/);
 
     assert.throws(() => {
+      lib.getFunction('add_i32', { return: 1, arguments: [] });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+
+    assert.throws(() => {
+      lib.getFunction('add_i32', { return: 'i32', arguments: 'i32' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+
+    assert.throws(() => {
+      lib.getFunction('add_i32', { return: 'i32', arguments: [1] });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+
+    assert.throws(() => {
       lib.getFunctions('not an object');
     }, {
       name: 'TypeError',

@@ -107,7 +107,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     }
 
     if (!return_type_val->IsString()) {
-      THROW_ERR_INVALID_ARG_VALUE(
+      THROW_ERR_INVALID_ARG_TYPE(
           env, "Return value type of function %s must be a string", name);
       return {};
     }
@@ -132,7 +132,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     }
 
     if (!arguments_val->IsArray()) {
-      THROW_ERR_INVALID_ARG_VALUE(
+      THROW_ERR_INVALID_ARG_TYPE(
           env, "Arguments list of function %s must be an array", name);
       return {};
     }
@@ -148,7 +148,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
       }
 
       if (!arg->IsString()) {
-        THROW_ERR_INVALID_ARG_VALUE(
+        THROW_ERR_INVALID_ARG_TYPE(
             env, "Argument %u of function %s must be a string", i, name);
         return {};
       }
