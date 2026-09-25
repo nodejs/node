@@ -194,6 +194,16 @@ if (hasFIPS(3, 5)) {
     ]);
 }
 
+if (process.env.WPT_REPORT === undefined) {
+  // Retain one 100000-iteration deriveKey per PBKDF2 vector; deriveBits still
+  // checks every password, salt, and hash, and cheaper vectors cover all
+  // derived key types.
+  skipSubtests([
+    'derive_bits_keys/pbkdf2.https.any.js',
+    /^Derived key of type (?!name: AES-CBC length: 256\s+using\b).* using .*, SHA-(?:1|256|384|512), with 100000 iterations$/,
+  ]);
+}
+
 if (hasFIPS(4)) {
   skipSubtests(
     [
