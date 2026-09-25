@@ -9,6 +9,7 @@
 
 #include "src/base/strings.h"
 #include "src/regexp/special-case.h"
+#include "unicode/locid.h"
 #include "unicode/unistr.h"
 
 namespace v8 {
@@ -31,7 +32,7 @@ UChar32 Canonicalize(UChar32 ch) {
   // c. Let u be the same result produced as if by performing the algorithm
   // for String.prototype.toUpperCase using s as the this value.
   // d. Assert: Type(u) is String.
-  icu::UnicodeString& u = s.toUpper();
+  icu::UnicodeString& u = s.toUpper(icu::Locale::getRoot());
 
   // e. If u does not consist of a single code unit, return ch.
   if (u.length() != 1) {
