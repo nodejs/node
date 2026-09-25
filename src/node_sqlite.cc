@@ -1147,6 +1147,7 @@ int VirtualTableModule::xBestIndex(sqlite3_vtab* pVTab,
   for (int hidden_idx = 0; hidden_idx < num_hidden; hidden_idx++) {
     int col = mod->hidden_col_indices_[hidden_idx];
 
+    int args_before = argv_index;
     for (int i = 0; i < pInfo->nConstraint; i++) {
       if (pInfo->aConstraint[i].iColumn == col &&
           pInfo->aConstraint[i].usable &&
@@ -1159,6 +1160,20 @@ int VirtualTableModule::xBestIndex(sqlite3_vtab* pVTab,
         }
         idx_str += std::to_string(hidden_idx);
         break;
+      }
+    }
+
+    // No usable constraint means the query supplied a parameter whose value is
+    // not available at this point in the plan. Accepting it would pass null to
+    // rows() and silently return empty results, so reject the plan and let
+    // SQLite pick a different ordering instead.
+    // https://www.sqlite.org/vtab.html#enforcing_required_parameters_on_table_valued_functions
+    if (argv_index == args_before) {
+      for (int i = 0; i < pInfo->nConstraint; i++) {
+        if (pInfo->aConstraint[i].iColumn == col &&
+            pInfo->aConstraint[i].op == SQLITE_INDEX_CONSTRAINT_EQ) {
+          return SQLITE_CONSTRAINT;
+        }
       }
     }
   }
