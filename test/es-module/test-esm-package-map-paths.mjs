@@ -27,6 +27,18 @@ spawnSyncAndAssert(process.execPath, [
   trim: true,
 });
 
+// Directory-form URLs match package files even when the map is nested below them.
+spawnSyncAndAssert(process.execPath, [
+  '--no-warnings',
+  '--experimental-package-map',
+  fixtures.path('package-map/nested-project/map-dir/package-map-parent-url.json'),
+  '--input-type=module',
+  '--eval', `import dep from 'dep-a'; console.log(dep);`,
+], { cwd: fixtures.path('package-map/nested-project/src') }, {
+  stdout: /dep-a-value/,
+  trim: true,
+});
+
 // URL fields are decoded as URLs before being converted to paths.
 spawnSyncAndAssert(process.execPath, [
   '--no-warnings',
