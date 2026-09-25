@@ -27,6 +27,19 @@ void FSContinuationData::MaybeSetFirstPath(const std::string& path) {
   }
 }
 
+bool FSContinuationData::IsRepeatedEnoentRetry(const std::string& path) const {
+  return has_last_enoent_retry_path_ && last_enoent_retry_path_ == path;
+}
+
+void FSContinuationData::SetLastEnoentRetryPath(const std::string& path) {
+  last_enoent_retry_path_ = path;
+  has_last_enoent_retry_path_ = true;
+}
+
+void FSContinuationData::ClearLastEnoentRetryPath() {
+  has_last_enoent_retry_path_ = false;
+}
+
 std::string FSContinuationData::PopPath() {
   CHECK(!paths_.empty());
   std::string path = std::move(paths_.back());

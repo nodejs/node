@@ -1951,6 +1951,7 @@ int MKDirpSync(uv_loop_t* loop,
         // Note: uv_fs_req_cleanup in terminal paths will be called by
         // ~FSReqWrapSync():
         case 0:
+          req_wrap->continuation_data()->ClearLastEnoentRetryPath();
           req_wrap->continuation_data()->MaybeSetFirstPath(next_path);
           if (req_wrap->continuation_data()->paths().empty()) {
             return 0;
@@ -1966,6 +1967,15 @@ int MKDirpSync(uv_loop_t* loop,
           std::string dirname =
               next_path.substr(0, next_path.find_last_of(kPathSeparator));
           if (dirname != next_path) {
+            if (req_wrap->continuation_data()->IsRepeatedEnoentRetry(
+                    next_path)) {
+              // Retrying this exact path made no progress last time: the
+              // parent exists but mkdir() still can't create this path
+              // (e.g. under /proc), or a racing process keeps removing and
+              // recreating the parent. Fail instead of looping forever.
+              return err;
+            }
+            req_wrap->continuation_data()->SetLastEnoentRetryPath(next_path);
             req_wrap->continuation_data()->PushPath(std::move(next_path));
             req_wrap->continuation_data()->PushPath(std::move(dirname));
           } else if (req_wrap->continuation_data()->paths().empty()) {
@@ -2022,6 +2032,7 @@ int MKDirpAsync(
             // Note: uv_fs_req_cleanup in terminal paths will be called by
             // FSReqAfterScope::~FSReqAfterScope()
             case 0: {
+              req_wrap->continuation_data()->ClearLastEnoentRetryPath();
               if (req_wrap->continuation_data()->paths().empty()) {
                 req_wrap->continuation_data()->MaybeSetFirstPath(path);
                 req_wrap->continuation_data()->Done(0);
@@ -2047,6 +2058,13 @@ int MKDirpAsync(
               std::string dirname =
                   path.substr(0, path.find_last_of(kPathSeparator));
               if (dirname != path) {
+                if (req_wrap->continuation_data()->IsRepeatedEnoentRetry(
+                        path)) {
+                  // See the matching comment in MKDirpSync().
+                  req_wrap->continuation_data()->Done(err);
+                  break;
+                }
+                req_wrap->continuation_data()->SetLastEnoentRetryPath(path);
                 req_wrap->continuation_data()->PushPath(path);
                 req_wrap->continuation_data()->PushPath(std::move(dirname));
               } else if (req_wrap->continuation_data()->paths().empty()) {
