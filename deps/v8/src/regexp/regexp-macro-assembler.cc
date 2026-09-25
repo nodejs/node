@@ -58,9 +58,14 @@ int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
   base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);
 
   for (size_t i = 0; i < length; i++) {
-    UChar32 c1 = RegExpCaseFolding::Canonicalize(substring1[i]);
-    UChar32 c2 = RegExpCaseFolding::Canonicalize(substring2[i]);
-    if (c1 != c2) {
+    UChar32 c1 = substring1[i];
+    UChar32 c2 = substring2[i];
+    if (c1 == c2) continue;
+    if (
+      RegExpCaseFolding::EquivalenceKey(
+          c1, RegExpCaseFolding::Mode::kNonUnicode) !=
+      RegExpCaseFolding::EquivalenceKey(
+          c2, RegExpCaseFolding::Mode::kNonUnicode)) {
       return 0;
     }
   }
@@ -96,8 +101,11 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
     U16_NEXT(str2, i2, length, c2);
     if (i1 != i2) return 0;
     if (c1 == c2) continue;
-    if (u_foldCase(c1, U_FOLD_CASE_DEFAULT) !=
-        u_foldCase(c2, U_FOLD_CASE_DEFAULT)) {
+    if (
+      RegExpCaseFolding::EquivalenceKey(
+          c1, RegExpCaseFolding::Mode::kUnicode) !=
+      RegExpCaseFolding::EquivalenceKey(
+          c2, RegExpCaseFolding::Mode::kUnicode)) {
       return 0;
     }
   }

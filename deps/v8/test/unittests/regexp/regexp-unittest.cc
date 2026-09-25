@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 #include "include/v8-context.h"
 #include "include/v8-initialization.h"
@@ -33,6 +34,12 @@
 #include "src/zone/zone-list-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
+
+#ifdef V8_INTL_SUPPORT
+#include "src/regexp/special-case.h"
+#include "unicode/locid.h"
+#include "unicode/unistr.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1342,6 +1349,70 @@ TEST_F(RegExpTest, MacroAssembler) {
     CHECK_EQ(0, captures[4]);
   }
 }
+
+#ifdef V8_INTL_SUPPORT
+#ifndef DEBUG
+namespace {
+
+UChar32 CanonicalizeNonUnicodeForTest(UChar32 c) {
+  icu::UnicodeString upper(c);
+  upper.toUpper(icu::Locale::getRoot());
+  if (upper.length() != 1) return c;
+  UChar32 result = upper.charAt(0);
+  return c >= 128 && result < 128 ? c : result;
+}
+
+}  // namespace
+
+TEST_F(RegExpTest, NonUnicodeCaseEquivalence) {
+  std::vector<UChar32> canonical(0x10000);
+  std::vector<std::vector<UChar32>> classes(0x10000);
+  for (UChar32 c = 0; c <= 0xffff; ++c) {
+    canonical[c] = CanonicalizeNonUnicodeForTest(c);
+    classes[canonical[c]].push_back(c);
+  }
+  std::vector<UChar32> canonical_to_key(0x10000, -1);
+  std::vector<UChar32> key_to_canonical(0x10000, -1);
+  for (UChar32 c = 0; c <= 0xffff; ++c) {
+    UChar32 key = RegExpCaseFolding::EquivalenceKey(
+        c, RegExpCaseFolding::Mode::kNonUnicode);
+    ASSERT_GE(key, 0);
+    ASSERT_LE(key, 0xffff);
+    if (canonical_to_key[canonical[c]] == -1) {
+      canonical_to_key[canonical[c]] = key;
+    }
+    if (key_to_canonical[key] == -1) key_to_canonical[key] = canonical[c];
+    ASSERT_EQ(canonical_to_key[canonical[c]], key) << c;
+    ASSERT_EQ(key_to_canonical[key], canonical[c]) << c;
+
+    icu::UnicodeSet expected;
+    for (UChar32 member : classes[canonical[c]]) expected.add(member);
+    icu::UnicodeSet actual(c, c);
+    RegExpCaseFolding::CloseOver(actual, RegExpCaseFolding::Mode::kNonUnicode);
+    ASSERT_TRUE(expected == actual) << c;
+  }
+}
+#endif  // !DEBUG
+
+TEST_F(RegExpTest, CaseClosureMixedSets) {
+  for (auto mode : {RegExpCaseFolding::Mode::kNonUnicode,
+                    RegExpCaseFolding::Mode::kUnicode}) {
+    icu::UnicodeSet actual;
+    actual.add('a', 'c').add('k').add(0x017f).add(0x00df);
+    icu::UnicodeSet expected(actual);
+    expected.add('A', 'C').add('K');
+    if (mode == RegExpCaseFolding::Mode::kUnicode) {
+      expected.add('s').add('S').add(0x212a).add(0x1e9e);
+      actual.add(0x10400);
+      expected.add(0x10400).add(0x10428);
+    }
+    RegExpCaseFolding::CloseOver(actual, mode);
+    EXPECT_TRUE(expected == actual);
+    RegExpCaseFolding::CloseOver(actual, mode);
+    EXPECT_TRUE(expected == actual);
+  }
+}
+#endif  // V8_INTL_SUPPORT
 
 #ifndef V8_INTL_SUPPORT
 static base::uc32 canonicalize(base::uc32 c) {
