@@ -444,7 +444,7 @@ void CharacterRange::AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
   }
   // Clear the ranges list without freeing the backing store.
   ranges->Rewind(0);
-  set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+  RegExpCaseFolding::CloseOver(set, RegExpCaseFolding::Mode::kUnicode);
   for (int i = 0; i < set.getRangeCount(); i++) {
     ranges->Add(Range(set.getRangeStart(i), set.getRangeEnd(i)), zone);
   }
@@ -690,29 +690,39 @@ int CompareFirstChar(RegExpTree* const* a, RegExpTree* const* b) {
 
 #ifdef V8_INTL_SUPPORT
 
-int CompareCaseInsensitive(const icu::UnicodeString& a,
-                           const icu::UnicodeString& b) {
-  return a.caseCompare(b, U_FOLD_CASE_DEFAULT);
+RegExpCaseFolding::Mode CaseFoldingMode(RegExpFlags flags) {
+  return IsEitherUnicode(flags) ? RegExpCaseFolding::Mode::kUnicode
+                                : RegExpCaseFolding::Mode::kNonUnicode;
 }
 
-int CompareFirstCharCaseInsensitive(RegExpTree* const* a,
+// Use the matcher's case equivalence (see
+// TextNode::GetCaseIndependentLetters). Full case folding would, for example,
+// conflate U+017F and 's' under /i.
+int CompareCaseInsensitive(RegExpCaseFolding::Mode mode, base::uc16 a,
+                           base::uc16 b) {
+  if (a == b) return 0;
+  return RegExpCaseFolding::EquivalenceKey(a, mode) -
+         RegExpCaseFolding::EquivalenceKey(b, mode);
+}
+
+int CompareFirstCharCaseInsensitive(RegExpCaseFolding::Mode mode,
+                                    RegExpTree* const* a,
                                     RegExpTree* const* b) {
   RegExpAtom* atom1 = (*a)->AsAtom();
   RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCaseInsensitive(icu::UnicodeString{atom1->data().at(0)},
-                                icu::UnicodeString{atom2->data().at(0)});
+  return CompareCaseInsensitive(mode, atom1->data().at(0), atom2->data().at(0));
 }
 
-bool Equals(bool ignore_case, const icu::UnicodeString& a,
-            const icu::UnicodeString& b) {
+bool Equals(bool ignore_case, RegExpCaseFolding::Mode mode, base::uc16 a,
+            base::uc16 b) {
   if (a == b) return true;
-  if (ignore_case) return CompareCaseInsensitive(a, b) == 0;
+  if (ignore_case) return CompareCaseInsensitive(mode, a, b) == 0;
   return false;  // Case-sensitive equality already checked above.
 }
 
-bool CharAtEquals(bool ignore_case, int index, const RegExpAtom* a,
-                  const RegExpAtom* b) {
-  return Equals(ignore_case, a->data().at(index), b->data().at(index));
+bool CharAtEquals(bool ignore_case, RegExpCaseFolding::Mode mode, int index,
+                  const RegExpAtom* a, const RegExpAtom* b) {
+  return Equals(ignore_case, mode, a->data().at(index), b->data().at(index));
 }
 
 #else
@@ -791,19 +801,20 @@ bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
       if (!alternative->IsAtom()) break;
       i++;
     }
-    // Sort atoms to get ones with common prefixes together.
-    // This step is more tricky if we are in a case-independent regexp,
-    // because it would change /is|I/ to /I|is/, and order matters when
-    // the regexp parts don't match only disjoint starting points. To fix
-    // this we have a version of CompareFirstChar that uses case-
-    // independent character classes for comparison.
+    // Sort atoms to bring common prefixes together. A case-insensitive sort
+    // must preserve the order of alternatives whose first characters are
+    // equivalent: changing /is|I/ to /I|is/ would change the match result.
     DCHECK_LT(first_atom, alternatives->length());
     DCHECK_LE(i, alternatives->length());
     DCHECK_LE(first_atom, i);
     if (IsIgnoreCase(compiler->flags())) {
 #ifdef V8_INTL_SUPPORT
-      alternatives->StableSort(CompareFirstCharCaseInsensitive, first_atom,
-                               i - first_atom);
+      const RegExpCaseFolding::Mode mode = CaseFoldingMode(compiler->flags());
+      auto compare_closure = [mode](RegExpTree* const* a,
+                                    RegExpTree* const* b) {
+        return CompareFirstCharCaseInsensitive(mode, a, b);
+      };
+      alternatives->StableSort(compare_closure, first_atom, i - first_atom);
 #else
       unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
           compiler->isolate()->regexp_macro_assembler_canonicalize();
@@ -827,6 +838,9 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   int length = alternatives->length();
   const bool ignore_case = IsIgnoreCase(compiler->flags());
+#ifdef V8_INTL_SUPPORT
+  const RegExpCaseFolding::Mode mode = CaseFoldingMode(compiler->flags());
+#endif  // V8_INTL_SUPPORT
 
   int write_posn = 0;
   int i = 0;
@@ -839,7 +853,7 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
     }
     RegExpAtom* const atom = alternative->AsAtom();
 #ifdef V8_INTL_SUPPORT
-    icu::UnicodeString common_prefix(atom->data().at(0));
+    base::uc16 common_prefix = atom->data().at(0);
 #else
     unibrow::Mapping<unibrow::Ecma262Canonicalize>* const canonicalize =
         compiler->isolate()->regexp_macro_assembler_canonicalize();
@@ -856,8 +870,8 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
       if (!alternative->IsAtom()) break;
       RegExpAtom* const alt_atom = alternative->AsAtom();
 #ifdef V8_INTL_SUPPORT
-      icu::UnicodeString new_prefix(alt_atom->data().at(0));
-      if (!Equals(ignore_case, new_prefix, common_prefix)) break;
+      base::uc16 new_prefix = alt_atom->data().at(0);
+      if (!Equals(ignore_case, mode, new_prefix, common_prefix)) break;
 #else
       unibrow::uchar new_prefix = alt_atom->data().at(0);
       if (!Equals(ignore_case, canonicalize, new_prefix, common_prefix)) break;
@@ -879,7 +893,7 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
             alternatives->at(j + first_with_prefix)->AsAtom();
         for (int k = 1; k < prefix_length; k++) {
 #ifdef V8_INTL_SUPPORT
-          if (!CharAtEquals(ignore_case, k, alt_atom, old_atom)) {
+          if (!CharAtEquals(ignore_case, mode, k, alt_atom, old_atom)) {
 #else
           if (!CharAtEquals(ignore_case, canonicalize, k, alt_atom, old_atom)) {
 #endif  // V8_INTL_SUPPORT
@@ -1474,22 +1488,8 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     others.add(from, to);
   }
 
-  // Compute the set of additional characters that should be added,
-  // using UnicodeSet::closeOver. ECMA 262 defines slightly different
-  // case-folding rules than Unicode, so some characters that are
-  // added by closeOver do not match anything other than themselves in
-  // JS. For example, 'ſ' (U+017F LATIN SMALL LETTER LONG S) is the
-  // same case-insensitive character as 's' or 'S' according to
-  // Unicode, but does not match any other character in JS. To handle
-  // this case, we add such characters to the IgnoreSet and filter
-  // them out. We filter twice: once before calling closeOver (to
-  // prevent 'ſ' from adding 's'), and once after calling closeOver
-  // (to prevent 's' from adding 'ſ'). See regexp/special-case.h for
-  // more information.
   icu::UnicodeSet already_added(others);
-  others.removeAll(RegExpCaseFolding::IgnoreSet());
-  others.closeOver(USET_CASE_INSENSITIVE);
-  others.removeAll(RegExpCaseFolding::IgnoreSet());
+  RegExpCaseFolding::CloseOver(others, RegExpCaseFolding::Mode::kNonUnicode);
   others.removeAll(already_added);
 
   // Add others to the ranges
