@@ -602,7 +602,6 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   std::vector<uint64_t> values(expected_args, 0);
   std::vector<void*> ffi_args(expected_args, nullptr);
   std::vector<std::string> strings;
-  strings.reserve(expected_args);
 
   for (unsigned int i = 0; i < expected_args; i++) {
     FFIArgumentCategory res;
@@ -624,6 +623,10 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
+      if (strings.empty()) {
+        // Keep string pointers stable as subsequent arguments are converted.
+        strings.reserve(expected_args);
+      }
       strings.push_back(*str);
       values[i] = reinterpret_cast<uint64_t>(strings.back().c_str());
       ffi_args[i] = &values[i];
