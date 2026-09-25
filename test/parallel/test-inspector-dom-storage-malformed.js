@@ -11,6 +11,7 @@ common.skipIfInspectorDisabled();
 const { NodeInstance } = require('../common/inspector-helper.js');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
+const { once } = require('node:events');
 const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 tmpdir.refresh();
@@ -47,9 +48,14 @@ async function getDOMStorageItems(localStorageFile) {
     '--inspect=0',
     '--experimental-storage-inspection',
     `--localstorage-file=${localStorageFile}`,
-  ], 'setInterval(() => {}, 1000);');
+  ], 'console.log("ready"); setInterval(() => {}, 1000);');
+  // The inspector accepts connections before pre-execution defines
+  // globalThis.localStorage, and a command that arrives first reports the
+  // store as unavailable.
+  const ready = once(instance, 'stdout');
 
   const session = await instance.connectInspectorSession();
+  await ready;
   await session.send({ method: 'DOMStorage.enable' });
   const { storageKey } = await session.send({
     method: 'Storage.getStorageKey',
@@ -79,22 +85,17 @@ async function getDOMStorageItems(localStorageFile) {
 
   // A wrong-typed schema_version makes Storage::Open() throw, which has to be
   // caught rather than left pending on an isolate with no JavaScript running.
-  //
-  // Which of the two messages below comes back is not something this test can
-  // pin down. The reason is read off the v8::Message, hence the "Uncaught"
-  // prefix, but V8 only builds one on a best-effort basis: Isolate::Throw()
-  // skips it while the bootstrapper is active, and it is not handed to an
-  // external TryCatch when a JavaScript handler is the topmost one. Both
-  // outcomes prove the point, which is that Open() threw and was caught.
+  // Its message reaches the frontend.
   await assert.rejects(
     getDOMStorageItems(
       malformedLocalStorage(
         'bad-schema-version.db', 'one', Buffer.from('hello', 'utf16le'))),
     {
-      message: new RegExp('^Could not read DOM storage items: (?:' +
-        'Uncaught Error: localStorage database is malformed: expected ' +
-        'schema_version to be an integer' +
-        '|the backing store could not be opened)$'),
+      // The reason comes off the v8::Message, hence the "Uncaught" prefix;
+      // converting the exception itself would run user JavaScript.
+      message: 'Could not read DOM storage items: Uncaught Error: ' +
+        'localStorage database is malformed: expected schema_version to be ' +
+        'an integer',
     },
   );
 })().then(common.mustCall());
