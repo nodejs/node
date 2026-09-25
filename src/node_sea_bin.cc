@@ -306,7 +306,15 @@ InjectOutput InjectIntoPE(const std::vector<uint8_t>& executable,
   cfg.resources = true;
   cfg.rsrc_section = ".rsrc";  // ensure section name
   LIEF::PE::Builder builder(*binary, cfg);
+#if LIEF_VERSION_MAJOR == 1 && LIEF_VERSION_MINOR == 0 &&                      \
+    LIEF_VERSION_PATCH == 0
+  // LIEF 1.0.0 does not export the result's bool conversion in shared builds.
+  // https://github.com/lief-project/LIEF/issues/1387
+  builder.build();
+  if (builder.get_build().empty()) {
+#else
   if (!builder.build()) {
+#endif
     return {InjectResult::kError, {}, "Failed to build modified PE binary"};
   }
 
