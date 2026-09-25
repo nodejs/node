@@ -39,6 +39,25 @@ const h2 = require('http2');
         assert.strictEqual(rawHeaders[position + 1], value);
       }
 
+      const headersDistinct = request.headersDistinct;
+
+      assert.deepStrictEqual(
+        headersDistinct,
+        {
+          __proto__: null,
+          ':path': ['/foobar'],
+          ':method': ['GET'],
+          ':scheme': ['http'],
+          ':authority': [`localhost:${port}`],
+          'foo-bar': ['abc123'],
+        }
+      );
+
+      assert.strictEqual(
+        headersDistinct,
+        request.headersDistinct
+      );
+      
       request.url = '/one';
       assert.strictEqual(request.url, '/one');
 
