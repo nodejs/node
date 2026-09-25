@@ -9,6 +9,7 @@
 #include "node.h"
 #include "node_worker.h"
 #include "uv.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
 
 #include <compare>
@@ -418,6 +419,12 @@ class SocketAddressBlockListWrap : public BaseObject {
   static bool FastCheck(v8::Local<v8::Object> receiver,
                         v8::Local<v8::Object> addr_obj);
   static void CheckString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool FastCheckString(
+      v8::Local<v8::Object> receiver,
+      const v8::FastOneByteString& address,
+      int32_t family,
+      // NOLINTNEXTLINE(runtime/references) This is V8 api.
+      v8::FastApiCallbackOptions& options);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -465,6 +472,7 @@ class SocketAddressBlockListWrap : public BaseObject {
  private:
   std::shared_ptr<SocketAddressBlockList> blocklist_;
   static v8::CFunction fast_check_;
+  static v8::CFunction fast_check_string_;
 };
 
 }  // namespace node
