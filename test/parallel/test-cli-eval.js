@@ -30,8 +30,10 @@ if (module !== require.main) {
 const common = require('../common');
 const assert = require('assert');
 const child = require('child_process');
+const fs = require('fs');
 const path = require('path');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
 if (process.argv.length > 2) {
   console.log(process.argv.slice(2).join(' '));
@@ -148,6 +150,29 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" --use-strict -p proc
              );
              assert.strictEqual(stderr, '');
            }));
+
+// Regression test for https://github.com/nodejs/node/issues/30039.
+{
+  tmpdir.refresh();
+  const scriptPath = tmpdir.resolve('use-strict.js');
+  fs.writeFileSync(scriptPath, 'undeclared = 1;');
+
+  common.spawnPromisified(process.execPath, [scriptPath])
+    .then(common.mustCall(({ stdout, stderr, code, signal }) => {
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    }));
+
+  common.spawnPromisified(process.execPath, ['--use-strict', scriptPath])
+    .then(common.mustCall(({ stdout, stderr, code, signal }) => {
+      assert.strictEqual(stdout, '');
+      assert.match(stderr, /ReferenceError: undeclared is not defined/);
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    }));
+}
 
 // Regression test for https://github.com/nodejs/node/issues/3574.
 {

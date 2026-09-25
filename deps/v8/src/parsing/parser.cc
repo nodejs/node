@@ -947,7 +947,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
   FunctionLiteral* function_literal =
       ParseFunctionLiteral(function_name, location, kSkipFunctionNameCheck,
                            FunctionKind::kNormalFunction, kNoSourcePosition,
-                           FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
+                           FunctionSyntaxKind::kWrapped, info->language_mode(),
                            arguments_for_wrapped_function);
 
   Statement* return_statement =
