@@ -1099,15 +1099,18 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
     __ Push(kJavaScriptCallNewTargetRegister);
-#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
     // No need to SmiTag as dispatch handles always look like Smis.
     static_assert(kJSDispatchHandleShift > 0);
+    __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
     __ Push(kJavaScriptCallDispatchHandleRegister);
 #endif
     __ SmiTag(frame_size);
     __ Push(frame_size);
     __ CallRuntime(Runtime::kStackGuardWithGap);
-#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
     __ Pop(kJavaScriptCallDispatchHandleRegister);
 #endif
     __ Pop(kJavaScriptCallNewTargetRegister);

@@ -186,15 +186,23 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   //  -- a0 : actual argument count
   //  -- a1 : target function (preserved for callee)
   //  -- a3 : new target (preserved for callee)
+  //  -- a4 : dispatch handle (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(this, StackFrame::INTERNAL);
-    // Push a copy of the target function, the new target and the actual
-    // argument count.
+    // Push a copy of the target function, the new target, the actual
+    // argument count, and the dispatch handle.
     // Push function as parameter to the runtime call.
     SmiTag(kJavaScriptCallArgCountRegister);
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
+    // No need to SmiTag as dispatch handles always look like Smis.
+    static_assert(kJSDispatchHandleShift > 0);
+    AssertSmi(kJavaScriptCallDispatchHandleRegister);
+    Push(kJavaScriptCallDispatchHandleRegister);
+#endif
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-         kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
+         kJavaScriptCallArgCountRegister);
 
     CallRuntime(function_id, 1);
     // Use the return value before restoring a0
@@ -202,6 +210,10 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
         kJavaScriptCallArgCountRegister);
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
+    Pop(kJavaScriptCallDispatchHandleRegister);
+#endif
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
 
