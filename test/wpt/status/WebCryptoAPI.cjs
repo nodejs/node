@@ -194,6 +194,47 @@ if (hasFIPS(3, 5)) {
     ]);
 }
 
+if (process.env.WPT_REPORT === undefined) {
+  // Keep the full matrix in both globals when producing a WPT report. Regular
+  // CI runs these expensive suites in the window global only.
+  conditionalFileSkips['derive_bits_keys/pbkdf2.https.any.worker.html'] = {
+    'skip': 'Expensive worker matrix runs with WPT_REPORT',
+  };
+
+  // Retain one 100000-iteration deriveKey per PBKDF2 vector; deriveBits still
+  // checks every password, salt, and hash, and cheaper vectors cover all
+  // derived key types.
+  skipSubtests([
+    'derive_bits_keys/pbkdf2.https.any.html',
+    /^Derived key of type (?!name: AES-CBC length: 256\s+using\b).* using .*, SHA-(?:1|256|384|512), with 100000 iterations$/,
+  ]);
+
+  // RSA name variants are grouped in the order uppercase, lowercase, mixed.
+  // Keep the uppercase group and skip variants containing only the other two.
+  for (const [name, firstSkipped, last] of [
+    ['RSA-PSS', 21, 31],
+    ['RSASSA-PKCS1-v1_5', 21, 31],
+    ['RSA-OAEP', 61, 151],
+  ]) {
+    conditionalFileSkips[`generateKey/successes_${name}.https.any.worker.html`] = {
+      'skip': 'Expensive worker matrix runs with WPT_REPORT',
+    };
+    const prefix = `generateKey/successes_${name}.https.any.html?`;
+    skipSubtests([
+      `${prefix}${firstSkipped - 10}-${firstSkipped - 1}`,
+      /name: rsa/,
+    ]);
+    for (let start = firstSkipped; start < last; start += 10) {
+      conditionalFileSkips[`${prefix}${start}-${start + 9}`] = {
+        'skip': 'Redundant RSA key generation in regular CI',
+      };
+    }
+    conditionalFileSkips[`${prefix}${last}-last`] = {
+      'skip': 'Redundant RSA key generation in regular CI',
+    };
+  }
+}
+
 if (hasFIPS(4)) {
   skipSubtests(
     [

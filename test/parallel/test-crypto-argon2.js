@@ -11,13 +11,15 @@ if (!hasOpenSSL(3, 2))
 const assert = require('node:assert');
 const crypto = require('node:crypto');
 
-function runArgon2(algorithm, options) {
+function runArgon2(algorithm, options, testAsync = false) {
   const syncResult = crypto.argon2Sync(algorithm, options);
 
-  crypto.argon2(algorithm, options,
-                common.mustSucceed((asyncResult) => {
-                  assert.deepStrictEqual(asyncResult, syncResult);
-                }));
+  if (testAsync) {
+    crypto.argon2(algorithm, options,
+                  common.mustSucceed((asyncResult) => {
+                    assert.deepStrictEqual(asyncResult, syncResult);
+                  }));
+  }
 
   return syncResult;
 }
@@ -124,9 +126,11 @@ const bad = [
   assert.deepStrictEqual(omitted, explicitEmpty);
 }
 
-for (const [algorithm, overrides, expected] of good) {
+// The RFC vectors exercise both APIs for each Argon2 algorithm. Other vectors
+// check distinct options without repeating the derivation asynchronously.
+for (const [index, [algorithm, overrides, expected]] of good.entries()) {
   const parameters = { ...defaults, ...overrides };
-  const actual = runArgon2(algorithm, parameters);
+  const actual = runArgon2(algorithm, parameters, index < 3);
   assert.strictEqual(actual.toString('hex'), expected);
 }
 
