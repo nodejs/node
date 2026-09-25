@@ -1414,6 +1414,25 @@ static bool FastIsAscii(Local<Value> receiver,
 
 static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
 
+// Returns true if every UTF-16 code unit of the string is <= 0xFF, i.e. the
+// string is a valid WebIDL ByteString. ContainsOnlyOneByte() is O(1) for
+// strings with a one-byte representation, uses SIMD for flat two-byte
+// strings, and traverses cons strings without flattening (no allocation),
+// which makes it safe to call from a fast API call.
+static void IsByteString(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  args.GetReturnValue().Set(args[0].As<String>()->ContainsOnlyOneByte());
+}
+
+static bool FastIsByteString(Local<Value> receiver, Local<Value> value) {
+  TRACK_V8_FAST_API_CALL("buffer.isByteString");
+  CHECK(value->IsString());
+  return value.As<String>()->ContainsOnlyOneByte();
+}
+
+static CFunction fast_is_byte_string(CFunction::Make(FastIsByteString));
+
 // Number of UTF-16 code units produced by decoding [p, end) as UTF-8 with
 // WHATWG "maximal subpart" U+FFFD replacement, matching the fallback that
 // StringBytes::Encode takes for invalid input (v8::String::NewFromUtf8).
@@ -1928,6 +1947,8 @@ void Initialize(Local<Object> target,
   SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
   SetFastMethodNoSideEffect(
       context, target, "isAscii", IsAscii, &fast_is_ascii);
+  SetFastMethodNoSideEffect(
+      context, target, "isByteString", IsByteString, &fast_is_byte_string);
   SetFastMethodNoSideEffect(context,
                             target,
                             "stringLengthUtf8",
@@ -2008,6 +2029,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
   registry->Register(fast_is_ascii);
+  registry->Register(IsByteString);
+  registry->Register(fast_is_byte_string);
   registry->Register(StringLengthUtf8);
   registry->Register(fast_string_length_utf8);
 
