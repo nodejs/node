@@ -67,7 +67,7 @@ function runTests(sync) {
   const stream = new Utf8Stream({
     fd,
     sync: false,
-    minLength: 0,
+    minLength: 1000,
     fs: fsOverride,
   });
 
@@ -80,6 +80,33 @@ function runTests(sync) {
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
         assert.strictEqual(data, 'hello world\nsomething else\n');
+      }));
+    }));
+  }));
+}
+
+for (const contentMode of ['utf8', 'buffer']) {
+  const dest = getTempFile();
+  const fd = openSync(dest, 'w');
+  const stream = new Utf8Stream({
+    contentMode,
+    fd,
+    minLength: 0,
+    sync: false,
+  });
+  const text = `${contentMode} asynchronous write\n`;
+  const data = contentMode === 'buffer' ? Buffer.from(text) : text;
+
+  stream.on('ready', common.mustCall(() => {
+    assert.ok(stream.write(data));
+    assert.throws(
+      () => stream.flushSync(),
+      { code: 'ERR_INVALID_STATE' },
+    );
+    stream.flush(common.mustSucceed(() => {
+      stream.end();
+      readFile(dest, 'utf8', common.mustSucceed((contents) => {
+        assert.strictEqual(contents, text);
       }));
     }));
   }));
