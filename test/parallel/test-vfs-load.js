@@ -158,6 +158,31 @@ require('worker_threads').parentPort.postMessage('hello from worker in mount');
   assert.match(res.stdout, /hello from worker in mount/);
 }
 
+// The same with an --import preload, which defers the worker's mount until the
+// preload has run: its entry point is still resolved inside the mount, with the
+// extension search a file entry point gets.
+{
+  const dir = fixture('worker-import-app');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index.js'), `
+'use strict';
+const path = require('path');
+const { Worker } = require('worker_threads');
+const w = new Worker(path.join(__dirname, 'worker'));
+w.on('message', (m) => { console.log(m); process.exit(0); });
+w.on('error', (e) => { console.error(e); process.exit(1); });
+`);
+  fs.writeFileSync(path.join(dir, 'worker.js'), `
+'use strict';
+require('worker_threads').parentPort.postMessage('hello from worker in mount');
+`);
+  const preload = fixture('empty-preload.mjs');
+  fs.writeFileSync(preload, '');
+  const res = run(['--import', pathToFileURL(preload).href, `--vfs-load=${dir}`]);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /hello from worker in mount/);
+}
+
 // The same, for a worker whose nearest package.json inside the mount says
 // "module": the entry point's type is read from the mount rather than from
 // the real file system above the reserved mount point.
