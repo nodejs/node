@@ -3718,6 +3718,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/59824
     description: The `shouldUpgradeCallback` option is now supported.
   - version:
+      - v24.6.0
+      - v22.19.0
+    pr-url: https://github.com/nodejs/node/pull/59243
+    description: The `keepAliveTimeoutBuffer` option is supported now.
+  - version:
     - v20.1.0
     - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47405
@@ -3797,6 +3802,10 @@ changes:
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
     **Default:** `65000`.
+  * `keepAliveTimeoutBuffer`: An additional buffer time in milliseconds added
+    to `keepAliveTimeout` to extend the internal socket timeout.
+    See [`server.keepAliveTimeoutBuffer`][] for more information.
+    **Default:** `1000`.
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
