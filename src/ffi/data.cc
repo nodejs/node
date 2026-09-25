@@ -50,7 +50,10 @@ Maybe<size_t> GetValidatedSize(Environment* env,
     return Nothing<size_t>();
   }
 
-  if (length > static_cast<double>(std::numeric_limits<size_t>::max())) {
+  // Values beyond Number.MAX_SAFE_INTEGER may already have been rounded
+  // by the caller. On 32-bit platforms SIZE_MAX is the tighter bound.
+  if (length > kMaxSafeJsInteger ||
+      length > static_cast<double>(std::numeric_limits<size_t>::max())) {
     THROW_ERR_OUT_OF_RANGE(env, "The %s is too large", label);
     return Nothing<size_t>();
   }
