@@ -1,0 +1,34 @@
+Error: Number error cause
+    at Object.<anonymous> (<project-root>/test/fixtures/util/util-inspect-error-cause.js:14:16)
+    at <node-internal-frames> {
+  [cause]: 42
+}
+Error: Object cause
+    at Object.<anonymous> (<project-root>/test/fixtures/util/util-inspect-error-cause.js:15:16)
+    at <node-internal-frames> {
+  [cause]: {
+    message: 'Unique',
+    name: 'Error',
+    stack: 'Error: Unique\n' +
+      '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
+  }
+}
+Error: undefined cause
+    at Object.<anonymous> (<project-root>/test/fixtures/util/util-inspect-error-cause.js:24:16)
+    at <node-internal-frames> {
+  [cause]: undefined
+}
+Error: Stack causes
+    at Object.<anonymous> (<project-root>/test/fixtures/util/util-inspect-error-cause.js:12:16)
+    at <node-internal-frames> {
+  [cause]: FoobarError: Individual message
+      at Object.<anonymous> (<project-root>/test/fixtures/util/util-inspect-error-cause.js:10:16)
+      ... 5 lines matching cause stack trace ...
+      at <node-internal-frames> {
+    status: 'Feeling good',
+    extraProperties: 'Yes!',
+    [cause]: TypeError: Inner error
+        at Object.<anonymous> (<project-root>/test/fixtures/util/util-inspect-error-cause.js:9:16)
+        at <node-internal-frames>
+  }
+}
