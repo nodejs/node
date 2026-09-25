@@ -176,8 +176,12 @@ const {
 }
 
 (async () => {
+  // Chunk generations are aligned to the histogram's creation time. Use two
+  // chunks so that a chunk boundary falling between record() and snapshot()
+  // cannot drop the freshly recorded value, and wait for a duration that is
+  // not a multiple of chunkDuration so the wakeup does not land on a boundary.
   const histogram = createSlidingWindowHistogram({
-    chunks: 1,
+    chunks: 2,
     chunkDuration: 100,
     highest: 100,
   });
@@ -185,7 +189,7 @@ const {
   histogram.record(1);
   assert.strictEqual(histogram.snapshot().count, 1);
 
-  await delay(common.platformTimeout(200));
+  await delay(common.platformTimeout(250));
   assert.strictEqual(histogram.snapshot().count, 0);
 
   histogram.record(2);
