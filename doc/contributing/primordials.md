@@ -105,7 +105,9 @@ There are some built-in functions that accept a variable number of arguments
 the list of arguments as an array. You can use primordial function with the
 suffix `Apply` (e.g.: `MathMaxApply`, `ArrayPrototypePushApply`) to do that.
 
-## Primordials with known performance issues
+## Limitations and exclusions
+
+### Primordials with known performance issues
 
 One of the reasons why the current Node.js API is not completely tamper-proof is
 performance: sometimes the use of primordials can cause performance regressions
@@ -136,6 +138,32 @@ performance of code in Node.js.
 
 In general, when sending or reviewing a PR that makes changes in a hot code
 path, use extra caution and run extensive benchmarks.
+
+### User-defined index properties on `Array.prototype`
+
+A recurring theme in issues/PRs is that changing the behavior of indexed
+array properties via `Array.prototype` breaks a particular Node.js API.
+
+<!-- eslint-disable accessor-pairs -->
+
+```js
+// User-land
+Object.defineProperty(
+  Array.prototype,
+  '0',
+  { set() {} },
+);
+
+// Core
+const array = [];
+ArrayPrototypePush(array, 'some value');
+console.log(array[0]); // undefined
+```
+
+These patterns are expected to break both ECMAScript builtins and application
+code, and Node.js does not make any attempt to harden against them. To do so
+would necessitate using property descriptor methods for every single array
+interaction, which is not practical.
 
 ## Implicit use of user-mutable methods
 
