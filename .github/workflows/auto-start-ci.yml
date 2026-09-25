@@ -1,6 +1,9 @@
 # This action uses the following secrets:
 #   JENKINS_USER: GitHub user whose Jenkins token is defined below
 #   JENKINS_TOKEN: Jenkins token, to be used to start or resume CI
+# Optional repository variables:
+#   AUTO_START_CI_BATCH_SIZE: maximum PRs to process per run (default: 5)
+#   AUTO_START_CI_MAX_WORKLOAD: pause at this many running or queued PR jobs (default: 10)
 name: Auto Start CI
 
 on:
@@ -30,16 +33,24 @@ jobs:
     steps:
       - name: Get Pull Requests
         id: get_prs_for_ci
+        shell: bash
         run: |
+          if ! [[ "$BATCH_SIZE" =~ ^(0|[1-9][0-9]*)$ ]]; then
+            echo '::error::AUTO_START_CI_BATCH_SIZE must be a non-negative integer'
+            exit 1
+          fi
+          # Filter before selecting the batch; UNKNOWN mergeability is retried later.
           numbers=$(gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
-                  --json 'number' \
+                  --json 'number,mergeable' \
                   --search 'review:approved label:request-ci,resume-ci' \
-                  -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 5)
+                  --limit 100 \
+                  | jq --argjson limit "$BATCH_SIZE" \
+                    '[.[] | select(.mergeable == "MERGEABLE") | .number] | .[:$limit] | map(tostring) | join(" ")' -r)
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
+          BATCH_SIZE: ${{ vars.AUTO_START_CI_BATCH_SIZE || '5' }}
   start-ci:
     permissions:
       checks: read
@@ -78,3 +89,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PULL_REQUESTS: ${{ needs.get-prs-for-ci.outputs.numbers }}
+          MAX_WORKLOAD: ${{ vars.AUTO_START_CI_MAX_WORKLOAD || '10' }}
