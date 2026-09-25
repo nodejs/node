@@ -23,9 +23,14 @@ assert.throws(() => fs.openAsBlobSync(1), {
 assert.throws(() => fs.openAsBlobSync(testfile, null), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-assert.throws(() => fs.openAsBlobSync(testfile, { type: 1 }), {
-  code: 'ERR_INVALID_ARG_TYPE',
-});
+for (const type of [1, 0, false, null, NaN, {}]) {
+  assert.throws(() => fs.openAsBlobSync(testfile, { type }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => fs.openAsBlob(testfile, { type }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
 assert.throws(() => fs.openAsBlobSync(missing), {
   code: 'ENOENT',
   syscall: 'stat',
