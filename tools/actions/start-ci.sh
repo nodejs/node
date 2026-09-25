@@ -6,7 +6,7 @@ cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_I
 max_workload=${MAX_WORKLOAD:-15}
 case $max_workload in
   *[!0-9]*)
-    echo '::error::AUTO_START_CI_MAX_WORKLOAD must be a non-negative integer'
+    echo '::error::AUTO_START_CI_MAX_WORKLOAD must be a positive integer'
     exit 1
     ;;
   *) ;;
@@ -38,7 +38,7 @@ for pr in "$@"; do
   fi
   case $workload in
     ''|*[!0-9]*)
-      echo '::error::ncu-ci workload did not return a non-negative integer'
+      echo '::error::ncu-ci workload did not return a positive integer'
       exit 1
       ;;
     *) ;;
