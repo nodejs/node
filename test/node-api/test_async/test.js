@@ -2,6 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const child_process = require('child_process');
+const dc = require('diagnostics_channel');
 const test_async = require(`./build/${common.buildType}/test_async`);
 
 const testException = 'test_async_cb_exception';
@@ -27,4 +28,12 @@ test_async.Test(5, {}, common.mustCall(function(err, val) {
 }));
 
 // Async work item cancellation with callback.
-test_async.TestCancel(common.mustCall());
+const events = [];
+const onThreadPoolWork = (event) => events.push(event);
+dc.subscribe('threadpool.work.node_api', onThreadPoolWork);
+test_async.TestCancel(common.mustCall(() => {
+  dc.unsubscribe('threadpool.work.node_api', onThreadPoolWork);
+  const event = events.find(({ started, ended }) =>
+    started === null && ended === null);
+  assert.ok(event);
+}));
