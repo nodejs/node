@@ -133,7 +133,7 @@ jobs:
         run: |
           export DATESTRING=$(date "+%Y-%m-%d")
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
-          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1 GZIP_COMPRESSION=6
         env:
           DISTTYPE: nightly
 
