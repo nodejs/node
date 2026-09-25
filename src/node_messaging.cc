@@ -190,6 +190,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   transferables_.clear();
 
   LocalVector<SharedArrayBuffer> shared_array_buffers(env->isolate());
+  shared_array_buffers.reserve(shared_array_buffers_.size());
   // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
     Local<SharedArrayBuffer> sab =
