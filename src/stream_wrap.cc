@@ -188,6 +188,9 @@ LibuvStreamWrap* LibuvStreamWrap::From(Environment* env, Local<Object> object) {
   return Unwrap<LibuvStreamWrap>(object);
 }
 
+bool LibuvStreamWrap::IsProcessStdioOrIPCChannel(Environment* env, int fd) {
+  return fd >= 0 && (fd <= 2 || fd == env->ipc_channel_fd());
+}
 
 int LibuvStreamWrap::GetFD() {
 #ifdef _WIN32

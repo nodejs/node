@@ -827,6 +827,10 @@ class Environment final : public MemoryRetainer {
   inline std::shared_ptr<KVStore> env_vars();
   inline void set_env_vars(std::shared_ptr<KVStore> env_vars);
 
+  // The IPC channel descriptor passed by the parent process through
+  // NODE_CHANNEL_FD when this Environment was created, or -1.
+  inline int ipc_channel_fd() const;
+
   inline IsolateData* isolate_data() const;
 
   inline bool printed_error() const;
@@ -1249,6 +1253,7 @@ class Environment final : public MemoryRetainer {
   permission::Permission permission_;
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
+  int ipc_channel_fd_ = -1;
   bool printed_error_ = false;
   bool trace_sync_io_ = false;
   bool emit_env_nonstring_warning_ = true;
