@@ -39,6 +39,17 @@ const oversizedLengthStdout = String.fromCharCode(oversizedLengthHeader[0]) +
   Buffer.from(oversizedLengthHeader.subarray(1)).toString('utf-8');
 const unsignedOversizedLengthStdout = String.fromCharCode(unsignedOversizedLengthHeader[0]) +
   Buffer.from(unsignedOversizedLengthHeader.subarray(1)).toString('utf-8');
+// FF 0F followed by a small, plausible size (8) and 8 payload bytes. Unlike the
+// oversized headers above, this passes the size check and reaches the
+// deserializer, which throws because the payload is not a real message.
+// Regression fixture for https://github.com/nodejs/node/issues/66164
+const plausibleSizeFalseHeader = Buffer.from([
+  0xff, 0x0f,             // v8 serializer header magic
+  0x00, 0x00, 0x00, 0x08, // payload size of 8 bytes
+  0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, // "ABCDEFGH", not a real payload
+]);
+const plausibleSizeFalseHeaderStdout = String.fromCharCode(plausibleSizeFalseHeader[0]) +
+  Buffer.from(plausibleSizeFalseHeader.subarray(1)).toString('utf-8');
 
 function collectStdout(reported) {
   return reported
@@ -167,6 +178,52 @@ describe('v8 deserializer', common.mustCall(() => {
     ]);
     assert(reported.every((event) => event.type === 'test:stdout'));
     assert.strictEqual(collectStdout(reported), oversizedLengthStdout);
+  });
+
+  it('should not crash when stdout mimics a v8 frame with a plausible size', async () => {
+    // Regression test for https://github.com/nodejs/node/issues/66164
+    // The bytes reach the deserializer and it throws. The parser must emit
+    // them as stdout instead of letting the error abort the whole run.
+    const reported = await collectReported([plausibleSizeFalseHeader]);
+    assert(reported.every((event) => event.type === 'test:stdout'));
+    assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
+  });
+
+  it('should resync and parse a real message after a plausible-size false frame', async () => {
+    // The poison bytes followed by a real serialized message. The parser must
+    // recover from the failed deserialize and still report the real event.
+    const reported = await collectReported([
+      plausibleSizeFalseHeader,
+      ...chunks,
+    ]);
+    assert.deepStrictEqual(reported.at(-1), reportedDiagnosticEvent);
+    assert.strictEqual(reported.filter((event) => event.type === 'test:diagnostic').length, 1);
+    assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
+  });
+
+  it('should preserve real messages on both sides of a plausible-size false frame', async () => {
+    // A real message, then the poison bytes, then another real message. Both
+    // real messages must survive and the poison bytes must become stdout.
+    const reported = await collectReported([
+      ...chunks,
+      plausibleSizeFalseHeader,
+      ...chunks,
+    ]);
+    const diagnostics = reported.filter((event) => event.type === 'test:diagnostic');
+    assert.strictEqual(diagnostics.length, 2);
+    diagnostics.forEach((event) => assert.deepStrictEqual(event, reportedDiagnosticEvent));
+    assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
+  });
+
+  it('should recover from a plausible-size false frame split across chunks', async () => {
+    // The same poison bytes arriving in two chunks must still be treated as
+    // stdout without crashing.
+    const reported = await collectReported([
+      plausibleSizeFalseHeader.subarray(0, 3),
+      plausibleSizeFalseHeader.subarray(3),
+    ]);
+    assert(reported.every((event) => event.type === 'test:stdout'));
+    assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
   });
 
   const headerPosition = headerLength * 2 + 4;
