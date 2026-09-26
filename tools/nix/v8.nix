@@ -50,7 +50,7 @@ let
       ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
       ++ lib.optional (!useSharedSimdutf) ../../tools/v8_gypfiles/simdutf.gyp
       ++ lib.optional (
-        builtins.elem "--with-perfetto" configureFlags
+        !(builtins.elem "--without-perfetto" configureFlags)
         && !(builtins.elem "--shared-perfetto" configureFlags)
       ) ../../deps/perfetto
       ++ lib.optionals (icu != null) [

@@ -5,7 +5,7 @@
   withSQLite ? true,
   withSSL ? true,
   withFFI ? true,
-  withPerfetto ? false,
+  withPerfetto ? true,
   withTemporal ? false,
 }:
 {
