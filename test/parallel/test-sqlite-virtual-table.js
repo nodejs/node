@@ -3,12 +3,12 @@
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
-const { DatabaseSync } = require('node:sqlite');
+const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
 
-suite('DatabaseSync.prototype.createModule()', () => {
+suite('Database.prototype.createModule()', () => {
   suite('input validation', () => {
-    const db = new DatabaseSync(':memory:');
+    const db = new Database(':memory:');
 
     test('throws if name is not a string', () => {
       assert.throws(() => {
@@ -133,7 +133,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('throws if database is not open', () => {
-      const closedDb = new DatabaseSync(':memory:');
+      const closedDb = new Database(':memory:');
       closedDb.close();
       assert.throws(() => {
         closedDb.createModule('mod', {
@@ -149,7 +149,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('basic virtual table', () => {
     test('creates a simple read-only virtual table', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('simple', {
         columns: [
@@ -173,7 +173,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('works as eponymous table (without CREATE VIRTUAL TABLE)', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('eponymous', {
         columns: [
@@ -193,7 +193,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('supports rows() returning an array', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('array_mod', {
         columns: [
@@ -213,7 +213,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('supports empty result set', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('empty_mod', {
         columns: [
@@ -231,7 +231,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('table-valued function with parameters', () => {
     test('passes hidden column values as arguments to rows()', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('gen_series', {
         columns: [
@@ -263,7 +263,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('passes step parameter', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('gen_step', {
         columns: [
@@ -294,7 +294,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('handles partial parameters (some hidden cols unconstrained)', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('partial_params', {
         columns: [
@@ -320,7 +320,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('maps parameters correctly beyond 32 hidden columns', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       const paramCount = 40;
       const columns = [{ name: 'value', type: 'INTEGER' }];
       for (let i = 0; i < paramCount; i++) {
@@ -349,7 +349,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('type conversions', () => {
     test('handles various SQLite data types', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('types_mod', {
         columns: [
@@ -378,7 +378,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('useBigIntArguments', () => {
     test('passes INTEGER parameters as BigInts when enabled', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let receivedType;
 
       db.createModule('bigint_mod', {
@@ -398,7 +398,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('passes INTEGER parameters as numbers by default', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let receivedType;
 
       db.createModule('number_mod', {
@@ -429,7 +429,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
       ['a row getter', (db) => () => [{ get 0() { db.close(); return 1; } }]],
     ]) {
       test(`throws when close() is called from ${name}`, () => {
-        const db = new DatabaseSync(':memory:');
+        const db = new Database(':memory:');
         db.createModule('closer', {
           columns: [{ name: 'value', type: 'INTEGER' }],
           rows: makeRows(db),
@@ -445,7 +445,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     }
 
     test('throws when createModule() is called from an authorizer', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.exec('CREATE TABLE t(a)');
       let err;
       db.setAuthorizer(() => {
@@ -468,7 +468,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('iterator cleanup', () => {
     test('closes the iterator when SQLite stops stepping early', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let cleanedUp = false;
 
       db.createModule('early_stop', {
@@ -490,7 +490,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('keeps the original error when rows() throws', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('cleanup_throws', {
         columns: [{ name: 'value', type: 'INTEGER' }],
@@ -510,7 +510,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('closes the iterator on break out of a for...of loop', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let cleanedUp = false;
 
       db.createModule('breaker', {
@@ -533,7 +533,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('surfaces an error thrown by the iterator\'s return()', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       for (const [label, descriptor] of [
         ['method', { value() { throw new Error('return boom'); } }],
@@ -592,7 +592,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
       // The destructor runs from a GC callback, where JavaScript cannot be
       // executed. An abandoned generator does not run `finally` in JavaScript
       // either, so the expected outcome is no crash and no cleanup.
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let cleanedUp = false;
 
       db.createModule('abandoned', {
@@ -622,7 +622,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
       // SQLite discards xClose's return value, so a cleanup error there has no
       // SQLite error to pair with. Suppressing one would leave the suppression
       // flag set for the next unrelated statement.
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('cleanup_leak', {
         columns: [{ name: 'value', type: 'INTEGER' }],
@@ -651,7 +651,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
       // one can surface, and xClose cannot choose based on the statement's
       // state, because SQLite closes cursors before transferring the error to
       // the connection. The constraint violation is the actionable one.
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('both_fail', {
         columns: [{ name: 'value', type: 'INTEGER' }],
@@ -700,7 +700,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
       ],
     ]) {
       test(`reports an error when ${name}`, () => {
-        const db = new DatabaseSync(':memory:');
+        const db = new Database(':memory:');
         db.createModule('bad', {
           columns: [{ name: 'v', type: 'INTEGER' }],
           rows,
@@ -721,7 +721,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('hidden column constraints', () => {
     const makeDb = () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       db.createModule('gs', {
         columns: [
           { name: 'value', type: 'INTEGER' },
@@ -781,7 +781,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('error handling', () => {
     test('propagates errors thrown in rows()', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('error_mod', {
         columns: [
@@ -800,7 +800,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
     });
 
     test('propagates errors thrown during iteration', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
 
       db.createModule('iter_error_mod', {
         columns: [
@@ -822,7 +822,7 @@ suite('DatabaseSync.prototype.createModule()', () => {
 
   suite('multiple queries', () => {
     test('supports querying the virtual table multiple times', () => {
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       let callCount = 0;
 
       db.createModule('multi_mod', {
