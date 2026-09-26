@@ -24,6 +24,7 @@ class Endpoint;
 class Packet;
 class Session;
 class SessionManager;
+struct QuicAllocState;
 
 // ============================================================================
 
@@ -281,15 +282,12 @@ class BindingData final
 
   // NgLibMemoryManager — the base class provides CheckAllocatedSize,
   // IncreaseAllocatedSize, DecreaseAllocatedSize, and StopTrackingMemory.
-  // Actual allocations go through the thread-local allocators below.
+  // Actual allocations go through the allocators below.
   void CheckAllocatedSize(size_t previous_size) const;
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
 
-  // Thread-local allocators that outlive BindingData destruction.
-  // Both ngtcp2 and nghttp3 store the allocator pointer inside every
-  // object they allocate; some of those objects (e.g., nghttp3 rcbufs
-  // backing V8 external strings) can be freed after BindingData is gone.
+  // The allocators can outlive the BindingData; see QuicAllocState.
   ngtcp2_mem* ngtcp2_allocator();
   nghttp3_mem* nghttp3_allocator();
 
@@ -383,6 +381,8 @@ class BindingData final
   ArenaPtr session_stats_arena_{nullptr, +[](void*) {}};
   ArenaPtr endpoint_state_arena_{nullptr, +[](void*) {}};
   ArenaPtr endpoint_stats_arena_{nullptr, +[](void*) {}};
+
+  QuicAllocState* alloc_state_;
 
   // Deferred send flush state. The CheckWrapHandle fires immediately after
   // the I/O poll phase in the same event loop tick, allowing batched
