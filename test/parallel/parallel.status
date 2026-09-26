@@ -30,8 +30,6 @@ test-fs-cp-async-symlink-points-to-dest: SKIP
 [$system==win32 && $arch==arm64]
 
 [$system==linux]
-# https://github.com/nodejs/node/issues/54803
-test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 
