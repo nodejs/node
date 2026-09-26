@@ -2189,10 +2189,17 @@ Only applicable to deflate algorithm.
 
 <!-- YAML
 added: v0.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/66157
+    description: Brotli streams preserve parameters and dictionary on reset.
 -->
 
 For inflate and deflate streams, reset the compressor/decompressor to factory
 defaults.
+
+For Brotli streams, start a new compression or decompression session while
+preserving the configured parameters and dictionary.
 
 For Zstd streams, cancel the current frame and start a new session while
 preserving the configured parameters and dictionary. If `pledgedSrcSize` was

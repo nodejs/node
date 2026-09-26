@@ -52,6 +52,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <optional>
+#include <utility>
+#include <vector>
 
 namespace node {
 
@@ -178,6 +180,18 @@ struct CompressionError {
   inline bool IsError() const { return code != nullptr; }
 };
 
+void RecordBrotliParam(std::vector<std::pair<int, uint32_t>>* params,
+                       int key,
+                       uint32_t value) {
+  for (auto& entry : *params) {
+    if (entry.first == key) {
+      entry.second = value;
+      return;
+    }
+  }
+  params->emplace_back(key, value);
+}
+
 class ZlibContext final : public MemoryRetainer {
  public:
   ZlibContext() = default;
@@ -286,6 +300,8 @@ class BrotliEncoderContext final : public BrotliContext {
       prepared_dictionary_;
   // Dictionary data must remain valid while the prepared dictionary is alive.
   std::vector<uint8_t> dictionary_;
+  // Last successful parameters, replayed by ResetStream.
+  std::vector<std::pair<int, uint32_t>> params_;
 };
 
 class BrotliDecoderContext final : public BrotliContext {
@@ -308,6 +324,8 @@ class BrotliDecoderContext final : public BrotliContext {
   DeleteFnPtr<BrotliDecoderState, BrotliDecoderDestroyInstance> state_;
   // Dictionary data must remain valid for the lifetime of the decoder.
   std::vector<uint8_t> dictionary_;
+  // Last successful parameters, replayed by ResetStream.
+  std::vector<std::pair<int, uint32_t>> params_;
 };
 
 class ZstdContext : public MemoryRetainer {
@@ -1505,6 +1523,7 @@ void BrotliEncoderContext::Close() {
   state_.reset();
   prepared_dictionary_.reset();
   dictionary_.clear();
+  params_.clear();
   mode_ = NONE;
 }
 
@@ -1518,6 +1537,7 @@ CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
   // Clean up any previous dictionary state before re-initializing.
   prepared_dictionary_.reset();
   dictionary_.clear();
+  params_.clear();
 
   state_.reset(BrotliEncoderCreateInstance(alloc, free, opaque));
   if (!state_) {
@@ -1557,7 +1577,19 @@ CompressionError BrotliEncoderContext::Init(std::vector<uint8_t>&& dictionary) {
 }
 
 CompressionError BrotliEncoderContext::ResetStream() {
-  return Init();
+  std::vector<uint8_t> dictionary = dictionary_;
+  const auto params = params_;
+  CompressionError err = Init(std::move(dictionary));
+  if (err.IsError()) {
+    return err;
+  }
+  for (const auto& entry : params) {
+    err = SetParams(entry.first, entry.second);
+    if (err.IsError()) {
+      return err;
+    }
+  }
+  return CompressionError{};
 }
 
 CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
@@ -1568,6 +1600,7 @@ CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
                             "ERR_BROTLI_PARAM_SET_FAILED",
                             -1);
   } else {
+    RecordBrotliParam(&params_, key, value);
     return CompressionError {};
   }
 }
@@ -1586,6 +1619,7 @@ CompressionError BrotliEncoderContext::GetErrorInfo() const {
 void BrotliDecoderContext::Close() {
   state_.reset();
   dictionary_.clear();
+  params_.clear();
   mode_ = NONE;
 }
 
@@ -1615,6 +1649,7 @@ CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
 
   // Clean up any previous dictionary state before re-initializing.
   dictionary_.clear();
+  params_.clear();
 
   state_.reset(BrotliDecoderCreateInstance(alloc, free, opaque));
   if (!state_) {
@@ -1642,7 +1677,19 @@ CompressionError BrotliDecoderContext::Init(std::vector<uint8_t>&& dictionary) {
 }
 
 CompressionError BrotliDecoderContext::ResetStream() {
-  return Init();
+  std::vector<uint8_t> dictionary = dictionary_;
+  const auto params = params_;
+  CompressionError err = Init(std::move(dictionary));
+  if (err.IsError()) {
+    return err;
+  }
+  for (const auto& entry : params) {
+    err = SetParams(entry.first, entry.second);
+    if (err.IsError()) {
+      return err;
+    }
+  }
+  return CompressionError{};
 }
 
 CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
@@ -1653,6 +1700,7 @@ CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
                             "ERR_BROTLI_PARAM_SET_FAILED",
                             -1);
   } else {
+    RecordBrotliParam(&params_, key, value);
     return CompressionError {};
   }
 }
