@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { once } = require('events');
 const { createServer } = require('http');
 const { connect } = require('net');
 
@@ -70,7 +71,7 @@ server.listen(0, common.mustCall(() => {
   request1.client.write(requestBodyPart1);
 
   // After a little while send two new requests
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     request2 = createClient(server);
     request3 = createClient(server);
 
@@ -79,7 +80,17 @@ server.listen(0, common.mustCall(() => {
 
     // Send the third request and stop in the middle of the headers
     request3.client.write(requestBodyPart1);
-  }, headersTimeout * 0.2);
+
+    request2.client.on('end', common.mustCall(() => {
+      // The second request times out due to headersTimeout, so after the first
+      // request has been completed and before the fourth request's body is sent
+      assert(request1.completed);
+      assert(!request4.completed);
+
+      assert(request1.response.startsWith(responseOk));
+      assert(request2.response.startsWith(responseTimeout)); // It is expired due to headersTimeout
+    }));
+  }), headersTimeout * 0.2);
 
   // After another little while send the last two new requests
   setTimeout(() => {
@@ -103,31 +114,23 @@ server.listen(0, common.mustCall(() => {
   }, headersTimeout * 0.8);
 
   setTimeout(common.mustCall(() => {
-    // After the first timeout, the first request should have been completed and second timedout
-    assert(request1.completed);
-    assert(request2.completed);
+    // After the first timeout, the requests with completed headers should still be pending
     assert(!request3.completed);
     assert(!request4.completed);
     assert(!request5.completed);
 
-    assert(request1.response.startsWith(responseOk));
-    assert(request2.response.startsWith(responseTimeout)); // It is expired due to headersTimeout
+    const pending = [request3, request4, request5];
+    Promise.all(pending.map(({ client }) => once(client, 'end'))).then(common.mustCall(() => {
+      // All request should be completed now, either with 200 or 408
+      assert(request3.response.startsWith(responseTimeout)); // It is expired due to requestTimeout
+      assert(request4.response.startsWith(responseOk));
+      assert(request5.response.startsWith(responseTimeout)); // It is expired due to requestTimeout
+      server.close();
+    }));
   }), headersTimeout * 1.4);
 
   setTimeout(() => {
     // Complete the body for the fourth request
     request4.client.write(requestBodyPart3);
   }, headersTimeout * 1.5);
-
-  setTimeout(common.mustCall(() => {
-    // All request should be completed now, either with 200 or 408
-    assert(request3.completed);
-    assert(request4.completed);
-    assert(request5.completed);
-
-    assert(request3.response.startsWith(responseTimeout)); // It is expired due to requestTimeout
-    assert(request4.response.startsWith(responseOk));
-    assert(request5.response.startsWith(responseTimeout)); // It is expired due to requestTimeout
-    server.close();
-  }), headersTimeout * 3 + connectionsCheckingInterval);
 }));
