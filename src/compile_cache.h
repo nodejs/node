@@ -16,7 +16,8 @@ class Environment;
 #define CACHED_CODE_TYPES(V)                                                   \
   V(kCommonJS, 0)                                                              \
   V(kESM, 1)                                                                   \
-  V(kStrippedTypeScript, 2)
+  V(kStrippedTypeScript, 2)                                                    \
+  V(kWasm, 3)
 
 enum class CachedCodeType : uint8_t {
 #define V(type, value) type = value,
@@ -89,11 +90,18 @@ class CompileCacheHandler {
   CompileCacheEntry* GetOrInsert(v8::Local<v8::String> code,
                                  v8::Local<v8::String> filename,
                                  CachedCodeType type);
+  CompileCacheEntry* GetOrInsert(const uint8_t* code,
+                                 size_t code_size,
+                                 v8::Local<v8::String> filename,
+                                 CachedCodeType type);
   void MaybeSave(CompileCacheEntry* entry,
                  v8::Local<v8::Function> func,
                  bool rejected);
   void MaybeSave(CompileCacheEntry* entry,
                  v8::Local<v8::Module> mod,
+                 bool rejected);
+  void MaybeSave(CompileCacheEntry* entry,
+                 v8::Local<v8::WasmModuleObject> mod,
                  bool rejected);
   void MaybeSave(CompileCacheEntry* entry, std::string_view transpiled);
   std::string_view cache_dir() { return compile_cache_dir_; }

@@ -8853,7 +8853,15 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
     Isolate* v8_isolate, MemorySpan<const uint8_t> wire_bytes) {
+  return Compile(v8_isolate, wire_bytes, CompileOptions{});
+}
+
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
+    Isolate* v8_isolate, MemorySpan<const uint8_t> wire_bytes,
+    const CompileOptions& options) {
 #if V8_ENABLE_WEBASSEMBLY
+  i::wasm::CompileTimeImports compile_imports =
+      i::wasm::CompileTimeImportsFromOptions(options);
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
@@ -8864,10 +8872,11 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
     i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
     auto enabled_features =
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
-    // TODO(14179): Provide an API method that supports compile options.
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
-        i_isolate, enabled_features, i::wasm::CompileTimeImports{}, &thrower,
-        std::move(bytes));
+        i_isolate, enabled_features, std::move(compile_imports), &thrower,
+        std::move(bytes),
+        base::Vector<const char>(options.source_url.data(),
+                                 options.source_url.size()));
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) return {};
