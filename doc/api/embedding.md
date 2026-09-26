@@ -95,13 +95,10 @@ to as `node::Environment`. Each `node::Environment` is associated with:
 
 `node::Environment`s that share a `node::IsolateData` also share its
 `uv_loop_t`. `node::FreeEnvironment()` runs that loop until the handles of the
-`node::Environment` being freed have closed, and JavaScript execution is
-disallowed on the whole `v8::Isolate` while it does, so pending timers, I/O
-callbacks and thread pool completions that belong to other `node::Environment`s
-on the same loop can run inside that call without being able to call into
-JavaScript. `node::Environment`s that are freed independently of one another
-should each use their own `uv_loop_t` and `node::IsolateData`, or the embedder
-should make sure the others have no pending work when one of them is freed.
+`node::Environment` being freed have closed. Timers, I/O callbacks and thread
+pool completions of the other `node::Environment`s that become due in those
+loop iterations run normally, including their JavaScript; only the
+`node::Environment` being freed can no longer call into JavaScript.
 
 In order to set up a `v8::Isolate`, an `v8::ArrayBuffer::Allocator` needs
 to be provided. One possible choice is the default Node.js allocator, which

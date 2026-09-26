@@ -182,10 +182,8 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline worker::Worker* worker_context() const;
   inline void set_worker_context(worker::Worker* context);
 
-  // Non-zero while an Environment on this isolate is closing its handles with
-  // JS disallowed isolate-wide; InternalCallbackScope re-allows it for the
-  // other Environments whose callbacks run in those loop turns.
-  int handle_cleanup_depth = 0;
+  void AddEnvironment() { environment_count_++; }
+  void RemoveEnvironment() { environment_count_--; }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
@@ -288,6 +286,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
+  size_t environment_count_ = 0;
   PerIsolateWrapperData* wrapper_data_;
 
   static Mutex isolate_data_mutex_;
