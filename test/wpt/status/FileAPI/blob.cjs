@@ -23,14 +23,17 @@ module.exports = {
   'Blob-constructor-dom.window.js': {
     skip: 'Depends on DOM API',
   },
-  'Blob-constructor.any.js': {
-    fail: {
-      flaky: [
-        'Passing typed arrays as elements of the blobParts array should work.',
-        'Passing a Float16Array as element of the blobParts array should work.',
-        'Passing a Float64Array as element of the blobParts array should work.',
-        'Passing BigInt typed arrays as elements of the blobParts array should work.',
-      ],
+  ...(os.endianness() === 'BE' ? {
+    'Blob-constructor.any.js': {
+      fail: {
+        note: 'The expected bytes assume a little-endian platform',
+        expected: [
+          'Passing typed arrays as elements of the blobParts array should work.',
+          'Passing a Float16Array as element of the blobParts array should work.',
+          'Passing a Float64Array as element of the blobParts array should work.',
+          'Passing BigInt typed arrays as elements of the blobParts array should work.',
+        ],
+      },
     },
-  },
+  } : {}),
 };
