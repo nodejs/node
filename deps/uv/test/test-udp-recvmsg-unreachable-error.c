@@ -84,6 +84,8 @@ TEST_IMPL(udp_recvmsg_unreachable_error) {
                         udp_send_cb));
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT_EQ(recv_cb_called, RECV_CB_MAX_CALL);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -91,6 +93,9 @@ TEST_IMPL(udp_recvmsg_unreachable_error6) {
 #if !defined(__linux__)
   RETURN_SKIP("This test is Linux-specific");
 #endif
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   struct sockaddr_in6 server_addr, client_addr;
   uv_udp_t client;
   uv_timer_t timer;
@@ -121,5 +126,7 @@ TEST_IMPL(udp_recvmsg_unreachable_error6) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT_EQ(recv_cb_called, RECV_CB_MAX_CALL);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

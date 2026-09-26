@@ -1,6 +1,7 @@
 # primary
 furo==2024.8.6
 Sphinx==7.0.1
+sphinx-copybutton==0.5.2
 
 # dependencies
 alabaster==0.7.16

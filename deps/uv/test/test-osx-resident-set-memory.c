@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,25 +19,46 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_VERSION_H
-#define UV_VERSION_H
+#include "uv.h"
+#include "task.h"
 
- /*
- * Versions with the same major number are ABI stable. API is allowed to
- * evolve between minor releases, but only in a backwards compatible way.
- * Make sure you update the -soname directives in configure.ac
- * whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
- * not UV_VERSION_PATCH.)
- */
+#ifdef __APPLE__
 
-#define UV_VERSION_MAJOR 1
-#define UV_VERSION_MINOR 53
-#define UV_VERSION_PATCH 0
-#define UV_VERSION_IS_RELEASE 1
-#define UV_VERSION_SUFFIX ""
+#include <string.h>
+#include <sys/mman.h>
 
-#define UV_VERSION_HEX  ((UV_VERSION_MAJOR << 16) | \
-                         (UV_VERSION_MINOR <<  8) | \
-                         (UV_VERSION_PATCH))
+TEST_IMPL(osx_resident_set_memory) {
+  size_t before;
+  size_t during;
+  size_t after;
+  size_t size;
+  char* mem;
 
-#endif /* UV_VERSION_H */
+  size = 64 << 20;
+
+  ASSERT_OK(uv_resident_set_memory(&before));
+
+  mem = mmap(NULL,
+             size,
+             PROT_READ | PROT_WRITE,
+             MAP_ANON | MAP_PRIVATE,
+             -1,
+             0);
+  ASSERT_PTR_NE(mem, MAP_FAILED);
+  memset(mem, 42, size);
+
+  ASSERT_OK(uv_resident_set_memory(&during));
+  ASSERT_GE(during, before + size / 2);
+
+  /* How allocators free memory on macOS; the pages stay resident. */
+  ASSERT_OK(madvise(mem, size, MADV_FREE_REUSABLE));
+
+  ASSERT_OK(uv_resident_set_memory(&after));
+  ASSERT_LT(after, before + size / 2);
+
+  ASSERT_OK(munmap(mem, size));
+
+  return 0;
+}
+
+#endif /* __APPLE__ */

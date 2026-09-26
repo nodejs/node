@@ -22,8 +22,6 @@
 #include "uv.h"
 #include "task.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define CHECK_HANDLE(handle) \
@@ -86,32 +84,6 @@ TEST_IMPL(udp_try_send) {
   struct sockaddr_in addr;
   static char buffer[64 * 1024];
   uv_buf_t buf;
-  int r;
-
-  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
-
-  r = uv_udp_init(uv_default_loop(), &server);
-  ASSERT_OK(r);
-
-  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
-  ASSERT_OK(r);
-
-  r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
-  ASSERT_OK(r);
-
-  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-
-  r = uv_udp_init(uv_default_loop(), &client);
-  ASSERT_OK(r);
-
-  buf = uv_buf_init(buffer, sizeof(buffer));
-
-  r = uv_udp_try_send(&client, &buf, 0, (const struct sockaddr*) &addr);
-  ASSERT_EQ(r, UV_EINVAL);
-
-  r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr);
-  ASSERT_EQ(r, UV_EMSGSIZE);
-
   uv_buf_t* bufs[] = {&buf, &buf};
   unsigned int nbufs[] = {1, 1};
   struct sockaddr* addrs[] = {
@@ -119,22 +91,35 @@ TEST_IMPL(udp_try_send) {
     (struct sockaddr*) &addr,
   };
 
+  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  ASSERT_OK(uv_udp_init(uv_default_loop(), &server));
+  ASSERT_OK(uv_udp_bind(&server, (const struct sockaddr*) &addr, 0));
+  ASSERT_OK(uv_udp_recv_start(&server, alloc_cb, sv_recv_cb));
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
+
+  buf = uv_buf_init(buffer, sizeof(buffer));
+
+  ASSERT_EQ(uv_udp_try_send(&client, &buf, 0, (const struct sockaddr*) &addr),
+            UV_EINVAL);
+
+  ASSERT_EQ(uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr),
+            UV_EMSGSIZE);
+
   ASSERT_EQ(0, sv_recv_cb_called);
 
   buf = uv_buf_init("HELO", 4);
-  r = uv_udp_try_send2(&client, 2, bufs, nbufs, addrs, /*flags*/0);
-  ASSERT_EQ(r, 2);
+  ASSERT_EQ(2, uv_udp_try_send2(&client, 2, bufs, nbufs, addrs, /*flags*/0));
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   ASSERT_EQ(2, sv_recv_cb_called);
 
-  r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
-  ASSERT_OK(r);
+  ASSERT_OK(uv_udp_recv_start(&server, alloc_cb, sv_recv_cb));
 
   buf = uv_buf_init("EXIT", 4);
-  r = uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr);
-  ASSERT_EQ(4, r);
+  ASSERT_EQ(uv_udp_try_send(&client, &buf, 1, (const struct sockaddr*) &addr),
+            4);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 

@@ -19,68 +19,63 @@
  * IN THE SOFTWARE.
  */
 
-#include <errno.h>
-
-#ifndef _WIN32
-# include <fcntl.h>
-# include <sys/socket.h>
-# include <unistd.h>
-#endif
-
 #include "uv.h"
 #include "task.h"
 
-#define NUM_SOCKETS 64
+
+#ifndef _WIN32
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 
-static int close_cb_called = 0;
+static int write_cb_called;
+static int close_cb_called;
 
 
 static void close_cb(uv_handle_t* handle) {
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
 
-/* uv_poll_init_socket() does not take ownership of the socket. */
-static void close_socket(uv_os_sock_t sock) {
-#ifdef _WIN32
-  ASSERT_OK(closesocket(sock));
-#else
-  ASSERT_OK(close(sock));
-#endif
+static void write_cb(uv_write_t* req, int status) {
+  ASSERT_NOT_NULL(req);
+  ASSERT_OK(status);
+  write_cb_called++;
+  uv_close((uv_handle_t*) req->handle, close_cb);
 }
 
 
-TEST_IMPL(poll_close) {
-  uv_os_sock_t sockets[NUM_SOCKETS];
-  uv_poll_t poll_handles[NUM_SOCKETS];
-  int i;
-
+TEST_IMPL(pipe_write_trailing_empty_buf) {
 #ifdef _WIN32
-  {
-    struct WSAData wsa_data;
-    int r = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-    ASSERT_OK(r);
-  }
-#endif
+  RETURN_SKIP("Unix only test");
+#else
+  uv_pipe_t pipe_handle;
+  uv_write_t write_req;
+  uv_buf_t bufs[2];
+  int fd;
 
-  for (i = 0; i < NUM_SOCKETS; i++) {
-    sockets[i] = socket(AF_INET, SOCK_STREAM, 0);
-    uv_poll_init_socket(uv_default_loop(), &poll_handles[i], sockets[i]);
-    uv_poll_start(&poll_handles[i], UV_READABLE | UV_WRITABLE, NULL);
-  }
+  fd = open("/dev/null", O_WRONLY);
+  ASSERT_GE(fd, 0);
 
-  for (i = 0; i < NUM_SOCKETS; i++) {
-    uv_close((uv_handle_t*) &poll_handles[i], close_cb);
-  }
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_handle, 0));
+  ASSERT_OK(uv_pipe_open(&pipe_handle, fd));
+  fd = -1; /* fd is owned by pipe_handle now. */
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  bufs[0] = uv_buf_init("hello\n", 6);
+  bufs[1] = uv_buf_init(NULL, 0);
+  ASSERT_OK(uv_write(&write_req,
+                     (uv_stream_t*) &pipe_handle,
+                     bufs,
+                     ARRAY_SIZE(bufs),
+                     write_cb));
 
-  ASSERT_EQ(close_cb_called, NUM_SOCKETS);
-
-  for (i = 0; i < NUM_SOCKETS; i++)
-    close_socket(sockets[i]);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(1, write_cb_called);
+  ASSERT_EQ(1, close_cb_called);
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
+#endif
 }

@@ -102,7 +102,8 @@ void uv__winsock_init(void) {
 
   /* Try to detect non-IFS LSPs */
   uv_tcp_non_ifs_lsp_ipv4 = 1;
-  dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  dummy = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0,
+                     WSA_FLAG_NO_HANDLE_INHERIT);
   if (dummy != INVALID_SOCKET) {
     opt_len = (int) sizeof protocol_info;
     if (getsockopt(dummy,
@@ -118,7 +119,8 @@ void uv__winsock_init(void) {
 
   /* Try to detect IPV6 support and non-IFS LSPs */
   uv_tcp_non_ifs_lsp_ipv6 = 1;
-  dummy = socket(AF_INET6, SOCK_STREAM, IPPROTO_IP);
+  dummy = WSASocketW(AF_INET6, SOCK_STREAM, IPPROTO_IP, NULL, 0,
+                     WSA_FLAG_NO_HANDLE_INHERIT);
   if (dummy != INVALID_SOCKET) {
     opt_len = (int) sizeof protocol_info;
     if (getsockopt(dummy,
