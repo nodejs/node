@@ -89,11 +89,10 @@ function watchUntil(target, done) {
   }
 
   {
-    // So is removing a watched root that is a file (with an empty filename,
-    // as before).
+    // Removing a watched root that is a file is reported.
     const lone = tmpdir.resolve('lone.txt');
     fs.writeFileSync(lone, 'x');
-    const events = watchUntil(lone, (seen) => seen.includes('rename '));
+    const events = watchUntil(lone, (seen) => seen.includes('rename lone.txt'));
     await delay();
     fs.rmSync(lone);
     await events;
