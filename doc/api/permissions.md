@@ -368,8 +368,6 @@ There are constraints you need to know before using this system:
   expanded path is not covered by `--allow-fs-write`. Because the location is
   chosen by the operator, gaps like this are treated as regular bugs rather
   than vulnerabilities. Please report them through the regular issue tracker.
-* OpenSSL engines cannot be requested at runtime when the Permission
-  Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Run-Time Loadable Extensions cannot be loaded when the Permission Model is
   enabled, affecting the sqlite module.
 * Using existing file descriptors via the `node:fs` module bypasses the

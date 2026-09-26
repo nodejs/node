@@ -8,7 +8,7 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #include <openssl/decoder.h>
 #endif
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
@@ -22,7 +22,7 @@
 #include <cstring>
 #include <string_view>
 #include <vector>
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
@@ -32,16 +32,6 @@
 #include <openssl/thread.h>
 #endif
 #endif
-// EVP_PKEY_CTX_set_dsa_paramgen_q_bits was added in OpenSSL 1.1.1e.
-#if OPENSSL_VERSION_NUMBER < 0x1010105fL
-#define EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, qbits)                       \
-  EVP_PKEY_CTX_ctrl((ctx),                                                     \
-                    EVP_PKEY_DSA,                                              \
-                    EVP_PKEY_OP_PARAMGEN,                                      \
-                    EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS,                         \
-                    (qbits),                                                   \
-                    nullptr)
-#endif
 
 namespace ncrypto {
 namespace {
@@ -49,7 +39,7 @@ using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using BignumGenCallbackPointer = DeleteFnPtr<BN_GENCB, BN_GENCB_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 using X509PubKeyPointer = DeleteFnPtr<X509_PUBKEY, X509_PUBKEY_free>;
 // OSSL_STORE_close() returns int, so it needs a void-returning adapter to be
 // usable as a DeleteFnPtr deleter.
@@ -61,22 +51,18 @@ using UIMethodPointer = DeleteFnPtr<UI_METHOD, UI_destroy_method>;
 #endif
 
 const EVP_CIPHER* GetCipherCtxCipher(const EVP_CIPHER_CTX* ctx) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVP_CIPHER_CTX_get0_cipher(ctx);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return EVP_CIPHER_CTX_cipher(ctx);
 #endif
 }
 
 const EVP_MD* GetDigestCtxMd(const EVP_MD_CTX* ctx) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER || NCRYPTO_USE_BORINGSSL
   return EVP_MD_CTX_get0_md(ctx);
-#else
-  return EVP_MD_CTX_md(ctx);
-#endif
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 using ASN1StringPointer = DeleteFnPtr<ASN1_STRING, ASN1_STRING_free>;
 using OSSLParamBldPointer = DeleteFnPtr<OSSL_PARAM_BLD, OSSL_PARAM_BLD_free>;
 using RsaPssParamsPointer = DeleteFnPtr<RSA_PSS_PARAMS, RSA_PSS_PARAMS_free>;
@@ -130,7 +116,7 @@ constexpr std::array<RsaOtherPrimeParamNames, 8> kRsaOtherPrimeParamNames = {{
 static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB & ~ASN1_STRFLGS_ESC_CTRL;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 template <typename Pointer>
 bool GetPKeyBnParam(const EVP_PKEY* pkey, const char* name, Pointer* out) {
   BIGNUM* bn = nullptr;
@@ -407,7 +393,7 @@ DataPointer DataPointer::SecureAlloc(size_t len) {
   // free function (OPENSSL_secure_clear_free vs. OPENSSL_clear_free) and
   // callers of isSecure() get a truthful answer.
   return DataPointer(ptr, len, CRYPTO_secure_allocated(ptr) == 1);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   // BoringSSL does not implement the OPENSSL_secure_zalloc API.
   auto ptr = OPENSSL_malloc(len);
   if (ptr == nullptr) return {};
@@ -511,9 +497,9 @@ namespace {
 std::atomic<uint64_t> fips_state_generation{0};
 
 bool isFipsEnabledRaw() {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   return EVP_default_properties_is_fips_enabled(nullptr) == 1;
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   return FIPS_mode() == 1;
 #endif
 }
@@ -528,10 +514,10 @@ bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
   const bool was_enabled = isFipsEnabled();
   if (was_enabled == enable) return true;
   ClearErrorOnReturn clearErrorOnReturn(errors);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   const bool success =
       EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   const bool success = FIPS_mode_set(enable ? 1 : 0) == 1;
 #endif
   if (success && isFipsEnabledRaw() != was_enabled) {
@@ -546,7 +532,7 @@ uint64_t getFipsStateGeneration() {
 
 bool testFipsEnabled() {
   ClearErrorOnReturn clear_error_on_return;
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   OSSL_PROVIDER* fips_provider = nullptr;
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
     fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
@@ -555,7 +541,7 @@ bool testFipsEnabled() {
   int result = OSSL_PROVIDER_self_test(fips_provider);
   OSSL_PROVIDER_unload(fips_provider);
   return result;
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
 #ifdef OPENSSL_FIPS
   return FIPS_selftest();
 #else  // OPENSSL_FIPS
@@ -728,7 +714,7 @@ int BignumPointer::isPrime(int nchecks,
         },
         &innerCb);
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return BN_check_prime(get(), ctx.get(), cb.get());
 #elif NCRYPTO_USE_BORINGSSL
   int is_probably_prime = 0;
@@ -737,8 +723,6 @@ int BignumPointer::isPrime(int nchecks,
     return -1;
   }
   return is_probably_prime;
-#else
-  return BN_is_prime_ex(get(), nchecks, ctx.get(), cb.get());
 #endif
 }
 
@@ -808,11 +792,11 @@ bool CSPRNG(void* buffer, size_t length) {
   auto buf = reinterpret_cast<unsigned char*>(buffer);
   do {
     if (1 == RAND_status()) {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
       if (1 == RAND_bytes_ex(nullptr, buf, length, 0)) {
         return true;
       }
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
       while (length > INT_MAX && 1 == RAND_bytes(buf, INT_MAX)) {
         buf += INT_MAX;
         length -= INT_MAX;
@@ -821,9 +805,9 @@ bool CSPRNG(void* buffer, size_t length) {
         return true;
 #endif
     }
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
     const auto code = ERR_peek_last_error();
-    // A misconfigured OpenSSL 3 installation may report 1 from RAND_poll()
+    // A misconfigured OpenSSL installation may report 1 from RAND_poll()
     // and RAND_status() but fail in RAND_bytes() if it cannot look up
     // a matching algorithm for the CSPRNG.
     if (ERR_GET_LIB(code) == ERR_LIB_RAND) {
@@ -858,7 +842,7 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   return -1;
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 namespace {
 struct StorePassphraseData {
   Buffer<char> passphrase{.data = nullptr, .len = 0};
@@ -1144,9 +1128,9 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
         BIO_printf(out.get(), (j == 0) ? "%X" : ":%X", pair);
       }
     } else {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
       BIO_printf(out.get(), "<invalid length=%d>", ip_len);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
       BIO_printf(out.get(), "<invalid>");
 #endif
     }
@@ -1158,14 +1142,14 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     BIO_printf(out.get(), "Registered ID:%s", oline);
   } else if (gen->type == GEN_OTHERNAME) {
     // The format that is used here is based on OpenSSL's implementation of
-    // GENERAL_NAME_print (as of OpenSSL 3.0.1). Earlier versions of Node.js
+    // GENERAL_NAME_print. Earlier versions of Node.js
     // instead produced the same format as i2v_GENERAL_NAME, which was somewhat
     // awkward, especially when passed to translatePeerCertificate.
     bool unicode = true;
     const char* prefix = nullptr;
-    // OpenSSL 1.1.1 does not support othername in GENERAL_NAME_print and may
+    // BoringSSL does not support othername in GENERAL_NAME_print and may
     // not define these NIDs.
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
     int nid = OBJ_obj2nid(gen->d.otherName->type_id);
     switch (nid) {
       case NID_id_on_SmtpUTF8Mailbox:
@@ -1185,7 +1169,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
         prefix = "NAIRealm";
         break;
     }
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // !OPENSSL_IS_BORINGSSL
     int val_type = gen->d.otherName->value->type;
     if (prefix == nullptr || (unicode && val_type != V_ASN1_UTF8STRING) ||
         (!unicode && val_type != V_ASN1_IA5STRING)) {
@@ -1276,7 +1260,7 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext) {
   }
   sk_ACCESS_DESCRIPTION_pop_free(descs, ACCESS_DESCRIPTION_free);
 
-#if OPENSSL_VERSION_MAJOR < 3
+#ifdef OPENSSL_IS_BORINGSSL
   BIO_write(out.get(), "\n", 1);
 #endif
 
@@ -1653,9 +1637,9 @@ bool X509View::ifRsa(KeyCallback<Rsa> callback) const {
   if (cert_ == nullptr) return true;
   OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert_);
   if (EVPKeyPointer::isRsaVariant(pkey)) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     Rsa rsa(pkey);
-#else
+#elif NCRYPTO_USE_BORINGSSL
     Rsa rsa(EVP_PKEY_get0_RSA(pkey));
 #endif
     if (!rsa) [[unlikely]]
@@ -1669,9 +1653,9 @@ bool X509View::ifEc(KeyCallback<Ec> callback) const {
   if (cert_ == nullptr) return true;
   OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert_);
   if (EVPKeyPointer::isA(pkey, KeyAlgorithm::EC)) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     Ec ec(pkey);
-#else
+#elif NCRYPTO_USE_BORINGSSL
     Ec ec(EVP_PKEY_get0_EC_KEY(pkey));
 #endif
     if (!ec) [[unlikely]]
@@ -1701,9 +1685,9 @@ X509Pointer X509Pointer::IssuerFrom(const SSL_CTX* ctx, const X509View& cert) {
 }
 
 X509Pointer X509Pointer::PeerFrom(const SSLPointer& ssl) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return X509Pointer(SSL_get1_peer_certificate(ssl.get()));
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return X509Pointer(SSL_get_peer_certificate(ssl.get()));
 #endif
 }
@@ -1829,7 +1813,7 @@ int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
 // DHPointer
 
 namespace {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 const char* GetOpenSSLDhGroupName(const std::string_view name,
                                   DHPointer::FindGroupOption option) {
   if (option != DHPointer::FindGroupOption::NO_SMALL_PRIMES &&
@@ -1906,7 +1890,7 @@ std::optional<int> CheckDhParams(const BIGNUM* p,
                                  const BIGNUM* g,
                                  const BIGNUM* q,
                                  const BIGNUM* j) {
-  // TODO(panva): In a semver-major, consider tightening OpenSSL 3 validation
+  // TODO(panva): In a semver-major, consider tightening OpenSSL validation
   // to report generator and q failures as strictly as legacy DH_check().
   if (p == nullptr || g == nullptr) return std::nullopt;
 
@@ -1994,7 +1978,7 @@ std::optional<int> CheckDhParams(const BIGNUM* p,
 #endif
 }  // namespace
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 DHPointer::DHPointer(EVPKeyPointer&& key, const char* group_name)
     : dh_(key.release()), group_name_(group_name) {}
 
@@ -2002,12 +1986,12 @@ DHPointer::DHPointer(BignumPointer&& p,
                      BignumPointer&& g,
                      const char* group_name)
     : p_(std::move(p)), g_(std::move(g)), group_name_(group_name) {}
-#else
+#elif NCRYPTO_USE_BORINGSSL
 DHPointer::DHPointer(DH* dh) : dh_(dh) {}
 #endif
 
 DHPointer::DHPointer(DHPointer&& other) noexcept
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     : dh_(other.dh_.release()),
       p_(std::move(other.p_)),
       g_(std::move(other.g_)),
@@ -2016,7 +2000,7 @@ DHPointer::DHPointer(DHPointer&& other) noexcept
       group_name_(other.group_name_) {
   other.group_name_ = nullptr;
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
     : dh_(other.release()) {
 }
 #endif
@@ -2032,14 +2016,14 @@ DHPointer::~DHPointer() {
 }
 
 void DHPointer::reset(
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     EVP_PKEY* dh
-#else
+#elif NCRYPTO_USE_BORINGSSL
     DH* dh
 #endif
 ) {
   dh_.reset(dh);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   p_.reset();
   g_.reset();
   pub_key_.reset();
@@ -2048,7 +2032,7 @@ void DHPointer::reset(
 #endif
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 EVP_PKEY* DHPointer::release() {
   if (!dh_ && p_ && g_) {
     auto pkey =
@@ -2065,7 +2049,7 @@ EVP_PKEY* DHPointer::release() {
   group_name_ = nullptr;
   return dh_.release();
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 DH* DHPointer::release() {
   return dh_.release();
 }
@@ -2107,10 +2091,10 @@ DHPointer DHPointer::FromGroup(const std::string_view name,
   auto generator = GetStandardGenerator();
   if (!generator) return {};  // Unable to create the generator.
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const char* group_name = GetOpenSSLDhGroupName(name, option);
   return DHPointer(std::move(group), std::move(generator), group_name);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return New(std::move(group), std::move(generator));
 #endif
 }
@@ -2118,11 +2102,11 @@ DHPointer DHPointer::FromGroup(const std::string_view name,
 DHPointer DHPointer::New(BignumPointer&& p, BignumPointer&& g) {
   if (!p || !g) return {};
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   auto pkey = NewDhPKey(p.get(), g.get());
   if (!pkey) return {};
   return DHPointer(std::move(pkey));
-#else
+#elif NCRYPTO_USE_BORINGSSL
   DHPointer dh(DH_new());
   if (!dh) return {};
 
@@ -2141,7 +2125,7 @@ DHPointer DHPointer::New(BignumPointer&& p, BignumPointer&& g) {
 }
 
 DHPointer DHPointer::New(size_t bits, unsigned int generator) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   auto param_ctx = EVPKeyCtxPointer::NewFromAlgorithm(KeyAlgorithm::DH);
   if (!param_ctx.initForParamgen() ||
       !param_ctx.setDhParameters(bits, generator)) {
@@ -2151,7 +2135,7 @@ DHPointer DHPointer::New(size_t bits, unsigned int generator) {
   auto key_params = param_ctx.paramgen();
   if (!key_params) return {};
   return DHPointer(std::move(key_params));
-#else
+#elif NCRYPTO_USE_BORINGSSL
   DHPointer dh(DH_new());
   if (!dh) return {};
 
@@ -2166,7 +2150,7 @@ DHPointer DHPointer::New(size_t bits, unsigned int generator) {
 DHPointer::CheckResult DHPointer::check() {
   ClearErrorOnReturn clearErrorOnReturn;
   if (!*this) return DHPointer::CheckResult::NONE;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // TODO(panva): In a semver-major, consider validating named DH groups
   // through the provider instead of preserving the historical verifyError.
   if (group_name_ != nullptr) return CheckResult::NONE;
@@ -2194,7 +2178,7 @@ DHPointer::CheckResult DHPointer::check() {
   auto codes = CheckDhParams(p_bn, g_bn, q_bn, j_bn);
   if (!codes) return DHPointer::CheckResult::CHECK_FAILED;
   return static_cast<CheckResult>(*codes);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   int codes = 0;
   if (DH_check(dh_.get(), &codes) != 1)
     return DHPointer::CheckResult::CHECK_FAILED;
@@ -2208,7 +2192,7 @@ DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
   if (!pub_key || !*this) {
     return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   const BIGNUM* p_bn = p_.get();
@@ -2256,7 +2240,7 @@ DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
     return DHPointer::CheckPublicKeyResult::INVALID;
   }
   return CheckPublicKeyResult::NONE;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   int codes = 0;
   if (DH_check_pub_key(dh_.get(), pub_key.get(), &codes) != 1) {
     return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
@@ -2275,14 +2259,14 @@ DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
 
 DataPointer DHPointer::getPrime() const {
   if (!*this) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_) return p_.encode();
 
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   if (!GetDhParams(dh_.get(), &p, &g)) return {};
   return BignumPointer::Encode(p.get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const BIGNUM* p;
   DH_get0_pqg(dh_.get(), &p, nullptr, nullptr);
   return BignumPointer::Encode(p);
@@ -2291,14 +2275,14 @@ DataPointer DHPointer::getPrime() const {
 
 size_t DHPointer::getPrimeBits() const {
   if (!*this) return 0;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_) return BignumPointer::GetBitCount(p_.get());
 
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   if (!GetDhParams(dh_.get(), &p, &g)) return 0;
   return BignumPointer::GetBitCount(p.get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const BIGNUM* p;
   DH_get0_pqg(dh_.get(), &p, nullptr, nullptr);
   return BignumPointer::GetBitCount(p);
@@ -2307,14 +2291,14 @@ size_t DHPointer::getPrimeBits() const {
 
 DataPointer DHPointer::getGenerator() const {
   if (!*this) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (g_) return g_.encode();
 
   DeleteFnPtr<BIGNUM, BN_free> p;
   DeleteFnPtr<BIGNUM, BN_free> g;
   if (!GetDhParams(dh_.get(), &p, &g)) return {};
   return BignumPointer::Encode(g.get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const BIGNUM* g;
   DH_get0_pqg(dh_.get(), nullptr, nullptr, &g);
   return BignumPointer::Encode(g);
@@ -2323,14 +2307,14 @@ DataPointer DHPointer::getGenerator() const {
 
 DataPointer DHPointer::getPublicKey() const {
   if (!*this) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (pub_key_) return pub_key_.encode();
   if (!dh_) return {};
 
   DeleteFnPtr<BIGNUM, BN_free> pub_key;
   if (!GetDhKeys(dh_.get(), &pub_key, nullptr)) return {};
   return BignumPointer::Encode(pub_key.get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const BIGNUM* pub_key;
   DH_get0_key(dh_.get(), &pub_key, nullptr);
   return BignumPointer::Encode(pub_key);
@@ -2339,14 +2323,14 @@ DataPointer DHPointer::getPublicKey() const {
 
 DataPointer DHPointer::getPrivateKey() const {
   if (!*this) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (pvt_key_) return pvt_key_.encode();
   if (!dh_) return {};
 
   DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
   if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) return {};
   return BignumPointer::Encode(pvt_key.get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const BIGNUM* pvt_key;
   DH_get0_key(dh_.get(), nullptr, &pvt_key);
   return BignumPointer::Encode(pvt_key);
@@ -2355,14 +2339,14 @@ DataPointer DHPointer::getPrivateKey() const {
 
 bool DHPointer::hasPrivateKey() const {
   if (!*this) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (pvt_key_) return true;
   if (!dh_) return false;
 
   DeleteFnPtr<BIGNUM, BN_clear_free> pvt_key;
   if (!GetDhKeys(dh_.get(), nullptr, &pvt_key)) return false;
   return pvt_key != nullptr;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const BIGNUM* pvt_key = nullptr;
   DH_get0_key(dh_.get(), nullptr, &pvt_key);
   return pvt_key != nullptr;
@@ -2373,7 +2357,7 @@ DataPointer DHPointer::generateKeys() {
   ClearErrorOnReturn clearErrorOnReturn;
   if (!*this) return {};
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_ && g_) {
     if (!pvt_key_ && !GenerateDhPrivateKey(&pvt_key_, p_.get(), group_name_)) {
       return {};
@@ -2430,7 +2414,7 @@ DataPointer DHPointer::generateKeys() {
   if (EVP_PKEY_keygen(ctx.get(), &generated) != 1) return {};
   dh_.reset(generated);
   return getPublicKey();
-#else
+#elif NCRYPTO_USE_BORINGSSL
   // Key generation failed
   if (!DH_generate_key(dh_.get())) return {};
 
@@ -2440,12 +2424,12 @@ DataPointer DHPointer::generateKeys() {
 
 size_t DHPointer::size() const {
   if (!*this) return 0;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_) return BignumPointer::GetByteCount(p_.get());
 
   const int bits = EVP_PKEY_get_bits(dh_.get());
   return bits > 0 ? (static_cast<size_t>(bits) + 7) / 8 : 0;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   int ret = DH_size(dh_.get());
   // DH_size can return a -1 on error but we just want to return a 0
   // in that case so we don't wrap around when returning the size_t.
@@ -2457,7 +2441,7 @@ DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
   ClearErrorOnReturn clearErrorOnReturn;
   if (!*this || !peer) return {};
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_ && pvt_key_) {
     auto secret = BignumPointer::NewSecure();
     BignumCtxPointer ctx(BN_CTX_new());
@@ -2502,7 +2486,7 @@ DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
     return {};
   }
   return dp.resize(out_size);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   auto dp = DataPointer::Alloc(size());
   if (!dp) return {};
 
@@ -2525,7 +2509,7 @@ DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
 
 bool DHPointer::setPublicKey(BignumPointer&& key) {
   if (!*this) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_ && g_) {
     pub_key_ = std::move(key);
     return true;
@@ -2547,7 +2531,7 @@ bool DHPointer::setPublicKey(BignumPointer&& key) {
   if (!pkey) return false;
   dh_.reset(pkey.release());
   return true;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (DH_set0_key(dh_.get(), key.get(), nullptr) == 1) {
     // If DH_set0_key returns successfully, then dh_ takes ownership of the
     // BIGNUM, so we must release it here. Unfortunately coverity does not
@@ -2562,7 +2546,7 @@ bool DHPointer::setPublicKey(BignumPointer&& key) {
 
 bool DHPointer::setPrivateKey(BignumPointer&& key) {
   if (!*this) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (p_ && g_) {
     pvt_key_ = std::move(key);
     return true;
@@ -2584,7 +2568,7 @@ bool DHPointer::setPrivateKey(BignumPointer&& key) {
   if (!pkey) return false;
   dh_.reset(pkey.release());
   return true;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (DH_set0_key(dh_.get(), nullptr, key.get()) == 1) {
     // If DH_set0_key returns successfully, then dh_ takes ownership of the
     // BIGNUM, so we must release it here. Unfortunately coverity does not
@@ -2606,7 +2590,7 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
   if (!ctx || EVP_PKEY_derive_init(ctx.get()) <= 0) {
     return {};
   }
-  // TODO(panva): In a semver-major, consider padding OpenSSL 3 DH derivation
+  // TODO(panva): In a semver-major, consider padding OpenSSL DH derivation
   // results here to match DiffieHellman::computeSecret().
   if (EVP_PKEY_derive_set_peer(ctx.get(), theirKey.get()) <= 0 ||
       EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0) {
@@ -2634,7 +2618,7 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
 // ============================================================================
 // KDF
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 KDF::KDF(EVP_KDF* kdf) : kdf_(kdf) {}
 
 KDF KDF::Fetch(const char* algorithm, OSSL_LIB_CTX* libctx) {
@@ -2650,11 +2634,6 @@ bool KDF::derive(const Buffer<unsigned char>& out,
 #endif
 
 const EVP_MD* getDigestByName(const char* name) {
-  // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
-  // exposed through the public API.
-  if (strcmp(name, "dss1") == 0 || strcmp(name, "DSS1") == 0) [[unlikely]] {
-    return EVP_sha1();
-  }
   return EVP_get_digestbyname(name);
 }
 
@@ -2686,9 +2665,9 @@ DataPointer hkdf(const Digest& md,
     actual_salt = {default_salt, static_cast<unsigned>(md.size())};
   }
 
-  // Keep extraction as a one-shot HMAC. The legacy path requires it because
-  // EVP_PKEY_derive rejects the zero-length keys Web Crypto allows. Both
-  // backends expand a pseudorandom key of exactly one digest block.
+  // Keep extraction as a one-shot HMAC because BoringSSL's EVP_PKEY_derive
+  // rejects the zero-length keys Web Crypto allows. Both backends expand a
+  // pseudorandom key of exactly one digest block.
   unsigned char pseudorandom_key[EVP_MAX_MD_SIZE];
   unsigned pseudorandom_key_len = sizeof(pseudorandom_key);
 
@@ -2705,7 +2684,7 @@ DataPointer hkdf(const Digest& md,
   auto buf = DataPointer::Alloc(length);
   if (!buf) return {};
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // Expand through EVP_KDF directly. The EVP_PKEY_HKDF interface reaches the
   // same provider implementation, but only after allocating a second context
   // and translating every parameter across the legacy bridge.
@@ -2732,13 +2711,10 @@ DataPointer hkdf(const Digest& md,
   if (!kdf.derive({buf.get<unsigned char>(), length}, params.data())) {
     return {};
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   auto ctx = EVPKeyCtxPointer::NewFromName("HKDF");
-  // OpenSSL < 3.0.0 accepted only a void* as the argument of
-  // EVP_PKEY_CTX_set_hkdf_md.
-  const EVP_MD* md_ptr = md;
   if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
-      !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md_ptr) ||
+      !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md) ||
       !EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), info.data, info.len) ||
       !EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
       !EVP_PKEY_CTX_set1_hkdf_key(
@@ -2755,7 +2731,7 @@ DataPointer hkdf(const Digest& md,
   return buf;
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 namespace {
 bool ScryptDerive(const Buffer<const char>& pass,
                   const Buffer<const unsigned char>& salt,
@@ -2800,10 +2776,10 @@ bool ScryptDerive(const Buffer<const char>& pass,
 #endif
 
 bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // A null output validates the parameters without deriving a key.
   return ScryptDerive({nullptr, 0}, {nullptr, 0}, N, r, p, maxmem, nullptr, 0);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem, nullptr, 0) ==
          1;
 #endif
@@ -2821,10 +2797,10 @@ DataPointer scrypt(const Buffer<const char>& pass,
   }
 
   auto dp = DataPointer::Alloc(length);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (dp && ScryptDerive(
                 pass, salt, N, r, p, maxmem, dp.get<unsigned char>(), length)) {
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (dp && EVP_PBE_scrypt(pass.data,
                            pass.len,
                            salt.data,
@@ -2852,7 +2828,7 @@ DataPointer pbkdf2(const Digest& md,
   }
 
   auto dp = DataPointer::Alloc(length);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!dp) return {};
   auto kdf = KDF::Fetch(OSSL_KDF_NAME_PBKDF2);
   if (!kdf) return {};
@@ -2889,7 +2865,7 @@ DataPointer pbkdf2(const Digest& md,
   if (kdf.derive({dp.get<unsigned char>(), length}, params)) {
     return dp;
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const EVP_MD* md_ptr = md;
   if (dp && PKCS5_PBKDF2_HMAC(pass.data,
                               pass.len,
@@ -3065,7 +3041,7 @@ const KeyAlgorithm KeyAlgorithm::SLH_DSA_SHAKE_256S("SLH-DSA-SHAKE-256s", Family
 // clang-format on
 
 namespace {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 constexpr char kSignatureContextString[] = "context-string";
 constexpr char kSignatureInstance[] = "instance";
 #endif
@@ -3142,75 +3118,61 @@ size_t KeyAlgorithm::seedSize() const {
 }
 
 namespace {
-#if !NCRYPTO_USE_OPENSSL3_PROVIDER
-struct LegacyKeyAlgorithm {
+#if NCRYPTO_USE_BORINGSSL
+struct BoringSSLKeyAlgorithm {
   const char* name;
   int id;
-#if NCRYPTO_USE_BORINGSSL
   const EVP_PKEY_ALG* (*raw_key_algorithm)() = nullptr;
-#endif
 };
 
-// These backends require native key IDs. BoringSSL also uses EVP_PKEY_ALG
-// descriptors for raw keys; keep both adapters in the same table.
+// BoringSSL requires native key IDs and EVP_PKEY_ALG descriptors for raw keys;
+// keep both adapters in the same table.
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)
-const LegacyKeyAlgorithm kLegacyKeyAlgorithms[] = {
+const BoringSSLKeyAlgorithm kBoringSSLKeyAlgorithms[] = {
     {KeyAlgorithm::RSA.name(), EVP_PKEY_RSA},
     {KeyAlgorithm::RSA_PSS.name(), EVP_PKEY_RSA_PSS},
     {KeyAlgorithm::DSA.name(), EVP_PKEY_DSA},
     {KeyAlgorithm::DH.name(), EVP_PKEY_DH},
     {KeyAlgorithm::EC.name(), EVP_PKEY_EC},
-#if NCRYPTO_USE_BORINGSSL
     {KeyAlgorithm::ED25519.name(), EVP_PKEY_ED25519, EVP_pkey_ed25519},
     {KeyAlgorithm::X25519.name(), EVP_PKEY_X25519, EVP_pkey_x25519},
-#else
-    {KeyAlgorithm::ED25519.name(), EVP_PKEY_ED25519},
-    {KeyAlgorithm::X25519.name(), EVP_PKEY_X25519},
-#endif
     {"HKDF", EVP_PKEY_HKDF},
     {KeyAlgorithm::ED448.name(), EVP_PKEY_ED448},
     {KeyAlgorithm::X448.name(), EVP_PKEY_X448},
-#ifndef OPENSSL_NO_SM2
-    {KeyAlgorithm::SM2.name(), EVP_PKEY_SM2},
-#endif
-#if NCRYPTO_USE_BORINGSSL
     {KeyAlgorithm::ML_DSA_44.name(), EVP_PKEY_ML_DSA_44, EVP_pkey_ml_dsa_44},
     {KeyAlgorithm::ML_DSA_65.name(), EVP_PKEY_ML_DSA_65, EVP_pkey_ml_dsa_65},
     {KeyAlgorithm::ML_DSA_87.name(), EVP_PKEY_ML_DSA_87, EVP_pkey_ml_dsa_87},
     {KeyAlgorithm::ML_KEM_768.name(), EVP_PKEY_ML_KEM_768, EVP_pkey_ml_kem_768},
     {KeyAlgorithm::ML_KEM_1024.name(), EVP_PKEY_ML_KEM_1024, EVP_pkey_ml_kem_1024},
-#endif
 };
 // NOLINTEND(whitespace/line_length)
 // clang-format on
 
-const LegacyKeyAlgorithm* FindLegacyKeyAlgorithm(const char* name) {
+const BoringSSLKeyAlgorithm* FindBoringSSLKeyAlgorithm(const char* name) {
   if (name == nullptr) return nullptr;
-  for (const auto& algorithm : kLegacyKeyAlgorithms) {
+  for (const auto& algorithm : kBoringSSLKeyAlgorithms) {
     if (CaseInsensitiveNameEqual()(name, algorithm.name)) return &algorithm;
   }
   return nullptr;
 }
 
-int GetLegacyKeyId(const char* name) {
-  const auto* algorithm = FindLegacyKeyAlgorithm(name);
+int GetBoringSSLKeyId(const char* name) {
+  const auto* algorithm = FindBoringSSLKeyAlgorithm(name);
   return algorithm == nullptr ? NID_undef : algorithm->id;
 }
 
-#if NCRYPTO_USE_BORINGSSL
 const EVP_PKEY_ALG* GetBoringSSLKeyAlgorithm(const KeyAlgorithm& algorithm) {
-  const auto* entry = FindLegacyKeyAlgorithm(algorithm.name());
+  const auto* entry = FindBoringSSLKeyAlgorithm(algorithm.name());
   return entry != nullptr && entry->raw_key_algorithm != nullptr
              ? entry->raw_key_algorithm()
              : nullptr;
 }
 #endif
-#endif
 }  // namespace
 
 void ConfigurePqcEncoding() {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER && OPENSSL_VERSION_PREREQ(3, 5)
+#if NCRYPTO_USE_OPENSSL_PROVIDER && OPENSSL_VERSION_PREREQ(3, 5)
   // Configure all loaded providers to prefer seed-only format for ML-KEM and
   // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
   // seed is not available. The provider encoder reads these parameters at
@@ -3239,35 +3201,25 @@ EVPKeyPointer EVPKeyPointer::New() {
 
 EVPKeyPointer EVPKeyPointer::NewRawPublic(
     const KeyAlgorithm& algorithm, const Buffer<const unsigned char>& data) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVPKeyPointer(EVP_PKEY_new_raw_public_key_ex(
       nullptr, algorithm.name(), nullptr, data.data, data.len));
 #elif NCRYPTO_USE_BORINGSSL
   const auto* alg = GetBoringSSLKeyAlgorithm(algorithm);
   if (alg == nullptr) return {};
   return EVPKeyPointer(EVP_PKEY_from_raw_public_key(alg, data.data, data.len));
-#else
-  const int id = GetLegacyKeyId(algorithm.name());
-  if (id == NID_undef) return {};
-  return EVPKeyPointer(
-      EVP_PKEY_new_raw_public_key(id, nullptr, data.data, data.len));
 #endif
 }
 
 EVPKeyPointer EVPKeyPointer::NewRawPrivate(
     const KeyAlgorithm& algorithm, const Buffer<const unsigned char>& data) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVPKeyPointer(EVP_PKEY_new_raw_private_key_ex(
       nullptr, algorithm.name(), nullptr, data.data, data.len));
 #elif NCRYPTO_USE_BORINGSSL
   const auto* alg = GetBoringSSLKeyAlgorithm(algorithm);
   if (alg == nullptr) return {};
   return EVPKeyPointer(EVP_PKEY_from_raw_private_key(alg, data.data, data.len));
-#else
-  const int id = GetLegacyKeyId(algorithm.name());
-  if (id == NID_undef) return {};
-  return EVPKeyPointer(
-      EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 #endif
 }
 
@@ -3279,7 +3231,7 @@ EVPKeyPointer EVPKeyPointer::NewRawSeed(
   if (seed_alg == nullptr) return {};
   return EVPKeyPointer(
       EVP_PKEY_from_private_seed(seed_alg, data.data, data.len));
-#elif NCRYPTO_USE_OPENSSL3_PROVIDER
+#else
   // ML-DSA and ML-KEM both use the provider parameter "seed".
   OSSL_PARAM params[] = {
       OSSL_PARAM_construct_octet_string(
@@ -3293,16 +3245,14 @@ EVPKeyPointer EVPKeyPointer::NewRawSeed(
     return {};
   }
   return EVPKeyPointer(pkey);
-#else
-  return {};
 #endif
 }
 
 EVPKeyPointer EVPKeyPointer::NewDH(DHPointer&& dh) {
   if (!dh) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVPKeyPointer(dh.release());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   auto key = New();
   if (!key) return {};
   if (EVP_PKEY_assign_DH(key.get(), dh.get())) {
@@ -3312,7 +3262,7 @@ EVPKeyPointer EVPKeyPointer::NewDH(DHPointer&& dh) {
 #endif
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 EVPKeyPointer EVPKeyPointer::NewRSA(const Rsa& rsa) {
   const auto public_key = rsa.getPublicKey();
   if (public_key.n == nullptr || public_key.e == nullptr) return {};
@@ -3366,7 +3316,7 @@ EVPKeyPointer EVPKeyPointer::NewRSA(const Rsa& rsa) {
   if (!params) return {};
   return NewPKeyFromData(KeyAlgorithm::RSA, selection, params.get());
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 EVPKeyPointer EVPKeyPointer::NewRSA(RSAPointer&& rsa) {
   if (!rsa) return {};
   auto key = New();
@@ -3376,7 +3326,7 @@ EVPKeyPointer EVPKeyPointer::NewRSA(RSAPointer&& rsa) {
   }
   return key;
 }
-#endif  // NCRYPTO_USE_OPENSSL3_PROVIDER
+#endif  // NCRYPTO_USE_OPENSSL_PROVIDER
 
 EVPKeyPointer::EVPKeyPointer(EVP_PKEY* pkey) : pkey_(pkey) {}
 
@@ -3403,12 +3353,12 @@ EVP_PKEY* EVPKeyPointer::release() {
 
 bool EVPKeyPointer::isA(const EVP_PKEY* key, const char* name) {
   if (key == nullptr || name == nullptr) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // EVP_PKEY_is_a() can match an untyped key to an unknown legacy name.
   return EVP_PKEY_get0_type_name(key) != nullptr &&
          EVP_PKEY_is_a(key, name) == 1;
-#else
-  const int id = GetLegacyKeyId(name);
+#elif NCRYPTO_USE_BORINGSSL
+  const int id = GetBoringSSLKeyId(name);
   return id != NID_undef && EVP_PKEY_id(key) == id;
 #endif
 }
@@ -3416,13 +3366,12 @@ bool EVPKeyPointer::isA(const EVP_PKEY* key, const char* name) {
 // Returns true unless the key is known not to be SM2, so that a key whose curve
 // cannot be determined opts out of the prehashed fallback rather than into it.
 bool EVPKeyPointer::mayBeSM2() const {
-#ifdef OPENSSL_NO_SM2
+#if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_NO_SM2)
   return false;
 #else
   if (isA(KeyAlgorithm::SM2)) return true;
   if (!isA(KeyAlgorithm::EC)) return false;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
   // An ECKeyPointer would also need the public point, which a provider-backed
   // key need not expose.
   char group_name[64];
@@ -3436,14 +3385,6 @@ bool EVPKeyPointer::mayBeSM2() const {
   }
   return OBJ_sn2nid(group_name) == NID_sm2 ||
          EC_curve_nist2nid(group_name) == NID_sm2;
-#else
-  ECKeyPointer ec(*this);
-  if (!ec) return true;
-
-  const EC_GROUP* group = ec.getGroup();
-  if (group == nullptr) return true;
-  return EC_GROUP_get_curve_name(group) == NID_sm2;
-#endif
 #endif
 }
 
@@ -3461,7 +3402,7 @@ bool EVPKeyPointer::isA(const KeyAlgorithm& algorithm) const {
 
 const KeyAlgorithm* EVPKeyPointer::getAlgorithm() const {
   if (!pkey_) return nullptr;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // Provider primary names identify algorithms. Legacy ASN.1 methods can
   // share names (for example, SM2 uses EC), so resolve those through isA().
   // The fallback also handles providers with a noncanonical primary alias.
@@ -3474,9 +3415,9 @@ const KeyAlgorithm* EVPKeyPointer::getAlgorithm() const {
   for (const auto* algorithm : kKeyAlgorithms) {
     if (isA(*algorithm)) return algorithm;
   }
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const int id = EVP_PKEY_id(get());
-  for (const auto& algorithm : kLegacyKeyAlgorithms) {
+  for (const auto& algorithm : kBoringSSLKeyAlgorithms) {
     if (id == algorithm.id) return KeyAlgorithm::FromName(algorithm.name);
   }
 #endif
@@ -3501,7 +3442,7 @@ bool EVPKeyPointer::supportsRawPrivate() const {
 bool EVPKeyPointer::supportsContextString() const {
   const auto* algorithm = getAlgorithm();
   if (algorithm == nullptr || !algorithm->isOneShot()) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   MarkPopErrorOnReturn mark_pop_error_on_return;
   DeleteFnPtr<EVP_SIGNATURE, EVP_SIGNATURE_free> signature(
       EVP_SIGNATURE_fetch(nullptr, EVP_PKEY_get0_type_name(get()), nullptr));
@@ -3513,8 +3454,6 @@ bool EVPKeyPointer::supportsContextString() const {
           OSSL_PARAM_locate_const(params, kSignatureInstance) != nullptr);
 #elif NCRYPTO_USE_BORINGSSL
   return algorithm->isPqc();
-#else
-  return false;
 #endif
 }
 
@@ -3693,21 +3632,17 @@ DataPointer EVPKeyPointer::rawPublicKey() const {
 }
 
 namespace {
-DataPointer GetRawSeed([[maybe_unused]] EVP_PKEY* key, size_t seed_len) {
+DataPointer GetRawSeed(EVP_PKEY* key, size_t seed_len) {
   auto data = DataPointer::Alloc(seed_len);
   if (!data) return {};
-#if NCRYPTO_USE_BORINGSSL || NCRYPTO_USE_OPENSSL3_PROVIDER
   const Buffer<unsigned char> buf = data;
   size_t len = data.size();
-#endif
 #if NCRYPTO_USE_BORINGSSL
   if (EVP_PKEY_get_private_seed(key, buf.data, &len) != 1) return {};
-#elif NCRYPTO_USE_OPENSSL3_PROVIDER
+#else
   if (EVP_PKEY_get_octet_string_param(key, "seed", buf.data, buf.len, &len) !=
       1)
     return {};
-#else
-  return {};
 #endif
   return data;
 }
@@ -3785,16 +3720,16 @@ BIOPointer EVPKeyPointer::derPublicKey() const {
 
 bool EVPKeyPointer::assign(const ECKeyPointer& eckey) {
   if (!pkey_ || !eckey) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return set(eckey);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return EVP_PKEY_assign_EC_KEY(pkey_.get(), eckey.get());
 #endif
 }
 
 bool EVPKeyPointer::set(const ECKeyPointer& eckey) {
   if (!pkey_ || !eckey) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const int nid = EC_GROUP_get_curve_name(eckey.group_.get());
   const char* group_name = OBJ_nid2sn(nid);
   if (group_name == nullptr) return false;
@@ -3851,7 +3786,7 @@ bool EVPKeyPointer::set(const ECKeyPointer& eckey) {
   if (!pkey) return false;
   reset(pkey.release());
   return true;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return EVP_PKEY_set1_EC_KEY(pkey_.get(), eckey);
 #endif
 }
@@ -3866,7 +3801,7 @@ EVPKeyPointer::operator const EC_KEY*() const {
 namespace {
 
 EVP_PKEY* DecodeRsaPublicKey(const unsigned char** data, size_t length) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // Borrow the EVP_PKEY constructor and its data from a context that stays
   // alive until after the restricted decoder context is destroyed.
   EVP_PKEY* raw = nullptr;
@@ -3901,7 +3836,7 @@ EVP_PKEY* DecodeRsaPublicKey(const unsigned char** data, size_t length) {
   const int result = OSSL_DECODER_from_data(ctx.get(), data, &length);
   EVPKeyPointer key(raw);
   return result == 1 ? key.release() : nullptr;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return d2i_PublicKey(NID_rsaEncryption, nullptr, data, length);
 #endif
 }
@@ -4075,7 +4010,7 @@ Buffer<char> GetPassphrase(
   return pass;
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 using OSSLEncoderCtxPointer =
     DeleteFnPtr<OSSL_ENCODER_CTX, OSSL_ENCODER_CTX_free>;
 
@@ -4241,7 +4176,7 @@ EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryParsePrivateKey(
 
 EVPKeyPointer::ParseKeyResult EVPKeyPointer::TryLoadPrivateKeyFromStore(
     const StorePrivateKeyConfig& config) {
-#if !NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_BORINGSSL
   return ParseKeyResult(PKParseError::FAILED);
 #else
   // The error queue is left populated on failure so the caller can surface a
@@ -4352,7 +4287,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
       // PKCS1 is only permitted for RSA keys.
       if (!isA(KeyAlgorithm::RSA)) return Result<BIOPointer, bool>(false);
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
       const EVP_CIPHER* cipher =
           config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
       if (cipher != nullptr && passphrase.len == 0) {
@@ -4367,12 +4302,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
                                 cipher,
                                 passphrase);
       }
-#else
-#if OPENSSL_VERSION_MAJOR >= 3
-      const RSA* rsa = EVP_PKEY_get0_RSA(get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
       RSA* rsa = EVP_PKEY_get0_RSA(get());
-#endif
       if (rsa == nullptr) return Result<BIOPointer, bool>(false);
 
       switch (config.format) {
@@ -4434,7 +4365,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
       // SEC1 is only permitted for EC keys
       if (!isA(KeyAlgorithm::EC)) return Result<BIOPointer, bool>(false);
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
       const EVP_CIPHER* cipher =
           config.format == PKFormatType::PEM ? config.cipher.get() : nullptr;
       err = !WriteEncodedPKey(bio.get(),
@@ -4444,12 +4375,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePrivateKey(
                               "type-specific",
                               cipher,
                               passphrase);
-#else
-#if OPENSSL_VERSION_MAJOR >= 3
-      const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
       EC_KEY* ec = EVP_PKEY_get0_EC_KEY(get());
-#endif
       if (ec == nullptr) return Result<BIOPointer, bool>(false);
 
       switch (config.format) {
@@ -4501,7 +4428,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 
   if (config.type == ncrypto::EVPKeyPointer::PKEncodingType::PKCS1) {
     // PKCS#1 is only valid for RSA keys.
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (!isA(KeyAlgorithm::RSA)) return Result<BIOPointer, bool>(false);
     if (!WriteEncodedPKey(bio.get(),
                           get(),
@@ -4512,12 +4439,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
                                       mark_pop_error_on_return.peekError());
     }
     return bio;
-#else
-#if OPENSSL_VERSION_MAJOR >= 3
-    const RSA* rsa = EVP_PKEY_get0_RSA(get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
     RSA* rsa = EVP_PKEY_get0_RSA(get());
-#endif
     if (rsa == nullptr) return Result<BIOPointer, bool>(false);
 
     if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
@@ -4538,7 +4461,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 #endif
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (ECKeyHasMissingOid(*this)) {
     ERR_raise(ERR_LIB_EC, EC_R_MISSING_OID);
     return Result<BIOPointer, bool>(false,
@@ -4548,7 +4471,7 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 
   if (config.format == ncrypto::EVPKeyPointer::PKFormatType::PEM) {
     // Encode SPKI as PEM.
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     // Build the SubjectPublicKeyInfo wrapper explicitly before PEM encoding.
     // Provider-backed keys can fail the direct PEM_write_bio_PUBKEY() path even
     // when OpenSSL can materialize the public wrapper with X509_PUBKEY_set().
@@ -4563,8 +4486,8 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
       return Result<BIOPointer, bool>(false,
                                       mark_pop_error_on_return.peekError());
     }
-#else
-    // Non-OpenSSL >= 3 builds do not all declare PEM_write_bio_X509_PUBKEY().
+#elif NCRYPTO_USE_BORINGSSL
+    // BoringSSL does not declare PEM_write_bio_X509_PUBKEY().
     if (PEM_write_bio_PUBKEY(bio.get(), get()) != 1) {
       return Result<BIOPointer, bool>(false,
                                       mark_pop_error_on_return.peekError());
@@ -4582,9 +4505,6 @@ Result<BIOPointer, bool> EVPKeyPointer::writePublicKey(
 }
 
 bool EVPKeyPointer::isRsaVariant(const EVP_PKEY* key) {
-#if !NCRYPTO_USE_OPENSSL3_PROVIDER && !NCRYPTO_USE_BORINGSSL
-  if (key != nullptr && EVP_PKEY_id(key) == EVP_PKEY_RSA2) return true;
-#endif
   return isA(key, KeyAlgorithm::RSA) || isA(key, KeyAlgorithm::RSA_PSS);
 }
 
@@ -4605,11 +4525,11 @@ std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
   int bits;
 
   if (isA(KeyAlgorithm::DSA)) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     DeleteFnPtr<BIGNUM, BN_free> q;
     if (!GetPKeyBnParam(get(), OSSL_PKEY_PARAM_FFC_Q, &q)) return std::nullopt;
     bits = BignumPointer::GetBitCount(q.get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
     const DSA* dsa_key = EVP_PKEY_get0_DSA(get());
     bool has_bits = false;
     // Both r and s are computed mod q, so their width is limited by that of q.
@@ -4623,9 +4543,9 @@ std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
     if (!has_bits) return std::nullopt;
 #endif
   } else if (isA(KeyAlgorithm::EC)) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     bits = EVP_PKEY_bits(get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
     const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(get());
     if (ec_key == nullptr) return std::nullopt;
     const EC_GROUP* group = ECKeyPointer::GetGroup(ec_key);
@@ -4644,17 +4564,10 @@ std::optional<uint32_t> EVPKeyPointer::getBytesOfRS() const {
 EVPKeyPointer::operator Rsa() const {
   if (!isA(KeyAlgorithm::RSA) && !isA(KeyAlgorithm::RSA_PSS)) return {};
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return Rsa(get());
-#else
-  // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
-  // versions older than 1.1.1e via FIPS / dynamic linking.
-  OSSL3_CONST RSA* rsa;
-  if (OPENSSL_VERSION_NUMBER >= 0x1010105fL) {
-    rsa = EVP_PKEY_get0_RSA(get());
-  } else {
-    rsa = static_cast<OSSL3_CONST RSA*>(EVP_PKEY_get0(get()));
-  }
+#elif NCRYPTO_USE_BORINGSSL
+  OSSL3_CONST RSA* rsa = EVP_PKEY_get0_RSA(get());
   if (rsa == nullptr) return {};
   return Rsa(rsa);
 #endif
@@ -4663,9 +4576,9 @@ EVPKeyPointer::operator Rsa() const {
 EVPKeyPointer::operator Dsa() const {
   if (!isA(KeyAlgorithm::DSA)) return {};
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return Dsa(get());
-#else
+#elif NCRYPTO_USE_BORINGSSL
   OSSL3_CONST DSA* dsa = EVP_PKEY_get0_DSA(get());
   if (dsa == nullptr) return {};
   return Dsa(dsa);
@@ -4674,14 +4587,14 @@ EVPKeyPointer::operator Dsa() const {
 
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   if (EVP_default_properties_is_fips_enabled(nullptr) &&
       isA(KeyAlgorithm::DSA)) {
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   if (FIPS_mode() && isA(KeyAlgorithm::DSA)) {
 #endif
     // Validate DSA2 parameters from FIPS 186-4.
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     DeleteFnPtr<BIGNUM, BN_free> p;
     DeleteFnPtr<BIGNUM, BN_free> q;
     if (!GetPKeyBnParam(pkey_.get(), OSSL_PKEY_PARAM_FFC_P, &p) ||
@@ -4690,7 +4603,7 @@ bool EVPKeyPointer::validateDsaParameters() const {
     }
     const BIGNUM* p_value = p.get();
     const BIGNUM* q_value = q.get();
-#else
+#elif NCRYPTO_USE_BORINGSSL
     const DSA* dsa = EVP_PKEY_get0_DSA(pkey_.get());
     if (dsa == nullptr) return false;
     const BIGNUM* p;
@@ -4843,7 +4756,7 @@ EVPKeyPointer SSLPointer::getPeerTempKey() const {
   EVP_PKEY* raw_key = nullptr;
 #ifndef OPENSSL_IS_BORINGSSL
   if (!SSL_get_peer_tmp_key(get(), &raw_key)) return {};
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   if (!SSL_get_server_tmp_key(get(), &raw_key)) return {};
 #endif
   return EVPKeyPointer(raw_key);
@@ -4946,7 +4859,7 @@ bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 #ifndef OPENSSL_IS_BORINGSSL
   if (!ctx_) return false;
   return SSL_CTX_set_ciphersuites(ctx_.get(), ciphers);
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   // BoringSSL does not allow API config of TLS 1.3 cipher suites.
   // We treat this as a non-op.
   return true;
@@ -4960,7 +4873,7 @@ constexpr char AsciiToLower(char c) {
   return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 constexpr auto kUnsupportedCipherFlags =
     EVP_CIPH_FLAG_CIPHER_WITH_MAC | EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK;
 
@@ -5002,7 +4915,7 @@ void PushAlgorithmAlias(const char* name, void* arg) {
 #endif
 }  // namespace
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 Cipher::Cipher(DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> cipher)
     : cipher_(cipher.get()), fetched_cipher_(std::move(cipher)) {}
 #endif
@@ -5025,12 +4938,12 @@ bool CaseInsensitiveNameEqual::operator()(std::string_view lhs,
 
 DigestCache::Result DigestCache::lookup(const char* name,
                                         uint64_t generation) const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (generation_ != generation) return {};
   const auto it = aliases_.find(name);
   if (it == aliases_.end()) return {};
   return lookup(it->second, generation);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(name);
   static_cast<void>(generation);
   return {};
@@ -5040,7 +4953,7 @@ DigestCache::Result DigestCache::lookup(const char* name,
 DigestCache::Result DigestCache::insert(const char* name,
                                         const EVP_MD* digest,
                                         uint64_t generation) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (generation_ != generation || name == nullptr || digest == nullptr) {
     return {};
   }
@@ -5076,7 +4989,7 @@ DigestCache::Result DigestCache::insert(const char* name,
   aliases_.insert_or_assign(name, id);
 
   return {digests_[index].get(), id};
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(name);
   static_cast<void>(digest);
   static_cast<void>(generation);
@@ -5085,7 +4998,7 @@ DigestCache::Result DigestCache::insert(const char* name,
 }
 
 void DigestCache::reset(uint64_t generation) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (generation_ == generation) return;
   aliases_.clear();
   digests_.clear();
@@ -5095,16 +5008,16 @@ void DigestCache::reset(uint64_t generation) {
 }
 
 const DigestCache::AliasMap& DigestCache::aliases() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return aliases_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static const AliasMap empty;
   return empty;
 #endif
 }
 
 const EVP_CIPHER* CipherCache::lookup(const char* name, uint64_t generation) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (generation_ != generation) {
     aliases_.clear();
     ciphers_.clear();
@@ -5115,14 +5028,14 @@ const EVP_CIPHER* CipherCache::lookup(const char* name, uint64_t generation) {
   if (it == aliases_.end()) return nullptr;
   if (it->second >= ciphers_.size()) return nullptr;
   return ciphers_[it->second].get();
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(name);
   static_cast<void>(generation);
   return nullptr;
 #endif
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 const EVP_CIPHER* CipherCache::insert(
     const char* name,
     DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free>&& cipher,
@@ -5159,7 +5072,7 @@ const EVP_CIPHER* CipherCache::insert(
 #endif
 
 Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (other.fetched_cipher_ != nullptr) {
     if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
       fetched_cipher_.reset(other.fetched_cipher_.get());
@@ -5172,7 +5085,7 @@ Cipher::Cipher(const Cipher& other) : cipher_(other.cipher_) {
 
 Cipher& Cipher::operator=(const Cipher& other) {
   if (this == &other) return *this;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (other.fetched_cipher_ != nullptr) {
     if (EVP_CIPHER_up_ref(other.fetched_cipher_.get()) == 1) {
       fetched_cipher_.reset(other.fetched_cipher_.get());
@@ -5192,13 +5105,13 @@ Cipher& Cipher::operator=(const Cipher& other) {
 const Cipher Cipher::FromName(const char* name, CipherCache* cache) {
   const EVP_CIPHER* cipher = EVP_get_cipherbyname(name);
   if (cipher != nullptr) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (!IsSupportedLegacyCipher(cipher)) return Cipher();
 #endif
     return Cipher(cipher);
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // A resolution that overlaps a FIPS transition may use either property
   // state. The cache retains the generation observed here, so the first
   // resolution begun after the transition clears any stale entries.
@@ -5222,7 +5135,7 @@ const Cipher Cipher::FromName(const char* name, CipherCache* cache) {
   }
 
   return Cipher(std::move(fetched));
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(cache);
   return Cipher();
 #endif
@@ -5231,7 +5144,7 @@ const Cipher Cipher::FromName(const char* name, CipherCache* cache) {
 const Cipher Cipher::FromNameForKeyEncoding(const char* name) {
   // Key serializers have their own cipher restrictions. Preserve their policy
   // instead of applying the filters used by the general cipher operations.
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   MarkPopErrorOnReturn mark_pop_error_on_return;
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
       EVP_CIPHER_fetch(nullptr, name, nullptr));
@@ -5244,16 +5157,16 @@ const Cipher Cipher::FromNameForKeyEncoding(const char* name) {
 const Cipher Cipher::FromNid(int nid, CipherCache* cache) {
   const EVP_CIPHER* cipher = EVP_get_cipherbynid(nid);
   if (cipher != nullptr) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (!IsSupportedLegacyCipher(cipher)) return Cipher();
 #endif
     return Cipher(cipher);
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const char* name = OBJ_nid2sn(nid);
   if (name != nullptr) return FromName(name, cache);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(cache);
 #endif
 
@@ -5360,9 +5273,9 @@ bool Cipher::isCcmMode() const {
 
 bool Cipher::isCtsMode() const {
   if (!cipher_) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return (EVP_CIPHER_get_flags(cipher_) & EVP_CIPH_FLAG_CTS) != 0;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return false;
 #endif
 }
@@ -5376,7 +5289,7 @@ bool Cipher::isSivMode() const {
   if (!cipher_) return false;
 #if OPENSSL_WITH_AES_SIV
   return getMode() == EVP_CIPH_SIV_MODE;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return false;
 #endif
 }
@@ -5471,9 +5384,9 @@ const char* Cipher::getName() const {
     const char* name = OBJ_nid2sn(nid);
     if (name != nullptr) return name;
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVP_CIPHER_get0_name(cipher_);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return {};
 #endif
 }
@@ -5568,10 +5481,10 @@ bool CipherCtxPointer::setAeadTagLength(size_t length) {
       ctx_.get(), EVP_CTRL_AEAD_SET_TAG, length, nullptr);
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 namespace {
 // OSSL_CIPHER_PARAM_XTS_STANDARD is not defined by OpenSSL 3.0. Use its
-// parameter name directly so custom 3.0 providers can advertise it too.
+// parameter name directly so custom providers can advertise it too.
 constexpr char kCipherParamXtsStandard[] = "xts_standard";
 
 bool SetCipherCtxStringParam(EVP_CIPHER_CTX* ctx,
@@ -5597,9 +5510,9 @@ bool SetCipherCtxStringParam(EVP_CIPHER_CTX* ctx,
 #endif
 
 bool CipherCtxPointer::setCtsMode(const char* mode) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return SetCipherCtxStringParam(ctx_.get(), OSSL_CIPHER_PARAM_CTS_MODE, mode);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(mode);
   return false;
 #endif
@@ -5611,9 +5524,9 @@ bool CipherCtxPointer::setPadding(bool padding) {
 }
 
 bool CipherCtxPointer::setXtsStandard(const char* standard) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return SetCipherCtxStringParam(ctx_.get(), kCipherParamXtsStandard, standard);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   static_cast<void>(standard);
   return false;
 #endif
@@ -5663,7 +5576,7 @@ bool CipherCtxPointer::isSivMode() const {
   if (!ctx_) return false;
 #if OPENSSL_WITH_AES_SIV
   return getMode() == EVP_CIPH_SIV_MODE;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return false;
 #endif
 }
@@ -6316,15 +6229,13 @@ EVPKeyCtxPointer EVPKeyCtxPointer::New(const EVPKeyPointer& key) {
 
 EVPKeyCtxPointer EVPKeyCtxPointer::NewFromName(const char* name) {
   if (name == nullptr) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVPKeyCtxPointer(EVP_PKEY_CTX_new_from_name(nullptr, name, nullptr));
-#else
-  const int id = GetLegacyKeyId(name);
+#elif NCRYPTO_USE_BORINGSSL
+  const int id = GetBoringSSLKeyId(name);
   if (id == NID_undef) return {};
-#ifdef OPENSSL_IS_BORINGSSL
   // DSA keys are not supported with BoringSSL.
   if (id == EVP_PKEY_DSA) return {};
-#endif
   return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(id, nullptr));
 #endif
 }
@@ -6365,7 +6276,7 @@ bool EVPKeyCtxPointer::setDhParameters(int prime_size, uint32_t generator) {
   if (!ctx_) return false;
   return EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx_.get(), prime_size) == 1 &&
          EVP_PKEY_CTX_set_dh_paramgen_generator(ctx_.get(), generator) == 1;
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   // TODO(jasnell): Boringssl appears not to support this operation.
   // Is there an alternative approach that Boringssl does support?
   return false;
@@ -6392,7 +6303,7 @@ bool EVPKeyCtxPointer::setEcParameters(int curve, int encoding) {
 bool EVPKeyCtxPointer::setEcParameters(const char* group_name, int encoding) {
   if (!ctx_ || group_name == nullptr) return false;
   const int curve = Ec::GetCurveIdFromName(group_name);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // Keep the historical aliases while allowing names known only to providers.
   if (curve != NID_undef) group_name = OBJ_nid2sn(curve);
 
@@ -6415,7 +6326,7 @@ bool EVPKeyCtxPointer::setEcParameters(const char* group_name, int encoding) {
       OSSL_PARAM_END,
   };
   return EVP_PKEY_CTX_set_params(ctx_.get(), params) == 1;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return curve != NID_undef &&
          EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx_.get(), curve) == 1 &&
          EVP_PKEY_CTX_set_ec_param_enc(ctx_.get(), encoding) == 1;
@@ -6458,9 +6369,9 @@ bool EVPKeyCtxPointer::setRsaKeygenBits(int bits) {
 
 bool EVPKeyCtxPointer::setRsaKeygenPubExp(BignumPointer&& e) {
   if (!ctx_) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return EVP_PKEY_CTX_set1_rsa_keygen_pubexp(ctx_.get(), e.get()) == 1;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx_.get(), e.get()) == 1) {
     // The ctx_ takes ownership of e on success.
     e.release();
@@ -6472,15 +6383,12 @@ bool EVPKeyCtxPointer::setRsaKeygenPubExp(BignumPointer&& e) {
 
 bool EVPKeyCtxPointer::setRsaPssKeygenMd(const Digest& md) {
   if (!md || !ctx_) return false;
-  // OpenSSL < 3 accepts a void* for the md parameter.
-  const EVP_MD* md_ptr = md;
-  return EVP_PKEY_CTX_set_rsa_pss_keygen_md(ctx_.get(), md_ptr) > 0;
+  return EVP_PKEY_CTX_set_rsa_pss_keygen_md(ctx_.get(), md) > 0;
 }
 
 bool EVPKeyCtxPointer::setRsaPssKeygenMgf1Md(const Digest& md) {
   if (!md || !ctx_) return false;
-  const EVP_MD* md_ptr = md;
-  return EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(ctx_.get(), md_ptr) > 0;
+  return EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(ctx_.get(), md) > 0;
 }
 
 bool EVPKeyCtxPointer::setRsaPssSaltlen(int salt_len) {
@@ -6500,7 +6408,7 @@ bool EVPKeyCtxPointer::setRsaImplicitRejection() {
   // of how it is set. The call to set the value
   // will not affect what is used since a different context is
   // used in the call if the option is supported
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   // TODO(jasnell): Boringssl appears not to support this operation.
   // Is there an alternative approach that Boringssl does support?
   return true;
@@ -6558,12 +6466,8 @@ EVPKeyPointer EVPKeyCtxPointer::paramgen() const {
 bool EVPKeyCtxPointer::publicCheck() const {
   if (!ctx_) return false;
 #ifndef OPENSSL_IS_BORINGSSL
-#if OPENSSL_VERSION_MAJOR >= 3
   return EVP_PKEY_public_check_quick(ctx_.get()) == 1;
-#else
-  return EVP_PKEY_public_check(ctx_.get()) == 1;
-#endif
-#else  // OPENSSL_IS_BORINGSSL
+#elif defined(OPENSSL_IS_BORINGSSL)
   // Boringssl appears not to support this operation.
   // TODO(jasnell): Is there an alternative approach that Boringssl does
   // support?
@@ -6575,7 +6479,7 @@ bool EVPKeyCtxPointer::privateCheck() const {
   if (!ctx_) return false;
 #ifndef OPENSSL_IS_BORINGSSL
   return EVP_PKEY_check(ctx_.get()) == 1;
-#else
+#elif defined(OPENSSL_IS_BORINGSSL)
   // Boringssl appears not to support this operation.
   // TODO(jasnell): Is there an alternative approach that Boringssl does
   // support?
@@ -6720,7 +6624,7 @@ Rsa::OtherPrimeInfoPointer::OtherPrimeInfoPointer(BignumPointer&& r,
                                                   BignumPointer&& t)
     : r(r.release()), d(d.release()), t(t.release()) {}
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 namespace {
 // Normalizes a provider digest name such as "SHA2-256" to the long name the
 // rest of the key details use ("sha256"). The returned storage has static
@@ -6872,24 +6776,24 @@ Rsa::Rsa(const EVP_PKEY* pkey, Selection selection) : Rsa() {
 
   rsa_ = true;
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 Rsa::Rsa() : rsa_(nullptr) {}
 Rsa::Rsa(OSSL3_CONST RSA* ptr) : rsa_(ptr) {}
 #endif
 
 Rsa Rsa::PublicOnly(const EVPKeyPointer& key) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return Rsa(key.get(), Selection::Public);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return key;
 #endif
 }
 
 const Rsa::PublicKey Rsa::getPublicKey() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!rsa_) return {};
   return PublicKey{n_.get(), e_.get(), d_.get()};
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (rsa_ == nullptr) return {};
   PublicKey key;
   RSA_get0_key(rsa_, &key.n, &key.e, &key.d);
@@ -6898,10 +6802,10 @@ const Rsa::PublicKey Rsa::getPublicKey() const {
 }
 
 const Rsa::PrivateKey Rsa::getPrivateKey() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!rsa_) return {};
   return PrivateKey{p_.get(), q_.get(), dp_.get(), dq_.get(), qi_.get()};
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (rsa_ == nullptr) return {};
   PrivateKey key;
   RSA_get0_factors(rsa_, &key.p, &key.q);
@@ -6912,28 +6816,10 @@ const Rsa::PrivateKey Rsa::getPrivateKey() const {
 
 const Rsa::OtherPrimeInfos Rsa::getOtherPrimeInfos() const {
   OtherPrimeInfos infos;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   infos.reserve(other_prime_infos_.size());
   for (const auto& info : other_prime_infos_) {
     infos.push_back({info.r.get(), info.d.get(), info.t.get()});
-  }
-#elif NCRYPTO_USE_LEGACY_OPENSSL
-  if (rsa_ == nullptr) return infos;
-  const int count = RSA_get_multi_prime_extra_count(rsa_);
-  if (count <= 0) return infos;
-
-  std::vector<const BIGNUM*> factors(count);
-  std::vector<const BIGNUM*> exponents(count);
-  std::vector<const BIGNUM*> coefficients(count);
-  if (RSA_get0_multi_prime_factors(rsa_, factors.data()) != 1 ||
-      RSA_get0_multi_prime_crt_params(
-          rsa_, exponents.data(), coefficients.data()) != 1) {
-    return {};
-  }
-
-  infos.reserve(count);
-  for (int i = 0; i < count; i++) {
-    infos.push_back({factors[i], exponents[i], coefficients[i]});
   }
 #endif
   return infos;
@@ -6960,9 +6846,9 @@ bool Rsa::checkPrimeProduct() const {
 }
 
 const std::optional<Rsa::PssParams> Rsa::getPssParams() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return pss_params_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (rsa_ == nullptr) return std::nullopt;
   const RSA_PSS_PARAMS* params = RSA_get0_pss_params(rsa_);
   if (params == nullptr) return std::nullopt;
@@ -7001,7 +6887,7 @@ const std::optional<Rsa::PssParams> Rsa::getPssParams() const {
 BIOPointer Rsa::derPublicKey() const {
   auto bio = BIOPointer::NewMem();
   if (!bio) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   auto pkey = EVPKeyPointer::NewRSA(*this);
   if (!pkey) return {};
   if (!rsa_pss_) {
@@ -7032,7 +6918,7 @@ BIOPointer Rsa::derPublicKey() const {
   }
   parameters.release();
   if (i2d_X509_PUBKEY_bio(bio.get(), pubkey.get()) != 1) return {};
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (rsa_ == nullptr || i2d_RSA_PUBKEY_bio(bio.get(), rsa_) != 1) return {};
 #endif
   return bio;
@@ -7040,12 +6926,12 @@ BIOPointer Rsa::derPublicKey() const {
 
 bool Rsa::setPublicKey(BignumPointer&& n, BignumPointer&& e) {
   if (!n || !e) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   n_.reset(n.release());
   e_.reset(e.release());
   rsa_ = true;
   return true;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (RSA_set0_key(const_cast<RSA*>(rsa_), n.get(), e.get(), nullptr) == 1) {
     n.release();
     e.release();
@@ -7062,7 +6948,7 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
                         BignumPointer&& dq,
                         BignumPointer&& qi,
                         OtherPrimeInfoPointers&& other_prime_infos) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!d || !q || !p || !dp || !dq || !qi) return false;
   for (const auto& info : other_prime_infos) {
     if (!info.r || !info.d || !info.t) return false;
@@ -7076,7 +6962,7 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
   other_prime_infos_ = std::move(other_prime_infos);
   rsa_ = n_ != nullptr && e_ != nullptr;
   return rsa_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (!RSA_set0_key(const_cast<RSA*>(rsa_), nullptr, nullptr, d.get())) {
     return false;
   }
@@ -7096,36 +6982,7 @@ bool Rsa::setPrivateKey(BignumPointer&& d,
   dq.release();
   qi.release();
 
-#if NCRYPTO_USE_LEGACY_OPENSSL
-  if (!other_prime_infos.empty()) {
-    std::vector<BIGNUM*> factors;
-    std::vector<BIGNUM*> exponents;
-    std::vector<BIGNUM*> coefficients;
-    factors.reserve(other_prime_infos.size());
-    exponents.reserve(other_prime_infos.size());
-    coefficients.reserve(other_prime_infos.size());
-    for (const auto& info : other_prime_infos) {
-      if (!info.r || !info.d || !info.t) return false;
-      factors.push_back(info.r.get());
-      exponents.push_back(info.d.get());
-      coefficients.push_back(info.t.get());
-    }
-    if (RSA_set0_multi_prime_params(const_cast<RSA*>(rsa_),
-                                    factors.data(),
-                                    exponents.data(),
-                                    coefficients.data(),
-                                    static_cast<int>(factors.size())) != 1) {
-      return false;
-    }
-    for (auto& info : other_prime_infos) {
-      info.r.release();
-      info.d.release();
-      info.t.release();
-    }
-  }
-#else
   if (!other_prime_infos.empty()) return false;
-#endif
   return true;
 #endif
 }
@@ -7179,7 +7036,7 @@ struct CipherCallbackContext {
   void operator()(const char* name) { cb(name); }
 };
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 template <class TypeName,
           TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
           void free_type(TypeName*),
@@ -7246,7 +7103,7 @@ void array_push_back_provider(EVP_CIPHER* cipher, void* arg) {
 
   EVP_CIPHER_names_do_all(fetched.get(), array_push_back_provider_name, arg);
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 template <class TypeName>
 void array_push_back(const TypeName* evp_ref,
                      const char* from,
@@ -7271,17 +7128,17 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
   }
 #else
   EVP_CIPHER_do_all_sorted(
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
       array_push_back<EVP_CIPHER,
                       EVP_CIPHER_fetch,
                       EVP_CIPHER_free,
                       EVP_get_cipherbyname,
                       EVP_CIPHER_get0_name>,
-#else
+#elif NCRYPTO_USE_BORINGSSL
       array_push_back<EVP_CIPHER>,
 #endif
       &context);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   EVP_CIPHER_do_all_provided(nullptr, array_push_back_provider, &context);
 #endif
 #endif
@@ -7289,7 +7146,7 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
 
 // ============================================================================
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 Ec::Ec() : ec_(nullptr), pub_(nullptr) {}
 
 Ec::Ec(const EVP_PKEY* pkey) : Ec() {
@@ -7355,31 +7212,31 @@ Ec::Ec(const EVP_PKEY* pkey) : Ec() {
   }
   pub_.reset(point.release());
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 Ec::Ec() : ec_(nullptr) {}
 Ec::Ec(OSSL3_CONST EC_KEY* key) : ec_(key) {}
 #endif
 
 const EC_GROUP* Ec::getGroup() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return ec_.get();
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return ECKeyPointer::GetGroup(ec_);
 #endif
 }
 
 const EC_POINT* Ec::getPublicKey() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return pub_.get();
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return ECKeyPointer::GetPublicKey(ec_);
 #endif
 }
 
 point_conversion_form_t Ec::getPointConversionForm() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   return form_;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return EC_KEY_get_conv_form(ec_);
 #endif
 }
@@ -7409,7 +7266,7 @@ BIOPointer Ec::ExportPrivatePkcs8(const EVPKeyPointer& key) {
 DataPointer Ec::TryExportPublic(const EVPKeyPointer& key,
                                 point_conversion_form_t form) {
   if (!key || form != POINT_CONVERSION_UNCOMPRESSED) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   {
     MarkPopErrorOnReturn pop_errors;
     size_t length = 0;
@@ -7433,7 +7290,7 @@ DataPointer Ec::TryExportPublic(const EVPKeyPointer& key,
 
 DataPointer Ec::ExportPrivate(const EVPKeyPointer& key) {
   if (!key) return {};
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   {
     MarkPopErrorOnReturn pop_errors;
     BignumPointer priv;
@@ -7458,7 +7315,7 @@ bool Ec::GetKeyComponents(const EVPKeyPointer& key,
                           BignumPointer* priv,
                           int* degree) {
   if (!key) return false;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   const int nid = GetCurveId(key);
   switch (nid) {
     case NID_X9_62_prime256v1:
@@ -7514,7 +7371,7 @@ bool Ec::GetKeyComponents(const EVPKeyPointer& key,
 
 int Ec::GetCurveId(const EVPKeyPointer& key) {
   if (!key) return NID_undef;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   char name[80];
   size_t length = 0;
   if (EVP_PKEY_get_utf8_string_param(
@@ -7523,7 +7380,7 @@ int Ec::GetCurveId(const EVPKeyPointer& key) {
     return NID_undef;
   }
   return GetCurveIdFromName(name);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const EC_KEY* ec = key;
   if (ec == nullptr) return NID_undef;
   const EC_GROUP* group = EC_KEY_get0_group(ec);
@@ -7533,7 +7390,7 @@ int Ec::GetCurveId(const EVPKeyPointer& key) {
 
 std::optional<std::string> Ec::GetCurveName(const EVPKeyPointer& key) {
   if (!key) return std::nullopt;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   size_t length = 0;
   if (EVP_PKEY_get_utf8_string_param(
           key.get(), OSSL_PKEY_PARAM_GROUP_NAME, nullptr, 0, &length) != 1) {
@@ -7551,14 +7408,14 @@ std::optional<std::string> Ec::GetCurveName(const EVPKeyPointer& key) {
   // Preserve the public short names for the curves OpenSSL already knows.
   const int nid = GetCurveIdFromName(name.c_str());
   return nid == NID_undef ? name : std::string(OBJ_nid2sn(nid));
-#else
+#elif NCRYPTO_USE_BORINGSSL
   const int nid = GetCurveId(key);
   if (nid == NID_undef) return std::nullopt;
   return std::string(OBJ_nid2sn(nid));
 #endif
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 namespace {
 bool IsAvailableEcGroup(const char* name) {
   MarkPopErrorOnReturn mark;
@@ -7572,12 +7429,12 @@ bool IsAvailableEcGroup(const char* name) {
 bool Ec::CheckCurveName(const char* name) {
   if (name == nullptr) return false;
   if (GetCurveIdFromName(name) != NID_undef) return true;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   // Keep invalid names a synchronous argument error. Generation contexts can
   // defer rejecting a group until parameter generation. Use the same parameter
   // generation path as key generation without requiring parameter import.
   return IsAvailableEcGroup(name);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   return false;
 #endif
 }
@@ -7606,7 +7463,7 @@ bool Ec::GetCurves(Ec::GetCurveCallback callback) {
   }
   for (const auto& curve : curves) {
     const char* name = OBJ_nid2sn(curve.nid);
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (!IsAvailableEcGroup(name)) continue;
 #endif
     if (!callback(name)) return false;
@@ -7745,7 +7602,7 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
     return std::nullopt;
   }
   return ctx;
-#elif NCRYPTO_USE_OPENSSL3_PROVIDER
+#else
   EVP_PKEY_CTX* ctx = nullptr;
 
   // Ed25519 requires the INSTANCE param to switch into Ed25519ctx mode.
@@ -7779,8 +7636,6 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
     return std::nullopt;
   }
   return ctx;
-#else
-  return std::nullopt;
 #endif
 }
 
@@ -7798,7 +7653,7 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
     return std::nullopt;
   }
   return ctx;
-#elif NCRYPTO_USE_OPENSSL3_PROVIDER
+#else
   EVP_PKEY_CTX* ctx = nullptr;
 
   // Ed25519 requires the INSTANCE param to switch into Ed25519ctx mode.
@@ -7832,8 +7687,6 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
     return std::nullopt;
   }
   return ctx;
-#else
-  return std::nullopt;
 #endif
 }
 
@@ -7907,7 +7760,7 @@ bool extractP1363(const Buffer<const unsigned char>& buf,
 
 // ============================================================================
 
-#if !OPENSSL_WITH_EVP_MAC
+#if NCRYPTO_USE_BORINGSSL
 HMACCtxPointer::HMACCtxPointer() : ctx_(nullptr) {}
 
 HMACCtxPointer::HMACCtxPointer(HMAC_CTX* ctx) : ctx_(ctx) {}
@@ -7967,7 +7820,7 @@ bool HMACCtxPointer::digestInto(Buffer<void>* buf) {
 HMACCtxPointer HMACCtxPointer::New() {
   return HMACCtxPointer(HMAC_CTX_new());
 }
-#endif  // !OPENSSL_WITH_EVP_MAC
+#endif  // NCRYPTO_USE_BORINGSSL
 
 #if OPENSSL_WITH_EVP_MAC
 EVPMacPointer::EVPMacPointer(EVP_MAC* mac) : mac_(mac) {}
@@ -8342,7 +8195,7 @@ std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
 
 // ============================================================================
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 Dsa::Dsa() : dsa_(false) {}
 
 Dsa::Dsa(const EVP_PKEY* pkey) : Dsa() {
@@ -8353,16 +8206,16 @@ Dsa::Dsa(const EVP_PKEY* pkey) : Dsa() {
   }
   dsa_ = true;
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 Dsa::Dsa() : dsa_(nullptr) {}
 Dsa::Dsa(OSSL3_CONST DSA* dsa) : dsa_(dsa) {}
 #endif
 
 const BIGNUM* Dsa::getP() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!dsa_) return nullptr;
   return p_.get();
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (dsa_ == nullptr) return nullptr;
   const BIGNUM* p;
   DSA_get0_pqg(dsa_, &p, nullptr, nullptr);
@@ -8371,10 +8224,10 @@ const BIGNUM* Dsa::getP() const {
 }
 
 const BIGNUM* Dsa::getQ() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!dsa_) return nullptr;
   return q_.get();
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (dsa_ == nullptr) return nullptr;
   const BIGNUM* q;
   DSA_get0_pqg(dsa_, nullptr, &q, nullptr);
@@ -8383,18 +8236,18 @@ const BIGNUM* Dsa::getQ() const {
 }
 
 size_t Dsa::getModulusLength() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!dsa_) return 0;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (dsa_ == nullptr) return 0;
 #endif
   return BignumPointer::GetBitCount(getP());
 }
 
 size_t Dsa::getDivisorLength() const {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!dsa_) return 0;
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (dsa_ == nullptr) return 0;
 #endif
   return BignumPointer::GetBitCount(getQ());
@@ -8407,13 +8260,13 @@ size_t Digest::size() const {
   return EVP_MD_size(md_);
 }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 Digest::Digest(DeleteFnPtr<EVP_MD, EVP_MD_free> md)
     : md_(md.get()), fetched_md_(std::move(md)) {}
 #endif
 
 Digest::Digest(const Digest& other) : md_(other.md_) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (other.fetched_md_ != nullptr) {
     if (EVP_MD_up_ref(other.fetched_md_.get()) == 1) {
       fetched_md_.reset(other.fetched_md_.get());
@@ -8426,7 +8279,7 @@ Digest::Digest(const Digest& other) : md_(other.md_) {
 
 Digest& Digest::operator=(const Digest& other) {
   if (this == &other) return *this;
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (other.fetched_md_ != nullptr) {
     if (EVP_MD_up_ref(other.fetched_md_.get()) == 1) {
       fetched_md_.reset(other.fetched_md_.get());
@@ -8449,7 +8302,7 @@ const Digest Digest::SHA256 = Digest(EVP_sha256());
 const Digest Digest::SHA384 = Digest(EVP_sha384());
 const Digest Digest::SHA512 = Digest(EVP_sha512());
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 namespace {
 bool IsSupportedDigest(const EVP_MD* md) {
   if (md == nullptr || EVP_MD_is_a(md, "NULL")) return false;
@@ -8467,7 +8320,7 @@ bool IsSupportedDigest(const EVP_MD* md) {
 const Digest Digest::FromName(const char* name) {
   const EVP_MD* md = ncrypto::getDigestByName(name);
   if (md != nullptr) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     if (md == EVP_md_null()) return Digest();
 #endif
     return Digest(md);
@@ -8477,7 +8330,7 @@ const Digest Digest::FromName(const char* name) {
 }
 
 const Digest Digest::Fetch(const char* name) {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   MarkPopErrorOnReturn mark_pop_error_on_return;
   DeleteFnPtr<EVP_MD, EVP_MD_free> fetched(
       EVP_MD_fetch(nullptr, name, nullptr));
@@ -8492,7 +8345,7 @@ const Digest Digest::Fetch(const char* name) {
 // ============================================================================
 // KEM Implementation
 #if OPENSSL_WITH_KEM
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 bool KEM::SetOperationParameter(EVP_PKEY_CTX* ctx, const EVPKeyPointer& key) {
   const OSSL_PARAM* settable = EVP_PKEY_CTX_settable_params(ctx);
   if (settable == nullptr ||
@@ -8525,7 +8378,7 @@ std::optional<KEM::EncapsulateResult> KEM::Encapsulate(
     return std::nullopt;
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!SetOperationParameter(ctx.get(), public_key)) {
     return std::nullopt;
   }
@@ -8566,7 +8419,7 @@ DataPointer KEM::Decapsulate(const EVPKeyPointer& private_key,
     return {};
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   if (!SetOperationParameter(ctx.get(), private_key)) {
     return {};
   }

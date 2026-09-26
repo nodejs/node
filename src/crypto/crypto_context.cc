@@ -35,12 +35,8 @@ namespace node {
 using ncrypto::BIOPointer;
 using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;
-using ncrypto::CryptoErrorList;
 using ncrypto::DHPointer;
 using ncrypto::Digest;
-#ifndef OPENSSL_NO_ENGINE
-using ncrypto::EnginePointer;
-#endif  // !OPENSSL_NO_ENGINE
 using ncrypto::EVPKeyPointer;
 using ncrypto::KeyAlgorithm;
 using ncrypto::MarkPopErrorOnReturn;
@@ -1353,11 +1349,6 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "getIssuer", GetCertificate<false>);
 
-#ifndef OPENSSL_NO_ENGINE
-    SetProtoMethod(isolate, tmpl, "setEngineKey", SetEngineKey);
-    SetProtoMethod(isolate, tmpl, "setClientCertEngine", SetClientCertEngine);
-#endif  // !OPENSSL_NO_ENGINE
-
 #define SET_INTEGER_CONSTANTS(name, value)                                     \
   tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, name),                              \
             Integer::NewFromUnsigned(isolate, value));
@@ -1441,11 +1432,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(GetTicketKeys);
   registry->Register(GetCertificate<true>);
   registry->Register(GetCertificate<false>);
-
-#ifndef OPENSSL_NO_ENGINE
-  registry->Register(SetEngineKey);
-  registry->Register(SetClientCertEngine);
-#endif  // !OPENSSL_NO_ENGINE
 
   registry->Register(CtxGetter);
 
@@ -1607,7 +1593,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
 #endif
 
@@ -1626,19 +1612,19 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   CHECK(SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version));
   CHECK(SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version));
 
-  // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
-  // exposed in the public API. To retain compatibility, install a callback
-  // which restores the old algorithm.
+  // The ticket key size changed after the original size was exposed in the
+  // public API. To retain compatibility, install a callback which restores
+  // the old algorithm.
   if (!ncrypto::CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) ||
       !ncrypto::CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) ||
       !ncrypto::CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_))) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_tlsext_ticket_key_evp_cb(sc->ctx_.get(),
                                        TicketCompatibilityCallback);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
 #endif
 }
@@ -1717,54 +1703,6 @@ void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
   if (!SSL_CTX_set1_sigalgs_list(sc->ctx_.get(), *sigalgs))
     return ThrowCryptoError(env, ERR_get_error());
 }
-
-#ifndef OPENSSL_NO_ENGINE
-void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
-
-  CHECK_EQ(args.Length(), 2);
-
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CryptoErrorList errors;
-  Utf8Value engine_id(env->isolate(), args[1]);
-  auto engine = EnginePointer::getEngineByName(*engine_id, &errors);
-  if (!engine) {
-    Local<Value> exception;
-    if (errors.empty()) {
-      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
-                                          *engine_id));
-    }
-    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
-      env->isolate()->ThrowException(exception);
-    return;
-  }
-
-  if (!engine.init(true /* finish on exit*/)) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(
-        env, "Failure to initialize engine");
-  }
-
-  Utf8Value key_name(env->isolate(), args[0]);
-  auto key = engine.loadPrivateKey(*key_name);
-
-  if (!key)
-    return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
-
-  if (!SSL_CTX_use_PrivateKey(sc->ctx_.get(), key.get()))
-    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
-
-  sc->private_key_engine_ = std::move(engine);
-}
-#endif  // !OPENSSL_NO_ENGINE
 
 Maybe<void> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   ClearErrorOnReturn clear_error_on_return;
@@ -1947,10 +1885,10 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     if (!bio)
       return;
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
     EVPKeyPointer params(PEM_read_bio_Parameters(bio.get(), nullptr));
     if (params && params.isA(KeyAlgorithm::DH)) dh.reset(params.release());
-#else
+#elif NCRYPTO_USE_BORINGSSL
     dh.reset(PEM_read_bio_DHparams(bio.get(), nullptr, nullptr, nullptr));
 #endif
   }
@@ -1971,16 +1909,16 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "DH parameter is less than 2048 bits"));
   }
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   EVPKeyPointer dh_pkey(dh.release());
   if (!SSL_CTX_set0_tmp_dh_pkey(sc->ctx_.get(), dh_pkey.get())) {
-#else
+#elif NCRYPTO_USE_BORINGSSL
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
 #endif
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
   }
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   dh_pkey.release();
 #endif
 }
@@ -2188,12 +2126,12 @@ void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
 
 namespace {
 // The historical error shape for the TLS `pfx` option: the OpenSSL reason
-// string, except for OpenSSL 3's bare "unsupported" error, which on its own
+// string, except for OpenSSL's bare "unsupported" error, which on its own
 // says nothing useful.
 // TODO(@jasnell): Should this use ThrowCryptoError?
 // NOLINTNEXTLINE(runtime/int) -- matches ERR_get_error()
 void ThrowPFXError(Environment* env, unsigned long err) {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
     return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
         env, "Unsupported PKCS12 PFX data");
@@ -2284,53 +2222,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-#ifndef OPENSSL_NO_ENGINE
-void SecureContext::SetClientCertEngine(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsString());
-
-  SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
-
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  // SSL_CTX_set_client_cert_engine does not itself support multiple
-  // calls by cleaning up before overwriting the client_cert_engine
-  // internal context variable.
-  // Instead of trying to fix up this problem we in turn also do not
-  // support multiple calls to SetClientCertEngine.
-  CHECK(!sc->client_cert_engine_provided_);
-
-  if (env->permission()->enabled()) [[unlikely]] {
-    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
-        env,
-        "Programmatic selection of OpenSSL engines is unsupported while the "
-        "experimental permission model is enabled");
-  }
-
-  CryptoErrorList errors;
-  const Utf8Value engine_id(env->isolate(), args[0]);
-  auto engine = EnginePointer::getEngineByName(*engine_id, &errors);
-  if (!engine) {
-    Local<Value> exception;
-    if (errors.empty()) {
-      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
-                                          *engine_id));
-    }
-    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
-      env->isolate()->ThrowException(exception);
-    return;
-  }
-
-  // Note that this takes another reference to `engine`.
-  if (!engine.setClientCertEngine(sc->ctx_.get()))
-    return ThrowCryptoError(env, ERR_get_error());
-  sc->client_cert_engine_provided_ = true;
-}
-#endif  // !OPENSSL_NO_ENGINE
-
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
@@ -2370,15 +2261,15 @@ void SecureContext::EnableTicketKeyCallback(
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
   SSL_CTX_set_tlsext_ticket_key_evp_cb(wrap->ctx_.get(), TicketKeyCallback);
-#else
+#elif NCRYPTO_USE_BORINGSSL
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
 #endif
 }
 
 namespace {
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 bool InitTicketHmac(EVP_MAC_CTX* hctx,
                     const unsigned char* key,
                     size_t key_len) {
@@ -2391,7 +2282,7 @@ bool InitTicketHmac(EVP_MAC_CTX* hctx,
   };
   return EVP_MAC_init(hctx, key, key_len, params) == 1;
 }
-#else
+#elif NCRYPTO_USE_BORINGSSL
 bool InitTicketHmac(HMAC_CTX* hctx, const unsigned char* key, size_t key_len) {
   return HMAC_Init_ex(hctx, key, key_len, Digest::SHA256, nullptr) == 1;
 }
@@ -2402,9 +2293,9 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                      unsigned char* name,
                                      unsigned char* iv,
                                      EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
                                      EVP_MAC_CTX* hctx,
-#else
+#elif NCRYPTO_USE_BORINGSSL
                                      HMAC_CTX* hctx,
 #endif
                                      int enc) {
@@ -2499,9 +2390,9 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
                                                unsigned char* name,
                                                unsigned char* iv,
                                                EVP_CIPHER_CTX* ectx,
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
                                                EVP_MAC_CTX* hctx,
-#else
+#elif NCRYPTO_USE_BORINGSSL
                                                HMAC_CTX* hctx,
 #endif
                                                int enc) {

@@ -7,7 +7,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "openssl/ec.h"
-#if NCRYPTO_USE_OPENSSL3_PROVIDER
+#if NCRYPTO_USE_OPENSSL_PROVIDER
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
 #endif
