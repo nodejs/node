@@ -27,6 +27,9 @@ escape_code_block_or_line() {
 }
 
 for pr in "$@"; do
+  # Sleep in between.
+  [ "$pr" = "$1" ] || sleep 20
+
   # Keep request labels until Jenkins is ready to accept more work.
   if ! ncu-ci available; then
     echo '::notice::CI is unavailable; leaving CI requests for a later run.'
