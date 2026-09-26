@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs --expose-internals
+// Flags: --disable-warning=ExperimentalWarning --expose-internals
 'use strict';
 
 // Unit-level coverage for the mount-router helpers in
