@@ -86,97 +86,159 @@ constexpr bool isSurrogatePair(uint16_t lead, uint16_t trail) {
   return (lead & 0xfc00) == 0xd800 && (trail & 0xfc00) == 0xdc00;
 }
 
-constexpr size_t simpleUtfEncodingLength(uint16_t c) {
-  if (c < 0x80) return 1;
-  if (c < 0x400) return 2;
-  return 3;
+constexpr bool isHighSurrogate(uint16_t value) {
+  return (value & 0xfc00) == 0xd800;
 }
 
-// Finds the maximum number of input characters (UTF-16 or Latin1) that can be
-// encoded into a UTF-8 buffer of the given size.
+struct EncodeIntoResult {
+  size_t read = 0;
+  size_t written = 0;
+};
+
+constexpr size_t utf8CodePointLength(uint32_t code_point) {
+  if (code_point < 0x80) return 1;
+  if (code_point < 0x800) return 2;
+  if (code_point < 0x10000) return 3;
+  return 4;
+}
+
+void writeUtf8CodePoint(uint32_t code_point, char* output) {
+  DCHECK_LE(code_point, 0x10ffff);
+  if (code_point < 0x80) {
+    output[0] = static_cast<char>(code_point);
+  } else if (code_point < 0x800) {
+    output[0] = static_cast<char>(0xc0 | (code_point >> 6));
+    output[1] = static_cast<char>(0x80 | (code_point & 0x3f));
+  } else if (code_point < 0x10000) {
+    output[0] = static_cast<char>(0xe0 | (code_point >> 12));
+    output[1] = static_cast<char>(0x80 | ((code_point >> 6) & 0x3f));
+    output[2] = static_cast<char>(0x80 | (code_point & 0x3f));
+  } else {
+    output[0] = static_cast<char>(0xf0 | (code_point >> 18));
+    output[1] = static_cast<char>(0x80 | ((code_point >> 12) & 0x3f));
+    output[2] = static_cast<char>(0x80 | ((code_point >> 6) & 0x3f));
+    output[3] = static_cast<char>(0x80 | (code_point & 0x3f));
+  }
+}
+
+// The previous findBestFit() path was correct, but it first measured a prefix
+// and then encoded that prefix in a separate pass. Its adaptive retries could
+// also measure the same input more than once. encodeInto() needs both consumed
+// input code units and written output bytes, so these bounded helpers track
+// both while converting guaranteed-to-fit SIMD chunks, using scalar code only
+// at the output boundary. Malformed UTF-16 is replaced incrementally instead
+// of requiring a temporary well-formed copy.
 //
-// The challenge is that UTF-8 encoding expands characters by variable amounts:
-// - ASCII (< 0x80): 1 byte
-// - Code points < 0x800: 2 bytes
-// - Other BMP characters: 3 bytes
-// - Surrogate pairs (supplementary planes): 4 bytes total
+// These helpers are adapted from the detailed-result APIs added upstream in
+// https://github.com/simdutf/simdutf/pull/1035.
 //
-// This function uses an adaptive chunking algorithm:
-// 1. Process the input in chunks, estimating how many characters will fit
-// 2. Calculate the actual UTF-8 length for each chunk using simdutf
-// 3. Adjust the expansion factor based on observed encoding ratios
-// 4. Fall back to character-by-character processing near the buffer boundary
-// 5. Handle UTF-16 surrogate pairs to avoid splitting them across boundaries
-//
-// The algorithm starts with a conservative expansion estimate (1.15x) and
-// dynamically adjusts based on actual character distribution, making it
-// efficient for common ASCII-heavy text while remaining correct for
-// multi-byte heavy content.
-template <typename Char>
-size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
-  size_t pos = 0;
-  size_t utf8Accumulated = 0;
-  constexpr size_t CHUNK = 257;
-  constexpr bool UTF16 = sizeof(Char) == 2;
-  constexpr size_t MAX_FACTOR = UTF16 ? 3 : 2;
+// TODO(XadillaX): Replace them with
+// convert_latin1_to_utf8_safe_with_details() and
+// convert_utf16_to_utf8_with_replacement_safe() once Node's vendored simdutf
+// provides those APIs.
+EncodeIntoResult convertLatin1ToUtf8SafeWithDetails(const uint8_t* input,
+                                                    size_t length,
+                                                    char* output,
+                                                    size_t capacity) {
+  EncodeIntoResult result;
 
-  double expansion = 1.15;
+  while (true) {
+    // A Latin-1 code unit expands to at most two UTF-8 bytes, so this prefix
+    // always fits and can use simdutf's unbounded SIMD converter.
+    const size_t chunk =
+        std::min(length - result.read, (capacity - result.written) / 2);
+    if (chunk <= 16) break;
 
-  while (pos < length && utf8Accumulated < bufferSize) {
-    size_t remainingInput = length - pos;
-    size_t spaceRemaining = bufferSize - utf8Accumulated;
-    DCHECK_GE(expansion, 1.15);
-
-    size_t guaranteedToFit = spaceRemaining / MAX_FACTOR;
-    if (guaranteedToFit >= remainingInput) {
-      return length;
-    }
-    size_t likelyToFit =
-        std::min(static_cast<size_t>(spaceRemaining / expansion), CHUNK);
-    size_t fitEstimate =
-        std::max(size_t{1}, std::max(guaranteedToFit, likelyToFit));
-    size_t chunkSize = std::min(remainingInput, fitEstimate);
-    if (chunkSize == 1) break;
-    CHECK_GT(chunkSize, 1);
-
-    size_t chunkUtf8Len;
-    if constexpr (UTF16) {
-      // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
-      // available For now, validate and use utf8_length_from_utf16
-      size_t newPos = pos + chunkSize;
-      if (newPos < length && isSurrogatePair(data[newPos - 1], data[newPos]))
-        chunkSize--;
-      chunkUtf8Len = simdutf::utf8_length_from_utf16(data + pos, chunkSize);
-    } else {
-      chunkUtf8Len = simdutf::utf8_length_from_latin1(data + pos, chunkSize);
-    }
-
-    if (utf8Accumulated + chunkUtf8Len > bufferSize) {
-      DCHECK_GT(chunkSize, guaranteedToFit);
-      expansion = std::max(expansion * 1.1, (chunkUtf8Len * 1.1) / chunkSize);
-    } else {
-      expansion = std::max(1.15, (chunkUtf8Len * 1.1) / chunkSize);
-      pos += chunkSize;
-      utf8Accumulated += chunkUtf8Len;
-    }
+    const size_t written = simdutf::convert_latin1_to_utf8(
+        reinterpret_cast<const char*>(input + result.read),
+        chunk,
+        output + result.written);
+    result.read += chunk;
+    result.written += written;
   }
 
-  while (pos < length && utf8Accumulated < bufferSize) {
-    size_t extra = simpleUtfEncodingLength(data[pos]);
-    if (utf8Accumulated + extra > bufferSize) break;
-    pos++;
-    utf8Accumulated += extra;
+  while (result.read < length) {
+    const uint32_t code_point = input[result.read];
+    const size_t width = utf8CodePointLength(code_point);
+    if (width > capacity - result.written) break;
+
+    writeUtf8CodePoint(code_point, output + result.written);
+    result.read++;
+    result.written += width;
   }
 
-  if (UTF16 && pos != 0 && pos != length &&
-      isSurrogatePair(data[pos - 1], data[pos])) {
-    if (utf8Accumulated < bufferSize) {
-      pos++;
-    } else {
-      pos--;
+  return result;
+}
+
+EncodeIntoResult convertUtf16ToUtf8WithReplacementSafe(const char16_t* input,
+                                                       size_t length,
+                                                       char* output,
+                                                       size_t capacity) {
+  EncodeIntoResult result;
+
+  while (true) {
+    // A UTF-16 code unit expands to at most three UTF-8 bytes, including an
+    // unpaired surrogate replaced by U+FFFD. Keep a valid pair in one chunk.
+    size_t chunk =
+        std::min(length - result.read, (capacity - result.written) / 3);
+    if (chunk <= 16) break;
+    if (chunk < length - result.read &&
+        isHighSurrogate(input[result.read + chunk - 1])) {
+      chunk--;
     }
+
+    const simdutf::result conversion =
+        simdutf::convert_utf16_to_utf8_with_errors(
+            input + result.read, chunk, output + result.written);
+    if (conversion.error == simdutf::SUCCESS) {
+      result.read += chunk;
+      result.written += conversion.count;
+      continue;
+    }
+
+    // convert_utf16_to_utf8_with_errors() has already written the valid
+    // prefix. Its error count is in input code units, so recover the number
+    // of output bytes only on this malformed-input path.
+    const size_t valid_output =
+        simdutf::utf8_length_from_utf16(input + result.read, conversion.count);
+    result.read += conversion.count;
+    result.written += valid_output;
+    if (conversion.error != simdutf::SURROGATE ||
+        capacity - result.written < 3) {
+      return result;
+    }
+
+    writeUtf8CodePoint(0xfffd, output + result.written);
+    result.read++;
+    result.written += 3;
   }
-  return pos;
+
+  // The remaining output capacity is small enough that a scalar tail avoids
+  // another sizing pass while preserving complete UTF-8 characters.
+  while (result.read < length) {
+    const uint16_t lead = input[result.read];
+    size_t code_units = 1;
+    uint32_t code_point;
+    if (result.read + 1 < length &&
+        isSurrogatePair(lead, input[result.read + 1])) {
+      const uint16_t trail = input[result.read + 1];
+      code_units = 2;
+      code_point = 0x10000 + ((lead - 0xd800) << 10) + (trail - 0xdc00);
+    } else if ((lead & 0xf800) == 0xd800) {
+      code_point = 0xfffd;
+    } else {
+      code_point = lead;
+    }
+
+    const size_t width = utf8CodePointLength(code_point);
+    if (width > capacity - result.written) break;
+
+    writeUtf8CodePoint(code_point, output + result.written);
+    result.read += code_units;
+    result.written += width;
+  }
+
+  return result;
 }
 }  // namespace
 
@@ -239,9 +301,11 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       std::min(static_cast<size_t>(view.length()), dest_length);
 
   if (view.is_one_byte()) {
-    auto data = reinterpret_cast<const char*>(view.data8());
-    simdutf::result result =
-        simdutf::validate_ascii_with_errors(data, length_that_fits);
+    // Keep V8's unsigned representation while doing scalar length checks.
+    // simdutf accepts const char* but interprets the same bytes as Latin-1.
+    const uint8_t* data = view.data8();
+    simdutf::result result = simdutf::validate_ascii_with_errors(
+        reinterpret_cast<const char*>(data), length_that_fits);
     written = read = result.count;
     memcpy(write_result, data, read);
     write_result += read;
@@ -249,55 +313,24 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
     length_that_fits -= read;
     dest_length -= read;
     if (length_that_fits != 0 && dest_length != 0) {
-      if (size_t rest = findBestFit(data, length_that_fits, dest_length)) {
-        DCHECK_LE(simdutf::utf8_length_from_latin1(data, rest), dest_length);
-        written += simdutf::convert_latin1_to_utf8(data, rest, write_result);
-        read += rest;
-      }
+      const EncodeIntoResult rest = convertLatin1ToUtf8SafeWithDetails(
+          data, length_that_fits, write_result, dest_length);
+      read += rest.read;
+      written += rest.written;
     }
   } else {
     auto data = reinterpret_cast<const char16_t*>(view.data16());
 
-    // Limit conversion to what could fit in destination, avoiding splitting
-    // a valid surrogate pair at the boundary, which could cause a spurious call
-    // of simdutf::to_well_formed_utf16()
+    // Do not let the conservative input limit split a valid surrogate pair.
     if (length_that_fits > 0 && length_that_fits < view.length() &&
         isSurrogatePair(data[length_that_fits - 1], data[length_that_fits])) {
       length_that_fits--;
     }
 
-    // Check if input has unpaired surrogates - if so, convert to well-formed
-    // first
-    simdutf::result validation_result =
-        simdutf::validate_utf16_with_errors(data, length_that_fits);
-
-    if (validation_result.error == simdutf::SUCCESS) {
-      // Valid UTF-16 - use the fast path
-      read = findBestFit(data, length_that_fits, dest_length);
-      if (read != 0) {
-        DCHECK_LE(simdutf::utf8_length_from_utf16(data, read), dest_length);
-        written = simdutf::convert_utf16_to_utf8(data, read, write_result);
-      }
-    } else {
-      // Invalid UTF-16 with unpaired surrogates - convert to well-formed first
-      // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
-      // available
-      MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer(
-          length_that_fits);
-      simdutf::to_well_formed_utf16(
-          data, length_that_fits, conversion_buffer.out());
-
-      // Now use findBestFit with the well-formed data
-      read =
-          findBestFit(conversion_buffer.out(), length_that_fits, dest_length);
-      if (read != 0) {
-        DCHECK_LE(
-            simdutf::utf8_length_from_utf16(conversion_buffer.out(), read),
-            dest_length);
-        written = simdutf::convert_utf16_to_utf8(
-            conversion_buffer.out(), read, write_result);
-      }
-    }
+    const EncodeIntoResult result = convertUtf16ToUtf8WithReplacementSafe(
+        data, length_that_fits, write_result, dest_length);
+    read = result.read;
+    written = result.written;
   }
   DCHECK_LE(written, dest->ByteLength());
 
