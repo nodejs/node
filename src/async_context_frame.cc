@@ -37,21 +37,28 @@ Local<Value> current(Isolate* isolate) {
   return isolate->GetContinuationPreservedEmbedderDataV2().As<Value>();
 }
 
-void set(Isolate* isolate, Local<Value> value) {
-  auto env = Environment::GetCurrent(isolate);
-  if (!env->options()->async_context_frame) {
+void set(Environment* env, Local<Value> value) {
+  if (!env->async_context_frame_enabled()) {
     return;
   }
 
-  isolate->SetContinuationPreservedEmbedderDataV2(value);
+  env->isolate()->SetContinuationPreservedEmbedderDataV2(value);
+}
+
+void set(Isolate* isolate, Local<Value> value) {
+  set(Environment::GetCurrent(isolate), value);
 }
 
 // NOTE: It's generally recommended to use async_context_frame::Scope
 // but sometimes (such as enterWith) a direct exchange is needed.
-Local<Value> exchange(Isolate* isolate, Local<Value> value) {
-  auto prior = current(isolate);
-  set(isolate, value);
+Local<Value> exchange(Environment* env, Local<Value> value) {
+  auto prior = current(env->isolate());
+  set(env, value);
   return prior;
+}
+
+Local<Value> exchange(Isolate* isolate, Local<Value> value) {
+  return exchange(Environment::GetCurrent(isolate), value);
 }
 
 void CreatePerContextProperties(Local<Object> target,
