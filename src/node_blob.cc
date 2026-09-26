@@ -33,6 +33,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
+using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::SnapshotCreator;
@@ -125,7 +126,7 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
           Blob::Create(env, DataQueue::CreateIdempotent(std::move(entries)))) {
     Local<Value> vals[2]{
         blob->object(),
-        Uint32::NewFromUnsigned(env->isolate(), blob->length()),
+        Number::New(env->isolate(), static_cast<double>(blob->length())),
     };
     args.GetReturnValue().Set(
         Array::New(env->isolate(), &vals[0], arraysize(vals)));
@@ -274,10 +275,10 @@ void Blob::ToSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Blob* blob;
   ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
-  CHECK(args[0]->IsUint32());
-  CHECK(args[1]->IsUint32());
-  size_t start = args[0].As<Uint32>()->Value();
-  size_t end = args[1].As<Uint32>()->Value();
+  CHECK(args[0]->IsNumber());
+  CHECK(args[1]->IsNumber());
+  uint64_t start = static_cast<uint64_t>(args[0].As<Number>()->Value());
+  uint64_t end = static_cast<uint64_t>(args[1].As<Number>()->Value());
   BaseObjectPtr<Blob> slice = blob->Slice(env, start, end);
   if (slice) args.GetReturnValue().Set(slice->object());
 }
@@ -286,9 +287,10 @@ void Blob::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("data_queue_", data_queue_, "std::shared_ptr<DataQueue>");
 }
 
-BaseObjectPtr<Blob> Blob::Slice(Environment* env, size_t start, size_t end) {
-  return Create(env,
-                this->data_queue_->slice(start, static_cast<uint64_t>(end)));
+BaseObjectPtr<Blob> Blob::Slice(Environment* env,
+                                uint64_t start,
+                                uint64_t end) {
+  return Create(env, this->data_queue_->slice(start, end));
 }
 
 Blob::Blob(Environment* env,
@@ -459,7 +461,7 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());                       // ID key
   CHECK(Blob::HasInstance(realm->env(), args[1]));  // Blob
-  CHECK(args[2]->IsUint32());                       // Length
+  CHECK(args[2]->IsNumber());                       // Length
   CHECK(args[3]->IsString());                       // Type
 
   BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
@@ -469,7 +471,7 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
   Blob* blob;
   ASSIGN_OR_RETURN_UNWRAP(&blob, args[1]);
 
-  size_t length = args[2].As<Uint32>()->Value();
+  uint64_t length = static_cast<uint64_t>(args[2].As<Number>()->Value());
   Utf8Value type(isolate, args[3]);
 
   binding_data->store_data_object(
@@ -526,9 +528,10 @@ void Blob::GetDataObject(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    Local<Value> values[] = {stored.blob->object(),
-                             Uint32::NewFromUnsigned(isolate, stored.length),
-                             type};
+    Local<Value> values[] = {
+        stored.blob->object(),
+        Number::New(isolate, static_cast<double>(stored.length)),
+        type};
 
     args.GetReturnValue().Set(Array::New(isolate, values, arraysize(values)));
   }
@@ -540,7 +543,9 @@ void BlobBindingData::StoredDataObject::MemoryInfo(
 }
 
 BlobBindingData::StoredDataObject::StoredDataObject(
-    const BaseObjectPtr<Blob>& blob_, size_t length_, const std::string& type_)
+    const BaseObjectPtr<Blob>& blob_,
+    uint64_t length_,
+    const std::string& type_)
     : blob(blob_), length(length_), type(type_) {}
 
 BlobBindingData::BlobBindingData(Realm* realm, Local<Object> wrap)
