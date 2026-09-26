@@ -6,6 +6,7 @@
 #include "node_internals.h"
 #include "node_metadata.h"
 #include "node_mutex.h"
+#include "node_watchdog.h"
 #include "node_worker.h"
 #include "permission/permission.h"
 #include "util.h"
@@ -227,29 +228,49 @@ static void WriteNodeReport(Isolate* isolate,
 
   writer.json_arraystart("workers");
   if (env != nullptr) {
-    Mutex workers_mutex;
-    ConditionVariable notify;
-    std::vector<std::string> worker_infos;
+    // Shared with the callbacks, which can outlive this function if a Worker
+    // thread does not respond in time.
+    struct WorkerInfos {
+      Mutex mutex;
+      ConditionVariable notify;
+      std::vector<std::string> infos;
+    };
+    auto shared = std::make_shared<WorkerInfos>();
     size_t expected_results = 0;
 
     env->ForEachWorker([&](Worker* w) {
-      expected_results += w->RequestInterrupt([&, w = w](Environment* env) {
-        std::ostringstream os;
-        std::string name =
-            "Worker thread subreport [" + std::string(w->name()) + "]";
-        GetNodeReport(env, name, trigger, Local<Value>(), os);
+      expected_results += w->RequestInterrupt(
+          [shared, w, trigger = std::string(trigger)](Environment* env) {
+            std::ostringstream os;
+            std::string name =
+                "Worker thread subreport [" + std::string(w->name()) + "]";
+            GetNodeReport(env, name, trigger, Local<Value>(), os);
 
-        Mutex::ScopedLock lock(workers_mutex);
-        worker_infos.emplace_back(os.str());
-        notify.Signal(lock);
-      });
+            Mutex::ScopedLock lock(shared->mutex);
+            shared->infos.emplace_back(os.str());
+            shared->notify.Signal(lock);
+          });
     });
 
-    Mutex::ScopedLock lock(workers_mutex);
-    worker_infos.reserve(expected_results);
-    while (worker_infos.size() < expected_results)
-      notify.Wait(lock);
-    for (const std::string& worker_info : worker_infos)
+    // --process-timeout forces the process to exit shortly after it triggers
+    // the report, so do not wait for Worker threads that are blocked, e.g. in
+    // a synchronous native call. They are left out of the report.
+    const bool wait_forever = trigger != kProcessTimeoutReportTrigger;
+    const uint64_t deadline =
+        uv_hrtime() + kProcessTimeoutResponseGraceMs * 1000 * 1000;
+    Mutex::ScopedLock lock(shared->mutex);
+    shared->infos.reserve(expected_results);
+    while (shared->infos.size() < expected_results) {
+      const uint64_t now = uv_hrtime();
+      if (wait_forever) {
+        shared->notify.Wait(lock);
+      } else if (now < deadline) {
+        shared->notify.TimedWait(lock, deadline - now);
+      } else {
+        break;
+      }
+    }
+    for (const std::string& worker_info : shared->infos)
       writer.json_element(JSONWriter::ForeignJSON { worker_info });
   }
   writer.json_arrayend();

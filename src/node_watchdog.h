@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <memory>
+#include <string_view>
 #include <vector>
 #include "handle_wrap.h"
 #include "memory_tracker-inl.h"
@@ -67,6 +68,13 @@ class Watchdog {
   uv_timer_t timer_;
   bool* timed_out_;
 };
+
+// How long the main thread has to respond to --process-timeout, and Worker
+// threads to provide their part of the report. A thread that does not respond
+// is most likely blocked in a synchronous native call.
+constexpr uint64_t kProcessTimeoutResponseGraceMs = 2000;
+// The trigger of the report written by --report-on-process-timeout.
+constexpr std::string_view kProcessTimeoutReportTrigger = "ProcessTimeout";
 
 // Implements --process-timeout.
 //

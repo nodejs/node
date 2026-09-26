@@ -1439,6 +1439,9 @@ Enables the report to be generated when \fB--process-timeout\fR expires, in
 addition to the summary printed to stderr. Useful to inspect the JavaScript
 and native stacks, the event loop state, and resource consumption to reason
 about why the process did not exit. Requires \fB--process-timeout\fR.
+Worker threads that do not provide their part of the report within two
+seconds, for example because they are blocked in a synchronous operation such
+as \fBchild_process.execSync()\fR, are left out of it.
 .
 .It Fl -report-on-signal
 Enables report to be generated upon receiving the specified (or predefined)

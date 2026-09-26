@@ -2840,6 +2840,10 @@ addition to the summary printed to stderr. Useful to inspect the JavaScript
 and native stacks, the event loop state, and resource consumption to reason
 about why the process did not exit. Requires [`--process-timeout`][].
 
+Worker threads that do not provide their part of the report within two
+seconds, for example because they are blocked in a synchronous operation such
+as [`child_process.execSync()`][], are left out of it.
+
 ### `--report-on-signal`
 
 <!-- YAML
