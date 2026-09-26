@@ -76,6 +76,13 @@ class MacCache;
 
 namespace node {
 
+#if HAVE_OPENSSL
+namespace crypto {
+struct RootCertStore;
+void FreeRootCertStore(RootCertStore* root_certs);
+}  // namespace crypto
+#endif  // HAVE_OPENSSL
+
 namespace shadow_realm {
 class ShadowRealm;
 }
@@ -1211,6 +1218,7 @@ class Environment final : public MemoryRetainer {
   std::unique_ptr<ncrypto::MacCache> provider_mac_cache;
   std::vector<std::string> supported_mac_algorithms;
   bool supported_mac_algorithms_initialized = false;
+  DeleteFnPtr<crypto::RootCertStore, crypto::FreeRootCertStore> root_cert_store;
 #endif  // HAVE_OPENSSL
 
   v8::Global<v8::Module> temporary_required_module_facade_original;

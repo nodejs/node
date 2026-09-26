@@ -6,8 +6,12 @@
 
 #include "cppgc/allocation.h"
 #include "cppgc/garbage-collected.h"
+#include "env-inl.h"
 #include "node_test_fixture.h"
 #include "v8-cppgc.h"
+#if HAVE_OPENSSL
+#include "crypto/crypto_context.h"
+#endif
 
 #include <string>
 #include <vector>
@@ -445,6 +449,31 @@ TEST_P(SharedIsolateTest, FreeIsolateDataBeforeItsEnvironmentAsserts) {
   node::Stop(instance->env, node::StopFlags::kDoNotTerminateIsolate);
   FreeInstance(std::move(instance));
 }
+
+#if HAVE_OPENSSL
+TEST_P(SharedIsolateTest, RootCertStoreIsPerEnvironment) {
+  const HandleScope handle_scope(isolate_);
+  std::unique_ptr<Instance> first =
+      CreateInstance(0, EnvironmentFlags::kNoCreateInspector);
+  std::unique_ptr<Instance> second =
+      CreateInstance(1, EnvironmentFlags::kNoCreateInspector);
+  auto store_size = [](Instance* instance) {
+    return sk_X509_OBJECT_num(X509_STORE_get0_objects(
+        node::crypto::GetOrCreateRootCertStore(instance->env)));
+  };
+  const int default_size = store_size(second.get());
+  EXPECT_GT(default_size, 0);
+
+  Evaluate(first.get(),
+           "process.getBuiltinModule('tls').setDefaultCACertificates([])");
+  EXPECT_EQ(store_size(first.get()), 0);
+  EXPECT_EQ(store_size(second.get()), default_size);
+
+  FreeInstance(std::move(first));
+  EXPECT_EQ(store_size(second.get()), default_size);
+  FreeInstance(std::move(second));
+}
+#endif  // HAVE_OPENSSL
 
 INSTANTIATE_TEST_SUITE_P(
     EnvironmentTest,
