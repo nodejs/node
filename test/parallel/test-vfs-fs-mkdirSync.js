@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.mkdirSync dispatches to VFS, including the `recursive: true` form.

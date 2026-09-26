@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.createWriteStream dispatches through VFS, exposes a `path` property and

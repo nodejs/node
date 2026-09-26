@@ -1,59 +1,43 @@
 'use strict';
 
-// node:vfs is gated behind --experimental-vfs. Without the flag the
-// module is not exposed; bare `vfs` (without the node: scheme) is also
-// blocked.
+// node:vfs is available without an experimental flag. The old flag remains a
+// no-op for compatibility, and the module remains available with --no- form.
 
 require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 
-// Without the flag, requiring node:vfs throws ERR_UNKNOWN_BUILTIN_MODULE.
-{
-  spawnSyncAndAssert(process.execPath, [
-    '-e', 'require("node:vfs")',
-  ], { status: 1, stderr: /ERR_UNKNOWN_BUILTIN_MODULE/ });
-}
-
-// Without the flag, importing node:vfs throws ERR_UNKNOWN_BUILTIN_MODULE.
-{
-  spawnSyncAndAssert(process.execPath, [
-    '--input-type=module',
-    '-e', 'import("node:vfs").catch((e) => { console.error(e.code); process.exit(1); });',
-  ], {
-    status: 1,
-    stderr: /ERR_UNKNOWN_BUILTIN_MODULE/,
-  });
-}
-
-// With the flag, node:vfs loads and works.
+// CommonJS and ESM can load node:vfs without a flag.
 {
   const script =
     'const v = require("node:vfs");' +
     'const x = v.create();' +
     'x.writeFileSync("/x", "hi");' +
     'console.log(x.readFileSync("/x", "utf8"));';
-  spawnSyncAndAssert(process.execPath, ['--experimental-vfs', '-e', script], {
+  spawnSyncAndAssert(process.execPath, ['-e', script], {
     stdout: 'hi',
+    stderr: /ExperimentalWarning: VirtualFileSystem is an experimental feature/,
     trim: true,
+  });
+
+  spawnSyncAndAssert(process.execPath, [
+    '--input-type=module',
+    '-e', 'import("node:vfs").then(({ default: v }) => console.log(typeof v.create));',
+  ], {
+    stdout: 'function\n',
+    stderr: /ExperimentalWarning: VirtualFileSystem is an experimental feature/,
   });
 }
 
-// Bare `vfs` (no node: scheme) is always blocked.
-{
-  spawnSyncAndAssert(process.execPath, [
-    '--experimental-vfs',
-    '-e', "require('vfs')",
-  ], { status: 1, stderr: /Cannot find module 'vfs'/ });
-}
-
-// Module.builtinModules reflects whether --experimental-vfs is active.
-for (const [flag, expected] of [
-  ['--experimental-vfs', 'true\n'],
-  ['--no-experimental-vfs', 'false\n'],
-]) {
+// The old flag is accepted for compatibility but no longer gates the module.
+for (const flag of ['--experimental-vfs', '--no-experimental-vfs']) {
   spawnSyncAndAssert(process.execPath, [
     flag,
     '-p',
     'require("node:module").builtinModules.includes("node:vfs")',
-  ], { stdout: expected, stderr: '' });
+  ], { stdout: 'true\n', stderr: '' });
 }
+
+// Bare `vfs` (no node: scheme) remains unavailable.
+spawnSyncAndAssert(process.execPath, [
+  '-e', "require('vfs')",
+], { status: 1, stderr: /Cannot find module 'vfs'/ });

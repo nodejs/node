@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.linkSync dispatches to VFS for hard links within the same mount.

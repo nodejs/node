@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.mkdir, fs.rmdir, fs.rm, and fs.unlink callbacks dispatch through VFS.

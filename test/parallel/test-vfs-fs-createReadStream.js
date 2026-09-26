@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.createReadStream dispatches through VFS, including the emitted 'open'

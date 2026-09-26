@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.openAsBlob and fs.openAsBlobSync dispatch to VFS and return Blobs over the virtual file.

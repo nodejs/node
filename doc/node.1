@@ -174,7 +174,7 @@ A mounted VFS serves paths that the file system permissions do not describe,
 so mounting one is gated on its own flag rather than on \fB--allow-fs-read\fR or
 \fB--allow-fs-write\fR.
 .Bd -literal
-$ node --experimental-vfs --permission --allow-fs-vfs app.js
+$ node --permission --allow-fs-vfs app.js
 .Ed
 .
 .It Fl -allow-fs-write
@@ -895,9 +895,6 @@ The flag may be specified more than once; multiple expressions are combined
 with AND, so a test must satisfy every expression to run.
 A malformed expression causes the test runner to exit with a non-zero status
 before running any tests.
-.
-.It Fl -experimental-vfs
-Enable the experimental \fBnode:vfs\fR module.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES Module support in the \fBnode:vm\fR module.
@@ -1932,7 +1929,7 @@ Print node's version.
 .It
 \fBsource\fR \fB{string}\fR A directory or an archive file to mount and run.
 .El
-Requires \fB--experimental-vfs\fR. May be given at most once.
+May be given at most once.
 Mounts \fBsource\fR as a virtual file system (\fBnode:vfs\fR), and runs the entry
 point and all subsequent \fBrequire()\fR/\fBimport\fR resolution against that mount
 rather than the real file system. The mount is placed at a reserved mount point
@@ -1963,16 +1960,15 @@ mounts it, whatever else that thread mounts, so a path into the mount means the
 same thing in all of them.
 A worker created with its own \fBexecArgv\fR inherits none of the parent's options,
 and so does not mount the source at all. To run a script from the mount, such a
-worker must be given the same options again, \fB--experimental-vfs\fR and
-\fB--vfs-load\fR; without them, that thread has no mount for the script to come
-from, and the worker fails to load it. \fB--experimental-vfs\fR is also what makes
-\fBnode:vfs\fR available to the worker's own code. A worker whose script comes
-from anywhere else, such as the real file system, needs nothing added.
+worker must be given \fB--vfs-load\fR again; without it, that thread has no mount
+for the script to come from, and the worker fails to load it. \fBnode:vfs\fR is
+available to worker code without an experimental flag. A worker whose script
+comes from anywhere else, such as the real file system, needs nothing added.
 \fB--vfs-load\fR is not permitted in \fBNODE_OPTIONS\fR: which entry point runs is
 the command line's decision, and the environment must not be able to redirect
 it.
 .Bd -literal
-$ node --experimental-vfs --vfs-load=app.zip
+$ node --vfs-load=app.zip
 .Ed
 .
 .It Fl -watch
@@ -2227,8 +2223,6 @@ one is included in the list below.
 \fB--experimental-test-isolation\fR
 .It
 \fB--experimental-top-level-await\fR
-.It
-\fB--experimental-vfs\fR
 .It
 \fB--experimental-vm-modules\fR
 .It

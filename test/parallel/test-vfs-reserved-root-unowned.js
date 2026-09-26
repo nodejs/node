@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs --expose-internals
+// Flags: --disable-warning=ExperimentalWarning --expose-internals
 'use strict';
 
 // The module loader manufactures paths under the reserved VFS root that no

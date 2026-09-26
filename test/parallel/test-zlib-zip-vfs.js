@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // Exercises the node:zlib ZipFile read/write surface over a node:vfs virtual

@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs --expose-internals
+// Flags: --disable-warning=ExperimentalWarning --expose-internals
 'use strict';
 
 // Cover the VirtualFileHandle base class — all primitives must throw

@@ -1,3 +1,4 @@
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 const common = require('../common');
@@ -8,7 +9,6 @@ const experimentalBuiltins = [
   ['bench/reporters', '--experimental-bench', true],
   ['dtls', '--experimental-dtls', common.hasDtls],
   ['quic', '--experimental-quic', common.hasQuic],
-  ['vfs', '--experimental-vfs', true],
 ].filter(([, , available]) => available);
 
 for (const [id, flag] of experimentalBuiltins) {
@@ -51,7 +51,7 @@ if (common.hasFFI) {
   ], { status: 0 });
 }
 
-const schemeOnlyBuiltins = ['node:test', 'node:sea'];
+const schemeOnlyBuiltins = ['node:test', 'node:sea', 'node:vfs'];
 if (common.hasFFI) {
   schemeOnlyBuiltins.push('node:ffi');
 }

@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // fs.rmSync, fs.rmdirSync, and fs.unlinkSync dispatch to VFS.

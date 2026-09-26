@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs --expose-internals
+// Flags: --disable-warning=ExperimentalWarning --expose-internals
 'use strict';
 
 // Exercise the default-option paths in createFileStats / createDirectoryStats

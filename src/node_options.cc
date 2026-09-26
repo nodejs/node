@@ -789,8 +789,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             NoOp{},
 #endif
             kAllowedInEnvvar);
+  // Retained as a no-op for compatibility; node:vfs is no longer gated.
   AddOption("--experimental-vfs",
-            "experimental node:vfs module",
+            "",
             BOOL_FIELD(experimental_vfs),
             kAllowedInEnvvar);
   // Choosing the entry point is the command line's alone: an environment
@@ -801,7 +802,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--vfs-load",
             "mount a directory or archive as a virtual file system and run the "
             "entry point and module resolution against it instead of the real "
-            "file system (may be given once; requires --experimental-vfs)",
+            "file system (may be given once)",
             &EnvironmentOptions::vfs_load_source,
             kDisallowedInEnvvar);
   AddOption("[vfs_load_set]", "", BOOL_FIELD(vfs_load));
