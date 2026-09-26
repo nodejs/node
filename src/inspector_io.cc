@@ -268,7 +268,7 @@ InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
       id_(GenerateID()) {
   Mutex::ScopedLock scoped_lock(thread_start_lock_);
   CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadMain, this), 0);
-  thread_start_condition_.Wait(scoped_lock);
+  while (request_queue_ == nullptr) thread_start_condition_.Wait(scoped_lock);
 }
 
 InspectorIo::~InspectorIo() {
