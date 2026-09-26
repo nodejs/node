@@ -1369,6 +1369,10 @@ accepted and how failures are reported:
 * For `blob:` URLs, the script must be held in memory, so blobs backed by a file,
   such as those returned by [`fs.openAsBlob()`][], cannot be used.
 
+[Type stripping][type stripping] only applies to module workers loaded from
+`file:` URLs. The `type` option, not the file extension, decides how an entry is
+run, so a `.cts` entry is still evaluated as an ES module.
+
 ### Differences from the HTML Standard
 
 Besides script loading, mentioned above:
@@ -1393,6 +1397,7 @@ Besides script loading, mentioned above:
   `unhandledrejection`, since Node.js exposes the equivalent does not
   implement the `PromiseRejectionEvent` interface or the per-rejection
   `preventDefault()` behavior required by the HTML Standard.
+* Module workers loaded from `file:` URLs support [type stripping][].
 
 ### Web Workers and `node:worker_threads`
 
@@ -1537,5 +1542,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md
+[type stripping]: typescript.md#type-stripping
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
 [webassembly-org]: https://webassembly.org
