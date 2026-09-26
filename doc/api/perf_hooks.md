@@ -1926,6 +1926,9 @@ are not guaranteed to reflect any correct state of the event loop.
 <!-- YAML
 added: v11.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added the `lowest`, `highest`, and `figures` options.
   - version:
      - v26.5.0
      - v24.19.0
@@ -1939,6 +1942,14 @@ changes:
   * `resolution` {number} The sampling rate in milliseconds for interval-based
     sampling. Must be greater than zero. This option is ignored when
     `samplePerIteration` is `true`. **Default:** `10`.
+  * `lowest` {number|bigint} The lowest discernible delay, in nanoseconds. Must
+    be an integer value greater than `0`. **Default:** `1` when
+    `samplePerIteration` is `true`, otherwise `1000`.
+  * `highest` {number|bigint} The highest recordable delay, in nanoseconds.
+    Must be an integer value that is equal to or greater than two times
+    `lowest`. **Default:** `2n ** 63n - 1n`.
+  * `figures` {number} The number of accuracy digits. Must be an integer
+    between `1` and `5`. **Default:** `3`.
 * Returns: {ELDHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
@@ -1953,6 +1964,16 @@ the histogram does not keep the loop alive or force additional iterations when
 the application is idle.
 The two sampling modes produce significantly different results and should not
 be compared directly.
+
+The `lowest`, `highest`, and `figures` options configure the histogram as they
+do for [`perf_hooks.createHistogram()`][]. `lowest` must be greater than `0`
+because an event loop delay of zero is not possible: the event loop has a
+minimal overhead, and the measurement itself depends on the event loop turning.
+Delays greater than `highest` are not recorded, and are counted by
+[`histogram.exceeds`][] instead. With interval-based sampling, every sample
+includes the `resolution`, so `highest` should be well above
+`resolution * 1e6`. The histogram's memory use depends on these options, not
+on the number of samples.
 
 ```mjs
 import { monitorEventLoopDelay } from 'node:perf_hooks';
@@ -2253,8 +2274,8 @@ added: v11.10.0
 
 * Type: {number}
 
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
+The number of values that were not recorded because they exceeded the
+histogram's highest recordable value.
 
 ### `histogram.exceedsBigInt`
 
@@ -2266,8 +2287,8 @@ added:
 
 * Type: {bigint}
 
-The number of times the event loop delay exceeded the maximum 1 hour event
-loop delay threshold.
+The number of values that were not recorded because they exceeded the
+histogram's highest recordable value.
 
 ### `histogram.export()`
 
@@ -3432,7 +3453,9 @@ dns.promises.resolve('localhost');
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`histogram.diff()`]: #histogramdiffother
+[`histogram.exceeds`]: #histogramexceeds
 [`histogram.export()`]: #histogramexport
+[`perf_hooks.createHistogram()`]: #perf_hookscreatehistogramoptions
 [`perf_hooks.createSlidingWindowHistogram()`]: #perf_hookscreateslidingwindowhistogramoptions
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
 [`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
