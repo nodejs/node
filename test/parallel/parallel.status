@@ -20,8 +20,6 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 test-snapshot-incompatible: SKIP
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/59090
-test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59636
 test-fs-cp-sync-symlink-points-to-dest-error: SKIP
 test-fs-cp-async-symlink-points-to-dest: SKIP
@@ -36,9 +34,6 @@ test-performance-function: PASS, FLAKY
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 
 [$system==macos]
-# https://github.com/nodejs/node/issues/42741
-test-http-server-headers-timeout-keepalive: PASS,FLAKY
-test-http-server-request-timeout-keepalive: PASS,FLAKY
 # https://github.com/nodejs/node/issues/60050
 test-cluster-dgram-1: SKIP
 
@@ -141,10 +136,6 @@ test-tls-set-default-ca-certificates-append-fetch: SKIP
 test-tls-set-default-ca-certificates-reset-fetch: SKIP
 test-inspector-invalid-protocol: SKIP
 
-[$asan==on]
-# https://github.com/nodejs/node/issues/39655
-test-cluster-primary-error: PASS, FLAKY
-
 [$arch==loong64]
 # https://github.com/nodejs/node/issues/51662
 test-http-correct-hostname: SKIP
@@ -152,8 +143,3 @@ test-http-correct-hostname: SKIP
 [$arch==riscv64]
 # Snapshot test works in some environments but not others for now on RISC-V
 test-snapshot-reproducible: PASS, FLAKY
-# styletext ones are failing in jenkins but pass standalone so something
-# odd is happening to the ttys when run via java. tty issue
-# https://github.com/nodejs/build/issues/4099#issuecomment-5070947806
-test-util-styletext: PASS, FLAKY
-test-util-styletext-hex: PASS, FLAKY

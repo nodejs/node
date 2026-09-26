@@ -12,9 +12,10 @@ const http = require('node:http');
 const https = require('node:https');
 const inspector = require('node:inspector/promises');
 
-// Disable certificate validation for the global fetch.
+// Keep local requests independent of proxy settings and allow the test certificate.
 const undici = require('internal/deps/undici/undici');
 undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
+  noProxy: '*',
   connect: {
     rejectUnauthorized: false,
   },
@@ -205,8 +206,10 @@ const testNetworkInspection = async () => {
   session.removeAllListeners();
 };
 
-httpServer.listen(0, () => {
-  httpsServer.listen(0, async () => {
+// Listen on the address the requests go to, so that a socket another process
+// binds to 127.0.0.1 on the same port cannot take the connections over.
+httpServer.listen(0, '127.0.0.1', () => {
+  httpsServer.listen(0, '127.0.0.1', async () => {
     try {
       await session.post('Network.enable');
       await testNetworkInspection();

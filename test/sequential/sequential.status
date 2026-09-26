@@ -11,17 +11,10 @@ test-cpu-prof-dir-worker: PASS, FLAKY
 test-http2-large-file: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/63212#issuecomment-5423558796
-test-debugger-pid: PASS, FLAKY
 
 [$system==linux]
-# https://github.com/nodejs/node/issues/54817
-test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==macos]
-
-# https://github.com/nodejs/node/issues/43465
-test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 test-worker-prof: PASS, FLAKY
