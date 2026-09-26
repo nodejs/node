@@ -561,7 +561,7 @@ suite('Database.prototype.createModule()', () => {
     test('closes the iterator when a filter is reapplied to the cursor', () => {
       // A correlated subquery re-invokes xFilter on the same cursor per outer
       // row, abandoning the previous iterator; its `finally` must still run.
-      const db = new DatabaseSync(':memory:');
+      const db = new Database(':memory:');
       const cleanedUp = [];
 
       db.createModule('refilter_cleanup', {
