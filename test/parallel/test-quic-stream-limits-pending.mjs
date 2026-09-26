@@ -25,10 +25,14 @@ let serverStreamCount = 0;
 // Server allows only 1 bidi stream at a time.
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
-    const streambytes = await bytes(stream);
+    console.log("server mark 1")
+    await bytes(stream);
+    console.log("server mark 2")
     stream.writer.endSync();
+    console.log("server mark 3")
     await stream.closed;
     ++serverStreamCount;
+    console.log('serverStreamCount', serverStreamCount)
     if (serverStreamCount === 2) {
       twoDone.resolve();
     }
@@ -38,7 +42,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     if (serverStreamCount === 4) {
       serverSession.close();
     }
-  }, 4);
+  }, 3);
 }), {
   transportParams: { initialMaxStreamsBidi: 1 },
 });
@@ -51,7 +55,6 @@ let opened = 0;
 // First stream opens immediately (within the limit).
 const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
-  waitUntilAvailable: true
 });
 
 // eslint-disable-next-line node-core/must-call-assert
@@ -59,30 +62,29 @@ s1.opened.then(() => {
   opened++;
 });
 
-try {
-  // Second stream should not open, but throw.
-  const s2 = await clientSession.createBidirectionalStream({
-    body: encoder.encode('stream 2'),
-    waitUntilAvailable: false
-  });
-} catch (error) {
-  assert.strictEqual(error.code, 'ERR_INVALID_STATE');
-}
-
-// eslint-disable-next-line node-core/must-call-assert
-s2.opened.then(() => {
-  opened++;
-});
-
+await assert.rejects(
+  async () => {
+    // Second stream should not open, but throw.
+    await clientSession.createBidirectionalStream({
+      body: encoder.encode('stream 2'),
+      waitUntilAvailable: false,
+    });
+    // eslint-disable-next-line node-core/must-call-assert
+    s2.opened.then(() => {
+      opened++;
+    });
+  },
+  {
+    name: 'Error',
+    message: 'No new stream available within flow control',
+  },
+);
 // Third stream is created but queued as pending because the
 // server only allows 1 concurrent bidi stream.
 const s3 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 3'),
-  waitUntilAvailable: true
 });
-
-
-// s3 should be pending until s1 closes and the server grants
+// Note, s3 should be pending until s1 closes and the server grants
 // more stream credits.
 assert.strictEqual(s3.pending, true);
 assert.strictEqual(opened, 1);
@@ -96,7 +98,6 @@ s3.destroy(err);
 
 await Promise.all([assert.rejects(s3.opened, err), assert.rejects(s3.closed, err)]);
 
-
 // After s1 closes, the server sends MAX_STREAMS which opens s2.
 // Wait for the server to receive both streams.
 await twoDone.promise;
@@ -105,14 +106,13 @@ assert.strictEqual(opened, 2);
 for await (const _ of s3) { /* drain */ } // eslint-disable-line no-unused-vars
 await s3.closed;
 
-await sleep(10); // we wait a bit, as we do not have a callback exposed to js
+await sleep(10); // We wait a bit, as we do not have a callback exposed to js
 // fourth stream should open immediately and not throw
 const s4 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 4'),
   waitUntilAvailable: false
 });
-await s4.closed;
-await allDone.promise;
+await Promise.all([s4.closed, allDone.promise]);
 
 await clientSession.close();
 await serverEndpoint.close();

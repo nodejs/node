@@ -32,9 +32,11 @@ const callbacks = {
   onStreamClose() {},
   onStreamDrain() {},
   onStreamReset() {},
+  onStreamSessionId() {},
   onStreamStopSending() {},
   onStreamHeaders() {},
   onStreamTrailers() {},
+  onStreamWTSessionClose() {},
 };
 // Fail if any callback is missing
 for (const fn of Object.keys(callbacks)) {
