@@ -2,6 +2,7 @@
 
 const { runInNewContext, runInThisContext } = require('vm');
 const { setFlagsFromString } = require('v8');
+const honorAllowedRejections = require('./rejections');
 const { parentPort, workerData } = require('worker_threads');
 
 const { ResourceLoader } = require(workerData.wptRunner);
@@ -34,6 +35,7 @@ if (workerData.initScript) {
 runInThisContext(workerData.harness.code, {
   filename: workerData.harness.filename,
 });
+honorAllowedRejections();
 
 // If there are skip patterns, wrap test functions to prevent execution of
 // matching tests. This must happen after testharness.js is loaded but before
