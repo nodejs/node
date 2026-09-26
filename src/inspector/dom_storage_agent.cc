@@ -101,11 +101,42 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
   std::optional<StorageMap> storage_map_fallback;
   if (storage_map->empty()) {
     auto web_storage_obj = getWebStorage(is_local_storage);
+    // Each way of failing below says something different about the store, so
+    // each reports a different reason. A frontend that cannot read a store
+    // otherwise has no way to tell a missing one from a corrupt one.
     if (!web_storage_obj) {
       return protocol::DispatchResponse::ServerError(
-          "Could not read DOM storage items");
+          "Could not read DOM storage items: storage is unavailable");
     }
+    // A message from a remote frontend is dispatched without a HandleScope
+    // on the stack, and opening the backing file can throw, so give the
+    // exception a scope to be allocated in and somewhere to land.
+    v8::HandleScope handle_scope(env_->isolate());
+    v8::TryCatch try_catch(env_->isolate());
     storage_map_fallback = web_storage_obj.value()->GetAll();
+    if (try_catch.HasCaught()) {
+      // Pass the reason along; "the file was written by a newer Node.js" and
+      // "the file is locked" are not the same problem to the user. Read it
+      // off the Message, which was built when the exception was thrown.
+      // Converting the exception itself would call a user-patchable
+      // Error.prototype.toString, and there is no JavaScript frame here to
+      // run it from.
+      Local<v8::Message> message = try_catch.Message();
+      if (!message.IsEmpty()) {
+        Utf8Value reason(env_->isolate(), message->Get());
+        return protocol::DispatchResponse::ServerError(
+            std::string("Could not read DOM storage items: ") + reason.out());
+      }
+      // V8 builds that Message on a best-effort basis, so the throw is all we
+      // can report when it is missing.
+      return protocol::DispatchResponse::ServerError(
+          "Could not read DOM storage items: the backing store could not be "
+          "opened");
+    }
+    if (!storage_map_fallback.has_value()) {
+      return protocol::DispatchResponse::ServerError(
+          "Could not read DOM storage items: the backing file is malformed");
+    }
     storage_map = &storage_map_fallback.value();
   }
 

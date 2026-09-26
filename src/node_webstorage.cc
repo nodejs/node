@@ -59,6 +59,19 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
+// The backing file is a user-specified path, and the schema below is created
+// with IF NOT EXISTS, so a file that already holds tables of those names is
+// adopted as-is and its values may have any type. A wrong type is therefore a
+// statement about untrusted input, not a broken internal invariant.
+#define CHECK_COLUMN_TYPE_OR_THROW(env, stmt, idx, expected, detail, ret)      \
+  do {                                                                         \
+    if (sqlite3_column_type((stmt), (idx)) != (expected)) {                    \
+      THROW_ERR_INVALID_STATE((env),                                           \
+                              "localStorage database is malformed: " detail);  \
+      return (ret);                                                            \
+    }                                                                          \
+  } while (0)
+
 static void ThrowQuotaExceededException(Local<Context> context) {
   Isolate* isolate = Isolate::GetCurrent();
   auto quota_exceeded_str =
@@ -173,6 +186,12 @@ Maybe<void> Storage::Open() {
   }
 
   int r = sqlite3_open(location_.c_str(), &db);
+  // Adopt the connection before anything below can return early, so that a
+  // failure does not leak it. sqlite3_open() allocates a connection to be
+  // closed even when it fails. This is declared ahead of the statement below
+  // so that the statement is finalized first; sqlite3_close() fails while a
+  // statement is still open, and conn_deleter treats that as fatal.
+  auto conn = conn_unique_ptr(db);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
@@ -184,12 +203,16 @@ Maybe<void> Storage::Open() {
                          get_schema_version_sql.size(),
                          &s,
                          nullptr);
-  r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   CHECK_ERROR_OR_THROW(
       env(), sqlite3_step(stmt.get()), SQLITE_ROW, Nothing<void>());
-  CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_INTEGER);
+  CHECK_COLUMN_TYPE_OR_THROW(env(),
+                             stmt.get(),
+                             0,
+                             SQLITE_INTEGER,
+                             "expected schema_version to be an integer",
+                             Nothing<void>());
   int schema_version = sqlite3_column_int(stmt.get(), 0);
   stmt = nullptr;  // Force finalization.
 
@@ -209,7 +232,7 @@ Maybe<void> Storage::Open() {
     CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   }
 
-  db_ = conn_unique_ptr(db);
+  db_ = std::move(conn);
   return JustVoid();
 }
 
@@ -266,7 +289,12 @@ MaybeLocal<Array> Storage::Enumerate() {
   LocalVector<Value> values(env()->isolate());
   Local<Value> value;
   while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
-    CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
+    CHECK_COLUMN_TYPE_OR_THROW(env(),
+                               stmt.get(),
+                               0,
+                               SQLITE_BLOB,
+                               "expected key to be a blob",
+                               Local<Array>());
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
     if (!String::NewFromTwoByte(env()->isolate(),
                                 reinterpret_cast<const uint16_t*>(
@@ -282,9 +310,10 @@ MaybeLocal<Array> Storage::Enumerate() {
   return Array::New(env()->isolate(), values.data(), values.size());
 }
 
-std::unordered_map<std::u16string, std::u16string> Storage::GetAll() {
+std::optional<std::unordered_map<std::u16string, std::u16string>>
+Storage::GetAll() {
   if (!Open().IsJust()) {
-    return {};
+    return std::nullopt;
   }
 
   static constexpr std::string_view sql =
@@ -292,10 +321,17 @@ std::unordered_map<std::u16string, std::u16string> Storage::GetAll() {
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   auto stmt = stmt_unique_ptr(s);
+  // Unlike the other accessors, this one has no JavaScript caller to throw at,
+  // so every failure below is reported to the inspector agent instead.
+  if (r != SQLITE_OK) {
+    return std::nullopt;
+  }
   std::unordered_map<std::u16string, std::u16string> result;
   while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
-    CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
-    CHECK(sqlite3_column_type(stmt.get(), 1) == SQLITE_BLOB);
+    if (sqlite3_column_type(stmt.get(), 0) != SQLITE_BLOB ||
+        sqlite3_column_type(stmt.get(), 1) != SQLITE_BLOB) {
+      return std::nullopt;
+    }
     auto key_size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
     auto value_size = sqlite3_column_bytes(stmt.get(), 1) / sizeof(uint16_t);
     auto key_uint16(
@@ -307,6 +343,9 @@ std::unordered_map<std::u16string, std::u16string> Storage::GetAll() {
     std::u16string value(value_uint16, value_size);
 
     result.emplace(std::move(key), std::move(value));
+  }
+  if (r != SQLITE_DONE) {
+    return std::nullopt;
   }
   return result;
 }
@@ -324,6 +363,8 @@ MaybeLocal<Value> Storage::Length() {
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(
       env(), sqlite3_step(stmt.get()), SQLITE_ROW, Local<Value>());
+  // Unlike the reads above, this one is not a claim about the file's contents:
+  // count(*) is an integer whatever the table holds.
   CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_INTEGER);
   int result = sqlite3_column_int(stmt.get(), 0);
   return Integer::New(env()->isolate(), result);
@@ -351,7 +392,12 @@ MaybeLocal<Value> Storage::Load(Local<Name> key) {
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   r = sqlite3_step(stmt.get());
   if (r == SQLITE_ROW) {
-    CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
+    CHECK_COLUMN_TYPE_OR_THROW(env(),
+                               stmt.get(),
+                               0,
+                               SQLITE_BLOB,
+                               "expected value to be a blob",
+                               Local<Value>());
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
     return String::NewFromTwoByte(env()->isolate(),
                                   reinterpret_cast<const uint16_t*>(
@@ -383,7 +429,12 @@ MaybeLocal<Value> Storage::LoadKey(const int index) {
 
   r = sqlite3_step(stmt.get());
   if (r == SQLITE_ROW) {
-    CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
+    CHECK_COLUMN_TYPE_OR_THROW(env(),
+                               stmt.get(),
+                               0,
+                               SQLITE_BLOB,
+                               "expected key to be a blob",
+                               Local<Value>());
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
     return String::NewFromTwoByte(env()->isolate(),
                                   reinterpret_cast<const uint16_t*>(
