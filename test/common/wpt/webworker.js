@@ -4,6 +4,7 @@
 // Refs: https://web-platform-tests.org/writing-tests/testharness.html
 
 const { pathToFileURL } = require('url');
+const honorAllowedRejections = require('./rejections');
 const {
   runInThisContext,
   constants: { USE_MAIN_CONTEXT_DEFAULT_LOADER },
@@ -88,6 +89,7 @@ globalThis.onmessage = ({ data }) => {
     const result = realImportScripts.apply(this, mapped);
     if (mapped.includes(testharnessPath)) {
       applySkips();
+      honorAllowedRejections();
     }
     return result;
   };
