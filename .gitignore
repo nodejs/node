@@ -103,6 +103,11 @@ _UpgradeReport_Files/
 tools/*/*.i
 tools/*/*.i.tmp
 
+# === Rules for pgo artifacts ===
+*.profdata
+*.profraw
+*.gcda
+
 # === Rules for release artifacts ===
 /*.tar.*
 /*.pkg

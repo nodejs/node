@@ -15,19 +15,17 @@ The process has three phases:
 
 ## Platform Support
 
-| Platform | Supported toolchains | Driver                    |
-| -------- | -------------------- | ------------------------- |
-| Windows  | Clang-CL             | `vcbuild.bat` + `pgo.ps1` |
-| Linux    | GCC                  | `configure` + `make`      |
-| macOS    | —                    | —                         |
+| Platform | Supported toolchains | Driver                                |
+| -------- | -------------------- | ------------------------------------- |
+| Windows  | Clang-CL             | `vcbuild.bat` + `pgo.py`                |
+| Linux    | GCC, Clang           | `configure` + `make`, `pgo.py` for Clang |
+| macOS    | Clang                | `configure` + `make` + `pgo.py`         |
 
 The two supported flows differ in how profile data is collected. Clang writes
 one `.profraw` file per process, which must be merged into a single
 `.profdata` before the optimize phase. GCC's libgcov instead merges counters
 into `.gcda` files next to each object file as each process exits, so there is
 no merge step.
-
-Clang on Linux and macOS are not supported yet.
 
 ## Quick Start: Windows
 
@@ -38,25 +36,25 @@ From a VS Developer Command Prompt, at the repo root:
 vcbuild.bat pgo-generate
 
 # Step 2: Run workloads to collect profile data
-powershell -ExecutionPolicy Bypass -File .\tools\pgo\pgo.ps1
+python tools\pgo\pgo.py
 
 # Step 3: Build the optimized binary
 vcbuild.bat pgo-use
 ```
 
-`pgo.ps1` expects the instrumented binary at `Release\node.exe` (produced by
+`pgo.py` expects the instrumented binary at `Release\node.exe` (produced by
 step 1) and writes `node.profdata` to the repo root (consumed by step 3).
 
-The script is unsigned, so the default execution policy refuses to run it
-without `-ExecutionPolicy Bypass`. Use `pwsh` in place of `powershell` on
-PowerShell 7.
+The script finds `llvm-profdata` in the Visual Studio LLVM toolset, then
+`PATH`. Set `LLVM_PROFDATA` to the matching tool when using a different
+Clang installation.
 
 ```powershell
 # Optionally set a longer training duration (default: 15s per script)
-powershell -ExecutionPolicy Bypass -File .\tools\pgo\pgo.ps1 -Duration 30
+python tools\pgo\pgo.py --duration=30
 ```
 
-## Quick Start: Linux
+## Quick Start: Linux with GCC
 
 ```bash
 # Step 1: Build the instrumented binary
@@ -88,6 +86,42 @@ updates from the worker threads and the libuv thread pool race with each
 other, and GCC treats the resulting inconsistent profile as an error unless
 told to smooth it out.
 
+## Quick Start: Linux and macOS with Clang
+
+From the repo root:
+
+```bash
+# Step 1: Build the instrumented binary
+./configure --ninja --enable-pgo-generate
+make
+
+# Step 2: Run workloads to collect profile data
+python3 tools/pgo/pgo.py
+
+# Step 3: Build the optimized binary
+./configure --ninja --enable-pgo-use
+make
+```
+
+`pgo.py` expects the instrumented binary at `out/Release/node` (produced by
+step 1) and writes `node.profdata` to the repo root (consumed by step 3).
+
+The script finds `llvm-profdata` through `xcrun` on macOS and `PATH` on Linux.
+Set `LLVM_PROFDATA` to the matching tool when using a different Clang
+installation.
+
+```bash
+# Optionally set a longer training duration (default: 15s per script)
+python3 tools/pgo/pgo.py --duration=30
+```
+
+## Clang Profile Collection
+
+On all platforms, `pgo.py` collects raw profiles in a fresh directory and
+replaces `node.profdata` after a successful merge. It removes raw profiles
+after success and preserves them if training or merging fails. Training
+failures stop the script so the workloads can be fixed before trying again.
+
 ## Training Scripts
 
 All scripts use only Node.js built-in modules (no npm dependencies).
@@ -110,7 +144,7 @@ Each script is run as a separate process via `fork()`.
 ### Running the Orchestrator Directly
 
 The orchestrator can also be invoked directly (e.g. for testing individual
-workloads). When used with `pgo.ps1`, this is handled automatically.
+workloads). When used with `pgo.py`, this is handled automatically.
 
 ```bash
 # Run all scripts
@@ -131,7 +165,7 @@ automatically from the `--duration` flag (in seconds).
 
 ```
 tools/pgo/
-├── pgo.ps1                 # Windows training driver (collect + merge)
+├── pgo.py                  # Clang training driver (collect + merge)
 ├── pgo-run-all.js          # Training orchestrator
 ├── pgo-http-server.js      # HTTP server + client workload
 ├── pgo-json.js             # JSON parse/stringify workload
