@@ -5,6 +5,7 @@ export interface BufferBinding {
   setBufferPrototype(proto: object): void;
 
   byteLengthUtf8(str: string): number;
+  stringLengthUtf8(input: TypedArray | ArrayBuffer | SharedArrayBuffer): number;
   copy(source: ArrayBufferView, target: ArrayBufferView, targetStart: number, sourceStart: number, toCopy: number): number;
   compare(a: ArrayBufferView, b: ArrayBufferView): number;
   compareOffset(source: ArrayBufferView, target: ArrayBufferView, targetStart?: number, sourceStart?: number, targetEnd?: number, sourceEnd?: number): number;
@@ -21,6 +22,7 @@ export interface BufferBinding {
 
   isUtf8(input: ArrayBufferView | ArrayBuffer | SharedArrayBuffer): boolean;
   isAscii(input: ArrayBufferView | ArrayBuffer | SharedArrayBuffer): boolean;
+  isByteString(input: string): boolean;
 
   kMaxLength: number;
   kStringMaxLength: number;
