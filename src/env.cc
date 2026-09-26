@@ -1291,6 +1291,7 @@ Environment::~Environment() {
     // environment-owned methods before unloading any addon DSOs.
     provider_digest_cache.reset();
     provider_cipher_cache.reset();
+    root_cert_store.reset();
 #if OPENSSL_WITH_EVP_MAC
     provider_mac_cache.reset();
 #endif
