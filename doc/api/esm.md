@@ -188,7 +188,8 @@ the Node.js module resolution, see the [packages documentation](packages.md).
 
 A file extension must be provided when using the `import` keyword to resolve
 relative or absolute specifiers. Directory indexes (e.g. `'./startup/index.js'`)
-must also be fully specified.
+must also be fully specified. A package's [`"main"`][] field must also include
+the exact file extension when the package is an ES module.
 
 This behavior matches how `import` behaves in browser environments, assuming a
 typically configured server.
@@ -1336,6 +1337,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [URL]: https://url.spec.whatwg.org/
 [WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
+[`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
 [`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--input-type`]: cli.md#--input-typetype
