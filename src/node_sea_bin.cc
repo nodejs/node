@@ -306,9 +306,9 @@ InjectOutput InjectIntoPE(const std::vector<uint8_t>& executable,
   cfg.resources = true;
   cfg.rsrc_section = ".rsrc";  // ensure section name
   LIEF::PE::Builder builder(*binary, cfg);
-#if LIEF_VERSION_MAJOR == 1 && LIEF_VERSION_MINOR == 0 &&                      \
-    LIEF_VERSION_PATCH == 0
+#if LIEF_VERSION_MAJOR >= 1
   // LIEF 1.0.0 does not export the result's bool conversion in shared builds.
+  // TODO(inoway46): Remove this workaround once the upstream issue is fixed.
   // https://github.com/lief-project/LIEF/issues/1387
   builder.build();
   if (builder.get_build().empty()) {
