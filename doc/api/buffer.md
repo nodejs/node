@@ -5414,6 +5414,46 @@ including the case in which `input` is empty.
 
 A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 
+### `buffer.isByteString(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string} The string to validate.
+* Returns: {boolean}
+
+This function returns `true` if `input` is a valid [WebIDL `ByteString`][],
+that is, if every UTF-16 code unit of `input` is less than or equal to `0xFF`,
+including the case in which `input` is empty. Such a string can be losslessly
+encoded using the `'latin1'` encoding.
+
+Despite its name, a `ByteString` is a JavaScript string, not binary data.
+Unlike [`buffer.isAscii()`][] and [`buffer.isUtf8()`][], this function
+therefore validates a string rather than a `Buffer`, `TypedArray`, or
+`ArrayBuffer`. Every byte sequence would trivially be valid, since every byte
+maps to a code unit less than or equal to `0xFF`.
+
+```mjs
+import { isByteString } from 'node:buffer';
+
+isByteString('hello');   // true
+isByteString('café');    // true
+isByteString('\u00ff');  // true
+isByteString('\u0100');  // false
+isByteString('€');       // false
+```
+
+```cjs
+const { isByteString } = require('node:buffer');
+
+isByteString('hello');   // true
+isByteString('café');    // true
+isByteString('\u00ff');  // true
+isByteString('\u0100');  // false
+isByteString('€');       // false
+```
+
 ### `buffer.isUtf8(input)`
 
 <!-- YAML
@@ -5775,6 +5815,7 @@ or after startup, if the alignment has to hold at run time.
 [UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
+[WebIDL `ByteString`]: https://webidl.spec.whatwg.org/#idl-ByteString
 [`--build-snapshot`]: cli.md#--build-snapshot
 [`Buffer.alloc()`]: #static-method-bufferallocsize-fill-encoding
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize-alignment
@@ -5814,6 +5855,8 @@ or after startup, if the alignment has to hold at run time.
 [`buf.values()`]: #bufvalues
 [`buffer.constants.MAX_LENGTH`]: #bufferconstantsmax_length
 [`buffer.constants.MAX_STRING_LENGTH`]: #bufferconstantsmax_string_length
+[`buffer.isAscii()`]: #bufferisasciiinput
+[`buffer.isUtf8()`]: #bufferisutf8input
 [`buffer.kMaxLength`]: #bufferkmaxlength
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
