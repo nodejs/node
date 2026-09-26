@@ -900,16 +900,10 @@ void AfterMkdirp(uv_fs_t* req) {
     std::string first_path(req_wrap->continuation_data()->first_path());
     if (first_path.empty())
       return req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
-    Local<Value> path;
-    TryCatch try_catch(req_wrap->env()->isolate());
-    if (!StringBytes::Encode(req_wrap->env()->isolate(),
-                             first_path.c_str(),
-                             req_wrap->encoding())
-             .ToLocal(&path)) {
-      CHECK(try_catch.CanContinue());
-      return req_wrap->Reject(try_catch.Exception());
-    }
-    return req_wrap->Resolve(path);
+    ResolveOrReject(req_wrap, [&]() {
+      return StringBytes::Encode(
+          req_wrap->env()->isolate(), first_path.c_str(), req_wrap->encoding());
+    });
   }
 }
 
@@ -918,19 +912,11 @@ void AfterStringPath(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-  MaybeLocal<Value> link;
-
   if (after.Proceed()) {
-    TryCatch try_catch(req_wrap->env()->isolate());
-    link = StringBytes::Encode(
-        req_wrap->env()->isolate(), req->path, req_wrap->encoding());
-    if (link.IsEmpty()) {
-      CHECK(try_catch.CanContinue());
-      req_wrap->Reject(try_catch.Exception());
-    } else {
-      Local<Value> val;
-      if (link.ToLocal(&val)) req_wrap->Resolve(val);
-    }
+    ResolveOrReject(req_wrap, [&]() {
+      return StringBytes::Encode(
+          req_wrap->env()->isolate(), req->path, req_wrap->encoding());
+    });
   }
 }
 
@@ -939,20 +925,12 @@ void AfterStringPtr(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-  MaybeLocal<Value> link;
-
   if (after.Proceed()) {
-    TryCatch try_catch(req_wrap->env()->isolate());
-    link = StringBytes::Encode(req_wrap->env()->isolate(),
-                               static_cast<const char*>(req->ptr),
-                               req_wrap->encoding());
-    if (link.IsEmpty()) {
-      CHECK(try_catch.CanContinue());
-      req_wrap->Reject(try_catch.Exception());
-    } else {
-      Local<Value> val;
-      if (link.ToLocal(&val)) req_wrap->Resolve(val);
-    }
+    ResolveOrReject(req_wrap, [&]() {
+      return StringBytes::Encode(req_wrap->env()->isolate(),
+                                 static_cast<const char*>(req->ptr),
+                                 req_wrap->encoding());
+    });
   }
 }
 
@@ -2700,14 +2678,9 @@ class ReadDirRecursiveRequest {
                                           walk_.error_path().c_str()));
     }
 
-    Local<Value> value;
-    TryCatch try_catch(isolate);
-    if (!MarshalRecursiveReadDir(isolate, walk_, encoding_, with_types_)
-             .ToLocal(&value)) {
-      CHECK(try_catch.CanContinue());
-      return req_wrap->Reject(try_catch.Exception());
-    }
-    req_wrap->Resolve(value);
+    ResolveOrReject(req_wrap.get(), [&]() {
+      return MarshalRecursiveReadDir(isolate, walk_, encoding_, with_types_);
+    });
   }
 
  private:
