@@ -7,8 +7,6 @@ prefix sequential
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/63212#issuecomment-5423558796
-test-debugger-pid: PASS, FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/54817
