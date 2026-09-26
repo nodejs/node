@@ -185,6 +185,8 @@
       'src/node_watchdog.cc',
       'src/node_worker.cc',
       'src/node_zlib.cc',
+      'src/zstd_blob.cc',
+      'src/zstd_blob.h',
       'src/path.cc',
       'src/permission/fs_permission.cc',
       'src/permission/permission.cc',
@@ -655,6 +657,23 @@
           'cflags': ['-Werror'],
           'xcode_settings': {
             'WARNING_CFLAGS': [ '-Werror' ],
+          },
+        }],
+        # The Release executable's local symbol table and STABS dominate
+        # LINKEDIT. -x drops local symbols and -S drops STABS. Debug keeps
+        # them. Do not pass -dead_strip: N-API and libuv symbols are reached
+        # only from addons loaded at runtime, and dead-stripping removes
+        # those exports from the executable.
+        ['OS=="mac" or OS=="ios"', {
+          'configurations': {
+            'Release': {
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                  '-Wl,-x',
+                  '-Wl,-S',
+                ],
+              },
+            },
           },
         }],
         ['node_shared=="true" and OS=="win"', {
@@ -1668,6 +1687,9 @@
         }],
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
+        }],
+        [ 'node_shared_zstd=="false"', {
+          'dependencies': [ 'deps/zstd/zstd.gyp:zstd#host' ],
         }],
         [ 'OS in "linux mac openharmony"', {
           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
