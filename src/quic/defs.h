@@ -395,6 +395,7 @@ class DebugIndentScope final {
   }
 
  private:
+  // NOLINTNEXTLINE(runtime/thread_local)
   static thread_local int indent_;
 };
 

@@ -1442,6 +1442,7 @@ void Environment::ClosePerEnvHandles() {
   close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
+// NOLINTNEXTLINE(runtime/thread_local)
 thread_local int handle_cleanup_depth = 0;
 
 void Environment::CleanupHandles() {

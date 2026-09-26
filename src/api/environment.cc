@@ -1048,6 +1048,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   // in the first place. However, creating BuiltinLoader instances is
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
+  // NOLINTNEXTLINE(runtime/thread_local)
   thread_local builtins::BuiltinLoader builtin_loader;
   // Primordials can always be just eagerly compiled.
   builtin_loader.SetEagerCompile();

@@ -33,6 +33,7 @@ using v8::Undefined;
 using v8::Value;
 
 namespace quic {
+// NOLINTNEXTLINE(runtime/thread_local)
 thread_local int DebugIndentScope::indent_ = 0;
 
 Path::Path(const SocketAddress& local, const SocketAddress& remote) {

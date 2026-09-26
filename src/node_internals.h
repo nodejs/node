@@ -286,6 +286,7 @@ class InternalCallbackScope {
 // Non-zero while an Environment on this thread is closing its handles with JS
 // disallowed isolate-wide; InternalCallbackScope re-allows it for the other
 // Environments whose callbacks run in those loop turns.
+// NOLINTNEXTLINE(runtime/thread_local)
 extern thread_local int handle_cleanup_depth;
 
 class DebugSealHandleScope {
