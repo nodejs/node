@@ -229,6 +229,15 @@ class ZlibContext final : public MemoryRetainer {
   unsigned int gzip_id_bytes_read_ = 0;
   std::vector<unsigned char> dictionary_;
 
+  // gzip and zlib-wrapped deflate emit a header on the first deflate() call.
+  // Resetting after those bytes have left the compressor starts a new member
+  // while the fragment remains, so gunzip/inflate fail with Z_DATA_ERROR.
+  // Raw deflate has no header; Z_FULL_FLUSH + reset still concatenates.
+  // A member is complete once deflate() has been called with Z_FINISH and
+  // returned Z_STREAM_END.
+  bool stream_complete_ = true;
+  bool output_emitted_ = false;
+
   z_stream strm_;
 };
 
@@ -1096,9 +1105,20 @@ void ZlibContext::DoThreadPoolWork() {
   switch (mode_) {
     case DEFLATE:
     case GZIP:
-    case DEFLATERAW:
+    case DEFLATERAW: {
+      const unsigned out_before = strm_.avail_out;
       err_ = deflate(&strm_, flush_);
+      if (out_before > strm_.avail_out) {
+        output_emitted_ = true;
+      }
+      if (err_ == Z_STREAM_END) {
+        stream_complete_ = true;
+        output_emitted_ = false;
+      } else if (err_ == Z_OK || err_ == Z_BUF_ERROR) {
+        stream_complete_ = false;
+      }
       break;
+    }
     case UNZIP:
       if (strm_.avail_in > 0) {
         next_expected_header_byte = strm_.next_in;
@@ -1241,6 +1261,20 @@ CompressionError ZlibContext::GetErrorInfo() const {
 
 
 CompressionError ZlibContext::ResetStream() {
+  // deflateReset() is deflateEnd + deflateInit: a new stream. gzip emits a
+  // wrapper header on the first write; those bytes cannot be taken back, so
+  // refuse reset once an incomplete gzip member has emitted output.
+  // zlib-wrapped deflate still allows reset after flush: callers discard the
+  // first member (test-zlib-dictionary.js). Raw deflate has no wrapper header,
+  // so flush+reset still concatenates.
+  if (mode_ == GZIP && !stream_complete_ && output_emitted_) {
+    return CompressionError(
+        "Cannot reset a gzip stream with an incomplete member; end the "
+        "stream or start a new gzip compressor",
+        "ERR_ZLIB_INCOMPLETE_FRAME",
+        Z_STREAM_ERROR);
+  }
+
   bool first_init_call = InitZlib();
   if (first_init_call && err_ != Z_OK) {
     return ErrorForMessage("Failed to init stream before reset");
@@ -1266,6 +1300,8 @@ CompressionError ZlibContext::ResetStream() {
   if (err_ != Z_OK)
     return ErrorForMessage("Failed to reset stream");
 
+  stream_complete_ = true;
+  output_emitted_ = false;
   return SetDictionary();
 }
 
@@ -1310,6 +1346,8 @@ void ZlibContext::Init(int level,
   flush_ = Z_NO_FLUSH;
 
   err_ = Z_OK;
+  stream_complete_ = true;
+  output_emitted_ = false;
 
   if (mode_ == GZIP || mode_ == GUNZIP) {
     window_bits_ += 16;

@@ -2198,6 +2198,15 @@ For Zstd streams, cancel the current frame and start a new session while
 preserving the configured parameters and dictionary. If `pledgedSrcSize` was
 configured for a Zstd compressor, it applies again to the next frame.
 
+Resetting a gzip stream after it has emitted output for an incomplete member
+causes the stream to error with `ERR_ZLIB_INCOMPLETE_FRAME`. Resetting at
+that point would discard the member state while the bytes already written out
+remain at the start of the output stream, leaving it undecodable. Call
+`.end()`, or start over with a new gzip stream, instead.
+zlib-wrapped deflate may still `reset()` after a flush; callers that reuse
+the compressor discard the first output. Raw deflate has no wrapper header,
+so `reset()` after a flush still concatenates.
+
 Calling `reset()` while a write is in progress throws an `Error`.
 
 Resetting an incomplete Zstd compression frame after it has emitted output
