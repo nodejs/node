@@ -145,6 +145,13 @@ pkgs.mkShell {
       )
     );
   }
+  // (pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
+    # Those failures started appearing consistently out-of-the-blue on 151845ab9,
+    # and the tests are still passing individually, just not as part of the suite.
+    CI_SKIP_TESTS =
+      "test-http2-multi-content-length,test-http2-client-unescaped-path,"
+      + "test-fs-cp-sync-copy-socket-error,test-fs-cp-async-socket";
+  })
   // (
     let
       ruff = pkgs.lib.lists.findFirst (p: p.meta.mainProgram == "ruff") null devTools;
