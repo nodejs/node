@@ -1113,6 +1113,7 @@ class Environment final : public MemoryRetainer {
                                  void* data);
 
   inline std::shared_ptr<EnvironmentOptions> options();
+  inline bool async_context_frame_enabled() const;
   inline std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port();
 
   inline int64_t stack_trace_limit() const;
