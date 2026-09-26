@@ -4838,9 +4838,9 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
 
   std::function<CpError(std::filesystem::path, std::filesystem::path)>
       copy_dir_contents;
-  copy_dir_contents = [&options, &copy_dir_contents, file_copy_opts](
-                          std::filesystem::path src,
-                          std::filesystem::path dest) -> CpError {
+  copy_dir_contents =
+      [&options, &copy_dir_contents, &dest_path, file_copy_opts](
+          std::filesystem::path src, std::filesystem::path dest) -> CpError {
     std::error_code error;
     // Only the error_code overloads are used from here on: this runs on a
     // thread pool thread and exceptions are disabled.
@@ -4888,6 +4888,28 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
             return CpError::Std(error, dest_str);
           }
 
+          std::filesystem::path symlink_target_absolute;
+          if (options.fresh_destination) {
+            // As path.resolve() does: lexical only, absolute targets verbatim.
+            symlink_target_absolute =
+                symlink_target.is_absolute()
+                    ? symlink_target
+                    : std::filesystem::absolute(src / symlink_target, error)
+                          .lexically_normal();
+          } else {
+            symlink_target_absolute = std::filesystem::weakly_canonical(
+                std::filesystem::absolute(src / symlink_target, error), error);
+          }
+          if (error) {
+            return CpError::Std(error, dest_str);
+          }
+#ifdef _WIN32
+          auto wstr = symlink_target_absolute.wstring();
+          if (wstr.starts_with(L"\\\\?\\")) {
+            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
+          }
+#endif
+
           if (std::filesystem::exists(dest_file_path, error)) {
             if (std::filesystem::is_symlink(dest_file_path, error)) {
               auto current_dest_symlink_target =
@@ -4896,9 +4918,33 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
                 return CpError::Std(error, dest_str);
               }
 
+              auto current_dest_symlink_target_absolute =
+                  std::filesystem::weakly_canonical(
+                      std::filesystem::absolute(dest_file_path.parent_path() /
+                                                    current_dest_symlink_target,
+                                                error),
+                      error);
+              if (error) {
+                return CpError::Std(error, dest_str);
+              }
+#ifdef _WIN32
+              auto wstr2 = current_dest_symlink_target_absolute.wstring();
+              if (wstr2.starts_with(L"\\\\?\\")) {
+                current_dest_symlink_target_absolute =
+                    std::filesystem::path(wstr2.substr(4));
+              }
+#endif
+              // Equal targets are safe unless they point to the destination
+              // root or one of its ancestors.
+              bool same_target =
+                  symlink_target_absolute ==
+                      current_dest_symlink_target_absolute &&
+                  !isInsideDir(symlink_target_absolute, dest_path);
+
               if (!options.dereference &&
                   std::filesystem::is_directory(symlink_target, error) &&
-                  isInsideDir(symlink_target, current_dest_symlink_target)) {
+                  isInsideDir(symlink_target, current_dest_symlink_target) &&
+                  !same_target) {
                 return {CpError::kEinval,
                         0,
                         "cp",
@@ -4912,7 +4958,8 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
               // dest in this case would result in removing src contents
               // and therefore a broken symlink would be created.
               if (std::filesystem::is_directory(dest_file_path, error) &&
-                  isInsideDir(current_dest_symlink_target, symlink_target)) {
+                  isInsideDir(current_dest_symlink_target, symlink_target) &&
+                  !same_target) {
                 return {CpError::kSymlinkToSubdirectory,
                         0,
                         "cp",
@@ -4939,27 +4986,6 @@ CpError CopyDirRecursive(const std::filesystem::path& src_path,
               }
             }
           }
-          std::filesystem::path symlink_target_absolute;
-          if (options.fresh_destination) {
-            // As path.resolve() does: lexical only, absolute targets verbatim.
-            symlink_target_absolute =
-                symlink_target.is_absolute()
-                    ? symlink_target
-                    : std::filesystem::absolute(src / symlink_target, error)
-                          .lexically_normal();
-          } else {
-            symlink_target_absolute = std::filesystem::weakly_canonical(
-                std::filesystem::absolute(src / symlink_target, error), error);
-          }
-          if (error) {
-            return CpError::Std(error, dest_str);
-          }
-#ifdef _WIN32
-          auto wstr = symlink_target_absolute.wstring();
-          if (wstr.starts_with(L"\\\\?\\")) {
-            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
-          }
-#endif
           if (dir_entry.is_directory(error)) {
             std::filesystem::create_directory_symlink(
                 symlink_target_absolute, dest_file_path, error);
