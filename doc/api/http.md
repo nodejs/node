@@ -286,15 +286,14 @@ added: v8.1.0
 -->
 
 * `socket` {stream.Duplex}
+* Returns: {boolean}
 
 Called when `socket` is detached from a request and could be persisted by the
-`Agent`. Default behavior is to:
+`Agent`. The `Agent` calls this method only when `keepAlive` is enabled.
 
-```js
-socket.setKeepAlive(true, this.keepAliveMsecs);
-socket.unref();
-return true;
-```
+By default, TCP keep-alive is enabled and the socket is unrefed. A server
+keep-alive timeout hint may adjust the socket timeout or cause this method to
+return `false`; otherwise, it returns `true`.
 
 This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
