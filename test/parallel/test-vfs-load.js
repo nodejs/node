@@ -49,6 +49,15 @@ function envArg(flag, value) {
   assert.match(res.stdout, /hello from inside the mount/);
 }
 
+// --no-experimental-vfs disables --vfs-load.
+{
+  const dir = fixture('disabled');
+  fs.mkdirSync(dir, { recursive: true });
+  const res = run(['--no-experimental-vfs', `--vfs-load=${dir}`]);
+  assert.notStrictEqual(res.status, 0);
+  assert.match(res.stderr, /--vfs-load requires node:vfs to be enabled/);
+}
+
 // A provider registered by a -r (CommonJS) preload backs a custom file format.
 {
   const providerModule = fixture('provider.js');
@@ -318,8 +327,8 @@ if (hasNodeOptions) {
   }
 }
 
-// The old --experimental-vfs option remains accepted in NODE_OPTIONS, but no
-// longer gates --vfs-load.
+// The old --experimental-vfs option remains accepted in NODE_OPTIONS. Its
+// positive form no longer gates --vfs-load, and its negated form disables it.
 if (hasNodeOptions) {
   const dir = fixture('env-flag-cli-load');
   fs.mkdirSync(dir, { recursive: true });
@@ -331,6 +340,13 @@ if (hasNodeOptions) {
   });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.match(res.stdout, /ran/);
+
+  const disabled = spawnSync(process.execPath, [`--vfs-load=${dir}`], {
+    encoding: 'utf8',
+    env: { ...process.env, NODE_OPTIONS: '--no-experimental-vfs' },
+  });
+  assert.notStrictEqual(disabled.status, 0);
+  assert.match(disabled.stderr, /--vfs-load requires node:vfs to be enabled/);
 }
 
 // Under --vfs-load the entry point comes from the mount, so no positional
