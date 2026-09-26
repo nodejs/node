@@ -5,8 +5,3 @@ prefix test-runner
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-
-[$system==win32]
-# https://github.com/nodejs/node/issues/66056
-test-run-watch-cwd-isolation-none: PASS, FLAKY
-test-run-watch-cwd-isolation-none-argv: PASS, FLAKY
