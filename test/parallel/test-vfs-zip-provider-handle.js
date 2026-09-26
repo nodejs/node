@@ -1,4 +1,4 @@
-// Flags: --experimental-vfs
+// Flags: --disable-warning=ExperimentalWarning
 'use strict';
 
 // Additional ZipProvider coverage beyond test-vfs-zip-provider.js:

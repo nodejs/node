@@ -1050,7 +1050,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   {
     auto* env_options = per_process::cli_options->per_isolate->per_env.get();
     if (!env_options->experimental_vfs && env_options->vfs_load) {
-      errors->push_back("--vfs-load requires --experimental-vfs");
+      errors->push_back("--vfs-load requires node:vfs to be enabled");
     }
     // A second --vfs-load would silently replace the first, and the option
     // itself cannot say how often it was given; count it in the node options

@@ -285,7 +285,7 @@ so mounting one is gated on its own flag rather than on `--allow-fs-read` or
 `--allow-fs-write`.
 
 ```console
-$ node --experimental-vfs --permission --allow-fs-vfs app.js
+$ node --permission --allow-fs-vfs app.js
 ```
 
 ### `--allow-fs-write`
@@ -1671,16 +1671,6 @@ with AND, so a test must satisfy every expression to run.
 A malformed expression causes the test runner to exit with a non-zero status
 before running any tests.
 
-### `--experimental-vfs`
-
-<!-- YAML
-added: v26.4.0
--->
-
-> Stability: 1 - Experimental
-
-Enable the experimental [`node:vfs`][] module.
-
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -2322,6 +2312,18 @@ changes:
 -->
 
 Disable the experimental [`node:sqlite`][] module.
+
+### `--no-experimental-vfs`
+
+<!-- YAML
+added: v26.4.0
+changes:
+  - version: v27.0.0
+    pr-url: https://github.com/nodejs/node/pull/66318
+    description: VFS is unflagged but still experimental.
+-->
+
+Disable the experimental [`node:vfs`][] module and `--vfs-load`.
 
 ### `--no-experimental-webstorage`
 
@@ -3859,11 +3861,13 @@ added: v26.10.0
 
 * `source` {string} A directory or an archive file to mount and run.
 
-Requires [`--experimental-vfs`][]. May be given at most once.
+May be given at most once.
 
 Mounts `source` as a virtual file system ([`node:vfs`][]), and runs the entry
 point and all subsequent `require()`/`import` resolution against that mount
-rather than the real file system. The mount is placed at a reserved mount point
+rather than the real file system. This option is unavailable when
+`--no-experimental-vfs` disables [`node:vfs`][]. The mount is placed at a
+reserved mount point
 assigned by Node.js, so it never shadows real paths and no target can be
 chosen. The entry point is taken from the mount the same way `node <directory>`
 takes one: the mount's own `package.json` `"main"`, or `index.js`. Any
@@ -3894,18 +3898,17 @@ same thing in all of them.
 
 A worker created with its own `execArgv` inherits none of the parent's options,
 and so does not mount the source at all. To run a script from the mount, such a
-worker must be given the same options again, `--experimental-vfs` and
-`--vfs-load`; without them, that thread has no mount for the script to come
-from, and the worker fails to load it. `--experimental-vfs` is also what makes
-[`node:vfs`][] available to the worker's own code. A worker whose script comes
-from anywhere else, such as the real file system, needs nothing added.
+worker must be given `--vfs-load` again; without it, that thread has no mount
+for the script to come from, and the worker fails to load it. [`node:vfs`][] is
+available to worker code without an experimental flag. A worker whose script
+comes from anywhere else, such as the real file system, needs nothing added.
 
 `--vfs-load` is not permitted in [`NODE_OPTIONS`][]: which entry point runs is
 the command line's decision, and the environment must not be able to redirect
 it.
 
 ```console
-$ node --experimental-vfs --vfs-load=app.zip
+$ node --vfs-load=app.zip
 ```
 
 ### `--watch`
@@ -4231,7 +4234,6 @@ one is included in the list below.
 * `--experimental-stream-iter`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
-* `--experimental-vfs`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-web-worker`
@@ -4267,6 +4269,7 @@ one is included in the list below.
 * `--no-experimental-global-navigator`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
+* `--no-experimental-vfs`
 * `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -4864,7 +4867,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
-[`--experimental-vfs`]: #--experimental-vfs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--no-require-module`]: #--no-require-module
