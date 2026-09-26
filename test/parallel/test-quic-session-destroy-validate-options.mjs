@@ -97,6 +97,20 @@ assert.throws(() => clientSession.destroy(goodError, { reason: 42 }), {
 assert.strictEqual(clientSession.destroyed, false);
 assert.strictEqual(stream.destroyed, false);
 
+// 5. options.code does not fit in a QUIC varint -> throws ERR_OUT_OF_RANGE,
+//    from both destroy() and close().
+for (const code of [-1, 1.5, NaN, Infinity, 2 ** 62, -1n, 2n ** 62n]) {
+  assert.throws(() => clientSession.destroy(goodError, { code }), {
+    code: 'ERR_OUT_OF_RANGE',
+  });
+  assert.throws(() => clientSession.close({ code }), {
+    code: 'ERR_OUT_OF_RANGE',
+  });
+}
+assert.strictEqual(clientSession.destroyed, false);
+assert.strictEqual(clientSession.closing, false);
+assert.strictEqual(stream.destroyed, false);
+
 // Now switch the handlers to expect the real teardown so the final
 // destroy with valid options can run cleanly.
 diagnostics_channel.unsubscribe('quic.session.error', errSub);
@@ -107,19 +121,22 @@ stream.onerror = mustCall((err) => { assert.strictEqual(err, goodError); });
 // final destroy, so the rejections do not race ahead of any awaits in
 // the test body. The client rejects with the original `goodError`;
 // the server decodes the CONNECTION_CLOSE frame transport code into
-// an `ERR_QUIC_TRANSPORT_ERROR`.
+// an `ERR_QUIC_TRANSPORT_ERROR`. The code is the largest one that fits
+// in a QUIC varint, so it must be accepted and arrive unchanged.
+const maxCode = 2n ** 62n - 1n;
 const clientClosedAssertion = assert.rejects(clientSession.closed, goodError);
 const serverClosedAssertion = assert.rejects(serverSession.closed, mustCall((err) => {
   assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+  assert.strictEqual(err.errorCode, maxCode);
   return true;
 }));
 
-// 5. Valid options after the failed attempts -> session destroys
+// 6. Valid options after the failed attempts -> session destroys
 //    normally, the underlying handle sends CONNECTION_CLOSE with the
 //    supplied transport code, and the local closed promise rejects
 //    with the original error.
 clientSession.destroy(goodError, {
-  code: 1n,
+  code: maxCode,
   type: 'transport',
   reason: 'after validation throw',
 });
