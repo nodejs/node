@@ -20,8 +20,6 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 test-snapshot-incompatible: SKIP
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/59090
-test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59636
 test-fs-cp-sync-symlink-points-to-dest-error: SKIP
 test-fs-cp-async-symlink-points-to-dest: SKIP
