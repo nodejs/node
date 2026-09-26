@@ -1571,16 +1571,6 @@ Use this flag to generate a blob that can be injected into the Node.js
 binary to produce a [single executable application][]. See the documentation
 about [this configuration][`--experimental-sea-config`] for details.
 
-### `--experimental-shadow-realm`
-
-<!-- YAML
-added:
-  - v19.0.0
-  - v18.13.0
--->
-
-Use this flag to enable [ShadowRealm][] support.
-
 ### `--experimental-storage-inspection`
 
 <!-- YAML
@@ -4226,7 +4216,6 @@ one is included in the list below.
 * `--experimental-quic`
 * `--experimental-repl-await`
 * `--experimental-require-module`
-* `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
 * `--experimental-test-isolation`
@@ -4732,8 +4721,6 @@ documented here:
 
 ### `--expose-gc`
 
-### `--harmony-shadow-realm`
-
 ### `--heap-snapshot-on-oom`
 
 ### `--interpreted-frames-native-stack`
@@ -4839,7 +4826,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
-[ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://tc39.es/ecma426/
 [Test tags]: test.md#test-tags
 [TypeScript type-stripping]: typescript.md#type-stripping
