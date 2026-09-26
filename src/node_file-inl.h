@@ -413,6 +413,29 @@ int SyncCallAndThrowOnError(Environment* env,
   return SyncCallAndThrowIf(is_uv_error, env, req_wrap, fn, args...);
 }
 
+// Delivers the value produced by `produce`, or the exception it threw, to
+// `req_wrap`. The TryCatch is left before calling into JS: exceptions thrown
+// by the callback, or by the tick queue drained afterwards, must not be caught
+// by it.
+template <typename Fn>
+void ResolveOrReject(FSReqBase* req_wrap, Fn&& produce) {
+  v8::Isolate* isolate = req_wrap->env()->isolate();
+  v8::Local<v8::Value> value;
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(isolate);
+    if (!produce().ToLocal(&value)) {
+      CHECK(try_catch.CanContinue());
+      error = try_catch.Exception();
+    }
+  }
+  if (error.IsEmpty()) {
+    req_wrap->Resolve(value);
+  } else {
+    req_wrap->Reject(error);
+  }
+}
+
 }  // namespace fs
 }  // namespace node
 
