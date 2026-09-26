@@ -180,6 +180,7 @@ struct dl_wrap {
 static Mutex dlhandles_mutex;
 static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal>
     dlhandles;
+// NOLINTNEXTLINE(runtime/thread_local)
 static thread_local std::string dlerror_storage;
 
 char* wrapped_dlerror() {
@@ -286,6 +287,7 @@ using v8::Value;
 // Globals per process
 static node_module* modlist_internal;
 static node_module* modlist_linked;
+// NOLINTNEXTLINE(runtime/thread_local)
 static thread_local node_module* thread_local_modpending;
 
 // This is set by node::Init() which is used by embedders
