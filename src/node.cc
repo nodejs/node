@@ -102,6 +102,7 @@
 // ========== global C headers ==========
 
 #include <fcntl.h>  // _O_RDWR
+#include <sys/stat.h>
 #include <sys/types.h>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -1282,6 +1283,25 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     // Use --openssl-conf command line option if specified.
     if (!per_process::cli_options->openssl_config.empty()) {
       conf_file = per_process::cli_options->openssl_config.c_str();
+    }
+
+    // Ignore directories without suppressing errors in actual config files.
+    if (conf_file != nullptr) {
+      struct stat st;
+      if (stat(conf_file, &st) == 0) {
+#if defined(S_ISDIR)
+        if (S_ISDIR(st.st_mode)) {
+#else
+        if ((st.st_mode & S_IFMT) == S_IFDIR) {
+#endif
+          std::string warning = "Warning: OPENSSL_CONF path is a directory; "
+                                "ignoring: ";
+          warning += conf_file;
+          fprintf(stderr, "%s\n", warning.c_str());
+          // NULL would read OPENSSL_CONF again, including this directory.
+          conf_file = "";
+        }
+      }
     }
 
     OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
