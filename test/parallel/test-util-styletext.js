@@ -203,9 +203,11 @@ if (fd !== -1) {
     { isTTY: true, env: { FORCE_COLOR: '1', NO_COLOR: '1', NODE_DISABLE_COLORS: '1' }, expected: styled },
   ].forEach((testCase) => {
     writeStream.isTTY = testCase.isTTY;
+    // Do not inherit color-related variables (TERM, CI, NO_COLOR, ...) from
+    // the environment the test happens to run in.
     process.env = {
-      ...process.env,
-      ...testCase.env
+      TERM: 'xterm-256color',
+      ...testCase.env,
     };
     {
       const output = util.styleText('red', 'test', { stream: writeStream });
