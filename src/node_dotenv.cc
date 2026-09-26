@@ -86,6 +86,15 @@ Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
   return JustVoid();
 }
 
+std::vector<std::string> Dotenv::GetKeys() const {
+  std::vector<std::string> keys;
+  keys.reserve(store_.size());
+  for (const auto& entry : store_) {
+    keys.push_back(entry.first);
+  }
+  return keys;
+}
+
 MaybeLocal<Object> Dotenv::ToObject(Environment* env) const {
   EscapableHandleScope scope(env->isolate());
 

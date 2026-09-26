@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-env=NODE_TEST_DIR,TEST_*
 'use strict';
 
 const common = require('../common');
@@ -54,6 +54,7 @@ const traversalSymlink = path.join(allowedFolder, 'deep1', 'deep2', 'deep3', 'go
     process.execPath,
     [
       '--permission',
+      '--allow-env=BLOCKEDFILE,BLOCKEDFOLDER,EXISTINGSYMLINK',
       `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${symlinkFromBlockedFile}`,
       `--allow-fs-read=${allowedFolder}`,
       `--allow-fs-write=${symlinkFromBlockedFile}`,

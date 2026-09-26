@@ -8,6 +8,7 @@
 #include "node_file.h"
 
 #include "permission/boolean_permission.h"
+#include "permission/env_permission.h"
 #include "permission/fs_permission.h"
 #include "permission/permission_base.h"
 #include "v8-fast-api-calls.h"
@@ -58,6 +59,8 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
       return "node:permission-model:ffi";
     case PermissionScope::kOpenSSLStore:
       return "node:permission-model:openssl-store";
+    case PermissionScope::kEnv:
+      return "node:permission-model:env";
     default:
       return {};
   }
@@ -77,6 +80,18 @@ Local<DictionaryTemplate> GetPermissionDiagnosticsTemplate(Environment* env) {
   return tmpl;
 }
 
+// Returns true if the permission model removed the environment variable
+// named by args[0] at startup and no warning about it has been emitted yet,
+// and records that one has been. For callers that emit a more specific
+// warning than the one reading the variable from process.env would.
+static void TakeRemovedEnvVarWarning(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());
+  Utf8Value name(env->isolate(), args[0]);
+  args.GetReturnValue().Set(WasRemovedByEnvironmentScrub(name.ToStringView()) &&
+                            ShouldWarnAboutRemovedEnvVar(name.ToStringView()));
+}
+
 // permission.drop('fs.read', '/tmp/')
 // permission.drop('child')
 static void Drop(const FunctionCallbackInfo<Value>& args) {
@@ -87,6 +102,18 @@ static void Drop(const FunctionCallbackInfo<Value>& args) {
   PermissionScope scope = Permission::StringToPermission(deny_scope);
   if (scope == PermissionScope::kPermissionsRoot) {
     return;
+  }
+
+  // Dropping environment variables removes them from the environment. An
+  // Environment that does not own the process state shares the real process
+  // environment with the embedder, and must not modify it.
+  if (scope == PermissionScope::kEnv &&
+      env->env_vars() == per_process::system_environment &&
+      !env->owns_process_state()) {
+    return THROW_ERR_INVALID_STATE(
+        env,
+        "Environment variables can only be dropped from an Environment that "
+        "owns the process state");
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
@@ -242,6 +269,11 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
       std::make_shared<AllowRevokePermission>();
   NET_PERMISSIONS(V)
 #undef V
+  env_permission_ = std::make_shared<EnvPermission>();
+#define V(Name, _, __, ___)                                                    \
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = env_permission_;
+  ENV_PERMISSIONS(V)
+#undef V
 }
 
 const char* GetErrorFlagSuggestion(node::permission::PermissionScope perm) {
@@ -320,7 +352,21 @@ bool Permission::is_granted_quiet(Environment* env,
   CHECK(permission != PermissionScope::kPermissionsRoot &&
         permission != PermissionScope::kPermissionsCount);
   auto& perm_node = nodes_[static_cast<size_t>(permission)];
-  return perm_node && perm_node->is_granted(env, permission, res);
+  if (!perm_node || !perm_node->is_granted(env, permission, res)) {
+    return false;
+  }
+#if defined(__linux__)
+  // /proc/<pid>/environ exposes the environment a process was started with,
+  // including variables that the env scope does not grant access to. Other
+  // processes' files are always denied: a child process is granted every
+  // variable in the environment its parent hands it, and must not reach the
+  // environments the parent could not.
+  if (permission == PermissionScope::kFileSystemRead && !res.empty() &&
+      IsProcEnvironReadDenied(res, env_permission_->granted_all())) {
+    return false;
+  }
+#endif  // defined(__linux__)
+  return true;
 }
 
 bool Permission::is_scope_granted(Environment* env,
@@ -406,6 +452,8 @@ void Initialize(Local<Object> target,
   SetFastMethodNoSideEffect(
       context, target, "has", Has, {fast_has_methods_, 2});
   SetMethod(context, target, "drop", Drop);
+  SetMethod(
+      context, target, "takeRemovedEnvVarWarning", TakeRemovedEnvVarWarning);
 
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
@@ -416,6 +464,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
     registry->Register(method);
   }
   registry->Register(Drop);
+  registry->Register(TakeRemovedEnvVarWarning);
 }
 
 }  // namespace permission
