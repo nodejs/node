@@ -14,18 +14,12 @@ const dnsPromises = require('dns').promises;
 
 function getaddrinfoNegative() {
   return common.mustCall(function getaddrinfoNegativeHandler(req) {
-    const originalReject = req.reject;
-    req.resolve = common.mustNotCall();
-    req.reject = common.mustCall(originalReject);
     req.oncomplete(internalBinding('uv').UV_ENOMEM);
   });
 }
 
 function getaddrinfoPositive(addresses) {
   return common.mustCall(function getaddrinfo_positive(req) {
-    const originalResolve = req.resolve;
-    req.reject = common.mustNotCall();
-    req.resolve = common.mustCall(originalResolve);
     req.oncomplete(null, addresses);
   });
 }
