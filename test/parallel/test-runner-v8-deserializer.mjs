@@ -211,13 +211,16 @@ describe('v8 deserializer', common.mustCall(() => {
     assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
   });
 
-  it('should resync and parse a real message after a plausible-size false frame', async () => {
-    // The poison bytes followed by a real serialized message. The parser must
-    // reject the poison as stdout and still report the real event.
-    const reported = await collectReported([
-      plausibleSizeFalseHeader,
-      ...chunks,
-    ]);
+  it('should resync live and report a real message after a false frame', async () => {
+    // Feed the poison bytes then a real message but never call drain(). Recovery
+    // must happen live, so the real event is reported right away. If resync only
+    // ran at shutdown, the diagnostic would still be buffered and missing here.
+    // The reporter is a stream, so flush it with end() and finished() before
+    // asserting, rather than reading it synchronously.
+    fileTest.parseMessage(plausibleSizeFalseHeader);
+    chunks.forEach((chunk) => fileTest.parseMessage(chunk));
+    fileTest.reporter.end();
+    await finished(fileTest.reporter);
     assert.deepStrictEqual(reported.at(-1), reportedDiagnosticEvent);
     assert.strictEqual(reported.filter((event) => event.type === 'test:diagnostic').length, 1);
     assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
@@ -246,6 +249,18 @@ describe('v8 deserializer', common.mustCall(() => {
     ]);
     assert(reported.every((event) => event.type === 'test:stdout'));
     assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
+  });
+
+  it('should resync through several stray frames in a row', async () => {
+    // Two false frames back to back in one read, then a real one. The parser
+    // must peel each stray frame off as stdout and still report the real event.
+    const reported = await collectReported([
+      Buffer.concat([plausibleSizeFalseHeader, plausibleSizeFalseHeader, ...chunks]),
+    ]);
+    assert.deepStrictEqual(reported.at(-1), reportedDiagnosticEvent);
+    assert.strictEqual(reported.filter((event) => event.type === 'test:diagnostic').length, 1);
+    assert.strictEqual(collectStdout(reported),
+                       plausibleSizeFalseHeaderStdout + plausibleSizeFalseHeaderStdout);
   });
 
   it('should surface a genuinely corrupt frame instead of hiding it', () => {
