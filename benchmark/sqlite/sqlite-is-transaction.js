@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  const db = new sqlite.DatabaseSync(':memory:');
+  const db = new sqlite.Database(':memory:');
 
   if (conf.transaction === 'true') {
     db.exec('BEGIN');
