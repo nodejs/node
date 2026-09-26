@@ -1,6 +1,7 @@
 #include "async_context_frame.h"
 #include "env-inl.h"
 #include "node.h"
+#include "node_internals.h"
 
 namespace node {
 
@@ -10,6 +11,7 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 AsyncResource::AsyncResource(Isolate* isolate,
@@ -39,33 +41,40 @@ MaybeLocal<Value> AsyncResource::MakeCallback(Local<Function> callback,
                                               int argc,
                                               Local<Value>* argv) {
   auto isolate = env_->isolate();
-  async_context_frame::Scope async_context_frame_scope(
-      isolate, context_frame_.Get(isolate));
-
-  return node::MakeCallback(
-      isolate, get_resource(), callback, argc, argv, async_context_);
+  // As in Node-API: node::MakeCallback() would run it with no frame.
+  return InternalMakeCallback(isolate,
+                              get_resource(),
+                              callback,
+                              argc,
+                              argv,
+                              async_context_,
+                              context_frame_.Get(isolate));
 }
 
 MaybeLocal<Value> AsyncResource::MakeCallback(const char* method,
                                               int argc,
                                               Local<Value>* argv) {
-  auto isolate = env_->isolate();
-  async_context_frame::Scope async_context_frame_scope(
-      isolate, context_frame_.Get(isolate));
-
-  return node::MakeCallback(
-      isolate, get_resource(), method, argc, argv, async_context_);
+  Local<String> method_string;
+  if (!String::NewFromUtf8(env_->isolate(), method).ToLocal(&method_string)) {
+    return {};
+  }
+  return MakeCallback(method_string, argc, argv);
 }
 
 MaybeLocal<Value> AsyncResource::MakeCallback(Local<String> symbol,
                                               int argc,
                                               Local<Value>* argv) {
   auto isolate = env_->isolate();
-  async_context_frame::Scope async_context_frame_scope(
-      isolate, context_frame_.Get(isolate));
-
-  return node::MakeCallback(
-      isolate, get_resource(), symbol, argc, argv, async_context_);
+  // Check can_call_into_js() first because calling Get() might do so.
+  if (!env_->can_call_into_js()) return {};
+  Local<Value> callback;
+  if (!get_resource()
+           ->Get(isolate->GetCurrentContext(), symbol)
+           .ToLocal(&callback)) {
+    return {};
+  }
+  if (!callback->IsFunction()) return Undefined(isolate);
+  return MakeCallback(callback.As<Function>(), argc, argv);
 }
 
 Local<Object> AsyncResource::get_resource() {
