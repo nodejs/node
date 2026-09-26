@@ -24,8 +24,10 @@ using v8::Number;
 using v8::Object;
 using v8::Value;
 
+// NOLINTNEXTLINE(runtime/thread_local)
 thread_local std::unordered_map<FastStringKey, int, FastStringKey::Hash>
     generic_usage_counters;
+// NOLINTNEXTLINE(runtime/thread_local)
 thread_local std::unordered_map<FastStringKey, int, FastStringKey::Hash>
     v8_fast_api_call_counts;
 
