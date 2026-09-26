@@ -2726,6 +2726,13 @@ changes:
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
 
+If a variable is already defined in `process.env`, its existing value takes
+precedence and is not overwritten by the value from the file. This also applies
+to variables set by a previous call to `process.loadEnvFile()`, so when loading
+multiple files, the value from the first file that defines a variable is used.
+This differs from passing multiple [`--env-file`][] flags, where values from
+later files override those from earlier files.
+
 ```cjs
 const { loadEnvFile } = require('node:process');
 loadEnvFile();
@@ -2734,6 +2741,21 @@ loadEnvFile();
 ```mjs
 import { loadEnvFile } from 'node:process';
 loadEnvFile();
+```
+
+To override existing values, parse the file with [`util.parseEnv()`][] and
+assign the result to `process.env`:
+
+```cjs
+const { readFileSync } = require('node:fs');
+const { parseEnv } = require('node:util');
+Object.assign(process.env, parseEnv(readFileSync('.env', 'utf8')));
+```
+
+```mjs
+import { readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
+Object.assign(process.env, parseEnv(readFileSync('.env', 'utf8')));
 ```
 
 ## `process.mainModule`
@@ -4632,6 +4654,7 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
+[`--env-file`]: cli.md#--env-filefile
 [`--no-deprecation`]: cli.md#--no-deprecation
 [`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
@@ -4674,6 +4697,7 @@ cases:
 [`require.cache`]: modules.md#requirecache
 [`require.main`]: modules.md#accessing-the-main-module
 [`subprocess.kill()`]: child_process.md#subprocesskillsignal
+[`util.parseEnv()`]: util.md#utilparseenvcontent
 [`v8.setFlagsFromString()`]: v8.md#v8setflagsfromstringflags
 [built-in modules with mandatory `node:` prefix]: modules.md#built-in-modules-with-mandatory-node-prefix
 [debugger]: debugger.md
