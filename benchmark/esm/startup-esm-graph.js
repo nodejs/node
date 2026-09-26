@@ -1,66 +1,66 @@
 'use strict';
 
-const common = require('../common');
+const common = require('../common.js');
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { pathToFileURL } = require('url');
 const tmpdir = require('../../test/common/tmpdir');
 
-const bench = common.createBenchmark(main, {
-  modules: ['0250', '0500', '1000', '2000'],
-  n: [30],
-});
-
 const BRANCHING_FACTOR = 10;
+const benchmarkDirectory = tmpdir.resolve('esm-graph');
 
-function prepare(count) {
-  tmpdir.refresh();
-  const dir = tmpdir.resolve('esm-graph');
+// Each measured iteration has to load a graph the ESM cache has never seen, so the
+// fixture holds one independent copy of the graph per iteration.
+function graphDirectory(modules, copy) {
+  return path.join(benchmarkDirectory, `g${modules}-${copy}`);
+}
+
+function entryURL(modules, copy) {
+  return pathToFileURL(path.join(graphDirectory(modules, copy), 'mod0.mjs')).href;
+}
+
+// Build a complete BRANCHING_FACTOR-ary tree of `modules` + 1 modules rooted at mod0:
+// module i imports modules BRANCHING_FACTOR*i+1 through BRANCHING_FACTOR*i+BRANCHING_FACTOR,
+// capped at the total, so the shape approximates a real dependency tree rather than
+// one module with hundreds of direct imports.
+function createGraph(modules, copy) {
+  const dir = graphDirectory(modules, copy);
   fs.mkdirSync(dir, { recursive: true });
-
-  // Create a tree-shaped ESM graph with a branching factor of 10.
-  // The root (mod0) plus `count` additional modules are created in BFS order.
-  // Module i imports modules BRANCHING_FACTOR*i+1 through
-  // BRANCHING_FACTOR*i+BRANCHING_FACTOR (capped at count), so the graph is a
-  // complete 10-ary tree rooted at mod0.
-  const total = count + 1;
+  const total = modules + 1;
   for (let i = 0; i < total; i++) {
-    const children = [];
+    let source = '';
     for (let c = 1; c <= BRANCHING_FACTOR; c++) {
       const child = BRANCHING_FACTOR * i + c;
       if (child < total) {
-        children.push(`import './mod${child}.mjs';`);
+        source += `import './mod${child}.mjs';\n`;
       }
     }
-    const content = children.join('\n') + (children.length ? '\n' : '') +
-      `export const value${i} = ${i};\n`;
-    fs.writeFileSync(path.join(dir, `mod${i}.mjs`), content);
+    source += `export const value${i} = ${i};\n`;
+    fs.writeFileSync(path.join(dir, `mod${i}.mjs`), source);
   }
-
-  return path.join(dir, 'mod0.mjs');
 }
 
-function main({ n, modules }) {
-  const entry = prepare(Number(modules));
-  const cmd = process.execPath || process.argv[0];
-  const warmup = 3;
-  const state = { finished: -warmup };
+const bench = common.createBenchmark(main, {
+  modules: [250, 500, 1000, 2000],
+  n: [10],
+}, {
+  setup(configs) {
+    // Build every fixture once here rather than per configuration: writing tens of
+    // thousands of files is far more expensive than the work being measured.
+    tmpdir.refresh();
+    const maxN = configs.reduce((max, c) => Math.max(max, c.n), 0);
+    for (const modules of new Set(configs.map((c) => c.modules))) {
+      for (let copy = 0; copy < maxN; copy++) {
+        createGraph(modules, copy);
+      }
+    }
+  },
+});
 
-  while (state.finished < n) {
-    const child = spawnSync(cmd, [entry]);
-    if (child.status !== 0) {
-      console.log('---- STDOUT ----');
-      console.log(child.stdout.toString());
-      console.log('---- STDERR ----');
-      console.log(child.stderr.toString());
-      throw new Error(`Child process stopped with exit code ${child.status}`);
-    }
-    state.finished++;
-    if (state.finished === 0) {
-      bench.start();
-    }
-    if (state.finished === n) {
-      bench.end(n);
-    }
+async function main({ n, modules }) {
+  bench.start();
+  for (let i = 0; i < n; i++) {
+    await import(entryURL(modules, i));
   }
+  bench.end(n);
 }
