@@ -37,33 +37,30 @@ using v8::Value;
 namespace quic {
 
 // ============================================================================
-// Thread-local QUIC allocator.
+// QUIC allocator.
 //
-// Both ngtcp2 and nghttp3 take an allocator struct (ngtcp2_mem /
-// nghttp3_mem) whose pointer is stored inside every object they
-// allocate. Some of those objects — notably nghttp3 rcbufs backing
-// V8 external strings — can outlive the BindingData that created them
-// (freed during V8 isolate teardown, after Environment cleanup).
-//
-// To handle this safely, both allocators live in a thread-local static
-// struct that is never destroyed. Memory tracking goes through the
-// BindingData pointer when it is alive and is silently skipped during
-// teardown (after ~BindingData nulls the pointer).
+// ngtcp2 and nghttp3 keep a pointer to their allocator struct in every object
+// they allocate, and nghttp3 rcbufs backing V8 external strings can be freed
+// after the BindingData is gone. A QuicAllocState is therefore deleted only
+// once its BindingData has been destroyed and its last allocation freed.
 //
 // The allocation functions use the same prepended-size-header scheme as
 // NgLibMemoryManager (node_mem-inl.h) so that frees always know the
 // allocation size regardless of whether BindingData is still around.
 
-namespace {
 struct QuicAllocState {
-  BindingData* binding = nullptr;
+  BindingData* binding;
+  size_t live_allocations = 0;
   ngtcp2_mem ngtcp2 = {};
   nghttp3_mem nghttp3 = {};
-};
-thread_local QuicAllocState quic_alloc_state;
 
-// Core allocation functions shared by both ngtcp2 and nghttp3.
-// user_data always points to the thread-local QuicAllocState.
+  void OnFreed() {
+    CHECK_GT(live_allocations, 0);
+    if (--live_allocations == 0 && binding == nullptr) delete this;
+  }
+};
+
+namespace {
 
 void* QuicRealloc(void* ptr, size_t size, void* user_data) {
   auto* state = static_cast<QuicAllocState*>(user_data);
@@ -78,6 +75,10 @@ void* QuicRealloc(void* ptr, size_t size, void* user_data) {
     previous_size = *reinterpret_cast<size_t*>(original_ptr);
     if (previous_size == 0) {
       char* ret = UncheckedRealloc(original_ptr, size);
+      if (size == 0) {
+        state->OnFreed();
+        return nullptr;
+      }
       if (ret != nullptr) ret += kReserveSizeAndAlign;
       return ret;
     }
@@ -96,6 +97,7 @@ void* QuicRealloc(void* ptr, size_t size, void* user_data) {
       state->binding->env()->external_memory_accounter()->Update(
           state->binding->env()->isolate(), new_size);
     }
+    if (ptr == nullptr) state->live_allocations++;
     *reinterpret_cast<size_t*>(mem) = size;
     mem += kReserveSizeAndAlign;
   } else if (size == 0) {
@@ -104,6 +106,7 @@ void* QuicRealloc(void* ptr, size_t size, void* user_data) {
       state->binding->env()->external_memory_accounter()->Decrease(
           state->binding->env()->isolate(), previous_size);
     }
+    if (ptr != nullptr) state->OnFreed();
   }
   return mem;
 }
@@ -232,7 +235,8 @@ BindingData& BindingData::Get(Environment* env) {
 }
 
 BindingData::~BindingData() {
-  quic_alloc_state.binding = nullptr;
+  alloc_state_->binding = nullptr;
+  if (alloc_state_->live_allocations == 0) delete alloc_state_;
   // flush_check_ is cleaned up by ~CheckWrapHandle() after the destructor
   // body completes. The inner CheckWrap (and its uv_check_t) will be freed
   // later by the uv_close callback, after CleanupHandles() runs uv_run().
@@ -240,27 +244,11 @@ BindingData::~BindingData() {
 }
 
 ngtcp2_mem* BindingData::ngtcp2_allocator() {
-  quic_alloc_state.binding = this;
-  quic_alloc_state.ngtcp2 = {
-      &quic_alloc_state,
-      Ngtcp2Malloc,
-      Ngtcp2Free,
-      Ngtcp2Calloc,
-      Ngtcp2Realloc,
-  };
-  return &quic_alloc_state.ngtcp2;
+  return &alloc_state_->ngtcp2;
 }
 
 nghttp3_mem* BindingData::nghttp3_allocator() {
-  quic_alloc_state.binding = this;
-  quic_alloc_state.nghttp3 = {
-      &quic_alloc_state,
-      Nghttp3Malloc,
-      Nghttp3Free,
-      Nghttp3Calloc,
-      Nghttp3Realloc,
-  };
-  return &quic_alloc_state.nghttp3;
+  return &alloc_state_->nghttp3;
 }
 
 void BindingData::CheckAllocatedSize(size_t previous_size) const {
@@ -349,7 +337,12 @@ JS_METHOD_IMPL(BindingData::SetHeadersInterest) {
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
     : BaseObject(realm, object),
+      alloc_state_(new QuicAllocState{this}),
       flush_check_(env(), [this]() { OnFlushCheck(); }) {
+  alloc_state_->ngtcp2 = {
+      alloc_state_, Ngtcp2Malloc, Ngtcp2Free, Ngtcp2Calloc, Ngtcp2Realloc};
+  alloc_state_->nghttp3 = {
+      alloc_state_, Nghttp3Malloc, Nghttp3Free, Nghttp3Calloc, Nghttp3Realloc};
   MakeWeak();
   // Unref so the check handle doesn't keep the event loop alive on its own.
   flush_check_.Unref();
