@@ -294,6 +294,18 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
   SetMethod(realm->context(), target, "sendHeaders", SendHeaders);
   SetMethod(realm->context(), target, "setHeadersInterest", SetHeadersInterest);
+  SetMethod(realm->context(),
+            target,
+            "setWebtransportInterest",
+            SetWebtransportInterest);
+  SetMethod(realm->context(),
+            target,
+            "closeWebtransportSessionStream",
+            CloseWebtransportSessionStream);
+  SetMethod(realm->context(),
+            target,
+            "makeWebtransportStream",
+            MakeWebtransportStream);
 
   constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
       static_cast<uint8_t>(HeadersKind::HINTS);
@@ -305,12 +317,15 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
       static_cast<uint8_t>(HeadersFlags::NONE);
   constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
       static_cast<uint8_t>(HeadersFlags::TERMINAL);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_WEBTRANSPORT =
+      static_cast<uint8_t>(HeadersFlags::WEBTRANSPORT);
 
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_TRAILING);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_WEBTRANSPORT);
 
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
@@ -321,6 +336,8 @@ void BindingData::RegisterExternalReferences(
   registry->Register(SetCallbacks);
   registry->Register(SendHeaders);
   registry->Register(SetHeadersInterest);
+  registry->Register(SetWebtransportInterest);
+  registry->Register(MakeWebtransportStream);
 }
 
 JS_METHOD_IMPL(BindingData::SendHeaders) {
@@ -345,6 +362,67 @@ JS_METHOD_IMPL(BindingData::SetHeadersInterest) {
   CHECK(args[2]->IsBoolean());
   stream->session().application().SetHeadersInterest(
       *stream, args[1]->IsTrue(), args[2]->IsTrue());
+}
+
+JS_METHOD_IMPL(BindingData::SetWebtransportInterest) {
+  Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsBoolean());
+  CHECK(args[2]->IsBoolean());
+  stream->session().application().SetWebtransportInterest(
+      *stream, args[1]->IsTrue(), args[2]->IsTrue());
+}
+
+// Connects a stream to a webtransport session stream,
+// also sends the initial bytes of a stream to signel the wt stream
+// also connects the readers
+JS_METHOD_IMPL(BindingData::MakeWebtransportStream) {
+  Stream* stream;
+  CHECK_GT(args.Length(), 1);
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsObject());
+  Stream* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args[1].As<v8::Object>());
+  args.GetReturnValue()
+      .Set(stream->session()
+      .application().MakeWebtransportStream(
+                      *stream,
+                      session->id()));
+}
+
+// Closes a webtransport session stream,
+// also closes connected data streams
+JS_METHOD_IMPL(BindingData::CloseWebtransportSessionStream) {
+  Stream* stream;
+  CHECK_GT(args.Length(), 1);
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  uint32_t wt_error_code = 0;
+  if (args.Length() > 1) {
+    CHECK(args[1]->IsUint32());
+    wt_error_code = FromV8Value<uint32_t>(args[1]);
+  }
+  uint8_t * msg = nullptr;
+  size_t msglen = 0;
+  if (args.Length() > 2) {
+    CHECK(args[2]->IsString());
+    Local<String> msgstr = args[2].As<String>();
+    const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
+    msg = new  uint8_t[length];
+    msgstr->WriteUtf8V2(
+      args.GetIsolate(), reinterpret_cast<char*>(msg),
+      length,
+      String::WriteFlags::kNone);
+    msglen = std::min<size_t>(length, 1024);
+  }
+  args.GetReturnValue().Set(stream->session().application()
+    .CloseWebtransportSessionStream(
+    *stream,
+    wt_error_code,
+    msg,
+    msglen));
+  if (msg) {
+    delete[] msg;
+  }
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)

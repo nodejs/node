@@ -275,7 +275,12 @@ int nghttp3_map_insert(nghttp3_map *map, nghttp3_map_key_type key, void *data) {
     return 0;
   }
 
-  return map_resize(map, map->hashbits + 1);
+  rv = map_resize(map, map->hashbits + 1);
+  if (rv != 0) {
+    nghttp3_map_remove(map, key);
+  }
+
+  return rv;
 }
 
 void *nghttp3_map_find(const nghttp3_map *map, nghttp3_map_key_type key) {
