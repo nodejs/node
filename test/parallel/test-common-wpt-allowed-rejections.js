@@ -50,7 +50,9 @@ async function check(backend, webWorker, {
       if (message.type === 'result') {
         statuses.push(message.result.status);
       } else if (message.type === 'completion') {
-        result = message.status;
+        // The process backend can complete before its uncaught-error handler
+        // exits. Preserve any failure it already reported.
+        result ||= message.status;
         handle.kill();
       } else {
         assert.fail(`Unexpected message type: ${message.type}`);
