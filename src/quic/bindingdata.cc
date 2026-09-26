@@ -300,6 +300,10 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
             SetWebtransportInterest);
   SetMethod(realm->context(),
             target,
+            "closeWebtransportSessionStream",
+            CloseWebtransportSessionStream);
+  SetMethod(realm->context(),
+            target,
             "makeWebtransportStream",
             MakeWebtransportStream);
 

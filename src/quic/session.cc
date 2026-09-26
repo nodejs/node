@@ -1174,8 +1174,7 @@ struct Session::Impl final : public MemoryRetainer {
     if (!args[1].As<v8::Boolean>()->Value()) {  // This is waitUntilAvailable
       if (!session->CanImmediatelyOpenStream(direction)) {
         return THROW_ERR_INVALID_STATE(env,
-          "No new stream available within flow control"
-        );
+          "No new stream available within flow control");
       }
     }
 
@@ -1725,7 +1724,6 @@ struct Session::Impl final : public MemoryRetainer {
       nullptr,
 #ifdef NGTCP2_CALLBACKS_V6
       on_extend_max_data,
-#endif
 #endif  // NGTCP2_CALLBACKS_V5
 #endif  // NGTCP2_CALLBACKS_V4
   };
@@ -1781,7 +1779,6 @@ struct Session::Impl final : public MemoryRetainer {
       nullptr,
 #ifdef NGTCP2_CALLBACKS_V6
       on_extend_max_data,
-#endif
 #endif  // NGTCP2_CALLBACKS_V5
 #endif  // NGTCP2_CALLBACKS_V4
   };
