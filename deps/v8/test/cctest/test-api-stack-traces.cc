@@ -438,6 +438,34 @@ TEST(CaptureStackTraceForUncaughtException) {
   CHECK_EQ(1, report_count);
 }
 
+TEST(CaptureStackTraceForUncaughtExceptionHugeStackTraceLimit) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+
+  CompileRun(
+      "function foo() { return new Error().stack; }\n"
+      "function bar() { return foo(); }\n"
+      "function stackWithLimit(limit) {\n"
+      "  Error.stackTraceLimit = limit;\n"
+      "  return bar();\n"
+      "}\n");
+  Local<Value> expected = CompileRun("stackWithLimit(10)");
+  CHECK(expected->IsString());
+
+  // For these limits, limit * CallSiteInfo::Fields::kCount overflows.
+  for (const char* limit : {"858993460", "858993461", "Infinity"}) {
+    std::string source = std::string("stackWithLimit(") + limit + ")";
+    CHECK(CompileRun(source.c_str())->StrictEquals(expected));
+  }
+
+  // Small limits must still trim the stack trace.
+  CHECK(CompileRun("stackWithLimit(1).split('\\n').length === 2")->IsTrue());
+
+  isolate->SetCaptureStackTraceForUncaughtExceptions(false);
+}
+
 // Test uncaught exception in a setter
 const char uncaught_setter_exception_source[] =
     "var setters = ['column', 'lineNumber', 'scriptName',\n"
