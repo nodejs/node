@@ -1,7 +1,7 @@
 'use strict';
 
-// node:vfs is available without an experimental flag. The old flag remains a
-// no-op for compatibility, and the module remains available with --no- form.
+// node:vfs is available without an experimental flag. The old positive flag
+// remains accepted for compatibility, and --no-experimental-vfs disables it.
 
 require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
@@ -28,14 +28,25 @@ const { spawnSyncAndAssert } = require('../common/child_process');
   });
 }
 
-// The old flag is accepted for compatibility but no longer gates the module.
-for (const flag of ['--experimental-vfs', '--no-experimental-vfs']) {
-  spawnSyncAndAssert(process.execPath, [
-    flag,
-    '-p',
-    'require("node:module").builtinModules.includes("node:vfs")',
-  ], { stdout: 'true\n', stderr: '' });
-}
+// The old positive flag is accepted for compatibility but no longer gates the
+// module.
+spawnSyncAndAssert(process.execPath, [
+  '--experimental-vfs',
+  '-p',
+  'require("node:module").builtinModules.includes("node:vfs")',
+], { stdout: 'true\n', stderr: '' });
+
+// --no-experimental-vfs disables node:vfs.
+spawnSyncAndAssert(process.execPath, [
+  '--no-experimental-vfs',
+  '-p',
+  'require("node:module").builtinModules.includes("node:vfs")',
+], { stdout: 'false\n', stderr: '' });
+
+spawnSyncAndAssert(process.execPath, [
+  '--no-experimental-vfs',
+  '-e', 'require("node:vfs")',
+], { status: 1, stderr: /ERR_UNKNOWN_BUILTIN_MODULE/ });
 
 // Bare `vfs` (no node: scheme) remains unavailable.
 spawnSyncAndAssert(process.execPath, [

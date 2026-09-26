@@ -1194,6 +1194,9 @@ Legacy alias for \fB--no-require-module\fR.
 .It Fl -no-experimental-sqlite
 Disable the experimental \fBnode:sqlite\fR module.
 .
+.It Fl -no-experimental-vfs
+Disable the experimental \fBnode:vfs\fR module and \fB--vfs-load\fR.
+.
 .It Fl -no-experimental-webstorage
 Disable \fBWeb Storage\fR support.
 .
@@ -1932,7 +1935,9 @@ Print node's version.
 May be given at most once.
 Mounts \fBsource\fR as a virtual file system (\fBnode:vfs\fR), and runs the entry
 point and all subsequent \fBrequire()\fR/\fBimport\fR resolution against that mount
-rather than the real file system. The mount is placed at a reserved mount point
+rather than the real file system. This option is unavailable when
+\fB--no-experimental-vfs\fR disables \fBnode:vfs\fR. The mount is placed at a
+reserved mount point
 assigned by Node.js, so it never shadows real paths and no target can be
 chosen. The entry point is taken from the mount the same way \fBnode <directory>\fR
 takes one: the mount's own \fBpackage.json\fR \fB"main"\fR, or \fBindex.js\fR. Any
@@ -2293,6 +2298,8 @@ one is included in the list below.
 \fB--no-experimental-sqlite\fR
 .It
 \fB--no-experimental-strip-types\fR
+.It
+\fB--no-experimental-vfs\fR
 .It
 \fB--no-experimental-webstorage\fR
 .It

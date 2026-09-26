@@ -51,6 +51,13 @@ if (common.hasFFI) {
   ], { status: 0 });
 }
 
+// node:vfs is enabled by default and can be disabled with
+// --no-experimental-vfs.
+spawnSyncAndAssert(process.execPath, [
+  '--no-experimental-vfs',
+  '-e', `const m = require('node:module'); if (m.builtinModules.includes('node:vfs')) process.exit(1); try { require('node:vfs'); } catch (e) { if (e.code === 'ERR_UNKNOWN_BUILTIN_MODULE') process.exit(0); } process.exit(1);`,
+], { status: 0 });
+
 const schemeOnlyBuiltins = ['node:test', 'node:sea', 'node:vfs'];
 if (common.hasFFI) {
   schemeOnlyBuiltins.push('node:ffi');

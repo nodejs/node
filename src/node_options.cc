@@ -789,11 +789,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             NoOp{},
 #endif
             kAllowedInEnvvar);
-  // Retained as a no-op for compatibility; node:vfs is no longer gated.
   AddOption("--experimental-vfs",
-            "",
+            "experimental node:vfs module",
             BOOL_FIELD(experimental_vfs),
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            true);
   // Choosing the entry point is the command line's alone: an environment
   // variable must not be able to redirect what a `node <args>` invocation runs,
   // so this is rejected in NODE_OPTIONS. The source and whether to run from it
