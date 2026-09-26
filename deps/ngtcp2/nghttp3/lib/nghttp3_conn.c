@@ -3387,6 +3387,8 @@ int nghttp3_conn_set_client_stream_priority(nghttp3_conn *conn,
     memcpy(buf, data, datalen);
   }
 
+  assert(conn->tx.ctrl);
+
   rv = nghttp3_stream_frq_emplace(conn->tx.ctrl, &fr);
   if (rv != 0) {
     nghttp3_mem_free(conn->mem, buf);
