@@ -35,10 +35,18 @@ assert.strictEqual(myVfs.provider.supportsWatch, true);
   await iter.return();
 })().then(common.mustCall());
 
-// watchFile / unwatchFile
+// watchFile / unwatchFile: the listener must be forwarded to the real fs
+// watcher (not stubbed), fire on change, and be removable by identity.
 {
   fs.writeFileSync(path.join(root, 'wf.txt'), 'a');
-  const listener = () => {};
-  myVfs.watchFile('/wf.txt', { persistent: false }, listener);
-  myVfs.unwatchFile('/wf.txt', listener);
+  const listener = common.mustCall();
+  myVfs.watchFile('/wf.txt', { interval: 10, persistent: false }, listener);
+  // uv_fs_poll records the first stat asynchronously as the baseline and
+  // only reports subsequent changes, so mutate the file only after that
+  // baseline reflects 'a'; otherwise the change is folded into the baseline
+  // and the listener never fires.
+  setTimeout(() => fs.writeFileSync(path.join(root, 'wf.txt'), 'b'), 100);
+  setTimeout(() => {
+    myVfs.unwatchFile('/wf.txt', listener);
+  }, 500);
 }
