@@ -25,7 +25,10 @@
 let
   useSharedAbseil = builtins.elem "--shared-abseil" configureFlags;
   useSharedHighway = builtins.elem "--shared-highway" configureFlags;
+  useSharedPerfetto = builtins.elem "--shared-perfetto" configureFlags;
   useSharedSimdutf = builtins.elem "--shared-simdutf" configureFlags;
+  useSharedTemporal = builtins.elem "--shared-temporal_capi" configureFlags;
+
   src =
     let
       inherit (lib) fileset;
@@ -50,8 +53,13 @@ let
       ++ lib.optional (!useSharedHighway) ../../tools/v8_gypfiles/highway.gyp
       ++ lib.optional (!useSharedSimdutf) ../../tools/v8_gypfiles/simdutf.gyp
       ++ lib.optional (
-        builtins.elem "--with-perfetto" configureFlags
-        && !(builtins.elem "--shared-perfetto" configureFlags)
+        if useSharedTemporal then
+          icu == null
+        else
+          !(builtins.elem "--v8-disable-temporal-support" configureFlags)
+      ) ../../deps/crates
+      ++ lib.optional (
+        builtins.elem "--with-perfetto" configureFlags && !useSharedPerfetto
       ) ../../deps/perfetto
       ++ lib.optionals (icu != null) [
         ../../tools/icu/icu_versions.json
@@ -111,14 +119,9 @@ stdenv.mkDerivation (finalAttrs: {
     else
       "${builtins.elemAt v8Version 0}.${builtins.elemAt v8Version 1}.${builtins.elemAt v8Version 2}.${builtins.elemAt v8Version 3}-${builtins.elemAt v8_embedder_string 0}";
 
-  patches = lib.optional (
-    # V8 accesses internal ICU headers and methods in the Temporal files.
-    !(builtins.isString icu) && builtins.elem "--v8-enable-temporal-support" configureFlags
-  ) ./temporal-no-vendored-icu.patch;
-
   # We need to patch tools/gyp/ to work from within Nix sandbox
   prePatch = ''
-    ${lib.optionalString (builtins.length finalAttrs.patches == 0) "patches=()"}
+    ${lib.optionalString (builtins.length (finalAttrs.patches or [ ]) == 0) "patches=()"}
     for patch in ${lib.concatStringsSep " " patches}; do
       filtered=$(mktemp)
       filterdiff -p1 -i 'tools/gyp/pylib/*' "$patch" > "$filtered"

@@ -168,7 +168,16 @@ jobs:
       extra-nix-flags: |
         --arg useSeparateDerivationForV8 true \
         ${{ matrix.perfetto && '--arg withPerfetto true \' || '\' }}
-        ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+        ${{ endsWith(matrix.system, '-darwin') && '\
+          --arg withAmaro false \
+          --arg withFFI false \
+          --arg withLief false \
+          --arg withSQLite false \
+          --arg withTemporal false \
+          --arg extraConfigFlags ''[
+            "--without-inspector"
+            "--without-node-options"
+          ]'' \' || '\' }}
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 

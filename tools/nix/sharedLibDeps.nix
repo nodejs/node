@@ -6,7 +6,7 @@
   withSSL ? true,
   withFFI ? true,
   withPerfetto ? false,
-  withTemporal ? false,
+  withTemporal ? true,
 }:
 {
   inherit (pkgs)
