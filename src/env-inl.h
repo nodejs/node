@@ -460,6 +460,10 @@ inline std::shared_ptr<EnvironmentOptions> Environment::options() {
   return options_;
 }
 
+inline bool Environment::async_context_frame_enabled() const {
+  return options_->async_context_frame;
+}
+
 inline const std::vector<std::string>& Environment::argv() {
   return argv_;
 }
