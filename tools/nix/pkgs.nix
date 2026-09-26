@@ -14,7 +14,7 @@ if builtins.currentSystem == "x86_64-darwin" then
   (import ./pkgs-26.05.nix arg)
 else
   nixpkgs
-  // nixpkgs.lib.optionalAttrs (with nixpkgs.stdenv.hostPlatform; isLinux && isx86_64) {
+  // {
     # TODO: remove pin once https://github.com/mozilla/sccache/issues/2869 is resolved
     sccache = nixpkgs.callPackage (builtins.fetchurl {
       url = "${repo}/raw/aff8a0b28396750446e5537a96461bc4facdb287/pkgs/by-name/sc/sccache/package.nix";
