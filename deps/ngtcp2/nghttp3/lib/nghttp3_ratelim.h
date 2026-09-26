@@ -33,6 +33,9 @@
 
 #include <nghttp3/nghttp3.h>
 
+/* NGHTTP3_RATELIM_MAX_BURST is the maximum value of the burst. */
+#define NGHTTP3_RATELIM_MAX_BURST (UINT64_MAX / NGHTTP3_SECONDS)
+
 typedef struct nghttp3_ratelim {
   /* burst is the maximum number of tokens. */
   uint64_t burst;
@@ -48,8 +51,8 @@ typedef struct nghttp3_ratelim {
   nghttp3_tstamp ts;
 } nghttp3_ratelim;
 
-/* nghttp3_ratelim_init initializes |rlim| with the given
-   parameters. */
+/* nghttp3_ratelim_init initializes |rlim| with the given parameters.
+   |burst| is clamped to NGHTTP3_RATELIM_MAX_BURST. */
 void nghttp3_ratelim_init(nghttp3_ratelim *rlim, uint64_t burst, uint64_t rate,
                           nghttp3_tstamp ts);
 
