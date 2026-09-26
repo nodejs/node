@@ -6,8 +6,12 @@
 
 #include "cppgc/allocation.h"
 #include "cppgc/garbage-collected.h"
+#include "env-inl.h"
 #include "node_test_fixture.h"
 #include "v8-cppgc.h"
+#if HAVE_OPENSSL
+#include "crypto/crypto_context.h"
+#endif
 
 #include <string>
 #include <vector>
@@ -445,6 +449,36 @@ TEST_P(SharedIsolateTest, FreeIsolateDataBeforeItsEnvironmentAsserts) {
   node::Stop(instance->env, node::StopFlags::kDoNotTerminateIsolate);
   FreeInstance(std::move(instance));
 }
+
+#if HAVE_OPENSSL
+TEST_P(SharedIsolateTest, RootCertStoreIsPerEnvironment) {
+  const HandleScope handle_scope(isolate_);
+  std::unique_ptr<Instance> first =
+      CreateInstance(0, EnvironmentFlags::kNoCreateInspector);
+  std::unique_ptr<Instance> second =
+      CreateInstance(1, EnvironmentFlags::kNoCreateInspector);
+  auto store_size = [](Instance* instance) {
+    return sk_X509_OBJECT_num(X509_STORE_get0_objects(
+        node::crypto::GetOrCreateRootCertStore(instance->env)));
+  };
+  auto set_default_ca_count = [this](Instance* instance, int count) {
+    std::string source =
+        "const tls = process.getBuiltinModule('tls');"
+        "tls.setDefaultCACertificates(tls.rootCertificates.slice(0, " +
+        std::to_string(count) + "))";
+    Evaluate(instance, source.c_str());
+  };
+
+  set_default_ca_count(first.get(), 1);
+  set_default_ca_count(second.get(), 2);
+  EXPECT_EQ(store_size(first.get()), 1);
+  EXPECT_EQ(store_size(second.get()), 2);
+
+  FreeInstance(std::move(first));
+  EXPECT_EQ(store_size(second.get()), 2);
+  FreeInstance(std::move(second));
+}
+#endif  // HAVE_OPENSSL
 
 INSTANTIATE_TEST_SUITE_P(
     EnvironmentTest,
