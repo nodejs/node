@@ -73,6 +73,31 @@ for (const value of invalidLimits) {
   JSON.parse(profile);
 }
 
+{
+  const handle = v8.startHeapProfile({ sampleInterval: 1, stackDepth: 8 });
+  const retained = [];
+  for (let i = 0; i < 4096; i++) {
+    retained.push({ i, payload: new Array(16).fill(i) });
+  }
+  const parsed = JSON.parse(handle.stop());
+
+  assert.strictEqual(typeof parsed.head.selfSize, 'number');
+  assert.strictEqual(typeof parsed.head.selfCount, 'number');
+  assert.strictEqual(typeof parsed.head.id, 'number');
+  assert.strictEqual(typeof parsed.head.callFrame, 'object');
+
+  assert(parsed.samples.length > 0);
+  for (const sample of parsed.samples) {
+    assert.strictEqual(typeof sample.size, 'number');
+    assert.strictEqual(typeof sample.objectSize, 'number');
+    assert.strictEqual(typeof sample.objectCount, 'number');
+    assert.strictEqual(typeof sample.nodeId, 'number');
+    assert.strictEqual(typeof sample.ordinal, 'number');
+    assert.strictEqual(typeof sample.isLive, 'boolean');
+    assert.strictEqual(sample.size, sample.objectSize * sample.objectCount);
+  }
+}
+
 // Second stop returns undefined.
 {
   const handle = v8.startHeapProfile();
