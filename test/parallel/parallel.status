@@ -9,9 +9,6 @@ prefix parallel
 test-shadow-realm-gc: SKIP
 test-shadow-realm-gc-module: SKIP
 
-# https://github.com/nodejs/node/issues/51862
-test-fs-read-stream-concurrent-reads: PASS, FLAKY
-
 # Until V8 provides a better way to check for flag mismatch without
 # making the code cache/snapshot unreproducible, disable the test
 # for a preemptive check now. It should ideally fail more gracefully
