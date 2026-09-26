@@ -40,16 +40,37 @@ const oversizedLengthStdout = String.fromCharCode(oversizedLengthHeader[0]) +
 const unsignedOversizedLengthStdout = String.fromCharCode(unsignedOversizedLengthHeader[0]) +
   Buffer.from(unsignedOversizedLengthHeader.subarray(1)).toString('utf-8');
 // FF 0F followed by a small, plausible size (8) and 8 payload bytes. Unlike the
-// oversized headers above, this passes the size check and reaches the
-// deserializer, which throws because the payload is not a real message.
+// oversized headers above, this passes the size check, but its payload does not
+// begin with the inner v8 header a real frame carries, so it is treated as
+// stdout instead of reaching the deserializer.
 // Regression fixture for https://github.com/nodejs/node/issues/66164
 const plausibleSizeFalseHeader = Buffer.from([
-  0xff, 0x0f,             // v8 serializer header magic
-  0x00, 0x00, 0x00, 0x08, // payload size of 8 bytes
+  0xff, 0x0f,             // V8 serializer header magic
+  0x00, 0x00, 0x00, 0x08, // Payload size of 8 bytes
   0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, // "ABCDEFGH", not a real payload
 ]);
 const plausibleSizeFalseHeaderStdout = String.fromCharCode(plausibleSizeFalseHeader[0]) +
   Buffer.from(plausibleSizeFalseHeader.subarray(1)).toString('utf-8');
+// FF 0F, a valid size, then the inner v8 header a real frame repeats, followed
+// by a byte that is not a valid serialized value. This passes the inner header
+// check and reaches the deserializer, which throws. This is what a genuine
+// report-protocol regression looks like, so the parser must let the error
+// surface instead of hiding it as stdout.
+const headeredCorruptFrame = Buffer.from([
+  0xff, 0x0f,             // Outer v8 serializer header magic
+  0x00, 0x00, 0x00, 0x03, // Payload size of 3 bytes
+  0xff, 0x0f,             // Inner v8 header that a real frame repeats
+  0xee,                   // Not a valid serialized value
+]);
+// FF 0F with a declared size of 1, then more header bytes. The payload is
+// shorter than the inner v8 header a real frame carries, so it can never be a
+// real frame. The length guard must reject it as stdout without reaching the
+// deserializer.
+const shortPayloadFalseHeader = Buffer.from([
+  0xff, 0x0f,             // Outer v8 serializer header magic
+  0x00, 0x00, 0x00, 0x01, // Payload size of 1 byte, too short for a header
+  0xff, 0x0f,             // Trailing bytes that also look like a header
+]);
 
 function collectStdout(reported) {
   return reported
@@ -182,8 +203,9 @@ describe('v8 deserializer', common.mustCall(() => {
 
   it('should not crash when stdout mimics a v8 frame with a plausible size', async () => {
     // Regression test for https://github.com/nodejs/node/issues/66164
-    // The bytes reach the deserializer and it throws. The parser must emit
-    // them as stdout instead of letting the error abort the whole run.
+    // The payload does not start with the inner v8 header that a real frame
+    // carries, so the parser treats the bytes as stdout instead of handing
+    // them to the deserializer and aborting the whole run.
     const reported = await collectReported([plausibleSizeFalseHeader]);
     assert(reported.every((event) => event.type === 'test:stdout'));
     assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
@@ -191,7 +213,7 @@ describe('v8 deserializer', common.mustCall(() => {
 
   it('should resync and parse a real message after a plausible-size false frame', async () => {
     // The poison bytes followed by a real serialized message. The parser must
-    // recover from the failed deserialize and still report the real event.
+    // reject the poison as stdout and still report the real event.
     const reported = await collectReported([
       plausibleSizeFalseHeader,
       ...chunks,
@@ -224,6 +246,22 @@ describe('v8 deserializer', common.mustCall(() => {
     ]);
     assert(reported.every((event) => event.type === 'test:stdout'));
     assert.strictEqual(collectStdout(reported), plausibleSizeFalseHeaderStdout);
+  });
+
+  it('should surface a genuinely corrupt frame instead of hiding it', () => {
+    // A frame with both v8 headers and a valid size but an invalid value is
+    // what a real report-protocol regression looks like, not stray stdout.
+    // The parser must let the deserialize error surface instead of silently
+    // turning it into stdout.
+    assert.throws(() => fileTest.parseMessage(headeredCorruptFrame), /deserialize/);
+  });
+
+  it('should treat a frame whose payload is shorter than the header as stdout', async () => {
+    // The declared size is smaller than the inner v8 header, so the length
+    // guard must reject the bytes as stdout instead of reaching the
+    // deserializer.
+    const reported = await collectReported([shortPayloadFalseHeader]);
+    assert(reported.every((event) => event.type === 'test:stdout'));
   });
 
   const headerPosition = headerLength * 2 + 4;
