@@ -8,9 +8,14 @@
 #include "cppgc/garbage-collected.h"
 #include "env-inl.h"
 #include "node_test_fixture.h"
+#include "quic/guard.h"
 #include "v8-cppgc.h"
 #if HAVE_OPENSSL
 #include "crypto/crypto_context.h"
+#endif
+#ifndef OPENSSL_NO_QUIC
+#include "node_realm-inl.h"
+#include "quic/bindingdata.h"
 #endif
 
 #include <string>
@@ -479,6 +484,42 @@ TEST_P(SharedIsolateTest, RootCertStoreIsPerEnvironment) {
   FreeInstance(std::move(second));
 }
 #endif  // HAVE_OPENSSL
+
+#ifndef OPENSSL_NO_QUIC
+TEST_P(SharedIsolateTest, QuicAllocatorIsPerEnvironment) {
+  const HandleScope handle_scope(isolate_);
+  std::unique_ptr<Instance> first =
+      CreateInstance(0, EnvironmentFlags::kNoCreateInspector);
+  std::unique_ptr<Instance> second =
+      CreateInstance(1, EnvironmentFlags::kNoCreateInspector);
+  auto allocator = [this](Instance* instance) {
+    HandleScope inner(isolate_);
+    Local<Context> context = instance->context.Get(isolate_);
+    Context::Scope context_scope(context);
+    Local<Value> name = v8::String::NewFromUtf8Literal(isolate_, "quic");
+    instance->env->principal_realm()
+        ->internal_binding_loader()
+        ->Call(context, v8::Undefined(isolate_), 1, &name)
+        .ToLocalChecked();
+    return node::quic::BindingData::Get(instance->env).ngtcp2_allocator();
+  };
+
+  ngtcp2_mem* first_mem = allocator(first.get());
+  void* first_ptr = first_mem->malloc(64, first_mem->user_data);
+  ngtcp2_mem* second_mem = allocator(second.get());
+  void* tracked = second_mem->malloc(16, second_mem->user_data);
+  void* untracked = second_mem->malloc(16, second_mem->user_data);
+  node::quic::BindingData::Get(second->env).StopTrackingMemory(untracked);
+  EXPECT_NE(first_mem, second_mem);
+  first_mem->free(first_ptr, first_mem->user_data);
+
+  FreeInstance(std::move(second));
+  second_mem->free(untracked, second_mem->user_data);
+  tracked = second_mem->realloc(tracked, 32, second_mem->user_data);
+  second_mem->free(tracked, second_mem->user_data);
+  FreeInstance(std::move(first));
+}
+#endif  // OPENSSL_NO_QUIC
 
 INSTANTIATE_TEST_SUITE_P(
     EnvironmentTest,
