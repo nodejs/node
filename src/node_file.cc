@@ -3508,7 +3508,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
       }
       // Switch to the heap buffer.
       uv_fs_req_cleanup(&req);
-      big_cap = kMinChunk;
+      big_cap = std::max(kMinChunk, result.size() + sizeof(buffer));
       big = UncheckedMalloc<char>(big_cap);
       if (big == nullptr) {
         FS_SYNC_TRACE_END(read);
@@ -3520,7 +3520,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     } else {
       big_len += static_cast<size_t>(r);
     }
-    if (big_len == big_cap) {
+    if (big_len >= big_cap) {
       // +1 leaves room for the read() that reports EOF.
       size_t new_cap =
           big_cap + std::min(kMaxChunk, std::max(kMinChunk, big_cap));
