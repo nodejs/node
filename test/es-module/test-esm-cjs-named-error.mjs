@@ -81,6 +81,13 @@ await assert.rejects(async () => {
 const entryPoint = fixtures.path('es-modules', 'package-cjs-named-error', 'single-quote.mjs');
 const { code, stderr } = await spawnPromisified(execPath, [entryPoint]);
 assert.strictEqual(code, 1);
-assert.ok(stderr.includes(expectedRelative), 'entry point should show the CommonJS named export hint');
+assert.ok(stderr.includes("Named export 'comeOn' not found."),
+          'entry point should show the missing named export');
+assert.ok(stderr.includes('CommonJS modules can always be imported via the default export'),
+          'entry point should show the CommonJS named export hint');
+assert.ok(stderr.includes("import pkg from './fail.cjs';"),
+          'entry point hint should recommend the default import');
+assert.ok(stderr.includes('const { comeOn } = pkg;'),
+          'entry point hint should show the named import as destructuring');
 assert.ok(stderr.includes("import { comeOn } from './fail.cjs';"),
           'entry point error should include the source import statement');
