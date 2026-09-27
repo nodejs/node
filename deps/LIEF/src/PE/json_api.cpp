@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "logging.hpp"
 
 #include "LIEF/config.h"
 
 #include "LIEF/PE/json.hpp"
 
 #ifdef LIEF_JSON_SUPPORT
-#include "PE/json_internal.hpp"
+  #include "PE/json_internal.hpp"
+#else
+  #include "logging.hpp"
 #endif
 
 namespace LIEF {
-namespace PE {
+class Object;
+}
+
+namespace LIEF::PE {
 
 std::string to_json([[maybe_unused]] const Object& v) {
 #ifdef LIEF_JSON_SUPPORT
@@ -38,6 +42,4 @@ std::string to_json([[maybe_unused]] const Object& v) {
 }
 
 
-} // namespace PE
-} // namespace LIEF
-
+} // namespace LIEF::PE

@@ -1,4 +1,4 @@
-/* Copyright 2022 - 2025 R. Thomas
+/* Copyright 2022 - 2026 R. Thomas
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,62 +33,52 @@ class IVarIt;
 /// This class represents an instance variable (ivar)
 class LIEF_API IVar {
   public:
-  class LIEF_API Iterator {
+  class Iterator final
+    : public iterator_facade_base<Iterator, std::bidirectional_iterator_tag, IVar,
+                                  std::ptrdiff_t, const IVar*, const IVar&> {
     public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = std::unique_ptr<IVar>;
-    using difference_type = std::ptrdiff_t;
-    using pointer = IVar*;
-    using reference = std::unique_ptr<IVar>&;
     using implementation = details::IVarIt;
+    using iterator_facade_base::operator++;
+    using iterator_facade_base::operator--;
 
-    class LIEF_API PointerProxy {
-      // Inspired from LLVM's iterator_facade_base
-      friend class Iterator;
-      public:
-      pointer operator->() const { return R.get(); }
+    LIEF_API Iterator();
 
-      private:
-      value_type R;
+    LIEF_API Iterator(std::unique_ptr<details::IVarIt> impl);
 
-      template <typename RefT>
-      PointerProxy(RefT &&R) : R(std::forward<RefT>(R)) {} // NOLINT(bugprone-forwarding-reference-overload)
-    };
+    LIEF_API Iterator(const Iterator&);
+    LIEF_API Iterator& operator=(const Iterator&);
 
-    Iterator(const Iterator&);
-    Iterator(Iterator&&) noexcept;
-    Iterator(std::unique_ptr<details::IVarIt> impl);
-    ~Iterator();
+    LIEF_API Iterator(Iterator&&) noexcept;
+    LIEF_API Iterator& operator=(Iterator&&) noexcept;
+
+    LIEF_API ~Iterator();
 
     friend LIEF_API bool operator==(const Iterator& LHS, const Iterator& RHS);
 
-    friend LIEF_API bool operator!=(const Iterator& LHS, const Iterator& RHS) {
+    friend bool operator!=(const Iterator& LHS, const Iterator& RHS) {
       return !(LHS == RHS);
     }
 
-    Iterator& operator++();
-    Iterator& operator--();
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API Iterator& operator++();
 
-    Iterator operator--(int) {
-      Iterator tmp = *static_cast<Iterator*>(this);
-      --*static_cast<Iterator *>(this);
-      return tmp;
-    }
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API Iterator& operator--();
 
-    Iterator operator++(int) {
-      Iterator tmp = *static_cast<Iterator*>(this);
-      ++*static_cast<Iterator *>(this);
-      return tmp;
-    }
+    LIEF_API const IVar& operator*() const;
 
-    std::unique_ptr<IVar> operator*() const;
+    // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+    LIEF_API const IVar* operator->() const;
 
-    PointerProxy operator->() const {
-      return static_cast<const Iterator*>(this)->operator*();
-    }
+    /// Transfer ownership of the ivar at the current position to the
+    /// caller. Returns `nullptr` if the iterator is past-the-end.
+    LIEF_API std::unique_ptr<IVar> yield();
 
     private:
+    void load() const;
+
     std::unique_ptr<details::IVarIt> impl_;
+    mutable std::unique_ptr<IVar> cached_;
   };
 
   public:
@@ -101,6 +91,7 @@ class LIEF_API IVar {
   std::string mangled_type() const;
 
   ~IVar();
+
   private:
   std::unique_ptr<details::IVar> impl_;
 };

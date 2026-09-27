@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ struct mach_header;
 /// Class that represents the Mach-O header
 class LIEF_API Header : public Object {
   friend class BinaryParser;
+
   public:
   Header() = default;
 
@@ -45,6 +46,7 @@ class LIEF_API Header : public Object {
 
   ~Header() override = default;
 
+  // clang-format off
   enum class FILE_TYPE : uint32_t {
     UNKNOWN     = 0,
     OBJECT      = 0x1u,
@@ -62,7 +64,9 @@ class LIEF_API Header : public Object {
     GPU_EXECUTE = 0xDu,
     GPU_DYLIB   = 0xEu,
   };
+  // clang-format on
 
+  // clang-format off
   enum class FLAGS : uint32_t {
     NOUNDEFS                      = 0x00000001u,
     INCRLINK                      = 0x00000002u,
@@ -95,10 +99,12 @@ class LIEF_API Header : public Object {
     IMPLICIT_PAGEZERO             = 0x10000000u,
     DYLIB_IN_CACHE                = 0x80000000u,
   };
+  // clang-format on
 
   static constexpr int ABI64 = 0x01000000;
 
-  enum class CPU_TYPE: int32_t {
+  // clang-format off
+  enum class CPU_TYPE : int32_t {
     ANY       = -1,
     X86       = 7,
     X86_64    = 7 | ABI64,
@@ -110,7 +116,7 @@ class LIEF_API Header : public Object {
     MC88000   = 13,
     SPARC     = 14,
     I860      = 15,
-    ALPHA	    = 16,
+    ALPHA     = 16,
     POWERPC   = 18,
     POWERPC64 = 18 | ABI64,
     APPLE_GPU = 19 | ABI64,
@@ -118,6 +124,7 @@ class LIEF_API Header : public Object {
     INTEL_GPU = 21 | ABI64,
     AIR64     = 23 | ABI64,
   };
+  // clang-format on
 
   static constexpr uint32_t SUBTYPE_MASK = 0xff000000;
   static constexpr uint32_t SUBTYPE_LIB64 = 0x80000000;
@@ -206,14 +213,12 @@ class LIEF_API Header : public Object {
 
   /// True if the binary is 32-bit
   bool is_32bit() const {
-    return magic_ == MACHO_TYPES::MAGIC ||
-           magic_ == MACHO_TYPES::CIGAM;
+    return magic_ == MACHO_TYPES::MAGIC || magic_ == MACHO_TYPES::CIGAM;
   }
 
   /// True if the binary is 64-bit
   bool is_64bit() const {
-    return magic_ == MACHO_TYPES::MAGIC_64 ||
-           magic_ == MACHO_TYPES::CIGAM_64;
+    return magic_ == MACHO_TYPES::MAGIC_64 || magic_ == MACHO_TYPES::CIGAM_64;
   }
 
   void remove(FLAGS flag);
@@ -240,13 +245,13 @@ class LIEF_API Header : public Object {
   LIEF_LOCAL Header(const T& header);
 
   MACHO_TYPES magic_ = MACHO_TYPES::UNKNOWN;
-  CPU_TYPE   cputype_ = CPU_TYPE::ANY;
-  uint32_t   cpusubtype_;
-  FILE_TYPE  filetype_ = FILE_TYPE::UNKNOWN;
-  uint32_t   ncmds_ = 0;
-  uint32_t   sizeofcmds_ = 0;
-  uint32_t   flags_ = 0;
-  uint32_t   reserved_ = 0;
+  CPU_TYPE cputype_ = CPU_TYPE::ANY;
+  uint32_t cpusubtype_;
+  FILE_TYPE filetype_ = FILE_TYPE::UNKNOWN;
+  uint32_t ncmds_ = 0;
+  uint32_t sizeofcmds_ = 0;
+  uint32_t flags_ = 0;
+  uint32_t reserved_ = 0;
 };
 
 LIEF_API const char* to_string(Header::FILE_TYPE e);

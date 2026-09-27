@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2023 R. Thomas
- * Copyright 2017 - 2023 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #include "LIEF/PE/Section.hpp"
 #include "LIEF/PE/Relocation.hpp"
 #include "LIEF/PE/RelocationEntry.hpp"
-#include "LIEF/PE/LoadConfigurations.hpp"
+#include "LIEF/PE/LoadConfigurations/LoadConfiguration.hpp"
 #include "LIEF/PE/TLS.hpp"
 #include "LIEF/utils.hpp"
 #include "LIEF/PE/utils.hpp"
@@ -26,8 +26,10 @@
 
 #include <spdlog/fmt/fmt.h>
 
-namespace LIEF {
-namespace PE {
+#include <cstddef>
+
+
+namespace LIEF::PE {
 
 class LayoutChecker {
   public:
@@ -42,8 +44,9 @@ class LayoutChecker {
     filesz(bin.original_size()),
     section_alignment(bin.optional_header().section_alignment()),
     file_alignment(bin.optional_header().file_alignment()),
-    sizeof_headers(bin.optional_header().sizeof_headers())
-  {}
+    sizeof_headers(bin.optional_header().sizeof_headers()),
+    vaddr_start(bin.imagebase()),
+    vaddr_end(bin.imagebase() + bin.virtual_size()) {}
 
   bool check_dos_header();
   bool check_header();
@@ -53,6 +56,7 @@ class LayoutChecker {
   bool check_load_config();
   bool check_imports();
   bool check_tls();
+  bool check_relocations();
 
   bool is_legacy_arch() const {
     return arch == Header::MACHINE_TYPES::I386 ||
@@ -96,6 +100,10 @@ class LayoutChecker {
       return false;
     }
 
+    if (!check_relocations()) {
+      return false;
+    }
+
     return true;
   }
 
@@ -104,9 +112,9 @@ class LayoutChecker {
     return false;
   }
 
-  template <typename... Args>
-  bool error(const char *fmt, const Args &... args) {
-    error_msg = fmt::format(fmt, args...);
+  template<typename... Args>
+  bool error(const char* fmt, const Args&... args) {
+    error_msg = fmt::format(fmt::runtime(fmt), args...);
     return false;
   }
 
@@ -127,21 +135,34 @@ class LayoutChecker {
     return pe.optional_header().magic() == PE_TYPE::PE32;
   }
 
+  bool contains(uint64_t va) const {
+    if (va == 0) {
+      return true;
+    }
+    return vaddr_start <= va && va < vaddr_end;
+  }
+
+  bool contains(optional<uint64_t> va) const {
+    return contains(va.value_or(0));
+  }
+
   private:
   std::string error_msg;
   const Binary& pe;
   Header::MACHINE_TYPES arch;
   uint32_t e_lfanew = 0;
   uint64_t filesz = 0;
-  uint32_t section_alignment;
-  uint32_t file_alignment;
-  uint64_t sizeof_headers;
+  uint32_t section_alignment = 0;
+  uint32_t file_alignment = 0;
+  uint64_t sizeof_headers = 0;
+  uint64_t vaddr_start = 0;
+  uint64_t vaddr_end = 0;
 };
 
 
 bool LayoutChecker::check_dos_header() {
   const DosHeader& dos = pe.dos_header();
-  if (dos.magic() != /* MZ */0x5A4D) {
+  if (dos.magic() != /* MZ */ 0x5A4D) {
     return error("Invalid DOS Magic");
   }
 
@@ -165,8 +186,7 @@ bool LayoutChecker::check_dos_header() {
 
 bool LayoutChecker::check_header() {
   const Header& hdr = pe.header();
-  if (arch == Header::MACHINE_TYPES::UNKNOWN &&
-      hdr.sizeof_optional_header() == 0)
+  if (arch == Header::MACHINE_TYPES::UNKNOWN && hdr.sizeof_optional_header() == 0)
   {
     return error("Header error: invalid machine type and size of optional header");
   }
@@ -207,13 +227,15 @@ bool LayoutChecker::check_header() {
 bool LayoutChecker::check_opt_header() {
   const OptionalHeader& opt_hdr = pe.optional_header();
   if (is_legacy_arch()) {
-    if (!pe.header().has_characteristic(Header::CHARACTERISTICS::RELOCS_STRIPPED)) {
+    if (!pe.header().has_characteristic(Header::CHARACTERISTICS::RELOCS_STRIPPED))
+    {
       if (opt_hdr.has(OptionalHeader::DLL_CHARACTERISTICS::APPCONTAINER)) {
         return error("AppContainer with stripped relocations");
       }
     }
   } else {
-    if (!pe.header().has_characteristic(Header::CHARACTERISTICS::RELOCS_STRIPPED)) {
+    if (!pe.header().has_characteristic(Header::CHARACTERISTICS::RELOCS_STRIPPED))
+    {
       if (!opt_hdr.has(OptionalHeader::DLL_CHARACTERISTICS::DYNAMIC_BASE)) {
         return error("Missing DYNAMIC_BASE characteristic");
       }
@@ -249,15 +271,13 @@ bool LayoutChecker::check_opt_header() {
   }
 
   // This check is not accurate (c.f. PE64_x86-64_binary_winhello64-mingw.exe)
-  if (0) {
+  if (false) {
     if (opt_hdr.major_linker_version() < 3 && opt_hdr.major_linker_version() < 5) {
       return error("Bad linker version");
     }
   }
 
-  if ((file_alignment & 0x1ff) != 0 &&
-      file_alignment != section_alignment)
-  {
+  if ((file_alignment & 0x1ff) != 0 && file_alignment != section_alignment) {
     return error("Bad consistency between file/section alignment");
   }
 
@@ -284,8 +304,10 @@ bool LayoutChecker::check_sections() {
 
   const uint64_t sizeof_image = pe.optional_header().sizeof_image();
   const uint32_t file_alignment_mask = file_alignment - 1;
-  uint32_t nb_pages =  (sizeof_image >> 12) + ((sizeof_image & (DEFAULT_PAGE_SIZE - 1)) != 0);
-  uint32_t nb_sec_pages = align(sizeof_headers, section_alignment) / DEFAULT_PAGE_SIZE;
+  uint32_t nb_pages =
+      (sizeof_image >> 12) + ((sizeof_image & (DEFAULT_PAGE_SIZE - 1)) != 0);
+  uint32_t nb_sec_pages =
+      align(sizeof_headers, section_alignment) / DEFAULT_PAGE_SIZE;
   uint64_t next_va = 0;
 
   if (section_alignment >= DEFAULT_PAGE_SIZE) {
@@ -297,7 +319,7 @@ bool LayoutChecker::check_sections() {
       return error("Invalid number of pages");
     }
 
-    next_va += nb_sec_pages * DEFAULT_PAGE_SIZE;
+    next_va += static_cast<uint64_t>(nb_sec_pages * DEFAULT_PAGE_SIZE);
   } else {
     nb_sec_pages = align(sizeof_image, DEFAULT_PAGE_SIZE) / DEFAULT_PAGE_SIZE;
   }
@@ -307,10 +329,11 @@ bool LayoutChecker::check_sections() {
   for (size_t i = 0; i < sections.size(); ++i) {
     const Section& section = sections[i];
 
-    uint32_t offset = section.sizeof_raw_data() != 0 ? section.pointerto_raw_data() : 0;
+    uint32_t offset =
+        section.sizeof_raw_data() != 0 ? section.pointerto_raw_data() : 0;
     [[maybe_unused]] uint32_t end_offset = offset + section.sizeof_raw_data();
-    uint32_t vsize =  section.virtual_size() != 0 ? section.virtual_size() :
-                                                    section.sizeof_raw_data();
+    uint32_t vsize = section.virtual_size() != 0 ? section.virtual_size() :
+                                                   section.sizeof_raw_data();
 
     if (offset + section.size() < offset) {
       return error("Section overflow");
@@ -342,19 +365,23 @@ bool LayoutChecker::check_sections() {
 
       nb_pages -= nb_sec_pages;
 
-      if (((offset + section.sizeof_raw_data() + file_alignment_mask) & ~file_alignment_mask) < section.pointerto_raw_data()) {
+      if (((offset + section.sizeof_raw_data() + file_alignment_mask) &
+           ~file_alignment_mask) < section.pointerto_raw_data())
+      {
         return error("Invalid section raw size");
       }
 
       const bool is_last_section = i == (sections.size() - 1);
 
       if (is_last_section && section.sizeof_raw_data() != 0) {
-        if (section.pointerto_raw_data() + section.sizeof_raw_data() > pe.original_size()) {
+        if (section.pointerto_raw_data() + section.sizeof_raw_data() >
+            pe.original_size())
+        {
           return error("File is cut");
         }
       }
 
-      next_va += nb_sec_pages * DEFAULT_PAGE_SIZE;
+      next_va += static_cast<uint64_t>(nb_sec_pages * DEFAULT_PAGE_SIZE);
     }
   }
 
@@ -366,8 +393,8 @@ bool LayoutChecker::check_code_integrity() {
     return error("{}:{}", __FUNCTION__, __LINE__);
   }
 
-  const size_t sizeof_nt_headers = sizeof(details::pe_header) +
-                                   sizeof(details::pe32_optional_header);
+  const size_t sizeof_nt_headers =
+      sizeof(details::pe_header) + sizeof(details::pe32_optional_header);
   if ((e_lfanew + sizeof_nt_headers) > section_alignment) {
     return error("{}:{}", __FUNCTION__, __LINE__);
   }
@@ -394,11 +421,9 @@ bool LayoutChecker::check_code_integrity() {
     return error("{}:{}", __FUNCTION__, __LINE__);
   }
 
-  uint64_t end_of_raw =
-    e_lfanew +
-    sizeof(details::pe_header) +
-    pe.header().sizeof_optional_header() +
-    pe.sections().size() * sizeof(details::pe_section);
+  uint64_t end_of_raw = e_lfanew + sizeof(details::pe_header) +
+                        pe.header().sizeof_optional_header() +
+                        pe.sections().size() * sizeof(details::pe_section);
 
   if (end_of_raw >= DEFAULT_PAGE_SIZE) {
     return error("{}:{}", __FUNCTION__, __LINE__);
@@ -417,7 +442,9 @@ bool LayoutChecker::check_code_integrity() {
       return error("{}:{}", __FUNCTION__, __LINE__);
     }
 
-    if ((sec.pointerto_raw_data() + sec.sizeof_raw_data()) < sec.pointerto_raw_data()) {
+    if ((sec.pointerto_raw_data() + sec.sizeof_raw_data()) <
+        sec.pointerto_raw_data())
+    {
       return error("{}:{}", __FUNCTION__, __LINE__);
     }
 
@@ -425,12 +452,15 @@ bool LayoutChecker::check_code_integrity() {
       return error("{}:{}", __FUNCTION__, __LINE__);
     }
 
-    if ((sec.virtual_address() + sec.sizeof_raw_data() - 1) < sec.sizeof_raw_data()) {
+    if ((sec.virtual_address() + sec.sizeof_raw_data() - 1) <
+        sec.sizeof_raw_data())
+    {
       return error("{}:{}", __FUNCTION__, __LINE__);
     }
 
     if (sec.sizeof_raw_data() != 0) {
-      end_of_raw = std::max<uint64_t>(end_of_raw, sec.pointerto_raw_data() + sec.sizeof_raw_data());
+      end_of_raw = std::max<uint64_t>(end_of_raw, sec.pointerto_raw_data() +
+                                                      sec.sizeof_raw_data());
     }
   }
   return true;
@@ -443,8 +473,12 @@ bool LayoutChecker::check_load_config() {
   }
 
   // NOTE(romain): dynamic_value_reloctable_section starts by indexing from 1
-  if (auto value = config->dynamic_value_reloctable_section(); value.value_or(0) > 0) {
-    if ((*value - 1) < 0 || static_cast<size_t>((*value - 1)) >= pe.sections().size()) {
+  if (auto value = config->dynamic_value_reloctable_section();
+      value.value_or(0) > 0)
+  {
+    if ((*value - 1) < 0 ||
+        static_cast<size_t>((*value - 1)) >= pe.sections().size())
+    {
       return false;
     }
   }
@@ -459,6 +493,149 @@ bool LayoutChecker::check_load_config() {
     }
   }
 
+  if (!contains(config->security_cookie())) {
+    return error("Security cookie out of range: {:#010x} ([{:#010x}, {:#010x}])",
+                 config->security_cookie(), vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->lock_prefix_table())) {
+    return error("Lock prefix table out of range: {:#010x} ([{:#010x}, {:#010x}])",
+                 config->lock_prefix_table(), vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->se_handler_table())) {
+    return error("SE handler table out of range: {:#010x} ([{:#010x}, {:#010x}])",
+                 config->se_handler_table().value_or(0), vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_cf_check_function_pointer())) {
+    return error("Guard CF check function pointer out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->guard_cf_check_function_pointer().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_cf_dispatch_function_pointer())) {
+    return error("Guard CF dispatch function pointer out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->guard_cf_dispatch_function_pointer().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_address_taken_iat_entry_table())) {
+    return error("Guard address taken IAT entry table out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->guard_address_taken_iat_entry_table().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_long_jump_target_table())) {
+    return error("Guard long jump target table out of range: {:#010x} ([{:#010x}, "
+                 "{:#010x}])",
+                 config->guard_long_jump_target_table().value_or(0), vaddr_start,
+                 vaddr_end);
+  }
+
+  if (!contains(config->dynamic_value_reloc_table())) {
+    return error(
+        "Dynamic value reloc table out of range: {:#010x} ([{:#010x}, {:#010x}])",
+        config->dynamic_value_reloc_table().value_or(0), vaddr_start, vaddr_end
+    );
+  }
+
+  if (!contains(config->hybrid_metadata_pointer())) {
+    return error(
+        "Hybrid metadata pointer out of range: {:#010x} ([{:#010x}, {:#010x}])",
+        config->hybrid_metadata_pointer().value_or(0), vaddr_start, vaddr_end
+    );
+  }
+
+  if (!contains(config->guard_rf_failure_routine())) {
+    return error(
+        "Guard RF failure routine out of range: {:#010x} ([{:#010x}, {:#010x}])",
+        config->guard_rf_failure_routine().value_or(0), vaddr_start, vaddr_end
+    );
+  }
+
+  if (!contains(config->guard_rf_failure_routine_function_pointer())) {
+    return error("Guard RF failure routine function pointer out of range: "
+                 "{:#010x} ([{:#010x}, {:#010x}])",
+                 config->guard_rf_failure_routine_function_pointer().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_rf_verify_stackpointer_function_pointer())) {
+    return error(
+        "Guard RF verify stack pointer function pointer out of range: {:#010x} "
+        "([{:#010x}, {:#010x}])",
+        config->guard_rf_verify_stackpointer_function_pointer().value_or(0),
+        vaddr_start, vaddr_end
+    );
+  }
+
+  if (!contains(config->enclave_configuration_ptr())) {
+    return error("Enclave configuration pointer out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->enclave_configuration_ptr().value_or(0), vaddr_start,
+                 vaddr_end);
+  }
+
+  if (!contains(config->volatile_metadata_pointer())) {
+    return error(
+        "Volatile metadata pointer out of range: {:#010x} ([{:#010x}, {:#010x}])",
+        config->volatile_metadata_pointer().value_or(0), vaddr_start, vaddr_end
+    );
+  }
+
+  if (!contains(config->guard_eh_continuation_table())) {
+    return error("Guard EH continuation table out of range: {:#010x} ([{:#010x}, "
+                 "{:#010x}])",
+                 config->guard_eh_continuation_table().value_or(0), vaddr_start,
+                 vaddr_end);
+  }
+
+  if (!contains(config->guard_xfg_check_function_pointer())) {
+    return error("Guard XFG check function pointer out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->guard_xfg_check_function_pointer().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_xfg_dispatch_function_pointer())) {
+    return error("Guard XFG dispatch function pointer out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->guard_xfg_dispatch_function_pointer().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_xfg_table_dispatch_function_pointer())) {
+    return error("Guard XFG table dispatch function pointer out of range: "
+                 "{:#010x} ([{:#010x}, {:#010x}])",
+                 config->guard_xfg_table_dispatch_function_pointer().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->cast_guard_os_determined_failure_mode())) {
+    return error("Cast guard OS determined failure mode out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->cast_guard_os_determined_failure_mode().value_or(0),
+                 vaddr_start, vaddr_end);
+  }
+
+  if (!contains(config->guard_memcpy_function_pointer())) {
+    return error("Guard memcpy function pointer out of range: {:#010x} "
+                 "([{:#010x}, {:#010x}])",
+                 config->guard_memcpy_function_pointer().value_or(0), vaddr_start,
+                 vaddr_end);
+  }
+
+  if (!contains(config->uma_function_pointers())) {
+    return error(
+        "UMA function pointers out of range: {:#010x} ([{:#010x}, {:#010x}])",
+        config->uma_function_pointers().value_or(0), vaddr_start, vaddr_end
+    );
+  }
+
   return true;
 }
 
@@ -469,17 +646,20 @@ bool LayoutChecker::check_imports() {
   }
 
   const DataDirectory* iat_dir = pe.iat_dir();
+  if (iat_dir == nullptr) {
+    return true;
+  }
 
   for (const Import& imp : imports) {
     for (const ImportEntry& entry : imp.entries()) {
       const uint32_t iat_address = entry.iat_address(); // RVA
       std::string entry_name = entry.is_ordinal() ?
-                               fmt::format("#{:04d}", entry.ordinal()) :
-                               entry.name();
-      // 2 bytes alignment seems sufficient
+                                   fmt::format("#{:04d}", entry.ordinal()) :
+                                   entry.name();
+      // 2-byte alignment seems sufficient
       if (iat_address % sizeof(uint16_t) != 0) {
-        return error("{}:{} IAT is wrongly aligned: 0x{:08x}",
-                     imp.name(), entry_name, entry.iat_address());
+        return error("{}:{} IAT is wrongly aligned: {:#010x}", imp.name(),
+                     entry_name, entry.iat_address());
       }
 
       if (iat_dir->RVA() == 0 || iat_dir->size() == 0) {
@@ -493,54 +673,63 @@ bool LayoutChecker::check_imports() {
         const Section* section = pe.section_from_rva(iat_address);
         if (section == nullptr) {
           return error("Can't find section associated with the IAT "
-                       "address: 0x{:08x}", iat_address);
+                       "address: {:#010x}",
+                       iat_address);
         }
         /* Not a requirement (even though most of the PE have it)
-         * if (!section->has_characteristic(Section::CHARACTERISTICS::CNT_INITIALIZED_DATA)) {
-         *   return error(R"err(
-         *     {}:{} IAT: 0x{:08x} -- Missing CNT_INITIALIZED_DATA in the pointed section ('{}')
-         *   )err", imp.name(), entry_name, iat_address, section->name());
+         * if
+         * (!section->has_characteristic(Section::CHARACTERISTICS::CNT_INITIALIZED_DATA))
+         * { return error(R"err(
+         *     {}:{} IAT: {:#010x} -- Missing CNT_INITIALIZED_DATA in the pointed
+         * section ('{}') )err", imp.name(), entry_name, iat_address,
+         * section->name());
          * }
          */
 
         if (!section->has_characteristic(Section::CHARACTERISTICS::MEM_READ)) {
           return error(R"err(
-            {}:{} IAT: 0x{:08x} -- Missing MEM_READ in the pointed section ('{}')
-          )err", imp.name(), entry_name, iat_address, section->name());
+            {}:{} IAT: {:#010x} -- Missing MEM_READ in the pointed section ('{}')
+          )err",
+                       imp.name(), entry_name, iat_address, section->name());
         }
       } else {
         const Section* section = pe.section_from_rva(iat_address);
         if (section == nullptr) {
           return error("Can't find section associated with the IAT "
-                       "address: 0x{:08x}", iat_address);
+                       "address: {:#010x}",
+                       iat_address);
         }
         /*
-         * if (!section->has_characteristic(Section::CHARACTERISTICS::CNT_INITIALIZED_DATA)) {
-         *   return error(R"err(
-         *     {}:{} IAT: 0x{:08x} -- Missing CNT_INITIALIZED_DATA in the pointed section ('{}')
-         *   )err", imp.name(), entry_name, iat_address, section->name());
+         * if
+         * (!section->has_characteristic(Section::CHARACTERISTICS::CNT_INITIALIZED_DATA))
+         * { return error(R"err(
+         *     {}:{} IAT: {:#010x} -- Missing CNT_INITIALIZED_DATA in the pointed
+         * section ('{}') )err", imp.name(), entry_name, iat_address,
+         * section->name());
          * }
          */
 
         if (!section->has_characteristic(Section::CHARACTERISTICS::MEM_READ)) {
           return error(R"err(
-            {}:{} IAT: 0x{:08x} -- Missing MEM_READ in the pointed section ('{}')
-          )err", imp.name(), entry_name, iat_address, section->name());
+            {}:{} IAT: {:#010x} -- Missing MEM_READ in the pointed section ('{}')
+          )err",
+                       imp.name(), entry_name, iat_address, section->name());
         }
 
         if (!section->has_characteristic(Section::CHARACTERISTICS::MEM_WRITE)) {
           return error(R"err(
-            {}:{} IAT: 0x{:08x} -- Missing MEM_WRITE in the pointed section ('{}')
-          )err", imp.name(), entry_name, iat_address, section->name());
+            {}:{} IAT: {:#010x} -- Missing MEM_WRITE in the pointed section ('{}')
+          )err",
+                       imp.name(), entry_name, iat_address, section->name());
         }
 
         if (!section->has_characteristic(Section::CHARACTERISTICS::CNT_CODE)) {
           return error(R"err(
-            {}:{} IAT: 0x{:08x} -- Missing CNT_CODE in the pointed section ('{}')
-          )err", imp.name(), entry_name, iat_address, section->name());
+            {}:{} IAT: {:#010x} -- Missing CNT_CODE in the pointed section ('{}')
+          )err",
+                       imp.name(), entry_name, iat_address, section->name());
         }
       }
-
     }
   }
   return true;
@@ -550,7 +739,7 @@ bool LayoutChecker::check_tls() {
   const TLS* tls = pe.tls();
   const DataDirectory* tls_dir = pe.tls_dir();
 
-  if (tls == nullptr) {
+  if (tls == nullptr || tls_dir == nullptr) {
     return true;
   }
   const size_t ptr_size = this->ptr_size();
@@ -565,8 +754,10 @@ bool LayoutChecker::check_tls() {
     return error("Missing MEM_READ for TLS section: '{}'", tls_sec->name());
   }
 
-  if (!tls_sec->has_characteristic(Section::CHARACTERISTICS::CNT_INITIALIZED_DATA)) {
-    return error("Missing CNT_INITIALIZED_DATA for TLS section: '{}'", tls_sec->name());
+  if (!tls_sec->has_characteristic(Section::CHARACTERISTICS::CNT_INITIALIZED_DATA))
+  {
+    return error("Missing CNT_INITIALIZED_DATA for TLS section: '{}'",
+                 tls_sec->name());
   }
 
   if (tls->addressof_index() == 0) {
@@ -575,21 +766,22 @@ bool LayoutChecker::check_tls() {
 
   for (uint64_t addr : tls->callbacks()) {
     if (addr <= imagebase) {
-      return error("TLS callback: 0x{:016x} not in imagebase range", addr);
+      return error("TLS callback: {:#018x} not in imagebase range", addr);
     }
     const uint64_t rva = addr - imagebase;
     const Section* sec = pe.section_from_rva(rva);
     if (sec == nullptr) {
-      return error("Can't find section associated with TLS callback: 0x{:016x}", addr);
+      return error("Can't find section associated with TLS callback: {:#018x}",
+                   addr);
     }
 
     if (!sec->has_characteristic(Section::CHARACTERISTICS::MEM_READ)) {
-      return error("Missing MEM_READ for TLS callback: 0x{:016x} ('{}')", addr,
+      return error("Missing MEM_READ for TLS callback: {:#018x} ('{}')", addr,
                    sec->name());
     }
 
     if (!sec->has_characteristic(Section::CHARACTERISTICS::MEM_EXECUTE)) {
-      return error("Missing MEM_EXECUTE for TLS callback: 0x{:016x} ('{}')", addr,
+      return error("Missing MEM_EXECUTE for TLS callback: {:#018x} ('{}')", addr,
                    sec->name());
     }
   }
@@ -598,13 +790,14 @@ bool LayoutChecker::check_tls() {
   int64_t addr_cbk_rva = addr_cbk - imagebase;
 
   if (addr_cbk > 0 && addr_cbk_rva < 0) {
-    return error("TLS's address of callbacks should be a VA. Addr=0x{:06x}, "
-                 "Imagebase=0x{:016x}", addr_cbk, imagebase);
+    return error("TLS's address of callbacks should be a VA. Addr={:#08x}, "
+                 "Imagebase={:#018x}",
+                 addr_cbk, imagebase);
   }
 
   // If the binary is pie, make sure it has relocations for the TLS structures
   if (pe.is_pie()) {
-    auto relocations  = pe.relocations();
+    auto relocations = pe.relocations();
     if (relocations.empty()) {
       return error("Missing relocations for the TLS structures");
     }
@@ -634,8 +827,8 @@ bool LayoutChecker::check_tls() {
     }
 
     if (nb_cbk_reloc < nb_cbk) {
-      return error("Expecting #{} callback relocations. Found: #{}",
-                   nb_cbk, nb_cbk_reloc);
+      return error("Expecting #{} callback relocations. Found: #{}", nb_cbk,
+                   nb_cbk_reloc);
     }
 
     size_t expected_hdr_reloc = 0;
@@ -652,6 +845,59 @@ bool LayoutChecker::check_tls() {
   return true;
 }
 
+
+bool LayoutChecker::check_relocations() {
+  auto relocations = pe.relocations();
+  if (relocations.empty()) {
+    return true;
+  }
+
+  const DataDirectory* reloc_dir = pe.relocation_dir();
+  if (reloc_dir == nullptr) {
+    return false;
+  }
+
+  const uint64_t vsize = pe.virtual_size();
+
+  const uint64_t size = reloc_dir->size();
+  uint64_t computed_size = 0;
+
+  for (const Relocation& R : relocations) {
+    if (R.block_size() % 4) {
+      return error("Relocation block {:#x} is not correctly aligned",
+                   R.virtual_address());
+    }
+
+    if (R.virtual_address() > vsize) {
+      return error("Relocation block {:#x} is beyond the binary virtual size",
+                   R.virtual_address());
+    }
+
+    if (R.entries().size() !=
+        (R.block_size() - sizeof(details::pe_base_relocation_block)) /
+            sizeof(uint16_t))
+    {
+      return error("Relocation block {:#x} is corrupted", R.virtual_address());
+    }
+
+    computed_size += R.block_size();
+
+    for (const RelocationEntry& E : R.entries()) {
+      if (E.address() > vsize) {
+        return error("Relocation {:#x} is beyond the binary virtual size",
+                     E.address());
+      }
+    }
+  }
+
+  if (computed_size != size) {
+    return error("Size mismatch. DataDirectory={:#06x}, Computed={:#06x}", size,
+                 computed_size);
+  }
+
+  return true;
+}
+
 bool check_layout(const Binary& bin, std::string* error_info) {
   LayoutChecker checker(bin);
   if (!checker.check()) {
@@ -661,6 +907,5 @@ bool check_layout(const Binary& bin, std::string* error_info) {
     return false;
   }
   return true;
-}
 }
 }

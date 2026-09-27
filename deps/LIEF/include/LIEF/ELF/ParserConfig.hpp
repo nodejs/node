@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,28 @@
 #ifndef LIEF_ELF_PARSER_CONFIG_H
 #define LIEF_ELF_PARSER_CONFIG_H
 #include "LIEF/visibility.h"
-#include "LIEF/ELF/enums.hpp"
+
+#include <cstdint>
 
 namespace LIEF {
 namespace ELF {
 
 /// This structure is used to tweak the ELF Parser (ELF::Parser)
 struct LIEF_API ParserConfig {
-  /** Methods that can be used by the LIEF::ELF::Parser
-      to count the number of dynamic symbols */
+  /// Methods that can be used by the LIEF::ELF::Parser to count the number
+  /// of dynamic symbols
   enum class DYNSYM_COUNT {
-    AUTO        = 0, /**< Automatic detection */
-    SECTION     = 1, /**< Count based on sections (not very reliable) */
-    HASH        = 2, /**< Count based on hash table (reliable) */
-    RELOCATIONS = 3, /**< Count based on PLT/GOT relocations (very reliable but not accurate) */
+    /// Automatic detection
+    AUTO = 0,
+
+    /// Count based on sections (not very reliable)
+    SECTION,
+
+    /// Count based on hash table (reliable)
+    HASH,
+
+    /// Count based on PLT/GOT relocations (very reliable but not accurate)
+    RELOCATIONS,
   };
 
   /// This returns a ParserConfig object configured to process all the ELF
@@ -39,14 +47,25 @@ struct LIEF_API ParserConfig {
     return DEFAULT;
   }
 
-  bool parse_relocations     = true; ///< Whether relocations (including plt-like relocations) should be parsed.
-  bool parse_dyn_symbols     = true; ///< Whether dynamic symbols (those from `.dynsym`) should be parsed
-  bool parse_symtab_symbols  = true; ///< Whether debug symbols (those from `.symtab`) should be parsed
-  bool parse_symbol_versions = true; ///< Whether versioning symbols should be parsed
-  bool parse_notes           = true; ///< Whether ELF notes  information should be parsed
-  bool parse_overlay         = true; ///< Whether the overlay data should be parsed
+  /// Whether relocations (including plt-like relocations) should be parsed.
+  bool parse_relocations = true;
 
-  /** The method used to count the number of dynamic symbols */
+  /// Whether dynamic symbols (those from `.dynsym`) should be parsed
+  bool parse_dyn_symbols = true;
+
+  /// Whether debug symbols (those from `.symtab`) should be parsed
+  bool parse_symtab_symbols = true;
+
+  /// Whether versioning symbols should be parsed
+  bool parse_symbol_versions = true;
+
+  /// Whether ELF notes  information should be parsed
+  bool parse_notes = true;
+
+  /// Whether the overlay data should be parsed
+  bool parse_overlay = true;
+
+  /// The method used to count the number of dynamic symbols
   DYNSYM_COUNT count_mtd = DYNSYM_COUNT::AUTO;
 
   /// Memory page size if the binary uses a non-standard value.

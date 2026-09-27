@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,23 +17,23 @@
 
 #include "LIEF/MachO/ChainedBindingInfo.hpp"
 
-namespace LIEF {
-namespace MachO {
+
+namespace LIEF::MachO {
 
 std::unique_ptr<ChainedBindingInfoList>
-  ChainedBindingInfoList::create(const ChainedBindingInfo& other)
-{
-  auto result = std::make_unique<ChainedBindingInfoList>(other.format(), other.is_weak_import());
-  result->segment_         = const_cast<SegmentCommand*>(other.segment());
-  result->symbol_          = const_cast<Symbol*>(other.symbol());
+    ChainedBindingInfoList::create(const ChainedBindingInfo& other) {
+  auto result = std::make_unique<ChainedBindingInfoList>(other.format(),
+                                                         other.is_weak_import());
+  result->segment_ = const_cast<SegmentCommand*>(other.segment());
+  result->symbol_ = const_cast<Symbol*>(other.symbol());
   result->library_ordinal_ = other.library_ordinal();
-  result->addend_          = other.addend();
-  result->library_         = const_cast<DylibCommand*>(other.library());
-  result->address_         = other.address();
-  result->ptr_format_      = other.ptr_format();
-  result->offset_          = other.offset();
-  result->btypes_          = other.btypes_;
-  result->arm64_bind_      = other.arm64_bind_;
+  result->addend_ = other.addend();
+  result->library_ = const_cast<DylibCommand*>(other.library());
+  result->address_ = other.address();
+  result->ptr_format_ = other.ptr_format();
+  result->offset_ = other.offset();
+  result->btypes_ = other.btypes_;
+  result->arm64_bind_ = other.arm64_bind_;
   return result;
 }
 
@@ -42,5 +42,4 @@ void ChainedBindingInfoList::swap(ChainedBindingInfoList& other) noexcept {
   std::swap(elements_, other.elements_);
 }
 
-}
 }

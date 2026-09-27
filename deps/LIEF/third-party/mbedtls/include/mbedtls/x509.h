@@ -16,10 +16,6 @@
 #include "mbedtls/asn1.h"
 #include "mbedtls/pk.h"
 
-#if defined(MBEDTLS_RSA_C)
-#include "mbedtls/rsa.h"
-#endif
-
 /**
  * \addtogroup x509_module
  * \{
@@ -74,11 +70,11 @@
 /** Input invalid. */
 #define MBEDTLS_ERR_X509_BAD_INPUT_DATA                   -0x2800
 /** Allocation of memory failed. */
-#define MBEDTLS_ERR_X509_ALLOC_FAILED                     -0x2880
+#define MBEDTLS_ERR_X509_ALLOC_FAILED                     PSA_ERROR_INSUFFICIENT_MEMORY
 /** Read/write of file failed. */
 #define MBEDTLS_ERR_X509_FILE_IO_ERROR                    -0x2900
 /** Destination buffer is too small. */
-#define MBEDTLS_ERR_X509_BUFFER_TOO_SMALL                 -0x2980
+#define MBEDTLS_ERR_X509_BUFFER_TOO_SMALL                 PSA_ERROR_BUFFER_TOO_SMALL
 /** A fatal error occurred, eg the chain is too long or the vrfy callback failed. */
 #define MBEDTLS_ERR_X509_FATAL_ERROR                      -0x3000
 /** \} name X509 Error codes */
@@ -167,26 +163,23 @@
  *
  * Comments refer to the status for using certificates. Status can be
  * different for writing certificates or reading CRLs or CSRs.
- *
- * Those are defined in oid.h as oid.c needs them in a data structure. Since
- * these were previously defined here, let's have aliases for compatibility.
  */
-#define MBEDTLS_X509_EXT_AUTHORITY_KEY_IDENTIFIER MBEDTLS_OID_X509_EXT_AUTHORITY_KEY_IDENTIFIER
-#define MBEDTLS_X509_EXT_SUBJECT_KEY_IDENTIFIER   MBEDTLS_OID_X509_EXT_SUBJECT_KEY_IDENTIFIER
-#define MBEDTLS_X509_EXT_KEY_USAGE                MBEDTLS_OID_X509_EXT_KEY_USAGE
-#define MBEDTLS_X509_EXT_CERTIFICATE_POLICIES     MBEDTLS_OID_X509_EXT_CERTIFICATE_POLICIES
-#define MBEDTLS_X509_EXT_POLICY_MAPPINGS          MBEDTLS_OID_X509_EXT_POLICY_MAPPINGS
-#define MBEDTLS_X509_EXT_SUBJECT_ALT_NAME         MBEDTLS_OID_X509_EXT_SUBJECT_ALT_NAME         /* Supported (DNS) */
-#define MBEDTLS_X509_EXT_ISSUER_ALT_NAME          MBEDTLS_OID_X509_EXT_ISSUER_ALT_NAME
-#define MBEDTLS_X509_EXT_SUBJECT_DIRECTORY_ATTRS  MBEDTLS_OID_X509_EXT_SUBJECT_DIRECTORY_ATTRS
-#define MBEDTLS_X509_EXT_BASIC_CONSTRAINTS        MBEDTLS_OID_X509_EXT_BASIC_CONSTRAINTS        /* Supported */
-#define MBEDTLS_X509_EXT_NAME_CONSTRAINTS         MBEDTLS_OID_X509_EXT_NAME_CONSTRAINTS
-#define MBEDTLS_X509_EXT_POLICY_CONSTRAINTS       MBEDTLS_OID_X509_EXT_POLICY_CONSTRAINTS
-#define MBEDTLS_X509_EXT_EXTENDED_KEY_USAGE       MBEDTLS_OID_X509_EXT_EXTENDED_KEY_USAGE
-#define MBEDTLS_X509_EXT_CRL_DISTRIBUTION_POINTS  MBEDTLS_OID_X509_EXT_CRL_DISTRIBUTION_POINTS
-#define MBEDTLS_X509_EXT_INIHIBIT_ANYPOLICY       MBEDTLS_OID_X509_EXT_INIHIBIT_ANYPOLICY
-#define MBEDTLS_X509_EXT_FRESHEST_CRL             MBEDTLS_OID_X509_EXT_FRESHEST_CRL
-#define MBEDTLS_X509_EXT_NS_CERT_TYPE             MBEDTLS_OID_X509_EXT_NS_CERT_TYPE
+#define MBEDTLS_X509_EXT_AUTHORITY_KEY_IDENTIFIER (1 << 0)
+#define MBEDTLS_X509_EXT_SUBJECT_KEY_IDENTIFIER   (1 << 1)
+#define MBEDTLS_X509_EXT_KEY_USAGE                (1 << 2)
+#define MBEDTLS_X509_EXT_CERTIFICATE_POLICIES     (1 << 3)
+#define MBEDTLS_X509_EXT_POLICY_MAPPINGS          (1 << 4)
+#define MBEDTLS_X509_EXT_SUBJECT_ALT_NAME         (1 << 5)  /* Supported (DNS) */
+#define MBEDTLS_X509_EXT_ISSUER_ALT_NAME          (1 << 6)
+#define MBEDTLS_X509_EXT_SUBJECT_DIRECTORY_ATTRS  (1 << 7)
+#define MBEDTLS_X509_EXT_BASIC_CONSTRAINTS        (1 << 8)  /* Supported */
+#define MBEDTLS_X509_EXT_NAME_CONSTRAINTS         (1 << 9)
+#define MBEDTLS_X509_EXT_POLICY_CONSTRAINTS       (1 << 10)
+#define MBEDTLS_X509_EXT_EXTENDED_KEY_USAGE       (1 << 11)
+#define MBEDTLS_X509_EXT_CRL_DISTRIBUTION_POINTS  (1 << 12)
+#define MBEDTLS_X509_EXT_INIHIBIT_ANYPOLICY       (1 << 13)
+#define MBEDTLS_X509_EXT_FRESHEST_CRL             (1 << 14)
+#define MBEDTLS_X509_EXT_NS_CERT_TYPE             (1 << 16)
 
 /*
  * Storage format identifiers

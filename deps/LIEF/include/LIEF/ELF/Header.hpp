@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,80 +34,81 @@ class Parser;
 /// ELF `Elfxx_Ehdr` structure
 class LIEF_API Header : public Object {
   friend class Parser;
+
   public:
   using identity_t = std::array<uint8_t, 16>;
 
   public:
   /// e_ident size and indices.
   enum ELF_INDENT {
-    ELI_MAG0       = 0,  ///< File identification index.
-    ELI_MAG1       = 1,  ///< File identification index.
-    ELI_MAG2       = 2,  ///< File identification index.
-    ELI_MAG3       = 3,  ///< File identification index.
-    ELI_CLASS      = 4,  ///< File class.
-    ELI_DATA       = 5,  ///< Data encoding.
-    ELI_VERSION    = 6,  ///< File version.
-    ELI_OSABI      = 7,  ///< OS/ABI identification.
-    ELI_ABIVERSION = 8,  ///< ABI version.
-    ELI_PAD        = 9,  ///< Start of padding bytes.
-    ELI_NIDENT     = 16  ///< Number of bytes in e_ident.
+    ELI_MAG0 = 0,       ///< File identification index.
+    ELI_MAG1 = 1,       ///< File identification index.
+    ELI_MAG2 = 2,       ///< File identification index.
+    ELI_MAG3 = 3,       ///< File identification index.
+    ELI_CLASS = 4,      ///< File class.
+    ELI_DATA = 5,       ///< Data encoding.
+    ELI_VERSION = 6,    ///< File version.
+    ELI_OSABI = 7,      ///< OS/ABI identification.
+    ELI_ABIVERSION = 8, ///< ABI version.
+    ELI_PAD = 9,        ///< Start of padding bytes.
+    ELI_NIDENT = 16,    ///< Number of bytes in e_ident.
   };
 
   /// The type of the underlying ELF file. This enum matches
   /// the semantic of `ET_NONE`, `ET_REL`, ...
   enum class FILE_TYPE {
     NONE = 0, ///< Can't be determined
-    REL  = 1, ///< Relocatable file (or object file)
+    REL = 1,  ///< Relocatable file (or object file)
     EXEC = 2, ///< non-pie executable
-    DYN  = 3, ///< Shared library **or** a pie-executable
+    DYN = 3,  ///< Shared library **or** a pie-executable
     CORE = 4, ///< Core dump file
   };
 
   /// Match the result of `Elfxx_Ehdr.e_version`
   enum class VERSION {
-    NONE    = 0, ///< Invalid ELF version
+    NONE = 0,    ///< Invalid ELF version
     CURRENT = 1, ///< Current version (default)
   };
 
   /// Match the result of `Elfxx_Ehdr.e_ident[EI_CLASS]`
   enum class CLASS {
-    NONE = 0, /// Invalid class
-    ELF32,    /// 32-bit objects
-    ELF64,    /// 64-bits objects
+    NONE = 0, ///< Invalid class
+    ELF32,    ///< 32-bit objects
+    ELF64,    ///< 64-bit objects
   };
 
   /// Match the result `Elfxx_Ehdr.e_ident[EI_OSABI]`
   enum class OS_ABI {
-    SYSTEMV      = 0,  /// UNIX System V ABI
-    HPUX         = 1,  /// HP-UX operating system
-    NETBSD       = 2,  /// NetBSD
-    GNU          = 3,  /// GNU/Linux
-    LINUX        = 3,  /// Historical alias for ELFOSABI_GNU.
-    HURD         = 4,  /// GNU/Hurd
-    SOLARIS      = 6,  /// Solaris
-    AIX          = 7,  /// AIX
-    IRIX         = 8,  /// IRIX
-    FREEBSD      = 9,  /// FreeBSD
-    TRU64        = 10, /// TRU64 UNIX
-    MODESTO      = 11, /// Novell Modesto
-    OPENBSD      = 12, /// OpenBSD
-    OPENVMS      = 13, /// OpenVMS
-    NSK          = 14, /// Hewlett-Packard Non-Stop Kernel
-    AROS         = 15, /// AROS
-    FENIXOS      = 16, /// FenixOS
-    CLOUDABI     = 17, /// Nuxi CloudABI
-    C6000_ELFABI = 64, /// Bare-metal TMS320C6000
-    AMDGPU_HSA   = 64, /// AMD HSA runtime
-    C6000_LINUX  = 65, /// Linux TMS320C6000
-    ARM          = 97, /// ARM
-    STANDALONE   = 255 /// Standalone (embedded) application
+    SYSTEMV = 0,       ///< UNIX System V ABI
+    HPUX = 1,          ///< HP-UX operating system
+    NETBSD = 2,        ///< NetBSD
+    GNU = 3,           ///< GNU/Linux
+    LINUX = 3,         ///< Historical alias for ELFOSABI_GNU.
+    HURD = 4,          ///< GNU/Hurd
+    SOLARIS = 6,       ///< Solaris
+    AIX = 7,           ///< AIX
+    IRIX = 8,          ///< IRIX
+    FREEBSD = 9,       ///< FreeBSD
+    TRU64 = 10,        ///< TRU64 UNIX
+    MODESTO = 11,      ///< Novell Modesto
+    OPENBSD = 12,      ///< OpenBSD
+    OPENVMS = 13,      ///< OpenVMS
+    NSK = 14,          ///< Hewlett-Packard Non-Stop Kernel
+    AROS = 15,         ///< AROS
+    FENIXOS = 16,      ///< FenixOS
+    CLOUDABI = 17,     ///< Nuxi CloudABI
+    C6000_ELFABI = 64, ///< Bare-metal TMS320C6000
+    AMDGPU_HSA = 64,   ///< AMD HSA runtime
+    C6000_LINUX = 65,  ///< Linux TMS320C6000
+    ARM = 97,          ///< ARM
+    STANDALONE = 255,  ///< Standalone (embedded) application
   };
 
   /// Match the result `Elfxx_Ehdr.e_ident[EI_DATA]`
   enum class ELF_DATA {
-    NONE = 0, /// Invalid data encoding
-    LSB  = 1, /// 2's complement, little endian
-    MSB  = 2  /// 2's complement, big endian
+    NONE = 0, ///< Invalid data encoding
+    LSB = 1,  ///< 2's complement, little endian
+    MSB = 2,  ///< 2's complement, big endian
   };
 
   Header() = default;

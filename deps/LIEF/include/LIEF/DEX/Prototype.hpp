@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,16 +31,16 @@ class LIEF_API Prototype : public Object {
 
   public:
   using parameters_type_t = std::vector<Type*>;
-  using it_params         = ref_iterator<parameters_type_t>;
-  using it_const_params   = const_ref_iterator<const parameters_type_t>;
+  using it_params = ref_iterator<parameters_type_t>;
+  using it_const_params = const_ref_iterator<const parameters_type_t>;
 
   public:
   Prototype();
   Prototype(const Prototype& other);
 
   /// Type returned or a nullptr if not resolved
-  const Type* return_type() const;
-  Type* return_type();
+  const Type* return_type() const LIEF_LIFETIMEBOUND;
+  Type* return_type() LIEF_LIFETIMEBOUND;
 
   /// Types of the parameters
   it_const_params parameters_type() const;
@@ -49,14 +49,14 @@ class LIEF_API Prototype : public Object {
   void accept(Visitor& visitor) const override;
 
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const Prototype& type);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const Prototype& type);
 
   ~Prototype() override;
 
   private:
   Type* return_type_ = nullptr;
   parameters_type_t params_;
-
 };
 
 } // Namespace DEX

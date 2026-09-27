@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@
 #include "LIEF/ELF/DynamicEntryRpath.hpp"
 #include "LIEF/ELF/DynamicEntryRunPath.hpp"
 #include "LIEF/ELF/DynamicSharedObject.hpp"
+#include "LIEF/ELF/DynamicEntryAuxiliary.hpp"
+#include "LIEF/ELF/DynamicEntryFilter.hpp"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -30,8 +32,8 @@
 #include "logging.hpp"
 #include "ELF/Structures.hpp"
 
-namespace LIEF {
-namespace ELF {
+
+namespace LIEF::ELF {
 
 DynamicEntry::TAG DynamicEntry::from_value(uint64_t value, ARCH arch) {
   static constexpr auto LOPROC = 0x70000000;
@@ -48,35 +50,36 @@ DynamicEntry::TAG DynamicEntry::from_value(uint64_t value, ARCH arch) {
   }
 
   if (is_proc_spec) {
+    if (value == static_cast<uint64_t>(TAG::AUXILIARY)) {
+      return TAG::AUXILIARY;
+    }
+
+    if (value == static_cast<uint64_t>(TAG::FILTER)) {
+      return TAG::FILTER;
+    }
+
     switch (arch) {
-      case ARCH::AARCH64:
-        return TAG(AARCH64_DISC + value);
+      case ARCH::AARCH64: return TAG(AARCH64_DISC + value);
 
       case ARCH::MIPS_RS3_LE:
-      case ARCH::MIPS:
-        return TAG(MIPS_DISC + value);
+      case ARCH::MIPS: return TAG(MIPS_DISC + value);
 
-      case ARCH::HEXAGON:
-        return TAG(HEXAGON_DISC + value);
+      case ARCH::HEXAGON: return TAG(HEXAGON_DISC + value);
 
-      case ARCH::PPC:
-        return TAG(PPC_DISC + value);
+      case ARCH::PPC: return TAG(PPC_DISC + value);
 
-      case ARCH::PPC64:
-        return TAG(PPC64_DISC + value);
+      case ARCH::PPC64: return TAG(PPC64_DISC + value);
 
-      case ARCH::RISCV:
-        return TAG(RISCV_DISC + value);
+      case ARCH::RISCV: return TAG(RISCV_DISC + value);
 
-      case ARCH::X86_64:
-        return TAG(X86_64_DISC + value);
+      case ARCH::X86_64: return TAG(X86_64_DISC + value);
 
-      case ARCH::IA_64:
-        return TAG(IA_64_DISC + value);
+      case ARCH::IA_64: return TAG(IA_64_DISC + value);
 
       default:
-        LIEF_WARN("Dynamic tag: 0x{:04x} is not supported for the "
-                  "current architecture ({})", value, ELF::to_string(arch));
+        LIEF_WARN("Unsupported dynamic tag {:#06x} for "
+                  "architecture ({})",
+                  value, ELF::to_string(arch));
         return TAG::UNKNOWN;
     }
   }
@@ -86,6 +89,11 @@ DynamicEntry::TAG DynamicEntry::from_value(uint64_t value, ARCH arch) {
 
 uint64_t DynamicEntry::to_value(DynamicEntry::TAG tag) {
   auto raw_value = static_cast<uint64_t>(tag);
+
+  if (tag == TAG::AUXILIARY || tag == TAG::FILTER) {
+    return raw_value;
+  }
+
   if (MIPS_DISC <= raw_value && raw_value < AARCH64_DISC) {
     return raw_value - MIPS_DISC;
   }
@@ -124,50 +132,46 @@ uint64_t DynamicEntry::to_value(DynamicEntry::TAG tag) {
 
 std::unique_ptr<DynamicEntry> DynamicEntry::create(TAG tag, uint64_t value) {
   switch (tag) {
-    default:
-      return std::make_unique<DynamicEntry>(tag, value);
-    case TAG::NEEDED:
-      return std::make_unique<DynamicEntryLibrary>();
+    default: return std::make_unique<DynamicEntry>(tag, value);
+    case TAG::NEEDED: return std::make_unique<DynamicEntryLibrary>();
 
-    case TAG::SONAME:
-      return std::make_unique<DynamicSharedObject>();
+    case TAG::SONAME: return std::make_unique<DynamicSharedObject>();
 
-    case TAG::RUNPATH:
-      return std::make_unique<DynamicEntryRunPath>();
+    case TAG::AUXILIARY: return std::make_unique<DynamicEntryAuxiliary>();
 
-    case TAG::RPATH:
-      return std::make_unique<DynamicEntryRpath>();
+    case TAG::FILTER: return std::make_unique<DynamicEntryFilter>();
 
-    case TAG::FLAGS_1:
-      return DynamicEntryFlags::create_dt_flag_1(value).clone();
+    case TAG::RUNPATH: return std::make_unique<DynamicEntryRunPath>();
 
-    case TAG::FLAGS:
-      return DynamicEntryFlags::create_dt_flag(value).clone();
+    case TAG::RPATH: return std::make_unique<DynamicEntryRpath>();
+
+    case TAG::FLAGS_1: return DynamicEntryFlags::create_dt_flag_1(value).clone();
+
+    case TAG::FLAGS: return DynamicEntryFlags::create_dt_flag(value).clone();
 
     case TAG::INIT_ARRAY:
     case TAG::FINI_ARRAY:
     case TAG::PREINIT_ARRAY:
-      return std::make_unique<DynamicEntryArray>(tag, DynamicEntryArray::array_t());
+      return std::make_unique<DynamicEntryArray>(tag,
+                                                 DynamicEntryArray::array_t());
   }
   return std::make_unique<DynamicEntry>(tag, value);
 }
 
 DynamicEntry::DynamicEntry(const details::Elf64_Dyn& header, ARCH arch) :
   tag_{DynamicEntry::from_value(header.d_tag, arch)},
-  value_{header.d_un.d_val}
-{}
+  value_{header.d_un.d_val} {}
 
 DynamicEntry::DynamicEntry(const details::Elf32_Dyn& header, ARCH arch) :
   tag_{DynamicEntry::from_value(header.d_tag, arch)},
-  value_{header.d_un.d_val}
-{}
+  value_{header.d_un.d_val} {}
 
 void DynamicEntry::accept(Visitor& visitor) const {
   visitor.visit(*this);
 }
 
 std::ostream& DynamicEntry::print(std::ostream& os) const {
-  os << fmt::format("{:<20}: 0x{:06x} ", ELF::to_string(tag()), value());
+  os << fmt::format("{:<20}: {:#08x} ", ELF::to_string(tag()), value());
   return os;
 }
 
@@ -178,171 +182,175 @@ std::string DynamicEntry::to_string() const {
 }
 
 const char* to_string(DynamicEntry::TAG tag) {
-  #define ENTRY(X) std::pair(DynamicEntry::TAG::X, #X)
-  STRING_MAP enums2str {
-    ENTRY(UNKNOWN),
-    ENTRY(DT_NULL_),
-    ENTRY(NEEDED),
-    ENTRY(PLTRELSZ),
-    ENTRY(PLTGOT),
-    ENTRY(HASH),
-    ENTRY(STRTAB),
-    ENTRY(SYMTAB),
-    ENTRY(RELA),
-    ENTRY(RELASZ),
-    ENTRY(RELAENT),
-    ENTRY(STRSZ),
-    ENTRY(SYMENT),
-    ENTRY(INIT),
-    ENTRY(FINI),
-    ENTRY(SONAME),
-    ENTRY(RPATH),
-    ENTRY(SYMBOLIC),
-    ENTRY(REL),
-    ENTRY(RELSZ),
-    ENTRY(RELENT),
-    ENTRY(PLTREL),
-    ENTRY(DEBUG_TAG),
-    ENTRY(TEXTREL),
-    ENTRY(JMPREL),
-    ENTRY(BIND_NOW),
-    ENTRY(INIT_ARRAY),
-    ENTRY(FINI_ARRAY),
-    ENTRY(INIT_ARRAYSZ),
-    ENTRY(FINI_ARRAYSZ),
-    ENTRY(RUNPATH),
-    ENTRY(FLAGS),
-    ENTRY(PREINIT_ARRAY),
-    ENTRY(PREINIT_ARRAYSZ),
-    ENTRY(SYMTAB_SHNDX),
-    ENTRY(RELRSZ),
-    ENTRY(RELR),
-    ENTRY(RELRENT),
-    ENTRY(GNU_HASH),
-    ENTRY(RELACOUNT),
-    ENTRY(RELCOUNT),
-    ENTRY(FLAGS_1),
-    ENTRY(VERSYM),
-    ENTRY(VERDEF),
-    ENTRY(VERDEFNUM),
-    ENTRY(VERNEED),
-    ENTRY(VERNEEDNUM),
-    ENTRY(ANDROID_REL_OFFSET),
-    ENTRY(ANDROID_REL_SIZE),
-    ENTRY(ANDROID_REL),
-    ENTRY(ANDROID_RELSZ),
-    ENTRY(ANDROID_RELA),
-    ENTRY(ANDROID_RELASZ),
-    ENTRY(ANDROID_RELR),
-    ENTRY(ANDROID_RELRSZ),
-    ENTRY(ANDROID_RELRENT),
-    ENTRY(ANDROID_RELRCOUNT),
-    ENTRY(MIPS_RLD_VERSION),
-    ENTRY(MIPS_TIME_STAMP),
-    ENTRY(MIPS_ICHECKSUM),
-    ENTRY(MIPS_IVERSION),
-    ENTRY(MIPS_FLAGS),
-    ENTRY(MIPS_BASE_ADDRESS),
-    ENTRY(MIPS_MSYM),
-    ENTRY(MIPS_CONFLICT),
-    ENTRY(MIPS_LIBLIST),
-    ENTRY(MIPS_LOCAL_GOTNO),
-    ENTRY(MIPS_CONFLICTNO),
-    ENTRY(MIPS_LIBLISTNO),
-    ENTRY(MIPS_SYMTABNO),
-    ENTRY(MIPS_UNREFEXTNO),
-    ENTRY(MIPS_GOTSYM),
-    ENTRY(MIPS_HIPAGENO),
-    ENTRY(MIPS_RLD_MAP),
-    ENTRY(MIPS_DELTA_CLASS),
-    ENTRY(MIPS_DELTA_CLASS_NO),
-    ENTRY(MIPS_DELTA_INSTANCE),
-    ENTRY(MIPS_DELTA_INSTANCE_NO),
-    ENTRY(MIPS_DELTA_RELOC),
-    ENTRY(MIPS_DELTA_RELOC_NO),
-    ENTRY(MIPS_DELTA_SYM),
-    ENTRY(MIPS_DELTA_SYM_NO),
-    ENTRY(MIPS_DELTA_CLASSSYM),
-    ENTRY(MIPS_DELTA_CLASSSYM_NO),
-    ENTRY(MIPS_CXX_FLAGS),
-    ENTRY(MIPS_PIXIE_INIT),
-    ENTRY(MIPS_SYMBOL_LIB),
-    ENTRY(MIPS_LOCALPAGE_GOTIDX),
-    ENTRY(MIPS_LOCAL_GOTIDX),
-    ENTRY(MIPS_HIDDEN_GOTIDX),
-    ENTRY(MIPS_PROTECTED_GOTIDX),
-    ENTRY(MIPS_OPTIONS),
-    ENTRY(MIPS_INTERFACE),
-    ENTRY(MIPS_DYNSTR_ALIGN),
-    ENTRY(MIPS_INTERFACE_SIZE),
-    ENTRY(MIPS_RLD_TEXT_RESOLVE_ADDR),
-    ENTRY(MIPS_PERF_SUFFIX),
-    ENTRY(MIPS_COMPACT_SIZE),
-    ENTRY(MIPS_GP_VALUE),
-    ENTRY(MIPS_AUX_DYNAMIC),
-    ENTRY(MIPS_PLTGOT),
-    ENTRY(MIPS_RWPLT),
-    ENTRY(MIPS_RLD_MAP_REL),
-    ENTRY(MIPS_XHASH),
+#define ENTRY(X) std::pair(DynamicEntry::TAG::X, #X)
+  STRING_MAP enums2str{
+      ENTRY(UNKNOWN),
+      ENTRY(DT_NULL_),
+      ENTRY(NEEDED),
+      ENTRY(PLTRELSZ),
+      ENTRY(PLTGOT),
+      ENTRY(HASH),
+      ENTRY(STRTAB),
+      ENTRY(SYMTAB),
+      ENTRY(RELA),
+      ENTRY(RELASZ),
+      ENTRY(RELAENT),
+      ENTRY(STRSZ),
+      ENTRY(SYMENT),
+      ENTRY(INIT),
+      ENTRY(FINI),
+      ENTRY(SONAME),
+      ENTRY(RPATH),
+      ENTRY(SYMBOLIC),
+      ENTRY(REL),
+      ENTRY(RELSZ),
+      ENTRY(RELENT),
+      ENTRY(PLTREL),
+      ENTRY(DEBUG_TAG),
+      ENTRY(TEXTREL),
+      ENTRY(JMPREL),
+      ENTRY(BIND_NOW),
+      ENTRY(INIT_ARRAY),
+      ENTRY(FINI_ARRAY),
+      ENTRY(INIT_ARRAYSZ),
+      ENTRY(FINI_ARRAYSZ),
+      ENTRY(RUNPATH),
+      ENTRY(FLAGS),
+      ENTRY(PREINIT_ARRAY),
+      ENTRY(PREINIT_ARRAYSZ),
+      ENTRY(SYMTAB_SHNDX),
+      ENTRY(RELRSZ),
+      ENTRY(RELR),
+      ENTRY(RELRENT),
+      ENTRY(GNU_HASH),
+      ENTRY(TLSDESC_PLT),
+      ENTRY(TLSDESC_GOT),
+      ENTRY(RELACOUNT),
+      ENTRY(RELCOUNT),
+      ENTRY(FLAGS_1),
+      ENTRY(VERSYM),
+      ENTRY(VERDEF),
+      ENTRY(VERDEFNUM),
+      ENTRY(VERNEED),
+      ENTRY(VERNEEDNUM),
+      ENTRY(AUXILIARY),
+      ENTRY(FILTER),
+      ENTRY(ANDROID_REL_OFFSET),
+      ENTRY(ANDROID_REL_SIZE),
+      ENTRY(ANDROID_REL),
+      ENTRY(ANDROID_RELSZ),
+      ENTRY(ANDROID_RELA),
+      ENTRY(ANDROID_RELASZ),
+      ENTRY(ANDROID_RELR),
+      ENTRY(ANDROID_RELRSZ),
+      ENTRY(ANDROID_RELRENT),
+      ENTRY(ANDROID_RELRCOUNT),
+      ENTRY(MIPS_RLD_VERSION),
+      ENTRY(MIPS_TIME_STAMP),
+      ENTRY(MIPS_ICHECKSUM),
+      ENTRY(MIPS_IVERSION),
+      ENTRY(MIPS_FLAGS),
+      ENTRY(MIPS_BASE_ADDRESS),
+      ENTRY(MIPS_MSYM),
+      ENTRY(MIPS_CONFLICT),
+      ENTRY(MIPS_LIBLIST),
+      ENTRY(MIPS_LOCAL_GOTNO),
+      ENTRY(MIPS_CONFLICTNO),
+      ENTRY(MIPS_LIBLISTNO),
+      ENTRY(MIPS_SYMTABNO),
+      ENTRY(MIPS_UNREFEXTNO),
+      ENTRY(MIPS_GOTSYM),
+      ENTRY(MIPS_HIPAGENO),
+      ENTRY(MIPS_RLD_MAP),
+      ENTRY(MIPS_DELTA_CLASS),
+      ENTRY(MIPS_DELTA_CLASS_NO),
+      ENTRY(MIPS_DELTA_INSTANCE),
+      ENTRY(MIPS_DELTA_INSTANCE_NO),
+      ENTRY(MIPS_DELTA_RELOC),
+      ENTRY(MIPS_DELTA_RELOC_NO),
+      ENTRY(MIPS_DELTA_SYM),
+      ENTRY(MIPS_DELTA_SYM_NO),
+      ENTRY(MIPS_DELTA_CLASSSYM),
+      ENTRY(MIPS_DELTA_CLASSSYM_NO),
+      ENTRY(MIPS_CXX_FLAGS),
+      ENTRY(MIPS_PIXIE_INIT),
+      ENTRY(MIPS_SYMBOL_LIB),
+      ENTRY(MIPS_LOCALPAGE_GOTIDX),
+      ENTRY(MIPS_LOCAL_GOTIDX),
+      ENTRY(MIPS_HIDDEN_GOTIDX),
+      ENTRY(MIPS_PROTECTED_GOTIDX),
+      ENTRY(MIPS_OPTIONS),
+      ENTRY(MIPS_INTERFACE),
+      ENTRY(MIPS_DYNSTR_ALIGN),
+      ENTRY(MIPS_INTERFACE_SIZE),
+      ENTRY(MIPS_RLD_TEXT_RESOLVE_ADDR),
+      ENTRY(MIPS_PERF_SUFFIX),
+      ENTRY(MIPS_COMPACT_SIZE),
+      ENTRY(MIPS_GP_VALUE),
+      ENTRY(MIPS_AUX_DYNAMIC),
+      ENTRY(MIPS_PLTGOT),
+      ENTRY(MIPS_RWPLT),
+      ENTRY(MIPS_RLD_MAP_REL),
+      ENTRY(MIPS_XHASH),
 
-    ENTRY(AARCH64_BTI_PLT),
-    ENTRY(AARCH64_PAC_PLT),
-    ENTRY(AARCH64_VARIANT_PCS),
-    ENTRY(AARCH64_MEMTAG_MODE),
-    ENTRY(AARCH64_MEMTAG_HEAP),
-    ENTRY(AARCH64_MEMTAG_STACK),
-    ENTRY(AARCH64_MEMTAG_GLOBALS),
-    ENTRY(AARCH64_MEMTAG_GLOBALSSZ),
+      ENTRY(AARCH64_BTI_PLT),
+      ENTRY(AARCH64_PAC_PLT),
+      ENTRY(AARCH64_VARIANT_PCS),
+      ENTRY(AARCH64_MEMTAG_MODE),
+      ENTRY(AARCH64_MEMTAG_HEAP),
+      ENTRY(AARCH64_MEMTAG_STACK),
+      ENTRY(AARCH64_MEMTAG_GLOBALS),
+      ENTRY(AARCH64_MEMTAG_GLOBALSSZ),
 
-    ENTRY(HEXAGON_SYMSZ),
-    ENTRY(HEXAGON_VER),
-    ENTRY(HEXAGON_PLT),
+      ENTRY(HEXAGON_SYMSZ),
+      ENTRY(HEXAGON_VER),
+      ENTRY(HEXAGON_PLT),
 
-    ENTRY(PPC_GOT),
-    ENTRY(PPC_OPT),
+      ENTRY(PPC_GOT),
+      ENTRY(PPC_OPT),
 
-    ENTRY(PPC64_GLINK),
-    ENTRY(PPC64_OPT),
+      ENTRY(PPC64_GLINK),
+      ENTRY(PPC64_OPT),
 
-    ENTRY(RISCV_VARIANT_CC),
+      ENTRY(RISCV_VARIANT_CC),
 
-    ENTRY(X86_64_PLT),
-    ENTRY(X86_64_PLTSZ),
-    ENTRY(X86_64_PLTENT),
+      ENTRY(X86_64_PLT),
+      ENTRY(X86_64_PLTSZ),
+      ENTRY(X86_64_PLTENT),
 
-    ENTRY(IA_64_PLT_RESERVE),
-    ENTRY(IA_64_VMS_SUBTYPE),
-    ENTRY(IA_64_VMS_IMGIOCNT),
-    ENTRY(IA_64_VMS_LNKFLAGS),
-    ENTRY(IA_64_VMS_VIR_MEM_BLK_SIZ),
-    ENTRY(IA_64_VMS_IDENT),
-    ENTRY(IA_64_VMS_NEEDED_IDENT),
-    ENTRY(IA_64_VMS_IMG_RELA_CNT),
-    ENTRY(IA_64_VMS_SEG_RELA_CNT),
-    ENTRY(IA_64_VMS_FIXUP_RELA_CNT),
-    ENTRY(IA_64_VMS_FIXUP_NEEDED),
-    ENTRY(IA_64_VMS_SYMVEC_CNT),
-    ENTRY(IA_64_VMS_XLATED),
-    ENTRY(IA_64_VMS_STACKSIZE),
-    ENTRY(IA_64_VMS_UNWINDSZ),
-    ENTRY(IA_64_VMS_UNWIND_CODSEG),
-    ENTRY(IA_64_VMS_UNWIND_INFOSEG),
-    ENTRY(IA_64_VMS_LINKTIME),
-    ENTRY(IA_64_VMS_SEG_NO),
-    ENTRY(IA_64_VMS_SYMVEC_OFFSET),
-    ENTRY(IA_64_VMS_SYMVEC_SEG),
-    ENTRY(IA_64_VMS_UNWIND_OFFSET),
-    ENTRY(IA_64_VMS_UNWIND_SEG),
-    ENTRY(IA_64_VMS_STRTAB_OFFSET),
-    ENTRY(IA_64_VMS_SYSVER_OFFSET),
-    ENTRY(IA_64_VMS_IMG_RELA_OFF),
-    ENTRY(IA_64_VMS_SEG_RELA_OFF),
-    ENTRY(IA_64_VMS_FIXUP_RELA_OFF),
-    ENTRY(IA_64_VMS_PLTGOT_OFFSET),
-    ENTRY(IA_64_VMS_PLTGOT_SEG),
-    ENTRY(IA_64_VMS_FPMODE),
+      ENTRY(IA_64_PLT_RESERVE),
+      ENTRY(IA_64_VMS_SUBTYPE),
+      ENTRY(IA_64_VMS_IMGIOCNT),
+      ENTRY(IA_64_VMS_LNKFLAGS),
+      ENTRY(IA_64_VMS_VIR_MEM_BLK_SIZ),
+      ENTRY(IA_64_VMS_IDENT),
+      ENTRY(IA_64_VMS_NEEDED_IDENT),
+      ENTRY(IA_64_VMS_IMG_RELA_CNT),
+      ENTRY(IA_64_VMS_SEG_RELA_CNT),
+      ENTRY(IA_64_VMS_FIXUP_RELA_CNT),
+      ENTRY(IA_64_VMS_FIXUP_NEEDED),
+      ENTRY(IA_64_VMS_SYMVEC_CNT),
+      ENTRY(IA_64_VMS_XLATED),
+      ENTRY(IA_64_VMS_STACKSIZE),
+      ENTRY(IA_64_VMS_UNWINDSZ),
+      ENTRY(IA_64_VMS_UNWIND_CODSEG),
+      ENTRY(IA_64_VMS_UNWIND_INFOSEG),
+      ENTRY(IA_64_VMS_LINKTIME),
+      ENTRY(IA_64_VMS_SEG_NO),
+      ENTRY(IA_64_VMS_SYMVEC_OFFSET),
+      ENTRY(IA_64_VMS_SYMVEC_SEG),
+      ENTRY(IA_64_VMS_UNWIND_OFFSET),
+      ENTRY(IA_64_VMS_UNWIND_SEG),
+      ENTRY(IA_64_VMS_STRTAB_OFFSET),
+      ENTRY(IA_64_VMS_SYSVER_OFFSET),
+      ENTRY(IA_64_VMS_IMG_RELA_OFF),
+      ENTRY(IA_64_VMS_SEG_RELA_OFF),
+      ENTRY(IA_64_VMS_FIXUP_RELA_OFF),
+      ENTRY(IA_64_VMS_PLTGOT_OFFSET),
+      ENTRY(IA_64_VMS_PLTGOT_SEG),
+      ENTRY(IA_64_VMS_FPMODE),
   };
-  #undef ENTRY
+#undef ENTRY
 
   if (auto it = enums2str.find(tag); it != enums2str.end()) {
     return it->second;
@@ -351,5 +359,4 @@ const char* to_string(DynamicEntry::TAG tag) {
   return "UNKNOWN";
 }
 
-}
 }

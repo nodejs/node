@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,11 +33,11 @@ struct data_in_code_entry;
 class LIEF_API DataCodeEntry : public LIEF::Object {
   public:
   enum class TYPES {
-    UNKNOWN           = 0,
-    DATA              = 1,
-    JUMP_TABLE_8      = 2,
-    JUMP_TABLE_16     = 3,
-    JUMP_TABLE_32     = 4,
+    UNKNOWN = 0,
+    DATA = 1,
+    JUMP_TABLE_8 = 2,
+    JUMP_TABLE_16 = 3,
+    JUMP_TABLE_32 = 4,
     ABS_JUMP_TABLE_32 = 5,
   };
 
@@ -46,8 +46,7 @@ class LIEF_API DataCodeEntry : public LIEF::Object {
   DataCodeEntry(uint32_t off, uint16_t length, TYPES type) :
     offset_(off),
     length_(length),
-    type_(type)
-  {}
+    type_(type) {}
   DataCodeEntry(const details::data_in_code_entry& entry);
 
   DataCodeEntry& operator=(const DataCodeEntry&) = default;
@@ -82,7 +81,8 @@ class LIEF_API DataCodeEntry : public LIEF::Object {
 
   void accept(Visitor& visitor) const override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const DataCodeEntry& entry);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const DataCodeEntry& entry);
 
   private:
   uint32_t offset_ = 0;

@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,10 @@ class LIEF_API Code {
   using OPCODE = RuntimeFunctionX64::UNWIND_OPCODES;
   using REG = RuntimeFunctionX64::UNWIND_REG;
 
-  /// \private
+  /// @private
   static std::unique_ptr<Code>
-    create_from(const RuntimeFunctionX64::unwind_info_t& info, SpanStream& stream);
+      create_from(const RuntimeFunctionX64::unwind_info_t& info,
+                  SpanStream& stream);
 
   Code() = delete;
   Code(const Code&) = default;
@@ -48,12 +49,10 @@ class LIEF_API Code {
 
   Code(OPCODE opcode, uint32_t pos) :
     pos_(pos),
-    opcode_(opcode)
-  {}
+    opcode_(opcode) {}
 
   Code(OPCODE opcode) :
-    Code(opcode, 0)
-  {}
+    Code(opcode, 0) {}
 
   /// The original opcode
   OPCODE opcode() const {
@@ -84,8 +83,7 @@ class LIEF_API Alloc : public Code {
   public:
   Alloc(OPCODE op, size_t pos, uint32_t size) :
     Code(op, pos),
-    size_(size)
-  {}
+    size_(size) {}
 
   /// The size allocated
   uint32_t size() const {
@@ -100,6 +98,7 @@ class LIEF_API Alloc : public Code {
     return code->opcode() == OPCODE::ALLOC_LARGE ||
            code->opcode() == OPCODE::ALLOC_SMALL;
   }
+
   protected:
   uint32_t size_ = 0;
 };
@@ -110,8 +109,7 @@ class LIEF_API PushNonVol : public Code {
   PushNonVol() = delete;
   PushNonVol(REG reg, size_t pos) :
     Code(OPCODE::PUSH_NONVOL, pos),
-    reg_(reg)
-  {}
+    reg_(reg) {}
 
   std::string to_string() const override;
 
@@ -136,8 +134,7 @@ class LIEF_API PushMachFrame : public Code {
   PushMachFrame() = delete;
   PushMachFrame(uint8_t value, size_t pos) :
     Code(OPCODE::PUSH_MACHFRAME, pos),
-    value_(value)
-  {}
+    value_(value) {}
 
   /// 0 or 1
   uint8_t value() const {
@@ -163,8 +160,7 @@ class LIEF_API SetFPReg : public Code {
   SetFPReg() = delete;
   SetFPReg(REG value, size_t pos) :
     Code(OPCODE::SET_FPREG, pos),
-    reg_(value)
-  {}
+    reg_(value) {}
 
   /// Frame pointer register
   REG reg() const {
@@ -191,8 +187,7 @@ class LIEF_API SaveNonVolatile : public Code {
   SaveNonVolatile(OPCODE op, REG value, size_t pos, uint32_t offset) :
     Code(op, pos),
     reg_(value),
-    offset_(offset)
-  {}
+    offset_(offset) {}
 
   REG reg() const {
     return reg_;
@@ -222,8 +217,7 @@ class LIEF_API SaveXMM128 : public Code {
   SaveXMM128(OPCODE op, uint8_t num, size_t pos, uint32_t offset) :
     Code(op, pos),
     num_(num),
-    offset_(offset)
-  {}
+    offset_(offset) {}
 
   uint8_t num() const {
     return num_;
@@ -255,8 +249,7 @@ class LIEF_API Epilog : public Code {
   Epilog(uint8_t flags, uint8_t size) :
     Code(OPCODE::EPILOG, 0),
     flags_(flags),
-    size_(size)
-  {}
+    size_(size) {}
 
   uint8_t flags() const {
     return flags_;
@@ -283,8 +276,7 @@ class LIEF_API Epilog : public Code {
 class LIEF_API Spare : public Code {
   public:
   Spare() :
-    Code(OPCODE::SPARE, 0)
-  {}
+    Code(OPCODE::SPARE, 0) {}
 
   std::string to_string() const override {
     return "Noop";
@@ -302,5 +294,3 @@ class LIEF_API Spare : public Code {
 }
 }
 #endif
-
-

@@ -4,7 +4,7 @@
 #pragma once
 
 #ifdef _WIN32
-    #error include tcp_client-windows.h instead
+#error include tcp_client-windows.h instead
 #endif
 
 // tcp client helper
@@ -17,6 +17,7 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <string>
 
@@ -39,8 +40,72 @@ public:
 
     ~tcp_client() { close(); }
 
+    int connect_socket_with_timeout(int sockfd,
+                                    const struct sockaddr *addr,
+                                    socklen_t addrlen,
+                                    const timeval &tv) {
+        // Blocking connect if timeout is zero
+        if (tv.tv_sec == 0 && tv.tv_usec == 0) {
+            int rv = ::connect(sockfd, addr, addrlen);
+            if (rv < 0 && errno == EISCONN) {
+                // already connected, treat as success
+                return 0;
+            }
+            return rv;
+        }
+
+        // Non-blocking path
+        int orig_flags = ::fcntl(sockfd, F_GETFL, 0);
+        if (orig_flags < 0) {
+            return -1;
+        }
+        if (::fcntl(sockfd, F_SETFL, orig_flags | O_NONBLOCK) < 0) {
+            return -1;
+        }
+
+        int rv = ::connect(sockfd, addr, addrlen);
+        if (rv == 0 || (rv < 0 && errno == EISCONN)) {
+            // immediate connect or already connected
+            ::fcntl(sockfd, F_SETFL, orig_flags);
+            return 0;
+        }
+        if (errno != EINPROGRESS) {
+            ::fcntl(sockfd, F_SETFL, orig_flags);
+            return -1;
+        }
+
+        // wait for writability
+        fd_set wfds;
+        FD_ZERO(&wfds);
+        FD_SET(sockfd, &wfds);
+
+        struct timeval tv_copy = tv;
+        rv = ::select(sockfd + 1, nullptr, &wfds, nullptr, &tv_copy);
+        if (rv <= 0) {
+            // timeout or error
+            ::fcntl(sockfd, F_SETFL, orig_flags);
+            if (rv == 0) errno = ETIMEDOUT;
+            return -1;
+        }
+
+        // check socket error
+        int so_error = 0;
+        socklen_t len = sizeof(so_error);
+        if (::getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
+            ::fcntl(sockfd, F_SETFL, orig_flags);
+            return -1;
+        }
+        ::fcntl(sockfd, F_SETFL, orig_flags);
+        if (so_error != 0 && so_error != EISCONN) {
+            errno = so_error;
+            return -1;
+        }
+
+        return 0;
+    }
+
     // try to connect or throw on failure
-    void connect(const std::string &host, int port) {
+    void connect(const std::string &host, int port, int timeout_ms = 0) {
         close();
         struct addrinfo hints {};
         memset(&hints, 0, sizeof(struct addrinfo));
@@ -48,6 +113,10 @@ public:
         hints.ai_socktype = SOCK_STREAM;  // TCP
         hints.ai_flags = AI_NUMERICSERV;  // port passed as as numeric value
         hints.ai_protocol = 0;
+
+        struct timeval tv;
+        tv.tv_sec = timeout_ms / 1000;
+        tv.tv_usec = (timeout_ms % 1000) * 1000;
 
         auto port_str = std::to_string(port);
         struct addrinfo *addrinfo_result;
@@ -69,8 +138,9 @@ public:
                 last_errno = errno;
                 continue;
             }
-            rv = ::connect(socket_, rp->ai_addr, rp->ai_addrlen);
-            if (rv == 0) {
+            ::fcntl(socket_, F_SETFD, FD_CLOEXEC);
+            if (connect_socket_with_timeout(socket_, rp->ai_addr, rp->ai_addrlen, tv) == 0) {
+                last_errno = 0;
                 break;
             }
             last_errno = errno;
@@ -80,6 +150,12 @@ public:
         ::freeaddrinfo(addrinfo_result);
         if (socket_ == -1) {
             throw_spdlog_ex("::connect failed", last_errno);
+        }
+
+        if (timeout_ms > 0) {
+            // Set timeouts for send and recv
+            ::setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
+            ::setsockopt(socket_, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
         }
 
         // set TCP_NODELAY
@@ -94,7 +170,7 @@ public:
 #endif
 
 #if !defined(SO_NOSIGPIPE) && !defined(MSG_NOSIGNAL)
-    #error "tcp_sink would raise SIGPIPE since neither SO_NOSIGPIPE nor MSG_NOSIGNAL are available"
+#error "tcp_sink would raise SIGPIPE since neither SO_NOSIGPIPE nor MSG_NOSIGNAL are available"
 #endif
     }
 

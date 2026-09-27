@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,9 @@ class DyldChainedFixupsCreator;
 /// Class that provides an interface over a *binding* operation.
 ///
 /// This class does not represent a structure that exists in the Mach-O format
-/// specifications but it provides a *view* of a binding operation that is performed
-/// by the Dyld binding bytecode (`LC_DYLD_INFO`) or the Dyld chained fixups (`DYLD_CHAINED_FIXUPS`)
+/// specifications but it provides a *view* of a binding operation that is
+/// performed by the Dyld binding bytecode (`LC_DYLD_INFO`) or the Dyld chained
+/// fixups (`DYLD_CHAINED_FIXUPS`)
 ///
 /// See: LIEF::MachO::ChainedBindingInfo, LIEF::MachO::DyldBindingInfo
 class LIEF_API BindingInfo : public Object {
@@ -47,7 +48,7 @@ class LIEF_API BindingInfo : public Object {
     DYLD_INFO,       /// Binding associated with the Dyld info opcodes
     CHAINED,         /// Binding associated with the chained fixups
     CHAINED_LIST,    /// Internal use
-    INDIRECT_SYMBOL, /// Infered from the indirect symbols table
+    INDIRECT_SYMBOL, /// Inferred from the indirect symbols table
   };
 
   BindingInfo() = default;
@@ -65,11 +66,11 @@ class LIEF_API BindingInfo : public Object {
   }
 
   /// The MachO::SegmentCommand associated with the BindingInfo or
-  /// a nullptr of it is not bind to a SegmentCommand
-  const SegmentCommand* segment() const {
+  /// a nullptr if it is not bound to a SegmentCommand
+  const SegmentCommand* segment() const LIEF_LIFETIMEBOUND {
     return segment_;
   }
-  SegmentCommand* segment() {
+  SegmentCommand* segment() LIEF_LIFETIMEBOUND {
     return segment_;
   }
 
@@ -80,10 +81,10 @@ class LIEF_API BindingInfo : public Object {
 
   /// MachO::DylibCommand associated with the BindingInfo or a nullptr
   /// if not present
-  const DylibCommand* library() const {
+  const DylibCommand* library() const LIEF_LIFETIMEBOUND {
     return library_;
   }
-  DylibCommand* library() {
+  DylibCommand* library() LIEF_LIFETIMEBOUND {
     return library_;
   }
 
@@ -94,10 +95,10 @@ class LIEF_API BindingInfo : public Object {
 
   /// MachO::Symbol associated with the BindingInfo or
   /// a nullptr if not present
-  const Symbol* symbol() const {
+  const Symbol* symbol() const LIEF_LIFETIMEBOUND {
     return symbol_;
   }
-  Symbol* symbol() {
+  Symbol* symbol() LIEF_LIFETIMEBOUND {
     return symbol_;
   }
 
@@ -145,7 +146,8 @@ class LIEF_API BindingInfo : public Object {
 
   template<class T>
   const T* cast() const {
-    static_assert(std::is_base_of<BindingInfo, T>::value, "Require BindingInfo inheritance");
+    static_assert(std::is_base_of<BindingInfo, T>::value,
+                  "Require BindingInfo inheritance");
     if (T::classof(this)) {
       return static_cast<const T*>(this);
     }
@@ -157,16 +159,17 @@ class LIEF_API BindingInfo : public Object {
     return const_cast<T*>(static_cast<const BindingInfo*>(this)->cast<T>());
   }
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const BindingInfo& binding_info);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const BindingInfo& binding_info);
 
   protected:
   SegmentCommand* segment_ = nullptr;
-  Symbol*         symbol_ = nullptr;
-  int32_t         library_ordinal_ = 0;
-  int64_t         addend_ = 0;
-  bool            is_weak_import_ = false;
-  DylibCommand*   library_ = nullptr;
-  uint64_t        address_ = 0;
+  Symbol* symbol_ = nullptr;
+  int32_t library_ordinal_ = 0;
+  int64_t addend_ = 0;
+  bool is_weak_import_ = false;
+  DylibCommand* library_ = nullptr;
+  uint64_t address_ = 0;
 };
 
 }

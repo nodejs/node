@@ -1,5 +1,5 @@
-/* Copyright 2017 - 2025 R. Thomas
- * Copyright 2017 - 2025 Quarkslab
+/* Copyright 2017 - 2026 R. Thomas
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,18 +46,19 @@ class LIEF_API File : public Object {
   public:
   using dex_files_t = std::vector<std::unique_ptr<DEX::File>>;
   using it_dex_files = ref_iterator<dex_files_t&, DEX::File*>;
-  using it_const_dex_files = const_ref_iterator<const dex_files_t&, const DEX::File*>;
+  using it_const_dex_files =
+      const_ref_iterator<const dex_files_t&, const DEX::File*>;
 
   File& operator=(const File& copy) = delete;
-  File(const File& copy)            = delete;
+  File(const File& copy) = delete;
 
   /// VDEX Header
-  const Header& header() const;
-  Header& header();
+  const Header& header() const LIEF_LIFETIMEBOUND;
+  Header& header() LIEF_LIFETIMEBOUND;
 
   /// Iterator over LIEF::DEX::Files registered
-  it_dex_files       dex_files();
-  it_const_dex_files dex_files() const;
+  it_dex_files dex_files() LIEF_LIFETIMEBOUND;
+  it_const_dex_files dex_files() const LIEF_LIFETIMEBOUND;
 
   dex2dex_info_t dex2dex_info() const;
 
@@ -68,7 +69,8 @@ class LIEF_API File : public Object {
 
   ~File() override;
 
-  LIEF_API friend std::ostream& operator<<(std::ostream& os, const File& vdex_file);
+  LIEF_API friend std::ostream& operator<<(std::ostream& os,
+                                           const File& vdex_file);
 
   private:
   File();

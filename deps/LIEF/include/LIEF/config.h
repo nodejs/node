@@ -1,5 +1,5 @@
 /* Copyright 2017 - 2021 A. Guinet
- * Copyright 2017 - 2025 Quarkslab
+ * Copyright 2017 - 2026 Quarkslab
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #ifndef LIEF_CONFIG_H
 #define LIEF_CONFIG_H
+
+// clang-format off
 
 // Main formats
 #define LIEF_PE_SUPPORT 1
@@ -37,6 +39,7 @@
 /* #undef LIEF_EXTENDED */
 
 // LIEF options
+#cmakedefine LIEF_RUNTIME_SUPPORT   
 /* #undef LIEF_JSON_SUPPORT */
 /* #undef LIEF_LOGGING_SUPPORT */
 /* #undef LIEF_LOGGING_DEBUG */
@@ -66,12 +69,13 @@ static constexpr bool lief_debug_info      = 0;
 static constexpr bool lief_objc            = 0;
 static constexpr bool lief_extended        = 0;
 
+static constexpr bool lief_runtime_support = ;
 static constexpr bool lief_json_support    = 0;
 static constexpr bool lief_logging_support = 0;
 static constexpr bool lief_logging_debug   = 0;
 static constexpr bool lief_frozen_enabled  = 1;
 
 
-#endif // __cplusplus
+#endif
 
 #endif
