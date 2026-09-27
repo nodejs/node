@@ -7,7 +7,7 @@
 // test-vfs-real-provider-handle.js, and symlinks/path-escape live in
 // test-vfs-real-provider-symlinks.js.
 
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
@@ -137,6 +137,18 @@ fs.mkdirSync(testDir, { recursive: true });
     realVfs.unmount();
     fs.rmSync(path.join(testDir, 'm'), { recursive: true, force: true });
   }
+}
+
+// Recursive mkdir works when the root is given in the Windows long-path
+// form, which is what the native bindings hand back: the returned path must
+// still be translated relative to the root, not rejected as an escape.
+if (common.isWindows) {
+  const longVfs = vfs.create(new vfs.RealFSProvider(
+    path.toNamespacedPath(testDir)));
+  const created = longVfs.mkdirSync('/long/deep/dir', { recursive: true });
+  assert.strictEqual(created, '/long');
+  assert.strictEqual(longVfs.existsSync('/long/deep/dir'), true);
+  fs.rmSync(path.join(testDir, 'long'), { recursive: true, force: true });
 }
 
 // unlink
