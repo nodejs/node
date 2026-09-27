@@ -13,11 +13,12 @@ on:
       - android-patches/**
       - benchmarks/**
       - codecov.yml
+      - deps/LIEF/**
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
-      - deps/crates/**
       - deps/corepack/**
+      - deps/crates/**
       - deps/googletest/**
       - deps/histogram/**
       - deps/icu-small/**
@@ -70,11 +71,12 @@ on:
       - android-patches/**
       - benchmarks/**
       - codecov.yml
+      - deps/LIEF/**
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
-      - deps/crates/**
       - deps/corepack/**
+      - deps/crates/**
       - deps/googletest/**
       - deps/histogram/**
       - deps/icu-small/**
