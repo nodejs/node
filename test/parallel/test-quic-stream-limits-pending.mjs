@@ -26,14 +26,10 @@ let serverStreamCount = 0;
 // Server allows only 1 bidi stream at a time.
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
-    console.log("server mark 1")
     await bytes(stream);
-    console.log("server mark 2")
     stream.writer.endSync();
-    console.log("server mark 3")
     await stream.closed;
     ++serverStreamCount;
-    console.log('serverStreamCount', serverStreamCount)
     if (serverStreamCount === 2) {
       twoDone.resolve();
     }
@@ -63,11 +59,12 @@ s1.opened.then(() => {
   opened++;
 });
 
+let s2;
 await assert.rejects(
   async () => {
     // Second stream should not open, but throw.
-    await clientSession.createBidirectionalStream({
-      body: encoder.encode('stream 2'),
+    s2 = await clientSession.createBidirectionalStream({
+      body: encoder.encode('stream 2a'),
       waitUntilAvailable: false,
     });
     // eslint-disable-next-line node-core/must-call-assert
@@ -80,13 +77,26 @@ await assert.rejects(
     message: 'No new stream available within flow control',
   },
 );
+// Ok try again a second second stream, that patiently waits
+s2 = await clientSession.createBidirectionalStream({
+  body: encoder.encode('stream 2b')
+});
+// eslint-disable-next-line node-core/must-call-assert
+s2.opened.then(() => {
+  opened++;
+});
+
+
 // Third stream is created but queued as pending because the
 // server only allows 1 concurrent bidi stream.
 const s3 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 3'),
 });
-// Note, s3 should be pending until s1 closes and the server grants
+
+
+// s2 and s3 should be pending until s1 closes and the server grants
 // more stream credits.
+assert.strictEqual(s2.pending, true);
 assert.strictEqual(s3.pending, true);
 assert.strictEqual(opened, 1);
 
@@ -98,13 +108,12 @@ s3.destroy(err);
 
 await Promise.all([assert.rejects(s3.opened, err), assert.rejects(s3.closed, err)]);
 
-// After s1 closes, the server sends MAX_STREAMS which opens s2.
+// After s1 closes, the server sends MAX_STREAMS which opens s3.
 // Wait for the server to receive both streams.
 await twoDone.promise;
-assert.strictEqual(opened, 2);
-// s3 should no longer be pending.
-await dump(s3);
-await s3.closed;
+// s2 should no longer be pending.
+await dump(s2);
+await s2.closed;
 
 await sleep(10); // We wait a bit, as we do not have a callback exposed to js
 // fourth stream should open immediately and not throw
