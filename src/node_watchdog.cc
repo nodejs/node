@@ -111,9 +111,6 @@ void Watchdog::Timer(uv_timer_t* timer) {
 namespace {
 
 constexpr uint64_t kNanosecondsPerMillisecond = 1000 * 1000;
-// How long the main thread has to respond to the timeout. If it does not, it
-// is most likely blocked in a synchronous native call.
-constexpr uint64_t kProcessTimeoutResponseGraceMs = 2000;
 // How long printing the diagnostics, writing the report and exiting may take.
 constexpr uint64_t kProcessTimeoutExitGraceMs = 5000;
 
@@ -557,7 +554,7 @@ void ProcessTimeoutWatchdog::OnTimeout(Environment* env,
     if (state->report) {
       TriggerNodeReport(env,
                         "Process timed out (--process-timeout)",
-                        "ProcessTimeout",
+                        kProcessTimeoutReportTrigger,
                         "",
                         Local<Value>());
     }
