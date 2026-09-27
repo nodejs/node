@@ -312,6 +312,13 @@ class Parser : public AsyncWrap, public StreamListener {
         current_buffer_data_(nullptr),
         binding_data_(binding_data) {}
 
+  enum InternalFields {
+    kOnHeadersCompleteCallback = AsyncWrap::kInternalFieldCount,
+    kOnBodyCallback,
+    kOnMessageCompleteCallback,
+    kInternalFieldCount
+  };
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Parser)
   SET_SELF_SIZE(Parser)
@@ -441,9 +448,8 @@ class Parser : public AsyncWrap, public StreamListener {
     };
 
     Local<Value> argv[A_MAX];
-    Local<Object> obj = object();
-    Local<Value> cb = obj->Get(env()->context(),
-                               kOnHeadersComplete).ToLocalChecked();
+    Local<Value> cb =
+        CachedCallback(kOnHeadersComplete, kOnHeadersCompleteCallback);
 
     if (!cb->IsFunction())
       return 0;
@@ -520,7 +526,7 @@ class Parser : public AsyncWrap, public StreamListener {
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
 
-    Local<Value> cb = object()->Get(env->context(), kOnBody).ToLocalChecked();
+    Local<Value> cb = CachedCallback(kOnBody, kOnBodyCallback);
 
     if (!cb->IsFunction())
       return 0;
@@ -553,9 +559,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     header_pairs_ = 0;
 
-    Local<Object> obj = object();
-    Local<Value> cb = obj->Get(env()->context(),
-                               kOnMessageComplete).ToLocalChecked();
+    Local<Value> cb =
+        CachedCallback(kOnMessageComplete, kOnMessageCompleteCallback);
 
     if (!cb->IsFunction())
       return 0;
@@ -624,6 +629,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // it needs to be triggered manually.
     parser->EmitTraceEventDestroy();
     parser->EmitDestroy();
+    parser->ClearCachedCallbacks();
   }
 
   // TODO(@anonrig): Add V8 Fast API
@@ -946,6 +952,9 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Value> headers_v[kMaxHeaderFieldsCount * 2];
 
     for (size_t i = 0; i < num_values_; ++i) {
+      // Field names are not internalized: header names are attacker
+      // controlled, so a flood of unique names would grow V8's string table
+      // and pay the interning cost on every request with no dedup benefit.
       headers_v[i * 2] = fields_[i].ToString(env());
       headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
@@ -980,11 +989,32 @@ class Parser : public AsyncWrap, public StreamListener {
     have_flushed_ = true;
   }
 
+  void ClearCachedCallbacks() {
+    Local<Value> undefined = Undefined(env()->isolate());
+    object()->SetInternalField(kOnHeadersCompleteCallback, undefined);
+    object()->SetInternalField(kOnBodyCallback, undefined);
+    object()->SetInternalField(kOnMessageCompleteCallback, undefined);
+  }
+
+  // Keep cached callbacks on the JS object so they do not keep the parser
+  // alive when a callback closes over it.
+  Local<Value> CachedCallback(uint32_t index, int field) {
+    Local<Object> obj = object();
+    Local<Value> cb = obj->GetInternalField(field).As<Value>();
+    if (cb->IsFunction()) return cb;
+
+    cb = obj->Get(env()->context(), index).ToLocalChecked();
+    if (cb->IsFunction()) obj->SetInternalField(field, cb);
+    return cb;
+  }
+
   void Init(llhttp_type_t type,
             uint64_t max_http_header_size,
             uint32_t lenient_flags,
             size_t max_header_pairs) {
     llhttp_init(&parser_, type, &settings);
+
+    ClearCachedCallbacks();
 
     if (lenient_flags & kLenientHeaders) {
       llhttp_set_lenient_headers(&parser_, 1);
