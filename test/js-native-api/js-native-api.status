@@ -1,0 +1,5 @@
+prefix js-native-api
+
+[true]
+# napi_detach_arraybuffer() aborts when given an immutable ArrayBuffer.
+test_typedarray/test-immutable-arraybuffer: FAIL
